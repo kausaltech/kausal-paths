@@ -7,7 +7,6 @@ from django.utils.translation import gettext_lazy as _
 import polars as pl
 
 from common import polars as ppl
-from nodes.actions.action import ActionNode
 from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
@@ -158,7 +157,10 @@ class DatasetNode(AdditiveNode):
 
     def get_gpc_dataset(self, tag: str | None = None) -> ppl.PathsDataFrame:
         df = self.get_filtered_dataset_df(tag=tag)
-        dropcols = ['Sector', 'Quantity', 'UUID', 'FromMeasureDataPoint', 'ObservedDataPoint']
+        measure_data_override = self.get_global_parameter_value('measure_data_override', required=False)
+        dropcols = ['Sector', 'Quantity', 'UUID']
+        if not measure_data_override:
+            dropcols.extend(['FromMeasureDataPoint', 'ObservedDataPoint'])
         for col in dropcols:
             if col in df.columns:
                 df = df.drop(col)
@@ -184,7 +186,16 @@ class DatasetNode(AdditiveNode):
 
     # -----------------------------------------------------------------------------------
     def convert_names_to_ids(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Unit', 'UUID'}
+        exset = {
+            YEAR_COLUMN,
+            VALUE_COLUMN,
+            FORECAST_COLUMN,
+            UNCERTAINTY_COLUMN,
+            'Unit',
+            'UUID',
+            'FromMeasureDataPoint',
+            'ObservedDataPoint',
+        }
 
         # Convert index level names from labels to IDs.
         collookup = {}
@@ -214,7 +225,7 @@ class DatasetNode(AdditiveNode):
         return df
 
     # -----------------------------------------------------------------------------------
-    def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
+    def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list[str]) -> ppl.PathsDataFrame:
         # Drop filter levels and empty dimension levels.
         drops = [d for d in droplist if d in df.columns]
 
@@ -286,7 +297,11 @@ class DatasetNode(AdditiveNode):
             )
         return df
     # -----------------------------------------------------------------------------------
-    def add_and_multiply_input_nodes(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    def add_and_multiply_input_nodes(
+        self,
+        df: ppl.PathsDataFrame,
+        observed_max_year: int | None = None,
+    ) -> ppl.PathsDataFrame:
         # Add and multiply input nodes as tagged.
         na_nodes = self.get_input_nodes(tag='non_additive')
         input_nodes = [node for node in self.input_nodes if node not in na_nodes]
@@ -294,9 +309,12 @@ class DatasetNode(AdditiveNode):
         measure_data_override = self.get_global_parameter_value('measure_data_override', required=False)
         start_from_year: int | None = None
         if measure_data_override:
-            historical_years = df.filter(~pl.col(FORECAST_COLUMN))
-            if len(historical_years) > 0:
-                start_from_year = cast('int', historical_years[YEAR_COLUMN].max()) + 1
+            if observed_max_year is not None:
+                start_from_year = observed_max_year + 1
+            else:
+                historical_years = df.filter(~pl.col(FORECAST_COLUMN))
+                if len(historical_years) > 0:
+                    start_from_year = cast('int', historical_years[YEAR_COLUMN].max()) + 1
         df = self.add_nodes_pl(df, input_nodes, start_from_year=start_from_year)
         if len(na_nodes) > 0:
             assert len(na_nodes) == 1  # Only one multiplier allowed.
@@ -315,11 +333,85 @@ class DatasetNode(AdditiveNode):
                     .then(pl.lit(False))  # noqa: FBT003
                     .otherwise(pl.col(FORECAST_COLUMN))
                     .alias(FORECAST_COLUMN))
-            df = df.paths.join_over_index(mult, how='outer', index_from='union')
+            df = df.paths.multiply_with_dims(mult, how='left')
+        return df
 
-            df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(
-                VALUE_COLUMN + '_right',
-            )  # FIXME Does not treat missing categories well. Use df multiplication instead.
+    def _get_observed_years(
+        self,
+        df: ppl.PathsDataFrame,
+    ) -> ppl.PathsDataFrame | None:
+        flag_col = None
+        if 'ObservedDataPoint' in df.columns:
+            flag_col = 'ObservedDataPoint'
+        elif 'FromMeasureDataPoint' in df.columns:
+            flag_col = 'FromMeasureDataPoint'
+        if flag_col is None:
+            return None
+        meta = df.get_meta()
+        group_cols = list(df.dim_ids)
+        observed = df.filter(pl.col(flag_col))
+        if len(observed) == 0:
+            return None
+        if not group_cols:
+            observed_years = observed.select(
+                pl.col(YEAR_COLUMN).max().alias('LastObservedYear'),
+                pl.col(VALUE_COLUMN)
+                .sort_by(YEAR_COLUMN)
+                .last()
+                .alias(VALUE_COLUMN),
+            )
+        else:
+            observed_years = ppl.to_ppdf(observed.group_by(group_cols).agg(
+                pl.col(YEAR_COLUMN).max().alias('LastObservedYear'),
+                pl.col(VALUE_COLUMN)
+                .sort_by(YEAR_COLUMN)
+                .last()
+                .alias(VALUE_COLUMN),
+            ), meta)
+
+        return observed_years
+
+    def _flatline_from_observed_years(
+        self,
+        df: ppl.PathsDataFrame,
+        observed_years: ppl.PathsDataFrame,
+    ) -> ppl.PathsDataFrame:
+        observed_years = observed_years.ensure_unit(
+            VALUE_COLUMN,
+            df.get_unit(VALUE_COLUMN),
+        )
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))  # noqa: FBT003
+        if observed_years.primary_keys:
+            df = df.paths.join_over_index(observed_years, how='left')
+        else:
+            last_observed_year = cast('int', observed_years['LastObservedYear'][0])
+            last_observed_value = cast('float', observed_years[VALUE_COLUMN][0])
+            df = df.with_columns(
+                [
+                    pl.lit(last_observed_year).alias('LastObservedYear'),
+                    pl.lit(last_observed_value).alias(VALUE_COLUMN + '_right'),
+                ],
+            )
+        last_obs = pl.col('LastObservedYear')
+        last_value = pl.col(VALUE_COLUMN + '_right')
+        # For rows with observed data: flatline from last observed value
+        # For rows without observed data: keep original VALUE_COLUMN (will be extended by forward fill)
+        df = df.with_columns(
+            [
+                pl.when(last_obs.is_not_null() & (pl.col(YEAR_COLUMN) > last_obs))
+                .then(last_value)
+                .otherwise(pl.col(VALUE_COLUMN))
+                .alias(VALUE_COLUMN),
+                pl.when(last_obs.is_not_null() & (pl.col(YEAR_COLUMN) > last_obs))
+                .then(pl.lit(True))  # noqa: FBT003
+                .when(last_obs.is_not_null())
+                .then(pl.lit(False))  # noqa: FBT003
+                .otherwise(pl.col(FORECAST_COLUMN))
+                .alias(FORECAST_COLUMN),
+            ],
+        )
+        df = df.drop(['LastObservedYear', VALUE_COLUMN + '_right'])
         return df
 
     # -----------------------------------------------------------------------------------
@@ -343,19 +435,32 @@ class DatasetNode(AdditiveNode):
         df = self.convert_names_to_ids(df)
         df = self.select_variant(df)
         df = self.implement_unit_col(df)
+        observed_years = self._get_observed_years(df)
+        observed_max_year = None
+        if observed_years is not None:
+            observed_max_year = cast('int', observed_years['LastObservedYear'].max())
+        df = df.drop([col for col in ['FromMeasureDataPoint', 'ObservedDataPoint'] if col in df.columns])
         df = self.add_missing_years(df)
         df = self.crop_to_model_range(df)
 
-        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        if observed_years is None:
+            df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
         # First extend, then truncate because there may be measure observations beyond
         # the last historical year in the dataset.
         if self.get_parameter_value('inventory_only', required=False):
             df = df.filter(~pl.col(FORECAST_COLUMN))
 
         df = self.apply_multiplier(df, required=False, units=True)
-        df = self.add_and_multiply_input_nodes(df)
+        if observed_years is not None:
+            observed_years = self.apply_multiplier(observed_years, required=False, units=True)
+        df = self.add_and_multiply_input_nodes(df, observed_max_year=observed_max_year)
+        if observed_years is not None:
+            df = self._flatline_from_observed_years(df, observed_years)
+            df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+            if self.get_parameter_value('inventory_only', required=False):
+                df = df.filter(~pl.col(FORECAST_COLUMN))
         df = self.maybe_drop_nulls(df)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)  # type: ignore
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
 class DatasetPlusOneNode(DatasetNode):
