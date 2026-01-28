@@ -60,7 +60,7 @@ dependencies = [
   "pint",
   "pint-pandas",
   "polars",
-  "psycopg[pool]",
+  "psycopg[pool,binary]",
   "pycryptodome",
   "pydantic",
   "pydantic-extra-types",
@@ -112,12 +112,12 @@ norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
 filterwarnings = ["ignore::DeprecationWarning:graphene"]
 
 [[tool.uv.index]]
+url = "https://pypi.org/simple"
+
+[[tool.uv.index]]
 name = "kausal"
 url = "https://pypi.kausal.tech/"
 authenticate = "always"
-
-[[tool.uv.index]]
-url = "https://pypi.org/simple"
 
 [tool.ruff]
 extend = './kausal_common/configs/ruff.toml'
@@ -310,7 +310,7 @@ notebook = [
 ]
 prod = [
   "gunicorn[gthread]",
-  "psycopg[c]",
-  "rustface>=0.1.0",
+  "psycopg[c]; sys_platform == 'linux'",
+  "rustface>=0.1.0; sys_platform == 'linux'",
   "uvicorn-worker",
 ]

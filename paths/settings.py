@@ -68,6 +68,8 @@ env = environ.FileAwareEnv(
     REQUEST_LOG_METHODS=(list, ['POST', 'PUT', 'PATCH', 'DELETE']),
     REQUEST_LOG_IGNORE_PATHS=(list, ['/v1/graphql/', '/o/introspect/']),
     PATHS_BACKEND_REGION_URLS=(list, []),
+    GDAL_LIBRARY_PATH=(str, ''),
+    GEOS_LIBRARY_PATH=(str, ''),
     **COMMON_ENV_SCHEMA,
 )
 
@@ -79,6 +81,9 @@ else:
     dotenv_path = BASE_DIR / Path('.env')
     if dotenv_path.exists():
         environ.Env.read_env(dotenv_path)
+
+GDAL_LIBRARY_PATH=env('GDAL_LIBRARY_PATH') or None
+GEOS_LIBRARY_PATH=env('GEOS_LIBRARY_PATH') or None
 
 # Read all files in the directories given in MOUNTED_SECRET_PATHS whose names look like environment variables and use
 # the contents of the files for the corresponding variables
