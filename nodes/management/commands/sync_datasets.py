@@ -26,6 +26,7 @@ class Command(BaseCommand):
         parser.add_argument('file', type=Path, help='JSON file to read from or write to')
         parser.add_argument('--dry-run', '-N', action='store_true', help='Only show the changes that would be made')
         parser.add_argument('--yes', '-y', action='store_true', help='Do not prompt for anything')
+        parser.add_argument('--csv', type=Path, metavar='DIR', help='Export datasets as CSV files to the specified directory')
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -39,10 +40,12 @@ class Command(BaseCommand):
         #    self.stderr.write(self.style.ERROR('Instance identifier is required for the subaction'))
         #    exit(1)
 
+        csv_dir = options.get('csv')
+
         if action == 'import':
             self.import_data(file_path, instance_identifier)
         elif action == 'export':
-            self.export_data(file_path, instance_identifier)
+            self.export_data(file_path, instance_identifier, csv_dir=csv_dir)
 
     def import_data(self, file_path: Path, instance_identifier: str):
         try:
@@ -64,7 +67,7 @@ class Command(BaseCommand):
                 self.stderr.write(self.style.WARNING("Dry run requested; no changes done."))
                 dj.rollback()
 
-    def export_data(self, file_path: Path, instance_identifier: str):
+    def export_data(self, file_path: Path, instance_identifier: str, csv_dir: Path | None = None):
         try:
             ic = InstanceConfig.objects.get(identifier=instance_identifier)
         except InstanceConfig.DoesNotExist:
@@ -82,6 +85,10 @@ class Command(BaseCommand):
 
         dj.save_json(file_path)
         self.stdout.write(self.style.SUCCESS(f"Successfully exported datasets to {file_path}"))
+
+        if csv_dir:
+            dj.export_csv(csv_dir)
+            self.stdout.write(self.style.SUCCESS(f"Successfully exported CSV files to {csv_dir}"))
 
     def export_configs(self, file_path: Path, instance_identifier: str):
         try:
