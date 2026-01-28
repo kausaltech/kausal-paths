@@ -766,9 +766,9 @@ params:
   is_visible: true
   is_customizable: true
 - id: biogenic_inclusion
-  label: Excluded Biogenic emissions
-  label_es-US: Emisiones biogenic excluidas
-  value: true
+  label: Included Biogenic emissions
+  label_es-US: Emisiones biogenic incluidas
+  value: false
   is_visible: true
   is_customizable: true
 
@@ -939,15 +939,6 @@ nodes:
     - id: site
       categories: [platte_river_power_authority]
   - id: global_warming_potential_100a
-  output_nodes:
-  - id: avoided_emissions
-    from_dimensions:
-    - id: asset
-      flatten: true
-    - id: site
-      flatten: true
-    - id: ghg
-      flatten: true
 
 - id: avoided_emissions
   name: Avoided emissions
@@ -955,6 +946,14 @@ nodes:
   quantity: emissions
   unit: t_co2e/a
   input_nodes:
+  - id: green_electricity_emission_reduction
+    from_dimensions:
+    - id: asset
+      flatten: true
+    - id: site
+      flatten: true
+    - id: ghg
+      flatten: true
   - id: informational_composting_emission_reduction
     from_dimensions:
     - id: scope
@@ -1051,14 +1050,52 @@ nodes:
 - id: building_emissions
   name: Building emissions
   name_es-US: Emisiones de edificios
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [scope]
-  output_dimensions: [scope]
-  output_nodes: [stationary_energy_emissions]
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  output_nodes:
+  - id: stationary_energy_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+  input_datasets:
+  - id: longmont/non_biogenic_ghg_emission_index
+    forecast_from: 2025
+    tags: [index]
+  input_nodes:
+  - id: is_biogenic_included
+    tags: [biogenic_inclusion]
+  - id: wood_consumption_emissions
+    tags: [wood]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: emission_sectors
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope1]
+    - id: ghg
+  params:
+    formula: wood * complement(complement(biogenic_inclusion) * complement(extend_all(index)))
 
 - id: is_biogenic_included
+  name: Are biogenic emissions included?
+  type: generic.ConstantNode
+  quantity: fraction
+  unit: dimensionless
+  # input_dimensions: [ghg]
+  # output_dimensions: [ghg]
+  # input_datasets:
+  # - id: longmont/non_biogenic_ghg_emission_index
+  #   forecast_from: 2025
+  params:
+  - id: boolean
+    ref: biogenic_inclusion
+
+- id: is_biogenic_included2
   name: Are biogenic emissions included?
   type: generic.GenericNode
   quantity: fraction
@@ -1068,12 +1105,7 @@ nodes:
   input_datasets:
   - id: longmont/non_biogenic_ghg_emission_index
     forecast_from: 2025
-  params:
-  - id: operations
-    value: get_single_dataset,do_correction
-  - id: do_correction
-    ref: biogenic_inclusion
-
+ 
 - id: building_square_footage_old
   name: Building square footage (old)
   name_es-US: Metros cuadrados del edificio
@@ -1392,13 +1424,12 @@ nodes:
   output_nodes:
   - id: building_emissions
     from_dimensions:
-    - id: ghg
-      flatten: true
     - id: emission_sectors
       flatten: true
     - id: site
       flatten: true
     to_dimensions:
+    - id: ghg
     - id: scope
       categories: [scope2]
 
@@ -1543,11 +1574,10 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
-    - id: ghg
-      flatten: true
     - id: emission_sectors
       flatten: true
     to_dimensions:
+    - id: ghg
     - id: scope
       categories: [scope1]
 
@@ -1605,18 +1635,6 @@ nodes:
   - id: global_warming_potential_100a
     to_dimensions:
     - id: ghg
-  output_nodes:
-  - id: building_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: ghg
-      flatten: true
-    - id: emission_sectors
-      flatten: true
-    to_dimensions:
-    - id: scope
-      categories: [biogenic_emissions] # FIXME
 
 # Losses
 
@@ -2448,7 +2466,7 @@ actions:
           action: updated_building_code
           building_energy_class: existing
       amounts:
-      - {year: 2023, source_amount: -1.0, dest_amounts: [100]}
+      - {year: 2025, source_amount: -1.0, dest_amounts: [100]}
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
@@ -2488,8 +2506,8 @@ actions:
           action: develop_beyond_building_code
           building_energy_class: new
       amounts:
-      - {year: 2023, source_amount: -90.0, dest_amounts: [100]}
-      - {year: 2024, source_amount: -0.0, dest_amounts: [100]}
+      - {year: 2025, source_amount: -90.0, dest_amounts: [100]}
+      - {year: 2026, source_amount: -0.0, dest_amounts: [100]}
 
 - id: benchmark_energy_use
   name: Report and benchmark energy use in commercial buildings
@@ -2529,8 +2547,8 @@ actions:
           action: benchmark_energy_use
           emission_sectors: commercial_industrial_energy
       amounts:
-      - {year: 2023, source_amount: -88.0, dest_amounts: [100]}
-      - {year: 2024, source_amount: -0.0, dest_amounts: [100]}
+      - {year: 2025, source_amount: -88.0, dest_amounts: [100]}
+      - {year: 2026, source_amount: -0.0, dest_amounts: [100]}
 
 - id: efficiency_works_program
   name: Expand the Efficiency Works Program
