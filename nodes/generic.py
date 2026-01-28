@@ -1899,11 +1899,16 @@ class ConstantNode(GenericNode):
     allowed_parameters = [
         *GenericNode.allowed_parameters,
         NumberParameter('constant', label=_('Constant value')),
+        BoolParameter('boolean', label=_('Boolean parameter to convert to float')),
     ]
     DEFAULT_OPERATIONS = 'constant,add'
 
     def _operation_constant(self, df: ppl.PathsDataFrame | None, baskets: BasketsDict) -> OperationReturn:
-        constant = self.get_parameter_value_float('constant', required=True, units=True)
+        constant = self.get_parameter_value('constant', required=False, units=True)
+        if constant is None:
+            const_bool = self.get_typed_parameter_value('boolean', bool, required=True)
+            const_float = 1.0 if const_bool else 0.0
+            constant = const_float * Quantity(1.0, 'dimensionless')
         if df is not None:
             raise NodeError(self, "Operation 'constant' must be the first of the operations.")
         start_year = self.context.instance.minimum_historical_year
