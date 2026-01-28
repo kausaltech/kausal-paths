@@ -48,9 +48,11 @@ class PathsExt:
             'drop_infs': self._drop_infs,
             'drop_nans': self._drop_nans,
             'drop_unnecessary_levels': self._drop_unnecessary_levels,
+            'drop_zeros': self._drop_zeros,
             'empty_to_zero': self._empty_to_zero,
             'exp': self._exponential,
             'expectation': self._expectation,
+            'extend_all': self._extend_all,
             'extend_both_ways': self._extend_both_ways,
             'extend_forecast_values': self._extend_forecast_values,
             'extend_to_history': self._extend_to_history,
@@ -61,6 +63,7 @@ class PathsExt:
             'ignore_content': self._ignore_content,
             'indifferent_history_ratio': self._indifferent_history_ratio,
             'inventory_only': self._inventory_only,
+            'linear_interpolate': self._linear_interpolate,
             'log': self._logarithmic,
             'make_nonnegative': self._make_nonnegative,
             'make_nonpositive': self._make_nonpositive,
@@ -783,6 +786,11 @@ class PathsExt:
         df = df.drop(null_cols)
         return df
 
+    def _drop_zeros(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
+        """Drop zero value cells in long format."""
+        assert isinstance(df, ppl.PathsDataFrame)
+        return df.filter(pl.col(VALUE_COLUMN) != 0.0)
+
     def _empty_to_zero(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.with_columns(
             pl.when(pl.col(VALUE_COLUMN).is_nan())
@@ -806,6 +814,12 @@ class PathsExt:
             dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
             df = ppl.to_ppdf(dfp, meta)
         return df
+
+    def _extend_all(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        out = self._linear_interpolate(df, context)
+        out = self._extend_to_history(out, context)
+        out = self._extend_forecast_values(out, context)
+        return self._bring_to_maximum_historical_year(out, context)
 
     def _extend_both_ways(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         out = self._extend_to_history(df, context)
@@ -875,6 +889,29 @@ class PathsExt:
             .alias(FORECAST_COLUMN),
         )
         return df.filter(~pl.col(FORECAST_COLUMN))
+
+    # Copied from nodes.datasets.py
+    def _linear_interpolate(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
+        if YEAR_COLUMN not in df.columns:
+            raise ValueError(
+                f"'{YEAR_COLUMN}' does not exist in dataset '{self.id}'. Available columns: {', '.join(df.columns)}."
+            )
+        years = df[YEAR_COLUMN].unique().sort()
+        min_year = years.min()
+        assert isinstance(min_year, int)
+        max_year = years.max()
+        assert isinstance(max_year, int)
+        df = df.paths.to_wide()
+        years_df = pl.DataFrame(data=range(min_year, max_year + 1), schema=[YEAR_COLUMN])
+        meta = df.get_meta()
+        zdf = years_df.join(df, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
+        df = ppl.to_ppdf(zdf, meta=meta)
+        cols = [pl.col(col).interpolate() for col in df.metric_cols]
+        if FORECAST_COLUMN in df.columns:
+            cols.append(pl.col(FORECAST_COLUMN).fill_null(strategy='forward'))
+        df = df.with_columns(cols)
+        df = df.paths.to_narrow()
+        return df
 
     def _logarithmic(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
