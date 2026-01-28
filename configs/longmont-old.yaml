@@ -868,7 +868,7 @@ nodes:
   color: '#5D9C6F'
   params:
   - id: operations
-    value: apply_multiplier
+    value: get_single_dataset,apply_multiplier
   - id: multiplier
     value: 1
     unit: t_co2e/t
@@ -896,7 +896,7 @@ nodes:
       categories: [co2e]
   params:
   - id: operations
-    value: apply_multiplier
+    value: get_single_dataset,apply_multiplier
   - id: multiplier
     value: 1
     unit: t_co2e/t
@@ -1030,7 +1030,7 @@ nodes:
     column: ratio
   params:
   - id: operations
-    value: do_correction
+    value: get_single_dataset,do_correction
   - id: do_correction
     ref: weather_correction
 
@@ -1086,7 +1086,7 @@ nodes:
     column: ratio
   params:
   - id: operations
-    value: do_correction,complement
+    value: get_single_dataset,do_correction,complement
   - id: do_correction
     ref: biogenic_inclusion
   output_nodes: [building_emissions]

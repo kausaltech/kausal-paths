@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from nodes.context import Context
 
 TAG_TO_BASKET = {
-    'additive': 'add', # FIXME Values should be translatable because they are used in explanations
+    'additive': 'add',
     'add_from_incoming_dims': 'add_from_incoming_dims',
     'add_to_existing_dims': 'add_to_existing_dims',
     'base': 'other',
@@ -33,7 +33,7 @@ TAG_TO_BASKET = {
     'use_as_totals': 'use_as_totals',
 }
 
-BASKET_DISPLAY_NAMES = {
+BASKET_DISPLAY_NAMES = { # FIXME We may not need explicit basket names.
     'add': _('addition'),
     'add_from_incoming_dims': _('addition from incoming dimensions'),
     'add_to_existing_dims': _('addition to existing dimensions'),
