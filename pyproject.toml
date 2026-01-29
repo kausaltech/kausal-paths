@@ -310,7 +310,6 @@ notebook = [
 ]
 prod = [
   "gunicorn[gthread]",
-  "psycopg[c]; sys_platform == 'linux'",
   "rustface>=0.1.0; sys_platform == 'linux'",
   "uvicorn-worker",
 ]
