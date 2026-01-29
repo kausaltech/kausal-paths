@@ -26,7 +26,7 @@ target_year: 2050
 model_end_year: 2050
 reference_year: 2016
 minimum_historical_year: 2016
-maximum_historical_year: 2021
+maximum_historical_year: 2024
 emission_unit: t/a
 emission_dimensions: [emission_scope]
 normalizations:
@@ -1591,7 +1591,7 @@ nodes:
   unit: MMBtu/a
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
-  - longmont/stationary_wood_consumption
+  - id: longmont/stationary_wood_consumption
   input_dimensions: [emission_sectors]
   output_dimensions: [energy_carrier, emission_sectors]
 
