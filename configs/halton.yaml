@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://halton.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ec87b6b9a8cf95c8cf41313faca779a88eb9e230
+  commit: aad7bc1baa0fc0f9e693eeab37263edaa242241c
   dvc_remote: kausal-s3
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
@@ -22,8 +22,11 @@ features:
   use_datasets_from_db: true
 
 action_groups:
-- id: purchased_electricity
-  name: Purchased Electricity
+- id: system_retrofits
+  name: System Retrofits
+  color: '#B07AA1'
+- id: renewable_energy_production
+  name: Renewable Energy Production
   color: '#F28E2B'
 
 dimensions:
@@ -1078,6 +1081,32 @@ dimensions:
   - id: scope3
     label: Scope 3
 
+- id: action
+  label: Action
+  categories:
+  - id: cs_system_1
+    label: CS System 1 (Heating and Cooling)
+  - id: cs_system_2
+    label: CS System 2 (Air Distribution System)
+  - id: cs_system_3
+    label: CS System 3 (Domestic Hot Water Heaters)
+  - id: cs_system_4
+    label: CS System 4 (Electric Heaters for Radiant Gas)
+  - id: ems_system_1
+    label: EMS System 1 (Heating and Cooling)
+  - id: ems_system_2
+    label: EMS System 2 (Air Distribution System)
+  - id: ems_system_3
+    label: EMS System 3 (Domestic Hot Water Heaters)
+  - id: ems_system_4
+    label: EMS System 4 (Electric Heaters for Radiant Gas)
+  - id: hchc_system_1
+    label: HCHC System 1 (Heating and Cooling)
+  - id: hchc_system_2
+    label: HCHC System 2 (Air Distribution System)
+  - id: hchc_system_3
+    label: HCHC System 3 (Domestic Hot Water Heaters)
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
@@ -1514,8 +1543,8 @@ nodes:
 
 # ---------- HCHC
 
-- id: hchc_stationary_fuel_combustion
-  name: HCHC Stationary Fuel Combustion
+- id: hchc_stationary_fuel_combustion_inventory
+  name: HCHC Stationary Fuel Combustion (Inventory)
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: m³/a
@@ -1529,6 +1558,58 @@ nodes:
     - dimension: department
       categories: [halton_community_housing_corporation_hchc]
     - column: asset_class
+
+- id: hchc_stationary_fuel_combustion_retrofit_reduction
+  name: HCHC Stationary Fuel Combustion (System Retrofit Reduction)
+  type: formula.FormulaNode
+  quantity: fuel_consumption
+  unit: m³/a
+  input_dimensions: [action, property, asset, energy_carrier, department, scope]
+  output_dimensions: [action, property, asset, energy_carrier, department, scope]
+  params:
+    formula: (system_1_retrofits + system_2_retrofits + system_3_retrofits) * inventory
+  input_nodes:
+  - id: hchc_stationary_fuel_combustion_inventory
+    tags: [inventory]
+    to_dimensions:
+    - id: property
+    - id: asset
+    - id: energy_carrier
+    - id: department
+    - id: scope
+  - id: hchc_system_1_retrofits
+    tags: [system_1_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+  - id: hchc_system_2_retrofits
+    tags: [system_2_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+  - id: hchc_system_3_retrofits
+    tags: [system_3_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+
+- id: hchc_stationary_fuel_combustion
+  name: HCHC Stationary Fuel Combustion
+  type: formula.FormulaNode
+  quantity: fuel_consumption
+  unit: m³/a
+  input_dimensions: [property, asset, energy_carrier, department, scope]
+  output_dimensions: [property, asset, energy_carrier, department, scope]
+  params:
+    formula: inventory + reduction
+  input_nodes:
+  - id: hchc_stationary_fuel_combustion_inventory
+    tags: [inventory]
+  - id: hchc_stationary_fuel_combustion_retrofit_reduction
+    tags: [reduction]
+    from_dimensions:
+    - id: action
+      flatten: true
 
 - id: brant_court_stationary_combustion_emissions
   name: Brant Court Stationary Combustion Emissions
@@ -2323,6 +2404,58 @@ nodes:
       categories: [halton_community_housing_corporation_hchc]
     - column: asset_class
 
+- id: hchc_purchased_electricity_retrofit_reduction
+  name: HCHC Purchased Electricity (System Retrofit Reduction)
+  type: formula.FormulaNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [action, property, asset, energy_carrier, department, scope]
+  output_dimensions: [action, property, asset, energy_carrier, department, scope]
+  params:
+    formula: (system_1_retrofits + system_2_retrofits + system_3_retrofits) * inventory
+  input_nodes:
+  - id: hchc_purchased_electricity_inventory
+    tags: [inventory]
+    to_dimensions:
+    - id: property
+    - id: asset
+    - id: energy_carrier
+    - id: department
+    - id: scope
+  - id: hchc_system_1_retrofits
+    tags: [system_1_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: hchc_system_2_retrofits
+    tags: [system_2_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: hchc_system_3_retrofits
+    tags: [system_3_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: hchc_purchased_electricity_retrofitted
+  name: HCHC Purchased Electricity (Retrofitted)
+  type: formula.FormulaNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [property, asset, energy_carrier, department, scope]
+  output_dimensions: [property, asset, energy_carrier, department, scope]
+  params:
+    formula: inventory + reduction
+  input_nodes:
+  - id: hchc_purchased_electricity_inventory
+    tags: [inventory]
+  - id: hchc_purchased_electricity_retrofit_reduction
+    tags: [reduction]
+    from_dimensions:
+    - id: action
+      flatten: true
+
 - id: hchc_purchased_electricity_mix
   name: HCHC Purchased Electricity (Mix)
   type: simple.MixNode
@@ -2331,11 +2464,11 @@ nodes:
   input_dimensions: [property, asset, energy_carrier, department, scope]
   output_dimensions: [property, asset, energy_carrier, department, scope]
   input_nodes:
-  - id: hchc_purchased_electricity_inventory
+  - id: hchc_purchased_electricity_retrofitted
     tags: [activity]
 
-- id: hchc_purchased_electricity_reduction
-  name: HCHC Purchased Electricity (Reduction)
+- id: hchc_purchased_electricity_renewables_reduction
+  name: HCHC Purchased Electricity (Renewables Reduction)
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -2348,14 +2481,18 @@ nodes:
 
 - id: hchc_purchased_electricity
   name: HCHC Purchased Electricity
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [property, asset, energy_carrier, department, scope]
   output_dimensions: [property, asset, energy_carrier, department, scope]
+  params:
+    formula: retrofitted + reduction
   input_nodes:
-  - id: hchc_purchased_electricity_inventory
-  - id: hchc_purchased_electricity_reduction
+  - id: hchc_purchased_electricity_retrofitted
+    tags: [retrofitted]
+  - id: hchc_purchased_electricity_renewables_reduction
+    tags: [reduction]
 
 - id: brant_court_electricity_emissions
   name: Brant Court Electricity Emissions
@@ -3190,10 +3327,58 @@ nodes:
     forecast_from: 2025
 
 actions:
+- id: hchc_system_1_retrofits
+  name: HCHC System 1 Retrofits (Heating and Cooling)
+  type: simple.AdditiveAction
+  group: system_retrofits
+  unit: '%'
+  quantity: fraction
+  input_dimensions: [property, asset, energy_carrier, department, scope, action]
+  output_dimensions: [property, asset, energy_carrier, department, scope, action]
+  input_datasets:
+  - id: halton/hchc_system_retrofit_actions
+    column: reduction
+    forecast_from: 2025
+    filters:
+    - dimension: action
+      categories: [hchc_system_1]
+
+- id: hchc_system_2_retrofits
+  name: HCHC System 2 Retrofits (Air Distribution)
+  type: simple.AdditiveAction
+  group: system_retrofits
+  unit: '%'
+  quantity: fraction
+  input_dimensions: [property, asset, energy_carrier, department, scope, action]
+  output_dimensions: [property, asset, energy_carrier, department, scope, action]
+  input_datasets:
+  - id: halton/hchc_system_retrofit_actions
+    column: reduction
+    forecast_from: 2025
+    filters:
+    - dimension: action
+      categories: [hchc_system_2]
+
+- id: hchc_system_3_retrofits
+  name: HCHC System 3 Retrofits (Domestic Hot Water)
+  type: simple.AdditiveAction
+  group: system_retrofits
+  unit: '%'
+  quantity: fraction
+  input_dimensions: [property, asset, energy_carrier, department, scope, action]
+  output_dimensions: [property, asset, energy_carrier, department, scope, action]
+  input_datasets:
+  - id: halton/hchc_system_retrofit_actions
+    column: reduction
+    forecast_from: 2025
+    filters:
+    - dimension: action
+      categories: [hchc_system_3]
+
 - id: cs_renewable_energy_production
   name: Corporate Services Renewable Energy Production
   type: simple.ParameterAction
-  group: purchased_electricity
+  group: renewable_energy_production
   unit: GWh/a
   quantity: energy
   input_dimensions: []
@@ -3213,7 +3398,7 @@ actions:
 - id: pw_renewable_energy_production
   name: Public Works Renewable Energy Production
   type: simple.ParameterAction
-  group: purchased_electricity
+  group: renewable_energy_production
   unit: GWh/a
   quantity: energy
   input_dimensions: []
@@ -3233,7 +3418,7 @@ actions:
 - id: ems_renewable_energy_production
   name: EMS Renewable Energy Production
   type: simple.ParameterAction
-  group: purchased_electricity
+  group: renewable_energy_production
   unit: GWh/a
   quantity: energy
   input_dimensions: []
@@ -3253,7 +3438,7 @@ actions:
 - id: hchc_renewable_energy_production
   name: HCHC Renewable Energy Production
   type: simple.ParameterAction
-  group: purchased_electricity
+  group: renewable_energy_production
   unit: GWh/a
   quantity: energy
   input_dimensions: []
