@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.contrib.contenttypes.models import ContentType
 from rest_framework.test import APIClient
 
 import pytest
@@ -27,7 +28,7 @@ def api_client():
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(('user_key', 'has_access', 'expected_schemas'), [
-    pytest.param('superuser', True, {'Schema 1', 'Schema 2', 'Schema 3', 'Unused schema'}, id='superuser'),
+    pytest.param('superuser', True, {'Schema 1', 'Schema 2', 'Schema 3', 'Unused schema', 'Unused schema 2'}, id='superuser'),
     pytest.param('super_admin_user', True, {'Schema 1', 'Unused schema'}, id='super_admin_user'),
     pytest.param('admin_user', True, {'Schema 1', 'Unused schema'}, id='admin_user'),
     pytest.param('reviewer_user', True, {'Schema 1', 'Unused schema'}, id='reviewer_user'),
@@ -451,16 +452,18 @@ def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed)
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
 
+    # Use unused schemas which have scopes but no existing datasets
     if user_key in ['admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user']:
-        schema = dataset_test_data['schema1']
+        schema = dataset_test_data['unused_schema']
         instance = dataset_test_data['instance1']
     else:
-        schema = dataset_test_data['schema2']
+        schema = dataset_test_data['unused_schema2']
         instance = dataset_test_data['instance2']
 
+    content_type = ContentType.objects.get(app_label='nodes', model='instanceconfig')
     create_data = {
         'schema': str(schema.uuid),
-        'scope_content_type': 'nodes.instanceconfig',
+        'scope_content_type_id': content_type.pk,
         'scope_id': instance.id,
     }
 

@@ -100,6 +100,9 @@ def dataset_test_data(django_db_setup, django_db_blocker):
     unused_schema = DatasetSchema.objects.create(
         name='Unused schema'
     )
+    unused_schema2 = DatasetSchema.objects.create(
+        name='Unused schema 2'
+    )
 
     content_type = ContentType.objects.get_for_model(InstanceConfig)
     DatasetSchemaScope.objects.create(
@@ -111,6 +114,11 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         schema=unused_schema,
         scope_content_type=content_type,
         scope_id=instance1.pk,
+    )
+    DatasetSchemaScope.objects.create(
+        schema=unused_schema2,
+        scope_content_type=content_type,
+        scope_id=instance2.pk,
     )
     DatasetSchemaScope.objects.create(
         schema=schema2,
@@ -321,6 +329,7 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         'dataset2': dataset2,
         'dataset3': dataset3,
         'unused_schema': unused_schema,
+        'unused_schema2': unused_schema2,
         'metric1': metric1,
         'metric2': metric2,
         'metric3': metric3,
