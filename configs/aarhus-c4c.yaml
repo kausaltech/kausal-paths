@@ -14,7 +14,7 @@ model_end_year: 2035
 reference_year: 1990
 minimum_historical_year: 2018
 maximum_historical_year: 2023
-emission_unit: kt/a
+emission_unit: t/a
 emission_forecast_from: 2024
 emission_dimensions: [ghg]
 features:
@@ -28,7 +28,7 @@ impact_overviews:
   indicator_unit: DKK/t
   cost_unit: DKK
   effect_unit: t
-  plot_limit_for_indicator: 1000000
+  plot_limit_for_indicator: 10000
   label: Cost Efficiency
 
 action_groups:
@@ -384,7 +384,7 @@ nodes:
   color: '#4E79A7'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
@@ -426,7 +426,7 @@ nodes:
   short_name: District Heat Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg, sector]
   output_dimensions: [energy_carrier, ghg, sector]
   input_nodes:
@@ -461,7 +461,7 @@ nodes:
   short_name: Electricity Generation Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg, sector]
   output_dimensions: [energy_carrier, ghg, sector]
   input_nodes:
@@ -510,7 +510,7 @@ nodes:
   name: Combined Heat & Power (CHP) Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, energy_carrier, ghg]
   output_dimensions: [sector, energy_carrier, ghg]
   input_datasets:
@@ -594,7 +594,7 @@ nodes:
   name: Electricity Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
@@ -629,7 +629,7 @@ nodes:
   name: Manufacturing Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   params:
@@ -667,7 +667,7 @@ nodes:
   short_name: Heating Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
@@ -685,7 +685,7 @@ nodes:
   short_name: Consumption Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
@@ -702,7 +702,7 @@ nodes:
   name: Other Energy Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
@@ -716,7 +716,7 @@ nodes:
   short_name: Agriculture Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
@@ -732,7 +732,7 @@ nodes:
   short_name: Forestry Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
@@ -748,7 +748,7 @@ nodes:
   short_name: Commercial & Institutional Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
@@ -764,7 +764,7 @@ nodes:
   short_name: Residential Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
@@ -780,7 +780,7 @@ nodes:
   short_name: Construction & Civil Engineering Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
@@ -796,7 +796,7 @@ nodes:
   short_name: Fishing Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
@@ -811,7 +811,7 @@ nodes:
   name: Non-Road Energy Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
@@ -902,7 +902,7 @@ nodes:
   color: '#E15759'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
@@ -924,7 +924,7 @@ nodes:
   name: On-Road Transport Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
@@ -991,7 +991,7 @@ nodes:
   short_name: Bus Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, owner, vehicle_type, ghg]
   output_dimensions: [energy_carrier, owner, vehicle_type, ghg]
   params:
@@ -1097,7 +1097,7 @@ nodes:
   short_name: Passenger Car Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
@@ -1178,7 +1178,7 @@ nodes:
   short_name: Truck Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
@@ -1231,7 +1231,7 @@ nodes:
   short_name: Van Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
@@ -1299,7 +1299,7 @@ nodes:
   short_name: Bicycle, Moped & Motorcycle Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   params:
@@ -1395,7 +1395,7 @@ nodes:
   short_name: Regional Train Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
@@ -1416,7 +1416,7 @@ nodes:
   short_name: Inter-city Train Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
@@ -1437,7 +1437,7 @@ nodes:
   short_name: High-speed Train Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
@@ -1458,7 +1458,7 @@ nodes:
   short_name: Local Train Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
@@ -1479,7 +1479,7 @@ nodes:
   short_name: Light Rail Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
@@ -1499,7 +1499,7 @@ nodes:
   name: Rail Transport Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_datasets:
@@ -1538,7 +1538,7 @@ nodes:
   name: Waterborne Transport Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
@@ -1587,7 +1587,7 @@ nodes:
   name: Aviation Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
@@ -1617,7 +1617,7 @@ nodes:
   color: '#59A14F'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_datasets:
@@ -1638,7 +1638,7 @@ nodes:
   color: '#F28E2B'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_datasets:
@@ -1659,7 +1659,7 @@ nodes:
   color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_nodes:
@@ -1708,7 +1708,7 @@ nodes:
   name: Cultivation Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   params:
@@ -1736,7 +1736,7 @@ nodes:
   short_name: Cultivation Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   params:
@@ -1764,7 +1764,7 @@ nodes:
   short_name: Permanent Grass Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   params:
@@ -1792,7 +1792,7 @@ nodes:
   short_name: Nature Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_nodes:
@@ -1808,7 +1808,7 @@ nodes:
   name: Organic Soils Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_nodes:
@@ -1820,7 +1820,7 @@ nodes:
   name: Forestry Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_nodes:
@@ -1836,7 +1836,7 @@ nodes:
   name: Land Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_nodes:
@@ -1879,7 +1879,7 @@ nodes:
   name: Livestock Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [sector, emission_source, ghg]
   output_dimensions: [sector, emission_source, ghg]
   params:
