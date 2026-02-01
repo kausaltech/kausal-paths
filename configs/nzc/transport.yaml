@@ -611,20 +611,38 @@ nodes:
 - id: passenger_kilometres_observed
   name_en: Passenger kilometres, observed
   name_fi: Henkilökilometrit, havaitut
-  type: gpc.DatasetNode
+  type: formula.FormulaNode
   quantity: mileage
   unit: Mpkm/a
   color: '#ff69b4'
-  input_datasets:
-  - id: nzc/defaults
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+    tags: [observed, prepare_gpc_dataset, framework_measure_data]
+    filters:
+    - column: Sector
+      value: Transport need
+      drop_col: false
   input_nodes:
   - id: passenger_kilometres
-    tags: [forecast_only]
+    tags: [modeled]
+  - id: measure_data_override
+    tags: [use_obs]
+    to_dimensions: []
   params:
-    sector: Transport need
-    inventory_only: true
+  - id: formula
+    value: observed_only_extend_all(observed) * use_obs + modeled * complement(use_obs)
+
+- id: measure_data_override
+  name_en: Measure data override
+  name_fi: Havaintoarvon korvaaminen
+  type: generic.ConstantNode
+  quantity: fraction
+  unit: dimensionless
+  params:
+  - id: boolean
+    ref: measure_data_override
 
 - id: motorised_transport_index
   name_en: Motorised transport index

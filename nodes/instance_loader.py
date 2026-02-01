@@ -472,13 +472,18 @@ class InstanceLoader:
             if issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode):
                 ds_obj = GenericDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
 
+            use_framework_ds = 'framework_measure_data' in tags
             if self.fw_config is not None:
                 from nodes.gpc import DatasetNode
 
-                if issubclass(node_class, DatasetNode):
+                if issubclass(node_class, DatasetNode) or use_framework_ds:
                     from frameworks.datasets import FrameworkMeasureDVCDataset
 
                     ds_obj = FrameworkMeasureDVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+            elif use_framework_ds:
+                from frameworks.datasets import FrameworkMeasureDVCDataset
+
+                ds_obj = FrameworkMeasureDVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
             elif self.instance.features.use_datasets_from_db:
                 ds_db_obj = self.db_datasets.get(ds_id)
                 if ds_db_obj is not None:
