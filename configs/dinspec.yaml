@@ -31,9 +31,6 @@ include:
 - file: modules/dinspec/car_to_bike_shift.yaml
   node_group: Transport
   allow_override: true
-- file: modules/dinspec/congestion_charge.yaml
-  node_group: Congestion charge
-  allow_override: true
 
 action_groups:
 - id: stationary

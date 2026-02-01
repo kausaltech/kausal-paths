@@ -1,3 +1,7 @@
+# Data for the old congestion charge model built in dinspec.yaml:
+# https://docs.google.com/spreadsheets/d/12_McEL0wQWS0G-0zBYEfnPOBdkdpRd31__qwpqYZ0ZE/edit?gid=0#gid=0
+# Datasets stored in DVC sunnydale/congestion_charge
+
 dimensions:
 
 - id: stakeholder
@@ -20,7 +24,14 @@ dimensions:
 actions:
 - id: congestion_charge
   name: "Congestion Charge Price"
-  description: "Price charged per vehicle trip in the congestion zone"
+  description: Price charged per vehicle trip in the congestion zone.
+    This policy is about setting a congestion charge in the city center
+    to reduce car driving. This policy has been extensively studied and it is known
+    to be effective with fairly small social costs. However, it does affect disproportionally
+    those poor people who have to move with an own car. Therefore, this policy includes
+    the redistribution of the tax money back to citizens with an equal per-capitta
+    amount. This overcompensates losses to poor people, because they typically spend
+    less money on driving in absolute terms.
   type: simple.GenericAction
   quantity: price
   unit: EUR/vehicle
