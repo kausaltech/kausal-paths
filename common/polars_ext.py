@@ -794,58 +794,6 @@ class PathsExt:
         assert isinstance(df, ppl.PathsDataFrame)
         return df.filter(pl.col(VALUE_COLUMN) != 0.0)
 
-    def _prepare_gpc_dataset(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
-        from nodes.datasets import GenericDataset
-
-        drop_cols = [col for col in ['Description', 'Quantity'] if col in df.columns]
-        for col in list(set(df.columns) - set(drop_cols)):
-            vals = df[col].unique().to_list()
-            if vals in [['.'], [None]]:
-                drop_cols.append(col)
-        if drop_cols:
-            df = df.drop(drop_cols)
-
-        exset = {
-            YEAR_COLUMN,
-            VALUE_COLUMN,
-            FORECAST_COLUMN,
-            UNCERTAINTY_COLUMN,
-            'Unit',
-            'UUID',
-            'Sector',
-        }
-        for col in list(set(df.columns) - exset):
-            df = df.rename({col: col.lower().translate(GenericDataset.characterlookup)})
-
-        for col in list(set(df.columns) - exset):
-            catlookup = {}
-            for cat in df[col].unique():
-                catlookup[cat] = str(cat).lower().translate(GenericDataset.characterlookup)
-            # df = df.with_columns(df[col].replace(catlookup))
-            if col in context.dimensions:
-                df = df.with_columns(context.dimensions[col].series_to_ids_pl(df[col]))
-        return df
-
-    def _observed_only_extend_all(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
-        if 'ObservedDataPoint' not in df.columns:
-            logger.warning("ObservedDataPoint column not found. Are you sure you want to use tag observed_only_extend_all?")
-            return df
-
-        df = df.filter(pl.col('ObservedDataPoint'))
-        obs_years = df[YEAR_COLUMN].unique().to_list()
-        drop_cols = [col for col in ['FromMeasureDataPoint', 'ObservedDataPoint'] if col in df.columns]
-        if drop_cols:
-            df = df.drop(drop_cols)
-        df = self._extend_all(df, context)
-        is_forecast = False
-        df = df.with_columns(
-            pl.when(pl.col(YEAR_COLUMN).is_in(obs_years))
-            .then(pl.lit(is_forecast))
-            .otherwise(pl.col(FORECAST_COLUMN))
-            .alias(FORECAST_COLUMN)
-        )
-        return df
-
     def _empty_to_zero(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.with_columns(
             pl.when(pl.col(VALUE_COLUMN).is_nan())
@@ -977,6 +925,85 @@ class PathsExt:
 
     def _make_nonpositive(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
+
+    def _observed_only_extend_all(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        if 'ObservedDataPoint' not in df.columns:
+            logger.warning("ObservedDataPoint column not found. Are you sure you want to use tag observed_only_extend_all?")
+            return df
+
+        is_forecast = False
+        df = (df.filter(pl.col('ObservedDataPoint'))
+            .with_columns(pl.lit(is_forecast).alias(FORECAST_COLUMN)))
+        drop_cols = [col for col in ['FromMeasureDataPoint', 'ObservedDataPoint'] if col in df.columns]
+        if drop_cols:
+            df = df.drop(drop_cols)
+        df = self._extend_all(df, context)
+        return df
+
+    def _prepare_gpc_dataset(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        """
+        Prepare datasets for taking in measured observations.
+
+        - instance_loader:
+        - Uses FrameworkMeasureDVCDataset if either
+            - has fw_config and is DatasetNode or
+            - dataset has tag framework_measure_data
+        - otherwise uses normal DVCDataset etc.
+
+        - _prepare_gpc_dataset:
+        - does many of dataset processes needed for GPC-style datasets
+        - only done for non-DatasetNodes
+        - if needed, must have tag prepare_gpc_dataset
+
+        - FrameworkMeasureDVCDataset:
+        - Checks for alternative data sources in priority of a) the user, b) city-group averages, c) model defaults.
+        - Assumes GPC-style dataframe, which makes its use problematic (e.g. assumes separate Unit column rather than
+          unit in meta).
+        - In the future, this should be updated to use standard PathsDataFrame.
+        - In the output, there are two columns (FromMeasureDataPoint, ObservedDataPoint) that tell about the origin of
+          each data point. These columns can be used to filter a specific type of data from the dataframe.
+
+        - _observed_only_extend_all:
+        - Filters only the data points from ObservedDataPoint, i.e. data from the user.
+        - Then interpolates and extends to both directions to have data for full time span.
+        - This is used by FormulaNode (or any other node class that receives a dataset with that column).
+        - Is clearer approach than the DatasetNode approach (see below) because it explicitly shows the result.
+
+        - DatasetNode:
+        - Has a complicated way of replacing modelled values with observed values.
+        - Is a mixture of using historical values and forecast values and strange conditions for replacing.
+        - We should get rid of this.
+        """
+        from nodes.datasets import GenericDataset
+
+        drop_cols = [col for col in ['Description', 'Quantity'] if col in df.columns]
+        for col in list(set(df.columns) - set(drop_cols)):
+            vals = df[col].unique().to_list()
+            if vals in [['.'], [None]]:
+                drop_cols.append(col)
+        if drop_cols:
+            df = df.drop(drop_cols)
+
+        exset = {
+            YEAR_COLUMN,
+            VALUE_COLUMN,
+            FORECAST_COLUMN,
+            UNCERTAINTY_COLUMN,
+            'Unit',
+            'UUID',
+            'Sector',
+        }
+        for col in list(set(df.columns) - exset):
+            df = df.rename({col: col.lower().translate(GenericDataset.characterlookup)})
+
+        for col in list(set(df.columns) - exset):
+            catlookup = {}
+            for cat in df[col].unique():
+                catlookup[cat] = str(cat).lower().translate(GenericDataset.characterlookup)
+            # df = df.with_columns(df[col].replace(catlookup))
+            if col in context.dimensions:
+                df = df.with_columns(context.dimensions[col].series_to_ids_pl(df[col]))
+        return df
 
     def _ratio_to_last_historical_value(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())

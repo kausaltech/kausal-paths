@@ -86,6 +86,8 @@ TAG_DESCRIPTIONS = {
     'make_nonnegative': _('Negative result values are replaced with 0.'),
     'make_nonpositive': _('Positive result values are replaced with 0.'),
     'non_additive': _('Input node values are not added but operated despite matching units.'),
+    'observed_only_extend_all': _('Extend the observed data only based on the observed data points.'),
+    'prepare_gpc_dataset': _('Prepare a GPC-styledataset for use.'),
     'primary': _('Use data as primary values even if a secondary value exists.'),
     'ratio_to_last_historical_value': _('Take the ratio of the values compared with the last historical value.'),
     'removing': _('This is the rate of stock removal.'),
