@@ -689,6 +689,146 @@ nodes:
   output_nodes:
   - id: emission_reductions
 
+- id: electricity_emissions_total
+  name: Total Stromemissionen
+  name_en: Total electricity emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: electricity_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+
+- id: heat_emissions_total
+  name: Total Wärmemissionen
+  name_en: Total heat emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: heat_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+
+- id: transport_emissions_total
+  name: Total Verkehrsemissionen
+  name_en: Total transport emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+
+- id: industrial_emissions_total
+  name: Total Industrieemissionen
+  name_en: Total industrial emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: industrial_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+
+- id: service_emissions_total
+  name: Total GHDemissionen
+  name_en: Total service emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: service_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+
+- id: municipality_building_emissions_total
+  name: Total Kommunale Einrichtungenemissionen
+  name_en: Total municipality building emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: municipality_building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+
+- id: consumption_emissions_total
+  name: Total Konsumemissionen
+  name_en: Total consumption emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: consumption_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+
+- id: waste_and_wastewater_emissions_total
+  name: Total Abfall- und (Ab-)Wasseremissionen
+  name_en: Total waste and wastewater emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: waste_and_wastewater_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+
+- id: food_and_land_use_emissions_total
+  name: Total Ernährung- und Landnutzungsemissionen
+  name_en: Total food and land use emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: food_and_land_use_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+
+- id: cross_cutting_climate_protection_emissions_total
+  name: Total Übergreifende Klimaschutzaspekteemissionen
+  name_en: Total cross-cutting climate protection aspects emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: cross_cutting_climate_protection_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+
 - id: traffic_actions
   name: Verkehrsmaßnahmen
   name_en: Traffic actions
