@@ -1603,6 +1603,14 @@ class Node:
         if isinstance(self, DatasetNode):
             return self._get_measure_datapoint_years(self, dims)
 
+        if self.input_dataset_instances:
+            for ds in self.input_dataset_instances:
+                if 'framework_measure_data' in ds.tags:
+                    df = ds.load(self.context)
+                    data_col = 'ObservedDataPoint'
+                    df = df.filter(pl.col(data_col))
+                    return df[YEAR_COLUMN].unique().sort().to_list()
+
         years = set[int]([])
         nodes = self.get_upstream_nodes()
         for n in nodes:

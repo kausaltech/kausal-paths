@@ -1113,7 +1113,7 @@ nodes:
   output_dimensions: [building_class, energy_carrier, building_heating]
   input_datasets:
   - id: helsinki/aluesarjat/02um_rakennukset_lammitys
-    tags: baseline
+    tags: [baseline]
     filters:
     - rename_col: Tiedot
       value: Unit

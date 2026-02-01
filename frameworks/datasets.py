@@ -8,7 +8,7 @@ from pint import DimensionalityError
 
 from common import polars as ppl
 from frameworks.models import MeasureDataPoint
-from nodes.constants import YEAR_COLUMN
+from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.context import Context
 from nodes.datasets import DVCDataset
 
@@ -37,6 +37,11 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 
         fwd = context.framework_config_data
         if fwd is None:
+            # FIXME This is needed because DatasetNode and other nodes have a different sequence of operations.
+            if 'prepare_gpc_dataset' in self.tags:
+                drop_cols = [col for col in ['UUID', 'Sector'] if col in df.columns]
+                df = df.drop(drop_cols)
+                df = df.set_unit(VALUE_COLUMN, df['Unit'].unique()[0]).drop('Unit')
             return df
 
         df = df.with_columns(
@@ -110,6 +115,12 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         ])
         out_cols = [*df_cols, 'FromMeasureDataPoint', 'ObservedDataPoint']
         df = ppl.to_ppdf(jdf.select(out_cols), meta=meta)
+        # FIXME This is needed because DatasetNode and other nodes have a different sequence of operations.
+        if 'prepare_gpc_dataset' in self.tags:
+            drop_cols = [col for col in ['UUID', 'Sector'] if col in df.columns]
+            df = df.drop(drop_cols)
+            df = df.set_unit(VALUE_COLUMN, df['Unit'].unique()[0]).drop('Unit')
+
         return df
 
     def post_process(self, context: Context | None, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
