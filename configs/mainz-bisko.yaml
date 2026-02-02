@@ -1,0 +1,1113 @@
+id: mainz-bisko  # defines which instance is updated
+default_language: de
+supported_languages: [en]
+site_url: https://bisko.paths.staging.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git.
+  commit: 27fb832aed994de5b77a0d89571bdbe6dfe74499
+  dvc_remote: kausal-s3
+name: Klima-Monitor-BISKO
+owner: Kausal Ltd
+theme_identifier: default
+target_year: 2026
+model_end_year: 2050
+reference_year: 1990
+minimum_historical_year: 1990
+maximum_historical_year: 2023
+emission_unit: kt_co2e/a
+features:
+  baseline_visible_in_graphs: true
+  use_datasets_from_db: true
+  show_explanations: true
+  show_category_warnings: true
+
+# include:
+# - file: frameworks/standard_dims.yaml
+#   allow_override: true
+
+params:
+- id: weather_correction
+  label_de: Wetterkorrektur durchführen?
+  label_en: Perform weather correction?
+  value: true                                    
+  is_customizable: true
+  is_visible: true
+- id: municipality_name
+  label_en: Municipality name
+  label_de: Gemeindename
+  value: Mainz
+  is_customizable: true
+  is_visible: true
+- id: statistical_correction
+  label_en: Use national rather than local electricity emission factors (BISKO)
+  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO).
+  value: true
+  is_visible: true
+  is_customizable: true
+- id: use_mileage
+  label_en: Use BISKO mileage statistics rather than own energy data for transport
+  label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen Energieverbrauchsdaten für den Transport.
+  value: true
+  is_visible: true
+  is_customizable: true
+
+result_excels:
+- base_excel_url: 
+    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+  name: City-specific values from BISKO datasets and elsewhere
+  node_ids:
+  - weather_correction
+  - final_energy_use
+  - final_energy_use_data_quality
+  - historical_emissions
+  - end_energy_emission_factors
+  - electricity_production_emission_factors
+  - emission_factors_without_fuel_data
+  - emission_factors_for_district_heating_by_generic_fuel
+  - road_transport_activity
+  - other_transport_energy
+
+dimensions:
+
+- id: energy_carrier
+  label_en: Energy carrier
+  label_de: Energieträger
+  categories:
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+  - id: petrol
+    label_en: Petrol
+    label_de: Benzin
+    aliases: [benzin_fossil, benzin, Benzin fossil]
+  - id: bio_petrol
+    label_en: Bio petrol
+    label_de: Biobenzin
+    aliases: [benzin_biogen, biobenzin, Benzin Bio]
+  - id: diesel
+    label_en: Diesel
+    label_de: Diesel
+    aliases: [diesel_fossil, Diesel fossil]
+  - id: biodiesel
+    label_en: Biodiesel
+    label_de: Diesel biogen
+    aliases: [diesel_biogen, Diesel Bio]
+  - id: kerosene
+    label_en: Kerosene
+    label_de: Kerosin
+    aliases: [kerosin, Kerosin fossil]
+  - id: heating_oil
+    label_en: Heating oil
+    label_de: Heizöl
+    aliases: [heizol]
+  - id: natural_gas
+    label_en: Natural gas
+    label_de: Erdgas
+    aliases: [gas, erdgas]
+  - id: lpg
+    label_en: LPG (Liquefied petroleum gas)
+    label_de: LPG
+  - id: propane
+    label_en: Propane/butane
+    label_de: Flüssiggas
+    aliases: [flüssiggas, flssiggas]
+  - id: cng_fossil
+    label_en: CNG fossil
+    label_de: CNG fossil
+    aliases: [CNG]
+  - id: cng_bio
+    label_en: CNG bio
+    label_de: CNG bio
+  - id: biogas
+    label_en: Biogas
+    label_de: Biogas
+    aliases: [biogas]
+  - id: hard_coal
+    label_en: Hard coal
+    label_de: Steinkohle
+    aliases: [kohle, steinkohle, Kohle]
+  - id: brown_coal
+    label_en: Brown coal / Lignite
+    label_de: Braunkohle
+    aliases: [braunkohle]
+  - id: biomass
+    label_en: Biomass
+    label_de: Biomasse
+    aliases: [biomasse]
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: [strom]
+  - id: driving_electricity
+    label_en: Driving electricity
+    label_de: Fahrstrom
+    aliases: [fahrstrom, strom_fahrstrom]
+  - id: heating_electricity
+    label_en: Heating electricity
+    label_de: Heizstrom
+    aliases: [heizstrom]
+  - id: district_heating
+    label_en: District heating
+    label_de: Fernwärme
+    aliases: [fernwarme]
+  - id: local_heating
+    label_en: Local heating
+    label_de: Nahwärme
+    aliases: [nahwarme]
+  - id: solar_thermal
+    label_en: Solar thermal
+    label_de: Solarthermie
+    aliases: [solarthermie]
+  - id: environmental_heat
+    label_en: Environmental heat / Heat pump
+    label_de: Umweltwärme
+    aliases: [umweltwarme]
+  - id: hydrogen
+    label_en: Hydrogen
+    label_de: Wasserstoff
+    aliases: [wasserstoff]
+  - id: other_renewables
+    label_en: Other renewables
+    label_de: Sonstige Erneuerbare
+    aliases: [sonstige_erneuerbare]
+  - id: other_conventional
+    label_en: Other conventional
+    label_de: Sonstige Konventionelle
+    aliases: [sonstige_konventionelle]
+  - id: not_defined
+    label_en: Not defined
+    label_de: Nicht definiert
+    aliases: [nicht_definiert]
+  - id: fuels
+    label_en: Fuels
+    label_de: Kraftstoffe
+    aliases: [kraftstoffe, Kraftstoff]
+  - id: other
+    label_en: Other
+    label_de: Sonstiges
+    aliases: [sonstiges]
+  - id: district_and_local_heating
+    label_en: District_and local heating
+    label_de: Fern- und Nahwärme
+    aliases: [fern_und_nahwarme]
+  - id: natural_gas_turbine
+    label_en: Natural gas for steam turbines
+    label_de: Erdgas GuD
+  - id: biomass_chp
+    label_en: Biomass for CHP
+    label_de: Biomasse KWK
+  - id: biogas_chp
+    label_en: Biogas for CHP
+    label_de: Biogas KWK
+  - id: biomass_boiler
+    label_en: Biomass for heat-only boiler
+    label_de: Biomasse Heizwerk
+  - id: natural_gas_small_chp
+    label_en: Natural gas with small-scale CHP
+    label_de: Erdgas BHKW
+  - id: conventional_waste_heat_gt_90
+    label_en: Conventional waste heat > 90 C
+    label_de: Konventioneller Abwärme >90 C
+  - id: conventional_waste_heat_lt_90
+    label_en: Conventional waste heat < 90 C
+    label_de: Konventioneller Abwärme <90 C
+  - id: renewable_waste_heat_gt_90
+    label_en: Renewable waste heat > 90 C
+    label_de: Erneuerbarer Abwärme >90 C
+  - id: renewable_waste_heat_lt_90
+    label_en: Renewable waste heat < 90 C
+    label_de: Erneuerbarer Abwärme <90 C
+  - id: other_conventional_energy_carriers
+    label_en: Other conventional energy carriers
+    label_de: Sonstige konventionelle Energieträger
+  - id: other_renewable_energy_carriers
+    label_en: Other renewable energy carriers
+    label_de: Sonstige Erneuerbare Energieträger
+  - id: sewage_landfill_mine_gas
+    label_en: Sewage, landfill, or mine gas
+    label_de: Klär- Deponie- Grubengas
+  - id: solid_biomass
+    label_en: Solid biomass
+    label_de: feste Biomasse
+  - id: geothermatl
+    label_en: Geothermal
+    label_de: Geothermie
+  - id: liquid_biomass
+    label_en: Liquid biomass
+    label_de: flüssige Biomasse
+  - id: photovoltaic
+    label_en: Photovoltaic
+    label_de: Fotovoltaik
+  - id: hydropower
+    label_en: hydropower
+    label_de: Wasser
+  - id: wind
+    label_en: Wind
+    label_de: Wind
+  - id: waste
+    label_en: Waste
+    label_de: Abfall
+
+- id: per_what_energy
+  label_en: Per what energy
+  label_de: Pro welcher Energie
+  categories:
+  - id: fuel_input
+    label_en: Fuel input
+    label_de: Brennstoffzufuhr
+  - id: electricity_output
+    label_en: Electricity output
+    label_de: Stromabgabe
+  - id: heat_output
+    label_en: Heat output
+    label_de: Wärmeabgabe
+
+- id: road_type
+  label_en: Road Type
+  label_de: Straßentyp
+  categories:
+  - id: highway
+    label_en: Highway
+    label_de: Autobahn
+    aliases: [AB]
+  - id: rural_roads
+    label_en: Rural Roads
+    label_de: Außerorts
+    aliases: [AO]
+  - id: urban_roads
+    label_en: Urban Roads
+    label_de: Innerorts
+    aliases: [IO]
+  - id: city_streets
+    label_en: City Streets
+    label_de: Stadtstraße
+  - id: country_roads
+    label_en: Country Roads
+    label_de: Landstraße
+  - id: federal_roads
+    label_en: Federal Roads
+    label_de: Bundesstraße
+  - id: total
+    label_en: Total
+    label_de: Total
+    aliases: [alle]
+  - id: rail
+    label_en: Rail
+    label_de: Eisenbahn
+
+- id: sector
+  label_en: Sector
+  label_de: Sektoren
+  help_text: Sectors as categorised in the Mission City Climate City Contracts 
+    (CCC) and BISKO.
+  categories:
+  - id: transport
+    label_en: Transport
+    label_de: Verkehr
+    aliases: [verkehr]
+    color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+  - id: buildings
+    label_en: Buildings & Heating
+    label_de: Gebäude & Heizung
+  - id: private_households
+    label_en: Private Households
+    label_de: Private Haushalte
+    aliases: [private_haushalte]
+    color: '#009ebe'
+  - id: municipal_facilities
+    label_en: Municipal Facilities
+    label_de: Kommunale Einrichtungen
+    aliases: [kommunale_einrichtungen, stadtische_gebaude]
+    color: '#6bc248'
+  - id: commerce_trade_services
+    label_en: Commerce, Trade & Services
+    label_de: Gewerbe, Handel, Dienstleistungen
+    aliases: [gewerbe_handel_dienstleistungen, gewerbe_sonstiges]
+    color: '#fe8035'
+  - id: industry
+    label_en: Industry
+    label_de: Industrie
+    aliases: [industrie]
+    color: '#737373'
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: [strom]
+  - id: energy_industry
+    label_en: Energy industry
+    label_de: Energiewirtschaft
+    aliases: [energiewirtschaft]
+  - id: waste
+    label_en: Waste
+    label_de: Abfall
+  - id: other
+    label_en: Other (incl. IPPU & AFOLU)
+    label_de: Sonstige (inkl. IPPU & AFOLU)
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+  - id: heating
+    label_en: Heating
+    label_de: Wärme
+    aliases: [warme]
+
+- id: upstream_included
+  label_en: Upstream included
+  label_de: Upstream umfasste
+  categories:
+  - id: yes
+    label_en: Yes
+    label_de: Ja
+
+- id: vehicle_type
+  label_en: Vehicle type
+  label_de: Fahrzeugtyp
+  categories:
+  - id: passenger_cars
+    label_en: Passenger cars
+    label_de: Personenkraftwagen (PKW)
+    aliases: [Pkw]
+  - id: trucks
+    label_en: Trucks
+    label_de: Lastkraftwagen (LKW)
+    aliases: [Lkw]
+  - id: vans
+    label_en: Light commercial vehicles
+    label_de: Leichte Nutzfahrzeuge
+    aliases: [LNF]
+  - id: heavy_commercial
+    label_en: Heavy commercial vehicles
+    label_de: Schwere Nutzfahrzeuge
+  - id: buses
+    label_en: Buses
+    label_de: Busse
+    aliases: [Bus, Linienbus]
+  - id: coach_buses
+    label_en: Coach buses
+    label_de: Reisebusse
+    aliases: [Reisebus]
+  - id: local_buses
+    label_en: Local buses
+    label_de: Lokale Busse
+    aliases: [Lbus]
+  - id: long_distance_buses
+    label_en: Long-distance buses
+    label_de: Regionale busse
+    aliases: [Rbus]
+  - id: motorcycles
+    label_en: Motorcycles
+    label_de: Motorisierte Zweiräder
+    aliases: [MZR]
+  - id: bicycles
+    label_en: Bicycles
+    label_de: Fahrräder
+  - id: trains
+    label_en: Trains
+    label_de: Züge
+  - id: rail_vehicles
+    label_en: Rail vehicles
+    label_de: Schienenfahrzeuge
+    aliases: [SSU, 'Straßen, Stadt- und U-Bahnen']
+  - id: tram
+    label_en: Tram
+    label_de: Straßenbahn
+    aliases: [Tram]
+  - id: local_trains
+    label_en: Local trains
+    label_de: Schienenpersonennahverkehr
+    aliases: [SPNV]
+  - id: long_distance_trains
+    label_en: Long-distance trains
+    label_de: Schienenpersonenfernverkehr
+    aliases: [SPFV]
+  - id: cargo_trains
+    label_en: Cargo trains
+    label_de: Schienengüterverkehr
+    aliases: [SGV]
+  - id: inland_waterway_shipping
+    label_en: Inland waterway shipping
+    label_de: Binnenschiff
+    aliases: [BiSchi]
+  - id: air_transport
+    label_en: Air transport (LTO)
+    label_de: Luft (LTO)
+    aliases: [LTO, Flug]
+
+# Propulsion/Fuel Types (Antriebsart):
+#   Elektro = Electric (for electrified rail) 
+#   Diesel = Diesel (for non-electrified rail and ships)
+#   Kerosin = Kerosene/Jet fuel (for aircraft)
+
+
+nodes:
+
+- id: net_emissions
+  name: Netto-Emissionen
+  name_en: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  is_outcome: true
+
+- id: private_household_emissions
+  name: Private Haushalte Emissionen
+  name_en: Private household emissions
+  color: '#009ebe'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_private_household_energy_use
+  - id: emission_factors
+  output_nodes:
+  - id: net_emissions
+
+- id: municipal_facilities_emissions
+  name: Kommunale Einrichtungen Emissionen
+  name_en: Municipal facilities emissions
+  color: '#6bc248'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_municipal_facilities_energy_use
+  - id: emission_factors
+  output_nodes:
+  - id: net_emissions
+
+- id: industry_emissions
+  name: Industri Emissionen
+  name_en: Industry emissions
+  color: '#737373'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_industry_energy_use
+  - id: emission_factors
+  output_nodes:
+  - id: net_emissions
+
+- id: commerce_trade_services_emissions
+  name: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_en: Commerce, trade, services emissions
+  color: '#fe8035'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_commerce_trade_services_energy_use
+  - id: emission_factors
+  output_nodes:
+  - id: net_emissions
+
+- id: weather_correction
+  name: Witterungsbereinigung
+  name_en: Weather Correction
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: bisko/weather_correction  # comes from Potsdam --> change to mainz/... as soon as you got data.csv
+  params:
+  - id: operations
+    value: get_single_dataset,do_correction
+  - id: do_correction
+    ref: weather_correction
+  # output_nodes:
+  # - id: final_energy_use
+
+- id: use_national_electricity_emission_factors
+  name: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO).
+  name_en: Use national rather than local electricity emission factors (BISKO).
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: bisko/weather_correction  # comes from Potsdam --> change to mainz/... as soon as you got data.csv
+    filters:
+    - column: sector
+      value: electricity
+  params:
+  - id: operations
+    value: get_single_dataset,do_correction
+  - id: do_correction
+    ref: statistical_correction
+  - id: no_correction_value
+    value: 0.0
+  # output_nodes:
+  # - id: final_energy_use
+
+- id: final_energy_use
+  name: Endenergie
+  name_en: Final energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: mainz/final_energy
+    column: Value
+
+- id: final_energy_use_data_quality
+  name: Endenergie Datenqualität
+  name_en: Final energy use data quality
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: mainz/final_energy_use_data_quality  # is automatically created by upload_new_dataset.py when uploading to DVC
+
+- id: final_transport_energy_use
+  name: Endenergie Verkehr
+  name_en: Final transport energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+
+- id: final_private_household_energy_use
+  name: Endenergie Private Haushalte
+  name_en: Final private household energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+    from_dimensions:
+    - id: sector
+      categories: [private_households]
+
+- id: final_municipal_facilities_energy_use
+  name: Endenergie Kommunale Einrichtungen
+  name_en: Final municipal facilities energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+    from_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
+
+- id: final_industry_energy_use
+  name: Endenergie Industrie
+  name_en: Final industry energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+    from_dimensions:
+    - id: sector
+      categories: [industry]
+
+- id: final_commerce_trade_services_energy_use
+  name: Endenergie Gewerbe, Handel, Dienstleistungen
+  name_en: Final commerce, trade, services energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+
+- id: historical_emissions
+  name: Historische Emissionen
+  name_en: Historical emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: mainz/historical_emissions # bisko/historical_emissions # TODO Use temporarily to set up the model
+    column: Value
+
+- id: emission_factors # FIXME Check for koeln-dev implementation.
+  name: Emissionsfaktoren
+  name_en: Emission factors
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: historical_emissions
+  - id: final_energy_use
+    tags: [geometric_inverse]
+  params:
+    operations: multiply,drop_nans,drop_infs
+
+- id: end_energy_emission_factors_national
+  name: Endenergie Emissionsfaktoren national
+  name_en: End energy emission factors
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: bisko/endenergie_emissionsfaktoren  # standard ifeu dataset that has all the cities
+    filters:
+    - column: per_what_energy
+    - column: upstream_included
+
+- id: end_energy_emission_factors_local
+  name: Endenergie Emissionsfaktoren lokal
+  name_en: End energy emission factors local
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: bisko/end_energy_emission_factors
+
+- id: end_energy_emission_factors
+  name: Endenergie Emissionsfaktoren
+  name_en: End energy emission factors
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: end_energy_emission_factors_national
+    tags: [national]
+  - id: end_energy_emission_factors_local
+    tags: [local]
+  - id: use_national_electricity_emission_factors
+    tags: [bisko]
+  params:
+    formula: bisko * national + complement(bisko) * local
+
+- id: electricity_production_emission_factors_national
+  name: Emissionsfaktoren für Erzeugung national
+  name_en: Emission factors for electricity production national
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/emissionsfaktoren_fr_erzeugung  # ifeu dataset, name of tab in excel, rename at some point, does not filter by city here
+    filters:
+    - column: upstream_included
+
+- id: electricity_production_emission_factors_local
+  name: Emissionsfaktoren für Erzeugung lokal
+  name_en: Emission factors for electricity production local
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/electricity_production_emission_factors  # dataset from another city (Ddorf or Potsdam), change to Mainz-specific data IF NEEDED
+
+- id: electricity_production_emission_factors
+  name: Emissionsfaktoren für Erzeugung
+  name_en: Emission factors for electricity production
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_nodes:
+  - id: electricity_production_emission_factors_national
+    tags: [national]
+  - id: electricity_production_emission_factors_local
+    tags: [local]
+  - id: use_national_electricity_emission_factors
+    tags: [bisko]
+  params:
+    formula: bisko * national + complement(bisko) * local
+
+- id: emission_factors_without_fuel_data_national
+  name: Emissionsfaktoren ohne Brennstoffinputinformationen national
+  name_en: Emission factors without fuel data national
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/emissionsfaktoren_ohne_brennstoffinputinformationen # ifeu dataset, national value (not separated for municipalities)
+    filters:
+    - column: upstream_included
+
+- id: emission_factors_without_fuel_data_local
+  name: Emissionsfaktoren ohne Brennstoffinputinformationen lokal
+  name_en: Emission factors without fuel data local
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/emission_factors_without_fuel_data # other city data, FOR NOW used for Mainz
+
+- id: emission_factors_without_fuel_data
+  name: Emissionsfaktoren ohne Brennstoffinputinformationen
+  name_en: Emission factors without fuel data
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_nodes:
+  - id: emission_factors_without_fuel_data_national
+    tags: [national]
+  - id: emission_factors_without_fuel_data_local
+    tags: [local]
+  - id: use_national_electricity_emission_factors
+    tags: [bisko]
+  params:
+    formula: bisko * national + complement(bisko) * local
+
+- id: emission_factors_for_district_heating_by_generic_fuel_national
+  name: Emissionsfaktoren für Fernwärme - überwiegend nationale
+  name_en: Emission factors for district heating by generic fuel national
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/fernwarme_berwiegend # ifeu
+    filters:
+    - column: upstream_included
+
+- id: emission_factors_for_district_heating_by_generic_fuel_local
+  name: Emissionsfaktoren für Fernwärme - überwiegend lokal
+  name_en: Emission factors for district heating by generic fuel
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/emission_factors_for_district_heating_by_generic_fuel  # change to Mainz-speific later IF NEEDED
+
+- id: emission_factors_for_district_heating_by_generic_fuel
+  name: Emissionsfaktoren für Fernwärme - überwiegend
+  name_en: Emission factors for district heating by generic fuel
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_nodes:
+  - id: emission_factors_for_district_heating_by_generic_fuel_national
+    tags: [national]
+  - id: emission_factors_for_district_heating_by_generic_fuel_local
+    tags: [local]
+  - id: use_national_electricity_emission_factors
+    tags: [bisko]
+  params:
+    formula: bisko * national + complement(bisko) * local
+
+- id: transport_energy_own_data
+  name: Transport Energie - eigene Daten
+  name_en: Transport energy - own data
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: bisko/transport_energy  # from another city
+    column: Value
+
+- id: road_transport_activity
+  name_en: Road transport activity
+  name_de: Verkehr Aktivität
+  type: generic.GenericNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type, road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_datasets:
+  - id: bisko/gemeindefeine_fahrleistungen_straenverkehr  # ifeu
+    column: mileage
+    filters:
+    - column: district
+    - column: ags
+    - column: municipality
+      ref: municipality_name  # Mainz (most probably with capital M)
+
+- id: other_transport_energy
+  name_en: Other transport energy
+  name_de: Andere Transportenergie
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: 
+      bisko/gemeindefeine_endenergieverbrauche_schiene_wasser_luft_nach_antriebsart
+    column: energy
+    filters:
+    - column: district
+    - column: ags
+    - column: municipality
+      ref: municipality_name
+
+- id: use_transport_statistics_bisko
+  name: Verwenden Sie die Transportstatistiken von BISKO
+  name_en: Use transport statistics from BISKO
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: bisko/sector_index # TODO Use Bisko-specific dataset. --> check what index actually contains
+    filters:
+    - column: sector
+      value: other
+  params:
+  - id: operations
+    value: get_single_dataset,do_correction,extend_to_history
+  - id: do_correction
+    ref: use_mileage
+  - id: no_correction_value
+    value: 0.0
+
+- id: transport_energy
+  name: Transportenergie
+  name_en: Transport energy
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier, road_type]
+  output_dimensions: [vehicle_type, energy_carrier, road_type]
+  input_nodes:
+  - id: transport_energy_own_data
+    tags: [own]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: road_type
+      categories: [total]
+  - id: other_transport_energy
+    tags: [other_bisko]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: road_type
+      categories: [total]
+  - id: road_transport_energy_bisko
+    tags: [road_bisko]
+  - id: use_transport_statistics_bisko
+    tags: [use_mileage]
+  params:
+    formula: complement(use_mileage) * own + use_mileage * (other_bisko + road_bisko)
+
+# - id: total_emissions
+#   name: Gesamtemissionen
+#   name_en: Total emissions
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: t_co2e/a
+#   input_dimensions: [energy_carrier, sector]
+#   output_dimensions: [energy_carrier, sector]
+#   input_nodes:
+#   # - id: final_energy_use
+#   # - id: emission_factors
+#   - id: historical_emissions
+
+- id: combined_heat_and_power_ef
+  name_en: Combined heat and power emission factor
+  type: generic.ChpNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: end_energy_emission_factors
+    from_dimensions:
+    - id: energy_carrier
+      categories: [renewable_waste_heat_gt_90]
+      flatten: true
+  params:
+    method: bisko
+    electricity_fraction: 0.3
+    t_supply: 373
+    t_return: 283
+    electricity_reference_efficiency: 0.4
+    heat_reference_efficiency: 0.9
+
+- id: transport_energy_factors
+  name_en: Transport energy factors
+  name_de: Verkehrsenergiefaktoren
+  description_de: Spezifische Endenergieverbrauchsfaktoren im Straßenverkehr 
+    sowie bei Straßen-/Stadt- und U-Bahnen
+  description_en: Specific end energy consumption factors in road transport as 
+    well as in suburban and urban rail transport
+  type: generic.GenericNode
+  quantity: energy_factor
+  unit: kWh/vkm
+  input_dimensions: [vehicle_type, energy_carrier, road_type]
+  output_dimensions: [vehicle_type, energy_carrier, road_type]
+  input_datasets:
+  - id: bisko/energy_factor # kWh/vkm, usable for every city (BISKO Standard)
+    column: Value
+
+- id: transport_energy_shares
+  name_en: Transport energy shares
+  name_de: Verkehrsenergieanteile
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [vehicle_type, energy_carrier, road_type]
+  output_dimensions: [vehicle_type, energy_carrier, road_type]
+  input_datasets:
+  - id: bisko/energy_shares # sums up to 100%, usbale for every city (BISKO Standard)
+    column: Value
+
+- id: passengers_per_vehicle
+  name_en: Passengers per vehicle
+  name_de: Passagiere pro Fahrzeug
+  type: generic.GenericNode
+  quantity: number
+  unit: p/v
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: bisko/load_per_vehicle # BISKO-Standard
+    column: Passengers
+
+- id: passenger_activity
+  name_en: Passenger activity
+  name_de: Passagiere
+  type: generic.GenericNode
+  quantity: activity
+  unit: Mpkm/a
+  input_dimensions: [vehicle_type, road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_nodes:
+  - id: passengers_per_vehicle
+    to_dimensions:
+    - id: vehicle_type
+  - id: road_transport_activity
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+
+- id: road_transport_energy_bisko
+  name_en: Road transport energy
+  name_de: Straßenverkehrsenergie
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy_factors
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+    - id: energy_carrier
+  - id: transport_energy_shares
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+    - id: energy_carrier
+  - id: road_transport_activity
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+
+- id: transport_emission_factors # FIXME Must have EF for Fuels and Electricity.
+  name_en: Transport emission factors
+  name_de: Verkehrsemissionsfaktoren
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: bisko/emission_factor # must use the well-to-wheel EF for BISKO-conformity. Some cities want to know also well-to-tank, so will be implemented at some point.
+    column: Well-to-wheel
+
+- id: transport_emissions
+  name_en: Transport emissions
+  name_de: Transportemissionen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+    - id: energy_carrier
+  - id: transport_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: road_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
+
+pages:
+- id: home
+  name: Klima-Monitor-BISKO Treibhausgasinventar
+  name_en: Climate Protection Monitor BISKO Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Klima-Monitor Treibhausgasinventar BISKO
+  lead_paragraph: Die Treibhausgasemissionen BISKO.
+
+scenarios:
+
+- id: baseline
+  name: Business as Usual
+  # name_en: Business as Usual
+
+- id: default
+  default: true
+  all_actions_enabled: true
+  name: Masterplan 100% Klimaschutz
