@@ -1,7 +1,37 @@
+# Data for the old congestion charge model built in dinspec.yaml:
+# https://docs.google.com/spreadsheets/d/12_McEL0wQWS0G-0zBYEfnPOBdkdpRd31__qwpqYZ0ZE/edit?gid=0#gid=0
+# Datasets stored in DVC sunnydale/congestion_charge
+
+dimensions:
+
+- id: stakeholder
+  label: Stakeholder
+  categories:
+  - id: citizens
+    label: Citizens
+  - id: property_owners
+    label: Property owners
+  - id: city
+    label: City
+    aliases: [cities, Cities]
+  - id: middle_class
+    label: Middle class
+  - id: low_income
+    label: Low income
+  - id: affluent
+    label: Affluent
+
 actions:
 - id: congestion_charge
   name: "Congestion Charge Price"
-  description: "Price charged per vehicle trip in the congestion zone"
+  description: Price charged per vehicle trip in the congestion zone.
+    This policy is about setting a congestion charge in the city center
+    to reduce car driving. This policy has been extensively studied and it is known
+    to be effective with fairly small social costs. However, it does affect disproportionally
+    those poor people who have to move with an own car. Therefore, this policy includes
+    the redistribution of the tax money back to citizens with an equal per-capitta
+    amount. This overcompensates losses to poor people, because they typically spend
+    less money on driving in absolute terms.
   type: simple.GenericAction
   quantity: price
   unit: EUR/vehicle
@@ -414,6 +444,140 @@ nodes:
   params:
     formula: costs
 
+# ===== STAKEHOLDER-SPECIFIC ANALYSIS =====
+
+- id: income_trip_share
+  name: Trip share by income group
+  description: Distribution of trips across income groups (what fraction of charged trips are made by each income group)
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, time_of_day]
+  output_dimensions: [stakeholder, time_of_day]
+  input_datasets:
+  - id: transportation/income_trip_distribution
+
+- id: driver_costs_by_income
+  name: Driver costs by income group
+  description: Direct costs imposed on drivers by congestion charge, broken down by income group
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [time_of_day, hypotheses, stakeholder]
+  output_dimensions: [time_of_day, hypotheses, stakeholder]
+  input_nodes:
+  - id: charge_revenue
+    to_dimensions:
+    - id: time_of_day
+    - id: hypotheses
+    tags: [revenue]
+  - id: income_trip_share
+    to_dimensions:
+    - id: stakeholder
+    - id: time_of_day
+    tags: [share]
+  params:
+    formula: revenue * share
+
+- id: total_driver_costs_by_income
+  name: Total annual driver costs by income group
+  description: Annual costs to drivers from congestion charging by income group
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [hypotheses, stakeholder]
+  output_dimensions: [hypotheses, stakeholder]
+  input_nodes:
+  - id: driver_costs_by_income
+    to_dimensions:
+    - id: hypotheses
+    - id: stakeholder
+    from_dimensions:
+    - id: time_of_day
+      flatten: true
+    tags: [costs]
+  params:
+    formula: costs
+
+- id: income_group_size
+  name: Income group population
+  description: Number of people in each income group in the affected area
+  type: generic.GenericNode
+  quantity: population
+  unit: persons
+  input_dimensions: [stakeholder]
+  output_dimensions: [stakeholder]
+  input_datasets:
+  - id: transportation/income_group_population
+
+- id: per_capita_cost_by_income
+  name: Per capita cost by income group
+  description: Average cost per person in each income group
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/person/a
+  input_dimensions: [hypotheses, stakeholder]
+  output_dimensions: [hypotheses, stakeholder]
+  input_nodes:
+  - id: total_driver_costs_by_income
+    to_dimensions:
+    - id: hypotheses
+    - id: stakeholder
+    tags: [total_costs]
+  - id: income_group_size
+    to_dimensions:
+    - id: stakeholder
+    tags: [population]
+  params:
+    formula: total_costs / population
+
+# ===== REVENUE ALLOCATION =====
+
+- id: transit_allocation_share
+  name: Transit allocation share
+  description: Fraction of congestion charge revenue allocated to public transit improvements
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/revenue_allocation_policy
+
+- id: revenue_to_transit
+  name: Revenue allocated to transit
+  description: Annual revenue from congestion charging allocated to public transit system
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  input_nodes:
+  - id: total_charge_revenue
+    to_dimensions:
+    - id: hypotheses
+    tags: [revenue]
+  - id: transit_allocation_share
+    tags: [share]
+  params:
+    formula: revenue * share
+
+- id: revenue_to_general_fund
+  name: Revenue to general fund
+  description: Annual revenue from congestion charging going to general city budget
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  input_nodes:
+  - id: total_charge_revenue
+    to_dimensions:
+    - id: hypotheses
+    tags: [revenue]
+  - id: transit_allocation_share
+    tags: [transit_share]
+  params:
+    formula: revenue * complement(transit_share)
+    
 # ===== ARGUMENT NODES =====
 
 - id: obj_cc13_traffic_displacement
@@ -444,3 +608,314 @@ nodes:
   output_nodes:
   - id: spillover_factor
     tags: [ignore_content]
+
+# SCALE AND EFFECTIVENESS ARGUMENTS
+
+- id: arg_18_cities_significant_emissions
+  name: 'ARG-18: Cities represent significant emissions'
+  description: |
+    <h3>Argument: Cities are 70-80% of global emissions</h3>
+    <p><strong>Claim:</strong> Urban areas collectively represent the majority of global greenhouse gas emissions. City-level action is not symbolic but substantive.</p>
+    <p><strong>Type:</strong> Scale argument FOR local action</p>
+    <p><strong>Evidence:</strong></p>
+    <ul>
+    <li>Cities house ~55% of global population but generate 70-80% of emissions</li>
+    <li>C40 cities alone represent ~25% of global GDP and corresponding emissions</li>
+    <li>Urban transportation, buildings, and consumption are concentrated emission sources</li>
+    </ul>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>co2_emissions</code> - Shows actual emission reduction from city policy</li>
+    <li><code>total_vehicle_km</code> - Urban driving represents substantial mileage</li>
+    </ul>
+    <p><strong>Counters Objections:</strong> OBJ-G1 (drop in ocean)</p>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: co2_emissions
+    tags: [ignore_content]
+
+- id: obj_g1_drop_in_ocean
+  name: 'OBJ-G1: Drop in the ocean'
+  description: |
+    <h3>Objection: Individual city impact negligible</h3>
+    <p><strong>Claim:</strong> One city's emissions are infinitesimal compared to global total. Even 100% reduction barely affects global climate outcomes. This is a meaningless gesture.</p>
+    <p><strong>Stakeholders:</strong> Policy skeptics, fiscal conservatives, those prioritizing local issues</p>
+    <p><strong>Type:</strong> Empirical objection about scale and impact</p>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>co2_emissions</code> - Shows magnitude of reduction (can compare to global emissions)</li>
+    </ul>
+    <p><strong>Counter-Arguments:</strong></p>
+    <ul>
+    <li><strong>ARG-18:</strong> Cities collectively are 70-80% of emissions; not trivial</li>
+    <li><strong>ARG-20:</strong> Norm cascades - early movers trigger others</li>
+    <li><strong>ARG-7:</strong> Co-benefits (air quality) accrue locally regardless</li>
+    </ul>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: co2_emissions
+    tags: [ignore_content]
+
+- id: obj_cc17_negligible_emission_impact
+  name: 'OBJ-CC17: Negligible emission impact'
+  description: |
+    <h3>Objection: Congestion charge won't significantly reduce emissions</h3>
+    <p><strong>Claim:</strong> Traffic reduction will be modest, and vehicles that remain will idle less (offsetting gains). Displaced traffic may increase total emissions. Expensive way to reduce emissions compared to alternatives.</p>
+    <p><strong>Stakeholders:</strong> Policy skeptics, business groups, economists favoring other interventions</p>
+    <p><strong>Type:</strong> Empirical objection about effectiveness</p>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>co2_emissions</code> - Net emission reduction after all effects</li>
+    <li><code>total_vehicle_km</code> - Whether total driving actually decreases</li>
+    <li><code>spillover_factor</code> - Key parameter: displacement vs elimination</li>
+    <li><code>vehicles_in_zone</code> - Magnitude of traffic reduction</li>
+    </ul>
+    <p><strong>Hypotheses:</strong></p>
+    <ul>
+    <li>Under high_displacement: Minimal net reduction</li>
+    <li>Under net_reduction: Substantial emission decrease</li>
+    <li>Empirical evidence from London/Stockholm: ~10-20% CO2 reduction</li>
+    </ul>
+    <p><strong>Counter-Arguments:</strong></p>
+    <ul>
+    <li>Evidence from existing schemes shows real reductions</li>
+    <li>Related to OBJ-CC13 (displacement) - already modeled via hypotheses</li>
+    </ul>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: total_vehicle_km
+    tags: [ignore_content]
+  - id: spillover_factor
+    tags: [ignore_content]
+
+# ECONOMIC EFFICIENCY ARGUMENTS
+
+- id: arg_9_economic_efficiency
+  name: 'ARG-9: Economic efficiency and waste reduction'
+  description: |
+    <h3>Argument: Congestion is pure economic waste</h3>
+    <p><strong>Claim:</strong> Traffic congestion represents pure deadweight loss - wasted time and fuel with no productive output. Reducing congestion increases economic efficiency while cutting emissions. Win-win, not sacrifice.</p>
+    <p><strong>Type:</strong> Economic argument FOR policy</p>
+    <p><strong>Economic Logic:</strong></p>
+    <ul>
+    <li>Congestion is "tragedy of the commons" in road use</li>
+    <li>Each driver imposes costs on others (externality)</li>
+    <li>Pricing brings market efficiency</li>
+    <li>Time saved has economic value</li>
+    </ul>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>total_vehicle_km</code> - Proxy for time wasted in traffic</li>
+    <li><code>vehicles_in_zone</code> - Reduced congestion</li>
+    </ul>
+    <p><strong>Note:</strong> Would benefit from future nodes:
+    <ul>
+    <li>time_savings (hours saved × value of time)</li>
+    <li>productivity_gains</li>
+    </ul>
+    </p>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: total_vehicle_km
+    tags: [ignore_content]
+  - id: vehicles_in_zone
+    tags: [ignore_content]
+
+- id: obj_g10_opportunity_cost
+  name: 'OBJ-G10: Opportunity cost'
+  description: |
+    <h3>Objection: Resources better spent elsewhere</h3>
+    <p><strong>Claim:</strong> Money and political capital spent on congestion charging could address more urgent needs: homelessness, education, healthcare, infrastructure. Climate is long-term; these are immediate crises.</p>
+    <p><strong>Stakeholders:</strong> Social service advocates, education advocates, those prioritizing immediate needs</p>
+    <p><strong>Type:</strong> Resource allocation objection (within common values)</p>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>total_charge_revenue</code> - Revenue that could fund other priorities</li>
+    <li><code>co2_emissions</code> - Climate benefit being purchased</li>
+    </ul>
+    <p><strong>Counter-Arguments:</strong></p>
+    <ul>
+    <li><strong>ARG-26:</strong> Revenue recycling - can fund transit AND other priorities</li>
+    <li><strong>ARG-7:</strong> Co-benefits (health, air quality) address immediate needs too</li>
+    <li>Not either/or: city budgets can do multiple things</li>
+    <li>Climate inaction has huge future costs</li>
+    </ul>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: total_charge_revenue
+    tags: [ignore_content]
+
+# REVENUE CONCERNS
+
+- id: obj_g14_revenue_grab
+  name: 'OBJ-G14: Revenue grab'
+  description: |
+    <h3>Objection: Not really about climate, about money</h3>
+    <p><strong>Claim:</strong> This isn't about climate - it's a revenue grab. New tax stream for wasteful government. Money will be diverted to general fund, not climate action. Just bureaucracy expanding its mission.</p>
+    <p><strong>Stakeholders:</strong> Anti-tax groups, libertarians, fiscal conservatives, cynical voters</p>
+    <p><strong>Type:</strong> Interest objection / trust in government issue</p>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>total_charge_revenue</code> - Revenue generated</li>
+    <li><code>revenue_to_transit</code> - How much actually goes to stated purpose</li>
+    <li><code>revenue_to_general_fund</code> - How much diverted</li>
+    </ul>
+    <p><strong>Counter-Arguments:</strong></p>
+    <ul>
+    <li>Transparent commitment mechanism needed</li>
+    <li>Dedicated fund with oversight</li>
+    <li>History of "dedicated" funds being raided creates skepticism</li>
+    <li>Evidence: If effective at reducing driving, revenue declines (not addictive)</li>
+    </ul>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: total_charge_revenue
+    tags: [ignore_content]
+  - id: revenue_to_general_fund
+    tags: [ignore_content]
+  - id: arg_26_revenue_recycling
+
+- id: obj_cc29_revenue_addiction
+  name: 'OBJ-CC29: Revenue addiction'
+  description: |
+    <h3>Objection: Government will become dependent on revenue</h3>
+    <p><strong>Claim:</strong> City will become addicted to congestion charge revenue. This creates perverse incentive to NOT reduce driving. If policy succeeds at behavior change, budget hole opens. Fiscal unsustainability.</p>
+    <p><strong>Stakeholders:</strong> Fiscal analysts, policy skeptics, government accountability advocates</p>
+    <p><strong>Type:</strong> Institutional design objection</p>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>total_charge_revenue</code> - Revenue dependency</li>
+    <li><code>vehicles_in_zone</code> - As this decreases, revenue falls</li>
+    </ul>
+    <p><strong>Tension:</strong> Want BOTH revenue (for transit investment) AND behavior change (fewer trips). These can be compatible if:
+    <ul>
+    <li>Revenue funds one-time capital investments (not operating costs)</li>
+    <li>Declining revenue expected and planned for</li>
+    <li>Sunset provisions or declining charge rates</li>
+    </ul>
+    </p>
+    <p><strong>Counter-Arguments:</strong></p>
+    <ul>
+    <li>Explicit fiscal planning for declining revenue</li>
+    <li>Goal is behavior change, revenue is means not end</li>
+    <li>Can adjust charge level if needed</li>
+    </ul>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: total_charge_revenue
+    tags: [ignore_content]
+  - id: vehicles_in_zone
+    tags: [ignore_content]
+
+# EQUITY OBJECTIONS
+
+- id: obj_cc1_regressive_burden
+  name: 'OBJ-CC1: Regressive burden on working class'
+  description: |
+    <h3>Objection: Flat fee hits poor hardest</h3>
+    <p><strong>Claim:</strong> Flat fee per trip means low-income drivers pay much higher percentage of income. Wealthy can afford charge; working class cannot. Service workers, nurses, cleaners forced to pay or lose jobs. Creates "Lexus lanes" - roads only for the rich.</p>
+    <p><strong>Stakeholders:</strong> Low-income advocates, labor unions, social justice groups, affected workers</p>
+    <p><strong>Type:</strong> Equity objection WITHIN common values (suffering matters for all)</p>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>driver_costs_by_income</code> - Absolute costs by income group</li>
+    <li><code>per_capita_cost_by_income</code> - Average burden per person</li>
+    <li><code>total_driver_costs_by_income</code> - Total burden on each income group</li>
+    </ul>
+    <p><strong>Design Solutions:</strong></p>
+    <ul>
+    <li>Income-based exemptions or discounts</li>
+    <li>Revenue recycling to benefit low-income (transit improvements)</li>
+    <li>Means-tested relief programs</li>
+    <li>Progressive pricing (higher charge for luxury vehicles)</li>
+    </ul>
+    <p><strong>Counter-Arguments:</strong></p>
+    <ul>
+    <li><strong>ARG-7:</strong> Air quality benefits disproportionately help low-income neighborhoods</li>
+    <li><strong>ARG-26:</strong> Revenue to transit helps transit-dependent (often low-income)</li>
+    <li>BUT: These don't fully resolve burden on low-income drivers</li>
+    </ul>
+    <p><strong>Critical Note:</strong> This is GENUINE TENSION within common values framework. Requires careful design, not just argumentation.</p>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: driver_costs_by_income
+    tags: [ignore_content]
+
+# REVENUE RECYCLING BENEFITS
+
+- id: arg_26_revenue_recycling
+  name: 'ARG-26: Revenue recycling creates virtuous cycle'
+  description: |
+    <h3>Argument: Revenue recycling creates multiple benefits</h3>
+    <p><strong>Claim:</strong> If congestion charge revenue is invested in transit improvements, creates virtuous cycle: Better transit → More mode shift → Less congestion → Further benefits. Not just charging for roads, but funding alternatives.</p>
+    <p><strong>Type:</strong> Policy design argument FOR (IF properly implemented)</p>
+    <p><strong>Virtuous Cycle:</strong></p>
+    <ol>
+    <li>Charge generates revenue</li>
+    <li>Revenue funds transit capacity, frequency, coverage</li>
+    <li>Better transit enables more people to shift from driving</li>
+    <li>Further emission reductions and congestion relief</li>
+    <li>Transit ridership makes further investment viable</li>
+    </ol>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>revenue_to_transit</code> - How much goes to transit</li>
+    <li><code>total_charge_revenue</code> - Total available for investment</li>
+    <li><code>transit_allocation_share</code> - Policy commitment to transit</li>
+    </ul>
+    <p><strong>Critical Dependencies:</strong></p>
+    <ul>
+    <li>Revenue MUST go to transit (not general fund)</li>
+    <li>Transit investment must be strategic (capacity where needed)</li>
+    <li>Transparent, accountable allocation process</li>
+    </ul>
+    <p><strong>Counters Objections:</strong></p>
+    <ul>
+    <li>OBJ-G14 (revenue grab) - Revenue has specific purpose</li>
+    <li>OBJ-CC18 (wrong priority) - Charge ENABLES transit investment</li>
+    <li>OBJ-CC1 (regressive) - Transit improvements help low-income</li>
+    </ul>
+    <p><strong>Note:</strong> Future phases should model full transit system chain to show this mechanism explicitly.</p>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: revenue_to_transit
+    tags: [ignore_content]
+  - id: total_charge_revenue
+    tags: [ignore_content]
+

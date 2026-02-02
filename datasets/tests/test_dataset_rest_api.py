@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.contrib.contenttypes.models import ContentType
 from rest_framework.test import APIClient
 
 import pytest
@@ -27,7 +28,7 @@ def api_client():
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(('user_key', 'has_access', 'expected_schemas'), [
-    pytest.param('superuser', True, {'Schema 1', 'Schema 2', 'Unused schema'}, id='superuser'),
+    pytest.param('superuser', True, {'Schema 1', 'Schema 2', 'Schema 3', 'Unused schema', 'Unused schema 2'}, id='superuser'),
     pytest.param('super_admin_user', True, {'Schema 1', 'Unused schema'}, id='super_admin_user'),
     pytest.param('admin_user', True, {'Schema 1', 'Unused schema'}, id='admin_user'),
     pytest.param('reviewer_user', True, {'Schema 1', 'Unused schema'}, id='reviewer_user'),
@@ -279,7 +280,7 @@ def test_dataset_list(api_client, dataset_test_data, user_key):
     api_client.force_authenticate(user=user)
 
     if user_key == 'superuser':
-        expected_datasets = {'dataset1', 'dataset2'}
+        expected_datasets = {'dataset1', 'dataset2', 'dataset3'}
     elif user_key in ['admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user',
                       'schema1_viewer', 'schema1_editor', 'schema1_admin',
                       'schema1_viewer_group_user', 'schema1_editor_group_user', 'schema1_admin_group_user']:
@@ -451,16 +452,18 @@ def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed)
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
 
+    # Use unused schemas which have scopes but no existing datasets
     if user_key in ['admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user']:
-        schema = dataset_test_data['schema1']
+        schema = dataset_test_data['unused_schema']
         instance = dataset_test_data['instance1']
     else:
-        schema = dataset_test_data['schema2']
+        schema = dataset_test_data['unused_schema2']
         instance = dataset_test_data['instance2']
 
+    content_type = ContentType.objects.get(app_label='nodes', model='instanceconfig')
     create_data = {
         'schema': str(schema.uuid),
-        'scope_content_type': 'nodes.instanceconfig',
+        'scope_content_type_id': content_type.pk,
         'scope_id': instance.id,
     }
 
@@ -1795,39 +1798,58 @@ def test_data_point_bulk_create(api_client, dataset_test_data, user_key, dataset
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'data_point_keys', 'expected_status'), [
-    # Actual bulk editing (see individual cases below for explanations about the status).
-    ('superuser', ['data_point2', 'data_point3'], 200),
-    ('admin_user', ['data_point2', 'data_point3'], 404),
-    ('super_admin_user', ['data_point2', 'data_point3'], 404),
-    ('reviewer_user', ['data_point2', 'data_point3'], 403),
-    ('viewer_user', ['data_point2', 'data_point3'], 403),
-    ('regular_user', ['data_point2', 'data_point3'], 403),
+@pytest.mark.parametrize(*parse_table("""
+user_key         data_point_keys         expected_status
 
-    # The following are the same as in test_datapoint_update
-    # Access to data_point1 (instance1)
-    ('superuser', ['data_point1'], 200),
-    ('admin_user', ['data_point1'], 200),
-    ('super_admin_user', ['data_point1'], 200),
+# Actual bulk editing (see individual cases below for explanations about the status).
+superuser        data_point2,data_point3 200
+admin_user       data_point2,data_point3 404
+super_admin_user data_point2,data_point3 404
+reviewer_user    data_point2,data_point3 403
+viewer_user      data_point2,data_point3 403
+regular_user     data_point2,data_point3 403
 
-    # Access to data_point2 (instance2)
-    ('superuser', ['data_point2'], 200),
+# Test object-level permissions
+# Data points of dataset2 (schema2, instance2)
+schema1_admin    data_point3             404  # instance2 datasets not visible
+schema1_viewer   data_point3             404  # instance2 datasets not visible
+schema2_admin    data_point3             200
+schema2_viewer   data_point3             403  # dataset visible, but no write access
+schema3_admin    data_point3             404  # schema2 datasets not visible
+schema3_viewer   data_point3             404  # schema2 datasets not visible
+# Data points of dataset3 (schema3, instance2)
+schema1_admin    data_point4             404  # instance2 datasets not visible
+schema1_viewer   data_point4             404  # instance2 datasets not visible
+schema2_admin    data_point4             404  # schema3 datasets not visible
+schema2_viewer   data_point4             404  # schema3 datasets not visible
+schema3_admin    data_point4             200
+schema3_viewer   data_point4             403  # dataset visible, but no write access
 
-    # No write access to data_point1
-    ('reviewer_user', ['data_point1'], 403),
-    ('viewer_user', ['data_point1'], 403),
+# The following are the same as in test_datapoint_update
+# Access to data_point1 (instance1)
+superuser        data_point1             200
+admin_user       data_point1             200
+super_admin_user data_point1             200
 
-    # No access to data_point2 (parent not visible)
-    ('admin_user', ['data_point2'], 404),
-    ('super_admin_user', ['data_point2'], 404),
+# Access to data_point2 (instance2)
+superuser        data_point2             200
 
-    # No access to endpoint
-    ('reviewer_user', ['data_point2'], 403),
-    ('viewer_user', ['data_point2'], 403),
-    ('regular_user', ['data_point1'], 403),
-    ('regular_user', ['data_point2'], 403),
-])
+# No write access to data_point1
+reviewer_user    data_point1             403
+viewer_user      data_point1             403
+
+# No access to data_point2 (parent not visible)
+admin_user       data_point2             404
+super_admin_user data_point2             404
+
+# No access to endpoint
+reviewer_user    data_point2             403
+viewer_user      data_point2             403
+regular_user     data_point1             403
+regular_user     data_point2             403
+"""))
 def test_data_point_bulk_update(api_client, dataset_test_data, user_key, data_point_keys, expected_status):
+    data_point_keys = data_point_keys.split(',')
     user = dataset_test_data[user_key]
     data_points = [dataset_test_data[key] for key in data_point_keys]
     # For this test, we only work with data points from the same dataset

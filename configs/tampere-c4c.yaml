@@ -139,6 +139,9 @@ dimensions:
   - id: carbon_shadow
     label: Hiilen varjohinta
     label_en: Shadow cost of carbon
+  - id: health_impacts
+    label: Terveysvaikutukset
+    label_en: Health impacts
 
 - id: energy_carrier
   label: Energian kantaja
@@ -519,7 +522,18 @@ emission_sectors:
   name_en: Net emissions
   order: 1
   is_outcome: true
-  target_year_goal: 260
+  goals:
+  - values: [{'year': 2020, 'value': 839},
+             {'year': 2021, 'value': 803.5},
+             {'year': 2022, 'value': 721},
+             {'year': 2023, 'value': 611},
+             {'year': 2024, 'value': 569},
+             {'year': 2025, 'value': 526},
+             {'year': 2026, 'value': 465.5},
+             {'year': 2027, 'value': 438.5},
+             {'year': 2028, 'value': 362},
+             {'year': 2029, 'value': 311},
+             {'year': 2030, 'value': 260}]
 
 # ----- Transportation
 
@@ -528,7 +542,18 @@ emission_sectors:
   name_en: Transportation emissions
   part_of: net_emissions
   color: '#668EC9'
-  target_year_goal: 115
+  goals:
+  - values: [{'year': 2020, 'value': 201},
+             {'year': 2021, 'value': 192},
+             {'year': 2022, 'value': 184},
+             {'year': 2023, 'value': 177},
+             {'year': 2024, 'value': 168},
+             {'year': 2025, 'value': 175},
+             {'year': 2026, 'value': 180},
+             {'year': 2027, 'value': 164},
+             {'year': 2028, 'value': 150},
+             {'year': 2029, 'value': 136},
+             {'year': 2030, 'value': 122}]
 
 # ----- Building Heating
 
@@ -537,16 +562,52 @@ emission_sectors:
   name_en: Building heating emissions
   part_of: net_emissions
   color: '#AD3963'
+  goals:
+  - values: [{'year': 2020, 'value': 335},
+             {'year': 2021, 'value': 316},
+             {'year': 2022, 'value': 262},
+             {'year': 2023, 'value': 177},
+             {'year': 2024, 'value': 164.5},
+             {'year': 2025, 'value': 141},
+             {'year': 2026, 'value': 94},
+             {'year': 2027, 'value': 87},
+             {'year': 2028, 'value': 81},
+             {'year': 2029, 'value': 66.25},
+             {'year': 2030, 'value': 51.5}]
 
 - id: separate_heating_emissions
   name: Erillislämmityksen päästöt
   name_en: Separate heating emissions
   part_of: building_heating_emissions
+  goals:
+  - values: [{'year': 2020, 'value': 64},
+             {'year': 2021, 'value': 60},
+             {'year': 2022, 'value': 53},
+             {'year': 2023, 'value': 45},
+             {'year': 2024, 'value': 39},
+             {'year': 2025, 'value': 22},
+             {'year': 2026, 'value': 17},
+             {'year': 2027, 'value': 12},
+             {'year': 2028, 'value': 10},
+             {'year': 2029, 'value': 7},
+             {'year': 2030, 'value': 4}]
 
 - id: electric_heating_emissions
   name: Sähkölämmityksen päästöt
   name_en: Electric heating emissions
   part_of: building_heating_emissions
+  goals:
+  - values: [{'year': 2020, 'value': 21},
+             {'year': 2021, 'value': 20},
+             {'year': 2022, 'value': 19},
+             {'year': 2023, 'value': 17},
+             {'year': 2024, 'value': 15.5},
+             {'year': 2025, 'value': 14},
+             {'year': 2026, 'value': 7},
+             {'year': 2027, 'value': 9},
+             {'year': 2028, 'value': 6},
+             {'year': 2029, 'value': 5.5},
+             {'year': 2030, 'value': 5}]
 
 # ----- Waste
 
@@ -555,6 +616,18 @@ emission_sectors:
   name_en: Waste treatment
   part_of: net_emissions
   color: '#397368'
+  goals:
+  - values: [{'year': 2020, 'value': 65},
+             {'year': 2021, 'value': 65},
+             {'year': 2022, 'value': 64},
+             {'year': 2023, 'value': 62},
+             {'year': 2024, 'value': 56},
+             {'year': 2025, 'value': 39},
+             {'year': 2026, 'value': 38},
+             {'year': 2027, 'value': 36},
+             {'year': 2028, 'value': 35},
+             {'year': 2029, 'value': 33.5},
+             {'year': 2030, 'value': 32}]
 
 # ----- Agriculture
 
@@ -563,6 +636,18 @@ emission_sectors:
   name: Maatalouden päästöt
   part_of: net_emissions
   color: '#ABC872'
+  goals:
+  - values: [{'year': 2020, 'value': 7},
+             {'year': 2021, 'value': 6.5},
+             {'year': 2022, 'value': 6},
+             {'year': 2023, 'value': 6},
+             {'year': 2024, 'value': 5.5},
+             {'year': 2025, 'value': 5},
+             {'year': 2026, 'value': 6.5},
+             {'year': 2027, 'value': 6.5},
+             {'year': 2028, 'value': 6},
+             {'year': 2029, 'value': 5.75},
+             {'year': 2030, 'value': 5.5}]
 
 nodes:
 # ----- WASTE -----------------------------------------------------------------
@@ -832,6 +917,18 @@ nodes:
       flatten: true
     - id: scope
       flatten: true
+  goals:
+  - values: [{'year': 2020, 'value': 250},
+             {'year': 2021, 'value': 236},
+             {'year': 2022, 'value': 190},
+             {'year': 2023, 'value': 115},
+             {'year': 2024, 'value': 110},
+             {'year': 2025, 'value': 105},
+             {'year': 2026, 'value': 70},
+             {'year': 2027, 'value': 66},
+             {'year': 2028, 'value': 65},
+             {'year': 2029, 'value': 53.75},
+             {'year': 2030, 'value': 42.5}]
 
 # ----- Separate Heating
 
@@ -1283,6 +1380,18 @@ nodes:
       flatten: true
     - id: scope
       flatten: true
+  goals:
+  - values: [{'year': 2020, 'value': 22},
+             {'year': 2021, 'value': 20},
+             {'year': 2022, 'value': 20},
+             {'year': 2023, 'value': 18},
+             {'year': 2024, 'value': 15.5},
+             {'year': 2025, 'value': 13},
+             {'year': 2026, 'value': 8},
+             {'year': 2027, 'value': 10},
+             {'year': 2028, 'value': 7},
+             {'year': 2029, 'value': 6.5},
+             {'year': 2030, 'value': 6}]
 
 - id: other_electricity_consumption
   name: Muu sähkönkulutus
@@ -1403,6 +1512,18 @@ nodes:
       flatten: true
     - id: scope
       flatten: true
+  goals:
+  - values: [{'year': 2020, 'value': 108},
+             {'year': 2021, 'value': 105},
+             {'year': 2022, 'value': 93},
+             {'year': 2023, 'value': 85},
+             {'year': 2024, 'value': 79},
+             {'year': 2025, 'value': 44},
+             {'year': 2026, 'value': 30},
+             {'year': 2027, 'value': 37},
+             {'year': 2028, 'value': 23},
+             {'year': 2029, 'value': 20.5},
+             {'year': 2030, 'value': 18}]
 
 - id: electricity_consumption_emissions
   name: Sähkön kulutuksen päästöt
@@ -1412,6 +1533,18 @@ nodes:
   unit: kt_co2e/a
   output_nodes:
   - id: net_emissions
+  goals:
+  - values: [{'year': 2020, 'value': 130},
+             {'year': 2021, 'value': 125},
+             {'year': 2022, 'value': 113},
+             {'year': 2023, 'value': 103},
+             {'year': 2024, 'value': 94.5},
+             {'year': 2025, 'value': 57},
+             {'year': 2026, 'value': 38},
+             {'year': 2027, 'value': 47},
+             {'year': 2028, 'value': 30},
+             {'year': 2029, 'value': 27},
+             {'year': 2030, 'value': 24}]
 
 # ----- TRANSPORTATION --------------------------------------------------------
 
@@ -1933,6 +2066,18 @@ nodes:
       flatten: true
     - id: scope
       flatten: true
+  goals:
+  - values: [{'year': 2020, 'value': 101},
+             {'year': 2021, 'value': 99},
+             {'year': 2022, 'value': 92},
+             {'year': 2023, 'value': 86},
+             {'year': 2024, 'value': 80.5},
+             {'year': 2025, 'value': 109},
+             {'year': 2026, 'value': 109},
+             {'year': 2027, 'value': 98},
+             {'year': 2028, 'value': 60},
+             {'year': 2029, 'value': 42.5},
+             {'year': 2030, 'value': 25}]
 
 # ----- LED STREETLIGHT DETAILED ACTION MODULE --------------------------------
 
@@ -2245,7 +2390,7 @@ nodes:
   input_dimensions: []
   output_dimensions: []
   params:
-    start_year: 2026
+    start_year: 2025
 
 - id: building_heating_price
   name: Rakennusten lämmityksen kustannukset

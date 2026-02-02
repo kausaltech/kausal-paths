@@ -70,7 +70,7 @@ class User(AbstractUser):
     )
 
     objects: ClassVar[UserManager[User]]
-    person: RevOne[Person, User] | None
+    person: RevOne[User, Person] | None
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []

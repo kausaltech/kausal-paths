@@ -7,16 +7,16 @@ supported_languages: [en]
 site_url: https://koeln-dev.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7ee6adf0095079080fadbe254d87a8709846ebdf
+  commit: cd690bc25c586bfd298261f2f604a2aafcc11909
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Treibhausgasinventar
 owner: Köln Stadt
 theme_identifier: de-koeln
-target_year: 2050
+target_year: 2035
 model_end_year: 2050
-reference_year: 2019
-minimum_historical_year: 2019
+reference_year: 2008
+minimum_historical_year: 2008
 maximum_historical_year: 2023
 emission_unit: kt/a
 emission_forecast_from: 2022
@@ -255,6 +255,55 @@ dimensions:
     label_en: Municipal Heat Planning Preparation by Administration
     label_de: Erstellung der kommunalen Wärmeplanung durch die Verwaltung
 
+- id: emission_scope # Copied from zuerich-dev.yaml
+  label: Emissionsbereiche
+  label_en: Emission scopes
+  help_text: Die Netto-Null-Berichterstattung fokussiert im ersten Jahr auf die direkten
+    Emissionen; die indirekten Emissionen werden später ergänzt. Die hier dargestellten
+    indirekten Emissionen basieren weitgehend auf der Netto-Null-Grundlagenstudie und
+    bilden die bis 2040 angestrebte Reduktion noch nicht ab.
+  groups:
+  - id: direct
+    label: Direkte Emissionen
+    label_en: Direct emissions
+    color: '#0f05a0'
+    order: 1
+  - id: indirect
+    label: Indirekte Emissionen
+    label_en: Indirect emissions
+    color: '#6496ff'
+    order: 2
+  - id: negative
+    label: Negative Emissionen
+    label_en: Negative emissions
+    color: '#8ECF69'
+    order: -1
+  categories:
+  - id: scope1
+    label_de: Scope 1
+    label_en: Scope 1
+    color: '#0f05a0'
+    group: direct
+    order: 0
+  - id: scope2
+    label_de: Scope 2
+    label_en: Scope 2
+    color: '#30505e'
+    group: indirect
+    order: 1
+  - id: scope3
+    label_de: Scope 3
+    label_en: Scope 3
+    color: '#6496ff'
+    group: indirect
+    order: 2
+  - id: negative_emissions
+    label_de: Negative Emissionen
+    label_en: Negative emissions
+    color: '#8ECF69'
+    group: negative
+    order: -1
+
 nodes:
 
 - id: net_emissions
@@ -317,19 +366,24 @@ nodes:
   name_en: Historical emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   color: '#00A969'
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/historische_emissionen
+  - id: koeln/koln_emissionen_update_2023
     column: emissions
-  # params:
-  # - id: operations
-  #   value: add,apply_multiplier
-  # - id: multiplier
-  #   value: 1
-  #   unit: t_co2e/t
+    filters:
+    - column: energy_carrier
+      value: total
+      exclude: true
+      drop_col: false
+  params:
+  - id: operations
+    value: get_single_dataset,apply_multiplier
+  - id: multiplier
+    value: 1
+    unit: t/t_co2e
 
 - id: net_emissions_historical # TODO Remove when no longer needed.
   name: Historische Emissionen2
@@ -344,91 +398,6 @@ nodes:
   - id: koeln/historische_emissionen
     column: emissions
 
-- id: final_transport_energy_use
-  name: Endenergie Verkehr
-  name_en: Final transport energy use
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: koeln/energy/endenergie
-    column: energy
-    filters:
-    - column: sector
-      values: [transport]
-      drop_col: false
-  output_nodes: [final_energy_use]
-
-- id: final_municipal_facilities_energy_use
-  name: Endenergie Kommunale Einrichtungen
-  name_en: Final municipal facilities energy use
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: koeln/energy/endenergie
-    column: energy
-    filters:
-    - column: sector
-      values: [municipal_facilities]
-      drop_col: false
-  output_nodes: [final_energy_use]
-
-- id: final_private_household_energy_use
-  name: Endenergie Private Haushalte
-  name_en: Final private household energy use
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: koeln/energy/endenergie
-    column: energy
-    filters:
-    - column: sector
-      values: [private_households]
-      drop_col: false
-  output_nodes: [final_energy_use]
-
-- id: final_industry_energy_use
-  name: Endenergie Industrie
-  name_en: Final industry energy use
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: koeln/energy/endenergie
-    column: energy
-    filters:
-    - column: sector
-      values: [industry]
-      drop_col: false
-  output_nodes: [final_energy_use]
-
-- id: final_commerce_trade_services_energy_use
-  name: Endenergie Gewerbe, Handel, Dienstleistungen
-  name_en: Final commerce, trade, services energy use
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: koeln/energy/endenergie
-    column: energy
-    filters:
-    - column: sector
-      values: [commerce_trade_services]
-      drop_col: false
-  output_nodes: [final_energy_use]
-
 - id: final_energy_use
   name: Energieverbrauch
   type: generic.GenericNode
@@ -436,59 +405,52 @@ nodes:
   unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
-
-# - id: final_energy_use2 # TODO Try collecting all datasets into one node. Graph is better this way.
-#   name: Energieverbrauch2
-#   type: generic.GenericNode
-#   quantity: energy
-#   unit: MWh/a
-#   input_dimensions: [energy_carrier, sector]
-#   output_dimensions: [energy_carrier, sector]
-#   params:
-#     operations: concat_datasets
-#   input_datasets:
-#   - id: koeln/energy/transport
-#     column: energy
-#     filters:
-#     - column: weather_correction
-#     - column: inventory_method
-#     - column: file_type
+  input_datasets:
+  - id: koeln/koln_endenergie_update_2023
+    column: energy
+    filters:
+    - column: energy_carrier
+      value: total
+      exclude: true
+      drop_col: false
 
 - id: emission_factors_derived
   name: Emissionsfaktoren abgeleitet aus historischen Emissionen
   name_en: Emission factors derived from historical emissions
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
   - id: historical_emissions
+    tags: [emissions]
   - id: final_energy_use
-    tags: [geometric_inverse]
+    tags: [energy]
   params:
-    operations: multiply,drop_nans,drop_infs
+    formula: extend_all(drop_nans(emissions / energy))
 
 - id: sector_emission_factors_derived # Transport values added to the dataset for local emission facotrs.
   name: Sektoren-Emissionsfaktoren abgeleitet aus historischen Emissionen
   name_en: Sector emission factors derived from historical emissions
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [sector]
   output_dimensions: [sector]
   input_nodes:
   - id: historical_emissions
+    tags: [emissions]
     from_dimensions:
     - id: energy_carrier
       flatten: true
   - id: final_energy_use
-    tags: [geometric_inverse]
+    tags: [energy]
     from_dimensions:
     - id: energy_carrier
       flatten: true
   params:
-    operations: multiply,drop_nans,drop_infs
+    formula: emissions / energy
 
 - id: end_energy_emission_factors_national # From IFEU dataset
   name: Endenergie Emissionsfaktoren national
@@ -595,7 +557,7 @@ nodes:
     - id: energy_carrier
       categories: [electricity]
   output_nodes:
-  - id: net_emissions
+  - id: emission_reductions
 
 - id: heat_emissions
   name: Private Haushalte
@@ -603,14 +565,18 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  color: '#E67E22'
+  color: '#009ebe'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: final_private_household_energy_use
-  - id: end_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
+  # - id: final_private_household_energy_use
+  # - id: end_energy_emission_factors
+  #   to_dimensions:
+  #   - id: energy_carrier
+  - id: historical_emissions
+    from_dimensions:
+    - id: sector
+      categories: [private_households]
   output_nodes:
   - id: net_emissions
 
@@ -620,14 +586,18 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  color: '#3498DB'
+  color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: final_transport_energy_use
-  - id: end_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
+  # - id: final_transport_energy_use
+  # - id: end_energy_emission_factors
+  #   to_dimensions:
+  #   - id: energy_carrier
+  - id: historical_emissions
+    from_dimensions:
+    - id: sector
+      categories: [transport]
   output_nodes:
   - id: net_emissions
 
@@ -637,14 +607,18 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  color: '#003882'
+  color: '#737373'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: final_industry_energy_use
-  - id: end_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
+  # - id: final_industry_energy_use
+  # - id: end_energy_emission_factors
+  #   to_dimensions:
+  #   - id: energy_carrier
+  - id: historical_emissions
+    from_dimensions:
+    - id: sector
+      categories: [industry]
   output_nodes:
   - id: net_emissions
 
@@ -655,14 +629,18 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  color: '#548ebe'
+  color: '#fe8035'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: final_commerce_trade_services_energy_use
-  - id: end_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
+  # - id: final_commerce_trade_services_energy_use
+  # - id: end_energy_emission_factors
+  #   to_dimensions:
+  #   - id: energy_carrier
+  - id: historical_emissions
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
   output_nodes:
   - id: net_emissions
 
@@ -672,14 +650,18 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  color: '#8eeffd'
+  color: '#6bc248'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: final_municipal_facilities_energy_use
-  - id: end_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
+  # - id: final_municipal_facilities_energy_use
+  # - id: end_energy_emission_factors
+  #   to_dimensions:
+  #   - id: energy_carrier
+  - id: historical_emissions
+    from_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
   output_nodes:
   - id: net_emissions
 
@@ -756,12 +738,221 @@ nodes:
   output_nodes:
   - id: emission_reductions
 
+- id: electricity_emissions_total
+  name: Total Stromemissionen
+  name_en: Total electricity emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: electricity_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope2]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+
+- id: heat_emissions_total
+  name: Total Wärmemissionen
+  name_en: Total heat emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: heat_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+
+- id: transport_emissions_total
+  name: Total Verkehrsemissionen
+  name_en: Total transport emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+
+- id: industrial_emissions_total
+  name: Total Industrieemissionen
+  name_en: Total industrial emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: industrial_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+
+- id: service_emissions_total
+  name: Total GHDemissionen
+  name_en: Total service emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: service_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+
+- id: municipality_building_emissions_total
+  name: Total Kommunale Einrichtungenemissionen
+  name_en: Total municipality building emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: municipality_building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+
+- id: consumption_emissions_total
+  name: Total Konsumemissionen
+  name_en: Total consumption emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: consumption_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope3]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+
+- id: waste_and_wastewater_emissions_total
+  name: Total Abfall- und (Ab-)Wasseremissionen
+  name_en: Total waste and wastewater emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: waste_and_wastewater_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+
+- id: food_and_land_use_emissions_total
+  name: Total Ernährung- und Landnutzungsemissionen
+  name_en: Total food and land use emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: food_and_land_use_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope3]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+
+- id: cross_cutting_climate_protection_emissions_total
+  name: Total Übergreifende Klimaschutzaspekteemissionen
+  name_en: Total cross-cutting climate protection aspects emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: cross_cutting_climate_protection_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+
+- id: administration_emissions_total
+  name: Total Verwaltungsemissionen
+  name_en: Total administration emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_nodes:
+  - id: administration_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+
 - id: traffic_actions
   name: Verkehrsmaßnahmen
   name_en: Traffic actions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -772,7 +963,7 @@ nodes:
   name_en: Private household actions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -783,7 +974,7 @@ nodes:
   name_en: Electricity actions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -1909,7 +2100,7 @@ scenarios:
   default: true
   name_de: Klimaschutzplan
   name_en: Climate Action Plan
-  all_actions_enabled: false
+  all_actions_enabled: true
 
 - id: active
   default: false

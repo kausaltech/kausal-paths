@@ -1,3 +1,6 @@
+# This is a copy of an archived version:
+# https://github.com/kausaltech/kausal-paths/blob/3f13ba56ef9af3aac1c7708bc4e2e3ce5e0b34c3/configs/longmont-dev.yaml
+
 # Data 2025-09-27 from https://docs.google.com/spreadsheets/d/1gWkGv6aCt1Zl2pZhH33kOugdPWWokBT-/edit?gid=1709772016#gid=1709772016
 
 # Development needs:
@@ -9,16 +12,16 @@
 # - Add categories needed in inventory (0.5 wd)
 # - Build models for e.g. wastewater emissions etc (3 wd)
 
-id: longmont-dev
+id: longmont-old
 default_language: en
 supported_languages: [es-US]
-site_url: https://longmont-dev.paths-test.kausal.tech
+site_url: https://longmont-old.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 58e302cb1f7e18b9eb9f690cd0b8233ef830d815
+  commit: d3269904cb1d7a33bd983fe2ef91bddaf3440377
   dvc_remote: kausal-s3
-name: 2025 Draft Longmont Greenhouse Gas Inventory
-name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
+name: 2025 Longmont Old Greenhouse Gas Inventory
+name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont antiguo
 owner: City of Longmont
 owner_es-US: Ciudad de Longmont
 theme_identifier: us-longmont
@@ -26,7 +29,7 @@ target_year: 2050
 model_end_year: 2050
 reference_year: 2016
 minimum_historical_year: 2016
-maximum_historical_year: 2024
+maximum_historical_year: 2021
 emission_unit: t/a
 emission_dimensions: [emission_scope]
 normalizations:
@@ -43,72 +46,51 @@ features:
   use_datasets_from_db: true
   show_explanations: true
 
-result_excels:
-- base_excel_url: 
-    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
-  name: Climate City Contract Tables
-  node_ids:
-  # Nodes using datasets
-  - afolu_emissions
-  - amount_of_refrigerant
-  - aviation_fuel_emission_factors
-  - aviation_fuel_usage
-  - building_class_mix
-  - building_electricity_eui_by_action
-  - building_electricity_use_historical
-  - building_natural_gas_eui_by_action
-  - building_natural_gas_use_historical
-  - building_square_footage_new
-  - building_square_footage_old
-  - commercial_air_conditioned_square_footage
-  - composted_waste_emission_factor
-  - electricity_emission_factor
-  - electricity_loss_fraction
-  - emission_factor_natural_gas
-  - emission_factor_wood
-  - energy_use_intensity_improvement
-  - exclude_reductions
-  - gas_collection_rate
-  - global_warming_potential_100a
-  - green_electricity_production
-  - greenhouse_gas_index
-  - informational_composting_emission_factor
-  - is_biogenic_included
-  - landfill_gas_collection
-  - leakage_from_natural_gas_emissions
-  - leakage_from_oil_and_gas_wells_emissions
-  - msw_characterization
-  - non_electric_vehicle_fuel_use
-  - participation_smart_grid
-  - population
-  - proportion_of_rail_lines_in_longmont
-  - recycling_characterization
-  - recycling_instead_of_virgin
-  - refrigerant_loss
-  - smart_grid_improvement
-  - square_feet_per_ton_of_cooling
-  - stationary_wood_consumption
-  - total_railway_ghg_emissions_boulder_county
-  - total_transit_vmt
-  - transit_mpg
-  - transit_percentage_attributable_to_longmont
-  - transportation_ch4_emission_factors
-  - transportation_emission_factors
-  - vehicle_miles_traveled
-  - waste_composted
-  - waste_emission_factors
-  - waste_landfilled
-  - waste_recycled
-  - waste_water_treatment_emissions
-  # Output emission nodes
-  - afolu_emissions
-  - avoided_emissions
-  - ippu_emissions
-  - net_emissions
-  - stationary_energy_emissions
-  - transportation_emissions
-  - waste_emissions
-  format: wide
+# result_excels:
+# - base_excel_url: 
+#     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+#   name: Climate City Contract Tables
+#   node_ids:
+#   - afolu_emissions
+#   - waste_water_treatment_emissions
+#   - refridgerant_emissions
+#   - aviation_emissions
+#   # - railways_emissions
+#   # - off_road_transportation
+#   - leakage_from_oil_and_gas_wells_emissions
+#   - emission_factor_fuels
+#   - population
+#   # - global_warming_potential_100
+#   - free_rides_per_person
+#   - modal_share_of_active_transportation
+#   # - public_transportation_change
+#   - public_transportation_trips_per_person
+#   - diversion_rate
+#   - waste_emission_factor
+#   - participation_smart_grid
+#   - smart_grid_improvement
+#   - smart_grid_benefits
+#   # - transmission_loss_change
+#   # - transmission_loss_work_benefits
+#   - building_square_footage
+#   - building_electricity_use_historical
+#   - building_natural_gas_use_historical
+#   - building_natural_gas_eui
+#   - building_electricity_eui
+#   - electricity_emission_factor
+#   - emission_factor_natural_gas
+#   # - stationary_fuel_consumption
+#   # - emission_factor_fuel
+#   - stationary_wood_consumption
+#   - emission_factor_wood
+#   - electricity_loss_fraction
+#   - miles_per_gallon
+#   # - vehicle_miles_per_vehicle
+#   - registered_electric_vehicles
+#   - electric_vehicle_efficiency
+#   - vehicle_charging_shares
+#   - amount_of_waste_per_person
+#   format: wide
 
 action_groups:
 - id: buildings
@@ -468,7 +450,7 @@ dimensions:
     label: CO2, biogen
     label_es-US: CO2, biógeno
 
-- id: greenhouse_gases # FIXME Merge this into ghg when datasets are updated.
+- id: greenhouse_gases # FIXME Merge this into ghg
   label: Greenhouse gases
   label_es-US: Gases de efecto invernadero
   categories:
@@ -759,6 +741,32 @@ dimensions:
 params:
 - id: municipality_name
   value: longmont
+- id: all_in_investment
+  label: All investments happen on the first year (not continuously)
+  label_es-US: Todas las inversiones se hacen durante el primer año (no de 
+    manera continua)
+  is_customizable: false
+  value: false
+- id: discount_rate
+  label: Discount rate (%/year)
+  label_es-US: Tasa de descuento (% al año)
+  description: Speed of value decrease for monetary variables
+  description_es-US: Velocidad de disminución del valor de las variables 
+    monetarias
+  is_customizable: false
+  value: 3.5
+  min_value: 0
+  max_value: 18
+  step: 0.5
+  unit: '%'
+- id: renovation_rate_baseline
+  label: Renovation rate baseline (%/year)
+  label_es-US: Referencia de tasa de renovación (% al año)
+  is_customizable: false
+  value: 0.5
+  min_value: 0
+  max_value: 2
+  unit: '%/a'
 - id: weather_correction
   label: Included Avoided emissions
   label_es-US: Emisiones evitadas incluidas
@@ -872,6 +880,7 @@ nodes:
   unit: t_co2e/a
   input_datasets:
   - id: longmont/greenhouse_gas_emissions_by_subsector
+    tags: [baseline]
     column: emissions
     filters:
     - column: emission_scope
@@ -919,6 +928,7 @@ nodes:
   output_dimensions: [asset, energy_carrier]
   input_datasets:
   - id: longmont/avoided_emissions
+    tags: [baseline]
     column: Green production
 
 - id: green_electricity_emission_reduction
@@ -939,14 +949,8 @@ nodes:
     - id: site
       categories: [platte_river_power_authority]
   - id: global_warming_potential_100a
-
-- id: avoided_emissions
-  name: Avoided emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_nodes:
-  - id: green_electricity_emission_reduction
+  output_nodes:
+  - id: avoided_emissions
     from_dimensions:
     - id: asset
       flatten: true
@@ -954,6 +958,13 @@ nodes:
       flatten: true
     - id: ghg
       flatten: true
+
+- id: avoided_emissions
+  name: Avoided emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_nodes:
   - id: informational_composting_emission_reduction
     from_dimensions:
     - id: scope
@@ -1013,7 +1024,8 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: longmont/technical_data
-    forecast_from: 2025
+    forecast_from: 2024
+    tags: [baseline]
     column: ratio
   params:
   - id: operations
@@ -1053,129 +1065,42 @@ nodes:
   type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [ghg, scope]
-  output_dimensions: [ghg, scope]
-  output_nodes:
-  - id: stationary_energy_emissions
-    from_dimensions:
-    - id: ghg
-      flatten: true
-  input_datasets:
-  - id: longmont/non_biogenic_ghg_emission_index
-    forecast_from: 2025
-    tags: [index]
-  input_nodes:
-  - id: is_biogenic_included
-    tags: [biogenic_inclusion]
-  - id: wood_consumption_emissions
-    tags: [wood]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: emission_sectors
-      flatten: true
-    to_dimensions:
-    - id: scope
-      categories: [scope1]
-    - id: ghg
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  output_nodes: [stationary_energy_emissions]
   params:
-    formula: wood * complement(complement(biogenic_inclusion) * complement(extend_all(index)))
+    formula: electricity_consumption_emissions + 
+      natural_gas_consumption_emissions + (wood_consumption_emissions * 
+      is_biogenic_included)
 
 - id: is_biogenic_included
   name: Are biogenic emissions included?
-  type: generic.ConstantNode
+  type: generic.GenericNode
   quantity: fraction
   unit: dimensionless
-  # input_dimensions: [ghg]
-  # output_dimensions: [ghg]
-  # input_datasets:
-  # - id: longmont/non_biogenic_ghg_emission_index
-  #   forecast_from: 2025
+  input_datasets:
+  - id: longmont/technical_data
+    forecast_from: 2024
+    tags: [baseline]
+    column: ratio
   params:
-  - id: boolean
+  - id: operations
+    value: get_single_dataset,do_correction,complement
+  - id: do_correction
     ref: biogenic_inclusion
+  output_nodes: [building_emissions]
 
-- id: is_biogenic_included2
-  name: Are biogenic emissions included?
-  type: generic.GenericNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [ghg]
-  output_dimensions: [ghg]
-  input_datasets:
-  - id: longmont/non_biogenic_ghg_emission_index
-    forecast_from: 2025
- 
-- id: building_square_footage_old
-  name: Building square footage (old)
+- id: building_square_footage
+  name: Building square footage
   name_es-US: Metros cuadrados del edificio
-  type: generic.GenericNode
+  type: simple.AdditiveNode
   quantity: floor_area
   unit: ft^2
   input_datasets:
   - id: longmont/building_square_footage
-    forecast_from: 2025
-    column: floor_area
+    forecast_from: 2023
+  input_dataset_processors: [LinearInterpolation]
   output_dimensions: [emission_sectors]
-  params:
-    operations: get_single_dataset,inventory_only,extend_values
-
-- id: building_square_footage_new
-  name: Building square footage (new)
-  name_es-US: Metros cuadrados del edificio nuevo
-  type: formula.FormulaNode
-  quantity: floor_area
-  unit: ft^2
-  output_dimensions: [emission_sectors]
-  input_datasets:
-  - id: longmont/building_square_footage
-    tags: [all]
-    forecast_from: 2025
-    column: floor_area
-  input_nodes:
-  - id: building_square_footage_old
-    tags: [old]
-  params:
-    formula: all + arithmetic_inverse(old)
-
-- id: building_square_footage_by_building_class
-  name: Building square footage by building class
-  type: formula.FormulaNode
-  quantity: floor_area
-  unit: ft^2
-  input_dimensions: [building_energy_class, emission_sectors, action]
-  output_dimensions: [building_energy_class, emission_sectors, action]
-  input_nodes:
-  - id: building_square_footage_old
-    tags: [old]
-    to_dimensions:
-    - id: emission_sectors
-    - id: building_energy_class
-      categories: [existing]
-  - id: building_square_footage_new
-    tags: [new]
-    to_dimensions:
-    - id: emission_sectors
-    - id: building_energy_class
-      categories: [new]
-  - id: building_class_mix
-    tags: [action_mix]
-  params:
-    formula: (old + new) * action_mix
-
-- id: building_class_mix
-  name: Building class mix
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [action, building_energy_class, emission_sectors]
-  output_dimensions: [action, building_energy_class, emission_sectors]
-  input_datasets:
-  - id: longmont/building_class_mix
-  params:
-    operations: get_single_dataset,add_to_existing_dims
-
-# TODO MAYBE REMOVE ALL THESE NODES --v
 
 - id: building_electricity_use_historical
   name: Building electricity use (historical)
@@ -1187,6 +1112,7 @@ nodes:
   output_dimensions: [emission_sectors, site]
   input_datasets:
   - id: longmont/stationary_energy_consumption
+    tags: [baseline]
     column: electricity
     filters:
     - column: energy_carrier
@@ -1195,7 +1121,7 @@ nodes:
 - id: building_electricity_use_per_resident
   name: Building electricity use per resident
   name_es-US: Consumo de electricidad en edificios por residente
-  type: simple.DivisiveNode # FIXME
+  type: simple.DivisiveNode
   quantity: per_capita
   unit: GWh/a/cap
   input_nodes:
@@ -1214,7 +1140,7 @@ nodes:
 - id: building_electricity_use_bau
   name: Building electricity use (baseline)
   name_es-US: Consumo de electricidad en edificios (referencia)
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
   input_nodes:
@@ -1227,7 +1153,7 @@ nodes:
 - id: building_natural_gas_use_historical
   name: Building natural gas use (historical)
   name_es-US: Consumo de gas natural en edificios (histórico)
-  type: buildings.HistoricalNode # FIXME
+  type: buildings.HistoricalNode
   quantity: energy
   unit: Mtherm/a
   input_dimensions: [emission_sectors, site]
@@ -1243,7 +1169,7 @@ nodes:
 - id: building_natural_gas_use_per_resident
   name: Building natural gas use per resident
   name_es-US: Consumo de gas natural en edificios por residente
-  type: simple.DivisiveNode # FIXME
+  type: simple.DivisiveNode
   quantity: per_capita
   unit: Mtherm/a/cap
   input_nodes:
@@ -1262,7 +1188,7 @@ nodes:
 - id: building_natural_gas_use_bau
   name: Building natural gas use (baseline)
   name_es-US: Consumo de gas natural en edificios (referencia)
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode
   quantity: energy
   unit: Mtherm/a
   input_nodes:
@@ -1272,74 +1198,161 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
 
-## TODO MAYBE REMOVE ALL THESE NODES ABOVE --^
+- id: affected_square_footage
+  name: Building square footage affected by actions
+  name_es-US: Metros cuadrados del edificio afectados por acciones
+  description: Building square footeage affected by actions on each year. 
+    Fraction of compliant buildings is already taken into account here. Note 
+    that these values are not additive, as several actions may affect the same 
+    buildings. Those buildings that are not affected are not shown here.
+  description_es-US: Metros cuadrados del edificio afectados por acciones en 
+    cada año. Aquí ya se tiene en cuenta la fracción de edificios que cumplen la
+    normativa. Tenga en cuenta que estos valores no se pueden sumar, ya que 
+    varias acciones pueden afectar a los mismos edificios. Los edificios que no 
+    se ven afectados no se muestran aquí.
+  type: buildings.FloorAreaNode
+  quantity: floor_area
+  unit: ft^2
+  input_nodes:
+  - id: building_square_footage
+    to_dimensions:
+    - id: emission_sectors
+  - id: updated_building_code
+    metrics: [triggered, compliant]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]  # Any category, all are identical
+      flatten: true
+  - id: develop_beyond_building_code
+    metrics: [triggered, compliant]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  - id: benchmark_energy_use
+    metrics: [triggered, compliant]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
 
-- id: building_natural_gas_eui_by_action
-  name: Energy use intensity EUI baseline for natural gas by energy class
-  type: formula.FormulaNode
+- id: natural_gas_eui_improvement
+  name: Energy use intensity EUI improvement for natural gas
+  name_es-US: Mejora de la intensidad del consumo de energía (EUI, por sus 
+    siglas en inglés) para el gas natural
+  type: buildings.CfNode
   quantity: consumption_factor
   unit: therm/ft**2/a
-  input_dimensions: [emission_sectors, action]
-  output_dimensions: [emission_sectors, action]
+  input_nodes:
+  - id: building_natural_gas_eui
+    to_dimensions:
+    - id: emission_sectors
+  - id: updated_building_code
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+  - id: develop_beyond_building_code
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+  - id: benchmark_energy_use
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+
+- id: natural_gas_saved
+  name: Natural gas saved
+  name_es-US: Gas natural ahorrado
+  type: buildings.EnergyNode
+  quantity: energy
+  unit: Mthm/a
+  params:
+  - id: not_cumulated
+    value: develop_beyond_building_code
+  input_nodes:
+  - id: affected_square_footage
+  - id: natural_gas_eui_improvement
+  output_nodes:
+  - id: building_natural_gas_use
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: action
+      flatten: true
+
+- id: electricity_eui_improvement
+  name: Energy use intensity EUI improvement for electricity
+  name_es-US: Mejora de la intensidad del consumo de energía (EUI, por sus 
+    siglas en inglés) para la electricidad
+  type: buildings.CfNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  input_nodes:
+  - id: building_electricity_eui
+    to_dimensions:
+    - id: emission_sectors
+  - id: updated_building_code
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  - id: develop_beyond_building_code
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  - id: benchmark_energy_use
+    metrics: [improvement]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+
+- id: electricity_saved
+  name: Electricity saved
+  name_es-US: Electricidad ahorrada
+  type: buildings.EnergyNode
+  quantity: energy
+  unit: GWh/a
+  params:
+  - id: not_cumulated
+    value: develop_deyond_building_code
+  input_nodes:
+  - id: affected_square_footage
+  - id: electricity_eui_improvement
+  output_nodes:
+  - id: building_electricity_use
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: action
+      flatten: true
+
+- id: building_natural_gas_eui
+  name: Energy use intensity EUI baseline for natural gas
+  name_es-US: Referencia de intensidad del consumo de energía (EUI, por sus 
+    siglas en inglés) para el gas natural
+  type: simple.AdditiveNode
+  quantity: consumption_factor
+  unit: therm/ft**2/a
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: natural_gas
-    forecast_from: 2025
-    tags: [eui, extend_both_ways]
   input_nodes:
   - id: energy_use_intensity_trend
     metrics: [natural_gas]
-    tags: [trend, extend_both_ways]
-  - id: energy_use_intensity_improvement
-    tags: [improvement]
-  params:
-    formula: (eui + trend) * complement(improvement)
-
-- id: building_natural_gas_use
-  name: Building natural gas use
-  name_es-US: Consumo de gas natural en edificios
-  description: <b>Unit:</b> Mthm/yr. = million therms per year.
-  description_es-US: <b>Unidad:</b> Mthm/año = millones de termias al año.
-  type: formula.FormulaNode
-  quantity: energy
-  unit: Mthm/a
-  input_dimensions: [emission_sectors, building_energy_class, action]
-  output_dimensions: [emission_sectors, building_energy_class]
-  input_nodes:
-  - id: building_square_footage_by_building_class
-    tags: [square_footage]
-    to_dimensions:
-    - id: building_energy_class
-    - id: emission_sectors
-    - id: action
-  - id: building_natural_gas_eui_by_action
-    tags: [eui]
-    to_dimensions:
-    - id: emission_sectors
-    - id: action
-  params:
-    formula: sum_dim(square_footage * eui, action) * efficiency_works_program
-
-- id: building_electricity_eui_by_action
-  name: Energy use intensity EUI for electricity by action
-  type: formula.FormulaNode
-  quantity: consumption_factor
-  unit: kWh/ft**2/a
-  input_dimensions: [emission_sectors, action]
-  output_dimensions: [emission_sectors, action]
-  input_datasets:
-  - id: longmont/building_energy_use_intensity_eui
-    column: electricity
-    tags: [eui, cleaned, extend_both_ways]
-    forecast_from: 2025
-  input_nodes:
-  - id: energy_use_intensity_improvement
-    tags: [improvement]
-  - id: energy_use_intensity_trend
-    metrics: [electricity]
-    tags: [trend]
-  params:
-    formula: (eui + trend) * complement(improvement)
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
 
 - id: building_electricity_use
   name: Building electricity use
@@ -1348,25 +1361,30 @@ nodes:
     kilowatt-hours per year.
   description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones 
     de kilovatios hora al año.
-  type: formula.FormulaNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [emission_sectors, building_energy_class, action]
-  output_dimensions: [emission_sectors, building_energy_class]
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
   input_nodes:
-  - id: building_square_footage_by_building_class
-    tags: [square_footage]
-    to_dimensions:
-    - id: building_energy_class
-    - id: emission_sectors
-    - id: action
-  - id: building_electricity_eui_by_action
-    tags: [eui]
-    to_dimensions:
-    - id: emission_sectors
-    - id: action
+  - id: building_electricity_use_bau
   params:
-    formula: sum_dim(square_footage * eui, action) * efficiency_works_program
+    operations: add,multiply
+
+- id: building_natural_gas_use
+  name: Building natural gas use
+  name_es-US: Consumo de gas natural en edificios
+  description: <b>Unit:</b> Mthm/yr. = million therms per year.
+  description_es-US: <b>Unidad:</b> Mthm/año = millones de termias al año.
+  type: generic.GenericNode
+  quantity: energy
+  unit: Mtherm/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: building_natural_gas_use_bau
+  params:
+    operations: add,multiply
 
 - id: electricity_use
   name: Electricity use
@@ -1384,9 +1402,6 @@ nodes:
     operations: add,multiply
   input_nodes:
   - id: building_electricity_use
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
 
 - id: electricity_emission_factor
   name: Emission factor of electricity production
@@ -1399,6 +1414,22 @@ nodes:
   input_datasets:
   - id: longmont/electricity_emission_factor
   input_dataset_processors: [LinearInterpolation]
+
+- id: building_electricity_eui
+  name: Energy use intensity EUI baseline for electricity
+  name_es-US: Referencia de intensidad del consumo de energía (EUI, por sus 
+    siglas en inglés) para la electricidad
+  type: simple.AdditiveNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
+  input_nodes:
+  - id: energy_use_intensity_trend
+    metrics: [electricity]
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
 
 - id: electricity_consumption_emissions
   name: Electricity consumption emissions
@@ -1424,78 +1455,59 @@ nodes:
   output_nodes:
   - id: building_emissions
     from_dimensions:
+    - id: ghg
+      flatten: true
     - id: emission_sectors
       flatten: true
     - id: site
       flatten: true
     to_dimensions:
-    - id: ghg
     - id: scope
       categories: [scope2]
-
 
 - id: electricity_replacing_natural_gas_residential
   name: Electricity that replaces natural gas in residential buildings
   name_es-US: Electricidad que reemplaza al gas natural en edificios 
     residenciales
-  type: generic.GenericNode
+  type: simple.FixedMultiplierNode
   quantity: energy
   unit: kWh/a
   params:
   - id: multiplier
     value: -0.33
-    unit: dimensionless
   output_nodes:
   - id: building_electricity_use
     to_dimensions:
     - id: emission_sectors
       categories: [residential_energy]
-    - id: building_energy_class
-      categories: [existing]
 
 - id: electricity_replacing_natural_gas_commercial
   name: Electricity that replaces natural gas in commercial buildings
   name_es-US: Electricidad que reemplaza al gas natural en edificios comerciales
-  type: formula.FormulaNode
+  type: simple.FixedMultiplierNode
   quantity: energy
   unit: kWh/a
   params:
-  - id: constant
+  - id: multiplier
     value: -0.39
-    unit: dimensionless
-  - id: formula
-    value: constant * replace_natural_gas_commercial
   output_nodes:
   - id: building_electricity_use
     to_dimensions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
-    - id: building_energy_class
-      categories: [existing]
 
 # Natural gas
 
 - id: emission_factor_natural_gas
   name: Emission factor of natural gas
   name_es-US: Factor de emisión del gas natural
-  type: formula.FormulaNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/Mthm
-  input_dimensions: [energy_carrier, greenhouse_gases, ghg]
-  output_dimensions: [ghg, energy_carrier]
   input_datasets:
-  - id: longmont/emission_factor_natural_gas
-    tags: [ef, cleaned, extend_both_ways]
-    forecast_from: 2025
+  - longmont/emission_factor_natural_gas
   input_dataset_processors: [LinearInterpolation]
-  input_nodes:
-  - id: greenhouse_gas_index
-    tags: [index]
-    to_dimensions:
-    - id: greenhouse_gases
-    - id: ghg
-  params:
-    formula: sum_dim(ef * index, greenhouse_gases)
+  output_dimensions: [greenhouse_gases, energy_carrier]
 
 - id: leakage_from_natural_gas_emissions
   name: Emissions from natural gas leakage
@@ -1510,11 +1522,6 @@ nodes:
   input_nodes:
   - id: building_natural_gas_use
     tags: [use]
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-    to_dimensions:
-    - id: emission_sectors
   - id: global_warming_potential_100a
     tags: [gwp]
     to_dimensions:
@@ -1533,8 +1540,7 @@ nodes:
     tags: [fraction, cleaned]
     column: Fraction in natural gas
   params:
-    formula: use / complement(leakage) / energy_factor * density * leakage * 
-      fraction * gwp
+    formula: use / complement(leakage) / energy_factor * density * leakage * fraction * gwp
   output_nodes:
   - id: fugitive_emissions
     from_dimensions:
@@ -1552,32 +1558,33 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
-  output_dimensions: [emission_sectors, ghg, energy_carrier]
+  output_dimensions: [emission_sectors, greenhouse_gases, energy_carrier]
   input_nodes:
   - id: building_natural_gas_use
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
     to_dimensions:
     - id: emission_sectors
     - id: energy_carrier
       categories: [natural_gas]
   - id: emission_factor_natural_gas
     to_dimensions:
-    - id: ghg
+    - id: greenhouse_gases
     - id: energy_carrier
-  - id: global_warming_potential_100a
-    to_dimensions:
+  - id: global_warming_potential_100a_old
+    from_dimensions:
     - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: greenhouse_gases
   output_nodes:
   - id: building_emissions
     from_dimensions:
     - id: energy_carrier
       flatten: true
+    - id: greenhouse_gases
+      flatten: true
     - id: emission_sectors
       flatten: true
     to_dimensions:
-    - id: ghg
     - id: scope
       categories: [scope1]
 
@@ -1591,30 +1598,20 @@ nodes:
   unit: MMBtu/a
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
-  - id: longmont/stationary_wood_consumption
+  - longmont/stationary_wood_consumption
   input_dimensions: [emission_sectors]
   output_dimensions: [energy_carrier, emission_sectors]
 
 - id: emission_factor_wood
   name: Emission factor of wood
   name_es-US: Factor de emisión de la madera
-  type: formula.FormulaNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/MMBtu
-  input_dimensions: [energy_carrier, greenhouse_gases, ghg]
-  output_dimensions: [ghg, energy_carrier]
+  input_dataset_processors: [LinearInterpolation]
   input_datasets:
-  - id: longmont/emission_factor_wood
-    tags: [ef, cleaned, extend_both_ways]
-    forecast_from: 2025
-  input_nodes:
-  - id: greenhouse_gas_index
-    tags: [index]
-    to_dimensions:
-    - id: greenhouse_gases
-    - id: ghg
-  params:
-    formula: sum_dim(ef * index, greenhouse_gases)
+  - longmont/emission_factor_wood
+  output_dimensions: [energy_carrier, greenhouse_gases]
 
 - id: wood_consumption_emissions
   name: Wood consumption emissions
@@ -1622,7 +1619,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
-  output_dimensions: [ghg, emission_sectors, energy_carrier]
+  output_dimensions: [greenhouse_gases, emission_sectors, energy_carrier]
   input_nodes:
   - id: stationary_wood_consumption
     to_dimensions:
@@ -1630,11 +1627,26 @@ nodes:
     - id: energy_carrier
   - id: emission_factor_wood
     to_dimensions:
-    - id: ghg
+    - id: greenhouse_gases
     - id: energy_carrier
-  - id: global_warming_potential_100a
-    to_dimensions:
+  - id: global_warming_potential_100a_old
+    from_dimensions:
     - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: greenhouse_gases
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: greenhouse_gases
+      flatten: true
+    - id: emission_sectors
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [biogenic_emissions]
 
 # Losses
 
@@ -1661,7 +1673,7 @@ nodes:
 - id: electricity_losses
   name: Electricity losses
   name_es-US: Pérdidas de electricidad
-  type: formula.FormulaNode
+  type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [emission_sectors]
@@ -1671,8 +1683,6 @@ nodes:
     tags: [non_additive]
     to_dimensions:
     - id: emission_sectors
-  params:
-    formula: electricity_use * electricity_loss_fraction
 
 - id: electricity_loss_emissions
   name: Emissions due to electricity losses
@@ -1686,8 +1696,6 @@ nodes:
   - id: electricity_losses
     to_dimensions:
     - id: emission_sectors
-    - id: site
-      categories: [platte_river_power_authority]
   - id: electricity_emission_factor
     to_dimensions:
     - id: ghg
@@ -1705,31 +1713,27 @@ nodes:
 
 - id: transportation_ch4_emission_factors
   name: Transportation CH4 and N2O emission factors
-  type: formula.FormulaNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/VMT
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_datasets:
   - id: longmont/transportation_emission_factors
-    tags: [ef, cleaned]
+    tags: [baseline]
     column: emission_factor
-  params:
-    formula: extend_both_ways(ef)
 
 - id: transportation_emission_factors
   name: Transportation emission factors
-  type: formula.FormulaNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: t/gal
-  input_dimensions: [energy_carrier, ghg]
-  output_dimensions: [energy_carrier, ghg]
+  input_dimensions: [ghg, energy_carrier]
+  output_dimensions: [ghg, energy_carrier]
   input_datasets:
   - id: longmont/transportation_emission_factors
-    tags: [ef, cleaned]
+    tags: [baseline]
     column: fuel_emission_factor
-  params:
-    formula: extend_both_ways(ef)
 
 - id: transportation_ch4_emissions
   name: Transportation CH4 and N2O emissions
@@ -1793,6 +1797,7 @@ nodes:
   output_dimensions: [service, vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/transit_data
+    tags: [baseline]
     forecast_from: 2025
     column: transit_vmt
 
@@ -1805,6 +1810,7 @@ nodes:
   output_dimensions: [service, vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/transit_data
+    tags: [baseline]
     forecast_from: 2025
     column: percent_attributable
 
@@ -1817,6 +1823,7 @@ nodes:
   output_dimensions: [service, vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/transit_data
+    tags: [baseline]
     forecast_from: 2025
     column: transit_mpg
 
@@ -1877,6 +1884,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/total_railway_ghg_emissions_boulder_county
+    tags: [baseline]
     forecast_from: 2025
     column: railway_emissions
 
@@ -1887,6 +1895,7 @@ nodes:
   unit: '%'
   input_datasets:
   - id: longmont/total_railway_ghg_emissions_boulder_county
+    tags: [baseline]
     forecast_from: 2025
     column: proportion_of_rail_lines_in_longmont
 
@@ -1920,6 +1929,7 @@ nodes:
   output_dimensions: [energy_carrier, airport, scope]
   input_datasets:
   - id: longmont/aviation_data
+    tags: [baseline]
     column: total_fuel_used
 
 - id: aviation_fuel_emission_factors
@@ -1931,6 +1941,7 @@ nodes:
   output_dimensions: [energy_carrier, ghg, source]
   input_datasets:
   - id: longmont/aviation_data
+    tags: [baseline]
     column: fuel_emission_factors
 
 - id: aviation_emissions
@@ -1978,6 +1989,7 @@ nodes:
   output_dimensions: [waste, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
+    tags: [baseline]
     column: waste_emission_factor
 
 - id: gas_collection_rate
@@ -1987,6 +1999,7 @@ nodes:
   unit: '%'
   input_datasets:
   - id: longmont/waste_data
+    tags: [baseline]
     column: gas_collection_rate
 
 - id: waste_landfilled
@@ -1998,6 +2011,7 @@ nodes:
   output_dimensions: [scope, waste]
   input_datasets:
   - id: longmont/waste_data
+    tags: [baseline]
     column: waste_landfilled
 
 - id: msw_characterization
@@ -2009,6 +2023,7 @@ nodes:
   output_dimensions: [waste]
   input_datasets:
   - id: longmont/waste_characterization
+    tags: [baseline]
     column: msw_characterization
 
 - id: landfilled_waste_emissions
@@ -2054,6 +2069,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
+    tags: [baseline]
     column: composting_emission_factor
 
 - id: waste_composted
@@ -2065,6 +2081,7 @@ nodes:
   output_dimensions: [scope]
   input_datasets:
   - id: longmont/waste_data
+    tags: [baseline]
     column: waste_composted
 
 - id: composted_waste_emissions
@@ -2097,6 +2114,7 @@ nodes:
   output_dimensions: [scope, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
+    tags: [baseline]
     column: informational_composting_emission_factor
 
 - id: informational_composting_emission_reduction
@@ -2122,6 +2140,8 @@ nodes:
   - id: global_warming_potential_100a
     to_dimensions:
     - id: ghg
+  output_nodes:
+  - id: waste_emissions
 
 - id: waste_recycled
   name: Waste recycled
@@ -2132,6 +2152,7 @@ nodes:
   output_dimensions: [scope]
   input_datasets:
   - id: longmont/waste_data
+    tags: [baseline]
     column: waste_recycled
 
 - id: recycling_characterization
@@ -2143,6 +2164,7 @@ nodes:
   output_dimensions: [waste]
   input_datasets:
   - id: longmont/waste_characterization
+    tags: [baseline]
     column: recycling_characterization
 
 - id: recycling_instead_of_virgin
@@ -2154,6 +2176,7 @@ nodes:
   output_dimensions: [waste, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
+    tags: [baseline]
     column: recycling_instead_of_virgin
 
 - id: landfill_gas_collection
@@ -2165,6 +2188,7 @@ nodes:
   output_dimensions: [waste, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
+    tags: [baseline]
     column: landfill_gas_collection
 
 - id: recycling_emission_factor
@@ -2200,6 +2224,11 @@ nodes:
   - id: global_warming_potential_100a
     to_dimensions:
     - id: ghg
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: waste
+      flatten: true
 
 - id: global_warming_potential_100a
   name: Global warming potential2
@@ -2210,7 +2239,26 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/global_warming_potentials
+    tags: [baseline]
     column: global_warming_potential
+
+- id: global_warming_potential_100a_old
+  name: Global warming potential by old index
+  type: generic.GenericNode
+  quantity: ratio
+  unit: t_co2e/t
+  input_dimensions: [ghg, greenhouse_gases]
+  output_dimensions: [ghg, greenhouse_gases]
+  input_nodes:
+  - id: global_warming_potential_100a
+    tags: [gwp, non_additive]
+    to_dimensions:
+    - id: ghg
+  - id: greenhouse_gas_index
+    tags: [ghg_old_index]
+    to_dimensions:
+    - id: ghg
+    - id: greenhouse_gases
 
 - id: waste_emissions
   name: Waste emissions
@@ -2236,6 +2284,7 @@ nodes:
   unit: sq_ft
   input_datasets:
   - id: longmont/ippu
+    tags: [baseline]
     column: commercial_square_footage_air_conditioned
 
 - id: square_feet_per_ton_of_cooling
@@ -2245,6 +2294,7 @@ nodes:
   unit: sq_ft/refrigeration_ton
   input_datasets:
   - id: longmont/ippu
+    tags: [baseline]
     column: square_feet_per_ton_of_cooling
 
 - id: amount_of_refrigerant
@@ -2256,6 +2306,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/ippu
+    tags: [baseline]
     column: amount_of_refrigerant
 
 - id: refrigerant_loss
@@ -2265,31 +2316,26 @@ nodes:
   unit: '%/a'
   input_datasets:
   - id: longmont/ippu
+    tags: [baseline]
     column: estimated_refrigerant_loss
 
 - id: refrigerant_emissions
   name: Refrigerant emissions
-  type: formula.FormulaNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg]
   output_dimensions: [ghg]
   input_nodes:
   - id: commercial_air_conditioned_square_footage
-    tags: [square_footage]
     to_dimensions: []
   - id: square_feet_per_ton_of_cooling
-    tags: [capacity]
+    tags: [geometric_inverse]
     to_dimensions: []
   - id: amount_of_refrigerant
-    tags: [amount]
   - id: refrigerant_loss
-    tags: [loss]
     to_dimensions: []
   - id: global_warming_potential_100a
-    tags: [gwp]
-  params:
-    formula: square_footage / capacity * amount * loss * gwp
   output_nodes:
   - id: ippu_emissions
 
@@ -2325,9 +2371,10 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/vehicle_miles_traveled
+    tags: [baseline]
 
-- id: non_electric_vehicle_fuel_use
-  name: Non-electric vehicle fuel use
+- id: non_electric_vehicle_fuel_use2
+  name: Non-electric vehicle fuel use2
   name_es-US: Consumo de combustible en vehículos no eléctricos
   type: generic.GenericNode
   quantity: energy
@@ -2335,7 +2382,9 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: longmont/non_electric_vehicle_fuel_use
+  - id: longmont/transport_fuel_consumption
+    tags: [baseline]
+    column: Fuel
 
 - id: greenhouse_gas_index
   name: Greenhouse gas index
@@ -2347,6 +2396,7 @@ nodes:
   output_dimensions: [ghg, greenhouse_gases]
   input_datasets:
   - id: longmont/greenhouse_gas_index
+    tags: [baseline]
 
 - id: vehicle_fuel_emissions
   name: Vehicle fuel emissions
@@ -2357,7 +2407,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
-  - id: non_electric_vehicle_fuel_use
+  - id: non_electric_vehicle_fuel_use2
     tags: [fuels]
     from_dimensions:
     - id: vehicle_type
@@ -2367,67 +2417,52 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: ghg
-  - id: global_warming_potential_100a
+  - id: global_warming_potential_100a_old
     tags: [gwp]
     to_dimensions:
     - id: ghg
+    - id: greenhouse_gases
   - id: transportation_ch4_emissions
     tags: [non_co2]
     from_dimensions:
     - id: vehicle_type
       flatten: true
   params:
-    formula: fuels * ef * gwp + non_co2
+    formula: sum_dim( fuels * ef * gwp, greenhouse_gases ) + non_co2
 
 - id: participation_smart_grid
   name: Participation in smart grid projects
   name_es-US: Participación en proyectos de redes inteligentes
-  type: generic.GenericNode
+  type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
+  historical_values: [[2016, 0], [2017, 0], [2018, 2], [2019, 5], [2020, 7], [
+        2021, 9]]
 
 - id: smart_grid_improvement
   name: Relative improvement due to smart grid implementation
   name_es-US: Mejora relativa debido a la aplicación de redes inteligentes
-  type: generic.GenericNode
+  type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    column: smart_grid_improvement
-    forecast_from: 2025
-  params:
-    operations: get_single_dataset,extend_to_history
+  historical_values: [[2016, 0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [
+        2021, 0]]
 
 - id: smart_grid_benefits
   name: Smart grid action benefits
   name_es-US: Beneficios de la acción de redes inteligentes
-  type: formula.FormulaNode
+  type: simple.ImprovementNode
   quantity: fraction
   unit: dimensionless
+  historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1]]
   input_nodes:
   - id: participation_smart_grid
-    tags: [participation]
+    tags: [non_additive]
   - id: smart_grid_improvement
-    tags: [improvement]
-  params:
-    formula: complement(participation * improvement)
+    tags: [non_additive]
   output_nodes:
   - id: electricity_use
     to_dimensions: []
-    tags: [extend_to_history]
-
-- id: energy_use_intensity_improvement
-  name: Energy use intensity improvement
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  output_dimensions: [emission_sectors, action]
-  input_datasets:
-  - id: longmont/energy_use_intensity_improvement
-    forecast_from: 2025
-  params:
-    operations: get_single_dataset,extend_to_history
 
 actions:
 
@@ -2445,28 +2480,29 @@ actions:
     de energía (EUI, por sus siglas en inglés) causada por esta acción.</p> <p>Seguimiento
     de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-5">Estrategia
     del Plan de Sustentabilidad BI-5</a></li></ul></p>'
-  type: shift.ShiftAction
-  quantity: fraction
-  unit: '%'
+  type: energy_saving.CfFloorAreaAction
+  quantity: consumption_factor
   group: buildings
-  output_nodes:
-  - id: building_class_mix
-    tags: [add_to_existing_dims]
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          action: none
-          building_energy_class: existing
-      dests:
-      - categories:
-          action: updated_building_code
-          building_energy_class: existing
-      amounts:
-      - {year: 2025, source_amount: -1.0, dest_amounts: [100]}
+  input_datasets:
+  - id: longmont/energy_use_intensity_with_building_actions
+    tags: [floor]
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: updated_building_code
+#  - id: longmont/energy_use_intensity_improvements  # Alternative, absolute data
+  - id: longmont/energy_use_intensity_relative
+    tags: [improvement]
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: updated_building_code
+  output_dimensions: [emission_sectors, building_energy_class, energy_carrier]
+#  params:  # For absolute data
+#  - id: natural_gas_unit
+#    value: thm/ft**2/a
+#  - id: electricity_unit
+#    value: kWh/ft**2/a
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
@@ -2485,29 +2521,22 @@ actions:
     del consumo de energía (EUI, por sus siglas en inglés) causada por esta acción.</p>
     <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-6">Estrategia
     del Plan de Sustentabilidad BI-6</a></li></ul></p>'
-  type: shift.ShiftAction
-  quantity: fraction
-  unit: '%'
+  type: energy_saving.CfFloorAreaAction
+  quantity: consumption_factor
   group: buildings
-  output_nodes:
-  - id: building_class_mix
-    tags: [add_to_existing_dims]
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          action: none
-          building_energy_class: new
-      dests:
-      - categories:
-          action: develop_beyond_building_code
-          building_energy_class: new
-      amounts:
-      - {year: 2025, source_amount: -90.0, dest_amounts: [100]}
-      - {year: 2026, source_amount: -0.0, dest_amounts: [100]}
+  input_datasets:
+  - id: longmont/energy_use_intensity_with_building_actions
+    tags: [floor]
+    filters:
+    - column: action
+      value: develop_beyond_building_code
+  - id: longmont/energy_use_intensity_relative
+    tags: [improvement]
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: develop_beyond_building_code
+  output_dimensions: [emission_sectors, building_energy_class, energy_carrier]
 
 - id: benchmark_energy_use
   name: Report and benchmark energy use in commercial buildings
@@ -2525,30 +2554,22 @@ actions:
     de la intensidad del consumo de energía (EUI, por sus siglas en inglés) causada
     por esta acción.</p> <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-5">Estrategia
     del Plan de Sustentabilidad E-5</a></li></ul>'
-  type: shift.ShiftAction
-  quantity: fraction
-  unit: '%'
+  type: energy_saving.CfFloorAreaAction
+  quantity: consumption_factor
   group: buildings
+  input_datasets:
+  - id: longmont/energy_use_intensity_with_building_actions
+    tags: [floor]
+    filters:
+    - column: action
+      value: benchmark_energy_use
+  - id: longmont/energy_use_intensity_relative
+    tags: [improvement]
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: benchmark_energy_use
   output_dimensions: [emission_sectors, building_energy_class, energy_carrier]
-  output_nodes:
-  - id: building_class_mix
-    tags: [add_to_existing_dims]
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          action: none
-          emission_sectors: commercial_industrial_energy
-      dests:
-      - categories:
-          action: benchmark_energy_use
-          emission_sectors: commercial_industrial_energy
-      amounts:
-      - {year: 2025, source_amount: -88.0, dest_amounts: [100]}
-      - {year: 2026, source_amount: -0.0, dest_amounts: [100]}
 
 - id: efficiency_works_program
   name: Expand the Efficiency Works Program
@@ -2570,21 +2591,19 @@ actions:
     del Plan de Sustentabilidad E-7 </a></li> <li>Con ingresos calificados: <a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-2">estrategia
     del Plan de Sustentabilidad E-2</a></li> y <a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-2">estrategia
     BI-2</a></li></ul>'
-  type: simple.GenericAction
+  type: simple.AdditiveAction
   quantity: fraction
   unit: '%'
   group: buildings
   input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2025
-    column: efficiency_works_program
-  params:
-    operations: get_single_dataset,extend_to_history
+  - id: longmont/efficiency_works_program
+    forecast_from: 2023
+    column: fraction
   output_nodes:
   - id: building_electricity_use
-    tags: [complement]
+    tags: [non_additive, complement]
   - id: building_natural_gas_use
-    tags: [complement]
+    tags: [non_additive, complement]
 
 - id: replace_natural_gas_residential
   name: Beneficial Building Electrification Residential
@@ -2598,24 +2617,20 @@ actions:
     alimentados por electricidad cada vez más limpia y renovable.</p> <p>Seguimiento
     de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/bbe">Plan
     de electrificación beneficiosa de edificios</a></li></ul>'
-  type: simple.GenericAction
+  type: simple.AdditiveAction
   quantity: energy
   unit: ktherm/a
   group: buildings
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2025
+    forecast_from: 2022
     column: replace_natural_gas_residential
   output_nodes:
   - id: building_natural_gas_use
     to_dimensions:
     - id: emission_sectors
       categories: [residential_energy]
-    - id: building_energy_class
-      categories: [existing]
   - id: electricity_replacing_natural_gas_residential
-  params:
-    operations: get_single_dataset,extend_to_history
 
 - id: replace_natural_gas_commercial
   name: Beneficial Building Electrification Commercial
@@ -2629,24 +2644,20 @@ actions:
     alimentados por electricidad cada vez más limpia y renovable.</p> <p>Seguimiento
     de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/bbe">Plan
     de electrificación beneficiosa de edificios</a></li></ul>'
-  type: simple.GenericAction
+  type: simple.AdditiveAction
   quantity: energy
   unit: ktherm/a
   group: buildings
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2025
+    forecast_from: 2022
     column: replace_natural_gas_commercial
   output_nodes:
   - id: building_natural_gas_use
     to_dimensions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
-    - id: building_energy_class
-      categories: [existing]
   - id: electricity_replacing_natural_gas_commercial
-  params:
-    operations: get_single_dataset,extend_to_history
 
 - id: longmont_power_renewables
   name: 90% renewable electric energy supply by 2030
@@ -2680,13 +2691,13 @@ actions:
   group: electric_grid
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2025
+    forecast_from: 2022
     column: longmont_power_renewables
   output_nodes:
   - id: electricity_emission_factor
     to_dimensions:
     - id: ghg
-      categories: [co2e]
+      categories: [co2]
     - id: site
       categories: [platte_river_power_authority]
 
@@ -2722,20 +2733,21 @@ actions:
   group: electric_grid
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
     column: longmont_power_renewables_additional
-    forecast_from: 2025
+    forecast_from: 2023
   output_nodes:
   - id: electricity_emission_factor
     to_dimensions:
     - id: ghg
-      categories: [co2e]
+      categories: [co2]
     - id: site
       categories: [platte_river_power_authority]
 
 - id: smart_grid_projects
   name: Accelerate and implement smart grid projects
   name_es-US: Acelerar y ejecutar proyectos de redes inteligentes
-  description: '<p>This action shows participation rate. Implement a variety of smart grid projects that encourage reductions
+  description: '<p>Implement a variety of smart grid projects that encourage reductions
     in electricity consumption through real-time feedback, dynamic pricing, etc.</p>
     <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-7">Sustainability
     Plan Strategy E-7</a></li></ul>'
@@ -2744,18 +2756,41 @@ actions:
     en tiempo real, precios dinámicos, etc.</p> <p>Seguimiento de la aplicación: <ul><li><a
     href="https://indicators.longmontcolorado.gov/sustainability/actions/E-7">Estrategia
     del Plan de Sustentabilidad E-7</a></li></ul>'
-  type: simple.GenericAction
+  type: simple.AdditiveAction
   group: electric_grid
-  quantity: ratio
-  unit: '%'
+  output_metrics:
+  - id: participation_smart_grid
+    quantity: ratio
+    unit: '%'
+  - id: smart_grid_improvement
+    quantity: ratio
+    unit: '%'
+  input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    column: participation_smart_grid
-    forecast_from: 2025
-  params:
-    operations: get_single_dataset,extend_to_history
+    # columns: [participation_smart_grid, smart_grid_improvement]
+    forecast_from: 2023
+    filters:
+    - column: efficiency_works_program
+    - column: replace_natural_gas_residential
+    - column: replace_natural_gas_commercial
+    - column: longmont_power_renewables
+    - column: longmont_power_renewables_additional
+    - column: reduce_transmission_distribution_losses
+    - column: vehicle_incentives
+    - column: last_mile_connections
+    - column: increase_waste_diversion
+    - column: mpg_trend
+    - column: vmt_per_vehicle_trend
+    - column: electric_vehicle_efficiency_trend
+    - column: increase_access_of_public_transit
+    - column: multimodal_transportation_system
+    - column: leak_detection
   output_nodes:
   - id: participation_smart_grid
+    metrics: [participation_smart_grid]
+  - id: smart_grid_improvement
+    metrics: [smart_grid_improvement]
 
 - id: reduce_transmission_distribution_losses
   name: Encourage practices that reduce transmission and distribution losses
@@ -2775,8 +2810,9 @@ actions:
   group: electric_grid
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
     column: reduce_transmission_distribution_losses
-    forecast_from: 2025
+    forecast_from: 2023
   output_nodes:
   - id: electricity_use
     tags: [extend_to_history, complement]
@@ -2801,7 +2837,8 @@ actions:
   group: oil_and_gas
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2025
+    tags: [baseline]
+    forecast_from: 2022
     column: leak_detection
   output_nodes:
   - id: leakage_from_oil_and_gas_wells_emissions
@@ -2824,11 +2861,10 @@ actions:
   group: trend
   input_datasets:
   - id: longmont/energy_use_intensity_improvements
-    tags: [cleaned, extend_both_ways]
     filters:
     - column: action
       value: none
-    forecast_from: 2025
+    forecast_from: 2023
   output_dimensions: [emission_sectors]
 
 - id: vehicle_incentives
@@ -2853,7 +2889,7 @@ actions:
   group: transportation
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2025
+    forecast_from: 2022
     column: vehicle_incentives
   # output_nodes:
   # - registered_electric_vehicles
@@ -2886,8 +2922,9 @@ actions:
   group: transportation
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
     column: increase_access_of_public_transit
-    forecast_from: 2025
+    forecast_from: 2023
   # output_nodes:
   # - free_rides_per_person
 
@@ -2916,8 +2953,9 @@ actions:
   group: transportation
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
     column: multimodal_transportation_system
-    forecast_from: 2025
+    forecast_from: 2023
   output_nodes:
   - id: vehicle_miles_traveled
     tags: [complement]
@@ -2945,7 +2983,8 @@ actions:
   group: transportation
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2025
+    tags: [baseline]
+    forecast_from: 2022
     column: last_mile_connections
   output_nodes:
   - id: total_transit_vmt
@@ -2971,6 +3010,3 @@ scenarios:
   name: Climate Action Initiatives
   name_es-US: Iniciativas de acción climática
   all_actions_enabled: true
-  params:
-  - id: energy_use_intensity_trend.enabled
-    value: false

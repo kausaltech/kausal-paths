@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Callable, Literal, cast
 
 import numpy as np
 import polars as pl
+from loguru import logger
 from polars import type_aliases as pl_types
 
 import common.polars as ppl
@@ -48,9 +49,12 @@ class PathsExt:
             'drop_infs': self._drop_infs,
             'drop_nans': self._drop_nans,
             'drop_unnecessary_levels': self._drop_unnecessary_levels,
+            'drop_zeros': self._drop_zeros,
             'empty_to_zero': self._empty_to_zero,
             'exp': self._exponential,
             'expectation': self._expectation,
+            'extend_all': self._extend_all,
+            'extend_both_ways': self._extend_both_ways,
             'extend_forecast_values': self._extend_forecast_values,
             'extend_to_history': self._extend_to_history,
             'extend_values': self._extend_values,
@@ -60,10 +64,13 @@ class PathsExt:
             'ignore_content': self._ignore_content,
             'indifferent_history_ratio': self._indifferent_history_ratio,
             'inventory_only': self._inventory_only,
+            'linear_interpolate': self._linear_interpolate,
             'log': self._logarithmic,
             'make_nonnegative': self._make_nonnegative,
             'make_nonpositive': self._make_nonpositive,
             'minus': self._arithmetic_inverse,
+            'observed_only_extend_all': self._observed_only_extend_all,
+            'prepare_gpc_dataset': self._prepare_gpc_dataset,
             'ratio_to_last_historical_value': self._ratio_to_last_historical_value,
             'round_to_five': self._round_to_five_significant_digits,
             'scale_by_reference_year': self._scale_by_reference_year,
@@ -583,7 +590,7 @@ class PathsExt:
     def compare_df( # Based on add_with_dims
             self,
             odf: ppl.PathsDataFrame,
-            how: Literal['left', 'inner', 'outer'] = 'outer',
+            how: Literal['left', 'inner', 'outer'] = 'outer', # TODO Should this rather be inner?
             op: Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le'] = 'eq'
         ) -> ppl.PathsDataFrame:
         """Add two PathsDataFrames with dimension awareness."""
@@ -782,6 +789,11 @@ class PathsExt:
         df = df.drop(null_cols)
         return df
 
+    def _drop_zeros(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
+        """Drop zero value cells in long format."""
+        assert isinstance(df, ppl.PathsDataFrame)
+        return df.filter(pl.col(VALUE_COLUMN) != 0.0)
+
     def _empty_to_zero(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.with_columns(
             pl.when(pl.col(VALUE_COLUMN).is_nan())
@@ -805,6 +817,17 @@ class PathsExt:
             dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
             df = ppl.to_ppdf(dfp, meta)
         return df
+
+    def _extend_all(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        out = self._linear_interpolate(df, context)
+        out = self._extend_to_history(out, context)
+        out = self._extend_forecast_values(out, context)
+        return self._bring_to_maximum_historical_year(out, context)
+
+    def _extend_both_ways(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        out = self._extend_to_history(df, context)
+        out = self._extend_forecast_values(out, context)
+        return self._bring_to_maximum_historical_year(out, context)
 
     def _extend_forecast_values(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         from nodes.calc import extend_last_forecast_value_pl
@@ -870,6 +893,29 @@ class PathsExt:
         )
         return df.filter(~pl.col(FORECAST_COLUMN))
 
+    # Copied from nodes.datasets.py
+    def _linear_interpolate(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
+        if YEAR_COLUMN not in df.columns:
+            raise ValueError(
+                f"'{YEAR_COLUMN}' does not exist in this dataset. Available columns: {', '.join(df.columns)}."
+            )
+        years = df[YEAR_COLUMN].unique().sort()
+        min_year = years.min()
+        assert isinstance(min_year, int)
+        max_year = years.max()
+        assert isinstance(max_year, int)
+        df = df.paths.to_wide()
+        years_df = pl.DataFrame(data=range(min_year, max_year + 1), schema=[YEAR_COLUMN])
+        meta = df.get_meta()
+        zdf = years_df.join(df, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
+        df = ppl.to_ppdf(zdf, meta=meta)
+        cols = [pl.col(col).interpolate() for col in df.metric_cols]
+        if FORECAST_COLUMN in df.columns:
+            cols.append(pl.col(FORECAST_COLUMN).fill_null(strategy='forward'))
+        df = df.with_columns(cols)
+        df = df.paths.to_narrow()
+        return df
+
     def _logarithmic(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
         return df.with_columns(pl.col(VALUE_COLUMN).log().alias(VALUE_COLUMN))
@@ -879,6 +925,85 @@ class PathsExt:
 
     def _make_nonpositive(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
+
+    def _observed_only_extend_all(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        if 'ObservedDataPoint' not in df.columns:
+            logger.warning("ObservedDataPoint column not found. Are you sure you want to use tag observed_only_extend_all?")
+            return df
+
+        is_forecast = False
+        df = (df.filter(pl.col('ObservedDataPoint'))
+            .with_columns(pl.lit(is_forecast).alias(FORECAST_COLUMN)))
+        drop_cols = [col for col in ['FromMeasureDataPoint', 'ObservedDataPoint'] if col in df.columns]
+        if drop_cols:
+            df = df.drop(drop_cols)
+        df = self._extend_all(df, context)
+        return df
+
+    def _prepare_gpc_dataset(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        """
+        Prepare datasets for taking in measured observations.
+
+        - instance_loader:
+        - Uses FrameworkMeasureDVCDataset if either
+            - has fw_config and is DatasetNode or
+            - dataset has tag framework_measure_data
+        - otherwise uses normal DVCDataset etc.
+
+        - _prepare_gpc_dataset:
+        - does many of dataset processes needed for GPC-style datasets
+        - only done for non-DatasetNodes
+        - if needed, must have tag prepare_gpc_dataset
+
+        - FrameworkMeasureDVCDataset:
+        - Checks for alternative data sources in priority of a) the user, b) city-group averages, c) model defaults.
+        - Assumes GPC-style dataframe, which makes its use problematic (e.g. assumes separate Unit column rather than
+          unit in meta).
+        - In the future, this should be updated to use standard PathsDataFrame.
+        - In the output, there are two columns (FromMeasureDataPoint, ObservedDataPoint) that tell about the origin of
+          each data point. These columns can be used to filter a specific type of data from the dataframe.
+
+        - _observed_only_extend_all:
+        - Filters only the data points from ObservedDataPoint, i.e. data from the user.
+        - Then interpolates and extends to both directions to have data for full time span.
+        - This is used by FormulaNode (or any other node class that receives a dataset with that column).
+        - Is clearer approach than the DatasetNode approach (see below) because it explicitly shows the result.
+
+        - DatasetNode:
+        - Has a complicated way of replacing modelled values with observed values.
+        - Is a mixture of using historical values and forecast values and strange conditions for replacing.
+        - We should get rid of this.
+        """
+        from nodes.datasets import GenericDataset
+
+        drop_cols = [col for col in ['Description', 'Quantity'] if col in df.columns]
+        for col in list(set(df.columns) - set(drop_cols)):
+            vals = df[col].unique().to_list()
+            if vals in [['.'], [None]]:
+                drop_cols.append(col)
+        if drop_cols:
+            df = df.drop(drop_cols)
+
+        exset = {
+            YEAR_COLUMN,
+            VALUE_COLUMN,
+            FORECAST_COLUMN,
+            UNCERTAINTY_COLUMN,
+            'Unit',
+            'UUID',
+            'Sector',
+        }
+        for col in list(set(df.columns) - exset):
+            df = df.rename({col: col.lower().translate(GenericDataset.characterlookup)})
+
+        for col in list(set(df.columns) - exset):
+            catlookup = {}
+            for cat in df[col].unique():
+                catlookup[cat] = str(cat).lower().translate(GenericDataset.characterlookup)
+            # df = df.with_columns(df[col].replace(catlookup))
+            if col in context.dimensions:
+                df = df.with_columns(context.dimensions[col].series_to_ids_pl(df[col]))
+        return df
 
     def _ratio_to_last_historical_value(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())

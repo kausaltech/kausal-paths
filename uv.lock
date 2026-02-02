@@ -2545,7 +2545,7 @@ dependencies = [
     { name = "pint", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "pint-pandas", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "polars", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
-    { name = "psycopg", extra = ["pool"], marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "psycopg", extra = ["binary", "pool"], marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "pycryptodome", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "pydantic", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "pydantic-extra-types", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
@@ -2657,8 +2657,7 @@ notebook = [
 ]
 prod = [
     { name = "gunicorn", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
-    { name = "psycopg", extra = ["c"], marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
-    { name = "rustface", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "rustface", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "uvicorn-worker", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 
@@ -2718,7 +2717,7 @@ requires-dist = [
     { name = "pint" },
     { name = "pint-pandas" },
     { name = "polars" },
-    { name = "psycopg", extras = ["pool"] },
+    { name = "psycopg", extras = ["pool", "binary"] },
     { name = "pycryptodome" },
     { name = "pydantic" },
     { name = "pydantic-extra-types" },
@@ -2826,8 +2825,7 @@ notebook = [
 ]
 prod = [
     { name = "gunicorn", extras = ["gthread"] },
-    { name = "psycopg", extras = ["c"] },
-    { name = "rustface", specifier = ">=0.1.0" },
+    { name = "rustface", marker = "sys_platform == 'linux'", specifier = ">=0.1.0" },
     { name = "uvicorn-worker" },
 ]
 
@@ -3055,7 +3053,7 @@ name = "milksnake"
 version = "0.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cffi", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "cffi", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/37/9c/100deced3999e748500dda3027e2a19b0074199ba27cdc5a6988d22919b8/milksnake-0.1.6.tar.gz", hash = "sha256:0198f8932b4e136c29c0d0d490ff1bac03f82c3a7b2ee6f666e3683b64314fd9", size = 10483, upload-time = "2023-10-12T11:34:39.781Z" }
 wheels = [
@@ -3999,18 +3997,24 @@ wheels = [
 ]
 
 [package.optional-dependencies]
-c = [
-    { name = "psycopg-c", marker = "(implementation_name != 'pypy' and platform_machine == 'arm64' and sys_platform == 'darwin') or (implementation_name != 'pypy' and platform_machine == 'x86_64' and sys_platform == 'linux')" },
+binary = [
+    { name = "psycopg-binary", marker = "(implementation_name != 'pypy' and platform_machine == 'arm64' and sys_platform == 'darwin') or (implementation_name != 'pypy' and platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 pool = [
     { name = "psycopg-pool", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 
 [[package]]
-name = "psycopg-c"
+name = "psycopg-binary"
 version = "3.2.9"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/83/7f/6147cb842081b0b32692bf5a0fdf58e9ac95418ebac1184d4431ec44b85f/psycopg_c-3.2.9.tar.gz", hash = "sha256:8c9f654f20c6c56bddc4543a3caab236741ee94b6732ab7090b95605502210e2", size = 609538, upload-time = "2025-05-13T16:11:19.856Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bc/00/7e181fb1179fbfc24493738b61efd0453d4b70a0c4b12728e2b82db355fd/psycopg_binary-3.2.9-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:72691a1615ebb42da8b636c5ca9f2b71f266be9e172f66209a361c175b7842c5", size = 4080322, upload-time = "2025-05-13T16:08:24.049Z" },
+    { url = "https://files.pythonhosted.org/packages/85/78/b4d75e5fd5a85e17f2beb977abbba3389d11a4536b116205846b0e1cf744/psycopg_binary-3.2.9-cp313-cp313-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:b7e4e4dd177a8665c9ce86bc9caae2ab3aa9360b7ce7ec01827ea1baea9ff748", size = 4737693, upload-time = "2025-05-13T16:08:34.625Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/95/7325a8550e3388b00b5e54f4ced5e7346b531eb4573bf054c3dbbfdc14fe/psycopg_binary-3.2.9-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7fc2915949e5c1ea27a851f7a472a7da7d0a40d679f0a31e42f1022f3c562e87", size = 4437423, upload-time = "2025-05-13T16:08:37.444Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/cd/9b5583936515d085a1bec32b45289ceb53b80d9ce1cea0fef4c782dc41a7/psycopg_binary-3.2.9-cp313-cp313-musllinux_1_2_ppc64le.whl", hash = "sha256:778588ca9897b6c6bab39b0d3034efff4c5438f5e3bd52fda3914175498202f9", size = 3411439, upload-time = "2025-05-13T16:08:47.321Z" },
+    { url = "https://files.pythonhosted.org/packages/45/6b/6f1164ea1634c87956cdb6db759e0b8c5827f989ee3cdff0f5c70e8331f2/psycopg_binary-3.2.9-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:f0d5b3af045a187aedbd7ed5fc513bd933a97aaff78e61c3745b330792c4345b", size = 3477477, upload-time = "2025-05-13T16:08:51.166Z" },
+]
 
 [[package]]
 name = "psycopg-pool"
@@ -4718,11 +4722,10 @@ name = "rustface"
 version = "0.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "milksnake", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "milksnake", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/10/57/52d9933842e5aab014454eac5de852a01abfafb1e57bd6b9cb2e3a28097f/rustface-0.1.0.zip", hash = "sha256:99ce3cfe484950547d3e4870e46447c9e981704d75197f0e12bbc3c383c0129d", size = 1128086, upload-time = "2018-01-10T17:24:19.62Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/bc/33ac0063a7e237794af381f049ee0dd247d1d1c6c3c22ad93bb993505b73/rustface-0.1.0-py2.py3-none-macosx_10_10_intel.whl", hash = "sha256:0c9c3defcf021a8968d9e6709f437985f3de1de51b8c643edfcb3f52ec27dc0d", size = 1316430, upload-time = "2018-01-10T17:22:50.547Z" },
     { url = "https://files.pythonhosted.org/packages/6f/19/c40094a6879fba10bbb5f9e76adfb90d7a1736c9d4d7e6e308f24dfbb10c/rustface-0.1.0-py2.py3-none-manylinux1_x86_64.whl", hash = "sha256:75db6edc990d91450d4c0f85622c5cc10042e32f442ef0ba76a314fc593a1b23", size = 1942297, upload-time = "2018-01-10T17:23:18.854Z" },
 ]
 
@@ -5474,20 +5477,20 @@ wheels = [
 
 [[package]]
 name = "uv"
-version = "0.8.4"
+version = "0.9.27"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/71/05/779581d8e5cd8d12dc3e2297280a03293f7b465bb5f53308479e508c5c44/uv-0.8.4.tar.gz", hash = "sha256:2ab21c32a28dbe434c9074f899ed8084955f7b09ac5e7ffac548d3454f77516f", size = 3442716, upload-time = "2025-07-30T17:10:56.404Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/92/70/611bcee4385b7aa00cf7acf29bc51854c365ee09ddb2cdb14b07a36b4db8/uv-0.9.27.tar.gz", hash = "sha256:9147862902b5d40894f78339803225e39b0535c4c04537188de160eb7635e46b", size = 3830404, upload-time = "2026-01-26T23:27:43.442Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/10/4d52b081defca3cfb4a11d6af3af4314fe7f289ba19e40d6cfab778f9257/uv-0.8.4-py3-none-linux_armv6l.whl", hash = "sha256:f9a5da616ca0d2bbe79367db9cf339cbaf1affee5d6b130a3be2779a917c14fa", size = 18077025, upload-time = "2025-07-30T17:10:13.016Z" },
-    { url = "https://files.pythonhosted.org/packages/16/39/7d4b68132868c550ae97c3b2c348c55db47a987dff05ab0e5f577bf0e197/uv-0.8.4-py3-none-macosx_11_0_arm64.whl", hash = "sha256:edc813645348665a3b4716a7d5e961cf7c8d1d3bfb9d907a4f18cf87c712a430", size = 16860749, upload-time = "2025-07-30T17:10:20.417Z" },
-    { url = "https://files.pythonhosted.org/packages/59/f8/9366ceeb63f9dd6aa11375047762c1033d36521722e748b65a24e435f459/uv-0.8.4-py3-none-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:96d7a68c360383d638c283811d57558fbf7b5f769ff4bdbc99ee2a3bf9a6e574", size = 17766700, upload-time = "2025-07-30T17:10:24.903Z" },
-    { url = "https://files.pythonhosted.org/packages/ab/f6/b5fc5fe6e93e0294cbd8ba228d10b12e46a5e27b143565e868da758e0209/uv-0.8.4-py3-none-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:b2230310ca303328c9fd351044fb81349f3ccfaa2863f135d37bfcee707adfd1", size = 19842168, upload-time = "2025-07-30T17:10:29.958Z" },
-    { url = "https://files.pythonhosted.org/packages/f5/f0/d01779df4ac2ae39bf440c97f53346f1b9eef17cc84a45ed66206e348650/uv-0.8.4-py3-none-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:86d64c66993eb0d9821caea27920175a27cd24df1eba8a340d8b3ae4074fac77", size = 19497445, upload-time = "2025-07-30T17:10:32.064Z" },
-    { url = "https://files.pythonhosted.org/packages/80/ca/48c78393cb3a73940e768b74f74c30ca7719de6f83457a125b9cfa0c37e0/uv-0.8.4-py3-none-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:624cf5b7bdc5cc0253115fefaad40008205d4acf34b77b294479dfe4eacb9697", size = 18852025, upload-time = "2025-07-30T17:10:34.34Z" },
-    { url = "https://files.pythonhosted.org/packages/42/e2/5cf11c85fb48276b49979ea06e92c1e95524e1e4c5bccbd591a334c8de68/uv-0.8.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f9cd287982f62419f98ca7182fbbc2fd0fad1a04008b956a88eb85ce1d522611", size = 18806944, upload-time = "2025-07-30T17:10:36.819Z" },
-    { url = "https://files.pythonhosted.org/packages/e6/8f/20dcb6aaa9c9d7e16320b5143b1fdaa5fd1ebc42a99e2d5f4283aafc59f1/uv-0.8.4-py3-none-manylinux_2_31_riscv64.whl", hash = "sha256:9f2a7042553e85c66884a6a3c1b88e116bc5fe5e5d1c9b62f025b1de41534734", size = 18564686, upload-time = "2025-07-30T17:10:41.163Z" },
-    { url = "https://files.pythonhosted.org/packages/8a/19/9f9df99259d6725fc269d5394606919f32c3e0d21f486277c040cb7c5dad/uv-0.8.4-py3-none-musllinux_1_1_armv7l.whl", hash = "sha256:2c80470d7253bd26c5990f4914cfddc68a6bb4da7c7da316a29e99feafe272a1", size = 17722213, upload-time = "2025-07-30T17:10:43.354Z" },
-    { url = "https://files.pythonhosted.org/packages/51/0f/9e5ff7d73846d8c924a5ef262dee247b453b7b2bd2ba5db1a819c72bd176/uv-0.8.4-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:cad63a02a735ba591679d713376767fc7649ad1e7097a95d0d267a68c2e803fc", size = 18954586, upload-time = "2025-07-30T17:10:47.789Z" },
+    { url = "https://files.pythonhosted.org/packages/53/f1/9e9afb9fadb73f7914a0fc63b6f9d182b6fe6b1e55deb7cbdc29ff31299f/uv-0.9.27-py3-none-linux_armv6l.whl", hash = "sha256:ce3f16e66a96dcdc63f6ada9f7747686930986d2df104a9dd2d09664b2d870c8", size = 22011502, upload-time = "2026-01-26T23:27:31.714Z" },
+    { url = "https://files.pythonhosted.org/packages/44/1d/be2d80573c531389933059f6e5ef265ef7324c268f3ade80e500aa627f6b/uv-0.9.27-py3-none-macosx_11_0_arm64.whl", hash = "sha256:8f00158023e77600da602c5f1fa97cd8c2eef987d6aba34c16cf04a3e5a932f4", size = 19844905, upload-time = "2026-01-26T23:27:34.486Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/31/0faaad82951fc6b14dfad8e187e43747a528aa50ee283385f903e86d67d1/uv-0.9.27-py3-none-manylinux_2_17_armv7l.manylinux2014_armv7l.musllinux_1_1_armv7l.whl", hash = "sha256:3f8cf7a50a95ae5cb0366d24edf79d15b3ba380b462af49e3404f9f7b91101c7", size = 21636917, upload-time = "2026-01-26T23:27:46.252Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/8a/e181c32b7f5309fd987667d368fb944822c713e92a7eba3c73d2eddec6cd/uv-0.9.27-py3-none-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:c331e0445465ea6029e2dd0f5499024e552136c10069fac0ca21708f2aeb1ce6", size = 21633082, upload-time = "2026-01-26T23:28:09.417Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/76/7c1b13e4dc8237dd3721f4ec933bb2e5be400fd2812cf98dc2be645a0f7d/uv-0.9.27-py3-none-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:0c9b2e874f5207a50b852726f3a0740eadf30baf2c7973380d697f4e3166d347", size = 24141329, upload-time = "2026-01-26T23:27:39.705Z" },
+    { url = "https://files.pythonhosted.org/packages/6f/04/551749fd863cb43290c9a3f4348ccdd88ec0445c26a00ba840d776572867/uv-0.9.27-py3-none-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:79841a2e4df4a32f22fbb0919c3e513226684572fba227b37467ba6404f3fafd", size = 23637517, upload-time = "2026-01-26T23:27:37.111Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/c6/78b619a51a6646af4633714b161f980ab764cc892e0f79228162fba51fe8/uv-0.9.27-py3-none-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:33902c95b561ac67d15c339fe1eaf39e068372c7464c79c3bd0e2bf9ee914dcb", size = 22864516, upload-time = "2026-01-26T23:27:56.35Z" },
+    { url = "https://files.pythonhosted.org/packages/15/19/b35928e55307beb69b60b88446df3cb8d7ff3ba0993fc2214a43266c17d1/uv-0.9.27-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:79939f7e92d707fb84933509df747d1b88b00d94ebe41f3a1e30916cc33c7307", size = 22746151, upload-time = "2026-01-26T23:27:26.166Z" },
+    { url = "https://files.pythonhosted.org/packages/44/02/4d4cf298bd22e53d6c289404b093cf876e64ee1fb946cc32a6f965030629/uv-0.9.27-py3-none-manylinux_2_31_riscv64.whl", hash = "sha256:1555ab7bc8501144e8771e54a628eb02cb95f3612d54659bb7132576260feee5", size = 22397798, upload-time = "2026-01-26T23:28:07.102Z" },
+    { url = "https://files.pythonhosted.org/packages/13/15/1e7b34f02e8f53c9498311f991421e794ad57fa60a2d3e41b43485e914e4/uv-0.9.27-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:4f534ad701ca3fffac4a8e1df2a36930e6a0cbf4dad52aeabc2c3c9e2cbbe65e", size = 22951420, upload-time = "2026-01-26T23:27:48.818Z" },
 ]
 
 [[package]]

@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from openpyxl.cell.cell import Cell
     from openpyxl.worksheet.worksheet import Worksheet
 
+    from common import polars as ppl
     from nodes.actions.action import ActionNode
     from nodes.context import Context
     from nodes.dimensions import Dimension
@@ -95,36 +96,37 @@ class InstanceResultExcel(I18nBaseModel):
                 if action_id not in actions:
                     raise KeyError(f"Action {action_id} not found.")
 
-    def _output_node_long(
+    def _output_node_long(  # noqa: PLR0913
         self,
         context: Context,
         wb: Workbook,
         sheet: Worksheet,
         node: Node,
+        df: ppl.PathsDataFrame,
+        bdf: ppl.PathsDataFrame,
+        metric: str,
+        fixed_cols: list[str],
         dim_ids: list[str],
         actions: list[ActionNode],
         aseq: bool,
     ) -> None:
         logger.info('Outputting node %s' % node.id)
-        if len(node.output_metrics) > 1:
-            logger.warning('Multimetric node %s' % node.id)
-        df = node.get_output_pl()
         if df.dim_ids:
             df = df.with_columns([pl.col(dim_id).cast(pl.String) for dim_id in df.dim_ids])
         df = df.sort(by=[YEAR_COLUMN, *df.dim_ids])
-        bdf = node.get_baseline_values()
-        assert bdf is not None
         bdf = bdf.with_columns(pl.col(VALUE_COLUMN).alias('BaselineValue')).drop(VALUE_COLUMN)
         df = df.paths.join_over_index(bdf, how='left', index_from='left')
         col_map = {
             'Node': pl.lit(node.id),
             'Year': pl.col(YEAR_COLUMN),
-            'Unit': pl.lit(str(node.unit)),
+            'Unit': pl.lit(str(df.get_unit(VALUE_COLUMN))),
             'Value': pl.col(VALUE_COLUMN),
             'BaselineValue': pl.col('BaselineValue'),
             'Forecast': pl.col(FORECAST_COLUMN),
         }
-        cols = [col_map[col_id].alias(col_id) for col_id in FIXED_COLUMNS_LONG]
+        if 'Metric' in fixed_cols:
+            col_map['Metric'] = pl.lit(metric)
+        cols = [col_map[col_id].alias(col_id) for col_id in fixed_cols]
         for dim_id in dim_ids:
             if dim_id in df.dim_ids:
                 cols.append(pl.col(dim_id))
@@ -139,6 +141,10 @@ class InstanceResultExcel(I18nBaseModel):
 
             with context.start_span('compute impact: %s' % actions[i].id, op='function'):
                 adf = actions[i].compute_impact(node)
+                ametrics = adf.metric_cols
+                if len(ametrics) > 1: # FIXME: This is a hack to handle multimetric nodes as outcome of actions.
+                    logger.warning('Multimetric node %s as outcome of action %s' % (node.id, actions[i].id))
+                    adf = adf.select_metrics(ametrics[0], rename=VALUE_COLUMN)
             act_col = 'Impact_%s' % actions[i].id
             adf = adf.filter(pl.col(IMPACT_COLUMN) == IMPACT_GROUP).drop(IMPACT_COLUMN).rename({VALUE_COLUMN: act_col})
             df = df.paths.join_over_index(adf, how='left', index_from='left')
@@ -162,25 +168,25 @@ class InstanceResultExcel(I18nBaseModel):
         self,
         sheet: Worksheet,
         node: Node,
+        df: ppl.PathsDataFrame,
+        metric: str,
+        fixed_cols: list[str],
         dim_ids: list[str],
         cols: list[str],
     ) -> None:
         logger.info('Outputting node %s' % node.id)
-        df = node.get_output_pl()
         if df.dim_ids:
             df = df.with_columns([pl.col(dim_id).cast(pl.String) for dim_id in df.dim_ids])
-
-        # Get baseline values
-        bdf = node.get_baseline_values()
-        assert bdf is not None
 
         # Create the basic structure
         col_map = {
             'Node': pl.lit(node.id),
             'Quantity': pl.lit(node.quantity),
-            'Unit': pl.lit(str(node.unit)),
+            'Unit': pl.lit(str(df.get_unit(VALUE_COLUMN))),
             'Forecast_from': pl.col('Forecast_from'),
         }
+        if 'Metric' in fixed_cols:
+            col_map['Metric'] = pl.lit(metric)
 
         # Add dimension columns
         for dim_id in dim_ids:
@@ -208,21 +214,22 @@ class InstanceResultExcel(I18nBaseModel):
             how='left'
         ).drop('_dummy_group')  # Remove the dummy column after join
 
+        index_cols = [*fixed_cols, *dim_ids]
         dfout = dfout.select([
-                *[col_map[col_id].alias(col_id) for col_id in col_map.keys()],
+                *[col_map[col_id].alias(col_id) for col_id in index_cols],
                 pl.col(YEAR_COLUMN),
                 pl.col(VALUE_COLUMN),
                 pl.col(FORECAST_COLUMN)
-            ]).pivot(  # type: ignore[call-arg]
+            ]).pivot(
                 values=VALUE_COLUMN,
-                index=[*col_map.keys()],  # Now includes Forecast_from
-                columns=YEAR_COLUMN,
+                index=index_cols,  # Includes Forecast_from and dimensions
+                on=YEAR_COLUMN,
                 maintain_order=True,
                 aggregate_function='first'
             )
 
         dfout = dfout.with_columns([
-            pl.col(col).cast(pl.String, strict=False).fill_null(".")
+            pl.col(col).cast(pl.String, strict=False).fill_null("")
             for col in dfout.columns
             if col in dim_ids
         ])
@@ -391,6 +398,7 @@ class InstanceResultExcel(I18nBaseModel):
 
         pc.display('baseline calculated')
         all_dims = set()
+        has_multi_metric = any(len(node.output_metrics) > 1 for node in nodes)
 
         for node in nodes:
             for dim in node.output_dimensions.values():
@@ -402,9 +410,15 @@ class InstanceResultExcel(I18nBaseModel):
 
         dims = [context.dimensions[dim_id] for dim_id in all_dims]
         if self.format == 'wide':
-            cols = FIXED_COLUMNS_WIDE + [dim_id for dim_id in all_dims]  # noqa: C416
+            fixed_cols = FIXED_COLUMNS_WIDE.copy()
+            if has_multi_metric:
+                fixed_cols.insert(3, 'Metric')
+            cols = fixed_cols + [dim_id for dim_id in all_dims]  # noqa: C416
         else:
-            cols = FIXED_COLUMNS_LONG + [_dim_to_col(dim) for dim in dims]
+            fixed_cols = FIXED_COLUMNS_LONG.copy()
+            if has_multi_metric:
+                fixed_cols.insert(3, 'Metric')
+            cols = fixed_cols + [_dim_to_col(dim) for dim in dims]
 
         if self.action_ids is not None:
             actions = [context.get_action(a) for a in self.action_ids]
@@ -438,12 +452,41 @@ class InstanceResultExcel(I18nBaseModel):
 
         dim_ids = [dim.id for dim in dims]
         for node in nodes:
-            with context.start_span('output for node: %s' % node.id, op='function'):
-                if self.format == 'wide':
-                    self._output_node_wide(sheet=ds, node=node, dim_ids=dim_ids, cols=cols)
-                else:
-                    self._output_node_long(context, wb, ds, node, dim_ids=dim_ids,
-                                  actions=actions, aseq=aseq)
+            df_all = node.get_output_pl()
+            bdf_all = node.get_baseline_values()
+            assert bdf_all is not None
+            metric_cols = df_all.metric_cols
+            if not metric_cols:
+                logger.warning('No metrics for node %s' % node.id)
+                continue
+            for metric in metric_cols:
+                with context.start_span('output for node: %s/%s' % (node.id, metric), op='function'):
+                    df = df_all.select_metrics(metric, rename=VALUE_COLUMN)
+                    if self.format == 'wide':
+                        self._output_node_wide(
+                            sheet=ds,
+                            node=node,
+                            df=df,
+                            metric=metric,
+                            fixed_cols=fixed_cols,
+                            dim_ids=dim_ids,
+                            cols=cols,
+                        )
+                    else:
+                        bdf = bdf_all.select_metrics(metric, rename=VALUE_COLUMN)
+                        self._output_node_long(
+                            context,
+                            wb,
+                            ds,
+                            node,
+                            df,
+                            bdf,
+                            metric,
+                            fixed_cols,
+                            dim_ids=dim_ids,
+                            actions=actions,
+                            aseq=aseq,
+                        )
         ds.freeze_panes = ds['B2']
 
         ds.column_dimensions['A'].width = 20
@@ -473,11 +516,12 @@ class InstanceResultExcel(I18nBaseModel):
         else:
             if (
                 not ic.has_framework_config()
-                or not (fw := ic.framework_config.framework).result_excel_url # type: ignore
+                or not (fw := ic.framework_config.framework).result_excel_url
                 or not fw.result_excel_node_ids
             ):
                 raise ExportNotSupportedError("Framework '%s' doesn't support generating result files" % instance.id)
 
+            format = format or 'long'
             excel_res = InstanceResultExcel(
                 name=fw.name,
                 base_excel_url=fw.result_excel_url,

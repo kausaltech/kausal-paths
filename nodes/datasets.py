@@ -366,7 +366,14 @@ class DatasetWithFilters(Dataset):
     def _operate_tags(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         operations = df.paths.OPERATIONS
 
-        for tag in self.tags:
+        # FIXME Don't let DatasetNodes get double preparation of gpc. Remove when you gte rid of DatasetNodes
+        from nodes.gpc import DatasetNode
+        tags = self.tags.copy()
+        for n in context.nodes.values():
+            if any(ds is self for ds in n.input_dataset_instances) and isinstance(n, DatasetNode):
+                tags = [tag for tag in tags if tag != 'prepare_gpc_dataset']
+
+        for tag in tags:
             if tag == 'ignore_content':
                 logger.warning(f"Dataset {self.id} has tag 'ignore_content', which is not supported.")
             else:
