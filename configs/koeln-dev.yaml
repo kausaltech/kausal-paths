@@ -928,6 +928,25 @@ nodes:
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
 
+- id: administration_emissions_total
+  name: Total Verwaltungsemissionen
+  name_en: Total administration emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_nodes:
+  - id: administration_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+
 - id: traffic_actions
   name: Verkehrsmaßnahmen
   name_en: Traffic actions
