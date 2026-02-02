@@ -255,6 +255,55 @@ dimensions:
     label_en: Municipal Heat Planning Preparation by Administration
     label_de: Erstellung der kommunalen Wärmeplanung durch die Verwaltung
 
+- id: emission_scope # Copied from zuerich-dev.yaml
+  label: Emissionsbereiche
+  label_en: Emission scopes
+  help_text: Die Netto-Null-Berichterstattung fokussiert im ersten Jahr auf die direkten
+    Emissionen; die indirekten Emissionen werden später ergänzt. Die hier dargestellten
+    indirekten Emissionen basieren weitgehend auf der Netto-Null-Grundlagenstudie und
+    bilden die bis 2040 angestrebte Reduktion noch nicht ab.
+  groups:
+  - id: direct
+    label: Direkte Emissionen
+    label_en: Direct emissions
+    color: '#0f05a0'
+    order: 1
+  - id: indirect
+    label: Indirekte Emissionen
+    label_en: Indirect emissions
+    color: '#6496ff'
+    order: 2
+  - id: negative
+    label: Negative Emissionen
+    label_en: Negative emissions
+    color: '#8ECF69'
+    order: -1
+  categories:
+  - id: scope1
+    label_de: Scope 1
+    label_en: Scope 1
+    color: '#0f05a0'
+    group: direct
+    order: 0
+  - id: scope2
+    label_de: Scope 2
+    label_en: Scope 2
+    color: '#30505e'
+    group: indirect
+    order: 1
+  - id: scope3
+    label_de: Scope 3
+    label_en: Scope 3
+    color: '#6496ff'
+    group: indirect
+    order: 2
+  - id: negative_emissions
+    label_de: Negative Emissionen
+    label_en: Negative emissions
+    color: '#8ECF69'
+    group: negative
+    order: -1
+
 nodes:
 
 - id: net_emissions
@@ -702,6 +751,11 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope2]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
 
 - id: heat_emissions_total
   name: Total Wärmemissionen
@@ -716,6 +770,11 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
 
 - id: transport_emissions_total
   name: Total Verkehrsemissionen
@@ -730,6 +789,11 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
 
 - id: industrial_emissions_total
   name: Total Industrieemissionen
@@ -744,6 +808,11 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
 
 - id: service_emissions_total
   name: Total GHDemissionen
@@ -758,6 +827,11 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
 
 - id: municipality_building_emissions_total
   name: Total Kommunale Einrichtungenemissionen
@@ -772,6 +846,11 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
 
 - id: consumption_emissions_total
   name: Total Konsumemissionen
@@ -786,6 +865,11 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope3]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
 
 - id: waste_and_wastewater_emissions_total
   name: Total Abfall- und (Ab-)Wasseremissionen
@@ -800,6 +884,11 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
 
 - id: food_and_land_use_emissions_total
   name: Total Ernährung- und Landnutzungsemissionen
@@ -814,6 +903,11 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope3]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
 
 - id: cross_cutting_climate_protection_emissions_total
   name: Total Übergreifende Klimaschutzaspekteemissionen
@@ -828,6 +922,11 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
 
 - id: traffic_actions
   name: Verkehrsmaßnahmen
