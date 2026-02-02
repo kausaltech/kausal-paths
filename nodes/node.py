@@ -1608,15 +1608,15 @@ class Node:
                 if 'framework_measure_data' in ds.tags:
                     df = ds.load(self.context)
                     data_col = 'ObservedDataPoint'
+                    if data_col not in df.columns:
+                        return []
                     df = df.filter(pl.col(data_col))
                     return df[YEAR_COLUMN].unique().sort().to_list()
 
         years = set[int]([])
         nodes = self.get_upstream_nodes()
         for n in nodes:
-            if not isinstance(n, DatasetNode):
-                continue
-            if issubclass(type(n), ActionNode): # Ignore action data
+            if not isinstance(n, DatasetNode) or issubclass(type(n), ActionNode): # Ignore action data
                 continue
             if any(issubclass(type(d), ActionNode) for d in n.get_downstream_nodes()):
                 continue # Ignore data that is used in actions
