@@ -1195,7 +1195,7 @@ nodes:
 - id: building_electricity_use_per_resident
   name: Building electricity use per resident
   name_es-US: Consumo de electricidad en edificios por residente
-  type: simple.DivisiveNode # FIXME
+  type: formula.FormulaNode
   quantity: per_capita
   unit: GWh/a/cap
   input_nodes:
@@ -1208,8 +1208,7 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   params:
-    only_historical: true
-    extend_rows: true
+    formula: extend_values(inventory_only(building_electricity_use_historical / population))
 
 - id: building_electricity_use_bau
   name: Building electricity use (baseline)
@@ -1243,7 +1242,7 @@ nodes:
 - id: building_natural_gas_use_per_resident
   name: Building natural gas use per resident
   name_es-US: Consumo de gas natural en edificios por residente
-  type: simple.DivisiveNode # FIXME
+  type: formula.FormulaNode
   quantity: per_capita
   unit: Mtherm/a/cap
   input_nodes:
@@ -1256,8 +1255,7 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   params:
-    only_historical: true
-    extend_rows: true
+    formula: extend_values(inventory_only(building_natural_gas_use_historical / population))
 
 - id: building_natural_gas_use_bau
   name: Building natural gas use (baseline)
@@ -1286,6 +1284,7 @@ nodes:
     column: natural_gas
     forecast_from: 2025
     tags: [eui, extend_both_ways]
+    output_dimensions: [emission_sectors]
   input_nodes:
   - id: energy_use_intensity_trend
     metrics: [natural_gas]
@@ -1332,6 +1331,7 @@ nodes:
     column: electricity
     tags: [eui, cleaned, extend_both_ways]
     forecast_from: 2025
+    output_dimensions: [emission_sectors]
   input_nodes:
   - id: energy_use_intensity_improvement
     tags: [improvement]
@@ -1523,15 +1523,19 @@ nodes:
   - id: longmont/fugitive_parameters
     tags: [energy_factor, cleaned]
     column: Natural gas energy factor
+    unit: Btu/ft**3
   - id: longmont/fugitive_parameters
     tags: [density, cleaned]
     column: Natural gas density
+    unit: kg/m**3
   - id: longmont/fugitive_parameters
     tags: [leakage, cleaned]
     column: Natural gas leakage
+    unit: '%'
   - id: longmont/fugitive_parameters
     tags: [fraction, cleaned]
     column: Fraction in natural gas
+    unit: '%'
   params:
     formula: use / complement(leakage) / energy_factor * density * leakage * 
       fraction * gwp

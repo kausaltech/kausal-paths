@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import ast
-from typing import Any, Callable, Literal, NamedTuple, TypeVar
+import re
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Callable, Literal, NamedTuple, TypeVar, cast
 
 from django.utils.translation import gettext_lazy as _
 
@@ -11,10 +13,13 @@ from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes.exceptions import NodeError
-from nodes.units import Quantity, QuantityType
+from nodes.units import Quantity, QuantityType, Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .node import Node
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 PDF = ppl.PathsDataFrame
 type EvalConst = float
@@ -119,25 +124,49 @@ class FormulaNode(Node):
 
     def apply_div(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         def both_df(df1: PDF, df2: PDF) -> PDF:
-            r = df2.copy().rename({VALUE_COLUMN: '_Right'})
-            df = df1.paths.join_over_index(r)
-            df = df.divide_cols([VALUE_COLUMN, '_Right'], VALUE_COLUMN).drop('_Right')
-            return df
+            return df1.paths.divide_with_dims(df2, how='inner')
         def left_df(df: PDF, val: QuantityType) -> PDF:
-            df_unit = df.get_unit(VALUE_COLUMN)
-            df = df.with_columns(pl.col(VALUE_COLUMN) / pl.lit(val.m))
-            df = df.set_unit(VALUE_COLUMN, df_unit / val.units, force=True)  # pyright: ignore[reportArgumentType]
-            return df
+            assert isinstance(val, Quantity)
+            return df.divide_by_quantity(VALUE_COLUMN, val)
         def right_df(val: QuantityType, df: PDF) -> PDF:
-            df_unit = df.get_unit(VALUE_COLUMN)
-            df = df.with_columns(val / pl.col(VALUE_COLUMN))
-            df = df.set_unit(VALUE_COLUMN, val.units / df_unit)  # pyright: ignore[reportArgumentType]
-            return df
+            assert isinstance(val, Quantity)
+            return df.divide_quantity(VALUE_COLUMN, val)
         def both_quantity(val1: Quantity, val2: Quantity) -> Quantity:
             out = val1 / val2
             assert isinstance(out, Quantity)
             return out
         return self.apply_binom(left, right, both_df, left_df, right_df, both_quantity)
+
+    def apply_sub(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        neg_one = cast("Quantity", Quantity(-1))
+        if isinstance(right, PDF):
+            right = right.multiply_quantity(VALUE_COLUMN, neg_one)
+        elif isinstance(right, Quantity):
+            right = right * neg_one
+        return self.apply_add(left, right)
+
+    def apply_pow(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        if isinstance(right, PDF):
+            raise NotImplementedError("Power with dataframe exponent is not supported.")
+        assert isinstance(right, Quantity)
+        try:
+            right = right.to('dimensionless')
+        except Exception as exc:
+            raise NodeError(self, "Power exponent must be dimensionless.") from exc
+        exponent = right.m
+        if isinstance(left, PDF):
+            val_col = VALUE_COLUMN
+            df = left.with_columns((pl.col(val_col) ** pl.lit(exponent)).alias(val_col))
+            df = df.set_unit(
+                val_col,
+                cast("Unit", left.get_unit(val_col) ** exponent),
+                force=True,
+            )
+            return df
+        assert isinstance(left, Quantity)
+        out = left ** exponent
+        assert isinstance(out, Quantity)
+        return out
 
     def _compare_pdf_quantity(self, df: PDF, val: Quantity, op: str) -> PDF:
         """Compare a PDF with a Quantity using the specified operation."""
@@ -203,9 +232,10 @@ class FormulaNode(Node):
     def eval_binop(self, node: ast.BinOp, varss: EvalVars) -> EvalOutput:
         OPERATIONS: dict[type, Callable[[EvalOutput, EvalOutput], EvalOutput]] = {
             ast.Add: self.apply_add,
-            #ast.Sub: operator.sub,
+            ast.Sub: self.apply_sub,
             ast.Mult: self.apply_mul,
             ast.Div: self.apply_div,
+            ast.Pow: self.apply_pow,
         }
 
         left_value = self.eval_tree(node.left, varss)
@@ -377,3 +407,357 @@ class FormulaNode(Node):
                 err = _('Input nodes that are not used in the formula are used for addition in the end. Error:')
                 raise NodeError(self, f"{err} {e}") from e
         return df
+
+
+@dataclass
+class DimensionAnalysis:
+    dims: set[str] | None
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class UnitAnalysis:
+    unit: Unit | None
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class FormulaSpec:
+    expression: str
+    display_expression: str
+    terms: list[dict[str, Any]]
+
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def make_identifier(name: str) -> str:
+    if _IDENTIFIER_RE.match(name):
+        return name
+    normalized = re.sub(r"[^A-Za-z0-9_]", "_", name)
+    if not normalized:
+        return "_term"
+    if normalized[0].isdigit():
+        return f"_{normalized}"
+    return normalized
+
+
+def collect_term_names(terms: Iterable[dict[str, Any]]) -> set[str]:
+    names: set[str] = set()
+    for term in terms:
+        for field_name in ('label', 'key'):
+            val = term.get(field_name)
+            if isinstance(val, str) and val:
+                names.add(val)
+        for var_name in term.get('var_names', []) or []:
+            if isinstance(var_name, str) and var_name:
+                names.add(var_name)
+    return names
+
+
+def normalize_formula_identifiers(formula: str, term_names: Iterable[str]) -> str:
+    updated = formula
+    for name in sorted(set(term_names), key=len, reverse=True):
+        safe = make_identifier(name)
+        if safe == name:
+            continue
+        updated = updated.replace(name, safe)
+    return updated
+
+
+def build_name_unit_map(
+    terms: Iterable[dict[str, Any]],
+) -> dict[str, Unit | None]:
+    name_units: dict[str, Unit | None] = {}
+    for term in terms:
+        unit_val = term.get('unit')
+        unit: Unit | None
+        if isinstance(unit_val, Unit):
+            unit = unit_val
+        elif isinstance(unit_val, str) and unit_val:
+            unit = unit_registry.parse_units(unit_val)
+        elif term.get('kind') == 'constant':
+            unit = unit_registry.parse_units('dimensionless')
+        else:
+            unit = None
+        names: list[str] = []
+        for field_name in ('label', 'key'):
+            val = term.get(field_name)
+            if isinstance(val, str) and val:
+                names.append(val)
+        names.extend([
+            var_name
+            for var_name in term.get('var_names', []) or []
+            if isinstance(var_name, str) and var_name
+        ])
+        for name in dict.fromkeys(names):
+            for candidate in {name, make_identifier(name)}:
+                if candidate not in name_units:
+                    name_units[candidate] = unit
+    return name_units
+
+
+UnitOverride = Unit | str | Callable[[Unit | None], Unit | None]
+
+
+def analyze_formula_units(  # noqa: C901, PLR0915
+    formula: str,
+    name_units: dict[str, Unit | None],
+    passthrough_functions: set[str] | None = None,
+    unit_overrides: dict[str, UnitOverride] | None = None,
+) -> UnitAnalysis:
+    try:
+        tree = ast.parse(formula, "<string>", mode="eval")
+    except SyntaxError as exc:
+        return UnitAnalysis(
+            unit=None,
+            errors=[f"Formula parse error: {exc}"],
+        )
+
+    analysis = UnitAnalysis(unit=None)
+    passthrough = passthrough_functions or set()
+    overrides = unit_overrides or {}
+    dimensionless = unit_registry.parse_units('dimensionless')
+
+    def _merge_compatible(op: str, left: Unit | None, right: Unit | None) -> Unit | None:
+        if left is None or right is None:
+            analysis.warnings.append(f"Unknown unit for '{op}'.")
+            return left or right
+        if left.dimensionality != right.dimensionality:
+            analysis.errors.append(
+                f"Unit mismatch for '{op}': {left} vs {right}"
+            )
+            return left
+        return left
+
+    def _eval(node: ast.AST) -> Unit | None:  # noqa: C901, PLR0911, PLR0912, PLR0915
+        if isinstance(node, ast.Expression):
+            return _eval(node.body)
+        if isinstance(node, ast.Constant):
+            return dimensionless
+        if isinstance(node, ast.Name):
+            name = node.id
+            if name not in name_units:
+                analysis.errors.append(f"Unknown formula term '{name}'.")
+                return None
+            unit = name_units[name]
+            if unit is None:
+                analysis.warnings.append(f"Missing unit for term '{name}'.")
+            return unit
+        if isinstance(node, ast.UnaryOp):
+            return _eval(node.operand)
+        if isinstance(node, ast.BinOp):
+            left = _eval(node.left)
+            right = _eval(node.right)
+            if isinstance(node.op, (ast.Add, ast.Sub)):
+                return _merge_compatible('+', left, right)
+            if isinstance(node.op, ast.Mult):
+                if left is None or right is None:
+                    analysis.warnings.append("Unknown unit for '*'.")
+                    return left or right
+                return cast("Unit", left * right)
+            if isinstance(node.op, ast.Div):
+                if left is None or right is None:
+                    analysis.warnings.append("Unknown unit for '/'.")
+                    return left or right
+                return cast("Unit", left / right)
+            if isinstance(node.op, ast.Pow):
+                if not isinstance(node.right, ast.Constant):
+                    analysis.warnings.append("Power exponent is not a constant.")
+                    return left
+                if left is None:
+                    analysis.warnings.append("Unknown unit for '**'.")
+                    return None
+                exponent = node.right.value
+                if not isinstance(exponent, (int, float)):
+                    analysis.warnings.append("Power exponent is not numeric.")
+                    return left
+                return cast("Unit", left ** exponent)
+            analysis.warnings.append(f"Unsupported binary operator: {type(node.op).__name__}")
+            return left or right
+        if isinstance(node, ast.Compare):
+            left = _eval(node.left)
+            for comp in node.comparators:
+                right = _eval(comp)
+                _merge_compatible('compare', left, right)
+                left = right
+            return dimensionless
+        if isinstance(node, ast.Call):
+            func = node.func
+            if not isinstance(func, ast.Name):
+                analysis.warnings.append("Unsupported callable in formula.")
+                return None
+            func_name = func.id
+            if not node.args:
+                analysis.warnings.append(f"Function '{func_name}' has no arguments.")
+                return None
+            first = _eval(node.args[0])
+            if func_name in overrides:
+                override_unit = overrides[func_name]
+                if callable(override_unit):
+                    return override_unit(first)
+                if isinstance(override_unit, str):
+                    return unit_registry.parse_units(override_unit)
+                return override_unit
+            if func_name == 'sum_dim':
+                return first
+            if func_name == 'coalesce':
+                unit = first
+                for arg in node.args[1:]:
+                    unit = _merge_compatible('coalesce', unit, _eval(arg))
+                return unit
+            if func_name == 'geometric_inverse':
+                if first is None:
+                    analysis.warnings.append("Unknown unit for 'geometric_inverse'.")
+                    return None
+                return cast("Unit", dimensionless / first)
+            if func_name == 'complement':
+                if (
+                    first is not None
+                    and first.dimensionality != dimensionless.dimensionality
+                ):
+                    analysis.errors.append("Function 'complement' requires dimensionless units.")
+                return dimensionless
+            if func_name in {'convert_gwp', 'zero_fill'} or func_name in passthrough:
+                return first
+            analysis.warnings.append(f"Unknown function '{func_name}' in formula.")
+            return first
+        analysis.warnings.append(f"Unsupported AST node: {type(node).__name__}")
+        return None
+
+    analysis.unit = _eval(tree)
+    return analysis
+
+
+def analyze_formula_dimensions(  # noqa: C901, PLR0915
+    formula: str,
+    name_dimensions: dict[str, set[str]],
+    passthrough_functions: set[str] | None = None,
+) -> DimensionAnalysis:
+    try:
+        tree = ast.parse(formula, "<string>", mode="eval")
+    except SyntaxError as exc:
+        return DimensionAnalysis(
+            dims=None,
+            errors=[f"Formula parse error: {exc}"],
+        )
+
+    analysis = DimensionAnalysis(dims=None)
+    passthrough = passthrough_functions or set()
+
+    def _merge_union(left: set[str] | None, right: set[str] | None) -> set[str] | None:
+        if left is None and right is None:
+            return None
+        if left is None:
+            return set(right or set())
+        if right is None:
+            return set(left)
+        return set(left) | set(right)
+
+    def _require_same(op: str, left: set[str] | None, right: set[str] | None) -> set[str] | None:
+        if left is None or right is None:
+            return left if left is not None else right
+        if left != right:
+            analysis.errors.append(
+                f"Dimension mismatch for '{op}': {sorted(left)} vs {sorted(right)}"
+            )
+            return _merge_union(left, right)
+        return left
+
+    def _eval(node: ast.AST) -> set[str] | None:  # noqa: C901, PLR0911, PLR0912
+        if isinstance(node, ast.Expression):
+            return _eval(node.body)
+        if isinstance(node, ast.Constant):
+            return set()
+        if isinstance(node, ast.Name):
+            name = node.id
+            if name not in name_dimensions:
+                analysis.errors.append(f"Unknown formula term '{name}'.")
+                return None
+            return set(name_dimensions[name])
+        if isinstance(node, ast.UnaryOp):
+            return _eval(node.operand)
+        if isinstance(node, ast.BinOp):
+            left = _eval(node.left)
+            right = _eval(node.right)
+            if isinstance(node.op, (ast.Add, ast.Sub)):
+                return _require_same('+', left, right)
+            if isinstance(node.op, (ast.Mult, ast.Div)):
+                return _merge_union(left, right)
+            if isinstance(node.op, ast.Pow):
+                if not isinstance(node.right, ast.Constant):
+                    analysis.warnings.append("Power exponent is not a constant.")
+                return left
+            analysis.warnings.append(f"Unsupported binary operator: {type(node.op).__name__}")
+            return _merge_union(left, right)
+        if isinstance(node, ast.Compare):
+            left = _eval(node.left)
+            for comp in node.comparators:
+                right = _eval(comp)
+                left = _require_same('compare', left, right)
+            return left
+        if isinstance(node, ast.Call):
+            func = node.func
+            if not isinstance(func, ast.Name):
+                analysis.warnings.append("Unsupported callable in formula.")
+                return None
+            func_name = func.id
+            if not node.args:
+                analysis.warnings.append(f"Function '{func_name}' has no arguments.")
+                return None
+            first = _eval(node.args[0])
+            if func_name == 'sum_dim':
+                if len(node.args) != 2:
+                    analysis.errors.append("sum_dim requires exactly two arguments.")
+                    return first
+                dim_arg = node.args[1]
+                if isinstance(dim_arg, ast.Name):
+                    dim = dim_arg.id
+                    if first is None:
+                        return None
+                    return set(d for d in first if d != dim)
+                analysis.errors.append("sum_dim expects a dimension name as second argument.")
+                return first
+            if func_name == 'coalesce':
+                dims = first
+                for arg in node.args[1:]:
+                    dims = _require_same('coalesce', dims, _eval(arg))
+                return dims
+            if func_name in {'convert_gwp', 'zero_fill'} or func_name in passthrough:
+                return first
+            analysis.warnings.append(f"Unknown function '{func_name}' in formula.")
+            return first
+        analysis.warnings.append(f"Unsupported AST node: {type(node).__name__}")
+        return None
+
+    analysis.dims = _eval(tree)
+    return analysis
+
+
+def build_name_dimension_map(
+    terms: Iterable[dict[str, Any]],
+) -> tuple[dict[str, set[str]], list[str]]:
+    name_dimensions: dict[str, set[str]] = {}
+    conflicts: list[str] = []
+    for term in terms:
+        kind = term.get('kind')
+        dims = set(term.get('output_dimensions') or []) if kind != 'constant' else set()
+        names: list[str] = []
+        for field_name in ('label', 'key'):
+            val = term.get(field_name)
+            if isinstance(val, str) and val:
+                names.append(val)
+        names.extend([
+            var_name
+            for var_name in term.get('var_names', []) or []
+            if isinstance(var_name, str) and var_name
+        ])
+        for name in dict.fromkeys(names):
+            for candidate in {name, make_identifier(name)}:
+                if candidate in name_dimensions and name_dimensions[candidate] != dims:
+                    conflicts.append(candidate)
+                    continue
+                name_dimensions[candidate] = dims
+    return name_dimensions, conflicts

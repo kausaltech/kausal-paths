@@ -79,7 +79,7 @@ dimensions:
 
 nodes:
 - id: residential_building_area_per_resident
-  type: simple.DivisiveNode
+  type: formula.FormulaNode
   quantity: per_capita
   unit: m**2/cap
   name_de: Geschossfläche Wohnen pro Einwohner*in
@@ -92,8 +92,7 @@ nodes:
       flatten: true
   - id: population
   params:
-    only_historical: true
-    extend_rows: true
+    formula: extend_values(inventory_only(building_floor_area_historical / population))
 
 - id: residential_building_area
   name_de: Geschossfläche Wohnen
@@ -104,7 +103,7 @@ nodes:
   input_nodes: [residential_building_area_per_resident, population]
 
 - id: nonresidential_building_area_per_job
-  type: simple.DivisiveNode
+  type: formula.FormulaNode
   quantity: per_capita
   unit: m**2/cap
   name_de: Geschossfläche Nicht-Wohnen pro Vollzeitäquivalent
@@ -117,8 +116,7 @@ nodes:
       flatten: true
   - id: number_of_jobs
   params:
-    only_historical: true
-    extend_rows: true
+    formula: extend_values(inventory_only(building_floor_area_historical / number_of_jobs))
 
 - id: nonresidential_building_area
   name_de: Geschossfläche Nicht-Wohnen

@@ -2,11 +2,23 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import InitVar, dataclass, field
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from common.i18n import gettext as _
 
-from .units import unit_registry
+from .constants import TIME_INTERVAL
+from .formula import (
+    FormulaSpec,
+    UnitOverride,
+    analyze_formula_dimensions,
+    analyze_formula_units,
+    build_name_dimension_map,
+    build_name_unit_map,
+    collect_term_names,
+    make_identifier,
+    normalize_formula_identifiers,
+)
+from .units import Unit, unit_registry
 
 if TYPE_CHECKING:
     from nodes.context import Context
@@ -28,7 +40,6 @@ TAG_TO_BASKET = {
     'skip_dim_test': 'skip_dim_test',
     'split_by_existing_shares': 'split_by_existing_shares',
     'split_evenly_to_cats': 'split_evenly_to_cats',
-    'threshold': 'apply_threshold',
     'use_as_shares': 'use_as_shares',
     'use_as_totals': 'use_as_totals',
 }
@@ -43,7 +54,6 @@ BASKET_DISPLAY_NAMES = { # FIXME We may not need explicit basket names.
     'skip_dim_test': _('skip dimension test'),
     'split_by_existing_shares': _('split by existing shares'),
     'split_evenly_to_cats': _('split evenly to categories'),
-    'apply_threshold': _('apply threshold'),
     'use_as_shares': _('use as shares'),
     'use_as_totals': _('use as totals'),
     'unknown': _('unknown operation'),
@@ -97,6 +107,44 @@ TAG_DESCRIPTIONS = {
     'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
 }
 
+def _unit_dimensionless(_unit: Unit | None) -> Unit:
+    return unit_registry.parse_units('dimensionless')
+
+
+def _unit_mul_time(unit: Unit | None) -> Unit | None:
+    if unit is None:
+        return None
+    return cast("Unit", unit * unit_registry(TIME_INTERVAL))
+
+
+def _unit_div_time(unit: Unit | None) -> Unit | None:
+    if unit is None:
+        return None
+    return cast("Unit", unit / unit_registry(TIME_INTERVAL))
+
+
+def _unit_geometric_inverse(unit: Unit | None) -> Unit | None:
+    if unit is None:
+        return None
+    return cast("Unit", unit_registry.parse_units('dimensionless') / unit)
+
+
+def _unit_passthrough(unit: Unit | None) -> Unit | None:
+    return unit
+
+
+FORMULA_FUNCTION_UNIT_OVERRIDES = {
+    # Produces a unitless ratio even when input has units.
+    'ratio_to_last_historical_value': _unit_dimensionless,
+    # Cumulative sum/diff adjust by timestep.
+    'cumulative': _unit_mul_time,
+    'difference': _unit_div_time,
+    # Invert unit (1 / unit).
+    'geometric_inverse': _unit_geometric_inverse,
+    # Keep unit unchanged.
+    'ignore_content': _unit_passthrough,
+}
+
 
 @dataclass
 class NodeInfo:
@@ -121,16 +169,6 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
         is smaller than 0, we should use r instead. It can be converted from the result:
         r/(r+1)=s <=> r=s/(1-s)
-        """)),
-    'AssociationNode': NodeInfo(_(
-        """
-        Association nodes connect to their upstream nodes in a loose way:
-        Their values follow the relative changes of the input nodes but
-        their quantities and units are not dependent on those of the input nodes.
-        The node MUST have exactly one dataset, which is the prior estimate.
-        Fractions 1..3 can be used to tell how much the input node should adjust
-        the output node. The default relation is "increase", if "decrease" is used,
-        that must be explicitly said in the tags.
         """)),
     'BuildingEnergySavingAction': NodeInfo(_(
         """
@@ -196,6 +234,10 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         Cohort node takes in initial age structure (inventory) and follows the cohort in time as it ages.
 
         Harvest describes how much is removed from the cohort.
+        """)),
+    'ConstantNode': NodeInfo(_(
+        """
+        Constant node returns a constant value spread over the timeline..
         """)),
     'CumulativeAdditiveAction': NodeInfo(_(
         """Additive action where the effect is cumulative and remains in the future.""")),
@@ -363,13 +405,7 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         Newton-Raphson method is used to numerically estimate slope and medeian year.
         """)),
     'SectorEmissions': NodeInfo(_("")),
-    'ThresholdNode': NodeInfo(_(
-        """
-        ThresholdNode computes a preliminary result using standard GenericNode operations.
-
-        After computation, it returns True (1) if the result is greater than or equal to
-        the threshold parameter, otherwise False (0).
-        """), deprecated=True),
+    'ShiftAction': NodeInfo(_("ShiftAction moves activity from one category to others.")),
     'TrajectoryAction': NodeInfo(_(
         """
         TrajectoryAction uses select_category() to select a category from a dimension
@@ -483,9 +519,8 @@ class NodeExplanationSystem:
             DatasetRule(),
             EdgeRule(),
             BasketRule(),
-            # CategoryRetentionRule(),
-            # OperationBasketRule(),
-            # UnitCompatibilityRule(),
+            FormulaDimensionRule(),
+            FormulaUnitRule(),
         ]
         self.generate_graph(all_node_configs)
 
@@ -568,14 +603,16 @@ class NodeExplanationSystem:
             for input_id in self.graph.inputs.get(node_id, []):
                 basket = 'unknown'
                 input_node = self.graph.nodes[input_id]
+                edge_props = self.graph.edges.get((input_id, node_id), {})
+                edge_tags = edge_props.get('tags', []) if isinstance(edge_props, dict) else []
                 assigned = False
                 if 'tags' in input_node:
-                    if any(tag in input_node['tags'] for tag in skip_tags): #  or tag in node.tags
+                    if any(tag in input_node['tags'] or tag in edge_tags for tag in skip_tags): #  or tag in node.tags
                         basket = 'skip'
                         assigned = True
                     else:
                         for tag, basket in TAG_TO_BASKET.items():  # noqa: B007
-                            if tag in input_node['tags']: # TODO or tag in node.tags:
+                            if tag in input_node['tags'] or tag in edge_tags: # TODO or tag in node.tags:
                                 assigned = True
                                 break
 
@@ -1137,7 +1174,10 @@ class BasketRule(ValidationRule):
             html.extend(functions)
             html.append("</ul>")
 
-        remaining_baskets = [basket for basket in baskets.keys() if basket not in operations]
+        remaining_baskets = [
+            basket for basket in baskets.keys()
+            if basket not in operations and basket not in {'skip'}
+        ]
         if remaining_baskets:
             html.append(_("These groups are left over without an operation:") + "<ol>")
             for basket in remaining_baskets:
@@ -1176,6 +1216,8 @@ class BasketRule(ValidationRule):
             input_id = input_spec if isinstance(input_spec, str) else input_spec.get('id')
             if not input_id:
                 continue
+            if isinstance(input_spec, dict) and 'ignore_content' in (input_spec.get('tags') or []):
+                continue
             spec = {'id': input_id}
             if isinstance(input_spec, dict):
                 spec.update(input_spec)
@@ -1183,6 +1225,8 @@ class BasketRule(ValidationRule):
             merged_specs.append(spec)
         for input_id in nes.graph.inputs.get(node_id, []):
             edge_props = nes.graph.edges.get((input_id, node_id), {})
+            if 'ignore_content' in (edge_props.get('tags') or []):
+                continue
             if input_id in index_by_id:
                 spec = merged_specs[index_by_id[input_id]]
                 for key, value in edge_props.items():
@@ -1236,6 +1280,37 @@ class BasketRule(ValidationRule):
                         ),
                         None,
                     )
+            output_dimensions = input_node.get('output_dimensions')
+            adjusted_dims: list[Any] | None = None
+            from_dims = input_spec.get('from_dimensions', [])
+            to_dims = input_spec.get('to_dimensions', [])
+            if output_dimensions is not None or from_dims or to_dims:
+                adjusted_dims = []
+                dim_ids = []
+                for dim in output_dimensions or []:
+                    if isinstance(dim, dict):
+                        dim_id = dim.get('id')
+                    else:
+                        dim_id = dim
+                    if isinstance(dim_id, str):
+                        dim_ids.append(dim_id)
+                for dim in from_dims or []:
+                    dim_id = dim.get('id') if isinstance(dim, dict) else dim
+                    if not isinstance(dim_id, str):
+                        continue
+                    if isinstance(dim, dict) and dim.get('flatten'):
+                        if dim_id in dim_ids:
+                            dim_ids.remove(dim_id)
+                        continue
+                    if dim_id not in dim_ids:
+                        dim_ids.append(dim_id)
+                for dim in to_dims or []:
+                    dim_id = dim.get('id') if isinstance(dim, dict) else dim
+                    if isinstance(dim_id, str) and dim_id not in dim_ids:
+                        dim_ids.append(dim_id)
+                for dim_id in dim_ids:
+                    adjusted_dims.append(dim_id)
+
             term = {
                 'kind': 'node',
                 'key': input_id,
@@ -1243,7 +1318,7 @@ class BasketRule(ValidationRule):
                 'name': context.nodes[input_id].name,
                 'var_names': self._term_var_names(input_spec, input_id),
                 'unit': input_node.get('unit'),
-                'output_dimensions': input_node.get('output_dimensions'),
+                'output_dimensions': adjusted_dims if adjusted_dims is not None else output_dimensions,
                 'functions': func_tags,
                 'details': self._node_term_details(input_spec, context, label_tag),
             }
@@ -1255,6 +1330,12 @@ class BasketRule(ValidationRule):
             ds_id = dataset_config.get('id')
             if not ds_id:
                 continue
+            ds_output_dimensions = dataset_config.get('output_dimensions')
+            if ds_output_dimensions is None:
+                ds_output_dimensions = node_config.get('output_dimensions')
+            ds_unit = dataset_config.get('unit')
+            if ds_unit is None:
+                ds_unit = node_config.get('unit')
             tags = [tag for tag in dataset_config.get('tags', []) if tag != 'cleaned']
             label_tag = tags[0] if tags else None
             term = {
@@ -1263,8 +1344,8 @@ class BasketRule(ValidationRule):
                 'label': label_tag,
                 'name': ds_id,
                 'var_names': self._dataset_var_names(dataset_config, ds_id),
-                'unit': dataset_config.get('unit'),
-                'output_dimensions': dataset_config.get('output_dimensions'),
+                'unit': ds_unit,
+                'output_dimensions': ds_output_dimensions,
                 'functions': [],
                 'details': self._dataset_term_details(dataset_config, context),
             }
@@ -1411,7 +1492,7 @@ class BasketRule(ValidationRule):
         formula_param = self.get_param(node_config, 'formula')
         label_by_id: dict[str, str] = {}
         for term in terms:
-            label = term['label']
+            label = make_identifier(term['key'])
             for func in term.get('functions', []):
                 label = f"{func}({label})"
             label_by_id[term['key']] = label
@@ -1456,9 +1537,14 @@ class BasketRule(ValidationRule):
     ) -> str:
         expr = ''
         fallback_term = next(
-            (term['label'] for term in terms if term['kind'] != 'constant'),
+            (term['label'] for term in terms if term['kind'] == 'dataset'),
             '',
         )
+        if not fallback_term:
+            fallback_term = next(
+                (term['label'] for term in terms if term['kind'] != 'constant'),
+                '',
+            )
         multiplier = label_by_id.get('multiplier')
         for operation in operations:
             input_nodes = baskets.get(operation, [])
@@ -1484,6 +1570,60 @@ class BasketRule(ValidationRule):
                 expr = fallback_term
             elif operation == 'apply_multiplier' and expr and multiplier:
                 expr = self._render_operation('multiply', [expr, multiplier])
+
+        if not expr and fallback_term:
+            expr = fallback_term
+        return expr
+
+    def _build_formula_from_operations_for_validation(  # noqa: C901
+        self,
+        operations: list[str],
+        baskets: dict[str, list[str]],
+        label_by_id: dict[str, str],
+        terms: list[dict[str, Any]],
+        has_dataset_terms: bool,
+    ) -> str:
+        def _render_operation(operation: str, op_terms: list[str]) -> str:
+            op_label = BASKET_OPERATION_LABEL.get(operation, ' + ')
+            if operation in ['add', 'multiply']:
+                return f"({op_label.join(op_terms)})"
+            return f"{operation}({op_label.join(op_terms)})"
+
+        expr = ''
+        fallback_term = next(
+            (term['label'] for term in terms if term['kind'] == 'dataset'),
+            '',
+        )
+        if not fallback_term:
+            fallback_term = next(
+                (term['label'] for term in terms if term['kind'] != 'constant'),
+                '',
+            )
+        multiplier = label_by_id.get('multiplier')
+        for operation in operations:
+            input_nodes = baskets.get(operation, [])
+            if input_nodes:
+                seen: set[str] = set()
+                deduped = []
+                for n in input_nodes:
+                    if n in seen:
+                        continue
+                    seen.add(n)
+                    deduped.append(n)
+                input_nodes = deduped
+            if input_nodes:
+                op_terms = [label_by_id[n] for n in input_nodes if n in label_by_id]
+                if not op_terms:
+                    continue
+                if expr and expr not in op_terms:
+                    op_terms = [expr, *op_terms]
+                expr = _render_operation(operation, op_terms)
+                continue
+
+            if operation == 'get_single_dataset' and has_dataset_terms and not expr and fallback_term:
+                expr = fallback_term
+            elif operation == 'apply_multiplier' and expr and multiplier:
+                expr = _render_operation('multiply', [expr, multiplier])
 
         if not expr and fallback_term:
             expr = fallback_term
@@ -1542,3 +1682,343 @@ class BasketRule(ValidationRule):
         if filters:
             html.extend(DatasetRule()._explain_filters(filters, context))
         return html
+
+
+class FormulaValidationMixin(ValidationRule, ABC):
+    def explain(self, _node_config: dict[str, Any], _context: Context) -> list[str]:
+        return []
+
+    def _ensure_baskets(self, context: Context) -> GraphRepresentation:
+        nes = context.node_explanation_system
+        assert nes is not None
+        if not nes.baskets:
+            nes.generate_input_baskets()
+        return nes.graph
+
+    def _get_operations(
+        self,
+        node_id: str,
+        context: Context,
+        graph: GraphRepresentation,
+    ) -> list[str]:
+        operation_list = self.get_param(graph.nodes[node_id], 'operations')
+        if not operation_list:
+            operation_list = context.nodes[node_id].DEFAULT_OPERATIONS
+        return [o.strip() for o in operation_list.split(',') if o.strip()]
+
+    def _build_formula_spec(  # noqa: PLR0912, C901
+        self,
+        node_config: dict[str, Any],
+        context: Context,
+        operations: list[str],
+    ) -> FormulaSpec:
+        node_id = node_config['id']
+        nes = context.node_explanation_system
+        assert nes is not None
+
+        basket_rule = BasketRule()
+        terms = basket_rule._collect_terms(node_config, context, node_id)
+        baskets = nes.baskets.get(node_id, {})
+
+        display_expression = basket_rule._build_formula_from_config(
+            node_config,
+            operations,
+            baskets,
+            terms,
+        )
+
+        formula_param = self.get_param(node_config, 'formula')
+        label_by_id: dict[str, str] = {}
+        for term in terms:
+            label = term['key']
+            for func in term.get('functions', []):
+                label = f"{func}({label})"
+            label_by_id[term['key']] = label
+
+        if formula_param:
+            formula_param = basket_rule._apply_term_functions(formula_param, terms)
+            formula_param = normalize_formula_identifiers(
+                formula_param,
+                collect_term_names(terms),
+            )
+            used_names = basket_rule._extract_formula_identifiers(formula_param)
+            unused_labels = []
+            for term in terms:
+                if term['kind'] != 'node':
+                    continue
+                var_names = set(term.get('var_names', []))
+                if not var_names or var_names.isdisjoint(used_names):
+                    unused_labels.append(label_by_id[term['key']])
+            if unused_labels:
+                expression = f"({formula_param} + {' + '.join(unused_labels)})"
+            else:
+                expression = formula_param
+        else:
+            typ = node_config.get('type') or ''
+            if isinstance(typ, str):
+                typ = typ.split('.')[-1]
+            if typ == 'AdditiveNode':
+                add_terms = [
+                    label_by_id[term['key']]
+                    for term in terms
+                    if term['kind'] != 'constant' and term['key'] in label_by_id
+                ]
+                expression = f"({BASKET_OPERATION_LABEL['add'].join(add_terms)})" if add_terms else ''
+            elif not operations:
+                expression = ''
+            else:
+                expression = basket_rule._build_formula_from_operations_for_validation(
+                    operations,
+                    baskets,
+                    label_by_id,
+                    terms,
+                    has_dataset_terms=any(term['kind'] == 'dataset' for term in terms),
+                )
+
+        if expression:
+            expression = normalize_formula_identifiers(
+                expression,
+                collect_term_names(terms),
+            )
+
+        return FormulaSpec(
+            expression=expression,
+            display_expression=display_expression,
+            terms=terms,
+        )
+
+    @staticmethod
+    def _normalize_dims(dims: list[Any] | None) -> set[str]:
+        out: set[str] = set()
+        for dim in dims or []:
+            if isinstance(dim, dict) and isinstance(dim_id := dim.get('id'), str) and dim_id:
+                out.add(dim_id)
+            elif isinstance(dim, str):
+                out.add(dim)
+        return out
+
+
+class FormulaDimensionRule(FormulaValidationMixin):
+    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
+        node_id = node_config['id']
+        nes = context.node_explanation_system
+        if nes is None:
+            return results
+        graph = self._ensure_baskets(context)
+        operations = self._get_operations(node_id, context, graph)
+        spec = self._build_formula_spec(node_config, context, operations)
+        if not spec.expression:
+            return results
+
+        results.extend(self._validate_dataset_dims(node_config, spec))
+        results.extend(self._validate_formula_dims(spec))
+        results.extend(self._validate_output_dims(node_config, spec))
+        return results
+
+    def _validate_dataset_dims(
+        self,
+        node_config: dict[str, Any],
+        spec: FormulaSpec,
+    ) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
+        used_names = BasketRule()._extract_formula_identifiers(spec.expression)
+        node_output_dimensions = node_config.get('output_dimensions')
+        for term in spec.terms:
+            if term.get('kind') != 'dataset':
+                continue
+            if term.get('output_dimensions') is not None:
+                continue
+            if node_output_dimensions is not None:
+                continue
+            term_names = set(term.get('var_names', []) or [])
+            for field_name in ('label', 'key'):
+                val = term.get(field_name)
+                if isinstance(val, str) and val:
+                    term_names.add(val)
+            if not used_names or term_names.intersection(used_names):
+                label = term.get('label') or term.get('key') or term.get('name')
+                label_str = f" '{label}'" if label else ""
+                results.append(ValidationResult(
+                    method='formula_dimension_rule',
+                    is_valid=False,
+                    level='info',
+                    message=(
+                        f"Dataset term{label_str} is missing output_dimensions; "
+                        "dimension validation may be incomplete."
+                    ),
+                ))
+        return results
+
+    def _validate_formula_dims(self, spec: FormulaSpec) -> list[ValidationResult]:
+        analysis = analyze_formula_dimensions(
+            spec.expression,
+            build_name_dimension_map(spec.terms)[0],
+            passthrough_functions=set(TAG_DESCRIPTIONS.keys()),
+        )
+        results: list[ValidationResult] = []
+        results.extend([
+            ValidationResult(
+                method='formula_dimension_rule',
+                is_valid=False,
+                level='error',
+                message=message,
+            )
+            for message in analysis.errors
+        ])
+        results.extend([
+            ValidationResult(
+                method='formula_dimension_rule',
+                is_valid=True,
+                level='warning',
+                message=message,
+            )
+            for message in analysis.warnings
+        ])
+        return results
+
+    def _validate_output_dims(
+        self,
+        node_config: dict[str, Any],
+        spec: FormulaSpec,
+    ) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
+        expected_dims = self._normalize_dims(node_config.get('output_dimensions'))
+        analysis = analyze_formula_dimensions(
+            spec.expression,
+            build_name_dimension_map(spec.terms)[0],
+            passthrough_functions=set(TAG_DESCRIPTIONS.keys()),
+        )
+        if analysis.dims is not None and expected_dims and analysis.dims != expected_dims:
+            results.append(ValidationResult(
+                method='formula_dimension_rule',
+                is_valid=False,
+                level='error',
+                message=(
+                    "Formula output dimensions do not match node.output_dimensions: "
+                    f"{sorted(analysis.dims)} vs {sorted(expected_dims)}. "
+                    f"Expression: {spec.expression}"
+                ),
+            ))
+        return results
+
+
+class FormulaUnitRule(FormulaValidationMixin):
+    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
+        node_unit = node_config.get('unit')
+        if not node_unit:
+            return results
+        node_id = node_config['id']
+        nes = context.node_explanation_system
+        if nes is None:
+            return results
+        graph = self._ensure_baskets(context)
+        operations = self._get_operations(node_id, context, graph)
+        spec = self._build_formula_spec(node_config, context, operations)
+        if not spec.expression:
+            return results
+
+        name_units = build_name_unit_map(spec.terms)
+        results.extend(self._apply_multiplier_unit_inference(node_config, operations, spec, name_units))
+
+        unit_analysis = analyze_formula_units(
+            spec.expression,
+            name_units,
+            passthrough_functions=set(TAG_DESCRIPTIONS.keys()),
+            unit_overrides=cast("dict[str, UnitOverride]", FORMULA_FUNCTION_UNIT_OVERRIDES),
+        )
+        results.extend([
+            ValidationResult(
+                method='formula_unit_rule',
+                is_valid=False,
+                level='error',
+                message=message,
+            )
+            for message in unit_analysis.errors
+        ])
+        results.extend([
+            ValidationResult(
+                method='formula_unit_rule',
+                is_valid=True,
+                level='warning',
+                message=message,
+            )
+            for message in unit_analysis.warnings
+        ])
+
+        expected_unit = unit_registry.parse_units(node_unit)
+        if unit_analysis.unit is not None:
+            if unit_analysis.unit.dimensionality != expected_unit.dimensionality:
+                results.append(ValidationResult(
+                    method='formula_unit_rule',
+                    is_valid=False,
+                    level='error',
+                    message=(
+                        "Formula output unit does not match node.unit: "
+                        f"{unit_analysis.unit} vs {expected_unit}"
+                    ),
+                ))
+            elif unit_analysis.unit != expected_unit:
+                results.append(ValidationResult(
+                    method='formula_unit_rule',
+                    is_valid=True,
+                    level='info',
+                    message=(
+                        "Formula output unit differs from node.unit but is compatible: "
+                        f"{unit_analysis.unit} vs {expected_unit}"
+                    ),
+                ))
+        return results
+
+    def _apply_multiplier_unit_inference(  # noqa: C901, PLR0912
+        self,
+        node_config: dict[str, Any],
+        operations: list[str],
+        spec: FormulaSpec,
+        name_units: dict[str, Unit | None],
+    ) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
+        params = node_config.get('params', [])
+        multiplier_unit = None
+        if isinstance(params, dict):
+            multiplier_unit = params.get('multiplier_unit')
+        else:
+            for param in params:
+                if isinstance(param, dict) and param.get('id') == 'multiplier':
+                    multiplier_unit = param.get('unit')
+                    break
+        if not multiplier_unit or 'apply_multiplier' not in operations:
+            return results
+
+        explicit_ds_units: set[str] = set()
+        for ds in node_config.get('input_datasets', []) or []:
+            if isinstance(ds, dict) and ds.get('id') and ds.get('unit') is not None:
+                explicit_ds_units.add(ds['id'])
+        inferred_unit = cast("Unit", unit_registry.parse_units(node_config['unit']) / unit_registry.parse_units(multiplier_unit))
+        used_multiplier_inference = False
+        for term in spec.terms:
+            if term.get('kind') != 'dataset':
+                continue
+            if term.get('key') in explicit_ds_units:
+                continue
+            term_names = set(term.get('var_names', []) or [])
+            for field_name in ('label', 'key'):
+                val = term.get(field_name)
+                if isinstance(val, str) and val:
+                    term_names.add(val)
+            for name in term_names:
+                name_units[name] = inferred_unit
+                name_units[make_identifier(name)] = inferred_unit
+            used_multiplier_inference = True
+        if used_multiplier_inference:
+            results.append(ValidationResult(
+                method='formula_unit_rule',
+                is_valid=True,
+                level='warning',
+                message=(
+                    "Dataset unit inferred from node.unit and multiplier; "
+                    "consider setting dataset.unit explicitly."
+                ),
+            ))
+        return results

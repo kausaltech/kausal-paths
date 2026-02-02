@@ -620,7 +620,7 @@ nodes:
     infrastructure. There must be at least 300 charging stations. Municipality A
     & Local governmental area D increases stations by setting policies.
   quantity: fraction
-  type: values.AdditiveNode
+  type: simple.AdditiveNode
   unit: pcs
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
@@ -661,12 +661,13 @@ nodes:
   description: Local communities have expressed their need for charging points 
     and the number of EV charging points fills that need.
   quantity: fraction
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   unit: pcs # Jouni does this make sense
   historical_values: [[2010, 10000], [2023, 10000]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_service_level
+    tags: [ignore_content]
 
 - id: tourism
   name: Turismin määrä
@@ -675,12 +676,13 @@ nodes:
     area D therefore the charging points matter whether tourists come to the 
     area or not.
   quantity: number
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   unit: pcs
   historical_values: [[2010, 10000], [2023, 10000]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: local_business
+    tags: [ignore_content]
 
 - id: local_business
   name: Paikallisten yritysten liikevaihto
@@ -688,12 +690,13 @@ nodes:
   description: The number of tourists has an impact on how successful local 
     businesses are.
   quantity: currency
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   unit: kEUR/a
   historical_values: [[2010, 10000], [2023, 10000]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: total_economic_benefit
+    tags: [ignore_content]
 
 - id: number_of_evs
   name: Sähköautojen määrä
@@ -701,7 +704,7 @@ nodes:
   description: More charging stations improves intention to purchase EVs as 
     worry about charging availability decreases.
   quantity: number
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   unit: pcs
   historical_values: [[2010, 10000], [2023, 10000]]
   input_dataset_processors: [LinearInterpolation]
@@ -800,7 +803,7 @@ nodes:
   description: Help people to transition to sustainable living. WHAT IS ACTUALLY
     MEASURED HERE? The name implies that this is an action.
   quantity: number
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   unit: pcs
   historical_values: [[2010, 100], [2023, 100]]
   input_dataset_processors: [LinearInterpolation]
@@ -811,13 +814,15 @@ nodes:
   description: Law requires municipalities to build necessary infrastructure. 
     There must be at least a certain amount of charging stations. The graph 
     shows the year when the goal is reached.
-  type: values.ThresholdNode
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
   params:
-  - id: threshold
+  - id: constant
     value: 430
     unit: pcs
-  - id: use_input_node_unit_when_adding
-    value: true
+  - id: formula
+    value: charging_stations >= constant
   input_nodes:
   - id: charging_stations
 
@@ -959,38 +964,31 @@ nodes:
 - id: vehicle_number
   name: Henkilöautojen määrä kaupungissa
   name_en: Number of passenger cars
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: number
   unit: pcs
   historical_values: [[2010, 40000], [2022, 45000]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: vehicle_need
-    tags: [fraction1]
+    tags: [ignore_content]
   - id: number_of_evs
-    tags: [fraction2]
+    tags: [ignore_content]
   params:
-  - id: fraction1
-    value: 0.2
-  - id: fraction2
-    value: 0.1
   - id: drop_nulls
     value: true
 
 - id: urban_coziness
   name: Kaupunkialueen viihtyisyys
   name_en: Urban coziness
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: number
   unit: pcs
   historical_values: [[2010, 100], [2022, 100]]
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: vehicle_number
-    tags: [decrease, fraction1]
-  params:
-  - id: fraction1
-    value: 0.3
+    tags: [decrease, ignore_content]
 
 - id: car_km
   name: Autokilometrien määrä kaupungissa
@@ -1067,6 +1065,7 @@ nodes:
       value: 300
   output_nodes:
   - id: accessibility
+    tags: [ignore_content]
 
 - id: accessibility
   name: Liikenteen saavutettavuus
@@ -1076,7 +1075,7 @@ nodes:
     consider coming to the town (especially in municipality C, while in 
     municipality D tourists find EV charging stations more important).
   quantity: fraction
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   unit: pcs
   historical_values: [[2010, 30], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
@@ -1165,7 +1164,7 @@ nodes:
 - id: transportation_service_level
   name: Liikenteen palvelutaso
   name_en: Transportation service level
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: number
   unit: pcs
   historical_values: [[2010, 30], [2023, 50]]
@@ -1186,12 +1185,13 @@ nodes:
   Description: More people would change their behavior to sustainable methods 
     whether it is walking, cycling or public transportation.
   quantity: vehicle_mileage
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   unit: Mvkm/a
   historical_values: [[2010, 3], [2023, 5]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - transportation_service_level
+  - id: transportation_service_level
+    tags: [ignore_content]
   goals:
   - is_main_goal: true
     default: true

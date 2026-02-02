@@ -346,6 +346,14 @@ class PathsDataFrame(pl.DataFrame):
             df = df.ensure_unit(col, out_unit)
         return df
 
+    def divide_by_quantity(self, col: str, quantity: Quantity, out_unit: Unit | None = None) -> PathsDataFrame:
+        res_unit = cast('Unit', self._units[col] / quantity.units)
+        df = self.with_columns((pl.col(col) / pl.lit(quantity.m)).alias(col))
+        df._units[col] = res_unit
+        if out_unit:
+            df = df.ensure_unit(col, out_unit)
+        return df
+
     def sum_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None, skip_missing: bool = False) -> PathsDataFrame:
         res_unit = None
         s = None

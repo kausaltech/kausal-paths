@@ -125,6 +125,7 @@ nodes:
   unit: t_co2e/person/a
   input_datasets:
   - id: transportation/acceptable_emissions_per_person
+    output_dimensions: []
   params:
   - id: multiplier
     value: 1.0
@@ -142,9 +143,9 @@ nodes:
   - id: net_emissions_per_person
     tags: [actual]
   - id: acceptable_emissions_per_person
-    tags: [threshold]
+    tags: [thresholdd]
   params:
-    formula: (actual <= threshold) * 1.0
+    formula: actual <= thresholdd
 
 # FAIR SHARE ASSESSMENT
 
@@ -157,6 +158,7 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/global_emission_share
+    output_dimensions: []
   params:
   - id: multiplier
     value: 0.55
@@ -264,6 +266,7 @@ nodes:
   output_dimensions: [hypotheses]
   input_datasets:
   - id: transportation/cooperation_rate_estimates
+    output_dimensions: [hypotheses]
 
 - id: hypothesis_index
   name: Hypothesis index
@@ -275,6 +278,7 @@ nodes:
   output_dimensions: [hypotheses]
   input_datasets:
   - id: transportation/hypothesis_index
+    output_dimensions: [hypotheses]
 
 - id: commons_survives
   name: Commons survival evaluation
@@ -294,11 +298,11 @@ nodes:
     - id: hypotheses
     tags: [coop_rate]
   - id: commons_sensitivity
-    tags: [threshold]
+    tags: [thresholdd]
   - id: hypothesis_index
     tags: [index]
   params:
-    formula: coop_rate >= (complement(threshold) * index)
+    formula: coop_rate >= (complement(thresholdd) * index)
 
 - id: should_we_cooperate
   name: Should our city cooperate (given free rider logic)
@@ -373,6 +377,7 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
+    output_dimensions: []
   output_nodes:
   - id: emissions_acceptable
     tags: [ignore_content]
@@ -413,6 +418,7 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
+    output_dimensions: []
   output_nodes:
   - id: fair_share_met
     tags: [ignore_content]
@@ -449,6 +455,7 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
+    output_dimensions: []
   output_nodes:
   - id: emissions_acceptable
     tags: [ignore_content]

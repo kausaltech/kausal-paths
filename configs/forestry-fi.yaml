@@ -993,14 +993,18 @@ nodes:
   name: Private forest protection is voluntary
   description: This is an indicator about whether a forest owner actually has decision-making
     power over their forest cuts or not.
-  type: generic.ThresholdNode
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
   input_nodes:
   - id: protect_the_forest
     tags: [additive, arithmetic_inverse]
   params:
-  - id: threshold
+  - id: constant
     value: -0.05
     unit: '%/a'
+  - id: formula
+    value: protect_the_forest >= constant
 
 - id: responsibility_of_nature_protection
   name: Everyone has the responsibility to protect nature as a part of their own actions

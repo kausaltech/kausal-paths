@@ -1,5 +1,8 @@
 # This is a copy of an archived version:
 # https://github.com/kausaltech/kausal-paths/blob/3f13ba56ef9af3aac1c7708bc4e2e3ce5e0b34c3/configs/longmont-dev.yaml
+# However, because DivisiveNode was deleted, those nodes were rewritten as FormulaNodes.
+# Because there was an error in the previous implementation (per-capita ratio was assumed constant but wasn't,
+# there is 3 kt/a difference between the original archived version and the modernized 2025-12-19 version.)
 
 # Data 2025-09-27 from https://docs.google.com/spreadsheets/d/1gWkGv6aCt1Zl2pZhH33kOugdPWWokBT-/edit?gid=1709772016#gid=1709772016
 
@@ -46,51 +49,62 @@ features:
   use_datasets_from_db: true
   show_explanations: true
 
-# result_excels:
-# - base_excel_url: 
-#     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
-#   name: Climate City Contract Tables
-#   node_ids:
-#   - afolu_emissions
-#   - waste_water_treatment_emissions
-#   - refridgerant_emissions
-#   - aviation_emissions
-#   # - railways_emissions
-#   # - off_road_transportation
-#   - leakage_from_oil_and_gas_wells_emissions
-#   - emission_factor_fuels
-#   - population
-#   # - global_warming_potential_100
-#   - free_rides_per_person
-#   - modal_share_of_active_transportation
-#   # - public_transportation_change
-#   - public_transportation_trips_per_person
-#   - diversion_rate
-#   - waste_emission_factor
-#   - participation_smart_grid
-#   - smart_grid_improvement
-#   - smart_grid_benefits
-#   # - transmission_loss_change
-#   # - transmission_loss_work_benefits
-#   - building_square_footage
-#   - building_electricity_use_historical
-#   - building_natural_gas_use_historical
-#   - building_natural_gas_eui
-#   - building_electricity_eui
-#   - electricity_emission_factor
-#   - emission_factor_natural_gas
-#   # - stationary_fuel_consumption
-#   # - emission_factor_fuel
-#   - stationary_wood_consumption
-#   - emission_factor_wood
-#   - electricity_loss_fraction
-#   - miles_per_gallon
-#   # - vehicle_miles_per_vehicle
-#   - registered_electric_vehicles
-#   - electric_vehicle_efficiency
-#   - vehicle_charging_shares
-#   - amount_of_waste_per_person
-#   format: wide
+result_excels:
+- base_excel_url: 
+    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+  name: Climate City Contract Tables
+  node_ids:
+  # - afolu_emissions
+  # - waste_water_treatment_emissions
+  # - refrigerant_emissions
+  # - aviation_emissions
+  # # - railways_emissions
+  # # - off_road_transportation
+  # - leakage_from_oil_and_gas_wells_emissions
+  # # - emission_factor_fuels
+  # - population
+  # # - global_warming_potential_100
+  # # - free_rides_per_person
+  # # - modal_share_of_active_transportation
+  # # - public_transportation_change
+  # # - public_transportation_trips_per_person
+  # # - diversion_rate
+  # # - waste_emission_factor
+  # - participation_smart_grid
+  # - smart_grid_improvement
+  # - smart_grid_benefits
+  # # - transmission_loss_change
+  # # - transmission_loss_work_benefits
+  # - building_square_footage
+  # - building_electricity_use_historical
+  # - building_natural_gas_use_historical
+  # - building_natural_gas_eui
+  # - building_electricity_eui
+  # - electricity_emission_factor
+  # - emission_factor_natural_gas
+  # # - stationary_fuel_consumption
+  # # - emission_factor_fuel
+  # - stationary_wood_consumption
+  # - emission_factor_wood
+  # - electricity_loss_fraction
+  # # - miles_per_gallon
+  # # - vehicle_miles_per_vehicle
+  # # - registered_electric_vehicles
+  # # - electric_vehicle_efficiency
+  # # - vehicle_charging_shares
+  # # - amount_of_waste_per_person
+  # - transportation_emissions
+  - building_emissions
+  - building_electricity_use_per_resident
+  - building_electricity_use_bau
+  - building_electricity_use
+  - electricity_use
+  - electricity_consumption_emissions
+  - building_natural_gas_use_per_resident
+  - building_natural_gas_use_bau
+  - building_natural_gas_use
+  - natural_gas_consumption_emissions
+  format: wide
 
 action_groups:
 - id: buildings
@@ -1121,7 +1135,7 @@ nodes:
 - id: building_electricity_use_per_resident
   name: Building electricity use per resident
   name_es-US: Consumo de electricidad en edificios por residente
-  type: simple.DivisiveNode
+  type: formula.FormulaNode
   quantity: per_capita
   unit: GWh/a/cap
   input_nodes:
@@ -1134,8 +1148,7 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   params:
-    only_historical: true
-    extend_rows: true
+    formula: extend_values(inventory_only(building_electricity_use_historical / population))
 
 - id: building_electricity_use_bau
   name: Building electricity use (baseline)
@@ -1169,7 +1182,7 @@ nodes:
 - id: building_natural_gas_use_per_resident
   name: Building natural gas use per resident
   name_es-US: Consumo de gas natural en edificios por residente
-  type: simple.DivisiveNode
+  type: formula.FormulaNode
   quantity: per_capita
   unit: Mtherm/a/cap
   input_nodes:
@@ -1182,8 +1195,7 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   params:
-    only_historical: true
-    extend_rows: true
+    formula: extend_values(inventory_only(building_natural_gas_use_historical / population))
 
 - id: building_natural_gas_use_bau
   name: Building natural gas use (baseline)

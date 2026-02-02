@@ -89,7 +89,9 @@ nodes:
 
 - id: get_rid_of_peat
   name: Get rid of peat production
-  type: values.ThresholdNode
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
   input_nodes:
   - id: emission_change_from_peat_reduction
     tags: [arithmetic_inverse]
@@ -102,11 +104,11 @@ nodes:
   - id: success_by_climate_aware_industrialist
     tags: [non_additive]
   params:
-  - id: threshold
+  - id: constant
     value: 200
     unit: kt/a
-  - id: use_input_node_unit_when_adding
-    value: true
+  - id: formula
+    value: emission_change_from_peat_reduction >= constant
 
 - id: biofuel_unit_price
   name_fi: Bioenergian hinta
