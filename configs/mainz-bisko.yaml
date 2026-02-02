@@ -1,15 +1,15 @@
 id: mainz-bisko  # defines which instance is updated
 default_language: de
 supported_languages: [en]
-site_url: https://bisko.paths.staging.kausal.tech
+site_url: https://mainz-bisko.paths.kausal.tech
 dataset_repo:
-  url: https://github.com/kausaltech/dvctest.git.
+  url: https://github.com/kausaltech/dvctest.git
   commit: 27fb832aed994de5b77a0d89571bdbe6dfe74499
   dvc_remote: kausal-s3
-name: Klima-Monitor-BISKO
-owner: Kausal Ltd
-theme_identifier: default
-target_year: 2026
+name: Mainz Klima-Monitor-BISKO
+owner: Mainz Stadt
+theme_identifier: de-mainz
+target_year: 2035
 model_end_year: 2050
 reference_year: 1990
 minimum_historical_year: 1990
@@ -559,7 +559,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: mainz/final_energy
+  - id: duesseldorf/final_energy
     column: Value
 
 - id: final_energy_use_data_quality
@@ -571,7 +571,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: mainz/final_energy_use_data_quality  # is automatically created by upload_new_dataset.py when uploading to DVC
+  - id: bisko/final_energy_use_data_quality  # is automatically created by upload_new_dataset.py when uploading to DVC
 
 - id: final_transport_energy_use
   name: Endenergie Verkehr
@@ -652,7 +652,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: mainz/historical_emissions # bisko/historical_emissions # TODO Use temporarily to set up the model
+  - id: bisko/historical_emissions # bisko/historical_emissions # TODO Use temporarily to set up the model
     column: Value
 
 - id: emission_factors # FIXME Check for koeln-dev implementation.
@@ -896,7 +896,9 @@ nodes:
   - id: bisko/sector_index # TODO Use Bisko-specific dataset. --> check what index actually contains
     filters:
     - column: sector
-      value: other
+      value: transport
+    - column: energy_carrier
+      value: hydrogen
   params:
   - id: operations
     value: get_single_dataset,do_correction,extend_to_history
@@ -950,6 +952,7 @@ nodes:
 
 - id: combined_heat_and_power_ef
   name_en: Combined heat and power emission factor
+  name_de: Emissionsfaktor für Kombination aus Wärme und Strom
   type: generic.ChpNode
   quantity: emission_factor
   unit: g_co2e/kWh
