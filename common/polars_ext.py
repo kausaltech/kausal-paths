@@ -973,11 +973,25 @@ class PathsExt:
             return df
 
         is_forecast = False
-        df = (df.filter(pl.col('ObservedDataPoint'))
-            .with_columns(pl.lit(is_forecast).alias(FORECAST_COLUMN)))
-        drop_cols = [col for col in ['FromMeasureDataPoint', 'ObservedDataPoint'] if col in df.columns]
-        if drop_cols:
-            df = df.drop(drop_cols)
+        model_default = True
+        df = (
+            df
+            .with_columns([
+                pl.col("ObservedDataPoint").any().over(df.dim_ids).alias("_has_obs"),
+                pl.col("FromMeasureDataPoint").any().over(df.dim_ids).alias("_has_measure")
+            ])
+            .filter(
+                pl.when(pl.col("_has_obs"))
+                .then(pl.col("ObservedDataPoint"))
+                .otherwise(pl.when(pl.col('_has_measure'))
+                .then(pl.col("FromMeasureDataPoint"))
+                .otherwise(pl.lit(model_default))
+            ))
+            .with_columns(pl.lit(is_forecast).alias(FORECAST_COLUMN))
+        )
+        drop_cols = ['FromMeasureDataPoint', 'ObservedDataPoint', '_has_obs', '_has_measure']
+        drop_cols = [col for col in drop_cols if col in df.columns]
+        df = df.drop(drop_cols)
         df = self._extend_all(df, context)
         return df
 
