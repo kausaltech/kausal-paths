@@ -1850,6 +1850,8 @@ class ConstantNode(GenericNode):
         start_year = self.context.instance.minimum_historical_year
         end_year = self.context.instance.model_end_year
         last_historical_year = self.context.instance.maximum_historical_year
+        if last_historical_year is None or last_historical_year < start_year:
+            last_historical_year = start_year
         years = range(start_year, end_year + 1)
         df = ppl.PathsDataFrame({YEAR_COLUMN: years})
         df._units = {}
