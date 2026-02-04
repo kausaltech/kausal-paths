@@ -25,7 +25,10 @@ features:
 # - file: frameworks/standard_dims.yaml
 #   allow_override: true
 
+
+#//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
+
 - id: weather_correction
   label_de: Wetterkorrektur durchführen?
   label_en: Perform weather correction?
@@ -51,6 +54,8 @@ params:
   is_visible: true
   is_customizable: true
 
+
+#//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
 result_excels:
 - base_excel_url: 
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
@@ -67,6 +72,8 @@ result_excels:
   - road_transport_activity
   - other_transport_energy
 
+
+#//////  Dimensions  ////////////////////////////////////////////////////////////////////////////////////////////////////
 dimensions:
 
 - id: energy_carrier
@@ -304,7 +311,7 @@ dimensions:
   - id: transport
     label_en: Transport
     label_de: Verkehr
-    aliases: [verkehr]
+    aliases: [verkehr, Verkehr]
     color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
   - id: buildings
     label_en: Buildings & Heating
@@ -312,31 +319,31 @@ dimensions:
   - id: private_households
     label_en: Private Households
     label_de: Private Haushalte
-    aliases: [private_haushalte]
+    aliases: [private_haushalte, Private_Haushalte]
     color: '#009ebe'
   - id: municipal_facilities
     label_en: Municipal Facilities
     label_de: Kommunale Einrichtungen
-    aliases: [kommunale_einrichtungen, stadtische_gebaude]
+    aliases: [kommunale_einrichtungen, Kommunale_Einrichtungen, stadtische_gebaude]
     color: '#6bc248'
   - id: commerce_trade_services
     label_en: Commerce, Trade & Services
     label_de: Gewerbe, Handel, Dienstleistungen
-    aliases: [gewerbe_handel_dienstleistungen, gewerbe_sonstiges]
+    aliases: [gewerbe_handel_dienstleistungen, Gewerbe_Handel_Dienstleistungen, gewerbe_sonstiges]
     color: '#fe8035'
   - id: industry
     label_en: Industry
     label_de: Industrie
-    aliases: [industrie]
+    aliases: [industrie, Industrie]
     color: '#737373'
   - id: electricity
     label_en: Electricity
     label_de: Strom
-    aliases: [strom]
+    aliases: [strom, Strom]
   - id: energy_industry
     label_en: Energy industry
     label_de: Energiewirtschaft
-    aliases: [energiewirtschaft]
+    aliases: [energiewirtschaft, Energiewirtschaft]
   - id: waste
     label_en: Waste
     label_de: Abfall
@@ -349,7 +356,7 @@ dimensions:
   - id: heating
     label_en: Heating
     label_de: Wärme
-    aliases: [warme]
+    aliases: [warme, Warme]
 
 - id: upstream_included
   label_en: Upstream included
@@ -439,6 +446,8 @@ dimensions:
 #   Kerosin = Kerosene/Jet fuel (for aircraft)
 
 
+
+#//////  Nodes  ////////////////////////////////////////////////////////////////////////////////////////////////////
 nodes:
 
 - id: net_emissions
