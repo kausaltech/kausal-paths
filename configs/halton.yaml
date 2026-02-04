@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://halton.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 66421223b487305d7c81a01f901857daffaf5a20
+  commit: ebf67695c67893e127c4b9ce5af59fe300dd2246
   dvc_remote: kausal-s3
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
@@ -1195,8 +1195,8 @@ nodes:
 
 # ---------- Corporate Services
 
-- id: cs_stationary_fuel_combustion
-  name: Corporate Services Stationary Fuel Combustion
+- id: cs_stationary_fuel_combustion_inventory
+  name: Corporate Services Stationary Fuel Combustion (Inventory)
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: m³/a
@@ -1210,6 +1210,63 @@ nodes:
     - dimension: department
       categories: [corporate_services]
     - column: property
+
+- id: cs_stationary_fuel_combustion_retrofit_reduction
+  name: Corporate Services Stationary Fuel Combustion (System Retrofit Reduction)
+  type: formula.FormulaNode
+  quantity: fuel_consumption
+  unit: m³/a
+  input_dimensions: [action, asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [action, asset_class, asset, energy_carrier, department, scope]
+  params:
+    formula: (system_1_retrofits + system_2_retrofits + system_3_retrofits + system_4_retrofits) * inventory
+  input_nodes:
+  - id: cs_stationary_fuel_combustion_inventory
+    tags: [inventory]
+    to_dimensions:
+    - id: asset_class
+    - id: asset
+    - id: energy_carrier
+    - id: department
+    - id: scope
+  - id: cs_system_1_retrofits
+    tags: [system_1_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+  - id: cs_system_2_retrofits
+    tags: [system_2_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+  - id: cs_system_3_retrofits
+    tags: [system_3_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+  - id: cs_system_4_retrofits
+    tags: [system_4_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+
+- id: cs_stationary_fuel_combustion
+  name: Corporate Services Stationary Fuel Combustion
+  type: formula.FormulaNode
+  quantity: fuel_consumption
+  unit: m³/a
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  params:
+    formula: inventory + reduction
+  input_nodes:
+  - id: cs_stationary_fuel_combustion_inventory
+    tags: [inventory]
+  - id: cs_stationary_fuel_combustion_retrofit_reduction
+    tags: [reduction]
+    from_dimensions:
+    - id: action
+      flatten: true
 
 - id: childcare_centre_stationary_combustion_emissions
   name: Childcare Centre Stationary Combustion Emissions
@@ -1904,6 +1961,63 @@ nodes:
       categories: [corporate_services]
     - column: property
 
+- id: cs_purchased_electricity_retrofit_reduction
+  name: Corporate Services Purchased Electricity (System Retrofit Reduction)
+  type: formula.FormulaNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [action, asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [action, asset_class, asset, energy_carrier, department, scope]
+  params:
+    formula: (system_1_retrofits + system_2_retrofits + system_3_retrofits + system_4_retrofits) * inventory
+  input_nodes:
+  - id: cs_purchased_electricity_inventory
+    tags: [inventory]
+    to_dimensions:
+    - id: asset_class
+    - id: asset
+    - id: energy_carrier
+    - id: department
+    - id: scope
+  - id: cs_system_1_retrofits
+    tags: [system_1_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: cs_system_2_retrofits
+    tags: [system_2_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: cs_system_3_retrofits
+    tags: [system_3_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: cs_system_4_retrofits
+    tags: [system_4_retrofits]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: cs_purchased_electricity_retrofitted
+  name: Corporate Services Purchased Electricity (Retrofitted)
+  type: formula.FormulaNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  params:
+    formula: inventory + reduction
+  input_nodes:
+  - id: cs_purchased_electricity_inventory
+    tags: [inventory]
+  - id: cs_purchased_electricity_retrofit_reduction
+    tags: [reduction]
+    from_dimensions:
+    - id: action
+      flatten: true
+
 - id: cs_purchased_electricity_mix
   name: Corporate Services Purchased Electricity (Mix)
   type: simple.MixNode
@@ -1912,11 +2026,11 @@ nodes:
   input_dimensions: [asset_class, asset, energy_carrier, department, scope]
   output_dimensions: [asset_class, asset, energy_carrier, department, scope]
   input_nodes:
-  - id: cs_purchased_electricity_inventory
+  - id: cs_purchased_electricity_retrofitted
     tags: [activity]
 
-- id: cs_purchased_electricity_reduction
-  name: Corporate Services Purchased Electricity (Reduction)
+- id: cs_purchased_electricity_renewables_reduction
+  name: Corporate Services Purchased Electricity (Renewables Reduction)
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -1929,14 +2043,18 @@ nodes:
 
 - id: cs_purchased_electricity
   name: Corporate Services Purchased Electricity
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [asset_class, asset, energy_carrier, department, scope]
   output_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  params:
+    formula: retrofitted + reduction
   input_nodes:
-  - id: cs_purchased_electricity_inventory
-  - id: cs_purchased_electricity_reduction
+  - id: cs_purchased_electricity_retrofitted
+    tags: [retrofitted]
+  - id: cs_purchased_electricity_renewables_reduction
+    tags: [reduction]
 
 - id: childcare_centre_electricity_emissions
   name: Childcare Centre Electricity Emissions
@@ -3433,6 +3551,70 @@ nodes:
     forecast_from: 2025
 
 actions:
+- id: cs_system_1_retrofits
+  name: Corporate Services System 1 Retrofits (Heating and Cooling)
+  type: simple.AdditiveAction
+  group: system_retrofits
+  unit: '%'
+  quantity: fraction
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  input_datasets:
+  - id: halton/cs_system_retrofit_actions
+    column: reduction
+    forecast_from: 2025
+    filters:
+    - dimension: action
+      categories: [cs_system_1]
+
+- id: cs_system_2_retrofits
+  name: Corporate Services System 2 Retrofits (Air Distribution)
+  type: simple.AdditiveAction
+  group: system_retrofits
+  unit: '%'
+  quantity: fraction
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  input_datasets:
+  - id: halton/cs_system_retrofit_actions
+    column: reduction
+    forecast_from: 2025
+    filters:
+    - dimension: action
+      categories: [cs_system_2]
+
+- id: cs_system_3_retrofits
+  name: Corporate Services System 3 Retrofits (Domestic Hot Water)
+  type: simple.AdditiveAction
+  group: system_retrofits
+  unit: '%'
+  quantity: fraction
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  input_datasets:
+  - id: halton/cs_system_retrofit_actions
+    column: reduction
+    forecast_from: 2025
+    filters:
+    - dimension: action
+      categories: [cs_system_3]
+
+- id: cs_system_4_retrofits
+  name: Corporate Services System 4 Retrofits (Electric Heaters for Radiant Gas)
+  type: simple.AdditiveAction
+  group: system_retrofits
+  unit: '%'
+  quantity: fraction
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  input_datasets:
+  - id: halton/cs_system_retrofit_actions
+    column: reduction
+    forecast_from: 2025
+    filters:
+    - dimension: action
+      categories: [cs_system_4]
+
 - id: ems_system_1_retrofits
   name: EMS System 1 Retrofits (Heating and Cooling)
   type: simple.AdditiveAction
