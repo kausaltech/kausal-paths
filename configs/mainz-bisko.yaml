@@ -98,7 +98,7 @@ dimensions:
   - id: biodiesel
     label_en: Biodiesel
     label_de: Diesel biogen
-    aliases: [diesel_biogen, Diesel Bio]
+    aliases: [diesel_biogen, Diesel Bio,Diesel_biogen,Diesel_Biogen]
   - id: kerosene
     label_en: Kerosene
     label_de: Kerosin
@@ -121,10 +121,11 @@ dimensions:
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil
-    aliases: [CNG]
+    aliases: [CNG_fossil]
   - id: cng_bio
     label_en: CNG bio
     label_de: CNG bio
+    aliases: [CNG_bio]
   - id: biogas
     label_en: Biogas
     label_de: Biogas
@@ -160,27 +161,27 @@ dimensions:
   - id: local_heating
     label_en: Local heating
     label_de: Nahwärme
-    aliases: [nahwarme]
+    aliases: [nahwarme,Nahwarme]
   - id: solar_thermal
     label_en: Solar thermal
     label_de: Solarthermie
-    aliases: [solarthermie]
+    aliases: [solarthermie,Solarthermie]
   - id: environmental_heat
     label_en: Environmental heat / Heat pump
     label_de: Umweltwärme
-    aliases: [umweltwarme]
+    aliases: [umweltwarme,Umweltwarme]
   - id: hydrogen
     label_en: Hydrogen
     label_de: Wasserstoff
-    aliases: [wasserstoff]
+    aliases: [wasserstoff,Wasserstoff]
   - id: other_renewables
     label_en: Other renewables
     label_de: Sonstige Erneuerbare
-    aliases: [sonstige_erneuerbare]
+    aliases: [sonstige_erneuerbare,Sonstige_Erneuerbare]
   - id: other_conventional
     label_en: Other conventional
     label_de: Sonstige Konventionelle
-    aliases: [sonstige_konventionelle]
+    aliases: [sonstige_konventionelle,Sonstige_Konventionelle]
   - id: not_defined
     label_en: Not defined
     label_de: Nicht definiert
@@ -188,7 +189,7 @@ dimensions:
   - id: fuels
     label_en: Fuels
     label_de: Kraftstoffe
-    aliases: [kraftstoffe, Kraftstoff]
+    aliases: [kraftstoffe,kraftstoff,Kraftstoff,Kraftstoffe]
   - id: other
     label_en: Other
     label_de: Sonstiges
