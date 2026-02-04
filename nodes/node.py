@@ -1573,6 +1573,14 @@ class Node:
                 if math.isnan(v):
                     raise NodeError(self, 'Output metric has NaNs')
 
+    def _filter_measure_datapoint_years(self, df: ppl.PathsDataFrame, dims: list[VisualizationNodeDimension]) -> list[int]:
+        for dim in dims:
+            if dim.categories is not None:
+                df = df.filter(pl.col(dim.id).is_in(dim.categories))
+            if dim.flatten:
+                df = df.paths.sum_over_dims(dim.id)
+        return df[YEAR_COLUMN].unique().sort().to_list()
+
     def _get_measure_datapoint_years(self, n: DatasetNode, dims: list[VisualizationNodeDimension]) -> list[int]:
             datacol = 'ObservedDataPoint'
 
@@ -1582,14 +1590,7 @@ class Node:
                 df = n.drop_unnecessary_levels(df, droplist=['Description', 'FromMeasureDataPoint'])
                 df = n.rename_dimensions(df)
                 df = n.convert_names_to_ids(df)
-
-                for dim in dims:
-                    if dim.categories is not None:
-                        df = df.filter(pl.col(dim.id).is_in(dim.categories))
-                    if dim.flatten:
-                        df = df.paths.sum_over_dims(dim.id)
-                out = df[YEAR_COLUMN].unique().sort().to_list()
-                return out
+                return self._filter_measure_datapoint_years(df, dims)
             return []
 
 
@@ -1611,7 +1612,7 @@ class Node:
                     if data_col not in df.columns:
                         return []
                     df = df.filter(pl.col(data_col))
-                    return df[YEAR_COLUMN].unique().sort().to_list()
+                    return self._filter_measure_datapoint_years(df, dims)
 
         years = set[int]([])
         nodes = self.get_upstream_nodes()

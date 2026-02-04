@@ -54,6 +54,7 @@ include:
   node_group: Waste
 - file: nzc/other.yaml
   node_group: Other
+  allow_override: true
 
 result_excels:
 - base_excel_url:
@@ -1113,6 +1114,92 @@ nodes:
         flatten: true
       - id: transport_mode
         categories: [buses]
+        flatten: true
+
+- id: emissions_from_other_sectors_observed
+  name_en: Total emissions from other sectors
+  name_fi: Kokonaispäästöt muilta sektoreilta
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_datasets:
+  - id: nzc/defaults
+    tags: [observed, prepare_gpc_dataset, framework_measure_data]
+    filters:
+    - column: Sector
+      value: Emissions from other sectors
+      drop_col: false
+    - column: Scope
+    - column: Ghg
+  input_nodes:
+  - id: emissions_from_other_sectors
+    tags: [modeled]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: measure_data_override
+    tags: [use_obs]
+    to_dimensions: []
+  params:
+  - id: formula
+    value: observed_only_extend_all(observed) * use_obs + modeled * complement(use_obs)
+
+- id: emissions_from_other_sectors
+  name_en: Emissions from other sectors
+  name_fi: Päästöt muilta sektoreilta
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [scope, cost_type, ghg]
+  output_dimensions: [scope, cost_type, ghg]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: sector
+      categories: [other]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Emissions from other sectors
+  visualizations:
+  - kind: group
+    label: Drivers of other emissions
+    children:
+    - kind: node
+      label: Industry emissions (IPPU)
+      node_id: emissions_from_other_sectors_observed
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: cost_type
+        categories: [industry_ippu]
+        flatten: true
+    - kind: node
+      label: Agriculture emissions (AFOLU)
+      node_id: emissions_from_other_sectors_observed
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: cost_type
+        categories: [agriculture_afolu]
+        flatten: true
+    - kind: node
+      label: Other emissions
+      node_id: emissions_from_other_sectors_observed
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: cost_type
+        categories: [other_sources]
         flatten: true
 
 - id: electrification_year_of_transport
