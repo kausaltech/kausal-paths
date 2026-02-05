@@ -197,6 +197,11 @@ class UseMileage(BoolParameter):
     id = 'use_mileage'
 
 
+class UseNationalValues(BoolParameter):
+    name = _('Use national values rather than local values')
+    id = 'use_national_values'
+
+
 class StatisticalNormalization(BoolParameter):
     name = _('Normalization for matching statistical data')
     id = 'statistical_correction'

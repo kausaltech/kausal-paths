@@ -9,8 +9,8 @@ dataset_repo:
 name: Klima-Monitor-BISKO
 owner: Kausal Ltd
 theme_identifier: default
-target_year: 2024
-model_end_year: 2024
+target_year: 2025
+model_end_year: 2025
 reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2023
@@ -38,7 +38,7 @@ params:
   value: Düsseldorf
   is_customizable: true
   is_visible: true
-- id: statistical_correction
+- id: use_national_values
   label_en: Use national rather than local electricity emission factors (BISKO)
   label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren 
     (BISKO).
@@ -530,26 +530,6 @@ nodes:
   # output_nodes:
   # - id: final_energy_use
 
-- id: use_national_electricity_emission_factors
-  name: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO).
-  name_en: Use national rather than local electricity emission factors (BISKO).
-  type: generic.GenericNode
-  quantity: fraction
-  unit: dimensionless
-  input_datasets:
-  - id: bisko/weather_correction
-    filters:
-    - column: sector
-      value: electricity
-  params:
-  - id: operations
-    value: get_single_dataset,do_correction
-  - id: do_correction
-    ref: statistical_correction
-  - id: no_correction_value
-    value: 0.0
-  # output_nodes:
-  # - id: final_energy_use
 
 - id: final_energy_use
   name: Endenergie
@@ -659,17 +639,56 @@ nodes:
 - id: emission_factors # FIXME Check for koeln-dev implementation.
   name: Emissionsfaktoren
   name_en: Emission factors
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: historical_emissions
+    tags: [emissions]
   - id: final_energy_use
-    tags: [geometric_inverse]
+    tags: [energy]
   params:
-    operations: multiply,drop_nans,drop_infs
+    formula: extend_all(drop_nans(emissions / energy))
+
+- id: transport_fuel_emission_factor
+  name_en: Transport fuel emission factor
+  name_de: Verkehrsemissionsfaktor für Brennstoffe
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: historical_emissions
+    tags: [emissions]
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [fuels]
+  - id: final_energy_use
+    tags: [energy]
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [fuels]
+  params:
+    formula: extend_all(drop_nans(emissions / energy))
 
 - id: end_energy_emission_factors_national
   name: Endenergie Emissionsfaktoren national
@@ -709,10 +728,11 @@ nodes:
     tags: [national]
   - id: end_energy_emission_factors_local
     tags: [local]
-  - id: use_national_electricity_emission_factors
-    tags: [bisko]
   params:
-    formula: bisko * national + complement(bisko) * local
+  - id: formula
+    value: select_port(condition, national, local)
+  - id: condition
+    ref: use_national_values
 
 - id: electricity_production_emission_factors_national
   name: Emissionsfaktoren für Erzeugung national
@@ -751,10 +771,11 @@ nodes:
     tags: [national]
   - id: electricity_production_emission_factors_local
     tags: [local]
-  - id: use_national_electricity_emission_factors
-    tags: [bisko]
   params:
-    formula: bisko * national + complement(bisko) * local
+  - id: formula
+    value: select_port(condition, national, local)
+  - id: condition
+    ref: use_national_values
 
 - id: emission_factors_without_fuel_data_national
   name: Emissionsfaktoren ohne Brennstoffinputinformationen national
@@ -793,10 +814,11 @@ nodes:
     tags: [national]
   - id: emission_factors_without_fuel_data_local
     tags: [local]
-  - id: use_national_electricity_emission_factors
-    tags: [bisko]
   params:
-    formula: bisko * national + complement(bisko) * local
+  - id: formula
+    value: select_port(condition, national, local)
+  - id: condition
+    ref: use_national_values
 
 - id: emission_factors_for_district_heating_by_generic_fuel_national
   name: Emissionsfaktoren für Fernwärme - überwiegend nationale
@@ -835,10 +857,11 @@ nodes:
     tags: [national]
   - id: emission_factors_for_district_heating_by_generic_fuel_local
     tags: [local]
-  - id: use_national_electricity_emission_factors
-    tags: [bisko]
   params:
-    formula: bisko * national + complement(bisko) * local
+  - id: formula
+    value: select_port(condition, national, local)
+  - id: condition
+    ref: use_national_values
 
 - id: transport_energy_own_data
   name: Transport Energie - eigene Daten
@@ -853,21 +876,24 @@ nodes:
     column: Value
 
 - id: road_transport_activity
-  name_en: Road transport activity
-  name_de: Verkehr Aktivität
-  type: generic.GenericNode
+  name_en: Road transport activity according to IFEU
+  name_de: Verkehr Aktivität nach IFEU
+  type: formula.FormulaNode
   quantity: mileage
   unit: Mvkm/a
   input_dimensions: [vehicle_type, road_type]
   output_dimensions: [vehicle_type, road_type]
   input_datasets:
   - id: bisko/gemeindefeine_fahrleistungen_straenverkehr
+    tags: [mileage]
     column: mileage
     filters:
     - column: district
     - column: ags
     - column: municipality
       ref: municipality_name
+  params:
+    formula: extend_all(mileage)
 
 - id: other_transport_energy
   name_en: Other transport energy
@@ -931,10 +957,11 @@ nodes:
       categories: [total]
   - id: road_transport_energy_bisko
     tags: [road_bisko]
-  - id: use_transport_statistics_bisko
-    tags: [use_mileage]
   params:
-    formula: complement(use_mileage) * own + use_mileage * (other_bisko + road_bisko)
+  - id: formula
+    value: select_port(condition, own, (other_bisko + road_bisko))
+  - id: condition
+    ref: use_mileage
 
 # - id: total_emissions
 #   name: Gesamtemissionen
@@ -1002,7 +1029,7 @@ nodes:
   name_en: Passengers per vehicle
   name_de: Passagiere pro Fahrzeug
   type: generic.GenericNode
-  quantity: number
+  quantity: ratio
   unit: p/v
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
@@ -1051,7 +1078,7 @@ nodes:
     - id: vehicle_type
     - id: road_type
 
-- id: transport_emission_factors # FIXME Must have EF for Fuels and Electricity.
+- id: transport_emission_factors
   name_en: Transport emission factors
   name_de: Verkehrsemissionsfaktoren
   type: generic.GenericNode
@@ -1061,7 +1088,19 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: bisko/emission_factor
+    tags: [data]
     column: Well-to-wheel
+  input_nodes:
+  - id: transport_fuel_emission_factor
+    tags: [fuel_factor]
+  - id: emission_factors
+    tags: [electricity_factor]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: sector
+      categories: [transport]
+      flatten: true
 
 - id: transport_emissions
   name_en: Transport emissions
