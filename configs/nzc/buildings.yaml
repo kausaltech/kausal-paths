@@ -746,17 +746,25 @@ nodes:
 - id: building_heat_energy_use_observed
   name_en: Building heat energy use observed
   name_fi: Havaittu rakennusten lämmitysenergia
-  type: gpc.DatasetNode
+  type: formula.FormulaNode
   quantity: energy
   unit: GWh/a
   color: '#ff69B4'
-  input_datasets: [nzc/defaults]
+  input_datasets:
+  - id: nzc/defaults
+    tags: [observed, prepare_gpc_dataset, framework_measure_data]
+    filters:
+    - column: Sector
+      value: Total heating demand (space heating + domestic hot water + heat for cooking)
+      drop_col: false
   params:
-    sector: Total heating demand (space heating + domestic hot water + heat for cooking)
-    inventory_only: true
+  - id: formula
+    value: select_port(condition, observed_only_extend_all(observed), modeled)
+  - id: condition
+    ref: measure_data_override
   input_nodes:
   - id: building_heat_energy_use_before_obs
-    tags: [forecast_only]
+    tags: [modeled]
     from_dimensions:
     - id: heating_type
       flatten: true
