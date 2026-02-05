@@ -112,19 +112,27 @@ nodes:
 - id: freight_transport_need_observed
   name_en: Freight transport need observed
   name_fi: Havaittu rahtiliikenteen tarve
-  type: gpc.DatasetNode
+  type: formula.FormulaNode
   quantity: freight_mileage
   unit: Mtkm/a
   color: '#ff69b4'
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Total transportation need within city - Road freight transport
-    inventory_only: true
+  input_datasets:
+  - id: nzc/defaults
+    tags: [observed, prepare_gpc_dataset, framework_measure_data]
+    filters:
+    - column: Sector
+      value: Total transportation need within city - Road freight transport
+      drop_col: false
   input_nodes:
   - id: freight_transport_need_scaled
-    tags: [forecast_only]
+    tags: [modeled]
+  params:
+  - id: formula
+    value: select_port(condition, observed_only_extend_all(observed), modeled)
+  - id: condition
+    ref: measure_data_override
 
 - id: average_truck_utilisation_historical
   name_en: Average truck utilisation historical

@@ -968,18 +968,30 @@ class PathsExt:
         return df.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
 
     def _observed_only_extend_all(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        """Use a) observations, b) comparable city values or c) model values for each combination of categories."""
         if 'ObservedDataPoint' not in df.columns:
             logger.warning("ObservedDataPoint column not found. Are you sure you want to use tag observed_only_extend_all?")
             return df
 
         is_forecast = False
         model_default = True
+        if df.dim_ids:
+            df = (
+                df
+                .with_columns([
+                    pl.col("ObservedDataPoint").any().over(df.dim_ids).alias("_has_obs"),
+                    pl.col("FromMeasureDataPoint").any().over(df.dim_ids).alias("_has_measure")
+                ])
+            )
+        else:
+            df = (
+                df.with_columns([
+                    pl.col("ObservedDataPoint").alias("_has_obs"),
+                    pl.col("FromMeasureDataPoint").alias("_has_measure"),
+                ])
+            )
         df = (
             df
-            .with_columns([
-                pl.col("ObservedDataPoint").any().over(df.dim_ids).alias("_has_obs"),
-                pl.col("FromMeasureDataPoint").any().over(df.dim_ids).alias("_has_measure")
-            ])
             .filter(
                 pl.when(pl.col("_has_obs"))
                 .then(pl.col("ObservedDataPoint"))
