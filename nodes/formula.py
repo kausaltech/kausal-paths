@@ -23,13 +23,13 @@ if TYPE_CHECKING:
 
 PDF = ppl.PathsDataFrame
 type EvalConst = float
-type EvalOutput = PDF | QuantityType
+type EvalOutput = PDF | QuantityType | bool
 
 
 class EvalVars(NamedTuple):
     nodes: dict[str, Node]
     datasets: dict[str, PDF]
-    parameters: dict[str, Quantity]
+    parameters: dict[str, QuantityType | bool]
 
 
 ASTType = TypeVar('ASTType', bound=ast.expr)
@@ -45,6 +45,7 @@ class FormulaNode(Node):
     allowed_parameters = [
         StringParameter(local_id='formula'),
         BoolParameter(local_id='extend_last_historical_value'),
+        BoolParameter(local_id='condition'),
         NumberParameter(local_id='constant', label='Constant value to add to the formula', is_customizable=True)
     ]
 
@@ -282,7 +283,7 @@ class FormulaNode(Node):
         return self._handle_custom_function(func, node, varss, df)
 
     def _handle_custom_function(
-        self, func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput
+        self, func: str, node: ast.Call, varss: EvalVars, df: EvalOutput
     ) -> EvalOutput:
         """Handle custom functions not in PathsExt.OPERATIONS."""
 
@@ -304,6 +305,13 @@ class FormulaNode(Node):
             meta = df.get_meta()
             zdf = df.fill_null(0)
             return ppl.to_ppdf(zdf, meta=meta).paths.to_narrow()
+
+        if func == 'select_port':
+            assert len(node.args) == 3
+            assert isinstance(df, bool)
+            if df:
+                return self.eval_tree(node.args[1], varss)
+            return self.eval_tree(node.args[2], varss)
 
         raise NotImplementedError(f"Unknown function: {func}")
 
@@ -343,7 +351,7 @@ class FormulaNode(Node):
         assert isinstance(ret, PDF)
         return ret
 
-    def _collect_eval_vars(self) -> EvalVars:  # noqa: C901
+    def _collect_eval_vars(self) -> EvalVars:  # noqa: C901, PLR0912
         nodes = {}
         for edge in self.edges:
             if edge.output_node != self:
@@ -368,12 +376,16 @@ class FormulaNode(Node):
 
         # Collect parameters that have units (for use in formulas)
         from params.param import ParameterWithUnit
-        parameters: dict[str, Quantity] = {}
+        parameters: dict[str, QuantityType | bool] = {}
         for param_id, param in self.parameters.items():
             if isinstance(param, ParameterWithUnit) and param.unit is not None:
                 val = self.get_parameter_value(param_id, required=False, units=True)
                 if val is not None:
                     assert isinstance(val, Quantity)
+                    parameters[param_id] = val
+            else:
+                val = self.get_parameter_value(param_id, required=False)
+                if isinstance(val, bool):
                     parameters[param_id] = val
 
         return EvalVars(nodes, datasets, parameters)
