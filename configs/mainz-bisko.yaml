@@ -33,7 +33,7 @@ params:
 - id: weather_correction
   label_de: Wetterkorrektur durchführen?
   label_en: Perform weather correction?
-  value: true                                    
+  value: false
   is_customizable: true
   is_visible: true
 - id: municipality_name
@@ -529,17 +529,21 @@ nodes:
   type: generic.GenericNode
   quantity: ratio
   unit: dimensionless
-  input_dimensions: [sector]
-  output_dimensions: [sector]
+  # input_dimensions: [sector]
+  # output_dimensions: [sector]
   input_datasets:
   - id: bisko/weather_correction  # comes from Potsdam --> change to mainz/... as soon as you got data.csv
+    filters:
+    - column: sector
+      value: heating
   params:
   - id: operations
     value: get_single_dataset,do_correction
   - id: do_correction
     ref: weather_correction
-  # output_nodes:
-  # - id: final_energy_use
+  output_nodes:
+  - id: final_private_household_energy_use
+  - id: final_municipal_facilities_energy_use
 
 - id: final_energy_use
   name_de: Endenergie
@@ -581,7 +585,7 @@ nodes:
 - id: final_private_household_energy_use
   name_de: Endenergie Private Haushalte
   name_en: Final private household energy use
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
   input_dimensions: [sector, energy_carrier]
@@ -591,11 +595,14 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [private_households]
+    tags: [energy]
+  params:
+    formula: energy * weather_correction
 
 - id: final_municipal_facilities_energy_use
   name_de: Endenergie Kommunale Einrichtungen
   name_en: Final municipal facilities energy use
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
   input_dimensions: [sector, energy_carrier]
@@ -605,6 +612,9 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [municipal_facilities]
+    tags: [energy]
+  params:
+    formula: energy * weather_correction
 
 - id: final_industry_energy_use
   name_de: Endenergie Industrie
@@ -845,7 +855,7 @@ nodes:
 
 - id: emission_factors_for_district_heating_by_generic_fuel_local
   name_de: Emissionsfaktoren für Fernwärme - überwiegend lokal
-  name_en: Emission factors for district heating by generic fuel
+  name_en: Emission factors for district heating by generic fuel local
   type: generic.GenericNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -874,8 +884,8 @@ nodes:
     ref: use_national_values
 
 - id: transport_energy_own_data
-  name_de: Transport Energie - eigene Daten
-  name_en: Transport energy - own data
+  name_de: Transport Energie nach Fahrzeugtyp - eigene Daten
+  name_en: Transport energy by vehicle type- own data
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
@@ -886,8 +896,8 @@ nodes:
     column: Value
 
 - id: road_transport_activity
-  name_en: Road transport activity according to IFEU
-  name_de: Verkehr Aktivität nach IFEU
+  name_en: Road transport activity by raod type according to IFEU
+  name_de: Verkehr Aktivität nach Straßentyp nach IFEU
   type: formula.FormulaNode
   quantity: mileage
   unit: Mvkm/a
@@ -908,7 +918,7 @@ nodes:
 - id: other_transport_energy
   name_en: Other transport energy
   name_de: Andere Transportenergie
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
   input_dimensions: [vehicle_type, energy_carrier]
@@ -916,33 +926,15 @@ nodes:
   input_datasets:
   - id: 
       bisko/gemeindefeine_endenergieverbrauche_schiene_wasser_luft_nach_antriebsart
+    tags: [energy]
     column: energy
     filters:
     - column: district
     - column: ags
     - column: municipality
       ref: municipality_name
-
-- id: use_transport_statistics_bisko
-  name_de: Verwenden Sie die Transportstatistiken von BISKO
-  name_en: Use transport statistics from BISKO
-  type: generic.GenericNode
-  quantity: fraction
-  unit: dimensionless
-  input_datasets:
-  - id: bisko/sector_index # TODO Use Bisko-specific dataset. --> check what index actually contains
-    filters:
-    - column: sector
-      value: transport
-    - column: energy_carrier
-      value: hydrogen
   params:
-  - id: operations
-    value: get_single_dataset,do_correction,extend_to_history
-  - id: do_correction
-    ref: use_mileage
-  - id: no_correction_value
-    value: 0.0
+    formula: extend_all(energy)
 
 - id: transport_energy
   name_de: Transportenergie
@@ -950,25 +942,24 @@ nodes:
   type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: [vehicle_type, energy_carrier, road_type]
-  output_dimensions: [vehicle_type, energy_carrier, road_type]
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
   - id: transport_energy_own_data
     tags: [own]
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
-    - id: road_type
-      categories: [total]
   - id: other_transport_energy
     tags: [other_bisko]
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
-    - id: road_type
-      categories: [total]
   - id: road_transport_energy_bisko
     tags: [road_bisko]
+    from_dimensions:
+    - id: road_type
+      flatten: true
   params:
   - id: formula
     value: select_port(condition, own, (other_bisko + road_bisko))
@@ -1009,7 +1000,7 @@ nodes:
     electricity_reference_efficiency: 0.4
     heat_reference_efficiency: 0.9
 
-- id: transport_energy_factors
+- id: transport_energy_factors # FIXME Does not contain values for rail_vehicles although they exist in road_transport_energy
   name_en: Transport energy factors
   name_de: Verkehrsenergiefaktoren
   description_de: Spezifische Endenergieverbrauchsfaktoren im Straßenverkehr 
@@ -1025,7 +1016,7 @@ nodes:
   - id: bisko/energy_factor # kWh/vkm, usable for every city (BISKO Standard)
     column: Value
 
-- id: transport_energy_shares
+- id: transport_energy_shares # FIXME Does not contain values for rail_vehicles although they exist in road_transport_energy
   name_en: Transport energy shares
   name_de: Verkehrsenergieanteile
   type: generic.GenericNode
@@ -1034,7 +1025,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, road_type]
   output_dimensions: [vehicle_type, energy_carrier, road_type]
   input_datasets:
-  - id: bisko/energy_shares # sums up to 100%, usbale for every city (BISKO Standard)
+  - id: bisko/energy_shares # sums up to 100% across energy carrier dim, usbale for every city (BISKO Standard)
     column: Value
 
 - id: passengers_per_vehicle
@@ -1066,7 +1057,7 @@ nodes:
     - id: vehicle_type
     - id: road_type
 
-- id: road_transport_energy_bisko
+- id: road_transport_energy_bisko # FIXME Contains data for rail_vehicles (SSU). Should it be included?
   name_en: Road transport energy
   name_de: Straßenverkehrsenergie
   type: generic.GenericNode
