@@ -311,7 +311,7 @@ class PathsExt:
         ]).sort(remaining_keys)
         return ppl.to_ppdf(zdf, meta=meta)
 
-    def get_category_mismatch(
+    def get_category_mismatch(  # noqa: C901, PLR0912
         self,
         other: ppl.PathsDataFrame,
         output: ppl.PathsDataFrame,
@@ -361,27 +361,31 @@ class PathsExt:
             added_from_right = sorted((output_cats & other_cats) - self_cats)
             added_from_left = sorted((output_cats & self_cats) - other_cats)
 
-            # Only include dimension if there are any mismatches
-            if dropped_left or dropped_right or added_from_right or added_from_left:
-                unit_left = unit_right = '-'
-                metrics_left = sdf.metric_cols
-                if metrics_left:
-                    unit_left = str(sdf.get_unit(metrics_left[0]))
-                metrics_right = other.metric_cols
-                if metrics_right:
-                    unit_right = str(other.get_unit(metrics_right[0]))
-                mismatch[dim_id] = {
-                    'units': [unit_left, unit_right],
-                    'dropped_left': dropped_left,
-                    'dropped_right': dropped_right,
-                    'added_from_right': added_from_right,
-                    'added_from_left': added_from_left,
-                }
+            mism = {}
+            if dropped_left:
+                mism['dropped_left'] = dropped_left
+            if dropped_right:
+                mism['dropped_right'] = dropped_right
+            if added_from_right:
+                mism['added_from_right'] = added_from_right
+            if added_from_left:
+                mism['added_from_left'] = added_from_left
+            if mism: # Only include dimension if there are any mismatches
+                mismatch[dim_id] = mism
 
         if mismatch:
             import json
             # TODO Serialize dict to string for now, since _explanation expects str
             # ensure_ascii=False preserves Unicode characters like · (middle dot)
+
+            unit_left = unit_right = '-'
+            metrics_left = sdf.metric_cols
+            if metrics_left:
+                unit_left = str(sdf.get_unit(metrics_left[0]))
+            metrics_right = other.metric_cols
+            if metrics_right:
+                unit_right = str(other.get_unit(metrics_right[0]))
+            mismatch['units'] = {'left': [unit_left], 'right': [unit_right]}
             mismatch_str = json.dumps(mismatch, ensure_ascii=False)
         else:
             mismatch_str = ''
