@@ -339,6 +339,8 @@ class PathsExt:
         all_dim_ids = set(sdf.dim_ids) | set(other.dim_ids) | set(output.dim_ids)
 
         for dim_id in all_dim_ids:
+            if dim_id not in sdf.dim_ids or dim_id not in other.dim_ids:
+                continue
             # Get categories from input DataFrames
             self_cats: set[str] = set()
             other_cats: set[str] = set()

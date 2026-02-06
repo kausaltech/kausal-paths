@@ -453,6 +453,32 @@ dimensions:
 #//////  Nodes  ////////////////////////////////////////////////////////////////////////////////////////////////////
 nodes:
 
+- id: difference
+  name_de: Differenz
+  name_en: Difference between KSP data and model results
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: historical_emissions
+    tags: [statistics]
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+  - id: transport_emissions
+    tags: [model]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: energy_carrier
+  params:
+    formula: statistics + arithmetic_inverse(model)
+
 - id: net_emissions
   name_de: Netto-Emissionen
   name_en: Net emissions
@@ -711,8 +737,12 @@ nodes:
     formula: extend_all(drop_nans(emissions / energy))
 
 - id: end_energy_emission_factors_national
-  name_de: Endenergie Emissionsfaktoren national
-  name_en: End energy emission factors
+  name_de: Endenergie Emissionsfaktoren national nach IFEU
+  name_en: End energy emission factors national according to IFEU
+  description_en: These emission factors are originally from IFEU, and they are updated annually.
+    The admin user cannot edit these values.
+  description_de: Diese Emissionsfaktoren sind ursprünglich aus IFEU, und sie werden jährlich aktualisiert.
+    Die Admin-Benutzer können diese Werte nicht ändern.
   type: generic.GenericNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -727,6 +757,10 @@ nodes:
 - id: end_energy_emission_factors_local
   name_de: Endenergie Emissionsfaktoren lokal
   name_en: End energy emission factors local
+  description_en: These emission factors are originally from IFEU, but the admin users may change
+    the dataset to reflect local conditions.
+  description_de: Diese Emissionsfaktoren sind ursprünglich aus IFEU, aber die Admin-Benutzer können
+    das Dataset ändern, um lokale Bedingungen zu reflektieren.
   type: generic.GenericNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -883,10 +917,10 @@ nodes:
   - id: condition
     ref: use_national_values
 
-- id: transport_energy_own_data
+- id: transport_energy_own_data # FIXME Data 1990 - 1999 is missing.
   name_de: Transport Energie nach Fahrzeugtyp - eigene Daten
-  name_en: Transport energy by vehicle type- own data
-  type: generic.GenericNode
+  name_en: Transport energy by vehicle type - own data
+  type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
   input_dimensions: [vehicle_type, energy_carrier]
@@ -894,9 +928,12 @@ nodes:
   input_datasets:
   - id: bisko/transport_energy  # from another city
     column: Value
+    tags: [energy]
+  params:
+    formula: extend_all(energy)
 
 - id: road_transport_activity
-  name_en: Road transport activity by raod type according to IFEU
+  name_en: Road transport activity by road type according to IFEU
   name_de: Verkehr Aktivität nach Straßentyp nach IFEU
   type: formula.FormulaNode
   quantity: mileage
@@ -904,7 +941,7 @@ nodes:
   input_dimensions: [vehicle_type, road_type]
   output_dimensions: [vehicle_type, road_type]
   input_datasets:
-  - id: bisko/gemeindefeine_fahrleistungen_straenverkehr
+  - id: bisko/gemeindefeine_fahrleistungen_straenverkehr # FIXME This datasets results in much lower energy use than KSP.
     tags: [mileage]
     column: mileage
     filters:
@@ -962,7 +999,7 @@ nodes:
       flatten: true
   params:
   - id: formula
-    value: select_port(condition, own, (other_bisko + road_bisko))
+    value: select_port(condition, (other_bisko + road_bisko), own)
   - id: condition
     ref: use_mileage
 
@@ -1111,13 +1148,12 @@ nodes:
   quantity: emissions
   unit: kt_co2e/a
   color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
-  input_dimensions: [vehicle_type, road_type, energy_carrier]
-  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
   - id: transport_energy
     to_dimensions:
     - id: vehicle_type
-    - id: road_type
     - id: energy_carrier
   - id: transport_emission_factors
     to_dimensions:
@@ -1126,8 +1162,6 @@ nodes:
   - id: net_emissions
     from_dimensions:
     - id: vehicle_type
-      flatten: true
-    - id: road_type
       flatten: true
     to_dimensions:
     - id: energy_carrier
