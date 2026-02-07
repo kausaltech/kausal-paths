@@ -54,6 +54,12 @@ params:
   value: true
   is_visible: true
   is_customizable: true
+- id: use_local_values # FIXME Make connection to district heating emission factors dataset.
+  label_en: Use local rather than national district heating emission factors (BISKO)
+  label_de: Verwenden Sie lokale statt nationale Fernwärmeemissionsfaktoren (BISKO).
+  value: true
+  is_visible: true
+  is_customizable: true
 
 
 #//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -741,9 +747,9 @@ nodes:
   name_en: End energy emission factors
   description_en: |
     The emission factors are given per final energy use. They are relevant for all sectors and
-    the whole of Germany. They include upstream emissions of fuels used for
-    production. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
-    are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
+    the whole of Germany. They include upstream emissions of energy used for production. Upstream products (gray
+    emissions) are not included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the
+    values are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
     These emission factors were received from IFEU, and they are updated annually. The detailed data sources are given
     in the dataset. There are two versions of this dataset, national and local. You can toggle between the two
     via 'Edit scenario' panel with the national vs. local toggle.<br/> Originally the datasets
@@ -784,8 +790,8 @@ nodes:
   description_en: |
     The emission factors are given per final electricity produced. They are relevant for renewable electricity
     production or power plants producing only electricity (i.e., not combined heat and power plants) anywhere in
-    Germany. They include upstream emissions of fuels used for
-    production. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
+    Germany. They include upstream emissions of energy used for production. Upstream products (gray emissions)
+    are not included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
     are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
     These emission factors were received from IFEU, and they are updated annually. The detailed data sources are given
     in the dataset. There are two versions of this dataset, national and local. You can toggle between the two
@@ -831,8 +837,8 @@ nodes:
     Therefore, you cannot sum up the emission factors of an energy carrier to get the total emission factor.
     Instead, you need to calculate the emissions for each product separately and then sum them up.
     The emission factors are relevant for the processes of electricity and heat production anywhere in
-    Germany. They include upstream emissions of fuels used for
-    production. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
+    Germany. They include upstream emissions of energy used for production. Upstream products (gray emissions) are not
+    included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
     are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
     These emission factors were received from IFEU, and they are updated annually.
     There are two versions of this dataset, national and local. You can toggle between the two
@@ -881,9 +887,9 @@ nodes:
     This is useful in a situation where you don't know the shares of electricity and heat produced in combined
     heat and power plants, but you know the amount of heat used.
     The emission factors are relevant for the processes of heat production (mentioned in the energy carrier dimension)
-    anywhere in Germany. They include upstream emissions of fuels used for
-    production. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
-    are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
+    anywhere in Germany. They include upstream emissions of energy used for production. Upstream products (gray
+    emissions) are not included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the
+    values are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
     These emission factors were received from IFEU, and they are updated annually.
     There are two versions of this dataset, national and local. You can toggle between the two
     via 'Edit scenario' panel with the national vs. local toggle.<br/> Originally the datasets
@@ -1160,6 +1166,88 @@ nodes:
     - id: sector
       categories: [transport]
 
+- id: is_bisko_compliant
+  name_en: Are the inventories BISKO compliant?
+  name_de: Sind die Inventare BISKO-konform?
+  description_en: 'Test for the BISKO compliance criteria (1 = compliant, 0 = non-compliant):<ul><li>No weather correction</li>
+    <li>Local emission factors for district heating</li><li>National emission factors for electricity</li><li>Grid-based energy data have quality A</li></ul>'
+  description_de: 'Test für die BISKO-Konformitätskriterien (1 = konform, 0 = nicht-konform):<ul><li>Keine Wetterkorrektur</li>
+    <li>Lokale Emissionsfaktoren für Fernwärme</li><li>Nationale Emissionsfaktoren für Strom</li><li>Gitterbasierte Energiedaten haben Qualität A</li></ul>'
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_nodes:
+  - id: has_weather_correction
+    tags: [weather]
+  - id: has_national_electricity_emission_factors
+    tags: [electricity]
+  - id: has_local_district_heating_emission_factors
+    tags: [district_heating]
+  - id: has_quality_a_data_for_grid_based_energy
+    tags: [grid_energy]
+  params:
+    formula: complement(weather) * electricity * district_heating * prod_dim(grid_energy, energy_carrier)
+
+- id: has_weather_correction
+  name_en: Has weather correction?
+  name_de: Hat Witterungsbereinigung?
+  description_en: BISKO inventory must not be corrected for weather.
+  description_de: BISKO-Inventar muss nicht für Wetter korrigiert werden.
+  type: generic.ConstantNode
+  quantity: probability
+  unit: dimensionless
+  params:
+  - id: condition
+    ref: weather_correction
+ 
+- id: has_national_electricity_emission_factors
+  name_en: Has national electricity emission factors?
+  name_de: Hat nationale Stromemissionsfaktoren?
+  description_en: BISKO inventory must use national electricity emission factors.
+  description_de: BISKO-Inventar muss nationale Stromemissionsfaktoren verwenden.
+  type: generic.ConstantNode
+  quantity: probability
+  unit: dimensionless
+  params:
+  - id: condition
+    ref: use_national_values
+ 
+- id: has_local_district_heating_emission_factors
+  name_en: Has local district heating emission factors?
+  name_de: Hat lokale Fernwärmeemissionsfaktoren?
+  description_en: BISKO inventory must use local district heating emission factors.
+  description_de: BISKO-Inventar muss lokale Fernwärmeemissionsfaktoren verwenden.
+  type: generic.ConstantNode
+  quantity: probability
+  unit: dimensionless
+  params:
+  - id: condition
+    ref: use_local_values
+ 
+- id: has_quality_a_data_for_grid_based_energy
+  name_en: Has quality A data for grid-based energy?
+  name_de: Hat Qualität A-Daten für gitterbasierte Energie?
+  description_en: BISKO inventory must use regional primary data for grid-based energy.
+  description_de: BISKO-Inventar muss regionale Primärdaten für gitterbasierte Energie verwenden.
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: final_energy_use_data_quality
+    tags: [grid_energy]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity, natural_gas, district_heating]
+  params:
+  - id: formula # FIXME Check if quality A applies to every combination of subsectors.
+    value: prod_dim((inventory_only(grid_energy) >= constant), sector)
+  - id: constant
+    value: 0.4 # Should be 1.0 but it is temporarily relaxed.
+    unit: dimensionless
+
+ 
 pages:
 - id: home
   name_de: Klima-Monitor-BISKO Treibhausgasinventar
