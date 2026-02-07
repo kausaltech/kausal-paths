@@ -299,6 +299,14 @@ class FormulaNode(Node):
             assert isinstance(dim_arg.id, str)
             return df.paths.sum_over_dims(dim_arg.id)
 
+        if func == 'prod_dim':
+            assert len(node.args) == 2
+            assert isinstance(df, PDF)
+            dim_arg = node.args[1]
+            assert isinstance(dim_arg, ast.Name)
+            assert isinstance(dim_arg.id, str)
+            return df.paths.prod_over_dims(dim_arg.id)
+
         if func == 'zero_fill':
             assert isinstance(df, PDF)
             df = df.paths.to_wide()
@@ -312,6 +320,13 @@ class FormulaNode(Node):
             if df:
                 return self.eval_tree(node.args[1], varss)
             return self.eval_tree(node.args[2], varss)
+
+        if func == 'float': # FIXME Does this actually make sense?
+            assert isinstance(df, bool)
+            assert len(node.args) == 1
+            if df:
+                return Quantity(1.0, 'dimensionless')
+            return Quantity(0.0, 'dimensionless')
 
         raise NotImplementedError(f"Unknown function: {func}")
 

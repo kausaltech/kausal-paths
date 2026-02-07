@@ -202,6 +202,11 @@ class UseNationalValues(BoolParameter):
     id = 'use_national_values'
 
 
+class UseLocalValues(BoolParameter):
+    name = _('Use local values rather than national values')
+    id = 'use_local_values'
+
+
 class StatisticalNormalization(BoolParameter):
     name = _('Normalization for matching statistical data')
     id = 'statistical_correction'

@@ -311,6 +311,36 @@ class PathsExt:
         ]).sort(remaining_keys)
         return ppl.to_ppdf(zdf, meta=meta)
 
+    def prod_over_dims(self, dims: str | list[str] | None = None) -> ppl.PathsDataFrame:
+        df = self._df
+        meta = df.get_meta()
+        if FORECAST_COLUMN in df.columns:
+            fc = [pl.any(FORECAST_COLUMN)]
+        else:
+            fc = []
+
+        if dims is None:
+            dims = meta.dim_ids
+        elif isinstance(dims, str):
+            dims =  [dims]
+        remaining_keys = list(meta.primary_keys)
+        for dim in dims:
+            remaining_keys.remove(dim)
+
+        known_cols = set(meta.primary_keys) | set(meta.metric_cols) | {FORECAST_COLUMN, YEAR_COLUMN}
+        prod_cols = list(meta.metric_cols)
+        for col, dt in df.schema.items():
+            if col in known_cols:
+                continue
+            if dt.is_numeric():
+                prod_cols.append(col)
+
+        zdf = df.group_by(remaining_keys).agg([
+            *[pl.col(col).product().alias(col) for col in prod_cols],
+            *fc,
+        ]).sort(remaining_keys)
+        return ppl.to_ppdf(zdf, meta=meta)
+
     def get_category_mismatch(  # noqa: C901, PLR0912
         self,
         other: ppl.PathsDataFrame,
