@@ -736,62 +736,74 @@ nodes:
   params:
     formula: extend_all(drop_nans(emissions / energy))
 
-- id: end_energy_emission_factors_national
-  name_de: Endenergie Emissionsfaktoren national nach IFEU
-  name_en: End energy emission factors national according to IFEU
-  description_en: These emission factors are originally from IFEU, and they are updated annually.
-    The admin user cannot edit these values.
-  description_de: Diese Emissionsfaktoren sind ursprünglich aus IFEU, und sie werden jährlich aktualisiert.
-    Die Admin-Benutzer können diese Werte nicht ändern.
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_datasets:
-  - id: bisko/endenergie_emissionsfaktoren  # standard ifeu dataset that has all the cities
-    filters:
-    - column: per_what_energy
-    - column: upstream_included
-
-- id: end_energy_emission_factors_local
-  name_de: Endenergie Emissionsfaktoren lokal
-  name_en: End energy emission factors local
-  description_en: These emission factors are originally from IFEU, but the admin users may change
-    the dataset to reflect local conditions.
-  description_de: Diese Emissionsfaktoren sind ursprünglich aus IFEU, aber die Admin-Benutzer können
-    das Dataset ändern, um lokale Bedingungen zu reflektieren.
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_datasets:
-  - id: bisko/end_energy_emission_factors
-
 - id: end_energy_emission_factors
   name_de: Endenergie Emissionsfaktoren
   name_en: End energy emission factors
+  description_en: |
+    The emission factors are given per final energy use. They are relevant for all sectors and
+    the whole of Germany. They include upstream emissions of fuels used for
+    production. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
+    are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
+    These emission factors were received from IFEU, and they are updated annually. The detailed data sources are given
+    in the dataset. There are two versions of this dataset, national and local. You can toggle between the two
+    via 'Edit scenario' panel with the national vs. local toggle.<br/> Originally the datasets
+    are the same, but the city admin user can edit the local values via the admin user interface.
+  description_de: |
+    Die Emissionsfaktoren sind pro Endenergieverbrauch angegeben. Sie sind für alle Sektoren und
+    für ganz Deutschland relevant. Sie enthalten Vorkettenemissionen der für die
+    Produktion verwendeten Brennstoffe. Die berücksichtigten Gase sind CO<sub>2</sub>, CH<sub>4</sub> und
+    N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
+    Treibhauspotenzial (GWP).<br/>
+    Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert. Die detaillierten Datenquellen sind
+    im Datensatz angegeben. Es gibt zwei Versionen dieses Datensatzes, national und lokal. Sie können zwischen den
+    beiden über das Panel „Szenario bearbeiten“ mit dem national-vs.-lokal-Schalter wechseln.<br/> Ursprünglich sind
+    die Datensätze gleich, aber die Stadt-Admin-Benutzer können die lokalen Werte über die
+    Admin-Benutzeroberfläche anpassen.
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: end_energy_emission_factors_national
+  input_datasets:
+  - id: bisko/endenergie_emissionsfaktoren  # standard ifeu dataset
     tags: [national]
-  - id: end_energy_emission_factors_local
+    filters:
+    - column: per_what_energy
+    - column: upstream_included
+  - id: bisko/end_energy_emission_factors
     tags: [local]
   params:
   - id: formula
-    value: select_port(condition, national, local)
+    value: extend_all(select_port(condition, national, local))
   - id: condition
     ref: use_national_values
 
-- id: electricity_production_emission_factors_national
-  name_de: Emissionsfaktoren für Erzeugung national
-  name_en: Emission factors for electricity production national
-  type: generic.GenericNode
+- id: electricity_production_emission_factors
+  name_de: Emissionsfaktoren für Erzeugung
+  name_en: Emission factors for electricity production
+  description_en: |
+    The emission factors are given per final electricity produced. They are relevant for renewable electricity
+    production or power plants producing only electricity (i.e., not combined heat and power plants) anywhere in
+    Germany. They include upstream emissions of fuels used for
+    production. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
+    are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
+    These emission factors were received from IFEU, and they are updated annually. The detailed data sources are given
+    in the dataset. There are two versions of this dataset, national and local. You can toggle between the two
+    via 'Edit scenario' panel with the national vs. local toggle.<br/> Originally the datasets
+    are the same, but the city admin user can edit the local values via the admin user interface.
+  description_de: |
+    Die Emissionsfaktoren sind pro erzeugter Endstrommenge angegeben. Sie sind relevant für erneuerbare
+    Stromerzeugung oder Kraftwerke, die ausschließlich Strom erzeugen (d. h. keine
+    Kraft-Wärme-Kopplungsanlagen) überall in Deutschland. Sie enthalten Vorkettenemissionen der für die
+    Produktion verwendeten Brennstoffe. Die berücksichtigten Gase sind CO<sub>2</sub>, CH<sub>4</sub> und
+    N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
+    Treibhauspotenzial (GWP).<br/>
+    Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert. Die detaillierten Datenquellen sind
+    im Datensatz angegeben. Es gibt zwei Versionen dieses Datensatzes, national und lokal. Sie können zwischen den
+    beiden über das Panel „Szenario bearbeiten“ mit dem national-vs.-lokal-Schalter wechseln.<br/> Ursprünglich sind
+    die Datensätze gleich, aber die Stadt-Admin-Benutzer können die lokalen Werte über die
+    Admin-Benutzeroberfläche anpassen.
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
   input_dimensions: [energy_carrier, per_what_energy]
@@ -800,41 +812,50 @@ nodes:
   - id: bisko/emissionsfaktoren_fr_erzeugung  # ifeu dataset, name of tab in excel, rename at some point, does not filter by city here
     filters:
     - column: upstream_included
-
-- id: electricity_production_emission_factors_local
-  name_de: Emissionsfaktoren für Erzeugung lokal
-  name_en: Emission factors for electricity production local
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  input_dimensions: [energy_carrier, per_what_energy]
-  output_dimensions: [energy_carrier, per_what_energy]
-  input_datasets:
-  - id: bisko/electricity_production_emission_factors  # dataset from another city (Ddorf or Potsdam), change to Mainz-specific data IF NEEDED
-
-- id: electricity_production_emission_factors
-  name_de: Emissionsfaktoren für Erzeugung
-  name_en: Emission factors for electricity production
-  type: formula.FormulaNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  input_dimensions: [energy_carrier, per_what_energy]
-  output_dimensions: [energy_carrier, per_what_energy]
-  input_nodes:
-  - id: electricity_production_emission_factors_national
     tags: [national]
-  - id: electricity_production_emission_factors_local
+  - id: bisko/electricity_production_emission_factors  # dataset from another city (Ddorf or Potsdam), change to Mainz-specific data IF NEEDED
     tags: [local]
   params:
   - id: formula
-    value: select_port(condition, national, local)
+    value: extend_all(select_port(condition, national, local))
   - id: condition
     ref: use_national_values
 
-- id: emission_factors_without_fuel_data_national
-  name_de: Emissionsfaktoren ohne Brennstoffinputinformationen national
-  name_en: Emission factors without fuel data national
-  type: generic.GenericNode
+- id: emission_factors_without_fuel_data
+  name_de: Emissionsfaktoren ohne Brennstoffinputinformationen
+  name_en: Emission factors for electricity and heat without known shares
+  description_en: |
+    The emissions factors are product-specific and calculated per electricity or heat produced.
+    This is useful in a situation where you don't know the shares of electricity and heat produced, but you know
+    the amount of electricity of heat used.
+    Therefore, you cannot sum up the emission factors of an energy carrier to get the total emission factor.
+    Instead, you need to calculate the emissions for each product separately and then sum them up.
+    The emission factors are relevant for the processes of electricity and heat production anywhere in
+    Germany. They include upstream emissions of fuels used for
+    production. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
+    are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
+    These emission factors were received from IFEU, and they are updated annually.
+    There are two versions of this dataset, national and local. You can toggle between the two
+    via 'Edit scenario' panel with the national vs. local toggle.<br/> Originally the datasets
+    are the same, but the city admin user can edit the local values via the admin user interface.
+  description_de: |
+    Die Emissionsfaktoren sind produktbezogen und pro erzeugter Strom- oder Wärmemenge berechnet.
+    Das ist nützlich, wenn die Anteile von erzeugtem Strom und Wärme nicht bekannt sind, Sie aber die
+    Menge der genutzten Strom- oder Wärmemenge kennen.
+    Daher können Sie die Emissionsfaktoren eines Energieträgers nicht einfach summieren, um den
+    Gesamtemissionsfaktor zu erhalten. Stattdessen müssen Sie die Emissionen für jedes Produkt
+    separat berechnen und anschließend summieren.
+    Die Emissionsfaktoren sind relevant für die Prozesse der Strom- und Wärmeerzeugung überall in
+    Deutschland. Sie enthalten Vorkettenemissionen der für die
+    Produktion verwendeten Brennstoffe. Die berücksichtigten Gase sind CO<sub>2</sub>, CH<sub>4</sub> und
+    N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
+    Treibhauspotenzial (GWP).<br/>
+    Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert.
+    Es gibt zwei Versionen dieses Datensatzes, national und lokal. Sie können zwischen den beiden
+    über das Panel „Szenario bearbeiten“ mit dem national-vs.-lokal-Schalter wechseln.<br/> Ursprünglich sind
+    die Datensätze gleich, aber die Stadt-Admin-Benutzer können die lokalen Werte über die
+    Admin-Benutzeroberfläche anpassen.
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
   input_dimensions: [energy_carrier, per_what_energy]
@@ -843,41 +864,45 @@ nodes:
   - id: bisko/emissionsfaktoren_ohne_brennstoffinputinformationen # ifeu dataset, national value (not separated for municipalities)
     filters:
     - column: upstream_included
-
-- id: emission_factors_without_fuel_data_local
-  name_de: Emissionsfaktoren ohne Brennstoffinputinformationen lokal
-  name_en: Emission factors without fuel data local
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  input_dimensions: [energy_carrier, per_what_energy]
-  output_dimensions: [energy_carrier, per_what_energy]
-  input_datasets:
-  - id: bisko/emission_factors_without_fuel_data # other city data, FOR NOW used for Mainz
-
-- id: emission_factors_without_fuel_data
-  name_de: Emissionsfaktoren ohne Brennstoffinputinformationen
-  name_en: Emission factors without fuel data
-  type: formula.FormulaNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  input_dimensions: [energy_carrier, per_what_energy]
-  output_dimensions: [energy_carrier, per_what_energy]
-  input_nodes:
-  - id: emission_factors_without_fuel_data_national
     tags: [national]
-  - id: emission_factors_without_fuel_data_local
+  - id: bisko/emission_factors_without_fuel_data
     tags: [local]
   params:
   - id: formula
-    value: select_port(condition, national, local)
+    value: extend_all(select_port(condition, national, local))
   - id: condition
     ref: use_national_values
 
-- id: emission_factors_for_district_heating_by_generic_fuel_national
-  name_de: Emissionsfaktoren für Fernwärme - überwiegend nationale
-  name_en: Emission factors for district heating by generic fuel national
-  type: generic.GenericNode
+- id: emission_factors_for_district_heating_by_generic_fuel
+  name_de: Emissionsfaktoren für Fernwärme - überwiegend
+  name_en: Emission factors for district heating by generic fuel
+  description_en: |
+    The emissions factors are product-specific and calculated per heat produced.
+    This is useful in a situation where you don't know the shares of electricity and heat produced in combined
+    heat and power plants, but you know the amount of heat used.
+    The emission factors are relevant for the processes of heat production (mentioned in the energy carrier dimension)
+    anywhere in Germany. They include upstream emissions of fuels used for
+    production. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
+    are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
+    These emission factors were received from IFEU, and they are updated annually.
+    There are two versions of this dataset, national and local. You can toggle between the two
+    via 'Edit scenario' panel with the national vs. local toggle.<br/> Originally the datasets
+    are the same, but the city admin user can edit the local values via the admin user interface.
+  description_de: |
+    Die Emissionsfaktoren sind produktbezogen und pro erzeugter Wärmemenge berechnet.
+    Das ist nützlich, wenn die Anteile von erzeugtem Strom und Wärme in Kraft-Wärme-Kopplungsanlagen nicht
+    bekannt sind, Sie aber die genutzte Wärmemenge kennen.
+    Die Emissionsfaktoren sind relevant für die Prozesse der Wärmeerzeugung (in der
+    Energieträger-Dimension genannt) überall in Deutschland. Sie enthalten Vorkettenemissionen der für die
+    Produktion verwendeten Brennstoffe. Die berücksichtigten Gase sind CO<sub>2</sub>, CH<sub>4</sub> und
+    N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
+    Treibhauspotenzial (GWP).<br/>
+    Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert.
+    Es gibt zwei Versionen dieses Datensatzes, national und lokal. Sie können zwischen den beiden
+    über das Panel „Szenario bearbeiten“ mit dem national-vs.-lokal-Schalter wechseln.<br/> Ursprünglich sind
+    die Datensätze gleich, aber die Stadt-Admin-Benutzer können die lokalen Werte über die
+    Admin-Benutzeroberfläche anpassen.
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
   input_dimensions: [energy_carrier, per_what_energy]
@@ -886,34 +911,12 @@ nodes:
   - id: bisko/fernwarme_berwiegend # ifeu
     filters:
     - column: upstream_included
-
-- id: emission_factors_for_district_heating_by_generic_fuel_local
-  name_de: Emissionsfaktoren für Fernwärme - überwiegend lokal
-  name_en: Emission factors for district heating by generic fuel local
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  input_dimensions: [energy_carrier, per_what_energy]
-  output_dimensions: [energy_carrier, per_what_energy]
-  input_datasets:
-  - id: bisko/emission_factors_for_district_heating_by_generic_fuel  # change to Mainz-speific later IF NEEDED
-
-- id: emission_factors_for_district_heating_by_generic_fuel
-  name_de: Emissionsfaktoren für Fernwärme - überwiegend
-  name_en: Emission factors for district heating by generic fuel
-  type: formula.FormulaNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  input_dimensions: [energy_carrier, per_what_energy]
-  output_dimensions: [energy_carrier, per_what_energy]
-  input_nodes:
-  - id: emission_factors_for_district_heating_by_generic_fuel_national
     tags: [national]
-  - id: emission_factors_for_district_heating_by_generic_fuel_local
+  - id: bisko/emission_factors_for_district_heating_by_generic_fuel  # change to Mainz-speific later IF NEEDED
     tags: [local]
   params:
   - id: formula
-    value: select_port(condition, national, local)
+    value: extend_all(select_port(condition, national, local))
   - id: condition
     ref: use_national_values
 
@@ -1003,19 +1006,6 @@ nodes:
   - id: condition
     ref: use_mileage
 
-# - id: total_emissions
-#   name: Gesamtemissionen
-#   name_en: Total emissions
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [energy_carrier, sector]
-#   output_dimensions: [energy_carrier, sector]
-#   input_nodes:
-#   # - id: final_energy_use
-#   # - id: emission_factors
-#   - id: historical_emissions
-
 - id: combined_heat_and_power_ef
   name_en: Combined heat and power emission factor
   name_de: Emissionsfaktor für Kombination aus Wärme und Strom
@@ -1024,18 +1014,20 @@ nodes:
   unit: g_co2e/kWh
   output_dimensions: [energy_carrier]
   input_nodes:
-  - id: end_energy_emission_factors
+  - id: emission_factors_for_district_heating_by_generic_fuel
     from_dimensions:
     - id: energy_carrier
-      categories: [renewable_waste_heat_gt_90]
+      categories: [natural_gas_turbine]
+      flatten: true
+    - id: per_what_energy
       flatten: true
   params:
     method: bisko
     electricity_fraction: 0.3
     t_supply: 373
     t_return: 283
-    electricity_reference_efficiency: 0.4
-    heat_reference_efficiency: 0.9
+    # electricity_reference_efficiency: 0.4 # Only needed to efficiency method (commonly used in Finland)
+    # heat_reference_efficiency: 0.9
 
 - id: transport_energy_factors # FIXME Does not contain values for rail_vehicles although they exist in road_transport_energy
   name_en: Transport energy factors

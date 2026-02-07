@@ -81,6 +81,8 @@ TAG_DESCRIPTIONS = {
     'difference': _('Take the difference over time (i.e. annual changes)'),
     'empty_to_zero': _('Convert NaNs to zeros.'),
     'expectation': _('Take the expected value over the uncertainty dimension.'),
+    'extend_all': _('Extend the values to all the remaining missing years.'),
+    'extend_both_ways': _('Extend the values beyond the first and last values, but do not interpolate.'),
     'extend_forecast_values': _('Extend the last forecast values to the remaining missing years.'),
     'extend_to_history': _('Extend the first values to the years after the minimum historical year.'),
     'extend_values': _('Extend the last historical values to the remaining missing years.'),
@@ -103,6 +105,7 @@ TAG_DESCRIPTIONS = {
     'removing': _('This is the rate of stock removal.'),
     'round_to_five': _('Round values to 5 significant digits rather than 5 decimal places.'),
     'secondary': _('Use data only if a primary value does not exist.'),
+    'select_port': _('If condition is True, select the first option, otherwise the second.'),
     'truncate_before_start': _('Truncate values before the reference year. There may be some from data'),
     'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
 }
@@ -201,31 +204,31 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         <a href="https://ghgprotocol.org/sites/default/files/CHP_guidance_v1.0.pdf">GPC protocol</a>.
         There are several methods but for each method, the average emission factor of the fuel mix used
         is split into two parts by using fractions a_heat and a_electricity that sum up to 1. They are calculated as
-        <br/>a_i = z_i * f_i / sum_j(z_j * f_j),
-        <br/>where a_i is the fraction for each product (i = electricity, heat)
-        z_i is a method-specific multiplier (see below)
-        f_i is the fraction of product i from the total energy produced.
+        <br/>a<sub>i</sub> = z<sub>i</sub> * f<sub>i</sub> / sum<sub>i</sub>(z<sub>i</sub> * f<sub>i</sub>),
+        <br/>where a<sub>i</sub> is the fraction for each product (i = electricity, heat)
+        z<sub>i</sub> is a method-specific multiplier (see below)
+        f<sub>i</sub> is the fraction of product i from the total energy produced.
 
         <ol><li><b>Energy method</b>
         Logic: Energy products are treated equally based on the energy content.
-        All z_i = 1
+        All z<sub>i</sub> = 1
 
         </li><li><b>Work potential method</b> (aka Carnot method, or exergetic method)
         Logic: Energy products are treated equally based on the potential of doing work (i.e., exergy content).
         This moves emissions toward electricity.
-        z_heat = 1 - T_return / T_supply, and
-        z_electricity = 1.
-        T_supply and T_return are the input and output process temperatures, respectively.
+        z<sub>heat</sub> = 1 - T<sub>return</sub> / T<sub>supply</sub>, and
+        z<sub>electricity</sub> = 1.
+        T<sub>return</sub> and T<sub>supply</sub> are the output and input process temperatures, respectively.
 
         </li><li><b>Bisko method</b>
         Bisko method is a variant of the work potential method.
-        The only difference is that Bisko assumes T_return = 283 K.
+        The only difference is that Bisko assumes T<sub>return</sub> = 283 K.
 
         </li><li><b>Efficiency method</b>
         Logic: What emissions would have occured if each energy product had been produced separately?
-        z_i = 1 / n_i,
-        where n_i is the reference efficiency for producing the energy type separately.
-        Typical values are z_heat = 0.9, z_electricity = 0.4.</li></ol>
+        z<sub>i</sub> = 1 / n<sub>i</sub>,
+        where n<sub>i</sub> is the reference efficiency for producing the energy type separately.
+        Typical values are z<sub>heat</sub> = 0.9, z<sub>electricity</sub> = 0.4.</li></ol>
         """)),
     'CoalesceNode': NodeInfo(_(
         "Uses 'primary' tagged data when available, otherwise 'secondary' tagged data. One of the tags must be given.")),
@@ -385,9 +388,9 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
 
         The baseline is given as a dataset of observed values. The determinants are linearly
         related to the logit of the probability:
-        ln(y / (1 - y)) = a + sum_i(b_i * X_i,)
-        where y is the probability, a is baseline, X_i determinants and b_i coefficients.
-        The node expects that a comes from dataset and sum_i(b_i * X_i,) is given by the input nodes
+        ln(y / (1 - y)) = a + sum<sub>i</sub>(b<sub>i</sub> * X<sub>i</sub>,)
+        where y is the probability, a is baseline, X<sub>i</sub> determinants and b<sub>i</sub> coefficients.
+        The node expects that a comes from dataset and sum<sub>i</sub>(b<sub>i</sub> * X<sub>i</sub>,) is given by the input nodes
         when operated with the GenericNode compute(). The probability is calculated as
         ln(y / (1 - y)) = b <=> y = 1 / (1 + exp(-b)).
         """)),
@@ -780,11 +783,11 @@ class ValidationRule(ABC):
             for param in params:
                 assert isinstance(param, dict)
                 id = param.get('id')
-                v = param.get('value')
-                u = param.get('unit', '')
                 if id in drop:
                     continue
                 assert isinstance(id, str)
+                v = param.get('value') or _("referencing to <i>%s</i>") % param.get('ref')
+                u = param.get('unit', '')
                 out.append([id, f"{v} {u}"])
         return out
 
