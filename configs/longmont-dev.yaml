@@ -1092,7 +1092,7 @@ nodes:
   # - id: longmont/non_biogenic_ghg_emission_index
   #   forecast_from: 2025
   params:
-  - id: boolean
+  - id: condition
     ref: biogenic_inclusion
 
 - id: is_biogenic_included2

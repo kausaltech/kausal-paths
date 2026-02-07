@@ -641,7 +641,7 @@ nodes:
   quantity: fraction
   unit: dimensionless
   params:
-  - id: boolean
+  - id: condition
     ref: measure_data_override
 
 - id: motorised_transport_index
