@@ -515,6 +515,9 @@ dimensions:
   - id: smart_grid_and_virtual_power_plant_development
     label: Älykäs energiaverkko ja virtuaalilaitoksen kehitys
     label_en: Smart grid and virtual power plant development
+  - id: superbus_investments
+    label: Superbussi-investoinnit
+    label_en: Superbus investments
 
 # ----- Kelicobe
 
