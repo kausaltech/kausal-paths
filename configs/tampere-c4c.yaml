@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a0202c9e8edf49b7cdc5c4d9bba3323dcffbb36b
+  commit: e0caa32243959172733de453b131e3f3dd38263d
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -515,6 +515,80 @@ dimensions:
   - id: smart_grid_and_virtual_power_plant_development
     label: Älykäs energiaverkko ja virtuaalilaitoksen kehitys
     label_en: Smart grid and virtual power plant development
+
+# ----- Kelicobe
+
+- id: owner_kelicobe
+  label: Omistaja
+  label_en: Owner
+  categories:
+  - id: city_organization
+    label: Kaupunki
+    label_en: City organization
+  - id: individual
+    label: Yksilö
+    label_en: Individual
+  - id: society
+    label: Yhteiskunta
+    label_en: Society
+
+- id: cost_type_kelicobe
+  label: Kustannustyyppi
+  label_en: Cost type
+  categories:
+  - id: accident
+    label: Onnettomuus
+    label_en: Accident
+  - id: air_pollution
+    label: Ilmansaaste
+    label_en: Air pollution
+  - id: climate_change
+    label: Ilmastonmuutos
+    label_en: Climate change
+  - id: health
+    label: Terveys
+    label_en: Health
+  - id: infrastructure_maintenance
+    label: Infrastruktuurin kunnossapito
+    label_en: Infrastructure maintenance
+  - id: noise
+    label: Melu
+    label_en: Noise
+  - id: operation
+    label: Liikennöinti
+    label_en: Operation
+  - id: tax
+    label: Vero
+    label_en: Tax
+  - id: ticket_cost
+    label: Lippumeno
+    label_en: Ticket cost
+  - id: ticket_revenue
+    label: Lipputulot
+    label_en: Ticket revenue
+  - id: vehicle_use
+    label: Ajoneuvon käyttö
+    label_en: Vehicle use
+
+- id: transportation_mode_kelicobe
+  label: Kulkumuoto
+  label_en: Transportation mode
+  categories:
+  - id: bus
+    label: Bussi
+    label_en: Bus
+  - id: car
+    label: Auto
+    label_en: Car
+  - id: cycling
+    label: Pyöräily
+    label_en: Cycling
+  - id: tram
+    label: Ratikka
+    label_en: Tram
+  - id: walking
+    label: Kävely
+    label_en: Walking
 
 emission_sectors:
 - id: net_emissions
@@ -2078,6 +2152,32 @@ nodes:
              {'year': 2028, 'value': 60},
              {'year': 2029, 'value': 42.5},
              {'year': 2030, 'value': 25}]
+
+# ----- KELICOBE --------------------------------------------------------------
+
+- id: kelicobe_cost_benefit
+  name: Kestävän kulkutapamuutoksen kustannukset ja hyödyt
+  name_en: Sustainable modal shift costs and benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [owner_kelicobe, transportation_mode_kelicobe, cost_type_kelicobe]
+  output_dimensions: [owner_kelicobe, transportation_mode_kelicobe, cost_type_kelicobe]
+  input_datasets:
+  - id: tampere/kelicobe
+    column: currency
+
+- id: kelicobe_cumulative_cost_benefit
+  name: Kestävän kulkutapamuutoksen kumulatiiviset kustannukset ja hyödyt
+  name_en: Sustainable modal shift cumulative costs and benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR
+  input_dimensions: [owner_kelicobe, transportation_mode_kelicobe, cost_type_kelicobe]
+  output_dimensions: [owner_kelicobe, transportation_mode_kelicobe, cost_type_kelicobe]
+  input_nodes:
+  - id: kelicobe_cost_benefit
+    tags: [cumulative]
 
 # ----- LED STREETLIGHT DETAILED ACTION MODULE --------------------------------
 
