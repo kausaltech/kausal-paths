@@ -3390,3 +3390,6 @@ scenarios:
   default: true
   name: Climate Action Plan
   all_actions_enabled: true
+  params:
+  - id: carbon_capture_and_storage.enabled
+    value: false
