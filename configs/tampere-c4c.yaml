@@ -6184,6 +6184,33 @@ scenarios:
   name: Nykykehitys
   name_en: Baseline
 
+- id: confirmed_measures
+  name: Varmistuneet toimenpiteet
+  name_en: Confirmed measures
+  params:
+  - id: tramline_3_construction.enabled
+    value: true
+  - id: additional_investments_in_naistenlahti_3.enabled
+    value: true
+  - id: electric_boiler_and_district_heat_battery.enabled
+    value: true
+  - id: smart_grid_and_virtual_power_plant_development.enabled
+    value: true
+  - id: change_streetlights_to_led.enabled
+    value: true
+  - id: energy_efficiency_of_new_construction.enabled
+    value: true
+  - id: shift_to_low_carbon_in_national_electricity_production.enabled
+    value: true
+  - id: parameter_discount_rate.enabled
+    value: true
+  - id: parameter_district_heating_price.enabled
+    value: true
+  - id: parameter_electricity_price.enabled
+    value: true
+  - id: parameter_oil_price.enabled
+    value: true
+
 - id: default
   default: true
   name: Hiilineutraali Tampere 2030 -tiekartta
