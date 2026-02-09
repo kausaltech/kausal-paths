@@ -311,6 +311,7 @@ class PathsExt:
         ]).sort(remaining_keys)
         return ppl.to_ppdf(zdf, meta=meta)
 
+    # TODO Maybe merge with sum_over_dims into a generic function?
     def prod_over_dims(self, dims: str | list[str] | None = None) -> ppl.PathsDataFrame:
         df = self._df
         meta = df.get_meta()

@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://mainz-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 27fb832aed994de5b77a0d89571bdbe6dfe74499
+  commit: e0caa32243959172733de453b131e3f3dd38263d
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
@@ -44,19 +44,24 @@ params:
   is_visible: true
 - id: use_national_values
   label_en: Use national rather than local electricity emission factors (BISKO)
-  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO).
+  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren 
+    (BISKO).
   value: true
   is_visible: true
   is_customizable: true
 - id: use_mileage
-  label_en: Use BISKO mileage statistics rather than own energy data for transport
-  label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen Energieverbrauchsdaten für den Transport.
+  label_en: Use BISKO mileage statistics rather than own energy data for 
+    transport
+  label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen 
+    Energieverbrauchsdaten für den Transport.
   value: true
   is_visible: true
   is_customizable: true
 - id: use_local_values # FIXME Make connection to district heating emission factors dataset.
-  label_en: Use local rather than national district heating emission factors (BISKO)
-  label_de: Verwenden Sie lokale statt nationale Fernwärmeemissionsfaktoren (BISKO).
+  label_en: Use local rather than national district heating emission factors 
+    (BISKO)
+  label_de: Verwenden Sie lokale statt nationale Fernwärmeemissionsfaktoren 
+    (BISKO).
   value: true
   is_visible: true
   is_customizable: true
@@ -106,7 +111,7 @@ dimensions:
   - id: biodiesel
     label_en: Biodiesel
     label_de: Diesel biogen
-    aliases: [diesel_biogen, Diesel Bio,Diesel_biogen,Diesel_Biogen]
+    aliases: [diesel_biogen, Diesel Bio, Diesel_biogen, Diesel_Biogen]
   - id: kerosene
     label_en: Kerosene
     label_de: Kerosin
@@ -169,27 +174,27 @@ dimensions:
   - id: local_heating
     label_en: Local heating
     label_de: Nahwärme
-    aliases: [nahwarme,Nahwarme]
+    aliases: [nahwarme, Nahwarme]
   - id: solar_thermal
     label_en: Solar thermal
     label_de: Solarthermie
-    aliases: [solarthermie,Solarthermie]
+    aliases: [solarthermie, Solarthermie]
   - id: environmental_heat
     label_en: Environmental heat / Heat pump
     label_de: Umweltwärme
-    aliases: [umweltwarme,Umweltwarme]
+    aliases: [umweltwarme, Umweltwarme]
   - id: hydrogen
     label_en: Hydrogen
     label_de: Wasserstoff
-    aliases: [wasserstoff,Wasserstoff]
+    aliases: [wasserstoff, Wasserstoff]
   - id: other_renewables
     label_en: Other renewables
     label_de: Sonstige Erneuerbare
-    aliases: [sonstige_erneuerbare,Sonstige_Erneuerbare]
+    aliases: [sonstige_erneuerbare, Sonstige_Erneuerbare]
   - id: other_conventional
     label_en: Other conventional
     label_de: Sonstige Konventionelle
-    aliases: [sonstige_konventionelle,Sonstige_Konventionelle]
+    aliases: [sonstige_konventionelle, Sonstige_Konventionelle]
   - id: not_defined
     label_en: Not defined
     label_de: Nicht definiert
@@ -197,7 +202,7 @@ dimensions:
   - id: fuels
     label_en: Fuels
     label_de: Kraftstoffe
-    aliases: [kraftstoffe,kraftstoff,Kraftstoff,Kraftstoffe]
+    aliases: [kraftstoffe, kraftstoff, Kraftstoff, Kraftstoffe]
   - id: other
     label_en: Other
     label_de: Sonstiges
@@ -333,12 +338,14 @@ dimensions:
   - id: municipal_facilities
     label_en: Municipal Facilities
     label_de: Kommunale Einrichtungen
-    aliases: [kommunale_einrichtungen, Kommunale_Einrichtungen, stadtische_gebaude]
+    aliases: [kommunale_einrichtungen, Kommunale_Einrichtungen, 
+        stadtische_gebaude]
     color: '#6bc248'
   - id: commerce_trade_services
     label_en: Commerce, Trade & Services
     label_de: Gewerbe, Handel, Dienstleistungen
-    aliases: [gewerbe_handel_dienstleistungen, Gewerbe_Handel_Dienstleistungen, gewerbe_sonstiges]
+    aliases: [gewerbe_handel_dienstleistungen, Gewerbe_Handel_Dienstleistungen, 
+        gewerbe_sonstiges]
     color: '#fe8035'
   - id: industry
     label_en: Industry
@@ -586,7 +593,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: duesseldorf/final_energy
+  - id: mainz/final_energy
     column: Value
 
 - id: final_energy_use_data_quality
@@ -685,7 +692,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: bisko/historical_emissions # bisko/historical_emissions # TODO Use temporarily to set up the model
+  - id: mainz/historical_emissions
     column: Value
 
 - id: emission_factors # FIXME Check for koeln-dev implementation.
@@ -926,6 +933,31 @@ nodes:
   - id: condition
     ref: use_national_values
 
+- id: combined_heat_and_power_ef
+  name_en: Combined heat and power emission factor
+  name_de: Emissionsfaktor für Kombination aus Wärme und Strom
+  type: generic.ChpNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: emission_factors_for_district_heating_by_generic_fuel
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas_turbine]
+      flatten: true
+    - id: per_what_energy
+      flatten: true
+  params:
+    method: bisko
+    electricity_fraction: 0.3
+    t_supply: 373
+    t_return: 283
+    # electricity_reference_efficiency: 0.4 # Only needed to efficiency method (commonly used in Finland)
+    # heat_reference_efficiency: 0.9
+
+#//////  Transport  /////////////////////////////////////////////////////////////////////////////////
+
 - id: transport_energy_own_data # FIXME Data 1990 - 1999 is missing.
   name_de: Transport Energie nach Fahrzeugtyp - eigene Daten
   name_en: Transport energy by vehicle type - own data
@@ -1011,29 +1043,6 @@ nodes:
     value: select_port(condition, (other_bisko + road_bisko), own)
   - id: condition
     ref: use_mileage
-
-- id: combined_heat_and_power_ef
-  name_en: Combined heat and power emission factor
-  name_de: Emissionsfaktor für Kombination aus Wärme und Strom
-  type: generic.ChpNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: emission_factors_for_district_heating_by_generic_fuel
-    from_dimensions:
-    - id: energy_carrier
-      categories: [natural_gas_turbine]
-      flatten: true
-    - id: per_what_energy
-      flatten: true
-  params:
-    method: bisko
-    electricity_fraction: 0.3
-    t_supply: 373
-    t_return: 283
-    # electricity_reference_efficiency: 0.4 # Only needed to efficiency method (commonly used in Finland)
-    # heat_reference_efficiency: 0.9
 
 - id: transport_energy_factors # FIXME Does not contain values for rail_vehicles although they exist in road_transport_energy
   name_en: Transport energy factors
@@ -1139,6 +1148,15 @@ nodes:
       categories: [transport]
       flatten: true
 
+- id: fraction_of_biodiesel
+  name_en: Fraction of biodiesel
+  name_de: Anteil von Biodiesel
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: bisko/fraction_of_biodiesel
+
 - id: transport_emissions
   name_en: Transport emissions
   name_de: Transportemissionen
@@ -1166,13 +1184,33 @@ nodes:
     - id: sector
       categories: [transport]
 
+#//////  Costs  /////////////////////////////////////////////////////////////////////////////////
+
+- id: energy_costs
+  name_en: Energy costs
+  name_de: Energiekosten
+  type: generic.GenericNode
+  quantity: currency
+  unit: M€/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: mainz/energy_costs
+    column: Value
+
+#//////  BISKO Compliance  /////////////////////////////////////////////////////////////////////////////////
+
 - id: is_bisko_compliant
   name_en: Are the inventories BISKO compliant?
   name_de: Sind die Inventare BISKO-konform?
-  description_en: 'Test for the BISKO compliance criteria (1 = compliant, 0 = non-compliant):<ul><li>No weather correction</li>
-    <li>Local emission factors for district heating</li><li>National emission factors for electricity</li><li>Grid-based energy data have quality A</li></ul>'
-  description_de: 'Test für die BISKO-Konformitätskriterien (1 = konform, 0 = nicht-konform):<ul><li>Keine Wetterkorrektur</li>
-    <li>Lokale Emissionsfaktoren für Fernwärme</li><li>Nationale Emissionsfaktoren für Strom</li><li>Gitterbasierte Energiedaten haben Qualität A</li></ul>'
+  description_en: Test for the BISKO compliance criteria (1 = compliant, 0 = 
+    non-compliant):<ul><li>No weather correction</li> <li>Local emission factors
+    for district heating</li><li>National emission factors for 
+    electricity</li><li>Grid-based energy data have quality A</li></ul>
+  description_de: Test für die BISKO-Konformitätskriterien (1 = konform, 0 = 
+    nicht-konform):<ul><li>Keine Wetterkorrektur</li> <li>Lokale 
+    Emissionsfaktoren für Fernwärme</li><li>Nationale Emissionsfaktoren für 
+    Strom</li><li>Gitterbasierte Energiedaten haben Qualität A</li></ul>
   type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
@@ -1186,7 +1224,8 @@ nodes:
   - id: has_quality_a_data_for_grid_based_energy
     tags: [grid_energy]
   params:
-    formula: complement(weather) * electricity * district_heating * prod_dim(grid_energy, energy_carrier)
+    formula: complement(weather) * electricity * district_heating * 
+      prod_dim(grid_energy, energy_carrier)
 
 - id: has_weather_correction
   name_en: Has weather correction?
@@ -1199,36 +1238,42 @@ nodes:
   params:
   - id: condition
     ref: weather_correction
- 
+
 - id: has_national_electricity_emission_factors
   name_en: Has national electricity emission factors?
   name_de: Hat nationale Stromemissionsfaktoren?
-  description_en: BISKO inventory must use national electricity emission factors.
-  description_de: BISKO-Inventar muss nationale Stromemissionsfaktoren verwenden.
+  description_en: BISKO inventory must use national electricity emission 
+    factors.
+  description_de: BISKO-Inventar muss nationale Stromemissionsfaktoren 
+    verwenden.
   type: generic.ConstantNode
   quantity: probability
   unit: dimensionless
   params:
   - id: condition
     ref: use_national_values
- 
+
 - id: has_local_district_heating_emission_factors
   name_en: Has local district heating emission factors?
   name_de: Hat lokale Fernwärmeemissionsfaktoren?
-  description_en: BISKO inventory must use local district heating emission factors.
-  description_de: BISKO-Inventar muss lokale Fernwärmeemissionsfaktoren verwenden.
+  description_en: BISKO inventory must use local district heating emission 
+    factors.
+  description_de: BISKO-Inventar muss lokale Fernwärmeemissionsfaktoren 
+    verwenden.
   type: generic.ConstantNode
   quantity: probability
   unit: dimensionless
   params:
   - id: condition
     ref: use_local_values
- 
+
 - id: has_quality_a_data_for_grid_based_energy
   name_en: Has quality A data for grid-based energy?
   name_de: Hat Qualität A-Daten für gitterbasierte Energie?
-  description_en: BISKO inventory must use regional primary data for grid-based energy.
-  description_de: BISKO-Inventar muss regionale Primärdaten für gitterbasierte Energie verwenden.
+  description_en: BISKO inventory must use regional primary data for grid-based 
+    energy.
+  description_de: BISKO-Inventar muss regionale Primärdaten für gitterbasierte 
+    Energie verwenden.
   type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
@@ -1247,7 +1292,7 @@ nodes:
     value: 0.4 # Should be 1.0 but it is temporarily relaxed.
     unit: dimensionless
 
- 
+
 pages:
 - id: home
   name_de: Klima-Monitor-BISKO Treibhausgasinventar
