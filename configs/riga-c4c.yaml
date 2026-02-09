@@ -215,6 +215,15 @@ emission_sectors:
   name: Net Emissions
   name_lv: Kopējās emisijas
   is_outcome: true
+  goals:
+  - values: [{'year': 2023, 'value': 1915375},
+             {'year': 2024, 'value': 1840750},
+             {'year': 2025, 'value': 1766125},
+             {'year': 2026, 'value': 1691500},
+             {'year': 2027, 'value': 1616875},
+             {'year': 2028, 'value': 1542250},
+             {'year': 2029, 'value': 1467625},
+             {'year': 2030, 'value': 1393000}]
 
 nodes:
 # ----- Emissions
