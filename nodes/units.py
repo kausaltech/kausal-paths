@@ -269,16 +269,17 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     pcs = [number] = pieces = number
     capita = [population] = cap = inh = inhabitant = person
     MMBtu = 1e6 Btu
-    standard_cubic_feet = 0.01 therm = scf
+    standard_cubic_feet = 1028 BTU = scf  # of natural gas, see https://www.convert-me.com/en/convert/energy/scfgas.html?u=scfgas&v=1
     diesel_gallon_equivalent = 0.1385 MMBtu = DGE
     vehicle = [vehicle] = v = car
     passenger = [passenger] = p = pass = trip
     vkm = vehicle * kilometer = vehicle_km
     pkm = passenger * kilometer
     tkm = tonne * kilometer
-    VMT = vehicle * mile
+    VMT = vehicle * mile = vehicle_miles_traveled
     @alias vkm = vkt = v_km
     @alias pkm = pkt = p_km
+    MPG = VMT / gallon = miles_per_gallon
     job = [employment] = fte = full_time_equivalent
     million_square_meters = 1e6 * meter ** 2 = Msqm
     thousand_square_meters = 1e3 * meter ** 2 = ksqm

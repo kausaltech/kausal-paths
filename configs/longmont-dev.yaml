@@ -15,7 +15,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 58e302cb1f7e18b9eb9f690cd0b8233ef830d815
+  commit: e40784926368b26f87e20ac0c5d09e123bcf2372
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -78,7 +78,7 @@ result_excels:
   - leakage_from_natural_gas_emissions
   - leakage_from_oil_and_gas_wells_emissions
   - msw_characterization
-  - non_electric_vehicle_fuel_use
+  - vehicle_fuel_use
   - participation_smart_grid
   - population
   - proportion_of_rail_lines_in_longmont
@@ -399,7 +399,7 @@ dimensions:
   - id: natural_gas
     label: Natural gas
     label_es-US: Gas natural
-    aliases: [cng]
+    aliases: [cng, Natural Gas]
   - id: biogas
     label: biogas
     label_es-US: biogás
@@ -1079,7 +1079,8 @@ nodes:
       categories: [scope1]
     - id: ghg
   params:
-    formula: wood * complement(complement(biogenic_inclusion) * complement(extend_all(index)))
+    formula: wood * complement(complement(biogenic_inclusion) * 
+      complement(extend_all(index)))
 
 - id: is_biogenic_included
   name: Are biogenic emissions included?
@@ -1095,7 +1096,7 @@ nodes:
   - id: condition
     ref: biogenic_inclusion
 
-- id: is_biogenic_included2
+- id: is_biogenic_included2 # FIXME
   name: Are biogenic emissions included?
   type: generic.GenericNode
   quantity: fraction
@@ -1105,7 +1106,7 @@ nodes:
   input_datasets:
   - id: longmont/non_biogenic_ghg_emission_index
     forecast_from: 2025
- 
+
 - id: building_square_footage_old
   name: Building square footage (old)
   name_es-US: Metros cuadrados del edificio
@@ -1208,7 +1209,8 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   params:
-    formula: extend_values(inventory_only(building_electricity_use_historical / population))
+    formula: extend_values(inventory_only(building_electricity_use_historical / 
+      population))
 
 - id: building_electricity_use_bau
   name: Building electricity use (baseline)
@@ -1255,7 +1257,8 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   params:
-    formula: extend_values(inventory_only(building_natural_gas_use_historical / population))
+    formula: extend_values(inventory_only(building_natural_gas_use_historical / 
+      population))
 
 - id: building_natural_gas_use_bau
   name: Building natural gas use (baseline)
@@ -1707,6 +1710,124 @@ nodes:
 #
 # Road transportation
 
+- id: transportation_natural_gas_factor
+  name: Transportation natural gas factors
+  type: generic.GenericNode
+  quantity: energy_factor
+  unit: scf/VMT
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transportation_energy_factors
+    column: Natural gas use
+  params:
+    operations: get_single_dataset,extend_all
+
+- id: bus_natural_gas_use
+  name: Bus natural gas use
+  type: generic.GenericNode
+  quantity: energy
+  unit: scf/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: vehicle_miles_traveled
+  - id: transportation_natural_gas_factor
+
+- id: natural_gas_bus_emissions
+  name: Natural gas bus emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: bus_natural_gas_use
+  - id: emission_factor_natural_gas
+  - id: global_warming_potential_100a
+
+- id: transportation_electricity_factor
+  name: Transportation electricity factor
+  type: generic.GenericNode
+  quantity: energy_factor
+  unit: kWh/VMT
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transportation_energy_factors
+    column: Electricity use
+
+- id: transportation_electricity_use
+  name: Transportation electricity use
+  type: generic.GenericNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: vehicle_miles_traveled
+  - id: transportation_electricity_factor
+
+- id: transportation_electricity_emissions
+  name: Transportation electricity emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: transportation_electricity_use
+  - id: electricity_emission_factor
+    from_dimensions:
+    - id: site
+      categories: [platte_river_power_authority]
+      flatten: true
+  - id: global_warming_potential_100a
+
+- id: transportation_miles_per_gallon
+  name: Transportation miles per gallon
+  type: generic.GenericNode
+  quantity: energy_factor
+  unit: MPG
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transportation_energy_factors
+    column: Miles per gallon
+
+- id: phev_fuel_shares
+  name: PHEV fuel shares
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/phev_fuel_shares
+
+- id: phev_fuel_use
+  name: PHEV fuel use
+  type: formula.FormulaNode
+  quantity: energy
+  unit: gal/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: vehicle_miles_traveled
+    tags: [VMT]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [plug_in_hybrid]
+      flatten: true
+  - id: transportation_miles_per_gallon
+    tags: [MPG]
+  - id: phev_fuel_shares
+    tags: [fuel_shares]
+  params:
+    formula: fuel_shares * VMT / MPG
+  output_nodes:
+  - id: vehicle_fuel_use
+
 - id: transportation_ch4_emission_factors
   name: Transportation CH4 and N2O emission factors
   type: formula.FormulaNode
@@ -1761,6 +1882,10 @@ nodes:
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: vehicle_fuel_emissions
+  - id: transportation_electricity_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
   output_nodes:
   - id: transportation_emissions
     to_dimensions:
@@ -2316,8 +2441,8 @@ nodes:
       categories: [scope1]
 
 - id: vehicle_miles_traveled
-  name: Combustion engine vehicle miles traveled
-  name_es-US: Millas recorridas por vehículos con motor de combustión
+  name: Vehicle miles traveled
+  name_es-US: Millas recorridas por vehículos
   description: <p><b>Unit:</b> Mmi/yr. = million miles per year (possibly cap. =
     per capita)</p>
   description_es-US: <p><b>Unidad:</b> Mmi/año = millones de millas al año 
@@ -2330,16 +2455,23 @@ nodes:
   input_datasets:
   - id: longmont/vehicle_miles_traveled
 
-- id: non_electric_vehicle_fuel_use
-  name: Non-electric vehicle fuel use
-  name_es-US: Consumo de combustible en vehículos no eléctricos
-  type: generic.GenericNode
+- id: vehicle_fuel_use
+  name: Vehicle fuel use
+  name_es-US: Consumo de combustible en vehículos
+  type: formula.FormulaNode
   quantity: energy
   unit: gallons/a
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
-  input_datasets:
-  - id: longmont/non_electric_vehicle_fuel_use
+  # input_datasets:
+  # - id: longmont/vehicle_fuel_use
+  input_nodes:
+  - id: vehicle_miles_traveled
+    tags: [VMT]
+  - id: transportation_miles_per_gallon
+    tags: [MPG]
+  params:
+    formula: VMT / MPG
 
 - id: greenhouse_gas_index
   name: Greenhouse gas index
@@ -2361,7 +2493,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
-  - id: non_electric_vehicle_fuel_use
+  - id: vehicle_fuel_use
     tags: [fuels]
     from_dimensions:
     - id: vehicle_type
@@ -2380,8 +2512,13 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
+  - id: natural_gas_bus_emissions
+    tags: [ng_buses]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
   params:
-    formula: fuels * ef * gwp + non_co2
+    formula: fuels * ef * gwp + non_co2 + ng_buses
 
 - id: participation_smart_grid
   name: Participation in smart grid projects
@@ -2739,9 +2876,9 @@ actions:
 - id: smart_grid_projects
   name: Accelerate and implement smart grid projects
   name_es-US: Acelerar y ejecutar proyectos de redes inteligentes
-  description: '<p>This action shows participation rate. Implement a variety of smart grid projects that encourage reductions
-    in electricity consumption through real-time feedback, dynamic pricing, etc.</p>
-    <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-7">Sustainability
+  description: '<p>This action shows participation rate. Implement a variety of smart
+    grid projects that encourage reductions in electricity consumption through real-time
+    feedback, dynamic pricing, etc.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-7">Sustainability
     Plan Strategy E-7</a></li></ul>'
   description_es-US: '<p>Ejecutar una variedad de proyectos de redes inteligentes
     que fomenten reducciones en el consumo de electricidad a través de información
@@ -2925,6 +3062,8 @@ actions:
   output_nodes:
   - id: vehicle_miles_traveled
     tags: [complement]
+  params:
+    operations: get_single_dataset,extend_all
 
 - id: last_mile_connections
   name: Improve last mile connections
