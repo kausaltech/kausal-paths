@@ -1162,6 +1162,30 @@ nodes:
   params:
     operations: get_single_dataset,add_to_existing_dims
 
+- id: electricity_use_on_streetlights_and_internal_operations
+  name: Electricity use on streetlights and internal operations
+  name_es-US: Consumo de electricidad en alumbrado público e operaciones internas
+  type: generic.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [emission_sectors, site]
+  output_dimensions: [emission_sectors, site]
+  input_datasets:
+  - id: longmont/stationary_energy_consumption
+    column: electricity
+    filters:
+    - column: energy_carrier
+      value: electricity
+    # - column: site
+    - column: emission_sectors
+      values: [streetlights, internal_operations]
+      drop_col: false
+  output_nodes:
+  - id: electricity_use
+    from_dimensions:
+    - id: site
+      flatten: true
+
 # TODO MAYBE REMOVE ALL THESE NODES --v
 
 - id: building_electricity_use_historical
@@ -2680,6 +2704,10 @@ nodes:
   unit: kt_co2e/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
+  input_datasets:
+  - id: longmont/non_biogenic_ghg_emission_index
+    forecast_from: 2025
+    tags: [index]
   input_nodes:
   - id: vehicle_fuel_use
     tags: [fuels]
@@ -2706,8 +2734,11 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
+  - id: is_biogenic_included
+    tags: [biogenic_inclusion]
   params:
-    formula: fuels * ef_co2e + non_co2 + ng_buses + rng_trucks
+    formula: fuels * ef_co2e + non_co2 + ng_buses + rng_trucks *
+      complement(complement(biogenic_inclusion) * complement(extend_all(index)))
 
 - id: participation_smart_grid
   name: Participation in smart grid projects
