@@ -934,11 +934,13 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
-  - id: electricity_emission_factor
+  - id: electricity_emission_factor_co2e
     from_dimensions:
     - id: site
       categories: [platte_river_power_authority]
-  - id: global_warming_potential_100a
+    to_dimensions:
+    - id: ghg
+    - id: site
 
 - id: avoided_emissions
   name: Avoided emissions
@@ -1387,6 +1389,22 @@ nodes:
   - id: longmont/electricity_emission_factor
   input_dataset_processors: [LinearInterpolation]
 
+- id: electricity_emission_factor_co2e
+  name: Emission factor of electricity production (CO2e)
+  name_es-US: Factor de emisión de la producción de electricidad (CO2e)
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: t_co2e/MWh
+  input_dimensions: [site, ghg]
+  output_dimensions: [site, ghg]
+  input_nodes:
+  - id: electricity_emission_factor
+    tags: [ef_physical]
+  - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: ef_physical * gwp
+
 - id: electricity_consumption_emissions
   name: Electricity consumption emissions
   name_es-US: Emisiones del consumo de electricidad
@@ -1401,12 +1419,9 @@ nodes:
     - id: emission_sectors
     - id: site
       categories: [platte_river_power_authority]
-  - id: electricity_emission_factor
+  - id: electricity_emission_factor_co2e
     to_dimensions:
-    - id: ghg
     - id: site
-  - id: global_warming_potential_100a
-    to_dimensions:
     - id: ghg
   output_nodes:
   - id: building_emissions
@@ -1484,6 +1499,22 @@ nodes:
   params:
     formula: sum_dim(ef * index, greenhouse_gases)
 
+- id: emission_factor_natural_gas_co2e
+  name: Emission factor of natural gas (CO2e)
+  name_es-US: Factor de emisión del gas natural (CO2e)
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: t_co2e/Mthm
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: emission_factor_natural_gas
+    tags: [ef_physical]
+  - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: ef_physical * gwp
+
 - id: leakage_from_natural_gas_emissions
   name: Emissions from natural gas leakage
   name_es-US: Emisiones por fugas de gas natural
@@ -1553,12 +1584,9 @@ nodes:
     - id: emission_sectors
     - id: energy_carrier
       categories: [natural_gas]
-  - id: emission_factor_natural_gas
+  - id: emission_factor_natural_gas_co2e
     to_dimensions:
-    - id: ghg
     - id: energy_carrier
-  - id: global_warming_potential_100a
-    to_dimensions:
     - id: ghg
   output_nodes:
   - id: building_emissions
@@ -1607,6 +1635,22 @@ nodes:
   params:
     formula: sum_dim(ef * index, greenhouse_gases)
 
+- id: emission_factor_wood_co2e
+  name: Emission factor of wood (CO2e)
+  name_es-US: Factor de emisión de la madera (CO2e)
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: kg_co2e/MMBtu
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: emission_factor_wood
+    tags: [ef_physical]
+  - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: ef_physical * gwp
+
 - id: wood_consumption_emissions
   name: Wood consumption emissions
   name_es-US: Emisiones del consumo de madera
@@ -1619,12 +1663,9 @@ nodes:
     to_dimensions:
     - id: emission_sectors
     - id: energy_carrier
-  - id: emission_factor_wood
+  - id: emission_factor_wood_co2e
     to_dimensions:
-    - id: ghg
     - id: energy_carrier
-  - id: global_warming_potential_100a
-    to_dimensions:
     - id: ghg
 
 # Losses
@@ -1679,12 +1720,9 @@ nodes:
     - id: emission_sectors
     - id: site
       categories: [platte_river_power_authority]
-  - id: electricity_emission_factor
+  - id: electricity_emission_factor_co2e
     to_dimensions:
-    - id: ghg
     - id: site
-  - id: global_warming_potential_100a
-    to_dimensions:
     - id: ghg
   output_nodes:
   - id: electricity_consumption_emissions
@@ -1713,8 +1751,10 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
   - id: rng_truck_energy_use
-  - id: rng_emission_factor
-  - id: global_warming_potential_100a
+  - id: rng_emission_factor_co2e
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
 
 - id: rng_emission_factor
   name: RNG emission factor
@@ -1746,6 +1786,21 @@ nodes:
       drop_col: false
   params:
     formula: sum_dim(ef * index, greenhouse_gases) + co2b
+
+- id: rng_emission_factor_co2e
+  name: RNG emission factor (CO2e)
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/scf
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: rng_emission_factor
+    tags: [ef_physical]
+  - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: ef_physical * gwp
 
 - id: transportation_natural_gas_factor
   name: Transportation natural gas factors
@@ -1780,8 +1835,10 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
   - id: bus_natural_gas_use
-  - id: emission_factor_natural_gas
-  - id: global_warming_potential_100a
+  - id: emission_factor_natural_gas_co2e
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
 
 - id: transportation_electricity_factor
   name: Transportation electricity factor
@@ -1814,12 +1871,13 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
   - id: transportation_electricity_use
-  - id: electricity_emission_factor
+  - id: electricity_emission_factor_co2e
     from_dimensions:
     - id: site
       categories: [platte_river_power_authority]
       flatten: true
-  - id: global_warming_potential_100a
+    to_dimensions:
+    - id: ghg
 
 - id: transportation_miles_per_gallon
   name: Transportation miles per gallon
@@ -1879,6 +1937,21 @@ nodes:
   params:
     formula: extend_both_ways(ef)
 
+- id: transportation_ch4_emission_factors_co2e
+  name: Transportation CH4 and N2O emission factors (CO2e)
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/VMT
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: transportation_ch4_emission_factors
+    tags: [ef_physical]
+  - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: ef_physical * gwp
+
 - id: transportation_emission_factors
   name: Transportation emission factors
   type: formula.FormulaNode
@@ -1893,6 +1966,21 @@ nodes:
   params:
     formula: extend_both_ways(ef)
 
+- id: transportation_emission_factors_co2e
+  name: Transportation emission factors (CO2e)
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: t_co2e/gal
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: transportation_emission_factors
+    tags: [ef_physical]
+  - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: ef_physical * gwp
+
 - id: transportation_ch4_emissions
   name: Transportation CH4 and N2O emissions
   type: generic.GenericNode
@@ -1905,9 +1993,10 @@ nodes:
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
-  - id: transportation_ch4_emission_factors
-  - id: global_warming_potential_100a
+  - id: transportation_ch4_emission_factors_co2e
     to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
     - id: ghg
 
 - id: road_transportation_emissions
@@ -2014,12 +2103,9 @@ nodes:
     - id: service
     - id: vehicle_type
     - id: energy_carrier
-  - id: transportation_emission_factors
+  - id: transportation_emission_factors_co2e
     to_dimensions:
     - id: energy_carrier
-    - id: ghg
-  - id: global_warming_potential_100a
-    to_dimensions:
     - id: ghg
   output_nodes:
   - id: road_transportation_emissions
@@ -2058,16 +2144,21 @@ nodes:
 
 - id: railway_emissions
   name: Railway emissions
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg]
   output_dimensions: [ghg]
   input_nodes:
   - id: total_railway_ghg_emissions_boulder_county
+    tags: [emissions_physical]
   - id: proportion_of_rail_lines_in_longmont
+    tags: [proportion]
     to_dimensions: []
   - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: emissions_physical * gwp * proportion
   output_nodes:
   - id: transportation_emissions
     to_dimensions:
@@ -2099,6 +2190,21 @@ nodes:
   - id: longmont/aviation_data
     column: fuel_emission_factors
 
+- id: aviation_fuel_emission_factors_co2e
+  name: Aviation fuel emission factors (CO2e)
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/gal
+  input_dimensions: [energy_carrier, ghg, source]
+  output_dimensions: [energy_carrier, ghg, source]
+  input_nodes:
+  - id: aviation_fuel_emission_factors
+    tags: [ef_physical]
+  - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: ef_physical * gwp
+
 - id: aviation_emissions
   name: Aviation emissions
   type: generic.GenericNode
@@ -2112,15 +2218,12 @@ nodes:
     - id: energy_carrier
     - id: airport
     - id: scope
-  - id: aviation_fuel_emission_factors
+  - id: aviation_fuel_emission_factors_co2e
     from_dimensions:
     - id: source
       flatten: true
     to_dimensions:
     - id: energy_carrier
-    - id: ghg
-  - id: global_warming_potential_100a
-    to_dimensions:
     - id: ghg
   output_nodes:
   - id: transportation_emissions
@@ -2145,6 +2248,21 @@ nodes:
   input_datasets:
   - id: longmont/waste_emission_factors
     column: waste_emission_factor
+
+- id: waste_emission_factors_co2e
+  name: Waste emission factors (CO2e)
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: t_co2e/short_ton
+  input_dimensions: [waste, ghg]
+  output_dimensions: [waste, ghg]
+  input_nodes:
+  - id: waste_emission_factors
+    tags: [ef_physical]
+  - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: ef_physical * gwp
 
 - id: gas_collection_rate
   name: Gas collection rate
@@ -2195,16 +2313,13 @@ nodes:
   - id: msw_characterization
     to_dimensions:
     - id: waste
-  - id: waste_emission_factors
+  - id: waste_emission_factors_co2e
     to_dimensions:
     - id: waste
     - id: ghg
   - id: gas_collection_rate
     tags: [complement]
     to_dimensions: []
-  - id: global_warming_potential_100a
-    to_dimensions:
-    - id: ghg
   output_nodes:
   - id: waste_emissions
     from_dimensions:
@@ -2221,6 +2336,21 @@ nodes:
   input_datasets:
   - id: longmont/waste_emission_factors
     column: composting_emission_factor
+
+- id: composted_waste_emission_factor_co2e
+  name: Composted waste emission factor (CO2e)
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: t_co2e/short_ton
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_nodes:
+  - id: composted_waste_emission_factor
+    tags: [ef_physical]
+  - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: ef_physical * gwp
 
 - id: waste_composted
   name: Waste composted
@@ -2241,16 +2371,13 @@ nodes:
   input_dimensions: [scope, ghg]
   output_dimensions: [scope, ghg]
   input_nodes:
-  - id: composted_waste_emission_factor
+  - id: composted_waste_emission_factor_co2e
     to_dimensions:
     - id: ghg
   - id: waste_composted
     tags: [non_additive]
     to_dimensions:
     - id: scope
-  - id: global_warming_potential_100a
-    to_dimensions:
-    - id: ghg
   output_nodes:
   - id: waste_emissions
 
@@ -2265,6 +2392,21 @@ nodes:
   - id: longmont/waste_emission_factors
     column: informational_composting_emission_factor
 
+- id: informational_composting_emission_factor_co2e
+  name: Informational composting emission factor (CO2e)
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: t_co2e/short_ton
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
+  input_nodes:
+  - id: informational_composting_emission_factor
+    tags: [ef_physical]
+  - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: ef_physical * gwp
+
 - id: informational_composting_emission_reduction
   name: Informational composting emission reduction
   type: generic.GenericNode
@@ -2273,10 +2415,10 @@ nodes:
   input_dimensions: [scope, ghg]
   output_dimensions: [scope, ghg]
   input_nodes:
-  - id: informational_composting_emission_factor
+  - id: informational_composting_emission_factor_co2e
     to_dimensions:
-    - id: ghg
     - id: scope
+    - id: ghg
   - id: waste_composted
     tags: [non_additive]
     from_dimensions:
@@ -2285,9 +2427,6 @@ nodes:
     to_dimensions:
     - id: scope
       categories: [informational]
-  - id: global_warming_potential_100a
-    to_dimensions:
-    - id: ghg
 
 - id: waste_recycled
   name: Waste recycled
@@ -2344,6 +2483,21 @@ nodes:
   - id: recycling_instead_of_virgin
   - id: landfill_gas_collection
 
+- id: recycling_emission_factor_co2e
+  name: Recycling emission factor (CO2e)
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: t_co2e/short_ton
+  input_dimensions: [waste, ghg]
+  output_dimensions: [waste, ghg]
+  input_nodes:
+  - id: recycling_emission_factor
+    tags: [ef_physical]
+  - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: ef_physical * gwp
+
 - id: recycling_emission_reduction
   name: Recycling emission reduction
   type: generic.GenericNode
@@ -2352,10 +2506,10 @@ nodes:
   input_dimensions: [scope, ghg, waste]
   output_dimensions: [scope, ghg, waste]
   input_nodes:
-  - id: recycling_emission_factor
+  - id: recycling_emission_factor_co2e
     to_dimensions:
-    - id: ghg
     - id: waste
+    - id: ghg
   - id: waste_recycled
     tags: [non_additive]
     to_dimensions:
@@ -2363,9 +2517,6 @@ nodes:
   - id: recycling_characterization
     to_dimensions:
     - id: waste
-  - id: global_warming_potential_100a
-    to_dimensions:
-    - id: ghg
 
 - id: global_warming_potential_100a
   name: Global warming potential2
@@ -2535,14 +2686,10 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
-  - id: transportation_emission_factors
-    tags: [ef]
+  - id: transportation_emission_factors_co2e
+    tags: [ef_co2e]
     to_dimensions:
     - id: energy_carrier
-    - id: ghg
-  - id: global_warming_potential_100a
-    tags: [gwp]
-    to_dimensions:
     - id: ghg
   - id: transportation_ch4_emissions
     tags: [non_co2]
@@ -2560,7 +2707,7 @@ nodes:
     - id: vehicle_type
       flatten: true
   params:
-    formula: fuels * ef * gwp + non_co2 + ng_buses + rng_trucks
+    formula: fuels * ef_co2e + non_co2 + ng_buses + rng_trucks
 
 - id: participation_smart_grid
   name: Participation in smart grid projects
