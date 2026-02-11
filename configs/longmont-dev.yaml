@@ -15,7 +15,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7011701025d558ff39613bdc07a5f33887d02221
+  commit: ad50da5a21200b37695fc462081d7872840f6991
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -1164,7 +1164,8 @@ nodes:
 
 - id: electricity_use_on_streetlights_and_internal_operations
   name: Electricity use on streetlights and internal operations
-  name_es-US: Consumo de electricidad en alumbrado público e operaciones internas
+  name_es-US: Consumo de electricidad en alumbrado público e operaciones 
+    internas
   type: generic.GenericNode
   quantity: energy
   unit: GWh/a
@@ -1929,21 +1930,20 @@ nodes:
   type: formula.FormulaNode
   quantity: energy
   unit: gal/a
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
   input_nodes:
   - id: vehicle_miles_traveled
     tags: [VMT]
     from_dimensions:
     - id: energy_carrier
       categories: [plug_in_hybrid]
-      flatten: true
   - id: transportation_miles_per_gallon
     tags: [MPG]
   - id: phev_fuel_shares
     tags: [fuel_shares]
   params:
-    formula: fuel_shares * VMT / MPG
+    formula: sum_dim(VMT / MPG, energy_carrier) * fuel_shares
   output_nodes:
   - id: vehicle_fuel_use
 
@@ -2680,6 +2680,10 @@ nodes:
   input_nodes:
   - id: vehicle_miles_traveled
     tags: [VMT]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [plug_in_hybrid]
+      exclude: true
   - id: transportation_miles_per_gallon
     tags: [MPG]
   params:
@@ -2737,7 +2741,7 @@ nodes:
   - id: is_biogenic_included
     tags: [biogenic_inclusion]
   params:
-    formula: fuels * ef_co2e + non_co2 + ng_buses + rng_trucks *
+    formula: (fuels * ef_co2e + non_co2 + ng_buses + rng_trucks) * 
       complement(complement(biogenic_inclusion) * complement(extend_all(index)))
 
 - id: participation_smart_grid
