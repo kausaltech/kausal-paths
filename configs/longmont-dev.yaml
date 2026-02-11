@@ -15,7 +15,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e40784926368b26f87e20ac0c5d09e123bcf2372
+  commit: 7011701025d558ff39613bdc07a5f33887d02221
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -1087,25 +1087,9 @@ nodes:
   type: generic.ConstantNode
   quantity: fraction
   unit: dimensionless
-  # input_dimensions: [ghg]
-  # output_dimensions: [ghg]
-  # input_datasets:
-  # - id: longmont/non_biogenic_ghg_emission_index
-  #   forecast_from: 2025
   params:
   - id: condition
     ref: biogenic_inclusion
-
-- id: is_biogenic_included2 # FIXME
-  name: Are biogenic emissions included?
-  type: generic.GenericNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [ghg]
-  output_dimensions: [ghg]
-  input_datasets:
-  - id: longmont/non_biogenic_ghg_emission_index
-    forecast_from: 2025
 
 - id: building_square_footage_old
   name: Building square footage (old)
@@ -1709,6 +1693,59 @@ nodes:
 # NEW TRANSPORTATION
 #
 # Road transportation
+
+- id: rng_truck_energy_use
+  name: RNG truck energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: scf/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/rng_truck_energy_use
+
+- id: rng_truck_emissions
+  name: RNG truck emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: rng_truck_energy_use
+  - id: rng_emission_factor
+  - id: global_warming_potential_100a
+
+- id: rng_emission_factor
+  name: RNG emission factor
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g/scf
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: emission_factor_natural_gas
+    tags: [co2b]
+    from_dimensions:
+    - id: ghg
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2_biogen]
+    - id: energy_carrier
+  - id: greenhouse_gas_index
+    tags: [index]
+  input_datasets:
+  - id: longmont/emission_factor_natural_gas
+    tags: [ef, cleaned, extend_both_ways]
+    forecast_from: 2025
+    filters:
+    - column: greenhouse_gases
+      values: [ch4, n2o]
+      drop_col: false
+  params:
+    formula: sum_dim(ef * index, greenhouse_gases) + co2b
 
 - id: transportation_natural_gas_factor
   name: Transportation natural gas factors
@@ -2517,8 +2554,13 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       flatten: true
+  - id: rng_truck_emissions
+    tags: [rng_trucks]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
   params:
-    formula: fuels * ef * gwp + non_co2 + ng_buses
+    formula: fuels * ef * gwp + non_co2 + ng_buses + rng_trucks
 
 - id: participation_smart_grid
   name: Participation in smart grid projects
@@ -3093,6 +3135,67 @@ actions:
   output_nodes:
   - id: total_transit_vmt
     tags: [complement]
+
+# Trend actions. TODO Do we need these?
+
+- id: mpg_trend
+  name: Miles per gallon increasing trend
+  name_es-US: Tendencia al aumento de las millas recorridas por galón
+  description: The model assumes that internal combustion vehicles that use 
+    gasoline and diesel will become more efficient, increase miles traveled per 
+    gallon, over time.
+  description_es-US: El modelo supone que, con el tiempo, los vehículos de 
+    combustión interna que usan gasolina y diésel serán más eficientes y 
+    aumentarán las millas recorridas por galón.
+  type: simple.AdditiveAction
+  quantity: fuel_consumption
+  unit: miles/gallon
+  group: trend
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    forecast_from: 2022
+    column: mpg_trend
+  # output_nodes:
+  # - miles_per_gallon
+
+- id: vmt_per_vehicle_trend
+  name: Vehicle miles per vehicle trend
+  name_es-US: Tendencia de millas recorridas por vehículo
+  description: <p>The model assumes that overtime there will be a decrease in 
+    the annual miles traveled per vehicle.</p> <p><b>Unit:</b> mi/(yr. v) = 
+    miles per year per vehicle</p>
+  description_es-US: <p>El modelo supone que con el tiempo se producirá una 
+    disminución de las millas anuales recorridas por vehículo.</p> 
+    <p><b>Unidad:</b> mi/(a.v) = millas anuales por vehículo</p>
+  type: simple.AdditiveAction
+  quantity: mileage
+  unit: miles/vehicle/a
+  group: trend
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    forecast_from: 2022
+    column: vmt_per_vehicle_trend
+  # output_nodes:
+  # - vehicle_miles_per_vehicle
+
+- id: electric_vehicle_efficiency_trend
+  name: Electric vehicle efficiency trend
+  name_es-US: Tendencia de la eficiencia de los vehículos eléctricos
+  description: The model assumes that electric vehicles will become more 
+    efficient, increase in miles traveled per kilowatt hour of energy, overtime.
+  description_es-US: El modelo supone que, con el tiempo, los vehículos 
+    eléctricos serán más eficientes y aumentarán los kilómetros recorridos por 
+    kilovatio hora de energía.
+  type: simple.AdditiveAction
+  quantity: fuel_consumption
+  unit: kWh/mile
+  group: trend
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    forecast_from: 2022
+    column: electric_vehicle_efficiency_trend
+  # output_nodes:
+  # - electric_vehicle_efficiency
 
 pages:
 - id: home
