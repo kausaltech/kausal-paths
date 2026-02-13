@@ -33,7 +33,7 @@ normalizations:
 - normalizer_node: population
   quantities:
   - id: emissions
-    unit: t/cap/a
+    unit: t_co2e/cap/a
   - id: energy
     unit: kWh/cap/a
   - id: mileage
