@@ -27,7 +27,7 @@ model_end_year: 2050
 reference_year: 2016
 minimum_historical_year: 2016
 maximum_historical_year: 2024
-emission_unit: t/a
+emission_unit: t_co2e/a
 emission_dimensions: [emission_scope]
 normalizations:
 - normalizer_node: population
@@ -896,7 +896,7 @@ nodes:
   name_es-US: Emisiones procedentes de fugas de pozos de petróleo y gas
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: t_co2e/a
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
   input_datasets:
