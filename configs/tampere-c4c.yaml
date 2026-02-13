@@ -2181,6 +2181,8 @@ nodes:
   input_nodes:
   - id: kelicobe_cost_benefit
     tags: [cumulative]
+  goals:
+  - values: [{'year': 2030, 'value': 309316234}]
 
 # ----- LED STREETLIGHT DETAILED ACTION MODULE --------------------------------
 
