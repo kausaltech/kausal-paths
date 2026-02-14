@@ -146,7 +146,12 @@ class NodeGoalsEntry(I18nBaseModel):
             ])
 
         if context.active_normalization:
+            df_before_norm = df
             _, df = context.active_normalization.normalize_output(m, df)
+            # normalize_output (divide_with_dims) only keeps dims and the value column; restore IsInterpolated
+            if 'IsInterpolated' not in df.columns and 'IsInterpolated' in df_before_norm.columns:
+                extra = df_before_norm.select(df.primary_keys + ['IsInterpolated'])
+                df = df.paths.join_over_index(extra, how='left')
         return df
 
     def get_values(self):

@@ -1,3 +1,15 @@
+"""
+Normalization of metrics (e.g. per-capita).
+
+Normalization is applied in:
+- nodes/metric_gen.py:381  - main chart / dimensional metric for a node
+- nodes/schema.py:762       - GraphQL impact metric resolution
+- nodes/metric.py:91, 106   - metric value resolution
+- nodes/actions/action.py:234 - action effect computation
+- pages/blocks.py:408       - block/impact display
+- nodes/goals.py:149, 174   - goal values
+- load_nodes.py:510         - CLI/script path
+"""
 from __future__ import annotations
 
 import typing
@@ -92,15 +104,7 @@ class Normalization:
             return nop()
 
         ndf = self.normalizer_node.get_output_pl()
-        ndf = (
-            ndf.filter(pl.col(YEAR_COLUMN).is_in(df[YEAR_COLUMN]))
-            .select([YEAR_COLUMN, pl.col(VALUE_COLUMN).alias('_N')])
-        )
-        df = df.paths.join_over_index(ndf, how='left')
-        df = (
-            df.divide_cols([metric.column_id, '_N'], metric.column_id)
-            .drop('_N')
-            .ensure_unit(metric.column_id, q.unit)
-        )
-
+        # Inner join keeps only years where the normalizer has data; divide_with_dims is the standard approach
+        df = df.paths.divide_with_dims(ndf, how='inner')
+        df = df.ensure_unit(metric.column_id, q.unit)
         return (self.normalizer_node, df)
