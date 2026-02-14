@@ -24,6 +24,7 @@ features:
   use_datasets_from_db: true
 normalizations:
 - normalizer_node: population
+  default: false
   quantities:
   - id: emissions
     unit: t/cap/a

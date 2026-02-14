@@ -27,13 +27,14 @@ model_end_year: 2050
 reference_year: 2016
 minimum_historical_year: 2016
 maximum_historical_year: 2024
-emission_unit: t/a
+emission_unit: t_co2e/a
 emission_dimensions: [emission_scope]
 normalizations:
 - normalizer_node: population
+  default: false
   quantities:
   - id: emissions
-    unit: t/cap/a
+    unit: t_co2e/cap/a
   - id: energy
     unit: kWh/cap/a
   - id: mileage
