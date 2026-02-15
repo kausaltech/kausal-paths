@@ -328,6 +328,14 @@ class FormulaNode(Node):
                 return Quantity(1.0, 'dimensionless')
             return Quantity(0.0, 'dimensionless')
 
+        if func == 'coalesce_df':
+            assert len(node.args) == 2
+            df1 = self.eval_tree(node.args[0], varss)
+            df2 = self.eval_tree(node.args[1], varss)
+            assert isinstance(df1, PDF)
+            assert isinstance(df2, PDF)
+            return df1.paths.coalesce_df(df2, how='outer')
+
         raise NotImplementedError(f"Unknown function: {func}")
 
     def eval_tree(self, tree: ast.AST, varss: EvalVars) -> EvalOutput:

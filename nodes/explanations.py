@@ -240,7 +240,7 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         """)),
     'ConstantNode': NodeInfo(_(
         """
-        Constant node returns a constant value spread over the timeline..
+        Constant node returns a constant value spread over the timeline.
         """)),
     'CumulativeAdditiveAction': NodeInfo(_(
         """Additive action where the effect is cumulative and remains in the future.""")),
