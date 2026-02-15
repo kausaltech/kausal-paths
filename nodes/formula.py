@@ -336,7 +336,36 @@ class FormulaNode(Node):
             assert isinstance(df2, PDF)
             return df1.paths.coalesce_df(df2, how='outer')
 
+        if func in ('max', 'min'):
+            assert len(node.args) == 2, f"{func}(a, b) requires two arguments"
+            left = self.eval_tree(node.args[0], varss)
+            right = self.eval_tree(node.args[1], varss)
+            assert func in ('max', 'min')
+            return self._apply_max_min(left, right, func)
+
         raise NotImplementedError(f"Unknown function: {func}")
+
+    def _apply_max_min(
+        self, left: EvalOutput, right: EvalOutput, op: Literal['max', 'min']
+    ) -> EvalOutput:
+        """Element-wise max or min. For 0/1 values, max(a,b) is logical OR, min(a,b) is logical AND."""
+        if isinstance(left, Quantity) and isinstance(right, Quantity):
+            unit = left.u
+            r_m = right.to(unit).m
+            l_m = left.m
+            val = max(l_m, r_m) if op == 'max' else min(l_m, r_m)
+            return Quantity(val, unit)
+        if isinstance(left, PDF) and isinstance(right, Quantity):
+            unit = left.get_unit(VALUE_COLUMN)
+            scalar = float(right.to(unit).m)
+            return left.paths.max_with_scalar(scalar) if op == 'max' else left.paths.min_with_scalar(scalar)
+        if isinstance(left, Quantity) and isinstance(right, PDF):
+            unit = right.get_unit(VALUE_COLUMN)
+            scalar = float(left.to(unit).m)
+            return right.paths.max_with_scalar(scalar) if op == 'max' else right.paths.min_with_scalar(scalar)
+        if isinstance(left, PDF) and isinstance(right, PDF):
+            return left.paths.max_with(right) if op == 'max' else left.paths.min_with(right)
+        raise NotImplementedError(f"{op} requires two parameters that are quantities or dataframes.")
 
     def eval_tree(self, tree: ast.AST, varss: EvalVars) -> EvalOutput:
         EVALUATORS: dict[type, Callable[[Any, EvalVars], EvalOutput]] = {
@@ -643,6 +672,13 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 for arg in node.args[1:]:
                     unit = _merge_compatible('coalesce', unit, _eval(arg))
                 return unit
+            if func_name in ('max', 'min'):
+                if len(node.args) != 2:
+                    analysis.warnings.append(f"{func_name}(a, b) requires two arguments.")
+                else:
+                    second = _eval(node.args[1])
+                    return _merge_compatible(func_name, first, second)
+                return first
             if func_name == 'geometric_inverse':
                 if first is None:
                     analysis.warnings.append("Unknown unit for 'geometric_inverse'.")
@@ -760,6 +796,12 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 for arg in node.args[1:]:
                     dims = _require_same('coalesce', dims, _eval(arg))
                 return dims
+            if func_name in ('max', 'min'):
+                if len(node.args) != 2:
+                    analysis.warnings.append(f"{func_name}(a, b) requires two arguments.")
+                else:
+                    return _require_same(func_name, first, _eval(node.args[1]))
+                return first
             if func_name in {'convert_gwp', 'zero_fill'} or func_name in passthrough:
                 return first
             analysis.warnings.append(f"Unknown function '{func_name}' in formula.")

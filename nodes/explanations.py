@@ -95,6 +95,8 @@ TAG_DESCRIPTIONS = {
     'ignore_content': _('Show edge on graphs but ignore upstream content.'),
     'inserting': _('This is the rate of new stock coming in.'),
     'inventory_only': _('Truncate the forecast values.'),
+    'max': _('Element-wise maximum of two values; max(a, b). For 0/1 inputs this is logical OR.'),
+    'min': _('Element-wise minimum of two values; min(a, b). For 0/1 inputs this is logical AND.'),
     'make_nonnegative': _('Negative result values are replaced with 0.'),
     'make_nonpositive': _('Positive result values are replaced with 0.'),
     'non_additive': _('Input node values are not added but operated despite matching units.'),
