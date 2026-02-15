@@ -77,6 +77,8 @@ result_excels:
   - weather_correction
   - final_energy_use
   - final_energy_use_data_quality
+  # - final_municipal_facilities_energy_use_by_type
+  # - municipal_fleet_energy
   - historical_emissions
   - end_energy_emission_factors
   - electricity_production_emission_factors
@@ -382,22 +384,47 @@ dimensions:
     label_en: Yes
     label_de: Ja
 
+- id: municipal_facility_type
+  label_en: Municipal facility type
+  label_de: Art der kommunalen Einrichtung
+  help_text: Sub-categories of municipal facilities as in KSP Datenerfassung
+    (Daten kommunale Einrichtungen).
+  categories:
+  - id: street_lighting
+    label_en: Street lighting
+    label_de: Straßenbeleuchtung
+  - id: administrative_buildings
+    label_en: Municipal administrative buildings
+    label_de: Kommunale Verwaltungsgebäude
+    aliases: [kommunale_verwaltungsgebaude]
+  - id: schools_kitas
+    label_en: Schools and day-care centres
+    label_de: Schulen und Kindertagesstätten
+    aliases: [schulen_kitas]
+  - id: other_infrastructure
+    label_en: Other municipal buildings and infrastructure
+    label_de: Sonstige kommunale Gebäude und Infrastruktur
+
 - id: vehicle_type
   label_en: Vehicle type
   label_de: Fahrzeugtyp
   categories:
+  - id: walking
+    label_en: Walking
+    label_de: Fußverkehr
+    aliases: [Fuss, VL_Fuss]
   - id: passenger_cars
     label_en: Passenger cars
     label_de: Personenkraftwagen (PKW)
-    aliases: [Pkw]
+    aliases: [Pkw, VL_Pkw]
   - id: trucks
     label_en: Trucks
     label_de: Lastkraftwagen (LKW)
-    aliases: [Lkw]
+    aliases: [Lkw, VL_Lkw]
   - id: vans
     label_en: Light commercial vehicles
     label_de: Leichte Nutzfahrzeuge
-    aliases: [LNF]
+    aliases: [LNF, VL_LNF]
   - id: heavy_commercial
     label_en: Heavy commercial vehicles
     label_de: Schwere Nutzfahrzeuge
@@ -412,7 +439,7 @@ dimensions:
   - id: local_buses
     label_en: Local buses
     label_de: Lokale Busse
-    aliases: [Lbus]
+    aliases: [Lbus, VL_Lbus]
   - id: long_distance_buses
     label_en: Long-distance buses
     label_de: Regionale busse
@@ -420,10 +447,11 @@ dimensions:
   - id: motorcycles
     label_en: Motorcycles
     label_de: Motorisierte Zweiräder
-    aliases: [MZR]
+    aliases: [MZR, VL_MZR]
   - id: bicycles
     label_en: Bicycles
     label_de: Fahrräder
+    aliases: [VL_Rad]
   - id: trains
     label_en: Trains
     label_de: Züge
@@ -438,7 +466,7 @@ dimensions:
   - id: local_trains
     label_en: Local trains
     label_de: Schienenpersonennahverkehr
-    aliases: [SPNV]
+    aliases: [SPNV, VL_SPNV]
   - id: long_distance_trains
     label_en: Long-distance trains
     label_de: Schienenpersonenfernverkehr
@@ -654,6 +682,40 @@ nodes:
     tags: [energy]
   params:
     formula: energy * weather_correction
+
+# - id: final_municipal_facilities_energy_use_by_type
+#   name_de: Endenergie Kommunale Einrichtungen nach Einrichtungsart
+#   name_en: Final municipal facilities energy use by facility type
+#   description_de: Energieverbrauch aufgeteilt nach Straßenbeleuchtung,
+#     Verwaltungsgebäuden, Schulen/Kitas, sonstigen kommunalen Gebäuden (KSP
+#     Daten kommunale Einrichtungen).
+#   description_en: Energy use broken down by street lighting, administrative
+#     buildings, schools/day-care, other municipal infrastructure (KSP Daten
+#     kommunale Einrichtungen).
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [municipal_facility_type, energy_carrier]
+#   output_dimensions: [municipal_facility_type, energy_carrier]
+#   # Add input_datasets with mainz/municipal_facilities_by_type when
+#   # disaggregated data from KSP Daten kommunale Einrichtungen is available
+
+# - id: municipal_fleet_energy
+#   name_de: Endenergie kommunaler Fuhrpark
+#   name_en: Municipal fleet energy use
+#   description_de: Energieverbrauch der kommunalen Flotte (Pkw, LNF, Lkw)
+#     aufgeteilt nach Fahrzeugtyp und Energieträger (KSP Daten kommunaler
+#     Fuhrpark).
+#   description_en: Energy use of municipal fleet (passenger cars, light
+#     commercial, trucks) by vehicle type and energy carrier (KSP Daten
+#     kommunaler Fuhrpark).
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [vehicle_type, energy_carrier]
+#   output_dimensions: [vehicle_type, energy_carrier]
+#   # Add input_datasets with mainz/municipal_fleet_energy when KSP Daten
+#   # kommunaler Fuhrpark data is available
 
 - id: final_industry_energy_use
   name_de: Endenergie Industrie

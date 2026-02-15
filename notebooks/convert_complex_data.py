@@ -16,13 +16,6 @@ except ImportError:
     _has_openpyxl = False
     load_workbook = None
 
-try:
-    import pandas as pd
-    _has_pandas = True
-except ImportError:
-    _has_pandas = False
-    pd = None
-
 
 @dataclass
 class ColumnSpec:
@@ -73,102 +66,135 @@ class DatasetConfig:
     """Complete dataset configuration including file paths and schema."""
 
     input_file_path: str
-    output_file_path: str
-    schema: DatasetSchema
-    file_type: str = 'csv'  # 'csv' or 'excel'
-    sheet_name: str | None = None  # For Excel files: specific sheet name, or None for all sheets
+    output_file_path: str | None = None  # Optional, can be set at top level
+    schema: DatasetSchema | None = None
+    file_type: str | None = None  # Auto-detected if None: 'csv', 'excel', or 'parquet'
+    sheet_name: str | None = None  # For Excel files: specific sheet name
     sheet_year_mapping: dict[str, int] | None = None  # Map sheet names to years
 
 
-class DatasetTransformer:
-    """Transforms peculiar CSV and Excel datasets into normalized format."""
+class FileLoader:
+    """Handles opening and reading files in different formats."""
+
+    @staticmethod
+    def detect_file_type(file_path: str | Path) -> str:
+        """Detect file type from extension."""
+        path = Path(file_path)
+        suffix = path.suffix.lower()
+        if suffix in ['.xlsx', '.xls']:
+            return 'excel'
+        if suffix == '.parquet':
+            return 'parquet'
+        return 'csv'
+
+    @staticmethod
+    def load_csv(file_path: str | Path, skip_rows: int = 0, has_header: bool = True) -> pl.DataFrame:
+        """Load a CSV file into a Polars DataFrame."""
+        return pl.read_csv(
+            file_path,
+            skip_rows=skip_rows,
+            has_header=has_header,
+        )
+
+    @staticmethod
+    def load_parquet(file_path: str | Path) -> pl.DataFrame:
+        """Load a parquet file into a Polars DataFrame."""
+        return pl.read_parquet(file_path)
+
+    @staticmethod
+    def load_excel(
+        file_path: str | Path,
+        sheet_name: str | None = None,
+        skip_rows: int = 0,
+        has_header: bool = False
+    ) -> pl.DataFrame:
+        """Load an Excel file sheet into a Polars DataFrame."""
+        if not _has_openpyxl or load_workbook is None:
+            raise ImportError(
+                "Excel support requires 'openpyxl' package. Install with: pip install openpyxl"
+            )
+
+        wb = load_workbook(file_path, data_only=True, read_only=True)
+        if sheet_name:
+            ws = wb[sheet_name]
+        else:
+            ws = wb.active
+
+        if ws is None:
+            wb.close()
+            return pl.DataFrame()
+
+        # Convert to list of lists
+        data = [list(row) for row in ws.iter_rows(values_only=True)]
+        wb.close()
+
+        if not data:
+            return pl.DataFrame()
+
+        # Determine max columns
+        max_cols = max(len(row) for row in data) if data else 0
+
+        # Pad shorter rows
+        padded_data = [list(row) + [None] * (max_cols - len(row)) for row in data]
+
+        # Apply skip_rows first
+        if skip_rows > 0:
+            padded_data = padded_data[skip_rows:]
+
+        if not padded_data:
+            return pl.DataFrame()
+
+        # Create column names
+        if has_header and len(padded_data) > 0:
+            # Use first row as header
+            header_row = padded_data[0]
+            col_names = [
+                f"column_{i+1}" if (not h or str(h).strip() == '') else str(h).strip()
+                for i, h in enumerate(header_row[:max_cols])
+            ]
+            data_rows = padded_data[1:]
+        else:
+            col_names = [f"column_{i+1}" for i in range(max_cols)]
+            data_rows = padded_data
+
+        if not data_rows:
+            return pl.DataFrame()
+
+        # Create DataFrame
+        df = pl.DataFrame(data_rows, schema=col_names[:max_cols], orient="row")
+        return df
+
+    @classmethod
+    def load_file(
+        cls,
+        file_path: str | Path,
+        file_type: str | None = None,
+        sheet_name: str | None = None,
+        skip_rows: int = 0,
+        has_header: bool = False
+    ) -> pl.DataFrame:
+        """Load a file based on its type."""
+        if file_type is None:
+            file_type = cls.detect_file_type(file_path)
+
+        if file_type == 'parquet':
+            return cls.load_parquet(file_path)
+        if file_type == 'excel':
+            return cls.load_excel(file_path, sheet_name, skip_rows, has_header)
+        # Default to CSV
+        return cls.load_csv(file_path, skip_rows, has_header)
+
+
+class DataCollector:
+    """Handles collecting and extracting data from loaded DataFrames."""
 
     def __init__(self, schema: DatasetSchema):
         self.schema = schema
 
-    def _read_excel_sheet(self, file_path: str, sheet_name: str | None = None) -> pl.DataFrame:
-        """Read an Excel file sheet into a Polars DataFrame."""
-        if _has_openpyxl and load_workbook is not None:
-            wb = load_workbook(file_path, data_only=True, read_only=True)
-            if sheet_name:
-                ws = wb[sheet_name]
-            else:
-                ws = wb.active
-
-            if ws is None:
-                wb.close()
-                return pl.DataFrame()
-
-            # Convert to list of lists
-            data = [list(row) for row in ws.iter_rows(values_only=True)]
-
-            wb.close()
-
-            if not data:
-                return pl.DataFrame()
-
-            # Determine max columns
-            max_cols = max(len(row) for row in data) if data else 0
-
-            # Pad shorter rows
-            padded_data = [list(row) + [None] * (max_cols - len(row)) for row in data]
-
-            # Apply skip_rows first
-            if self.schema.skip_rows > 0:
-                padded_data = padded_data[self.schema.skip_rows:]
-
-            if not padded_data:
-                return pl.DataFrame()
-
-            # Create column names
-            if self.schema.has_header and len(padded_data) > 0:
-                # Use first row as header
-                header_row = padded_data[0]
-                col_names = [
-                    f"column_{i+1}" if (not h or str(h).strip() == '') else str(h).strip()
-                    for i, h in enumerate(header_row[:max_cols])
-                ]
-                data_rows = padded_data[1:]
-            else:
-                col_names = [f"column_{i+1}" for i in range(max_cols)]
-                data_rows = padded_data
-
-            if not data_rows:
-                return pl.DataFrame()
-
-            # Create DataFrame
-            df = pl.DataFrame(data_rows, schema=col_names[:max_cols], orient="row")
-
-            return df
-
-        if _has_pandas and pd is not None:
-            df_pd = pd.read_excel(
-                file_path,
-                sheet_name=sheet_name or 0,
-                header=0 if self.schema.has_header else None,
-                skiprows=self.schema.skip_rows
-            )
-            return pl.from_pandas(df_pd)
-
-        raise ImportError(
-            "Excel support requires either 'openpyxl' or 'pandas' package. " +
-            "Install with: pip install openpyxl (recommended) or pip install pandas openpyxl"
-        )
-
-    def load_and_transform(self, file_path: str, sheet_name: str | None = None, year: int | None = None) -> pl.DataFrame:  # noqa: C901, PLR0912
-        """Load CSV or Excel and transform to normalized format."""
-        # Determine file type
-        file_path_obj = Path(file_path)
-        is_excel = file_path_obj.suffix.lower() in ['.xlsx', '.xls']
-
-        if is_excel:
-            df = self._read_excel_sheet(file_path, sheet_name)
-        else:
-            df = pl.read_csv(
-                file_path,
-                skip_rows=self.schema.skip_rows,
-                has_header=self.schema.has_header,
-            )
+    def collect_data(self, df: pl.DataFrame, year: int | None = None) -> list[dict[str, Any]]:  # noqa: C901, PLR0912
+        """Collect data from DataFrame and return as list of row dictionaries."""
+        if len(df) == 0:
+            return []
 
         # Get column name for identifier column
         identifier_col_name = df.columns[self.schema.identifier_column]
@@ -238,21 +264,138 @@ class DatasetTransformer:
                 except (IndexError, ValueError, TypeError):
                     continue  # Skip invalid values
 
-        result_df = pl.DataFrame(result_rows)
+        return result_rows
+
+
+class DataTransformer:
+    """Handles converting collected data into normalized format."""
+
+    @staticmethod
+    def transform_to_dataframe(rows: list[dict[str, Any]]) -> pl.DataFrame:
+        """Convert list of row dictionaries to normalized DataFrame."""
+        if not rows:
+            return pl.DataFrame()
+        return pl.DataFrame(rows)
+
+
+class OutputWriter:
+    """Handles writing output files."""
+
+    @staticmethod
+    def write_csv(df: pl.DataFrame, output_path: str | Path, verbose: bool = True) -> None:
+        """Write DataFrame to CSV file."""
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if verbose:
+            print(f"Writing output to: {output_path}")
+
+        df.write_csv(output_path)
+
+        if verbose:
+            print(f"✓ Written {len(df)} rows to {output_path}")
+
+
+class DatasetProcessor:
+    """Orchestrates the complete dataset processing pipeline."""
+
+    def __init__(self, config: DatasetConfig):
+        self.config = config
+        self.file_loader = FileLoader()
+        self.data_collector = DataCollector(config.schema) if config.schema else None
+        self.data_transformer = DataTransformer()
+        self.output_writer = OutputWriter()
+
+    def process(self, verbose: bool = True) -> pl.DataFrame:  # noqa: C901, PLR0912
+        """Process a single dataset configuration."""
+        if self.config.schema is None:
+            # For parquet files without schema, just load and return as-is
+            if verbose:
+                print(f"Loading file: {self.config.input_file_path}")
+            df = self.file_loader.load_file(
+                self.config.input_file_path,
+                self.config.file_type
+            )
+            return df
+
+        # Full processing pipeline
+        if verbose:
+            print(f"Processing: {self.config.input_file_path}")
+            if self.config.file_type == 'excel':
+                print("  File type: Excel")
+                if self.config.sheet_name:
+                    print(f"  Sheet: {self.config.sheet_name}")
+                elif self.config.sheet_year_mapping:
+                    print("  Processing multiple sheets with year mapping")
+
+        if self.data_collector is None:
+            raise ValueError("Schema is required for data collection")
+
+        # Step 1: Open file(s)
+        if self.config.file_type == 'excel' and self.config.sheet_year_mapping:
+            # Process multiple sheets
+            all_rows = []
+            for sheet_name, year in self.config.sheet_year_mapping.items():
+                if verbose:
+                    print(f"\n  Processing sheet '{sheet_name}' (year: {year})")
+
+                df = self.file_loader.load_file(
+                    self.config.input_file_path,
+                    file_type='excel',
+                    sheet_name=sheet_name,
+                    skip_rows=self.config.schema.skip_rows,
+                    has_header=self.config.schema.has_header
+                )
+
+                # Step 2: Collect data
+                rows = self.data_collector.collect_data(df, year=year)
+                all_rows.extend(rows)
+
+                if verbose:
+                    print(f"    Collected {len(rows)} rows from this sheet")
+
+            # Step 3: Transform to DataFrame
+            result_df = self.data_transformer.transform_to_dataframe(all_rows)
+
+        elif self.config.file_type == 'excel' and self.config.sheet_name:
+            # Process single sheet
+            df = self.file_loader.load_file(
+                self.config.input_file_path,
+                file_type='excel',
+                sheet_name=self.config.sheet_name,
+                skip_rows=self.config.schema.skip_rows,
+                has_header=self.config.schema.has_header
+            )
+            rows = self.data_collector.collect_data(df)
+            result_df = self.data_transformer.transform_to_dataframe(rows)
+
+        else:
+            # Process single file (CSV, parquet, or Excel default sheet)
+            df = self.file_loader.load_file(
+                self.config.input_file_path,
+                file_type=self.config.file_type,
+                skip_rows=self.config.schema.skip_rows,
+                has_header=self.config.schema.has_header
+            )
+            rows = self.data_collector.collect_data(df)
+            result_df = self.data_transformer.transform_to_dataframe(rows)
 
         return result_df
 
     def get_summary(self) -> dict[str, Any]:
         """Get summary of schema configuration."""
-        data_columns = [spec for spec in self.schema.column_specs.values() if spec.is_data_column()]
-        dimension_columns = [spec for spec in self.schema.column_specs.values() if spec.is_dimension_column()]
+        if self.config.schema is None:
+            return {}
+
+        data_columns = [spec for spec in self.config.schema.column_specs.values() if spec.is_data_column()]
+        dimension_columns = [spec for spec in self.config.schema.column_specs.values() if spec.is_dimension_column()]
 
         summary = {
-            'total_columns': len(self.schema.column_specs),
+            'total_columns': len(self.config.schema.column_specs),
             'data_columns': len(data_columns),
             'dimension_columns': len(dimension_columns),
-            'dimensions': self.schema.dimension_names,
-            'identifiers': len(self.schema.identifier_mappings)
+            'dimensions': self.config.schema.dimension_names,
+            'identifiers': len(self.config.schema.identifier_mappings)
         }
 
         if data_columns:
@@ -275,44 +418,21 @@ def list_excel_sheets(file_path: str | Path) -> list[str]:
     if file_path.suffix.lower() not in ['.xlsx', '.xls']:
         raise ValueError(f"File is not an Excel file: {file_path}")
 
-    if _has_openpyxl and load_workbook is not None:
-        wb = load_workbook(file_path, read_only=True)
-        sheet_names = wb.sheetnames
-        wb.close()
-        return sheet_names
+    if not _has_openpyxl or load_workbook is None:
+        raise ImportError(
+            "Excel support requires 'openpyxl' package. Install with: pip install openpyxl"
+        )
 
-    if _has_pandas:
-        xl_file = pd.ExcelFile(file_path)
-        return [str(name) for name in xl_file.sheet_names]
-
-    raise ImportError(
-        "Excel support requires either 'openpyxl' or 'pandas' package. " +
-        "Install with: pip install openpyxl (recommended) or pip install pandas openpyxl"
-    )
+    wb = load_workbook(file_path, read_only=True)
+    sheet_names = wb.sheetnames
+    wb.close()
+    return sheet_names
 
 
-def load_config(yaml_file_path: str | Path) -> DatasetConfig:
-    """
-    Load complete dataset configuration from YAML file.
-
-    Args:
-        yaml_file_path: Path to the YAML configuration file
-
-    Returns:
-        DatasetConfig object with schema and file paths
-
-    """
-    yaml_file_path = Path(yaml_file_path)
-
-    if not yaml_file_path.exists():
-        raise FileNotFoundError(f"Configuration file not found: {yaml_file_path}")
-
-    with yaml_file_path.open('r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-
-    # Parse column specs
+def parse_column_specs(config_dict: dict[str, Any]) -> dict[int, ColumnSpec]:
+    """Parse column specifications from config dictionary."""
     column_specs = {}
-    for col_num_str, spec_dict in config.get('column_specs', {}).items():
+    for col_num_str, spec_dict in config_dict.get('column_specs', {}).items():
         col_num = int(col_num_str)
 
         # Create ColumnSpec based on whether it's a dimension or data column
@@ -329,135 +449,170 @@ def load_config(yaml_file_path: str | Path) -> DatasetConfig:
                 year=spec_dict.get('year'),
                 dimensions=spec_dict.get('dimensions', {})
             )
+    return column_specs
 
-    # Create DatasetSchema
-    schema = DatasetSchema(
-        row_identifier_name=config['row_identifier_name'],
-        skip_rows=config.get('skip_rows', 1),
-        has_header=config.get('has_header', False),
-        identifier_column=config.get('identifier_column', 0),
-        identifier_mappings=config.get('identifier_mappings', {}),
+
+def parse_schema(config_dict: dict[str, Any]) -> DatasetSchema:
+    """Parse dataset schema from config dictionary."""
+    column_specs = parse_column_specs(config_dict)
+
+    return DatasetSchema(
+        row_identifier_name=config_dict['row_identifier_name'],
+        skip_rows=config_dict.get('skip_rows', 1),
+        has_header=config_dict.get('has_header', False),
+        identifier_column=config_dict.get('identifier_column', 0),
+        identifier_mappings=config_dict.get('identifier_mappings', {}),
         column_specs=column_specs,
-        dimension_names=config.get('dimension_names', []),
-        value_column_name=config.get('value_column_name', 'Value')
+        dimension_names=config_dict.get('dimension_names', []),
+        value_column_name=config_dict.get('value_column_name', 'Value')
     )
 
+
+def parse_dataset_config(config_dict: dict[str, Any], default_output: str | None = None) -> DatasetConfig:
+    """Parse a single dataset configuration from dictionary."""
     # Determine file type
-    input_path = Path(config['input_file_path'])
-    file_type = 'excel' if input_path.suffix.lower() in ['.xlsx', '.xls'] else 'csv'
+    input_path = Path(config_dict['input_file_path'])
+    file_type = FileLoader.detect_file_type(input_path)
 
-    # Create and return complete config
+    # Parse schema if present
+    schema = None
+    if 'row_identifier_name' in config_dict:
+        schema = parse_schema(config_dict)
+
     return DatasetConfig(
-        input_file_path=config['input_file_path'],
-        output_file_path=config['output_file_path'],
+        input_file_path=config_dict['input_file_path'],
+        output_file_path=config_dict.get('output_file_path', default_output),
         schema=schema,
-        file_type=config.get('file_type', file_type),
-        sheet_name=config.get('sheet_name'),
-        sheet_year_mapping=config.get('sheet_year_mapping')
+        file_type=config_dict.get('file_type', file_type),
+        sheet_name=config_dict.get('sheet_name'),
+        sheet_year_mapping=config_dict.get('sheet_year_mapping')
     )
 
 
-def process_dataset(config_path: str | Path, verbose: bool = True) -> pl.DataFrame:  # noqa: C901, PLR0912
+def load_config(yaml_file_path: str | Path) -> tuple[list[DatasetConfig], str | None]:
     """
-    Process a dataset using configuration from YAML file.
+    Load dataset configurations from YAML file.
+
+    Supports both single config and list of configs.
+
+    Args:
+        yaml_file_path: Path to the YAML configuration file
+
+    Returns:
+        Tuple of (list of DatasetConfig objects, output_file_path)
+
+    """
+    yaml_file_path = Path(yaml_file_path)
+
+    if not yaml_file_path.exists():
+        raise FileNotFoundError(f"Configuration file not found: {yaml_file_path}")
+
+    with yaml_file_path.open('r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+
+    # Handle top-level output path
+    default_output = config.get('output_file_path')
+
+    # Check if config is a list of datasets
+    if 'datasets' in config:
+        # Multiple dataset configurations
+        dataset_configs = [
+            parse_dataset_config(dataset_dict, default_output)
+            for dataset_dict in config['datasets']
+        ]
+        return dataset_configs, default_output
+
+    # Single dataset configuration (backward compatibility)
+    dataset_config = parse_dataset_config(config, default_output)
+    return [dataset_config], default_output
+
+
+def process_datasets(config_path: str | Path, verbose: bool = True) -> pl.DataFrame:  # noqa: C901, PLR0912
+    """
+    Process one or more datasets using configuration from YAML file.
 
     Args:
         config_path: Path to YAML configuration file
         verbose: Whether to print progress information
 
     Returns:
-        Transformed DataFrame
+        Transformed DataFrame (concatenated if multiple datasets)
 
     """
     # Load configuration
     if verbose:
         print(f"Loading configuration from: {config_path}")
 
-    config = load_config(config_path)
+    dataset_configs, output_path = load_config(config_path)
 
-    # Validate input file exists
-    input_path = Path(config.input_file_path)
-    if not input_path.exists():
-        raise FileNotFoundError(f"Input file not found: {input_path}")
-
-    # Transform the data
     if verbose:
-        print(f"Processing input file: {config.input_file_path}")
-        if config.file_type == 'excel':
-            print("  File type: Excel")
-            if config.sheet_name:
-                print(f"  Sheet: {config.sheet_name}")
-            elif config.sheet_year_mapping:
-                print("  Processing multiple sheets with year mapping")
+        print(f"Found {len(dataset_configs)} dataset configuration(s)")
 
-    transformer = DatasetTransformer(config.schema)
+    # Process each dataset
+    all_results = []
+    for idx, config in enumerate(dataset_configs, 1):
+        if verbose:
+            print(f"\n{'='*80}")
+            print(f"Processing dataset {idx}/{len(dataset_configs)}")
 
-    # Handle Excel files with multiple sheets
-    if config.file_type == 'excel' and config.sheet_year_mapping:
-        # Process multiple sheets, one per year
-        all_results = []
+        # Validate input file exists
+        input_path = Path(config.input_file_path)
+        if not input_path.exists():
+            raise FileNotFoundError(f"Input file not found: {input_path}")
 
-        for sheet_name, year in config.sheet_year_mapping.items():
+        # Process dataset
+        processor = DatasetProcessor(config)
+        result_df = processor.process(verbose=verbose)
+
+        if verbose and config.schema:
+            print("\nTransformation Summary:")
+            summary = processor.get_summary()
+            for key, value in summary.items():
+                print(f"  {key}: {value}")
+
+        if len(result_df) > 0:
+            all_results.append(result_df)
             if verbose:
-                print(f"\nProcessing sheet '{sheet_name}' (year: {year})")
+                print(f"  Collected {len(result_df)} rows")
+        elif verbose:
+            print("  No data collected")
 
-            sheet_df = transformer.load_and_transform(
-                config.input_file_path,
-                sheet_name=sheet_name,
-                year=year
-            )
-
-            if len(sheet_df) > 0:
-                all_results.append(sheet_df)
-                if verbose:
-                    print(f"  Rows from this sheet: {len(sheet_df)}")
-
-        if all_results:
-            result_df = pl.concat(all_results, rechunk=False)
-        else:
-            result_df = pl.DataFrame()
-
-    elif config.file_type == 'excel' and config.sheet_name:
-        # Process single specified sheet
-        result_df = transformer.load_and_transform(
-            config.input_file_path,
-            sheet_name=config.sheet_name
-        )
+    # Concatenate all results
+    if all_results:
+        final_df = pl.concat(all_results, rechunk=False)
+        if verbose:
+            print(f"\n{'='*80}")
+            print(f"Total rows after concatenation: {len(final_df)}")
     else:
-        # Process single file (CSV or Excel default sheet)
-        result_df = transformer.load_and_transform(config.input_file_path)
+        final_df = pl.DataFrame()
+        if verbose:
+            print("\nNo data collected from any dataset")
 
-    if verbose:
-        print("\nTransformation Summary:")
-        summary = transformer.get_summary()
-        for key, value in summary.items():
-            print(f"  {key}: {value}")
-        print(f"\nTotal rows in output: {len(result_df)}")
+    # Save result if output path is specified
+    if output_path:
+        output_writer = OutputWriter()
+        output_writer.write_csv(final_df, output_path, verbose=verbose)
 
-    # Save result
-    output_path = Path(config.output_file_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if verbose:
-        print(f"Writing output to: {config.output_file_path}")
-
-    result_df.write_csv(config.output_file_path)
-
-    if verbose:
-        print("✓ Processing complete!")
-
-    return result_df
+    return final_df
 
 
 def main():
+    """
+    Start the command-line usage from here.
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+
+    """
     parser = argparse.ArgumentParser(
-        description='Transform peculiar CSV datasets into normalized format using YAML configuration.',
+        description='Transform datasets into normalized format using YAML configuration.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s potsdam_scenario_dataset.yaml
-  %(prog)s config/dataset_schema.yaml --quiet
-  %(prog)s my_config.yaml --show-data
+  %(prog)s config.yaml
+  %(prog)s config.yaml --quiet
+  %(prog)s config.yaml --show-data
+  %(prog)s config.yaml --list-sheets
         """
     )
 
@@ -497,7 +652,8 @@ Examples:
     # Handle list-sheets option
     if args.list_sheets:
         try:
-            config = load_config(args.config)
+            dataset_configs, _ = load_config(args.config)
+            config = dataset_configs[0]  # Use first config
             if config.file_type == 'excel':
                 sheets = list_excel_sheets(config.input_file_path)
                 print(f"\nAvailable sheets in {config.input_file_path}:")
@@ -513,7 +669,7 @@ Examples:
             return 1
 
     try:
-        result_df = process_dataset(args.config, verbose=not args.quiet)
+        result_df = process_datasets(args.config, verbose=not args.quiet)
 
         # Display data if requested
         if args.show_data or args.head:
@@ -524,7 +680,7 @@ Examples:
                 print(result_df.head(args.head))
             else:
                 print(result_df)
-
+            return 0
         return 0  # noqa: TRY300
 
     except Exception as e:
