@@ -82,6 +82,14 @@ dimensions:
     label_de: Nicht-Spitzenstunden
     label_fi: Epäpikkupisteet
 
+action_groups:
+- id: moral_values
+  name: Moral values
+  name_en: Moral values
+  name_de: Moralische Werte
+  name_fi: Moraaliset arvot
+  color: '#9B59B6'
+
 nodes:
 
 # ===== ETHICAL EVALUATION NODES =====
@@ -351,114 +359,93 @@ nodes:
   params:
     formula: expected >= (needed * index)
 
-## Moral arguments
-
-- id: arg_1_universal_responsibility
-  name: 'ARG-1: Universal responsibility'
+actions:
+- id: val_1_universal_responsibility
+  name: 'VAL-1: We should do our fair share even if others do not.'
   description: |
-    <h3>Argument: Every jurisdiction must act</h3>
-    <p><strong>Claim:</strong> Every jurisdiction that contributes to the problem has a moral obligation to be part of the solution. We cannot demand others act while refusing to act ourselves. Moral duty exists independent of impact calculation.</p>
-    <p><strong>Type:</strong> Moral argument based on fairness and reciprocity</p>
-    <p><strong>Principle:</strong> "Do unto others as you would have them do unto you" - we expect others to act, therefore we must act.</p>
+    <h3>Value: Fair share regardless of others</h3>
+    <p><strong>Sentiment:</strong> Every jurisdiction that contributes to the problem has a moral obligation to be part of the solution. We cannot demand others act while refusing to act ourselves. Moral duty exists independent of impact calculation.</p>
+    <p><strong>Type:</strong> Moral value (fairness and reciprocity). "Do unto others as you would have them do unto you."</p>
     <p><strong>Related Evaluation Nodes:</strong></p>
     <ul>
     <li><code>emissions_acceptable</code> - Are our per-capita emissions at acceptable level?</li>
     <li><code>fair_share_met</code> - Are we doing our proportional share?</li>
     <li><code>net_emissions_per_person</code> - Our current per-capita emissions</li>
     </ul>
-    <p><strong>Key Parameters Users Can Debate:</strong></p>
-    <ul>
-    <li><code>acceptable_emissions_per_person</code> - What is morally acceptable threshold? (2°C vs 1.5°C targets)</li>
-    <li><code>global_reduction_needed</code> - How much must global emissions fall?</li>
-    </ul>
-    <p><strong>Operationalization:</strong> This argument claims we have duty regardless of whether others act. The fair_share_met evaluation shows whether we're meeting that duty.</p>
-  type: generic.GenericNode
-  quantity: argument
+    <p><strong>Weight:</strong> Adjust the slider to set how much this value contributes to priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
   unit: dimensionless
-  input_datasets:
-  - id: transportation/zeros
-    output_dimensions: []
+  group: moral_values
   output_nodes:
   - id: emissions_acceptable
     tags: [ignore_content]
+  params:
+  - id: constant
+    value: 1
+    min_value: 0
+    max_value: 10
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
 
-- id: obj_g2_free_rider
-  name: 'OBJ-G2: Free rider problem'
+- id: val_2_free_rider
+  name: 'VAL-2: Whether others act matters to me when I decide.'
   description: |
-    <h3>Objection: Why act if others won't?</h3>
-    <p><strong>Claim:</strong> If other cities/countries don't act, we bear costs while they get benefits (climate is global). Economically irrational to act unilaterally. This is the "sucker's payoff" in game theory.</p>
-    <p><strong>Stakeholders:</strong> Fiscal conservatives, economic rationalists, cynics about international cooperation</p>
-    <p><strong>Type:</strong> Rational choice objection / game theory problem</p>
+    <h3>Value: Conditional cooperation</h3>
+    <p><strong>Sentiment:</strong> I care whether others are doing their part before I commit. If other cities/countries don't act, we bear costs while they get benefits (climate is global). So the extent to which others act influences how much I weight this consideration.</p>
+    <p><strong>Type:</strong> Moral value (conditional cooperation).  This is called the "sucker's payoff" in game theory. However, it is not a "problem" from the holder's view — it is the view that reciprocity and others' behaviour matter when deciding.</p>
     <p><strong>Related Evaluation Nodes:</strong></p>
     <ul>
     <li><code>fair_share_met</code> - Are we doing our part (regardless of others)?</li>
     <li><code>fair_share_fraction</code> - What % of obligation are we meeting?</li>
     </ul>
-    <p><strong>The Debate:</strong></p>
-    <p>Two framings of the question:</p>
-    <ol>
-    <li><strong>Consequentialist:</strong> "Will our action achieve outcomes?" (depends on others)</li>
-    <li><strong>Deontological:</strong> "Must we do our fair share?" (independent of others)</li>
-    </ol>
-    <p><strong>Counter-Arguments:</strong></p>
-    <ul>
-    <li><strong>ARG-1 (Universal Responsibility):</strong> Moral duty exists regardless</li>
-    <li><strong>ARG-20 (Norm Cascades):</strong> Early action changes others' behavior - not truly unilateral</li>
-    <li><strong>ARG-7 (Co-benefits):</strong> Local benefits (air quality) accrue regardless of others' actions</li>
-    <li><strong>Empirical:</strong> Many cities ARE acting (not isolated)</li>
-    </ul>
-    <p><strong>Operationalization:</strong> The fair_share_met evaluation shows whether we're meeting proportional responsibility. Users can debate:
-    <ul>
-    <li>Does meeting our share obligate us even if others don't?</li>
-    <li>Or is action only rational if others also act?</li>
-    </ul>
-    This is ultimately a value choice between duty-based and outcome-based ethics.</p>
-  type: generic.GenericNode
-  quantity: argument
+    <p><strong>Contrast:</strong> VAL-1 says we should do our share regardless of others. VAL-2 says whether others act matters to me. High weight here = this consideration matters in my priorities.</p>
+    <p><strong>Weight:</strong> Adjust to set how much "whether others act" contributes to your priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
   unit: dimensionless
-  input_datasets:
-  - id: transportation/zeros
-    output_dimensions: []
+  group: moral_values
   output_nodes:
   - id: fair_share_met
     tags: [ignore_content]
+  params:
+  - id: constant
+    value: 1
+    min_value: 0
+    max_value: 10
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
 
-- id: arg_14_intergenerational_responsibility
-  name: 'ARG-14: Intergenerational responsibility'
+- id: val_3_intergenerational_responsibility
+  name: 'VAL-3: We should leave a habitable world for future generations.'
   description: |
-    <h3>Argument: Duty to future generations</h3>
-    <p><strong>Claim:</strong> Current generation has duty to leave habitable world for children and future generations. We are trustees, not owners, of the planet. Cannot sacrifice their wellbeing for our convenience.</p>
-    <p><strong>Type:</strong> Moral argument based on stewardship and legacy</p>
-    <p><strong>Emotional Power:</strong> "What will you tell your grandchildren?"</p>
+    <h3>Value: Stewardship for future generations</h3>
+    <p><strong>Sentiment:</strong> Current generation has a duty to leave a habitable world for children and future generations. We are trustees, not owners, of the planet. Cannot sacrifice their wellbeing for our convenience.</p>
+    <p><strong>Type:</strong> Moral value (stewardship and legacy). "What will you tell your grandchildren?"</p>
     <p><strong>Related Evaluation Nodes:</strong></p>
     <ul>
-    <li><code>emissions_acceptable</code> - PLACEHOLDER: Full operationalization requires climate impact modeling</li>
+    <li><code>emissions_acceptable</code> - Placeholder for full climate impact modeling</li>
     <li><code>net_emissions_per_person</code> - Current burden we're leaving for future</li>
     </ul>
-    <p><strong>Note:</strong> Complete operationalization would require:
-    <ul>
-    <li>Cumulative emissions budget (not just annual)</li>
-    <li>Climate impact models (temperature, sea level, etc.)</li>
-    <li>Intergenerational welfare functions</li>
-    <li>Discount rate debates</li>
-    </ul>
-    <p>For now, this argument links to emissions_acceptable as a placeholder. Future model versions could add:</p>
-    <ul>
-    <li><code>cumulative_emissions_budget</code></li>
-    <li><code>carbon_budget_remaining</code></li>
-    <li><code>intergenerational_burden_acceptable</code></li>
-    </ul>
-    </p>
     <p><strong>Stakeholders:</strong> Parents, educators, youth advocates, long-term institutions</p>
-  type: generic.GenericNode
-  quantity: argument
+    <p><strong>Weight:</strong> Adjust to set how much this value contributes to priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
   unit: dimensionless
-  input_datasets:
-  - id: transportation/zeros
-    output_dimensions: []
+  group: moral_values
   output_nodes:
   - id: emissions_acceptable
     tags: [ignore_content]
+  params:
+  - id: constant
+    value: 1
+    min_value: 0
+    max_value: 10
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
 
 pages:
 - id: home
