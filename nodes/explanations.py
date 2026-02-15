@@ -414,6 +414,11 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         TrajectoryAction uses select_category() to select a category from a dimension
         and then possibly do some relative or absolute conversions.
         """)),
+    'ValueAction': NodeInfo(_("""
+        Value action outputs a constant (e.g. weight for a moral value) over time.
+        Adjust the weight parameter to change how much this value contributes to priorities.
+        """
+    )),
     'WeightedSumNode': NodeInfo(_(
         """
         WeightedSumNode: Combines additive inputs using weights from a multidimensional weights DataFrame.

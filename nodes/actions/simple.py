@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 import polars as pl
 
 from common import polars as ppl
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.generic import GenericNode
 from nodes.gpc import DatasetNode
 from nodes.node import NodeError
@@ -38,6 +38,52 @@ class GenericAction(GenericNode, ActionNode):
 
     def compute(self) -> PathsDataFrame:
         return self.compute_effect()
+
+
+class ValueAction(GenericAction):
+    """
+    Action that outputs a user-adjustable constant (e.g. a value weight).
+
+    Combines GenericAction with ConstantNode-like behaviour: no input datasets,
+    single 'constant' parameter, output is that constant over the full timeline.
+    Used for moral/value nodes where the "action" is how much we weight that value.
+    """
+
+    allowed_parameters = [
+        *GenericAction.allowed_parameters,
+        NumberParameter(
+            'constant',
+            label=_('Weight'),
+            description=_('How much to weight this value (0 = ignore in priorities)'),
+            is_customizable=True,
+        ),
+    ]
+    no_effect_value = 0.0
+    default_color = '#9B59B6'  # Purple/violet for value nodes; override in config or via group
+
+    def compute_effect(self) -> PathsDataFrame:
+        if not self.is_enabled():
+            constant = self.no_effect_value
+        else:
+            val = self.get_parameter_value('constant', required=False, units=True)
+            if val is None:
+                constant = 1.0
+            else:
+                constant = float(val.m) if hasattr(val, 'm') else float(val)
+        assert self.unit is not None
+        start_year = self.context.instance.minimum_historical_year
+        end_year = self.context.instance.model_end_year
+        last_historical_year = getattr(
+            self.context.instance, 'maximum_historical_year', None
+        ) or start_year
+        years = list(range(start_year, end_year + 1))
+        df = pl.DataFrame({
+            YEAR_COLUMN: years,
+            VALUE_COLUMN: [constant] * len(years),
+            FORECAST_COLUMN: [y > last_historical_year for y in years],
+        })
+        meta = ppl.DataFrameMeta(units={VALUE_COLUMN: self.unit}, primary_keys=[YEAR_COLUMN])
+        return ppl.to_ppdf(df, meta=meta)
 
 
 class AdditiveAction(ActionNode):
