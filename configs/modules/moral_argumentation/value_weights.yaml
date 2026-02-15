@@ -1,0 +1,249 @@
+# Moral value module — calculation layer
+# Defines ValueActions (one per value topic) and utility nodes that multiply each
+# value's weight by the relevant duty fulfilment. No global weight params; each
+# weight is the ValueAction's node-specific "constant" parameter.
+# Include action_groups with id moral_values. See README.md section 4.3.
+# Include in an instance that defines the necessary input nodes:
+## - fair_share_met Fiar share obligation met
+## - emissions_acceptable Emissions meet acceptable threshold
+## - commons_survival Commons survival
+
+actions:
+
+- id: value_fairness
+  name: 'VAL-1: We should do our fair share even if others do not.'
+  description: |
+    <h3>Value: Fair share regardless of others</h3>
+    <p><strong>Sentiment:</strong> Everyone who contributes must do their fair share. Moral duty exists independent of whether others act. "Do unto others as you would have them do unto you."</p>
+    <p><strong>Related:</strong> <code>fair_share_met</code>, <code>emissions_acceptable</code></p>
+    <p><strong>Weight:</strong> Use the slider to set how much this value contributes to priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
+  unit: dimensionless
+  group: moral_values
+  output_nodes:
+  - id: utility_fairness
+    tags: [weight]
+  params:
+  - id: constant
+    value: 1
+    min_value: 0
+    max_value: 10
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
+
+- id: free_rider
+  name: 'VAL-2: Whether others act matters to me when I decide.'
+  description: |
+    <h3>Value: Conditional cooperation</h3>
+    <p><strong>Sentiment:</strong> I care whether others are doing their part before I commit. If other cities/countries don't act, we bear costs while they get benefits (climate is global). So the extent to which others act influences how much I weight this consideration.</p>
+    <p><strong>Type:</strong> Moral value (conditional cooperation). This is called the "sucker's payoff" in game theory. It is also known as "free-rider approach" or "common-pool problem". However, it is not a "problem" from the holder's view — it is the view that reciprocity and others' behaviour matter when deciding.</p>
+    <p><strong>Related Evaluation Nodes:</strong></p>
+    <ul>
+    <li><code>fair_share_met</code> - Are we doing our part (regardless of others)?</li>
+    <li><code>fair_share_fraction</code> - What % of obligation are we meeting?</li>
+    </ul>
+    <p><strong>Contrast:</strong> VAL-1 says we should do our share regardless of others. VAL-2 says whether others act matters to me. High weight here = this consideration matters in my priorities.</p>
+    <p><strong>Weight:</strong> Adjust to set how much "whether others act" contributes to your priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
+  unit: dimensionless
+  group: moral_values
+  output_nodes:
+  - id: utility_reciprocity
+    tags: [weight]
+  - id: should_we_cooperate
+    tags: [our_threshold]
+  params:
+  - id: constant
+    value: 0.3
+    min_value: 0
+    max_value: 1
+    step: 0.1
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
+
+- id: value_stewardship
+  name: 'VAL-3: We should leave a habitable world for future generations.'
+  description: |
+    <h3>Value: Stewardship / intergenerational</h3>
+    <p><strong>Sentiment:</strong> We hold the planet in trust for future generations. Cannot sacrifice their wellbeing for our convenience. "What will you tell your grandchildren?"</p>
+    <p><strong>Related:</strong> <code>emissions_acceptable</code></p>
+    <p><strong>Weight:</strong> Use the slider to set how much this value contributes to priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
+  unit: dimensionless
+  group: moral_values
+  output_nodes:
+  - id: utility_stewardship
+    tags: [weight]
+  params:
+  - id: constant
+    value: 1
+    min_value: 0
+    max_value: 10
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
+
+- id: value_non_harm
+  name: 'VAL-4: We should not contribute to avoidable harm.'
+  description: |
+    <h3>Value: Non-harm</h3>
+    <p><strong>Sentiment:</strong> Contributing to avoidable harm is wrong; we must reduce our contribution. Every jurisdiction's emissions contribute to harm.</p>
+    <p><strong>Related:</strong> <code>emissions_acceptable</code></p>
+    <p><strong>Weight:</strong> Use the slider to set how much this value contributes to priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
+  unit: dimensionless
+  group: moral_values
+  output_nodes:
+  - id: utility_non_harm
+    tags: [weight]
+  params:
+  - id: constant
+    value: 1
+    min_value: 0
+    max_value: 10
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
+
+- id: value_common_heritage
+  name: 'VAL-5: We should stay within our share of the global commons.'
+  description: |
+    <h3>Value: Common heritage</h3>
+    <p><strong>Sentiment:</strong> Climate is a shared commons; we have no right to overuse. Duty to stay within our share.</p>
+    <p><strong>Related:</strong> <code>emissions_acceptable</code>, <code>fair_share_met</code></p>
+    <p><strong>Weight:</strong> Use the slider to set how much this value contributes to priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
+  unit: dimensionless
+  group: moral_values
+  output_nodes:
+  - id: utility_common_heritage
+    tags: [weight]
+  params:
+  - id: constant
+    value: 1
+    min_value: 0
+    max_value: 10
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
+
+nodes:
+
+# Each utility = value action output (weight) × duty fulfilment.
+# Duty nodes (fair_share_met, emissions_acceptable) must exist in the instance.
+
+- id: utility_fairness
+  name: Utility from fairness (fair share met)
+  description: Contribution of the fairness value. Weight comes from value_fairness action; contribution from fair_share_met.
+  type: formula.FormulaNode
+  quantity: utility
+  unit: Ut
+  input_nodes:
+  - id: fair_share_met
+    tags: [contribution]
+  output_nodes:
+  - id: moral_value_profile
+  params:
+  - id: formula
+    value: weight * contribution * constant
+  - id: constant
+    value: 1
+    unit: Ut
+
+- id: utility_reciprocity
+  name: Utility from reciprocity (doing our part)
+  description: Contribution of the reciprocity value. Same duty as fairness (acting is doing our part).
+  type: formula.FormulaNode
+  quantity: utility
+  unit: Ut
+  input_nodes:
+  - id: fair_share_met
+    tags: [contribution]
+  output_nodes:
+  - id: moral_value_profile
+  params:
+  - id: formula
+    value: weight * contribution * constant
+  - id: constant
+    value: 1
+    unit: Ut
+
+- id: utility_stewardship
+  name: Utility from stewardship (emissions acceptable for future generations)
+  description: Contribution of the stewardship value.
+  type: formula.FormulaNode
+  quantity: ratio
+  unit: Ut
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  input_nodes:
+  - id: emissions_acceptable
+    tags: [contribution]
+  - id: commons_survival
+    tags: [survival]
+  output_nodes:
+  - id: moral_value_profile
+    from_dimensions:
+    - id: hypotheses
+      categories: [moderate]
+      flatten: true
+  params:
+  - id: formula
+    value: weight * contribution * survival * constant
+  - id: constant
+    value: 1
+    unit: Ut
+
+- id: utility_non_harm
+  name: Utility from non-harm (emissions within acceptable level)
+  description: Contribution of the non-harm value.
+  type: formula.FormulaNode
+  quantity: utility
+  unit: Ut
+  input_nodes:
+  - id: emissions_acceptable
+    tags: [contribution]
+  output_nodes:
+  - id: moral_value_profile
+  params:
+  - id: formula
+    value: weight * contribution * constant
+  - id: constant
+    value: 1
+    unit: Ut
+
+- id: utility_common_heritage
+  name: Utility from common heritage (within our share)
+  description: Contribution of the common heritage value. Uses emissions_acceptable as proxy for staying within share.
+  type: formula.FormulaNode
+  quantity: utility
+  unit: Ut
+  input_nodes:
+  - id: emissions_acceptable
+    tags: [contribution]
+  output_nodes:
+  - id: moral_value_profile
+  params:
+  - id: formula
+    value: weight * contribution * constant
+  - id: constant
+    value: 1
+    unit: Ut
+
+- id: moral_value_profile
+  name: Moral value profile
+  description: |
+    Sum of utilities from each moral value (fairness, reciprocity, stewardship, non-harm, common heritage).
+    Each value contributes (weight × duty_fulfilled). Weights are set per value via each ValueAction's slider.
+  type: simple.AdditiveNode
+  quantity: utility
+  unit: Ut
+  is_outcome: true
+  # Inputs defined by utility_* nodes' output_nodes (no duplicate input_nodes here)

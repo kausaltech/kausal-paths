@@ -35,6 +35,7 @@ actions:
   type: simple.GenericAction
   quantity: price
   unit: EUR/vehicle
+  group: transportation
   output_dimensions: [time_of_day]
   input_datasets:
   - id: transportation/congestion_charge_scenarios

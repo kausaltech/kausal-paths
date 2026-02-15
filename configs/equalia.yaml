@@ -26,6 +26,8 @@ include:
   allow_override: true
 - file: frameworks/standard_dims.yaml
   allow_override: true
+- file: modules/moral_argumentation/value_weights.yaml
+  allow_override: true
 
 params:
 - id: municipality_name
@@ -35,6 +37,20 @@ params:
   value: Equalia
   is_customizable: true
   is_visible: true
+
+action_groups:
+- id: transportation
+  name: Transportation
+  name_en: Transportation
+  name_de: Verkehr
+  name_fi: Liikenne
+  color: '#014B30'
+- id: moral_values
+  name: Moral values
+  name_en: Moral values
+  name_de: Moralische Werte
+  name_fi: Moraaliset arvot
+  color: '#9B59B6'
 
 dimensions:
 
@@ -81,14 +97,6 @@ dimensions:
     label_en: Non-peak hours
     label_de: Nicht-Spitzenstunden
     label_fi: Epäpikkupisteet
-
-action_groups:
-- id: moral_values
-  name: Moral values
-  name_en: Moral values
-  name_de: Moralische Werte
-  name_fi: Moraaliset arvot
-  color: '#9B59B6'
 
 nodes:
 
@@ -203,18 +211,17 @@ nodes:
 # ===== FREE RIDER PROBLEM OPERATIONALIZATION =====
 
 - id: commons_sensitivity
-  name: Commons degradation threshold
+  name: Commons survival capacity
   description: |
-    Percentage of jurisdictions that can continue high emissions before 
-    climate system degrades catastrophically. Lower values = more fragile system.
-    Typical estimates: 40-60% (if >40-60% of jurisdictions don't act, climate fails).
+    Survival capacity or resilience of the climate system, i.e. how long does the system hold against exploitation.
+    If it goes to zero, detrimental tipping points are likely.
   type: generic.ConstantNode
-  quantity: fraction
-  unit: dimensionless
+  quantity: duration
+  unit: a
   params:
   - id: constant
-    value: 0.50
-    unit: dimensionless
+    value: 15.0
+    unit: a
     label: How fragile is the climate system?
 
 - id: free_rider_threshold_alpha
@@ -246,35 +253,45 @@ nodes:
     unit: dimensionless
     label: Shape of cooperation threshold distribution
 
-- id: our_city_threshold
-  name: Our city cooperation threshold
+- id: expected_free_rider_threshold
+  name: Expected free rider threshold (mean of beta distribution)
   description: |
-    Our city's y_i: At what percentage of other cities cooperating will we act?
-    0% = unconditional cooperator (act even if alone)
-    50% = follow majority
-    100% = pure free rider (only act if everyone else does first)
-  type: generic.ConstantNode
+    Expected value of the cooperation threshold under Beta(α, β):
+    E[threshold] = α / (α + β). Interpreted as the mean threshold in the population
+    ("at what % cooperation will I cooperate?"). Used as our city's threshold
+    when evaluating whether to cooperate.
+  type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
+  input_nodes:
+  - id: free_rider_threshold_alpha
+    tags: [alpha]
+  - id: free_rider_threshold_beta
+    tags: [beta]
   params:
-  - id: constant
-    value: 0.30
-    unit: dimensionless
-    label: What should our city's threshold be? Current policy (implementing congestion charge) implies low threshold.
+    formula: alpha / (alpha + beta)
 
 - id: expected_cooperation_rate
   name: Expected global cooperation rate
   description: |
     Expected percentage of cities/jurisdictions worldwide that will take 
     comparable climate action. Based on current trends, commitments, political climate.
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [hypotheses]
   output_dimensions: [hypotheses]
+  input_nodes:
+  - id: expected_free_rider_threshold
+    tags: [modeled]
+  - id: hypothesis_index
+    tags: [index]
   input_datasets:
   - id: transportation/cooperation_rate_estimates
     output_dimensions: [hypotheses]
+    tags: [observed, primary]
+  params:
+    formula: coalesce_df(observed, modeled * index)
 
 - id: hypothesis_index
   name: Hypothesis index
@@ -288,15 +305,14 @@ nodes:
   - id: transportation/hypothesis_index
     output_dimensions: [hypotheses]
 
-- id: commons_survives
-  name: Commons survival evaluation
+- id: commons_survival_time
+  name: Commons survival time
   description: |
-    Does the climate system survive? True if exploitation stays below degradation threshold.
-    Exploitation rate = (1 - expected_cooperation_rate).
-    Returns 1 if enough cooperate, 0 if commons degrades
+    Does the climate system survive? This node gives the time until the climate system fails
+    with the given resilience and exploitation rate.
   type: formula.FormulaNode
-  quantity: fraction
-  unit: dimensionless
+  quantity: duration
+  unit: a
   input_dimensions: [hypotheses]
   output_dimensions: [hypotheses]
   is_outcome: true
@@ -304,13 +320,34 @@ nodes:
   - id: expected_cooperation_rate
     to_dimensions:
     - id: hypotheses
-    tags: [coop_rate]
+    tags: [cooperation]
   - id: commons_sensitivity
-    tags: [thresholdd]
+    tags: [resilience]
   - id: hypothesis_index
     tags: [index]
   params:
-    formula: coop_rate >= (complement(thresholdd) * index)
+  - id: formula
+    value: (resilience * index) - cumulative(complement(cooperation))
+
+- id: commons_survival
+  name: Commons survival
+  description: |
+    Does the climate system survive? True if exploitation stays below degradation threshold.
+    Returns 1 if enough resilience, 0 if commons degrades
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  input_nodes:
+  - id: commons_survival_time
+    tags: [time]
+  params:
+  - id: formula
+    value: time >= constant
+  - id: constant
+    value: 0.0
+    unit: a
 
 - id: should_we_cooperate
   name: Should our city cooperate (given free rider logic)
@@ -328,124 +365,11 @@ nodes:
     to_dimensions:
     - id: hypotheses
     tags: [others_cooperating]
-  - id: our_city_threshold
-    tags: [our_threshold]
   - id: hypothesis_index
     tags: [index]
   params:
     formula: others_cooperating >= (our_threshold * index)
 
-- id: cooperation_gap
-  name: Cooperation gap
-  description: |
-    Gap between what's needed (to save commons) and what's expected.
-    Positive = surplus cooperation (commons safe)
-    Negative = cooperation deficit (commons at risk)
-  type: formula.FormulaNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [hypotheses]
-  output_dimensions: [hypotheses]
-  is_outcome: true
-  input_nodes:
-  - id: expected_cooperation_rate
-    to_dimensions:
-    - id: hypotheses
-    tags: [expected]
-  - id: commons_sensitivity
-    tags: [needed]
-  - id: hypothesis_index
-    tags: [index]
-  params:
-    formula: expected >= (needed * index)
-
-actions:
-- id: val_1_universal_responsibility
-  name: 'VAL-1: We should do our fair share even if others do not.'
-  description: |
-    <h3>Value: Fair share regardless of others</h3>
-    <p><strong>Sentiment:</strong> Every jurisdiction that contributes to the problem has a moral obligation to be part of the solution. We cannot demand others act while refusing to act ourselves. Moral duty exists independent of impact calculation.</p>
-    <p><strong>Type:</strong> Moral value (fairness and reciprocity). "Do unto others as you would have them do unto you."</p>
-    <p><strong>Related Evaluation Nodes:</strong></p>
-    <ul>
-    <li><code>emissions_acceptable</code> - Are our per-capita emissions at acceptable level?</li>
-    <li><code>fair_share_met</code> - Are we doing our proportional share?</li>
-    <li><code>net_emissions_per_person</code> - Our current per-capita emissions</li>
-    </ul>
-    <p><strong>Weight:</strong> Adjust the slider to set how much this value contributes to priorities (0 = ignore).</p>
-  type: simple.ValueAction
-  quantity: value_weight
-  unit: dimensionless
-  group: moral_values
-  output_nodes:
-  - id: emissions_acceptable
-    tags: [ignore_content]
-  params:
-  - id: constant
-    value: 1
-    min_value: 0
-    max_value: 10
-    unit: dimensionless
-    is_customizable: true
-    is_visible: true
-
-- id: val_2_free_rider
-  name: 'VAL-2: Whether others act matters to me when I decide.'
-  description: |
-    <h3>Value: Conditional cooperation</h3>
-    <p><strong>Sentiment:</strong> I care whether others are doing their part before I commit. If other cities/countries don't act, we bear costs while they get benefits (climate is global). So the extent to which others act influences how much I weight this consideration.</p>
-    <p><strong>Type:</strong> Moral value (conditional cooperation).  This is called the "sucker's payoff" in game theory. However, it is not a "problem" from the holder's view — it is the view that reciprocity and others' behaviour matter when deciding.</p>
-    <p><strong>Related Evaluation Nodes:</strong></p>
-    <ul>
-    <li><code>fair_share_met</code> - Are we doing our part (regardless of others)?</li>
-    <li><code>fair_share_fraction</code> - What % of obligation are we meeting?</li>
-    </ul>
-    <p><strong>Contrast:</strong> VAL-1 says we should do our share regardless of others. VAL-2 says whether others act matters to me. High weight here = this consideration matters in my priorities.</p>
-    <p><strong>Weight:</strong> Adjust to set how much "whether others act" contributes to your priorities (0 = ignore).</p>
-  type: simple.ValueAction
-  quantity: value_weight
-  unit: dimensionless
-  group: moral_values
-  output_nodes:
-  - id: fair_share_met
-    tags: [ignore_content]
-  params:
-  - id: constant
-    value: 1
-    min_value: 0
-    max_value: 10
-    unit: dimensionless
-    is_customizable: true
-    is_visible: true
-
-- id: val_3_intergenerational_responsibility
-  name: 'VAL-3: We should leave a habitable world for future generations.'
-  description: |
-    <h3>Value: Stewardship for future generations</h3>
-    <p><strong>Sentiment:</strong> Current generation has a duty to leave a habitable world for children and future generations. We are trustees, not owners, of the planet. Cannot sacrifice their wellbeing for our convenience.</p>
-    <p><strong>Type:</strong> Moral value (stewardship and legacy). "What will you tell your grandchildren?"</p>
-    <p><strong>Related Evaluation Nodes:</strong></p>
-    <ul>
-    <li><code>emissions_acceptable</code> - Placeholder for full climate impact modeling</li>
-    <li><code>net_emissions_per_person</code> - Current burden we're leaving for future</li>
-    </ul>
-    <p><strong>Stakeholders:</strong> Parents, educators, youth advocates, long-term institutions</p>
-    <p><strong>Weight:</strong> Adjust to set how much this value contributes to priorities (0 = ignore).</p>
-  type: simple.ValueAction
-  quantity: value_weight
-  unit: dimensionless
-  group: moral_values
-  output_nodes:
-  - id: emissions_acceptable
-    tags: [ignore_content]
-  params:
-  - id: constant
-    value: 1
-    min_value: 0
-    max_value: 10
-    unit: dimensionless
-    is_customizable: true
-    is_visible: true
 
 pages:
 - id: home
