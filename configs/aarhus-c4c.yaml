@@ -380,7 +380,8 @@ nodes:
 # ----- I Energy
 
 - id: energy_emissions
-  name: Energy Emissions
+  name_da: Energi
+  name_en: Energy Emissions
   color: '#4E79A7'
   type: simple.AdditiveNode
   quantity: emissions
@@ -898,7 +899,8 @@ nodes:
     - id: energy_carrier
 
 - id: transportation_emissions
-  name: Transportation Emissions
+  name_da: Transport og Mobilitet
+  name_en: Transportation Emissions
   color: '#E15759'
   type: simple.AdditiveNode
   quantity: emissions
@@ -1655,7 +1657,8 @@ nodes:
 # ----- V AFOLU
 
 - id: afolu_emissions
-  name: Agriculture, Forestry & Other Land Use Emissions
+  name_da: Natur og Landbrug
+  name_en: Agriculture, Forestry & Other Land Use Emissions
   color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: emissions
@@ -1964,7 +1967,8 @@ nodes:
 actions:
 # ----- Energy
 - id: carbon_capture_and_storage
-  name: Carbon Capture and Storage
+  name_da: Carbon capture and storage
+  name_en: Carbon Capture and Storage
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, energy_usage, cost_type, sector, ghg]
@@ -2015,7 +2019,8 @@ actions:
       flatten: true
 
 - id: energy_efficiency_improvements
-  name: Energy Efficiency Improvements
+  name_da: Energieffektiviseringer
+  name_en: Energy Efficiency Improvements
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
@@ -2063,7 +2068,8 @@ actions:
       flatten: true
 
 - id: energy_efficient_municipal_buildings
-  name: Energy Efficient Municipal Buildings
+  name_da: Energieffektive kommunale bygninger
+  name_en: Energy Efficient Municipal Buildings
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
@@ -2130,7 +2136,8 @@ actions:
       flatten: true
 
 - id: expansion_of_renewable_energy
-  name: Expansion of Renewable Energy
+  name_da: Udbygning af vedvarende energi
+  name_en: Expansion of Renewable Energy
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector]
@@ -2177,7 +2184,8 @@ actions:
       flatten: true
 
 - id: green_district_heating_of_the_future
-  name: Green District Heating of the Future
+  name_da: Fremtidens fjernvarme
+  name_en: Green District Heating of the Future
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector]
@@ -2221,7 +2229,8 @@ actions:
       flatten: true
 
 - id: sustainable_municipal_facilities
-  name: Sustainable Municipal Facilities
+  name_da: Kommunale bæredygtige anlæg
+  name_en: Sustainable Municipal Facilities
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector, ghg]
@@ -2259,7 +2268,8 @@ actions:
       flatten: true
 
 - id: zero_emission_municipal_machinery_and_driving
-  name: Zero-emission Municipal Machinery and Driving
+  name_da: Kommunale emissionsfrie maskiner
+  name_en: Zero-emission Municipal Machinery and Driving
   group: energy
   type: simple.AdditiveAction
   quantity: emissions
@@ -2280,28 +2290,9 @@ actions:
   - id: energy_emissions
 
 # ----- Transportation
-# - id: green_mobility_plan
-#   name: Green Mobility Plan
-#   group: transportation
-#   type: simple.AdditiveAction
-#   quantity: mileage
-#   unit: km/a
-#   input_dimensions: [vehicle_type, energy_carrier]
-#   output_dimensions: [vehicle_type, energy_carrier]
-#   input_datasets:
-#   - id: aarhus/transportation_actions
-#     column: mileage
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - column: action
-#       value: green_mobility_plan
-#     - column: cost_type
-#   output_nodes:
-#   - id: onroad_transport_vehicle_mileage
-
 - id: optimized_and_emission_free_municipal_fleet
-  name: Optimized and Emission Free Municipal Fleet
+  name_da: Kommunal emissionsfri kørsel
+  name_en: Optimized and Emission Free Municipal Fleet
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
@@ -2338,7 +2329,8 @@ actions:
       flatten: true
 
 - id: sustainable_air_and_maritime_transport
-  name: Sustainable Air and Maritime Transport
+  name_da: Bæredygtig skibs- og luftfart
+  name_en: Sustainable Air and Maritime Transport
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
@@ -2382,7 +2374,8 @@ actions:
       flatten: true
 
 - id: sustainable_soil_management
-  name: Sustainable Soil Management
+  name_da: Bæredygtig jordhåndtering
+  name_en: Sustainable Soil Management
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
@@ -2420,7 +2413,8 @@ actions:
 
 # ----- Green Mobility Plan
 - id: green_mobility_2a2_zero_emission_zone
-  name: 2.A.2 Zero Emission Zone
+  name_da: 2.A.2 Nulemissionszone i Aarhus
+  name_en: 2.A.2 Zero Emission Zone
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2454,7 +2448,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_3b_road_pricing
-  name: 3.B Road Pricing
+  name_da: 3.B Grønne vejafgifter (roadpricing)
+  name_en: 3.B Road Pricing
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -2477,7 +2472,8 @@ actions:
     to_dimensions: []
 
 - id: green_mobility_4_transport_oriented_city_development
-  name: 4 Transport Oriented City Development
+  name_da: 4 Stationsnær og transportorienteret byudvikling
+  name_en: 4 Transport Oriented City Development
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -2500,7 +2496,8 @@ actions:
     to_dimensions: []
 
 - id: green_mobility_5_super_bike_path
-  name: 5 Super Bike Path
+  name_da: 5 Fuldt udbygget supercykelstinet
+  name_en: 5 Super Bike Path
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2534,7 +2531,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_7_upgrade_of_main_bike_path
-  name: 7 Upgrade of Main Bike Path
+  name_da: 7 Fuldt opgraderet og udbygget hovedcykelstinet
+  name_en: 7 Upgrade of Main Bike Path
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2568,7 +2566,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_8_upgrade_of_local_path_system
-  name: 8 Upgrade of Local Path System
+  name_da: 8 Opgradering af lokale stinet
+  name_en: 8 Upgrade of Local Path System
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2602,7 +2601,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_9_more_and_better_bike_parking
-  name: 9 More and Better Bike Parking
+  name_da: 9 Mere og bedre cykelparkering
+  name_en: 9 More and Better Bike Parking
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2636,7 +2636,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_10a_development_of_railway_station_district
-  name: 10.A Development of Railway Station District
+  name_da: 10.A Udvikling af Banegårdskvarteret
+  name_en: 10.A Development of Railway Station District
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2670,7 +2671,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_12a_improvement_of_school_roads
-  name: 12.A Improvement of School Roads
+  name_da: 12.A Forbedrede skoleveje, trafiksikkerhed og hjertezoner for skoler i Aarhus
+  name_en: 12.A Improvement of School Roads
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2704,7 +2706,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_14_rental_of_electric_bikes
-  name: 14 Rental of Electric Bikes
+  name_da: 14 Mere cyklisme for alle - udlån af elcykler
+  name_en: 14 Rental of Electric Bikes
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2738,7 +2741,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_15a_uncongested_bus_network
-  name: 15.A Uncongested Bus Network
+  name_da: 15.A Fuldt udbygget og trængselsfrit busnet før 2030
+  name_en: 15.A Uncongested Bus Network
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -2761,7 +2765,8 @@ actions:
     to_dimensions: []
 
 - id: green_mobility_17_light_rail_stage_1
-  name: 17 Light Rail Stage 1
+  name_da: 17 Letbane etape 1 - udvidelse af frekvens og kapacitet
+  name_en: 17 Light Rail Stage 1
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -2784,7 +2789,8 @@ actions:
     to_dimensions: []
 
 - id: green_mobility_22a_road_structure_mobility_zones_speed_limits
-  name: 22.A Principles of Road Structure, Mobility Zones and Speed Limits
+  name_da: 22.A Principper for vejstruktur, mobilitetszoner og hastighedsgrænser i Aarhus
+  name_en: 22.A Principles of Road Structure, Mobility Zones and Speed Limits
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2818,7 +2824,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_23a_new_traffic_structure_mobility_zone_in_center
-  name: 23.A New Traffic Structure and Mobility Zone in City Center
+  name_da: 23.A Ny trafikstruktur og mobilitetszone for Midtbyen
+  name_en: 23.A New Traffic Structure and Mobility Zone in City Center
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2852,7 +2859,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_24a_new_traffic_structure_kongelunden_sydbyen
-  name: 24.A New Traffic Structure and Mobility Zone in Kongelunden and Sydbyen
+  name_da: 24.A Ny trafikstruktur og mobilitetszone for Kongelunden og Sydbyen
+  name_en: 24.A New Traffic Structure and Mobility Zone in Kongelunden and Sydbyen
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2886,7 +2894,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_26_faster_electrification_of_vans
-  name: '26 Faster Electrification of Heavy Vehicles and Goods Transport: Vans'
+  name_da: '26 Hurtigere elektrificering af tung trafik og varelevering: Varebiler'
+  name_en: '26 Faster Electrification of Heavy Vehicles and Goods Transport: Vans'
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -2909,7 +2918,8 @@ actions:
     to_dimensions: []
 
 - id: green_mobility_26_faster_electrification_of_trucks
-  name: '26 Faster Electrification of Heavy Vehicles and Goods Transport: Trucks'
+  name_da: '26 Hurtigere elektrificering af tung trafik og varelevering: Lastbiler'
+  name_en: '26 Faster Electrification of Heavy Vehicles and Goods Transport: Trucks'
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2943,7 +2953,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_27a_increase_in_parking_regulation
-  name: 27.A Increase in Parking Regulation
+  name_da: 27.A Øget parkeringsregulering
+  name_en: 27.A Increase in Parking Regulation
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2977,7 +2988,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_28_new_and_green_parking_norms
-  name: 28 New and Green Parking Norms
+  name_da: 28 Nye grønne parkeringsnormer
+  name_en: 28 New and Green Parking Norms
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -3000,7 +3012,8 @@ actions:
     to_dimensions: []
 
 - id: green_mobility_29a_conversion_of_existing_parking_lots
-  name: 29.A Conversion of Existing Parking Lots
+  name_da: 29.A Omdannelse af eksisterende parkeringspladser
+  name_en: 29.A Conversion of Existing Parking Lots
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -3034,7 +3047,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_31_facilitation_of_codriving
-  name: 31 Facilitation of Co-driving
+  name_da: 31 Facilitering af samkørsel
+  name_en: 31 Facilitation of Co-driving
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -3057,7 +3071,8 @@ actions:
     to_dimensions: []
 
 - id: green_mobility_32_expansion_of_charging_infrastructure
-  name: 32 Expansion of Charging Infrastructure
+  name_da: 32 Øget indsats for ladeinfrastruktur
+  name_en: 32 Expansion of Charging Infrastructure
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -3150,7 +3165,8 @@ actions:
 
 # ----- Waste
 - id: biocover_on_landfills
-  name: Biocover on Landfills
+  name_da: Biocover på deponier
+  name_en: Biocover on Landfills
   group: waste
   type: simple.AdditiveAction
   input_dimensions: [sector, ghg, cost_type]
@@ -3184,7 +3200,8 @@ actions:
 
 # ----- IPPU
 - id: green_materials_in_industry_and_construction
-  name: Green Materials in Industry and Construction
+  name_da: Klimavenlige materialer i industrien og byggeriet
+  name_en: Green Materials in Industry and Construction
   group: ippu
   type: simple.AdditiveAction
   input_dimensions: [sector, ghg, cost_type]
@@ -3218,7 +3235,8 @@ actions:
 
 # ----- AFOLU
 - id: biogenic_energy_park
-  name: Biogenic Energy Park
+  name_da: Biogen energipark
+  name_en: Biogenic Energy Park
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, emission_source, cost_type, ghg]
@@ -3276,7 +3294,8 @@ actions:
       flatten: true
 
 - id: climate_supervision_and_action_plans
-  name: Climate Supervision and Action Plans
+  name_da: Klimatilsyn og klimahandleplaner
+  name_en: Climate Supervision and Action Plans
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type, ghg]
@@ -3310,7 +3329,8 @@ actions:
       flatten: true
 
 - id: conversion_to_forestry_and_nature
-  name: Conversion to Forestry and Nature
+  name_da: Omdannelse til skov og natur
+  name_en: Conversion to Forestry and Nature
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -3342,7 +3362,8 @@ actions:
     metrics: [currency]
 
 - id: extraction_of_organic_soils
-  name: Extraction of Organic Soils
+  name_da: Udtagning af lavbundsjord
+  name_en: Extraction of Organic Soils
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -3388,7 +3409,8 @@ scenarios:
 
 - id: default
   default: true
-  name: Climate Action Plan
+  name_da: Klimaplanen 2025-2030
+  name_en: Climate Action Plan
   all_actions_enabled: true
   params:
   - id: carbon_capture_and_storage.enabled
