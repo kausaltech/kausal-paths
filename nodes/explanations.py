@@ -71,6 +71,7 @@ BASKET_OPERATION_LABEL = {
 TAG_DESCRIPTIONS = {
     'add_datasets': _('Get and prepare each dataset, then add them together.'),
     'additive': _("Add input node values (even if the units don't match with the node units)."),
+    'and': _('Logical AND: min(a, b). Warns if inputs deviate from 0 or 1 (see node explanation).'),
     'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
     'bring_to_maximum_historical_year': _('Makes all years up to maximum historical year non-forecasts.'),
     'complement': _('Take the complement of the dimensionless values (1-x).'),
@@ -95,12 +96,13 @@ TAG_DESCRIPTIONS = {
     'ignore_content': _('Show edge on graphs but ignore upstream content.'),
     'inserting': _('This is the rate of new stock coming in.'),
     'inventory_only': _('Truncate the forecast values.'),
-    'max': _('Element-wise maximum of two values; max(a, b). For 0/1 inputs this is logical OR.'),
-    'min': _('Element-wise minimum of two values; min(a, b). For 0/1 inputs this is logical AND.'),
     'make_nonnegative': _('Negative result values are replaced with 0.'),
     'make_nonpositive': _('Positive result values are replaced with 0.'),
+    'max': _('Element-wise maximum of two values; max(a, b). For 0/1 inputs this is logical OR.'),
+    'min': _('Element-wise minimum of two values; min(a, b). For 0/1 inputs this is logical AND.'),
     'non_additive': _('Input node values are not added but operated despite matching units.'),
     'observed_only_extend_all': _('Extend the observed data only based on the observed data points.'),
+    'or': _('Logical OR: max(a, b). Warns if inputs deviate from 0 or 1 (see node explanation).'),
     'prepare_gpc_dataset': _('Prepare a GPC-styledataset for use.'),
     'primary': _('Use data as primary values even if a secondary value exists.'),
     'ratio_to_last_historical_value': _('Take the ratio of the values compared with the last historical value.'),
@@ -374,16 +376,6 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         action_delay is the year when the implementation of the action starts.
         multiplier scales the size of the impact (useful between scenarios).
         """)),
-    'LogicalNode': NodeInfo(_(
-        """
-        LogicalNode processes logical inputs (values 0 or 1).
-
-        It applies Boolean AND to multiplicative nodes (nodes are ANDed together)
-        and Boolean OR to additive nodes (nodes are ORed together).
-
-        AND operations are performed first, then OR operations. For more complex
-        logical structures, use several subsequent nodes.
-        """), deprecated=True),  # FIXME There are several versions. Remove redundant.
     'LogitNode': NodeInfo(_(
         """
         LogitNode gives a probability of event given a baseline and several determinants.

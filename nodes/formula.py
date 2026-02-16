@@ -25,6 +25,9 @@ PDF = ppl.PathsDataFrame
 type EvalConst = float
 type EvalOutput = PDF | QuantityType | bool
 
+# Tolerance for treating values as logical 0/1 in and()/or() runtime warnings
+LOGICAL_TOLERANCE = 1e-6
+
 
 class EvalVars(NamedTuple):
     nodes: dict[str, Node]
@@ -343,6 +346,15 @@ class FormulaNode(Node):
             assert func in ('max', 'min')
             return self._apply_max_min(left, right, func)
 
+        if func in ('and', 'or'):
+            assert len(node.args) == 2, f"{func}(a, b) requires two arguments"
+            left = self.eval_tree(node.args[0], varss)
+            right = self.eval_tree(node.args[1], varss)
+            op = 'min' if func == 'and' else 'max'
+            result = self._apply_max_min(left, right, op)
+            self._append_non_binary_warning_if_needed(left, right, result, func)
+            return result
+
         raise NotImplementedError(f"Unknown function: {func}")
 
     def _apply_max_min(
@@ -366,6 +378,33 @@ class FormulaNode(Node):
         if isinstance(left, PDF) and isinstance(right, PDF):
             return left.paths.max_with(right) if op == 'max' else left.paths.min_with(right)
         raise NotImplementedError(f"{op} requires two parameters that are quantities or dataframes.")
+
+    def _has_non_binary_values(self, x: EvalOutput) -> bool:
+        """Return True if any value deviates from 0 and from 1 by more than LOGICAL_TOLERANCE."""
+        tol = LOGICAL_TOLERANCE
+        if isinstance(x, Quantity):
+            m = float(x.to(unit_registry('dimensionless')).m)
+            return abs(m) > tol and abs(m - 1.0) > tol
+        if isinstance(x, PDF):
+            col = x.get_column(VALUE_COLUMN)
+            near_zero = col.abs() <= tol
+            near_one = (col - 1.0).abs() <= tol
+            return bool((~(near_zero | near_one)).any())
+        return False
+
+    def _append_non_binary_warning_if_needed(
+        self,
+        left: EvalOutput,
+        right: EvalOutput,
+        result: EvalOutput,
+        func_name: Literal['and', 'or'],
+    ) -> None:
+        """If and()/or() received non-binary values, append a warning to result._explanation (when result is PDF)."""
+        if (self._has_non_binary_values(left) or self._has_non_binary_values(right)) and isinstance(result, PDF):
+            msg = _(
+                "Logical %(func)s() received values outside {0, 1}; interpreted as fuzzy logic."
+            ) % {'func': func_name}
+            result._explanation.append(msg)
 
     def eval_tree(self, tree: ast.AST, varss: EvalVars) -> EvalOutput:
         EVALUATORS: dict[type, Callable[[Any, EvalVars], EvalOutput]] = {
@@ -672,7 +711,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 for arg in node.args[1:]:
                     unit = _merge_compatible('coalesce', unit, _eval(arg))
                 return unit
-            if func_name in ('max', 'min'):
+            if func_name in ('max', 'min', 'and', 'or'):
                 if len(node.args) != 2:
                     analysis.warnings.append(f"{func_name}(a, b) requires two arguments.")
                 else:
@@ -796,7 +835,7 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 for arg in node.args[1:]:
                     dims = _require_same('coalesce', dims, _eval(arg))
                 return dims
-            if func_name in ('max', 'min'):
+            if func_name in ('max', 'min', 'and', 'or'):
                 if len(node.args) != 2:
                     analysis.warnings.append(f"{func_name}(a, b) requires two arguments.")
                 else:
