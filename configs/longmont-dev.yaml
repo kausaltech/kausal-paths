@@ -1438,13 +1438,15 @@ nodes:
   quantity: emissions
   unit: t_co2e/a
   color: '#4d9870'
-  output_dimensions: [ghg, emission_sectors, site]
+  output_dimensions: [ghg, emission_sectors, site, scope]
   input_nodes:
   - id: electricity_use
     to_dimensions:
     - id: emission_sectors
     - id: site
       categories: [platte_river_power_authority]
+    - id: scope
+      categories: [scope2]
   - id: electricity_emission_factor_co2e
     to_dimensions:
     - id: site
@@ -1459,8 +1461,6 @@ nodes:
     to_dimensions:
     - id: ghg
     - id: scope
-      categories: [scope2]
-
 
 - id: electricity_replacing_natural_gas_residential
   name: Electricity that replaces natural gas in residential buildings
@@ -1707,6 +1707,7 @@ nodes:
     filters:
     - column: site
       value: longmont_power
+  input_dataset_processors: [LinearInterpolation]
   output_dimensions: [energy_carrier]
   output_nodes:
   - id: electricity_losses
@@ -1738,14 +1739,16 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [emission_sectors, ghg, site]
-  output_dimensions: [emission_sectors, ghg, site]
+  input_dimensions: [emission_sectors, ghg, site, scope]
+  output_dimensions: [emission_sectors, ghg, site, scope]
   input_nodes:
   - id: electricity_losses
     to_dimensions:
     - id: emission_sectors
     - id: site
       categories: [platte_river_power_authority]
+    - id: scope
+      categories: [scope3]
   - id: electricity_emission_factor_co2e
     to_dimensions:
     - id: site

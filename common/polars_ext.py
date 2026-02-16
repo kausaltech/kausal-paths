@@ -1004,6 +1004,45 @@ class PathsExt:
     def _make_nonpositive(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
 
+    def max_with_scalar(self, scalar: float) -> ppl.PathsDataFrame:
+        """Element-wise maximum of value column and a scalar. For 0/1 values this is logical OR."""
+        return self._df.with_columns(
+            pl.max_horizontal(pl.col(VALUE_COLUMN), pl.lit(scalar)).alias(VALUE_COLUMN)
+        )
+
+    def min_with_scalar(self, scalar: float) -> ppl.PathsDataFrame:
+        """Element-wise minimum of value column and a scalar. For 0/1 values this is logical AND."""
+        return self._df.with_columns(
+            pl.min_horizontal(pl.col(VALUE_COLUMN), pl.lit(scalar)).alias(VALUE_COLUMN)
+        )
+
+    def max_with(self, other: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """Element-wise maximum of two PathsDataFrames (joined on index). For 0/1 values this is logical OR."""
+        return self._element_wise_max_min(other, op='max')
+
+    def min_with(self, other: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """Element-wise minimum of two PathsDataFrames (joined on index). For 0/1 values this is logical AND."""
+        return self._element_wise_max_min(other, op='min')
+
+    def _element_wise_max_min(
+        self, other: ppl.PathsDataFrame, op: Literal['max', 'min']
+    ) -> ppl.PathsDataFrame:
+        joined = self._df.paths.join_over_index(other, how='outer')
+        v_right = VALUE_COLUMN + '_right'
+        if v_right not in joined.columns:
+            return joined
+        l_unit = joined.get_unit(VALUE_COLUMN)
+        r_unit = joined.get_unit(v_right)
+        if r_unit != l_unit:
+            joined = joined.ensure_unit(v_right, l_unit)
+        expr = (
+            pl.max_horizontal(pl.col(VALUE_COLUMN), pl.col(v_right))
+            if op == 'max'
+            else pl.min_horizontal(pl.col(VALUE_COLUMN), pl.col(v_right))
+        )
+        out = joined.with_columns(expr.alias(VALUE_COLUMN)).drop(v_right)
+        return out.ensure_unit(VALUE_COLUMN, l_unit)
+
     def _observed_only_extend_all(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         """Use a) observations, b) comparable city values or c) model values for each combination of categories."""
         if 'ObservedDataPoint' not in df.columns:

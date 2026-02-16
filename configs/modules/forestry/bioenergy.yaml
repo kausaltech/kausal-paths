@@ -102,7 +102,7 @@ nodes:
       flatten: true
   output_nodes:
   - id: success_by_climate_aware_industrialist
-    tags: [non_additive]
+    tags: [peat]
   params:
   - id: constant
     value: 200

@@ -98,7 +98,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-kausal = ["kausal-paths-extensions>=0.6.48"]
+kausal = ["kausal-paths-extensions>=0.6.50"]
 
 [tool.pip-tools]
 
