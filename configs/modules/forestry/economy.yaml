@@ -377,10 +377,15 @@ nodes:
 
 - id: success_by_climate_aware_industrialist
   name: Success as defined by climate-aware industrialist
-  type: generic.LogicalNode
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
   input_nodes:
   - id: keep_forest_industry_alive
-    tags: [non_additive]
+    tags: [industry]
+  params:
+  - id: formula
+    value: industry >= 0.5 # and(industry, peat) # Peat node commented out now.
 
 actions:
 
