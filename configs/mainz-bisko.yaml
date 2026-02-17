@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://mainz-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e0caa32243959172733de453b131e3f3dd38263d
+  commit: 0b39130b4c412f46ccaff8c28c1de986a785f140
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
@@ -382,6 +382,27 @@ dimensions:
     label_en: Yes
     label_de: Ja
 
+- id: municipal_facility_type
+  label_en: Municipal facility type
+  label_de: Art der kommunalen Einrichtung
+  help_text: Sub-categories of municipal facilities as in KSP Datenerfassung 
+    (Daten kommunale Einrichtungen).
+  categories:
+  - id: street_lighting
+    label_en: Street lighting
+    label_de: Straßenbeleuchtung
+  - id: administrative_buildings
+    label_en: Municipal administrative buildings
+    label_de: Kommunale Verwaltungsgebäude
+    aliases: [kommunale_verwaltungsgebaude]
+  - id: schools_kitas
+    label_en: Schools and day-care centres
+    label_de: Schulen und Kindertagesstätten
+    aliases: [schulen_kitas]
+  - id: other_infrastructure
+    label_en: Other municipal buildings and infrastructure
+    label_de: Sonstige kommunale Gebäude und Infrastruktur
+
 - id: vehicle_type
   label_en: Vehicle type
   label_de: Fahrzeugtyp
@@ -389,7 +410,14 @@ dimensions:
   - id: passenger_cars
     label_en: Passenger cars
     label_de: Personenkraftwagen (PKW)
-    aliases: [Pkw]
+    aliases: [Pkw, VL_Pkw]
+  - id: walking
+    label_en: Walking
+    label_de: Fußgänger
+    aliases: [Fuss, VL_Fuss]
+  - id: cycling
+    label_en: Cycling
+    aliases: [Rad, VL_Rad]
   - id: trucks
     label_en: Trucks
     label_de: Lastkraftwagen (LKW)
@@ -412,7 +440,7 @@ dimensions:
   - id: local_buses
     label_en: Local buses
     label_de: Lokale Busse
-    aliases: [Lbus]
+    aliases: [Lbus, VL_Lbus]
   - id: long_distance_buses
     label_en: Long-distance buses
     label_de: Regionale busse
@@ -420,7 +448,7 @@ dimensions:
   - id: motorcycles
     label_en: Motorcycles
     label_de: Motorisierte Zweiräder
-    aliases: [MZR]
+    aliases: [MZR, VL_MRZ]
   - id: bicycles
     label_en: Bicycles
     label_de: Fahrräder
@@ -430,7 +458,7 @@ dimensions:
   - id: rail_vehicles
     label_en: Rail vehicles
     label_de: Schienenfahrzeuge
-    aliases: [SSU, 'Straßen, Stadt- und U-Bahnen']
+    aliases: [SSU, 'Straßen, Stadt- und U-Bahnen', VL_SSU]
   - id: tram
     label_en: Tram
     label_de: Straßenbahn
@@ -438,7 +466,7 @@ dimensions:
   - id: local_trains
     label_en: Local trains
     label_de: Schienenpersonennahverkehr
-    aliases: [SPNV]
+    aliases: [SPNV, VL_SPNV]
   - id: long_distance_trains
     label_en: Long-distance trains
     label_de: Schienenpersonenfernverkehr
@@ -957,6 +985,36 @@ nodes:
     # heat_reference_efficiency: 0.9
 
 #//////  Transport  /////////////////////////////////////////////////////////////////////////////////
+
+- id: passenger_kilometers
+  name_en: Passenger kilometers
+  name_de: Personenkilometer
+  description_en: Data comes from Klimaschutz-Planer.
+  description_de: Daten kommen aus Klimaschutz-Planer.
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: pkm/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: mainz/vehicle_kilometers
+    column: value
+    tags: [mileage]
+  params:
+    formula: extend_all(mileage)
+
+- id: vehicle_kilometers
+  name_en: Vehicle kilometers
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: vkm/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: passenger_kilometers
+  - id: passengers_per_vehicle
+  params:
+    formula: passenger_kilometers / passengers_per_vehicle
 
 - id: transport_energy_own_data # FIXME Data 1990 - 1999 is missing.
   name_de: Transport Energie nach Fahrzeugtyp - eigene Daten
