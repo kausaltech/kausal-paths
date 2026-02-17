@@ -23,7 +23,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 # Configure Django
 django.setup()
 
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN  # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
+from nodes.constants import VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
 from notebooks.notebook_support import get_context  # noqa: E402
 
 if TYPE_CHECKING:

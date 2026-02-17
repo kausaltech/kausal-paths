@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -8,13 +9,38 @@ from typing import Any
 
 import polars as pl
 import yaml
+from openpyxl import load_workbook
+from openpyxl.utils import column_index_from_string
 
-try:
-    from openpyxl import load_workbook
-    _has_openpyxl = True
-except ImportError:
-    _has_openpyxl = False
-    load_workbook = None
+from nodes.constants import VALUE_COLUMN
+from notebooks.notebook_support import get_context
+
+# Import operations from upload_new_dataset.py
+from notebooks.upload_new_dataset import (
+    MetricData,
+    clean_dataframe,
+    convert_names_to_cats,
+    convert_to_standard_format,
+    extract_description,
+    extract_metrics,
+    extract_units,
+    extract_units_from_row,
+    pivot_by_compound_id,
+    prepare_for_dvc,
+    push_to_dvc,
+    to_snake_case,
+)
+
+
+@dataclass
+class MetricSpec:
+    """Defines a metric with its name, ID, unit, column name, and quantity."""
+
+    name: str  # Display name of the metric
+    id: str  # Unique identifier (snake_case)
+    unit: str  # Unit of measurement
+    quantity: str  # Quantity type (e.g., "energy", "emissions")
+    column: str | None = None  # Column name in final dataset (defaults to id if not specified)
 
 
 @dataclass
@@ -54,12 +80,6 @@ class DatasetSchema:
     has_header: bool = False  # Skip header row by default, use technical col names.
     value_column_name: str = 'Value'  # Name for the value column in output
 
-    def __post_init__(self):
-        if self.identifier_mappings is None:
-            self.identifier_mappings = {}
-        if self.column_specs is None:
-            self.column_specs = {}
-
 
 @dataclass
 class DatasetConfig:
@@ -71,6 +91,40 @@ class DatasetConfig:
     file_type: str | None = None  # Auto-detected if None: 'csv', 'excel', or 'parquet'
     sheet_name: str | None = None  # For Excel files: specific sheet name
     sheet_year_mapping: dict[str, int] | None = None  # Map sheet names to years
+    excel_range: str | None = None  # Excel range like "A3:D20"
+    operations: list[dict[str, Any]] = field(default_factory=list)  # Sequence of operations to apply
+    instance: str | None = None  # Instance ID for context and dimensions (used by convert_names_to_cats)
+    metrics: list[MetricSpec] = field(default_factory=list)  # Metric definitions (name, id, unit)
+
+
+def parse_excel_range(range_str: str) -> tuple[int, int, int, int]:
+    """
+    Parse Excel range like "A3:D20" into (start_row, start_col, end_row, end_col).
+
+    Returns 0-based indices: (start_row, start_col, end_row, end_col)
+    """
+
+    # Match patterns like "A3:D20" or "A3" (single cell)
+    pattern = r'([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?'
+    match = re.match(pattern, range_str.upper())
+    if not match:
+        raise ValueError(f"Invalid Excel range format: {range_str}")
+
+    start_col_str, start_row_str, end_col_str, end_row_str = match.groups()
+
+    # Convert to 0-based indices
+    start_col = column_index_from_string(start_col_str) - 1
+    start_row = int(start_row_str) - 1
+
+    if end_col_str and end_row_str:
+        end_col = column_index_from_string(end_col_str) - 1
+        end_row = int(end_row_str) - 1
+    else:
+        # Single cell - return same as start
+        end_col = start_col
+        end_row = start_row
+
+    return start_row, start_col, end_row, end_col
 
 
 class FileLoader:
@@ -102,18 +156,14 @@ class FileLoader:
         return pl.read_parquet(file_path)
 
     @staticmethod
-    def load_excel(
+    def load_excel(  # noqa: C901, PLR0912
         file_path: str | Path,
         sheet_name: str | None = None,
         skip_rows: int = 0,
-        has_header: bool = False
+        has_header: bool = False,
+        excel_range: str | None = None
     ) -> pl.DataFrame:
         """Load an Excel file sheet into a Polars DataFrame."""
-        if not _has_openpyxl or load_workbook is None:
-            raise ImportError(
-                "Excel support requires 'openpyxl' package. Install with: pip install openpyxl"
-            )
-
         wb = load_workbook(file_path, data_only=True, read_only=True)
         if sheet_name:
             ws = wb[sheet_name]
@@ -124,8 +174,21 @@ class FileLoader:
             wb.close()
             return pl.DataFrame()
 
-        # Convert to list of lists
-        data = [list(row) for row in ws.iter_rows(values_only=True)]
+        # Handle Excel range if specified
+        if excel_range:
+            start_row, start_col, end_row, end_col = parse_excel_range(excel_range)
+            # Extract only the specified range
+            data = []
+            for row_idx in range(start_row, end_row + 1):
+                row_data = []
+                for col_idx in range(start_col, end_col + 1):
+                    cell = ws.cell(row=row_idx + 1, column=col_idx + 1)  # openpyxl uses 1-based
+                    row_data.append(cell.value)
+                data.append(row_data)
+        else:
+            # Convert to list of lists
+            data = [list(row) for row in ws.iter_rows(values_only=True)]
+
         wb.close()
 
         if not data:
@@ -171,7 +234,8 @@ class FileLoader:
         file_type: str | None = None,
         sheet_name: str | None = None,
         skip_rows: int = 0,
-        has_header: bool = False
+        has_header: bool = False,
+        excel_range: str | None = None
     ) -> pl.DataFrame:
         """Load a file based on its type."""
         if file_type is None:
@@ -180,7 +244,7 @@ class FileLoader:
         if file_type == 'parquet':
             return cls.load_parquet(file_path)
         if file_type == 'excel':
-            return cls.load_excel(file_path, sheet_name, skip_rows, has_header)
+            return cls.load_excel(file_path, sheet_name, skip_rows, has_header, excel_range)
         # Default to CSV
         return cls.load_csv(file_path, skip_rows, has_header)
 
@@ -278,6 +342,341 @@ class DataTransformer:
         return pl.DataFrame(rows)
 
 
+class OperationsExecutor:
+    """Executes operations on DataFrames."""
+
+    def __init__(self, context=None, metrics: list[MetricSpec] | None = None):
+        """Initialize with optional context and metrics for operations that need them."""
+        self.context = context
+        self.metrics = metrics or []
+        self._extracted_units: dict[str, str] = {}  # Store extracted units
+
+    @staticmethod
+    def _eval_polars_expr(expr_str: str, _df: pl.DataFrame) -> pl.Expr:
+        """
+        Safely evaluate a Polars expression string.
+
+        The expression should be a Polars expression like:
+        - "pl.col('value') > 0"
+        - "pl.col('year') == 2020"
+        - "pl.col('name').is_not_null()"
+        """
+        # Create a safe namespace with only polars
+        namespace = {'pl': pl}
+
+        # Compile and evaluate the expression
+        try:
+            code = compile(expr_str, '<string>', 'eval')
+            expr = eval(code, {"__builtins__": {}}, namespace)  # noqa: S307
+            if not isinstance(expr, pl.Expr):
+                raise TypeError(f"Expression must evaluate to a Polars Expr, got {type(expr)}")  # noqa: TRY301
+            return expr  # noqa: TRY300
+        except Exception as e:
+            raise ValueError(f"Invalid Polars expression '{expr_str}': {e}") from e
+
+    def execute_operation(self, df: pl.DataFrame, operation: dict[str, Any]) -> pl.DataFrame:  # noqa: C901, PLR0911, PLR0912, PLR0915
+        """Execute a single operation on a DataFrame."""
+        op_type = operation.get('type')
+        op_params = operation.get('params', {})
+
+        if op_type == 'filter':
+            # Filter using Polars expression
+            expr_str = op_params.get('expr')
+            if not expr_str:
+                raise ValueError("Filter operation requires 'expr' parameter")
+            expr = self._eval_polars_expr(expr_str, df)
+            return df.filter(expr)
+
+        if op_type == 'with_columns':
+            # Add new columns using Polars expressions
+            # Can be a single expression string or a list of expression strings
+            expr_or_exprs = op_params.get('expr') or op_params.get('exprs')
+            if expr_or_exprs is None:
+                raise ValueError("with_columns operation requires 'expr' or 'exprs' parameter")
+
+            if isinstance(expr_or_exprs, str):
+                # Single expression
+                expr = self._eval_polars_expr(expr_or_exprs, df)
+                return df.with_columns(expr)
+            if isinstance(expr_or_exprs, list):
+                # List of expressions
+                exprs = [self._eval_polars_expr(e, df) for e in expr_or_exprs]
+                return df.with_columns(exprs)
+            raise ValueError("with_columns 'expr'/'exprs' must be a string or list of strings")
+
+        if op_type == 'drop':
+            # Drop columns
+            columns = op_params.get('columns', [])
+            return df.drop(columns)
+
+        if op_type == 'rename':
+            # Rename columns
+            mapping = op_params.get('mapping', {})
+            return df.rename(mapping)
+
+        if op_type == 'select':
+            # Select columns
+            columns = op_params.get('columns', [])
+            return df.select(columns)
+
+        # Imported operations from upload_new_dataset.py
+        if op_type == 'clean_dataframe':
+            return clean_dataframe(df)
+
+        if op_type == 'convert_to_standard_format':
+            return convert_to_standard_format(df)
+
+        if op_type == 'pivot_by_compound_id':
+            return pivot_by_compound_id(df)
+
+        if op_type == 'prepare_for_dvc':
+            units = op_params.get('units', {})
+            return prepare_for_dvc(df, units)
+
+        if op_type == 'to_snake_case_columns':
+            # Convert column names to snake_case
+            exclude = op_params.get('exclude', ['Year'])
+            new_cols = {}
+            for col in df.columns:
+                if col not in exclude:
+                    new_cols[col] = to_snake_case(col)
+            return df.rename(new_cols)
+
+        if op_type == 'convert_names_to_cats':
+            # Convert dimension column names to category IDs using context
+            if self.context is None:
+                raise ValueError(
+                    "convert_names_to_cats operation requires a context. "
+                    + "Set 'instance' in the dataset configuration."
+                )
+            # Units must be provided explicitly via params
+            units = op_params.get('units', {})
+            if not isinstance(units, dict):
+                raise ValueError("convert_names_to_cats operation requires 'units' to be a dict in params")
+            return convert_names_to_cats(df, units, self.context)
+
+        if op_type == 'define_metrics':
+            # Create metric_col column from YAML-defined metrics
+            # Maps Quantity/Metric values to metric column names based on metric definitions
+            if not self.metrics:
+                raise ValueError(
+                    "define_metrics operation requires metrics to be defined in the dataset configuration."
+                )
+            # Create a mapping from metric name/quantity to metric column name
+            # Use column if specified, otherwise use id
+            metric_mapping = {}
+            for metric in self.metrics:
+                column_name = metric.column if metric.column else metric.id
+                # Map by name (case-insensitive) and also by id
+                metric_mapping[metric.name.lower()] = column_name
+                metric_mapping[metric.id.lower()] = column_name
+
+            # Determine which column contains metric names
+            metric_col_name = None
+            if 'Metric' in df.columns:
+                metric_col_name = 'Metric'
+            elif 'Quantity' in df.columns:
+                metric_col_name = 'Quantity'
+            else:
+                raise ValueError(
+                    "define_metrics operation requires 'Metric' or 'Quantity' column in DataFrame."
+                )
+
+            # Create metric_col by mapping metric names to column names
+            def map_to_metric_column(name: str | None) -> str:
+                if name is None:
+                    return VALUE_COLUMN
+                name_lower = str(name).lower().strip()
+                return metric_mapping.get(name_lower, to_snake_case(name))
+
+            df = df.with_columns(
+                pl.col(metric_col_name)
+                .map_elements(map_to_metric_column, return_dtype=pl.Utf8)
+                .alias('metric_col')
+            )
+            return df
+
+        if op_type == 'extract_units':
+            # Extract units from DataFrame using metric_col
+            # Returns units dict: {metric_id: unit}
+            if 'metric_col' not in df.columns:
+                raise ValueError(
+                    "extract_units operation requires 'metric_col' column. "
+                    + "Run 'define_metrics' operation first."
+                )
+            if 'Unit' not in df.columns:
+                raise ValueError("extract_units operation requires 'Unit' column in DataFrame.")
+
+            units = extract_units(df)
+            # Store units in operation executor for later use
+            self._extracted_units = units
+            return df
+
+        if op_type == 'extract_units_from_row':
+            # Extract units from first row if it contains only strings
+            units, df_cleaned = extract_units_from_row(df)
+            self._extracted_units = units
+            return df_cleaned
+
+        if op_type == 'extract_metadata':
+            # Separate metadata columns (Quantity, Unit, Metric) from data
+            # This prepares the DataFrame for final output format
+            metadata_cols = ['Quantity', 'Unit', 'Metric', 'metric_col']
+            cols_to_drop = [col for col in metadata_cols if col in df.columns]
+            if cols_to_drop:
+                df = df.drop(cols_to_drop)
+            return df
+
+        if op_type == 'print_metadata':
+            # Print metadata information for verification before pushing to DVC
+            print("\n" + "=" * 80)
+            print("METADATA SUMMARY")
+            print("=" * 80)
+
+            # Print units
+            units_to_print = op_params.get('units')
+            if units_to_print is None:
+                units_to_print = self._extracted_units
+            if units_to_print:
+                print(f"\nUnits ({len(units_to_print)}):")
+                print("-" * 80)
+                for metric_id, unit in sorted(units_to_print.items()):
+                    print(f"  {metric_id:30s} -> {unit}")
+            else:
+                print("\nUnits: None extracted")
+
+            # Print metrics from YAML definitions
+            if self.metrics:
+                print(f"\nMetrics ({len(self.metrics)}):")
+                print("-" * 80)
+                for metric in self.metrics:
+                    column_name = metric.column if metric.column else metric.id
+                    print(f"  Name:     {metric.name}")
+                    print(f"    ID:     {metric.id}")
+                    print(f"    Column: {column_name}")
+                    print(f"    Unit:   {metric.unit}")
+                    print(f"    Quantity: {metric.quantity}")
+                    print()
+            else:
+                print("\nMetrics: None defined in configuration")
+
+            # Print DataFrame structure
+            print("DataFrame Structure:")
+            print("-" * 80)
+            print(f"  Rows: {len(df)}")
+            print(f"  Columns ({len(df.columns)}):")
+            metric_cols = []
+            dimension_cols = []
+            other_cols = []
+            units_dict = units_to_print or {}
+            for col in df.columns:
+                if col in units_dict:
+                    metric_cols.append(col)
+                elif col.lower() == 'year':
+                    other_cols.append(f"{col} (time dimension)")
+                else:
+                    dimension_cols.append(col)
+            if metric_cols:
+                print(f"    Metric columns ({len(metric_cols)}): {', '.join(sorted(metric_cols))}")
+            if dimension_cols:
+                print(f"    Dimension columns ({len(dimension_cols)}): {', '.join(sorted(dimension_cols))}")
+            if other_cols:
+                print(f"    Other columns: {', '.join(other_cols)}")
+
+            # Print sample data
+            if len(df) > 0:
+                sample_size = op_params.get('sample_rows', 5)
+                print(f"\nSample Data (first {min(sample_size, len(df))} rows):")
+                print("-" * 80)
+                sample_df = df.head(sample_size)
+                # Print in a readable format
+                for idx, row in enumerate(sample_df.iter_rows(named=True), 1):
+                    print(f"  Row {idx}:")
+                    for key, value in row.items():
+                        if value is not None:
+                            print(f"    {key}: {value}")
+                    print()
+
+            print("=" * 80 + "\n")
+            return df
+
+        if op_type == 'push_to_dvc':
+            # Push dataset to DVC repository
+            output_path = op_params.get('output_path')
+            if not output_path:
+                raise ValueError("push_to_dvc operation requires 'output_path' parameter")
+
+            dataset_name = op_params.get('dataset_name', 'dataset')
+            language = op_params.get('language', 'en')
+
+            # Get units (from params, YAML metric definitions, extracted units, or empty dict)
+            units = op_params.get('units')
+            if units is None:
+                # Try to build units from YAML metric definitions first
+                if self.metrics:
+                    units = {}
+                    for metric_spec in self.metrics:
+                        column_name = metric_spec.column if metric_spec.column else metric_spec.id
+                        units[column_name] = metric_spec.unit
+                else:
+                    # Fall back to extracted units
+                    units = self._extracted_units
+            if not isinstance(units, dict):
+                raise ValueError("push_to_dvc operation requires 'units' to be a dict")
+
+            # Warn if units are empty
+            if not units:
+                print("Warning: No units found. Units should be:")
+                print("  1. Provided via params['units']")
+                print("  2. Defined in YAML metrics (metric.unit)")
+                print("  3. Extracted via 'extract_units' operation (before pivot/extract_metadata)")
+
+            # Extract description if Description column exists
+            description = op_params.get('description')
+            if description is None and 'Description' in df.columns:
+                description = extract_description(df)
+
+            # Convert MetricSpec to MetricData for DVC
+            metrics_list = []
+            if self.metrics:
+                # Use YAML-defined metrics
+                for metric_spec in self.metrics:
+                    column_name = metric_spec.column if metric_spec.column else metric_spec.id
+                    metrics_list.append(MetricData(
+                        id=column_name,
+                        quantity=to_snake_case(metric_spec.quantity),
+                        label={language: metric_spec.name}
+                    ))
+            elif op_params.get('extract_metrics', False):
+                # Extract metrics from DataFrame if requested
+                if 'metric_col' in df.columns and 'Metric' in df.columns and 'Quantity' in df.columns:
+                    metrics_list = extract_metrics(df, language)
+                else:
+                    print("Warning: Cannot extract metrics - missing required columns (metric_col, Metric, Quantity)")
+
+            # Push to DVC
+            push_to_dvc(
+                df=df,
+                output_path=output_path,
+                dataset_name=dataset_name,
+                units=units,
+                description=description,
+                metrics=metrics_list,
+                language=language
+            )
+            print(f"✓ Dataset '{dataset_name}' pushed to DVC at {output_path}")
+            return df
+
+        raise ValueError(f"Unknown operation type: {op_type}")
+
+    def execute_operations(self, df: pl.DataFrame, operations: list[dict[str, Any]]) -> pl.DataFrame:
+        """Execute a sequence of operations in order."""
+        result_df = df
+        for operation in operations:
+            result_df = self.execute_operation(result_df, operation)
+        return result_df
+
+
 class OutputWriter:
     """Handles writing output files."""
 
@@ -305,6 +704,14 @@ class DatasetProcessor:
         self.data_collector = DataCollector(config.schema) if config.schema else None
         self.data_transformer = DataTransformer()
         self.output_writer = OutputWriter()
+        # Initialize context if instance is specified
+        context = None
+        if config.instance:
+            try:
+                context = get_context(config.instance)
+            except Exception as e:
+                print(f"Warning: Could not load context for instance '{config.instance}': {e}")
+        self.operations_executor = OperationsExecutor(context=context, metrics=config.metrics)
 
     def process(self, verbose: bool = True) -> pl.DataFrame:  # noqa: C901, PLR0912
         """Process a single dataset configuration."""
@@ -314,8 +721,14 @@ class DatasetProcessor:
                 print(f"Loading file: {self.config.input_file_path}")
             df = self.file_loader.load_file(
                 self.config.input_file_path,
-                self.config.file_type
+                self.config.file_type,
+                excel_range=self.config.excel_range
             )
+
+            # Apply operations if any
+            if self.config.operations:
+                df = self.operations_executor.execute_operations(df, self.config.operations)
+
             return df
 
         # Full processing pipeline
@@ -327,6 +740,8 @@ class DatasetProcessor:
                     print(f"  Sheet: {self.config.sheet_name}")
                 elif self.config.sheet_year_mapping:
                     print("  Processing multiple sheets with year mapping")
+                if self.config.excel_range:
+                    print(f"  Excel range: {self.config.excel_range}")
 
         if self.data_collector is None:
             raise ValueError("Schema is required for data collection")
@@ -344,8 +759,13 @@ class DatasetProcessor:
                     file_type='excel',
                     sheet_name=sheet_name,
                     skip_rows=self.config.schema.skip_rows,
-                    has_header=self.config.schema.has_header
+                    has_header=self.config.schema.has_header,
+                    excel_range=self.config.excel_range
                 )
+
+                # Apply operations before collecting data
+                if self.config.operations:
+                    df = self.operations_executor.execute_operations(df, self.config.operations)
 
                 # Step 2: Collect data
                 rows = self.data_collector.collect_data(df, year=year)
@@ -364,8 +784,14 @@ class DatasetProcessor:
                 file_type='excel',
                 sheet_name=self.config.sheet_name,
                 skip_rows=self.config.schema.skip_rows,
-                has_header=self.config.schema.has_header
+                has_header=self.config.schema.has_header,
+                excel_range=self.config.excel_range
             )
+
+            # Apply operations before collecting data
+            if self.config.operations:
+                df = self.operations_executor.execute_operations(df, self.config.operations)
+
             rows = self.data_collector.collect_data(df)
             result_df = self.data_transformer.transform_to_dataframe(rows)
 
@@ -375,8 +801,14 @@ class DatasetProcessor:
                 self.config.input_file_path,
                 file_type=self.config.file_type,
                 skip_rows=self.config.schema.skip_rows,
-                has_header=self.config.schema.has_header
+                has_header=self.config.schema.has_header,
+                excel_range=self.config.excel_range
             )
+
+            # Apply operations before collecting data
+            if self.config.operations:
+                df = self.operations_executor.execute_operations(df, self.config.operations)
+
             rows = self.data_collector.collect_data(df)
             result_df = self.data_transformer.transform_to_dataframe(rows)
 
@@ -418,15 +850,27 @@ def list_excel_sheets(file_path: str | Path) -> list[str]:
     if file_path.suffix.lower() not in ['.xlsx', '.xls']:
         raise ValueError(f"File is not an Excel file: {file_path}")
 
-    if not _has_openpyxl or load_workbook is None:
-        raise ImportError(
-            "Excel support requires 'openpyxl' package. Install with: pip install openpyxl"
-        )
-
     wb = load_workbook(file_path, read_only=True)
     sheet_names = wb.sheetnames
     wb.close()
     return sheet_names
+
+
+def merge_configs(base_config: dict[str, Any], override_config: dict[str, Any]) -> dict[str, Any]:
+    """Merge two config dictionaries, with override taking precedence."""
+    merged = base_config.copy()
+
+    # Deep merge for nested dictionaries
+    for key, value in override_config.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = merge_configs(merged[key], value)
+        elif key in merged and isinstance(merged[key], list) and isinstance(value, list):
+            # For lists, replace entirely (don't merge)
+            merged[key] = value
+        else:
+            merged[key] = value
+
+    return merged
 
 
 def parse_column_specs(config_dict: dict[str, Any]) -> dict[int, ColumnSpec]:
@@ -468,8 +912,32 @@ def parse_schema(config_dict: dict[str, Any]) -> DatasetSchema:
     )
 
 
-def parse_dataset_config(config_dict: dict[str, Any], default_output: str | None = None) -> DatasetConfig:
+def parse_metrics(config_list: list[dict[str, Any]] | None) -> list[MetricSpec]:
+    """Parse metric specifications from config list."""
+    if not config_list:
+        return []
+    return [
+        MetricSpec(
+            name=metric_dict['name'],
+            id=metric_dict['id'],
+            unit=metric_dict['unit'],
+            quantity=metric_dict['quantity'],
+            column=metric_dict.get('column')  # Optional, defaults to None
+        )
+        for metric_dict in config_list
+    ]
+
+
+def parse_dataset_config(
+    config_dict: dict[str, Any],
+    default_output: str | None = None,
+    base_config: dict[str, Any] | None = None
+) -> DatasetConfig:
     """Parse a single dataset configuration from dictionary."""
+    # Merge with base config if provided (property inheritance)
+    if base_config:
+        config_dict = merge_configs(base_config, config_dict)
+
     # Determine file type
     input_path = Path(config_dict['input_file_path'])
     file_type = FileLoader.detect_file_type(input_path)
@@ -479,13 +947,20 @@ def parse_dataset_config(config_dict: dict[str, Any], default_output: str | None
     if 'row_identifier_name' in config_dict:
         schema = parse_schema(config_dict)
 
+    # Parse metrics if present
+    metrics = parse_metrics(config_dict.get('metrics'))
+
     return DatasetConfig(
         input_file_path=config_dict['input_file_path'],
         output_file_path=config_dict.get('output_file_path', default_output),
         schema=schema,
         file_type=config_dict.get('file_type', file_type),
         sheet_name=config_dict.get('sheet_name'),
-        sheet_year_mapping=config_dict.get('sheet_year_mapping')
+        sheet_year_mapping=config_dict.get('sheet_year_mapping'),
+        excel_range=config_dict.get('excel_range'),
+        operations=config_dict.get('operations', []),
+        instance=config_dict.get('instance'),
+        metrics=metrics
     )
 
 
@@ -494,6 +969,7 @@ def load_config(yaml_file_path: str | Path) -> tuple[list[DatasetConfig], str | 
     Load dataset configurations from YAML file.
 
     Supports both single config and list of configs.
+    Implements property inheritance: later datasets inherit from previous ones.
 
     Args:
         yaml_file_path: Path to the YAML configuration file
@@ -510,20 +986,40 @@ def load_config(yaml_file_path: str | Path) -> tuple[list[DatasetConfig], str | 
     with yaml_file_path.open('r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
 
-    # Handle top-level output path
-    default_output = config.get('output_file_path')
+    # Handle top-level output path, instance, and metrics
+    default_output: str | None = config.get('output_file_path')
+    top_level_instance: str | None = config.get('instance')
+    top_level_metrics: list[dict[str, Any]] | None = config.get('metrics')
 
     # Check if config is a list of datasets
     if 'datasets' in config:
-        # Multiple dataset configurations
-        dataset_configs = [
-            parse_dataset_config(dataset_dict, default_output)
-            for dataset_dict in config['datasets']
-        ]
+        # Multiple dataset configurations with inheritance
+        dataset_configs = []
+        # Start with top-level properties as base config
+        base_config: dict[str, Any] = {}
+        if top_level_instance is not None:
+            base_config['instance'] = top_level_instance
+        if top_level_metrics is not None:
+            base_config['metrics'] = top_level_metrics
+
+        for dataset_dict in config['datasets']:
+            # Each dataset inherits from the previous one (base_config)
+            dataset_config = parse_dataset_config(dataset_dict, default_output, base_config)
+            dataset_configs.append(dataset_config)
+
+            # Update base_config for next iteration (current config becomes base for next)
+            base_config = merge_configs(base_config, dataset_dict)
+
         return dataset_configs, default_output
 
     # Single dataset configuration (backward compatibility)
-    dataset_config = parse_dataset_config(config, default_output)
+    # Include top-level instance and metrics if present
+    single_base_config: dict[str, Any] = {}
+    if top_level_instance is not None:
+        single_base_config['instance'] = top_level_instance
+    if top_level_metrics is not None:
+        single_base_config['metrics'] = top_level_metrics
+    dataset_config = parse_dataset_config(config, default_output, single_base_config if single_base_config else None)
     return [dataset_config], default_output
 
 
