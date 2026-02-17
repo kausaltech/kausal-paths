@@ -1,3 +1,6 @@
+# Some functionalities were taken from convert_uploadable_format.py, which was then deleted.
+# https://github.com/kausaltech/kausal-paths/blob/91d40f1d3110665f9e80e50ab74fc4d3d7d16b29/notebooks/convert_to_uploadable_format.py
+
 from __future__ import annotations
 
 import argparse
@@ -612,7 +615,7 @@ class OperationsExecutor:
                     + "as a dict mapping dimension names to keyword->category_id dictionaries."
                 )
 
-            def find_category_matches(description: str | None, mapping: dict) -> dict[str, str | None]:
+            def find_category_matches(description: str | None, mapping: dict[str, dict[str, str]]) -> dict[str, str | None]:
                 """Find dimension matches in description text."""
                 # Initialize all dimensions to None
                 matches: dict[str, str | None] = {}
