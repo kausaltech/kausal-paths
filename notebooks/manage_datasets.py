@@ -156,7 +156,7 @@ class FileLoader:
         return pl.read_parquet(file_path)
 
     @staticmethod
-    def load_excel(  # noqa: C901, PLR0912
+    def load_excel(
         file_path: str | Path,
         sheet_name: str | None = None,
         skip_rows: int = 0,
@@ -165,11 +165,7 @@ class FileLoader:
     ) -> pl.DataFrame:
         """Load an Excel file sheet into a Polars DataFrame."""
         wb = load_workbook(file_path, data_only=True, read_only=True)
-        if sheet_name:
-            ws = wb[sheet_name]
-        else:
-            ws = wb.active
-
+        ws = wb[sheet_name] if sheet_name else wb.active
         if ws is None:
             wb.close()
             return pl.DataFrame()
@@ -599,6 +595,90 @@ class OperationsExecutor:
 
             print("=" * 80 + "\n")
             return df
+
+        if op_type == 'extract_dimensions_from_text':
+            # Extract dimension columns from unstructured text using keyword matching
+            # Similar to process_hidden_categories from convert_to_uploadable_format.py
+            description_col = op_params.get('column', 'Description')
+            if description_col not in df.columns:
+                raise ValueError(
+                    f"extract_dimensions_from_text operation requires '{description_col}' column in DataFrame."
+                )
+
+            category_mapping = op_params.get('mapping')
+            if not isinstance(category_mapping, dict):
+                raise ValueError(
+                    "extract_dimensions_from_text operation requires 'mapping' parameter "
+                    + "as a dict mapping dimension names to keyword->category_id dictionaries."
+                )
+
+            def find_category_matches(description: str | None, mapping: dict) -> dict[str, str | None]:
+                """Find dimension matches in description text."""
+                # Initialize all dimensions to None
+                matches: dict[str, str | None] = {}
+                for dimension_id in mapping.keys():
+                    matches[dimension_id] = None
+                if description is None:
+                    return matches
+
+                description_lower = str(description).lower()
+
+                for dimension_id, keyword_mapping in mapping.items():
+                    for keyword, category_id in keyword_mapping.items():
+                        if keyword.lower() in description_lower:
+                            matches[dimension_id] = category_id
+                            break  # Take first match for each dimension
+
+                return matches
+
+            all_dimensions = set(category_mapping.keys())
+            if verbose := op_params.get('verbose', False):
+                print(f"Extracting dimensions from '{description_col}' column: {sorted(all_dimensions)}")
+
+            # Apply matching function
+            df = df.with_columns(
+                pl.col(description_col)
+                .map_elements(
+                    lambda x: find_category_matches(x, category_mapping),
+                    return_dtype=pl.Struct([pl.Field(dim, pl.Utf8) for dim in all_dimensions])
+                )
+                .alias("_dimension_matches")
+            )
+
+            # Extract each dimension as a separate column
+            for dimension in all_dimensions:
+                df = df.with_columns(
+                    pl.col("_dimension_matches").struct.field(dimension).alias(dimension)
+                )
+
+            df = df.drop("_dimension_matches")
+
+            if verbose:
+                # Print summary of extracted dimensions
+                for dimension in sorted(all_dimensions):
+                    non_null_count = df.filter(pl.col(dimension).is_not_null()).height
+                    if non_null_count > 0:
+                        unique_values = df.select(dimension).unique().drop_nulls()
+                        print(f"  {dimension}: {non_null_count} matches, {len(unique_values)} unique values")
+
+            return df
+
+            # Example use with datasets:
+            # - input_file_path: data.csv
+            #     operations:
+            #     - type: extract_dimensions_from_text
+            #         params:
+            #         column: Description  # Optional, defaults to 'Description'
+            #         mapping:
+            #             sector:
+            #             'industrie': 'industry'
+            #             'verkehr': 'transport'
+            #             'gebäude': 'buildings'
+            #             energy_carrier:
+            #             'erdgas': 'natural_gas'
+            #             'strom': 'electricity'
+            #             'biomasse': 'biomass'
+            #         verbose: true  # Optional: print extraction summary
 
         if op_type == 'push_to_dvc':
             # Push dataset to DVC repository
