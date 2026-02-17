@@ -1044,13 +1044,18 @@ class PathsExt:
         return out.ensure_unit(VALUE_COLUMN, l_unit)
 
     def _observed_only_extend_all(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
-        """Use a) observations, b) comparable city values or c) model values for each combination of categories."""
+        """
+        Use a) observations, b) comparable city values or c) model values for each combination of categories.
+
+        Keeps only rows from the chosen source per category, then extends to full time span (no grouping by year).
+        """
         if 'ObservedDataPoint' not in df.columns:
             logger.warning("ObservedDataPoint column not found. Are you sure you want to use tag observed_only_extend_all?")
             return df
 
         is_forecast = False
         model_default = True
+        # dim_ids excludes Year (see DataFrameMeta.get_dim_ids); we need "has any obs/measure in this category".
         if df.dim_ids:
             df = (
                 df
@@ -1060,10 +1065,11 @@ class PathsExt:
                 ])
             )
         else:
+            # No category dims (only Year in primary_keys): "has any obs/measure" is table-level
             df = (
                 df.with_columns([
-                    pl.col("ObservedDataPoint").alias("_has_obs"),
-                    pl.col("FromMeasureDataPoint").alias("_has_measure"),
+                    pl.col("ObservedDataPoint").any().alias("_has_obs"),
+                    pl.col("FromMeasureDataPoint").any().alias("_has_measure"),
                 ])
             )
         df = (
