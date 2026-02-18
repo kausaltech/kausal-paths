@@ -1034,9 +1034,17 @@ nodes:
   quantity: emissions
   unit: t_co2e/a
   color: '#73C1B7'
-  input_dimensions: [scope]
-  output_dimensions: [scope]
-  output_nodes: [net_emissions]
+  input_dimensions: [emission_sectors, scope, energy_carrier]
+  output_dimensions: [emission_sectors, scope, energy_carrier]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: emission_sectors
+      flatten: true
+    to_dimensions:
+    - id: scope
 
 - id: fugitive_emissions
   name: Fugitive emissions
@@ -1045,10 +1053,13 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [scope]
-  output_dimensions: [scope]
-  output_nodes: [stationary_energy_emissions]
-  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [emission_sectors, scope, ghg, energy_carrier]
+  output_dimensions: [emission_sectors, scope, ghg, energy_carrier]
+  output_nodes:
+  - id: stationary_energy_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
 
 - id: building_emissions
   name: Building emissions
@@ -1056,8 +1067,8 @@ nodes:
   type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [ghg, scope]
-  output_dimensions: [ghg, scope]
+  input_dimensions: [ghg, scope, emission_sectors, energy_carrier]
+  output_dimensions: [ghg, scope, emission_sectors, energy_carrier]
   output_nodes:
   - id: stationary_energy_emissions
     from_dimensions:
@@ -1072,15 +1083,12 @@ nodes:
     tags: [biogenic_inclusion]
   - id: wood_consumption_emissions
     tags: [wood]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: emission_sectors
-      flatten: true
     to_dimensions:
     - id: scope
       categories: [scope1]
     - id: ghg
+    - id: emission_sectors
+    - id: energy_carrier
   params:
     formula: wood * complement(complement(biogenic_inclusion) * 
       complement(extend_all(index)))
@@ -1454,13 +1462,14 @@ nodes:
   output_nodes:
   - id: building_emissions
     from_dimensions:
-    - id: emission_sectors
-      flatten: true
     - id: site
       flatten: true
     to_dimensions:
     - id: ghg
     - id: scope
+    - id: emission_sectors
+    - id: energy_carrier
+      categories: [electricity]
 
 - id: electricity_replacing_natural_gas_residential
   name: Electricity that replaces natural gas in residential buildings
@@ -1585,14 +1594,13 @@ nodes:
       fraction * gwp
   output_nodes:
   - id: fugitive_emissions
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: ghg
-      flatten: true
     to_dimensions:
     - id: scope
       categories: [scope1]
+    - id: emission_sectors
+    - id: ghg
+    - id: energy_carrier
+      categories: [natural_gas]
 
 - id: natural_gas_consumption_emissions
   name: Natural gas consumption emissions
@@ -1616,15 +1624,12 @@ nodes:
     - id: ghg
   output_nodes:
   - id: building_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: emission_sectors
-      flatten: true
     to_dimensions:
     - id: ghg
     - id: scope
       categories: [scope1]
+    - id: energy_carrier
+    - id: emission_sectors
 
 # Wood
 
@@ -2032,27 +2037,38 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [energy_carrier, ghg]
-  output_dimensions: [energy_carrier, ghg]
+  input_dimensions: [energy_carrier, ghg, scope]
+  output_dimensions: [energy_carrier, ghg, scope]
   input_nodes:
   - id: vehicle_fuel_emissions
+    to_dimensions:
+    - id: scope
+      categories: [scope1]
+    - id: energy_carrier
+    - id: ghg
   - id: transportation_electricity_emissions
     from_dimensions:
     - id: vehicle_type
       flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope2]
+    - id: energy_carrier
+    - id: ghg
   output_nodes:
   - id: transportation_emissions
     to_dimensions:
     - id: energy_carrier
     - id: ghg
+    - id: scope
 
 - id: transportation_emissions
   name: Transportation emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [energy_carrier, ghg]
-  output_dimensions: [energy_carrier, ghg]
+  input_dimensions: [energy_carrier, ghg, scope]
+  output_dimensions: [energy_carrier, ghg, scope]
   color: '#F4BD7B'
   output_nodes:
   - id: net_emissions
@@ -2063,7 +2079,6 @@ nodes:
       flatten: true
     to_dimensions:
     - id: scope
-      categories: [scope1] # FIXME
 
 # Transit
 
@@ -2145,6 +2160,8 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: ghg
+    - id: scope
+      categories: [scope1]
 
 # Railways
 
@@ -2193,6 +2210,8 @@ nodes:
     - id: ghg
     - id: energy_carrier
       categories: [mixed]
+    - id: scope
+      categories: [scope1] # TODO Check
 
 # AVIATION
 
@@ -2258,11 +2277,10 @@ nodes:
     from_dimensions:
     - id: airport
       flatten: true
-    - id: scope
-      flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: ghg
+    - id: scope
 
 # WASTE
 

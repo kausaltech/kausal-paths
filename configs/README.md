@@ -147,6 +147,14 @@ Datasets are organized hierarchically (e.g. `transportation/dataset_id`). Format
 
 **Dimension management:** Keep dimensions as long as they might interact with others (e.g. keep hypotheses through vehicle_type calculations if reduction rate differs by vehicle type under different hypotheses). Aggregate dimensions as soon as there are no more interactions, using `from_dimensions` flatten at edges or `sum_dim()` in formulas; aggregate hypotheses when there are no more hypothesis-specific interactions. For addition, dimensions must match; aggregate incompatible dimensions first. For multiplication, the result has the union of dimensions.
 
+**Edge dimension mappings - completeness rule:** When specifying `to_dimensions` in an edge (either in `input_nodes` or `output_nodes`), you must specify ALL dimensions that the target node expects. If you specify any dimension in `to_dimensions`, you cannot omit others—the mapping must be complete. Example: If target node has `output_dimensions: [ghg, scope, emission_sectors]` and you need to map `scope`, you must also explicitly map `ghg` and `emission_sectors` in the `to_dimensions` list, even if they pass through unchanged.
+
+**Dimensions in node definitions vs edge mappings:** Only include dimensions in a node's `output_dimensions` if those dimensions exist in the node's `input_dimensions` or come from its input nodes. If a dimension needs to be added when connecting to a downstream node (e.g., assigning a `scope` category), add it via the edge mapping (`to_dimensions` in the target node's `input_nodes` or the source node's `output_nodes`), not in the source node's `output_dimensions`. This keeps node definitions accurate to their actual data structure.
+
+**Edge definition uniqueness:** Edges must be defined in exactly one place—either in the source node's `output_nodes` section OR in the target node's `input_nodes` section, but never both. If you define an edge in both places, you'll get a "Duplicate edge definition" error.
+
+**Preserving dimensions through chains:** When removing dimension flattening to preserve dimensions through a chain of nodes: (1) Remove `flatten: true` from edges where dimensions were being flattened, (2) Add the dimensions to all intermediate nodes' `input_dimensions` and `output_dimensions`, (3) Ensure edge mappings (`to_dimensions`) properly pass through all dimensions at each step, (4) Remember the completeness rule—if you specify any `to_dimensions`, specify all of them.
+
 **Formula clarity:** Use descriptive tags (e.g. `[baseline]`, `[reduction]`, not `[x]`, `[y]`). Break complex calculations into multiple nodes. Document units in node names when ambiguous.
 
 **Argument nodes:** Connect them to the most directly relevant computational node(s). Use HTML in descriptions for rich documentation. List related nodes, stakeholders, and hypotheses in the description. They can connect to multiple nodes if the objection relates to several.
