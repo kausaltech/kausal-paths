@@ -1107,6 +1107,42 @@ dimensions:
   - id: hchc_system_3
     label: HCHC System 3 (Domestic Hot Water Heaters)
 
+- id: system_retrofit
+  label: System Retrofit
+  categories:
+  - id: ahu_upgrade_to_ashp_with_electric_backup
+    label: AHU Upgrade to ASHP with Electric Backup
+  - id: electric_heaters_for_ng_radiant_heaters
+    label: Electric Heaters for NG Radiant Heaters
+  - id: electric_heaters_for_propane_heaters
+    label: Electric Heaters for Propane Heaters
+  - id: heat_recovery_units_hrus
+    label: Heat Recovery Units (HRUs)
+  - id: hp_for_ahus
+    label: HP for AHUs
+  - id: hp_for_boilers
+    label: HP for Boilers
+  - id: hp_for_dhw_production
+    label: HP for DHW Production
+  - id: hp_for_electric_baseboard
+    label: HP for Electric Baseboard
+  - id: hp_for_heating_and_cooling
+    label: HP for Heating and Cooling
+  - id: hp_for_hrus
+    label: HP for HRUs
+  - id: hp_for_muas
+    label: HP for MUAs
+  - id: hp_for_rtus
+    label: HP for RTUs
+  - id: hru_upgrade_to_ashp_with_electric_backup
+    label: HRU Upgrade to ASHP with Electric Backup
+  - id: roof_top_units_rtus
+    label: Roof Top Units (RTUs)
+  - id: rtu_upgrade_to_ashp_with_electric_backup
+    label: RTU Upgrade to ASHP with Electric Backup
+  - id: vsd_on_ahus
+    label: VSD on AHUs
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
@@ -3727,6 +3763,12 @@ actions:
     step: 0.1
     unit: GWh/a
     description: Renewable Energy Production
+  - id: from_year
+    value: 2035
+    min_value: 2025
+    max_value: 2045
+    step: 1.0
+    description: Implementation Year
   - id: default_value
     value: 0
     unit: GWh/a
@@ -3747,6 +3789,12 @@ actions:
     step: 0.1
     unit: GWh/a
     description: Renewable Energy Production
+  - id: from_year
+    value: 2035
+    min_value: 2025
+    max_value: 2045
+    step: 1.0
+    description: Implementation Year
   - id: default_value
     value: 0
     unit: GWh/a
@@ -3767,6 +3815,12 @@ actions:
     step: 0.05
     unit: GWh/a
     description: Renewable Energy Production
+  - id: from_year
+    value: 2035
+    min_value: 2025
+    max_value: 2045
+    step: 1.0
+    description: Implementation Year
   - id: default_value
     value: 0
     unit: GWh/a
@@ -3787,6 +3841,12 @@ actions:
     step: 0.1
     unit: GWh/a
     description: Renewable Energy Production
+  - id: from_year
+    value: 2035
+    min_value: 2025
+    max_value: 2045
+    step: 1.0
+    description: Implementation Year
   - id: default_value
     value: 0
     unit: GWh/a

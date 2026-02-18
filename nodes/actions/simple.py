@@ -284,12 +284,15 @@ class ParameterAction(ActionNode):
         *ActionNode.allowed_parameters,
         NumberParameter('from_value', description='Starting parameter value', is_customizable=True),
         NumberParameter('percent_change', description='Annual percent change in parameter value', is_customizable=True),
+        NumberParameter('from_year', description='Starting year', is_customizable=True),
         NumberParameter('default_value', description='Default parameter value', is_customizable=False),
         NumberParameter('default_change', description='Default annual percent change in parameter value', is_customizable=False),
     ]
 
     def compute_effect(self):
-        fromyear = self.context.instance.maximum_historical_year + 1  # type: ignore
+        fromyear = self.get_parameter_value_int('from_year', required=False)
+        if not fromyear:
+            fromyear = self.context.instance.maximum_historical_year + 1  # type: ignore
         toyear = self.context.instance.target_year + 1
 
         if self.is_enabled():
