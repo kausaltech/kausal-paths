@@ -409,10 +409,6 @@ dimensions:
   label_en: Vehicle type
   label_de: Fahrzeugtyp
   categories:
-  - id: walking
-    label_en: Walking
-    label_de: Fußverkehr
-    aliases: [Fuss, VL_Fuss]
   - id: passenger_cars
     label_en: Passenger cars
     label_de: Personenkraftwagen (PKW)
@@ -421,9 +417,6 @@ dimensions:
     label_en: Walking
     label_de: Fußgänger
     aliases: [Fuss, VL_Fuss]
-  - id: cycling
-    label_en: Cycling
-    aliases: [Rad, VL_Rad]
   - id: trucks
     label_en: Trucks
     label_de: Lastkraftwagen (LKW)
