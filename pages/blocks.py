@@ -389,12 +389,18 @@ class DashboardCardBlock(blocks.StructBlock):
 
     def _last_historical_year(self, dimensional_metric: DimensionalMetric) -> int | None:
         dm = dimensional_metric
+        # If forecast_from is None, this indicates there are no forecast years in the relevant DF. Thus
+        # all years (if any) are historical years, and the last year should be returned.
         if dm.forecast_from is None:
-            return None
-        try:
-            return max(y for y in dm.years if y < dm.forecast_from)
-        except ValueError:  # no historical years, or forecast_from is None
-            return None
+            try:
+                return max(dm.years)
+            except ValueError:  # No years.
+                return None
+        else:
+            try:
+                return max(y for y in dm.years if y < dm.forecast_from)
+            except ValueError:  # No historical years.
+                return None
 
     def _impact_for_action(self, action: ActionNode, node: Node, year: int) -> ActionImpactType:
         from nodes.schema import ActionImpactType
