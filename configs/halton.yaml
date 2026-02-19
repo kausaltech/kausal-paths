@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://halton.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ebf67695c67893e127c4b9ce5af59fe300dd2246
+  commit: 35f192871c7f3a0946c9907f03a778dafbf1795b
   dvc_remote: kausal-s3
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
@@ -1252,8 +1252,8 @@ nodes:
   type: formula.FormulaNode
   quantity: fuel_consumption
   unit: m³/a
-  input_dimensions: [action, asset_class, asset, energy_carrier, department, scope]
-  output_dimensions: [action, asset_class, asset, energy_carrier, department, scope]
+  input_dimensions: [action, system_retrofit, asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [action, system_retrofit, asset_class, asset, energy_carrier, department, scope]
   params:
     formula: (system_1_retrofits + system_2_retrofits + system_3_retrofits + system_4_retrofits) * inventory
   input_nodes:
@@ -1302,6 +1302,8 @@ nodes:
     tags: [reduction]
     from_dimensions:
     - id: action
+      flatten: true
+    - id: system_retrofit
       flatten: true
 
 - id: childcare_centre_stationary_combustion_emissions
@@ -2002,8 +2004,8 @@ nodes:
   type: formula.FormulaNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [action, asset_class, asset, energy_carrier, department, scope]
-  output_dimensions: [action, asset_class, asset, energy_carrier, department, scope]
+  input_dimensions: [action, system_retrofit, asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [action, system_retrofit, asset_class, asset, energy_carrier, department, scope]
   params:
     formula: (system_1_retrofits + system_2_retrofits + system_3_retrofits + system_4_retrofits) * inventory
   input_nodes:
@@ -2052,6 +2054,8 @@ nodes:
     tags: [reduction]
     from_dimensions:
     - id: action
+      flatten: true
+    - id: system_retrofit
       flatten: true
 
 - id: cs_purchased_electricity_mix
@@ -3593,8 +3597,8 @@ actions:
   group: system_retrofits
   unit: '%'
   quantity: fraction
-  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
-  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action, system_retrofit]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action, system_retrofit]
   input_datasets:
   - id: halton/cs_system_retrofit_actions
     column: reduction
@@ -3609,8 +3613,8 @@ actions:
   group: system_retrofits
   unit: '%'
   quantity: fraction
-  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
-  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action, system_retrofit]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action, system_retrofit]
   input_datasets:
   - id: halton/cs_system_retrofit_actions
     column: reduction
@@ -3625,8 +3629,8 @@ actions:
   group: system_retrofits
   unit: '%'
   quantity: fraction
-  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
-  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action, system_retrofit]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action, system_retrofit]
   input_datasets:
   - id: halton/cs_system_retrofit_actions
     column: reduction
@@ -3641,8 +3645,8 @@ actions:
   group: system_retrofits
   unit: '%'
   quantity: fraction
-  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
-  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action]
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope, action, system_retrofit]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope, action, system_retrofit]
   input_datasets:
   - id: halton/cs_system_retrofit_actions
     column: reduction
