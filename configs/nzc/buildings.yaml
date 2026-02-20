@@ -1599,6 +1599,9 @@ nodes:
     from_dimensions:
     - id: cost_type
       categories: [opex]
+    - id: stakeholder
+      categories: [utilities]
+      exclude: true
     to_dimensions:
     - id: stakeholder
     - id: cost_type
