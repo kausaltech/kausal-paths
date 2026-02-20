@@ -2182,7 +2182,35 @@ nodes:
   - id: kelicobe_cost_benefit
     tags: [cumulative]
   goals:
-  - values: [{'year': 2030, 'value': 309316234}]
+  - values: [{'year': 2030, 'value': 309316234.02}]
+
+- id: kelicobe_cumulative_costs
+  name: Kestävän kulkutapamuutoksen kumulatiiviset kustannukset
+  name_en: Sustainable modal shift cumulative costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR
+  input_dimensions: [owner_kelicobe, transportation_mode_kelicobe, cost_type_kelicobe]
+  output_dimensions: [owner_kelicobe, transportation_mode_kelicobe, cost_type_kelicobe]
+  input_nodes:
+  - id: kelicobe_cumulative_cost_benefit
+    tags: [make_nonpositive]
+  goals:
+  - values: [{'year': 2030, 'value': -222355669.68}]
+
+- id: kelicobe_cumulative_benefits
+  name: Kestävän kulkutapamuutoksen kumulatiiviset hyödyt
+  name_en: Sustainable modal shift cumulative benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR
+  input_dimensions: [owner_kelicobe, transportation_mode_kelicobe, cost_type_kelicobe]
+  output_dimensions: [owner_kelicobe, transportation_mode_kelicobe, cost_type_kelicobe]
+  input_nodes:
+  - id: kelicobe_cumulative_cost_benefit
+    tags: [make_nonnegative]
+  goals:
+  - values: [{'year': 2030, 'value': 531671903.70}]
 
 # ----- LED STREETLIGHT DETAILED ACTION MODULE --------------------------------
 
