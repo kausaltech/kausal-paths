@@ -2194,9 +2194,9 @@ nodes:
   output_dimensions: [owner_kelicobe, transportation_mode_kelicobe, cost_type_kelicobe]
   input_nodes:
   - id: kelicobe_cumulative_cost_benefit
-    tags: [make_nonpositive]
+    tags: [make_nonpositive, arithmetic_inverse]
   goals:
-  - values: [{'year': 2030, 'value': -222355669.68}]
+  - values: [{'year': 2030, 'value': 222355669.68}]
 
 - id: kelicobe_cumulative_benefits
   name: Kestävän kulkutapamuutoksen kumulatiiviset hyödyt
