@@ -1,0 +1,315 @@
+id: yolo
+default_language: en
+supported_languages: []
+site_url: https://yolo.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 3b6d7581b74b2508551191ddc6bb9ce0d9f02164
+  dvc_remote: kausal-s3
+name: Yolo County Greenhouse Gas Emissions
+owner: Yolo County
+theme_identifier: us-yolo
+target_year: 2030
+model_end_year: 2045
+reference_year: 2022
+minimum_historical_year: 2022
+maximum_historical_year: 2022
+emission_unit: t_co2e/a
+emission_forecast_from: 2023
+emission_dimensions: [subsector, sector, scope]
+features:
+  baseline_visible_in_graphs: true
+
+# action_group:
+# - id: transportation_act
+#   name: Decarbonize Transportation
+#   color: '#545A79'
+# - id: buildings_act
+#   name: Decarbonize Energy and Buildings and Increase Energy Efficiency
+#   color: '#A4C146'
+# - id: water_act
+#   name: Optimize Water Use
+#   color: '#3C8BDB'
+# - id: waste_act
+#   name: Minimize Waste
+#   color: '#897C24'
+# - id: offroad_act
+#   name: Reduce Off-Road Equipment Emissions
+#   color: '#325437'
+# - id: sequestration_act
+#   name: Sequester and Store Carbon in Natural and Working Lands
+#   color: '#025B57'
+
+dimensions:
+- id: sector
+  label: Sector
+  categories:
+  - id: building_energy
+    label: Building Energy
+  - id: on_road_transportation
+    label: On-road Transportation
+  - id: off_road_equipment
+    label: Off-road Equipment
+  - id: solid_waste
+    label: Solid Waste
+  - id: water
+    label: Water
+  - id: wastewater
+    label: Wastewater
+  - id: agriculture
+    label: Agriculture
+
+- id: subsector
+  label: Subsector
+  categories:
+  # ----- Buildings
+  # - id: residential
+  #   label: Residential
+  # - id: commercial
+  #   label: Commercial
+  # - id: agricultural
+  #   label: Agricultural
+  # - id: industrial
+  #   label: Industrial
+
+  # ----- Off-road Equipment
+  # - id: agricultural_eq
+  #   label: Agricultural Equipment
+  # - id: tru_eq
+  #   label: TRUs
+  # - id: construction_eq
+  #   label: Construction
+  # - id: industrial_eq
+  #   label: Industrial
+  # - id: lawn_garden_eq
+  #   label: Lawn & Garden
+  # - id: pleasure_craft
+  #   label: Pleasure Craft
+  # - id: recreational_eq
+  #   label: Recreational
+  # - id: portable_eq
+  #   label: Portable Equipment
+
+  # ----- Solid Waste
+  - id: waste_in_place
+    label: Waste In-Place
+  - id: waste_generation
+    label: Waste Generation
+
+  # ----- Water
+  # - id: groundwater_pumping
+  #   label: Groundwater Pumping for Community Use
+
+  # ----- Agriculture
+  # - id: irrigation_pumps
+  #   label: Agricultural Irrigation Pumps
+  # - id: residue_burning
+  #   label: Residue Burning
+  # - id: livestock
+  #   label: Livestock
+  # - id: rice_cultivation
+  #   label: Rice Cultivation
+  # - id: nitrogen_application
+  #   label: Nitrogen Application
+  # - id: urea_application
+  #   label: Urea Application
+  # - id: lime_application
+  #   label: Lime Application
+
+- id: scope
+  label: Scope
+  categories:
+  - id: scope1
+    label: Scope 1
+  - id: scope2
+    label: Scope 2
+  - id: scope3
+    label: Scope 3
+
+# - id: ghg
+#   label: Greenhouse Gas
+#   categories:
+#   - id: ch4
+#     label: CH4
+#   - id: co2
+#     label: CO2
+#   - id: co2e
+#     label: CO2e
+#   - id: n2o
+#     label: N2O
+
+# - id: energy_provider
+#   label: Energy provider 
+#   categories:
+#   - id: PG&E
+#     label: PG&E
+#   - id: VCE
+#     label: VCE
+
+# - id: energy_carrier
+#   label: Energy Carrier
+#   categories: 
+#   - id: electricity
+#     label: Electricity
+#   - id: natural_gas 
+#     label: Natural Gas
+
+# -- on-road transportation
+# - id: travel_boundary
+#   label: Travel Boundary
+#   categories: 
+#   - id: within_sacog
+#     label: Within SACOG
+#   - id: outside_sacog
+#     label: Outside SACOG
+
+# - id: vehicle_type
+#   label: Vehicle Type
+#   categories:
+#   - id: personal_vehicle
+#     label: Personal Vehicle
+#   - id: commercial_small_vehicle
+#     label: Commercial Small Vehicle
+#   - id: commercial_large_vehicle
+#     label: Commercial Large Vehicle
+
+# -- water 
+# - id: water_source
+#   label: Water source
+#   categories:
+#   - id: north_davis_meadows
+#     label: North Davis Meadows
+#   - id: wild_wings_csd
+#     label: Wild Wings CSD
+
+# -- agriculture
+# - id: crops_harvested
+#   label: Crops Harvested
+#   categories: 
+#   - id: corn
+#     label: Corn
+#   - id: rice
+#     label: Rice
+#   - id: almond
+#     label: Almond
+#   - id: walnut
+#     label: Walnut
+#   - id: wheat
+#     label: Wheat
+#   - id: barley
+#     label: Barley
+
+# - id: livestock_name
+#   label: Livestock Name
+#   categories:
+#   - id: cattle
+#     label: Cattle
+#   - id: lambs
+#     label: Lambs
+
+# - id: livestock_emission_source
+#   label: Emission source
+#   categories:
+#   - id: enteric_fermentation
+#     label: Enteric Fermentation
+#   - id: manure_management
+#     label: Manure Management
+
+# -- wastewater
+# - id: influent_source
+#   label: Influent Source
+#   categories:
+#   - id: wild_wings_csd_wrf
+#     label: Wild Wings CSD Wastewater Recycling Facility
+#   - id: madison_wwtf
+#     label: Madison WWTF
+#   - id: knights_landing_csd_wwtp
+#     label: Knights Landing CSD WWTP
+#   - id: esparto_csd_wwtp
+#     label: Esparto CSD WWTP
+#   - id: davis_wwtp
+#     label: City of Davis WWTP (Unincorporated Population)
+#   - id: dunnigan_wwtf
+#     label: Dunnigan WWTF
+
+# - id: action
+#   label: Action
+#   categories:
+#   - id: dt3
+#     label: Encourage Transition to Electric Vehicles
+#   - id: eb1b
+#     label: Incentivize residents and business to install cool roofs and green roofs
+#   - id: eb1d
+#     label: Develop policies and incentive programs to implement energy efficiency retrofits for existing residential, commercial, and industrial buildings
+#   - id: eb2
+#     label: Decarbonize and electrify buildings
+#   - id: eb3d
+#     label: Continue to require new residential and commercial development to install solar PV systems capable of providing a proportion of the development’s total projected electricity consumption and consider opportunities to amend County Code to go above and beyond existing regulation.
+#   - id: eb3e
+#     label: Develop an outreach and incentive program to help facilitate adoption of enhanced solar PV system requirements.
+#   - id: eb4b
+#     label: Continue to facilitate participation in existing demand response programs created by local utilities (PG&E and VCE).
+#   - id: eb4cd
+#     label: Encourage residents to enroll in "UltraGreen" program by VCE
+#   - id: w2
+#     label: Encourage efficient water use in agricultural operations 
+#   - id: w4
+#     label: Conserve water in unincorporated county areas
+#   - id: sw1
+#     label: Waste diversion
+#   - id: sw3
+#     label: Landfill gas capture improvements
+#   - id: ofr1
+#     label: Increase electric and zero-emission offroad and landscaping equipment adoption
+#   - id: ofr2
+#     label: Decarbonize agricultural equipment
+#   - id: nwl1
+#     label: Encourage climate smart practices in working lands
+#   - id: nwl2
+#     label: Restore natural lands 
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+
+nodes: 
+# ----- Solid Waste
+- id: solid_waste_emissions
+  name: Solid Waste
+  color: '#59A14F'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [subsector, sector, scope]
+  output_dimensions: [subsector, sector, scope]
+  input_datasets:
+  - id: yolo/solid_waste
+    column: emissions
+    forecast_from: 2023
+    filters:
+    - column: gpc_sector
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+pages:
+- id: home
+  name: Yolo County Greenhouse Gas Emissions
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Yolo County Greenhouse Gas Emissions
+  lead_paragraph: Community-wide greenhouse gas inventory and targets.
+
+scenarios:
+- id: baseline
+  name: Business as Usual
+
+# - id: abau #NEED TO DEFINE
+#   name: Adjusted Business as Usual
+
+- id: default
+  default: true
+  name: Climate Action and Adaptation Plan
+  all_actions_enabled: true
