@@ -42,20 +42,15 @@ actions:
   params:
   - id: multiplier # FIXME
     value: 1
+    min_value: 0
+    max_value: 10
+    step: 1
     unit: trip/vehicle
+    is_visible: true
+    is_customizable: true
+
 
 nodes:
-
-- id: net_emissions
-  name: Net emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt_co2e/a
-  is_outcome: true
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
-  input_nodes:
-  - id: co2_emissions
 
 # ===== BASELINE DATA =====
 
@@ -342,7 +337,7 @@ nodes:
 
 # ===== EMISSIONS =====
 
-- id: co2_emissions
+- id: road_transportation_emissions
   name: "CO2 Emissions from Road Transport"
   description: "Total annual CO2 emissions from vehicles in and around congestion zone"
   type: formula.FormulaNode
@@ -593,7 +588,7 @@ nodes:
     <li><code>spillover_factor</code> - Key parameter determining displacement vs elimination</li>
     <li><code>vehicles_outside_zone</code> - Shows traffic on peripheral roads</li>
     <li><code>total_vehicle_km</code> - Net effect on total driving</li>
-    <li><code>co2_emissions</code> - Whether emissions actually decrease</li>
+    <li><code>road_transportation_emissions</code> - Whether emissions actually decrease</li>
     </ul>
     <p><strong>Hypotheses:</strong></p>
     <ul>
@@ -626,7 +621,7 @@ nodes:
     </ul>
     <p><strong>Related Computational Nodes:</strong></p>
     <ul>
-    <li><code>co2_emissions</code> - Shows actual emission reduction from city policy</li>
+    <li><code>road_transportation_emissions</code> - Shows actual emission reduction from city policy</li>
     <li><code>total_vehicle_km</code> - Urban driving represents substantial mileage</li>
     </ul>
     <p><strong>Counters Objections:</strong> OBJ-G1 (drop in ocean)</p>
@@ -636,7 +631,7 @@ nodes:
   input_datasets:
   - id: transportation/zeros
   output_nodes:
-  - id: co2_emissions
+  - id: road_transportation_emissions
     tags: [ignore_content]
 
 - id: obj_g1_drop_in_ocean
@@ -648,7 +643,7 @@ nodes:
     <p><strong>Type:</strong> Empirical objection about scale and impact</p>
     <p><strong>Related Computational Nodes:</strong></p>
     <ul>
-    <li><code>co2_emissions</code> - Shows magnitude of reduction (can compare to global emissions)</li>
+    <li><code>road_transportation_emissions</code> - Shows magnitude of reduction (can compare to global emissions)</li>
     </ul>
     <p><strong>Counter-Arguments:</strong></p>
     <ul>
@@ -662,7 +657,7 @@ nodes:
   input_datasets:
   - id: transportation/zeros
   output_nodes:
-  - id: co2_emissions
+  - id: road_transportation_emissions
     tags: [ignore_content]
 
 - id: obj_cc17_negligible_emission_impact
@@ -674,7 +669,7 @@ nodes:
     <p><strong>Type:</strong> Empirical objection about effectiveness</p>
     <p><strong>Related Computational Nodes:</strong></p>
     <ul>
-    <li><code>co2_emissions</code> - Net emission reduction after all effects</li>
+    <li><code>road_transportation_emissions</code> - Net emission reduction after all effects</li>
     <li><code>total_vehicle_km</code> - Whether total driving actually decreases</li>
     <li><code>spillover_factor</code> - Key parameter: displacement vs elimination</li>
     <li><code>vehicles_in_zone</code> - Magnitude of traffic reduction</li>
@@ -748,7 +743,7 @@ nodes:
     <p><strong>Related Computational Nodes:</strong></p>
     <ul>
     <li><code>total_charge_revenue</code> - Revenue that could fund other priorities</li>
-    <li><code>co2_emissions</code> - Climate benefit being purchased</li>
+    <li><code>road_transportation_emissions</code> - Climate benefit being purchased</li>
     </ul>
     <p><strong>Counter-Arguments:</strong></p>
     <ul>

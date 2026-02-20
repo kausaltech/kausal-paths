@@ -270,8 +270,11 @@ dimensions:
     aliases: [gas, erdgas]
   - id: lpg
     label_en: LPG (Liquefied petroleum gas)
+    label_de: LPG
+  - id: propane
+    label_en: Propane/butane
     label_de: Flüssiggas
-    aliases: [LPG, flssiggas, propane]
+    aliases: [flüssiggas, flssiggas]
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil

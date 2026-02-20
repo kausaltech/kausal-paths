@@ -100,6 +100,45 @@ dimensions:
 
 nodes:
 
+- id: net_emissions
+  name: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  is_outcome: true
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+
+- id: historical_emissions
+  name: Historical emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: bisko/historical_emissions
+
+- id: total_emissions
+  name: Total emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: historical_emissions
+  - id: road_transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+
 # ===== ETHICAL EVALUATION NODES =====
 
 - id: population
@@ -122,7 +161,7 @@ nodes:
   input_nodes:
   - id: net_emissions
     from_dimensions:
-    - id: vehicle_type
+    - id: sector
       flatten: true
     - id: energy_carrier
       flatten: true
@@ -185,11 +224,24 @@ nodes:
   name: Emission reduction achieved
   description: Reduction from baseline due to policy
   type: generic.GenericNode
-  quantity: ratio
-  unit: dimensionless
+  quantity: emissions
+  unit: t_co2e/person/a
   input_nodes:
   - id: net_emissions_per_person
-    tags: [ratio_to_last_historical_value]
+  params:
+    operations: add,scenario_impact
+
+- id: emission_reduction_target_per_person
+  name: Emission reduction target per person
+  description: Target reduction per person
+  type: generic.ConstantNode
+  quantity: emissions
+  unit: t_co2e/person/a
+  params:
+  - id: constant
+    value: -1.0
+    unit: t_co2e/person/a
+    label: Target reduction per person
 
 - id: fair_share_met
   name: Fair share obligation met
@@ -203,7 +255,7 @@ nodes:
   input_nodes:
   - id: emission_reduction_achieved
     tags: [achieved]
-  - id: global_reduction_needed
+  - id: emission_reduction_target_per_person
     tags: [obligation]
   params:
     formula: achieved <= obligation
