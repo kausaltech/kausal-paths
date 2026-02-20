@@ -941,7 +941,7 @@ class DBDataset(DatasetWithFilters):
         raise Exception('Dataset %s does not have a single unit' % self.id)
 
     @classmethod
-    def deserialize_df(cls, ds_in: DBDatasetModel) -> ppl.PathsDataFrame:
+    def deserialize_df(cls, ds_in: DBDatasetModel, *, include_data_point_primary_keys: bool = False) -> ppl.PathsDataFrame:
         from django.contrib.postgres.expressions import ArraySubquery
         from django.db.models.expressions import F, OuterRef
         from django.db.models.fields import CharField
@@ -1009,8 +1009,20 @@ class DBDataset(DatasetWithFilters):
 
         dim_ids = [str(dim[1]) for dim in dims]
 
+        id_map = None
+        if include_data_point_primary_keys:
+            id_map = df.select([YEAR_COLUMN, *dim_ids, 'metric_name', 'id'])
+
         df = df.with_columns(pl.col('metric_name').alias('metric')).drop('metric_name', 'id')
         df = df.pivot(on='metric', index=[YEAR_COLUMN, *dim_ids], values='value')  # noqa: PD010
+
+        if include_data_point_primary_keys and id_map is not None:
+            id_pivoted = id_map.pivot(on='metric_name', index=[YEAR_COLUMN, *dim_ids], values='id')  # noqa: PD010
+            id_pivoted = id_pivoted.rename({
+                col: f'_dp_pk_{col}' for col in id_pivoted.columns
+                if col not in [YEAR_COLUMN, *dim_ids]
+            })
+            df = df.join(id_pivoted, on=[YEAR_COLUMN, *dim_ids], how='left', nulls_equal=True)
 
         meta = ppl.DataFrameMeta(
             units={
@@ -1022,3 +1034,4 @@ class DBDataset(DatasetWithFilters):
         pdf = ppl.to_ppdf(df, meta)
 
         return pdf
+
