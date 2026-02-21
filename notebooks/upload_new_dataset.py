@@ -4,10 +4,10 @@ import argparse
 import os
 import re
 import warnings
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
 # from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import django
 
@@ -27,7 +27,26 @@ from nodes.constants import VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
 from notebooks.notebook_support import get_context  # noqa: E402
 
 if TYPE_CHECKING:
+    from common import polars as ppl
     from nodes.context import Context
+    from nodes.node import NodeMetric
+
+
+def _node_metric_unit_str(m: NodeMetric) -> str:
+    """Return unit as string for a NodeMetric (unit may be parsed Unit or default_unit string)."""
+    u = getattr(m, 'unit', None) or getattr(m, 'default_unit', '')
+    return str(u) if u else ''
+
+
+def node_metric_to_metadata_dict(m: NodeMetric) -> dict[str, Any]:
+    """Serialize NodeMetric for DVC metadata (id, column_id, quantity, unit, label)."""
+    return {
+        'id': m.id,
+        'column_id': getattr(m, 'column_id', None) or m.id,
+        'quantity': m.quantity,
+        'unit': _node_metric_unit_str(m),
+        'label': m.label or {},
+    }
 
 
 def to_snake_case(string: str) -> str:
@@ -199,9 +218,24 @@ def extract_description(df: pl.DataFrame) -> str | None:
 
 @dataclass
 class MetricData:
+    """Legacy metric descriptor; prefer NodeMetric for new code."""
+
     id: str
     quantity: str
     label: dict[str, str]
+
+
+def metric_data_to_node_metric(m: MetricData, unit: str) -> NodeMetric:
+    """Convert MetricData to NodeMetric (e.g. when units come from extract_units)."""
+    from nodes.node import NodeMetric  # Deferred to avoid Django AppRegistryNotReady when imported by manage_datasets
+
+    return NodeMetric(
+        unit=unit,
+        quantity=m.quantity,
+        id=m.id,
+        label=cast('Any', m.label),
+        column_id=m.id,
+    )
 
 
 def extract_metrics(df: pl.DataFrame, language: str) -> list[MetricData]:
@@ -396,17 +430,27 @@ def save_to_csv(df: pl.DataFrame, file_stem: str, dataset_name: str) -> None:
 
 
 def push_to_dvc(
-        df: pl.DataFrame,
-        output_path: str,
-        dataset_name: str,
-        units: dict[str, str],
-        description: str | None,
-        metrics: list[MetricData],
-        language: str
-    ) -> None:
-    """Push dataset to DVC repository."""
+    df: pl.DataFrame | ppl.PathsDataFrame,
+    output_path: str,
+    dataset_name: str,
+    description: str | None,
+    metrics: list[NodeMetric],
+    language: str,
+    units: dict[str, str] | None = None,
+) -> None:
+    """
+    Push dataset to DVC repository.
+
+    Uses NodeMetric for metric definitions. Units are taken from the metrics when
+    units is None; otherwise the provided units dict is used (e.g. from PathsDataFrame meta).
+    """
     if output_path.upper() in ['N', 'NONE']:
         return
+
+    if units is None and metrics:
+        units = {(getattr(m, 'column_id', None) or m.id): _node_metric_unit_str(m) for m in metrics}
+    if units is None:
+        units = {}
 
     # Get index columns (excluding metric value columns)
     index_columns = [col for col in df.columns if col not in units.keys()]
@@ -419,7 +463,7 @@ def push_to_dvc(
     if description:
         metadata['description'] = {language: description}
     if metrics:
-        metadata['metrics'] = [asdict(metric) for metric in metrics]
+        metadata['metrics'] = [node_metric_to_metadata_dict(m) for m in metrics]
 
     # Create dataset metadata
     meta = DatasetMeta(
@@ -429,8 +473,16 @@ def push_to_dvc(
         metadata=metadata
     )
 
+    # dvc_pandas.Dataset.to_parquet() calls df.to_pandas() then df.set_index(index_columns).
+    # PathsDataFrame.to_pandas() already moves primary_keys into the index, so the columns
+    # would be missing and set_index would raise. Pass a plain Polars DataFrame so
+    # .to_pandas() keeps all columns and dvc_pandas can do set_index itself.
+    df_for_dvc = df
+    if hasattr(df, '_df'):
+        df_for_dvc = pl.DataFrame(df._df)
+
     # Create dataset
-    ds = Dataset(df, meta=meta)
+    ds = Dataset(df_for_dvc, meta=meta)
 
     # Set up credentials
     creds = dvc_pandas.RepositoryCredentials(
@@ -522,7 +574,10 @@ def process_dataset(
     # 11. Push to DVC if requested
     if outdvcpath:
         dataset_dvc_path = f"{outdvcpath}/{to_snake_case(dataset_name)}"
-        push_to_dvc(df, dataset_dvc_path, dataset_name, units, description, metrics, language)
+        node_metrics = [metric_data_to_node_metric(m, units.get(m.id, '')) for m in metrics]
+        push_to_dvc(
+            df, dataset_dvc_path, dataset_name, description, node_metrics, language, units=units
+        )
 
 
 def main():
@@ -594,7 +649,7 @@ def main():
         if specific_dataset == 'plain_csv':
             print("Uploading the csv file as is, but checking for units.")
             units, full_df = extract_units_from_row(full_df)
-            push_to_dvc(full_df, outdvcpath, '', units, None, [], language)
+            push_to_dvc(full_df, outdvcpath, '', None, [], language, units=units)
         else:
             d = 'Dataset'
             if d in full_df.columns:
