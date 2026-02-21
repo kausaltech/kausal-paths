@@ -40,12 +40,12 @@ actions:
   input_datasets:
   - id: transportation/congestion_charge_scenarios
   params:
-  - id: multiplier # FIXME
+  - id: multiplier
     value: 1
     min_value: 0
     max_value: 10
     step: 1
-    unit: trip/vehicle
+    unit: dimensionless
     is_visible: true
     is_customizable: true
 
