@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import InitVar, dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from common.i18n import gettext as _
+from common.i18n import I18nString, gettext_lazy as _
 
 from .constants import TIME_INTERVAL
 from .formula import (
@@ -157,7 +157,7 @@ FORMULA_FUNCTION_UNIT_OVERRIDES = {
 
 @dataclass
 class NodeInfo:
-    description: str
+    description: I18nString
     deprecated: bool = False
 
 
