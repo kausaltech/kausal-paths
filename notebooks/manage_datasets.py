@@ -543,16 +543,13 @@ class OperationsExecutor:
                 new_cols[col] = to_snake_case(col)
         return df.rename(new_cols)
 
-    def _op_convert_names_to_cats(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+    def _op_convert_names_to_cats(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         if self.context is None:
             raise ValueError(
                 "convert_names_to_cats operation requires a context. "
                 + "Set 'instance' in the dataset configuration."
             )
-        units = op_params.get('units', {})
-        if not isinstance(units, dict):
-            raise TypeError("convert_names_to_cats operation requires 'units' to be a dict in params")
-        return convert_names_to_cats(df, units, self.context)
+        return convert_names_to_cats(df, self.context)
 
     def _op_define_metrics(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         if not self.metrics:
@@ -689,6 +686,10 @@ class OperationsExecutor:
             print(f"    Dimension columns ({len(dimension_cols)}): {', '.join(sorted(dimension_cols))}")
         if other_cols:
             print(f"    Other columns: {', '.join(other_cols)}")
+        print("  Column dtypes:")
+        for col in df.columns:
+            dtype = df.schema[col]
+            print(f"    {col:30s} -> {dtype}")
 
         if len(df) > 0:
             sample_size = op_params.get('sample_rows', 5)

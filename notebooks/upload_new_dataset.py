@@ -401,19 +401,16 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict[str, str]) -> pl.DataFrame:
     return df
 
 
-def convert_names_to_cats(df: pl.DataFrame, units: dict[str, str], context: Context) -> pl.DataFrame:
-    cols = [col for col in df.columns if col not in [*units.keys(), YEAR_COLUMN]]
+def convert_names_to_cats(df: pl.DataFrame, context: Context) -> pl.DataFrame:
+    """Convert dimension columns (those in context.dimensions) from names to category IDs. Data columns are left unchanged."""
+    cols = [col for col in df.columns if col.lower() in context.dimensions]
+    if not cols:
+        return df
     print(f"Converting names to categories for columns: {cols}")
     for col in cols:
         col_low = col.lower()
-        if col_low in context.dimensions:
-            # df = df.with_columns(
-            #     pl.col(col).map_elements(to_snake_case, return_dtype=pl.Utf8).alias(col)
-            # )
-            df = df.rename({col: col_low})
-            df = df.with_columns(context.dimensions[col_low].series_to_ids_pl(df[col_low], allow_null=True))
-        else:
-            print(f'Warning: could not find {col} from the dimensions of {context.instance.id}')
+        df = df.rename({col: col_low})
+        df = df.with_columns(context.dimensions[col_low].series_to_ids_pl(df[col_low], allow_null=True))
     return df
 
 
@@ -574,7 +571,7 @@ def process_dataset(
     dim_ids = [s for s in df.columns if s not in units.keys()]
     print(f"Data pivoted by compound identifiers with dimension columns: {dim_ids}")
     if context is not None:
-        df = convert_names_to_cats(df, units, context)
+        df = convert_names_to_cats(df, context)
 
     # 10. Save to CSV if requested
     if outcsvpath:

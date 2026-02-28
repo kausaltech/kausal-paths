@@ -593,10 +593,6 @@ datasets:
 - input_file_path: "data.csv"
   operations:
   - type: convert_names_to_cats
-    params:
-      units:
-        energy: "kWh"
-        emissions: "tCO2e"
 ```
 
 ### DVC Operations
