@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://mainz-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0b39130b4c412f46ccaff8c28c1de986a785f140
+  commit: eefb9df9261c2cd2b9d8dd153cb3067447e4ad18
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
@@ -84,7 +84,7 @@ result_excels:
   - electricity_production_emission_factors
   - emission_factors_without_fuel_data
   - emission_factors_for_district_heating_by_generic_fuel
-  - road_transport_activity
+  - vehicle_kilometers_ifeu
   - other_transport_energy
 
 
@@ -101,19 +101,19 @@ dimensions:
   - id: petrol
     label_en: Petrol
     label_de: Benzin
-    aliases: [benzin_fossil, benzin, Benzin fossil]
+    aliases: [benzin_fossil, benzin, Benzin fossil, Bfoss]
   - id: bio_petrol
     label_en: Bio petrol
     label_de: Biobenzin
-    aliases: [benzin_biogen, biobenzin, Benzin Bio]
+    aliases: [benzin_biogen, biobenzin, Benzin Bio, Bbio]
   - id: diesel
     label_en: Diesel
     label_de: Diesel
-    aliases: [diesel_fossil, Diesel fossil]
+    aliases: [diesel_fossil, Diesel fossil, Dfoss]
   - id: biodiesel
     label_en: Biodiesel
     label_de: Diesel biogen
-    aliases: [diesel_biogen, Diesel Bio, Diesel_biogen, Diesel_Biogen]
+    aliases: [diesel_biogen, Diesel Bio, Diesel_biogen, Diesel_Biogen, Dbio]
   - id: kerosene
     label_en: Kerosene
     label_de: Kerosin
@@ -121,7 +121,7 @@ dimensions:
   - id: heating_oil
     label_en: Heating oil
     label_de: Heizöl
-    aliases: [heizol]
+    aliases: [heizol, Heizoel]
   - id: natural_gas
     label_en: Natural gas
     label_de: Erdgas
@@ -132,15 +132,15 @@ dimensions:
   - id: propane
     label_en: Propane/butane
     label_de: Flüssiggas
-    aliases: [flüssiggas, flssiggas]
+    aliases: [flüssiggas, flssiggas, Fluessiggas]
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil
-    aliases: [CNG_fossil]
+    aliases: [CNG_fossil, CNGfoss]
   - id: cng_bio
     label_en: CNG bio
     label_de: CNG bio
-    aliases: [CNG_bio]
+    aliases: [CNG_bio, CNGbio]
   - id: biogas
     label_en: Biogas
     label_de: Biogas
@@ -164,7 +164,7 @@ dimensions:
   - id: driving_electricity
     label_en: Driving electricity
     label_de: Fahrstrom
-    aliases: [fahrstrom, strom_fahrstrom]
+    aliases: [fahrstrom, strom_fahrstrom, St]
   - id: heating_electricity
     label_en: Heating electricity
     label_de: Heizstrom
@@ -172,11 +172,11 @@ dimensions:
   - id: district_heating
     label_en: District heating
     label_de: Fernwärme
-    aliases: [fernwarme]
+    aliases: [fernwarme, Fernwaerme]
   - id: local_heating
     label_en: Local heating
     label_de: Nahwärme
-    aliases: [nahwarme, Nahwarme]
+    aliases: [nahwarme, Nahwarme, Nahwaerme]
   - id: solar_thermal
     label_en: Solar thermal
     label_de: Solarthermie
@@ -184,7 +184,7 @@ dimensions:
   - id: environmental_heat
     label_en: Environmental heat / Heat pump
     label_de: Umweltwärme
-    aliases: [umweltwarme, Umweltwarme]
+    aliases: [umweltwarme, Umweltwarme, Umweltwaerme]
   - id: hydrogen
     label_en: Hydrogen
     label_de: Wasserstoff
@@ -200,7 +200,7 @@ dimensions:
   - id: not_defined
     label_en: Not defined
     label_de: Nicht definiert
-    aliases: [nicht_definiert]
+    aliases: [nicht_definiert, Unzugeordnet]
   - id: fuels
     label_en: Fuels
     label_de: Kraftstoffe
@@ -285,6 +285,10 @@ dimensions:
     label_en: Heat output
     label_de: Wärmeabgabe
 
+# Road types below are from BISKO/IFEU (AB/AO/IO). They are only populated when
+# using BISKO datasets (e.g. gemeindefeine_fahrleistungen_straenverkehr,
+# energy_factor, energy_shares). Mainz KSP data uses different codes in field_key
+# (QZBV, QZVV, QZFV, BBV, BFV, BVV, KBF) and has no road_type dimension.
 - id: road_type
   label_en: Road Type
   label_de: Straßentyp
@@ -327,7 +331,7 @@ dimensions:
   - id: transport
     label_en: Transport
     label_de: Verkehr
-    aliases: [verkehr, Verkehr]
+    aliases: [verkehr, Verkehr, VL_]
     color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
   - id: buildings
     label_en: Buildings & Heating
@@ -335,24 +339,24 @@ dimensions:
   - id: private_households
     label_en: Private Households
     label_de: Private Haushalte
-    aliases: [private_haushalte, Private_Haushalte]
+    aliases: [private_haushalte, Private_Haushalte, HE_, HTHG_]
     color: '#009ebe'
   - id: municipal_facilities
     label_en: Municipal Facilities
     label_de: Kommunale Einrichtungen
     aliases: [kommunale_einrichtungen, Kommunale_Einrichtungen, 
-        stadtische_gebaude]
+        stadtische_gebaude, KE_, KTHG_]
     color: '#6bc248'
   - id: commerce_trade_services
     label_en: Commerce, Trade & Services
     label_de: Gewerbe, Handel, Dienstleistungen
     aliases: [gewerbe_handel_dienstleistungen, Gewerbe_Handel_Dienstleistungen, 
-        gewerbe_sonstiges]
+        gewerbe_sonstiges, GE_, GTHG_]
     color: '#fe8035'
   - id: industry
     label_en: Industry
     label_de: Industrie
-    aliases: [industrie, Industrie]
+    aliases: [industrie, Industrie, IE_, ITHG_]
     color: '#737373'
   - id: electricity
     label_en: Electricity
@@ -451,7 +455,7 @@ dimensions:
   - id: bicycles
     label_en: Bicycles
     label_de: Fahrräder
-    aliases: [VL_Rad]
+    aliases: [VL_Rad, Rad]
   - id: trains
     label_en: Trains
     label_de: Züge
@@ -483,6 +487,9 @@ dimensions:
     label_en: Air transport (LTO)
     label_de: Luft (LTO)
     aliases: [LTO, Flug]
+  - id: undefined
+    label_en: Undefined
+    label_de: Unzugeordnet
 
 # Propulsion/Fuel Types (Antriebsart):
 #   Elektro = Electric (for electrified rail) 
@@ -648,6 +655,28 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [transport]
+
+- id: transport_difference
+  name_de: Transportdifferenz
+  name_en: Transport difference
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: final_transport_energy_use
+    tags: [ksp]
+    from_dimensions:
+    - id: sector
+      flatten: true
+  - id: transport_energy
+    tags: [ifeu]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  params:
+    formula: ksp - ifeu
 
 - id: final_private_household_energy_use
   name_de: Endenergie Private Haushalte
@@ -1020,10 +1049,10 @@ nodes:
 
 #//////  Transport  /////////////////////////////////////////////////////////////////////////////////
 
-- id: passenger_kilometers
-  name_en: Passenger kilometers
-  name_de: Personenkilometer
-  description_en: Data comes from Klimaschutz-Planer.
+- id: passenger_kilometers_ksp
+  name_en: Passenger kilometers from KSP
+  name_de: Personenkilometer aus KSP
+  description_en: Data comes from KSP -> Eingabe -> Verkehr -> Verkehrsleistung.
   description_de: Daten kommen aus Klimaschutz-Planer.
   type: formula.FormulaNode
   quantity: mileage
@@ -1037,22 +1066,24 @@ nodes:
   params:
     formula: extend_all(mileage)
 
-- id: vehicle_kilometers
-  name_en: Vehicle kilometers
+- id: vehicle_kilometers_ksp
+  name_en: Vehicle kilometers from KSP
+  name_de: Fahrleistung aus KSP
   type: formula.FormulaNode
   quantity: mileage
-  unit: vkm/a
+  unit: Mvkm/a
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_nodes:
-  - id: passenger_kilometers
+  - id: passenger_kilometers_ksp
   - id: passengers_per_vehicle
   params:
-    formula: passenger_kilometers / passengers_per_vehicle
+    formula: passenger_kilometers_ksp / passengers_per_vehicle
 
 - id: transport_energy_own_data # FIXME Data 1990 - 1999 is missing.
   name_de: Transport Energie nach Fahrzeugtyp - eigene Daten
   name_en: Transport energy by vehicle type - own data
+  description: Data comes from KSP -> Eingabe -> Verkehr -> Fahrten gesamt.
   type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
@@ -1065,7 +1096,7 @@ nodes:
   params:
     formula: extend_all(energy)
 
-- id: road_transport_activity
+- id: vehicle_kilometers_ifeu
   name_en: Road transport activity by road type according to IFEU
   name_de: Verkehr Aktivität nach Straßentyp nach IFEU
   type: formula.FormulaNode
@@ -1084,6 +1115,29 @@ nodes:
       ref: municipality_name
   params:
     formula: extend_all(mileage)
+
+- id: vehicle_kilometers
+  name_en: Vehicle kilometers
+  name_de: Fahrleistung
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type, road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_nodes:
+  - id: vehicle_kilometers_ksp
+    tags: [ksp]
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+      categories: [urban_roads]
+  - id: vehicle_kilometers_ifeu
+    tags: [ifeu]
+  params:
+  - id: formula
+    value: select_port(condition, ksp, ifeu)
+  - id: condition
+    value: true
 
 - id: other_transport_energy
   name_en: Other transport energy
@@ -1188,7 +1242,7 @@ nodes:
   - id: passengers_per_vehicle
     to_dimensions:
     - id: vehicle_type
-  - id: road_transport_activity
+  - id: vehicle_kilometers_ifeu
     to_dimensions:
     - id: vehicle_type
     - id: road_type
@@ -1212,7 +1266,7 @@ nodes:
     - id: vehicle_type
     - id: road_type
     - id: energy_carrier
-  - id: road_transport_activity
+  - id: vehicle_kilometers_ifeu
     to_dimensions:
     - id: vehicle_type
     - id: road_type
