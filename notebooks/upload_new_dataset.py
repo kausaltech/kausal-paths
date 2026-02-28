@@ -5,8 +5,7 @@ import os
 import re
 import warnings
 from dataclasses import dataclass
-
-# from pathlib import Path
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import django
@@ -418,15 +417,25 @@ def convert_names_to_cats(df: pl.DataFrame, units: dict[str, str], context: Cont
     return df
 
 
+def write_dataframe_to_csv(
+    df: pl.DataFrame,
+    output_path: str | os.PathLike[str],
+    verbose: bool = True,
+) -> None:
+    """Write dataframe to CSV; create parent dirs; optionally print df and path."""
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.write_csv(path)
+    if verbose:
+        print(df)
+        print(f'Data saved to {path}')
+
+
 def save_to_csv(df: pl.DataFrame, file_stem: str, dataset_name: str) -> None:
     """Save dataframe to CSV if a path is provided."""
     if file_stem.upper() not in ['N', 'NONE']:
-        # Create a unique filename for each dataset
         dataset_file_path = f"{file_stem}_{to_snake_case(dataset_name)}.csv"
-
-        df.write_csv(dataset_file_path)
-        print(df)
-        print(f'Data saved to {dataset_file_path}')
+        write_dataframe_to_csv(df, dataset_file_path, verbose=True)
 
 
 def push_to_dvc(

@@ -112,26 +112,45 @@ datasets:
   # ... dataset configuration
 ```
 
-### Property Inheritance
+### Multiple datasets (no inheritance)
 
-When multiple datasets are defined, each dataset inherits properties from the previous one. This allows you to define common settings once:
+When you define multiple datasets under `datasets:`, each one is processed **independently**. There is **no inheritance between datasets**: each block must specify its own `input_file_path`, `operations`, and any other pipeline settings. The only shared defaults are **top-level** keys: `instance`, `metrics`, and `output_file_path` from the root of the YAML (each dataset can override these).
+
+**Concatenation and saving are normal operations**, not a special phase. Use:
+
+- **`append_to_all_results`** – appends the current DataFrame to a shared list `all_results` (returns the DataFrame unchanged).
+- **`concat_all_results`** – replaces the current DataFrame with the concatenation of everything in `all_results`.
+
+Each dataset is processed in order. Datasets that should contribute to a combined result end with **`append_to_all_results`**. The **last** such dataset then runs **`concat_all_results`** (so the current DataFrame becomes the full concatenation, including itself) and then saving operations (e.g. **`write_csv`**). There is no separate “virtual” or operations-only dataset: the last dataset that is concatenated is first appended, then concatenated, then saved in one pipeline.
 
 ```yaml
-instance: "mainz-bisko"  # Inherited by all datasets
-metrics:
-- name: Energy Consumption
-  id: energy_consumption
-  quantity: energy
-  unit: kWh
+instance: "mainz-bisko"
+metrics: [...]
 
 datasets:
 - input_file_path: "data/file1.xlsx"
-  # Inherits instance and metrics from top level
+  operations:
+  - type: filter
+    params: { expr: "pl.col('year') >= 2020" }
+  - type: append_to_all_results
+    params: {}
 
 - input_file_path: "data/file2.xlsx"
-  # Also inherits instance and metrics
-  # Can override: instance: "other-instance"
+  operations:
+  - type: filter
+    params: { expr: "pl.col('year') >= 2020" }
+  - type: append_to_all_results
+    params: {}
+  # Last contributing dataset: append, then concat (replaces df with all_results), then save
+  - type: concat_all_results
+    params: {}
+  - type: write_csv
+    params:
+      output_path: "out/combined.csv"
+      verbose: true
 ```
+
+**Future (TODO):** Inheritance between datasets and/or building one dataset from several input files (e.g. `input_file_paths: [...]`) may be added later when there is a concrete use case to design and test.
 
 ## File Formats
 
@@ -171,6 +190,8 @@ datasets:
   file_type: "parquet"  # Auto-detected
   # No schema needed - data loaded as-is
 ```
+
+For parquet (or CSV) where each row has a composite key like sector × energy carrier (e.g. `field_key` from `EW_Biogas` to `KE_Umweltwaerme`), use the **`filter_by_sector_carrier`** operation with `sectors` and `energy_carriers` lists; see [filter_by_sector_carrier](#filter_by_sector_carrier) and [Example 2b](#example-2b-parquet-filtered-by-sector--energy_carrier-field_key).
 
 ### Loading from DVC or the database
 
@@ -254,6 +275,48 @@ operations:
     expr: "pl.col('year') >= 2020"
 ```
 
+#### `filter_by_sector_carrier`
+Filter rows so that a column (e.g. `field_key`) is in the set of sector × energy_carrier combinations. Useful for parquet (or CSV) data where each sector and energy carrier combination has a distinct key (e.g. from `EW_Biogas` to `KE_Umweltwaerme`).
+
+**Params:**
+- **`column`**: Column to match (default: `"field_key"`).
+- **`sectors`**: List of sector prefixes (e.g. `["EW_", "GE_", "HE_", "IE_", "KE_"]`).
+- **`energy_carriers`**: List of energy carrier names.
+- **`include`**: If `true` (default), keep only rows whose value is in the combination set; if `false`, drop those rows.
+
+The allowed values are built as each `sector + energy_carrier` (e.g. `EW_` + `Biogas` → `EW_Biogas`). You can also build the list in code via `build_sector_carrier_field_keys(sectors, energy_carriers)` and use a normal `filter` with `pl.col('field_key').is_in(...)`.
+
+**Example – full sector × energy_carrier list (EW_Biogas to KE_Umweltwaerme):**
+
+```yaml
+operations:
+- type: filter_by_sector_carrier
+  params:
+    column: field_key
+    sectors:
+      - "EW_"
+      - "GE_"
+      - "HE_"
+      - "IE_"
+      - "KE_"
+    energy_carriers:
+      - Biogas
+      - Biomasse
+      - Braunkohle
+      - Erdgas
+      - Fernwaerme
+      - Fluessiggas
+      - Heizoel
+      - Heizstrom
+      - Nahwaerme
+      - Solarthermie
+      - SonstigeEE
+      - SonstigeKo
+      - Steinkohle
+      - Strom
+      - Umweltwaerme
+```
+
 #### `with_columns`
 Add new columns using Polars expressions.
 
@@ -301,6 +364,51 @@ operations:
 - type: select
   params:
     columns: ["year", "sector", "value"]
+```
+
+#### `write_csv`
+Write the current DataFrame to a CSV file. The pipeline continues with the same DataFrame unchanged; use this to save a snapshot at any step (e.g. for inspection or downstream tools).
+
+**Params:**
+- **`output_path`**: Path to the output CSV file (required). Parent directories are created if needed.
+- **`verbose`**: If `true` (default), print the path and row count after writing.
+
+```yaml
+operations:
+- type: write_csv
+  params:
+    output_path: "output/filtered_data.csv"
+    verbose: true
+```
+
+#### `append_to_all_results`
+Append the current DataFrame to the shared **`all_results`** list. The DataFrame is returned unchanged. Use at the end of each dataset that should contribute to a combined result. The last such dataset then runs **`concat_all_results`** and saving (e.g. **`write_csv`**) in the same pipeline.
+
+No params required (use `params: {}`).
+
+```yaml
+operations:
+- type: filter
+  params: { expr: "pl.col('year') >= 2020" }
+- type: append_to_all_results
+  params: {}
+```
+
+#### `concat_all_results`
+Replace the current DataFrame with the concatenation of all DataFrames in **`all_results`**. Use in the **last** dataset that contributes: after **`append_to_all_results`** (so the current dataset is already in `all_results`), run **`concat_all_results`** so the current DataFrame becomes the full concatenation, then run **`write_csv`** (or other ops). If `all_results` is empty, the result is an empty DataFrame.
+
+No params required (use `params: {}`).
+
+```yaml
+# In the last dataset that contributes (after append_to_all_results):
+operations:
+- type: append_to_all_results
+  params: {}
+- type: concat_all_results
+  params: {}
+- type: write_csv
+  params:
+    output_path: "out/combined.csv"
 ```
 
 #### `to_paths_dataframe`
@@ -612,6 +720,44 @@ datasets:
       dataset_name: "Climate Data"
 ```
 
+### Example 2b: Parquet filtered by sector × energy_carrier (field_key)
+
+When your parquet has a `field_key` (or similar) column where each value is a sector prefix plus an energy carrier (e.g. `EW_Biogas`, `KE_Umweltwaerme`), use `filter_by_sector_carrier` to keep only the combinations you need. Full list from EW_Biogas to KE_Umweltwaerme:
+
+```yaml
+instance: "mainz-bisko"
+
+datasets:
+- input_file_path: "data/your_data.parquet"
+  operations:
+  - type: filter_by_sector_carrier
+    params:
+      column: field_key
+      sectors:
+        - "EW_"
+        - "GE_"
+        - "HE_"
+        - "IE_"
+        - "KE_"
+      energy_carriers:
+        - Biogas
+        - Biomasse
+        - Braunkohle
+        - Erdgas
+        - Fernwaerme
+        - Fluessiggas
+        - Heizoel
+        - Heizstrom
+        - Nahwaerme
+        - Solarthermie
+        - SonstigeEE
+        - SonstigeKo
+        - Steinkohle
+        - Strom
+        - Umweltwaerme
+  # ... further operations (define_metrics, push_to_dvc, etc.)
+```
+
 ### Example 3: CSV with Text-Based Dimension Extraction
 
 ```yaml
@@ -685,8 +831,9 @@ Operations are executed sequentially. Typical order:
 5. **Data Transformation**: `pivot_by_compound_id` - Convert to wide format
 6. **Metadata Cleanup**: `extract_metadata` - Remove metadata columns
 7. **Dimension Conversion**: `convert_names_to_cats` - Convert to category IDs
-8. **Verification**: `print_metadata` - Check before pushing
-9. **DVC Push**: `push_to_dvc` - Upload to repository
+8. **Save to CSV** (optional): `write_csv` - Write a snapshot at any step
+9. **Verification**: `print_metadata` - Check before pushing
+10. **DVC Push**: `push_to_dvc` - Upload to repository
 
 ## Best Practices
 
