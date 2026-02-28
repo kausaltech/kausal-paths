@@ -1,15 +1,15 @@
-id: mainz-bisko  # defines which instance is updated
+id: schwerin-bisko  # defines which instance is updated
 default_language: de
 supported_languages: [en]
-site_url: https://mainz-bisko.paths.kausal.tech
+site_url: https://schwerin-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 0e1daa5ad49c399f36f5ec3cd677e47a43084ed8
   dvc_remote: kausal-s3
-name_de: Mainz Klima-Monitor-BISKO
-name_en: Mainz Climate Monitor BISKO
-owner: Mainz Stadt
-theme_identifier: de-mainz
+name_de: Schwerin Klima-Monitor-BISKO
+name_en: Schwerin Climate Monitor BISKO
+owner: Schwerin Stadt
+theme_identifier: de-schwerin
 target_year: 2035
 model_end_year: 2050
 reference_year: 1990
@@ -27,13 +27,13 @@ include:
   allow_override: false
   dataset_replacements:
   - from: bisko/final_energy
-    to: mainz/final_energy
+    to: schwerin/final_energy
   - from: bisko/historical_emissions
-    to: mainz/historical_emissions
+    to: schwerin/historical_emissions
   - from: bisko/passenger_kilometers
-    to: mainz/passenger_kilometers
+    to: schwerin/passenger_kilometers
   - from: bisko/vehicle_energy
-    to: mainz/vehicle_energy
+    to: schwerin/vehicle_energy
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -47,13 +47,13 @@ params:
 - id: municipality_name
   label_en: Municipality name
   label_de: Gemeindename
-  value: Mainz
+  value: Schwerin
   is_customizable: true
   is_visible: true
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
-  value: '7315000' # Leading zero has dropped from the dataset.
+  value: '13004000'
   is_customizable: false
   is_visible: false
 - id: use_national_values
@@ -100,7 +100,6 @@ result_excels:
   - emission_factors_for_district_heating_by_generic_fuel
   - vehicle_kilometers_ifeu
   - other_transport_energy
-
 
 pages:
 - id: home

@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://duesseldorf-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 27fb832aed994de5b77a0d89571bdbe6dfe74499
+  commit: 0e1daa5ad49c399f36f5ec3cd677e47a43084ed8
   dvc_remote: kausal-s3
 name: Düsseldorf Klima-Monitor
 owner: Stadt Düsseldorf
