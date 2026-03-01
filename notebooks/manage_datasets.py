@@ -486,6 +486,17 @@ class OperationsExecutor:
         columns = op_params.get('columns', [])
         return df.select(columns)
 
+    def _op_sort(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        """Sort rows by column(s). Params: by (column name or list), descending (bool or list), nulls_last (bool)."""
+        by = op_params.get('by')
+        if by is None:
+            raise ValueError("sort operation requires 'by' parameter (column name or list of column names)")
+        if isinstance(by, str):
+            by = [by]
+        descending = op_params.get('descending', False)
+        nulls_last = op_params.get('nulls_last', True)
+        return df.sort(by, descending=descending, nulls_last=nulls_last)
+
     def _op_to_paths_dataframe(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
         """Convert pl.DataFrame to PathsDataFrame with given units and primary keys (step 4 in pipeline)."""
         from common import polars as ppl

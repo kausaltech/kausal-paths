@@ -119,7 +119,9 @@ class PathsExt:
             dim_cols = dim_ids
         dup = df.select(dim_cols).is_duplicated()
         if any(dup):
-            print(df.filter(dup))
+            dups = df.filter(dup)
+            print(dups)
+            print(dups.select(dim_ids).unique())
             raise ValueError("Dataframe has duplicate rows.")
 
         def format_col(dim: str) -> pl.Expr:

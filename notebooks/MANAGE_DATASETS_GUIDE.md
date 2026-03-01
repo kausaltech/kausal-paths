@@ -366,6 +366,23 @@ operations:
     columns: ["year", "sector", "value"]
 ```
 
+#### `sort`
+Sort rows by one or more columns.
+
+**Params:**
+- **`by`**: Column name or list of column names (required).
+- **`descending`**: `true` for descending, or a list of bools per column (default: `false`).
+- **`nulls_last`**: If `true` (default), nulls sort last; if `false`, nulls first.
+
+```yaml
+operations:
+- type: sort
+  params:
+    by: ["year", "sector"]
+    descending: [false, true]
+    nulls_last: true
+```
+
 #### `write_csv`
 Write the current DataFrame to a CSV file. The pipeline continues with the same DataFrame unchanged; use this to save a snapshot at any step (e.g. for inspection or downstream tools).
 
