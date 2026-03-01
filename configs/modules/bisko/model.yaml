@@ -410,31 +410,31 @@ dimensions:
 #//////  Nodes  ////////////////////////////////////////////////////////////////////////////////////////////////////
 nodes:
 
-- id: difference
-  name_de: Differenz
-  name_en: Difference between KSP data and model results
-  type: formula.FormulaNode
-  quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes:
-  - id: historical_emissions
-    tags: [statistics]
-    from_dimensions:
-    - id: sector
-      categories: [transport]
-  - id: transport_emissions
-    tags: [model]
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    to_dimensions:
-    - id: sector
-      categories: [transport]
-    - id: energy_carrier
-  params:
-    formula: statistics + arithmetic_inverse(model)
+# - id: difference
+#   name_de: Differenz
+#   name_en: Difference between KSP data and model results
+#   type: formula.FormulaNode
+#   quantity: emissions
+#   unit: kt_co2e/a
+#   input_dimensions: [energy_carrier, sector]
+#   output_dimensions: [energy_carrier, sector]
+#   input_nodes:
+#   - id: historical_emissions
+#     tags: [statistics]
+#     from_dimensions:
+#     - id: sector
+#       categories: [transport]
+#   - id: transport_emissions
+#     tags: [model]
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
+#     to_dimensions:
+#     - id: sector
+#       categories: [transport]
+#     - id: energy_carrier
+#   params:
+#     formula: statistics + arithmetic_inverse(model)
 
 - id: net_emissions
   name_de: Netto-Emissionen
@@ -556,41 +556,41 @@ nodes:
   input_datasets:
   - id: bisko/final_energy_use_data_quality  # is automatically created by upload_new_dataset.py when uploading to DVC
 
-- id: final_transport_energy_use
-  name_de: Endenergie Verkehr
-  name_en: Final transport energy use
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: final_energy_use
-    from_dimensions:
-    - id: sector
-      categories: [transport]
+# - id: final_transport_energy_use
+#   name_de: Endenergie Verkehr
+#   name_en: Final transport energy use
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_nodes:
+#   - id: final_energy_use
+#     from_dimensions:
+#     - id: sector
+#       categories: [transport]
 
-- id: transport_difference
-  name_de: Transportdifferenz
-  name_en: Transport difference
-  type: formula.FormulaNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: final_transport_energy_use
-    tags: [ksp]
-    from_dimensions:
-    - id: sector
-      flatten: true
-  - id: transport_energy
-    tags: [ifeu]
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-  params:
-    formula: ksp - ifeu
+# - id: transport_difference
+#   name_de: Transportdifferenz
+#   name_en: Transport difference
+#   type: formula.FormulaNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [energy_carrier]
+#   output_dimensions: [energy_carrier]
+#   input_nodes:
+#   - id: final_transport_energy_use
+#     tags: [ksp]
+#     from_dimensions:
+#     - id: sector
+#       flatten: true
+#   - id: transport_energy
+#     tags: [ifeu]
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
+#   params:
+#     formula: ksp - ifeu
 
 - id: final_private_household_energy_use
   name_de: Endenergie Private Haushalte
@@ -705,21 +705,21 @@ nodes:
       exclude: true
       drop_col: false
 
-- id: emission_factors # FIXME Check for koeln-dev implementation.
-  name_de: Emissionsfaktoren
-  name_en: Emission factors
-  type: formula.FormulaNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes:
-  - id: historical_emissions
-    tags: [emissions]
-  - id: final_energy_use
-    tags: [energy]
-  params:
-    formula: extend_all(drop_nans(emissions / energy))
+# - id: emission_factors # FIXME Check for koeln-dev implementation.
+#   name_de: Emissionsfaktoren
+#   name_en: Emission factors
+#   type: formula.FormulaNode
+#   quantity: emission_factor
+#   unit: g_co2e/kWh
+#   input_dimensions: [energy_carrier, sector]
+#   output_dimensions: [energy_carrier, sector]
+#   input_nodes:
+#   - id: historical_emissions
+#     tags: [emissions]
+#   - id: final_energy_use
+#     tags: [energy]
+#   params:
+#     formula: extend_all(drop_nans(emissions / energy))
 
 # - id: transport_fuel_emission_factor
 #   name_en: Transport fuel emission factor
@@ -1153,22 +1153,22 @@ nodes:
   - id: bisko/load_per_vehicle # BISKO-Standard
     column: Passengers
 
-- id: passenger_activity
-  name_en: Passenger activity
-  name_de: Passagiere
-  type: generic.GenericNode
-  quantity: activity
-  unit: Mpkm/a
-  input_dimensions: [vehicle_type, road_type]
-  output_dimensions: [vehicle_type, road_type]
-  input_nodes:
-  - id: passengers_per_vehicle
-    to_dimensions:
-    - id: vehicle_type
-  - id: vehicle_kilometers_ifeu
-    to_dimensions:
-    - id: vehicle_type
-    - id: road_type
+# - id: passenger_activity
+#   name_en: Passenger activity
+#   name_de: Passagiere
+#   type: generic.GenericNode
+#   quantity: activity
+#   unit: Mpkm/a
+#   input_dimensions: [vehicle_type, road_type]
+#   output_dimensions: [vehicle_type, road_type]
+#   input_nodes:
+#   - id: passengers_per_vehicle
+#     to_dimensions:
+#     - id: vehicle_type
+#   - id: vehicle_kilometers_ifeu
+#     to_dimensions:
+#     - id: vehicle_type
+#     - id: road_type
 
 - id: road_transport_energy_bisko # FIXME Contains data for rail_vehicles (SSU). Should it be included?
   name_en: Road transport energy
@@ -1189,7 +1189,7 @@ nodes:
     - id: vehicle_type
     - id: road_type
     - id: energy_carrier
-  - id: vehicle_kilometers_ifeu
+  - id: vehicle_kilometers
     to_dimensions:
     - id: vehicle_type
     - id: road_type
