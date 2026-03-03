@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bayreuth-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0b39130b4c412f46ccaff8c28c1de986a785f140
+  commit: 2e2a874f631f4d1aeef417b59c5959571fb40104
   dvc_remote: kausal-s3
 name_de: Bayreuth Klima-Monitor-BISKO
 name_en: Bayreuth Climate Monitor BISKO
@@ -536,6 +536,8 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   is_outcome: true
+  goals:
+  - values: [{'year':2040, 'value':0}]
 
 - id: private_household_emissions
   name_de: Private Haushalte Emissionen
@@ -1394,13 +1396,13 @@ nodes:
 
 pages:
 - id: home
-  name_de: Klima-Monitor-BISKO Treibhausgasinventar
-  name_en: Climate Protection Monitor BISKO Greenhouse Gas Inventory
+  name_de: Bayreuth Treibhausgasbilanz
+  name_en: Bayreuth Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Klima-Monitor Treibhausgasinventar BISKO
-  lead_paragraph: Die Treibhausgasemissionen BISKO.
+  lead_title: Treibhausgasbilanz und -prognosen
+  lead_paragraph: Historische Treibhausgasemissionen der Stadt Bayreuth und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
 
 scenarios:
 
@@ -1411,5 +1413,5 @@ scenarios:
 - id: default
   default: true
   all_actions_enabled: true
-  name_de: Masterplan 100% Klimaschutz
-  name_en: Masterplan 100% Climate Protection
+  name_de: Integriertes Klimaschutzkonzept
+  name_en: Integrated Climate Protection Concept

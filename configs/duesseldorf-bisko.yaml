@@ -451,6 +451,8 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   is_outcome: true
+  goals:
+  - values: [{'year':2035, 'value':0}]
 
 - id: private_household_emissions
   name: Private Haushalte Emissionen
@@ -1101,15 +1103,16 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Düsseldorf Treibhausgasinventar
-  lead_paragraph: Die Treibhausgasemissionen Düsseldorf.
+  lead_paragraph: Historische Treibhausgasemissionen der Stadt Düsseldorf und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
 
 scenarios:
 
 - id: baseline
-  name: Business as Usual
-  # name_en: Business as Usual
+  name_de: Business as Usual
+  name_en: Business as Usual
 
 - id: default
   default: true
   all_actions_enabled: true
-  name: Masterplan 100% Klimaschutz
+  name_de: Klimaschutzkonzept
+  name_en: Climate Protection Concept

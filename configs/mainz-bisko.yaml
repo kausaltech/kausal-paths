@@ -529,6 +529,8 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   is_outcome: true
+  goals:
+  - values: [{'year':2035, 'value':0}]
 
 - id: private_household_emissions
   name_de: Private Haushalte Emissionen
@@ -1387,13 +1389,13 @@ nodes:
 
 pages:
 - id: home
-  name_de: Klima-Monitor-BISKO Treibhausgasinventar
-  name_en: Climate Protection Monitor BISKO Greenhouse Gas Inventory
+  name_de: Mainz Treibhausgasbilanz
+  name_en: Mainz Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Klima-Monitor Treibhausgasinventar BISKO
-  lead_paragraph: Die Treibhausgasemissionen BISKO.
+  lead_title: Treibhausgasbilanz und -prognosen
+  lead_paragraph: Historische Treibhausgasemissionen der Stadt Bayreuth und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
 
 scenarios:
 
