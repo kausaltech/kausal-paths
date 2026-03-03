@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import sentry_sdk
 from loguru import logger
@@ -13,6 +13,9 @@ from paths.const import INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE
 
 from frameworks.roles import FrameworkRoleDef
 
+if TYPE_CHECKING:
+    from social_django.strategy import DjangoStrategy
+
 
 class AzureADAuth(AzureADTenantOAuth2):
     name = 'azure_ad'
@@ -22,7 +25,8 @@ class AzureADAuth(AzureADTenantOAuth2):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.strategy.request is not None:
+        strategy = cast('DjangoStrategy', self.strategy)
+        if strategy.request is not None:
             #self.client = Client.objects.for_request(self.strategy.request).first()
             pass
         self.client = None
@@ -102,6 +106,7 @@ class NZCPortalOAuth2(BaseOAuth2):
         role_id = self.TYPE_TO_ROLE.get(user_type or '')
         if role_id is None:
             sentry_sdk.capture_message('Unknown role: %s' % user_type)
+
         role = FrameworkRoleDef(
             framework_id='nzc',
             role_id=role_id,

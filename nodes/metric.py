@@ -200,6 +200,7 @@ class Metric:
             return None
         # Check if the unit as a time divisor
         dim = self.unit.dimensionality.get('[time]')
+        assert not isinstance(dim, complex)
         if dim is None or dim > -1:
             return None
         year_unit = self.unit._REGISTRY('year').units

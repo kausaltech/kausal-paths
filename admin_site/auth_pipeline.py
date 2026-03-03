@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
-from frameworks.models import FrameworkConfig
 from paths.const import (
     FRAMEWORK_ADMIN_ROLE,
     FRAMEWORK_VIEWER_ROLE,
@@ -13,8 +12,10 @@ from paths.const import (
     INSTANCE_VIEWER_ROLE,
 )
 
+from frameworks.models import FrameworkConfig
+
 if TYPE_CHECKING:
-    from social_django import BaseAuth
+    from social_core.backends.base import BaseAuth
 
     from frameworks.roles import FrameworkRoleDef
     from users.models import User

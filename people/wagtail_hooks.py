@@ -13,22 +13,22 @@ from admin_site.viewsets import PathsIndexView, PathsViewSet
 from people.chooser import PersonChooserViewSet
 
 from . import (
-    chooser,  # noqa: F401
+    chooser,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     person_group_admin,  # noqa: F401  # pyright: ignore
 )
 from .forms import AvatarWidget, PersonForm
-from .models import Person
+from .models import Person, PersonQuerySet
 
 
-class PersonIndexView(PathsIndexView[Person]):
+class PersonIndexView(PathsIndexView[Person, PersonQuerySet]):
     def search_queryset(self, queryset):
        # Workaround to prevent Wagtail from looking for `path` (from Organization) in the search fields for Person
-        queryset = Person.objects.filter(id__in=queryset)
+        queryset = Person.objects.qs.filter(id__in=queryset)
 
         return super().search_queryset(queryset)
 
 
-class PersonSnippetViewSet(PathsViewSet):
+class PersonSnippetViewSet(PathsViewSet[Person, PersonQuerySet]):
     model = Person
     icon = 'user'
     menu_label = _('People')

@@ -46,20 +46,21 @@ if TYPE_CHECKING:
     from paths.types import PathsGQLInfo as GQLInfo
 
     from frameworks.models import NodeDimensionSelection
-    from nodes.instance import Context, Instance
+    from nodes.context import Context
+    from nodes.instance import Instance
     from nodes.node import Node
     from nodes.units import Unit
 
 
 strawberry = sb
 
-class MeasureTemplateDefaultDataPointType(DjangoNode):
+class MeasureTemplateDefaultDataPointType(DjangoNode[MeasureTemplateDefaultDataPoint]):
     class Meta(DjangoNodeMeta):
         model = MeasureTemplateDefaultDataPoint
         fields = public_fields(MeasureTemplateDefaultDataPoint)
 
 
-class MeasureTemplateType(DjangoNode):
+class MeasureTemplateType(DjangoNode[MeasureTemplate]):
     default_data_points = graphene.List(graphene.NonNull(MeasureTemplateDefaultDataPointType), required=True)
     measure = graphene.Field(lambda: MeasureType, framework_config_id=graphene.ID(required=True), required=False)
 
@@ -91,7 +92,7 @@ class MeasureTemplateType(DjangoNode):
         return measures[0]
 
 
-class SectionType(DjangoNode):
+class SectionType(DjangoNode[Section]):
     class Meta:
         model = Section
         fields = public_fields(Section)
@@ -141,13 +142,13 @@ class MinMaxDefaultIntType:
 
 
 @register_strawberry_type
-@sb.experimental.pydantic.type(model=FrameworkDefaults, fields=['target_year', 'baseline_year'])
+@sb.experimental.pydantic.type(model=FrameworkDefaults)
 class FrameworkDefaultsType:
     target_year: strawberry.auto
     baseline_year: strawberry.auto
 
 
-class FrameworkType(DjangoNode):
+class FrameworkType(DjangoNode[Framework]):
     class Meta(DjangoNodeMeta):
         model = Framework
         fields = public_fields(Framework)
@@ -184,12 +185,12 @@ class FrameworkType(DjangoNode):
         return fwc
 
 
-class PlaceHolderDataPoint(graphene.ObjectType):
+class PlaceHolderDataPoint(graphene.ObjectType[Any]):
     value = graphene.Float()
     year = graphene.Int()
 
 
-class MeasureType(DjangoNode):
+class MeasureType(DjangoNode[Measure]):
     measure_template = graphene.Field(MeasureTemplateType, required=True)
     placeholder_data_points = graphene.List(PlaceHolderDataPoint)
     corresponding_node = graphene.Field(NodeInterface, required=False)
@@ -262,7 +263,7 @@ class MeasureType(DjangoNode):
             result.append(PlaceHolderDataPoint(year=year, value=value))
         return result
 
-class FrameworkConfigType(DjangoNode):
+class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     measures = graphene.List(graphene.NonNull(MeasureType), required=True)
     view_url = graphene.String(description=_("Public URL for instance dashboard"), required=False)
     results_download_url = graphene.String(description=_("URL for downloading a results file"))
@@ -322,7 +323,7 @@ class FrameworkConfigType(DjangoNode):
         return root.cache.fw_cache.framework.defaults.target_year.default
 
 
-class MeasureDataPointType(DjangoNode):
+class MeasureDataPointType(DjangoNode[MeasureDataPoint]):
     class Meta(DjangoNodeMeta):
         model = MeasureDataPoint
         fields = public_fields(MeasureDataPoint)
@@ -351,7 +352,7 @@ def get_fwc(info: GQLInfo, fwc_id: str) -> FrameworkConfig:
     return fwc_cached
 
 
-class Query(graphene.ObjectType):
+class Query(graphene.ObjectType[Any]):
     frameworks = graphene.List(graphene.NonNull(FrameworkType))
     framework = graphene.Field(FrameworkType, identifier=graphene.ID(required=True))
 
@@ -437,7 +438,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         target_year: int | None = None,
         uuid: str | None = None,
     ) -> FrameworkConfig:
-        id_field = cast('CharField', InstanceConfig._meta.get_field('identifier'))
+        id_field = cast('CharField[str, str]', InstanceConfig._meta.get_field('identifier'))
         try:
             id_field.run_validators(instance_identifier)
         except ValidationError:

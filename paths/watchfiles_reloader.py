@@ -15,15 +15,14 @@ class DjangoPythonFilter(watchfiles.PythonFilter):
             ignore_paths: Sequence[str | Path] | None = None,
             extra_extensions: Sequence[str] = (),
     ) -> None:
-        if 'site-packages' in self.ignore_dirs:
+        ignore_dirs = list(self.ignore_dirs)
+        if 'site-packages' in ignore_dirs:
             # We want to watch site-packages, too
-            d = list(self.ignore_dirs)
-            d.remove('site-packages')
-            self.ignore_dirs = d
-        if 'e2e-tests' not in self.ignore_dirs:
-            d = list(self.ignore_dirs)
-            d.append('e2e-tests')
-            self.ignore_dirs = d
+            ignore_dirs.remove('site-packages')
+        for path in ('e2e-tests', 'query-store'):
+            if path not in ignore_dirs:
+                ignore_dirs.append(path)
+        self.ignore_dirs = ignore_dirs
         super().__init__(ignore_paths=ignore_paths, extra_extensions=extra_extensions)
 
 

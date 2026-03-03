@@ -54,7 +54,7 @@ class ReduceFlow(BaseModel):
         return v
 
     def make_index(
-        self, output_nodes: list[Node], extra_level: str | None = None, extra_level_values: Iterable | None = None,
+        self, output_nodes: list[Node], extra_level: str | None = None, extra_level_values: Iterable[str] | None = None,
     ) -> pd.MultiIndex:
         dims: dict[str, set[str]] = {dim: set() for dim in list(self.target.categories.keys())}
         nodes: set[str] = set()
@@ -73,23 +73,23 @@ class ReduceFlow(BaseModel):
             dims[dim].add(cat)
 
         level_list = list(dims.keys())
-        cat_list: list[Iterable] = [dims[dim] for dim in level_list]
+        cat_list: list[set[str]] = [dims[dim] for dim in level_list]
         level_list.insert(0, 'node')
         cat_list.insert(0, nodes)
         if extra_level:
             level_list.append(extra_level)
             assert extra_level_values is not None
-            cat_list.append(extra_level_values)
-        index = pd.MultiIndex(cat_list, names=level_list)
+            cat_list.append(set(extra_level_values))
+        index = pd.MultiIndex(cat_list, names=level_list)  # type: ignore[arg-type]
         return index
 
 
-class ReduceParameterValue(RootModel):
+class ReduceParameterValue(RootModel[list[ReduceFlow]]):
     root: list[ReduceFlow]
 
 
 @dataclass
-class ReduceParameter(ParameterWithUnit, Parameter):
+class ReduceParameter(ParameterWithUnit, Parameter[ReduceParameterValue]):
     value: ReduceParameterValue | None = None
 
     def __post_init__(self, unit_str: str | None = None):
@@ -108,7 +108,7 @@ class ReduceParameter(ParameterWithUnit, Parameter):
 
 class ReduceAction(ActionNode):
     explanation = _("""Define action with parameters <i>reduce</i> and <i>multiplier</i>.""")
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
         ReduceParameter(local_id='reduce'),
         NumberParameter(local_id='multiplier'),
     ]

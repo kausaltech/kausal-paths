@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from cmath import nan
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from django.utils.translation import gettext_lazy as _
 
@@ -123,7 +123,7 @@ class AdditiveAction2(AdditiveAction, SimpleNode):  # FIXME Merge with AdditiveA
 class CumulativeAdditiveAction(ActionNode):
     explanation = _("""Additive action where the effect is cumulative and remains in the future.""")
 
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
         PercentageParameter('target_year_ratio', min_value=0),
     ]
 
@@ -184,7 +184,7 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
         df = df.reindex(range(start_year, target_year + 1))
         df[FORECAST_COLUMN] = True
 
-        target_year_level = self.get_parameter_value('target_year_level', required=False)
+        target_year_level = cast('float | None', self.get_parameter_value('target_year_level', required=False))
         if target_year_level is not None:
             if set(df.columns) != {VALUE_COLUMN, FORECAST_COLUMN}:
                 raise NodeError(self, "target_year_level parameter can only be used with single-value nodes")

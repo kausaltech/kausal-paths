@@ -59,7 +59,7 @@ class User(AbstractUser):
         'nodes.InstanceConfig', null=True, blank=True, on_delete=models.SET_NULL,
     )
     email = models.EmailField(_('email address'), unique=True)
-    extra: UserExtra = SchemaField(schema=UserExtra, default=UserExtra.get_default)
+    extra = SchemaField(schema=UserExtra, default=UserExtra.get_default)
 
     # Used for quickly retrieving the instances the user can administer
     cached_adminable_instances = models.CharField(

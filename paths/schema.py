@@ -21,6 +21,7 @@ from kausal_common.strawberry.extensions import LoggingTracingExtension
 from kausal_common.strawberry.schema import Schema as UnifiedSchema
 from kausal_common.testing.schema import TestModeMutations
 
+from paths import gql
 from paths.context import realm_context
 from paths.graphql_types import UnitType
 from paths.schema_context import PathsGraphQLContext
@@ -35,15 +36,13 @@ from nodes.schema import (
     Subscription as NodesSubscription,
 )
 from orgs.models import Organization
-from orgs.schema import Mutation as OrgsMutation, OrganizationNode, Query as OrgsQuery
+from orgs.schema import OrganizationNode, Query as OrgsQuery
 from pages.schema import Query as PagesQuery
 from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
 from users.schema import Query as UsersQuery
 
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo
-
-    from paths.graphql_types import SBInfo
 
     from nodes.units import Unit
 
@@ -57,7 +56,7 @@ CO2E = 'CO<sub>2</sub>e'
     description='Select the Paths instance for the operation',
 )
 def instance_directive(
-    info: SBInfo,
+    info: gql.Info,
     hostname: Annotated[str | None, sb.argument(description='Hostname')],
     identifier: Annotated[sb.ID | None, sb.argument(description='Instance identifier')],
     token: Annotated[str | None, sb.argument(description='Token for accessing the instance')],
@@ -102,7 +101,7 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, Server
 
 
 
-class GrapheneMutations(ParamsMutations, FrameworksMutations, OrgsMutation):
+class GrapheneMutations(ParamsMutations, FrameworksMutations):
     pass
 
 
@@ -118,7 +117,7 @@ class InstanceContextInput:
     name='context',
     description='Paths instance context, including the selected locale',
 )
-def context_directive(info: SBInfo, input: InstanceContextInput):
+def context_directive(info: gql.Info, input: InstanceContextInput):
     return
 
 

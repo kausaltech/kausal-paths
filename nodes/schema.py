@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import re
+from collections.abc import AsyncGenerator
 from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Annotated, Any, Protocol, cast
 
@@ -22,14 +23,18 @@ from markdown_it import MarkdownIt
 from kausal_common.graphene.utils import create_from_dataclass
 from kausal_common.strawberry.registry import register_strawberry_type
 
+from paths import gql
 from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
 from paths.graphql_helpers import ensure_instance, get_instance_context, pass_context
+from paths.graphql_types import UnitType
 
+from nodes.context import Context
 from nodes.node import Node
+from nodes.normalization import Normalization
 from nodes.scenario import Scenario, ScenarioKind as ScenarioKindEnum
 
 from . import visualizations as viz
-from .actions.action import ActionGroup, ActionNode, ImpactOverview
+from .actions.action import ActionNode
 from .actions.parent import ParentActionNode
 from .constants import FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN, DecisionLevel
 from .instance import Instance, InstanceFeatures
@@ -50,23 +55,21 @@ from .models import InstanceConfig
 strawberry = sb
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Iterable, Sequence
+    from collections.abc import Iterable, Sequence
 
     from graphql import GraphQLResolveInfo
     from wagtail.blocks.stream_block import StreamValue
 
     from kausal_common.graphene import GQLInfo
 
-    from paths.graphql_types import SBInfo, UnitType
     from paths.types import GQLInstanceContext, GQLInstanceInfo
 
     from common import polars as ppl
-    from nodes.context import Context
     from nodes.goals import GoalActualValue, NodeGoalsEntry
-    from nodes.normalization import Normalization
     from pages.models import ActionListPage
     from params.param import Parameter
 
+    from .actions.action import ActionGroup, ImpactOverview
     from .node import Node
     from .scenario import Scenario
     from .units import Unit
@@ -282,18 +285,24 @@ class ForecastMetricType(graphene.ObjectType):
 
 
 @register_strawberry_type
-@sb.experimental.pydantic.type(model=MetricCategory, fields=['label', 'color', 'order', 'group'])
+@sb.experimental.pydantic.type(model=MetricCategory)
 class MetricDimensionCategoryType:
     id: sb.ID
     original_id: sb.ID | None
+    label: strawberry.auto
+    color: strawberry.auto
+    order: strawberry.auto
+    group: strawberry.auto
 
 
 @register_strawberry_type
-@sb.experimental.pydantic.type(model=MetricCategoryGroup, fields=['label', 'color', 'order'])
+@sb.experimental.pydantic.type(model=MetricCategoryGroup)
 class MetricDimensionCategoryGroupType:
     id: sb.ID
     original_id: sb.ID
-
+    label: strawberry.auto
+    color: strawberry.auto
+    order: strawberry.auto
 
 DimensionType = graphene.Enum.from_enum(DimensionKind)
 
@@ -345,17 +354,20 @@ class DimensionalMetricType:
     unit: Annotated[UnitType, sb.lazy('paths.graphql_types')]
     measure_datapoint_years: strawberry.auto
 
+    if TYPE_CHECKING:
+        @staticmethod
+        def from_pydantic(instance: DimensionalMetric, extra: dict[str, Any] | None = None) -> DimensionalMetricType: ...  # pyright: ignore[reportUnusedParameter]
 
 ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
 
 
-class FlowNodeType(graphene.ObjectType):
+class FlowNodeType(graphene.ObjectType[Any]):
     id = graphene.String(required=True)
     label = graphene.String(required=True)
     color = graphene.String(required=False)
 
 
-class FlowLinksType(graphene.ObjectType):
+class FlowLinksType(graphene.ObjectType[Any]):
     year = graphene.Int(required=True)
     is_forecast = graphene.Boolean(required=True)
     sources = graphene.List(graphene.NonNull(graphene.String), required=True)
@@ -364,7 +376,7 @@ class FlowLinksType(graphene.ObjectType):
     absolute_source_values = graphene.List(graphene.NonNull(graphene.Float), required=True)
 
 
-class DimensionalFlowType(graphene.ObjectType):
+class DimensionalFlowType(graphene.ObjectType[Any]):
     id = graphene.String(required=True)
     nodes = graphene.List(graphene.NonNull(FlowNodeType), required=True)
     unit = graphene.Field('paths.schema.UnitType', required=True)
@@ -404,7 +416,7 @@ class VisualizationNodeOutput(VisualizationEntry):  # type: ignore[override]
     @sb.field
     def metric_dim(self, info: sb.Info) -> DimensionalMetricType | None:
         e = cast('viz.VisualizationNodeOutput', self)
-        req: GQLInstanceContext = info.context
+        req: 'GQLInstanceContext' = info.context
         dm = e.get_metric_data(req.instance.context.nodes[self.node_id])
         if dm is None:
             return None
@@ -1169,12 +1181,12 @@ class Query(graphene.ObjectType):
 class SBQuery(Query):
     @pass_context
     @sb.field(graphql_type=list[NormalizationType])
-    def active_normalizations(self, info: SBInfo, context: Context) -> list[Normalization]:
+    def active_normalizations(self, info: gql.Info, context: Context) -> list[Normalization]:
         return list(context.normalizations.values())
 
     @sb.field(graphql_type=list[InstanceBasicConfiguration])
     @staticmethod
-    def available_instances(info: SBInfo, hostname: str) -> list[Instance]:
+    def available_instances(info: gql.Info, hostname: str) -> list[Instance]:
         qs = InstanceConfig.objects.get_queryset().for_hostname(hostname, wildcard_domains=info.context.wildcard_domains)
         instances: list[Instance] = []
         for config in qs:
@@ -1196,7 +1208,7 @@ class InstanceChange:
 @sb.type
 class Subscription:
     @sb.subscription(graphql_type=InstanceChange)
-    async def available_instances(self, info: SBInfo) -> AsyncGenerator[InstanceChange]:
+    async def available_instances(self, info: gql.Info) -> AsyncGenerator[InstanceChange]:
         user = info.context.get_user()
         logger.debug('New available_instances subscription')
         ws = info.context.get_ws_consumer()
@@ -1221,7 +1233,7 @@ class Mutation:
         active_normalizer: Normalization | None = sb.field(graphql_type=NormalizationType)
 
     @sb.mutation
-    def set_normalizer(self, info: SBInfo, id: sb.ID | None = None) -> Mutation.SetNormalizerMutation:
+    def set_normalizer(self, info: gql.Info, id: sb.ID | None = None) -> Mutation.SetNormalizerMutation:
         context = get_instance_context(info)
         default = context.default_normalization
         if id:

@@ -52,7 +52,7 @@ def test_data_source_list(api_client, dataset_test_data, user_key):
             'data_source1_alternative'
         }
     else:
-        expected_data_sources = {}
+        expected_data_sources = set()
 
     response = api_client.get('/v1/data_sources/')
     if user_key == 'regular_user':

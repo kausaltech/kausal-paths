@@ -242,7 +242,7 @@ class PathsExt:
         pdf = self._df
         if isinstance(pdf, ppl.PathsDataFrame):
             meta = pdf.get_meta()
-            df = pl.DataFrame(pdf._df)
+            df = pl.DataFrame._from_pydf(pdf._df)
         else:
             meta = None
             df = pdf

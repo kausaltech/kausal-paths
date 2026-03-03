@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import TYPE_CHECKING, cast
 
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
@@ -31,6 +32,11 @@ from nodes.tests.factories import InstanceConfigFactory
 from people.models import DatasetSchemaGroupPermission, DatasetSchemaPersonPermission, PersonGroup
 from people.tests.factories import PersonFactory
 from users.models import User
+
+if TYPE_CHECKING:
+  from collections.abc import Sequence
+
+  from django.db.models.base import Model
 
 
 @pytest.fixture(scope='module')
@@ -276,7 +282,7 @@ def dataset_test_data(django_db_setup, django_db_blocker):
     )
 
     # Create users and corresponding roles on schema1, schema2 and schema3
-    schema_permission_users = {}
+    schema_permission_users: dict[str, User] = {}
     for i, schema in enumerate((schema1, schema2, schema3), 1):
         for username, role in (
             (f'schema{i}_viewer', ObjectRole.VIEWER),
@@ -285,33 +291,38 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         ):
             person = PersonFactory.create(email=f'{username}@example.com')
             DatasetSchemaPersonPermission.objects.create(
-                object=schema,
+                object=schema,  # type: ignore[misc]
                 person=person,
                 role=role,
             )
-            schema_permission_users[username] = person.user
+            user = person.user
+            assert user is not None
+            schema_permission_users[username] = user
 
     # Create user groups and corresponding roles and users on schema1, schema2 and schema3
-    schema_permission_group_users = {}
+    schema_permission_group_users: dict[str, User] = {}
     for i, schema in enumerate((schema1, schema2, schema3), 1):
         for group_name, role in (
             (f'schema{i}_viewer_group', ObjectRole.VIEWER),
             (f'schema{i}_editor_group', ObjectRole.EDITOR),
             (f'schema{i}_admin_group', ObjectRole.ADMIN),
         ):
+            instance = cast('InstanceConfig', schema.scopes.get().scope)
             group = PersonGroup.objects.create(
-                instance=schema.scopes.get().scope,
+                instance=instance,
                 name=group_name,
             )
             username = f'{group_name}_user'
             person = PersonFactory.create(email=f'{username}@example.com')
             group.persons.add(person)
             DatasetSchemaGroupPermission.objects.create(
-                object=schema,
+                object=schema,  # type: ignore[misc]
                 group=group,
                 role=role,
             )
-            schema_permission_group_users[username] = person.user
+            user = person.user
+            assert user is not None
+            schema_permission_group_users[username] = user
 
     result = {
         'instance1': instance1,
@@ -353,7 +364,7 @@ def dataset_test_data(django_db_setup, django_db_blocker):
     }
     yield result
     with django_db_blocker.unblock():
-        to_delete = list(reversed(result.values())) + list(Group.objects.all())
+        to_delete: Sequence[Model] = list(reversed(result.values())) + list(Group.objects.all())
         for o in to_delete:
             o.delete()
 
