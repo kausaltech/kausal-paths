@@ -360,7 +360,11 @@ class DatasetWithFilters(Dataset):
         new_item = d.get('value', '')
         if new_item == '':
             raise ValueError(self, "rename_item must have value.")
-        df = df.with_columns(pl.col(col).str.replace_all(re.escape(item), new_item))
+        # str.replace_all requires Utf8; cast if column is not string (e.g. Categorical)
+        series = pl.col(col)
+        if df.schema[col] != pl.Utf8:
+            series = series.cast(pl.Utf8)
+        df = df.with_columns(series.str.replace_all(re.escape(item), new_item))
         return df
 
     # Similar to Node._process_edge_output

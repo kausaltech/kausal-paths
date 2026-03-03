@@ -17,7 +17,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
-from django.db.models import CharField, Q
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, gettext_lazy as _, override
 from modelcluster.models import ClusterableModel
@@ -30,8 +30,7 @@ from wagtail.models.sites import Site
 from wagtail.search import index
 
 import sentry_sdk
-from asgiref.sync import sync_to_async
-from channels.consumer import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 from channels.layers import get_channel_layer
 from loguru import logger
 from wagtail_color_panel.fields import ColorField
@@ -51,14 +50,10 @@ from kausal_common.models.permission_policy import (
 )
 from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.types import (
-    FK,
-    M2M,
     MLModelManager,
-    RevMany,
-    RevOne,
     copy_signature,
 )
-from kausal_common.models.uuid import UUIDIdentifiedModel
+from kausal_common.models.uuid import UUIDIdentifiedModel, query_pk_or_uuid_or_identifier
 
 from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
@@ -75,6 +70,7 @@ from orgs.models import Organization
 from pages.blocks import CardListBlock
 
 if TYPE_CHECKING:
+    from django.db.models import CharField
     from django.http import HttpRequest
 
     from loguru import Logger
@@ -82,6 +78,12 @@ if TYPE_CHECKING:
     from kausal_common.models.permission_policy import (
         BaseObjectAction,
         ObjectSpecificAction,
+    )
+    from kausal_common.models.types import (
+        FK,
+        M2M,
+        RevMany,
+        RevOne,
     )
     from kausal_common.users import UserOrAnon
 
@@ -117,7 +119,7 @@ def get_instance_identifier_from_wildcard_domain(
     return (None, None)
 
 
-class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], PermissionedQuerySet['InstanceConfig']):  # type: ignore[override]
+class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], PermissionedQuerySet['InstanceConfig']):  # type: ignore[override, misc]
     def for_hostname(self, hostname: str, request: HttpRequest | None = None, wildcard_domains: list[str] | None = None):
         hostname = hostname.lower()
         hostnames = InstanceHostname.objects.filter(hostname=hostname)
@@ -132,9 +134,14 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
     def adminable_for(self, user: User):
         return InstanceConfig.permission_policy().adminable_instances(user)
 
-_InstanceConfigManager = models.Manager.from_queryset(InstanceConfigQuerySet)
+    def by_all_identifiers(self, id_or_identifier: str) -> InstanceConfigQuerySet:
+        if id_or_identifier.isdigit():
+            return self.filter(id=id_or_identifier)
+        return self.filter(query_pk_or_uuid_or_identifier(id_or_identifier))
 
-class InstanceConfigManager(  # pyright: ignore[reportIncompatibleMethodOverride]
+
+_InstanceConfigManager = models.Manager.from_queryset(InstanceConfigQuerySet)
+class InstanceConfigManager(
     MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager
 ):
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
@@ -813,7 +820,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         return logger.bind(instance=self.identifier, markup=True)
 
 
-class InstanceHostnameManager(models.Manager):
+class InstanceHostnameManager(models.Manager['InstanceHostname']):
     def get_by_natural_key(self, instance_identifier, hostname, base_path):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance, hostname=hostname, base_path=base_path)
@@ -842,7 +849,7 @@ class InstanceHostname(models.Model):
         return self.instance.natural_key() + (self.hostname, self.base_path)
 
 
-class InstanceTokenManager(models.Manager):
+class InstanceTokenManager(models.Manager['InstanceToken']):
     def get_by_natural_key(self, instance_identifier, token, created_at):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance, token=token, created_at=created_at)
@@ -868,7 +875,7 @@ class InstanceToken(models.Model):
         return self.instance.natural_key() + (self.token, self.created_at)
 
 
-class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['NodeConfig']):  # type: ignore[override]
+class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['NodeConfig']):  # type: ignore[override, misc]
     pass
 
 
@@ -923,7 +930,7 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
     i18n = TranslationField(
         fields=('name', 'short_description', 'description', 'goal'),
         default_language_field='instance__primary_language',
-    )  # pyright: ignore
+    )
     name_i18n: str | None
     short_description_i18n: str | None
     description_i18n: str | None
@@ -939,13 +946,13 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
     search_auto_update = False
     wagtail_reference_index_ignore = True
 
-    objects: ClassVar[NodeConfigManager] = NodeConfigManager()  # pyright: ignore
+    objects: ClassVar[NodeConfigManager] = NodeConfigManager()
 
     _node: Node | None
 
     indicates_nodes: RevMany[NodeConfig]
 
-    class Meta:  # pyright: ignore
+    class Meta:
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)
@@ -996,7 +1003,7 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
             if not self.i18n:
                 self.i18n = {}
             assert isinstance(self.i18n, dict)
-            self.i18n |= cast('dict', i18n)
+            self.i18n |= cast('dict[str, str]', i18n)
 
         if overwritten:
             self.instance.log.info('Overwrote contents in node %s' % str(node))

@@ -130,6 +130,7 @@ INSTALLED_APPS = [
     'dal',
     'dal_select2',
     'dal_admin_filters',
+    'django.contrib.postgres',
     'wagtail.contrib.forms',
     'wagtail.contrib.redirects',
     'wagtail.embeds',

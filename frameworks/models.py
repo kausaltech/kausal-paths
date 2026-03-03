@@ -329,7 +329,7 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
     ]
 
     objects: ClassVar[SectionManager] = SectionManager()
-    _default_manager: ClassVar[SectionManager]
+    _default_manager: ClassVar[SectionManager]  # type: ignore[assignment]
 
     class Meta:
         constraints = [

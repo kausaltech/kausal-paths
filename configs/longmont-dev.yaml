@@ -537,7 +537,7 @@ dimensions:
     order: -1
 
 - id: scope
-  label: Emission scopes
+  label: Emission scope
   label_es-US: Alcances de emisión
   categories:
   - id: scope1
@@ -858,12 +858,6 @@ nodes:
     - id: scope
       categories: [scope1]
   color: '#5D9C6F'
-  params:
-  - id: operations
-    value: get_single_dataset,apply_multiplier
-  - id: multiplier
-    value: 1
-    unit: t_co2e/t
 
 - id: waste_water_treatment_emissions
   name: Waste water treatment emissions
@@ -885,29 +879,36 @@ nodes:
       categories: [scope3]
     - id: ghg
       categories: [co2e]
-  params:
-  - id: operations
-    value: get_single_dataset,apply_multiplier
-  - id: multiplier
-    value: 1
-    unit: t_co2e/t
 
 - id: leakage_from_oil_and_gas_wells_emissions
   name: Emissions from leakages from oil and gas wells
   name_es-US: Emisiones procedentes de fugas de pozos de petróleo y gas
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emissions
-  unit: t/a
+  unit: t_co2e/a
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
-  input_datasets:
+  input_datasets: # TODO Use scope and t_co2e already in the dataset
   - id: longmont/greenhouse_gas_emissions_by_subsector
+    tags: [leakage]
     column: emissions
     filters:
     - column: emission_sectors
       value: leakage_from_oil_and_gas_wells
-  # output_nodes: [fugitive_emissions]
-  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: fugitive_emissions
+    from_dimensions:
+    - id: emission_scope
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope1]
+    - id: ghg
+      categories: [co2e]
+    - id: energy_carrier
+      categories: [natural_gas]
+    - id: emission_sectors
+      categories: [fugitive_emissions]
 
 # Avoided emissions
 
@@ -1884,17 +1885,31 @@ nodes:
   input_datasets:
   - id: longmont/transportation_energy_factors
     column: Electricity use
+  input_nodes:
+  - id: electric_vehicle_efficiency_trend
+    tags: [add_to_existing_dims]
+    to_dimensions:
+    - id: vehicle_type
+      categories: [car]
+  params:
+    operations: get_single_dataset,add_to_existing_dims
 
 - id: transportation_electricity_use
   name: Transportation electricity use
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: energy
   unit: kWh/a
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
   - id: vehicle_miles_traveled
+    tags: [option1]
+  - id: electric_vehicle_miles_traveled
+    tags: [option2]
   - id: transportation_electricity_factor
+    tags: [ef]
+  params:
+    formula: (option1 + option2) * ef
 
 - id: transportation_electricity_emissions
   name: Transportation electricity emissions
@@ -2674,6 +2689,84 @@ nodes:
     - id: scope
       categories: [scope1]
 
+- id: vehicle_miles_per_vehicle
+  name: Vehicle miles per vehicle
+  name_es-US: Millas vehiculares por vehículo
+  description: '<p>The model has two different estimates for VMT: <ul><li>Row 50:
+    Average annual VMT per Vehicle (from BAU, year 2018) 4,671.6 mi/vehicle/a</li>
+    <li>Row 76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul></p>
+    <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
+  description_es-US: '<p>El modelo tiene dos estimaciones diferentes para VMT: <ul><li>Fila
+    50: VMT promedio anual por vehículo (de BAU, año 2018) 4671,6 mi/vehículo/a</li>
+    <li>Fila 76: VMT promedio anual (a partir del supuesto, año 2018) 7982 mi/vehículo/a</li></ul></p>
+    <p><b>Unidad:</b> mi/(año v) = millas al año por vehículo</p>'
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: VMT/vehicle/a
+  input_datasets:
+  - longmont/annual_vehicle_miles_per_vehicle
+
+- id: registered_electric_vehicles
+  name: Registered electric vehicles
+  name_es-US: Vehículos eléctricos matriculados
+  type: simple.AdditiveNode
+  quantity: number
+  unit: vehicle
+  input_datasets:
+  - longmont/registered_electric_vehicles
+
+- id: electric_vehicle_miles_traveled
+  name: Electric vehicle miles traveled
+  name_es-US: Millas recorridas por vehículos eléctricos
+  type: generic.GenericNode
+  quantity: mileage
+  unit: VMT/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: registered_electric_vehicles
+    to_dimensions:
+    - id: vehicle_type
+      categories: [car]
+    - id: energy_carrier
+      categories: [electricity]
+  - id: vehicle_miles_per_vehicle
+  output_nodes:
+  - id: vehicle_miles_traveled
+    tags: [electric_vmt]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [petrol]
+
+- id: vmt_change_due_to_public_transportation
+  name: Change in vehicle miles traveled due to public transportation
+  name_es-US: Cambio en las millas recorridas por vehículos debido al transporte público
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: VMT/a
+  input_nodes:
+  - id: increase_access_of_public_transit
+    tags: [trip_change]
+  - id: population
+  params:
+  - id: constant
+    value: 8.8
+    unit: VMT/trip
+  - id: formula
+    value: trip_change * population * constant
+  output_nodes:
+  - id: vehicle_miles_traveled
+    tags: [transit]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [petrol]
+    - id: vehicle_type
+      categories: [car]
+
 - id: vehicle_miles_traveled
   name: Vehicle miles traveled
   name_es-US: Millas recorridas por vehículos
@@ -2681,13 +2774,19 @@ nodes:
     per capita)</p>
   description_es-US: <p><b>Unidad:</b> Mmi/año = millones de millas al año 
     (posiblemente cap. = per cápita)</p>
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: mileage
   unit: VMT/a
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/vehicle_miles_traveled
+    tags: [baseline]
+  input_nodes:
+  - id: multimodal_transportation_system
+    tags: [multimod]
+  params:
+    formula: (extend_all(baseline) - electric_vmt - transit) * complement(multimod)
 
 - id: vehicle_fuel_use
   name: Vehicle fuel use
@@ -3184,16 +3283,20 @@ actions:
     de calidad del aire del Plan de Sustentabilidad</a></li></ul></p>'
   type: simple.GenericAction
   quantity: emissions
-  unit: t/a
+  unit: t_co2e/a
   group: oil_and_gas
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2025
     column: leak_detection
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: leakage_from_oil_and_gas_wells_emissions
     to_dimensions:
-    - id: emission_scope
+    - id: emission_scope # TODO Use scope and t_co2e already in the dataset.
       categories: [scope1]
 
 - id: energy_use_intensity_trend
@@ -3242,8 +3345,8 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2025
     column: vehicle_incentives
-  # output_nodes:
-  # - registered_electric_vehicles
+  output_nodes:
+  - registered_electric_vehicles
 
 - id: increase_access_of_public_transit
   name: Address barriers to increase access and use of public transit
@@ -3275,8 +3378,6 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     column: increase_access_of_public_transit
     forecast_from: 2025
-  # output_nodes:
-  # - free_rides_per_person
 
 - id: multimodal_transportation_system
   name: Develop multimodal transportation system / bicycle and pedestrian 
@@ -3305,9 +3406,6 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     column: multimodal_transportation_system
     forecast_from: 2025
-  output_nodes:
-  - id: vehicle_miles_traveled
-    tags: [complement]
   params:
     operations: get_single_dataset,extend_all
 
@@ -3353,14 +3451,19 @@ actions:
     aumentarán las millas recorridas por galón.
   type: simple.AdditiveAction
   quantity: fuel_consumption
-  unit: miles/gallon
+  unit: MPG
   group: trend
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2022
     column: mpg_trend
-  # output_nodes:
-  # - miles_per_gallon
+  output_nodes:
+  - id: transportation_miles_per_gallon
+    to_dimensions:
+    - id: energy_carrier
+      categories: [petrol]
+    - id: vehicle_type
+      categories: [car]
 
 - id: vmt_per_vehicle_trend
   name: Vehicle miles per vehicle trend
@@ -3373,14 +3476,14 @@ actions:
     <p><b>Unidad:</b> mi/(a.v) = millas anuales por vehículo</p>
   type: simple.AdditiveAction
   quantity: mileage
-  unit: miles/vehicle/a
+  unit: VMT/vehicle/a
   group: trend
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2022
     column: vmt_per_vehicle_trend
-  # output_nodes:
-  # - vehicle_miles_per_vehicle
+  output_nodes:
+  - vehicle_miles_per_vehicle
 
 - id: electric_vehicle_efficiency_trend
   name: Electric vehicle efficiency trend
@@ -3392,14 +3495,12 @@ actions:
     kilovatio hora de energía.
   type: simple.AdditiveAction
   quantity: fuel_consumption
-  unit: kWh/mile
+  unit: kWh/VMT
   group: trend
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2022
     column: electric_vehicle_efficiency_trend
-  # output_nodes:
-  # - electric_vehicle_efficiency
 
 pages:
 - id: home

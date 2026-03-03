@@ -5,8 +5,7 @@ import os
 import re
 import warnings
 from dataclasses import dataclass
-
-# from pathlib import Path
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import django
@@ -402,31 +401,38 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict[str, str]) -> pl.DataFrame:
     return df
 
 
-def convert_names_to_cats(df: pl.DataFrame, units: dict[str, str], context: Context) -> pl.DataFrame:
-    cols = [col for col in df.columns if col not in [*units.keys(), YEAR_COLUMN]]
+def convert_names_to_cats(df: pl.DataFrame, context: Context) -> pl.DataFrame:
+    """Convert dimension columns (those in context.dimensions) from names to category IDs. Data columns are left unchanged."""
+    cols = [col for col in df.columns if col.lower() in context.dimensions]
+    if not cols:
+        return df
     print(f"Converting names to categories for columns: {cols}")
     for col in cols:
         col_low = col.lower()
-        if col_low in context.dimensions:
-            # df = df.with_columns(
-            #     pl.col(col).map_elements(to_snake_case, return_dtype=pl.Utf8).alias(col)
-            # )
-            df = df.rename({col: col_low})
-            df = df.with_columns(context.dimensions[col_low].series_to_ids_pl(df[col_low], allow_null=True))
-        else:
-            print(f'Warning: could not find {col} from the dimensions of {context.instance.id}')
+        df = df.rename({col: col_low})
+        df = df.with_columns(context.dimensions[col_low].series_to_ids_pl(df[col_low], allow_null=True))
     return df
+
+
+def write_dataframe_to_csv(
+    df: pl.DataFrame,
+    output_path: str | os.PathLike[str],
+    verbose: bool = True,
+) -> None:
+    """Write dataframe to CSV; create parent dirs; optionally print df and path."""
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.write_csv(path)
+    if verbose:
+        print(df)
+        print(f'Data saved to {path}')
 
 
 def save_to_csv(df: pl.DataFrame, file_stem: str, dataset_name: str) -> None:
     """Save dataframe to CSV if a path is provided."""
     if file_stem.upper() not in ['N', 'NONE']:
-        # Create a unique filename for each dataset
         dataset_file_path = f"{file_stem}_{to_snake_case(dataset_name)}.csv"
-
-        df.write_csv(dataset_file_path)
-        print(df)
-        print(f'Data saved to {dataset_file_path}')
+        write_dataframe_to_csv(df, dataset_file_path, verbose=True)
 
 
 def push_to_dvc(
@@ -565,7 +571,7 @@ def process_dataset(
     dim_ids = [s for s in df.columns if s not in units.keys()]
     print(f"Data pivoted by compound identifiers with dimension columns: {dim_ids}")
     if context is not None:
-        df = convert_names_to_cats(df, units, context)
+        df = convert_names_to_cats(df, context)
 
     # 10. Save to CSV if requested
     if outcsvpath:

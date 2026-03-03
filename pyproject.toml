@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kausal-paths"
-requires-python = ">= 3.13"
+requires-python = ">= 3.14"
 version = "1.0.0"
 dependencies = [
   "asgi-cors",
@@ -45,6 +45,7 @@ dependencies = [
   "llvmlite",
   "logfmter",
   "loguru",
+  "modelsearch<1.2",
   "nanoid==2.0.0",
   "numba",
   "openpyxl",
@@ -84,7 +85,7 @@ dependencies = [
   "tzdata",
   "uuid-utils",
   "uvicorn[standard]",
-  "wagtail<7.0",
+  "wagtail>=7.3",
   "wagtail-color-panel",
   "wagtail-font-awesome-svg",
   "wagtail-generic-chooser",
@@ -125,7 +126,6 @@ extend = './kausal_common/configs/ruff.toml'
 [tool.mypy]
 plugins = [
   "mypy_django_plugin.main",
-  "numpy.typing.mypy_plugin",
   "pydantic.mypy",
   "strawberry.ext.mypy_plugin",
 ]
@@ -166,12 +166,16 @@ module = [
   "grapple.*",
   "gunicorn.*",
   "gunicorn.*",
+  "ipdb.*",
   "laces.*",
   "modelcluster.*",
   "modeltrans.*",
+  "modelsearch.*",
   "nanoid.*",
   "networkx.*",
+  "numba.*",
   "oauth2_provider.*",
+  "pdbr.*",
   "permissionedforms.*",
   "pint_pandas.*",
   "pint.*",
@@ -215,29 +219,30 @@ exclude = [
 defineConstant = { 'IS_PATHS' = true, 'IS_WATCH' = false }
 deprecateTypingAliases = true
 enableTypeIgnoreComments = true
-reportMissingTypeStubs = "information"
-reportUnusedCallResult = false
+reportAny = false
 reportAttributeAccessIssue = "error"
-reportUnknownParameterType = false
-reportUnknownMemberType = false
-reportUnknownArgumentType = false
-reportMissingParameterType = false
-reportImportCycles = false
-reportUnannotatedClassAttribute = false
-reportUnknownVariableType = false
-reportImplicitOverride = false
-reportUnsafeMultipleInheritance = "information"
-reportUnnecessaryIsInstance = false
-reportUnnecessaryComparison = "information"
+reportExplicitAny = false
 reportIgnoreCommentWithoutRule = false
-reportUninitializedInstanceVariable = false
+reportImplicitOverride = false
+reportImportCycles = false
 reportIncompatibleMethodOverride = false
 reportIncompatibleVariableOverride = false
-reportExplicitAny = false
+reportInvalidCast = false
+reportMissingParameterType = false
+reportMissingTypeStubs = "information"
 reportPrivateImportUsage = false
 reportPrivateUsage = false
+reportUnannotatedClassAttribute = false
+reportUninitializedInstanceVariable = false
+reportUnknownArgumentType = false
+reportUnknownMemberType = false
+reportUnknownParameterType = false
+reportUnknownVariableType = false
+reportUnnecessaryComparison = "information"
+reportUnnecessaryIsInstance = false
 reportUnreachable = false
-reportAny = false
+reportUnsafeMultipleInheritance = "information"
+reportUnusedCallResult = false
 
 [tool.django-stubs]
 django_settings_module = "paths.settings"
@@ -248,8 +253,8 @@ py-modules = []
 
 [tool.uv]
 environments = [
-  "python_full_version >= '3.13' and sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "python_full_version >= '3.13' and sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "python_full_version >= '3.14' and sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "python_full_version >= '3.14' and sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
 
 [tool.uv.sources]
@@ -290,17 +295,18 @@ lint = [
   "scipy-stubs>=1.16.2.4",
   "types-django-filter>=25.2.0.20251010",
   "types-factory-boy",
+  "types-jwcrypto>=1.5.0.20251102",
   "types-networkx",
   "types-oauthlib",
   "types-openpyxl",
   "types-orjson",
   "types-pygit2",
+  "types-requests>=2.32.4.20260107",
 ]
 notebook = [
   "altair",
   "great-tables",
   "ipympl",
-  "jedi-language-server",
   "jupyterlab",
   "jupyterlab-lsp",
   "plotly",

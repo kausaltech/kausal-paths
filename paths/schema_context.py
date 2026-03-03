@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import AbstractContextManager, ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
@@ -18,15 +18,17 @@ from kausal_common.strawberry.extensions import AuthenticationExtension, Executi
 
 from paths.context import PathsObjectCache
 
-from nodes.models import InstanceConfig, InstanceConfigQuerySet
+from nodes.models import InstanceConfig
 from params.storage import SessionStorage
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from contextlib import AbstractContextManager
 
     from graphql.language import DirectiveNode, OperationDefinitionNode
 
     from nodes.instance import Instance
+    from nodes.models import InstanceConfigQuerySet
 
 logger = logger.bind(markup=True)
 

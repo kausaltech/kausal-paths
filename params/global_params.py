@@ -245,3 +245,8 @@ class PopulationSize(NumberParameter):
 class SelectedNumber(NumberParameter):
     name = _('Number of the selected item')
     id = 'selected_number'
+
+
+class AGSNumber(StringParameter):
+    name = _('AGS Number')
+    id = 'ags_number'

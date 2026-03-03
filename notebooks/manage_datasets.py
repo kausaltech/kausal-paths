@@ -32,6 +32,7 @@ from notebooks.upload_new_dataset import (
     prepare_for_dvc,
     push_to_dvc,
     to_snake_case,
+    write_dataframe_to_csv,
 )
 
 
@@ -378,13 +379,15 @@ class OperationsExecutor:
         metrics: list[MetricSpec] | None = None,
         dataset_name: str | None = None,
         description: str | None = None,
+        all_results: list[pl.DataFrame] | None = None,
     ):
-        """Initialize with optional context, metrics, and dataset-level metadata for operations."""
+        """Initialize with optional context, metrics, dataset-level metadata, and shared all_results list."""
         self.context = context
         self.metrics = metrics or []
         self._extracted_units: dict[str, str] = {}  # Store extracted units
         self.dataset_name = dataset_name
         self.description = description
+        self.all_results: list[pl.DataFrame] = all_results if all_results is not None else []
 
     @staticmethod
     def _eval_polars_expr(expr_str: str, _df: pl.DataFrame) -> pl.Expr:
@@ -432,6 +435,33 @@ class OperationsExecutor:
         expr = self._eval_polars_expr(expr_str, df)
         return df.filter(expr)
 
+    def _op_filter_by_sector_carrier(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        """
+        Filter rows to those whose column (e.g. field_key) is in the sector * energy_carrier set.
+
+        Params:
+            column: Column name (default "field_key").
+            sectors: List of sector prefixes (e.g. ["EW_", "GE_", "HE_", "IE_", "KE_"]).
+            energy_carriers: List of energy carrier names (e.g. ["Biogas", "Biomasse", ...]).
+            include: If True (default), keep only matching rows; if False, drop matching rows.
+        """
+        column = op_params.get('column', 'field_key')
+        sectors = op_params.get('sectors')
+        energy_carriers = op_params.get('energy_carriers')
+        if not sectors or not energy_carriers:
+            raise ValueError(
+                "filter_by_sector_carrier requires 'sectors' and 'energy_carriers' lists in params."
+            )
+        if column not in df.columns:
+            raise ValueError(
+                f"filter_by_sector_carrier: column {column!r} not in DataFrame (columns: {list(df.columns)})"
+            )
+        allowed = build_sector_carrier_field_keys(sectors, energy_carriers)
+        include = op_params.get('include', True)
+        if include:
+            return df.filter(pl.col(column).is_in(allowed))
+        return df.filter(~pl.col(column).is_in(allowed))
+
     def _op_with_columns(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
         expr_or_exprs = op_params.get('expr') or op_params.get('exprs')
         if expr_or_exprs is None:
@@ -455,6 +485,17 @@ class OperationsExecutor:
     def _op_select(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
         columns = op_params.get('columns', [])
         return df.select(columns)
+
+    def _op_sort(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        """Sort rows by column(s). Params: by (column name or list), descending (bool or list), nulls_last (bool)."""
+        by = op_params.get('by')
+        if by is None:
+            raise ValueError("sort operation requires 'by' parameter (column name or list of column names)")
+        if isinstance(by, str):
+            by = [by]
+        descending = op_params.get('descending', False)
+        nulls_last = op_params.get('nulls_last', True)
+        return df.sort(by, descending=descending, nulls_last=nulls_last)
 
     def _op_to_paths_dataframe(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
         """Convert pl.DataFrame to PathsDataFrame with given units and primary keys (step 4 in pipeline)."""
@@ -513,16 +554,13 @@ class OperationsExecutor:
                 new_cols[col] = to_snake_case(col)
         return df.rename(new_cols)
 
-    def _op_convert_names_to_cats(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+    def _op_convert_names_to_cats(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         if self.context is None:
             raise ValueError(
                 "convert_names_to_cats operation requires a context. "
                 + "Set 'instance' in the dataset configuration."
             )
-        units = op_params.get('units', {})
-        if not isinstance(units, dict):
-            raise TypeError("convert_names_to_cats operation requires 'units' to be a dict in params")
-        return convert_names_to_cats(df, units, self.context)
+        return convert_names_to_cats(df, self.context)
 
     def _op_define_metrics(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         if not self.metrics:
@@ -584,6 +622,26 @@ class OperationsExecutor:
         print(df)
         return df
 
+    def _op_write_csv(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        """Write the current DataFrame to a CSV file. Returns the DataFrame unchanged."""
+        output_path = op_params.get('output_path')
+        if not output_path:
+            raise ValueError("write_csv operation requires 'output_path' parameter")
+        verbose = op_params.get('verbose', True)
+        write_dataframe_to_csv(df, output_path, verbose=verbose)
+        return df
+
+    def _op_append_to_all_results(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
+        """Append the current DataFrame to the shared all_results list. Returns df unchanged."""
+        self.all_results.append(df)
+        return df
+
+    def _op_concat_all_results(self, _df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
+        """Replace the current DataFrame with the concatenation of all DataFrames in all_results."""
+        if not self.all_results:
+            return pl.DataFrame()
+        return pl.concat(self.all_results, rechunk=False)
+
     def _op_print_metadata(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:  # noqa: C901, PLR0912, PLR0915
         print("\n" + "=" * 80)
         print("METADATA SUMMARY")
@@ -639,6 +697,10 @@ class OperationsExecutor:
             print(f"    Dimension columns ({len(dimension_cols)}): {', '.join(sorted(dimension_cols))}")
         if other_cols:
             print(f"    Other columns: {', '.join(other_cols)}")
+        print("  Column dtypes:")
+        for col in df.columns:
+            dtype = df.schema[col]
+            print(f"    {col:30s} -> {dtype}")
 
         if len(df) > 0:
             sample_size = op_params.get('sample_rows', 5)
@@ -785,33 +847,15 @@ class OperationsExecutor:
         return df
 
 
-class OutputWriter:
-    """Handles writing output files."""
-
-    @staticmethod
-    def write_csv(df: pl.DataFrame, output_path: str | Path, verbose: bool = True) -> None:
-        """Write DataFrame to CSV file."""
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if verbose:
-            print(f"Writing output to: {output_path}")
-
-        df.write_csv(output_path)
-
-        if verbose:
-            print(f"✓ Written {len(df)} rows to {output_path}")
-
-
 class DatasetProcessor:
     """Orchestrates the complete dataset processing pipeline."""
 
-    def __init__(self, config: DatasetConfig):
+    def __init__(self, config: DatasetConfig, all_results: list[pl.DataFrame] | None = None):
         self.config = config
         self.file_loader = FileLoader()
         self.data_collector = DataCollector(config.schema) if config.schema else None
         self.data_transformer = DataTransformer()
-        self.output_writer = OutputWriter()
+        self._all_results: list[pl.DataFrame] = all_results if all_results is not None else []
         # Initialize context if instance is specified
         context = None
         if config.instance:
@@ -824,6 +868,7 @@ class DatasetProcessor:
             metrics=config.metrics,
             dataset_name=config.dataset_name,
             description=config.description,
+            all_results=self._all_results,
         )
 
     def process(self, verbose: bool = True) -> pl.DataFrame:  # noqa: C901, PLR0912, PLR0915
@@ -983,6 +1028,20 @@ class DatasetProcessor:
         return summary
 
 
+def build_sector_carrier_field_keys(
+    sectors: list[str],
+    energy_carriers: list[str],
+) -> list[str]:
+    """
+    Build the full list of field_key values for sector * energy_carrier combinations.
+
+    Each value is sector_prefix + energy_carrier (e.g. EW_Biogas, KE_Umweltwaerme).
+    Use with filter operation: pl.col('field_key').is_in(build_sector_carrier_field_keys(...))
+    or with the filter_by_sector_carrier operation in YAML.
+    """
+    return [s + c for s in sectors for c in energy_carriers]
+
+
 def list_excel_sheets(file_path: str | Path) -> list[str]:
     """List all sheet names in an Excel file."""
     file_path = Path(file_path)
@@ -1131,14 +1190,14 @@ def load_config(yaml_file_path: str | Path) -> tuple[list[DatasetConfig], str | 
     """
     Load dataset configurations from YAML file.
 
-    Supports both single config and list of configs.
-    Implements property inheritance: later datasets inherit from previous ones.
+    Supports both single config and list of configs. No operations are injected;
+    use append_to_all_results, concat_all_results, and write_csv explicitly in your YAML.
 
     Args:
         yaml_file_path: Path to the YAML configuration file
 
     Returns:
-        Tuple of (list of DatasetConfig objects, output_file_path)
+        Tuple of (list of DatasetConfig objects, output_file_path from config if set).
 
     """
     yaml_file_path = Path(yaml_file_path)
@@ -1156,27 +1215,26 @@ def load_config(yaml_file_path: str | Path) -> tuple[list[DatasetConfig], str | 
 
     # Check if config is a list of datasets
     if 'datasets' in config:
-        # Multiple dataset configurations with inheritance
+        # No inheritance between datasets: each is parsed with the same top-level defaults only.
+        # TODO: Add inheritance between datasets and/or one dataset from several input files
+        # (e.g. input_file_paths: [...]) when there is a concrete use case to design and test.
         dataset_configs = []
-        # Start with top-level properties as base config
-        base_config: dict[str, Any] = {}
+        top_level_base: dict[str, Any] = {}
         if top_level_instance is not None:
-            base_config['instance'] = top_level_instance
+            top_level_base['instance'] = top_level_instance
         if top_level_metrics is not None:
-            base_config['metrics'] = top_level_metrics
+            top_level_base['metrics'] = top_level_metrics
+        if default_output is not None:
+            top_level_base['output_file_path'] = default_output
 
         for dataset_dict in config['datasets']:
-            # Each dataset inherits from the previous one (base_config)
-            dataset_config = parse_dataset_config(dataset_dict, default_output, base_config)
+            dataset_config = parse_dataset_config(
+                dataset_dict, default_output, top_level_base if top_level_base else None
+            )
             dataset_configs.append(dataset_config)
-
-            # Update base_config for next iteration (current config becomes base for next)
-            base_config = merge_configs(base_config, dataset_dict)
-
         return dataset_configs, default_output
 
-    # Single dataset configuration (backward compatibility)
-    # Include top-level instance and metrics if present
+    # Single dataset configuration
     single_base_config: dict[str, Any] = {}
     if top_level_instance is not None:
         single_base_config['instance'] = top_level_instance
@@ -1186,7 +1244,7 @@ def load_config(yaml_file_path: str | Path) -> tuple[list[DatasetConfig], str | 
     return [dataset_config], default_output
 
 
-def process_datasets(config_path: str | Path, verbose: bool = True) -> pl.DataFrame:  # noqa: C901, PLR0912
+def process_datasets(config_path: str | Path, verbose: bool = True) -> pl.DataFrame:
     """
     Process one or more datasets using configuration from YAML file.
 
@@ -1202,13 +1260,15 @@ def process_datasets(config_path: str | Path, verbose: bool = True) -> pl.DataFr
     if verbose:
         print(f"Loading configuration from: {config_path}")
 
-    dataset_configs, output_path = load_config(config_path)
+    dataset_configs, _ = load_config(config_path)
 
     if verbose:
         print(f"Found {len(dataset_configs)} dataset configuration(s)")
 
-    # Process each dataset
-    all_results = []
+    # Shared list for append_to_all_results; same list is passed to every processor
+    all_results: list[pl.DataFrame] = []
+    last_result: pl.DataFrame = pl.DataFrame()
+
     for idx, config in enumerate(dataset_configs, 1):
         if verbose:
             print(f"\n{'='*80}")
@@ -1220,9 +1280,9 @@ def process_datasets(config_path: str | Path, verbose: bool = True) -> pl.DataFr
             if not input_path.exists():
                 raise FileNotFoundError(f"Input file not found: {input_path}")
 
-        # Process dataset
-        processor = DatasetProcessor(config)
+        processor = DatasetProcessor(config, all_results=all_results)
         result_df = processor.process(verbose=verbose)
+        last_result = result_df
 
         if verbose and config.schema:
             print("\nTransformation Summary:")
@@ -1230,30 +1290,10 @@ def process_datasets(config_path: str | Path, verbose: bool = True) -> pl.DataFr
             for key, value in summary.items():
                 print(f"  {key}: {value}")
 
-        if len(result_df) > 0:
-            all_results.append(result_df)
-            if verbose:
-                print(f"  Collected {len(result_df)} rows")
-        elif verbose:
-            print("  No data collected")
+        if verbose and len(result_df) > 0:
+            print(f"  Collected {len(result_df)} rows")
 
-    # Concatenate all results
-    if all_results:
-        final_df = pl.concat(all_results, rechunk=False)
-        if verbose:
-            print(f"\n{'='*80}")
-            print(f"Total rows after concatenation: {len(final_df)}")
-    else:
-        final_df = pl.DataFrame()
-        if verbose:
-            print("\nNo data collected from any dataset")
-
-    # Save result if output path is specified
-    if output_path:
-        output_writer = OutputWriter()
-        output_writer.write_csv(final_df, output_path, verbose=verbose)
-
-    return final_df
+    return last_result
 
 
 def main():

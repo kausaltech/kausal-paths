@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from wagtail import hooks
 from wagtail.admin.panels import FieldPanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
@@ -10,6 +12,9 @@ from kausal_common.i18n.panels import TranslatedFieldPanel, TranslatedFieldRowPa
 
 from admin_site.viewsets import PathsViewSet
 from nodes.models import NodeConfig, NodeConfigQuerySet
+
+if TYPE_CHECKING:
+    from wagtail.admin.panels.base import Panel
 
 
 class NodeViewSet(PathsViewSet[NodeConfig, NodeConfigQuerySet]):
@@ -42,11 +47,12 @@ class NodeViewSet(PathsViewSet[NodeConfig, NodeConfigQuerySet]):
     #    return qs
 
     def get_edit_handler(self):
-        edit_handler = TabbedInterface([
+        tabs: list[Panel[Any]] = [
             ObjectList(self.basic_panels, heading='Basic'),
             ObjectList(self.description_panels, heading='Description'),
             ObjectList(self.extra_panels, heading='Extra'),
-        ])
+        ]
+        edit_handler: Panel[Any] = TabbedInterface(tabs)
         return edit_handler.bind_to_model(self.model)
 
 

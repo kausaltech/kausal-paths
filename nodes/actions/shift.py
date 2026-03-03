@@ -57,7 +57,7 @@ class ShiftEntry(BaseModel):
 
     @model_validator(mode='after')
     def dimensions_must_match(self):
-        existing_dims: set = set()
+        existing_dims: set[str] = set()
         def validate_target(target: ShiftTarget) -> None:
             dims = set(target.categories.keys())
             if not existing_dims:
@@ -72,7 +72,7 @@ class ShiftEntry(BaseModel):
         return self
 
     def make_index(
-        self, output_nodes: list[Node], extra_level: str | None = None, extra_level_values: Iterable | None = None,
+        self, output_nodes: list[Node], extra_level: str | None = None, extra_level_values: Iterable[str] | None = None,
     ) -> pd.MultiIndex:
         dims: dict[str, set[str]] = {dim: set() for dim in list(self.source.categories.keys())}
         nodes: set[str] = set()
@@ -95,23 +95,23 @@ class ShiftEntry(BaseModel):
                 dims[dim].add(cat)
 
         level_list = list(dims.keys())
-        cat_list: list[Iterable] = [dims[dim] for dim in level_list]
+        cat_list: list[set[str]] = [dims[dim] for dim in level_list]
         level_list.insert(0, 'node')
         cat_list.insert(0, nodes)
         if extra_level:
             level_list.append(extra_level)
             assert extra_level_values is not None
-            cat_list.append(extra_level_values)
-        index = pd.MultiIndex(cat_list, names=level_list)
+            cat_list.append(set(extra_level_values))
+        index = pd.MultiIndex(cat_list, names=level_list)  # type: ignore[arg-type]
         return index
 
 
-class ShiftParameterValue(RootModel):
+class ShiftParameterValue(RootModel[list[ShiftEntry]]):
     root: list[ShiftEntry]
 
 
 @dataclass
-class ShiftParameter(ParameterWithUnit, Parameter):
+class ShiftParameter(ParameterWithUnit, Parameter[ShiftParameterValue]):
     value: ShiftParameterValue | None = None
 
     def __post_init__(self, unit_str: str | None = None):
@@ -134,7 +134,7 @@ class ShiftParameter(ParameterWithUnit, Parameter):
 
 
 class ShiftAction(ActionNode):
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
         *ActionNode.allowed_parameters,
         ShiftParameter(local_id='shift')
     ]

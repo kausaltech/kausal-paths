@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from django.utils.translation import gettext_lazy as _
 
@@ -8,13 +9,18 @@ import polars as pl
 
 import common.polars as ppl
 from nodes.calc import extend_last_historical_value_pl
-from nodes.node import Node, NodeError, NodeMetric
+from nodes.exceptions import NodeError
+from nodes.node import NodeMetric
 from nodes.units import unit_registry
 from params.param import BoolParameter, NumberParameter
 from params.utils import sep_unit
 
 from .constants import DEFAULT_METRIC, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .simple import AdditiveNode, SimpleNode
+
+if TYPE_CHECKING:
+    from nodes.node import Node
+    from params import Parameter
 
 
 class SelectiveNode(AdditiveNode):
@@ -68,7 +74,8 @@ class ExponentialNode(AdditiveNode):
     Optionally, touches also historical values.
     Parameter is_decreasing_rate is used to give discount rates instead.
     """)
-    allowed_parameters = AdditiveNode.allowed_parameters + [
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
+        *AdditiveNode.allowed_parameters,
         NumberParameter(
             local_id='current_value',
             is_customizable=True,
@@ -121,9 +128,9 @@ class ExponentialNode(AdditiveNode):
             else:
                 df = extend_last_historical_value_pl(df, self.get_end_year())
 
-            current_year = df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max()
+            current_year = cast('int | None', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
             if current_year is None:
-                current_year = df[YEAR_COLUMN].min() - 1
+                current_year = cast('int', df[YEAR_COLUMN].min()) - 1
 
         annual_change = self.get_parameter_value('annual_change', required=True, units=True)
         base_value = 1 + annual_change.to('dimensionless').m
@@ -168,6 +175,7 @@ class InternalGrowthNode(ExponentialNode):
         # if nonadd:
         #     df_nonadd = self.add_nodes(None, nonadd)  # FIXME Not used
         annual_change = self.get_parameter_value('annual_change', units=True, required=False)
+        assert annual_change is not None
         base_value = 1 + annual_change.to('dimensionless').m
 
         add = [node for node in self.input_nodes if node not in nonadd]
@@ -206,7 +214,8 @@ class EnergyCostNode(AdditiveNode):
         #'EnergyTax': NodeMetric('SEK/kWh', 'currency')
     }
     global_parameters: list[str] = ['include_energy_taxes']
-    allowed_parameters = AdditiveNode.allowed_parameters + [
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
+        *AdditiveNode.allowed_parameters,
         NumberParameter(
             local_id='added_value_tax',
             label='Added value tax (%)',
@@ -248,7 +257,7 @@ class EnergyCostNode(AdditiveNode):
         energy_tax, ene_pt = sep_unit(self.get_parameter_value('energy_tax', units=True), output_unit)
         include_energy_taxes = self.get_global_parameter_value('include_energy_taxes')
 
-        metric = self.get_parameter_value('metric', required=False)
+        metric = self.get_parameter_value_str('metric', required=False)
         if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
             df = self.add_nodes_pl(None, self.input_nodes, metric)
             df = self.fill_gaps_using_input_dataset_pl(df)
@@ -301,7 +310,8 @@ class DilutionNode(SimpleNode):
             jdf = jdf.paths.join_over_index(dfs[tag].ensure_unit(VALUE_COLUMN, '1/a')).rename({VALUE_COLUMN: tag})
 
         df = dfs['existing']
-        for year in range(df[YEAR_COLUMN].max(), self.get_end_year()):
+        max_year = cast('int', df[YEAR_COLUMN].max())
+        for year in range(max_year, self.get_end_year()):
             ydf = df.filter(pl.col(YEAR_COLUMN).eq(year))
             ydf = ydf.with_columns(pl.lit(year + 1).alias(YEAR_COLUMN))
 

@@ -5,7 +5,7 @@ import typing
 from dataclasses import dataclass
 from functools import reduce
 from typing import Any, cast
-from typing_extensions import deprecated
+from warnings import deprecated
 
 import polars as pl
 from polars._utils.parse import parse_into_list_of_expressions
@@ -13,7 +13,7 @@ from polars._utils.parse import parse_into_list_of_expressions
 from kausal_common.models.types import copy_signature
 
 from nodes.constants import FORECAST_COLUMN, TIME_INTERVAL, VALUE_COLUMN, YEAR_COLUMN
-from nodes.units import Quantity, Unit, unit_registry
+from nodes.units import Unit, unit_registry
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
@@ -21,8 +21,11 @@ if typing.TYPE_CHECKING:
     import numpy as np
     import pandas as pd
     from dvc_pandas.dataset import Dataset as DVCDataset
-    from polars.polars import PyDataFrame, PyExpr
+    from polars._plr import PyDataFrame, PyExpr
+    from polars._typing import JoinStrategy, JoinValidation, MaintainOrderJoin
     from polars.type_aliases import ColumnNameOrSelector, IntoExpr, IntoExprColumn
+
+    from nodes.units import Quantity
 
     from .polars_ext import PathsExt
 
@@ -253,17 +256,17 @@ class PathsDataFrame(pl.DataFrame):
         self,
         other: pl.DataFrame | PathsDataFrame,
         on: str | pl.Expr | Sequence[str | pl.Expr] | None = None,
-        how: pl.JoinStrategy = "inner",
+        how: JoinStrategy = "inner",
         *,
         left_on: str | pl.Expr | Sequence[str | pl.Expr] | None = None,
         right_on: str | pl.Expr | Sequence[str | pl.Expr] | None = None,
         suffix: str = "_right",
-        validate: pl.JoinValidation = "m:m",
+        validate: JoinValidation = "m:m",
         nulls_equal: bool = False,
         coalesce: bool | None = None,
-        maintain_order: pl.MaintainOrderJoin | None = None,
+        maintain_order: MaintainOrderJoin | None = None,
     ) -> pl.DataFrame:
-        plain_df = pl.DataFrame(self._df)
+        plain_df = pl.DataFrame._from_pydf(self._df)
         df = plain_df.join(
             other,
             on,
@@ -609,8 +612,8 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
 def validate_ppdf(df: PathsDataFrame):
-    units = list(df._units.keys())  # pyright: ignore[reportPrivateUsage]
-    pks = list(df._primary_keys)  # pyright: ignore[reportPrivateUsage]
+    units = list(df._units.keys())
+    pks = list(df._primary_keys)
     for col in units + pks:
         if col not in df.columns:
             raise Exception('Column %s in metadata not found in DF columns' % col)
@@ -659,8 +662,8 @@ def from_pandas(df: pd.DataFrame) -> PathsDataFrame:
     #for col in primary_keys:
     #    if not isinstance(col, str):
     #        raise Exception("Column name is not a string (it is %s)" % type(col))
-    pldf._units = units  # pyright: ignore[reportPrivateUsage]
-    pldf._primary_keys = primary_keys  # pyright: ignore[reportPrivateUsage]
+    pldf._units = units
+    pldf._primary_keys = primary_keys
     return pldf
 
 

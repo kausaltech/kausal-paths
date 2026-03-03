@@ -209,10 +209,10 @@ class DataSourcePermission(PermissionPolicyDRFPermission[DataSource, InstanceCon
             raise serializers.ValidationError('Scope object not found') from e
         model = content_type.model_class()
         assert isinstance(model, type(InstanceConfig))
-        if model is None:
+        if model is None or object_id is None:
             raise serializers.ValidationError('Scope object not found')
         try:
-            instance_config = model.objects.get(pk=object_id)
+            instance_config = model.objects.get(pk=int(object_id))
         except ObjectDoesNotExist as e:
             raise serializers.ValidationError('Scope object not found') from e
         return instance_config

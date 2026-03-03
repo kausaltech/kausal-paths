@@ -1,24 +1,28 @@
 from __future__ import annotations
 
+import time
 from contextlib import AbstractContextManager, nullcontext
 from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
+from django.http import HttpRequest
 from graphql.execution import ExecutionContext
 from graphql.language.ast import VariableNode
+from strawberry.channels import (
+    ChannelsRequest,
+)
 
 from loguru import logger
 
 from kausal_common.deployment import env_bool
 from kausal_common.strawberry.views import GraphQLView, GraphQLWSConsumer, SyncGraphQLHTTPConsumer
+from kausal_common.testing.graphql import capture_query
 
 from paths.schema_context import PathsGraphQLContext
 
 from .graphql_helpers import GraphQLPerfNode
 
-
 if TYPE_CHECKING:
-    from django.http import HttpRequest
     from django.http.response import HttpResponse
     from graphql import (
         GraphQLOutputType,
@@ -27,10 +31,9 @@ if TYPE_CHECKING:
     from graphql.language import FieldNode
     from graphql.pyutils import AwaitableOrValue, Path
     from graphql.type import GraphQLObjectType
-    from strawberry.channels import (
-        ChannelsRequest,
-    )
+    from strawberry.http import GraphQLRequestData
     from strawberry.http.temporal_response import TemporalResponse
+    from strawberry.types import ExecutionResult
 
     from kausal_common.users import UserOrAnon
 
@@ -76,7 +79,7 @@ class PathsExecutionContext(ExecutionContext):
         fields: dict[str, list[FieldNode]],
     ) -> AwaitableOrValue[dict[str, Any]]:
         path_parts = path.as_list() if path else []
-        span_cm: AbstractContextManager
+        span_cm: AbstractContextManager[Any]
         str_path = '.'.join([str(x) for x in path_parts])
         if path_parts:
             node = GraphQLPerfNode(str_path)
@@ -89,6 +92,28 @@ class PathsExecutionContext(ExecutionContext):
         return ret
 
 
+def graphql_capture_query(
+    view: PathsGraphQLHTTPConsumer | PathsGraphQLView,
+    request: ChannelsRequest | HttpRequest,
+    context: PathsGraphQLContext,
+    request_data: GraphQLRequestData,
+    response: ExecutionResult,
+    exec_time: float,
+):
+    from paths.const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER, WILDCARD_DOMAINS_HEADER
+    if not env_bool('GRAPHQL_CAPTURE_QUERIES', default=False):
+        return
+    headers = [INSTANCE_IDENTIFIER_HEADER, INSTANCE_HOSTNAME_HEADER, WILDCARD_DOMAINS_HEADER]
+    if isinstance(view, PathsGraphQLHTTPConsumer):
+        assert isinstance(request, ChannelsRequest)
+        processed_response = view.process_result(request, response)
+        capture_query(context, headers, request_data, processed_response, exec_time)
+    else:
+        assert isinstance(request, HttpRequest)
+        processed_response = view.process_result(request, response)  # type: ignore[arg-type]
+        capture_query(context, headers, request_data, processed_response, exec_time)
+
+
 class PathsGraphQLWSConsumer(GraphQLWSConsumer[PathsGraphQLContext]):
     async def get_context(self, request: GraphQLWSConsumer, response: GraphQLWSConsumer) -> PathsGraphQLContext:
         base_ctx = await self.get_base_context(request, response)
@@ -98,6 +123,19 @@ class PathsGraphQLWSConsumer(GraphQLWSConsumer[PathsGraphQLContext]):
 
 
 class PathsGraphQLHTTPConsumer(SyncGraphQLHTTPConsumer[PathsGraphQLContext]):
+    def execute_single(
+        self,
+        request: ChannelsRequest,
+        request_adapter: Any,
+        sub_response: Any,
+        context: PathsGraphQLContext,
+        root_value: Any,
+        request_data: GraphQLRequestData,
+    ) -> ExecutionResult:
+        start = time.time()
+        response = super().execute_single(request, request_adapter, sub_response, context, root_value, request_data)
+        graphql_capture_query(self, request, context, request_data, response, (time.time() - start) * 1000)
+        return response
     def get_context(self, request: ChannelsRequest, response: TemporalResponse) -> PathsGraphQLContext:
         base_ctx = self.get_base_context(request, response)
         return PathsGraphQLContext(
@@ -111,6 +149,20 @@ class PathsGraphQLView(GraphQLView[PathsGraphQLContext]):
     def __init__(self):
         from .schema import schema
         super().__init__(schema=schema)
+
+    def execute_single(
+        self,
+        request: HttpRequest,
+        request_adapter: Any,
+        sub_response: Any,
+        context: PathsGraphQLContext,
+        root_value: Any,
+        request_data: GraphQLRequestData,
+    ) -> ExecutionResult:
+        start = time.time()
+        response = super().execute_single(request, request_adapter, sub_response, context, root_value, request_data)
+        graphql_capture_query(self, request, context, request_data, response, (time.time() - start) * 1000)
+        return response
 
     def get_context(self, request: HttpRequest, response: HttpResponse) -> PathsGraphQLContext:
         from paths.context import PathsObjectCache

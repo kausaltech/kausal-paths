@@ -85,13 +85,14 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 
         # Convert units
         diff_unit = jdf.filter(pl.col('MeasureUnit') != pl.col('Unit')).select(['MeasureUnit', 'Unit']).unique()
-        conversions = []
+        conversions: list[tuple[str, str, float]] = []
         for m_unit_s, ds_unit_s in diff_unit.rows():
             m_unit = context.unit_registry(m_unit_s)
             ds_unit = context.unit_registry(ds_unit_s)
             cf = context.unit_registry._get_conversion_factor(m_unit._units, ds_unit._units)
             if isinstance(cf, DimensionalityError):
                 raise cf
+            assert not isinstance(cf, complex)
             conversions.append((m_unit_s, ds_unit_s, float(cf)))
         if conversions and ENABLE_UNIT_CONVERSION:
             conv_df = pl.DataFrame(data=conversions, schema=('MeasureUnit', 'Unit', 'ConversionFactor'), orient='row')

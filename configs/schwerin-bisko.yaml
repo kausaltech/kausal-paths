@@ -1,15 +1,15 @@
-id: augsburg-bisko  # defines which instance is updated
+id: schwerin-bisko  # defines which instance is updated
 default_language: de
 supported_languages: [en]
-site_url: https://augsburg-bisko.paths.kausal.tech
+site_url: https://schwerin-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 614342be8a596caca5b5d7025443550d3be1615d
   dvc_remote: kausal-s3
-name_de: Augsburg Klima-Monitor-BISKO
-name_en: Augsburg Climate Monitor BISKO
-owner: Augsburg Stadt
-theme_identifier: de-augsburg
+name_de: Schwerin Klima-Monitor-BISKO
+name_en: Schwerin Climate Monitor BISKO
+owner: Schwerin Stadt
+theme_identifier: de-schwerin
 target_year: 2035
 model_end_year: 2050
 reference_year: 1990
@@ -27,13 +27,13 @@ include:
   allow_override: false
   dataset_replacements:
   - from: bisko/final_energy
-    to: augsburg/final_energy
+    to: schwerin/final_energy
   - from: bisko/historical_emissions
-    to: augsburg/historical_emissions
+    to: schwerin/historical_emissions
   - from: bisko/passenger_kilometers
-    to: augsburg/passenger_kilometers
+    to: schwerin/passenger_kilometers
   - from: bisko/vehicle_energy
-    to: augsburg/vehicle_energy
+    to: schwerin/vehicle_energy
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -47,13 +47,13 @@ params:
 - id: municipality_name
   label_en: Municipality name
   label_de: Gemeindename
-  value: Augsburg
+  value: Schwerin
   is_customizable: true
   is_visible: true
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
-  value: '9761000' # Leading zero has dropped from the dataset.
+  value: '13004000'
   is_customizable: false
   is_visible: false
 - id: use_national_values
@@ -103,13 +103,13 @@ result_excels:
 
 pages:
 - id: home
-  name_de: Augsburg Treibhausgasbilanz
-  name_en: Augburg Greenhouse Gas Inventory
+  name_de: Klima-Monitor-BISKO Treibhausgasinventar
+  name_en: Climate Protection Monitor BISKO Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Treibhausgasbilanz und -prognosen
-  lead_paragraph: Historische Treibhausgasemissionen der Stadt Augsburg und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+  lead_title: Klima-Monitor Treibhausgasinventar BISKO
+  lead_paragraph: Die Treibhausgasemissionen BISKO.
 
 scenarios:
 
@@ -120,5 +120,5 @@ scenarios:
 - id: default
   default: true
   all_actions_enabled: true
-  name_de: Klimaschutzprogramm
-  name_en: Climate Protection Program
+  name_de: Masterplan 100% Klimaschutz
+  name_en: Masterplan 100% Climate Protection

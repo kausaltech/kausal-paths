@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import graphene
 import strawberry as sb
@@ -16,9 +16,8 @@ from paths.utils import UnitField
 from nodes.units import Unit, unit_registry
 
 if TYPE_CHECKING:
-    from kausal_common.graphene import GQLInfo
-
     from paths.schema_context import PathsGraphQLContext
+    from paths.types import PathsGQLInfo as GQLInfo
 
 
 locale_cache: dict[str, Locale] = {}
@@ -101,7 +100,7 @@ def convert_unit_field(field, registry=None):
 type SBInfo = sb.Info['PathsGraphQLContext']
 
 
-class AdminButton(graphene.ObjectType):
+class AdminButton(graphene.ObjectType[Any]):
     url = graphene.String(required=True)
     label = graphene.String(required=True)
     classname = graphene.String(required=True)
