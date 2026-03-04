@@ -10,9 +10,10 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-03-04 15:11+0100\n"
-"PO-Revision-Date: 2026-01-02 14:43+0000\n"
+"PO-Revision-Date: 2026-03-04 14:12+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
+"\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -35,7 +36,7 @@ msgstr "Dieser Benutzer hat keinen Zugriff auf den Admin-Bereich."
 #: admin_site/bulk_actions.py
 #, python-format
 msgid "Referenced by: %(refs)s"
-msgstr ""
+msgstr "Referenziert von: %(refs)s"
 
 #: admin_site/dataset_admin.py
 #, python-format
@@ -411,11 +412,12 @@ msgstr ""
 
 #: nodes/actions/simple.py
 msgid "Weight"
-msgstr ""
+msgstr "Gewicht"
 
 #: nodes/actions/simple.py
 msgid "How much to weight this value (0 = ignore in priorities)"
 msgstr ""
+"Wie stark soll dieser Wert gewichtet werden (0 = bei Prioritäten ignorieren)?"
 
 #: nodes/actions/simple.py nodes/explanations.py
 msgid "Simple action that produces an additive change to a value."
@@ -554,10 +556,8 @@ msgid "addition to existing dimensions"
 msgstr "Addition zu bestehenden Dimensionen"
 
 #: nodes/explanations.py
-#, fuzzy
-#| msgid "coalescing"
 msgid "coalesce"
-msgstr "Zusammenführen"
+msgstr "zusammenführen"
 
 #: nodes/explanations.py
 msgid "multiplication"
@@ -597,7 +597,7 @@ msgstr "überspringen"
 
 #: nodes/explanations.py
 msgid "Get and prepare each dataset, then add them together."
-msgstr ""
+msgstr "Rufe Datensätze ab und bereite sie vor, dann addiere sie."
 
 #: nodes/explanations.py
 msgid "Add input node values (even if the units don't match with the node units)."
@@ -606,6 +606,8 @@ msgstr "Eingabeknotenwerte hinzufügen (auch wenn die Einheiten nicht mit den Kn
 #: nodes/explanations.py
 msgid "Logical AND: min(a, b). Warns if inputs deviate from 0 or 1 (see node explanation)."
 msgstr ""
+"Logisches UND: min(a, b). Warnt, wenn Eingaben von 0 oder 1 abweichen (siehe "
+"Knoten-Erklärung)."
 
 #: nodes/explanations.py
 msgid "Take the arithmetic inverse of the values (-x)."
@@ -626,6 +628,8 @@ msgstr "Nimm das kumulative Produkt der dimensionslosen Komplementwerte über di
 #: nodes/explanations.py
 msgid "Get and concatenate datasets vertically, only then prepare the output."
 msgstr ""
+"Rufe Datensätze ab und hänge sie vertikal aneinander, bereite erst dann die "
+"Ausgabe vor."
 
 #: nodes/explanations.py
 msgid "Take the cumulative sum over time."
@@ -648,14 +652,14 @@ msgid "Take the expected value over the uncertainty dimension."
 msgstr "Nimm den Erwartungswert über die Unsicherheitsdimension."
 
 #: nodes/explanations.py
-#, fuzzy
-#| msgid "Extend the last forecast values to the remaining missing years."
 msgid "Extend the values to all the remaining missing years."
-msgstr "Erweitere die letzten Prognosewerte auf die verbleibenden fehlenden Jahre."
+msgstr "Erweitere die Werte auf alle verbleibenden fehlenden Jahre."
 
 #: nodes/explanations.py
 msgid "Extend the values beyond the first and last values, but do not interpolate."
 msgstr ""
+"Erweitere die Werte über den ersten und letzten Wert hinaus, aber "
+"interpoliere nicht."
 
 #: nodes/explanations.py
 msgid "Extend the last forecast values to the remaining missing years."
@@ -675,7 +679,7 @@ msgstr "Nimm den geometrischen Kehrwert der Werte (1/x)."
 
 #: nodes/explanations.py
 msgid "Get a single dataset if it exists."
-msgstr ""
+msgstr "Rufe einen einzigen Datensatz ab, sofern vorhanden."
 
 #: nodes/explanations.py
 msgid "The node is used as the goal for the action."
@@ -684,6 +688,8 @@ msgstr "Der Knoten wird als Ziel für die Maßnahme verwendet."
 #: nodes/explanations.py
 msgid "Compute gap = actual - goal from the single input node's output and goals."
 msgstr ""
+"Berechne Lücke = Ist-Wert – Zielwert aus der Ausgabe und den Zielen des "
+"einzelnen Eingabeknotens."
 
 #: nodes/explanations.py
 msgid "The node is used as the historical starting point."
@@ -720,10 +726,14 @@ msgstr "Positive Ergebniswerte werden durch 0 ersetzt."
 #: nodes/explanations.py
 msgid "Element-wise maximum of two values; max(a, b). For 0/1 inputs this is logical OR."
 msgstr ""
+"Elementweise Maximum von zwei Werten; max(a, b). Bei 0/1-Eingaben entspricht "
+"dies einem logischen ODER."
 
 #: nodes/explanations.py
 msgid "Element-wise minimum of two values; min(a, b). For 0/1 inputs this is logical AND."
 msgstr ""
+"Elementweises Minimum aus zwei Werten; min(a, b). Bei 0/1-Eingaben "
+"entspricht dies einem logischen UND."
 
 #: nodes/explanations.py
 msgid "Input node values are not added but operated despite matching units."
@@ -732,10 +742,14 @@ msgstr "Die Werte der Eingangsknoten werden nicht addiert, sondern trotz überei
 #: nodes/explanations.py
 msgid "Extend the observed data only based on the observed data points."
 msgstr ""
+"Erweitere die beobachteten Daten nur auf der Grundlage der beobachteten "
+"Datenpunkte."
 
 #: nodes/explanations.py
 msgid "Logical OR: max(a, b). Warns if inputs deviate from 0 or 1 (see node explanation)."
 msgstr ""
+"Logisches ODER: max(a, b). Warnt, wenn Eingaben von 0 oder 1 abweichen "
+"(siehe Knoten-Erklärung)."
 
 #: nodes/explanations.py
 msgid "Prepare a GPC-style dataset for use."
@@ -755,13 +769,11 @@ msgstr "Dies ist die Auslagerungsrate."
 
 #: nodes/explanations.py
 msgid "Round values to 5 significant digits rather than 5 decimal places."
-msgstr ""
+msgstr "Runde Werte auf 5 signifikante Stellen statt auf 5 Dezimalstellen."
 
 #: nodes/explanations.py
-#, fuzzy
-#| msgid "Visualize the impact of actions in a scenario"
 msgid "Calculate the total impact of all actions in the current scenario."
-msgstr "Visualisiere die Auswirkungen von Maßnahmen in einem Szenario"
+msgstr "Berechne die Gesamtwirkung aller Maßnahmen im aktuellen Szenario."
 
 #: nodes/explanations.py
 msgid "Use data only if a primary value does not exist."
@@ -770,6 +782,7 @@ msgstr "Daten nur verwenden, wenn kein Primärwert vorhanden ist."
 #: nodes/explanations.py
 msgid "If condition is True, select the first option, otherwise the second."
 msgstr ""
+"Wenn die Bedingung wahr ist, wähle die erste Option, andernfalls die zweite."
 
 #: nodes/explanations.py
 msgid "Truncate values before the reference year. There may be some from data"
@@ -855,39 +868,6 @@ msgstr ""
 "        "
 
 #: nodes/explanations.py
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "        Calculates the attribution of emissions of combined heat and power (CHP) producion according to the\n"
-#| "        <a href=\"https://ghgprotocol.org/sites/default/files/CHP_guidance_v1.0.pdf\">GPC protocol</a>.\n"
-#| "        There are several methods but for each method, the average emission factor of the fuel mix used\n"
-#| "        is split into two parts by using fractions a_heat and a_electricity that sum up to 1. They are calculated as\n"
-#| "        <br/>a_i = z_i * f_i / sum_j(z_j * f_j),\n"
-#| "        <br/>where a_i is the fraction for each product (i = electricity, heat)\n"
-#| "        z_i is a method-specific multiplier (see below)\n"
-#| "        f_i is the fraction of product i from the total energy produced.\n"
-#| "\n"
-#| "        <ol><li><b>Energy method</b>\n"
-#| "        Logic: Energy products are treated equally based on the energy content.\n"
-#| "        All z_i = 1\n"
-#| "\n"
-#| "        </li><li><b>Work potential method</b> (aka Carnot method, or exergetic method)\n"
-#| "        Logic: Energy products are treated equally based on the potential of doing work (i.e., exergy content).\n"
-#| "        This moves emissions toward electricity.\n"
-#| "        z_heat = 1 - T_return / T_supply, and\n"
-#| "        z_electricity = 1.\n"
-#| "        T_supply and T_return are the input and output process temperatures, respectively.\n"
-#| "\n"
-#| "        </li><li><b>Bisko method</b>\n"
-#| "        Bisko method is a variant of the work potential method.\n"
-#| "        The only difference is that Bisko assumes T_return = 283 K.\n"
-#| "\n"
-#| "        </li><li><b>Efficiency method</b>\n"
-#| "        Logic: What emissions would have occured if each energy product had been produced separately?\n"
-#| "        z_i = 1 / n_i,\n"
-#| "        where n_i is the reference efficiency for producing the energy type separately.\n"
-#| "        Typical values are z_heat = 0.9, z_electricity = 0.4.</li></ol>\n"
-#| "        "
 msgid ""
 "\n"
 "        Calculates the attribution of emissions of combined heat and power (CHP) producion according to the\n"
@@ -922,44 +902,106 @@ msgid ""
 "        "
 msgstr ""
 "\n"
-"        Berechnet die Zuordnung der Emissionen aus Kraft-Wärme-Kopplung (KWK) gemäß dem\n"
-"        <a href=\"https://ghgprotocol.org/sites/default/files/CHP_guidance_v1.0.pdf\">\n"
-"        GPC-Protokoll</a>\n"
-"        .\n"
-"        Es gibt mehrere Methoden, aber bei jeder Methode wird der durchschnittliche Emissionsfaktor des verwendeten Brennstoffmixes\n"
-"        mithilfe der Bruchteile a_heat und a_electricity, die zusammen 1 ergeben, in zwei Teile aufgeteilt. Sie werden berechnet als\n"
+"        Berechnet die Zuordnung der Emissionen aus Kraft-Wärme-Kopplung "
+"(KWK) gemäß dem GPC-Protokoll „\n"
+"        <a href=\"https://ghgprotocol.org/sites/default/files/"
+"CHP_guidance_v1.0.pdf\">\n"
+"        “ (</a>\n"
+"        ).\n"
+"Es gibt mehrere Methoden, aber bei jeder Methode wird der durchschnittliche "
+"Emissionsfaktor des verwendeten Brennstoffmixes\n"
+"mithilfe der Bruchteile a_heat und a_electricity, die zusammen 1 ergeben, in "
+"zwei Teile aufgeteilt. Sie werden wie folgt berechnet:\n"
 "        <br/>\n"
-"        a_i = z_i * f_i / sum_j(z_j * f_j),\n"
+"        a<sub>\n"
+"        i</sub>\n"
+"        = z<sub>\n"
+"        i</sub>\n"
+"        * f<sub>\n"
+"        i</sub>\n"
+"        / sum<sub>\n"
+"        i</sub>\n"
+"        (z<sub>\n"
+"        i</sub>\n"
+"        * f<sub>\n"
+"        i</sub>\n"
+"        ),\n"
 "        <br/>\n"
-"        wobei a_i der Bruchteil für jedes Produkt ist (i = Strom, Wärme)\n"
-"        z_i ein methodenspezifischer Multiplikator ist (siehe unten)\n"
-"        f_i der Bruchteil des Produkts i an der insgesamt erzeugten Energie ist.\n"
+"        wobei a<sub>\n"
+"        i</sub>\n"
+"        der Bruchteil für jedes Produkt ist (i = Strom, Wärme)\n"
+"        z<sub>\n"
+"        i</sub>\n"
+"        ein methodenspezifischer Multiplikator ist (siehe unten)\n"
+"        f<sub>\n"
+"        i</sub>\n"
+"        der Bruchteil des Produkts i an der insgesamt erzeugten Energie "
+"ist.\n"
 "\n"
-"        <ol><li><b>\n"
+"        <ol>\n"
+"        <li>\n"
+"        <b>\n"
 "        Energiemethode</b>\n"
-"        Logik: Energieprodukte werden auf der Grundlage ihres Energiegehalts gleich behandelt.\n"
-"        Alle z_i = 1\n"
+"        Logik: Energieprodukte werden auf der Grundlage ihres Energiegehalts "
+"gleich behandelt.\n"
+"        Alle z<sub>\n"
+"        i</sub>\n"
+"        = 1\n"
 "\n"
-"        </li><li><b>\n"
+"        </li>\n"
+"        <li>\n"
+"        <b>\n"
 "        Arbeitspotenzialmethode</b>\n"
 "        (auch bekannt als Carnot-Methode oder Exergie-Methode)\n"
-"        Logik: Energieprodukte werden auf der Grundlage ihres Arbeitspotenzials (d. h. ihres Exergiegehalts) gleich behandelt.\n"
-"        Dadurch verlagern sich die Emissionen in Richtung Strom.\n"
-"        z_Wärme = 1 - T_Rücklauf / T_Zufuhr und\n"
-"        z_Strom = 1.\n"
-"        T_Zufuhr und T_Rücklauf sind die Eingangs- bzw. Ausgangstemperaturen des Prozesses.\n"
+"        Logik: Energieprodukte werden auf der Grundlage ihres "
+"Arbeitspotenzials (d. h. ihres Exergiegehalts) gleich behandelt.\n"
+"        Dadurch werden Emissionen in Richtung Elektrizität verlagert.\n"
+"        z<sub>\n"
+"        heat</sub>\n"
+"        = 1 - T<sub>\n"
+"        return</sub>\n"
+"        / T<sub>\n"
+"        supply</sub>\n"
+"        und\n"
+"        z<sub>\n"
+"        electricity</sub>\n"
+"        = 1.\n"
+"        T<sub>\n"
+"        return</sub>\n"
+"        und T<sub>\n"
+"        supply</sub>\n"
+"        sind die Ausgangs- bzw. Eingangstemperaturen des Prozesses.\n"
 "\n"
-"        </li><li><b>\n"
+"        </li>\n"
+"        <li>\n"
+"        <b>\n"
 "        Bisko-Methode</b>\n"
 "        Die Bisko-Methode ist eine Variante der Arbeitspotenzialmethode.\n"
-"        Der einzige Unterschied besteht darin, dass Bisko T_return = 283 K annimmt.\n"
+"Der einzige Unterschied besteht darin, dass Bisko T<sub>\n"
+"        return</sub>\n"
+"        = 283 K annimmt.\n"
 "\n"
-"        </li><li><b>\n"
+"</li>\n"
+"        <li>\n"
+"        <b>\n"
 "        Effizienzmethode</b>\n"
-"        Logik: Welche Emissionen wären entstanden, wenn jedes Energieprodukt separat hergestellt worden wäre?\n"
-"z_i = 1 / n_i,\n"
-"wobei n_i die Referenzeffizienz für die separate Herstellung der Energieart ist.\n"
-"Typische Werte sind z_heat = 0,9, z_electricity = 0,4.</li></ol>\n"
+"        Logik: Welche Emissionen wären entstanden, wenn jedes Energieprodukt "
+"separat hergestellt worden wäre?\n"
+"z<sub>\n"
+"        i</sub>\n"
+"        = 1 / n<sub>\n"
+"        i</sub>\n"
+"        ,\n"
+"wobei n<sub>\n"
+"        i</sub>\n"
+"        die Referenzeffizienz für die separate Erzeugung der Energieart "
+"ist.\n"
+"        Typische Werte sind z<sub>\n"
+"        heat</sub>\n"
+"        = 0,9, z<sub>\n"
+"        electricity</sub>\n"
+"        = 0,4.</li>\n"
+"        </ol>\n"
 "        "
 
 #: nodes/explanations.py
@@ -986,6 +1028,10 @@ msgid ""
 "        Constant node returns a constant value spread over the timeline.\n"
 "        "
 msgstr ""
+"\n"
+"        Constant Knoten gibt einen konstanten Wert zurück, der über die "
+"Zeitachse verteilt ist.\n"
+"        "
 
 #: nodes/explanations.py
 msgid ""
@@ -1206,19 +1252,6 @@ msgstr ""
 "        "
 
 #: nodes/explanations.py
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "        LogitNode gives a probability of event given a baseline and several determinants.\n"
-#| "\n"
-#| "        The baseline is given as a dataset of observed values. The determinants are linearly\n"
-#| "        related to the logit of the probability:\n"
-#| "        ln(y / (1 - y)) = a + sum_i(b_i * X_i,)\n"
-#| "        where y is the probability, a is baseline, X_i determinants and b_i coefficients.\n"
-#| "        The node expects that a comes from dataset and sum_i(b_i * X_i,) is given by the input nodes\n"
-#| "        when operated with the GenericNode compute(). The probability is calculated as\n"
-#| "        ln(y / (1 - y)) = b <=> y = 1 / (1 + exp(-b)).\n"
-#| "        "
 msgid ""
 "\n"
 "        LogitNode gives a probability of event given a baseline and several determinants.\n"
@@ -1233,14 +1266,20 @@ msgid ""
 "        "
 msgstr ""
 "\n"
-"        LogitNode gibt die Wahrscheinlichkeit eines Ereignisses in Abhängigkeit von einer Basislinie und mehreren Determinanten an.\n"
+"        LogitNode gibt die Wahrscheinlichkeit eines Ereignisses unter "
+"Berücksichtigung einer Basislinie und mehrerer Determinanten an.\n"
 "\n"
-"        Die Basislinie wird als Datensatz mit beobachteten Werten angegeben. Die Determinanten sind linear\n"
-"        mit dem Logit der Wahrscheinlichkeit verbunden:\n"
-"        ln(y / (1 - y)) = a + sum_i(b_i * X_i,)\n"
-"        wobei y die Wahrscheinlichkeit, a die Grundlinie, X_i die Determinanten und b_i die Koeffizienten sind.\n"
-"        Der Knoten erwartet, dass a aus dem Datensatz stammt und sum_i(b_i * X_i,) durch die Eingabeknoten gegeben ist\n"
-"        wenn er mit dem GenericNode compute() betrieben wird. Die Wahrscheinlichkeit wird berechnet als\n"
+"Die Basislinie wird als Datensatz mit beobachteten Werten angegeben. Die "
+"Determinanten stehen in linearem\n"
+"        Zusammenhang mit dem Logit der Wahrscheinlichkeit:\n"
+"        ln(y / (1 - y)) = a + sum<sub>i</sub>(b<sub>i</sub> * X<sub>i</sub>,)"
+"\n"
+"        wobei y die Wahrscheinlichkeit, a die Basislinie, X<sub>i</sub> die "
+"Determinanten und b<sub>i</sub> die Koeffizienten sind.\n"
+"        Der Knoten erwartet, dass a aus dem Datensatz stammt und sum<SUB>i</"
+"SUB>(b<SUB>i</SUB> * X<SUB>i</SUB>,) durch die Eingabeknoten\n"
+"        bei der Ausführung mit GenericNode compute() gegeben ist. Die "
+"Wahrscheinlichkeit wird berechnet als\n"
 "        ln(y / (1 - y)) = b <=> y = 1 / (1 + exp(-b)).\n"
 "        "
 
@@ -1250,7 +1289,7 @@ msgstr "Bevölkerung ist ein spezieller Knotenpunkt über die finnische Bevölke
 
 #: nodes/explanations.py
 msgid "ShiftAction moves activity from one category to others."
-msgstr ""
+msgstr "ShiftAction verschiebt Aktivitäten von einer Kategorie in andere."
 
 #: nodes/explanations.py
 msgid ""
@@ -1271,6 +1310,12 @@ msgid ""
 "        Adjust the weight parameter to change how much this value contributes to priorities.\n"
 "        "
 msgstr ""
+"\n"
+"        Wertmaßnahmen liefern über einen bestimmten Zeitraum einen "
+"konstanten Wert (z. B. Gewicht für einen moralischen Wert).\n"
+"Passen Sie den Gewichtsparameter an, um zu ändern, wie stark dieser Wert zu "
+"den Prioritäten beiträgt.\n"
+"        "
 
 #: nodes/explanations.py nodes/generic.py
 msgid ""
@@ -1289,7 +1334,7 @@ msgstr "Die Knotenklasse hat keine Beschreibung."
 #: nodes/explanations.py
 #, python-format
 msgid "referencing to <i>%s</i>"
-msgstr ""
+msgstr "unter Bezugnahme auf <i>%s</i>"
 
 #: nodes/explanations.py
 #, python-format
@@ -1306,10 +1351,8 @@ msgid "Datasets"
 msgstr "Datensätze"
 
 #: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "Uses column: %(name)s"
 msgid "Metric: %(name)s"
-msgstr "Verwendet Spalte: %(name)s"
+msgstr "Messgröße: %(name)s"
 
 #: nodes/explanations.py
 #, python-format
@@ -1403,39 +1446,32 @@ msgstr ""
 
 #: nodes/explanations.py
 msgid "Terms:"
-msgstr ""
+msgstr "Terme:"
 
 #: nodes/explanations.py
 #, python-format
 msgid "dims: %(dims)s"
-msgstr ""
+msgstr "dims: %(dims)s"
 
 #: nodes/explanations.py
-#, fuzzy
-#| msgid "Actions"
 msgid "Functions:"
-msgstr "Maßnahmen"
+msgstr "Funktionen:"
 
 #: nodes/explanations.py
 msgid "These groups are left over without an operation:"
 msgstr "Diese Gruppen sind ohne eine Operation übrig geblieben:"
 
 #: nodes/explanations.py
-#, python-format
 msgid "Group %(basket)s with nodes:"
 msgstr "Gruppe %(basket)s mit Knoten:"
 
 #: nodes/explanations.py
-#, fuzzy
-#| msgid "Instance"
 msgid "Constant"
-msgstr "Instanz"
+msgstr "Konstante"
 
 #: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "Uses column: %(name)s"
 msgid "Metrics: %(metrics)s"
-msgstr "Verwendet Spalte: %(name)s"
+msgstr "Messgrößen: %(name)s"
 
 #: nodes/formula.py
 msgid "This is a Formula Node. It uses a specified formula to calculate the output."
@@ -1445,10 +1481,14 @@ msgstr "Dies ist ein Formula Node. Er verwendet eine bestimmte Formel, um die Au
 #, python-format
 msgid "Logical %(func)s() received values outside {0, 1}; interpreted as fuzzy logic."
 msgstr ""
+"Logisches %(func)s() hat Werte außerhalb von {0, 1} erhalten; interpretiert "
+"als Fuzzy-Logik."
 
 #: nodes/formula.py
 msgid "Input nodes that are not used in the formula are used for addition in the end. Error:"
 msgstr ""
+"Eingabeknoten, die nicht in der Formel verwendet werden, werden am Ende für "
+"die Addition verwendet. Fehler:"
 
 #: nodes/generic.py
 msgid "Multiply input nodes whose unit does not match the output. Add the rest."
@@ -1540,11 +1580,11 @@ msgstr "Effizienz der getrennten Wärmeerzeugung"
 
 #: nodes/generic.py
 msgid "Constant value"
-msgstr ""
+msgstr "Konstanter Wert"
 
 #: nodes/generic.py
 msgid "Boolean parameter to convert to float"
-msgstr ""
+msgstr "Boolescher Parameter zur Umwandlung in Float"
 
 #: nodes/gpc.py
 msgid "This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output."
@@ -1645,17 +1685,15 @@ msgstr "Knoten-Datensätze"
 #: nodes/models.py
 #, python-format
 msgid "Node: %(node_name)s"
-msgstr ""
+msgstr "Knoten: %(node_name)s"
 
 #: nodes/node.py
-#, fuzzy
-#| msgid "Category breakdown"
 msgid "Category warnings"
-msgstr "Aufschlüsselung nach Kategorien"
+msgstr "Kategorie-Warnungen"
 
 #: nodes/node.py
 msgid "Dimension"
-msgstr ""
+msgstr "Dimension"
 
 #: nodes/roles.py
 msgid "Subsector Admin"
@@ -2382,15 +2420,15 @@ msgstr "Sind biogene Emissionen in den Gesamtemissionen enthalten?"
 
 #: params/global_params.py
 msgid "Use mileage rather than energy for transport"
-msgstr ""
+msgstr "Verwende Kilometerleistung statt Energieverbrauch für Verkehr"
 
 #: params/global_params.py
 msgid "Use national values rather than local values"
-msgstr ""
+msgstr "Verwende nationale Werte anstelle lokaler Werte"
 
 #: params/global_params.py
 msgid "Use local values rather than national values"
-msgstr ""
+msgstr "Verwende lokale Werte anstelle nationaler Werte"
 
 #: params/global_params.py
 msgid "Normalization for matching statistical data"
