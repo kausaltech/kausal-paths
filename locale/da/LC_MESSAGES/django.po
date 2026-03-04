@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-24 15:25+0200\n"
+"POT-Creation-Date: 2026-03-04 15:11+0100\n"
 "PO-Revision-Date: 2025-12-23 18:21+0000\n"
 "Last-Translator: Jan-Erik Sundman <jan-erik.sundman@kausal.tech>\n"
 "Language-Team: Danish <https://weblate.kausal.tech/projects/paths/django/da/>\n"
@@ -102,10 +102,6 @@ msgstr ""
 #: admin_site/templates/wagtailadmin/login.html
 msgid "Our apologies, the server is temporarily experiencing difficulties."
 msgstr "Vi beklager, serveren har midlertidigt problemer."
-
-#: admin_site/viewsets.py
-msgid "Inspect"
-msgstr ""
 
 #: admin_site/viewsets.py
 msgid "View"
@@ -229,46 +225,6 @@ msgid "Is the action included in the scenario"
 msgstr "Er handlingen inkluderet i scenariet"
 
 #: nodes/actions/energy_saving.py
-msgid "Number of LED bulbs changed per year (baseline)"
-msgstr "Antal LED-pærer udskiftet pr. år (baseline)"
-
-#: nodes/actions/energy_saving.py
-msgid "Number of additional LED bulbs changed per year"
-msgstr "Antal yderligere LED-pærer udskiftet pr. år"
-
-#: nodes/actions/energy_saving.py
-msgid "Yearly increase in total number of luminaires"
-msgstr "Årlig stigning i det samlede antal armaturer"
-
-#: nodes/actions/energy_saving.py
-msgid "Yearly maintenance cost of traditional luminaires"
-msgstr "Årlige vedligeholdelsesomkostninger for traditionelle armaturer"
-
-#: nodes/actions/energy_saving.py
-msgid "Yearly maintenance cost of LED luminaires"
-msgstr "Årlige vedligeholdelsesomkostninger for LED-armaturer"
-
-#: nodes/actions/energy_saving.py
-msgid "Traditional luminaire power consumption"
-msgstr "Traditionel armatur strømforbrug"
-
-#: nodes/actions/energy_saving.py
-msgid "LED luminaire power consumption"
-msgstr "LED-armatur strømforbrug"
-
-#: nodes/actions/energy_saving.py
-msgid "Traditional luminaire yearly active time"
-msgstr "Traditionel armatur årlig aktiv tid"
-
-#: nodes/actions/energy_saving.py
-msgid "LED luminaire yearly active time"
-msgstr "LED-armatur årlig aktiv tid"
-
-#: nodes/actions/energy_saving.py
-msgid "Investment cost of one LED retrofit"
-msgstr "Investeringsomkostninger for én LED-renovering"
-
-#: nodes/actions/energy_saving.py
 msgid ""
 "\n"
 "    Action that has an energy saving effect on building stock (per floor area).\n"
@@ -301,36 +257,10 @@ msgid "Electricity saving (kWh/m2/a)"
 msgstr "Elbesparelse (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
-#, fuzzy, python-format
+#, fuzzy
 #| msgid "Renovation potential (% of floor area)"
 msgid "Renovation potential (% of floor area)"
 msgstr "Renoveringspotentiale (% af gulvareal)"
-
-#: nodes/actions/energy_saving.py nodes/explanations.py
-msgid "BuildingEnergySavingAction with U.S. units and natural gas instead of heat."
-msgstr ""
-
-#: nodes/actions/energy_saving.py
-#, fuzzy
-#| msgid "Investment cost (SEK/m2)"
-msgid "Investment cost (USD/square foot)"
-msgstr "Investeringsomkostninger (SEK/m2)"
-
-#: nodes/actions/energy_saving.py
-#, fuzzy
-#| msgid "Maintenance cost (SEK/m2/a)"
-msgid "Maintenance cost (USD/square foot/a)"
-msgstr "Vedligeholdelsesomkostninger (SEK/m2/a)"
-
-#: nodes/actions/energy_saving.py
-msgid "Natural gas saving (thm/square foot/a)"
-msgstr ""
-
-#: nodes/actions/energy_saving.py
-#, fuzzy
-#| msgid "Electricity saving (kWh/m2/a)"
-msgid "Electricity saving (kWh/square foot/a)"
-msgstr "Elbesparelse (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid ""
@@ -732,7 +662,7 @@ msgid "Logical OR: max(a, b). Warns if inputs deviate from 0 or 1 (see node expl
 msgstr ""
 
 #: nodes/explanations.py
-msgid "Prepare a GPC-styledataset for use."
+msgid "Prepare a GPC-style dataset for use."
 msgstr ""
 
 #: nodes/explanations.py
@@ -1080,7 +1010,40 @@ msgstr ""
 
 #: nodes/explanations.py
 #, python-format
+msgid "The order of operations is %s."
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
 msgid "Has parameter <i>%(parameter)s</i> with value %(value)s."
+msgstr ""
+
+#: nodes/explanations.py
+#, fuzzy
+#| msgid "datasets"
+msgid "Datasets"
+msgstr "datasæt"
+
+#: nodes/explanations.py
+#, python-format
+msgid "Metric: %(name)s"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Has forecast values from: %(year)s"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Rows with missing values are dropped."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Renames the following columns:"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Has the following filters:"
 msgstr ""
 
 #: nodes/explanations.py
@@ -1099,6 +1062,18 @@ msgid "Filter column <i>%(name)s</i> by including <i>%(values)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
+#, fuzzy, python-format
+#| msgid "Dimensions"
+msgid "Sum up column <i>%(name)s</i>."
+msgstr "Dimensioner"
+
+#: nodes/explanations.py
+#, fuzzy, python-format
+#| msgid "Dimensions"
+msgid "Drop column <i>%(name)s</i>."
+msgstr "Dimensioner"
+
+#: nodes/explanations.py
 #, python-format
 msgid "Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>."
 msgstr ""
@@ -1106,6 +1081,12 @@ msgstr ""
 #: nodes/explanations.py
 msgid "Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>."
 msgstr ""
+
+#: nodes/explanations.py
+#, fuzzy, python-format
+#| msgid "Dimensions"
+msgid "Sum up the dimension <i>%(label)s</i>."
+msgstr "Dimensioner"
 
 #: nodes/explanations.py
 #, python-format
@@ -1138,6 +1119,10 @@ msgid "Categorize the values to <i>%(categories)s</i> in a new dimension <i>%(di
 msgstr ""
 
 #: nodes/explanations.py
+msgid "Formula:"
+msgstr ""
+
+#: nodes/explanations.py
 msgid "Terms:"
 msgstr ""
 
@@ -1157,6 +1142,11 @@ msgid "These groups are left over without an operation:"
 msgstr ""
 
 #: nodes/explanations.py
+#, python-format
+msgid "Group %(basket)s with nodes:"
+msgstr ""
+
+#: nodes/explanations.py
 #, fuzzy
 #| msgid "Instance"
 msgid "Constant"
@@ -1164,12 +1154,7 @@ msgstr "Instans"
 
 #: nodes/explanations.py
 #, python-format
-msgid "Metric: %(name)s"
-msgstr ""
-
-#: nodes/explanations.py
-#, python-format
-msgid "Has forecast values from: %(year)s"
+msgid "Metrics: %(metrics)s"
 msgstr ""
 
 #: nodes/formula.py
@@ -2137,6 +2122,10 @@ msgstr ""
 msgid "Number of the selected item"
 msgstr ""
 
+#: params/global_params.py
+msgid "AGS Number"
+msgstr ""
+
 #: paths/authentication.py
 msgid "Invalid token."
 msgstr "Ugyldigt token."
@@ -2270,25 +2259,55 @@ msgstr "e-mailadresse"
 msgid "adminable instances"
 msgstr ""
 
+#~ msgid "Number of LED bulbs changed per year (baseline)"
+#~ msgstr "Antal LED-pærer udskiftet pr. år (baseline)"
+
+#~ msgid "Number of additional LED bulbs changed per year"
+#~ msgstr "Antal yderligere LED-pærer udskiftet pr. år"
+
+#~ msgid "Yearly increase in total number of luminaires"
+#~ msgstr "Årlig stigning i det samlede antal armaturer"
+
+#~ msgid "Yearly maintenance cost of traditional luminaires"
+#~ msgstr "Årlige vedligeholdelsesomkostninger for traditionelle armaturer"
+
+#~ msgid "Yearly maintenance cost of LED luminaires"
+#~ msgstr "Årlige vedligeholdelsesomkostninger for LED-armaturer"
+
+#~ msgid "Traditional luminaire power consumption"
+#~ msgstr "Traditionel armatur strømforbrug"
+
+#~ msgid "LED luminaire power consumption"
+#~ msgstr "LED-armatur strømforbrug"
+
+#~ msgid "Traditional luminaire yearly active time"
+#~ msgstr "Traditionel armatur årlig aktiv tid"
+
+#~ msgid "LED luminaire yearly active time"
+#~ msgstr "LED-armatur årlig aktiv tid"
+
+#~ msgid "Investment cost of one LED retrofit"
+#~ msgstr "Investeringsomkostninger for én LED-renovering"
+
 #, fuzzy
-#~| msgid "datasets"
-#~ msgid "Datasets"
-#~ msgstr "datasæt"
+#~| msgid "Investment cost (SEK/m2)"
+#~ msgid "Investment cost (USD/square foot)"
+#~ msgstr "Investeringsomkostninger (SEK/m2)"
+
+#, fuzzy
+#~| msgid "Maintenance cost (SEK/m2/a)"
+#~ msgid "Maintenance cost (USD/square foot/a)"
+#~ msgstr "Vedligeholdelsesomkostninger (SEK/m2/a)"
+
+#, fuzzy
+#~| msgid "Electricity saving (kWh/m2/a)"
+#~ msgid "Electricity saving (kWh/square foot/a)"
+#~ msgstr "Elbesparelse (kWh/m2/a)"
 
 #, fuzzy, python-format
 #~| msgid "identifier"
 #~ msgid "Dataset with identifier <i>%s</i>"
 #~ msgstr "identifikator"
-
-#, fuzzy, python-format
-#~| msgid "Dimensions"
-#~ msgid "Sum up column <i>%(name)s</i>."
-#~ msgstr "Dimensioner"
-
-#, fuzzy, python-format
-#~| msgid "Dimensions"
-#~ msgid "Sum up the dimension <i>%(label)s</i>."
-#~ msgstr "Dimensioner"
 
 #, fuzzy, python-format
 #~| msgid "identifier"

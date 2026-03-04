@@ -8,11 +8,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-24 15:25+0200\n"
+"POT-Creation-Date: 2026-03-04 15:11+0100\n"
 "PO-Revision-Date: 2026-02-24 15:21+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
-"Language-Team: Finnish <https://weblate.kausal.tech/projects/paths/django/"
-"fi/>\n"
+"Language-Team: Finnish <https://weblate.kausal.tech/projects/paths/django/fi/>\n"
 "Language: fi\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -97,10 +96,6 @@ msgstr ""
 #: admin_site/templates/wagtailadmin/login.html
 msgid "Our apologies, the server is temporarily experiencing difficulties."
 msgstr "Pahoittelemme, palvelimella on tilapäisiä vaikeuksia."
-
-#: admin_site/viewsets.py
-msgid "Inspect"
-msgstr ""
 
 #: admin_site/viewsets.py
 msgid "View"
@@ -222,46 +217,6 @@ msgid "Is the action included in the scenario"
 msgstr ""
 
 #: nodes/actions/energy_saving.py
-msgid "Number of LED bulbs changed per year (baseline)"
-msgstr "Vuosittain vaihdettujen LED-lamppujen määrä (lähtötaso)"
-
-#: nodes/actions/energy_saving.py
-msgid "Number of additional LED bulbs changed per year"
-msgstr "Vuosittain vaihdettujen lisä-LED-lamppujen määrä"
-
-#: nodes/actions/energy_saving.py
-msgid "Yearly increase in total number of luminaires"
-msgstr "Valaisimien kokonaismäärän vuosittainen kasvu"
-
-#: nodes/actions/energy_saving.py
-msgid "Yearly maintenance cost of traditional luminaires"
-msgstr "Perinteisten valaisimien vuosittaiset huoltokustannukset"
-
-#: nodes/actions/energy_saving.py
-msgid "Yearly maintenance cost of LED luminaires"
-msgstr "LED-valaisimien vuosittaiset huoltokustannukset"
-
-#: nodes/actions/energy_saving.py
-msgid "Traditional luminaire power consumption"
-msgstr "Perinteisen valaisimen tehonkulutus"
-
-#: nodes/actions/energy_saving.py
-msgid "LED luminaire power consumption"
-msgstr "LED-valaisimen tehonkulutus"
-
-#: nodes/actions/energy_saving.py
-msgid "Traditional luminaire yearly active time"
-msgstr "Perinteisen valaisimen vuosittainen aktiiviaika"
-
-#: nodes/actions/energy_saving.py
-msgid "LED luminaire yearly active time"
-msgstr "LED-valaisimen vuosittainen aktiiviaika"
-
-#: nodes/actions/energy_saving.py
-msgid "Investment cost of one LED retrofit"
-msgstr "Yhden LED-saneerauksen investointikustannus"
-
-#: nodes/actions/energy_saving.py
 msgid ""
 "\n"
 "    Action that has an energy saving effect on building stock (per floor area).\n"
@@ -294,32 +249,9 @@ msgid "Electricity saving (kWh/m2/a)"
 msgstr "Sähkön säästö (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
-#, fuzzy, python-format
+#, fuzzy
 msgid "Renovation potential (% of floor area)"
 msgstr "Saneerauspotentiaali (% lattiapinta-alasta)"
-
-#: nodes/actions/energy_saving.py nodes/explanations.py
-msgid "BuildingEnergySavingAction with U.S. units and natural gas instead of heat."
-msgstr ""
-
-#: nodes/actions/energy_saving.py
-#, fuzzy
-msgid "Investment cost (USD/square foot)"
-msgstr "Investointikustannus (SEK/m2)"
-
-#: nodes/actions/energy_saving.py
-#, fuzzy
-msgid "Maintenance cost (USD/square foot/a)"
-msgstr "Huoltokustannus (SEK/m2/a)"
-
-#: nodes/actions/energy_saving.py
-msgid "Natural gas saving (thm/square foot/a)"
-msgstr ""
-
-#: nodes/actions/energy_saving.py
-#, fuzzy
-msgid "Electricity saving (kWh/square foot/a)"
-msgstr "Sähkön säästö (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid ""
@@ -572,14 +504,11 @@ msgstr "Hae ja valmistele kukin tietoaineisto ja lisää ne sitten yhteen."
 
 #: nodes/explanations.py
 msgid "Add input node values (even if the units don't match with the node units)."
-msgstr ""
-"Lisää syöttösolmun arvot (vaikka yksiköt eivät vastaa solmun yksiköitä)."
+msgstr "Lisää syöttösolmun arvot (vaikka yksiköt eivät vastaa solmun yksiköitä)."
 
 #: nodes/explanations.py
 msgid "Logical AND: min(a, b). Warns if inputs deviate from 0 or 1 (see node explanation)."
-msgstr ""
-"Looginen JA: min(a, b). Varoittaa, jos syötteet poikkeavat arvosta 0 tai 1 "
-"(katso solmun selitys)."
+msgstr "Looginen JA: min(a, b). Varoittaa, jos syötteet poikkeavat arvosta 0 tai 1 (katso solmun selitys)."
 
 #: nodes/explanations.py
 msgid "Take the arithmetic inverse of the values (-x)."
@@ -595,9 +524,7 @@ msgstr "Ota dimensioimattomien arvojen komplementti (1-x)."
 
 #: nodes/explanations.py
 msgid "Take the cumulative product of the dimensionless complement values over time."
-msgstr ""
-"Laske dimensioimattomien komplementtiarvojen kumulatiivinen tulo ajan "
-"kuluessa."
+msgstr "Laske dimensioimattomien komplementtiarvojen kumulatiivinen tulo ajan kuluessa."
 
 #: nodes/explanations.py
 msgid "Get and concatenate datasets vertically, only then prepare the output."
@@ -613,8 +540,7 @@ msgstr ""
 
 #: nodes/explanations.py
 msgid "Take the difference over time (i.e. annual changes)"
-msgstr ""
-"Ota huomioon ajan mittaan tapahtuneet muutokset (eli vuosittaiset muutokset)"
+msgstr "Ota huomioon ajan mittaan tapahtuneet muutokset (eli vuosittaiset muutokset)"
 
 #: nodes/explanations.py
 msgid "Convert NaNs to zeros."
@@ -717,7 +643,7 @@ msgid "Logical OR: max(a, b). Warns if inputs deviate from 0 or 1 (see node expl
 msgstr ""
 
 #: nodes/explanations.py
-msgid "Prepare a GPC-styledataset for use."
+msgid "Prepare a GPC-style dataset for use."
 msgstr ""
 
 #: nodes/explanations.py
@@ -1061,8 +987,42 @@ msgid "referencing to <i>%s</i>"
 msgstr ""
 
 #: nodes/explanations.py
+#, fuzzy, python-format
+#| msgid "other operations"
+msgid "The order of operations is %s."
+msgstr "muut toiminnot"
+
+#: nodes/explanations.py
 #, python-format
 msgid "Has parameter <i>%(parameter)s</i> with value %(value)s."
+msgstr ""
+
+#: nodes/explanations.py
+#, fuzzy
+#| msgid "datasets"
+msgid "Datasets"
+msgstr "tietoaineistot"
+
+#: nodes/explanations.py
+#, python-format
+msgid "Metric: %(name)s"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Has forecast values from: %(year)s"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Rows with missing values are dropped."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Renames the following columns:"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Has the following filters:"
 msgstr ""
 
 #: nodes/explanations.py
@@ -1081,6 +1041,16 @@ msgid "Filter column <i>%(name)s</i> by including <i>%(values)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
+#, fuzzy, python-format
+msgid "Sum up column <i>%(name)s</i>."
+msgstr "Ulottuvuudet"
+
+#: nodes/explanations.py
+#, fuzzy, python-format
+msgid "Drop column <i>%(name)s</i>."
+msgstr "Ulottuvuudet"
+
+#: nodes/explanations.py
 #, python-format
 msgid "Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>."
 msgstr ""
@@ -1088,6 +1058,11 @@ msgstr ""
 #: nodes/explanations.py
 msgid "Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>."
 msgstr ""
+
+#: nodes/explanations.py
+#, fuzzy, python-format
+msgid "Sum up the dimension <i>%(label)s</i>."
+msgstr "Ulottuvuudet"
 
 #: nodes/explanations.py
 #, python-format
@@ -1120,6 +1095,10 @@ msgid "Categorize the values to <i>%(categories)s</i> in a new dimension <i>%(di
 msgstr ""
 
 #: nodes/explanations.py
+msgid "Formula:"
+msgstr ""
+
+#: nodes/explanations.py
 msgid "Terms:"
 msgstr ""
 
@@ -1139,6 +1118,11 @@ msgid "These groups are left over without an operation:"
 msgstr ""
 
 #: nodes/explanations.py
+#, python-format
+msgid "Group %(basket)s with nodes:"
+msgstr ""
+
+#: nodes/explanations.py
 #, fuzzy
 #| msgid "Instance"
 msgid "Constant"
@@ -1146,12 +1130,7 @@ msgstr "Instanssi"
 
 #: nodes/explanations.py
 #, python-format
-msgid "Metric: %(name)s"
-msgstr ""
-
-#: nodes/explanations.py
-#, python-format
-msgid "Has forecast values from: %(year)s"
+msgid "Metrics: %(metrics)s"
 msgstr ""
 
 #: nodes/formula.py
@@ -2114,6 +2093,10 @@ msgstr ""
 msgid "Number of the selected item"
 msgstr ""
 
+#: params/global_params.py
+msgid "AGS Number"
+msgstr ""
+
 #: paths/authentication.py
 msgid "Invalid token."
 msgstr "Virheellinen tunnus."
@@ -2247,23 +2230,52 @@ msgstr "sähköpostiosoite"
 msgid "adminable instances"
 msgstr ""
 
+#~ msgid "Number of LED bulbs changed per year (baseline)"
+#~ msgstr "Vuosittain vaihdettujen LED-lamppujen määrä (lähtötaso)"
+
+#~ msgid "Number of additional LED bulbs changed per year"
+#~ msgstr "Vuosittain vaihdettujen lisä-LED-lamppujen määrä"
+
+#~ msgid "Yearly increase in total number of luminaires"
+#~ msgstr "Valaisimien kokonaismäärän vuosittainen kasvu"
+
+#~ msgid "Yearly maintenance cost of traditional luminaires"
+#~ msgstr "Perinteisten valaisimien vuosittaiset huoltokustannukset"
+
+#~ msgid "Yearly maintenance cost of LED luminaires"
+#~ msgstr "LED-valaisimien vuosittaiset huoltokustannukset"
+
+#~ msgid "Traditional luminaire power consumption"
+#~ msgstr "Perinteisen valaisimen tehonkulutus"
+
+#~ msgid "LED luminaire power consumption"
+#~ msgstr "LED-valaisimen tehonkulutus"
+
+#~ msgid "Traditional luminaire yearly active time"
+#~ msgstr "Perinteisen valaisimen vuosittainen aktiiviaika"
+
+#~ msgid "LED luminaire yearly active time"
+#~ msgstr "LED-valaisimen vuosittainen aktiiviaika"
+
+#~ msgid "Investment cost of one LED retrofit"
+#~ msgstr "Yhden LED-saneerauksen investointikustannus"
+
 #, fuzzy
-#~| msgid "datasets"
-#~ msgid "Datasets"
-#~ msgstr "tietoaineistot"
+#~ msgid "Investment cost (USD/square foot)"
+#~ msgstr "Investointikustannus (SEK/m2)"
+
+#, fuzzy
+#~ msgid "Maintenance cost (USD/square foot/a)"
+#~ msgstr "Huoltokustannus (SEK/m2/a)"
+
+#, fuzzy
+#~ msgid "Electricity saving (kWh/square foot/a)"
+#~ msgstr "Sähkön säästö (kWh/m2/a)"
 
 #, fuzzy, python-format
 #~| msgid "identifier"
 #~ msgid "Dataset with identifier <i>%s</i>"
 #~ msgstr "tunniste"
-
-#, fuzzy, python-format
-#~ msgid "Sum up column <i>%(name)s</i>."
-#~ msgstr "Ulottuvuudet"
-
-#, fuzzy, python-format
-#~ msgid "Sum up the dimension <i>%(label)s</i>."
-#~ msgstr "Ulottuvuudet"
 
 #, fuzzy, python-format
 #~| msgid "identifier"

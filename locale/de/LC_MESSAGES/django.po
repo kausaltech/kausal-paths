@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-24 15:25+0200\n"
+"POT-Creation-Date: 2026-03-04 15:11+0100\n"
 "PO-Revision-Date: 2026-01-02 14:43+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
 "Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
@@ -97,10 +97,6 @@ msgstr "Bitte merken Sie sich diese Seite für die künftige Verwendung."
 #: admin_site/templates/wagtailadmin/login.html
 msgid "Our apologies, the server is temporarily experiencing difficulties."
 msgstr "Entschuldigung, der Server hat vorübergehend Schwierigkeiten."
-
-#: admin_site/viewsets.py
-msgid "Inspect"
-msgstr "Überprüfen"
 
 #: admin_site/viewsets.py
 msgid "View"
@@ -220,46 +216,6 @@ msgid "Is the action included in the scenario"
 msgstr "Ist die Maßnahme im Szenario enthalten"
 
 #: nodes/actions/energy_saving.py
-msgid "Number of LED bulbs changed per year (baseline)"
-msgstr "Anzahl jährlich gewechselter LED-Lampen (Basis)"
-
-#: nodes/actions/energy_saving.py
-msgid "Number of additional LED bulbs changed per year"
-msgstr "Anzahl jährlich zusätzlich gewechselter LED-Lampen"
-
-#: nodes/actions/energy_saving.py
-msgid "Yearly increase in total number of luminaires"
-msgstr "Jährliche Erhöhung der Gesamtzahl der Lampen"
-
-#: nodes/actions/energy_saving.py
-msgid "Yearly maintenance cost of traditional luminaires"
-msgstr "Jährliche Betriebskosten herkömmlicher Lampen"
-
-#: nodes/actions/energy_saving.py
-msgid "Yearly maintenance cost of LED luminaires"
-msgstr "Jährliche Betriebskosten von LED-Lampen"
-
-#: nodes/actions/energy_saving.py
-msgid "Traditional luminaire power consumption"
-msgstr "Stromverbrauch herkömmlicher Lampen"
-
-#: nodes/actions/energy_saving.py
-msgid "LED luminaire power consumption"
-msgstr "Stromverbrauch von LED-Lampen"
-
-#: nodes/actions/energy_saving.py
-msgid "Traditional luminaire yearly active time"
-msgstr "Jährliche aktive Zeit traditioneller Lampen"
-
-#: nodes/actions/energy_saving.py
-msgid "LED luminaire yearly active time"
-msgstr "Jährliche aktive Zeit von LED-Lampen"
-
-#: nodes/actions/energy_saving.py
-msgid "Investment cost of one LED retrofit"
-msgstr "Investitionskosten für eine LED-Nachrüstung"
-
-#: nodes/actions/energy_saving.py
 msgid ""
 "\n"
 "    Action that has an energy saving effect on building stock (per floor area).\n"
@@ -300,29 +256,8 @@ msgid "Electricity saving (kWh/m2/a)"
 msgstr "Stromeinsparung (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
-#, python-format
 msgid "Renovation potential (% of floor area)"
 msgstr "Renovierungspotential (% der Grundfläche)"
-
-#: nodes/actions/energy_saving.py nodes/explanations.py
-msgid "BuildingEnergySavingAction with U.S. units and natural gas instead of heat."
-msgstr "BuildingEnergySavingAction mit US-Einheiten und Erdgas anstelle von Wärme."
-
-#: nodes/actions/energy_saving.py
-msgid "Investment cost (USD/square foot)"
-msgstr "Investitionskosten (USD/Quadratfuß)"
-
-#: nodes/actions/energy_saving.py
-msgid "Maintenance cost (USD/square foot/a)"
-msgstr "Unterhaltskosten (USD/Quadratfuß/a)"
-
-#: nodes/actions/energy_saving.py
-msgid "Natural gas saving (thm/square foot/a)"
-msgstr "Erdgaseinsparung (thm/Quadratfuß/a)"
-
-#: nodes/actions/energy_saving.py
-msgid "Electricity saving (kWh/square foot/a)"
-msgstr "Stromeinsparung (kWh/Quadratfuß/a)"
 
 #: nodes/actions/energy_saving.py
 msgid ""
@@ -803,7 +738,7 @@ msgid "Logical OR: max(a, b). Warns if inputs deviate from 0 or 1 (see node expl
 msgstr ""
 
 #: nodes/explanations.py
-msgid "Prepare a GPC-styledataset for use."
+msgid "Prepare a GPC-style dataset for use."
 msgstr ""
 
 #: nodes/explanations.py
@@ -1358,8 +1293,40 @@ msgstr ""
 
 #: nodes/explanations.py
 #, python-format
+msgid "The order of operations is %s."
+msgstr "Die Reihenfolge der Operationen ist %s."
+
+#: nodes/explanations.py
+#, python-format
 msgid "Has parameter <i>%(parameter)s</i> with value %(value)s."
 msgstr "Hat Parameter <i>%(parameter)s</i> mit Wert %(value)s."
+
+#: nodes/explanations.py
+msgid "Datasets"
+msgstr "Datensätze"
+
+#: nodes/explanations.py
+#, fuzzy, python-format
+#| msgid "Uses column: %(name)s"
+msgid "Metric: %(name)s"
+msgstr "Verwendet Spalte: %(name)s"
+
+#: nodes/explanations.py
+#, python-format
+msgid "Has forecast values from: %(year)s"
+msgstr "Hat Prognosewerte von: %(year)s"
+
+#: nodes/explanations.py
+msgid "Rows with missing values are dropped."
+msgstr "Zeilen mit fehlenden Werten werden gestrichen."
+
+#: nodes/explanations.py
+msgid "Renames the following columns:"
+msgstr "Benennt die folgenden Spalten um:"
+
+#: nodes/explanations.py
+msgid "Has the following filters:"
+msgstr "Verfügt über die folgenden Filter:"
 
 #: nodes/explanations.py
 #, python-format
@@ -1378,12 +1345,27 @@ msgstr "Filtere Spalte <i>%(name)s</i> durch Einschluss von <i>%(values)s</i> ."
 
 #: nodes/explanations.py
 #, python-format
+msgid "Sum up column <i>%(name)s</i>."
+msgstr "Summiere Spalte <i>%(name)s</i> ."
+
+#: nodes/explanations.py
+#, python-format
+msgid "Drop column <i>%(name)s</i>."
+msgstr "Verwerfe Spalte <i>%(name)s</i> ."
+
+#: nodes/explanations.py
+#, python-format
 msgid "Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>."
 msgstr "Ordne Datensatz der Kategorie <i>%(cat_label)s</i> in Dimension <i>%(dim_label)s</i> zu."
 
 #: nodes/explanations.py
 msgid "Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>."
 msgstr "Filter Dimension <i>%s(dim_label)s</i> nach Kategorien <i>%(cat_labels)s</i>."
+
+#: nodes/explanations.py
+#, python-format
+msgid "Sum up the dimension <i>%(label)s</i>."
+msgstr "Summiere die Dimension <i>%(label)s</i>."
 
 #: nodes/explanations.py
 #, python-format
@@ -1416,6 +1398,10 @@ msgid "Categorize the values to <i>%(categories)s</i> in a new dimension <i>%(di
 msgstr "Kategorisiere Werte zu <i>%(categories)s</i> in einer neuen Dimension <i>%(dimension)s</i>."
 
 #: nodes/explanations.py
+msgid "Formula:"
+msgstr ""
+
+#: nodes/explanations.py
 msgid "Terms:"
 msgstr ""
 
@@ -1435,6 +1421,11 @@ msgid "These groups are left over without an operation:"
 msgstr "Diese Gruppen sind ohne eine Operation übrig geblieben:"
 
 #: nodes/explanations.py
+#, python-format
+msgid "Group %(basket)s with nodes:"
+msgstr "Gruppe %(basket)s mit Knoten:"
+
+#: nodes/explanations.py
 #, fuzzy
 #| msgid "Instance"
 msgid "Constant"
@@ -1443,13 +1434,8 @@ msgstr "Instanz"
 #: nodes/explanations.py
 #, fuzzy, python-format
 #| msgid "Uses column: %(name)s"
-msgid "Metric: %(name)s"
+msgid "Metrics: %(metrics)s"
 msgstr "Verwendet Spalte: %(name)s"
-
-#: nodes/explanations.py
-#, python-format
-msgid "Has forecast values from: %(year)s"
-msgstr "Hat Prognosewerte von: %(year)s"
 
 #: nodes/formula.py
 msgid "This is a Formula Node. It uses a specified formula to calculate the output."
@@ -2438,6 +2424,10 @@ msgstr "Größe der Bevölkerung"
 msgid "Number of the selected item"
 msgstr "Nummer der ausgewählten Position"
 
+#: params/global_params.py
+msgid "AGS Number"
+msgstr ""
+
 #: paths/authentication.py
 msgid "Invalid token."
 msgstr "Ungültiger Token"
@@ -2571,6 +2561,54 @@ msgstr "E-Mail Adresse"
 msgid "adminable instances"
 msgstr "administrierbare Instanzen"
 
+#~ msgid "Inspect"
+#~ msgstr "Überprüfen"
+
+#~ msgid "Number of LED bulbs changed per year (baseline)"
+#~ msgstr "Anzahl jährlich gewechselter LED-Lampen (Basis)"
+
+#~ msgid "Number of additional LED bulbs changed per year"
+#~ msgstr "Anzahl jährlich zusätzlich gewechselter LED-Lampen"
+
+#~ msgid "Yearly increase in total number of luminaires"
+#~ msgstr "Jährliche Erhöhung der Gesamtzahl der Lampen"
+
+#~ msgid "Yearly maintenance cost of traditional luminaires"
+#~ msgstr "Jährliche Betriebskosten herkömmlicher Lampen"
+
+#~ msgid "Yearly maintenance cost of LED luminaires"
+#~ msgstr "Jährliche Betriebskosten von LED-Lampen"
+
+#~ msgid "Traditional luminaire power consumption"
+#~ msgstr "Stromverbrauch herkömmlicher Lampen"
+
+#~ msgid "LED luminaire power consumption"
+#~ msgstr "Stromverbrauch von LED-Lampen"
+
+#~ msgid "Traditional luminaire yearly active time"
+#~ msgstr "Jährliche aktive Zeit traditioneller Lampen"
+
+#~ msgid "LED luminaire yearly active time"
+#~ msgstr "Jährliche aktive Zeit von LED-Lampen"
+
+#~ msgid "Investment cost of one LED retrofit"
+#~ msgstr "Investitionskosten für eine LED-Nachrüstung"
+
+#~ msgid "BuildingEnergySavingAction with U.S. units and natural gas instead of heat."
+#~ msgstr "BuildingEnergySavingAction mit US-Einheiten und Erdgas anstelle von Wärme."
+
+#~ msgid "Investment cost (USD/square foot)"
+#~ msgstr "Investitionskosten (USD/Quadratfuß)"
+
+#~ msgid "Maintenance cost (USD/square foot/a)"
+#~ msgstr "Unterhaltskosten (USD/Quadratfuß/a)"
+
+#~ msgid "Natural gas saving (thm/square foot/a)"
+#~ msgstr "Erdgaseinsparung (thm/Quadratfuß/a)"
+
+#~ msgid "Electricity saving (kWh/square foot/a)"
+#~ msgstr "Stromeinsparung (kWh/Quadratfuß/a)"
+
 #~ msgid "apply threshold"
 #~ msgstr "Schwellenwert anwenden"
 
@@ -2635,40 +2673,12 @@ msgstr "administrierbare Instanzen"
 #~ "        "
 
 #, python-format
-#~ msgid "The order of operations is %s."
-#~ msgstr "Die Reihenfolge der Operationen ist %s."
-
-#, python-format
 #~ msgid "Has formula %s."
 #~ msgstr "Hat Formel %s."
-
-#~ msgid "Datasets"
-#~ msgstr "Datensätze"
 
 #, python-format
 #~ msgid "Dataset with identifier <i>%s</i>"
 #~ msgstr "Datensatz mit Kennung <i>%s</i>"
-
-#~ msgid "Rows with missing values are dropped."
-#~ msgstr "Zeilen mit fehlenden Werten werden gestrichen."
-
-#~ msgid "Renames the following columns:"
-#~ msgstr "Benennt die folgenden Spalten um:"
-
-#~ msgid "Has the following filters:"
-#~ msgstr "Verfügt über die folgenden Filter:"
-
-#, python-format
-#~ msgid "Sum up column <i>%(name)s</i>."
-#~ msgstr "Summiere Spalte <i>%(name)s</i> ."
-
-#, python-format
-#~ msgid "Drop column <i>%(name)s</i>."
-#~ msgstr "Verwerfe Spalte <i>%(name)s</i> ."
-
-#, python-format
-#~ msgid "Sum up the dimension <i>%(label)s</i>."
-#~ msgstr "Summiere die Dimension <i>%(label)s</i>."
 
 #~ msgid "The inputs are processed in the following way before using for calculations in this node:"
 #~ msgstr "Die Eingaben werden auf folgende Weise verarbeitet, bevor sie für Berechnungen in diesem Knoten verwendet werden:"
@@ -2687,10 +2697,6 @@ msgstr "administrierbare Instanzen"
 #, python-format
 #~ msgid "Operation %(op)s with nodes:"
 #~ msgstr "Operation %(op)s mit Knoten:"
-
-#, python-format
-#~ msgid "Group %(basket)s with nodes:"
-#~ msgstr "Gruppe %(basket)s mit Knoten:"
 
 #~ msgid ""
 #~ "This is a Divisive Node. It divides two nodes together with potentially adding other input nodes.\n"
