@@ -1351,11 +1351,6 @@ msgid "Datasets"
 msgstr "Datensätze"
 
 #: nodes/explanations.py
-#, python-format
-msgid "Has forecast values from: %(year)s"
-msgstr "Hat Prognosewerte von: %(year)s"
-
-#: nodes/explanations.py
 msgid "Rows with missing values are dropped."
 msgstr "Zeilen mit fehlenden Werten werden gestrichen."
 
