@@ -473,7 +473,7 @@ nodes:
   - id: net_emissions
 
 - id: industry_emissions
-  name_de: Industri Emissionen
+  name_de: Industrie Emissionen
   name_en: Industry emissions
   color: '#737373'
   type: generic.GenericNode
