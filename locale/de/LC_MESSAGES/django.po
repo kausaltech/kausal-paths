@@ -1449,10 +1449,6 @@ msgid "Terms:"
 msgstr "Terme:"
 
 #: nodes/explanations.py
-msgid "Terms:"
-msgstr "Terme:"
-
-#: nodes/explanations.py
 #, python-format
 msgid "dims: %(dims)s"
 msgstr "dims: %(dims)s"
@@ -1470,18 +1466,13 @@ msgid "Group %(basket)s with nodes:"
 msgstr "Gruppe %(basket)s mit Knoten:"
 
 #: nodes/explanations.py
-msgid "Constant"
-msgstr "Konstante"
-
-#: nodes/explanations.py
 #, python-format
 msgid "Metrics: %(metrics)s"
 msgstr "Messgrößen: %(name)s"
 
 #: nodes/explanations.py
-#, python-format
-msgid "Metric: %(name)s"
-msgstr "Messgröße: %(name)s"
+msgid "Constant"
+msgstr "Konstante"
 
 #: nodes/explanations.py
 #, python-format
