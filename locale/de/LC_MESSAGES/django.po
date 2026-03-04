@@ -1476,6 +1476,11 @@ msgstr "Konstante"
 
 #: nodes/explanations.py
 #, python-format
+msgid "Metric: %(name)s"
+msgstr "Messgröße: %(name)s"
+
+#: nodes/explanations.py
+#, python-format
 msgid "Has forecast values from: %(year)s"
 msgstr "Hat Prognosewerte von: %(year)s"
 
