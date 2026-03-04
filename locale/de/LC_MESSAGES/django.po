@@ -9,11 +9,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-24 15:25+0200\n"
+"POT-Creation-Date: 2026-03-04 15:11+0100\n"
 "PO-Revision-Date: 2026-03-04 14:12+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
-"\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -416,8 +415,7 @@ msgstr "Gewicht"
 
 #: nodes/actions/simple.py
 msgid "How much to weight this value (0 = ignore in priorities)"
-msgstr ""
-"Wie stark soll dieser Wert gewichtet werden (0 = bei Prioritäten ignorieren)?"
+msgstr "Wie stark soll dieser Wert gewichtet werden (0 = bei Prioritäten ignorieren)?"
 
 #: nodes/actions/simple.py nodes/explanations.py
 msgid "Simple action that produces an additive change to a value."
@@ -605,9 +603,7 @@ msgstr "Eingabeknotenwerte hinzufügen (auch wenn die Einheiten nicht mit den Kn
 
 #: nodes/explanations.py
 msgid "Logical AND: min(a, b). Warns if inputs deviate from 0 or 1 (see node explanation)."
-msgstr ""
-"Logisches UND: min(a, b). Warnt, wenn Eingaben von 0 oder 1 abweichen (siehe "
-"Knoten-Erklärung)."
+msgstr "Logisches UND: min(a, b). Warnt, wenn Eingaben von 0 oder 1 abweichen (siehe Knoten-Erklärung)."
 
 #: nodes/explanations.py
 msgid "Take the arithmetic inverse of the values (-x)."
@@ -627,9 +623,7 @@ msgstr "Nimm das kumulative Produkt der dimensionslosen Komplementwerte über di
 
 #: nodes/explanations.py
 msgid "Get and concatenate datasets vertically, only then prepare the output."
-msgstr ""
-"Rufe Datensätze ab und hänge sie vertikal aneinander, bereite erst dann die "
-"Ausgabe vor."
+msgstr "Rufe Datensätze ab und hänge sie vertikal aneinander, bereite erst dann die Ausgabe vor."
 
 #: nodes/explanations.py
 msgid "Take the cumulative sum over time."
@@ -657,9 +651,7 @@ msgstr "Erweitere die Werte auf alle verbleibenden fehlenden Jahre."
 
 #: nodes/explanations.py
 msgid "Extend the values beyond the first and last values, but do not interpolate."
-msgstr ""
-"Erweitere die Werte über den ersten und letzten Wert hinaus, aber "
-"interpoliere nicht."
+msgstr "Erweitere die Werte über den ersten und letzten Wert hinaus, aber interpoliere nicht."
 
 #: nodes/explanations.py
 msgid "Extend the last forecast values to the remaining missing years."
@@ -687,9 +679,7 @@ msgstr "Der Knoten wird als Ziel für die Maßnahme verwendet."
 
 #: nodes/explanations.py
 msgid "Compute gap = actual - goal from the single input node's output and goals."
-msgstr ""
-"Berechne Lücke = Ist-Wert – Zielwert aus der Ausgabe und den Zielen des "
-"einzelnen Eingabeknotens."
+msgstr "Berechne Lücke = Ist-Wert – Zielwert aus der Ausgabe und den Zielen des einzelnen Eingabeknotens."
 
 #: nodes/explanations.py
 msgid "The node is used as the historical starting point."
@@ -725,15 +715,11 @@ msgstr "Positive Ergebniswerte werden durch 0 ersetzt."
 
 #: nodes/explanations.py
 msgid "Element-wise maximum of two values; max(a, b). For 0/1 inputs this is logical OR."
-msgstr ""
-"Elementweise Maximum von zwei Werten; max(a, b). Bei 0/1-Eingaben entspricht "
-"dies einem logischen ODER."
+msgstr "Elementweise Maximum von zwei Werten; max(a, b). Bei 0/1-Eingaben entspricht dies einem logischen ODER."
 
 #: nodes/explanations.py
 msgid "Element-wise minimum of two values; min(a, b). For 0/1 inputs this is logical AND."
-msgstr ""
-"Elementweises Minimum aus zwei Werten; min(a, b). Bei 0/1-Eingaben "
-"entspricht dies einem logischen UND."
+msgstr "Elementweises Minimum aus zwei Werten; min(a, b). Bei 0/1-Eingaben entspricht dies einem logischen UND."
 
 #: nodes/explanations.py
 msgid "Input node values are not added but operated despite matching units."
@@ -741,15 +727,11 @@ msgstr "Die Werte der Eingangsknoten werden nicht addiert, sondern trotz überei
 
 #: nodes/explanations.py
 msgid "Extend the observed data only based on the observed data points."
-msgstr ""
-"Erweitere die beobachteten Daten nur auf der Grundlage der beobachteten "
-"Datenpunkte."
+msgstr "Erweitere die beobachteten Daten nur auf der Grundlage der beobachteten Datenpunkte."
 
 #: nodes/explanations.py
 msgid "Logical OR: max(a, b). Warns if inputs deviate from 0 or 1 (see node explanation)."
-msgstr ""
-"Logisches ODER: max(a, b). Warnt, wenn Eingaben von 0 oder 1 abweichen "
-"(siehe Knoten-Erklärung)."
+msgstr "Logisches ODER: max(a, b). Warnt, wenn Eingaben von 0 oder 1 abweichen (siehe Knoten-Erklärung)."
 
 #: nodes/explanations.py
 msgid "Prepare a GPC-style dataset for use."
@@ -781,8 +763,7 @@ msgstr "Daten nur verwenden, wenn kein Primärwert vorhanden ist."
 
 #: nodes/explanations.py
 msgid "If condition is True, select the first option, otherwise the second."
-msgstr ""
-"Wenn die Bedingung wahr ist, wähle die erste Option, andernfalls die zweite."
+msgstr "Wenn die Bedingung wahr ist, wähle die erste Option, andernfalls die zweite."
 
 #: nodes/explanations.py
 msgid "Truncate values before the reference year. There may be some from data"
@@ -902,16 +883,12 @@ msgid ""
 "        "
 msgstr ""
 "\n"
-"        Berechnet die Zuordnung der Emissionen aus Kraft-Wärme-Kopplung "
-"(KWK) gemäß dem GPC-Protokoll „\n"
-"        <a href=\"https://ghgprotocol.org/sites/default/files/"
-"CHP_guidance_v1.0.pdf\">\n"
+"        Berechnet die Zuordnung der Emissionen aus Kraft-Wärme-Kopplung (KWK) gemäß dem GPC-Protokoll „\n"
+"        <a href=\"https://ghgprotocol.org/sites/default/files/CHP_guidance_v1.0.pdf\">\n"
 "        “ (</a>\n"
 "        ).\n"
-"Es gibt mehrere Methoden, aber bei jeder Methode wird der durchschnittliche "
-"Emissionsfaktor des verwendeten Brennstoffmixes\n"
-"mithilfe der Bruchteile a_heat und a_electricity, die zusammen 1 ergeben, in "
-"zwei Teile aufgeteilt. Sie werden wie folgt berechnet:\n"
+"Es gibt mehrere Methoden, aber bei jeder Methode wird der durchschnittliche Emissionsfaktor des verwendeten Brennstoffmixes\n"
+"mithilfe der Bruchteile a_heat und a_electricity, die zusammen 1 ergeben, in zwei Teile aufgeteilt. Sie werden wie folgt berechnet:\n"
 "        <br/>\n"
 "        a<sub>\n"
 "        i</sub>\n"
@@ -935,15 +912,13 @@ msgstr ""
 "        ein methodenspezifischer Multiplikator ist (siehe unten)\n"
 "        f<sub>\n"
 "        i</sub>\n"
-"        der Bruchteil des Produkts i an der insgesamt erzeugten Energie "
-"ist.\n"
+"        der Bruchteil des Produkts i an der insgesamt erzeugten Energie ist.\n"
 "\n"
 "        <ol>\n"
 "        <li>\n"
 "        <b>\n"
 "        Energiemethode</b>\n"
-"        Logik: Energieprodukte werden auf der Grundlage ihres Energiegehalts "
-"gleich behandelt.\n"
+"        Logik: Energieprodukte werden auf der Grundlage ihres Energiegehalts gleich behandelt.\n"
 "        Alle z<sub>\n"
 "        i</sub>\n"
 "        = 1\n"
@@ -953,8 +928,7 @@ msgstr ""
 "        <b>\n"
 "        Arbeitspotenzialmethode</b>\n"
 "        (auch bekannt als Carnot-Methode oder Exergie-Methode)\n"
-"        Logik: Energieprodukte werden auf der Grundlage ihres "
-"Arbeitspotenzials (d. h. ihres Exergiegehalts) gleich behandelt.\n"
+"        Logik: Energieprodukte werden auf der Grundlage ihres Arbeitspotenzials (d. h. ihres Exergiegehalts) gleich behandelt.\n"
 "        Dadurch werden Emissionen in Richtung Elektrizität verlagert.\n"
 "        z<sub>\n"
 "        heat</sub>\n"
@@ -985,8 +959,7 @@ msgstr ""
 "        <li>\n"
 "        <b>\n"
 "        Effizienzmethode</b>\n"
-"        Logik: Welche Emissionen wären entstanden, wenn jedes Energieprodukt "
-"separat hergestellt worden wäre?\n"
+"        Logik: Welche Emissionen wären entstanden, wenn jedes Energieprodukt separat hergestellt worden wäre?\n"
 "z<sub>\n"
 "        i</sub>\n"
 "        = 1 / n<sub>\n"
@@ -994,8 +967,7 @@ msgstr ""
 "        ,\n"
 "wobei n<sub>\n"
 "        i</sub>\n"
-"        die Referenzeffizienz für die separate Erzeugung der Energieart "
-"ist.\n"
+"        die Referenzeffizienz für die separate Erzeugung der Energieart ist.\n"
 "        Typische Werte sind z<sub>\n"
 "        heat</sub>\n"
 "        = 0,9, z<sub>\n"
@@ -1029,8 +1001,7 @@ msgid ""
 "        "
 msgstr ""
 "\n"
-"        Constant Knoten gibt einen konstanten Wert zurück, der über die "
-"Zeitachse verteilt ist.\n"
+"        Constant Knoten gibt einen konstanten Wert zurück, der über die Zeitachse verteilt ist.\n"
 "        "
 
 #: nodes/explanations.py
@@ -1266,20 +1237,14 @@ msgid ""
 "        "
 msgstr ""
 "\n"
-"        LogitNode gibt die Wahrscheinlichkeit eines Ereignisses unter "
-"Berücksichtigung einer Basislinie und mehrerer Determinanten an.\n"
+"        LogitNode gibt die Wahrscheinlichkeit eines Ereignisses unter Berücksichtigung einer Basislinie und mehrerer Determinanten an.\n"
 "\n"
-"Die Basislinie wird als Datensatz mit beobachteten Werten angegeben. Die "
-"Determinanten stehen in linearem\n"
+"Die Basislinie wird als Datensatz mit beobachteten Werten angegeben. Die Determinanten stehen in linearem\n"
 "        Zusammenhang mit dem Logit der Wahrscheinlichkeit:\n"
-"        ln(y / (1 - y)) = a + sum<sub>i</sub>(b<sub>i</sub> * X<sub>i</sub>,)"
-"\n"
-"        wobei y die Wahrscheinlichkeit, a die Basislinie, X<sub>i</sub> die "
-"Determinanten und b<sub>i</sub> die Koeffizienten sind.\n"
-"        Der Knoten erwartet, dass a aus dem Datensatz stammt und sum<SUB>i</"
-"SUB>(b<SUB>i</SUB> * X<SUB>i</SUB>,) durch die Eingabeknoten\n"
-"        bei der Ausführung mit GenericNode compute() gegeben ist. Die "
-"Wahrscheinlichkeit wird berechnet als\n"
+"        ln(y / (1 - y)) = a + sum<sub>i</sub>(b<sub>i</sub> * X<sub>i</sub>,)\n"
+"        wobei y die Wahrscheinlichkeit, a die Basislinie, X<sub>i</sub> die Determinanten und b<sub>i</sub> die Koeffizienten sind.\n"
+"        Der Knoten erwartet, dass a aus dem Datensatz stammt und sum<SUB>i</SUB>(b<SUB>i</SUB> * X<SUB>i</SUB>,) durch die Eingabeknoten\n"
+"        bei der Ausführung mit GenericNode compute() gegeben ist. Die Wahrscheinlichkeit wird berechnet als\n"
 "        ln(y / (1 - y)) = b <=> y = 1 / (1 + exp(-b)).\n"
 "        "
 
@@ -1311,10 +1276,8 @@ msgid ""
 "        "
 msgstr ""
 "\n"
-"        Wertmaßnahmen liefern über einen bestimmten Zeitraum einen "
-"konstanten Wert (z. B. Gewicht für einen moralischen Wert).\n"
-"Passen Sie den Gewichtsparameter an, um zu ändern, wie stark dieser Wert zu "
-"den Prioritäten beiträgt.\n"
+"        Wertmaßnahmen liefern über einen bestimmten Zeitraum einen konstanten Wert (z. B. Gewicht für einen moralischen Wert).\n"
+"Passen Sie den Gewichtsparameter an, um zu ändern, wie stark dieser Wert zu den Prioritäten beiträgt.\n"
 "        "
 
 #: nodes/explanations.py nodes/generic.py
@@ -1349,6 +1312,16 @@ msgstr "Hat Parameter <i>%(parameter)s</i> mit Wert %(value)s."
 #: nodes/explanations.py
 msgid "Datasets"
 msgstr "Datensätze"
+
+#: nodes/explanations.py
+#, python-format
+msgid "Metric: %(name)s"
+msgstr "Messgröße: %(name)s"
+
+#: nodes/explanations.py
+#, python-format
+msgid "Has forecast values from: %(year)s"
+msgstr "Hat Prognosewerte von: %(year)s"
 
 #: nodes/explanations.py
 msgid "Rows with missing values are dropped."
@@ -1453,13 +1426,9 @@ msgid "These groups are left over without an operation:"
 msgstr "Diese Gruppen sind ohne eine Operation übrig geblieben:"
 
 #: nodes/explanations.py
+#, python-format
 msgid "Group %(basket)s with nodes:"
 msgstr "Gruppe %(basket)s mit Knoten:"
-
-#: nodes/explanations.py
-#, python-format
-msgid "Metrics: %(metrics)s"
-msgstr "Messgrößen: %(name)s"
 
 #: nodes/explanations.py
 msgid "Constant"
@@ -1467,13 +1436,8 @@ msgstr "Konstante"
 
 #: nodes/explanations.py
 #, python-format
-msgid "Metric: %(name)s"
-msgstr "Messgröße: %(name)s"
-
-#: nodes/explanations.py
-#, python-format
-msgid "Has forecast values from: %(year)s"
-msgstr "Hat Prognosewerte von: %(year)s"
+msgid "Metrics: %(metrics)s"
+msgstr "Messgrößen: %(name)s"
 
 #: nodes/formula.py
 msgid "This is a Formula Node. It uses a specified formula to calculate the output."
@@ -1482,15 +1446,11 @@ msgstr "Dies ist ein Formula Node. Er verwendet eine bestimmte Formel, um die Au
 #: nodes/formula.py
 #, python-format
 msgid "Logical %(func)s() received values outside {0, 1}; interpreted as fuzzy logic."
-msgstr ""
-"Logisches %(func)s() hat Werte außerhalb von {0, 1} erhalten; interpretiert "
-"als Fuzzy-Logik."
+msgstr "Logisches %(func)s() hat Werte außerhalb von {0, 1} erhalten; interpretiert als Fuzzy-Logik."
 
 #: nodes/formula.py
 msgid "Input nodes that are not used in the formula are used for addition in the end. Error:"
-msgstr ""
-"Eingabeknoten, die nicht in der Formel verwendet werden, werden am Ende für "
-"die Addition verwendet. Fehler:"
+msgstr "Eingabeknoten, die nicht in der Formel verwendet werden, werden am Ende für die Addition verwendet. Fehler:"
 
 #: nodes/generic.py
 msgid "Multiply input nodes whose unit does not match the output. Add the rest."
