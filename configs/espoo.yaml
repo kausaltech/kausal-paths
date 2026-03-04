@@ -66,17 +66,24 @@ impact_overviews:
   label_fi: Kokonaispäästöt seurantajaksolla
   label_en: Net emissions during the timeline
 
-# - graph_type: simple_effect
-#   effect_node: total_cost
-#   indicator_unit: MEUR
-#   label_fi: Kokonaiskustannukset seurantajaksolla
-#   label_en: Total costs during the timeline
+- graph_type: simple_effect
+  effect_node: total_cost
+  indicator_unit: MEUR
+  label_fi: Kokonaiskustannukset seurantajaksolla
+  label_en: Total costs during the timeline
 
-# - graph_type: simple_effect
-#   effect_node: disease_burden_attributed_to_exposure
-#   indicator_unit: DALY
-#   label_fi: Tautitaakka seurantajaksolla
-#   label_en: Disease burden during the timeline
+- graph_type: simple_effect
+  effect_node: disease_burden_attributed_to_exposure
+  indicator_unit: DALY
+  label_fi: Tautitaakka seurantajaksolla
+  label_en: Disease burden during the timeline
+
+- graph_type: cost_efficiency
+  cost_node: total_cost
+  effect_node: net_emissions
+  indicator_unit: EUR/t
+  label_fi: Kustannustehokkuus seurantajaksolla
+  label_en: Cost efficiency during the timeline
 
 action_groups:
 - id: transportation
