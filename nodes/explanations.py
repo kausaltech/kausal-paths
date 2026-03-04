@@ -104,7 +104,7 @@ TAG_DESCRIPTIONS = {
     'non_additive': _('Input node values are not added but operated despite matching units.'),
     'observed_only_extend_all': _('Extend the observed data only based on the observed data points.'),
     'or': _('Logical OR: max(a, b). Warns if inputs deviate from 0 or 1 (see node explanation).'),
-    'prepare_gpc_dataset': _('Prepare a GPC-styledataset for use.'),
+    'prepare_gpc_dataset': _('Prepare a GPC-style dataset for use.'),
     'primary': _('Use data as primary values even if a secondary value exists.'),
     'ratio_to_last_historical_value': _('Take the ratio of the values compared with the last historical value.'),
     'removing': _('This is the rate of stock removal.'),
