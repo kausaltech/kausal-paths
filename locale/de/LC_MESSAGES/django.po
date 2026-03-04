@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-04 15:11+0100\n"
+"POT-Creation-Date: 2026-02-24 15:25+0200\n"
 "PO-Revision-Date: 2026-03-04 14:12+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
 "Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
@@ -1349,10 +1349,6 @@ msgstr "Hat Parameter <i>%(parameter)s</i> mit Wert %(value)s."
 #: nodes/explanations.py
 msgid "Datasets"
 msgstr "Datensätze"
-
-#: nodes/explanations.py
-msgid "Metric: %(name)s"
-msgstr "Messgröße: %(name)s"
 
 #: nodes/explanations.py
 #, python-format
