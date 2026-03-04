@@ -1442,7 +1442,11 @@ msgstr "Kategorisiere Werte zu <i>%(categories)s</i> in einer neuen Dimension <i
 
 #: nodes/explanations.py
 msgid "Formula:"
-msgstr ""
+msgstr "Formel:"
+
+#: nodes/explanations.py
+msgid "Terms:"
+msgstr "Terme:"
 
 #: nodes/explanations.py
 msgid "Terms:"
@@ -1470,8 +1474,19 @@ msgid "Constant"
 msgstr "Konstante"
 
 #: nodes/explanations.py
+#, python-format
 msgid "Metrics: %(metrics)s"
 msgstr "Messgrößen: %(name)s"
+
+#: nodes/explanations.py
+#, python-format
+msgid "Metric: %(name)s"
+msgstr "Messgröße: %(name)s"
+
+#: nodes/explanations.py
+#, python-format
+msgid "Has forecast values from: %(year)s"
+msgstr "Hat Prognosewerte von: %(year)s"
 
 #: nodes/formula.py
 msgid "This is a Formula Node. It uses a specified formula to calculate the output."
