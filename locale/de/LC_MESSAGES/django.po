@@ -10,9 +10,10 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-03-04 15:11+0100\n"
-"PO-Revision-Date: 2026-03-04 14:12+0000\n"
+"PO-Revision-Date: 2026-03-04 16:38+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
+"\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -735,7 +736,7 @@ msgstr "Logisches ODER: max(a, b). Warnt, wenn Eingaben von 0 oder 1 abweichen (
 
 #: nodes/explanations.py
 msgid "Prepare a GPC-style dataset for use."
-msgstr ""
+msgstr "Erstelle einen Datensatz im GPC-Format zur Verwendung."
 
 #: nodes/explanations.py
 msgid "Use data as primary values even if a secondary value exists."
@@ -2426,7 +2427,7 @@ msgstr "Nummer der ausgewählten Position"
 
 #: params/global_params.py
 msgid "AGS Number"
-msgstr ""
+msgstr "AGS-Nummer"
 
 #: paths/authentication.py
 msgid "Invalid token."
