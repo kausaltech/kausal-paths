@@ -1,7 +1,11 @@
+from typing import TYPE_CHECKING
+
 import pytest
-from nodes.context import Context
 
 from nodes.tests.factories import NodeFactory
+
+if TYPE_CHECKING:
+    from nodes.context import Context
 
 pytestmark = pytest.mark.django_db
 

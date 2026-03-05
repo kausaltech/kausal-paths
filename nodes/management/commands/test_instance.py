@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand
 
 import loguru
 from recursive_diff import recursive_diff
@@ -19,6 +19,8 @@ from nodes.exceptions import NodeError
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
+    from django.core.management.base import CommandParser
+
     from nodes.actions.action import ImpactOverview
     from nodes.context import Context
 

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Generator, Sequence
+from typing import TYPE_CHECKING
 
 from django.utils import autoreload
 
 import watchfiles
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Sequence
 
 
 class DjangoPythonFilter(watchfiles.PythonFilter):

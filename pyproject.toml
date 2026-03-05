@@ -221,6 +221,7 @@ deprecateTypingAliases = true
 enableTypeIgnoreComments = true
 reportAny = false
 reportAttributeAccessIssue = "error"
+reportConstantRedefinition = false
 reportExplicitAny = false
 reportIgnoreCommentWithoutRule = false
 reportImplicitOverride = false

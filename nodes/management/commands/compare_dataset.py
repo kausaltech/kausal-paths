@@ -12,7 +12,7 @@ from rich.table import Table
 from kausal_common.datasets.models import Dataset as DBDatasetModel
 
 from common import polars as ppl
-from nodes.dataset_diff import RowDiff, compute_row_diff, compute_schema_diff
+from nodes.dataset_diff import compute_row_diff, compute_schema_diff
 from nodes.datasets import DBDataset, FixedDataset
 from nodes.models import InstanceConfig
 
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     import polars as pl
 
     from nodes.context import Context
+    from nodes.dataset_diff import RowDiff
 
 console = Console()
 

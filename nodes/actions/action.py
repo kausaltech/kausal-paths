@@ -4,14 +4,15 @@ import typing
 
 # from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, ClassVar, cast
+from typing import ClassVar, cast
 
 import pandas as pd
 import pint
 import polars as pl
 
+from kausal_common.i18n.pydantic import gettext_lazy as _
+
 from common import polars as ppl
-from common.i18n import TranslatedString, gettext_lazy as _
 from nodes.constants import (
     FORECAST_COLUMN,
     IMPACT_COLUMN,
@@ -25,13 +26,16 @@ from nodes.constants import (
     DecisionLevel,
 )
 from nodes.node import Node, NodeError
-from nodes.units import Quantity, Unit, unit_registry
+from nodes.units import Quantity, unit_registry
 from params import BoolParameter, NumberParameter
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Sequence
+    from collections.abc import Callable, Iterable, Iterator, Sequence
+
+    from kausal_common.i18n.pydantic import TranslatedString
 
     from nodes.context import Context
+    from nodes.units import Unit
     from params.param import Parameter
 
     from .parent import ParentActionNode

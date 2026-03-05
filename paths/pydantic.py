@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, TypeVar
 
 from pydantic import AfterValidator, Field
-
 from pydantic_core import PydanticCustomError
 
 if TYPE_CHECKING:

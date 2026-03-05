@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from common.i18n import gettext_lazy as _
+from kausal_common.i18n.pydantic import gettext_lazy as _
 
 from .param import BoolParameter, NumberParameter, StringParameter
 

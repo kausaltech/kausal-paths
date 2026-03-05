@@ -11,6 +11,7 @@ import graphene
 import strawberry as sb
 from graphql.error import GraphQLError
 from pydantic import BaseModel
+from wagtail.blocks.stream_block import StreamValue
 from wagtail.rich_text import expand_db_html
 
 import polars as pl
@@ -20,7 +21,7 @@ from grapple.types.streamfield import StreamFieldInterface
 from loguru import logger
 from markdown_it import MarkdownIt
 
-from kausal_common.graphene.utils import create_from_dataclass
+from kausal_common.strawberry.grapple import grapple_field
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths import gql
@@ -32,9 +33,10 @@ from nodes.context import Context
 from nodes.node import Node
 from nodes.normalization import Normalization
 from nodes.scenario import Scenario, ScenarioKind as ScenarioKindEnum
+from pages.models import ActionListPage
 
 from . import visualizations as viz
-from .actions.action import ActionNode
+from .actions.action import ActionGroup, ActionNode
 from .actions.parent import ParentActionNode
 from .constants import FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN, DecisionLevel
 from .instance import Instance, InstanceFeatures
@@ -58,7 +60,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
     from graphql import GraphQLResolveInfo
-    from wagtail.blocks.stream_block import StreamValue
 
     from kausal_common.graphene import GQLInfo
 
@@ -66,11 +67,9 @@ if TYPE_CHECKING:
 
     from common import polars as ppl
     from nodes.goals import GoalActualValue, NodeGoalsEntry
-    from pages.models import ActionListPage
     from params.param import Parameter
 
-    from .actions.action import ActionGroup, ImpactOverview
-    from .node import Node
+    from .actions.action import ImpactOverview
     from .scenario import Scenario
     from .units import Unit
 
@@ -84,15 +83,12 @@ class InstanceHostname(BaseModel):
     base_path: str
 
 
-class InstanceHostnameType(graphene.ObjectType):
-    hostname = graphene.String()
-    base_path = graphene.String()
-
-    class Meta:
-        name = 'InstanceHostname'
+@sb.experimental.pydantic.type(model=InstanceHostname, all_fields=True, name='InstanceHostname')
+class InstanceHostnameType:
+    pass
 
 
-class ActionGroupType(graphene.ObjectType):
+class ActionGroupType(graphene.ObjectType[ActionGroup]):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
     color = graphene.String(required=False)
@@ -104,10 +100,17 @@ class ActionGroupType(graphene.ObjectType):
         return [act for act in context.get_actions() if act.group == root]
 
 
-InstanceFeaturesType = create_from_dataclass(InstanceFeatures)
+@sb.experimental.pydantic.type(
+    model=InstanceFeatures,
+    all_fields=True,
+    name='InstanceFeaturesType',
+    description=InstanceFeatures.__doc__.strip() if InstanceFeatures.__doc__ else None,
+)
+class InstanceFeaturesType:
+    pass
 
 
-class InstanceYearlyGoalType(graphene.ObjectType):
+class InstanceYearlyGoalType(graphene.ObjectType[Any]):
     year = graphene.Int(required=True)
     goal = graphene.Float(required=False)
     actual = graphene.Float(required=False)
@@ -128,11 +131,11 @@ class InstanceGoalDimension(graphene.ObjectType[InstanceGoalDimensionProtocol]):
     category = graphene.String(required=True, deprecation_reason='replaced with categories')
 
     @staticmethod
-    def resolve_category(root: InstanceGoalDimensionProtocol, info):  # noqa: ANN205
+    def resolve_category(root: InstanceGoalDimensionProtocol):  # noqa: ANN205
         return root.categories[0]
 
 
-class InstanceGoalEntry(graphene.ObjectType):
+class InstanceGoalEntry(graphene.ObjectType[Any]):
     id = graphene.ID(required=True)
     label = graphene.String(required=False)
     disabled = graphene.Boolean(required=True)
@@ -153,54 +156,45 @@ class InstanceGoalEntry(graphene.ObjectType):
         return df.get_unit(self.outcome_node.get_default_output_metric().column_id)
 
 
-def get_action_list_page_node():
-    from grapple.registry import registry
 
-    from pages.models import ActionListPage
+@sb.type
+class InstanceType:
+    id: sb.ID
+    name: str
+    owner: str | None
+    default_language: str
+    supported_languages: list[str]
+    base_path: str
+    target_year: int | None
+    model_end_year: int
+    reference_year: int | None
+    minimum_historical_year: int
+    maximum_historical_year: int | None
+    theme_identifier: str | None
+    action_groups: list[ActionGroupType]
+    features: InstanceFeaturesType
 
-    return registry.pages[ActionListPage]
-
-
-class InstanceType(graphene.ObjectType):
-    id = graphene.ID(required=True)
-    name = graphene.String(required=True)
-    owner = graphene.String()
-    default_language = graphene.String(required=True)
-    supported_languages = graphene.List(graphene.NonNull(graphene.String), required=True)
-    base_path = graphene.String(required=True)
-    target_year = graphene.Int()
-    model_end_year = graphene.Int(required=True)
-    reference_year = graphene.Int()
-    minimum_historical_year = graphene.Int(required=True)
-    maximum_historical_year = graphene.Int()
-
-    hostname = graphene.Field(InstanceHostnameType, hostname=graphene.String(required=True))
-    lead_title = graphene.String()
-    lead_paragraph = graphene.String()
-    theme_identifier = graphene.String()
-    action_groups = graphene.List(graphene.NonNull(ActionGroupType), required=True)
-    features = graphene.Field(InstanceFeaturesType, required=True)
-    goals = graphene.List(graphene.NonNull(InstanceGoalEntry), id=graphene.ID(required=False), required=True)
-    action_list_page = graphene.Field(get_action_list_page_node, required=False)
-    intro_content = graphene.List(graphene.NonNull(StreamFieldInterface))
-
+    @sb.field(graphql_type=InstanceHostnameType | None)
     @staticmethod
-    def resolve_lead_title(root: Instance, _info) -> str:
-        return root.config.lead_title_i18n
-
-    @staticmethod
-    def resolve_lead_paragraph(root: Instance, _info) -> str | None:
-        return root.config.lead_paragraph_i18n
-
-    @staticmethod
-    def resolve_hostname(root: Instance, _info: GQLInstanceInfo, hostname: str) -> InstanceHostname | None:
+    def hostname(root: Instance, hostname: str) -> InstanceHostname | None:
         hn = root.config.hostnames.filter(hostname__iexact=hostname).first()
         if not hn:
             return None
         return InstanceHostname(hostname=hn.hostname, base_path=hn.base_path)
 
+    @sb.field
     @staticmethod
-    def resolve_goals(root: Instance, _info: GQLInstanceInfo, id: str | None = None) -> list[InstanceGoalEntry]:
+    def lead_title(root: Instance) -> str:
+        return root.config.lead_title_i18n or ''
+
+    @sb.field
+    @staticmethod
+    def lead_paragraph(root: Instance) -> str | None:
+        return root.config.lead_paragraph_i18n
+
+    @sb.field
+    @staticmethod
+    def goals(root: Instance, id: sb.ID | None = None) -> list[InstanceGoalEntry]:
         ret = []
         for goal in root.get_goals():
             node = goal.get_node()
@@ -231,14 +225,15 @@ class InstanceType(graphene.ObjectType):
             ret.append(out)
         return ret
 
+    @grapple_field
     @staticmethod
-    def resolve_intro_content(root: Instance, _info) -> StreamValue:
-        intro_content = root.config.site_content.intro_content
-        return intro_content
-
-    @staticmethod
-    def resolve_action_list_page(root: Instance, info: GQLInstanceInfo) -> ActionListPage | None:
+    def action_list_page(root: Instance) -> ActionListPage | None:
         return root.config.action_list_page
+
+    @sb.field(graphql_type=list[StreamFieldInterface] | None)
+    @staticmethod
+    def intro_content(root: Instance) -> StreamValue:
+        return root.config.site_content.intro_content
 
 
 class YearlyValueProtocol(Protocol):
@@ -251,7 +246,7 @@ class YearlyValue(graphene.ObjectType[YearlyValueProtocol]):
     value = graphene.Float(required=True)
 
 
-class ForecastMetricType(graphene.ObjectType):
+class ForecastMetricType(graphene.ObjectType[Metric]):
     id = graphene.ID()
     name = graphene.String()
     output_node = graphene.Field(lambda: NodeType, description='Will be set if the node outputs multiple time-series')
@@ -474,7 +469,7 @@ class ScenarioActionImpacts:
     impacts: list[ActionImpactType]
 
 
-class NodeInterface(graphene.Interface):
+class NodeInterface(graphene.Interface[Node]):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
     short_name = graphene.String(required=False)
@@ -845,7 +840,7 @@ class NodeInterface(graphene.Interface):
         return viz.root
 
 
-class NodeType(graphene.ObjectType):
+class NodeType(graphene.ObjectType[Node]):
     class Meta:
         name = 'Node'
         interfaces = (NodeInterface,)
@@ -875,7 +870,7 @@ class NodeType(graphene.ObjectType):
         return root.get_upstream_nodes(filter_func=filter_action)
 
 
-class ActionNodeType(graphene.ObjectType):
+class ActionNodeType(graphene.ObjectType[ActionNode]):
     class Meta:
         interfaces = (NodeInterface,)
         name = 'ActionNode'
@@ -928,7 +923,7 @@ class ActionNodeType(graphene.ObjectType):
         return nc.indicator_node.get_node(visible_for_user=info.context.user)
 
 
-class ScenarioType(graphene.ObjectType):
+class ScenarioType(graphene.ObjectType['Scenario']):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
     kind = ScenarioKind(required=False)
@@ -947,7 +942,7 @@ class ScenarioType(graphene.ObjectType):
         return root.default
 
 
-class ActionImpact(graphene.ObjectType):
+class ActionImpact(graphene.ObjectType[Any]):
     action = graphene.Field(ActionNodeType, required=True)
     cost_values = graphene.List(YearlyValue, required=False, deprecation_reason="Use costDim instead.")
     impact_values = graphene.List(YearlyValue, required=False, deprecation_reason="Use effectDim instead.")
@@ -956,7 +951,7 @@ class ActionImpact(graphene.ObjectType):
     unit_adjustment_multiplier = graphene.Float()
 
 
-class ImpactOverviewType(graphene.ObjectType):
+class ImpactOverviewType(graphene.ObjectType['ImpactOverview']):
     id = graphene.ID(required=True)
     graph_type = graphene.String()
     cost_node = graphene.Field(NodeType, required=False)
@@ -994,7 +989,7 @@ class ImpactOverviewType(graphene.ObjectType):
     @staticmethod
     def resolve_actions(root: ImpactOverview, info: GQLInstanceInfo) -> list[dict[str, Any]]:
         all_aes = root.calculate(info.context.instance.context)
-        out: list[dict] = []
+        out: list[dict[str, Any]] = []
         for ae in all_aes:
             if ae.unit_adjustment_multiplier is not None:
                 ed = 1 / ae.unit_adjustment_multiplier
@@ -1025,7 +1020,7 @@ class ImpactOverviewType(graphene.ObjectType):
         return root.effect_unit or root.indicator_unit
 
 
-class InstanceBasicConfiguration(graphene.ObjectType):
+class InstanceBasicConfiguration(graphene.ObjectType[Instance]):
     identifier = graphene.String(required=True)
     is_protected = graphene.Boolean(required=True)
     requires_authentication = graphene.Boolean(required=True)
@@ -1058,7 +1053,7 @@ class InstanceBasicConfiguration(graphene.ObjectType):
         return InstanceHostname(hostname=hn_obj.hostname, base_path=hn_obj.base_path)
 
 
-class NormalizationType(graphene.ObjectType):
+class NormalizationType(graphene.ObjectType[Normalization]):
     id = graphene.ID(required=True)
     label = graphene.String(required=True)
     normalizer = graphene.Field(NodeType, required=True)
@@ -1081,7 +1076,7 @@ class NormalizationType(graphene.ObjectType):
         return root.normalizer_node.id
 
 
-class Query(graphene.ObjectType):
+class Query(graphene.ObjectType[Any]):
     instance = graphene.Field(InstanceType, required=True)
     nodes = graphene.List(graphene.NonNull(NodeInterface), required=True)
     node = graphene.Field(

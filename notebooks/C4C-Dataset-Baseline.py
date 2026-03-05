@@ -1,9 +1,10 @@
 import itertools
-import pandas as pd
-import polars as pl
 import sys
 
+import pandas as pd
+import polars as pl
 from dotenv import load_dotenv
+
 load_dotenv()
 
 incsvpath = sys.argv[1]
@@ -50,6 +51,7 @@ unitreplace = [['tCO2e', 't'],
 
 # ---------------------------------------------------------------------------------------
 from pint import UnitRegistry
+
 ureg = UnitRegistry()
 ureg.define('EUR = [currency]')
 
@@ -280,7 +282,6 @@ if outcsvpath.upper() not in ['N', 'NONE']:
     dfmain.write_csv(outcsvpath)
 
 if outdvcpath.upper() not in ['N', 'NONE']:
-    from dvc_pandas import Dataset, Repository
 
     indexcols = list(dims)
     indexcols.extend(['Quantity', 'Year'])

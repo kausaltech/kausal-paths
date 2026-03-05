@@ -4,12 +4,11 @@ from abc import ABC, abstractmethod
 from dataclasses import InitVar, dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from common.i18n import I18nString, gettext_lazy as _
+from kausal_common.i18n.pydantic import gettext_lazy as _
 
 from .constants import TIME_INTERVAL
 from .formula import (
     FormulaSpec,
-    UnitOverride,
     analyze_formula_dimensions,
     analyze_formula_units,
     build_name_dimension_map,
@@ -18,10 +17,17 @@ from .formula import (
     make_identifier,
     normalize_formula_identifiers,
 )
-from .units import Unit, unit_registry
+from .units import unit_registry
 
 if TYPE_CHECKING:
+    from kausal_common.i18n.pydantic import I18nString
+
     from nodes.context import Context
+
+    from .formula import (
+        UnitOverride,
+    )
+    from .units import Unit
 
 TAG_TO_BASKET = {
     'additive': 'add',

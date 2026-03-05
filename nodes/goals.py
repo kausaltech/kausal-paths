@@ -7,8 +7,9 @@ from pydantic import BaseModel, Field, PrivateAttr, RootModel, model_validator
 
 import polars as pl
 
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
+
 from common import polars as ppl
-from common.i18n import I18nBaseModel, I18nStringInstance
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 

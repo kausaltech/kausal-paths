@@ -12,11 +12,9 @@ from pydantic_core import core_schema
 import pint
 import platformdirs
 from loguru import logger
-from pint import UnitRegistry, facets
+from pint import facets
 from pint.babel_names import _babel_units
 from pint.delegates.formatter._compound_unit_helpers import (
-    BabelKwds,
-    SortFunc,
     prepare_compount_unit,
 )
 from pint.delegates.formatter._format_helpers import formatter
@@ -30,6 +28,12 @@ if TYPE_CHECKING:
     from django_stubs_ext import StrPromise
     from pydantic import GetCoreSchemaHandler
     from pydantic_core import CoreSchema
+
+    from pint import UnitRegistry
+    from pint.delegates.formatter._compound_unit_helpers import (
+        BabelKwds,
+        SortFunc,
+    )
 
 
 #Unit = PlainUnit

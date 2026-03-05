@@ -27,11 +27,11 @@ from treebeard.mp_tree import MP_Node, MP_NodeManager, MP_NodeQuerySet
 
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.ordered import OrderedModel
-from kausal_common.models.permission_policy import ModelPermissionPolicy, ModelReadOnlyPolicy, ParentInheritedPolicy
+from kausal_common.models.permission_policy import ModelReadOnlyPolicy, ParentInheritedPolicy
 from kausal_common.models.tree import get_indented_name
-from kausal_common.models.types import FK, M2M, QS, ModelManager, OneToOne, RevManyQS, copy_signature
+from kausal_common.models.types import ModelManager, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
-from kausal_common.users import UserOrAnon, user_or_none
+from kausal_common.users import user_or_none
 
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import IdentifierField, UnitField
@@ -41,7 +41,9 @@ if TYPE_CHECKING:
 
     from rich.repr import RichReprResult
 
-    from kausal_common.models.types import RevMany
+    from kausal_common.models.permission_policy import ModelPermissionPolicy
+    from kausal_common.models.types import FK, M2M, QS, OneToOne, RevMany, RevManyQS
+    from kausal_common.users import UserOrAnon
 
     from frameworks.permissions import MeasureTemplatePermissionPolicy
     from nodes.gpc import DatasetNode

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.utils.translation import gettext_lazy as _
 
@@ -15,7 +15,10 @@ from nodes.exceptions import NodeError
 from nodes.generic import GenericNode
 from nodes.gpc import DatasetNode
 from nodes.units import unit_registry
-from params import BoolParameter, NumberParameter, Parameter, StringParameter
+from params import BoolParameter, NumberParameter, StringParameter
+
+if TYPE_CHECKING:
+    from params import Parameter
 
 
 class DatasetAction(ActionNode, DatasetNode):

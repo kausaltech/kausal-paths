@@ -13,7 +13,8 @@ from nodes.units import Quantity, Unit
 if TYPE_CHECKING:
     import pandas as pd
 
-    from common.i18n import I18nString
+    from kausal_common.i18n.pydantic import I18nString
+
     from nodes.context import Context
     from nodes.dimensions import Dimension
     from nodes.node import Node, NodeMetric

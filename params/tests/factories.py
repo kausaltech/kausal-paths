@@ -1,6 +1,7 @@
 from factory import Factory, Sequence, SubFactory
 
-from common.i18n import TranslatedString
+from kausal_common.i18n.pydantic import TranslatedString
+
 from nodes.context import unit_registry
 from nodes.tests.factories import ContextFactory
 from params.param import BoolParameter, NumberParameter, Parameter, StringParameter

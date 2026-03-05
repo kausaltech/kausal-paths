@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 from rest_framework import exceptions
 
 from kausal_common.api.bulk import BulkModelViewSet
-from kausal_common.api.utils import RegisteredAPIView, register_view
+from kausal_common.api.utils import register_view
 from kausal_common.model_images import ModelWithImageViewMixin
 from kausal_common.people.api import PersonSerializer as BasePersonSerializer
 from kausal_common.users import user_or_none
@@ -13,10 +13,14 @@ from kausal_common.users import user_or_none
 from paths import permissions
 
 from nodes.models import InstanceConfig
-from people.models import Person, PersonQuerySet
+from people.models import Person
 
 if TYPE_CHECKING:
     from rest_framework.permissions import BasePermission
+
+    from kausal_common.api.utils import RegisteredAPIView
+
+    from people.models import PersonQuerySet
 
 all_views: list[RegisteredAPIView] = []
 

@@ -7,7 +7,7 @@ import graphene
 import strawberry as sb
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import CharField, Q
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -42,6 +42,8 @@ from .models import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from django.db.models import CharField
 
     from paths.types import PathsGQLInfo as GQLInfo
 

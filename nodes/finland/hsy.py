@@ -9,25 +9,26 @@ from typing import ClassVar, ParamSpec, TypedDict, TypeVar
 import pandas as pd
 import polars as pl
 
+from kausal_common.i18n.pydantic import TranslatedString
+
 from common import polars as ppl
-from common.i18n import TranslatedString
 from nodes.calc import extend_last_historical_value
 from nodes.constants import (
     EMISSION_QUANTITY,
     ENERGY_QUANTITY,
     FORECAST_COLUMN,
-    PER_CAPITA_QUANTITY,
     VALUE_COLUMN,
     YEAR_COLUMN,
 )
 from nodes.dimensions import Dimension
 from nodes.exceptions import NodeError
 from nodes.node import Node, NodeMetric
-from nodes.simple import AdditiveNode, MultiplicativeNode
-from params import NumberParameter, Parameter, StringParameter
+from params import StringParameter
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
+
+    from params import Parameter
 
 BELOW_ZERO_WARNED = False
 

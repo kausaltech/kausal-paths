@@ -5,12 +5,13 @@ from typing import TYPE_CHECKING
 import polars as pl
 import sentry_sdk
 
+from kausal_common.i18n.pydantic import gettext as _
+
 from paths.const import MODEL_CALC_OP
 
 from common import polars as ppl
-from common.i18n import gettext as _
 
-from .actions.action import ActionImpact, ActionNode, ImpactOverview
+from .actions.action import ActionNode
 from .actions.shift import ShiftAction
 from .constants import (
     FORECAST_COLUMN,
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
     from nodes.scenario import Scenario
     from nodes.visualizations import VisualizationNodeOutput
 
+    from .actions.action import ActionImpact, ImpactOverview
     from .goals import NodeGoalsEntry
     from .node import Node, NodeMetric
 

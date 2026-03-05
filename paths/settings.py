@@ -6,8 +6,7 @@ import sys
 import warnings
 from importlib.util import find_spec
 from pathlib import Path
-from threading import ExceptHookArgs
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
@@ -21,6 +20,11 @@ from kausal_common.deployment.http import get_allowed_cors_headers
 from kausal_common.sentry.init import init_sentry
 
 from .const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER
+
+if TYPE_CHECKING:
+    from threading import ExceptHookArgs
+
+    from kausal_common.logging.init import LogFormat
 
 PROJECT_NAME = 'paths'
 
@@ -87,14 +91,14 @@ GEOS_LIBRARY_PATH=env('GEOS_LIBRARY_PATH') or None
 
 # Read all files in the directories given in MOUNTED_SECRET_PATHS whose names look like environment variables and use
 # the contents of the files for the corresponding variables
-for directory in env('MOUNTED_SECRET_PATHS'):
+for directory in env.list('MOUNTED_SECRET_PATHS'):
     set_secret_file_vars(env, directory)
 
 DEBUG = env('DEBUG')
 DEPLOYMENT_TYPE = env('DEPLOYMENT_TYPE')
-SENTRY_DSN = env('SENTRY_DSN')
+SENTRY_DSN = env.str('SENTRY_DSN')
 ADMIN_BASE_URL = env('ADMIN_BASE_URL')
-ALLOWED_HOSTS = env('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
 INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))  # type: ignore
 DATABASES = {
     'default': env.db_url(engine='kausal_common.database'),
@@ -155,6 +159,7 @@ INSTALLED_APPS = [
     'modelcluster',
     'grapple',
     'graphene_django',
+    'strawberry_django',
     'people.apps.PeopleConfig',
     'orgs.apps.OrganizationsConfig',
     'social_django',
@@ -546,7 +551,7 @@ local_settings = Path(BASE_DIR) / Path('local_settings.py')
 if local_settings.exists():
     import types
 
-    module_name = '%s.local_settings' % ROOT_URLCONF.split('.')[0]
+    module_name = '%s.local_settings' % ROOT_URLCONF.split('.', maxsplit=1)[0]
     module = types.ModuleType(module_name)
     module.__file__ = str(local_settings)
     sys.modules[module_name] = module
@@ -600,19 +605,19 @@ if DEBUG:
     replace_reloader()
 
 
-LOG_GRAPHQL_QUERIES = DEBUG and env('LOG_GRAPHQL_QUERIES')
-LOG_SQL_QUERIES = DEBUG and env('LOG_SQL_QUERIES')
-ENABLE_DEBUG_TOOLBAR = DEBUG and env('ENABLE_DEBUG_TOOLBAR')
-ENABLE_PERF_TRACING: bool = env('ENABLE_PERF_TRACING')
+LOG_GRAPHQL_QUERIES = DEBUG and env.bool('LOG_GRAPHQL_QUERIES')
+LOG_SQL_QUERIES = DEBUG and env.bool('LOG_SQL_QUERIES')
+ENABLE_DEBUG_TOOLBAR = DEBUG and env.bool('ENABLE_DEBUG_TOOLBAR')
+ENABLE_PERF_TRACING: bool = env.bool('ENABLE_PERF_TRACING')
 
 if ENABLE_DEBUG_TOOLBAR:
-    INSTALLED_APPS += ['debug_toolbar']
+    INSTALLED_APPS.append('debug_toolbar')
     MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 
 if env('CONFIGURE_LOGGING'):
-    from kausal_common.logging.init import LogFormat, UserLoggingOptions, init_logging_django
+    from kausal_common.logging.init import UserLoggingOptions, init_logging_django
 
-    is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False)  # type: ignore
+    is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False)
     log_format: LogFormat | None
     if not is_kube and DEBUG:
         # If logfmt hasn't been explicitly selected and DEBUG is on, fall back to autodetection.

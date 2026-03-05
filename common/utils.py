@@ -1,5 +1,9 @@
+from typing import TYPE_CHECKING
+
 import orjson
-import pint
+
+if TYPE_CHECKING:
+    import pint
 
 
 def hash_unit(unit: pint.Unit) -> bytes:

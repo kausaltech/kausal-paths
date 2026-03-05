@@ -1,10 +1,17 @@
-from params.param import NumberParameter
+from typing import TYPE_CHECKING
+
 import pandas as pd
-from nodes.context import Context
-from . import ActionNode as BaseActionNode
+
+from kausal_common.i18n.pydantic import TranslatedString
+
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from params import StringParameter
-from common.i18n import TranslatedString
+from params.param import NumberParameter
+
+from . import ActionNode as BaseActionNode
+
+if TYPE_CHECKING:
+    from nodes.context import Context
 
 
 class ActionNode(BaseActionNode):

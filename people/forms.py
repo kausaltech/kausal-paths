@@ -10,9 +10,9 @@ from django_stubs_ext import StrOrPromise
 
 from dal import autocomplete
 
-from kausal_common.models.roles import InstanceSpecificRole, role_registry
+from kausal_common.models.roles import role_registry
 
-from paths.const import INSTANCE_SUPER_ADMIN_ROLE, NONE_ROLE, PathsRoleIdentifier
+from paths.const import INSTANCE_SUPER_ADMIN_ROLE, NONE_ROLE
 from paths.context import realm_context
 
 from admin_site.forms import PathsAdminModelForm
@@ -25,6 +25,10 @@ from .widgets import RoleSelectionWidget
 if typing.TYPE_CHECKING:
     from django.utils.functional import _StrPromise
     from django_stubs_ext import StrOrPromise
+
+    from kausal_common.models.roles import InstanceSpecificRole
+
+    from paths.const import PathsRoleIdentifier
 
 
 class AvatarWidget(AdminFileWidget):

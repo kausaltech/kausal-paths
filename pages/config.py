@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from common.i18n import I18nBaseModel, I18nStringInstance
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 
 
 class Page(I18nBaseModel):

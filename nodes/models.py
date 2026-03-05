@@ -44,6 +44,7 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 from kausal_common.i18n.helpers import convert_language_code
+from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
     ParentInheritedPolicy,
@@ -65,7 +66,6 @@ from paths.utils import (
     get_supported_languages,
 )
 
-from common.i18n import get_modeltrans_attrs_from_str
 from orgs.models import Organization
 from pages.blocks import CardListBlock
 
@@ -575,7 +575,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         language = convert_language_code(language, 'wagtail')
         try:
             locale = Locale.objects.get(language_code=language)
-            root = root.get_translation(locale)  # type: ignore
+            root = root.get_translation(locale)
         except (Locale.DoesNotExist, Page.DoesNotExist):
             pass
         return root

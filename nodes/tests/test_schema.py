@@ -1,11 +1,17 @@
-import pytest
+from typing import TYPE_CHECKING
+
 from django.utils.translation import get_language
-from nodes.actions.simple import AdditiveAction
-from nodes.context import Context
-from nodes.scenario import Scenario
-from nodes.tests.factories import ActionNodeFactory, NodeConfigFactory, NodeFactory
+
+import pytest
+
 from nodes.metric import Metric
+from nodes.tests.factories import ActionNodeFactory, NodeConfigFactory, NodeFactory
 from nodes.units import unit_registry
+
+if TYPE_CHECKING:
+    from nodes.actions.simple import AdditiveAction
+    from nodes.context import Context
+    from nodes.scenario import Scenario
 
 pytestmark = pytest.mark.django_db
 
