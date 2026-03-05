@@ -1658,6 +1658,8 @@ nodes:
     from_dimensions:
     - id: heating_type
       categories: [district_heating]
+    - id: stakeholder
+      categories: [utilities]
     to_dimensions:
     - id: stakeholder
     - id: heating_type

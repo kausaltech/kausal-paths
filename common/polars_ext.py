@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import numpy as np
 import polars as pl
 from loguru import logger
-from polars import type_aliases as pl_types
 
 import common.polars as ppl
 from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pandas as pd
+    from polars import type_aliases as pl_types
 
     from nodes.context import Context
     from nodes.dimensions import Dimension
@@ -77,6 +79,7 @@ class PathsExt:
             'truncate_before_start': self._truncate_before_start,
             'truncate_beyond_end': self._truncate_beyond_end,
             'use_observations': self._observed_only_extend_all, # TODO Preferred over observed_only_extend_all?
+            'year': self._year_to_value,
         }
 
     def to_pandas(self, meta: ppl.DataFrameMeta | None = None) -> pd.DataFrame:
@@ -1212,3 +1215,13 @@ class PathsExt:
     def _truncate_beyond_end(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         end_year = context.instance.model_end_year
         return df.filter(pl.col(YEAR_COLUMN).le(end_year))
+
+    def _year_to_value(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
+        """Replace VALUE_COLUMN with YEAR_COLUMN content (cast to float), unit dimensionless."""
+        if YEAR_COLUMN not in df.columns:
+            raise ValueError(
+                f"year(df) requires '{YEAR_COLUMN}' in the DataFrame. Columns: {list(df.columns)}."
+            )
+        df = df.with_columns(pl.col(YEAR_COLUMN).cast(pl.Float64).alias(VALUE_COLUMN))
+        return df.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
+

@@ -851,7 +851,7 @@ dimensions:
   - id: transport
     label_en: Transport
     label_de: Verkehr
-    aliases: [verkehr]
+    aliases: [verkehr, Mobilität]
     color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
   - id: buildings
     label_en: Buildings & Heating
@@ -869,7 +869,7 @@ dimensions:
   - id: commerce_trade_services
     label_en: Commerce, Trade & Services
     label_de: Gewerbe, Handel, Dienstleistungen
-    aliases: [gewerbe_handel_dienstleistungen, gewerbe_sonstiges]
+    aliases: [gewerbe_handel_dienstleistungen, gewerbe_sonstiges, GHD]
     color: '#fe8035'
   - id: industry
     label_en: Industry
@@ -897,6 +897,21 @@ dimensions:
     label_en: Heating
     label_de: Wärme
     aliases: [warme]
+  - id: waste_and_wastewater
+    label_en: Waste & Wastewater
+    label_de: Abfall & (Ab)wasser
+  - id: consumption
+    label_en: Consumption
+    label_de: Konsum
+  - id: food_and_land_use
+    label_en: Food & Land Use
+    label_de: Ernährung & Landnutzung
+  - id: cross_cutting
+    label_en: Cross-cutting
+    label_de: Übergreifend
+  - id: ghg_neutral_administration
+    label_en: GHG-neutral Administration
+    label_de: THG-neutrale Verwaltung
 
 - id: stakeholder
   label_en: Stakeholder
@@ -991,42 +1006,82 @@ dimensions:
     label_de: Personenverkehr
 
 - id: vehicle_type
-  label_en: Vehicle Type
+  label_en: Vehicle type
   label_de: Fahrzeugtyp
   categories:
   - id: passenger_cars
-    label_en: Passenger Cars
+    label_en: Passenger cars
     label_de: Personenkraftwagen (PKW)
-    aliases: [car]
+    aliases: [Pkw, VL_Pkw, PKW]
+  - id: walking
+    label_en: Walking
+    label_de: Fußgänger
+    aliases: [Fuss, VL_Fuss]
   - id: trucks
     label_en: Trucks
     label_de: Lastkraftwagen (LKW)
-    aliases: [truck]
-  - id: light_commercial
-    label_en: Light Commercial Vehicles
+    aliases: [Lkw, VL_Lkw, LKW]
+  - id: vans
+    label_en: Light commercial vehicles
     label_de: Leichte Nutzfahrzeuge
+    aliases: [LNF, VL_LNF]
   - id: heavy_commercial
-    label_en: Heavy Commercial Vehicles
+    label_en: Heavy commercial vehicles
     label_de: Schwere Nutzfahrzeuge
   - id: buses
     label_en: Buses
     label_de: Busse
-    aliases: [bus]
+    aliases: [Bus]
+  - id: coach_buses
+    label_en: Coach buses
+    label_de: Reise-/Fernbusse
+    aliases: [Reisebus, long_distance_buses]
+  - id: local_buses
+    label_en: Local buses
+    label_de: LinienBus
+    aliases: [Lbus, VL_Lbus]
   - id: motorcycles
     label_en: Motorcycles
     label_de: Motorisierte Zweiräder
-    aliases: [motorcycle]
+    aliases: [MZR, VL_MRZ]
   - id: bicycles
     label_en: Bicycles
     label_de: Fahrräder
-    aliases: [bike]
+    aliases: [VL_Rad, Rad]
   - id: trains
     label_en: Trains
     label_de: Züge
-    aliases: [train]
   - id: rail_vehicles
-    label_en: Rail Vehicles
+    label_en: Tram and metro
     label_de: Schienenfahrzeuge
+    aliases: [SSU, 'Stadt- , Straßen- und U-Bahn', VL_SSU]
+  - id: tram
+    label_en: Tram
+    label_de: Straßenbahn
+    aliases: [Tram]
+  - id: local_trains
+    label_en: Local trains
+    label_de: Schienenpersonennahverkehr
+    aliases: [SPNV, VL_SPNV, Schienennahverkehr]
+  - id: long_distance_trains
+    label_en: Long-distance trains
+    label_de: Schienenpersonenfernverkehr
+    aliases: [SPFV]
+  - id: cargo_trains
+    label_en: Cargo trains
+    label_de: Schienengüterverkehr
+    aliases: [SGV, Schiengüterverker, Schienengüterverkehr]
+  - id: inland_waterway_shipping
+    label_en: Inland waterway shipping
+    label_de: Binnenschifffart
+    aliases: [BiSchi]
+  - id: air_transport
+    label_en: Air transport (LTO)
+    label_de: Flugverkehr
+    aliases: [LTO, Flug, Flugzeuge]
+  - id: undefined
+    label_en: Undefined
+    label_de: Unzugeordnet
 
 - id: weather_correction
   label_en: Weather correction
