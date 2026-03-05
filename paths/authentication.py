@@ -1,12 +1,14 @@
 import importlib.util
+from typing import TYPE_CHECKING
 
-from django.http import HttpRequest
-from rest_framework.authentication import TokenAuthentication
-from rest_framework import exceptions
 from django.utils.translation import gettext_lazy as _
-
+from rest_framework import exceptions
+from rest_framework.authentication import TokenAuthentication
 
 from nodes.models import InstanceConfig
+
+if TYPE_CHECKING:
+    from django.http import HttpRequest
 
 
 class InstanceTokenAuthentication(TokenAuthentication):

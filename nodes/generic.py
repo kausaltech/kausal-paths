@@ -12,7 +12,7 @@ from common import polars as ppl
 from common.polars import PathsDataFrame
 from nodes.actions import ActionNode
 from nodes.calc import extend_last_historical_value_pl
-from nodes.node import Node, NodeMetric
+from nodes.node import NodeMetric
 from nodes.units import Quantity, Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
 
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any
 
+    from nodes.node import Node
     from params import Parameter
 
 

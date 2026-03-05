@@ -22,9 +22,9 @@ from kausal_common.datasets.models import (
     DimensionCategory,
     DimensionScope,
 )
+from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
-from common.i18n import TranslatedString
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.datasets import JSONDataset
 from nodes.models import InstanceConfig

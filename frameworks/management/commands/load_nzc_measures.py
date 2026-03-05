@@ -1,7 +1,13 @@
 import json
-from django.core.management.base import BaseCommand, CommandParser
-from frameworks.models import Framework, Section, MeasureTemplate, MeasurePriority
+from typing import TYPE_CHECKING
+
+from django.core.management.base import BaseCommand
+
+from frameworks.models import Framework, MeasurePriority, MeasureTemplate, Section
 from nodes.units import unit_registry
+
+if TYPE_CHECKING:
+    from django.core.management.base import CommandParser
 
 
 UNIT_CONVERSION_MAP = {

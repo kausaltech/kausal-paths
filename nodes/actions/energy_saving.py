@@ -5,13 +5,13 @@ import typing
 
 import numba as nb
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 import pint_pandas
 import polars as pl
 from numba import njit, types as nbt
 
-from common.i18n import gettext_lazy as _
+from kausal_common.i18n.pydantic import gettext_lazy as _
+
 from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
@@ -19,12 +19,15 @@ from nodes.constants import (
     YEAR_COLUMN,
 )
 from nodes.node import NodeMetric
-from params import NumberParameter, Parameter, StringParameter
+from params import NumberParameter, StringParameter
 
 from .action import ActionNode
 
 if typing.TYPE_CHECKING:
+    import numpy.typing as npt
+
     from common import polars as ppl
+    from params import Parameter
 
 
 class BuildingEnergyParams(typing.NamedTuple):

@@ -9,8 +9,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
-from django.utils.translation import gettext_lazy as _
-
 import numpy as np
 import orjson
 import polars as pl

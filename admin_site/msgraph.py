@@ -1,8 +1,7 @@
-import typing
 import logging
+import typing
 
 import requests
-
 
 if typing.TYPE_CHECKING:
     from users.models import User

@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import polars as pl
 
+from kausal_common.i18n.pydantic import TranslatedString
+
 from common import polars as ppl
-from common.i18n import TranslatedString
 from nodes.constants import DEFAULT_METRIC, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.node import NodeMetric
-from params.param import BoolParameter, NumberParameter, Parameter, StringParameter
+from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .simple import AdditiveAction
+
+if TYPE_CHECKING:
+    from params.param import Parameter
 
 
 class PriorityNode(AdditiveAction):

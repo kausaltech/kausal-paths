@@ -27,7 +27,6 @@ within the string.
 # lifted from https://raw.githubusercontent.com/jbittel/base32-crockford/master/base32_crockford.py
 
 import re
-from binascii import crc32
 
 __all__ = ["encode", "decode", "normalize"]
 

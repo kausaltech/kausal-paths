@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, override
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import ObjectDoesNotExist
 from rest_framework import exceptions, serializers
-from rest_framework.routers import DefaultRouter, SimpleRouter
+from rest_framework.routers import DefaultRouter
 
 from rest_framework_nested.routers import NestedSimpleRouter
 
@@ -36,6 +36,7 @@ from kausal_common.datasets.models import (
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
+    from rest_framework.routers import SimpleRouter
     from rest_framework.views import APIView
 
 

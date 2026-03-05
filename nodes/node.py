@@ -4,7 +4,7 @@ import math
 import typing
 
 # import warnings
-from contextlib import AbstractContextManager, nullcontext
+from contextlib import nullcontext
 from typing import Any, ClassVar, Literal, Self, overload
 
 from django.utils.translation import gettext_lazy as _
@@ -17,11 +17,12 @@ from polars.datatypes.group import INTEGER_DTYPES, NUMERIC_DTYPES
 from rich import print as pprint
 from sentry_sdk.consts import SPANSTATUS
 
+from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
+
 from paths.const import NODE_CALC_OP
 
 from common import polars as ppl
-from common.i18n import I18nString, I18nStringInstance, TranslatedString, get_modeltrans_attrs_from_str
-from common.types import Identifier, MixedCaseIdentifier, validate_identifier
+from common.types import validate_identifier
 from common.utils import hash_unit
 from nodes.constants import (
     DEFAULT_METRIC,
@@ -36,24 +37,29 @@ from nodes.constants import (
 from nodes.goals import NodeGoals
 from params.param import ParameterWithUnit
 
-from .datasets import Dataset, JSONDataset
+from .datasets import JSONDataset
 from .edges import Edge
 from .exceptions import NodeComputationError, NodeError, NodeMissingDefaultUnitError
 from .units import Quantity, Unit
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from contextlib import AbstractContextManager
 
     import loguru
     from sentry_sdk.tracing import Span
 
+    from kausal_common.i18n.pydantic import I18nString, I18nStringInstance, TranslatedString
+
     from common.cache import CacheResult
+    from common.types import Identifier, MixedCaseIdentifier
     from nodes.gpc import DatasetNode
     from nodes.instance_loader import ConfigLocation
     from nodes.visualizations import NodeVisualizations, VisualizationNodeDimension
     from params import Parameter
 
     from .context import Context
+    from .datasets import Dataset
     from .dimensions import Dimension
     from .models import NodeConfig
     from .node_cache import NodeHasher

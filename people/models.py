@@ -19,7 +19,7 @@ from kausal_common.datasets.models import DatasetSchema
 
 # from wagtail.images.rect import Rect
 from kausal_common.models.permissions import PermissionedModel
-from kausal_common.models.types import FK, M2M, MLModelManager, ModelManager
+from kausal_common.models.types import MLModelManager, ModelManager
 from kausal_common.people.models import BasePerson, create_permission_membership_models
 
 from paths.types import PathsModel, PathsQuerySet
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from django.http import HttpRequest
 
     from kausal_common.models.permission_policy import ModelPermissionPolicy
+    from kausal_common.models.types import FK, M2M
 
     from nodes.models import InstanceConfig
     from people.permissions import PersonGroupPermissionPolicy

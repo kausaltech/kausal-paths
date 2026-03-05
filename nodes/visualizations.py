@@ -5,9 +5,11 @@ from enum import Enum
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, Self
 
 import strawberry as sb
-from pydantic import BaseModel, Discriminator, Field, RootModel, ValidationInfo, field_validator, model_validator
+from pydantic import BaseModel, Discriminator, Field, RootModel, field_validator, model_validator
 
 import polars as pl
+
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 
 from paths.pydantic import (
     DimensionCategoryIdentifier,
@@ -21,11 +23,11 @@ from paths.pydantic import (
     require_node_context,
 )
 
-from common.i18n import I18nBaseModel, I18nStringInstance
 from nodes.constants import VALUE_COLUMN
-from nodes.gpc import DatasetNode
 
 if TYPE_CHECKING:
+    from pydantic import ValidationInfo
+
     from common.polars import PathsDataFrame
     from nodes.context import Context
     from nodes.metric import DimensionalMetric

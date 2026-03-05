@@ -7,11 +7,11 @@ from uuid import UUID, uuid4
 from django.contrib.auth.models import AbstractUser as DjangoAbstractUser, UserManager as DjangoUserManager
 from django.db import models
 
-from social_django.models import UserSocialAuth
-
 if TYPE_CHECKING:
     from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
     from django.db.models.manager import RelatedManager  # type: ignore  # noqa
+
+    from social_django.models import UserSocialAuth
 
 
 def uuid_to_username(uuid: UUID | str):

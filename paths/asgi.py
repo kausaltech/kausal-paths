@@ -20,6 +20,8 @@ from kausal_common.asgi.middleware import HTTPMiddleware, WebSocketMiddleware
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from django.urls import URLPattern, URLResolver
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 
 django_asgi_app = get_asgi_application()
@@ -27,7 +29,7 @@ django_asgi_app = get_asgi_application()
 class AuthGraphQLProtocolTypeRouter(ProtocolTypeRouter):
     def __init__(self):
         from django.conf import settings
-        from django.urls import URLPattern, URLResolver, re_path
+        from django.urls import re_path
 
         from channels.routing import URLRouter
 

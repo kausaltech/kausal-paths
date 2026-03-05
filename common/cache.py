@@ -4,17 +4,17 @@ import pickle
 import warnings
 from abc import ABC, abstractmethod
 from collections import OrderedDict
+from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import cached_property, wraps
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Callable, Concatenate, Literal, Self, cast
+from typing import TYPE_CHECKING, Any, Concatenate, Literal, Self, cast
 
 import loguru
 import polars as pl
 import redis
-from redis import client as redis_client
 
 from kausal_common.debugging.perf import PerfCounter
 from kausal_common.perf.perf_context import PerfStats
@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from types import TracebackType
 
     from pandas import DataFrame as PandasDataFrame
+    from redis import client as redis_client
 
     from nodes.units import CachingUnitRegistry as UnitRegistry
 

@@ -13,9 +13,8 @@ from wagtail.admin.forms.pages import WagtailAdminPageForm
 from wagtail.admin.panels import (
     FieldPanel,
     MultiFieldPanel,
-    Panel,
 )
-from wagtail.fields import RichTextField, StreamField
+from wagtail.fields import RichTextField, StreamField, StreamValue
 from wagtail.models import Page, Site
 from wagtail.query import PageQuerySet
 
@@ -35,6 +34,11 @@ if TYPE_CHECKING:
     from django.db.models.expressions import Combinable
     from django.db.models.fields import AutoField
     from modelcluster.fields import PK
+    from wagtail.admin.panels import (
+        Panel,
+    )
+
+    from paths.context import InstanceSpecificCache
 
 
 class PathsAdminPageForm(WagtailAdminPageForm):
@@ -153,6 +157,64 @@ class PathsPage(Page):
             page = page.get_parent()
         return key
 
+    def get_visible_parent(self, cache: InstanceSpecificCache) -> PathsPage | None:
+        depth = int(len(self.path) / self.steplen)
+        if cache.translated_root_page is None:
+            return None
+        if depth <= cache.translated_root_page.depth:
+            return None
+
+        parent_path = self._get_basepath(self.path, depth=depth - 1)
+        for page in cache.visible_pages:
+            if page.path == parent_path:
+                return page
+        return None
+
+    def get_visible_descendants(self, cache: InstanceSpecificCache, in_menu: bool = False, max_depth: int | None = None):
+        descendants: list[PathsPage] = []
+        for page in cache.visible_pages:
+            if page.depth <= self.depth:
+                continue
+            if not page.path.startswith(self.path):
+                continue
+            if in_menu and not page.show_in_menus:
+                continue
+            if max_depth is not None and page.depth > self.depth + max_depth:
+                continue
+            descendants.append(page)
+        return descendants
+
+    def get_visible_children(self, cache: InstanceSpecificCache, in_menu: bool = False):
+        return self.get_visible_descendants(cache, in_menu, max_depth=1)
+
+    def get_visible_ancestors(self, cache: InstanceSpecificCache):
+        ancestors: list[PathsPage] = []
+        for page in cache.visible_pages:
+            if page.depth >= self.depth:
+                continue
+            if not self.path.startswith(page.path):
+                continue
+            ancestors.append(page)
+        return ancestors
+
+    @cached_property
+    def instance_config(self):
+        root: PathsPage | None = None
+        if self.depth == 2:
+            root = cast('PathsPage', self)
+        else:
+            root = cast('PathsPage | None', self.get_ancestors(inclusive=False).filter(depth=2).specific().first())
+            assert root is not None
+        site = root.sites_rooted_here.first()
+        assert site is not None
+        return getattr(site, 'instance')  # noqa: B009
+
+    def __rich_repr__(self):
+        yield self.title
+        yield 'id', self.pk
+        yield 'instance', self.instance_config.identifier
+        yield 'path', self.path
+
 
 class InstanceRootPage(PathsPage):
     body = StreamField([
@@ -170,7 +232,7 @@ class InstanceRootPage(PathsPage):
 
 
 class StaticPage(PathsPage):
-    body = StreamField([
+    body = StreamField[StreamValue | None]([
         ('paragraph', blocks.RichTextBlock(label=_('Paragraph'))),
         ('outcome', OutcomeBlock()),
     ], blank=True, null=True)
@@ -208,7 +270,7 @@ class OutcomePage(PathsPage):
     ]
 
     graphql_fields = PathsPage.graphql_fields + [
-        GraphQLField('outcome_node', 'nodes.schema.NodeType', required=True),  #type: ignore
+        GraphQLField('outcome_node', 'nodes.schema.NodeType', required=True),
         GraphQLString('lead_title'),
         GraphQLString('lead_paragraph'),
     ]

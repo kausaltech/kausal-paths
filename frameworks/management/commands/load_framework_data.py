@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from frameworks.models import Framework, MeasurePriority, MeasureTemplate, MeasureTemplateDefaultDataPoint, Section
 from nodes.units import unit_registry
+
+if TYPE_CHECKING:
+    from django.core.management.base import CommandParser
 
 
 class Command(BaseCommand):

@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_valid
 import polars as pl
 import xxhash
 
-from common.i18n import I18nBaseModel, I18nStringInstance, TranslatedString
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance, TranslatedString
+
 from common.types import Identifier  # noqa: TC001
 
 if typing.TYPE_CHECKING:

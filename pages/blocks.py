@@ -16,7 +16,7 @@ from wagtail_color_panel.blocks import NativeColorBlock
 
 from nodes.blocks import NodeChooserBlock
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP, VALUE_COLUMN, YEAR_COLUMN
-from nodes.metric import DimensionalMetric, MetricYearlyGoal
+from nodes.metric import DimensionalMetric
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from paths.types import GQLInstanceInfo
 
     from nodes.actions.action import ActionNode
+    from nodes.metric import MetricYearlyGoal
     from nodes.node import Node
     from nodes.scenario import Scenario
     from nodes.schema import (

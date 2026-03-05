@@ -3,15 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from modeltrans.translator import get_i18n_field
-from wagtail.admin.panels import FieldPanel, Panel
+from wagtail.admin.panels import FieldPanel
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
     from django.db.models import Model
     from modeltrans.fields import TranslatedVirtualField
-    from wagtail.admin.panels.field_panel import WidgetOverrideType
-    from wagtail.admin.panels.group import PanelGroupInitArgs
+    from wagtail.admin.panels import Panel
 
     from nodes.models import InstanceConfig
 

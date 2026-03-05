@@ -6,7 +6,8 @@ from typing import Any
 from factory import Factory, RelatedFactory, SelfAttribute, Sequence, SubFactory, post_generation
 from factory.django import DjangoModelFactory
 
-from common.i18n import TranslatedString
+from kausal_common.i18n.pydantic import TranslatedString
+
 from nodes.actions import ActionNode
 from nodes.actions.simple import AdditiveAction
 from nodes.context import Context, unit_registry

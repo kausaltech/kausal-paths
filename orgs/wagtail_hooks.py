@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from django import forms
 from django.contrib.admin.utils import quote
 from django.core.exceptions import ValidationError
-from django.urls import URLPattern, path, reverse
+from django.urls import path, reverse
 from django.utils.translation import gettext_lazy as _, pgettext_lazy
 from wagtail.admin.panels import FieldPanel, InlinePanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
@@ -38,6 +38,7 @@ from .views import CreateChildNodeView
 
 if TYPE_CHECKING:
     from django.db.models import Model
+    from django.urls import URLPattern
 
     from nodes.models import InstanceConfig
 
