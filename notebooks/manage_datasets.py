@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import re
 import sys
 from dataclasses import dataclass, field
@@ -68,38 +69,24 @@ class ColumnSpec:
 
     def is_data_column(self) -> bool:
         """Check if this column contains data values (wide format)."""
-        return bool(self.quantity)
-
-
-@dataclass
-class DatasetSchema:
-    """Generic schema for peculiar datasets with implicit structure."""
-
-    row_identifier_name: str
-    identifier_mappings: dict[str, dict[str, Any]]  # identifier -> additional attributes
-    dimension_names: list[str]  # All dimension names used in this dataset
-    column_specs: dict[int, ColumnSpec]  # column_number -> what it contains
-    skip_rows: int = 1  # Skip explanation/header rows
-    identifier_column: int = 0  # Column with row identifiers (0-based)
-    has_header: bool = False  # Skip header row by default, use technical col names.
-    value_column_name: str = 'Value'  # Name for the value column in output
+        return bool(self.quantity) or bool(self.dimensions)
 
 
 @dataclass
 class DatasetConfig:
-    """Complete dataset configuration including file paths and schema."""
+    """Complete dataset configuration including file paths and operations."""
 
     input_file_path: str | None = None  # Required when source='file'; not used for source='dvc' or 'db'
     output_file_path: str | None = None  # Optional, can be set at top level
-    schema: DatasetSchema | None = None
+    column_specs: dict[int, ColumnSpec] | None = None  # column index -> dimensions, quantity, unit (for melt_with_column_specs)
     source: str = 'file'  # 'file' (default), 'dvc', or 'db'
     dataset_id: str | None = None  # Required when source='dvc' or 'db' (e.g. instance_id/dataset_name)
     file_type: str | None = None  # Auto-detected if None: 'csv', 'excel', or 'parquet'
     sheet_name: str | None = None  # For Excel files: specific sheet name
     sheet_year_mapping: dict[str, int] | None = None  # Map sheet names to years
     excel_range: str | None = None  # Excel range like "A3:D20"
-    has_header: bool = True  # Used when schema is None (e.g. simple CSV load)
-    skip_rows: int = 0  # Used when schema is None
+    has_header: bool = True  # For file load
+    skip_rows: int = 0  # For file load
     operations: list[dict[str, Any]] = field(default_factory=list)  # Sequence of operations to apply
     instance: str | None = None  # Instance ID; required when source='dvc' or 'db'
     metrics: list[MetricSpec] = field(default_factory=list)  # Metric definitions (name, id, unit)
@@ -277,99 +264,6 @@ def load_from_db(instance_id: str, dataset_id: str) -> pl.DataFrame:
     return DBDataset.deserialize_df(db_obj)
 
 
-class DataCollector:
-    """Handles collecting and extracting data from loaded DataFrames."""
-
-    def __init__(self, schema: DatasetSchema):
-        self.schema = schema
-
-    def collect_data(self, df: pl.DataFrame, year: int | None = None) -> list[dict[str, Any]]:  # noqa: C901, PLR0912
-        """Collect data from DataFrame and return as list of row dictionaries."""
-        if len(df) == 0:
-            return []
-
-        # Get column name for identifier column
-        identifier_col_name = df.columns[self.schema.identifier_column]
-
-        # Extract identifiers from specified column
-        identifiers = df.select(
-            pl.col(identifier_col_name).alias('identifier')
-        ).to_series()
-
-        # Transform to long format
-        result_rows = []
-
-        for row_idx, identifier in enumerate(identifiers):
-            if identifier is None or str(identifier).strip() == '':
-                continue
-
-            # Get additional attributes for this identifier
-            identifier_attrs = self.schema.identifier_mappings.get(str(identifier), {})
-
-            # First, collect dimension values from dimension columns (long format)
-            row_dimensions = {}
-            for col_num, col_spec in self.schema.column_specs.items():
-                if col_spec.is_dimension_column():
-                    try:
-                        dim_value = df.item(row_idx, col_num)
-                        if dim_value is not None and str(dim_value).strip() != '':
-                            row_dimensions[col_spec.dimension_name] = str(dim_value)
-                    except (IndexError, ValueError, TypeError):
-                        continue
-
-            # Process each data column (wide format)
-            for col_num, col_spec in self.schema.column_specs.items():
-                if not col_spec.is_data_column():
-                    continue  # Skip dimension columns
-
-                try:
-                    value = df.item(row_idx, col_num)
-                    if value is not None and str(value).strip() != '':
-
-                        # Build result row with identifier
-                        row_data = {
-                            self.schema.row_identifier_name: str(identifier),
-                            'Quantity': col_spec.quantity,
-                            'Unit': col_spec.unit,
-                        }
-
-                        # Add year if specified (from column spec or parameter)
-                        if year is not None:
-                            row_data['Year'] = year  # type: ignore
-                        elif col_spec.year is not None:
-                            row_data['Year'] = col_spec.year  # type: ignore
-
-                        # Add dimensions from long format (from dimension columns)
-                        row_data.update(row_dimensions)
-
-                        # Add dimensions from wide format (from column spec)
-                        row_data.update(col_spec.dimensions)
-
-                        # Add value
-                        row_data[self.schema.value_column_name] = float(value)  # type: ignore
-
-                        # Add any additional attributes from identifier mapping
-                        row_data.update(identifier_attrs)
-
-                        result_rows.append(row_data)
-
-                except (IndexError, ValueError, TypeError):
-                    continue  # Skip invalid values
-
-        return result_rows
-
-
-class DataTransformer:
-    """Handles converting collected data into normalized format."""
-
-    @staticmethod
-    def transform_to_dataframe(rows: list[dict[str, Any]]) -> pl.DataFrame:
-        """Convert list of row dictionaries to normalized DataFrame."""
-        if not rows:
-            return pl.DataFrame()
-        return pl.DataFrame(rows)
-
-
 class OperationsExecutor:
     """Executes operations on DataFrames."""
 
@@ -377,13 +271,15 @@ class OperationsExecutor:
         self,
         context=None,
         metrics: list[MetricSpec] | None = None,
+        column_specs: dict[int, ColumnSpec] | None = None,
         dataset_name: str | None = None,
         description: str | None = None,
         all_results: list[pl.DataFrame] | None = None,
     ):
-        """Initialize with optional context, metrics, dataset-level metadata, and shared all_results list."""
+        """Initialize with optional context, metrics, column_specs (for melt_with_column_specs), and shared all_results list."""
         self.context = context
         self.metrics = metrics or []
+        self.column_specs = column_specs or {}
         self._extracted_units: dict[str, str] = {}  # Store extracted units
         self.dataset_name = dataset_name
         self.description = description
@@ -569,7 +465,7 @@ class OperationsExecutor:
             )
         metric_mapping = {}
         for metric in self.metrics:
-            column_name = metric.column if metric.column else metric.id
+            column_name = metric.column or metric.id
             metric_mapping[metric.name.lower()] = column_name
             metric_mapping[metric.id.lower()] = column_name
 
@@ -631,6 +527,82 @@ class OperationsExecutor:
         write_dataframe_to_csv(df, output_path, verbose=verbose)
         return df
 
+    def _op_melt_with_column_specs(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        """
+        Melt value columns to long format and add dimension/quantity/unit columns from column_specs.
+
+        Uses dataset-level column_specs (or params override). For each melted column, looks up
+        dimensions, quantity, and unit from the spec and adds them as columns. Quantity/unit
+        fall back to the first dataset-level metric if not set on the spec.
+
+        Params:
+            id_vars: Column names to keep as identifiers (default: all columns not in column_specs).
+            value_name: Name for the value column (default 'Value').
+            variable_column_name: Name for the column that identifies the source column (default '_column').
+            drop_variable_column: If True (default), drop the variable column after joining specs.
+        """
+        specs = op_params.get('column_specs')
+        if specs is not None:
+            # Params can pass column_specs as dict of int -> dict (same shape as YAML)
+            specs = parse_column_specs({'column_specs': specs})
+        else:
+            specs = self.column_specs
+        if not specs:
+            raise ValueError(
+                "melt_with_column_specs requires 'column_specs' in dataset config or in params."
+            )
+        default_quantity = self.metrics[0].quantity if self.metrics else ''
+        default_unit = self.metrics[0].unit if self.metrics else ''
+        value_name = op_params.get('value_name', 'Value')
+        variable_column_name = op_params.get('variable_column_name', '_column')
+        drop_variable = op_params.get('drop_variable_column', True)
+
+        # Data columns only (specs that have dimensions or quantity)
+        value_indices = sorted(
+            i for i in specs if i < len(df.columns) and specs[i].is_data_column()
+        )
+        if not value_indices:
+            raise ValueError(
+                "melt_with_column_specs: no column_specs entries are data columns (need dimensions or quantity)."
+            )
+        value_vars = [df.columns[i] for i in value_indices]
+        id_vars = op_params.get('id_vars')
+        if id_vars is None:
+            id_vars = [c for j, c in enumerate(df.columns) if j not in specs]
+        if not id_vars:
+            raise ValueError(
+                "melt_with_column_specs: need at least one id column (set id_vars or use column_specs for subset of columns)."
+            )
+
+        long_df = df.unpivot(
+            index=id_vars,
+            on=value_vars,
+            variable_name=variable_column_name,
+            value_name=value_name,
+        )
+
+        # Build lookup: variable column value -> Quantity, Unit, and dimension columns
+        lookup_rows = []
+        for idx in value_indices:
+            spec = specs[idx]
+            quantity = spec.quantity or default_quantity
+            unit = spec.unit or default_unit
+            row: dict[str, Any] = {
+                variable_column_name: df.columns[idx],
+                'Quantity': quantity,
+                'Unit': unit,
+                **spec.dimensions,
+            }
+            if spec.year is not None:
+                row['Year'] = spec.year
+            lookup_rows.append(row)
+        lookup_df = pl.DataFrame(lookup_rows)
+
+        result = long_df.join(lookup_df, on=variable_column_name, how='left')
+        if drop_variable:
+            result = result.drop(variable_column_name)
+        return result
+
     def _op_append_to_all_results(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         """Append the current DataFrame to the shared all_results list. Returns df unchanged."""
         self.all_results.append(df)
@@ -662,7 +634,7 @@ class OperationsExecutor:
             print(f"\nMetrics ({len(self.metrics)}):")
             print("-" * 80)
             for metric in self.metrics:
-                column_name = metric.column if metric.column else metric.id
+                column_name = metric.column or metric.id
                 print(f"  Name:     {metric.name}")
                 print(f"    ID:     {metric.id}")
                 print(f"    Column: {column_name}")
@@ -682,7 +654,7 @@ class OperationsExecutor:
         units_dict = units_to_print or {}
         # Columns that are metrics (from YAML metric definitions) are metric columns
         metric_column_names = {
-            m.column if m.column else m.id for m in self.metrics
+            m.column or m.id for m in self.metrics
         }
         for col in df.columns:
             if col in units_dict or col in metric_column_names:
@@ -794,7 +766,7 @@ class OperationsExecutor:
             if self.metrics:
                 units = {}
                 for metric_spec in self.metrics:
-                    column_name = metric_spec.column if metric_spec.column else metric_spec.id
+                    column_name = metric_spec.column or metric_spec.id
                     units[column_name] = metric_spec.unit
             else:
                 units = self._extracted_units
@@ -815,7 +787,7 @@ class OperationsExecutor:
         node_metrics: list[NodeMetric] = []
         if self.metrics:
             for metric_spec in self.metrics:
-                column_id = metric_spec.column if metric_spec.column else metric_spec.id
+                column_id = metric_spec.column or metric_spec.id
                 node_metrics.append(
                     NodeMetric(
                         unit=metric_spec.unit,
@@ -853,10 +825,7 @@ class DatasetProcessor:
     def __init__(self, config: DatasetConfig, all_results: list[pl.DataFrame] | None = None):
         self.config = config
         self.file_loader = FileLoader()
-        self.data_collector = DataCollector(config.schema) if config.schema else None
-        self.data_transformer = DataTransformer()
         self._all_results: list[pl.DataFrame] = all_results if all_results is not None else []
-        # Initialize context if instance is specified
         context = None
         if config.instance:
             try:
@@ -866,167 +835,63 @@ class DatasetProcessor:
         self.operations_executor = OperationsExecutor(
             context=context,
             metrics=config.metrics,
+            column_specs=config.column_specs or {},
             dataset_name=config.dataset_name,
             description=config.description,
             all_results=self._all_results,
         )
 
-    def process(self, verbose: bool = True) -> pl.DataFrame:  # noqa: C901, PLR0912, PLR0915
-        """Process a single dataset configuration."""
-        if self.config.schema is None:
-            # Load from file, DVC, or DB; then apply operations
-            if self.config.source == 'file':
-                assert self.config.input_file_path is not None  # Required when source='file'
-                if verbose:
-                    print(f"Loading file: {self.config.input_file_path}")
-                df = self.file_loader.load_file(
-                    self.config.input_file_path,
-                    self.config.file_type,
-                    skip_rows=self.config.skip_rows,
-                    has_header=self.config.has_header,
-                    excel_range=self.config.excel_range
-                )
-            elif self.config.source == 'dvc':
-                assert self.config.instance is not None  # Required when source='dvc'
-                assert self.config.dataset_id is not None
-                if verbose:
-                    print(f"Loading from DVC: {self.config.dataset_id} (instance: {self.config.instance})")
-                df = load_from_dvc(self.config.instance, self.config.dataset_id)
-            elif self.config.source == 'db':
-                assert self.config.instance is not None  # Required when source='db'
-                assert self.config.dataset_id is not None
-                if verbose:
-                    print(f"Loading from database: {self.config.dataset_id} (instance: {self.config.instance})")
-                df = load_from_db(self.config.instance, self.config.dataset_id)
-            else:
-                raise ValueError(f"Unknown source: {self.config.source!r}")
-
-            # DVC and DB return PathsDataFrame; capture metadata before pl.DataFrame operations may strip it
-            get_meta = getattr(df, 'get_meta', None)
-            saved_meta = get_meta() if callable(get_meta) else None
-
-            # Apply operations if any
-            if self.config.operations:
-                df = self.operations_executor.execute_operations(df, self.config.operations)
-
-            # Reattach metadata so result is a PathsDataFrame when we had one
-            if saved_meta is not None:
-                from common import polars as ppl
-
-                df = ppl.to_ppdf(df, meta=cast('ppl.DataFrameMeta | None', saved_meta))
-
-            return df
-
-        # Full processing pipeline (schema-based; file source only)
-        if self.config.source != 'file' or not self.config.input_file_path:
-            raise ValueError("Schema-based processing requires source='file' and input_file_path.")
-        if verbose:
-            print(f"Processing: {self.config.input_file_path}")
-            if self.config.file_type == 'excel':
-                print("  File type: Excel")
-                if self.config.sheet_name:
-                    print(f"  Sheet: {self.config.sheet_name}")
-                elif self.config.sheet_year_mapping:
-                    print("  Processing multiple sheets with year mapping")
-                if self.config.excel_range:
-                    print(f"  Excel range: {self.config.excel_range}")
-
-        if self.data_collector is None:
-            raise ValueError("Schema is required for data collection")
-
-        # Step 1: Open file(s)
-        if self.config.file_type == 'excel' and self.config.sheet_year_mapping:
-            # Process multiple sheets
-            all_rows = []
-            for sheet_name, year in self.config.sheet_year_mapping.items():
-                if verbose:
-                    print(f"\n  Processing sheet '{sheet_name}' (year: {year})")
-
-                df = self.file_loader.load_file(
-                    self.config.input_file_path,
-                    file_type='excel',
-                    sheet_name=sheet_name,
-                    skip_rows=self.config.schema.skip_rows,
-                    has_header=self.config.schema.has_header,
-                    excel_range=self.config.excel_range
-                )
-
-                # Apply operations before collecting data
-                if self.config.operations:
-                    df = self.operations_executor.execute_operations(df, self.config.operations)
-
-                # Step 2: Collect data
-                rows = self.data_collector.collect_data(df, year=year)
-                all_rows.extend(rows)
-
-                if verbose:
-                    print(f"    Collected {len(rows)} rows from this sheet")
-
-            # Step 3: Transform to DataFrame
-            result_df = self.data_transformer.transform_to_dataframe(all_rows)
-
-        elif self.config.file_type == 'excel' and self.config.sheet_name:
-            # Process single sheet
+    def process(self, verbose: bool = True) -> pl.DataFrame:
+        """Process a single dataset configuration: load from file/DVC/DB, then apply operations."""
+        if self.config.source == 'file':
+            assert self.config.input_file_path is not None
+            if verbose:
+                print(f"Loading file: {self.config.input_file_path}")
             df = self.file_loader.load_file(
                 self.config.input_file_path,
-                file_type='excel',
+                self.config.file_type,
                 sheet_name=self.config.sheet_name,
-                skip_rows=self.config.schema.skip_rows,
-                has_header=self.config.schema.has_header,
-                excel_range=self.config.excel_range
+                skip_rows=self.config.skip_rows,
+                has_header=self.config.has_header,
+                excel_range=self.config.excel_range,
             )
-
-            # Apply operations before collecting data
-            if self.config.operations:
-                df = self.operations_executor.execute_operations(df, self.config.operations)
-
-            rows = self.data_collector.collect_data(df)
-            result_df = self.data_transformer.transform_to_dataframe(rows)
-
+        elif self.config.source == 'dvc':
+            assert self.config.instance is not None
+            assert self.config.dataset_id is not None
+            if verbose:
+                print(f"Loading from DVC: {self.config.dataset_id} (instance: {self.config.instance})")
+            df = load_from_dvc(self.config.instance, self.config.dataset_id)
+        elif self.config.source == 'db':
+            assert self.config.instance is not None
+            assert self.config.dataset_id is not None
+            if verbose:
+                print(f"Loading from database: {self.config.dataset_id} (instance: {self.config.instance})")
+            df = load_from_db(self.config.instance, self.config.dataset_id)
         else:
-            # Process single file (CSV, parquet, or Excel default sheet)
-            df = self.file_loader.load_file(
-                self.config.input_file_path,
-                file_type=self.config.file_type,
-                skip_rows=self.config.schema.skip_rows,
-                has_header=self.config.schema.has_header,
-                excel_range=self.config.excel_range
-            )
+            raise ValueError(f"Unknown source: {self.config.source!r}")
 
-            # Apply operations before collecting data
-            if self.config.operations:
-                df = self.operations_executor.execute_operations(df, self.config.operations)
+        get_meta = getattr(df, 'get_meta', None)
+        saved_meta = get_meta() if callable(get_meta) else None
 
-            rows = self.data_collector.collect_data(df)
-            result_df = self.data_transformer.transform_to_dataframe(rows)
+        if self.config.operations:
+            df = self.operations_executor.execute_operations(df, self.config.operations)
 
-        return result_df
+        if saved_meta is not None:
+            from common import polars as ppl
+
+            df = ppl.to_ppdf(df, meta=cast('ppl.DataFrameMeta | None', saved_meta))
+
+        return df
 
     def get_summary(self) -> dict[str, Any]:
-        """Get summary of schema configuration."""
-        if self.config.schema is None:
+        """Return a short summary when column_specs are defined."""
+        if not self.config.column_specs:
             return {}
-
-        data_columns = [spec for spec in self.config.schema.column_specs.values() if spec.is_data_column()]
-        dimension_columns = [spec for spec in self.config.schema.column_specs.values() if spec.is_dimension_column()]
-
-        summary = {
-            'total_columns': len(self.config.schema.column_specs),
-            'data_columns': len(data_columns),
-            'dimension_columns': len(dimension_columns),
-            'dimensions': self.config.schema.dimension_names,
-            'identifiers': len(self.config.schema.identifier_mappings)
+        data_cols = [s for s in self.config.column_specs.values() if s.is_data_column()]
+        return {
+            'column_specs': len(self.config.column_specs),
+            'data_columns': len(data_cols),
         }
-
-        if data_columns:
-            summary['quantities'] = list(set(spec.quantity for spec in data_columns if spec.quantity))
-            summary['units'] = list(set(spec.unit for spec in data_columns if spec.unit))
-            years = [spec.year for spec in data_columns if spec.year is not None]
-            if years:
-                summary['years'] = sorted(set(years))  # type: ignore
-
-        return summary
-
 
 def build_sector_carrier_field_keys(
     sectors: list[str],
@@ -1098,22 +963,6 @@ def parse_column_specs(config_dict: dict[str, Any]) -> dict[int, ColumnSpec]:
     return column_specs
 
 
-def parse_schema(config_dict: dict[str, Any]) -> DatasetSchema:
-    """Parse dataset schema from config dictionary."""
-    column_specs = parse_column_specs(config_dict)
-
-    return DatasetSchema(
-        row_identifier_name=config_dict['row_identifier_name'],
-        skip_rows=config_dict.get('skip_rows', 1),
-        has_header=config_dict.get('has_header', False),
-        identifier_column=config_dict.get('identifier_column', 0),
-        identifier_mappings=config_dict.get('identifier_mappings', {}),
-        column_specs=column_specs,
-        dimension_names=config_dict.get('dimension_names', []),
-        value_column_name=config_dict.get('value_column_name', 'Value')
-    )
-
-
 def parse_metrics(config_list: list[dict[str, Any]] | None) -> list[MetricSpec]:
     """Parse metric specifications from config list."""
     if not config_list:
@@ -1158,18 +1007,14 @@ def parse_dataset_config(
             raise ValueError(f"instance is required when source is {source!r}.")
         file_type = None
 
-    # Parse schema if present
-    schema = None
-    if 'row_identifier_name' in config_dict:
-        schema = parse_schema(config_dict)
-
-    # Parse metrics if present
+    # Parse column_specs and metrics if present
+    column_specs = parse_column_specs(config_dict) if 'column_specs' in config_dict else None
     metrics = parse_metrics(config_dict.get('metrics'))
 
     return DatasetConfig(
         input_file_path=input_file_path,
         output_file_path=config_dict.get('output_file_path', default_output),
-        schema=schema,
+        column_specs=column_specs,
         source=source,
         dataset_id=dataset_id,
         file_type=file_type,
@@ -1229,7 +1074,7 @@ def load_config(yaml_file_path: str | Path) -> tuple[list[DatasetConfig], str | 
 
         for dataset_dict in config['datasets']:
             dataset_config = parse_dataset_config(
-                dataset_dict, default_output, top_level_base if top_level_base else None
+                dataset_dict, default_output, top_level_base or None
             )
             dataset_configs.append(dataset_config)
         return dataset_configs, default_output
@@ -1240,7 +1085,7 @@ def load_config(yaml_file_path: str | Path) -> tuple[list[DatasetConfig], str | 
         single_base_config['instance'] = top_level_instance
     if top_level_metrics is not None:
         single_base_config['metrics'] = top_level_metrics
-    dataset_config = parse_dataset_config(config, default_output, single_base_config if single_base_config else None)
+    dataset_config = parse_dataset_config(config, default_output, single_base_config or None)
     return [dataset_config], default_output
 
 
@@ -1284,8 +1129,8 @@ def process_datasets(config_path: str | Path, verbose: bool = True) -> pl.DataFr
         result_df = processor.process(verbose=verbose)
         last_result = result_df
 
-        if verbose and config.schema:
-            print("\nTransformation Summary:")
+        if verbose and config.column_specs:
+            print("\nColumn specs summary:")
             summary = processor.get_summary()
             for key, value in summary.items():
                 print(f"  {key}: {value}")
@@ -1354,6 +1199,12 @@ Examples:
     )
 
     args = parser.parse_args()
+
+    # Reduce log noise: default INFO (no DEBUG from nodes/dvc_pandas/dulwich), or WARNING if -q
+    from loguru import logger
+    logger.remove()
+    logger.add(sys.stderr, level='WARNING' if args.quiet else 'INFO')
+    logging.getLogger().setLevel(logging.WARNING if args.quiet else logging.INFO)
 
     # Handle list-sheets option
     if args.list_sheets:

@@ -485,7 +485,7 @@ def push_to_dvc(
     # .to_pandas() keeps all columns and dvc_pandas can do set_index itself.
     df_for_dvc = df
     if hasattr(df, '_df'):
-        df_for_dvc = pl.DataFrame(df._df)
+        df_for_dvc = pl.DataFrame._from_pydf(df._df)
 
     # Create dataset
     ds = Dataset(df_for_dvc, meta=meta)
