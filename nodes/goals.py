@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import typing
-from dataclasses import dataclass
 
 from pydantic import BaseModel, Field, PrivateAttr, RootModel, model_validator
 
@@ -17,8 +16,10 @@ if typing.TYPE_CHECKING:
     from collections.abc import Sequence
 
     from common.polars import PathsDataFrame
+    from nodes.node import NodeMetric
 
     from .node import Node
+
 
 
 class GoalValue(BaseModel):
@@ -27,13 +28,12 @@ class GoalValue(BaseModel):
     is_interpolated: bool = False
 
 
-@dataclass
-class GoalActualValue:
+class GoalActualValue(BaseModel):
     year: int
     goal: float | None
     actual: float | None
     is_forecast: bool
-    is_interpolated: bool
+    is_interpolated: bool | None
 
 
 class NodeGoalsDimension(BaseModel):
@@ -52,7 +52,7 @@ class NodeGoalsEntry(I18nBaseModel):
     disabled: bool = False
     disable_reason: I18nStringInstance | None = None
 
-    _node: Node = PrivateAttr()
+    _node: 'Node' = PrivateAttr()
 
     def __init__(self, **data) -> None:
         super().__init__(**data)
@@ -155,11 +155,31 @@ class NodeGoalsEntry(I18nBaseModel):
                 df = df.paths.join_over_index(extra, how='left')
         return df
 
-    def get_values(self):
-        df = self._get_values_df()
+    def _to_goal_values(self, df: ppl.PathsDataFrame, m: NodeMetric) -> list[GoalValue]:
         m = self._node.get_default_output_metric()
         return [
             GoalValue(year=row[YEAR_COLUMN], value=row[m.column_id], is_interpolated=row['IsInterpolated'])
+            for row in df.to_dicts()
+        ]
+
+    def get_values(self):
+        df = self._get_values_df()
+        m = self._node.get_default_output_metric()
+        vals = self._to_goal_values(df, m)
+        return vals
+
+    def _to_actual_values(self, df: ppl.PathsDataFrame, m: NodeMetric) -> list[GoalActualValue]:
+        gdf = self._get_values_df()
+        gdf = gdf.rename({m.column_id: 'Goal'})
+        df = df.paths.join_over_index(gdf).sort(YEAR_COLUMN)
+        return [
+            GoalActualValue(
+                year=row[YEAR_COLUMN],
+                actual=row[m.column_id],
+                is_forecast=row[FORECAST_COLUMN],
+                is_interpolated=row['IsInterpolated'],
+                goal=row['Goal'],
+            )
             for row in df.to_dicts()
         ]
 
@@ -178,19 +198,11 @@ class NodeGoalsEntry(I18nBaseModel):
         m = node.get_default_output_metric()
         if context.active_normalization:
             _, df = context.active_normalization.normalize_output(m, df)
-        gdf = self._get_values_df()
-        gdf = gdf.rename({m.column_id: 'Goal'})
-        df = df.paths.join_over_index(gdf).sort(YEAR_COLUMN)
-        out = [
-            GoalActualValue(
-                year=row[YEAR_COLUMN], actual=row[m.column_id], is_forecast=row[FORECAST_COLUMN],
-                is_interpolated=row['IsInterpolated'], goal=row['Goal'],
-            ) for row in df.to_dicts()
-        ]
+        out = self._to_actual_values(df, m)
         return out
 
 
-class NodeGoals(RootModel):
+class NodeGoals(RootModel[list[NodeGoalsEntry]]):
     root: list[NodeGoalsEntry]
     _node: Node = PrivateAttr()
 

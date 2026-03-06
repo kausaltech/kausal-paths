@@ -125,6 +125,10 @@ Strawberry uses `getattr(root, field_name)` as the default resolver, same as Gra
 `ObjectType[T]` pattern. If the root object's attribute names match the field names,
 no explicit resolvers are needed.
 
+**Important:** `@sb.type` creates a dataclass with keyword-only `__init__`. If the type
+is constructed directly in code (e.g. `YearlyValue(year, value)`), you must switch to
+keyword arguments: `YearlyValue(year=year, value=value)`.
+
 ### Pattern 2: Fields with custom resolvers
 
 Graphene:
@@ -143,11 +147,14 @@ Strawberry:
 class FooType:
     @sb.field
     @staticmethod
-    def display_name(root: Foo, info: gql.Info) -> str:
+    def display_name(root: Foo) -> str:
         return root.config.name_i18n
 ```
 
-Or using `sb.Parent` (preferred when `info` isn't needed):
+The `info` parameter can be omitted if the resolver doesn't need it. If it does,
+use `info: gql.Info`.
+
+Alternative using `sb.Parent` (when the resolver is an instance method):
 ```python
 @sb.type
 class FooType:
@@ -246,20 +253,35 @@ This approach is explicit and doesn't require interop layer changes. If stream f
 appear frequently, a future improvement would be to teach `UnifiedGraphQLConverter.from_type()`
 to map `StreamValue` → `StreamFieldInterface` automatically.
 
-### Pattern 7: Graphene Enum handling
+### Pattern 7: Enum handling
 
-Graphene enums created via `graphene.Enum.from_enum()` work as type annotations in
-Strawberry fields — the converter handles the routing.
+The preferred approach is to decorate the source enum with `@sb.enum` and use it
+directly in type annotations. This eliminates the need for `graphene.Enum.from_enum()`
+wrapper variables entirely.
 
 ```python
-# Existing Graphene enum
-DimensionType = graphene.Enum.from_enum(DimensionKind)
+# At the source definition (e.g. nodes/scenario.py)
+@sb.enum
+class ScenarioKind(enum.Enum):
+    BASELINE = 'baseline'
+    DEFAULT = 'default'
+    CUSTOM = 'custom'
 
-# Can be used in Strawberry type annotations
+# Use directly in Strawberry type annotations
 @sb.type
-class FooType:
-    kind: DimensionType  # works via the bridge
+class ScenarioType:
+    kind: ScenarioKind | None
 ```
+
+When migrating, find the `graphene.Enum.from_enum(SomeEnum)` variable in the schema
+file, add `@sb.enum` to the source enum class, then replace references to the Graphene
+wrapper with the original enum. The Graphene wrapper can be removed once no remaining
+Graphene fields reference it.
+
+**Note:** If the enum is still referenced by unconverted Graphene fields (via
+`graphene.List(graphene.NonNull(SomeGrapheneEnum))`), keep the
+`graphene.Enum.from_enum()` wrapper alongside the `@sb.enum` decorator until those
+fields are migrated too — both can coexist.
 
 ## Graphene → Strawberry Type Mapping Reference
 
@@ -280,7 +302,7 @@ class FooType:
 | `graphene.Field(T, required=True)` | `T` |
 | `graphene.Field(T)` | `T \| None` |
 | `graphene.ObjectType[Model]` | `@sb.type` with `getattr`-based resolution |
-| `graphene.Enum.from_enum(E)` | Use the enum directly, or `sb.enum(E)` |
+| `graphene.Enum.from_enum(E)` | Add `@sb.enum` to source enum `E`, use `E` directly |
 
 ## Existing Strawberry Types (reference examples)
 
@@ -332,9 +354,11 @@ When converting a Graphene `ObjectType` to Strawberry:
 5. **Convert resolvers** — `resolve_foo(root, info, ...)` → `@sb.field` method or
    `@staticmethod` with `root` parameter.
 6. **Handle special cases**:
-   - Dynamic types → `sb.field(graphql_type=...)`
+   - Enums → add `@sb.enum` at source, remove `graphene.Enum.from_enum()` wrapper
+   - Dynamic types (grapple) → use `grapple_field` decorator
    - StreamField → `sb.field(graphql_type=list[StreamFieldInterface] | None)`
    - Graphene type references → plain annotations (bridge handles it)
+   - Direct construction → switch from positional to keyword arguments
 7. **Check if `@register_strawberry_type` is needed** — only if the type isn't
    reachable from root types through Strawberry field traversal.
 8. **Update references** — Graphene `graphene.Field(OldType)` can point at the new

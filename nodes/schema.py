@@ -4,10 +4,11 @@ from __future__ import annotations
 import dataclasses
 import re
 from collections.abc import AsyncGenerator
-from datetime import datetime  # noqa: TC003
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Protocol, cast
 
 import graphene
+import strawberry
 import strawberry as sb
 from graphql.error import GraphQLError
 from pydantic import BaseModel
@@ -22,6 +23,7 @@ from loguru import logger
 from markdown_it import MarkdownIt
 
 from kausal_common.strawberry.grapple import grapple_field
+from kausal_common.strawberry.pydantic import StrawberryPydanticType
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths import gql
@@ -30,9 +32,10 @@ from paths.graphql_helpers import ensure_instance, get_instance_context, pass_co
 from paths.graphql_types import UnitType
 
 from nodes.context import Context
+from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.node import Node
 from nodes.normalization import Normalization
-from nodes.scenario import Scenario, ScenarioKind as ScenarioKindEnum
+from nodes.scenario import Scenario, ScenarioKind
 from pages.models import ActionListPage
 
 from . import visualizations as viz
@@ -43,7 +46,6 @@ from .instance import Instance, InstanceFeatures
 from .metric import (
     DimensionalFlow,
     DimensionalMetric,
-    DimensionKind,
     Metric,
     MetricCategory,
     MetricCategoryGroup,
@@ -53,8 +55,7 @@ from .metric import (
     NormalizerNode,
 )
 from .models import InstanceConfig
-
-strawberry = sb
+from .units import Unit
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -66,12 +67,9 @@ if TYPE_CHECKING:
     from paths.types import GQLInstanceContext, GQLInstanceInfo
 
     from common import polars as ppl
-    from nodes.goals import GoalActualValue, NodeGoalsEntry
     from params.param import Parameter
 
     from .actions.action import ImpactOverview
-    from .scenario import Scenario
-    from .units import Unit
 
 
 logger = logger.bind(name='nodes.schema')
@@ -110,12 +108,13 @@ class InstanceFeaturesType:
     pass
 
 
-class InstanceYearlyGoalType(graphene.ObjectType[Any]):
-    year = graphene.Int(required=True)
-    goal = graphene.Float(required=False)
-    actual = graphene.Float(required=False)
-    is_interpolated = graphene.Boolean(required=False)
-    is_forecast = graphene.Boolean(required=True)
+@sb.experimental.pydantic.type(model=GoalActualValue, name='InstanceYearlyGoalType')
+class InstanceYearlyGoalType(StrawberryPydanticType[GoalActualValue]):
+    year: strawberry.auto
+    goal: strawberry.auto
+    actual: strawberry.auto
+    is_interpolated: strawberry.auto
+    is_forecast: strawberry.auto
 
 
 class InstanceGoalDimensionProtocol(Protocol):
@@ -124,34 +123,37 @@ class InstanceGoalDimensionProtocol(Protocol):
     groups: list[str]
 
 
-class InstanceGoalDimension(graphene.ObjectType[InstanceGoalDimensionProtocol]):
-    dimension = graphene.String(required=True)
-    categories = graphene.List(graphene.NonNull(graphene.String), required=True)
-    groups = graphene.List(graphene.NonNull(graphene.String), required=True)
-    category = graphene.String(required=True, deprecation_reason='replaced with categories')
+@sb.type
+class InstanceGoalDimension:
+    dimension: str
+    categories: list[str]
+    groups: list[str]
 
+    @sb.field(deprecation_reason='replaced with categories')
     @staticmethod
-    def resolve_category(root: InstanceGoalDimensionProtocol):  # noqa: ANN205
+    def category(root: InstanceGoalDimensionProtocol) -> str:
         return root.categories[0]
 
 
-class InstanceGoalEntry(graphene.ObjectType[Any]):
-    id = graphene.ID(required=True)
-    label = graphene.String(required=False)
-    disabled = graphene.Boolean(required=True)
-    disable_reason = graphene.String(required=False)
-    outcome_node: Node = graphene.Field('nodes.schema.NodeType', required=True)  # type: ignore
-    dimensions = graphene.List(graphene.NonNull(InstanceGoalDimension), required=True)
-    default = graphene.Boolean(required=True)
-    values = graphene.List(graphene.NonNull(InstanceYearlyGoalType), required=True)
-    unit = graphene.Field('paths.schema.UnitType', required=True)
+@sb.type
+class InstanceGoalEntry:
+    id: sb.ID
+    label: str | None
+    disabled: bool
+    disable_reason: str | None
+    outcome_node: Node = sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.schema')])
+    dimensions: list[InstanceGoalDimension]
+    default: bool
 
-    _goal: NodeGoalsEntry
+    _goal: sb.Private[NodeGoalsEntry]
 
-    def resolve_values(self, _info) -> list[GoalActualValue]:
-        return self._goal.get_actual()
+    @sb.field
+    def values(self) -> list[InstanceYearlyGoalType]:
+        actual_values = self._goal.get_actual()
+        return [InstanceYearlyGoalType.from_pydantic(x) for x in actual_values]
 
-    def resolve_unit(self, _info) -> Unit:
+    @sb.field(graphql_type=UnitType)
+    def unit(self) -> Unit:
         df = self._goal._get_values_df()
         return df.get_unit(self.outcome_node.get_default_output_metric().column_id)
 
@@ -213,13 +215,14 @@ class InstanceType:
                 )
 
             out = InstanceGoalEntry(
-                id=goal_id,
+                id=sb.ID(goal_id),
                 label=str(goal.label) if goal.label else str(node.name),
                 outcome_node=node,
                 dimensions=dims,
                 default=goal.default,
                 disabled=goal.disabled,
-                disable_reason=goal.disable_reason,
+                disable_reason=str(goal.disable_reason),
+                _goal=goal,
             )
             out._goal = goal
             ret.append(out)
@@ -241,9 +244,10 @@ class YearlyValueProtocol(Protocol):
     value: float
 
 
-class YearlyValue(graphene.ObjectType[YearlyValueProtocol]):
-    year = graphene.Int(required=True)
-    value = graphene.Float(required=True)
+@sb.type
+class YearlyValue:
+    year: int
+    value: float
 
 
 class ForecastMetricType(graphene.ObjectType[Metric]):
@@ -298,8 +302,6 @@ class MetricDimensionCategoryGroupType:
     label: strawberry.auto
     color: strawberry.auto
     order: strawberry.auto
-
-DimensionType = graphene.Enum.from_enum(DimensionKind)
 
 
 @register_strawberry_type
@@ -356,32 +358,36 @@ class DimensionalMetricType:
 ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
 
 
-class FlowNodeType(graphene.ObjectType[Any]):
-    id = graphene.String(required=True)
-    label = graphene.String(required=True)
-    color = graphene.String(required=False)
+@sb.type
+class FlowNodeType:
+    id: str
+    label: str
+    color: str | None
 
 
-class FlowLinksType(graphene.ObjectType[Any]):
-    year = graphene.Int(required=True)
-    is_forecast = graphene.Boolean(required=True)
-    sources = graphene.List(graphene.NonNull(graphene.String), required=True)
-    targets = graphene.List(graphene.NonNull(graphene.String), required=True)
-    values = graphene.List(graphene.Float, required=True)
-    absolute_source_values = graphene.List(graphene.NonNull(graphene.Float), required=True)
+@sb.type
+class FlowLinksType:
+    year: int
+    is_forecast: bool
+    sources: list[str]
+    targets: list[str]
+    values: list[float | None]
+    absolute_source_values: list[float]
 
 
-class DimensionalFlowType(graphene.ObjectType[Any]):
-    id = graphene.String(required=True)
-    nodes = graphene.List(graphene.NonNull(FlowNodeType), required=True)
-    unit = graphene.Field('paths.schema.UnitType', required=True)
-    sources = graphene.List(graphene.NonNull(graphene.String), required=True)
-    links = graphene.List(graphene.NonNull(FlowLinksType), required=True)
+@sb.type
+class DimensionalFlowType:
+    id: str
+    nodes: list[FlowNodeType]
+    unit: UnitType
+    sources: list[str]
+    links: list[FlowLinksType]
 
 
-class NodeGoal(graphene.ObjectType[YearlyValueProtocol]):
-    year = graphene.Int(required=True)
-    value = graphene.Float(required=True)
+@sb.type
+class NodeGoal:
+    year: int
+    value: float
 
 
 @register_strawberry_type
@@ -434,10 +440,6 @@ class VisualizationGroup(VisualizationEntry):  # type: ignore[override]
         return viz.VisualizationGroup.model_validate(data)
 
 
-ScenarioKind = graphene.Enum.from_enum(ScenarioKindEnum)
-
-
-@register_strawberry_type
 @sb.type
 class ScenarioValue:
     scenario: ScenarioType
@@ -445,7 +447,6 @@ class ScenarioValue:
     year: int
 
 
-@register_strawberry_type
 @sb.type
 class MetricDimensionCategoryValue:
     dimension: MetricDimensionType
@@ -454,7 +455,6 @@ class MetricDimensionCategoryValue:
     year: int
 
 
-@register_strawberry_type
 @sb.type
 class ActionImpactType:
     action: ActionNodeType
@@ -462,7 +462,6 @@ class ActionImpactType:
     year: int
 
 
-@register_strawberry_type
 @sb.type
 class ScenarioActionImpacts:
     scenario: ScenarioType
@@ -619,7 +618,7 @@ class NodeInterface(graphene.Interface[Node]):
         root: Node,
         info: GQLInstanceInfo,
         with_scenarios: list[str] | None = None,
-        include_scenario_kinds: list[ScenarioKindEnum] | None = None,
+        include_scenario_kinds: list[ScenarioKind] | None = None,
     ) -> None | DimensionalMetric:
         context = get_instance_context(info)
         extra_scenarios: list[Scenario] = []
@@ -923,22 +922,23 @@ class ActionNodeType(graphene.ObjectType[ActionNode]):
         return nc.indicator_node.get_node(visible_for_user=info.context.user)
 
 
-class ScenarioType(graphene.ObjectType['Scenario']):
-    id = graphene.ID(required=True)
-    name = graphene.String(required=True)
-    kind = ScenarioKind(required=False)
-    is_active = graphene.Boolean(required=True)
-    is_default = graphene.Boolean(required=True)
-    is_selectable = graphene.Boolean(required=True)
-    actual_historical_years = graphene.List(graphene.NonNull(graphene.Int), required=False)
+@sb.type
+class ScenarioType:
+    id: sb.ID
+    name: str
+    kind: ScenarioKind | None
+    is_selectable: bool
+    actual_historical_years: list[int] | None
 
+    @sb.field
     @staticmethod
-    def resolve_is_active(root: Scenario, info: GQLInstanceInfo) -> bool:
+    def is_active(root: Scenario, info: gql.Info) -> bool:
         context = info.context.instance.context
         return context.active_scenario == root
 
+    @sb.field
     @staticmethod
-    def resolve_is_default(root: Scenario, info: GQLInfo) -> bool:
+    def is_default(root: Scenario) -> bool:
         return root.default
 
 
@@ -996,14 +996,18 @@ class ImpactOverviewType(graphene.ObjectType['ImpactOverview']):
             else:
                 ed = None
             years = ae.df[YEAR_COLUMN]
-            if 'Cost' in ae.df.columns: # FIXME Depreciated
-                cost_values = [YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']), strict=False)]
+            if 'Cost' in ae.df.columns:  # FIXME Depreciated
+                cost_values = [
+                    YearlyValue(year=year, value=float(val)) for year, val in zip(years, list(ae.df['Cost']), strict=False)
+                ]
             else:
                 cost_values = None
             d = dict(
                 action=ae.action,
                 cost_values=cost_values,
-                impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Effect']), strict=False)],
+                impact_values=[
+                    YearlyValue(year=year, value=float(val)) for year, val in zip(years, list(ae.df['Effect']), strict=False)
+                ],
                 cost_dim=DimensionalMetric.from_action_impact(ae, root, 'Cost'),
                 effect_dim=DimensionalMetric.from_action_impact(ae, root, 'Effect'),
                 unit_adjustment_multiplier=ae.unit_adjustment_multiplier,

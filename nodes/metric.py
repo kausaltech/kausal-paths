@@ -7,6 +7,7 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
+import strawberry as sb
 from pydantic import BaseModel, Field
 
 import numpy as np
@@ -29,7 +30,7 @@ from .constants import (
     YEAR_COLUMN,
 )
 from .exceptions import NodeError
-from .units import Unit  # noqa: TC001
+from .units import Unit
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -227,6 +228,7 @@ class MetricCategoryGroup(BaseModel):
 LabColorVals = tuple[float, float, float]
 
 
+@sb.enum
 class DimensionKind(Enum):
     COMMON = 'common'
     NODE = 'node'
@@ -282,7 +284,7 @@ class MetricDimension(BaseModel):
             if count == 1:
                 continue
             rgb = sRGBColor.new_from_rgb_hex(color)
-            lab: LabColor = convert_color(rgb, LabColor)
+            lab = cast('LabColor', convert_color(rgb, LabColor))
             vals = cast('LabColorVals', lab.get_value_tuple())
             start = list(vals)
             start[0] -= LAB_Kn * 1
@@ -296,7 +298,7 @@ class MetricDimension(BaseModel):
                 t = step * i
                 c = cast('LabColorVals', tuple(start[j] + t * (end[j] - start[j]) for j in range(3)))
                 out = LabColor(*c)
-                out_rgb: sRGBColor = convert_color(out, sRGBColor)
+                out_rgb = cast('sRGBColor', convert_color(out, sRGBColor))
                 out_rgb.rgb_r = out_rgb.clamped_rgb_r
                 out_rgb.rgb_g = out_rgb.clamped_rgb_g
                 out_rgb.rgb_b = out_rgb.clamped_rgb_b
@@ -408,7 +410,7 @@ class DimensionalMetric(BaseModel):
         raise ValueError(f'Dimension {dim_id} not found')
 
     def plot(self, dim_id: str | None = None):
-        import altair as alt  # type: ignore
+        import altair as alt
 
         df = self.to_df(drop_single_cat_dims=True).with_columns(pl.col('Year').cast(pl.Utf8))
         x = alt.X(field='Year', type='temporal')
@@ -495,7 +497,7 @@ class DimensionalFlow:
 
         flow_nodes: dict[str, FlowNode] = {}
 
-        def get_flow_node(row: dict, is_source: bool) -> FlowNode:
+        def get_flow_node(row: dict[str, Any], is_source: bool) -> FlowNode:
             path_parts = []
             label_parts = []
 
@@ -532,7 +534,7 @@ class DimensionalFlow:
                     sdf = source_dfs[node.id] = node.get_output_pl()
                 val_col = node.get_default_output_metric().column_id
                 if sdf_exprs:
-                    sdf = sdf.filter(functools.reduce(lambda a, b: a & b, sdf_exprs))
+                    sdf = sdf.filter(functools.reduce(lambda a, b: a & b, sdf_exprs))  # pyright: ignore[reportUnknownLambdaType]
                 sdf = sdf.select([YEAR_COLUMN, val_col])
                 assert not sdf.paths.index_has_duplicates()
                 assert flow_node_id not in source_values

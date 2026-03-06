@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from django.core.management.base import BaseCommand
 
 import loguru
-from recursive_diff import recursive_diff
+from deepdiff import DeepDiff
 from rich import print
 from rich.console import Console
 from rich.traceback import Traceback
@@ -88,7 +88,7 @@ class Command(BaseCommand):
                     data = json.load(f)
                 df = node.get_output_pl()
                 df_ser = JSONDataset.serialize_df(df)
-                diffs = list(recursive_diff(make_comparable(data), make_comparable(df_ser)))
+                diffs = list(DeepDiff(make_comparable(data), make_comparable(df_ser), math_epsilon=1e-6))
                 if diffs:
                     logger.error("Instance %s, node %s differs" % (ctx.instance.id, node.id))
                     print(diffs)

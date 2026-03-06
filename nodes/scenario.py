@@ -5,6 +5,8 @@ from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+import strawberry as sb
+
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
 
@@ -16,6 +18,7 @@ if TYPE_CHECKING:
     from .context import Context
 
 
+@sb.enum
 class ScenarioKind(Enum):
     DEFAULT = 'default'
     BASELINE = 'baseline'

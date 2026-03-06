@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Unpack, overload
+from typing import TYPE_CHECKING, Any, Unpack, overload
 
+import strawberry
+
+from kausal_common.models.types import copy_signature
+from kausal_common.strawberry.grapple import grapple_field
 from kausal_common.strawberry.helpers import get_or_error
 from kausal_common.strawberry.mutations import (
     mutation as base_mutation,
@@ -54,4 +58,8 @@ def mutation(
     return ret
 
 
-__all__ = ['Info', 'get_ic_or_error', 'mutation', 'parse_input', 'prepare_create_update', 'prepare_instance']
+@copy_signature(strawberry.field)
+def field(*args, **kwargs) -> Any:
+    return grapple_field(*args, **kwargs)
+
+__all__ = ['Info', 'field', 'get_ic_or_error', 'mutation', 'parse_input', 'prepare_create_update', 'prepare_instance']
