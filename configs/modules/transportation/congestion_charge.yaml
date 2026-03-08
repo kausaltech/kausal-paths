@@ -136,20 +136,16 @@ nodes:
 
 - id: price_elasticity
   name: Traffic price elasticity
-  description: Elasticity of traffic volume with respect to trip price. Negative value indicates traffic decreases as price increases.
+  description: |
+    Elasticity in dimensionless form: % change in trips per % change in total cost per trip.
+    E.g. -0.3 means a 10% cost increase yields a 3% trip reduction. Negative value indicates traffic decreases as cost increases.
   type: generic.GenericNode
   quantity: elasticity
-  unit: vehicle/EUR
+  unit: dimensionless
   input_dimensions: [hypotheses]
   output_dimensions: [hypotheses]
   input_datasets:
   - id: transportation/price_elasticity_estimates
-  params:
-  - id: operations
-    value: get_single_dataset,apply_multiplier
-  - id: multiplier # FIXME
-    value: 1
-    unit: vehicle/EUR
 
 - id: spillover_factor
   name: Traffic spillover factor
@@ -169,26 +165,82 @@ nodes:
   - id: transportation/spillover_estimates
 
 # ===== BEHAVIORAL CALCULATIONS =====
+# (a) Total cost per trip in EUR/vkm: unit price + congestion charge converted to per-vkm
+# (b) Elasticity: dimensionless (% change trips / % change cost)
+# (c) Relative cost = cost_with_charge / cost_without_charge
+# (d) reduction_rate = - elasticity * (cost_ratio - 1); new_trips = baseline * (1 - reduction_rate)
+
+- id: cost_per_vkm_without_charge
+  name: Cost per vkm without charge
+  description: Unit price of driving (EUR/vkm), i.e. cost per vehicle-km without congestion charge.
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/vkm
+  input_nodes:
+  - id: unit_price_of_driving
+    tags: [unit_price]
+  params:
+    formula: unit_price
+
+- id: congestion_charge_per_vkm
+  name: Congestion charge per vkm
+  description: Congestion charge (EUR/vehicle) converted to EUR per vehicle-km using average trip distance in zone.
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/vkm
+  input_dimensions: [time_of_day]
+  output_dimensions: [time_of_day]
+  input_nodes:
+  - id: congestion_charge
+    to_dimensions:
+    - id: time_of_day
+    tags: [charge]
+  - id: avg_trip_distance_zone
+    tags: [distance]
+  params:
+    formula: charge / distance
+
+- id: cost_per_vkm_with_charge
+  name: Cost per vkm with charge
+  description: Total cost per vehicle-km when congestion charge is applied (unit price + charge per vkm).
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/vkm
+  input_dimensions: [time_of_day]
+  output_dimensions: [time_of_day]
+  input_nodes:
+  - id: unit_price_of_driving
+    tags: [add_to_existing_dims]
+  - id: congestion_charge_per_vkm
+    to_dimensions:
+    - id: time_of_day
+    tags: [charge_per_vkm]
+  params:
+    operations: add,add_to_existing_dims
 
 - id: reduction_rate
   name: Traffic reduction rate
-  description: Fraction of baseline traffic that no longer drives in the zone due to congestion charge
+  description: |
+    Fraction of baseline traffic that no longer drives in the zone due to congestion charge.
+    Formula: - elasticity * (cost_ratio - 1). So a 20% cost increase with elasticity -0.3 gives 6% reduction.
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [time_of_day, hypotheses]
   output_dimensions: [time_of_day, hypotheses]
   input_nodes:
-  - id: congestion_charge
+  - id: cost_per_vkm_with_charge
     to_dimensions:
     - id: time_of_day
-    tags: [price]
+    tags: [cost_with]
+  - id: cost_per_vkm_without_charge
+    tags: [cost_without]
   - id: price_elasticity
     to_dimensions:
     - id: hypotheses
     tags: [elasticity]
   params:
-    formula: abs(elasticity * price)
+    formula: elasticity * (1 - cost_with / cost_without)
 
 - id: vehicles_in_zone
   name: Vehicles in congestion zone
@@ -360,6 +412,46 @@ nodes:
     formula: vkm * ef
 
 # ===== ECONOMIC IMPACTS =====
+
+- id: unit_price_of_driving
+  name: Unit price of driving
+  type: generic.ConstantNode
+  quantity: unit_price
+  unit: EUR/vkm
+  params:
+  - id: constant
+    value: 0.6
+    unit: EUR/vkm
+
+- id: cost_per_trip
+  name: Cost per trip (without charge)
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/vehicle
+  description: Driving cost per vehicle trip without congestion charge; unit_price (EUR/vkm) times distance (km) gives EUR/vehicle.
+  input_nodes:
+  - id: unit_price_of_driving
+    tags: [unit_price]
+  - id: avg_trip_distance_zone
+    tags: [distance]
+  params:
+  - id: formula
+    value: unit_price * distance
+
+- id: total_driving_costs
+  name: Total_driving costs
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: unit_price_of_driving
+    tags: [unit_price]
+  - id: total_vehicle_km
+    tags: [vkm]
+  params:
+    formula: unit_price * vkm
 
 - id: charge_revenue
   name: Congestion charge revenue
@@ -573,7 +665,76 @@ nodes:
     tags: [transit_share]
   params:
     formula: revenue * complement(transit_share)
-    
+
+# ===== TRANSIT INVESTMENT CHAIN (Chain 6) =====
+
+- id: transit_investment_from_revenue
+  name: Transit investment from revenue
+  description: |
+    Revenue from congestion charge allocated to transit. First step in Chain 6: Revenue → Transit capacity/frequency → Better service → More mode shift.
+    Capacity and service effects to be modeled in a later phase.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  input_nodes:
+  - id: revenue_to_transit
+    to_dimensions:
+    - id: hypotheses
+    tags: [revenue]
+  params:
+    formula: revenue
+
+# ===== TRANSIT CROWDING CHAIN (Chain 7) =====
+
+- id: transit_baseline_capacity
+  name: Baseline transit capacity
+  description: Reference transit capacity (e.g. vehicles/hour equivalent) for crowding comparison. To be replaced with actual capacity data when available.
+  type: generic.ConstantNode
+  quantity: traffic_volume
+  unit: vehicles/hour
+  params:
+  - id: constant
+    value: 1000
+    unit: vehicles/hour
+    label: Reference transit capacity
+
+- id: transit_demand_from_mode_shift
+  name: Additional transit demand from mode shift
+  description: "Surge in transit demand from drivers who leave cars due to congestion charge. Proxy: total displaced vehicle trips (sum over zone)."
+  type: formula.FormulaNode
+  quantity: traffic_volume
+  unit: vehicles/hour
+  input_nodes:
+  - id: displaced_vehicles
+    from_dimensions:
+    - id: time_of_day
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: hypotheses
+      flatten: true
+    tags: [displaced]
+  params:
+    formula: displaced
+
+- id: transit_crowding_level
+  name: Transit crowding level
+  description: |
+    Ratio of additional demand (from mode shift) to baseline capacity.
+    &gt; 1 indicates risk of overcrowding. To be expanded with actual capacity and degradation effects.
+  type: formula.FormulaNode
+  quantity: ratio
+  unit: dimensionless
+  input_nodes:
+  - id: transit_demand_from_mode_shift
+    tags: [demand]
+  - id: transit_baseline_capacity
+    tags: [capacity]
+  params:
+    formula: demand / capacity
+
 # ===== ARGUMENT NODES =====
 
 - id: obj_cc13_traffic_displacement
@@ -868,6 +1029,69 @@ nodes:
   output_nodes:
   - id: driver_costs_by_income
     tags: [ignore_content]
+  - id: per_capita_cost_by_income
+    tags: [ignore_content]
+
+- id: obj_cc7_business_decline
+  name: 'OBJ-CC7: Business revenue decline'
+  description: |
+    <h3>Objection: Customers deterred from visiting zone</h3>
+    <p><strong>Claim:</strong> Congestion charge will deter customers from driving to the zone. Downtown retail, restaurants, and services will lose business. Empty streets hurt local economy. Jobs at risk.</p>
+    <p><strong>Stakeholders:</strong> Downtown businesses, chambers of commerce, retail and hospitality sectors</p>
+    <p><strong>Type:</strong> Empirical + interest objection</p>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>vehicles_in_zone</code> - Fewer vehicles may mean fewer customers (proxy)</li>
+    <li><code>total_charge_revenue</code> - Revenue from those who still drive</li>
+    </ul>
+    <p><strong>Future modeling:</strong> Requires business_type dimension, customer access node, and revenue impact calculation (Phase 5 in roadmap).</p>
+    <p><strong>Counter-Arguments:</strong></p>
+    <ul>
+    <li>Evidence from London/Stockholm: minimal or positive impact on retail (transit users spend too)</li>
+    <li>Reduced congestion can improve delivery and accessibility</li>
+    <li>Revenue recycling can support local improvements</li>
+    </ul>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: vehicles_in_zone
+    tags: [ignore_content]
+  - id: total_charge_revenue
+    tags: [ignore_content]
+
+- id: obj_cc14_transit_crowding
+  name: "OBJ-CC14: Transit can't handle demand"
+  description: |
+    <h3>Objection: Transit system will be overcrowded and unusable</h3>
+    <p><strong>Claim:</strong> If people leave cars, they will flood onto buses and trains. Transit is already crowded at peak. More riders will mean packed vehicles, skipped stops, delays. Service quality will collapse. Some will return to cars. Policy fails.</p>
+    <p><strong>Stakeholders:</strong> Transit riders, transit unions, skeptics of mode-shift capacity</p>
+    <p><strong>Type:</strong> Empirical objection</p>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>transit_demand_from_mode_shift</code> - Surge in demand from drivers leaving cars</li>
+    <li><code>transit_crowding_level</code> - Ratio of demand to capacity (risk indicator)</li>
+    <li><code>displaced_vehicles</code> - Magnitude of mode shift</li>
+    </ul>
+    <p><strong>Design response:</strong> Revenue to transit (Chain 6) can fund capacity and frequency before or alongside charge. Phased implementation.</p>
+    <p><strong>Counter-Arguments:</strong></p>
+    <ul>
+    <li><strong>OBJ-CC18 / ARG-26:</strong> Invest in transit first; revenue from charge funds that</li>
+    <li>Demand is predictable; capacity planning can respond</li>
+    <li>Overcrowding is a success problem - indicates strong mode shift</li>
+    </ul>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: transit_demand_from_mode_shift
+    tags: [ignore_content]
+  - id: transit_crowding_level
+    tags: [ignore_content]
 
 # REVENUE RECYCLING BENEFITS
 
@@ -911,6 +1135,8 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: revenue_to_transit
+    tags: [ignore_content]
+  - id: transit_investment_from_revenue
     tags: [ignore_content]
   - id: total_charge_revenue
     tags: [ignore_content]

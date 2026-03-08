@@ -1012,7 +1012,7 @@ dimensions:
   - id: passenger_cars
     label_en: Passenger cars
     label_de: Personenkraftwagen (PKW)
-    aliases: [Pkw, VL_Pkw, PKW]
+    aliases: [Pkw, VL_Pkw, PKW, car]
   - id: walking
     label_en: Walking
     label_de: Fußgänger
@@ -1020,7 +1020,7 @@ dimensions:
   - id: trucks
     label_en: Trucks
     label_de: Lastkraftwagen (LKW)
-    aliases: [Lkw, VL_Lkw, LKW]
+    aliases: [Lkw, VL_Lkw, LKW, truck]
   - id: vans
     label_en: Light commercial vehicles
     label_de: Leichte Nutzfahrzeuge
@@ -1031,7 +1031,7 @@ dimensions:
   - id: buses
     label_en: Buses
     label_de: Busse
-    aliases: [Bus]
+    aliases: [Bus, bus]
   - id: coach_buses
     label_en: Coach buses
     label_de: Reise-/Fernbusse
@@ -1043,7 +1043,7 @@ dimensions:
   - id: motorcycles
     label_en: Motorcycles
     label_de: Motorisierte Zweiräder
-    aliases: [MZR, VL_MRZ]
+    aliases: [MZR, VL_MRZ, motorcycle]
   - id: bicycles
     label_en: Bicycles
     label_de: Fahrräder
@@ -1054,7 +1054,7 @@ dimensions:
   - id: rail_vehicles
     label_en: Tram and metro
     label_de: Schienenfahrzeuge
-    aliases: [SSU, 'Stadt- , Straßen- und U-Bahn', VL_SSU]
+    aliases: [SSU, 'Stadt- , Straßen- und U-Bahn', VL_SSU, 'Straßen- & U-Bahnen']
   - id: tram
     label_en: Tram
     label_de: Straßenbahn
@@ -1066,7 +1066,7 @@ dimensions:
   - id: long_distance_trains
     label_en: Long-distance trains
     label_de: Schienenpersonenfernverkehr
-    aliases: [SPFV]
+    aliases: [SPFV, Schienenfernverkehr]
   - id: cargo_trains
     label_en: Cargo trains
     label_de: Schienengüterverkehr
@@ -1074,7 +1074,7 @@ dimensions:
   - id: inland_waterway_shipping
     label_en: Inland waterway shipping
     label_de: Binnenschifffart
-    aliases: [BiSchi]
+    aliases: [BiSchi, Binnenschiffahrt]
   - id: air_transport
     label_en: Air transport (LTO)
     label_de: Flugverkehr

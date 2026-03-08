@@ -98,6 +98,140 @@ dimensions:
     label_de: Nicht-Spitzenstunden
     label_fi: Epäpikkupisteet
 
+- id: stakeholder
+  label_en: Stakeholder
+  label_de: Interessengruppe
+  label_fi: Sidosryhmä
+  categories:
+  # Supporters
+  - id: environmental_advocates
+    label_en: Environmental advocates
+    label_de: Umweltverbände
+    label_fi: Ympäristöjärjestöt
+  - id: zone_residents
+    label_en: Zone residents
+    label_de: Anwohner der Zone
+    label_fi: Vyöhykkeen asukkaat
+  - id: transit_agency
+    label_en: Transit agency
+    label_de: Verkehrsbetrieb
+    label_fi: Joukkoliikenne
+  - id: city_planners
+    label_en: City planners
+    label_de: Stadtplaner
+    label_fi: Kaupunkisuunnittelijat
+  - id: health_advocates
+    label_en: Health advocates
+    label_de: Gesundheitsverbände
+    label_fi: Terveysjärjestöt
+  - id: bicycle_pedestrian_advocates
+    label_en: Bicycle and pedestrian advocates
+    label_de: Fahrrad- und Fußgängerverbände
+    label_fi: Pyöräily- ja kävelijäjärjestöt
+  # Mixed position
+  - id: affluent_drivers
+    label_en: Affluent drivers
+    label_de: Wohlhabende Autofahrer
+    label_fi: Varakkaat autoilijat
+  - id: police_enforcement
+    label_en: Police and enforcement
+    label_de: Polizei und Vollzug
+    label_fi: Poliisi ja valvonta
+  - id: emergency_services
+    label_en: Emergency services
+    label_de: Rettungsdienste
+    label_fi: Hätäpalvelut
+  - id: regional_transport_authority
+    label_en: Regional transport authority
+    label_de: Regionaler Verkehrsverbund
+    label_fi: Alueellinen liikenneviranomainen
+  - id: large_employers
+    label_en: Large employers
+    label_de: Großarbeitgeber
+    label_fi: Suuret työnantajat
+  - id: residential_developers
+    label_en: Residential real estate developers
+    label_de: Wohnungsbauentwickler
+    label_fi: Asuntokehittäjät
+  - id: technology_companies
+    label_en: Technology companies
+    label_de: Technologieunternehmen
+    label_fi: Teknologiayhtiöt
+  # Opponents
+  - id: private_car_commuters
+    label_en: Private car commuters
+    label_de: Pkw-Pendler
+    label_fi: Henkilöautolla työmatkustajat
+  - id: low_income_drivers
+    label_en: Low-income drivers
+    label_de: Geringverdiener mit Auto
+    label_fi: Matalatuloiset autoilijat
+  - id: downtown_businesses
+    label_en: Downtown businesses
+    label_de: Innenstadtgeschäfte
+    label_fi: Keskustan yritykset
+  - id: equity_advocates
+    label_en: Equity advocates (conditional)
+    label_de: Verteilungsgerechtigkeit (bedingt)
+    label_fi: Tasa-arvo (ehdollinen)
+  - id: suburban_residents
+    label_en: Suburban residents
+    label_de: Vorstadtbewohner
+    label_fi: Esikaupunkilaiset
+  - id: delivery_logistics
+    label_en: Delivery and logistics companies
+    label_de: Liefer- und Logistikunternehmen
+    label_fi: Kuljetus- ja logistiikkayhtiöt
+  - id: rideshare_drivers_companies
+    label_en: Rideshare drivers and companies
+    label_de: Fahrdienstfahrer und -unternehmen
+    label_fi: Kyyditsijät ja -yritykset
+  - id: parking_operators
+    label_en: Parking operators
+    label_de: Parkraumbetreiber
+    label_fi: Pysäköintioperaattorit
+  - id: automotive_industry
+    label_en: Automotive industry
+    label_de: Automobilindustrie
+    label_fi: Autoteollisuus
+  - id: disability_advocates
+    label_en: Disability advocates (conditional)
+    label_de: Behindertenverbände (bedingt)
+    label_fi: Vammaisjärjestöt (ehdollinen)
+  - id: tourism_industry
+    label_en: Tourism industry
+    label_de: Tourismusindustrie
+    label_fi: Matkailuala
+  - id: construction_industry
+    label_en: Construction industry
+    label_de: Bauindustrie
+    label_fi: Rakennusteollisuus
+  # Income groups (used by module nodes)
+  - id: citizens
+    label_en: Citizens
+    label_de: Bürger
+    label_fi: Kansalaiset
+  - id: property_owners
+    label_en: Property owners
+    label_de: Immobilienbesitzer
+    label_fi: Kiinteistönomistajat
+  - id: city
+    label_en: City
+    label_de: Stadt
+    label_fi: Kaupunki
+  - id: middle_class
+    label_en: Middle class
+    label_de: Mittelschicht
+    label_fi: Keskiluokka
+  - id: low_income
+    label_en: Low income
+    label_de: Geringes Einkommen
+    label_fi: Matala tulotaso
+  - id: affluent
+    label_en: Affluent
+    label_de: Wohlhabend
+    label_fi: Varakkaat
+
 nodes:
 
 - id: net_emissions
