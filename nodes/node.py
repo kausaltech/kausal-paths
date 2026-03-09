@@ -750,6 +750,8 @@ class Node:
         if df is None:
             return None
         context = self.context
+        if len(df.metric_cols) == 1:
+            df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
         df = df.paths._drop_unnecessary_levels(df, context)
         df = df.paths._add_missing_years(df, context)
         df = df.paths._extend_values(df, context)
