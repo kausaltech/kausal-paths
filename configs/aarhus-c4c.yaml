@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e4820a9edc6de097782f1d075caca3edd17cf33f
+  commit: 598a190a1cdd39267a3cd49cd4f6fd8a67d7346b
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
@@ -59,6 +59,8 @@ dimensions:
     label: Electricity Consumption
   - id: distribution_loss
     label: Distribution Loss
+  - id: transportation
+    label: Transportation
 
 - id: owner
   label: Owner
@@ -2447,30 +2449,6 @@ actions:
   - id: transportation_costs
     metrics: [currency]
 
-- id: green_mobility_3b_road_pricing
-  name_da: 3.B Grønne vejafgifter (roadpricing)
-  name_en: 3.B Road Pricing
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
-  input_datasets:
-  - id: aarhus/green_mobility_plan_actions
-    column: fraction
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 3b_road_pricing
-    - column: sector
-    - column: cost_type
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    tags: [green_mobility_3b]
-    to_dimensions: []
-
 - id: green_mobility_4_transport_oriented_city_development
   name_da: 4 Stationsnær og transportorienteret byudvikling
   name_en: 4 Transport Oriented City Development
@@ -2745,48 +2723,70 @@ actions:
   name_en: 15.A Uncongested Bus Network
   group: transportation_green_mobility
   type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    column: fraction
-    dropna: true
     forecast_from: 2024
     filters:
     - column: action
       value: 15a_uncongested_bus_network
-    - column: sector
-    - column: cost_type
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
     tags: [green_mobility_15a]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
     to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
 
 - id: green_mobility_17_light_rail_stage_1
   name_da: 17 Letbane etape 1 - udvidelse af frekvens og kapacitet
   name_en: 17 Light Rail Stage 1
   group: transportation_green_mobility
   type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    column: fraction
-    dropna: true
     forecast_from: 2024
     filters:
     - column: action
       value: 17_light_rail_stage_1
-    - column: sector
-    - column: cost_type
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
     tags: [green_mobility_17]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
     to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
 
 - id: green_mobility_22a_road_structure_mobility_zones_speed_limits
   name_da: 22.A Principper for vejstruktur, mobilitetszoner og hastighedsgrænser i Aarhus
@@ -2898,24 +2898,35 @@ actions:
   name_en: '26 Faster Electrification of Heavy Vehicles and Goods Transport: Vans'
   group: transportation_green_mobility
   type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    column: fraction
-    dropna: true
     forecast_from: 2024
     filters:
     - column: action
       value: 26_faster_electrification_of_vans
-    - column: sector
-    - column: cost_type
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
     tags: [green_mobility_26_vans]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
     to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
 
 - id: green_mobility_26_faster_electrification_of_trucks
   name_da: '26 Hurtigere elektrificering af tung trafik og varelevering: Lastbiler'
@@ -3051,28 +3062,74 @@ actions:
   name_en: 31 Facilitation of Co-driving
   group: transportation_green_mobility
   type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    column: fraction
-    dropna: true
     forecast_from: 2024
     filters:
     - column: action
       value: 31_facilitation_of_codriving
-    - column: sector
-    - column: cost_type
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
     tags: [green_mobility_31]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
     to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
 
 - id: green_mobility_32_expansion_of_charging_infrastructure
   name_da: 32 Øget indsats for ladeinfrastruktur
   name_en: 32 Expansion of Charging Infrastructure
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 32_expansion_of_charging_infrastructure
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_32]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_3b_road_pricing
+  name_da: 3.B Grønne vejafgifter (roadpricing)
+  name_en: 3.B Road Pricing
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -3086,12 +3143,12 @@ actions:
     forecast_from: 2024
     filters:
     - column: action
-      value: 32_expansion_of_charging_infrastructure
+      value: 3b_road_pricing
     - column: sector
     - column: cost_type
   output_nodes:
   - id: onroad_transport_passenger_car_emissions
-    tags: [green_mobility_32]
+    tags: [green_mobility_3b]
     to_dimensions: []
 
 - id: green_mobility_non_estimated_and_synergy_effects_1
