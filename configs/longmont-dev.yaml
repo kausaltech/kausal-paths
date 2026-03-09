@@ -800,7 +800,7 @@ nodes:
     sin procesar se obtuvieron del <a 
     href="https://demography.dola.colorado.gov/assets/html/county.html">Departamento
     de Asuntos Locales de Colorado</a>.
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: population
   unit: cap
   input_datasets:
@@ -815,7 +815,7 @@ nodes:
     tons per year</b></p>
   description_es-US: <p>Emisiones de gases de efecto 
     invernadero</p><p><b>Unidad:</b> t/año = toneladas métricas al año</b></p>
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [scope]
@@ -946,7 +946,7 @@ nodes:
 
 - id: avoided_emissions
   name: Avoided emissions
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
   input_nodes:
@@ -1051,7 +1051,7 @@ nodes:
   name: Fugitive emissions
   name_es-US: Emisiones fugitivas
   color: '#8DAFBC'
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [emission_sectors, scope, ghg, energy_carrier]
@@ -1415,7 +1415,7 @@ nodes:
 - id: electricity_emission_factor
   name: Emission factor of electricity production
   name_es-US: Factor de emisión de la producción de electricidad
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: t/MWh
   input_dimensions: [site, ghg]
@@ -1637,7 +1637,7 @@ nodes:
 - id: stationary_wood_consumption
   name: Stationary wood consumption
   name_es-US: Consumo de madera estacionario
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: energy
   unit: MMBtu/a
   input_dataset_processors: [LinearInterpolation]
@@ -1705,7 +1705,7 @@ nodes:
 - id: electricity_loss_fraction
   name: Electricity loss fraction
   name_es-US: Fracción de pérdida de electricidad
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_datasets:
@@ -2079,7 +2079,7 @@ nodes:
 
 - id: transportation_emissions
   name: Transportation emissions
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [energy_carrier, ghg, scope]
@@ -2345,6 +2345,15 @@ nodes:
   - id: longmont/waste_data
     column: waste_landfilled
 
+- id: diversion_rate
+  name: Diversion rate
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: longmont/waste_data
+    column: Diversion rate
+
 - id: msw_characterization
   name: MSW characterization
   type: generic.GenericNode
@@ -2358,29 +2367,33 @@ nodes:
 
 - id: landfilled_waste_emissions
   name: Landfilled waste emissions
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [scope, waste, ghg]
   output_dimensions: [scope, waste, ghg]
   input_nodes:
   - id: waste_landfilled
-    tags: [non_additive]
+    tags: [mass]
     from_dimensions:
     - id: waste
       flatten: true
     to_dimensions:
     - id: scope
+  - id: diversion_rate
+    to_dimensions: []
   - id: msw_characterization
     to_dimensions:
     - id: waste
   - id: waste_emission_factors_co2e
+    tags: [ef]
     to_dimensions:
     - id: waste
     - id: ghg
   - id: gas_collection_rate
-    tags: [complement]
     to_dimensions: []
+  params:
+    formula: mass * complement(diversion_rate) * msw_characterization * ef * complement(gas_collection_rate)
   output_nodes:
   - id: waste_emissions
     from_dimensions:
@@ -2594,7 +2607,7 @@ nodes:
   name: Waste emissions
   name_es-US: Emisiones de residuos
   color: '#D3805E'
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [scope, ghg]
@@ -2700,16 +2713,17 @@ nodes:
     50: VMT promedio anual por vehículo (de BAU, año 2018) 4671,6 mi/vehículo/a</li>
     <li>Fila 76: VMT promedio anual (a partir del supuesto, año 2018) 7982 mi/vehículo/a</li></ul></p>
     <p><b>Unidad:</b> mi/(año v) = millas al año por vehículo</p>'
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: mileage
   unit: VMT/vehicle/a
   input_datasets:
-  - longmont/annual_vehicle_miles_per_vehicle
+  - id: longmont/annual_vehicle_miles_per_vehicle
+    column: vmt
 
 - id: registered_electric_vehicles
   name: Registered electric vehicles
   name_es-US: Vehículos eléctricos matriculados
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: number
   unit: vehicle
   input_datasets:
@@ -3299,6 +3313,29 @@ actions:
     - id: emission_scope # TODO Use scope and t_co2e already in the dataset.
       categories: [scope1]
 
+- id: increase_waste_diversion
+  name: Increase waste diversion
+  name_es-US: Aumentar el desvío de residuos
+  description: '<p>Achieve 75% waste diversion from the landfill by 2030 and 95% by
+    2050 established in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/35431/638001469478900000">2022
+    Zero Waste Resolution</a>.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/topic-area/waste">Sustainability
+    Plan Waste Strategies</a></li></ul></p>'
+  description_es-US: '<p>Alcanzar un desvío del 75% de los residuos de los basureros
+    para 2030 y del 95% para 2050, tal y como se establece en la <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/35431/638001469478900000">Resolución
+    de Cero Residuos de 2022</a>.</p> <p>Seguimiento de la implementación: <ul><li><a
+    href="https://indicators.longmontcolorado.gov/sustainability/topic-area/waste">Estrategias
+    de gestión de residuos del plan de sostenibilidad</a></li></ul></p>.'
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  group: solid_waste
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    forecast_from: 2022
+    column: increase_waste_diversion
+  output_nodes:
+  - diversion_rate
+
 - id: energy_use_intensity_trend
   name: Energy use intensity trend
   name_es-US: Tendencia de la intensidad del uso de la energía
@@ -3480,7 +3517,7 @@ actions:
   group: trend
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
+    forecast_from: 2025
     column: vmt_per_vehicle_trend
   output_nodes:
   - vehicle_miles_per_vehicle
