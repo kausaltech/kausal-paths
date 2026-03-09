@@ -149,11 +149,6 @@ class FileLoader:
         )
 
     @staticmethod
-    def load_parquet(file_path: str | Path) -> pl.DataFrame:
-        """Load a parquet file into a Polars DataFrame."""
-        return pl.read_parquet(file_path)
-
-    @staticmethod
     def load_excel(
         file_path: str | Path,
         sheet_name: str | None = None,
@@ -242,6 +237,11 @@ class FileLoader:
         # Default to CSV
         return cls.load_csv(file_path, skip_rows, has_header)
 
+    @staticmethod
+    def load_parquet(file_path: str | Path) -> pl.DataFrame:
+        """Load a parquet file into a Polars DataFrame."""
+        return pl.read_parquet(file_path)
+
 
 def load_from_dvc(instance_id: str, dataset_id: str) -> pl.DataFrame:
     """Load a dataset from DVC. Requires instance context (Django or YAML)."""
@@ -325,131 +325,19 @@ class OperationsExecutor:
             result_df = self.execute_operation(result_df, operation)
         return result_df
 
-    def _op_filter(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        expr_str = op_params.get('expr')
-        if not expr_str:
-            raise ValueError("Filter operation requires 'expr' parameter")
-        expr = self._eval_polars_expr(expr_str, df)
-        return df.filter(expr)
-
-    def _op_filter_by_sector_carrier(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        """
-        Filter rows to those whose column (e.g. field_key) is in the sector * energy_carrier set.
-
-        Params:
-            column: Column name (default "field_key").
-            sectors: List of sector prefixes (e.g. ["EW_", "GE_", "HE_", "IE_", "KE_"]).
-            energy_carriers: List of energy carrier names (e.g. ["Biogas", "Biomasse", ...]).
-            include: If True (default), keep only matching rows; if False, drop matching rows.
-        """
-        column = op_params.get('column', 'field_key')
-        sectors = op_params.get('sectors')
-        energy_carriers = op_params.get('energy_carriers')
-        if not sectors or not energy_carriers:
-            raise ValueError(
-                "filter_by_sector_carrier requires 'sectors' and 'energy_carriers' lists in params."
-            )
-        if column not in df.columns:
-            raise ValueError(
-                f"filter_by_sector_carrier: column {column!r} not in DataFrame (columns: {list(df.columns)})"
-            )
-        allowed = build_sector_carrier_field_keys(sectors, energy_carriers)
-        include = op_params.get('include', True)
-        if include:
-            return df.filter(pl.col(column).is_in(allowed))
-        return df.filter(~pl.col(column).is_in(allowed))
-
-    def _op_with_columns(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        expr_or_exprs = op_params.get('expr') or op_params.get('exprs')
-        if expr_or_exprs is None:
-            raise ValueError("with_columns operation requires 'expr' or 'exprs' parameter")
-        if isinstance(expr_or_exprs, str):
-            expr = self._eval_polars_expr(expr_or_exprs, df)
-            return df.with_columns(expr)
-        if isinstance(expr_or_exprs, list):
-            exprs = [self._eval_polars_expr(e, df) for e in expr_or_exprs]
-            return df.with_columns(exprs)
-        raise ValueError("with_columns 'expr'/'exprs' must be a string or list of strings")
-
-    def _op_drop(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        columns = op_params.get('columns', [])
-        return df.drop(columns)
-
-    def _op_rename(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        mapping = op_params.get('mapping', {})
-        return df.rename(mapping)
-
-    def _op_select(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        columns = op_params.get('columns', [])
-        return df.select(columns)
-
-    def _op_sort(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        """Sort rows by column(s). Params: by (column name or list), descending (bool or list), nulls_last (bool)."""
-        by = op_params.get('by')
-        if by is None:
-            raise ValueError("sort operation requires 'by' parameter (column name or list of column names)")
-        if isinstance(by, str):
-            by = [by]
-        descending = op_params.get('descending', False)
-        nulls_last = op_params.get('nulls_last', True)
-        return df.sort(by, descending=descending, nulls_last=nulls_last)
-
-    def _op_to_paths_dataframe(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        """Convert pl.DataFrame to PathsDataFrame with given units and primary keys (step 4 in pipeline)."""
-        from common import polars as ppl
-        from nodes.units import unit_registry
-
-        units_dict = op_params.get('units', {})
-        primary_keys = op_params.get('primary_keys', [])
-        if not isinstance(units_dict, dict):
-            raise TypeError("to_paths_dataframe requires 'units' to be a dict")
-        units_parsed = {
-            col: unit_registry.parse_units(u) for col, u in units_dict.items()
-        }
-        meta = ppl.DataFrameMeta(units=units_parsed, primary_keys=list(primary_keys))
-        return ppl.to_ppdf(df, meta=meta)
-
-    def _op_set_unit(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        """Set or change units on metric columns. Only applies when df is a PathsDataFrame (e.g. from DVC/DB)."""
-        set_unit_fn = getattr(df, 'set_unit', None)
-        if not callable(set_unit_fn):
-            raise TypeError(
-                "set_unit operation requires a PathsDataFrame (e.g. load with source: dvc or source: db). "
-                + "File-loaded data does not carry unit metadata; use metrics in YAML or push_to_dvc params instead."
-            )
-        mapping = op_params.get('mapping', {})
-        if not mapping:
-            col = op_params.get('column')
-            unit = op_params.get('unit')
-            if col is None or unit is None:
-                raise ValueError("set_unit requires params 'mapping' (dict) or 'column' and 'unit'.")
-            mapping = {col: unit}
-        for col, unit_str in mapping.items():
-            if col not in df.columns:
-                raise ValueError(f"set_unit: column {col!r} not in DataFrame.")
-            df = cast('pl.DataFrame', set_unit_fn(col, unit_str, force=True))
+    def _op_append_to_all_results(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
+        """Append the current DataFrame to the shared all_results list. Returns df unchanged."""
+        self.all_results.append(df)
         return df
 
     def _op_clean_dataframe(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         return clean_dataframe(df)
 
-    def _op_convert_to_standard_format(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
-        return convert_to_standard_format(df)
-
-    def _op_pivot_by_compound_id(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
-        return pivot_by_compound_id(df)
-
-    def _op_prepare_for_dvc(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        units = op_params.get('units', {})
-        return prepare_for_dvc(df, units)
-
-    def _op_to_snake_case_columns(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        exclude = op_params.get('exclude', ['Year'])
-        new_cols = {}
-        for col in df.columns:
-            if col not in exclude:
-                new_cols[col] = to_snake_case(col)
-        return df.rename(new_cols)
+    def _op_concat_all_results(self, _df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
+        """Replace the current DataFrame with the concatenation of all DataFrames in all_results."""
+        if not self.all_results:
+            return pl.DataFrame()
+        return pl.concat(self.all_results, rechunk=False)
 
     def _op_convert_names_to_cats(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         if self.context is None:
@@ -458,6 +346,9 @@ class OperationsExecutor:
                 + "Set 'instance' in the dataset configuration."
             )
         return convert_names_to_cats(df, self.context)
+
+    def _op_convert_to_standard_format(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
+        return convert_to_standard_format(df)
 
     def _op_define_metrics(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         if not self.metrics:
@@ -491,6 +382,72 @@ class OperationsExecutor:
             .alias('metric_col')
         )
 
+    def _op_drop(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        columns = op_params.get('columns', [])
+        return df.drop(columns)
+
+    def _op_extract_dimensions_from_text(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:  # noqa: C901
+        description_col = op_params.get('column', 'Description')
+        if description_col not in df.columns:
+            raise ValueError(
+                f"extract_dimensions_from_text operation requires '{description_col}' column in DataFrame."
+            )
+
+        category_mapping = op_params.get('mapping')
+        if not isinstance(category_mapping, dict):
+            raise TypeError(
+                "extract_dimensions_from_text operation requires 'mapping' parameter "
+                + "as a dict mapping dimension names to keyword->category_id dictionaries."
+            )
+
+        def find_category_matches(description: str | None, mapping: dict[str, dict[str, str]]) -> dict[str, str | None]:
+            matches: dict[str, str | None] = dict.fromkeys(mapping, None)
+            if description is None:
+                return matches
+            description_lower = str(description).lower()
+            for dimension_id, keyword_mapping in mapping.items():
+                for keyword, category_id in keyword_mapping.items():
+                    if keyword.lower() in description_lower:
+                        matches[dimension_id] = category_id
+                        break
+            return matches
+
+        all_dimensions = set(category_mapping.keys())
+        if verbose := op_params.get('verbose', False):
+            print(f"Extracting dimensions from '{description_col}' column: {sorted(all_dimensions)}")
+
+        df = df.with_columns(
+            pl.col(description_col)
+            .map_elements(
+                lambda x: find_category_matches(x, category_mapping),
+                return_dtype=pl.Struct([pl.Field(dim, pl.Utf8) for dim in all_dimensions])
+            )
+            .alias("_dimension_matches")
+        )
+
+        for dimension in all_dimensions:
+            df = df.with_columns(
+                pl.col("_dimension_matches").struct.field(dimension).alias(dimension)
+            )
+
+        df = df.drop("_dimension_matches")
+
+        if verbose:
+            for dimension in sorted(all_dimensions):
+                non_null_count = df.filter(pl.col(dimension).is_not_null()).height
+                if non_null_count > 0:
+                    unique_values = df.select(dimension).unique().drop_nulls()
+                    print(f"  {dimension}: {non_null_count} matches, {len(unique_values)} unique values")
+
+        return df
+
+    def _op_extract_metadata(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
+        metadata_cols = ['Quantity', 'Unit', 'Metric', 'metric_col']
+        cols_to_drop = [col for col in metadata_cols if col in df.columns]
+        if cols_to_drop:
+            df = df.drop(cols_to_drop)
+        return df
+
     def _op_extract_units(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         if 'metric_col' not in df.columns:
             raise ValueError(
@@ -508,25 +465,39 @@ class OperationsExecutor:
         self._extracted_units = units
         return df_cleaned
 
-    def _op_extract_metadata(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
-        metadata_cols = ['Quantity', 'Unit', 'Metric', 'metric_col']
-        cols_to_drop = [col for col in metadata_cols if col in df.columns]
-        if cols_to_drop:
-            df = df.drop(cols_to_drop)
-        return df
+    def _op_filter(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        expr_str = op_params.get('expr')
+        if not expr_str:
+            raise ValueError("Filter operation requires 'expr' parameter")
+        expr = self._eval_polars_expr(expr_str, df)
+        return df.filter(expr)
 
-    def _op_print_data(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
-        print(df)
-        return df
+    def _op_filter_by_sector_carrier(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        """
+        Filter rows to those whose column (e.g. field_key) is in the sector * energy_carrier set.
 
-    def _op_write_csv(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
-        """Write the current DataFrame to a CSV file. Returns the DataFrame unchanged."""
-        output_path = op_params.get('output_path')
-        if not output_path:
-            raise ValueError("write_csv operation requires 'output_path' parameter")
-        verbose = op_params.get('verbose', True)
-        write_dataframe_to_csv(df, output_path, verbose=verbose)
-        return df
+        Params:
+            column: Column name (default "field_key").
+            sectors: List of sector prefixes (e.g. ["EW_", "GE_", "HE_", "IE_", "KE_"]).
+            energy_carriers: List of energy carrier names (e.g. ["Biogas", "Biomasse", ...]).
+            include: If True (default), keep only matching rows; if False, drop matching rows.
+        """
+        column = op_params.get('column', 'field_key')
+        sectors = op_params.get('sectors')
+        energy_carriers = op_params.get('energy_carriers')
+        if not sectors or not energy_carriers:
+            raise ValueError(
+                "filter_by_sector_carrier requires 'sectors' and 'energy_carriers' lists in params."
+            )
+        if column not in df.columns:
+            raise ValueError(
+                f"filter_by_sector_carrier: column {column!r} not in DataFrame (columns: {list(df.columns)})"
+            )
+        allowed = build_sector_carrier_field_keys(sectors, energy_carriers)
+        include = op_params.get('include', True)
+        if include:
+            return df.filter(pl.col(column).is_in(allowed))
+        return df.filter(~pl.col(column).is_in(allowed))
 
     def _op_melt_with_column_specs(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
         """
@@ -604,16 +575,16 @@ class OperationsExecutor:
             result = result.drop(variable_column_name)
         return result
 
-    def _op_append_to_all_results(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
-        """Append the current DataFrame to the shared all_results list. Returns df unchanged."""
-        self.all_results.append(df)
-        return df
+    def _op_pivot_by_compound_id(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
+        return pivot_by_compound_id(df)
 
-    def _op_concat_all_results(self, _df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
-        """Replace the current DataFrame with the concatenation of all DataFrames in all_results."""
-        if not self.all_results:
-            return pl.DataFrame()
-        return pl.concat(self.all_results, rechunk=False)
+    def _op_prepare_for_dvc(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        units = op_params.get('units', {})
+        return prepare_for_dvc(df, units)
+
+    def _op_print_data(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
+        print(df)
+        return df
 
     def _op_print_metadata(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:  # noqa: C901, PLR0912, PLR0915
         print("\n" + "=" * 80)
@@ -688,61 +659,6 @@ class OperationsExecutor:
                 print()
 
         print("=" * 80 + "\n")
-        return df
-
-    def _op_extract_dimensions_from_text(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:  # noqa: C901
-        description_col = op_params.get('column', 'Description')
-        if description_col not in df.columns:
-            raise ValueError(
-                f"extract_dimensions_from_text operation requires '{description_col}' column in DataFrame."
-            )
-
-        category_mapping = op_params.get('mapping')
-        if not isinstance(category_mapping, dict):
-            raise TypeError(
-                "extract_dimensions_from_text operation requires 'mapping' parameter "
-                + "as a dict mapping dimension names to keyword->category_id dictionaries."
-            )
-
-        def find_category_matches(description: str | None, mapping: dict[str, dict[str, str]]) -> dict[str, str | None]:
-            matches: dict[str, str | None] = dict.fromkeys(mapping, None)
-            if description is None:
-                return matches
-            description_lower = str(description).lower()
-            for dimension_id, keyword_mapping in mapping.items():
-                for keyword, category_id in keyword_mapping.items():
-                    if keyword.lower() in description_lower:
-                        matches[dimension_id] = category_id
-                        break
-            return matches
-
-        all_dimensions = set(category_mapping.keys())
-        if verbose := op_params.get('verbose', False):
-            print(f"Extracting dimensions from '{description_col}' column: {sorted(all_dimensions)}")
-
-        df = df.with_columns(
-            pl.col(description_col)
-            .map_elements(
-                lambda x: find_category_matches(x, category_mapping),
-                return_dtype=pl.Struct([pl.Field(dim, pl.Utf8) for dim in all_dimensions])
-            )
-            .alias("_dimension_matches")
-        )
-
-        for dimension in all_dimensions:
-            df = df.with_columns(
-                pl.col("_dimension_matches").struct.field(dimension).alias(dimension)
-            )
-
-        df = df.drop("_dimension_matches")
-
-        if verbose:
-            for dimension in sorted(all_dimensions):
-                non_null_count = df.filter(pl.col(dimension).is_not_null()).height
-                if non_null_count > 0:
-                    unique_values = df.select(dimension).unique().drop_nulls()
-                    print(f"  {dimension}: {non_null_count} matches, {len(unique_values)} unique values")
-
         return df
 
     def _op_process_datasets(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
@@ -827,6 +743,90 @@ class OperationsExecutor:
             units=units,
         )
         print(f"✓ Dataset '{dataset_name}' pushed to DVC at {output_path}")
+        return df
+
+    def _op_rename(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        mapping = op_params.get('mapping', {})
+        return df.rename(mapping)
+
+    def _op_select(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        columns = op_params.get('columns', [])
+        return df.select(columns)
+
+    def _op_set_unit(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        """Set or change units on metric columns. Only applies when df is a PathsDataFrame (e.g. from DVC/DB)."""
+        set_unit_fn = getattr(df, 'set_unit', None)
+        if not callable(set_unit_fn):
+            raise TypeError(
+                "set_unit operation requires a PathsDataFrame (e.g. load with source: dvc or source: db). "
+                + "File-loaded data does not carry unit metadata; use metrics in YAML or push_to_dvc params instead."
+            )
+        mapping = op_params.get('mapping', {})
+        if not mapping:
+            col = op_params.get('column')
+            unit = op_params.get('unit')
+            if col is None or unit is None:
+                raise ValueError("set_unit requires params 'mapping' (dict) or 'column' and 'unit'.")
+            mapping = {col: unit}
+        for col, unit_str in mapping.items():
+            if col not in df.columns:
+                raise ValueError(f"set_unit: column {col!r} not in DataFrame.")
+            df = cast('pl.DataFrame', set_unit_fn(col, unit_str, force=True))
+        return df
+
+    def _op_sort(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        """Sort rows by column(s). Params: by (column name or list), descending (bool or list), nulls_last (bool)."""
+        by = op_params.get('by')
+        if by is None:
+            raise ValueError("sort operation requires 'by' parameter (column name or list of column names)")
+        if isinstance(by, str):
+            by = [by]
+        descending = op_params.get('descending', False)
+        nulls_last = op_params.get('nulls_last', True)
+        return df.sort(by, descending=descending, nulls_last=nulls_last)
+
+    def _op_to_paths_dataframe(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        """Convert pl.DataFrame to PathsDataFrame with given units and primary keys (step 4 in pipeline)."""
+        from common import polars as ppl
+        from nodes.units import unit_registry
+
+        units_dict = op_params.get('units', {})
+        primary_keys = op_params.get('primary_keys', [])
+        if not isinstance(units_dict, dict):
+            raise TypeError("to_paths_dataframe requires 'units' to be a dict")
+        units_parsed = {
+            col: unit_registry.parse_units(u) for col, u in units_dict.items()
+        }
+        meta = ppl.DataFrameMeta(units=units_parsed, primary_keys=list(primary_keys))
+        return ppl.to_ppdf(df, meta=meta)
+
+    def _op_to_snake_case_columns(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        exclude = op_params.get('exclude', ['Year'])
+        new_cols = {}
+        for col in df.columns:
+            if col not in exclude:
+                new_cols[col] = to_snake_case(col)
+        return df.rename(new_cols)
+
+    def _op_with_columns(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        expr_or_exprs = op_params.get('expr') or op_params.get('exprs')
+        if expr_or_exprs is None:
+            raise ValueError("with_columns operation requires 'expr' or 'exprs' parameter")
+        if isinstance(expr_or_exprs, str):
+            expr = self._eval_polars_expr(expr_or_exprs, df)
+            return df.with_columns(expr)
+        if isinstance(expr_or_exprs, list):
+            exprs = [self._eval_polars_expr(e, df) for e in expr_or_exprs]
+            return df.with_columns(exprs)
+        raise ValueError("with_columns 'expr'/'exprs' must be a string or list of strings")
+
+    def _op_write_csv(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        """Write the current DataFrame to a CSV file. Returns the DataFrame unchanged."""
+        output_path = op_params.get('output_path')
+        if not output_path:
+            raise ValueError("write_csv operation requires 'output_path' parameter")
+        verbose = op_params.get('verbose', True)
+        write_dataframe_to_csv(df, output_path, verbose=verbose)
         return df
 
 
