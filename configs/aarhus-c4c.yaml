@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 598a190a1cdd39267a3cd49cd4f6fd8a67d7346b
+  commit: 6a131ae009dfe6d5aef70fa15e38fca279ceceb0
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
