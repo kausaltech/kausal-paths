@@ -22,7 +22,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 # Configure Django
 django.setup()
 
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
+from nodes.constants import VALUE_COLUMN  # noqa: E402
 from notebooks.notebook_support import get_context  # noqa: E402
 
 if TYPE_CHECKING:
@@ -585,19 +585,38 @@ def process_dataset(
             df, dataset_dvc_path, dataset_name, description, node_metrics, language, units=units
         )
 
-def upload_several_datasets(
+def process_datasets(
     full_df: pl.DataFrame,
     outcsvpath: str,
     outdvcpath: str,
     language: str,
-    context: Context | None = None
+    context: Context | None = None,
+    dataset_name: str | None = None
 ) -> None:
     # Process all datasets
-    dataset_dfs = split_by_dataset(full_df)
-    print(f"Found {len(dataset_dfs)} datasets to process")
+    # Process datasets
+    if dataset_name:
+        if dataset_name == 'plain_csv':
+            print("Uploading the csv file as is, but checking for units.")
+            units, full_df = extract_units_from_row(full_df)
+            push_to_dvc(full_df, outdvcpath, '', None, [], language, units=units)
+        else:
+            d = 'Dataset'
+            if d in full_df.columns:
+                # Process only the specified
+                print(f"Processing only dataset: {dataset_name}")
+                dataset_df = full_df.filter(pl.col(d) == dataset_name).drop(d)
+                process_dataset(dataset_df, dataset_name, outcsvpath, outdvcpath, language, context)
+            else:
+                print(f"No '{d}' column, treating the whole table as one dataset '{dataset_name}'.")
+                process_dataset(full_df, dataset_name, outcsvpath, outdvcpath, language, context)
+    else:
+        # Process all datasets
+        dataset_dfs = split_by_dataset(full_df)
+        print(f"Found {len(dataset_dfs)} datasets to process")
 
-    for dataset_name, dataset_df in dataset_dfs.items():
-        process_dataset(dataset_df, dataset_name, outcsvpath, outdvcpath, language, context)
+        for ds_name, dataset_df in dataset_dfs.items():
+            process_dataset(dataset_df, ds_name, outcsvpath, outdvcpath, language, context)
 
 def main():
     """Process and convert data for all datasets."""
@@ -654,7 +673,7 @@ def main():
     outcsvpath = args.output_csv
     outdvcpath = args.output_dvc
     language = args.language
-    specific_dataset = args.dataset
+    dataset_name = args.dataset
     encoding = args.encoding
     instance = args.instance
 
@@ -663,24 +682,7 @@ def main():
     # Load data
     full_df = load_data(incsvpath, incsvsep, encoding)
 
-    # Process datasets
-    if specific_dataset:
-        if specific_dataset == 'plain_csv':
-            print("Uploading the csv file as is, but checking for units.")
-            units, full_df = extract_units_from_row(full_df)
-            push_to_dvc(full_df, outdvcpath, '', None, [], language, units=units)
-        else:
-            d = 'Dataset'
-            if d in full_df.columns:
-                # Process only the specified
-                print(f"Processing only dataset: {specific_dataset}")
-                dataset_df = full_df.filter(pl.col(d) == specific_dataset).drop(d)
-                process_dataset(dataset_df, specific_dataset, outcsvpath, outdvcpath, language, context)
-            else:
-                print(f"No '{d}' column, treating the whole table as one dataset '{specific_dataset}'.")
-                process_dataset(full_df, specific_dataset, outcsvpath, outdvcpath, language, context)
-    else:
-        upload_several_datasets(full_df, outcsvpath, outdvcpath, language, context)
+    process_datasets(full_df, outcsvpath, outdvcpath, language, context, dataset_name)
 
 
 if __name__ == "__main__":

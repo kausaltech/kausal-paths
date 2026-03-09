@@ -31,9 +31,9 @@ from notebooks.upload_new_dataset import (
     metric_data_to_node_metric,
     pivot_by_compound_id,
     prepare_for_dvc,
+    process_datasets,
     push_to_dvc,
     to_snake_case,
-    upload_several_datasets,
     write_dataframe_to_csv,
 )
 
@@ -745,13 +745,14 @@ class OperationsExecutor:
 
         return df
 
-    def _op_upload_several_datasets(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+    def _op_process_datasets(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        outcsvpath = op_params.get('outcsvpath', '')
         output_path = op_params.get('output_path')
         if not output_path:
-            raise ValueError("upload_several_datasets operation requires 'output_path' parameter")
+            raise ValueError("process_datasets operation requires 'output_path' parameter")
         dataset_name = op_params.get('dataset_name') or self.dataset_name or 'dataset'
         language = op_params.get('language', 'en')
-        upload_several_datasets(df, output_path, dataset_name, language)
+        process_datasets(df, outcsvpath, output_path, language, self.context, dataset_name)
         return df
 
     def _op_push_to_dvc(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:  # noqa: C901, PLR0912
