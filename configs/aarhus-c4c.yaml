@@ -408,7 +408,7 @@ nodes:
 # ---------- I.1 Combined Heat & Power
 
 - id: chp_district_heat_energy_consumption
-  name: CHP District Heat Energy Consumption
+  name: CHP District Heat Energy Consumption (Excluding Electricity)
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
@@ -420,6 +420,29 @@ nodes:
     dropna: true
     forecast_from: 2024
     filters:
+    - column: energy_carrier
+      value: electricity
+      exclude: true
+      drop_col: false
+    - dimension: sector
+      categories: [i11]
+    - column: ghg
+
+- id: chp_district_heat_electricity_consumption
+  name: CHP District Heat Electricity Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: aarhus/combined_heat_and_power
+    column: energy
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: energy_carrier
+      categories: [electricity]
     - dimension: sector
       categories: [i11]
     - column: ghg
@@ -570,10 +593,8 @@ nodes:
     from_dimensions:
     - id: energy_usage
       flatten: true
-  - id: chp_district_heat_energy_consumption
+  - id: chp_district_heat_electricity_consumption
     from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
     - id: sector
       flatten: true
   - id: chp_electricity_generation_energy_production
