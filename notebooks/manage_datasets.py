@@ -33,6 +33,7 @@ from notebooks.upload_new_dataset import (
     prepare_for_dvc,
     push_to_dvc,
     to_snake_case,
+    upload_several_datasets,
     write_dataframe_to_csv,
 )
 
@@ -744,6 +745,15 @@ class OperationsExecutor:
 
         return df
 
+    def _op_upload_several_datasets(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
+        output_path = op_params.get('output_path')
+        if not output_path:
+            raise ValueError("upload_several_datasets operation requires 'output_path' parameter")
+        dataset_name = op_params.get('dataset_name') or self.dataset_name or 'dataset'
+        language = op_params.get('language', 'en')
+        upload_several_datasets(df, output_path, dataset_name, language)
+        return df
+
     def _op_push_to_dvc(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:  # noqa: C901, PLR0912
         from nodes.node import NodeMetric
 
@@ -1089,7 +1099,7 @@ def load_config(yaml_file_path: str | Path) -> tuple[list[DatasetConfig], str | 
     return [dataset_config], default_output
 
 
-def process_datasets(config_path: str | Path, verbose: bool = True) -> pl.DataFrame:
+def process_yaml_datasets(config_path: str | Path, verbose: bool = True) -> pl.DataFrame:
     """
     Process one or more datasets using configuration from YAML file.
 
@@ -1229,7 +1239,7 @@ Examples:
             return 1
 
     try:
-        result_df = process_datasets(args.config, verbose=not args.quiet)
+        result_df = process_yaml_datasets(args.config, verbose=not args.quiet)
 
         # Display data if requested
         if args.show_data or args.head:

@@ -585,6 +585,19 @@ def process_dataset(
             df, dataset_dvc_path, dataset_name, description, node_metrics, language, units=units
         )
 
+def upload_several_datasets(
+    full_df: pl.DataFrame,
+    outcsvpath: str,
+    outdvcpath: str,
+    language: str,
+    context: Context | None = None
+) -> None:
+    # Process all datasets
+    dataset_dfs = split_by_dataset(full_df)
+    print(f"Found {len(dataset_dfs)} datasets to process")
+
+    for dataset_name, dataset_df in dataset_dfs.items():
+        process_dataset(dataset_df, dataset_name, outcsvpath, outdvcpath, language, context)
 
 def main():
     """Process and convert data for all datasets."""
@@ -667,12 +680,7 @@ def main():
                 print(f"No '{d}' column, treating the whole table as one dataset '{specific_dataset}'.")
                 process_dataset(full_df, specific_dataset, outcsvpath, outdvcpath, language, context)
     else:
-        # Process all datasets
-        dataset_dfs = split_by_dataset(full_df)
-        print(f"Found {len(dataset_dfs)} datasets to process")
-
-        for dataset_name, dataset_df in dataset_dfs.items():
-            process_dataset(dataset_df, dataset_name, outcsvpath, outdvcpath, language, context)
+        upload_several_datasets(full_df, outcsvpath, outdvcpath, language, context)
 
 
 if __name__ == "__main__":

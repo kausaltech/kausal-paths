@@ -7,7 +7,7 @@ supported_languages: [en]
 site_url: https://koeln-dev.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: cd690bc25c586bfd298261f2f604a2aafcc11909
+  commit: c1d44785522619923009ab9817773b44c5c1e6d4
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Treibhausgasinventar
@@ -144,21 +144,27 @@ dimensions:
   - id: drive_transition_motorized_individual_transport
     label_en: Drive Transition – Motorized Individual Transport
     label_de: Antriebswende – Motorisierter Individualverkehr
+    aliases: [Antriebswende - Motorisierter Individualverkehr]
   - id: drive_transition_freight_transport
     label_en: Drive Transition – Freight Transport
     label_de: Antriebswende – Güterverkehr
+    aliases: [Antriebswende - Güterverkehr]
   - id: drive_transition_bus
     label_en: Drive Transition – Bus
     label_de: Antriebswende – Bus
+    aliases: [Antriebswende - Bus]
   - id: mobility_transition_freight_transport
     label_en: Mobility Transition – Freight Transport
     label_de: Mobilitätswende – Güterverkehr
+    aliases: [Mobilitätswende - Güterverkehr]
   - id: mobility_transition_local_mobility
     label_en: Mobility Transition – Local Mobility
     label_de: Mobilitätswende – Nahmobilität
+    aliases: [Mobilitätswende - Nahmobilität]
   - id: mobility_transition_regional_mobility
     label_en: Mobility Transition – Regional Mobility
     label_de: Mobilitätswende – Regionale Mobilität
+    aliases: [Mobilitätswende - Regionale Mobilität]
   - id: food_and_nutrition
     label_en: Food & Nutrition
     label_de: Ernährung & Lebensmittel
@@ -170,15 +176,42 @@ dimensions:
       2)
     label_de: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und
       Scope 2)
+    aliases: [THG neutrale Verwaltung - Scope 1 & 2]
   - id: ghg_neutral_administration_scope_3
     label_en: GHG-Neutral Administration (Indirect Influence via Scope 3)
     label_de: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
+    aliases: [THG neutrale Verwaltung - Scope 3]
   - id: waste_reduction_and_facility_efficiency
     label_en: Waste Reduction & Facility Efficiency
     label_de: Abfallreduktion & Anlageneffizienz
+  - id: water_wastewater_reduction_and_facility_efficiency
+    label_en: Water/Wastewater Reduction & Facility Efficiency
+    label_de: Wasser-/Abwasserreduktion & Anlageneffizienz
+  - id: afforestation_and_sustainable_forest_management
+    label_en: Afforestation & Sustainable Forest Management
+    label_de: Aufforstung & nachhaltige Bewirtschaftung von Wäldern
+  - id: rewetting_organic_soils
+    label_en: Rewetting of Organic Soils
+    label_de: Wiedervernässung organischer Böden
+  - id: electricity_savings_households
+    label_en: Electricity Savings in Households
+    label_de: Stromeinsparung durch Haushalte
+  - id: electricity_savings_industry
+    label_en: Electricity Savings in Industry
+    label_de: Stromeinsparung in der Industrie
+  - id: efficient_heat_use_industry
+    label_en: Efficient Heat Use in Industry
+    label_de: Effiziente Wärmenutzung im Industriesektor
+  - id: behavioral_change_heat_consumption_households
+    label_en: Behavioral Change in Heat Consumption in Households
+    label_de: Verhaltensänderung beim Wärmeverbrauch in Haushalten
+  - id: efficient_heat_use_commercial
+    label_en: Efficient Heat Use in Commercial Sector
+    label_de: Effiziente Wärmenutzung im Gewerbe
   - id: cross_cutting_climate_protection_aspects
     label_en: Cross-cutting Climate Protection Aspects
     label_de: Übergreifende Klimaschutz-aspekte
+    aliases: [Übergreifende Klimaschutzaspekte]
 
   # Direct Actions
   - id: pv_on_municipal_holdings_buildings
@@ -259,10 +292,11 @@ dimensions:
 - id: emission_scope # Copied from zuerich-dev.yaml
   label: Emissionsbereiche
   label_en: Emission scopes
-  help_text: Die Netto-Null-Berichterstattung fokussiert im ersten Jahr auf die direkten
-    Emissionen; die indirekten Emissionen werden später ergänzt. Die hier dargestellten
-    indirekten Emissionen basieren weitgehend auf der Netto-Null-Grundlagenstudie und
-    bilden die bis 2040 angestrebte Reduktion noch nicht ab.
+  help_text: Die Netto-Null-Berichterstattung fokussiert im ersten Jahr auf die 
+    direkten Emissionen; die indirekten Emissionen werden später ergänzt. Die 
+    hier dargestellten indirekten Emissionen basieren weitgehend auf der 
+    Netto-Null-Grundlagenstudie und bilden die bis 2040 angestrebte Reduktion 
+    noch nicht ab.
   groups:
   - id: direct
     label: Direkte Emissionen
@@ -980,6 +1014,102 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   output_nodes:
   - id: electricity_emissions
+
+- id: now_year
+  name: Aktuelles Jahr
+  name_en: Current year
+  type: generic.ConstantNode
+  quantity: number
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 2024
+    unit: dimensionless
+
+- id: scaling_rate
+  name: Skalierungsfaktor
+  name_en: Scaling rate
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: now_year
+    tags: [n]
+  params:
+    formula: 3 * (max(0, min(1, (year(n) - n) / (2035 - n)))) ** 2 - 2 * (max(0,
+      min(1, (year(n) - n) / (2035 - n)))) ** 3
+
+- id: emission_raduction_potential
+  name_de: Emission Reduktionspotential
+  name_en: Emission reduction potential
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [action, sector]
+  output_dimensions: [action, sector]
+  input_datasets:
+  - id: koeln/emission_reduction_potential_total
+    tags: [potential]
+  params:
+    formula: extend_all(potential)
+
+- id: action_index_transport
+  name: Aktion Index Verkehr
+  name_en: Action index transport
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [action, sector, energy_carrier, vehicle_type]
+  output_dimensions: [action, sector, energy_carrier, vehicle_type]
+  input_datasets:
+  - id: koeln/action_index
+    tags: [index]
+    column: transport
+  params:
+    formula: drop_unnecessary_levels(index) # TODO Should sropping be automatic?
+
+- id: action_index_stationary
+  name: Aktion Index Stationär
+  name_en: Action index stationary
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [action, sector, energy_carrier]
+  output_dimensions: [action, sector, energy_carrier]
+  input_datasets:
+  - id: koeln/action_index
+    tags: [index]
+    column: stationary
+  params:
+    formula: drop_unnecessary_levels(index) # TODO Should sropping be automatic?
+
+- id: emission_factors
+  name_de: Emissionsfaktoren
+  name_en: Emission factors
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: koeln/emission_factors
+    tags: [factors]
+  params:
+    formula: extend_all(factors)
+
+- id: vehicle_energy_use_by_type
+  name: Fahrzeugenergieverbrauch nach Fahrzeugtyp
+  name_en: Vehicle energy use by vehicle type
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: koeln/vehicle_energy_by_type
+    tags: [energy]
+  params:
+    formula: extend_all(energy)
 
 actions:
 
