@@ -1635,11 +1635,25 @@ nodes:
     - id: energy_carrier
     - id: vehicle_type
 
-# ----- III Waste
+# ----- III Waste, Biogas Production & IPPU
+
+- id: waste_ippu_emissions
+  name_da: Materialer og Ressourcer
+  name_en: Waste & IPPU Emissions
+  color: '#59A14F'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
 
 - id: waste_emissions
   name: Waste Emissions
-  color: '#59A14F'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1651,16 +1665,10 @@ nodes:
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: sector
-      flatten: true
-
-# ----- IV IPPU
+  - id: waste_ippu_emissions
 
 - id: ippu_emissions
   name: Industrial Process & Product Use Emissions
-  color: '#F28E2B'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1672,10 +1680,7 @@ nodes:
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: sector
-      flatten: true
+  - id: waste_ippu_emissions
 
 # ----- V AFOLU
 
