@@ -51,12 +51,119 @@ include:
 
 result_excels:
 - base_excel_url: 
-    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
-  name: Traffic data
+    https://docs.google.com/spreadsheets/d/1owHXkLQMMiY5H5ZQgclhH1Fjco1UlWgqdRVBxTYeurc/export?format=xlsx
+  name: Skenaariotulokset
   node_ids:
-  - road_traffic_mileage
+  - agriculture_emissions
+  - air_pollution_attributable_fraction
+  - air_pollution_exposure
+  # - all_hsy_emissions
+  - attributable_cases
+  - breathing_rate
+  - building_floor_area
+  - building_floor_area_existing
+  - building_floor_area_new
+  - building_floor_area_total
+  - building_heat_consumption
+  - building_heat_consumption_existing
+  - building_heat_consumption_new
+  - building_heat_per_floor_area
+  - building_heat_per_floor_area_district
+  - building_heat_per_floor_area_new
+  - building_heat_statistics
+  - building_heat_statistics_pre
+  - building_heating_emissions
+  - building_heating_emissions_historical
+  - building_heating_emissions_uncorrected
+  - building_type_index
+  - building_use_index
+  - case_burden
+  - co2_unit_price
+  - corrected_geothermal_statistics
+  - discounted_health_costs
+  - disease_burden_attributed_to_exposure
+  - district_heating_emission_factor
+  - district_heating_emission_factor_goal
+  - district_heating_emission_factor_historical
+  - electric_heating_emission_factor
+  - electric_heating_emission_factor_ratio
+  - electricity_per_person
+  - electricity_production_emission_factor
+  - electricity_production_emission_factor_goal
+  - electricity_production_emission_factor_historic
+  - emission_factor_ratio
+  - energy_and_heating_index
+  - geothermal_correction
+  - green_electricity_consumption
+  - green_electricity_consumption_post
+  - green_electricity_index
+  - green_electricity_shares
+  - greenhouse_gas_emission_cost
+  - gross_area_per_capita
+  - gross_per_net_floor_area
+  - health_costs_attributed_to_exposure
+  - health_outcome_unit_price
+  - heating_emission_factor
+  - hsy_emissions_historical
+  - implementation_costs
+  - incidence
+  - indifference_ratio
+  - industry_machinery_emissions
+  - intake_fraction
+  - living_space
+  - net_emissions
+  - new_building_construction
+  - new_non_residential_floor_area
+  - new_residential_floor_area
+  - non_green_electricity_consumption
+  - non_heating_electricity_emissions
+  - non_heating_electricity_emissions_historical
+  - non_heating_electricity_emissions_uncorrected
+  - non_heating_electricity_energy
+  - non_heating_electricity_energy_historical
+  - non_heating_electricity_energy_hsy
+  - non_heating_electricity_residence_energy_goal
+  - oil_heating_emission_factor
+  - population
+  - power_plant_air_pollution_emissions
+  - power_plant_air_pollution_exposure
+  - power_plant_emission_factor
+  - power_plant_emission_ratio
+  - power_plant_emissions
+  - premature_deaths
+  - rail_transport_emissions
+  - rail_transport_energy
+  - residual_emission_factor
+  - residual_emission_factor_ratio
+  - responses_vs_cost_types
   - road_traffic_emission_factors
+  - road_traffic_emissions
+  - road_traffic_mileage
+  - road_transport_energy_forecast
+  - separate_heating_energy
+  - separate_heating_floor_area
+  - total_building_area
+  - total_building_area2
+  - total_cost
+  - total_electricity_consumption
+  - total_exposure_related_cases
+  - total_number_of_cases
+  - total_residential_floor_area
+  - transport_air_pollution_emissions_total
+  - transport_air_pollution_exposure
+  - transport_emission_factor_total
+  - transport_emission_ratio
   - transport_emissions
+  - transport_emissions_historical
+  - use_certified_electricity
+  - waste_emissions_historical
+  - waste_treatment_emission_shares
+  - waste_treatment_emissions
+  - waste_treatment_emissions_data_goal
+  - waste_treatment_emissions_data_historical
+  - waste_treatment_emissions_uncorrected
+  - water_transport_emissions
+  - year_multiplier
 
 impact_overviews:
 
