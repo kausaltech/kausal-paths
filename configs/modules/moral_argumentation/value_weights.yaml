@@ -1,12 +1,11 @@
 # Moral value module — calculation layer
 # Defines ValueActions (one per value topic) and utility nodes that multiply each
-# value's weight by the relevant duty fulfilment. No global weight params; each
+# value's weight by the relevant duty/contribution. No global weight params; each
 # weight is the ValueAction's node-specific "constant" parameter.
 # Include action_groups with id moral_values. See README.md section 4.3.
-# Include in an instance that defines the necessary input nodes:
-## - fair_share_met Fiar share obligation met
-## - emissions_acceptable Emissions meet acceptable threshold
-## - commons_survival Commons survival
+# Instance must define (or override): fair_share_met, emissions_acceptable; optional commons_survival.
+# Optional contribution nodes (default to constants): cost_efficiency_contribution, actor_roi_contribution,
+# net_benefit_contribution, outcome_risk_large_or_systemic. Risk premium: risk_magnitude, risk_premium_cost.
 
 actions:
 
@@ -124,6 +123,98 @@ actions:
   group: moral_values
   output_nodes:
   - id: utility_common_heritage
+    tags: [weight]
+  params:
+  - id: constant
+    value: 1
+    min_value: 0
+    max_value: 10
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
+
+- id: value_cost_efficiency
+  name: 'VAL-6: We should prioritise actions that achieve the most outcome per unit of resource (cost-efficiency).'
+  description: |
+    <h3>Value: Cost-efficiency</h3>
+    <p><strong>Sentiment:</strong> Reach as much emission reduction (or other desired outcome) with as little input resources as possible (e.g. public budget, citizens' effort). This also distributes moral responsibility: those who can implement cost-efficient actions have more reason to act.</p>
+    <p><strong>Related:</strong> <code>cost_efficiency_contribution</code> — override in instance with outcome per unit cost (e.g. emission reduction per euro) or a normalised 0–1 contribution.</p>
+    <p><strong>Weight:</strong> Use the slider to set how much this value contributes to priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
+  unit: dimensionless
+  group: moral_values
+  output_nodes:
+  - id: utility_cost_efficiency
+    tags: [weight]
+  params:
+  - id: constant
+    value: 1
+    min_value: 0
+    max_value: 10
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
+
+- id: value_roi
+  name: 'VAL-7: I care whether the actor who implements the action gets a return on that investment.'
+  description: |
+    <h3>Value: Return on investment (actor-centric)</h3>
+    <p><strong>Sentiment:</strong> More individualistic than cost-efficiency: benefits to the implementing stakeholder matter; benefits to others are given less weight. Prioritise actions where the actor who pays gets sufficient return.</p>
+    <p><strong>Related:</strong> <code>actor_roi_contribution</code> — override in instance with ROI or normalised 0–1 contribution.</p>
+    <p><strong>Weight:</strong> Use the slider to set how much this value contributes to priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
+  unit: dimensionless
+  group: moral_values
+  output_nodes:
+  - id: utility_roi
+    tags: [weight]
+  params:
+  - id: constant
+    value: 0.5
+    min_value: 0
+    max_value: 10
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
+
+- id: value_cost_benefit
+  name: 'VAL-8: We should maximise net benefit when outcomes can be compared in a single metric (cost-benefit).'
+  description: |
+    <h3>Value: Cost-benefit analysis</h3>
+    <p><strong>Sentiment:</strong> When outcomes can be weighted or prioritised in a common metric, maximise utility: choose actions and levels that yield positive net benefit and avoid those not worth pursuing. More holistic than cost-efficiency (which only ranks actions); CBA can also say how far to go. Costs can include a risk premium.</p>
+    <p><strong>Related:</strong> <code>net_benefit_contribution</code>, <code>risk_premium_cost</code> (additional cost in CBA, dependent on risk).</p>
+    <p><strong>Weight:</strong> Use the slider to set how much this value contributes to priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
+  unit: dimensionless
+  group: moral_values
+  output_nodes:
+  - id: utility_cost_benefit
+    tags: [weight]
+  params:
+  - id: constant
+    value: 1
+    min_value: 0
+    max_value: 10
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
+
+- id: value_precaution
+  name: 'VAL-9: We should deprioritise actions that entail very large or systemic outcome risks (precautionary principle).'
+  description: |
+    <h3>Value: Precautionary principle</h3>
+    <p><strong>Sentiment:</strong> When outcome risk is very large and/or systemic, actions that trigger such risks are deprioritised. This value is activated by high risk; low risk does not add utility, but high risk reduces it.</p>
+    <p><strong>Related:</strong> <code>outcome_risk_large_or_systemic</code> — 0 = low/small risk, 1 = large or systemic risk. Override in instance when risk data is available.</p>
+    <p><strong>Weight:</strong> Use the slider to set how much this value contributes to priorities (0 = ignore).</p>
+  type: simple.ValueAction
+  quantity: value_weight
+  unit: dimensionless
+  group: moral_values
+  output_nodes:
+  - id: utility_precaution
     tags: [weight]
   params:
   - id: constant
@@ -255,6 +346,85 @@ nodes:
   params:
     formula: achieved <= obligation
 
+# ===== COST-EFFICIENCY, ROI, COST-BENEFIT, RISK (placeholders; override in instance) =====
+
+- id: cost_efficiency_contribution
+  name: Cost-efficiency contribution
+  description: |
+    Contribution to cost-efficiency value: higher when actions achieve more outcome per unit resource (e.g. emission reduction per euro). 0–1 or normalised. Override in instance with real metric (e.g. outcome/cost relative to benchmark).
+  type: generic.ConstantNode
+  quantity: fraction
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 1.0
+    unit: dimensionless
+
+- id: actor_roi_contribution
+  name: Actor return-on-investment contribution
+  description: |
+    Contribution to ROI value: higher when the implementing stakeholder gets sufficient return on investment. 0–1 or normalised. Override in instance with actor-centric ROI.
+  type: generic.ConstantNode
+  quantity: fraction
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 1.0
+    unit: dimensionless
+
+- id: net_benefit_contribution
+  name: Net benefit (cost-benefit) contribution
+  description: |
+    Contribution to cost-benefit value: higher when net benefit (benefits − costs, optionally minus risk premium) is larger. Normalised or threshold. Override in instance when benefits and costs are in a common metric.
+  type: generic.ConstantNode
+  quantity: fraction
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 1.0
+    unit: dimensionless
+
+- id: outcome_risk_large_or_systemic
+  name: Outcome risk large or systemic
+  description: |
+    For precautionary principle: 0 = low/small risk, 1 = large or systemic outcome risk. Actions with high values get deprioritised. Override in instance when risk data is available; later replace with probability-based risk.
+  type: generic.ConstantNode
+  quantity: fraction
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0.0
+    unit: dimensionless
+
+- id: risk_magnitude
+  name: Risk magnitude (for risk premium)
+  description: |
+    Magnitude of risk used to compute risk premium as additional cost in cost-benefit analysis. Simplistic for now; later replace with proper probability/utility-based calculation.
+  type: generic.ConstantNode
+  quantity: fraction
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0.0
+    unit: dimensionless
+
+- id: risk_premium_cost
+  name: Risk premium (additional cost in CBA)
+  description: |
+    Additional cost in cost-benefit analysis dependent on risk magnitude. Formula risk_magnitude * constant; instances can override constant or the node. Add to costs when computing net benefit for CBA.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR
+  input_nodes:
+  - id: risk_magnitude
+    tags: [risk_magnitude]
+  params:
+  - id: formula
+    value: risk_magnitude * constant
+  - id: constant
+    value: 0
+    unit: EUR
+
 - id: utility_own_targets_achieved
   name: Utility from own targets achieved
   description: Whether the own targets are met.
@@ -370,11 +540,83 @@ nodes:
     value: 1
     unit: Ut
 
+- id: utility_cost_efficiency
+  name: Utility from cost-efficiency
+  description: Contribution of the cost-efficiency value. Weight from value_cost_efficiency; contribution from cost_efficiency_contribution (override in instance).
+  type: formula.FormulaNode
+  quantity: utility
+  unit: Ut
+  input_nodes:
+  - id: cost_efficiency_contribution
+    tags: [contribution]
+  output_nodes:
+  - id: total_utility
+  params:
+  - id: formula
+    value: weight * contribution * constant
+  - id: constant
+    value: 1
+    unit: Ut
+
+- id: utility_roi
+  name: Utility from return on investment (actor-centric)
+  description: Contribution of the ROI value. Weight from value_roi; contribution from actor_roi_contribution (override in instance).
+  type: formula.FormulaNode
+  quantity: utility
+  unit: Ut
+  input_nodes:
+  - id: actor_roi_contribution
+    tags: [contribution]
+  output_nodes:
+  - id: total_utility
+  params:
+  - id: formula
+    value: weight * contribution * constant
+  - id: constant
+    value: 1
+    unit: Ut
+
+- id: utility_cost_benefit
+  name: Utility from cost-benefit analysis
+  description: Contribution of the cost-benefit value. Weight from value_cost_benefit; contribution from net_benefit_contribution. Costs can include risk_premium_cost (override in instance).
+  type: formula.FormulaNode
+  quantity: utility
+  unit: Ut
+  input_nodes:
+  - id: net_benefit_contribution
+    tags: [contribution]
+  output_nodes:
+  - id: total_utility
+  params:
+  - id: formula
+    value: weight * contribution * constant
+  - id: constant
+    value: 1
+    unit: Ut
+
+- id: utility_precaution
+  name: Utility from precautionary principle
+  description: Contribution of the precautionary principle. High outcome_risk_large_or_systemic deprioritises actions (utility = weight * (1 - risk) * constant).
+  type: formula.FormulaNode
+  quantity: utility
+  unit: Ut
+  input_nodes:
+  - id: outcome_risk_large_or_systemic
+    tags: [risk]
+  output_nodes:
+  - id: total_utility
+  params:
+  - id: formula
+    value: weight * (1 - risk) * constant
+  - id: constant
+    value: 1
+    unit: Ut
+
 - id: total_utility
   name: Total utility
   description: |
-    Sum of utilities from each moral value (fairness, reciprocity, stewardship, non-harm, common heritage).
-    Each value contributes (weight × duty_fulfilled). Weights are set per value via each ValueAction's slider.
+    Sum of utilities from each moral value (fairness, reciprocity, stewardship, non-harm, common heritage, cost-efficiency, ROI, cost-benefit, precaution).
+    Each value contributes (weight × duty_fulfilled or weight × contribution). Weights are set per value via each ValueAction's slider. Risk premium (risk_premium_cost) is available as an additional cost for cost-benefit analysis.
   type: simple.AdditiveNode
   quantity: utility
   unit: Ut

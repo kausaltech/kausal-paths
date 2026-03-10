@@ -29,6 +29,10 @@ These are **moral values** that support the “no exemption” idea and thus mot
 | **Stewardship / intergenerational** | We hold the planet in trust for future generations. | We cannot exempt ourselves from preserving a livable world. |
 | **Non-harm** | Contributing to avoidable harm is wrong. | Every jurisdiction’s emissions contribute to harm; no exemption. |
 | **Common heritage** | Climate is a shared commons. | No right to overuse; duty to stay within one’s share. |
+| **Cost-efficiency** | Prioritise actions that achieve the most outcome per unit of resource. | Distributes responsibility: more reason to act for those who can implement cost-efficient actions. |
+| **Return on investment (ROI)** | The implementing actor should get a return on that investment. | Actor-centric: benefits to others given less weight. |
+| **Cost-benefit** | Maximise net benefit when outcomes can be compared in a single metric. | Holistic: which actions and how far; can include risk premium in costs. |
+| **Precautionary principle** | Deprioritise actions with very large or systemic outcome risks. | High risk reduces utility from this value. |
 
 In the **calculation layer** (`value_weights.yaml`), each value is a ValueAction with a *constant* (weight) parameter and a utility node (e.g. `utility_fairness` = weight × duty). Setting a value's weight to 0 removes that value from priorities.
 
@@ -92,6 +96,14 @@ dimensions:
     label_en: Non-harm
   - id: common_heritage
     label_en: Common heritage
+  - id: cost_efficiency
+    label_en: Cost-efficiency
+  - id: roi
+    label_en: Return on investment
+  - id: cost_benefit
+    label_en: Cost-benefit
+  - id: precaution
+    label_en: Precautionary principle
 ```
 
 Then give argument nodes `input_dimensions: [moral_value]` and tag each argument with the appropriate value(s) (e.g. via dataset or constant).
@@ -120,13 +132,19 @@ So the same value appears in two places:
 | **Text**     | Each ValueAction has a name (sentiment sentence) and description. |
 | **Calculation** | ValueAction outputs its weight (constant param); utility node = weight × duty → moral_value_profile (drives priorities). |
 
-**Required convention:** The instance must define **duty/contribution nodes** (`fair_share_met`, `emissions_acceptable`). The module defines ValueActions and utility nodes. Mapping:
+**Required convention:** The instance must define **duty/contribution nodes** (`fair_share_met`, `emissions_acceptable`). The module defines ValueActions and utility nodes. Optional contribution nodes (default to constants; override in instance when data exists): `cost_efficiency_contribution`, `actor_roi_contribution`, `net_benefit_contribution`, `outcome_risk_large_or_systemic`. Mapping:
 
 - **Fairness** → `value_fairness` × `fair_share_met`.
-- **Reciprocity** → `value_reciprocity` × `fair_share_met`.
-- **Stewardship** → `value_stewardship` × `emissions_acceptable`.
+- **Reciprocity** → `value_reciprocity` (free_rider) × `fair_share_met`.
+- **Stewardship** → `value_stewardship` × `emissions_acceptable` (× `commons_survival` if present).
 - **Non-harm** → `value_non_harm` × `emissions_acceptable`.
 - **Common heritage** → `value_common_heritage` × `emissions_acceptable`.
+- **Cost-efficiency** → `value_cost_efficiency` × `cost_efficiency_contribution`.
+- **ROI** → `value_roi` × `actor_roi_contribution`.
+- **Cost-benefit** → `value_cost_benefit` × `net_benefit_contribution`.
+- **Precaution** → `value_precaution` × (1 − `outcome_risk_large_or_systemic`).
+
+**Risk premium (for CBA):** The module defines `risk_magnitude` and `risk_premium_cost` (formula: risk_magnitude × constant). Add `risk_premium_cost` to costs when computing net benefit for cost-benefit analysis. Simplistic for now; later replace with probability/utility-based calculation.
 
 **User interaction:** User adjusts each value's slider (the ValueAction's *constant* parameter). No global weight params; each value node carries its own weight. Setting a value's weight to 0 removes that value from the moral profile and thus from priorities.
 
@@ -138,13 +156,13 @@ To combine moral priorities with economic and other criteria: build the moral va
 
 ## 5. Summary
 
-- **Global values** (fairness, reciprocity, stewardship, non-harm, common heritage) motivate the claim that **no one can exempt themselves** from climate action.
-- **Duties** are: fair share, no exemption, intergenerational, non–free-riding. They are implemented as **evaluation nodes** (e.g. `fair_share_met`, `emissions_acceptable`).
-- **Implementation**: (1) **ValueActions** (one per value topic) with name = sentiment sentence and *constant* param = weight. (2) **Utility nodes** (formula: weight × contribution) fed by each ValueAction and the duty node. (3) **moral_value_profile** = sum of utilities. Setting a value's weight to 0 removes that value from priorities.
+- **Global values** (fairness, reciprocity, stewardship, non-harm, common heritage, cost-efficiency, ROI, cost-benefit, precaution) motivate the claim that **no one can exempt themselves** and shape priorities (e.g. by cost-efficiency or precaution).
+- **Duties** are: fair share, no exemption, intergenerational, non–free-riding. They are implemented as **evaluation nodes** (e.g. `fair_share_met`, `emissions_acceptable`). **Contribution nodes** for the additional values (cost-efficiency, ROI, cost-benefit, precaution) default to constants and can be overridden in the instance.
+- **Implementation**: (1) **ValueActions** (one per value topic) with name = sentiment sentence and *constant* param = weight. (2) **Utility nodes** (formula: weight × contribution, or for precaution weight × (1 − risk)) fed by each ValueAction and the duty/contribution node. (3) **total_utility** = sum of utilities. Setting a value's weight to 0 removes that value from priorities. (4) **Risk premium** (`risk_premium_cost`) is available as an additional cost in cost-benefit analysis.
 
 **Files in this module:**
 
-- `value_weights.yaml` — ValueActions (VAL-1–VAL-5), utility nodes, and `moral_value_profile`. No global weight params; each value's weight is the ValueAction's slider.
+- `value_weights.yaml` — ValueActions (VAL-1–VAL-9), utility nodes, placeholder contribution/risk nodes, `risk_premium_cost`, and `total_utility`. No global weight params; each value's weight is the ValueAction's slider.
 
 ### Including the module
 
@@ -165,4 +183,4 @@ include:
 
 - The instance must define duty nodes `emissions_acceptable` and `fair_share_met`, and action_groups with `id: moral_values`. If your instance uses different duty node IDs, override the utility nodes’ `input_nodes`.
 
-**Priorities:** Add an impact_overview with effect_node = moral_value_profile. Users change each value's slider (ValueAction constant param); the profile and ranking update automatically.
+**Priorities:** Add an impact_overview with effect_node = total_utility (or the instance's moral value profile node). Users change each value's slider (ValueAction constant param); the profile and ranking update automatically.

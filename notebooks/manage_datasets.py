@@ -659,6 +659,7 @@ class OperationsExecutor:
                 print()
 
         print("=" * 80 + "\n")
+        print(df.describe())
         return df
 
     def _op_process_datasets(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
