@@ -205,7 +205,7 @@ class PathsPage(Page):
         else:
             root = cast('PathsPage | None', self.get_ancestors(inclusive=False).filter(depth=2).specific().first())
             assert root is not None
-        site = root.sites_rooted_here.first()
+        site = Site.objects.filter(root_page__translation_key=root.translation_key).first()
         assert site is not None
         return getattr(site, 'instance')  # noqa: B009
 
