@@ -62,17 +62,13 @@ def test_forecast_metric_type(
     metric = Metric.from_node(additive_action)
     assert metric is not None
     data = graphql_client_query_data(
-        '''
+        """
         query($id: ID!) {
           node(id: $id) {
             metric {
               __typename
               id
               name
-              outputNode {
-                __typename
-                id
-              }
               unit {
                 __typename
                 short
@@ -95,7 +91,7 @@ def test_forecast_metric_type(
             }
           }
         }
-        ''',
+        """,
         variables={'id': additive_action.id}
     )
     expected_historical_values = [{
@@ -123,7 +119,6 @@ def test_forecast_metric_type(
                 '__typename': 'ForecastMetricType',
                 'id': metric.id,
                 'name': metric.name,
-                'outputNode': None,  # TODO
                 'unit': {
                     '__typename': 'UnitType',
                     'short': unit_pretty_short,

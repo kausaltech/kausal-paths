@@ -253,7 +253,57 @@ This approach is explicit and doesn't require interop layer changes. If stream f
 appear frequently, a future improvement would be to teach `UnifiedGraphQLConverter.from_type()`
 to map `StreamValue` → `StreamFieldInterface` automatically.
 
-### Pattern 7: Enum handling
+### Pattern 7: Private attributes and internal state
+
+Use `sb.Private[T]` for fields that should not appear in the GraphQL schema but are
+needed by resolvers:
+
+```python
+@sb.type
+class InstanceGoalEntry:
+    id: sb.ID
+    label: str | None
+    _goal: sb.Private[NodeGoalsEntry]
+
+    @sb.field
+    def values(self) -> list[InstanceYearlyGoalType]:
+        return [InstanceYearlyGoalType.from_pydantic(x) for x in self._goal.get_actual()]
+```
+
+`sb.Private` fields are included in the dataclass `__init__` but excluded from the
+schema. They replace the Graphene pattern of setting attributes on instances after
+construction (`out._goal = goal`).
+
+### Pattern 8: Forward/circular references to types
+
+When a Strawberry type needs to reference a Graphene type defined later in the same
+file (or in a circular import), use `sb.field(graphql_type=...)` with `Annotated` and
+`sb.lazy`:
+
+```python
+@sb.type
+class InstanceGoalEntry:
+    outcome_node: Node = sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.schema')])
+```
+
+The Python type annotation (`Node`) reflects the actual runtime type, while
+`graphql_type` tells Strawberry which GraphQL type to use. `sb.lazy` defers resolution
+until schema build time, avoiding circular import issues.
+
+### Pattern 9: Mismatched Python and GraphQL return types
+
+When a resolver returns a Python object that maps to a different Strawberry type, use
+`sb.field(graphql_type=...)` with the Strawberry type and annotate the return with the
+Python type:
+
+```python
+@sb.field(graphql_type=UnitType)
+def unit(self) -> Unit:
+    # Returns a Unit object; Strawberry resolves it as UnitType
+    return df.get_unit(column_id)
+```
+
+### Pattern 10: Enum handling
 
 The preferred approach is to decorate the source enum with `@sb.enum` and use it
 directly in type annotations. This eliminates the need for `graphene.Enum.from_enum()`

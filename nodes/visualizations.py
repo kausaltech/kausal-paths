@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, Self
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self
 
 import strawberry as sb
 from pydantic import BaseModel, Discriminator, Field, RootModel, field_validator, model_validator
@@ -171,11 +171,11 @@ class VisualizationGroup(VisualizationEntry):
 type VisualizationEntryType = Annotated[VisualizationGroup | VisualizationNodeOutput, Discriminator('kind')]
 
 
-class NodeVisualizations(RootModel):
+class NodeVisualizations(RootModel[list[VisualizationEntryType]]):
     ValidationContext: ClassVar = VisualizationValidationContext
     root: list[VisualizationEntryType] = Field(default_factory=list)
 
-    def _plot_recursive(self, context: Context, viz: VisualizationEntryType, charts: list) -> None:
+    def _plot_recursive(self, context: Context, viz: VisualizationEntryType, charts: list[Any]) -> None:
         from nodes.metric import DimensionalMetric
 
         if isinstance(viz, VisualizationNodeOutput):

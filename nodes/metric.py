@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from .node import Node, NodeMetric
 
 
-@dataclass
+@sb.type
 class YearlyValue:
     year: int
     value: float

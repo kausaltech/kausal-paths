@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from enum import Enum
 
+import strawberry as sb
+
 BASELINE_SCENARIO = 'baseline'
 
 FORECAST_COLUMN = 'Forecast'
@@ -94,7 +96,7 @@ def ensure_known_quantity(quantity: str):
     if quantity not in KNOWN_QUANTITIES:
         raise Exception(f"Quantity {quantity} is unknown")
 
-
+@sb.enum(name='DecisionLevel', description='Which governance level is applicable for an action')
 class DecisionLevel(Enum):
     MUNICIPALITY = 1
     NATION = 2

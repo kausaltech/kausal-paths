@@ -162,7 +162,7 @@ class NodeGoalsEntry(I18nBaseModel):
             for row in df.to_dicts()
         ]
 
-    def get_values(self):
+    def get_values(self) -> list[GoalValue]:
         df = self._get_values_df()
         m = self._node.get_default_output_metric()
         vals = self._to_goal_values(df, m)
