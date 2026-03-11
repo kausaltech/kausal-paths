@@ -286,6 +286,7 @@ dev = [
 lint = [
   "altair>=6.0.0",
   "celery-types",
+  "deepdiff>=8.6.1",
   "django-stubs",
   "djangorestframework-stubs",
   "graphene-stubs",
