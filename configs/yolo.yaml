@@ -36,9 +36,9 @@ action_group:
 - id: offroad_act
   name: Reduce Off-Road Equipment Emissions
   color: '#325437'
-# - id: sequestration_act
-#   name: Sequester and Store Carbon in Natural and Working Lands
-#   color: '#025B57'
+- id: sequestration_act
+  name: Sequester and Store Carbon in Natural and Working Lands
+  color: '#025B57'
 - id: abau
   name: Federal- and State-mandated GHG emission reduction measures
   color: '#000000'
@@ -136,10 +136,16 @@ dimensions:
   categories:
   - id: scope1
     label: Scope 1
+    order: 0
   - id: scope2
     label: Scope 2
+    order: 1
   - id: scope3
     label: Scope 3
+    order: 2
+  - id: negative_emissions
+    label: Negative Emissions
+    order: -1
 
 - id: ghg
   label: Greenhouse Gas
@@ -318,10 +324,10 @@ dimensions:
     label: Decarbonize offroad & landscaping equipment
   - id: ofr2
     label: Decarbonize agricultural equipment
-#   - id: nwl1
-#     label: Encourage climate smart practices in working lands
-#   - id: nwl2
-#     label: Restore natural lands 
+  - id: nwl1
+    label: Encourage climate smart practices in working lands
+  - id: nwl2
+    label: Restore natural lands 
   - id: abau_trend_electricity
     label: Federal- and State-mandated electricity emissions reduction
   - id: abau_trend_transportation
@@ -331,6 +337,11 @@ emission_sectors:
 - id: net_emissions
   name: Net Emissions
   is_outcome: true
+
+- id: negative_emissions
+  name: Negative Emissions
+  part_of: net_emissions
+  order: -1
 
 nodes: 
 
@@ -1238,6 +1249,22 @@ nodes:
   - id: net_emissions
     to_dimensions: [scope]
 
+# ---- negative emissions 
+
+- id: negative_emissions
+  name: Negative Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  input_nodes:
+  - id: nwl1
+  - id: nwl2
+  output_nodes: 
+  - id: net_emissions
+    to_dimensions: [scope]
+    
 actions:
 
 - id: abau_trend_electricity
@@ -1440,10 +1467,42 @@ actions:
     - dimension: subsector
       categories: [agricultural_eq]
 
-#   - id: nwl1
-#     label: Encourage climate smart practices in working lands
-#   - id: nwl2
-#     label: Restore natural lands   
+- id: nwl1
+  name: Encourage climate smart practices in working lands
+  type: simple.AdditiveAction
+  group: sequestration_act
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  input_datasets: 
+  - id: yolo/actions-input
+    forecast_from: 2023
+    filters: 
+    - column: action
+      value: nwl1
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: 
+  - id: negative_emissions
+     
+
+- id: nwl2
+  name: Restore natural lands
+  type: simple.AdditiveAction
+  group: sequestration_act
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  input_datasets: 
+  - id: yolo/actions-input
+    forecast_from: 2023
+    filters: 
+    - column: action
+      value: nwl2
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: 
+  - id: negative_emissions   
 
 pages:
 - id: home
