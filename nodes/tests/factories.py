@@ -155,7 +155,7 @@ class SimpleNodeFactory(NodeFactory):
         model = SimpleNode
 
 
-class ScenarioFactory(Factory[Scenario]):
+class ScenarioFactory[S: Scenario = Scenario](Factory[S]):
     class Meta:
         model = Scenario
 
@@ -166,7 +166,7 @@ class ScenarioFactory(Factory[Scenario]):
     context = SubFactory[Any, Context](ContextFactory)
 
 
-class CustomScenarioFactory(ScenarioFactory):
+class CustomScenarioFactory(ScenarioFactory[CustomScenario]):
     class Meta:
         model = CustomScenario
 

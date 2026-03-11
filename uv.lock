@@ -2512,6 +2512,7 @@ kausal = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "altair", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "basedpyright", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "celery-types", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "daphne", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
@@ -2551,6 +2552,7 @@ dev = [
     { name = "viztracer", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 lint = [
+    { name = "altair", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "celery-types", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "django-stubs", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "djangorestframework-stubs", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
@@ -2684,6 +2686,7 @@ provides-extras = ["kausal"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "altair", specifier = ">=6.0.0" },
     { name = "basedpyright" },
     { name = "celery-types" },
     { name = "daphne" },
@@ -2723,6 +2726,7 @@ dev = [
     { name = "viztracer" },
 ]
 lint = [
+    { name = "altair", specifier = ">=6.0.0" },
     { name = "celery-types" },
     { name = "django-stubs" },
     { name = "djangorestframework-stubs" },
