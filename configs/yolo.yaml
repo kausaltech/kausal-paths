@@ -74,16 +74,6 @@ dimensions:
     label: Agricultural
   - id: industrial
     label: Industrial
-  
-# - id: building_type
-#   label: Building Type
-#   categories:
-#   - id: single_family
-#     label: Single-Family
-#   - id: multi_family
-#     label: Multi-Family
-#   - id: non_residential
-#     label: Non-Residential
 
   # ----- Off-road Equipment
   - id: agricultural_eq
@@ -174,6 +164,24 @@ dimensions:
     label: Electricity
   - id: natural_gas 
     label: Natural Gas
+
+- id: building_type
+  label: Building Type
+  categories:
+  - id: single_family
+    label: Single-Family
+  - id: multi_family
+    label: Multi-Family
+  - id: non_residential
+    label: Non-Residential
+
+- id: building_status
+  label: Building Status
+  categories: 
+  - id: new
+    label: New
+  - id: existing
+    label: Existing
 
 # -- on-road transportation
 - id: travel_boundary
@@ -332,6 +340,11 @@ dimensions:
     label: Federal- and State-mandated electricity emissions reduction
   - id: abau_trend_transportation
     label: Federal- and State-mandated transportation emission reduction
+  - id: abau_trend_building_electricity
+    label: Federal- and State-mandated building electricity use reduction
+  - id: abau_trend_building_natural_gas
+    label: Federal- and State-mandated building natural gas use reduction
+
 
 emission_sectors:
 - id: net_emissions
@@ -384,8 +397,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy_consumption
   unit: kWh/year
-  input_dimensions: [subsector, energy_provider, energy_carrier]
-  output_dimensions: [subsector, energy_provider]
+  input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
+  output_dimensions: [subsector, energy_provider, building_type, building_status]
   input_datasets:
   - id: yolo/building-input
     forecast_from: 2023
@@ -399,8 +412,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy_consumption
   unit: therms/year
-  input_dimensions: [subsector, energy_provider, energy_carrier]
-  output_dimensions: [subsector, energy_provider]
+  input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
+  output_dimensions: [subsector, energy_provider, building_type, building_status]
   input_datasets:
   - id: yolo/building-input
     forecast_from: 2023
@@ -414,8 +427,8 @@ nodes:
   type: formula.FormulaNode #possible to simplify this to a multiplicative node 
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [scope, subsector, ghg, energy_provider]
-  output_dimensions: [scope, subsector, ghg]
+  input_dimensions: [scope, subsector, ghg, building_type, building_status, energy_provider]
+  output_dimensions: [scope, subsector, ghg, building_type, building_status]
   params: 
     formula: electricity_from_pge*pge_electricity_emfac + electricity_from_vce*vce_electricity_emfac + gas_from_pge*pge_gas_emfac
   input_nodes:
@@ -1249,23 +1262,9 @@ nodes:
   - id: net_emissions
     to_dimensions: [scope]
 
-# ---- negative emissions 
-
-- id: negative_emissions
-  name: Negative Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [scope]
-  output_dimensions: [scope]
-  input_nodes:
-  - id: nwl1
-  - id: nwl2
-  output_nodes: 
-  - id: net_emissions
-    to_dimensions: [scope]
-    
 actions:
+
+# ---- adjusted business as usual actions/trends
 
 - id: abau_trend_electricity
   name: Federal- and State-mandated electricity emissions reduction
@@ -1293,18 +1292,33 @@ actions:
     category: "adjusted_baseline"
   input_dataset_processors: [LinearInterpolation]
 
-# - id: abau_trend_building
-#   name: Federal- and State-mandated building emission reduction
-#   type: GpcTrajectoryAction
-#   group: abau
-#   unit: '%'
-#   parameters: 
-#     enabled: false
-#     multiplier: 1.0
-#     dataset_id: "yolo/building-input"
-#     dimension: "scenario_id"
-#     category: "adjusted_baseline"
-#   input_dataset_processors: [LinearInterpolation]
+- id: abau_trend_building_electricity
+  name: Federal- and State-mandated building electricity use reduction
+  type: GpcTrajectoryAction
+  group: abau
+  unit: kWh/year
+  parameters: 
+    enabled: false
+    multiplier: 1.0
+    dataset_id: "yolo/building-input"
+    dimension: "scenario_id"
+    category: "adjusted_baseline"
+  input_dataset_processors: [LinearInterpolation]
+
+- id: abau_trend_building_natural_gas
+  name: Federal- and State-mandated building natural gas use reduction
+  type: GpcTrajectoryAction
+  group: abau
+  unit: therms/year
+  parameters: 
+    enabled: false
+    multiplier: 1.0
+    dataset_id: "yolo/building-input"
+    dimension: "scenario_id"
+    category: "adjusted_baseline"
+  input_dataset_processors: [LinearInterpolation]
+
+# ---- transportation actions 
 
 - id: dt3
   name: Encourage transition to electric vehicles
@@ -1324,6 +1338,8 @@ actions:
   output_nodes: 
   - id: ev_vmt
   - id: ice_vmt
+
+# ---- building actions 
 
 # - id: eb1b
 #   name: Incentivize cool and green roofs installation
@@ -1393,7 +1409,7 @@ actions:
   name: Waste diversion
   type: simple.AdditiveAction
   group: waste_act
-  quantity: Emissions
+  quantity: emissions
   unit: t_co2e/a
   input_dimensions: []
   output_dimensions: []
@@ -1405,13 +1421,13 @@ actions:
       value: sw1
   input_dataset_processors: [LinearInterpolation]
   output_nodes: 
-  - id: waste_in_place
+  - id: solid_waste_emissions
 
 - id: sw3
   name: Landfill gas capture improvements
   type: simple.AdditiveAction
   group: waste_act
-  quantity: Emissions
+  quantity: emissions
   unit: t_co2e/a
   input_dimensions: []
   output_dimensions: []
@@ -1423,7 +1439,7 @@ actions:
       value: sw3
   input_dataset_processors: [LinearInterpolation]
   output_nodes: 
-  - id: waste_generation
+  - id: solid_waste_emissions
 
 - id: ofr1
   name: Decarbonize offroad & landscaping equipment
@@ -1525,6 +1541,8 @@ scenarios:
   param_values: 
     abau_trend_electricity.enabled: true
     abau_trend_transportation.enabled: true
+    abau_trend_building_electricity.enabled: true
+    abau_trend_building_natural_gas.enabled: true
   
 - id: default
   default: true
