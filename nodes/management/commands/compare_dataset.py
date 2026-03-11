@@ -113,6 +113,13 @@ def get_db_dataset_ids(ic: InstanceConfig) -> set[str]:
     )
 
 
+def get_overlapping_dataset_ids(ic: InstanceConfig) -> set[str]:
+    """Get dataset IDs that exist in both instance config and DB for this instance."""
+    config_ids = get_config_dataset_ids(ic)
+    db_ids = get_db_dataset_ids(ic)
+    return config_ids & db_ids
+
+
 def find_overlapping_datasets() -> None:
     table = Table(title='Datasets existing in both DVC and DB')
     table.add_column('Instance')
@@ -435,8 +442,9 @@ def _print_value_diffs(
 def diff_rows(
     dvc_df: ppl.PathsDataFrame, db_df: ppl.PathsDataFrame,
     *, vertical: bool = False, dvc_modified_at: datetime | None = None, verbose: bool = False,
+    overview_only: bool = False,
 ):
-    """Compare row contents after normalizing order. Print differing rows."""
+    """Compare row contents after normalizing order. Print differing rows (or overview only)."""
     console.rule('Row diff')
 
     if dvc_modified_at is not None:
@@ -457,13 +465,25 @@ def diff_rows(
             console.print('[red]No common primary keys — cannot align rows.[/red]')
         return
 
+    if overview_only:
+        if len(rd.dvc_only):
+            console.print(f'[yellow]{len(rd.dvc_only)} row(s) only in DVC[/yellow]')
+        if len(rd.db_only):
+            console.print(f'[yellow]{len(rd.db_only)} row(s) only in DB[/yellow]')
+        if len(rd.value_diffs):
+            console.print(
+                f'[yellow]{len(rd.value_diffs)} row(s) with value differences (out of {rd.matched_count} matched)[/yellow]'
+            )
+        return
+
     dp_info = _maybe_enrich(vertical, rd)
     _print_exclusive_rows(rd, vertical=vertical, dp_info=dp_info, verbose=verbose)
     _print_value_diffs(rd, vertical=vertical, dp_info=dp_info, verbose=verbose)
 
 
 def compare_dataset(
-    ic: InstanceConfig, ctx: Context, dataset_id: str, *, vertical: bool = False, verbose: bool = False,
+    ic: InstanceConfig, ctx: Context, dataset_id: str, *,
+    vertical: bool = False, verbose: bool = False, overview_if_different: bool = False,
 ) -> None:
     dvc_df = None
     db_df = None
@@ -488,8 +508,22 @@ def compare_dataset(
         raise CommandError(f'Dataset "{dataset_id}" not found in either DVC or database.')
 
     if dvc_df is not None and db_df is not None:
+        sd = compute_schema_diff(dvc_df, db_df)
         diff_schemas(dvc_df, db_df)
-        diff_rows(dvc_df, db_df, vertical=vertical, dvc_modified_at=dvc_modified_at, verbose=verbose)
+        rd = compute_row_diff(dvc_df, db_df)
+        identical = (
+            sd.identical
+            and rd is not None
+            and len(rd.dvc_only) == 0
+            and len(rd.db_only) == 0
+            and len(rd.value_diffs) == 0
+        )
+        overview_only = bool(overview_if_different and not identical)
+        diff_rows(
+            dvc_df, db_df,
+            vertical=vertical, dvc_modified_at=dvc_modified_at, verbose=verbose,
+            overview_only=overview_only,
+        )
 
 
 class Command(BaseCommand):
@@ -521,9 +555,31 @@ class Command(BaseCommand):
 
         instance_id = options['instance_id']
         dataset_id = options['dataset_id']
-        if not instance_id or not dataset_id:
-            raise CommandError('instance_id and dataset_id are required when not using --find-overlapping')
+        if not instance_id:
+            raise CommandError('instance_id is required when not using --find-overlapping')
 
         ic = InstanceConfig.objects.get(identifier=instance_id)
         ctx = ic.get_instance().context
-        compare_dataset(ic, ctx, dataset_id, vertical=options['vertical'], verbose=options['verbose'])
+
+        if dataset_id:
+            compare_dataset(
+                ic, ctx, dataset_id,
+                vertical=options['vertical'], verbose=options['verbose'],
+                overview_if_different=False,
+            )
+        else:
+            overlap = get_overlapping_dataset_ids(ic)
+            if not overlap:
+                msg = (
+                    f'[yellow]No overlapping datasets for instance "{instance_id}" '
+                    '(no dataset exists in both DVC and DB).[/yellow]'
+                )
+                console.print(msg)
+                return
+            for ds_id in sorted(overlap):
+                console.rule(f'Dataset: {ds_id}')
+                compare_dataset(
+                    ic, ctx, ds_id,
+                    vertical=options['vertical'], verbose=options['verbose'],
+                    overview_if_different=True,
+                )
