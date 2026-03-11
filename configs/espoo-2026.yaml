@@ -1,15 +1,15 @@
-id: espoo
+id: espoo-2026
 default_language: fi
 supported_languages: [sv, en]
-site_url: https://espoo.paths.kausal.tech
+site_url: https://espoo-2026.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a9aadd988475e40d3e69fcfc15cfa18abedfed10
-  # commit: a9aadd988475e40d3e69fcfc15cfa18abedfed10 # Commit before DB -> DVC update.
+  # commit: f1a7f7cd69a10d5fb1c7f95eeea6cb65f7add0f3
+  commit: 39ae5d20cb8d6eb4b9e2abffd9baa723860df1ea # Commit before DB -> DVC update.
   dvc_remote: kausal-s3
-name_fi: Hiilineutraali Espoo 2030
-name_en: Carbon-neutral Espoo 2030
-name_sv: Kolneutralt Esbo 2030
+name_fi: Hiilineutraali Espoo 2030, Luonnos 2026
+name_en: Carbon-neutral Espoo 2030, Draft 2026
+name_sv: Kolneutralt Esbo 2030, Förslag 2026
 owner: Espoon kaupunki
 owner_en: City of Espoo
 owner_sv: Esbo stad
