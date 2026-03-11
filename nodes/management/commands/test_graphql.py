@@ -52,6 +52,8 @@ class Command(BaseCommand):
             operationName=data['operation_name'],
         ), headers=headers) as resp:
             out = await resp.json()
+            if resp.cookies:
+                session.cookie_jar.update_cookies(resp.cookies)
             resp_errors = out.get('errors', [])
             target_errors = data['response'].get('errors', [])
             if resp_errors and not target_errors:
@@ -70,11 +72,11 @@ class Command(BaseCommand):
                 return
             self.failures += 1
             print('Differences in response for query %s:' % fn)
-            #print('Expected response:')
-            #print(json.dumps(data['response'], indent=2))
-            #print('Actual response:')
-            #print(json.dumps(obj=out, indent=2))
-            #print('Differences:')
+            # print('Expected response:')
+            # print(json.dumps(data['response'], indent=2))
+            # print('Actual response:')
+            # print(json.dumps(obj=out, indent=2))
+            # print('Differences:')
             pprint(diff, max_depth=4)
             if self.failures >= self.maxfail:
                 exit(1)
@@ -83,11 +85,14 @@ class Command(BaseCommand):
     async def replay_queries(self, fns: list[Path]):
         async with aiohttp.ClientSession(base_url=self.url) as session:
             for i, fn in enumerate(fns):
-                if i < self.start_from:
+                if i + 1 < self.start_from:
                     continue
-                logger.info("[%d/%d] running query %s" % (i, len(fns), fn))
+                logger.info("[%d/%d] running query %s" % (i + 1, len(fns), fn))
                 with fn.open('r') as f:
                     data = json.load(f)
+                    has_session = data['has_session']
+                    if not has_session:
+                        session.cookie_jar.clear()
                     await self.replay_query(session, fn, data)
 
     def handle(self, *args, **options):
