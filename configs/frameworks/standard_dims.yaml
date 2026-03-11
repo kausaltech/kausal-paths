@@ -410,6 +410,24 @@ dimensions:
   - id: waste
     label_en: Waste
     label_de: Abfall
+  - id: district_heating_kwp
+    label_en: District heating (KWP)
+    label_de: Fernwärme (KWP)
+  - id: natural_gas_additional_part
+    label_en: Natural gas (additional part)
+    label_de: Erdgas (zusätzlicher Teil)
+  - id: natural_gas_kwp_part
+    label_en: Natural gas (KWP part)
+    label_de: Erdgas (KWP Teil)
+  - id: electricity_heat
+    label_en: Electricity (heat)
+    label_de: Strom (Wärme)
+  - id: district_heating_additional
+    label_en: District heating (additional)
+    label_de: Fernwärme (zusätzlich)
+  - id: electricity_other
+    label_en: Electricity (other)
+    label_de: Strom (Sonstige)
 
 - id: energy_process
   label_en: Energy Process
@@ -859,12 +877,12 @@ dimensions:
   - id: private_households
     label_en: Private Households
     label_de: Private Haushalte
-    aliases: [private_haushalte]
+    aliases: [private_haushalte, Haushalte]
     color: '#009ebe'
   - id: municipal_facilities
     label_en: Municipal Facilities
     label_de: Kommunale Einrichtungen
-    aliases: [kommunale_einrichtungen, stadtische_gebaude]
+    aliases: [kommunale_einrichtungen, stadtische_gebaude, KE]
     color: '#6bc248'
   - id: commerce_trade_services
     label_en: Commerce, Trade & Services
@@ -1082,6 +1100,9 @@ dimensions:
   - id: undefined
     label_en: Undefined
     label_de: Unzugeordnet
+  - id: none
+    label_en: None
+    label_de: Kein Verkehrsmittel
 
 - id: weather_correction
   label_en: Weather correction
