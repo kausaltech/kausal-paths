@@ -35,6 +35,7 @@ from nodes.schema import (
     SBQuery as SBNodesQuery,
     Subscription as NodesSubscription,
 )
+from nodes.schema_trailhead import SBTrailheadMutation, SBTrailheadQuery
 from orgs.models import Organization
 from orgs.schema import OrganizationNode, Query as OrgsQuery
 from pages.schema import Query as PagesQuery
@@ -64,10 +65,7 @@ def instance_directive(
     pass
 
 
-
-class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery,
-                    OrgsQuery
-                    ):
+class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery, OrgsQuery):
     unit = graphene.Field(UnitType, value=graphene.String(required=True))
 
     instance_organizations = graphene.List(
@@ -75,6 +73,7 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, Server
         instance=graphene.ID(),
         with_ancestors=graphene.Boolean(default_value=False),
     )
+
     class Meta:
         name = 'Query'
 
@@ -100,7 +99,6 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, Server
         return list(Organization.objects.qs.available_for_instance(instance_obj))
 
 
-
 class GrapheneMutations(ParamsMutations, FrameworksMutations):
     pass
 
@@ -121,7 +119,7 @@ def context_directive(info: gql.Info, input: InstanceContextInput):
     return
 
 
-SBQuery = merge_types('Query', (SBNodesQuery,))
+SBQuery = merge_types('Query', (SBNodesQuery, SBTrailheadQuery))
 
 
 @sb.type
@@ -131,11 +129,13 @@ class Query(GrapheneQuery, SBQuery):  # type: ignore[valid-type, misc]
 
 SB_MUTATION_TYPES: list[type] = [
     NodesMutation,
+    SBTrailheadMutation,
 ]
 if test_mode_enabled():
     SB_MUTATION_TYPES.append(TestModeMutations)
 
 SBMutation = merge_types('Mutation', tuple(SB_MUTATION_TYPES))
+
 
 @sb.type
 class Mutation(GrapheneMutations, SBMutation):  # type: ignore[valid-type, misc]
@@ -154,14 +154,17 @@ class PathsSchema(UnifiedSchema):
             PathsAuthenticationExtension,
             PathsExecutionCacheExtension,
         )
+
         extensions = kwargs.pop('extensions', [])
-        extensions.extend([
-            LoggingTracingExtension(context_class=PathsGraphQLContext),
-            DetermineInstanceContextExtension,
-            PathsExecutionCacheExtension,
-            ActivateInstanceContextExtension,
-            PathsAuthenticationExtension,
-        ])
+        extensions.extend(
+            [
+                LoggingTracingExtension(context_class=PathsGraphQLContext),
+                DetermineInstanceContextExtension,
+                PathsExecutionCacheExtension,
+                ActivateInstanceContextExtension,
+                PathsAuthenticationExtension,
+            ]
+        )
         kwargs['extensions'] = extensions
         super().__init__(*args, **kwargs)
 
