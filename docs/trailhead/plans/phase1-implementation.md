@@ -83,12 +83,17 @@ These are used at the application layer — not at the DB layer.
 
 Look at existing work in `nodes/ser/` for patterns, especially i18n handling.
 
+Note: Use `nodes/defs/` (not `nodes/ser/`) for these files, with `_def.py`
+suffixes. This avoids confusion with GraphQL schema files (`_schema.py`)
+and distinguishes these definition models from the serialization code in
+`nodes/ser/` (which serializes runtime objects for API output).
+
 ### Files to create/modify:
 
-1. `nodes/ser/port_schema.py` — InputPortDef, OutputPortDef
-2. `nodes/ser/parameter_schema.py` — ParameterDef (shared by global and node-local)
-3. `nodes/ser/edge_schema.py` — EdgeTransformation
-4. `nodes/ser/scenario_schema.py` — ScenarioParameterOverride
+1. `nodes/defs/port_def.py` — InputPortDef, OutputPortDef
+2. `nodes/defs/parameter_def.py` — ParameterDef (shared by global and node-local)
+3. `nodes/defs/edge_def.py` — EdgeTransformation
+4. `nodes/defs/scenario_def.py` — ScenarioParameterOverride
 
 These should be pure Pydantic models with no Django dependencies.
 They validate JSON going into and coming out of the JSONFields.

@@ -37,6 +37,7 @@ from wagtail_color_panel.fields import ColorField
 
 from kausal_common.datasets.models import (
     Dataset as DatasetModel,
+    DatasetMetric,
     DatasetSchema,
     DatasetSchemaScope,
     Dimension as DatasetDimensionModel,
@@ -45,6 +46,7 @@ from kausal_common.datasets.models import (
 )
 from kausal_common.i18n.helpers import convert_language_code
 from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
+from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
     ParentInheritedPolicy,
@@ -101,7 +103,9 @@ instance_cache_lock = threading.Lock()
 
 
 def get_instance_identifier_from_wildcard_domain(
-    hostname: str, request: HttpRequest | None = None, wildcard_domains: list[str] | None = None,
+    hostname: str,
+    request: HttpRequest | None = None,
+    wildcard_domains: list[str] | None = None,
 ) -> tuple[str, str] | tuple[None, None]:
     # Get instance identifier from hostname for development and testing
     parts = hostname.lower().split('.', maxsplit=1)
@@ -141,11 +145,13 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
 
 
 _InstanceConfigManager = models.Manager.from_queryset(InstanceConfigQuerySet)
-class InstanceConfigManager(
-    MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager
-):
+
+
+class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
         return self.get(identifier=identifier)
+
+
 del _InstanceConfigManager
 
 
@@ -214,9 +220,11 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
 
         schemas = DatasetSchema.objects.filter(schema_q).values_list('pk', flat=True)
         ic_content_type_id = ContentType.objects.get_for_model(InstanceConfig).pk
-        instance_configs_accessible_through_datasets = DatasetSchemaScope.objects.qs.filter(
-            scope_content_type_id=ic_content_type_id
-        ).filter(schema_id__in=schemas).values_list('scope_id', flat=True)
+        instance_configs_accessible_through_datasets = (
+            DatasetSchemaScope.objects.qs.filter(scope_content_type_id=ic_content_type_id)
+            .filter(schema_id__in=schemas)
+            .values_list('scope_id', flat=True)
+        )
         return q | Q(pk__in=instance_configs_accessible_through_datasets)
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
@@ -296,7 +304,10 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     site_url = models.URLField(verbose_name=_('Site URL'), null=True)
     site = models.OneToOneField(Site, null=True, on_delete=models.PROTECT, editable=False, related_name='instance')
     organization: FK[Organization] = models.ForeignKey(
-        Organization, related_name='instances', on_delete=models.PROTECT, verbose_name=_('organization'),
+        Organization,
+        related_name='instances',
+        on_delete=models.PROTECT,
+        verbose_name=_('organization'),
         help_text=_('The main organization for the instance'),
     )
 
@@ -310,34 +321,61 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     primary_language = models.CharField[str, str](
         max_length=8,
         choices=get_supported_languages,  # type: ignore[arg-type]
-        default=get_default_language
+        default=get_default_language,
     )
     other_languages = ChoiceArrayField(
         models.CharField(
             max_length=8,
             choices=get_supported_languages,  # type: ignore[arg-type]
-            default=get_default_language
+            default=get_default_language,
         ),
         default=list,
     )
 
+    # --- Trailhead: DB-sourced instance fields ---
+    config_source = models.CharField(
+        max_length=20,
+        choices=[('yaml', 'YAML'), ('database', 'Database')],
+        default='yaml',
+    )
+    reference_year = models.IntegerField(null=True, blank=True)
+    minimum_historical_year = models.IntegerField(null=True, blank=True)
+    maximum_historical_year = models.IntegerField(null=True, blank=True)
+    target_year = models.IntegerField(null=True, blank=True)
+    model_end_year = models.IntegerField(null=True, blank=True)
+    emission_unit = models.CharField(max_length=100, null=True, blank=True)
+    dataset_repo_url = models.URLField(null=True, blank=True)
+    dataset_repo_commit = models.CharField(max_length=100, null=True, blank=True)
+    dataset_repo_dvc_remote = models.CharField(max_length=200, null=True, blank=True)
+    features = models.JSONField(default=dict, blank=True)
+    parameters = models.JSONField(default=list, blank=True)
+    extra = models.JSONField(default=dict, blank=True)
+
     viewer_group: FK[Group | None] = models.ForeignKey(
-        Group, on_delete=models.PROTECT, editable=False, related_name='viewer_instances',
+        Group,
+        on_delete=models.PROTECT,
+        editable=False,
+        related_name='viewer_instances',
         null=True,
     )
     viewer_group_id: int | None
     reviewer_group: FK[Group | None] = models.ForeignKey(
-        Group, on_delete=models.PROTECT, editable=False, related_name='reviewer_instances',
-        null=True
+        Group, on_delete=models.PROTECT, editable=False, related_name='reviewer_instances', null=True
     )
     reviewer_group_id: int | None
     admin_group: FK[Group | None] = models.ForeignKey(
-        Group, on_delete=models.PROTECT, editable=False, related_name='admin_instances',
+        Group,
+        on_delete=models.PROTECT,
+        editable=False,
+        related_name='admin_instances',
         null=True,
     )
     admin_group_id: int | None
     super_admin_group: FK[Group | None] = models.ForeignKey(
-        Group, on_delete=models.PROTECT, editable=False, related_name='super_admin_instances',
+        Group,
+        on_delete=models.PROTECT,
+        editable=False,
+        related_name='super_admin_instances',
         null=True,
     )
     super_admin_group_id: int | None
@@ -354,8 +392,10 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     objects: ClassVar[InstanceConfigManager] = InstanceConfigManager()
 
     dataset_schema_scopes = GenericRelation(
-        'datasets.DatasetSchemaScope', related_query_name='instance_config',
-        content_type_field='scope_content_type', object_id_field='scope_id',
+        'datasets.DatasetSchemaScope',
+        related_query_name='instance_config',
+        content_type_field='scope_content_type',
+        object_id_field='scope_id',
     )
 
     # Type annotations
@@ -424,7 +464,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     def create_for_instance(cls, instance: Instance, **kwargs) -> InstanceConfig:
         assert not cls.objects.filter(identifier=instance.id).exists()
 
-        org = Organization.objects.get(name="Kausal") # TODO: Define the organization better when we have a better idea?
+        org = Organization.objects.get(name='Kausal')  # TODO: Define the organization better when we have a better idea?
         return cls.objects.create(identifier=instance.id, site_url=instance.site_url, organization=org, **kwargs)
 
     def has_framework_config(self) -> bool:
@@ -523,7 +563,6 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         finally:
             instance_context.reset(token)
 
-
     def _get_instance(self, node_refs: bool = False) -> Instance:
         if self.identifier in _pytest_instances:
             return _pytest_instances[self.identifier]
@@ -532,7 +571,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         if current_instance is not None and current_instance.id == self.identifier:
             return current_instance
 
-        self.log.info("Creating new instance")
+        self.log.info('Creating new instance')
         with instance_cache_lock:
             instance = self._initialize_instance(node_refs=node_refs)
         return instance
@@ -565,6 +604,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     @cached_property
     def action_list_page(self) -> ActionListPage | None:
         from pages.models import ActionListPage
+
         qs = self.root_page.get_descendants().type(ActionListPage).specific()
         return cast('ActionListPage | None', qs.first())
 
@@ -576,16 +616,11 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         try:
             locale = Locale.objects.get(language_code=language)
             root = root.get_translation(locale)
-        except (Locale.DoesNotExist, Page.DoesNotExist):
+        except Locale.DoesNotExist, Page.DoesNotExist:
             pass
         return root
 
-    def sync_nodes(
-        self,
-        update_existing=False,
-        delete_stale=False,
-        overwrite=False,
-        skip_descriptions=False):
+    def sync_nodes(self, update_existing=False, delete_stale=False, overwrite=False, skip_descriptions=False):
         from nodes.datasets import DBDataset
 
         instance = self.get_instance()
@@ -595,7 +630,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             node_config = node_configs.get(node.id)
             if node_config is None:
                 node_config = NodeConfig(instance=self, **node.as_node_config_attributes())
-                self.log.info("Creating node config for node %s" % node.id)
+                self.log.info('Creating node config for node %s' % node.id)
                 node_config.save()
                 has_db_datasets = any(isinstance(ds, DBDataset) for ds in node.input_dataset_instances)
                 if has_db_datasets:
@@ -616,12 +651,12 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                 node.delete()
 
     def sync_categories(
-            self,
-            dataset_dim: DatasetDimensionModel,
-            scope: DimensionScope,
-            update_existing=False,
-            delete_stale=False,
-        ):
+        self,
+        dataset_dim: DatasetDimensionModel,
+        scope: DimensionScope,
+        update_existing=False,
+        delete_stale=False,
+    ):
         found_cats = set()
         instance = self.get_instance()
         default_lang = instance.default_language
@@ -633,13 +668,8 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             cat_obj = cats.get(cat.id)
             if cat_obj is None:
                 label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
-                cat_obj = DimensionCategory.objects.create(
-                    dimension=dataset_dim,
-                    identifier=cat.id,
-                    label=label,
-                    i18n=i18n
-                )
-                print("Creating category %s" % cat.id)
+                cat_obj = DimensionCategory.objects.create(dimension=dataset_dim, identifier=cat.id, label=label, i18n=i18n)
+                print('Creating category %s' % cat.id)
             else:
                 found_cats.add(cat_obj.pk)
                 label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
@@ -652,7 +682,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             for cat_obj in cats.values():
                 if cat_obj.pk in found_cats:
                     continue
-                print("Deleting stale category %s" % cat_obj)
+                print('Deleting stale category %s' % cat_obj)
                 cat_obj.delete()
 
     def sync_dimension(self, dim: NodeDimension, update_existing=False, delete_stale=False) -> DatasetDimensionModel:
@@ -665,12 +695,9 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         if scope is None:
             dim_obj = DatasetDimensionModel.objects.create(name=label, i18n=i18n)
             scope = DimensionScope.objects.create(
-                scope_content_type=ContentType.objects.get_for_model(self),
-                scope_id=self.pk,
-                identifier=dim.id,
-                dimension=dim_obj
+                scope_content_type=ContentType.objects.get_for_model(self), scope_id=self.pk, identifier=dim.id, dimension=dim_obj
             )
-            print("Creating dimension %s" % dim.id)
+            print('Creating dimension %s' % dim.id)
         else:
             dim_obj = scope.dimension
 
@@ -699,7 +726,6 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             for dim_obj in dimensions:
                 if dim_obj not in found_dims:
                     dim_obj.delete()
-
 
     def update_modified_at(self, save=True):
         self.modified_at = timezone.now()
@@ -742,19 +768,26 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                 home_page = home_pages.get(slug=self.identifier)
             except Page.DoesNotExist:
                 assert home_page_conf.outcome_node is not None
-                home_page = root_node.add_child(instance=OutcomePage(
-                    locale=locale,
-                    title=self.get_name(),
-                    slug=self.identifier,
-                    url_path='',
-                    outcome_node=onode,
-                ))
+                home_page = root_node.add_child(
+                    instance=OutcomePage(
+                        locale=locale,
+                        title=self.get_name(),
+                        slug=self.identifier,
+                        url_path='',
+                        outcome_node=onode,
+                    )
+                )
 
             action_list_pages: models.QuerySet[ActionListPage] = home_page.get_children().type(ActionListPage)  # type: ignore
             if not action_list_pages.exists():
-                home_page.add_child(instance=ActionListPage(
-                    title=gettext("Actions"), slug='actions', show_in_menus=True, show_in_footer=True,
-                ))
+                home_page.add_child(
+                    instance=ActionListPage(
+                        title=gettext('Actions'),
+                        slug='actions',
+                        show_in_menus=True,
+                        show_in_footer=True,
+                    )
+                )
 
             for page_config in instance.pages:
                 slug = page_config.id
@@ -766,15 +799,17 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                     continue
 
                 assert page_config.outcome_node is not None
-                home_page.add_child(instance=OutcomePage(
-                    locale=locale,
-                    title=str(page_config.name),
-                    slug=slug,
-                    url_path=page_config.path,
-                    outcome_node=outcome_nodes[page_config.outcome_node],
-                    show_in_menus=page_config.show_in_menus,
-                    show_in_footer=page_config.show_in_footer,
-                ))
+                home_page.add_child(
+                    instance=OutcomePage(
+                        locale=locale,
+                        title=str(page_config.name),
+                        slug=slug,
+                        url_path=page_config.path,
+                        outcome_node=outcome_nodes[page_config.outcome_node],
+                        show_in_menus=page_config.show_in_menus,
+                        show_in_footer=page_config.show_in_footer,
+                    )
+                )
 
         return home_page
 
@@ -799,21 +834,24 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
 
     def invalidate_cache(self, save: bool = True):
         self.cache_invalidated_at = timezone.now()
-        self.log.info("Invalidating cache")
+        self.log.info('Invalidating cache')
         self.save(update_fields=['cache_invalidated_at'])
 
     def notify_change(self):
         self.update_modified_at(save=False)
         self.invalidate_cache(save=False)
-        self.log.info("Instance modified")
+        self.log.info('Instance modified')
         self.save(update_fields=['modified_at', 'cache_invalidated_at'])
         cl = get_channel_layer()
         if cl is None:
             return
-        async_to_sync(cl.group_send)(INSTANCE_CHANGE_GROUP, {
-            'type': INSTANCE_CHANGE_TYPE,
-            'pk': self.pk,
-        })
+        async_to_sync(cl.group_send)(
+            INSTANCE_CHANGE_GROUP,
+            {
+                'type': INSTANCE_CHANGE_TYPE,
+                'pk': self.pk,
+            },
+        )
 
     @cached_property
     def log(self) -> Logger:
@@ -828,7 +866,9 @@ class InstanceHostnameManager(models.Manager['InstanceHostname']):
 
 class InstanceHostname(models.Model):
     instance = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='hostnames',
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='hostnames',
     )
     hostname = models.CharField(max_length=100)
     base_path = models.CharField(max_length=100, blank=True, default='')
@@ -857,7 +897,9 @@ class InstanceTokenManager(models.Manager['InstanceToken']):
 
 class InstanceToken(models.Model):
     instance = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='tokens',
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='tokens',
     )
     token = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -880,6 +922,8 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
 
 
 _NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)
+
+
 class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeConfigManager):  # pyright: ignore
     """Model manager for NodeConfig."""
 
@@ -887,35 +931,58 @@ class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeC
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance, identifier=identifier)
 
+
 del _NodeConfigManager
+
 
 class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedModel):
     instance: FK[InstanceConfig] = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='nodes', editable=False,
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='nodes',
+        editable=False,
     )
     identifier = IdentifierField(max_length=200)
     name = models.CharField(max_length=200, null=True, blank=True)
     order = models.PositiveIntegerField(
-        null=True, blank=True, verbose_name=_('Order'),
+        null=True,
+        blank=True,
+        verbose_name=_('Order'),
     )
     is_visible = models.BooleanField(default=True)
     goal = RichTextField[str | None, str | None](
-        null=True, blank=True, verbose_name=_('Goal'), editor='very-limited',
+        null=True,
+        blank=True,
+        verbose_name=_('Goal'),
+        editor='very-limited',
         max_length=1000,
-    ) # pyright: ignore
+    )  # pyright: ignore
     short_description = RichTextField[str | None, str | None](
-        null=True, blank=True, verbose_name=_('Short description'), editor='limited',
-    ) # pyright: ignore
+        null=True,
+        blank=True,
+        verbose_name=_('Short description'),
+        editor='limited',
+    )  # pyright: ignore
     description = RichTextField[str | None, str | None](
-        null=True, blank=True, verbose_name=_('Description'),
-    ) # -> StreamField
-    body = StreamField([
-        ('card_list', CardListBlock()),
-        ('paragraph', blocks.RichTextBlock()),
-    ], use_json_field=True, blank=True)
+        null=True,
+        blank=True,
+        verbose_name=_('Description'),
+    )  # -> StreamField
+    body = StreamField(
+        [
+            ('card_list', CardListBlock()),
+            ('paragraph', blocks.RichTextBlock()),
+        ],
+        use_json_field=True,
+        blank=True,
+    )
 
     indicator_node: FK[NodeConfig | None] = models.ForeignKey(
-        'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='indicates_nodes',
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='indicates_nodes',
     )
 
     datasets: M2M[DatasetModel, NodeDataset] = models.ManyToManyField(DatasetModel, through='NodeDataset', related_name='nodes')
@@ -923,6 +990,36 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
     color: CharField[str, str] = ColorField(max_length=20, blank=True)
     input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
+
+    # --- Trailhead: DB-sourced node fields ---
+    node_type = models.CharField(
+        max_length=20,
+        choices=[('formula', 'Formula'), ('action', 'Action')],
+        null=True,
+        blank=True,
+    )
+    unit = models.CharField(max_length=100, null=True, blank=True)
+    quantity = models.CharField(max_length=100, null=True, blank=True)
+    input_ports = models.JSONField(default=list, blank=True)
+    output_ports = models.JSONField(default=list, blank=True)
+    pipeline = models.JSONField(null=True, blank=True)
+    formula = models.CharField(max_length=2000, null=True, blank=True)
+    action_group = models.ForeignKey(
+        'ActionGroup',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='nodes',
+    )
+    decision_level = models.CharField(
+        max_length=20,
+        choices=[('nation', 'Nation'), ('region', 'Region'), ('local', 'Local')],
+        null=True,
+        blank=True,
+    )
+    is_outcome = models.BooleanField(default=False)
+    node_group = models.CharField(max_length=200, null=True, blank=True)
+    extra = models.JSONField(default=dict, blank=True)
 
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
@@ -1100,3 +1197,168 @@ class NodeDataset(models.Model):
     def get_admin_display_title(self) -> str:
         """Return a descriptive title for Wagtail admin views."""
         return str(self)
+
+
+# --- Trailhead models ---
+
+
+class ActionGroup(UUIDIdentifiedModel, UserModifiableModel):
+    """Category for grouping action nodes (e.g. "Transport", "Buildings")."""
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='action_groups',
+    )
+    identifier = IdentifierField(max_length=100)
+    name = models.CharField(max_length=200)
+    color: CharField[str, str] = ColorField(max_length=20, blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    i18n = TranslationField(
+        fields=('name',),
+        default_language_field='instance__primary_language',
+    )
+    name_i18n: str
+
+    class Meta:
+        unique_together = [('instance', 'identifier')]
+        ordering = ['order']
+        verbose_name = _('Action group')
+        verbose_name_plural = _('Action groups')
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class NodeEdge(UUIDIdentifiedModel, UserModifiableModel):
+    """A directed edge in the computation graph."""
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='edges',
+    )
+    from_node: FK[NodeConfig] = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='outgoing_edges',
+    )
+    from_node_id: int
+    from_port = models.CharField(
+        max_length=100,
+        default='output',
+        help_text='Output port ID on the source node',
+    )
+    to_node: FK[NodeConfig] = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='incoming_edges',
+    )
+    to_node_id: int
+    to_port = models.CharField(
+        max_length=100,
+        help_text='Input port ID on the target node',
+    )
+    transformations = models.JSONField(default=list, blank=True)
+    tags = ArrayField(
+        models.CharField(max_length=50),
+        default=list,
+        blank=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['to_node', 'to_port'],
+                name='unique_edge_per_input_port',
+            ),
+        ]
+        verbose_name = _('Node edge')
+        verbose_name_plural = _('Node edges')
+
+    def __str__(self) -> str:
+        return f'{self.from_node_id} → {self.to_node_id}'
+
+
+class DatasetPort(UUIDIdentifiedModel, UserModifiableModel):
+    """Connects a dataset metric to a node input port."""
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='dataset_ports',
+    )
+    node: FK[NodeConfig] = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='dataset_ports',
+    )
+    node_id: int
+    port_id = models.CharField(
+        max_length=100,
+        help_text='Input port ID on the node (must match a port in node.input_ports)',
+    )
+    dataset: FK[DatasetModel] = models.ForeignKey(
+        DatasetModel,
+        on_delete=models.PROTECT,
+        related_name='node_ports',
+    )
+    dataset_id: int
+    metric: FK[DatasetMetric] = models.ForeignKey(
+        DatasetMetric,
+        on_delete=models.PROTECT,
+        related_name='node_ports',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['node', 'port_id'],
+                name='unique_dataset_port_per_input_port',
+            ),
+        ]
+        verbose_name = _('Dataset port')
+        verbose_name_plural = _('Dataset ports')
+
+    def __str__(self) -> str:
+        return f'{self.node_id}:{self.port_id} ← {self.dataset_id}'
+
+
+class Scenario(UUIDIdentifiedModel, UserModifiableModel):
+    """A named combination of parameter values."""
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='scenarios',
+    )
+    identifier = IdentifierField(max_length=100)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    kind = models.CharField(
+        max_length=30,
+        choices=[
+            ('default', 'Default'),
+            ('baseline', 'Baseline'),
+            ('progress_tracking', 'Progress tracking'),
+        ],
+        blank=True,
+    )
+    all_actions_enabled = models.BooleanField(default=False)
+    parameter_overrides = models.JSONField(default=list, blank=True)
+
+    i18n = TranslationField(
+        fields=('name', 'description'),
+        default_language_field='instance__primary_language',
+    )
+    name_i18n: str
+    description_i18n: str
+
+    class Meta:
+        unique_together = [('instance', 'identifier')]
+        verbose_name = _('Scenario')
+        verbose_name_plural = _('Scenarios')
+
+    def __str__(self) -> str:
+        return self.name
