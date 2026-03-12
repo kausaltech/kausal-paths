@@ -24,9 +24,9 @@ action_group:
 - id: transportation_act
   name: Decarbonize Transportation
   color: '#545A79'
-# - id: buildings_act
-#   name: Decarbonize Energy and Buildings and Increase Energy Efficiency
-#   color: '#A4C146'
+- id: buildings_act
+  name: Decarbonize Energy and Buildings and Increase Energy Efficiency
+  color: '#A4C146'
 - id: water_act
   name: Optimize Water Use
   color: '#3C8BDB'
@@ -133,7 +133,7 @@ dimensions:
   - id: scope3
     label: Scope 3
     order: 2
-  - id: negative_emissions
+  - id: negative
     label: Negative Emissions
     order: -1
 
@@ -306,10 +306,10 @@ dimensions:
   categories:
   - id: dt3
     label: Encourage transition to electric vehicles
-  # - id: eb1b
-  #   label: Incentivize cool and green roofs installation
-  # - id: eb1d
-  #   label: Energy efficiency retrofits for existing buildings
+  - id: eb1b
+    label: Incentivize cool and green roofs installation
+  - id: eb1d
+    label: Energy efficiency retrofits for existing buildings
   # - id: eb2
   #   label: Decarbonize and electrify buildings
   # - id: eb3d
@@ -406,6 +406,179 @@ nodes:
     - dimension: energy_carrier
       categories: [electricity]
   input_dataset_processors: [LinearInterpolation]
+
+- id: abau_new_buildings_electricity_use
+  name: New Buildings Electricity Use (Adjusted Business As Usual)
+  type: simple.AdditiveNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
+  output_dimensions: [subsector, energy_provider, building_type, building_status]
+  input_datasets:
+  - id: yolo/building-input
+    forecast_from: 2023
+    filters:
+    - dimension: energy_carrier
+      categories: [electricity]
+    - dimension: building_status
+      categories: [new]
+    - dimension: scenario_id
+      categories: [adjusted_baseline]
+  input_dataset_processors: [LinearInterpolation]
+
+# --- nodes related to action eb1b
+- id: ac_factor
+  name: AC Factor
+  type: simple.AdditiveNode
+  quantity: factor
+  unit: dimensionless
+  input_dimensions: [subsector, building_status, factor_type]
+  output_dimensions: [subsector, building_status]
+  input_datasets:
+  - id: yolo/actions-input
+    filters:
+    - column: action
+      value: eb1b
+    - column: quantity
+      value: factor
+    - dimension: factor_type
+      categories: [ac]
+
+- id: cool_roof_factor
+  name: Cool Roof Factor
+  type: simple.AdditiveNode
+  quantity: factor
+  unit: dimensionless
+  input_dimensions: [subsector, building_status, factor_type]
+  output_dimensions: [subsector, building_status]
+  input_datasets:
+  - id: yolo/actions-input
+    filters:
+    - column: action
+      value: eb1b
+    - column: quantity
+      value: factor
+    - dimension: factor_type
+      categories: [cool_roof]
+
+- id: eb1b_electricity_reduction
+  name: New Buildings Electricity Use Reduction
+  type: formula.FormulaNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [subsector, energy_provider, building_type, building_status]
+  output_dimensions: [subsector, energy_provider, building_type, building_status]
+  params:
+    formula: -fraction * new_bldg_elec * ac_factor * cool_roof_factor
+  input_nodes:
+  - id: eb1b
+    tags: [fraction]
+  - id: abau_new_buildings_electricity_use
+    tags: [new_bldg_elec]
+  - id: ac_factor
+    tags: [ac_factor]
+  - id: cool_roof_factor
+    tags: [cool_roof_factor]
+  output_nodes:
+  - id: building_electricity_use
+
+# -- nodes related to action eb1d
+- id: eb1d_existing_commercial_electricity
+  name: Existing Commercial Buildings Electricity Use (Adjusted BAU)
+  type: simple.AdditiveNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
+  output_dimensions: [energy_provider]
+  input_datasets:
+  - id: yolo/building-input
+    forecast_from: 2023
+    filters:
+    - dimension: energy_carrier
+      categories: [electricity]
+    - dimension: building_status
+      categories: [existing]
+    - dimension: subsector
+      categories: [commercial]
+    - dimension: scenario_id
+      categories: [adjusted_baseline]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: eb1d_existing_commercial_electricity_total
+  name: Existing Commercial Buildings Total Electricity Use (Adjusted BAU)
+  type: simple.AdditiveNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [energy_provider]
+  output_dimensions: []
+  input_nodes:
+  - id: eb1d_existing_commercial_electricity
+    to_dimensions: []
+
+- id: eb1d_utility_share
+  name: Existing Commercial Buildings Electricity Share by Provider
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [energy_provider]
+  output_dimensions: [energy_provider]
+  params:
+    formula: elec_by_provider / total_elec
+  input_nodes:
+  - id: eb1d_existing_commercial_electricity
+    tags: [elec_by_provider]
+  - id: eb1d_existing_commercial_electricity_total
+    tags: [total_elec]
+
+- id: eb1d_csi_electricity_reduction
+  name: EB1D CSI Electricity Reduction
+  type: formula.FormulaNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [energy_provider]
+  output_dimensions: [energy_provider]
+  params:
+    formula: -5883.5 * (fraction / 100) * 663.5 * utility_share
+  input_nodes:
+  - id: eb1d
+    tags: [fraction]
+  - id: eb1d_utility_share
+    tags: [utility_share]
+  output_nodes:
+  - id: building_electricity_use
+
+- id: eb1d_pace_electricity_reduction
+  name: EB1D PACE Electricity Reduction
+  type: formula.FormulaNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [energy_provider]
+  output_dimensions: [energy_provider]
+  params:
+    formula: -1.02 * fraction * 663.5 * utility_share
+  input_nodes:
+  - id: eb1d
+    tags: [fraction]
+  - id: eb1d_utility_share
+    tags: [utility_share]
+  output_nodes:
+  - id: building_electricity_use
+
+- id: eb1d_csi_gas_reduction
+  name: EB1D CSI Natural Gas Reduction
+  type: formula.FormulaNode
+  quantity: energy_consumption
+  unit: therms/year
+  input_dimensions: []
+  output_dimensions: []
+  params:
+    formula: -2282.02 * fraction * 663.5
+  input_nodes:
+  - id: eb1d
+    tags: [fraction]
+  output_nodes:
+  - id: building_natural_gas_use
+
 
 - id: building_natural_gas_use
   label: Building Natural Gas Use
@@ -607,7 +780,7 @@ nodes:
   label: ICE Transportation Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: t_co2e/a #ask Mike how to handle the conversion as 347 days are considered in the excel 
+  unit: t_co2e/a  
   input_dimensions: [scope, travel_boundary, speed_bin, vehicle_type]
   output_dimensions: [scope, travel_boundary, vehicle_type]
   params: 
@@ -1341,24 +1514,48 @@ actions:
 
 # ---- building actions 
 
-# - id: eb1b
-#   name: Incentivize cool and green roofs installation
-#   type: simple.AdditiveAction
-#   group: buildings_act
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: []
-#   output_dimensions: []
-#   input_datasets:
-#   - id: yolo/actions-input
-#     forecast_from: 2023
-#     filters:
-#     - column: action
-#       value: eb1b
-#   input_dataset_processors: [LinearInterpolation]
+- id: eb1b
+  name: Incentivize cool and green roofs installation
+  type: simple.AdditiveAction
+  group: buildings_act
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/actions-input
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: eb1b
+    - column: quantity
+      value: fraction
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: 
+  - id: eb1b_electricity_reduction
 
-#   - id: eb1d
-#     label: Energy efficiency retrofits for existing buildings
+- id: eb1d
+  name: Energy efficiency retrofits for existing buildings
+  type: simple.AdditiveAction
+  group: buildings_act
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/actions-input
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: eb1d
+    - column: quantity
+      value: fraction
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: eb1d_csi_electricity_reduction
+  - id: eb1d_pace_electricity_reduction
+  - id: eb1d_csi_gas_reduction
+
 #   - id: eb2
 #     label: Decarbonize and electrify buildings
 #   - id: eb3d
@@ -1548,3 +1745,8 @@ scenarios:
   default: true
   name: Climate Action and Adaptation Plan
   all_actions_enabled: true
+  param_values: 
+    abau_trend_electricity.enabled: true
+    abau_trend_transportation.enabled: true
+    abau_trend_building_electricity.enabled: true
+    abau_trend_building_natural_gas.enabled: true
