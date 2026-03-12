@@ -507,6 +507,13 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     def _create_from_config(self) -> Instance:
         from .instance_loader import InstanceLoader
 
+        if self.config_source == 'database':
+            from .instance_from_db import serialize_instance_to_dict
+
+            config = serialize_instance_to_dict(self)
+            loader = InstanceLoader(config=config)
+            return loader.instance
+
         if self.has_framework_config():
             fwc = self.framework_config
             instance = fwc.create_model_instance(self)
