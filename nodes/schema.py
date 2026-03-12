@@ -396,16 +396,14 @@ class VisualizationNodeOutput(VisualizationEntry):  # type: ignore[override]
     dimensions: list[VisualizationNodeDimension]
     scenarios: list[str] | None = None
 
-    @sb.field
-    def metric_dim(self, info: sb.Info) -> DimensionalMetricType | None:
+    @sb.field(graphql_type=DimensionalMetricType | None)
+    def metric_dim(self, info: sb.Info) -> DimensionalMetric | None:
         e = cast('viz.VisualizationNodeOutput', self)
         req: 'GQLInstanceContext' = info.context
         dm = e.get_metric_data(req.instance.context.nodes[self.node_id])
         if dm is None:
             return None
-        out: DimensionalMetricType = DimensionalMetricType.from_pydantic(dm)
-        setattr(out, 'real_unit', dm.unit)  # noqa: B010
-        return out
+        return dm
 
     def to_pydantic(self, **kwargs: Any) -> viz.VisualizationNodeOutput:
         data = dataclasses.asdict(self)  # type: ignore[call-overload]
@@ -601,14 +599,13 @@ class NodeInterface:
     def output_dimensions(root: Node) -> list[str] | None:
         return list(root.output_dimensions.keys())
 
-    @sb.field
+    @sb.field(graphql_type=list[VisualizationEntry] | None)
     @staticmethod
-    def visualizations(root: Node) -> list[VisualizationEntry] | None:
+    def visualizations(root: Node) -> list[viz.VisualizationEntryType] | None:
         node_viz = root.visualizations
         if not node_viz:
             return None
-        entries = [VisualizationEntry.from_pydantic(viz) for viz in node_viz.root]
-        return entries
+        return node_viz.root
 
     @sb.field(graphql_type=list['NodeInterface'])
     @staticmethod
