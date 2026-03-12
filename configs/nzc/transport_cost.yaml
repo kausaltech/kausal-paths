@@ -214,7 +214,6 @@ nodes:
   unit: EUR/vkm
   input_dimensions: [cost_type, transport_mode]
   output_dimensions: [cost_type, transport_mode]
-  input_datasets: [nzc/defaults]
   input_nodes:
   - id: total_cost_of_ownership_historical
     tags: [non_additive]
