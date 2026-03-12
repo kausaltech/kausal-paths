@@ -7,6 +7,7 @@ model instances (NodeConfig, NodeEdge, ActionGroup, Scenario).
 
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING
 
 import strawberry as sb
@@ -98,6 +99,10 @@ class ModelInstanceType:
     emission_unit: str | None
     features: sb.scalars.JSON
     parameters: sb.scalars.JSON
+    live: bool
+    has_unpublished_changes: bool
+    first_published_at: datetime.datetime | None
+    last_published_at: datetime.datetime | None
     nodes: list[NodeConfigType]
     edges: list[NodeEdgeType]
     action_groups: list[ActionGroupType]
@@ -133,6 +138,10 @@ def _resolve_model_instance(ic: InstanceConfig) -> ModelInstanceType:
         emission_unit=ic.emission_unit,
         features=ic.features,
         parameters=ic.parameters,
+        live=ic.live,
+        has_unpublished_changes=ic.has_unpublished_changes,
+        first_published_at=ic.first_published_at,
+        last_published_at=ic.last_published_at,
         nodes=[
             NodeConfigType(
                 id=sb.ID(str(nc.pk)),
@@ -567,3 +576,26 @@ class SBTrailheadMutation:
             s.delete()
 
         return DeletePayload(ok=True)
+
+    @sb.mutation(description='Publish the current model state as a new revision')
+    @staticmethod
+    def publish_model_instance(info: gql.Info, instance_id: sb.ID) -> ModelInstanceType:
+        ic = _get_instance_config(info, instance_id)
+        if ic.config_source != 'database':
+            raise GraphQLError('Cannot publish YAML-sourced instances')
+
+        user = getattr(info.context, 'user', None)
+        ic.publish_instance(user=user)
+        ic.refresh_from_db()
+        return _resolve_model_instance(ic)
+
+    @sb.mutation(description='Revert draft to the last published revision')
+    @staticmethod
+    def revert_model_instance(info: gql.Info, instance_id: sb.ID) -> ModelInstanceType:
+        ic = _get_instance_config(info, instance_id)
+        if ic.config_source != 'database':
+            raise GraphQLError('Cannot revert YAML-sourced instances')
+
+        with transaction.atomic():
+            ic.revert_to_published()
+        return _resolve_model_instance(ic)

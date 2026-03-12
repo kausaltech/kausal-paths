@@ -25,7 +25,7 @@ from modeltrans.fields import TranslationField
 from modeltrans.manager import MultilingualQuerySet
 from wagtail import blocks
 from wagtail.fields import RichTextField, StreamField
-from wagtail.models import Locale, Page, RevisionMixin
+from wagtail.models import DraftStateMixin, Locale, Page, RevisionMixin
 from wagtail.models.sites import Site
 from wagtail.search import index
 
@@ -292,7 +292,7 @@ instance_context: ContextVar[Instance | None] = ContextVar('instance_context', d
 """Global instance context for e.g. GraphQL queries."""
 
 
-class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Model):  # , RevisionMixin)
+class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], UUIDIdentifiedModel, models.Model):
     """Metadata for one Paths computational model instance."""
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
@@ -503,6 +503,48 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         if set(self.other_languages or []) != other_langs:
             self.log.info('Updating instance.other_languages to [%s]' % ', '.join(other_langs))
             self.other_languages = list(other_langs)
+
+    def serializable_data(self) -> dict[str, Any]:
+        """Override Wagtail's serializable_data to include full model snapshot for DB-sourced instances."""
+        data = super().serializable_data()
+        if self.config_source == 'database':
+            from .instance_from_db import serialize_instance_to_dict
+
+            data['trailhead_snapshot'] = serialize_instance_to_dict(self)
+        return data
+
+    def publish_instance(self, user: Any = None) -> None:
+        """Serialize the current model state and publish as a Wagtail revision."""
+        revision = self.save_revision(user=user)
+        self.publish(revision, user=user)
+
+    def revert_to_published(self) -> None:
+        """Restore draft state from the published revision snapshot."""
+        if not self.live_revision:
+            raise ValueError('No published revision to revert to')
+        snapshot = self.live_revision.content.get('trailhead_snapshot')
+        if not snapshot:
+            raise ValueError('Published revision has no trailhead snapshot')
+        import io
+
+        from .management.commands.import_yaml_to_db import (
+            _clear_trailhead_data,
+            _import_action_groups,
+            _import_edges,
+            _import_nodes,
+            _import_scenarios,
+            _update_instance_fields,
+        )
+
+        with transaction.atomic():
+            _update_instance_fields(self, snapshot)
+            _clear_trailhead_data(self)
+            ag_map = _import_action_groups(self, snapshot)
+            node_map, _action_ids = _import_nodes(self, snapshot, ag_map)
+            _import_edges(self, snapshot, node_map, io.StringIO())
+            _import_scenarios(self, snapshot)
+        self.has_unpublished_changes = False
+        self.save(update_fields=['has_unpublished_changes'])
 
     def _create_from_config(self) -> Instance:
         from .instance_loader import InstanceLoader
