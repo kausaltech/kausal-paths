@@ -35,6 +35,7 @@ from nodes.schema import (
     SBQuery as SBNodesQuery,
     Subscription as NodesSubscription,
 )
+from nodes.schema_model_editor import ModelEditorMutation, ModelEditorQuery
 from orgs.models import Organization
 from orgs.schema import OrganizationNode, Query as OrgsQuery
 from pages.schema import Query as PagesQuery
@@ -118,7 +119,7 @@ def context_directive(info: gql.Info, input: InstanceContextInput):
     return
 
 
-SBQuery = merge_types('Query', (SBNodesQuery,))
+SBQuery = merge_types('Query', (SBNodesQuery, ModelEditorQuery))
 
 
 @sb.type
@@ -128,6 +129,7 @@ class Query(GrapheneQuery, SBQuery):  # type: ignore[valid-type, misc]
 
 SB_MUTATION_TYPES: list[type] = [
     NodesMutation,
+    ModelEditorMutation,
 ]
 if test_mode_enabled():
     SB_MUTATION_TYPES.append(TestModeMutations)
@@ -154,13 +156,15 @@ class PathsSchema(UnifiedSchema):
         )
 
         extensions = kwargs.pop('extensions', [])
-        extensions.extend([
-            LoggingTracingExtension(context_class=PathsGraphQLContext),
-            DetermineInstanceContextExtension,
-            PathsExecutionCacheExtension,
-            ActivateInstanceContextExtension,
-            PathsAuthenticationExtension,
-        ])
+        extensions.extend(
+            [
+                LoggingTracingExtension(context_class=PathsGraphQLContext),
+                DetermineInstanceContextExtension,
+                PathsExecutionCacheExtension,
+                ActivateInstanceContextExtension,
+                PathsAuthenticationExtension,
+            ]
+        )
         kwargs['extensions'] = extensions
         super().__init__(*args, **kwargs)
 

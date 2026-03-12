@@ -145,6 +145,11 @@ pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema
 - All models inherit from appropriate base classes (`UUIDIdentifiedModel`, `PathsModel`)
 - Use proper type annotations for fields and relationships
 - Implement permission policies for access control
+- **Reverse FK managers must be explicitly annotated** on the model class using
+  the helpers in `kausal_common/models/types.py` (e.g. `RevMany[ChildModel]`).
+  Django auto-generates these managers at runtime, but the type checker cannot
+  see them. Never use `getattr()` or `# type: ignore` to work around missing
+  reverse managers — add the annotation instead.
 
 #### GraphQL
 - Uses both Graphene and Strawberry (migration in progress; see `docs/graphene-to-strawberry-migration.md`)

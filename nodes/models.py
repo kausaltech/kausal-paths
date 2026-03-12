@@ -25,18 +25,20 @@ from modeltrans.fields import TranslationField
 from modeltrans.manager import MultilingualQuerySet
 from wagtail import blocks
 from wagtail.fields import RichTextField, StreamField
-from wagtail.models import Locale, Page, RevisionMixin
+from wagtail.models import DraftStateMixin, Locale, Page, RevisionMixin
 from wagtail.models.sites import Site
 from wagtail.search import index
 
 import sentry_sdk
 from asgiref.sync import async_to_sync, sync_to_async
 from channels.layers import get_channel_layer
+from django_pydantic_field import SchemaField
 from loguru import logger
 from wagtail_color_panel.fields import ColorField
 
 from kausal_common.datasets.models import (
     Dataset as DatasetModel,
+    DatasetMetric,
     DatasetSchema,
     DatasetSchemaScope,
     Dimension as DatasetDimensionModel,
@@ -45,6 +47,7 @@ from kausal_common.datasets.models import (
 )
 from kausal_common.i18n.helpers import convert_language_code
 from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
+from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
     ParentInheritedPolicy,
@@ -66,6 +69,7 @@ from paths.utils import (
     get_supported_languages,
 )
 
+from nodes.defs import InstanceSpec, NodeSpec
 from orgs.models import Organization
 from pages.blocks import CardListBlock
 
@@ -142,13 +146,10 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
         return self.filter(query_pk_or_uuid_or_identifier(id_or_identifier))
 
 
-_InstanceConfigManager = cast('models.Manager[InstanceConfig]', models.Manager.from_queryset(InstanceConfigQuerySet))
+_InstanceConfigManager = cast('models.Manager[InstanceConfig]', models.Manager).from_queryset(InstanceConfigQuerySet)
 
 
-class InstanceConfigManager(
-    MLModelManager['InstanceConfig', InstanceConfigQuerySet],
-    _InstanceConfigManager,  # type: ignore[valid-type, misc]
-):
+class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # type: ignore[valid-type,misc]
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
         return self.get(identifier=identifier)
 
@@ -156,7 +157,7 @@ class InstanceConfigManager(
 del _InstanceConfigManager
 
 
-class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any, InstanceConfigQuerySet]):
+class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', None, InstanceConfigQuerySet]):
     def __init__(self):
         from frameworks.roles import framework_admin_role, framework_viewer_role
 
@@ -269,7 +270,7 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
             return True
         return False
 
-    def user_can_create(self, user: User, context: Any) -> bool:
+    def user_can_create(self, user: User, context: None) -> bool:
         return False
 
 
@@ -294,7 +295,7 @@ instance_context: ContextVar[Instance | None] = ContextVar('instance_context', d
 """Global instance context for e.g. GraphQL queries."""
 
 
-class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Model):  # , RevisionMixin)
+class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], UUIDIdentifiedModel, models.Model):
     """Metadata for one Paths computational model instance."""
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
@@ -320,11 +321,26 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     modified_at = models.DateTimeField(auto_now=True)
     cache_invalidated_at = models.DateTimeField(default=timezone.now)
 
-    primary_language = models.CharField[str, str](max_length=8, choices=get_supported_languages, default=get_default_language)
+    primary_language = models.CharField[str, str](
+        max_length=8,
+        choices=get_supported_languages,
+        default=get_default_language,
+    )
     other_languages = ChoiceArrayField(
-        models.CharField(max_length=8, choices=get_supported_languages, default=get_default_language),
+        models.CharField(
+            max_length=8,
+            choices=get_supported_languages,
+            default=get_default_language,
+        ),
         default=list,
     )
+
+    config_source = models.CharField(
+        max_length=20,
+        choices=[('yaml', 'YAML'), ('database', 'Database')],
+        default='yaml',
+    )
+    spec = SchemaField(schema=InstanceSpec, default=InstanceSpec)
 
     viewer_group: FK[Group | None] = models.ForeignKey(
         Group,
@@ -373,11 +389,13 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         object_id_field='scope_id',
     )
 
-    # Type annotations
+    # Type annotations for reverse FK managers
     nodes: RevMany[NodeConfig]
     hostnames: RevMany[InstanceHostname]
     dimensions: RevMany[DatasetDimensionModel]
     datasets: RevMany[DatasetModel]
+    edges: RevMany[NodeEdge]
+    dataset_ports: RevMany[DatasetPort]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
     organization_id: int
@@ -389,7 +407,6 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     ]
 
     class Meta:
-        ordering = ['id']
         verbose_name = _('Instance')
         verbose_name_plural = _('Instances')
 
@@ -402,7 +419,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         yield 'name', self.name
 
     def save(self, *args, **kwargs):
-        if self.uuid is None:
+        if self.uuid is None:  # pyright: ignore[reportUnnecessaryComparison]
             self.uuid = uuid.uuid4()
 
         if self.site is not None:
@@ -480,8 +497,41 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             self.log.info('Updating instance.other_languages to [%s]' % ', '.join(other_langs))
             self.other_languages = list(other_langs)
 
+    def serializable_data(self) -> dict[str, Any]:
+        """Override Wagtail's serializable_data to include full model snapshot for DB-sourced instances."""
+        data = super().serializable_data()
+        if self.config_source == 'database':
+            from .instance_from_db import serialize_instance_to_dict
+
+            data['model_snapshot'] = serialize_instance_to_dict(self)
+        return data
+
+    def clear_model_editor_data(self) -> None:
+        """Delete all model editor related objects (edges, dataset ports) and reset spec."""
+        self.edges.all().delete()
+        self.dataset_ports.all().delete()
+        self.nodes.update(spec='{}')
+        self.spec = InstanceSpec()
+
+    def publish_instance(self, user: User | None = None) -> None:
+        """Serialize the current model state and publish as a Wagtail revision."""
+        revision = self.save_revision(user=user)
+        self.publish(revision, user=user)
+
+    def revert_to_published(self) -> None:
+        """Restore draft state from the published revision snapshot."""
+        # TODO: Rewrite for spec-based storage
+        raise NotImplementedError('revert_to_published needs rewriting for spec-based storage')
+
     def _create_from_config(self) -> Instance:
         from .instance_loader import InstanceLoader
+
+        if self.config_source == 'database':
+            from .instance_from_db import serialize_instance_to_dict
+
+            config = serialize_instance_to_dict(self)
+            loader = InstanceLoader(config=config)
+            return loader.instance
 
         if self.has_framework_config():
             fwc = self.framework_config
@@ -811,7 +861,8 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     def invalidate_cache(self, save: bool = True):
         self.cache_invalidated_at = timezone.now()
         self.log.info('Invalidating cache')
-        self.save(update_fields=['cache_invalidated_at'])
+        if save:
+            self.save(update_fields=['cache_invalidated_at'])
 
     def notify_change(self):
         self.update_modified_at(save=False)
@@ -854,7 +905,6 @@ class InstanceHostname(models.Model):
     objects = InstanceHostnameManager()
 
     class Meta:
-        ordering = ['instance', 'hostname']
         verbose_name = _('Instance hostname')
         verbose_name_plural = _('Instance hostnames')
         unique_together = (('instance', 'hostname'), ('hostname', 'base_path'))
@@ -884,7 +934,6 @@ class InstanceToken(models.Model):
     objects = InstanceTokenManager()
 
     class Meta:
-        ordering = ['instance', '-created_at']
         verbose_name = _('Instance token')
         verbose_name_plural = _('Instance tokens')
 
@@ -895,14 +944,14 @@ class InstanceToken(models.Model):
         return self.instance.natural_key() + (self.token, self.created_at)
 
 
-class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['NodeConfig']):
+class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['NodeConfig']):  # type: ignore[override, misc]
     pass
 
 
-_NodeConfigManager = cast('models.Manager[NodeConfig]', models.Manager).from_queryset(NodeConfigQuerySet)
+_NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)
 
 
-class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeConfigManager):  # type: ignore[valid-type, misc]
+class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeConfigManager):  # pyright: ignore
     """Model manager for NodeConfig."""
 
     def get_by_natural_key(self, instance_identifier, identifier):
@@ -969,6 +1018,15 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
     input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
 
+    # --- DB-sourced node fields (model editor) ---
+    node_type = models.CharField(
+        max_length=20,
+        choices=[('formula', 'Formula'), ('action', 'Action')],
+        null=True,
+        blank=True,
+    )
+    spec = SchemaField(schema=NodeSpec, default=NodeSpec)
+
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
 
@@ -998,7 +1056,6 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
     indicates_nodes: RevMany[NodeConfig]
 
     class Meta:
-        ordering = ['instance', 'id']
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)
@@ -1136,10 +1193,8 @@ class NodeDataset(models.Model):
     dataset = models.ForeignKey(DatasetModel, on_delete=models.PROTECT, related_name='nodes_edges')
 
     class Meta:
-        ordering = ['node', 'dataset']
         verbose_name = _('Node dataset')
         verbose_name_plural = _('Node datasets')
-        unique_together = (('node', 'dataset'),)
 
     def __str__(self) -> str:
         node_name = self.node.name or self.node.identifier
@@ -1148,3 +1203,100 @@ class NodeDataset(models.Model):
     def get_admin_display_title(self) -> str:
         """Return a descriptive title for Wagtail admin views."""
         return str(self)
+
+
+# --- Model editor models ---
+
+
+class NodeEdge(UUIDIdentifiedModel, UserModifiableModel):
+    """A directed edge in the computation graph."""
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='edges',
+    )
+    from_node: FK[NodeConfig] = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='outgoing_edges',
+    )
+    from_node_id: int
+    from_port = models.CharField(
+        max_length=100,
+        default='output',
+        help_text='Output port ID on the source node',
+    )
+    to_node: FK[NodeConfig] = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='incoming_edges',
+    )
+    to_node_id: int
+    to_port = models.CharField(
+        max_length=100,
+        help_text='Input port ID on the target node',
+    )
+    transformations = models.JSONField(default=list, blank=True)
+    tags = ArrayField(
+        models.CharField(max_length=50),
+        default=list,
+        blank=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['to_node', 'to_port'],
+                name='unique_edge_per_input_port',
+            ),
+        ]
+        verbose_name = _('Node edge')
+        verbose_name_plural = _('Node edges')
+
+    def __str__(self) -> str:
+        return f'{self.from_node_id} → {self.to_node_id}'
+
+
+class DatasetPort(UUIDIdentifiedModel, UserModifiableModel):
+    """Connects a dataset metric to a node input port."""
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='dataset_ports',
+    )
+    node: FK[NodeConfig] = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='dataset_ports',
+    )
+    node_id: int
+    port_id = models.CharField(
+        max_length=100,
+        help_text='Input port ID on the node (must match a port in node.input_ports)',
+    )
+    dataset: FK[DatasetModel] = models.ForeignKey(
+        DatasetModel,
+        on_delete=models.PROTECT,
+        related_name='node_ports',
+    )
+    dataset_id: int
+    metric: FK[DatasetMetric] = models.ForeignKey(
+        DatasetMetric,
+        on_delete=models.PROTECT,
+        related_name='node_ports',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['node', 'port_id'],
+                name='unique_dataset_port_per_input_port',
+            ),
+        ]
+        verbose_name = _('Dataset port')
+        verbose_name_plural = _('Dataset ports')
+
+    def __str__(self) -> str:
+        return f'{self.node_id}:{self.port_id} ← {self.dataset_id}'
