@@ -184,8 +184,15 @@ def _import_nodes(
         )
         node_map[node_id] = nc
 
-    # Remove nodes no longer in the YAML
-    NodeConfig.objects.filter(instance=ic).exclude(identifier__in=set(node_map.keys())).delete()
+    # Remove nodes no longer in the YAML (skip protected ones)
+    stale_nodes = NodeConfig.objects.filter(instance=ic).exclude(identifier__in=set(node_map.keys()))
+    import contextlib
+
+    from django.db.models import ProtectedError
+
+    for nc in stale_nodes:
+        with contextlib.suppress(ProtectedError):
+            nc.delete()
     return node_map, action_ids
 
 

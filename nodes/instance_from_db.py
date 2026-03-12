@@ -70,7 +70,7 @@ def _add_related_data(ic: InstanceConfig, config: dict[str, Any]) -> None:
     dataset_ports = list(DatasetPort.objects.filter(instance=ic).select_related('node', 'dataset', 'metric'))
 
     # Build lookup maps
-    output_edges, input_edges = _build_edge_maps(edges)
+    output_edges, _input_edges = _build_edge_maps(edges)
     datasets_by_node = _build_dataset_map(dataset_ports)
 
     # Nodes and actions
@@ -80,7 +80,6 @@ def _add_related_data(ic: InstanceConfig, config: dict[str, Any]) -> None:
         node_dict = _serialize_node_config(
             nc,
             output_nodes=output_edges.get(nc.identifier, []),
-            input_nodes=input_edges.get(nc.identifier, []),
             input_datasets=datasets_by_node.get(nc.identifier, []),
         )
         if nc.node_type == 'action':
@@ -145,7 +144,6 @@ def _serialize_action_group(ag: Any) -> dict[str, Any]:
 def _serialize_node_config(  # noqa: C901, PLR0912
     nc: NodeConfig,
     output_nodes: list[dict[str, Any]],
-    input_nodes: list[dict[str, Any]],
     input_datasets: list[dict[str, Any]],
 ) -> dict[str, Any]:
     node: dict[str, Any] = {'id': nc.identifier}
@@ -190,8 +188,8 @@ def _serialize_node_config(  # noqa: C901, PLR0912
 
     if output_nodes:
         node['output_nodes'] = output_nodes
-    if input_nodes:
-        node['input_nodes'] = input_nodes
+    # input_nodes are not serialized — edges are defined from the source side only.
+    # Including both output_nodes and input_nodes would cause duplicate edge errors.
     if input_datasets:
         node['input_datasets'] = input_datasets
 

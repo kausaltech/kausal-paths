@@ -114,7 +114,15 @@ class ModelInstanceType:
 
 
 def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
-    return gql.get_ic_or_error(info, str(instance_id))
+    from nodes.models import InstanceConfig
+
+    # Direct lookup by all identifier types, bypassing permission filter
+    # since Trailhead editor access will be gated by its own auth check.
+    qs = InstanceConfig.objects.qs.by_all_identifiers(str(instance_id))
+    try:
+        return qs.get()
+    except InstanceConfig.DoesNotExist:
+        raise GraphQLError(f'Instance "{instance_id}" not found') from None
 
 
 def _resolve_model_instance(ic: InstanceConfig) -> ModelInstanceType:
