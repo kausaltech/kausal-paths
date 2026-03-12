@@ -6,7 +6,6 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-import polars as pl
 import requests
 from loguru import logger
 from openpyxl import Workbook, load_workbook
@@ -20,6 +19,7 @@ from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 from paths.const import MODEL_CALC_OP
 
 from nodes.constants import BASELINE_SCENARIO, FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, VALUE_COLUMN, YEAR_COLUMN
+from nodes.defs.instance_defs import InstanceResultExcelSpec
 
 if TYPE_CHECKING:
     from openpyxl.cell.cell import Cell
@@ -84,6 +84,13 @@ class InstanceResultExcel(I18nBaseModel):
 
     _created_sheet_names: ClassVar = (DATA_SHEET_NAME, PARAM_SHEET_NAME)
 
+    @classmethod
+    def from_spec(cls, spec: InstanceResultExcelSpec) -> InstanceResultExcel:
+        return cls(**spec.model_dump())
+
+    def to_spec(self) -> InstanceResultExcelSpec:
+        return InstanceResultExcelSpec(**self.model_dump())
+
     def validate_for_instance(self, instance: Instance):
         ctx = instance.context
         if self.node_ids is not None:
@@ -110,6 +117,8 @@ class InstanceResultExcel(I18nBaseModel):
         actions: list[ActionNode],
         aseq: bool,
     ) -> None:
+        import polars as pl
+
         logger.info('Outputting node %s' % node.id)
         if df.dim_ids:
             df = df.with_columns([pl.col(dim_id).cast(pl.String) for dim_id in df.dim_ids])
@@ -174,6 +183,8 @@ class InstanceResultExcel(I18nBaseModel):
         dim_ids: list[str],
         cols: list[str],
     ) -> None:
+        import polars as pl
+
         logger.info('Outputting node %s' % node.id)
         if df.dim_ids:
             df = df.with_columns([pl.col(dim_id).cast(pl.String) for dim_id in df.dim_ids])

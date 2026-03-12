@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, cast
 
+from django.utils.translation import gettext_lazy as _
+
 import polars as pl
 
 from common import polars as ppl
@@ -436,7 +438,7 @@ class GasGridMixin(Node):
 class DistrictHeatProductionMix(MixNode, GasGridMixin):
     allowed_parameters = [
         *MixNode.allowed_parameters,
-        BoolParameter(local_id='use_gas_network', label='District heat uses gas grid mix'),
+        BoolParameter(local_id='use_gas_network', label=_('District heat uses gas grid mix')),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -709,7 +711,7 @@ class VehicleMileageHistorical(Node):
         m = self.get_default_output_metric()
         unit = df.get_unit('mileage')
         if '[vehicle]' not in unit.dimensionality:
-            unit = unit * self.context.unit_registry('vehicle')
+            unit = unit * self.context.unit_registry.parse_units('vehicle')
             df = df.set_unit('mileage', unit, force=True)
         df = df.rename({'mileage': m.column_id}).ensure_unit(m.column_id, m.unit)
         df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))

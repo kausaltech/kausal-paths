@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
-
-from pydantic import BaseModel, Field, RootModel, model_validator
-
-import pandas as pd
-import polars as pl
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from common import polars as ppl
+from nodes.actions.params import ShiftParameter, ShiftParameterValue
 from nodes.constants import (
     FLOW_ID_COLUMN,
     FLOW_ROLE_COLUMN,
@@ -19,127 +15,24 @@ from nodes.constants import (
     YEAR_COLUMN,
 )
 from nodes.exceptions import NodeError
-from params import ParameterWithUnit
-from params.base import parameter
-from params.param import ValidationError
 
 from .action import ActionNode
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    import polars as pl
 
+    from nodes.actions.params import ShiftEntry, ShiftTarget
     from nodes.node import Node
     from nodes.units import Unit
     from params import Parameter
-
-
-class ShiftTarget(BaseModel):
-    node: str | int | None = None
-    # dimension_id -> category_id
-    categories: dict[str, str] = Field(default_factory=dict)
-
-
-class ShiftAmount(BaseModel):
-    year: int
-    source_amount: float
-    dest_amounts: list[float]
-
-
-class ShiftEntry(BaseModel):
-    source: ShiftTarget
-    dests: list[ShiftTarget]
-    amounts: list[ShiftAmount]
-
-    # @validator('amounts')
-    # def enough_years(cls, v):
-    #     if len(v) < 2:
-    #         raise ValueError("Must supply values for at least two years")
-    #     return v
-
-    @model_validator(mode='after')
-    def dimensions_must_match(self):
-        existing_dims: set[str] = set()
-
-        def validate_target(target: ShiftTarget) -> None:
-            dims = set(target.categories.keys())
-            if not existing_dims:
-                existing_dims.update(dims)
-                return
-            if dims != existing_dims:
-                raise ValueError('Dimensions for yearly values for each target be equal')
-
-        validate_target(self.source)
-        for dest in self.dests:
-            validate_target(dest)
-        return self
-
-    def make_index(
-        self,
-        output_nodes: list[Node],
-        extra_level: str | None = None,
-        extra_level_values: Iterable[str] | None = None,
-    ) -> pd.MultiIndex:
-        dims: dict[str, set[str]] = {dim: set() for dim in list(self.source.categories.keys())}
-        nodes: set[str] = set()
-
-        def get_node_id(node: str | int | None) -> str:
-            if isinstance(node, str):
-                return node
-            if node is None:
-                nr = 0
-            else:
-                nr = node
-            return output_nodes[nr].id
-
-        nodes.add(get_node_id(self.source.node))
-        for dim, cat in self.source.categories.items():
-            dims[dim].add(cat)
-        for dest in self.dests:
-            nodes.add(get_node_id(dest.node))
-            for dim, cat in dest.categories.items():
-                dims[dim].add(cat)
-
-        level_list = list(dims.keys())
-        cat_list: list[set[str]] = [dims[dim] for dim in level_list]
-        level_list.insert(0, 'node')
-        cat_list.insert(0, nodes)
-        if extra_level:
-            level_list.append(extra_level)
-            assert extra_level_values is not None
-            cat_list.append(set(extra_level_values))
-        index = pd.MultiIndex(cat_list, names=level_list)  # type: ignore[arg-type]
-        return index
-
-
-class ShiftParameterValue(RootModel[list[ShiftEntry]]):
-    root: list[ShiftEntry]
-
-
-@parameter
-class ShiftParameter(ParameterWithUnit[ShiftParameterValue]):
-    type: Literal['shift'] = 'shift'
-    value: ShiftParameterValue | None = None
-
-    def serialize_value(self) -> Any:
-        return super().serialize_value()
-
-    def clean(self, value: Any) -> ShiftParameterValue:
-        if not isinstance(value, list):
-            raise ValidationError(self, 'Input must be a list')
-
-        try:
-            return ShiftParameterValue.model_validate(value)
-        except:
-            from rich import print
-
-            print(value)
-            raise
 
 
 class ShiftAction(ActionNode):
     allowed_parameters: ClassVar[list[Parameter[Any]]] = [*ActionNode.allowed_parameters, ShiftParameter(local_id='shift')]
 
     def _compute_one(self, flow_id: str, param: ShiftEntry, unit: Unit) -> ppl.PathsDataFrame:  # noqa: C901, PLR0915
+        import polars as pl
+
         amounts = sorted(param.amounts, key=lambda x: x.year)
         data = [[a.year, a.source_amount, *a.dest_amounts] for a in param.amounts]
         if len(data) == 1:
@@ -187,6 +80,8 @@ class ShiftAction(ActionNode):
             return self.output_nodes[nr]
 
         def make_target_df(df: pl.LazyFrame, target: ShiftTarget, valuecol: str) -> pl.LazyFrame:
+            import polars as pl
+
             target_dims = set(target.categories.keys())
             null_dims = all_dims - target_dims
             node = get_node(target.node)
@@ -229,6 +124,8 @@ class ShiftAction(ActionNode):
         return ret
 
     def compute_effect_flow(self) -> ppl.PathsDataFrame:
+        import polars as pl
+
         po = self.get_parameter('shift')
         value = po.get()
         assert isinstance(value, ShiftParameterValue)
@@ -244,6 +141,8 @@ class ShiftAction(ActionNode):
         return df
 
     def compute_effect(self) -> ppl.PathsDataFrame:
+        import polars as pl
+
         df = self.compute_effect_flow().drop([FLOW_ID_COLUMN, FLOW_ROLE_COLUMN])
         meta = df.get_meta()
         sdf = df.group_by(df.primary_keys).agg([pl.sum(VALUE_COLUMN), pl.first(FORECAST_COLUMN)])

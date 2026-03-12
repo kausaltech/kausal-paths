@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.utils.translation import gettext_lazy as _
-from pydantic import BaseModel, Field, RootModel, validator
 
-import pandas as pd
 import polars as pl
 
 from common import polars as ppl
+from nodes.actions.params import ReduceParameter, ReduceParameterValue
 from nodes.constants import (
     FLOW_ID_COLUMN,
     FLOW_ROLE_COLUMN,
@@ -19,89 +18,14 @@ from nodes.constants import (
     YEAR_COLUMN,
 )
 from nodes.exceptions import NodeError
-from params import ParameterWithUnit
-from params.base import parameter
-from params.param import BoolParameter, NumberParameter, ValidationError
+from params.param import BoolParameter, NumberParameter
 
 from .action import ActionNode
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
-    from nodes.node import Node
+    from nodes.actions.params import ReduceFlow, ReduceTarget
     from nodes.units import Unit
     from params import Parameter
-
-
-class ReduceAmount(BaseModel):
-    year: int
-    amount: float
-
-
-class ReduceTarget(BaseModel):
-    node: str | int | None = None
-    # dimension_id -> category_id
-    categories: dict[str, str] = Field(default_factory=dict)
-
-
-class ReduceFlow(BaseModel):
-    target: ReduceTarget
-    amounts: list[ReduceAmount]
-
-    @validator('amounts')
-    def enough_years(cls, v):  # noqa: N805
-        if len(v) < 2:
-            raise ValueError('Must supply values for at least two years')
-        return v
-
-    def make_index(
-        self,
-        output_nodes: list[Node],
-        extra_level: str | None = None,
-        extra_level_values: Iterable[str] | None = None,
-    ) -> pd.MultiIndex:
-        dims: dict[str, set[str]] = {dim: set() for dim in list(self.target.categories.keys())}
-        nodes: set[str] = set()
-
-        def get_node_id(node: str | int | None) -> str:
-            if isinstance(node, str):
-                return node
-            if node is None:
-                nr = 0
-            else:
-                nr = node
-            return output_nodes[nr].id
-
-        nodes.add(get_node_id(self.target.node))
-        for dim, cat in self.target.categories.items():
-            dims[dim].add(cat)
-
-        level_list = list(dims.keys())
-        cat_list: list[set[str]] = [dims[dim] for dim in level_list]
-        level_list.insert(0, 'node')
-        cat_list.insert(0, nodes)
-        if extra_level:
-            level_list.append(extra_level)
-            assert extra_level_values is not None
-            cat_list.append(set(extra_level_values))
-        index = pd.MultiIndex(cat_list, names=level_list)  # type: ignore[arg-type]
-        return index
-
-
-class ReduceParameterValue(RootModel[list[ReduceFlow]]):
-    root: list[ReduceFlow]
-
-
-@parameter
-class ReduceParameter(ParameterWithUnit[ReduceParameterValue]):
-    type: Literal['reduce'] = 'reduce'
-    value: ReduceParameterValue | None = None
-
-    def clean(self, value: Any) -> ReduceParameterValue:
-        if not isinstance(value, list):
-            raise ValidationError(self, 'Input must be a list')
-
-        return ReduceParameterValue.validate(value)
 
 
 class ReduceAction(ActionNode):

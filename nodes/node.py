@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 import typing
 
@@ -12,17 +10,17 @@ from django.utils.translation import gettext_lazy as _
 import numpy as np
 import pandas as pd
 import pint_pandas
-import polars as pl
 from polars.datatypes.group import INTEGER_DTYPES, NUMERIC_DTYPES
 from rich import print as pprint
 from sentry_sdk.consts import SPANSTATUS
 
+from kausal_common.deployment import env_bool
 from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
 
 from paths.const import NODE_CALC_OP
+from paths.identifiers import validate_identifier
 
 from common import polars as ppl
-from common.types import validate_identifier
 from common.utils import hash_unit
 from nodes.constants import (
     DEFAULT_METRIC,
@@ -39,7 +37,7 @@ from nodes.goals import NodeGoals
 from .datasets import JSONDataset
 from .edges import Edge
 from .exceptions import NodeComputationError, NodeError, NodeMissingDefaultUnitError
-from .units import Quantity, Unit
+from .units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -50,8 +48,10 @@ if typing.TYPE_CHECKING:
 
     from kausal_common.i18n.pydantic import I18nString, I18nStringInstance, TranslatedString
 
+    from paths.identifiers import MixedCaseIdentifier, NodeIdentifier
+
     from common.cache import CacheResult
-    from common.types import Identifier, MixedCaseIdentifier
+    from nodes.defs.node_defs import NodeKind, NodeSpec
     from nodes.gpc import DatasetNode
     from nodes.instance_loader import ConfigLocation
     from nodes.visualizations import NodeVisualizations, VisualizationNodeDimension
@@ -63,6 +63,20 @@ if typing.TYPE_CHECKING:
     from .models import NodeConfig
     from .node_cache import NodeHasher
     from .scenario import Scenario
+
+import polars as pl
+
+DEBUG_NODE_EXCEPTIONS = env_bool('DEBUG_NODE_EXCEPTIONS', default=False)
+
+
+def post_mortem_possibly(e: Exception):
+    global DEBUG_NODE_EXCEPTIONS  # noqa: PLW0603
+    if DEBUG_NODE_EXCEPTIONS:
+        from kausal_common.debugging import post_mortem
+
+        # post_mortem() only once
+        DEBUG_NODE_EXCEPTIONS = False
+        post_mortem(e)
 
 
 class NodeMetric:
@@ -108,6 +122,8 @@ class NodeMetric:
             self.id = validate_identifier(id, mixed=True)
         if isinstance(unit, Unit):
             self.unit = unit
+        else:
+            self.unit = unit_registry.parse_units(unit)
         self.default_unit = unit
         ensure_known_quantity(quantity)
         self.quantity = quantity
@@ -125,7 +141,7 @@ class NodeMetric:
             quantity=config['quantity'],
             id=config['id'],
             label=None,
-            column_id=None,
+            column_id=config.get('column_id'),
         )
 
     def copy(self) -> NodeMetric:
@@ -193,7 +209,7 @@ class Node:
     The inputs can be datasets, other nodes, or parameters.
     """
 
-    id: Identifier
+    id: NodeIdentifier
     'Identifier of the Node instance.'
 
     database_id: int | None
@@ -201,6 +217,9 @@ class Node:
 
     db_obj: NodeConfig | None
     'The Django object for this Node Instance'
+
+    _spec: NodeSpec | None
+    kind: NodeKind
 
     name: I18nStringInstance
     'Human-readable label for the Node instance.'
@@ -327,9 +346,12 @@ class Node:
 
     def __post_init__(self): ...
 
-    def finalize_init(self):
-        """Customization and validation that is run after the node graph is fully configured."""  # noqa: D401
-        pass
+    def finalize_init(self) -> None:
+        """
+        Customizate and validate the node spec after the node graph is fully configured.
+
+        Nothing to do in the generic case, might be implemented by subclasses.
+        """
 
     @property
     def single_metric_unit(self) -> Unit:
@@ -444,6 +466,7 @@ class Node:
         input_dimension_ids: list[str] | None = None,
         output_metrics: dict[str, NodeMetric] | None = None,
         config_location: ConfigLocation | None = None,
+        spec: NodeSpec | None = None,
     ):
         from .node_cache import NodeHasher
 
@@ -515,12 +538,34 @@ class Node:
         )
 
         self.hasher = NodeHasher(self)
+        self._spec = spec
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
             self.__post_init__()
 
         super().__init__()
+
+    @property
+    def spec(self) -> NodeSpec:
+        if self._spec is None:
+            raise NodeError(self, 'Node has no spec')
+        return self._spec
+
+    @property
+    def has_spec(self) -> bool:
+        return self._spec is not None
+
+    def _determine_kind(self) -> NodeKind:
+        from nodes.actions.action import ActionNode
+        from nodes.defs.node_defs import NodeKind
+        from nodes.formula import FormulaNode
+
+        if isinstance(self, ActionNode):
+            return NodeKind.ACTION
+        if isinstance(self, FormulaNode):
+            return NodeKind.FORMULA
+        return NodeKind.SIMPLE
 
     def add_parameter(self, param: Parameter[Any]):
         if param.local_id in self.parameters:
@@ -702,7 +747,7 @@ class Node:
                 if exclude:
                     continue
 
-            df = ds.get_copy(self.context)
+            df = ds.get_copy()
             if df.paths.index_has_duplicates():
                 print(df.paths.duplicated_index_rows())
                 raise NodeError(self, 'Input dataset has duplicate index rows. See rows above.')
@@ -1071,15 +1116,11 @@ class Node:
                 break
         else:
             raise NodeError(self, 'No connection to target node %s' % target_node.id)
-        operations = df.paths.OPERATIONS
-
         for tag in edge.tags:
             if tag == 'ignore_content':
                 df = df.paths._ignore_content(df, target_node)
-            else:
-                op = operations.get(tag)
-                if op:
-                    df = op(df, self.context)
+            elif df.paths.has_operation(tag):
+                df = df.paths.get_operation(tag)(df, self.context)
         return df
 
     def get_output_pl(  # noqa: C901, PLR0912
@@ -1107,12 +1148,11 @@ class Node:
             try:
                 df, cache_res = self._get_output_pl(target_node=target_node, metric=metric, skip_dim_test=skip_dim_test)
             except Exception as e:
-                if isinstance(e, NodeComputationError):
-                    e.add_node(self)
+                if isinstance(e, NodeError):
+                    e.add_node_event(self, event='get_output', target_node=target_node)
                     raise
-                if target_node:
-                    raise NodeComputationError(self, "Error getting output for node '%s'" % target_node.id) from e
-                raise NodeComputationError(self, 'Error getting output') from e
+                raise NodeComputationError(self, 'Error getting output', event='get_output', target_node=target_node) from e
+
             if span is not None:
                 if cache_res is None or not cache_res.is_hit:
                     span.set_data('cache', 'miss')
@@ -1126,6 +1166,10 @@ class Node:
 
             if span is not None:
                 span.set_status(SPANSTATUS.OK)
+
+        if self.context.compare_pipeline_compatibility:
+            self.check_pipeline_compatibility(df, target_node=target_node, metric=metric)
+
         return df
 
     def _get_output_pl(  # noqa: C901
@@ -1143,10 +1187,14 @@ class Node:
             try:
                 df = self.compute()
             except Exception as e:
-                self.context.log.error('Exception when computing node %s: %s' % (str(self), str(e)))
+                post_mortem_possibly(e)
+                if not isinstance(e, NodeError):
+                    self.context.log.error('Exception when computing node %s: %s' % (str(self), str(e)))
+                    raise NodeComputationError(self, 'Error computing node', event='compute') from e
                 raise
-            if df is None:
-                raise NodeError(self, 'Node returned no output')
+
+            if df is None:  # pyright: ignore[reportUnnecessaryComparison]
+                raise NodeError(self, 'Node returned no output', event='compute', target_node=target_node)
 
             if isinstance(df, pd.DataFrame):
                 df = ppl.from_pandas(df)
@@ -1215,6 +1263,9 @@ class Node:
         # if isinstance(obj, ppl.PathsDataFrame):
         #    obj.print()
         #    return
+        if isinstance(obj, ppl.PathsDataFrame):
+            pprint(str(obj))
+            return
         pprint(obj)
 
     def print_outline(self, df):
@@ -1297,7 +1348,7 @@ class Node:
             nodes.append(node)
         return nodes
 
-    def get_upstream_nodes(self, filter_func: Callable[[Node], bool] | None = None) -> list[Node]:
+    def get_upstream_nodes(self, filter_func: 'Callable[[Node], bool] | None' = None) -> list[Node]:  # noqa: UP037
         from nodes.actions.action import ActionNode
         from nodes.actions.parent import ParentActionNode
 
@@ -1339,7 +1390,7 @@ class Node:
 
     def __str__(self):
         cls = type(self)
-        return '%s.%s(id=%s, instance=%s)' % (cls.__module__, cls.__name__, self.id, self.context.instance.id)
+        return '%s(id=%s)' % (cls.__name__, self.id)
 
     def __repr__(self):
         return self.__str__()
@@ -1425,7 +1476,7 @@ class Node:
             datasets = [x.id for x in self.input_dataset_instances]
             raise NodeError(self, 'Too many input datasets: %s' % ', '.join(datasets))
         ds = self.input_dataset_instances[0]
-        df = ds.get_copy(self.context)
+        df = ds.get_copy()
         if not isinstance(df, ppl.PathsDataFrame) or FORECAST_COLUMN not in df.columns:
             msg = f'Dataset {ds.id} is not suitable for serialization'
             raise Exception(msg)
@@ -1442,18 +1493,18 @@ class Node:
         i18n = {}
         default_lang = self.context.instance.default_language
 
-        def set_from_translated_str(s: str | TranslatedString | None, field_name: str) -> None:
+        def set_from_translated_str(s: str | TranslatedString | None, field_name: str, strict: bool = True) -> None:
             if s is None:
                 return
 
-            val, tr = get_modeltrans_attrs_from_str(s, field_name, default_lang)
+            val, tr = get_modeltrans_attrs_from_str(s, field_name, default_lang, strict=strict)
             i18n.update(tr)
             attributes[field_name] = val
 
         set_from_translated_str(self.name, 'name')
         # Node's description is called `short_description` in NodeConfig and there is no equivalent for
         # NodeConfig's `long_description` in Node
-        set_from_translated_str(self.description, 'short_description')
+        set_from_translated_str(self.description, 'short_description', strict=False)
 
         attributes['i18n'] = i18n
 
@@ -1644,7 +1695,7 @@ class Node:
         if self.input_dataset_instances:
             for ds in self.input_dataset_instances:
                 if 'framework_measure_data' in ds.tags:
-                    df = ds.load(self.context)
+                    df = ds.get_copy()
                     data_col = 'ObservedDataPoint'
                     if data_col not in df.columns:
                         return []
@@ -1692,3 +1743,21 @@ class Node:
                 parts.append('</ul>')
 
         return ''.join(parts)
+
+    def check_pipeline_compatibility(
+        self,
+        df: ppl.PathsDataFrame,
+        target_node: Node | None,
+        metric: str | None,
+    ) -> None:
+        """Compare legacy node execution against execution through lowered pipeline IR."""
+
+        from nodes.pipeline.compare import compare_node_with_lowered_pipeline
+        from nodes.pipeline.compat import PipelineCompatibleNode
+
+        if not isinstance(self, PipelineCompatibleNode):
+            return
+
+        comparison = compare_node_with_lowered_pipeline(self, df, target_node=target_node, metric=metric)
+        if not comparison.success:
+            raise NodeError(self, 'Pipeline compatibility check failed')

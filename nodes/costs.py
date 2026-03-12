@@ -105,7 +105,7 @@ class ExponentialNode(AdditiveNode):
             if len(self.input_nodes) > 0:
                 raise NodeError(self, 'You must give either input node(s) or parameter current_value but not both.')
 
-            unit = cast('NodeMetric', self.get_default_output_metric()).unit
+            unit = current_value.units
             current_val = current_value.m
             start_year = self.context.instance.minimum_historical_year
             current_year = self.context.instance.maximum_historical_year
@@ -349,7 +349,7 @@ class IterativeNode(AdditiveNode):  # , DatasetNode):
         inputs = [n for n in self.input_nodes if n.id not in [rate_obj.id, base_obj.id]]
 
         if inputs:
-            changes = self.add_nodes_pl(None, inputs, unit=self.unit * unit_registry('1/a'))
+            changes = self.add_nodes_pl(None, inputs, unit=self.unit * unit_registry.parse_units('1/a'))
             df = df.paths.join_over_index(changes)
             df = df.rename({VALUE_COLUMN + '_right': 'changes'})
         else:

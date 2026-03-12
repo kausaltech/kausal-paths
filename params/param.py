@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import PrivateAttr
 
-from common.types import ParameterGlobalId
+from paths.identifiers import ParameterGlobalId
+
 from nodes.units import Quantity
 
 from .base import Parameter, ParameterWithUnit, parameter
@@ -74,7 +75,7 @@ class ReferenceParameter[ValueT = Any, SetValueT = ValueT](Parameter[ValueT, Set
         if target is None:
             raise Exception(f'ReferenceParameter {self.global_id} target parameter {self.target_id} not found')
         self._target = target
-        target.subscription_params.append(self)
+        target._subscription_params.append(self)
 
     def clean(self, value: Any) -> Any:
         raise NotImplementedError()
@@ -98,16 +99,16 @@ class NumberParameter(ParameterWithUnit[float, float | Quantity]):
         super().model_post_init(__context)
 
     def clean(self, value: float | Quantity) -> float:
-        # Store unit first if available
         if isinstance(value, Quantity):
             if self.unit is not None:
                 assert isinstance(self.unit, Quantity)
                 assert self.unit.is_compatible_with(value.units)
-            value = value.m
+            unit_value = value.to(self.unit)
+            value = unit_value.m
 
         # Avoid converting, e.g., bool to float
         if not isinstance(value, int | float | str):
-            raise ValidationError(self)
+            raise ValidationError(self, 'Invalid value type: %s' % type(value))
         try:
             value = float(value)
         except ValueError:
@@ -123,22 +124,6 @@ class NumberParameter(ParameterWithUnit[float, float | Quantity]):
                 raise ValidationError(self, 'Above max_value')
 
         return value
-
-    def set(self, value: Quantity | float, notify: bool = True) -> None:
-        if isinstance(value, Quantity):
-            unit = value.units
-            float_value = value.m
-        else:
-            unit = None
-            float_value = value
-        super().set(float_value, notify=notify)
-        if unit is not None:
-            self.unit = cast('Unit', unit)
-
-
-@parameter
-class PercentageParameter(NumberParameter):
-    unit_str: str | None = '%'
 
 
 @parameter

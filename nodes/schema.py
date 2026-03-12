@@ -1,27 +1,23 @@
-# ruff: noqa: N805
-from __future__ import annotations
-
 import dataclasses
 import re
 from collections.abc import AsyncGenerator
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Protocol, cast
+from uuid import UUID
 
-import graphene
-import strawberry
 import strawberry as sb
 from graphql.error import GraphQLError
+from strawberry import auto
 from wagtail.blocks.stream_block import StreamValue
 from wagtail.rich_text import RichText as WagtailRichText, expand_db_html
 
-import polars as pl
 import sentry_sdk
 from grapple.types.streamfield import StreamFieldInterface
 from loguru import logger
 from markdown_it import MarkdownIt
 
 from kausal_common.strawberry.grapple import grapple_field
-from kausal_common.strawberry.pydantic import StrawberryPydanticType
+from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_type
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths import gql
@@ -29,19 +25,25 @@ from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
 from paths.graphql_helpers import ensure_instance, get_instance_context, pass_context
 from paths.graphql_types import UnitType
 
-from nodes.context import Context
+from nodes.defs import InstanceSpec, SimpleConfig
+from nodes.defs.binding_def import DatasetPortBindingDef
+from nodes.defs.instance_defs import ActionGroup, InstanceFeatures
+from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeKind, NodeSpec, PipelineConfig
 from nodes.goals import GoalActualValue, NodeGoalsEntry
-from nodes.node import Node
-from nodes.normalization import Normalization
+from nodes.graph_layout import GraphLayout, NodeGraphLayoutMeta
 from nodes.scenario import Scenario, ScenarioKind
+from nodes.schema_spec import (
+    InputPortType,
+    InstanceSpecType,
+    OutputPortType,
+    YearsDefType,
+)
 from pages.models import ActionListPage
 from params import Parameter
 
 from . import visualizations as viz
-from .actions.action import ActionGroup, ActionNode, ImpactOverview
-from .actions.parent import ParentActionNode
 from .constants import FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN, DecisionLevel
-from .instance import Instance, InstanceFeatures
+from .instance import Instance
 from .metric import (
     DimensionalFlow,
     DimensionalMetric,
@@ -55,17 +57,54 @@ from .metric import (
     YearlyValue,
 )
 from .models import InstanceConfig
+from .quantities import get_registry as get_quantity_registry
 from .units import Unit
 
 if TYPE_CHECKING:
-    from paths.types import GQLInstanceContext, GQLInstanceInfo
+    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
+
+    from paths.types import GQLInstanceContext
 
     from common import polars as ppl
+    from nodes.actions.action import ImpactOverview
+    from nodes.defs.binding_def import EdgeBindingDef
+    from nodes.node import Node  # noqa: TC004
+    from nodes.normalization import Normalization
+    from nodes.quantities import QuantityKind
     from params.schema import ParameterInterface
+
+    from .actions.action import ActionNode
+    from .context import Context
+    from .models import NodeConfig, NodeEdge
 
 
 logger = logger.bind(name='nodes.schema')
 markdown = MarkdownIt('commonmark', {'html': True})
+
+
+@sb.type
+class QuantityKindType:
+    id: str
+    label: str
+    icon: str | None
+    qudt_iri: str | None
+    is_stackable: bool
+    is_activity: bool
+    is_factor: bool
+    is_unit_price: bool
+
+    @classmethod
+    def from_kind(cls, kind: QuantityKind) -> QuantityKindType:
+        return cls(
+            id=kind.id,
+            label=str(kind.label),
+            icon=kind.icon,
+            qudt_iri=kind.qudt_iri,
+            is_stackable=kind.is_stackable,
+            is_activity=kind.is_activity,
+            is_factor=kind.is_factor,
+            is_unit_price=kind.is_unit_price,
+        )
 
 
 @sb.type
@@ -75,15 +114,150 @@ class InstanceHostname:
 
 
 @sb.type
+class NodePortRef:
+    node_id: sb.ID
+    port_id: UUID
+
+
+@sb.type
+class NodeEdgeType:
+    id: sb.ID
+    from_ref: NodePortRef
+    to_ref: NodePortRef
+    transformations: sb.scalars.JSON
+    tags: list[str]
+
+    @classmethod
+    def from_binding(cls, binding: EdgeBindingDef) -> NodeEdgeType:
+        return NodeEdgeType(
+            id=sb.ID(str(binding.id)),
+            from_ref=NodePortRef(node_id=sb.ID(str(binding.from_ref.node_id)), port_id=binding.from_ref.port_id),
+            to_ref=NodePortRef(node_id=sb.ID(str(binding.to_ref.node_id)), port_id=binding.to_ref.port_id),
+            transformations=sb.scalars.JSON([]),
+            tags=binding.tags,
+        )
+
+    @classmethod
+    def from_node_edge(cls, edge: NodeEdge) -> NodeEdgeType:
+        return NodeEdgeType(
+            id=sb.ID(str(edge.uuid)),
+            from_ref=NodePortRef(node_id=sb.ID(str(edge.from_node.identifier)), port_id=edge.from_port),
+            to_ref=NodePortRef(node_id=sb.ID(str(edge.to_node.identifier)), port_id=edge.to_port),
+            transformations=edge.transformations,
+            tags=edge.tags or [],
+        )
+
+
+@sb.type
+class DatasetExternalRefType:
+    """Stable source reference for an externally backed dataset."""
+
+    repo_url: str = sb.field(description='URL of the external dataset repository.')
+    commit: str | None = sb.field(description='Repository commit used for this dataset snapshot.')
+    dataset_id: str = sb.field(description='Path-like identifier of the dataset inside the external repository.')
+
+
+@sb.type
+class DatasetRefType:
+    """Lightweight reference to a dataset object bound in the model."""
+
+    id: sb.ID = sb.field(description='Globally unique identifier of the dataset object.')
+    identifier: str | None = sb.field(description='Scoped identifier of the dataset object.')
+    is_external_placeholder: bool = sb.field(
+        description='Whether the dataset object is only a placeholder without imported datapoints.'
+    )
+    external_ref: DatasetExternalRefType | None = sb.field(
+        description='External source reference for externally backed datasets.'
+    )
+
+    @classmethod
+    def from_binding(cls, binding: DatasetPortBindingDef) -> DatasetRefType | None:
+        if binding.dataset_uuid is None:
+            return None
+        return DatasetRefType(
+            id=sb.ID(str(binding.dataset_uuid)),
+            identifier=_external_dataset_id_from_dataset(binding),
+            is_external_placeholder=binding.dataset_is_external_placeholder,
+            external_ref=_dataset_external_ref_to_gql(binding.dataset_external_ref),
+        )
+
+    @classmethod
+    def from_model(cls, dataset: DatasetModel) -> DatasetRefType:
+        return DatasetRefType(
+            id=sb.ID(str(dataset.uuid)),
+            identifier=dataset.identifier,
+            is_external_placeholder=dataset.is_external_placeholder,
+            external_ref=_dataset_external_ref_to_gql(dataset.external_ref),
+        )
+
+
+@sb.type
+class DatasetMetricRefType:
+    """Lightweight reference to a dataset metric object bound in the model."""
+
+    id: sb.ID = sb.field(description='Globally unique identifier of the dataset metric object.')
+    name: str | None = sb.field(description='Stable identifier of the metric within its dataset schema.')
+    label: str = sb.field(description='Human-readable label of the metric.')
+
+    @classmethod
+    def from_binding(cls, binding: DatasetPortBindingDef) -> DatasetMetricRefType | None:
+        if binding.metric_uuid is None:
+            return None
+        return DatasetMetricRefType(
+            id=sb.ID(str(binding.metric_uuid)),
+            name=binding.external_metric_id,
+            label=binding.external_metric_id or '',
+        )
+
+    @classmethod
+    def from_model(cls, metric: DatasetMetric) -> DatasetMetricRefType:
+        return DatasetMetricRefType(
+            id=sb.ID(str(metric.uuid)),
+            name=metric.name,
+            label=metric.label_i18n,
+        )
+
+
+@pydantic_type(DatasetPortBindingDef)
+class DatasetPortType:
+    """Binding of an external dataset metric to one node input port."""
+
+    id: sb.ID = sb.field(description='Globally unique identifier of this dataset-port binding.')
+    node_ref: NodePortRef = sb.field(description='Reference to the node that owns the bound input port.')
+    dataset: DatasetRefType | None = sb.field(description='Dataset object bound to this port.')
+    metric: DatasetMetricRefType | None = sb.field(description='Dataset metric object bound to this port.')
+    external_dataset_id: str | None = sb.field(
+        description='Stable identifier of the external dataset, usually the dataset repo path without extension.',
+    )
+    external_metric_id: str | None = sb.field(
+        description='Stable identifier of the metric within the external dataset.',
+    )
+
+    @classmethod
+    def from_binding(cls, binding: DatasetPortBindingDef) -> DatasetPortType:
+        return DatasetPortType(
+            id=sb.ID(str(binding.id)),
+            node_ref=NodePortRef(node_id=sb.ID(str(binding.node_ref.node_id)), port_id=binding.node_ref.port_id),
+            dataset=DatasetRefType.from_binding(binding),
+            metric=DatasetMetricRefType.from_binding(binding),
+            external_dataset_id=binding.external_dataset_id,
+            external_metric_id=binding.external_metric_id,
+        )
+
+
+InputPortBinding = Annotated[NodeEdgeType | DatasetPortType, sb.union('InputPortBindingUnion')]
+
+
+@sb.type
 class ActionGroupType:
     id: sb.ID
     name: str
     color: str | None
 
-    @pass_context
     @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])
+    @pass_context
     @staticmethod
-    def actions(root: ActionGroup, info: gql.Info, context: Context) -> list[ActionNode]:
+    def actions(root: ActionGroup, context: 'Context') -> list['ActionNode']:
         return [act for act in context.get_actions() if act.group == root]
 
 
@@ -99,11 +273,11 @@ class InstanceFeaturesType:
 
 @sb.experimental.pydantic.type(model=GoalActualValue, name='InstanceYearlyGoalType')
 class InstanceYearlyGoalType(StrawberryPydanticType[GoalActualValue]):
-    year: strawberry.auto
-    goal: strawberry.auto
-    actual: strawberry.auto
-    is_interpolated: strawberry.auto
-    is_forecast: strawberry.auto
+    year: auto
+    goal: auto
+    actual: auto
+    is_interpolated: auto
+    is_forecast: auto
 
 
 class InstanceGoalDimensionProtocol(Protocol):
@@ -130,7 +304,7 @@ class InstanceGoalEntry:
     label: str | None
     disabled: bool
     disable_reason: str | None
-    outcome_node: Node = sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.schema')])
+    outcome_node: 'Node' = sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.schema')])
     dimensions: list[InstanceGoalDimension]
     default: bool
 
@@ -150,11 +324,13 @@ class InstanceGoalEntry:
 @sb.type
 class InstanceType:
     id: sb.ID
+    uuid: UUID
     name: str
     owner: str | None
     default_language: str
     supported_languages: list[str]
     base_path: str
+    years: YearsDefType
     target_year: int | None
     model_end_year: int
     reference_year: int | None
@@ -181,6 +357,36 @@ class InstanceType:
     @staticmethod
     def lead_paragraph(root: Instance) -> str | None:
         return root.config.lead_paragraph_i18n
+
+    @sb.field
+    @staticmethod
+    def identifier(root: Instance) -> str:
+        return root.id
+
+    @sb.field
+    @staticmethod
+    def config_source(root: Instance) -> str:
+        return root.config.config_source
+
+    @sb.field
+    @staticmethod
+    def live(root: Instance) -> bool:
+        return root.config.live
+
+    @sb.field
+    @staticmethod
+    def has_unpublished_changes(root: Instance) -> bool:
+        return root.config.has_unpublished_changes
+
+    @sb.field
+    @staticmethod
+    def first_published_at(root: Instance) -> datetime | None:
+        return root.config.first_published_at
+
+    @sb.field
+    @staticmethod
+    def last_published_at(root: Instance) -> datetime | None:
+        return root.config.last_published_at
 
     @sb.field
     @staticmethod
@@ -226,6 +432,66 @@ class InstanceType:
     def intro_content(root: Instance) -> StreamValue:
         return root.config.site_content.intro_content
 
+    @sb.field(graphql_type=Annotated[InstanceSpecType | None, sb.lazy('nodes.schema_spec')])
+    @staticmethod
+    def spec(root: Instance, info: gql.Info) -> InstanceSpec | None:
+        ic = root.config
+        if not ic.gql_action_allowed(info, 'change'):
+            return None
+        return ic.spec
+
+    @sb.field(graphql_type=list[NodeEdgeType])
+    @staticmethod
+    def edges(root: Instance) -> list[NodeEdgeType]:
+        edges = root.config.edges.select_related('from_node', 'to_node')
+        return [NodeEdgeType.from_node_edge(edge) for edge in edges]
+
+    @sb.field(graphql_type=list[DatasetPortType])
+    @staticmethod
+    def dataset_ports(root: Instance) -> list[DatasetPortType]:
+        dataset_ports = root.config.dataset_ports.select_related('node', 'dataset', 'metric')
+        return [
+            DatasetPortType(
+                id=sb.ID(str(dp.uuid)),
+                node_ref=NodePortRef(node_id=sb.ID(str(dp.node.identifier)), port_id=dp.port_id),
+                dataset=DatasetRefType.from_model(dp.dataset),
+                metric=DatasetMetricRefType.from_model(dp.metric),
+                external_dataset_id=_external_dataset_id_from_dataset(dp.dataset),
+                external_metric_id=dp.metric.name,
+            )
+            for dp in dataset_ports
+        ]
+
+    @sb.field(graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.schema')]])
+    @staticmethod
+    def nodes(root: Instance, id: list[sb.ID] | None = None) -> list['Node']:
+        if id is not None:
+            nodes: list['Node'] = []
+            for obj_id in id:
+                node = root.context.nodes.get(obj_id)
+                if node is None:
+                    continue
+                nodes.append(node)
+            return nodes
+        return sorted(
+            root.context.nodes.values(),
+            key=lambda node: (node.order is None, node.order or 0, node.id),
+        )
+
+    @sb.field
+    @staticmethod
+    def graph_layout(root: Instance) -> GraphLayout:
+        classifier = root.context.node_graph_classifier
+        return GraphLayout(
+            thresholds=classifier.thresholds,
+            core_node_ids=[sb.ID(node_id) for node_id in classifier.core_nodes],
+            ghostable_context_source_ids=[sb.ID(node_id) for node_id in classifier.ghostable_context_sources],
+            hub_ids=[sb.ID(node_id) for node_id in classifier.hubs],
+            action_ids=[sb.ID(node_id) for node_id in classifier.actions],
+            outcome_ids=[sb.ID(node_id) for node_id in classifier.outcomes],
+            main_graph_node_ids=[sb.ID(node_id) for node_id in classifier.main_graph_node_ids],
+        )
+
 
 class YearlyValueProtocol(Protocol):
     year: int
@@ -270,10 +536,10 @@ class ForecastMetricType:
 class MetricDimensionCategoryType:
     id: sb.ID
     original_id: sb.ID | None
-    label: strawberry.auto
-    color: strawberry.auto
-    order: strawberry.auto
-    group: strawberry.auto
+    label: auto
+    color: auto
+    order: auto
+    group: auto
 
 
 @register_strawberry_type
@@ -281,9 +547,9 @@ class MetricDimensionCategoryType:
 class MetricDimensionCategoryGroupType:
     id: sb.ID
     original_id: sb.ID
-    label: strawberry.auto
-    color: strawberry.auto
-    order: strawberry.auto
+    label: auto
+    color: auto
+    order: auto
 
 
 @register_strawberry_type
@@ -291,11 +557,11 @@ class MetricDimensionCategoryGroupType:
 class MetricDimensionType:
     id: sb.ID
     original_id: sb.ID | None
-    label: strawberry.auto
-    help_text: strawberry.auto
-    categories: strawberry.auto
-    groups: strawberry.auto
-    kind: strawberry.auto
+    label: auto
+    help_text: auto
+    categories: auto
+    groups: auto
+    kind: auto
 
 
 @register_strawberry_type
@@ -316,22 +582,28 @@ class NormalizerNodeType:
     pass
 
 
+@sb.type
+class ScenarioParameterOverrideType:
+    parameter_id: str
+    value: sb.scalars.JSON
+
+
 @register_strawberry_type
 @sb.experimental.pydantic.type(
     model=DimensionalMetric,
 )
 class DimensionalMetricType:
     id: sb.ID
-    name: strawberry.auto
-    dimensions: strawberry.auto
-    values: strawberry.auto
-    years: strawberry.auto
-    stackable: strawberry.auto
-    forecast_from: strawberry.auto
-    goals: strawberry.auto
-    normalized_by: strawberry.auto
+    name: auto
+    dimensions: auto
+    values: auto
+    years: auto
+    stackable: auto
+    forecast_from: auto
+    goals: auto
+    normalized_by: auto
     unit: Annotated[UnitType, sb.lazy('paths.graphql_types')]
-    measure_datapoint_years: strawberry.auto
+    measure_datapoint_years: auto
 
     if TYPE_CHECKING:
 
@@ -421,6 +693,45 @@ class VisualizationGroup(VisualizationEntry):  # type: ignore[override]
         return viz.VisualizationGroup.model_validate(data)
 
 
+@pydantic_type(model=Scenario)
+class ScenarioType:
+    id: sb.ID
+    name: auto
+    kind: auto
+    all_actions_enabled: bool
+    is_selectable: auto
+    actual_historical_years: auto
+
+    @sb.field
+    @staticmethod
+    def identifier(root: Scenario) -> str:
+        return root.id
+
+    @sb.field
+    @staticmethod
+    def description(root: Scenario) -> str | None:
+        return str(root.description) if root.description is not None else None
+
+    @sb.field
+    @staticmethod
+    def parameter_overrides(root: Scenario) -> list[ScenarioParameterOverrideType]:
+        return [
+            ScenarioParameterOverrideType(parameter_id=param_id, value=cast('sb.scalars.JSON', value))
+            for param_id, value in root.param_values.items()
+        ]
+
+    @sb.field
+    @pass_context
+    @staticmethod
+    def is_active(root: Scenario, context: 'Context') -> bool:
+        return context.active_scenario == root
+
+    @sb.field
+    @staticmethod
+    def is_default(root: Scenario) -> bool:
+        return root.default
+
+
 @sb.type
 class ScenarioValue:
     scenario: ScenarioType
@@ -438,7 +749,7 @@ class MetricDimensionCategoryValue:
 
 @sb.type
 class ActionImpactType:
-    action: ActionNodeType
+    action: 'ActionNodeType'
     value: float
     year: int
 
@@ -450,6 +761,8 @@ class ScenarioActionImpacts:
 
 
 def _get_impact_metric(source_node: ActionNode, target_node: Node, goal: NodeGoalsEntry | None = None) -> Metric | None:
+    import polars as pl
+
     df: ppl.PathsDataFrame = source_node.compute_impact(target_node)
     if goal is not None:
         df = goal.filter_df(df)
@@ -478,6 +791,128 @@ def _get_impact_metric(source_node: ActionNode, target_node: Node, goal: NodeGoa
     return metric
 
 
+@pydantic_type(model=ActionConfig)
+class ActionConfigType:
+    node_class: auto
+    decision_level: auto
+    group: auto
+    parent: auto
+    no_effect_value: auto
+
+
+@pydantic_type(model=SimpleConfig)
+class SimpleConfigType:
+    node_class: auto
+
+
+@pydantic_type(model=FormulaConfig)
+class FormulaConfigType:
+    formula: str
+
+
+@pydantic_type(model=PipelineConfig)
+class PipelineConfigType:
+    operations: sb.scalars.JSON  # FIXME
+
+
+def _dataset_external_ref_to_gql(external_ref: object) -> DatasetExternalRefType | None:
+    if not isinstance(external_ref, dict):
+        return None
+    repo_url = external_ref.get('repo_url')
+    dataset_id = external_ref.get('dataset_id')
+    if not isinstance(repo_url, str) or not isinstance(dataset_id, str):
+        return None
+    commit = external_ref.get('commit')
+    return DatasetExternalRefType(
+        repo_url=repo_url,
+        commit=commit if isinstance(commit, str) else None,
+        dataset_id=dataset_id,
+    )
+
+
+def _external_dataset_id_from_dataset(dataset: DatasetModel | DatasetPortBindingDef) -> str | None:
+    if isinstance(dataset, DatasetPortBindingDef):
+        external_ref = dataset.dataset_external_ref
+        if isinstance(external_ref, dict):
+            dataset_id = external_ref.get('dataset_id')
+            if isinstance(dataset_id, str):
+                return dataset_id
+        return dataset.external_dataset_id
+
+    external_ref = dataset.external_ref
+    if isinstance(external_ref, dict):
+        dataset_id = external_ref.get('dataset_id')
+        if isinstance(dataset_id, str):
+            return dataset_id
+    return dataset.identifier
+
+
+def _require_nc(spec_type: NodeSpecType) -> NodeConfig:
+    if spec_type._node is None:
+        raise ValueError('NodeSpecType has no Node instance')
+    nc = spec_type._node.db_obj
+    if nc is None:
+        raise ValueError('NodeSpecType has no NodeConfig instance')
+    return nc
+
+
+@pydantic_type(model=NodeSpec)
+class NodeSpecType(StrawberryPydanticType[NodeSpec]):
+    type_config: Annotated[
+        ActionConfigType | SimpleConfigType | FormulaConfigType | PipelineConfigType, sb.union('NodeConfigUnion')
+    ]
+
+    _node: sb.Private['Node | None'] = None
+
+    @sb.field
+    @staticmethod
+    def input_ports(root: 'NodeSpecType') -> list[InputPortType]:
+        nc = _require_nc(root)
+        spec = root._original_model
+        edge_bindings = nc.port_edge_bindings
+        dataset_bindings = nc.port_dataset_bindings
+        port_objs = []
+        edges_by_id: dict[UUID, list[NodeEdgeType | DatasetPortType]] = {}
+        for edge in edge_bindings:
+            if edge.to_ref.node_id != spec.identifier:
+                continue
+            sb_edge = NodeEdgeType.from_binding(edge)
+            edges_by_id.setdefault(edge.to_ref.port_id, []).append(sb_edge)
+        for dataset in dataset_bindings:
+            sb_dataset = DatasetPortType.from_binding(dataset)
+            assert sb_dataset.node_ref.node_id == spec.identifier
+            edges_by_id.setdefault(dataset.node_ref.port_id, []).append(sb_dataset)
+        for port in spec.input_ports:
+            edges = edges_by_id.get(port.id, [])
+
+            # edges = [NodeEdgeType.from_binding(binding) for binding in edge_bindings if binding.to_port == port.id]
+            # datasets = [DatasetPortType.from_binding(binding) for binding in dataset_bindings if binding.port_id == port.id]
+            port_obj = InputPortType.from_def(
+                port,
+                bindings=edges,
+            )
+            port_objs.append(port_obj)
+        return port_objs
+
+    @sb.field(graphql_type=list[OutputPortType])
+    @staticmethod
+    def output_ports(root: 'NodeSpecType') -> list[OutputPortType]:
+        nc = _require_nc(root)
+        edge_bindings = nc.port_edge_bindings
+        spec = root._original_model
+        return [
+            OutputPortType.from_def(
+                port,
+                edges=[
+                    NodeEdgeType.from_binding(binding)
+                    for binding in edge_bindings
+                    if binding.from_ref.port_id == port.id and binding.from_ref.node_id == spec.identifier
+                ],
+            )
+            for port in spec.output_ports
+        ]
+
+
 @sb.interface
 class NodeInterface:
     id: sb.ID
@@ -486,12 +921,23 @@ class NodeInterface:
     unit: UnitType | None
     quantity: str | None
 
-    input_nodes: list[NodeInterface]
-    output_nodes: list[NodeInterface]
+    input_nodes: list['NodeInterface']
+    output_nodes: list['NodeInterface']
 
     @sb.field
     @staticmethod
-    def name(root: Node) -> str:
+    def quantity_kind(root: 'Node') -> QuantityKindType | None:
+        if root.quantity is None:
+            return None
+        registry = get_quantity_registry()
+        kind = registry.get(root.quantity)
+        if kind is None:
+            return None
+        return QuantityKindType.from_kind(kind)
+
+    @sb.field
+    @staticmethod
+    def name(root: 'Node') -> str:
         nc = root.db_obj
         if nc is not None and nc.name_i18n:
             return nc.name_i18n
@@ -499,7 +945,35 @@ class NodeInterface:
 
     @sb.field
     @staticmethod
-    def color(root: Node) -> str | None:
+    def kind(root: 'Node') -> NodeKind | None:
+        if root._spec is None:
+            return None
+        return root.spec.kind
+
+    @sb.field
+    @staticmethod
+    def identifier(root: 'Node') -> str:
+        return root.id
+
+    @sb.field
+    @staticmethod
+    def spec(root: 'Node', info: gql.Info) -> Annotated[NodeSpecType | None, sb.lazy('nodes.schema_spec')]:
+        nc = root.db_obj
+        if nc is None:
+            return None
+        if not nc.gql_action_allowed(info, 'change'):
+            return None
+        if root.has_spec:
+            spec_type = NodeSpecType.from_pydantic(root.spec)
+        else:
+            spec_type = NodeSpecType.from_pydantic(nc.spec)
+            root._spec = nc.spec
+        spec_type._node = root
+        return spec_type
+
+    @sb.field
+    @staticmethod
+    def color(root: 'Node') -> str | None:
         nc = root.db_obj
         if nc and nc.color:
             return nc.color
@@ -514,15 +988,36 @@ class NodeInterface:
 
     @sb.field
     @staticmethod
-    def is_visible(root: Node) -> bool:
+    def is_visible(root: 'Node') -> bool:
         nc = root.db_obj
         if nc and nc.is_visible:
             return nc.is_visible
         return root.is_visible
 
+    @sb.field
+    @staticmethod
+    def uuid(root: 'Node') -> str | None:
+        nc = root.db_obj
+        if nc is None:
+            return None
+        return str(nc.uuid)
+
+    @sb.field
+    @staticmethod
+    def node_group(root: 'Node') -> str | None:
+        nc = root.db_obj
+        if nc is not None and nc.spec.node_group is not None:
+            return nc.spec.node_group
+        return root.node_group
+
+    @sb.field
+    @staticmethod
+    def layout_meta(root: 'Node') -> NodeGraphLayoutMeta:
+        return root.context.node_graph_classifier.for_node(root.id)
+
     @sb.field(deprecation_reason='Replaced by "goals".')
     @staticmethod
-    def target_year_goal(root: Node) -> float | None:
+    def target_year_goal(root: 'Node') -> float | None:
         if root.goals is None:
             return None
         goal = root.goals.get_dimensionless()
@@ -537,10 +1032,10 @@ class NodeInterface:
             return None
         return val.value
 
-    @pass_context
     @sb.field
+    @pass_context
     @staticmethod
-    def goals(root: Node, info: gql.Info, context: Context, active_goal: sb.ID | None = None) -> list[NodeGoal]:
+    def goals(root: 'Node', context: 'Context', active_goal: sb.ID | None = None) -> list[NodeGoal]:
         if root.goals is None:
             return []
         instance = context.instance
@@ -563,20 +1058,22 @@ class NodeInterface:
 
     @sb.field(deprecation_reason='Use __typeName instead')
     @staticmethod
-    def is_action(root: Node) -> bool:
+    def is_action(root: 'Node') -> bool:
+        from nodes.actions.action import ActionNode
+
         return isinstance(root, ActionNode)
 
-    @pass_context
     @sb.field
+    @pass_context
     @staticmethod
-    def explanation(root: Node, info: gql.Info, context: Context) -> str | None:
+    def explanation(root: 'Node', context: 'Context') -> str | None:
         if context.instance.features.show_explanations:
             return None
         return root.get_explanation()
 
     @sb.field
     @staticmethod
-    def node_type(root: Node) -> str:
+    def node_type(root: 'Node') -> str:
         typ = str(type(root))
         typstr = re.search(r"'([^']*)'", typ)
         if typstr is not None:
@@ -585,22 +1082,22 @@ class NodeInterface:
 
     @sb.field
     @staticmethod
-    def tags(root: Node) -> list[str] | None:
+    def tags(root: 'Node') -> list[str] | None:
         return list(root.tags)
 
     @sb.field
     @staticmethod
-    def input_dimensions(root: Node) -> list[str] | None:
+    def input_dimensions(root: 'Node') -> list[str] | None:
         return list(root.input_dimensions.keys())
 
     @sb.field
     @staticmethod
-    def output_dimensions(root: Node) -> list[str] | None:
+    def output_dimensions(root: 'Node') -> list[str] | None:
         return list(root.output_dimensions.keys())
 
     @sb.field(graphql_type=list[VisualizationEntry] | None)
     @staticmethod
-    def visualizations(root: Node) -> list[viz.VisualizationEntryType] | None:
+    def visualizations(root: 'Node') -> list[viz.VisualizationEntryType] | None:
         node_viz = root.visualizations
         if not node_viz:
             return None
@@ -609,12 +1106,12 @@ class NodeInterface:
     @sb.field(graphql_type=list['NodeInterface'])
     @staticmethod
     def downstream_nodes(
-        root: Node,
+        root: 'Node',
         info: gql.Info,
         max_depth: int | None = None,
         only_outcome: bool = False,
         until_node: sb.ID | None = None,
-    ) -> list[Node]:
+    ) -> list['Node']:
         info.context._upstream_node = root  # type: ignore
         if until_node is not None:
             try:
@@ -628,11 +1125,13 @@ class NodeInterface:
     @sb.field(graphql_type=list['NodeInterface'])
     @staticmethod
     def upstream_nodes(
-        root: Node,
+        root: 'Node',
         same_unit: bool = False,
         same_quantity: bool = False,
         include_actions: bool = True,
-    ) -> list[Node]:
+    ) -> list['Node']:
+        from nodes.actions.action import ActionNode
+
         def filter_nodes(node: Node) -> bool:
             if same_unit and root.unit != node.unit:
                 return False
@@ -648,28 +1147,30 @@ class NodeInterface:
     # and handle a single-metric node as a special case in the UI??
     @sb.field(graphql_type=ForecastMetricType | None)
     @staticmethod
-    def metric(root: Node, goal_id: sb.ID | None = None) -> Metric | None:
+    def metric(root: 'Node', goal_id: sb.ID | None = None) -> Metric | None:
         return Metric.from_node(root, goal_id=goal_id)
 
     @sb.field(graphql_type=DimensionalMetricType | None)
     @staticmethod
-    def outcome(root: Node) -> DimensionalMetric | None:
+    def outcome(root: 'Node') -> DimensionalMetric | None:
         return getattr(root, 'outcome', None)
 
     # If resolving through `descendant_nodes`, `impact_metric` will be
     # by default be calculated from the ancestor node.
-    @pass_context
     @sb.field(graphql_type=ForecastMetricType | None)
+    @pass_context
     @staticmethod
     def impact_metric(
-        root: Node,
+        root: 'Node',
         info: gql.Info,
-        context: Context,
+        context: 'Context',
         target_node_id: sb.ID | None = None,
         goal_id: sb.ID | None = None,
     ) -> Metric | None:
+        from nodes.actions.action import ActionNode
+
         instance = context.instance
-        upstream_node = getattr(info.context, '_upstream_node', None)
+        upstream_node: Node | None = getattr(info.context, '_upstream_node', None)
 
         if goal_id is not None:
             try:
@@ -679,7 +1180,7 @@ class NodeInterface:
         else:
             goal = None
 
-        target_node: Node
+        target_node: 'Node'
         if target_node_id is not None:
             if target_node_id not in context.nodes:
                 raise GraphQLError('Node %s not found' % target_node_id, info.field_nodes)
@@ -706,7 +1207,9 @@ class NodeInterface:
 
     @sb.field(graphql_type=list[ForecastMetricType])
     @staticmethod
-    def impact_metrics(root: Node) -> list[Metric]:
+    def impact_metrics(root: 'Node') -> list[Metric]:
+        from nodes.actions.action import ActionNode
+
         if not isinstance(root, ActionNode):
             return []
         metrics = []
@@ -718,12 +1221,14 @@ class NodeInterface:
 
     @sb.field(graphql_type=list[ForecastMetricType] | None)
     @staticmethod
-    def metrics(root: Node) -> list[Metric] | None:
+    def metrics(root: 'Node') -> list[Metric] | None:
         return getattr(root, 'metrics', None)
 
     @sb.field(graphql_type=DimensionalFlowType | None)
     @staticmethod
-    def dimensional_flow(root: Node) -> DimensionalFlow | None:
+    def dimensional_flow(root: 'Node') -> DimensionalFlow | None:
+        from nodes.actions.action import ActionNode
+
         if not isinstance(root, ActionNode):
             return None
         return DimensionalFlow.from_action_node(root)
@@ -731,7 +1236,7 @@ class NodeInterface:
     @sb.field(graphql_type=DimensionalMetricType | None)
     @staticmethod
     def metric_dim(
-        root: Node,
+        root: 'Node',
         info: gql.Info,
         with_scenarios: list[str] | None = None,
         include_scenario_kinds: list[ScenarioKind] | None = None,
@@ -748,9 +1253,9 @@ class NodeInterface:
 
         for kind in include_scenario_kinds or []:
             for scenario in context.scenarios.values():
-                if scenario.kind == kind and scenario.id not in extra_scenarios:
+                if scenario.kind == kind and scenario not in extra_scenarios:
                     extra_scenarios.append(scenario)
-        if include_scenario_kinds and context.active_scenario.id not in extra_scenarios:
+        if include_scenario_kinds and context.active_scenario not in extra_scenarios:
             extra_scenarios.append(context.active_scenario)
 
         try:
@@ -763,13 +1268,13 @@ class NodeInterface:
     # TODO: input_datasets, baseline_values, context
     @sb.field(graphql_type=list[Annotated['ParameterInterface', sb.lazy('params.schema')]])
     @staticmethod
-    def parameters(root: Node) -> list[Parameter[Any]]:
+    def parameters(root: 'Node') -> list[Parameter[Any]]:
         return [param for param in root.parameters.values() if param.is_visible]
 
     # These are potentially plucked from nodes.models.NodeConfig
     @grapple_field
     @staticmethod
-    def short_description(root: Node) -> WagtailRichText | None:
+    def short_description(root: 'Node') -> WagtailRichText | None:
         nc = root.db_obj
         if nc is not None and nc.short_description_i18n:
             return expand_db_html(nc.short_description_i18n)
@@ -780,10 +1285,10 @@ class NodeInterface:
                 return html
         return None
 
-    @pass_context
     @sb.field
+    @pass_context
     @staticmethod
-    def description(root: Node, info: gql.Info, context: Context) -> str | None:
+    def description(root: 'Node', context: 'Context') -> str | None:
         nc = root.db_obj
         if nc is None or not nc.description_i18n:
             if context.instance.features.show_explanations:
@@ -793,7 +1298,7 @@ class NodeInterface:
 
     @sb.field(graphql_type=list[StreamFieldInterface] | None)
     @staticmethod
-    def body(root: Node) -> StreamValue | None:
+    def body(root: 'Node') -> StreamValue | None:
         nc = root.db_obj
         if nc is None or not nc.body:
             return None
@@ -803,17 +1308,24 @@ class NodeInterface:
 @register_strawberry_type
 @sb.type(name='Node')
 class NodeType(NodeInterface):
+    is_outcome: bool
+
     @classmethod
     def is_type_of(cls, obj: Any, _info: gql.Info) -> bool:
+        from .actions.action import ActionNode
+        from .node import Node
+
         return isinstance(obj, Node) and not isinstance(obj, ActionNode)
 
     @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])
     @staticmethod
     def upstream_actions(
-        root: Node,
+        root: 'Node',
         only_root: bool = False,
         decision_level: DecisionLevel | None = None,
-    ) -> list[Node]:
+    ) -> list['Node']:
+        from nodes.actions.action import ActionNode
+
         def filter_action(n: Node) -> bool:
             if not isinstance(n, ActionNode):
                 return False
@@ -833,33 +1345,37 @@ class ActionNodeType(NodeInterface):
 
     @classmethod
     def is_type_of(cls, obj: Any, _info: gql.Info) -> bool:
+        from .actions.action import ActionNode
+
         return isinstance(obj, ActionNode)
 
     @sb.field
     @staticmethod
-    def is_enabled(root: ActionNode) -> bool:
+    def is_enabled(root: 'ActionNode') -> bool:
         return bool(root.is_enabled())
 
     @sb.field(graphql_type='ActionNodeType | None')
     @staticmethod
-    def parent_action(root: ActionNode) -> ActionNode | None:
+    def parent_action(root: 'ActionNode') -> 'ActionNode | None':
         return root.parent_action
 
     @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])
     @staticmethod
-    def subactions(root: ActionNode) -> list[ActionNode]:
+    def subactions(root: 'ActionNode') -> list['ActionNode']:
+        from nodes.actions.parent import ParentActionNode
+
         if not isinstance(root, ParentActionNode):
             return []
         return root.subactions
 
     @sb.field(graphql_type=ActionGroupType | None)
     @staticmethod
-    def group(root: ActionNode) -> ActionGroup | None:
+    def group(root: 'ActionNode') -> ActionGroup | None:
         return root.group
 
     @grapple_field
     @staticmethod
-    def goal(root: ActionNode) -> WagtailRichText | None:
+    def goal(root: 'ActionNode') -> WagtailRichText | None:
         nc = root.db_obj
         if nc is None:
             return None
@@ -870,7 +1386,7 @@ class ActionNodeType(NodeInterface):
 
     @sb.field(graphql_type='NodeType | None')
     @staticmethod
-    def indicator_node(root: ActionNode, info: gql.Info) -> Node | None:
+    def indicator_node(root: 'ActionNode', info: gql.Info) -> 'Node | None':
         nc = root.db_obj
         if nc is None:
             return None
@@ -879,29 +1395,12 @@ class ActionNodeType(NodeInterface):
         return nc.indicator_node.get_node(visible_for_user=info.context.user)
 
 
-@sb.type
-class ScenarioType:
-    id: sb.ID
-    name: str
-    kind: ScenarioKind | None
-    is_selectable: bool
-    actual_historical_years: list[int] | None
-
-    @pass_context
-    @sb.field
-    @staticmethod
-    def is_active(root: Scenario, info: gql.Info, context: Context) -> bool:
-        return context.active_scenario == root
-
-    @sb.field
-    @staticmethod
-    def is_default(root: Scenario) -> bool:
-        return root.default
+AnyNodeType = Annotated[ActionNodeType | NodeType, sb.union('AnyNodeType')]
 
 
 @sb.type
 class ActionImpact:
-    action: ActionNode = sb.field(graphql_type=ActionNodeType)
+    action: 'ActionNode' = sb.field(graphql_type=ActionNodeType)
     cost_values: list[YearlyValue] | None = sb.field(deprecation_reason='Use costDim instead.')
     impact_values: list[YearlyValue | None] | None = sb.field(deprecation_reason='Use effectDim instead.')
     cost_dim: DimensionalMetric | None = sb.field(graphql_type=DimensionalMetricType | None)
@@ -913,37 +1412,79 @@ class ActionImpact:
 class ImpactOverviewType:
     cost_node: NodeType | None
     effect_node: NodeType
-    indicator_unit: UnitType
-    indicator_cutpoint: float | None
-    cost_cutpoint: float | None
-    plot_limit_for_indicator: float | None
-    label: str
-    cost_label: str | None
-    effect_label: str | None
-    indicator_label: str | None
-    cost_category_label: str | None
-    effect_category_label: str | None
-    description: str | None
-    outcome_dimension: str | None
-    stakeholder_dimension: str | None
 
     @sb.field
     @staticmethod
-    def id(root: ImpactOverview) -> sb.ID:
+    def id(root: 'ImpactOverview') -> sb.ID:
         cost_id = root.cost_node.id if root.cost_node else 'None'
         return sb.ID('%s:%s' % (cost_id, root.effect_node.id))
 
     @sb.field
     @staticmethod
-    def graph_type(root: ImpactOverview) -> str | None:
-        if root.graph_type in ['benefit_cost_ratio', 'return_on_investment_gross']:
+    def graph_type(root: 'ImpactOverview') -> str | None:
+        if root.spec.graph_type in ['benefit_cost_ratio', 'return_on_investment_gross']:
             return 'return_on_investment'
-        return root.graph_type
+        return root.spec.graph_type
 
-    @pass_context
+    @sb.field(graphql_type=UnitType)
+    @staticmethod
+    def indicator_unit(root: 'ImpactOverview') -> Unit:
+        return root.spec.indicator_unit
+
     @sb.field
     @staticmethod
-    def actions(root: ImpactOverview, info: gql.Info, context: Context) -> list[ActionImpact]:
+    def indicator_cutpoint(root: 'ImpactOverview') -> float | None:
+        return root.spec.indicator_cutpoint
+
+    @sb.field
+    @staticmethod
+    def cost_cutpoint(root: 'ImpactOverview') -> float | None:
+        return root.spec.cost_cutpoint
+
+    @sb.field
+    @staticmethod
+    def plot_limit_for_indicator(root: 'ImpactOverview') -> float | None:
+        return root.spec.plot_limit_for_indicator
+
+    @sb.field
+    @staticmethod
+    def label(root: 'ImpactOverview') -> str:
+        return str(root.spec.label or '')
+
+    @sb.field
+    @staticmethod
+    def cost_label(root: 'ImpactOverview') -> str | None:
+        return str(root.spec.cost_label) if root.spec.cost_label is not None else None
+
+    @sb.field
+    @staticmethod
+    def effect_label(root: 'ImpactOverview') -> str | None:
+        return str(root.spec.effect_label) if root.spec.effect_label is not None else None
+
+    @sb.field
+    @staticmethod
+    def indicator_label(root: 'ImpactOverview') -> str | None:
+        return str(root.spec.indicator_label) if root.spec.indicator_label is not None else None
+
+    @sb.field
+    @staticmethod
+    def cost_category_label(root: 'ImpactOverview') -> str | None:
+        return str(root.spec.cost_category_label) if root.spec.cost_category_label is not None else None
+
+    @sb.field
+    @staticmethod
+    def effect_category_label(root: 'ImpactOverview') -> str | None:
+        return str(root.spec.effect_category_label) if root.spec.effect_category_label is not None else None
+
+    @sb.field
+    @staticmethod
+    def description(root: 'ImpactOverview') -> str | None:
+        return str(root.spec.description) if root.spec.description is not None else None
+
+    @sb.field
+    @pass_context
+    @staticmethod
+    def actions(root: 'ImpactOverview', context: 'Context') -> list[ActionImpact]:
         all_aes = root.calculate(context)
         out: list[ActionImpact] = []
         for ae in all_aes:
@@ -973,13 +1514,23 @@ class ImpactOverviewType:
 
     @sb.field(graphql_type=UnitType | None)
     @staticmethod
-    def cost_unit(root: ImpactOverview) -> Unit:
-        return root.cost_unit or root.indicator_unit
+    def cost_unit(root: 'ImpactOverview') -> Unit:
+        return root.spec.cost_unit or root.spec.indicator_unit
 
     @sb.field(graphql_type=UnitType | None)
     @staticmethod
-    def effect_unit(root: ImpactOverview) -> Unit:
-        return root.effect_unit or root.indicator_unit
+    def effect_unit(root: 'ImpactOverview') -> Unit:
+        return root.spec.effect_unit or root.spec.indicator_unit
+
+    @sb.field
+    @staticmethod
+    def outcome_dimension(root: 'ImpactOverview') -> str | None:
+        return root.spec.outcome_dimension_id
+
+    @sb.field
+    @staticmethod
+    def stakeholder_dimension(root: 'ImpactOverview') -> str | None:
+        return root.spec.stakeholder_dimension_id
 
 
 @sb.type
@@ -1020,118 +1571,107 @@ class InstanceBasicConfiguration:
 class NormalizationType:
     @sb.field
     @staticmethod
-    def id(root: Normalization) -> sb.ID:
+    def id(root: 'Normalization') -> sb.ID:
         return sb.ID(root.normalizer_node.id)
 
     @sb.field
     @staticmethod
-    def label(root: Normalization) -> str:
+    def label(root: 'Normalization') -> str:
         return str(root.normalizer_node.name)
 
     @sb.field(graphql_type=NodeType)
     @staticmethod
-    def normalizer(root: Normalization) -> Node:
+    def normalizer(root: 'Normalization') -> 'Node':
         return root.normalizer_node
 
-    @pass_context
     @sb.field
+    @pass_context
     @staticmethod
-    def is_active(root: Normalization, info: gql.Info, context: Context) -> bool:
+    def is_active(root: 'Normalization', context: 'Context') -> bool:
         return context.active_normalization == root
 
 
-class Query(graphene.ObjectType[Any]):
-    instance = graphene.Field(InstanceType, required=True)
-    nodes = graphene.List(graphene.NonNull(NodeInterface), required=True)
-    node = graphene.Field(
-        NodeInterface,
-        id=graphene.ID(required=True),
-    )
-    action = graphene.Field(ActionNodeType, id=graphene.ID(required=True))
-    action_efficiency_pairs = graphene.List(
-        graphene.NonNull(ImpactOverviewType), required=True, deprecation_reason='Use impactOverviews instead'
-    )
-    impact_overviews = graphene.List(graphene.NonNull(ImpactOverviewType), required=True)
-    scenarios = graphene.List(graphene.NonNull(ScenarioType), required=True)
-    scenario = graphene.Field(ScenarioType, id=graphene.ID(required=True))
-    active_scenario = graphene.Field(ScenarioType, required=True)
-    available_normalizations = graphene.List(graphene.NonNull(NormalizationType), required=True)
-    active_normalization = graphene.Field(NormalizationType, required=False)
+@sb.type
+class Query:
+    @sb.field(graphql_type=InstanceType)
+    @pass_context
+    def instance(self, context: 'Context') -> Instance:
+        return context.instance
 
-    @ensure_instance
-    def resolve_instance(root: Query, info: GQLInstanceInfo) -> Instance:
-        return info.context.instance
+    @sb.field(graphql_type=list[NodeInterface])
+    @pass_context
+    def nodes(self, context: 'Context') -> list['Node']:
+        return list(context.nodes.values())
 
+    @sb.field(graphql_type='NodeInterface | None')
     @ensure_instance
-    def resolve_scenario(root: Query, info: GQLInstanceInfo, id: str) -> Scenario:
-        context = info.context.instance.context
-        return context.get_scenario(id)
-
-    @ensure_instance
-    def resolve_active_scenario(root: Query, info: GQLInstanceInfo) -> Scenario:
-        context = info.context.instance.context
-        return context.active_scenario
-
-    @ensure_instance
-    def resolve_scenarios(root, info: GQLInstanceInfo) -> list[Scenario]:
-        context = info.context.instance.context
-        return list(context.scenarios.values())
-
-    @ensure_instance
-    def resolve_node(root, info: GQLInstanceInfo, id: str) -> Node | None:
+    def node(self, info: gql.InstanceInfo, id: sb.ID) -> 'Node | None':
         instance = info.context.instance
         nodes = instance.context.nodes
-        if id.isnumeric():
+        node_id = str(id)
+        if node_id.isnumeric():
             for node in nodes.values():
-                if node.database_id is not None and node.database_id == int(id):
+                if node.database_id is not None and node.database_id == int(node_id):
                     return node
             return None
 
-        return instance.context.nodes.get(id)
+        return instance.context.nodes.get(node_id)
 
+    @sb.field(graphql_type=ActionNodeType | None)
     @pass_context
-    def resolve_nodes(root, info: GQLInstanceInfo, context: Context) -> list[Node]:
-        instance = info.context.instance
-        return list(instance.context.nodes.values())
-
-    @ensure_instance
-    def resolve_action(root, info: GQLInstanceInfo, id: str) -> ActionNode | None:
-        instance = info.context.instance
+    def action(self, context: 'Context', id: sb.ID) -> 'ActionNode | None':
         try:
-            action = instance.context.get_action(id)
-        except (KeyError, TypeError) as e:
-            print(e)
+            return context.get_action(str(id))
+        except KeyError, TypeError:
             return None
-        return action
 
+    @sb.field(graphql_type=list[ImpactOverviewType], deprecation_reason='Use impactOverviews instead')
     @pass_context
-    def resolve_action_efficiency_pairs(root, info: GQLInstanceInfo, context: Context):
+    def action_efficiency_pairs(self, context: 'Context') -> list['ImpactOverview']:
         return context.impact_overviews
 
+    @sb.field(graphql_type=list[ImpactOverviewType])
     @pass_context
-    def resolve_impact_overviews(root, info: GQLInstanceInfo, context: Context):
+    def impact_overviews(self, context: 'Context') -> list['ImpactOverview']:
         return context.impact_overviews
 
+    @sb.field(graphql_type=list[ScenarioType])
     @pass_context
-    def resolve_available_normalizations(root, info: GQLInstanceInfo, context: Context):
-        return context.normalizations.values()
+    def scenarios(self, context: 'Context') -> list[Scenario]:
+        return list(context.scenarios.values())
 
+    @sb.field(graphql_type=ScenarioType)
     @pass_context
-    def resolve_active_normalization(root, info: GQLInstanceInfo, context: Context):
+    def scenario(self, context: 'Context', id: sb.ID) -> Scenario:
+        return context.get_scenario(str(id))
+
+    @sb.field(graphql_type=ScenarioType)
+    @pass_context
+    def active_scenario(self, context: 'Context') -> Scenario:
+        return context.active_scenario
+
+    @sb.field(graphql_type=list[NormalizationType])
+    @pass_context
+    def available_normalizations(self, context: 'Context') -> list['Normalization']:
+        return list(context.normalizations.values())
+
+    @sb.field(graphql_type=NormalizationType | None)
+    @pass_context
+    def active_normalization(self, context: 'Context') -> 'Normalization | None':
         return context.active_normalization
 
 
 @sb.type
 class SBQuery(Query):
-    @pass_context
     @sb.field(graphql_type=list[NormalizationType])
-    def active_normalizations(self, info: gql.Info, context: Context) -> list[Normalization]:
+    @pass_context
+    def active_normalizations(self, context: 'Context') -> list['Normalization']:
         return list(context.normalizations.values())
 
-    @pass_context
     @sb.field(graphql_type=list[ActionNodeType])
+    @pass_context
     @staticmethod
-    def actions(root: SBQuery, info: gql.Info, context: Context, only_root: bool = False) -> list[ActionNode]:
+    def actions(context: 'Context', only_root: bool = False) -> list['ActionNode']:
         instance = context.instance
         actions = instance.context.get_actions()
         if only_root:
@@ -1184,10 +1724,10 @@ class Mutation:
     @sb.type
     class SetNormalizerMutation:
         ok: bool
-        active_normalizer: Normalization | None = sb.field(graphql_type=NormalizationType)
+        active_normalizer: 'Normalization | None' = sb.field(graphql_type=NormalizationType)
 
     @sb.mutation
-    def set_normalizer(self, info: gql.Info, id: sb.ID | None = None) -> Mutation.SetNormalizerMutation:
+    def set_normalizer(self, info: gql.Info, id: sb.ID | None = None) -> 'Mutation.SetNormalizerMutation':
         context = get_instance_context(info)
         default = context.default_normalization
         if id:

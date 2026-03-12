@@ -13,10 +13,8 @@ if TYPE_CHECKING:
     from common import polars as ppl
     from params import Parameter
 
-    from ..node import Node
 
-
-def first_common_descendant(g, sources, target):
+def first_common_descendant(G, sources, target):
     # Thank you, ChatGPT
     import networkx as nx
 
@@ -27,7 +25,7 @@ def first_common_descendant(g, sources, target):
 
     # Find all shortest paths from each source to the target
     for source in sources:
-        paths = nx.all_shortest_paths(g, source, target)
+        paths = nx.all_shortest_paths(G, source, target)
         nodes_in_paths = set(node for path in paths for node in path)
 
         # Intersect with common_nodes to keep only common ones
@@ -41,7 +39,7 @@ def first_common_descendant(g, sources, target):
     common_nodes.difference_update(sources + [target])
 
     # Return the closest common node to the target
-    for node in nx.shortest_path(g, source=sources[0], target=target)[1:]:
+    for node in nx.shortest_path(G, source=sources[0], target=target)[1:]:
         if node in common_nodes:
             return node
 
@@ -59,10 +57,7 @@ class ParentActionNode(ActionNode):
         assert action not in self.subactions
         self.subactions.append(action)
 
-    def find_first_common_descendant(self, _target_node: Node):
-        pass
-
-    def notify_parameter_change(self, param: Parameter[Any]):
+    def notify_parameter_change(self, param: Parameter):
         if param == self.enabled_param:
             for action in self.subactions:
                 action.enabled_param.set(param.get())
@@ -74,10 +69,7 @@ class ParentActionNode(ActionNode):
         for root_node in self.context.get_root_nodes():
             if isinstance(root_node, ParentActionNode):
                 continue
-            ru = root_node.unit
-            if ru is None:
-                continue
-            rnu = ru.is_compatible_with(self.unit)
+            rnu = root_node.single_metric_unit.is_compatible_with(self.single_metric_unit)
             if rnu and (root_node.id != self.id):  # FIXME Quickfix done. But this can produce unintended results
                 break
         else:

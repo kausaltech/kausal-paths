@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from factory import Factory, RelatedFactory, SelfAttribute, Sequence, SubFactory, post_generation
+from factory import Factory, LazyAttribute, RelatedFactory, SelfAttribute, Sequence, SubFactory, post_generation
 from factory.django import DjangoModelFactory
 
 from kausal_common.i18n.pydantic import TranslatedString
@@ -12,6 +12,8 @@ from nodes.actions import ActionNode
 from nodes.actions.simple import AdditiveAction
 from nodes.context import Context
 from nodes.datasets import FixedDataset
+from nodes.defs.node_defs import NodeKind, NodeSpec, SimpleConfig
+from nodes.defs.port_def import OutputPortDef
 from nodes.instance import Instance
 from nodes.models import InstanceConfig, NodeConfig
 from nodes.node import Node
@@ -21,6 +23,11 @@ from nodes.units import unit_registry
 from orgs.models import Organization
 from orgs.tests.factories import OrganizationFactory
 
+if TYPE_CHECKING:
+    from factory.builder import Resolver
+
+    from nodes.defs.instance_defs import DatasetRepoSpec
+
 
 class ContextFactory(Factory[Context]):
     class Meta:
@@ -29,7 +36,7 @@ class ContextFactory(Factory[Context]):
     instance: SubFactory[Any, Instance] = SubFactory(
         'nodes.tests.factories.InstanceFactory',
     )
-    dataset_repo: str | None = None  # TODO: Set appropriately when we have tests for datasets
+    dataset_repo_spec: DatasetRepoSpec | None = None  # TODO: Set appropriately when we have tests for datasets
     target_year = 2030
 
     @classmethod
@@ -40,7 +47,7 @@ class ContextFactory(Factory[Context]):
     @staticmethod
     def post(obj: Context, create: bool, extracted, **kwargs) -> None:
         obj.instance.set_context(obj)
-        default_scenario = ScenarioFactory.create(id='default', kind=ScenarioKind.DEFAULT, context=obj, all_actions_enabled=True)
+        default_scenario = ScenarioFactory.create(id='default', kind=ScenarioKind.DEFAULT, all_actions_enabled=True)
         obj.add_scenario(default_scenario)
         obj.activate_scenario(obj.get_default_scenario())
 
@@ -81,6 +88,7 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
     name = Sequence(lambda i: f'instanceconfig{i}')
     lead_title = 'lead title'
     lead_paragraph = 'Lead paragraph'
+    config_source = 'yaml'
     instance: SubFactory[str, Instance] = SubFactory(InstanceFactory, id=SelfAttribute('..identifier'))
     organization = SubFactory[Any, Organization](OrganizationFactory)
 
@@ -111,6 +119,24 @@ class NodeConfigFactory(DjangoModelFactory[NodeConfig]):
     name = Sequence(lambda i: f'Test node config {i}')
     short_description = 'short description'
     description = 'description'
+    spec = NodeSpec(
+        kind=NodeKind.SIMPLE,
+        type_config=SimpleConfig(node_class='nodes.simple.SimpleNode'),
+        output_ports=[OutputPortDef(id='default', unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
+    )
+
+
+def make_fixed_datasets(node: Resolver[Node]):
+    return [
+        FixedDataset(
+            id='test',
+            context=node.context,
+            unit=unit_registry.parse_units('kWh'),
+            historical=[(2020, 1.23)],
+            forecast=[(2021, 2.34)],
+            tags=[],
+        )
+    ]
 
 
 class NodeFactory(Factory[Node]):
@@ -119,21 +145,13 @@ class NodeFactory(Factory[Node]):
 
     id = Sequence(lambda i: f'node{i}')
     context: SubFactory[Any, Context] = SubFactory(ContextFactory)
-    name = Sequence(lambda i: TranslatedString(f'Test node {i}'))
-    description = TranslatedString('description')
+    name = Sequence(lambda i: TranslatedString(f'Test node {i}', default_language='en'))
+    description = TranslatedString('description', default_language='en')
     color = 'pink'
-    unit = unit_registry('kWh').units
+    unit = unit_registry.parse_units('kWh')
     quantity = 'energy'
     goals = [dict(values=[dict(year=2035, value=500)])]
-    input_datasets = [
-        FixedDataset(
-            id='test',
-            unit=unit_registry.parse_units('kWh'),
-            historical=[(2020, 1.23)],
-            forecast=[(2021, 2.34)],
-            tags=[],
-        )
-    ]
+    input_datasets = LazyAttribute(make_fixed_datasets)
 
     @post_generation
     @staticmethod
@@ -163,10 +181,9 @@ class ScenarioFactory[S: Scenario = Scenario](Factory[S]):
         model = Scenario
 
     id = Sequence(lambda i: f'scenario{i}')
-    name = TranslatedString('scenario')
+    name = TranslatedString('scenario', default_language='en')
     kind: ScenarioKind | None = None
     all_actions_enabled = False
-    context = SubFactory[Any, Context](ContextFactory)
 
 
 class CustomScenarioFactory(ScenarioFactory[CustomScenario]):

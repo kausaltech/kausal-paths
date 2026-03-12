@@ -210,16 +210,14 @@ class BuildingEnergySavingAction(ActionNode):
 
     def compute_effect_old(self) -> pd.DataFrame:
         # Global parameters
-        renovation_rate_baseline = self.get_global_parameter_value('renovation_rate_baseline', units=True)
-        renovation_rate_baseline = renovation_rate_baseline.to('1/a').m
+        renovation_rate_baseline = self.get_global_parameter_value('renovation_rate_baseline', units=True).to('1/a').m
         model_end_year = self.context.model_end_year
         current_year = self.context.instance.maximum_historical_year
         assert isinstance(current_year, int)
 
         # Local parameters
         lifetime = self.get_parameter_value('investment_lifetime', units=True).to('a').m
-        renovation_potential = self.get_parameter_value('renovation_potential', units=True)
-        renovation_potential = renovation_potential.to('dimensionless').m
+        renovation_potential = self.get_parameter_value('renovation_potential', units=True).to('dimensionless').m
         investment_cost = self.get_parameter_value('investment_cost', units=True)
         maint_cost = self.get_parameter_value('maintenance_cost', units=True)
         cost_pt = pint_pandas.PintType(maint_cost.units)
@@ -245,8 +243,8 @@ class BuildingEnergySavingAction(ActionNode):
         cost = df[VALUE_COLUMN].copy()
 
         # Reinvestments after renovation potential reached
-        for roundd in range(1, len(df.index) // lifetime):
-            s = df[VALUE_COLUMN].shift(lifetime * roundd, fill_value=0)
+        for roundd in range(1, int(len(df.index) // lifetime)):
+            s = df[VALUE_COLUMN].shift(int(lifetime * roundd), fill_value=0)
             cost += s
 
         cost = cost.diff().fillna(0)
@@ -285,8 +283,8 @@ class CfFloorAreaAction(BuildingEnergySavingAction):
         #        'natural_gas': NodeMetric('thm/m**2/a', 'consumption_factor', column_id='natural_gas')
     }
     allowed_parameters = BuildingEnergySavingAction.allowed_parameters + [
-        StringParameter(local_id='electricity_unit', label='Electricity unit', is_customizable=False),
-        StringParameter(local_id='natural_gas_unit', label='Natural gas unit', is_customizable=False),
+        StringParameter(local_id='electricity_unit', label=_('Electricity unit'), is_customizable=False),
+        StringParameter(local_id='natural_gas_unit', label=_('Natural gas unit'), is_customizable=False),
     ]
 
     def compute_effect(self) -> pd.DataFrame | ppl.PathsDataFrame:

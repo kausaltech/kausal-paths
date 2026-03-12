@@ -132,7 +132,7 @@ class DataCollection:
 
     def convert_to_target_units(self) -> DataCollection:
         multipliers: dict[str, Quantity] = {
-            'kt_co2e/a': unit_registry('1 * kt/kt_co2e'),
+            'kt_co2e/a': unit_registry.parse_expression('1 * kt/kt_co2e'),
         }
         for instance in self.instances:
             for node in instance.nodes:

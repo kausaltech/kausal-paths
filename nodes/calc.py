@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import polars as pl
+from line_profiler import profile
 
 from common import polars as ppl
 from nodes.constants import (
@@ -29,23 +30,69 @@ def nafill_all_forecast_years(df: pd.DataFrame, end_year: int) -> pd.DataFrame:
     return df
 
 
-def extend_last_historical_value_pl(df: ppl.PathsDataFrame, end_year: int) -> ppl.PathsDataFrame:
+def extend_last_historical_value_pl(  # noqa: C901, PLR0912
+    df: ppl.PathsDataFrame,
+    end_year: int,
+    *,
+    zero_fill_missing: bool = True,
+) -> ppl.PathsDataFrame:
+    metric_cols = list(df.metric_cols)
+    if not metric_cols:
+        raise ValueError('No metric columns in DF')
+
     if FORECAST_COLUMN not in df.columns:
         df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])  # noqa: FBT003
-    if all(df[FORECAST_COLUMN]):  # Nothing to extend if there are no historical values
+    hist_df = df.filter(pl.col(FORECAST_COLUMN).eq(False))  # noqa: FBT003
+    if hist_df.is_empty():  # Nothing to extend if there are no historical values
         return df
-    df = df.paths.to_wide()
-    df = df.paths.make_forecast_rows(end_year)
-    last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(False))[YEAR_COLUMN].max()  # noqa: FBT003
-    df = df.paths.nafill_pad()
+
+    meta = df.get_meta().copy()
+    dim_ids = list(df.dim_ids)
+    all_null_dims = [dim_id for dim_id in dim_ids if df[dim_id].null_count() == len(df)]
+    if all_null_dims:
+        df = df.drop(all_null_dims)
+        meta.primary_keys = [pk for pk in meta.primary_keys if pk not in all_null_dims]
+        dim_ids = [dim_id for dim_id in dim_ids if dim_id not in all_null_dims]
+    first_forecast_year = cast('int | None', df.filter(pl.col(FORECAST_COLUMN).eq(True))[YEAR_COLUMN].min())  # noqa: FBT003
+    if first_forecast_year is not None:
+        last_hist_year = first_forecast_year - 1
+    else:
+        last_hist_year = cast('int | None', hist_df[YEAR_COLUMN].max())
+
+    years_df = df.select(YEAR_COLUMN).unique().sort(YEAR_COLUMN)
+    if last_hist_year is not None and last_hist_year < end_year:
+        future_years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), schema=[YEAR_COLUMN])
+        years_df = pl.concat([years_df, future_years], how='vertical').unique().sort(YEAR_COLUMN)
+
+    if dim_ids:
+        dim_df = df.select(dim_ids).unique(maintain_order=True)
+        base_df = dim_df.join(years_df, how='cross')
+        fill_exprs = [pl.col(col).fill_null(strategy='forward').over(dim_ids).alias(col) for col in metric_cols]
+        sort_cols = [*dim_ids, YEAR_COLUMN]
+    else:
+        base_df = years_df
+        fill_exprs = [pl.col(col).fill_null(strategy='forward').alias(col) for col in metric_cols]
+        sort_cols = [YEAR_COLUMN]
+
+    value_df = df.select([*dim_ids, YEAR_COLUMN, *metric_cols]).sort(sort_cols)
+    jdf = base_df.join(value_df, on=sort_cols, how='left').sort(sort_cols).with_columns(fill_exprs)
+
     if last_hist_year is not None:
         fc_cond = pl.col(YEAR_COLUMN) > last_hist_year
     else:
         fc_cond = pl.lit(True)  # noqa: FBT003
     fc = pl.when(fc_cond).then(True).otherwise(False)  # noqa: FBT003
-    df = df.with_columns([fc.alias(FORECAST_COLUMN)])
-    df = df.paths.to_narrow()
-    return df
+    jdf = jdf.with_columns([fc.alias(FORECAST_COLUMN)])
+    if zero_fill_missing:
+        forecast_fill_exprs = [
+            pl.when(pl.col(FORECAST_COLUMN)).then(pl.col(col).fill_null(0.0)).otherwise(pl.col(col)).alias(col)
+            for col in metric_cols
+        ]
+        jdf = jdf.with_columns(forecast_fill_exprs)
+    cast_exprs = [pl.col(dim_id).cast(pl.Categorical) for dim_id in dim_ids if jdf.schema[dim_id] != pl.Categorical]
+    if cast_exprs:
+        jdf = jdf.with_columns(cast_exprs)
+    return ppl.to_ppdf(jdf, meta=meta)
 
 
 def extend_last_historical_value(df: pd.DataFrame, end_year: int) -> pd.DataFrame:
@@ -74,6 +121,7 @@ def extend_last_forecast_value_pl(df: ppl.PathsDataFrame, end_year: int) -> ppl.
     return df
 
 
+@profile
 def extend_to_history_pl(df: ppl.PathsDataFrame, start_year: int) -> ppl.PathsDataFrame:
     if FORECAST_COLUMN not in df.columns:
         raise ValueError('There is no FORECAST_COLUMN.')

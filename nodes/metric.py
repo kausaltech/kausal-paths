@@ -11,12 +11,8 @@ import strawberry as sb
 from pydantic import BaseModel, Field
 
 import numpy as np
-import polars as pl
 import sentry_sdk
 
-from common import polars as ppl
-
-from .actions.shift import ShiftAction
 from .constants import (
     BASELINE_VALUE_COLUMN,
     FLOW_ID_COLUMN,
@@ -36,12 +32,17 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     import pint
+    import polars as pl
 
+    from common import polars as ppl
     from nodes.scenario import Scenario
     from nodes.visualizations import VisualizationNodeOutput
 
     from .actions.action import ActionImpact, ActionNode, ImpactOverview
     from .node import Node, NodeMetric
+
+else:
+    pass
 
 
 @sb.type
@@ -72,6 +73,10 @@ class Metric:
 
     @staticmethod
     def from_node(node: Node, goal_id: str | None = None) -> None | Metric:  # noqa: C901, PLR0912
+        import polars as pl
+
+        from common import polars as ppl
+
         try:
             m = node.get_default_output_metric()
         except Exception:
@@ -131,6 +136,8 @@ class Metric:
         return Metric(id=node.id, name=str(node.name), unit=df.get_unit(VALUE_COLUMN), node=node, df=df)
 
     def split_df(self) -> SplitValues | None:
+        import polars as pl
+
         if self.split_values is not None:
             return self.split_values
 
@@ -202,7 +209,7 @@ class Metric:
         assert not isinstance(dim, complex)
         if dim is None or dim > -1:
             return None
-        year_unit = self.unit._REGISTRY('year').units
+        year_unit = self.unit._REGISTRY.parse_units('year')
         return self.unit * year_unit
 
 
@@ -349,6 +356,10 @@ class DimensionalMetric(BaseModel):
     measure_datapoint_years: list[int] = Field(default_factory=list)
 
     def to_df(self, drop_single_cat_dims: bool = False) -> ppl.PathsDataFrame:
+        import polars as pl
+
+        from common import polars as ppl
+
         idx_df = self.generate_index_df(self.dimensions, self.years)
         data = pl.DataFrame(self.values, schema=[VALUE_COLUMN])
         df = pl.concat([idx_df, data], how='horizontal')
@@ -366,6 +377,8 @@ class DimensionalMetric(BaseModel):
 
     @classmethod
     def generate_index_df(cls, dims: list[MetricDimension], years: list[int]) -> pl.DataFrame:
+        import polars as pl
+
         idx_names = [dim.original_id for dim in dims] + [YEAR_COLUMN]
         idx_dfs = [pl.LazyFrame(dim.get_original_cat_ids(), schema=[dim.original_id], orient='row') for dim in dims] + [
             pl.LazyFrame(years, schema=[YEAR_COLUMN]),
@@ -410,6 +423,7 @@ class DimensionalMetric(BaseModel):
 
     def plot(self, dim_id: str | None = None):
         import altair as alt
+        import polars as pl
 
         df = self.to_df(drop_single_cat_dims=True).with_columns(pl.col('Year').cast(pl.Utf8))
         x = alt.X(field='Year', type='temporal')
@@ -474,6 +488,10 @@ class DimensionalFlow:
 
     @classmethod
     def from_action_node(cls, node: ActionNode) -> None | DimensionalFlow:  # noqa: C901, PLR0915
+        import polars as pl
+
+        from .actions.shift import ShiftAction
+
         if not isinstance(node, ShiftAction):
             return None
 

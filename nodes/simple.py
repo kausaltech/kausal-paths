@@ -16,6 +16,7 @@ from params.param import BoolParameter, NumberParameter, StringParameter
 from .constants import FORECAST_COLUMN, MIX_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
 from .exceptions import NodeError
 from .node import Node, NodeMetric
+from .pipeline.compat import PipelineCompatibleNode
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -23,7 +24,11 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
-    from params.param import Parameter
+    from paths.identifiers import NodePortIdentifier
+
+    from nodes.pipeline.ir import PipelinePortBinding
+    from nodes.pipeline.ops import AnyOperationSpec
+    from params.base import Parameter
 
 EMISSION_UNIT = 'kg'
 
@@ -43,42 +48,42 @@ class SimpleNode(Node):
         ),
         BoolParameter(
             local_id='drop_nulls',
-            description='At the end of compute() do you want to drop nulls?',
+            description=_('At the end of compute() do you want to drop nulls?'),
             is_customizable=False,
         ),
         NumberParameter(
             local_id='replace_nans',
-            description='At the end of compute() replace nans with this value',
+            description=_('At the end of compute() replace nans with this value'),
             is_customizable=False,
         ),
         StringParameter(
             local_id='reference_category',
-            description='Category to which all others are compared',
+            description=_('Category to which all others are compared'),
             is_customizable=False,
         ),
         NumberParameter(
             local_id='reference_year',
-            description='Year to which all others are compared',
+            description=_('Year to which all others are compared'),
             is_customizable=False,
         ),
         StringParameter(
             local_id='share_dimension',
-            description='Dimension over which values are converted to shares',
+            description=_('Dimension over which values are converted to shares'),
             is_customizable=False,
         ),
         NumberParameter(  # FIXME Make sure that the treatment is systematic in all node classes.
             local_id='multiplier',
-            description='Multiplier to implement after operation and before additions',
+            description=_('Multiplier to implement after operation and before additions'),
             is_customizable=False,
         ),
         StringParameter(
             local_id='slice_category_at_edge',
-            description='A category is sliced at edge before offering as input to another node',
+            description=_('A category is sliced at edge before offering as input to another node'),
             is_customizable=False,
         ),
         StringParameter(  # FIXME Is this the same functionality as variant?
             local_id='filter_categories',
-            description='Categories to filter in format dimension:category,category2',
+            description=_('Categories to filter in format dimension:category,category2'),
             is_customizable=False,
         ),
     ]
@@ -184,7 +189,7 @@ class SimpleNode(Node):
         return df
 
 
-class AdditiveNode(SimpleNode):
+class AdditiveNode(SimpleNode, PipelineCompatibleNode):
     explanation = _("""This is an Additive Node. It performs a simple addition of inputs.
 Missing values are assumed to be zero.""")
     allowed_parameters = [
@@ -193,15 +198,74 @@ Missing values are assumed to be zero.""")
         StringParameter(local_id='metric', is_customizable=False),
         BoolParameter(
             local_id='inventory_only',
-            description='Node represents historical (inventory) values only',
+            description=_('Node represents historical (inventory) values only'),
             is_customizable=False,
         ),
         BoolParameter(
             local_id='use_input_node_unit_when_adding',
-            description='Use input node unit when doing add_nodes_pl()',
+            description=_('Use input node unit when doing add_nodes_pl()'),
             is_customizable=False,
         ),
     ]
+
+    def lower_to_pipeline_ir(self):
+        from nodes.pipeline import AddOperationSpec, IdentityOperationSpec, InputNodeBinding, PipelineNodeIR, PortInputRef
+
+        unsupported_params = [
+            'drop_nans',
+            'metric',
+            'inventory_only',
+            'use_input_node_unit_when_adding',
+            'fill_gaps_using_input_dataset',
+            'replace_output_using_input_dataset',
+            'drop_nulls',
+            'replace_nans',
+            'reference_category',
+            'reference_year',
+            'share_dimension',
+            'multiplier',
+        ]
+        active_unsupported = [
+            param_id for param_id in unsupported_params if self.get_parameter_value(param_id, required=False) not in (None, False)
+        ]
+        if self.input_dataset_instances or active_unsupported:
+            raise NotImplementedError(
+                'AdditiveNode pipeline lowering currently supports only pure input-node addition '
+                + f'(datasets={bool(self.input_dataset_instances)}, unsupported_params={active_unsupported})'
+            )
+
+        if not self.input_nodes:
+            raise NotImplementedError('AdditiveNode pipeline lowering currently requires at least one input node')
+
+        spec = self.spec
+        if spec.input_ports and len(spec.input_ports) == len(self.input_nodes):
+            port_ids = [port.id for port in spec.input_ports]
+        else:
+            port_ids = [f'input_{idx}' for idx, _ in enumerate(self.input_nodes)]
+
+        port_bindings: dict[NodePortIdentifier, PipelinePortBinding] = {
+            port_id: InputNodeBinding(node=input_node.id) for port_id, input_node in zip(port_ids, self.input_nodes, strict=True)
+        }
+        first_port = PortInputRef(port=port_ids[0])
+        operations: list[AnyOperationSpec]
+        if len(port_ids) == 1:
+            operations = [IdentityOperationSpec(input=first_port, result_id='output')]
+        else:
+            operations = [
+                AddOperationSpec(
+                    input=first_port,
+                    values=[PortInputRef(port=port_id) for port_id in port_ids[1:]],
+                    result_id='output',
+                ),
+            ]
+
+        return PipelineNodeIR(
+            node_id=self.id,
+            source_node_class=f'{type(self).__module__}.{type(self).__qualname__}',
+            port_bindings=port_bindings,
+            operations=operations,
+            output_ref='output',
+        )
 
     def add_nodes(self, ndf: pd.DataFrame | None, nodes: list[Node], metric: str | None = None) -> pd.DataFrame:
         if ndf is not None:
@@ -280,7 +344,7 @@ class SubtractiveNode(Node):  # FIXME Remove, when you clean Longmont.
     allowed_parameters = [
         BoolParameter(
             local_id='only_historical',
-            description='Perform subtraction on only historical data',
+            description=_('Perform subtraction on only historical data'),
             is_customizable=False,
         ),
     ]
@@ -303,7 +367,9 @@ class SectorEmissions(AdditiveNode):
 
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        StringParameter(local_id='category', description='Category id for the emission sector dimension', is_customizable=False),
+        StringParameter(
+            local_id='category', description=_('Category id for the emission sector dimension'), is_customizable=False
+        ),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -333,7 +399,7 @@ class SectorEmissions(AdditiveNode):
         return super().compute()
 
 
-class MultiplicativeNode(SimpleNode):
+class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
     explanation = _("""This is a Multiplicative Node. It multiplies nodes together with potentially adding other input nodes.
 
     Multiplication and addition is determined based on the input node units.
@@ -343,16 +409,90 @@ class MultiplicativeNode(SimpleNode):
         *SimpleNode.allowed_parameters,
         BoolParameter(
             local_id='only_historical',
-            description='Process only historical rows',
+            description=_('Process only historical rows'),
             is_customizable=False,
         ),
         BoolParameter(
             local_id='extend_rows',
-            description='Extend last row to future years',
+            description=_('Extend last row to future years'),
             is_customizable=False,
         ),
     ]
     operation_label = 'multiplication'
+
+    def lower_to_pipeline_ir(self):
+        from nodes.pipeline import InputNodeBinding, MultiplyOperationSpec, PipelineNodeIR, PortInputRef
+
+        unsupported_params = [
+            'only_historical',
+            'extend_rows',
+            'fill_gaps_using_input_dataset',
+            'replace_output_using_input_dataset',
+            'drop_nulls',
+            'replace_nans',
+            'reference_category',
+            'reference_year',
+            'share_dimension',
+            'multiplier',
+        ]
+        active_unsupported = [
+            param_id for param_id in unsupported_params if self.get_parameter_value(param_id, required=False) not in (None, False)
+        ]
+        if self.input_dataset_instances or active_unsupported:
+            raise NotImplementedError(
+                'MultiplicativeNode pipeline lowering currently supports only pure input-node multiplication '
+                + f'(datasets={bool(self.input_dataset_instances)}, unsupported_params={active_unsupported})'
+            )
+
+        assert self.unit is not None
+        additive_nodes: list[Node] = []
+        operation_nodes: list[Node] = []
+        non_additive_nodes = self.get_input_nodes(tag='non_additive')
+        for node in self.input_nodes:
+            if node.unit is None:
+                raise NotImplementedError(f'Input node {node.id} does not have a unit')
+            if node in non_additive_nodes:
+                operation_nodes.append(node)
+            elif self.is_compatible_unit(node.unit, self.unit):
+                additive_nodes.append(node)
+            else:
+                operation_nodes.append(node)
+
+        if additive_nodes:
+            raise NotImplementedError(
+                'MultiplicativeNode pipeline lowering does not yet support additive side inputs '
+                + f'({[node.id for node in additive_nodes]})'
+            )
+        if len(operation_nodes) < 2:
+            raise NotImplementedError(
+                'MultiplicativeNode pipeline lowering currently requires at least two multiplicative inputs '
+                + f'({[node.id for node in operation_nodes]})'
+            )
+
+        spec = self.spec
+        if spec.input_ports and len(spec.input_ports) == len(self.input_nodes):
+            port_ids = [port.id for port in spec.input_ports]
+        else:
+            port_ids = [f'input_{idx}' for idx, _ in enumerate(self.input_nodes)]
+
+        port_bindings: dict[NodePortIdentifier, PipelinePortBinding] = {
+            port_id: InputNodeBinding(node=input_node.id) for port_id, input_node in zip(port_ids, self.input_nodes, strict=True)
+        }
+        operations: list[AnyOperationSpec] = [
+            MultiplyOperationSpec(
+                input=PortInputRef(port=port_ids[0]),
+                values=[PortInputRef(port=port_id) for port_id in port_ids[1:]],
+                result_id='output',
+            ),
+        ]
+
+        return PipelineNodeIR(
+            node_id=self.id,
+            source_node_class=f'{type(self).__module__}.{type(self).__qualname__}',
+            port_bindings=port_bindings,
+            operations=operations,
+            output_ref='output',
+        )
 
     def operate_pairwise(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         df = df.multiply_cols(['_Left', '_Right'], '_Left').drop('_Right')
@@ -783,7 +923,7 @@ class ChooseInputNode(AdditiveNode):
     )
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        StringParameter(local_id='node_tag', label='Tag to use as selecting the input node'),
+        StringParameter(local_id='node_tag', label=_('Tag to use as selecting the input node')),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -802,7 +942,7 @@ class RelativeYearScaledNode(AdditiveNode):
     )
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        NumberParameter(local_id='reference_year', label='The year whose values are used for scaling'),
+        NumberParameter(local_id='reference_year', label=_('The year whose values are used for scaling')),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -887,7 +1027,7 @@ class AnnuityNode(AdditiveNode):
 class DiscountNode(AdditiveNode):
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        NumberParameter(local_id='start_year', label='The first year in which the discount rate is applied.'),
+        NumberParameter(local_id='start_year', label=_('The first year in which the discount rate is applied.')),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:

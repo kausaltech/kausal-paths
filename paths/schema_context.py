@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.utils import translation
@@ -13,22 +13,21 @@ from strawberry.utils.operation import get_first_operation
 import sentry_sdk
 from loguru import logger
 
+from kausal_common.i18n.pydantic import is_query_with_instance_context, set_i18n_context
 from kausal_common.strawberry.context import GraphQLContext
 from kausal_common.strawberry.extensions import AuthenticationExtension, ExecutionCacheExtension, GraphQLPerfNode, SchemaExtension
 
 from paths.context import PathsObjectCache
 
-from nodes.models import InstanceConfig
 from params.storage import SessionStorage
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from contextlib import AbstractContextManager
 
     from graphql.language import DirectiveNode, OperationDefinitionNode
 
     from nodes.instance import Instance
-    from nodes.models import InstanceConfigQuerySet
+    from nodes.models import InstanceConfig, InstanceConfigQuerySet
 
 logger = logger.bind(markup=True)
 
@@ -73,6 +72,8 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         return lang
 
     def get_ic_queryset(self) -> InstanceConfigQuerySet:
+        from nodes.models import InstanceConfig
+
         return (
             InstanceConfig.objects.get_queryset().select_related('framework_config').select_related('framework_config__framework')
         )
@@ -83,6 +84,8 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         identifier: str,
         directive: DirectiveNode | None = None,
     ) -> InstanceConfig:
+        from nodes.models import InstanceConfig
+
         try:
             if identifier.isnumeric():
                 instance = queryset.get(id=identifier)
@@ -98,6 +101,8 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         hostname: str,
         directive: DirectiveNode | None = None,
     ) -> InstanceConfig:
+        from nodes.models import InstanceConfig
+
         ctx = self.get_context()
         try:
             instance = queryset.for_hostname(hostname, wildcard_domains=ctx.wildcard_domains).get()
@@ -212,8 +217,10 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
 
 
 class ActivateInstanceContextExtension(PathsSchemaExtension):
+    @contextmanager
     def activate_language(self, lang: str):
-        return cast('AbstractContextManager[None, None]', translation.override(lang))
+        with translation.override(lang), set_i18n_context(lang, other_languages=[]):
+            yield
 
     def set_instance_scope(self) -> None:
         scope = sentry_sdk.get_current_scope()
@@ -254,7 +261,7 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
             context.set_option('normalizer', val)
         else:
             for n in context.normalizations.values():
-                if n.default:
+                if n.spec.default:
                     context.active_normalization = n
                     break
             else:
@@ -273,7 +280,10 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
         with ExitStack() as stack:
             with perf.exec_node(GraphQLPerfNode('prepare instance "%s"' % ic.identifier)):
                 stack.enter_context(self.activate_language(ctx.graphql_query_language))
-                with perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)):
+                with (
+                    perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)),
+                    is_query_with_instance_context.set(True),
+                ):
                     instance = stack.enter_context(ic.enter_instance_context())
                     ctx.instance = instance
                 context = instance.context

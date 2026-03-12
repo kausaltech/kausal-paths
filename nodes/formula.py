@@ -50,7 +50,7 @@ class FormulaNode(Node):
         StringParameter(local_id='formula'),
         BoolParameter(local_id='extend_last_historical_value'),
         BoolParameter(local_id='condition'),
-        NumberParameter(local_id='constant', label='Constant value to add to the formula', is_customizable=True),
+        NumberParameter(local_id='constant', label=_('Constant value to add to the formula'), is_customizable=True),
     ]
 
     # Use varss instead of vars for variables to avoid shadowing.
@@ -61,9 +61,9 @@ class FormulaNode(Node):
         """AST numeric literals are explicit dimensionless quantities (matches ``analyze_formula_units``)."""
         v = node.value
         if isinstance(v, bool):
-            return cast('Quantity', Quantity(float(v), 'dimensionless'))
+            return Quantity(float(v), 'dimensionless')
         if isinstance(v, (int, float)):
-            return cast('Quantity', Quantity(v, 'dimensionless'))
+            return Quantity(v, 'dimensionless')
         raise NodeError(self, _('Unsupported constant in formula: %(type)s') % {'type': type(v).__name__})
 
     def eval_name(self, name: ast.Name, varss: EvalVars) -> EvalOutput:
@@ -167,7 +167,7 @@ class FormulaNode(Node):
         return self.apply_binom(left, right, both_df, left_df, right_df, both_quantity)
 
     def apply_sub(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
-        neg_one = cast('Quantity', Quantity(-1, 'dimensionless'))
+        neg_one = Quantity(-1, 'dimensionless')
         if isinstance(right, PDF):
             right = right.multiply_quantity(VALUE_COLUMN, neg_one)
         elif isinstance(right, Quantity):
@@ -301,9 +301,8 @@ class FormulaNode(Node):
         df = self.eval_tree(node.args[0], varss)  # Get the first result
 
         # Try PathsExt operations first
-        if isinstance(df, PDF) and func in df.paths.OPERATIONS:
-            operation = df.paths.OPERATIONS[func]
-            return operation(df, self.context)
+        if isinstance(df, PDF) and df.paths.has_operation(func):
+            return df.paths.get_operation(func)(df, self.context)
 
         # Handle non-PathsExt functions
         return self._handle_custom_function(func, node, varss, df)
@@ -424,8 +423,8 @@ class FormulaNode(Node):
         """Element-wise max or min. For 0/1 values, max(a,b) is logical OR, min(a,b) is logical AND."""
         if isinstance(left, Quantity) and isinstance(right, Quantity):
             unit = left.u
-            r_m = right.to(unit).m
-            l_m = left.m
+            r_m: float = right.to(unit).m
+            l_m: float = left.m
             val = max(l_m, r_m) if op == 'max' else min(l_m, r_m)
             return Quantity(val, unit)
         if isinstance(left, PDF) and isinstance(right, Quantity):
@@ -444,7 +443,7 @@ class FormulaNode(Node):
         """Return True if any value deviates from 0 and from 1 by more than LOGICAL_TOLERANCE."""
         tol = LOGICAL_TOLERANCE
         if isinstance(x, Quantity):
-            m = float(x.to(unit_registry('dimensionless')).m)
+            m = float(x.to(unit_registry.parse_units('dimensionless')).m)
             return abs(m) > tol and abs(m - 1.0) > tol
         if isinstance(x, PDF):
             col = x.get_column(VALUE_COLUMN)

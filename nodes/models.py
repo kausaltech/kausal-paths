@@ -9,15 +9,18 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypedDict, cast
 from urllib.parse import urlparse
+from uuid import UUID
 
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.expressions import ArraySubquery
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
-from django.db.models import Q
+from django.db.models import F, OuterRef, Q
+from django.db.models.functions import JSONArray, JSONObject
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, gettext_lazy as _, override
 from modelcluster.models import ClusterableModel
@@ -25,18 +28,21 @@ from modeltrans.fields import TranslationField
 from modeltrans.manager import MultilingualQuerySet
 from wagtail import blocks
 from wagtail.fields import RichTextField, StreamField
-from wagtail.models import Locale, Page, RevisionMixin
+from wagtail.models import DraftStateMixin, Locale, Page, RevisionMixin
 from wagtail.models.sites import Site
 from wagtail.search import index
 
 import sentry_sdk
 from asgiref.sync import async_to_sync, sync_to_async
 from channels.layers import get_channel_layer
+from django_choices_field import TextChoicesField
+from django_pydantic_field import SchemaField
 from loguru import logger
 from wagtail_color_panel.fields import ColorField
 
 from kausal_common.datasets.models import (
     Dataset as DatasetModel,
+    DatasetMetric,
     DatasetSchema,
     DatasetSchemaScope,
     Dimension as DatasetDimensionModel,
@@ -44,7 +50,8 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
+from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
+from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
     ParentInheritedPolicy,
@@ -66,6 +73,8 @@ from paths.utils import (
     get_supported_languages,
 )
 
+from nodes.defs import DatasetPortBindingDef, EdgeBindingDef, InstanceSpec, NodeSpec
+from nodes.defs.node_defs import NodeKind
 from orgs.models import Organization
 from pages.blocks import CardListBlock
 
@@ -83,6 +92,7 @@ if TYPE_CHECKING:
         FK,
         M2M,
         RevMany,
+        RevManyQS,
         RevOne,
     )
     from kausal_common.users import UserOrAnon
@@ -142,13 +152,10 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
         return self.filter(query_pk_or_uuid_or_identifier(id_or_identifier))
 
 
-_InstanceConfigManager = cast('models.Manager[InstanceConfig]', models.Manager.from_queryset(InstanceConfigQuerySet))
+_InstanceConfigManager = cast('models.Manager[InstanceConfig]', models.Manager).from_queryset(InstanceConfigQuerySet)
 
 
-class InstanceConfigManager(
-    MLModelManager['InstanceConfig', InstanceConfigQuerySet],
-    _InstanceConfigManager,  # type: ignore[valid-type, misc]
-):
+class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # type: ignore[valid-type,misc]
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
         return self.get(identifier=identifier)
 
@@ -156,7 +163,7 @@ class InstanceConfigManager(
 del _InstanceConfigManager
 
 
-class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any, InstanceConfigQuerySet]):
+class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', None, InstanceConfigQuerySet]):
     def __init__(self):
         from frameworks.roles import framework_admin_role, framework_viewer_role
 
@@ -248,6 +255,8 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
         return qs.filter(self.construct_perm_q(user, 'view', include_implicit_public=False))
 
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
+        if user.is_superuser:
+            return True
         if action == 'delete':
             return self.is_framework_admin(user, obj)
         if action == 'view':
@@ -269,7 +278,7 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
             return True
         return False
 
-    def user_can_create(self, user: User, context: Any) -> bool:
+    def user_can_create(self, user: User, context: None) -> bool:
         return False
 
 
@@ -294,7 +303,11 @@ instance_context: ContextVar[Instance | None] = ContextVar('instance_context', d
 """Global instance context for e.g. GraphQL queries."""
 
 
-class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Model):  # , RevisionMixin)
+def make_empty_instance_spec() -> InstanceSpec:
+    return InstanceSpec(primary_language='en')
+
+
+class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], UUIDIdentifiedModel, models.Model):
     """Metadata for one Paths computational model instance."""
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
@@ -320,11 +333,26 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     modified_at = models.DateTimeField(auto_now=True)
     cache_invalidated_at = models.DateTimeField(default=timezone.now)
 
-    primary_language = models.CharField[str, str](max_length=8, choices=get_supported_languages, default=get_default_language)
+    primary_language = models.CharField[str, str](
+        max_length=8,
+        choices=get_supported_languages,
+        default=get_default_language,
+    )
     other_languages = ChoiceArrayField(
-        models.CharField(max_length=8, choices=get_supported_languages, default=get_default_language),
+        models.CharField(
+            max_length=8,
+            choices=get_supported_languages,
+            default=get_default_language,
+        ),
         default=list,
     )
+
+    config_source = models.CharField(
+        max_length=20,
+        choices=[('yaml', 'YAML'), ('database', 'Database')],
+        default='yaml',
+    )
+    spec = SchemaField(schema=InstanceSpec, default=make_empty_instance_spec)
 
     viewer_group: FK[Group | None] = models.ForeignKey(
         Group,
@@ -373,11 +401,13 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         object_id_field='scope_id',
     )
 
-    # Type annotations
-    nodes: RevMany[NodeConfig]
+    # Type annotations for reverse FK managers
+    nodes: RevManyQS[NodeConfig, NodeConfigQuerySet]
     hostnames: RevMany[InstanceHostname]
     dimensions: RevMany[DatasetDimensionModel]
     datasets: RevMany[DatasetModel]
+    edges: RevMany[NodeEdge]
+    dataset_ports: RevMany[DatasetPort]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
     organization_id: int
@@ -389,9 +419,9 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     ]
 
     class Meta:
-        ordering = ['id']
         verbose_name = _('Instance')
         verbose_name_plural = _('Instances')
+        ordering = ['id']
 
     def __str__(self) -> str:
         return self.get_name()
@@ -402,8 +432,14 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         yield 'name', self.name
 
     def save(self, *args, **kwargs):
-        if self.uuid is None:
+        if not isinstance(self.uuid, uuid.UUID):
             self.uuid = uuid.uuid4()
+
+        self.spec.uuid = self.uuid
+        self.spec.identifier = self.identifier
+        self.spec.name = self.name
+        self.spec.primary_language = self.primary_language
+        self.spec.other_languages = list(self.other_languages or [])
 
         if self.site is not None:
             # TODO: Update Site and root page attributes
@@ -452,7 +488,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             return True
 
     def update_instance_from_configs(self, instance: Instance, node_refs: bool = False):
-        for node_config in self.nodes.all():
+        for node_config in self.nodes_for_serialization:
             node = instance.context.nodes.get(node_config.identifier)
             if node is None:
                 continue
@@ -480,24 +516,64 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             self.log.info('Updating instance.other_languages to [%s]' % ', '.join(other_langs))
             self.other_languages = list(other_langs)
 
-    def _create_from_config(self) -> Instance:
+    def serializable_data(self) -> dict[str, Any]:
+        """Override Wagtail's serializable_data to include full model snapshot for DB-sourced instances."""
+        data = super().serializable_data()
+        if self.config_source == 'database':
+            from .instance_from_db import serialize_instance_to_dict
+
+            data['model_snapshot'] = serialize_instance_to_dict(self)
+        return data
+
+    def clear_model_editor_data(self) -> None:
+        """Delete all model editor related objects (edges, dataset ports) and reset spec."""
+        self.edges.all().delete()
+        self.dataset_ports.all().delete()
+        self.nodes.update(spec='{}')
+        self.spec = InstanceSpec(primary_language=self.primary_language, other_languages=list(self.other_languages or []))
+
+    def publish_instance(self, user: User | None = None) -> None:
+        """Serialize the current model state and publish as a Wagtail revision."""
+        revision = self.save_revision(user=user)
+        self.publish(revision, user=user)
+
+    def revert_to_published(self) -> None:
+        """Restore draft state from the published revision snapshot."""
+        # TODO: Rewrite for spec-based storage
+        raise NotImplementedError('revert_to_published needs rewriting for spec-based storage')
+
+    def _create_from_config(self, node_refs: bool = False) -> Instance:
         from .instance_loader import InstanceLoader
+
+        if self.config_source == 'database':
+            from .instance_from_db import serialize_instance_to_dict
+
+            config = serialize_instance_to_dict(self)
+            loader = InstanceLoader(config=config)
+            instance = loader.instance
+            self.update_instance_from_configs(instance, node_refs=True)
+            return instance
 
         if self.has_framework_config():
             fwc = self.framework_config
             instance = fwc.create_model_instance(self)
         else:
             config_fn = Path(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
+            self.log.debug('Creating instance from YAML file: %s' % config_fn)
             loader = InstanceLoader.from_yaml(config_fn)
             instance = loader.instance
+            with sentry_sdk.start_span(name='update-instance-from-configs: %s' % self.identifier, op='function'):
+                # We only need to do this on the plain old YAML path
+                self.update_instance_from_configs(instance, node_refs=node_refs)
+
         return instance
 
     def _initialize_instance(self, node_refs: bool = False) -> Instance:
-        with sentry_sdk.start_span(name='create-instance-from-config: %s' % self.identifier, op='function'):
-            instance = self._create_from_config()
+        self.log.info('Creating new instance from %s' % ('database' if self.config_source == 'database' else 'YAML config'))
 
-        with sentry_sdk.start_span(name='update-instance-from-configs: %s' % self.identifier, op='function'):
-            self.update_instance_from_configs(instance, node_refs=node_refs)
+        with sentry_sdk.start_span(name='create-instance-from-config: %s' % self.identifier, op='function'):
+            instance = self._create_from_config(node_refs=node_refs)
+
         instance.modified_at = timezone.now()
         if settings.ENABLE_PERF_TRACING:
             instance.context.perf_context.enabled = True
@@ -547,7 +623,6 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         if current_instance is not None and current_instance.id == self.identifier:
             return current_instance
 
-        self.log.info('Creating new instance')
         with instance_cache_lock:
             instance = self._initialize_instance(node_refs=node_refs)
         return instance
@@ -811,7 +886,8 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     def invalidate_cache(self, save: bool = True):
         self.cache_invalidated_at = timezone.now()
         self.log.info('Invalidating cache')
-        self.save(update_fields=['cache_invalidated_at'])
+        if save:
+            self.save(update_fields=['cache_invalidated_at'])
 
     def notify_change(self):
         self.update_modified_at(save=False)
@@ -828,6 +904,10 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                 'pk': self.pk,
             },
         )
+
+    @cached_property
+    def nodes_for_serialization(self) -> list[NodeConfig]:
+        return list(self.nodes.get_queryset().for_serialization())
 
     @cached_property
     def log(self) -> Logger:
@@ -854,10 +934,10 @@ class InstanceHostname(models.Model):
     objects = InstanceHostnameManager()
 
     class Meta:
-        ordering = ['instance', 'hostname']
         verbose_name = _('Instance hostname')
         verbose_name_plural = _('Instance hostnames')
         unique_together = (('instance', 'hostname'), ('hostname', 'base_path'))
+        ordering = ['instance', 'hostname', 'base_path']
 
     def __str__(self):
         return '%s at %s [basepath %s]' % (self.instance, self.hostname, self.base_path)
@@ -884,9 +964,9 @@ class InstanceToken(models.Model):
     objects = InstanceTokenManager()
 
     class Meta:
-        ordering = ['instance', '-created_at']
         verbose_name = _('Instance token')
         verbose_name_plural = _('Instance tokens')
+        ordering = ['instance', '-created_at']
 
     def __str__(self) -> str:
         return 'Token for %s' % str(self.instance)
@@ -895,25 +975,99 @@ class InstanceToken(models.Model):
         return self.instance.natural_key() + (self.token, self.created_at)
 
 
-class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['NodeConfig']):
-    pass
+class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['NodeConfig']):  # type: ignore[override, misc]
+    def active(self) -> Self:
+        return self.filter(is_stale=False)
+
+    def with_spec(self) -> Self:
+        return self.defer(None)
+
+    def annotate_ports(self) -> Self:
+        edge_bindings = (
+            NodeEdge.objects
+            .filter(Q(to_node=OuterRef('pk')) | Q(from_node=OuterRef('pk')))
+            .annotate(
+                obj=JSONObject(
+                    id=F('uuid'),
+                    from_ref=JSONObject(
+                        node_id=F('from_node__identifier'),
+                        port_id=F('from_port'),
+                    ),
+                    to_ref=JSONObject(
+                        node_id=F('to_node__identifier'),
+                        port_id=F('to_port'),
+                    ),
+                    to_port=F('to_port'),
+                    transformations=JSONArray(),
+                    tags=F('tags'),
+                ),
+            )
+            .values('obj')
+        )
+        dataset_bindings = (
+            DatasetPort.objects
+            .filter(node=OuterRef('pk'))
+            .annotate(
+                obj=JSONObject(
+                    id=F('uuid'),
+                    node_ref=JSONObject(
+                        node_id=F('node__identifier'),
+                        port_id=F('port_id'),
+                    ),
+                    dataset_uuid=F('dataset__uuid'),
+                    metric_uuid=F('metric__uuid'),
+                    dataset_is_external_placeholder=F('dataset__is_external_placeholder'),
+                    dataset_external_ref=F('dataset__external_ref'),
+                    external_dataset_id=F('dataset__identifier'),
+                    external_metric_id=F('metric__name'),
+                ),
+            )
+            .values('obj')
+        )
+        return self.annotate(
+            _annotated_port_edge_bindings=ArraySubquery(edge_bindings),
+            _annotated_port_dataset_bindings=ArraySubquery(dataset_bindings),
+        )
+
+    def for_serialization(self) -> Self:
+        return self.with_spec().annotate_ports()
 
 
-_NodeConfigManager = cast('models.Manager[NodeConfig]', models.Manager).from_queryset(NodeConfigQuerySet)
+_NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)
 
 
-class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeConfigManager):  # type: ignore[valid-type, misc]
+class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeConfigManager):  # pyright: ignore
     """Model manager for NodeConfig."""
+
+    def get_queryset(self) -> NodeConfigQuerySet:
+        return super().get_queryset().defer('spec')
 
     def get_by_natural_key(self, instance_identifier, identifier):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance, identifier=identifier)
 
+    if TYPE_CHECKING:
+
+        def active(self) -> NodeConfigQuerySet: ...
+        def with_spec(self) -> NodeConfigQuerySet: ...
+        def annotate_ports(self) -> NodeConfigQuerySet: ...
+
 
 del _NodeConfigManager
 
 
-class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedModel):
+class NodeKindChoices(models.TextChoices):
+    FORMULA = NodeKind.FORMULA.value, _('Formula')
+    PIPELINE = NodeKind.PIPELINE.value, _('Pipeline')
+    ACTION = NodeKind.ACTION.value, _('Action')
+    SIMPLE = NodeKind.SIMPLE.value, _('Simple')
+
+
+def make_empty_node_spec() -> NodeSpec:
+    return NodeSpec(kind=NodeKind.FORMULA)
+
+
+class NodeConfig(PathsModel[InstanceConfig], RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedModel):
     instance: FK[InstanceConfig] = models.ForeignKey(
         InstanceConfig,
         on_delete=models.CASCADE,
@@ -921,6 +1075,7 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
         editable=False,
     )
     identifier = IdentifierField(max_length=200)
+    is_stale = models.BooleanField(default=False, help_text='Whether the node is stale and should be deleted')
     name = models.CharField(max_length=200, null=True, blank=True)
     order = models.PositiveIntegerField(
         null=True,
@@ -969,6 +1124,14 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
     input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
 
+    # --- DB-sourced node fields (model editor) ---
+    node_type = TextChoicesField(
+        choices_enum=NodeKindChoices,  # pyright: ignore[reportCallIssue]
+        default=NodeKindChoices.FORMULA,
+    )
+
+    spec = SchemaField(schema=NodeSpec, default=make_empty_node_spec)
+
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
 
@@ -980,6 +1143,7 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
     short_description_i18n: str | None
     description_i18n: str | None
     goal_i18n: str | None
+    indicates_nodes: RevMany[NodeConfig]
 
     search_fields = [
         index.AutocompleteField('identifier'),
@@ -994,18 +1158,19 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
     objects: ClassVar[NodeConfigManager] = NodeConfigManager()
 
     _node: Node | None
-
-    indicates_nodes: RevMany[NodeConfig]
+    _annotated_port_edge_bindings: list[dict[str, Any]] | None
+    _annotated_port_dataset_bindings: list[dict[str, Any]] | None
 
     class Meta:
-        ordering = ['instance', 'id']
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)
+        ordering = ['instance', 'order']
+        base_manager_name = 'objects'
 
     @classmethod
-    def permission_policy(cls) -> ParentInheritedPolicy[Self, InstanceConfig, NodeConfigQuerySet]:
-        return ParentInheritedPolicy(cls, InstanceConfig, 'instance', disallowed_actions=('add', 'delete'))
+    def permission_policy(cls) -> ParentInheritedPolicy[NodeConfig, InstanceConfig, NodeConfigQuerySet, InstanceConfig]:
+        return ParentInheritedPolicy(cls, InstanceConfig, 'instance', create_context_type=InstanceConfig)
 
     def get_node(self, visible_for_user: UserOrAnon | None = None) -> Node | None:
         if hasattr(self, '_node'):
@@ -1023,6 +1188,8 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
             node.db_obj = self
         if self.order is not None:
             node.order = self.order
+
+        node._spec = self.spec
 
         if self.input_data:
             assert len(node.input_dataset_instances) == 1
@@ -1122,13 +1289,34 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
                     error_message = f'Language code "{lang}" in i18n key "{key}" is not in "modeltrans" format.'
                     raise RuntimeError(error_message)
 
-        if self.uuid is None:
+        if not isinstance(self.uuid, uuid.UUID):
             self.uuid = uuid.uuid4()
+
+        self.spec.uuid = self.uuid
+        self.spec.identifier = self.identifier
+        self.spec.name = get_translated_string_from_modeltrans(self, 'name', self.instance.primary_language)
+        self.spec.color = self.color or None
+        self.spec.order = self.order
+        self.spec.is_visible = self.is_visible
 
         return super().save(**kwargs)
 
     def natural_key(self):
         return self.instance.natural_key() + (self.identifier,)
+
+    @property
+    def port_edge_bindings(self) -> list[EdgeBindingDef]:
+        if not hasattr(self, '_annotated_port_edge_bindings'):
+            raise RuntimeError('NodeConfig.port_edge_bindings requires NodeConfigQuerySet.annotate_ports()')
+        raw = self._annotated_port_edge_bindings or []
+        return [EdgeBindingDef.model_validate(port) for port in raw]
+
+    @property
+    def port_dataset_bindings(self) -> list[DatasetPortBindingDef]:
+        if not hasattr(self, '_annotated_port_dataset_bindings'):
+            raise RuntimeError('NodeConfig.port_dataset_bindings requires NodeConfigQuerySet.annotate_ports()')
+        raw = self._annotated_port_dataset_bindings or []
+        return [DatasetPortBindingDef.model_validate(port) for port in raw]
 
 
 class NodeDataset(models.Model):
@@ -1136,10 +1324,10 @@ class NodeDataset(models.Model):
     dataset = models.ForeignKey(DatasetModel, on_delete=models.PROTECT, related_name='nodes_edges')
 
     class Meta:
-        ordering = ['node', 'dataset']
         verbose_name = _('Node dataset')
         verbose_name_plural = _('Node datasets')
         unique_together = (('node', 'dataset'),)
+        ordering = ['node', 'dataset']
 
     def __str__(self) -> str:
         node_name = self.node.name or self.node.identifier
@@ -1148,3 +1336,100 @@ class NodeDataset(models.Model):
     def get_admin_display_title(self) -> str:
         """Return a descriptive title for Wagtail admin views."""
         return str(self)
+
+
+# --- Model editor models ---
+
+
+class NodeEdge(UUIDIdentifiedModel, UserModifiableModel):
+    """A directed edge in the computation graph."""
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='edges',
+    )
+    from_node: FK[NodeConfig] = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='outgoing_edges',
+    )
+    from_port = models.UUIDField[UUID, UUID](
+        max_length=200,
+        default='output',
+        help_text='Output port ID on the source node',
+    )
+    to_node: FK[NodeConfig] = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='incoming_edges',
+    )
+    to_port = models.UUIDField[UUID, UUID](
+        max_length=200,
+        help_text='Input port ID on the target node',
+    )
+    transformations = models.JSONField(default=list, blank=True)
+    tags = ArrayField(
+        models.CharField(max_length=200),
+        default=list,
+        blank=True,
+    )
+
+    objects: ClassVar[models.Manager[NodeEdge]] = models.Manager()
+    _default_manager: ClassVar[models.Manager[NodeEdge]]
+
+    from_node_id: int  # for type checkers
+    to_node_id: int
+
+    class Meta:
+        ordering = ['instance', 'from_node', 'to_node', 'to_port']
+        verbose_name = _('Node edge')
+        verbose_name_plural = _('Node edges')
+
+    def __str__(self) -> str:
+        return f'{self.from_node_id} → {self.to_node_id}'
+
+
+class DatasetPort(UUIDIdentifiedModel, UserModifiableModel):
+    """Connects a dataset metric to a node input port."""
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='dataset_ports',
+    )
+    node: FK[NodeConfig] = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='dataset_ports',
+    )
+    port_id = models.UUIDField[UUID, UUID](
+        max_length=100,
+        help_text='Input port ID on the node (must match a port in node.input_ports)',
+    )
+    dataset: FK[DatasetModel] = models.ForeignKey(
+        DatasetModel,
+        on_delete=models.PROTECT,
+        related_name='node_ports',
+    )
+    metric: FK[DatasetMetric] = models.ForeignKey(
+        DatasetMetric,
+        on_delete=models.PROTECT,
+        related_name='node_ports',
+    )
+
+    # for type checkers
+    node_id: int
+    dataset_id: int
+    metric_id: int
+
+    objects: ClassVar[models.Manager[DatasetPort]] = models.Manager()
+    _default_manager: ClassVar[models.Manager[DatasetPort]]
+
+    class Meta:
+        ordering = ['node', 'metric__order']
+        verbose_name = _('Dataset port')
+        verbose_name_plural = _('Dataset ports')
+
+    def __str__(self) -> str:
+        return f'{self.node_id}:{self.port_id} ← {self.dataset_id}'

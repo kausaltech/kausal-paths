@@ -318,8 +318,11 @@ class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, Permis
     def user_can_create(self, user: User, context: Dataset) -> bool:
         return self.parent_policy.user_has_perm(user, 'change', context)
 
+    def is_create_context_valid(self, context: Any) -> TypeGuard[Dataset]:
+        return isinstance(context, Dataset)
 
-class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource, None]):
+
+class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource, None, PermissionedQuerySet[DataSource]]):
     """Permission policy for DataSource, based on its scope (InstanceConfig)."""
 
     def __init__(self):
@@ -372,8 +375,9 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
 
         return False
 
+    @override
     def is_create_context_valid(self, context: Any) -> TypeGuard[None]:
-        return context is None
+        return False
 
 
 class DataPointCommentPermissionPolicy(

@@ -3,5 +3,5 @@ runner:
     cmd: ruff check . --output-format rdjson
     format: rdjson
   mypy:
-    cmd: mypy . | mypy-baseline filter --hide-stats
+    cmd: mypy .
     format: mypy

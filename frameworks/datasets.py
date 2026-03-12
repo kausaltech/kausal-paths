@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import polars as pl
 from pint import DimensionalityError
@@ -9,12 +9,7 @@ from pint import DimensionalityError
 from common import polars as ppl
 from frameworks.models import MeasureDataPoint
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
-from nodes.context import Context
 from nodes.datasets import DVCDataset
-
-if TYPE_CHECKING:
-    from nodes.context import Context
-
 
 ENABLE_UNIT_CONVERSION = True
 
@@ -23,18 +18,19 @@ ENABLE_UNIT_CONVERSION = True
 class FrameworkMeasureDVCDataset(DVCDataset):
     measure_data_point_years: list[int] = field(default_factory=list)
 
-    def hash_data(self, context: Context) -> dict[str, Any]:
-        data = super().hash_data(context)
-        if context.framework_config_data:
-            data['framework_config_updated'] = str(context.framework_config_data.last_modified_at)
+    def hash_data(self) -> dict[str, Any]:
+        data = super().hash_data()
+        if self.context.framework_config_data:
+            data['framework_config_updated'] = str(self.context.framework_config_data.last_modified_at)
         return data
 
-    def _override_with_measure_datapoints(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    def _override_with_measure_datapoints(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         from django.db.models import TextField
         from django.db.models.functions import Cast
 
         from frameworks.models import Measure
 
+        context = self.context
         fwd = context.framework_config_data
         if fwd is None:
             # FIXME This is needed because DatasetNode and other nodes have a different sequence of operations.
@@ -86,8 +82,8 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         diff_unit = jdf.filter(pl.col('MeasureUnit') != pl.col('Unit')).select(['MeasureUnit', 'Unit']).unique()
         conversions: list[tuple[str, str, float]] = []
         for m_unit_s, ds_unit_s in diff_unit.rows():
-            m_unit = context.unit_registry(m_unit_s)
-            ds_unit = context.unit_registry(ds_unit_s)
+            m_unit = context.unit_registry.parse_units(m_unit_s)
+            ds_unit = context.unit_registry.parse_units(ds_unit_s)
             cf = context.unit_registry._get_conversion_factor(m_unit._units, ds_unit._units)
             if isinstance(cf, DimensionalityError):
                 raise cf
@@ -127,12 +123,11 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 
         return df
 
-    def post_process(self, context: Context | None, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        df = super().post_process(context, df)
-        assert context is not None
+    def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = super().post_process(df)
         if 'UUID' not in df.columns:
             raise Exception("Dataset must have a 'UUID' column")
-        df = self._override_with_measure_datapoints(context, df)
+        df = self._override_with_measure_datapoints(df)
         return df
 
     # def load(self, context: Context) -> ppl.PathsDataFrame:

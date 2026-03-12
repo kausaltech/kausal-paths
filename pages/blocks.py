@@ -9,7 +9,6 @@ from django.utils.translation import gettext_lazy as _
 from wagtail import blocks
 from wagtail.images.blocks import ImageChooserBlock
 
-import polars as pl
 from grapple.helpers import register_streamfield_block
 from grapple.models import GraphQLField, GraphQLFloat, GraphQLImage, GraphQLStreamfield, GraphQLString
 from wagtail_color_panel.blocks import NativeColorBlock
@@ -313,6 +312,8 @@ class DashboardCardBlock(blocks.StructBlock):
 
         Returns None if there is no historical data.
         """
+        import polars as pl
+
         from nodes.schema import MetricDimensionCategoryValue
 
         node = self.node(info, values)
@@ -384,6 +385,8 @@ class DashboardCardBlock(blocks.StructBlock):
             return None
 
     def _value_for_year(self, node: Node, year: int, scenario: Scenario | None = None) -> float | None:
+        import polars as pl
+
         dm = self._dimensional_metric(node, scenario)
         df = dm.to_df()
         df = df.filter(pl.col(YEAR_COLUMN) == year)
@@ -409,6 +412,8 @@ class DashboardCardBlock(blocks.StructBlock):
                 return None
 
     def _impact_for_action(self, action: ActionNode, node: Node, year: int) -> ActionImpactType:
+        import polars as pl
+
         from nodes.schema import ActionImpactType
 
         df = action.compute_impact(node)

@@ -161,9 +161,9 @@ class DatasetNode(AdditiveNode):
         dropcols = ['Sector', 'Quantity', 'UUID']
         if not measure_data_override:
             dropcols.extend(['FromMeasureDataPoint', 'ObservedDataPoint'])
-        for col in dropcols:
-            if col in df.columns:
-                df = df.drop(col)
+        dropcols = [col for col in dropcols if col in df.columns]
+        if dropcols:
+            df = df.drop(dropcols)
         return df
 
     # -----------------------------------------------------------------------------------

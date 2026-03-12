@@ -4,17 +4,15 @@ import typing
 
 from pydantic import BaseModel, Field, PrivateAttr, RootModel, model_validator
 
-import polars as pl
-
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 
-from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 
 if typing.TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from common import polars as ppl
     from common.polars import PathsDataFrame
     from nodes.node import NodeMetric
 
@@ -51,16 +49,14 @@ class NodeGoalsEntry(I18nBaseModel):
     disabled: bool = False
     disable_reason: I18nStringInstance | None = None
 
-    _node: 'Node' = PrivateAttr()
-
-    def __init__(self, **data) -> None:
-        super().__init__(**data)
-        self._node = None  # type:ignore
+    _node: 'Node | None' = PrivateAttr(default=None)
 
     def set_node(self, node: Node):
         self._node = node
 
     def get_node(self) -> Node:
+        if self._node is None:
+            raise RuntimeError('NodeGoalsEntry is not bound to a runtime node')
         return self._node
 
     def dim_to_path(self) -> str:
@@ -72,9 +68,10 @@ class NodeGoalsEntry(I18nBaseModel):
         return '/'.join(entries)
 
     def get_dimension_categories(self) -> dict[str, list[str]]:
+        node = self.get_node()
         out = {}
         for dim_id, gdim in self.dimensions.items():
-            dim = self._node.context.dimensions[dim_id]
+            dim = node.context.dimensions[dim_id]
             if gdim.categories:
                 cats = [*gdim.categories]
             else:
@@ -86,6 +83,8 @@ class NodeGoalsEntry(I18nBaseModel):
         return out
 
     def filter_df(self, df: PathsDataFrame):
+        import polars as pl
+
         goal_dims = self.get_dimension_categories()
         for dim_id in df.dim_ids:
             goal_cats = goal_dims.get(dim_id)
@@ -94,24 +93,25 @@ class NodeGoalsEntry(I18nBaseModel):
         return df
 
     def get_id(self) -> str:
-        id_parts: list[str] = [self._node.id]
+        id_parts: list[str] = [self.get_node().id]
         if self.dimensions:
             id_parts.append(self.dim_to_path())
         return '/'.join(id_parts)
 
     def get_normalization_info(self):
-        context = self._node.context
+        node = self.get_node()
+        context = node.context
         if self.normalized_by:
             if self.normalized_by not in context.normalizations:
-                raise NodeError(self._node, "Goal normalization '%s' not found" % self.normalized_by)
+                raise NodeError(node, "Goal normalization '%s' not found" % self.normalized_by)
 
             goal_norm = context.normalizations[self.normalized_by]
         else:
             goal_norm = None
 
-        m = self._node.get_default_output_metric()
+        m = node.get_default_output_metric()
         if goal_norm:
-            for q in goal_norm.quantities:
+            for q in goal_norm.spec.quantities:
                 if q.id == m.quantity:
                     break
             else:
@@ -122,9 +122,14 @@ class NodeGoalsEntry(I18nBaseModel):
         return goal_norm, unit
 
     def _get_values_df(self) -> ppl.PathsDataFrame:
-        context = self._node.context
+        import polars as pl
+
+        from common import polars as ppl
+
+        node = self.get_node()
+        context = node.context
         goal_norm, unit = self.get_normalization_info()
-        m = self._node.get_default_output_metric()
+        m = node.get_default_output_metric()
         zdf = pl.DataFrame({YEAR_COLUMN: [x.year for x in self.values], m.column_id: [x.value for x in self.values]})
         df = ppl.to_ppdf(zdf, meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={m.column_id: unit}))
         if goal_norm:
@@ -151,7 +156,7 @@ class NodeGoalsEntry(I18nBaseModel):
         return df
 
     def _to_goal_values(self, df: ppl.PathsDataFrame, m: NodeMetric) -> list[GoalValue]:
-        m = self._node.get_default_output_metric()
+        m = self.get_node().get_default_output_metric()
         return [
             GoalValue(year=row[YEAR_COLUMN], value=row[m.column_id], is_interpolated=row['IsInterpolated'])
             for row in df.to_dicts()
@@ -159,7 +164,7 @@ class NodeGoalsEntry(I18nBaseModel):
 
     def get_values(self) -> list[GoalValue]:
         df = self._get_values_df()
-        m = self._node.get_default_output_metric()
+        m = self.get_node().get_default_output_metric()
         vals = self._to_goal_values(df, m)
         return vals
 
@@ -179,7 +184,9 @@ class NodeGoalsEntry(I18nBaseModel):
         ]
 
     def get_actual(self) -> list[GoalActualValue]:
-        node = self._node
+        import polars as pl
+
+        node = self.get_node()
         df = node.get_output_pl()
         context = node.context
         for dim_id, path in self.dimensions.items():
@@ -198,12 +205,8 @@ class NodeGoalsEntry(I18nBaseModel):
 
 
 class NodeGoals(RootModel[list[NodeGoalsEntry]]):
-    root: list[NodeGoalsEntry]
-    _node: Node = PrivateAttr()
-
-    def __init__(self, **data) -> None:
-        super().__init__(**data)
-        self._node = None  # type:ignore
+    root: list[NodeGoalsEntry] = Field(default_factory=list)
+    _node: Node | None = PrivateAttr(default=None)
 
     def set_node(self, node: Node):
         self._node = node

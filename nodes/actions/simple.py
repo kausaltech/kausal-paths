@@ -13,7 +13,7 @@ from nodes.exceptions import NodeError
 from nodes.generic import GenericNode
 from nodes.gpc import DatasetNode
 from nodes.simple import SimpleNode
-from params import BoolParameter, NumberParameter, PercentageParameter, StringParameter
+from params import BoolParameter, NumberParameter, StringParameter
 
 from .action import ActionNode
 
@@ -120,7 +120,7 @@ class CumulativeAdditiveAction(ActionNode):
     explanation = _("""Additive action where the effect is cumulative and remains in the future.""")
 
     allowed_parameters: ClassVar[list[Parameter[Any]]] = [
-        PercentageParameter(local_id='target_year_ratio', min_value=0),
+        NumberParameter(local_id='target_year_ratio', min_value=0, unit_str='%'),
     ]
 
     def add_cumulatively(self, df):

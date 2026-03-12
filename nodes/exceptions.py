@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Literal
 
 if TYPE_CHECKING:
+    import rich.repr
+
+    from nodes.datasets import Dataset
     from params import Parameter
 
     from .node import Node
@@ -11,29 +15,53 @@ if TYPE_CHECKING:
 type NodeErrorCode = Literal['hash_error', 'computation_error', 'no_default_unit_error']
 
 
-class NodeError(Exception):
-    error_code: ClassVar[NodeErrorCode | None] = None
-    node_paths: list[str] = []
-
-    def __init__(self, node: Node, msg: str, *args, **kwargs):
-        self.node_paths = []
-        msg = '[%s] %s' % (str(node), msg)
-        super().__init__(msg, *args, **kwargs)
-
-    def add_node(self, node: Node):
-        self.node_paths.append(node.id)
-
-    def get_dependency_path(self):
-        node_ids = list(reversed(self.node_paths))
-        node_ids[0] += ' (start node)'
-        node_ids[-1] += ' (failed node)'
-        return ' -> '.join(node_ids)
+@dataclass
+class NodeEvent:
+    node: Node
+    event: str | None = None
+    target_node: Node | None = None
+    cause: BaseException | None = None
 
     def __str__(self):
-        msg = super().__str__()
-        if self.node_paths:
-            msg += '\nNode dependency path: %s' % self.get_dependency_path()
-        return msg
+        s = self.node.id
+        if self.event:
+            s += ': %s' % self.event
+        if self.target_node:
+            s += ' (target: %s)' % self.target_node.id
+        return s
+
+    def __rich_repr__(self) -> rich.repr.Result:
+        yield 'node', self.node
+        yield 'event', self.event, None
+        yield 'target_node', self.target_node, None
+
+
+class NodeError(Exception):
+    error_code: ClassVar[NodeErrorCode | None] = None
+    event_chain: list[NodeEvent] = []
+
+    def __init__(self, node: Node, msg: str, *args, event: str | None = None, target_node: Node | None = None, **kwargs):
+        self.event_chain.append(NodeEvent(node, event, target_node))
+        msg_with_id = 'Node %s: %s' % (node.id, msg)
+        super().__init__(msg_with_id, *args, **kwargs)
+
+    def add_node_event(self, node: Node, event: str | None = None, target_node: Node | None = None):
+        self.event_chain.append(NodeEvent(node, event, target_node))
+
+    def get_event_chain(self) -> str:
+        return ' -> '.join([str(event) for event in reversed(self.event_chain)])
+
+    def __rich_repr__(self) -> rich.repr.Result:
+        yield 'code', self.error_code, None
+        if self.__cause__:
+            yield 'cause', str(self.__cause__)
+        yield 'event_chain', self.event_chain
+
+    # def __str__(self):
+    #     msg = super().__str__()
+    #     if len(self.event_chain) > 1:
+    #         msg += '\nEvent chain: %s' % self.get_event_chain()
+    #     return msg
 
 
 class NodeHashingError(NodeError):
@@ -54,4 +82,13 @@ class NodeMissingDefaultUnitError(NodeError):
 
 class ParameterError(Exception):
     def __init__(self, param: Parameter, msg: str):
+        self.parameter = param
+        self.msg = msg
         super().__init__(f'[{param.global_id}: {msg}')
+
+
+class DatasetError(Exception):
+    def __init__(self, dataset: Dataset, msg: str):
+        self.dataset = dataset
+        self.msg = msg
+        super().__init__(f'[{dataset.id}: {msg}')

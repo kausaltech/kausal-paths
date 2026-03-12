@@ -8,7 +8,7 @@ import numpy as np
 import polars as pl
 
 from common import polars as ppl
-from nodes.actions import ActionNode
+from nodes.actions.action import ActionNode
 from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
@@ -403,7 +403,7 @@ class StockReplacementAction(DatasetAction):
         base = self.sync_dimensions(base, p['investment'])
 
         p['investment'] = self.sync_dimensions(p['investment'], base)
-        p['investment']._units[VALUE_COLUMN] = unit_registry(p['investment']['Unit'].to_list()[0]).units
+        p['investment']._units[VALUE_COLUMN] = unit_registry.parse_units(p['investment']['Unit'].to_list()[0])
         p['investment'] = p['investment'].drop('Unit').rename({VALUE_COLUMN: '%s_currency' % sector})
 
         base = base.paths.join_over_index(p['investment'], how='outer')
