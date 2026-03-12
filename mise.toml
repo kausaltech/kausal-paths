@@ -16,7 +16,7 @@ auto = true
 
 [prepare.sync-all-groups]
 auto = true
-run = "uv sync --all-groups"
+run = "uv sync --all-groups --all-extras"
 sources = ["uv.lock"]
 outputs = [".venv/lib/python*/site-packages/mypy/"]
 
