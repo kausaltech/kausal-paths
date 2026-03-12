@@ -190,6 +190,8 @@ impact_overviews:
   cost_node: total_cost
   effect_node: net_emissions
   indicator_unit: EUR/t
+  cost_unit: MEUR
+  effect_unit: kt
   label_fi: Kustannustehokkuus seurantajaksolla
   label_en: Cost efficiency during the timeline
 
@@ -2045,6 +2047,62 @@ nodes:
     - id: cost_type
       categories: [opex]
 
+# TRENDS RATHER THAN ACTIONS
+
+- id: change_non_heating_electricity
+  name_fi: Muutos kulutussähkön käytössä
+  name_en: Change in household electricity use
+  name_sv: Förändring i användningen av hushållsel
+  type: generic.DatasetReduceNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  input_nodes:
+  - id: non_heating_electricity_energy_historical
+    tags: [historical]
+    to_dimensions:
+    - id: energy_carrier
+    - id: economic_sector
+  - id: non_heating_electricity_residence_energy_goal
+    tags: [goal]
+    to_dimensions:
+    - id: energy_carrier
+    - id: economic_sector
+      categories: [residential]
+  output_nodes:
+  - id: non_heating_electricity_energy
+
+- id: increase_solar_electricity_production
+  name_fi: Aurinkosähkön tuotannon lisääminen
+  name_en: Increasing solar electricity production
+  name_sv: Ökad produktion av solel
+  description_fi: Lisätään aurinkosähkön tuotantoa Espoon alueella entisestään.
+  description_en: Increase solar electricity production in the Espoo area even 
+    further.
+  description_sv: Öka produktionen av solel i Esboområdet ytterligare.
+  type: generic.GenericNode
+  quantity: energy
+  unit: GWh/a
+  group: electricity
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: espoo/electricity
+    forecast_from: 2025
+    column: arvio_aurinkosahkon_tuotantomaarasta_gwh
+  output_nodes:
+  - id: non_heating_electricity_energy
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: economic_sector
+      categories: [services]
+
 pages:
 
 - id: home  # The page is not shown
@@ -2121,36 +2179,6 @@ actions:
 
 # New actions decided on 2024-02-01.
 # Electriciy
-
-- id: increase_solar_electricity_production
-  name_fi: Aurinkosähkön tuotannon lisääminen
-  name_en: Increasing solar electricity production
-  name_sv: Ökad produktion av solel
-  description_fi: Lisätään aurinkosähkön tuotantoa Espoon alueella entisestään.
-  description_en: Increase solar electricity production in the Espoo area even 
-    further.
-  description_sv: Öka produktionen av solel i Esboområdet ytterligare.
-  type: simple.GenericAction
-  quantity: energy
-  unit: GWh/a
-  group: electricity
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_datasets:
-  - id: espoo/electricity
-    forecast_from: 2025
-    column: arvio_aurinkosahkon_tuotantomaarasta_gwh
-  output_nodes:
-  - id: non_heating_electricity_energy
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-    - id: economic_sector
-      categories: [services]
 
 # BULK TRANSPORT ACTIONS
 
@@ -2233,31 +2261,6 @@ actions:
     - id: energy_carrier
   output_nodes:
   - id: electricity_production_emission_factor
-
-- id: change_non_heating_electricity
-  name_fi: Muutos kulutussähkön käytössä
-  name_en: Change in household electricity use
-  name_sv: Förändring i användningen av hushållsel
-  type: linear.DatasetReduceAction
-  quantity: energy
-  unit: GWh/a
-  # group: electricity
-  input_dimensions: [economic_sector, energy_carrier]
-  output_dimensions: [economic_sector, energy_carrier]
-  input_nodes:
-  - id: non_heating_electricity_energy_historical
-    tags: [historical]
-    to_dimensions:
-    - id: energy_carrier
-    - id: economic_sector
-  - id: non_heating_electricity_residence_energy_goal
-    tags: [goal]
-    to_dimensions:
-    - id: energy_carrier
-    - id: economic_sector
-      categories: [residential]
-  output_nodes:
-  - id: non_heating_electricity_energy
 
 - id: replace_fossil_fuels_in_district_heating
   name_fi: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
@@ -2342,6 +2345,7 @@ actions:
   quantity: consumption_factor
   unit: kWh/m**2/a
   group: buildings
+  decision_level: nation
   forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: building_heat_per_floor_area_new
@@ -2403,6 +2407,7 @@ actions:
   quantity: consumption_factor
   unit: kWh/m**2/a
   group: buildings
+  decision_level: nation
   forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: building_heat_per_floor_area
@@ -2639,6 +2644,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: other
+  decision_level: nation
   output_nodes:
   - id: agriculture_emissions
     tags: [arithmetic_inverse, complement, non_additive]
@@ -3171,20 +3177,16 @@ scenarios:
   params:
   - id: scenario_name
     value: suomi2035
-  - id: cleaner_electricity_production.enabled
-    value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
   - id: reduce_oil_heating.enabled
     value: true
-  - id: change_non_heating_electricity.enabled
-    value: true
 
 - id: default
   default: true
-  name_fi: Hiilineutraali Espoo 2030
-  name_en: Carbon-neutral Espoo 2030
-  name_sv: Kolneutralt Esbo 2030
+  name_fi: Nykytoimien päästöskenaario
+  name_en: Emission scenario with current actions
+  name_sv: Utsläppsscenario med nuvarande åtgärder
   all_actions_enabled: true
   params:
   - id: scenario_name
@@ -3214,21 +3216,25 @@ scenarios:
   - id: road_traffic_pricing.enabled
     value: false
 
-- id: default_old
-  name_fi: HNE2030 ennen 2024 lisätoimenpiteitä
+- id: new_suggestions
+  name_fi: Ehdotetut toimenpiteet
+  name_en: Suggested actions
+  name_sv: Förslagna åtgärder
   all_actions_enabled: true
-  is_selectable: false
+  is_selectable: true
   params:
   - id: scenario_name
     value: hne2030
-  - id: replace_fossil_fuels_in_district_heating.enabled
-    value: true
-  - id: change_non_heating_electricity.enabled
-    value: true
-  - id: cleaner_electricity_production.enabled
-    value: true
-  - id: increase_solar_electricity_production.enabled
-    value: false
+
+- id: new_ideas
+  name_fi: Uusia ajatuksia
+  name_en: New ideas
+  name_sv: Nya idéer
+  all_actions_enabled: true
+  is_selectable: true
+  params:
+  - id: scenario_name
+    value: hne2030
 
 #######################
 # DATA SOURCES

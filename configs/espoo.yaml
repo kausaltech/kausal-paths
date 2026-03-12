@@ -190,6 +190,8 @@ impact_overviews:
   cost_node: total_cost
   effect_node: net_emissions
   indicator_unit: EUR/t
+  cost_unit: MEUR
+  effect_unit: kt
   label_fi: Kustannustehokkuus seurantajaksolla
   label_en: Cost efficiency during the timeline
 
