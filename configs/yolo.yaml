@@ -62,6 +62,24 @@ dimensions:
 #   - id: agriculture
 #     label: Agriculture
 
+- id: demographic_group
+  label: Demographic group
+  categories:
+  - id: households
+    label: Households
+  - id: students
+    label: Students
+  - id: employees
+    label: Employees
+
+- id: population_quantity
+  label: Population Quantity
+  categories:
+  - id: level
+    label: Level
+  - id: growth
+    label: Annual Growth
+
 - id: subsector
   label: Subsector
   categories:
@@ -314,10 +332,10 @@ dimensions:
     label: Incentivize appliance electrification in existing buildings
   - id: eb2c
     label: Require new buildings to install zero emission equipment
-  # - id: eb3d
-  #   label: Install solar PV systems on new development 
-  # - id: eb3e
-  #   label: Facilitate adoption of enhanced solar PV system requirements
+  - id: eb3d
+    label: Install solar PV systems on new development 
+  - id: eb3e
+    label: Facilitate adoption of enhanced solar PV system requirements
   - id: eb4d
     label: Encourage enrollment in "UltraGreen" program by VCE
   - id: w2
@@ -357,6 +375,22 @@ emission_sectors:
   order: -1
 
 nodes: 
+# -- demographic trends 
+
+- id: population_trend
+  name: Population Trends
+  type: simple.AdditiveNode
+  quantity: population
+  unit: person
+  input_dimensions: [demographic_group, population_quantity]
+  output_dimensions: [demographic_group]
+  input_datasets:
+  - id: yolo/people-and-jobs-input
+    forecast_from: 2023
+    filters:
+    - dimension: population_quantity
+      categories: [level]
+  input_dataset_processors: [LinearInterpolation]
 
 # -- energy emission factors 
 
@@ -692,6 +726,124 @@ nodes:
     to_dimensions:
     - id: energy_provider
       categories: [PG&E]
+
+# --- nodes related to action eb3d
+- id: eb3d_households_growth
+  name: Annual Household Growth
+  type: simple.AdditiveNode
+  quantity: population
+  unit: person
+  input_dimensions: [demographic_group, population_quantity]
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/people-and-jobs-input
+    forecast_from: 2023
+    filters:
+    - dimension: demographic_group
+      categories: [households]
+    - dimension: population_quantity
+      categories: [growth]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: eb3d_employees_growth
+  name: Annual Employee Growth
+  type: simple.AdditiveNode
+  quantity: population
+  unit: person
+  input_dimensions: [demographic_group, population_quantity]
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/people-and-jobs-input
+    forecast_from: 2023
+    filters:
+    - dimension: demographic_group
+      categories: [employees]
+    - dimension: population_quantity
+      categories: [growth]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: eb3d_residential_annual_energy
+  name: EB3D Residential Annual Energy per New Household
+  type: formula.FormulaNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: []
+  output_dimensions: []
+  params:
+    formula: households_growth * 11546
+  input_nodes:
+  - id: eb3d_households_growth
+    tags: [households_growth]
+
+- id: eb3d_commercial_annual_energy
+  name: EB3D Commercial Annual Energy per New Employee
+  type: formula.FormulaNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: []
+  output_dimensions: []
+  params:
+    formula: employees_growth * 136570 * 1000
+  input_nodes:
+  - id: eb3d_employees_growth
+    tags: [employees_growth]
+
+- id: eb3d_pop_energy_by_subsector
+  name: EB3D Population-Based Energy by Subsector
+  type: simple.AdditiveNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [subsector]
+  output_dimensions: [subsector]
+  input_nodes:
+  - id: eb3d_residential_annual_energy
+    to_dimensions:
+    - id: subsector
+      categories: [residential]
+  - id: eb3d_commercial_annual_energy
+    to_dimensions:
+    - id: subsector
+      categories: [commercial]
+
+- id: eb3d_total_electricity_by_subsector
+  name: EB3D Total Building Electricity by Subsector (Adjusted BAU)
+  type: simple.AdditiveNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
+  output_dimensions: [subsector]
+  input_datasets:
+  - id: yolo/building-input
+    forecast_from: 2023
+    filters:
+    - dimension: energy_carrier
+      categories: [electricity]
+    - dimension: subsector
+      categories: [residential, commercial]
+    - dimension: scenario_id
+      categories: [adjusted_baseline]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: eb3d_electricity_reduction
+  name: EB3D Electricity Reduction from Solar PV on New Development
+  type: formula.FormulaNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [subsector, energy_provider, building_type, building_status]
+  output_dimensions: [subsector, energy_provider, building_type, building_status]
+  params:
+    formula: -fraction * pop_energy * new_elec / total_elec
+  input_nodes:
+  - id: eb3d
+    tags: [fraction]
+  - id: eb3d_pop_energy_by_subsector
+    tags: [pop_energy]
+  - id: abau_new_buildings_electricity_use
+    tags: [new_elec]
+  - id: eb3d_total_electricity_by_subsector
+    tags: [total_elec]
+  output_nodes:
+  - id: building_electricity_use
 
 # --- nodes related to action eb4d
 - id: eb4d_building_electricity
@@ -1748,10 +1900,28 @@ actions:
   - id: eb2c_gas_reduction
   - id: eb2c_electricity_increase
 
-#   - id: eb3d
-#     label: Install solar PV systems on new development 
-#   - id: eb3e
-#     label: Facilitate adoption of enhanced solar PV system requirements
+- id: eb3d
+  name: Install solar PV systems on new development
+  type: simple.AdditiveAction
+  group: buildings_act
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [subsector]
+  output_dimensions: [subsector]
+  input_datasets:
+  - id: yolo/actions-input
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: eb3d
+    - column: quantity
+      value: fraction
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: eb3d_electricity_reduction
+
+- id: eb3e
+  name: Facilitate adoption of enhanced solar PV system requirements
 
 - id: eb4d
   name: Encourage enrollment in "UltraGreen" program by VCE
