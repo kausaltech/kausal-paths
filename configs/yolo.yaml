@@ -318,10 +318,8 @@ dimensions:
   #   label: Install solar PV systems on new development 
   # - id: eb3e
   #   label: Facilitate adoption of enhanced solar PV system requirements
-  # - id: eb4b
-  #   label: Facilitate participation in existing demand response programs
-  # - id: eb4cd
-  #   label: Encourage enrollment in "UltraGreen" program by VCE
+  - id: eb4d
+    label: Encourage enrollment in "UltraGreen" program by VCE
   - id: w2
     label: Encourage efficient water use in agricultural operations 
   - id: w4
@@ -694,6 +692,43 @@ nodes:
     to_dimensions:
     - id: energy_provider
       categories: [PG&E]
+
+# --- nodes related to action eb4d
+- id: eb4d_building_electricity
+  name: Building Electricity Use (Adjusted BAU)
+  type: simple.AdditiveNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
+  output_dimensions: [subsector, energy_provider, building_type, building_status]
+  input_datasets:
+  - id: yolo/building-input
+    forecast_from: 2023
+    filters:
+    - dimension: energy_carrier
+      categories: [electricity]
+    - dimension: subsector
+      categories: [residential, commercial]
+    - dimension: scenario_id
+      categories: [adjusted_baseline]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: eb4d_electricity_reduction
+  name: EB4D Electricity Reduction
+  type: formula.FormulaNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [subsector, energy_provider, building_type, building_status]
+  output_dimensions: [subsector, energy_provider, building_type, building_status]
+  params:
+    formula: -fraction * total_elec
+  input_nodes:
+  - id: eb4d
+    tags: [fraction]
+  - id: eb4d_building_electricity
+    tags: [total_elec]
+  output_nodes:
+  - id: building_electricity_use
 
 - id: building_natural_gas_use
   label: Building Natural Gas Use
@@ -1677,6 +1712,8 @@ actions:
   group: buildings_act
   quantity: fraction
   unit: '%'
+  input_dimensions: []
+  output_dimensions: []
   input_datasets:
   - id: yolo/actions-input
     forecast_from: 2023
@@ -1696,6 +1733,8 @@ actions:
   group: buildings_act
   quantity: fraction
   unit: '%'
+  input_dimensions: []
+  output_dimensions: []
   input_datasets:
   - id: yolo/actions-input
     forecast_from: 2023
@@ -1713,10 +1752,27 @@ actions:
 #     label: Install solar PV systems on new development 
 #   - id: eb3e
 #     label: Facilitate adoption of enhanced solar PV system requirements
-#   - id: eb4b
-#     label: Facilitate participation in existing demand response programs
-#   - id: eb4cd
-#     label: Encourage enrollment in "UltraGreen" program by VCE
+
+- id: eb4d
+  name: Encourage enrollment in "UltraGreen" program by VCE
+  type: simple.AdditiveAction
+  group: buildings_act
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [subsector]
+  output_dimensions: [subsector]
+  input_datasets:
+  - id: yolo/actions-input
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: eb4d
+    - column: quantity
+      value: fraction
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: eb4d_electricity_reduction
+
 - id: w2
   name: Encourage efficient water use in agricultural operations
   type: simple.AdditiveAction
