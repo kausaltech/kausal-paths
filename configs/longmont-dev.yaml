@@ -3536,7 +3536,7 @@ actions:
   group: trend
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
+    forecast_from: 2025
     column: electric_vehicle_efficiency_trend
 
 pages:
