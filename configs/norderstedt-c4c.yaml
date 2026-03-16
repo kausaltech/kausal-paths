@@ -184,6 +184,9 @@ dimensions:
   - id: change_streetlights_to_led_2029
     label: Annahme Umstellung Straßenbeleuchtung auf LED 2029
     label_en: Assumption Change Street Lights to LED 2029
+  - id: energy_refurbishment_school_building
+    label: Energetische Sanierung Schulgebäude
+    label_en: Energy Refurbishment for School Building
 
   # ----- Land Use
   - id: reforestation
@@ -210,8 +213,6 @@ dimensions:
     label: Dekarbonisierung Strom (Stadtwerke-Kunden)
     label_en: Decarbonisation of Electricity (Customers)
 
-  # - id: energy_refurbishment_school_building
-  #   label: Energy Refurbishment for School Building
   # - id: new_school_building
   #   label: New School Building
 
