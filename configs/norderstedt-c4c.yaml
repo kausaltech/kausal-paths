@@ -129,7 +129,7 @@ dimensions:
     label_en: Waste
   - id: iii1
     label: Abfälle
-    label_en: Waste
+    label_en: Solid Waste
   - id: iii2
     label: Abwasser
     label_en: Wastewater
