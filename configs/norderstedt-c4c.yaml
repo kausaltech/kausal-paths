@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://norderstedt-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f4e5e3fd7d95af46fa7f574bae1d6bf63702cd01
+  commit: b127bc31c70c26acb87be22c6586d35983816092
   dvc_remote: kausal-s3
 name: Treibhausgasbilanz Norderstedt
 name_en: Norderstedt Greenhouse Gas Inventory
