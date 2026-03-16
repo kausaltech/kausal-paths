@@ -291,22 +291,6 @@ nodes:
 
 # FAIR SHARE ASSESSMENT
 
-- id: global_reduction_needed
-  name: Global reduction needed
-  description: Fraction of global emissions that must be eliminated to meet 
-    climate targets
-  type: generic.GenericNode
-  quantity: fraction
-  unit: dimensionless
-  input_datasets:
-  - id: transportation/global_emission_share
-    output_dimensions: []
-  params:
-  - id: multiplier
-    value: 0.55
-    unit: dimensionless
-    label: 45% reduction by 2030 is typical pathway target
-
 - id: emission_reduction_achieved
   name: Emission reduction achieved
   description: Reduction from baseline due to policy
