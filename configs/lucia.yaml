@@ -3,7 +3,7 @@ default_language: en
 site_url: https://lucia.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 48bbde258ccf0a7cb44c64745e456bd2246dd2a9 # 27th Mar Duplicate problem fixed.
+  commit: a84e85a8ae081106bd99982a9808962e17548ab1
   dvc_remote: kausal-s3
 name: Lucia Greenhouse Gas Inventory
 owner: Kausal Ltd
@@ -18,8 +18,8 @@ emission_forecast_from: 2021
 emission_dimensions: [scope, ghg, sector]
 features:
   baseline_visible_in_graphs: true
-  show_significant_digits: 4
-  maximum_fraction_digits: 0
+  show_significant_digits: 6
+  maximum_fraction_digits: 6
   hide_node_details: true
   show_refresh_prompt: true
   requires_authentication: true
@@ -431,8 +431,10 @@ dimensions:
   categories:
   - id: max_impact
     label: Maximum impact
+    aliases: [Max impact]
   - id: max_year
     label: Year to reach maximum impact
+    aliases: [Max year]
   - id: baseline_scenario
     label: Baseline scenario
   - id: decarbonisation_scenario
@@ -468,13 +470,13 @@ dimensions:
   categories:
   - id: scope1
     label: Scope 1
-    aliases: [scope_1]
+    aliases: [scope_1, '1']
   - id: scope2
     label: Scope 2
-    aliases: [scope_2]
+    aliases: [scope_2, '2']
   - id: scope3
     label: Scope 3
-    aliases: [scope_3]
+    aliases: [scope_3, '3']
 
 - id: sector
   label: Sector
@@ -2302,7 +2304,8 @@ nodes:
     column: Electrification of transport fleet
     filters:
     - column: uuid
-  params:
+    - column: parameter
+      value: max_year
 
 # TRANSPORT
 
@@ -2362,8 +2365,8 @@ nodes:
     column: new fleet emission factor
     filters:
     - column: uuid
-  params:
-    crop_to_model_range: true
+  # params:
+  #   crop_to_model_range: true
 
 - id: transport_pollutant_split
   name_en: Transport pollutant split
@@ -2441,7 +2444,7 @@ nodes:
     value: 0.5
     unit: 1/a
 
-- id: fleet_emission_factor
+- id: fleet_emission_factor # FIXME Output car/CO2 differs from NZC due to an unknown reason.
   name_en: Fleet emission factor
   name_fi: Kaluston päästökerroin
   description_en: Emission factor for the current car and bus fleet. (Assuming there are no diesel trains)
@@ -2736,7 +2739,6 @@ nodes:
     - column: uuid
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
-  params:
 
 # A separate node is needed so that the observations get implemened correctly.
 - id: passenger_kilometres_data_scaled
@@ -2913,7 +2915,6 @@ nodes:
   output_nodes:
   - id: transport_efficiency
     tags: [non_additive]
-  params:
 
 # TRANSPORT COST
 
@@ -2930,8 +2931,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
     column: Cost of driving a car per kilometre (excluding fuel)
-    filters:
-    - column: uuid
 
 - id: car_driving_costs
   name_en: Car driving costs (excluding fuel)
@@ -2979,8 +2978,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
     column: Charging infrastructure costs
-    filters:
-    - column: uuid
 
 - id: charging_infrastructure_shares
   name_en: Charging infrastructure shares
@@ -2993,8 +2990,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
     column: ev charging infrastructure
-    filters:
-    - column: uuid
 
 - id: total_number_of_cars
   name_en: Total number of cars
@@ -3118,8 +3113,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
     column: Total cost of ownership
-    filters:
-    - column: uuid
 
 - id: total_cost_of_ownership_shares
   name_en: Total cost of ownership shares
@@ -3132,8 +3125,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
     column: Total cost of ownership shares
-    filters:
-    - column: uuid
 
 - id: total_cost_of_ownership
   name_en: Total cost of ownership
@@ -3192,8 +3183,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
     column: Additional costs for electric vehicles
-    filters:
-    - column: uuid
 
 - id: electric_vehicles_unit_price_rate
   name_en: Electric vehicles additional unit price rate
@@ -3206,8 +3195,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
     column: Additional costs for electric vehicles rate
-    filters:
-    - column: uuid
 
 - id: electric_vehicles_additional_unit_price
   name_en: Electric vehicles additional unit price
@@ -3310,8 +3297,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
     column: up-front costs for EVs
-    filters:
-    - column: uuid
 
 - id: public_transport_operation_unit_price
   name_en: Public transport operation unit price
@@ -3350,8 +3335,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_walking_pt
     column: public transport operation costs
-    filters:
-    - column: uuid
 
 - id: public_transport_operation_cost
   name_en: Public transport operation cost (excluding fuel)
@@ -3410,8 +3393,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
     column: transport energy factor ice petrol diesel
-    filters:
-    - column: uuid
 
 - id: bus_mileage
   name_en: Bus mileage (fuel use)
@@ -3424,8 +3405,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
     column: Average fuel consumption of buses, based on current ...
-    filters:
-    - column: uuid
   output_nodes:
   - id: vehicle_mileage
     to_dimensions:
@@ -3447,8 +3426,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_walking_pt
     column: fuel unit price
-    filters:
-    - column: uuid
 
 - id: vehicle_mileage
   name_en: Vehicle mileage (fuel use)
@@ -3516,8 +3493,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_walking_pt
     column: Average value of increased walking/cycling
-    filters:
-    - column: uuid
   input_dimensions: [transport_mode, cost_type]
   output_dimensions: [transport_mode, cost_type]
 
@@ -3530,8 +3505,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_walking_pt
     column: Total Average cost of cycling/walking
-    filters:
-    - column: uuid
   input_dimensions: [transport_mode, cost_type]
   output_dimensions: [transport_mode, cost_type]
 
@@ -3582,8 +3555,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_walking_pt
     column: investment costs in walking & cycling
-    filters:
-    - column: uuid
   input_dimensions: [transport_mode, cost_type, stakeholder]
   output_dimensions: [transport_mode, cost_type, stakeholder]
 
@@ -3647,8 +3618,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_external
     column: Air pollution unit price
-    filters:
-    - column: uuid
 
 - id: transport_air_pollution_costs
   name_en: Transport air pollution costs
@@ -3701,8 +3670,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_external
     column: Noise
-    filters:
-    - column: uuid
 
 - id: transport_noise_unit_price_per_vkm
   name_en: Transport noise unit price per vehicle km
@@ -3730,8 +3697,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_external
     column: distribution of co-benefits
-    filters:
-    - column: uuid
 
 - id: transport_noise_cost
   name_en: Transport noise cost
@@ -3774,8 +3739,6 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_costs_external
     column: Traffic accidents
-    filters:
-    - column: uuid
 
 - id: transport_accident_unit_price_per_vkm
   name_en: Transport accident unit price per vehicle km
@@ -3834,7 +3797,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/freight_transport
-    column: Share of fleet fully electric (not including hybrids)
+    column: Share of trucks fully electric (not including hybrids)
     filters:
     - column: uuid
 
@@ -3851,7 +3814,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/freight_transport
-    column: Share of fleet fully electric (not including hybrids)
+    column: Share of trucks fully electric (not including hybrids)
     filters:
     - column: uuid
 
@@ -3868,7 +3831,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/freight_transport
-    column: Share of fleet fully electric (not including hybrids)
+    column: Share of trucks fully electric (not including hybrids)
     filters:
     - column: uuid
 
@@ -3908,7 +3871,6 @@ nodes:
     column: Total transportation need within city - Road freight...
     filters:
     - column: uuid
-  params:
 
  # A separate node is needed so that the progress tracker scenario gets implemented in the main model correctly.
 - id: freight_transport_need_scaled
@@ -4156,8 +4118,8 @@ nodes:
     column: New truck emission factor
     filters:
     - column: uuid
-  params:
-    crop_to_model_range: true
+  # params:
+  #   crop_to_model_range: true
 
 - id: truck_emission_factor
   name_en: Truck emission factor
@@ -4634,7 +4596,7 @@ nodes:
     filters:
     - column: uuid
   params:
-    inventory_only: true
+    operations: get_single_dataset,inventory_only
 
 - id: new_building_shares_goal
   name_en: New building shares goal
@@ -4677,7 +4639,7 @@ nodes:
     column: Demolition rate existing buildings
     filters:
     - column: uuid
-  params:
+
 - id: demolished_building_stock
   name_en: Demolished building stock
   name_fi: Purettu rakennuskanta
@@ -5099,6 +5061,9 @@ nodes:
     column: Share of heating fuel
     filters:
     - column: uuid
+    - column: heating_type
+      value: local_heating
+      drop_col: false
 
 - id: heating_fuel_share_district
   name_en: District heating energy carrier shares  # TODO update ids to match names
@@ -5114,6 +5079,9 @@ nodes:
     column: Share of heating fuel
     filters:
     - column: uuid
+    - column: heating_type
+      value: district_heating
+      drop_col: false
 
 - id: heating_fuel_share
   name: Technical intermediate node
@@ -6835,7 +6803,6 @@ nodes:
     column: Share of total electricity demand produced by fossil...
     filters:
     - column: uuid
-  params:
 
 # - id: solar_electricity_produced_by_solar_pvs  # TODO Could we use these?
 #   name_en: Solar electricity produced by solar PVs
@@ -7068,8 +7035,9 @@ nodes:
     column: Share of total electricity demand produced by fossil...
     filters:
     - column: uuid
-  params:
-    uuid: 82c7d588-6369-4db8-b961-c83a93d1ae42
+    - column: fuel_type
+      value: fossil
+      drop_col: false
 
 # WASTE
 
@@ -7139,8 +7107,11 @@ nodes:
   input_datasets:
   - id: nzc/waste_recycling_goal
     column: 5.1. Increased recycling of waste
+    forecast_from: 2026
     filters:
     - column: uuid
+    - column: parameter
+      value: decarbonisation_scenario
 
 - id: waste_recycling_shares
   name_en: Waste recycling shares
@@ -7543,7 +7514,7 @@ nodes:
     column: Tonnes material used for renovations
     filters:
     - column: uuid
-  params:
+
 - id: building_renovation_material_use
   name_en: Building renovation material use
   name_fi: Rakennusmateriaalien käyttö peruskorjauksissa
