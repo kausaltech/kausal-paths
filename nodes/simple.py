@@ -30,6 +30,7 @@ EMISSION_UNIT = 'kg'
 
 class SimpleNode(Node):
     allowed_parameters: ClassVar[Sequence[Parameter[Any]]] = [
+        # FIXME Get rid of many of these parameters and use operations instead.
         BoolParameter(
             local_id='fill_gaps_using_input_dataset',
             label=TranslatedString(en="Fill in gaps in computation using input dataset"),

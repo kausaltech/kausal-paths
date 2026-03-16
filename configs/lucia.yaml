@@ -7,7 +7,7 @@ dataset_repo:
   dvc_remote: kausal-s3
 name: Lucia Greenhouse Gas Inventory
 owner: Kausal Ltd
-theme_identifier: eu-netzerocities
+theme_identifier: default
 target_year: 2030
 model_end_year: 2060
 reference_year: 2018
@@ -1375,6 +1375,7 @@ actions:
   - id: heating_waste_fossil_share
 
 - id: a344_top_performance_improvement # FIXME New dataset is broken: thinks that Year is data.
+  # FIXME See load_dvc_dataset.py line 183.
   name: 3.4.4 Top performance standard improvement compared with the regular new buildings
   type: gpc.DatasetAction2
   quantity: fraction
@@ -1620,7 +1621,7 @@ nodes:
 
 - id: aggregated_net_emissions
   name: Aggregated net emissions
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
   # is_outcome: true
@@ -1638,7 +1639,7 @@ nodes:
 
 - id: total_jobs_created
   name: Total jobs created
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: employment
   unit: jobs
 
@@ -1659,7 +1660,7 @@ nodes:
 
 - id: co2_emissions_cost
   name: CO2 emissions cost
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   color: '#984ea3'
@@ -1688,7 +1689,7 @@ nodes:
 
 - id: total_cost
   name: Total cost
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, cost_type]
@@ -1709,7 +1710,7 @@ nodes:
 
 - id: aggregated_cost
   name: Aggregated cost
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [aggregated_cost_type, stakeholder, cost_type]
@@ -1742,7 +1743,7 @@ nodes:
 
 - id: discounted_total_cost
   name: Discounted total cost
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_nodes:
@@ -1757,7 +1758,7 @@ nodes:
 
 - id: discounted_investment
   name: Discounted investment
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, cost_type]
@@ -1774,7 +1775,7 @@ nodes:
 
 - id: discounted_investment_city
   name: Discounted investment for the city
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_nodes:
@@ -1788,7 +1789,7 @@ nodes:
 
 - id: discounted_benefits  # TODO Remove this if the single-node CBA visualisation gets accepted.
   name: Discounted benefits
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, cost_type]
@@ -1806,7 +1807,7 @@ nodes:
 
 - id: discounted_benefits_city
   name: Discounted benefits for the city
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_nodes:
@@ -1820,7 +1821,7 @@ nodes:
 
 # - id: tes_energy
 #   name: tes
-#   type: simple.AdditiveNode
+#   type: generic.GenericNode
 #   quantity: energy
 #   unit: GWh/a
 #   is_outcome: true
@@ -1840,7 +1841,7 @@ nodes:
 
 # - id: tes_price
 #   name: tes price
-#   type: simple.AdditiveNode
+#   type: generic.GenericNode
 #   quantity: unit_price
 #   unit: EUR/kWh
 #   is_outcome: true
@@ -1854,7 +1855,7 @@ nodes:
 
 # - id: tes_cost
 #   name: tes cost
-#   type: simple.AdditiveNode
+#   type: generic.GenericNode
 #   quantity: currency
 #   unit: MEUR/a
 #   is_outcome: true
@@ -1872,7 +1873,7 @@ nodes:
 
 # - id: tes_discount
 #   name: tes discount
-#   type: simple.AdditiveNode
+#   type: generic.GenericNode
 #   quantity: currency
 #   unit: MEUR/a
 #   is_outcome: true
@@ -1895,7 +1896,7 @@ nodes:
     - 3.4 Building & heat levers.
   description_fi: Tämä moduuli (kaikki ylävirtasolmut) perustuu excel-taulukoihin
     3.0 - 3.4 Rakennusten ja lämmityksen vipuvaikutukset.
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [ghg, scope]
@@ -1974,7 +1975,7 @@ nodes:
 - id: electricity_emissions
   name_en: Electricity emissions
   name_fi: Sähköntuotannon päästöt
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [energy_carrier, sector]
@@ -2026,7 +2027,7 @@ nodes:
 - id: freight_transport_emissions
   name_en: Freight transport emissions
   name_fi: Rahtiliikenteen päästöt
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
   color: '#F28E2B'
@@ -2387,7 +2388,7 @@ nodes:
 - id: baseline_year_fleet_emission_factor
   name_en: Baseline year fleet emission factor
   name_fi: Perusvuoden kaluston päästökerroin
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
@@ -2407,7 +2408,7 @@ nodes:
 - id: new_fleet_emission_factor
   name_en: New fleet emission factor
   name_fi: Uuden kaluston päästökerroin
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
@@ -2475,7 +2476,7 @@ nodes:
 # - id: electric_vehicle_emission_factor
 #   name_en: Electric vehicle emission factor
 #   name_fi: Sähköajoneuvojen päästökerroin
-#   type: simple.MultiplicativeNode
+#   type: generic.GenericNode
 #   quantity: emission_factor
 #   unit: g/vkm
 #   input_dimensions: [pollutant, transport_mode, energy_carrier]
@@ -2493,7 +2494,7 @@ nodes:
 - id: transport_emission_factor  # TODO Add wear&tear from electric vehicles
   name_en: Transport emission factor
   name_fi: Liikenteen päästökerroin
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [pollutant, transport_mode, energy_carrier]
@@ -2509,7 +2510,7 @@ nodes:
 - id: transport_air_pollution_emissions
   name_en: Transport air pollution emissions
   name_fi: Liikenteen ilmansaastepäästöt
-  type: simple.MultiplicativeNode # EmissionFactorActivity
+  type: generic.GenericNode # EmissionFactorActivity
   quantity: emissions
   unit: t/a
   input_dimensions: [pollutant, transport_mode, energy_carrier]
@@ -2613,7 +2614,7 @@ nodes:
 - id: vehicle_kilometres_per_bus
   name_en: Vehicle kilometres per bus
   name_fi: Ajoneuvokilometrit bussia kohti
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mileage
   unit: vkm/v/a
   input_dimensions: [transport_mode]
@@ -2631,7 +2632,7 @@ nodes:
 - id: number_of_buses
   name_en: Number of buses
   name_fi: Bussien määrä
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: number
   unit: vehicles
   input_dimensions: [energy_carrier, transport_mode]
@@ -2651,7 +2652,7 @@ nodes:
   name_fi: Täyssähköjunien osuus
   description_en: Share of train fleet fully electric
   description_fi: Täyssähköjunien osuus junakannasta
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   historical_values: [[2018, 100.0], [2025, 100.0]]
@@ -2688,7 +2689,7 @@ nodes:
 - id: transport_electricity_consumption
   name_en: Transport electricity consumption
   name_fi: Liikenteen sähkönkulutus
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [transport_mode, energy_carrier]
@@ -2744,7 +2745,7 @@ nodes:
 - id: passenger_kilometres_data_scaled
   name_en: Passenger kilometres data skaled
   name_fi: Henkilökilometrien data skaalattuna
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mileage
   unit: Mpkm/a
   input_dimensions: [transport_mode]
@@ -2759,7 +2760,7 @@ nodes:
 - id: passenger_kilometres_reduced
   name_en: Passenger kilometres reduced
   name_fi: Vähennetyt henkilökilometrit
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mileage
   unit: Mpkm/a
   input_dimensions: [transport_mode]
@@ -2773,7 +2774,7 @@ nodes:
 - id: passenger_kilometres_after_reducing
   name_en: Passenger kilometres after reducing
   name_fi: Henkilökilometrit vähentämisen jälkeen
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: mileage
   unit: Mpkm/a
   input_dimensions: [transport_mode]
@@ -2799,7 +2800,7 @@ nodes:
 - id: passenger_kilometres_switched
   name_en: Passenger kilometres switched
   name_fi: Siirretyt henkilökilometrit
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mileage
   unit: Mpkm/a
   input_dimensions: [transport_mode]
@@ -2888,7 +2889,7 @@ nodes:
   name_fi: Moottoroidun liikenteen muutos
   description_en: Positive values are reductions in motorised transport.
   description_fi: Positiiviset arvot ovat vähennyksiä moottoroidussa liikenteessä.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [transport_mode]
@@ -2935,7 +2936,7 @@ nodes:
 - id: car_driving_costs
   name_en: Car driving costs (excluding fuel)
   name_fi: Auton ajamisen kustannukset (ilman polttoainetta)
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [transport_mode, cost_type, energy_carrier]
@@ -3008,7 +3009,7 @@ nodes:
 - id: vehicle_kilometres_per_car
   name_en: Vehicle kilometres per car
   name_fi: Ajoneuvokilometrit autoa kohti
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mileage
   unit: vkm/v/a
   input_dimensions: [transport_mode]
@@ -3025,7 +3026,7 @@ nodes:
 - id: number_of_new_evs
   name_en: Number of new EVs
   name_fi: Uusien sähköautojen määrä
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: number
   unit: v/a
   input_dimensions: [transport_mode, energy_carrier]
@@ -3044,7 +3045,7 @@ nodes:
 - id: charging_infrastructure_costs
   name_en: Charging infrastructure costs, cars
   name_fi: Latausinfrastruktuurin kustannukset, autot
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
@@ -3077,7 +3078,7 @@ nodes:
 - id: charging_infrastructure_costs_buses
   name_en: Charging infrastructure costs, buses
   name_fi: Latausinfrastruktuurin kustannukset, bussit
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
@@ -3129,7 +3130,7 @@ nodes:
 - id: total_cost_of_ownership
   name_en: Total cost of ownership
   name_fi: Omistamisen kokonaiskustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: unit_price
   unit: EUR/vkm
   input_dimensions: [cost_type, transport_mode]
@@ -3147,7 +3148,7 @@ nodes:
 - id: transport_ownership_costs
   name_en: Transport ownership costs
   name_fi: Liikenteen omistamisen kustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [cost_type, transport_mode, energy_carrier]
@@ -3199,7 +3200,7 @@ nodes:
 - id: electric_vehicles_additional_unit_price
   name_en: Electric vehicles additional unit price
   name_fi: Sähköajoneuvojen lisäyksikköhinta
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: unit_price
   unit: EUR/v
   input_dimensions: [transport_mode, energy_carrier, cost_type]
@@ -3213,7 +3214,7 @@ nodes:
 - id: additional_cost_of_buying_electric_vehicles
   name_en: Additional cost of buying electric vehicles
   name_fi: Sähköajoneuvojen ostamisen lisäkustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [transport_mode, energy_carrier, cost_type, stakeholder]
@@ -3246,7 +3247,7 @@ nodes:
 - id: additional_cost_of_buying_electric_buses
   name_en: Additional cost of buying electric buses
   name_fi: Sähköbussien ostamisen lisäkustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [transport_mode, energy_carrier, cost_type]
@@ -3312,7 +3313,7 @@ nodes:
     Euroopan komission liikenne- ja liikkuvuusasioiden pääosastolle</li>
     <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
   # type: gpc.DatasetNode
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: unit_price
   unit: EUR/vkm
   historical_values: [[2018, 0.32], [2025, 0.32]]
@@ -3341,7 +3342,7 @@ nodes:
   name_fi: Joukkoliikenteen liikennöintikustannukset (ilman polttoainetta)
   description_en: Operation cost to all stakeholders.
   description_fi: Liikennöintikustannukset kaikille sidosryhmille.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [transport_mode, stakeholder, cost_type]
@@ -3430,7 +3431,7 @@ nodes:
 - id: vehicle_mileage
   name_en: Vehicle mileage (fuel use)
   name_fi: Ajoneuvojen ajosuorite (polttoaineen kulutus)
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: l/vkm
   input_dimensions: [transport_mode, energy_carrier, stakeholder]
@@ -3456,7 +3457,7 @@ nodes:
 - id: transport_fuel_cost
   name_en: Transport fuel cost
   name_fi: Liikenteen polttoainekustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, transport_mode, cost_type, energy_carrier]
@@ -3511,7 +3512,7 @@ nodes:
 - id: walking_cycling_unit_price
   name_en: Walking & cycling unit price
   name_fi: Kävelyn ja pyöräilyn yksikköhinta
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: unit_price
   unit: EUR/pkm
   input_dimensions: [transport_mode, cost_type]
@@ -3526,7 +3527,7 @@ nodes:
 - id: walking_cycling_co_benefit
   name_en: Walking & cycling co-benefit
   name_fi: Kävelyn ja pyöräilyn rinnakkaishyödyt
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, transport_mode, cost_type]
@@ -3561,7 +3562,7 @@ nodes:
 - id: walking_cycling_cost
   name_en: Walking & cycling cost
   name_fi: Kävelyn ja pyöräilyn kustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, transport_mode, cost_type]
@@ -3580,7 +3581,7 @@ nodes:
 - id: transport_cost
   name_en: Transport cost
   name_fi: Liikenteen kustannukset
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   color: '#ffff33'
@@ -3624,7 +3625,7 @@ nodes:
   name_fi: Liikenteen ilmansaastekustannukset
   description_en: TODO Air pollution costs also include CO2 even if it is calculated elsewhere. This results in double counting. CO2 should be removed from here.
   description_fi: TODO Ilmansaastekustannuksiin sisältyy myös CO2, vaikka se lasketaan muualla. Tämä johtaa kaksinkertaiseen laskentaan. CO2 pitäisi poistaa täältä.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
@@ -3674,7 +3675,7 @@ nodes:
 - id: transport_noise_unit_price_per_vkm
   name_en: Transport noise unit price per vehicle km
   name_fi: Liikenteen melun yksikköhinta ajoneuvokilometriä kohti
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: unit_price
   unit: EUR/vkm
   input_dimensions: [transport_mode, cost_type]
@@ -3701,7 +3702,7 @@ nodes:
 - id: transport_noise_cost
   name_en: Transport noise cost
   name_fi: Liikenteen melukustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, transport_mode, cost_type]
@@ -3743,7 +3744,7 @@ nodes:
 - id: transport_accident_unit_price_per_vkm
   name_en: Transport accident unit price per vehicle km
   name_fi: Liikenteen onnettomuuksien yksikköhinta ajoneuvokilometriä kohti
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: unit_price
   unit: EUR/vkm
   input_dimensions: [transport_mode, cost_type]
@@ -3758,7 +3759,7 @@ nodes:
 - id: transport_accident_cost
   name_en: Transport accident cost
   name_fi: Liikenteen onnettomuuskustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, transport_mode, cost_type]
@@ -3876,7 +3877,7 @@ nodes:
 - id: freight_transport_need_scaled
   name_en: Freight transport need scaled
   name_fi: Rahtiliikenteen tarve skaalattuna
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: freight_mileage
   unit: Mtkm/a
   input_dimensions: [transport_mode]
@@ -3972,7 +3973,7 @@ nodes:
 - id: conversion_from_tonnes_to_vehicle_kilometres
   name_en: Conversion from tonnes to vehicle kilometres
   name_fi: Muunto tonneista ajoneuvokilometreihin
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mass
   unit: tkm/vkm
   input_dimensions: [transport_mode]
@@ -3986,7 +3987,7 @@ nodes:
 - id: freight_transport_vehicle_kilometres
   name_en: Freight transport vehicle kilometres
   name_fi: Rahtiliikenteen ajoneuvokilometrit
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: freight_mileage
   unit: Mvkm/a
   input_dimensions: [transport_mode, energy_carrier]
@@ -4038,7 +4039,7 @@ nodes:
 - id: truck_mileage
   name_en: Truck mileage
   name_fi: Kuorma-autojen ajosuorite
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mileage
   unit: vkm/v/a
   input_dimensions: [transport_mode]
@@ -4055,7 +4056,7 @@ nodes:
 - id: number_of_electric_trucks
   name_en: Number of electric trucks
   name_fi: Sähkökuorma-autojen määrä
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: number
   unit: vehicles
   input_dimensions: [transport_mode, energy_carrier]
@@ -4076,7 +4077,7 @@ nodes:
 - id: baseline_year_truck_emission_factor
   name_en: Baseline year truck emission factor
   name_fi: Perusvuoden kuorma-autojen päästökerroin
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [pollutant, transport_mode, transport_pollutant, energy_carrier]
@@ -4090,7 +4091,7 @@ nodes:
 - id: baseline_year_truck_wear_emission_factor # FIXME Bring back the output node when it can receive additions.
   name_en: Baseline year truck emission factor of wear & tear PM
   name_fi: Perusvuoden kuorma-autojen päästökerroin kulumapölylle
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [transport_mode, pollutant, energy_carrier]
@@ -4153,7 +4154,7 @@ nodes:
 - id: freight_transport_air_pollution_emissions
   name_en: Freight transport air pollution emissions
   name_fi: Rahtiliikenteen ilmansaastepäästöt
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t/a
   color: '#ff4f57'
@@ -4192,7 +4193,7 @@ nodes:
 - id: freight_transport_fuel_consumption
   name_en: freight transport fuel consumption
   name_fi: Rahtiliikenteen polttoaineenkulutus
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy
   unit: Ml/a
   input_dimensions: [transport_mode, energy_carrier]
@@ -4208,7 +4209,7 @@ nodes:
 - id: freight_transport_electricity_consumption
   name_en: Freight transport electricity consumption
   name_fi: Rahtiliikenteen sähkönkulutus
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy
   unit: MWh/a
   input_dimensions: [transport_mode, energy_carrier]
@@ -4234,7 +4235,7 @@ nodes:
 - id: freight_transport_air_pollution_costs
   name_en: Freight transport air pollution costs
   name_fi: Rahtiliikenteen ilmansaastekustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, pollutant, transport_mode, cost_type]
@@ -4272,7 +4273,7 @@ nodes:
 - id: new_electric_trucks_additional_costs
   name_en: Additional costs of new electric trucks and charging stations
   name_fi: Uusien sähkökuorma-autojen ja latauspisteiden lisäkustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [transport_mode, energy_carrier, cost_type]
@@ -4316,7 +4317,7 @@ nodes:
 - id: freight_transport_noise_cost
   name_en: Freight transport noise cost
   name_fi: Rahtiliikenteen melukustannus
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, transport_mode, cost_type]
@@ -4363,7 +4364,7 @@ nodes:
 - id: freight_transport_accident_cost
   name_en: Freight transport accident cost
   name_fi: Rahtiliikenteen onnettomuuskustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, transport_mode, cost_type]
@@ -4396,7 +4397,7 @@ nodes:
 - id: freight_transport_ownership_costs
   name_en: Freight transport ownership costs
   name_fi: Rahtiliikenteen omistuskustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [cost_type, transport_mode, energy_carrier]
@@ -4430,7 +4431,7 @@ nodes:
   name_fi: Rahdin omistuskustannus ilman työvoimaa
   description_en: Labour costs are dropped here because those are assumed to stay constant despite changes in vehicle kilometres. Therefore, they are not included in total costs where the impacts are calculated.
   description_fi: Työvoimakustannukset jätetään tässä pois, koska niiden oletetaan pysyvän vakiona ajoneuvokilometrien muutoksista huolimatta. Siksi niitä ei sisällytetä kokonaiskustannuksiin, joissa vaikutukset lasketaan.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, transport_mode, cost_type]
@@ -4479,7 +4480,7 @@ nodes:
 - id: fuel_consumption_increase_due_to_load
   name_en: Fuel consumption increase due to load
   name_fi: Polttoaineenkulutuksen kasvu kuorman vuoksi
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [transport_mode]
@@ -4493,7 +4494,7 @@ nodes:
 - id: freight_transport_fuel_cost
   name_en: Freight transport fuel cost
   name_fi: Rahtiliikenteen polttoainekustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [transport_mode, energy_carrier, cost_type]
@@ -4520,7 +4521,7 @@ nodes:
 - id: freight_transport_cost
   name_en: Freight transport cost
   name_fi: Rahtiliikenteen kustannukset
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   color: '#4daf4a'
@@ -4570,7 +4571,7 @@ nodes:
 - id: projected_building_stock
   name_en: Projected building stock
   name_fi: Ennustettu rakennuskanta
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: floor_area
   unit: km**2
   input_dimensions: [building_energy_class]
@@ -4643,7 +4644,7 @@ nodes:
 - id: demolished_building_stock
   name_en: Demolished building stock
   name_fi: Purettu rakennuskanta
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: floor_area
   unit: km**2/a
   input_dimensions: [building_energy_class]
@@ -4656,7 +4657,7 @@ nodes:
 - id: new_building_stock_total
   name_en: New building stock total
   name_fi: Uudisrakennuskannan kokonaismäärä
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: floor_area
   unit: km**2/a
   input_nodes:
@@ -4675,7 +4676,7 @@ nodes:
 - id: new_building_stock
   name_en: New building stock
   name_fi: Uudisrakennuskanta
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: floor_area
   unit: km**2/a
   input_dimensions: [building_energy_class]
@@ -4691,7 +4692,7 @@ nodes:
   name_fi: Rakennuskanta
   description_en: Existing building stock minus demolition plus new construction.
   description_fi: Nykyinen rakennuskanta vähennettynä purkamisella plus uudisrakentaminen.
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: floor_area
   unit: km**2
   input_dimensions: [building_energy_class]
@@ -4782,7 +4783,7 @@ nodes:
 - id: renovation_intensity_shares
   name_en: Renovation intensity shares
   name_fi: Peruskorjausten intensiteetin osuudet
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [building_energy_class]
@@ -4793,7 +4794,7 @@ nodes:
 - id: renovated_building_stock
   name_en: Renovated building stock
   name_fi: Peruskorjattu rakennuskanta
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: floor_area
   unit: km**2/a
   input_dimensions: [building_energy_class]
@@ -4874,7 +4875,7 @@ nodes:
 - id: energy_use_intensity_old
   name_en: Energy use intensity of existing buildings
   name_fi: Nykyisten rakennusten energiankäytön intensiteetti
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy_factor
   unit: kWh/m**2/a
   input_dimensions: [building_energy_class]
@@ -4924,7 +4925,7 @@ nodes:
 - id: energy_use_intensity_new
   name_en: Energy use intensity for heating of new buildings
   name_fi: Energiankäytön intensiteetti uudisrakennusten lämmitykselle
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy_factor
   unit: kWh/m**2/a
   input_dimensions: [building_energy_class]
@@ -4938,7 +4939,7 @@ nodes:
 - id: energy_use_intensity
   name_en: Energy use intensity excluding electricity
   name_fi: Energiankäytön intensiteetti ilman sähköä
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: energy_factor
   unit: kWh/m**2/a
   input_dimensions: [building_energy_class]
@@ -5085,7 +5086,7 @@ nodes:
 
 - id: heating_fuel_share
   name: Technical intermediate node
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [energy_carrier, heating_type, fuel_type]
@@ -5127,7 +5128,7 @@ nodes:
   name_fi: Lämmityksen fossiiliset osuudet
   description_en: This node applies to fossil shares of waste used in district heating.
   description_fi: Tämä solmu koskee kaukolämmössä käytetyn jätteen fossiilisia osuuksia.
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [fuel_type, heating_type, energy_carrier]
@@ -5138,7 +5139,7 @@ nodes:
 - id: building_heating_shares_pre
   name_en: Building heating shares unadjusted
   name_fi: Rakennusten lämmityksen osuudet korjaamattomina
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [heating_type, energy_carrier, fuel_type]
@@ -5158,7 +5159,7 @@ nodes:
 - id: waste_energy_fraction
   name_en: Waste energy fraction of total building energy
   name_fi: Jäteenergian osuus rakennusten kokonaisenergiasta
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [heating_type, energy_carrier, fuel_type]
@@ -5184,7 +5185,7 @@ nodes:
 - id: building_heating_shares
   name_en: Building heating shares
   name_fi: Rakennusten lämmityksen osuudet
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [heating_type, energy_carrier, fuel_type]
@@ -5216,7 +5217,7 @@ nodes:
   name_fi: Rakennusten lämmitysenergian käyttö ennen havaintoja
   description_en: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed.
   description_fi: Rakennusten lämmitykseen, lämpimään veteen ja ruoanlaittoon kulutettu lämmitysenergia. Huomaa, että lämpöpumppujen osalta tämä on tuotetun lämmön määrä, ei kulutetun sähkön määrä.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type, scope]
@@ -5309,7 +5310,7 @@ nodes:
   name_fi: Rakennusten lämmityssähkön käyttö
   description_en: Electricity used to produce heat with heat pumps and direct electricity.
   description_fi: Sähkö, jota käytetään lämmön tuottamiseen lämpöpumpuilla ja suoralla sähköllä.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
@@ -5372,7 +5373,7 @@ nodes:
 - id: building_heat_fossil_energy
   name_en: Building heat fossil energy
   name_fi: Rakennusten lämmityksen fossiilinen energia
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [heating_type, fuel_type]
@@ -5395,7 +5396,7 @@ nodes:
 - id: building_heat_fossil_ratio
   name_en: Building heat fossil ratio
   name_fi: Rakennusten lämmityksen fossiilinen suhde
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [heating_type, fuel_type]
@@ -5425,7 +5426,7 @@ nodes:
   name_fi: Lämmityksen päästökerroin
   description_en: Emission factor for building heating. This applies only to fossil fuel types, as non-fossil fuels are assumed to have zero emissions.
   description_fi: Rakennusten lämmityksen päästökerroin. Tämä koskee vain fossiilisia polttoainetyyppejä, sillä ei-fossiilisten polttoaineiden päästöjen oletetaan olevan nolla.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [pollutant, heating_type, fuel_type]
@@ -5452,7 +5453,7 @@ nodes:
   name_fi: Rakennusten lämmityksen päästöt
   description_en: Building heating emissions exclude emissions from electricity, which are calculated elsewhere.
   description_fi: Rakennusten lämmityksen päästöihin eivät sisälly sähkön päästöt, jotka lasketaan muualla.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [heating_type, fuel_type, pollutant, scope]
@@ -5538,7 +5539,7 @@ nodes:
 - id: new_building_cost
   name_en: New building cost
   name_fi: Uudisrakennusten kustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [building_energy_class, stakeholder, cost_type]
@@ -5587,7 +5588,7 @@ nodes:
 - id: efficient_appliances_rate
   name_en: Lighting & appliances renovation rate
   name_fi: Valaistuksen ja laitteiden peruskorjausaste
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%/a'
   input_dimensions: [energy_carrier]
@@ -5681,7 +5682,7 @@ nodes:
 - id: consumer_electricity_intensity
   name_en: Electricity use intensity for lighting & appliances
   name_fi: Sähkönkäytön intensiteetti valaistukselle ja laitteille
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy_factor
   unit: kWh/m**2/a
   input_dimensions: [efficiency_programme, energy_carrier]
@@ -5697,7 +5698,7 @@ nodes:
   name_fi: Sähköperuskorjaamattomat vanhat rakennukset
   description_en: Old buildings that have not (yet) gone through electricity renovation
   description_fi: Vanhat rakennukset, joita ei ole (vielä) sähköremontoitu
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: fraction
   unit: km**2
   input_dimensions: [energy_carrier]
@@ -5742,7 +5743,7 @@ nodes:
 - id: building_stock_by_electricity_renovation
   name_en: Building stock by electricity renovation
   name_fi: Rakennuskanta sähköperuskorjauksen mukaan
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: floor_area
   unit: km**2
   input_dimensions: [efficiency_programme, energy_carrier]
@@ -5758,7 +5759,7 @@ nodes:
 - id: consumer_electricity_use
   name_en: Electricity use for lighting & appliances
   name_fi: Sähkönkäyttö valaistukseen ja laitteisiin
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [efficiency_programme, energy_carrier]
@@ -5781,7 +5782,7 @@ nodes:
 - id: building_air_pollutant_emissions
   name_en: Building air pollutant emissions
   name_fi: Rakennusten ilmansaastepäästöt
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t/a
   input_dimensions: [pollutant]
@@ -5815,7 +5816,7 @@ nodes:
 - id: jobs_created_by_renovations
   name_en: Jobs created by renovations
   name_fi: Peruskorjausten luomat työpaikat
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: employment
   unit: jobs
   input_nodes:
@@ -5848,7 +5849,7 @@ nodes:
 - id: building_air_pollution_cost
   name_en: Building air pollution cost
   name_fi: Rakennusten ilmansaastekustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [pollutant, heating_type, area_distance, cost_type, stakeholder]
@@ -5929,7 +5930,7 @@ nodes:
 - id: old_building_renovation_costs
   name_en: Old building renovation costs
   name_fi: Vanhojen rakennusten peruskorjauskustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [building_energy_class, cost_type, stakeholder]
@@ -5959,7 +5960,7 @@ nodes:
 - id: efficiency_programme_cost
   name_en: Efficiency programme cost
   name_fi: Tehokkuusohjelman kustannus
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
@@ -6003,7 +6004,7 @@ nodes:
   name_fi: Tarvittava uusi lämmityskapasiteetti (erotusinvestoinnit)
   description_en: This the amount that is needed to invest or de-vest on heat production due to changes in production types compared with a situation where the production types remain constant. The investments needed in the constant situation are ignored here and only the difference is estimated.
   description_fi: Tämä on määrä, joka tarvitaan investointeihin tai divestointeihin lämmöntuotannossa johtuen tuotantotyyppien muutoksista verrattuna tilanteeseen, jossa tuotantotyypit pysyvät vakiona. Vakiotilanteessa tarvittavat investoinnit jätetään tässä huomiotta ja arvioidaan vain erotus.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: GWh/a**2
   input_dimensions: [heating_type, energy_carrier]
@@ -6043,7 +6044,7 @@ nodes:
 - id: new_heating_capacity_cost
   name_en: New heating capacity cost
   name_fi: Uuden lämmityskapasiteetin kustannus
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [energy_carrier, cost_type, heating_type, stakeholder]
@@ -6088,7 +6089,7 @@ nodes:
 - id: consumer_heating_cost
   name_en: Consumer heating cost (excluding electricity)
   name_fi: Kuluttajan lämmityskustannus (ilman sähköä)
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [energy_carrier, stakeholder, cost_type, heating_type]
@@ -6146,7 +6147,7 @@ nodes:
 - id: heat_production_cost
   name_en: Heat production cost
   name_fi: Lämmöntuotannon kustannus
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, energy_carrier, heating_type, cost_type]
@@ -6223,7 +6224,7 @@ nodes:
 - id: new_heating_network_cost
   name_en: New heating network cost
   name_fi: Uuden lämmitysverkon kustannus
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, heating_type, cost_type]
@@ -6263,7 +6264,7 @@ nodes:
 - id: building_cost
   name_en: Building cost
   name_fi: Rakennusten kustannus
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   color: '#e41a1c'
@@ -6295,7 +6296,7 @@ nodes:
   name_fi: Sähkön kokonaiskulutus, korjaamaton
   description_en: Consumption is not corrected for the actual consumption statistics.
   description_fi: Kulutusta ei ole korjattu todellisten kulutustilastojen mukaan.
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [sector, energy_carrier]
@@ -6308,7 +6309,7 @@ nodes:
     if the global parameter <i>Statistical correction</i> is turned on.
   description_fi: Nämä kulutusarvot on korjattu todellisten kulutustilastojen mukaan,
     jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [sector, energy_carrier]
@@ -6352,7 +6353,7 @@ nodes:
     if the global parameter <i>Statistical correction</i> is turned on.
   description_fi: Nämä tuotantoarvot on korjattu todellisten kulutustilastojen mukaan,
     jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energy_carrier, fuel_type]
@@ -6370,7 +6371,7 @@ nodes:
 - id: total_electricity_emissions
   name_en: Total electricity emissions including air pollutants
   name_fi: Sähköntuotannon kokonaispäästöt, mukaan lukien ilmansaasteet
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mass
   unit: kt/a
   input_dimensions: [pollutant, energy_carrier, sector]
@@ -6484,7 +6485,7 @@ nodes:
 - id: electricity_consumption_cost
   name_en: Electricity consumption cost
   name_fi: Sähkön kulutuksen kustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [energy_carrier, stakeholder, cost_type]
@@ -6526,7 +6527,7 @@ nodes:
   name_fi: Sähköntuotannon efektiivinen päästökerroin
   description_en: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
   description_fi: Sähköntuotannon efektiivinen päästökerroin riippuu kaikkien sähköntuotantomuotojen määristä ja päästökertoimista.
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [energy_carrier, pollutant]
@@ -6546,7 +6547,7 @@ nodes:
 - id: new_electricity_production_capacity
   name_en: New electricity production capacity
   name_fi: Uusi sähköntuotantokapasiteetti
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a**2
   input_dimensions: [fuel_type, energy_carrier]
@@ -6572,7 +6573,7 @@ nodes:
 - id: existing_electricity_production
   name_en: Existing electricity production
   name_fi: Olemassa oleva sähköntuotanto
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energy_carrier]
@@ -6595,7 +6596,7 @@ nodes:
 - id: electricity_production_cost
   name_en: Electricity production cost
   name_fi: Sähköntuotannon kustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, cost_type, energy_carrier]
@@ -6617,7 +6618,7 @@ nodes:
 - id: new_renewable_electricity_production
   name_en: New renewable electricity production
   name_fi: Uusi uusiutuva sähköntuotanto
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [fuel_type, energy_carrier]
@@ -6648,7 +6649,7 @@ nodes:
 - id: renewable_electricity_operating_cost
   name_en: Renewable electricity operating cost
   name_fi: Uusiutuvan sähkön käyttökustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, cost_type, fuel_type, energy_carrier]
@@ -6680,7 +6681,7 @@ nodes:
 - id: electricity_air_pollution_cost
   name_en: Electricity air pollution cost
   name_fi: Sähköntuotannon ilmansaasteiden kustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [pollutant, energy_carrier, cost_type, stakeholder]
@@ -6750,7 +6751,7 @@ nodes:
   name_fi: Uusiutuvien luomat työpaikat
   description_en: Cumulative number of existing jobs due to renewables
   description_fi: Uusiutuvien energialähteiden ansiosta olevien työpaikkojen kertyvä määrä
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: employment
   unit: jobs
   # is_outcome: true
@@ -6846,7 +6847,7 @@ nodes:
 - id: electricity_production_shares
   name_en: Electricity production shares
   name_fi: Sähköntuotannon osuudet
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [fuel_type, energy_carrier]
@@ -6891,7 +6892,7 @@ nodes:
 - id: renewable_electricity_investment_cost
   name_en: Renewable electricity investment cost
   name_fi: Uusiutuvan sähkön investointikustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [fuel_type, energy_carrier, cost_type, stakeholder]
@@ -6912,7 +6913,7 @@ nodes:
 - id: multiplier_node  # TODO Improve
   name_en: Multiplier node
   name_fi: Kerroinsolmu
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: a
   input_dataset_processors: [LinearInterpolation]
@@ -6921,7 +6922,7 @@ nodes:
 - id: electricity_cost
   name_en: Electricity cost
   name_fi: Sähkön kustannukset
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   color: '#377eb8'
@@ -6971,7 +6972,7 @@ nodes:
 - id: fossil_electricity_shares_goal
   name_en: Fossil electricity shares goal
   name_fi: Fossiilisen sähkön osuuksien tavoite
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [fuel_type, energy_carrier]
@@ -7088,7 +7089,7 @@ nodes:
 - id: waste_recycling_shares_baseline
   name_en: Waste recycling shares baseline
   name_fi: Jätteiden kierrätysosuudet perustaso
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [waste_treatment, waste_type]
@@ -7116,7 +7117,7 @@ nodes:
 - id: waste_recycling_shares
   name_en: Waste recycling shares
   name_fi: Jätteiden kierrätysosuudet
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [waste_treatment, waste_type]
@@ -7127,7 +7128,7 @@ nodes:
 - id: waste_management_amount
   name_en: Waste management amount
   name_fi: Jätehuollon määrä
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mass
   unit: t/a
   input_dimensions: [waste_type, waste_treatment]
@@ -7160,7 +7161,7 @@ nodes:
 - id: waste_emissions
   name_en: Waste emissions
   name_fi: Jätepäästöt
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
   color: '#B07AA1'
@@ -7229,7 +7230,7 @@ nodes:
 - id: waste_incineration_air_pollution_emissions
   name_en: Waste incineration air pollution emissions
   name_fi: Jätteenpolton ilmansaastepäästöt
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t/a
   input_dimensions: [pollutant, waste_treatment, waste_type, energy_carrier]
@@ -7272,7 +7273,7 @@ nodes:
 - id: recycled_waste_sales_income
   name_en: Recycled waste sales income
   name_fi: Kierrätetyn jätteen myyntitulot
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [waste_type, cost_type, waste_treatment]
@@ -7311,7 +7312,7 @@ nodes:
 - id: waste_treatment_cost
   name_en: Waste treatment cost
   name_fi: Jätteenkäsittelyn kustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [waste_type, cost_type, waste_treatment]
@@ -7329,7 +7330,7 @@ nodes:
   name_fi: Jätehuollon kustannukset
   description_en: TODO Add nodes for waste incineration income
   description_fi: TODO Lisää solmut jätteenpolton tuloille
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [waste_type, cost_type, waste_treatment]
@@ -7351,7 +7352,7 @@ nodes:
 - id: waste_management_cost_by_stakeholder
   name_en: Waste management cost by stakeholder
   name_fi: Jätehuollon kustannukset sidosryhmittäin
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [cost_type, waste_treatment, stakeholder]
@@ -7373,7 +7374,7 @@ nodes:
 - id: waste_air_pollution_cost
   name_en: Waste air pollution cost
   name_fi: Jätteiden ilmansaastekustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, cost_type, waste_treatment]
@@ -7406,7 +7407,7 @@ nodes:
 - id: waste_cost
   name_en: Waste cost
   name_fi: Jätekustannukset
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   color: '#ff7f00'
@@ -7472,7 +7473,7 @@ nodes:
 - id: building_materials_used_by_material
   name_en: Building materials used by material
   name_fi: Käytetyt rakennusmateriaalit materiaaleittain
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mass
   unit: t/m**2
   input_dimensions: [material]
@@ -7488,7 +7489,7 @@ nodes:
 - id: building_construction_material_use
   name_en: Building construction material use
   name_fi: Rakennusmateriaalien käyttö rakentamisessa
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mass
   unit: kt/a
   input_dimensions: [building_energy_class, material]
@@ -7518,7 +7519,7 @@ nodes:
 - id: building_renovation_material_use
   name_en: Building renovation material use
   name_fi: Rakennusmateriaalien käyttö peruskorjauksissa
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mass
   unit: kt/a
   input_dimensions: [building_energy_class, material]
@@ -7540,7 +7541,7 @@ nodes:
 - id: building_material_use
   name_en: Building material use
   name_fi: Rakennusmateriaalien käyttö
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: mass
   unit: kt/a
   input_dimensions: [building_energy_class, material]
@@ -7591,7 +7592,7 @@ nodes:
 - id: building_material_cost
   name_en: Building material cost
   name_fi: Rakennusmateriaalikustannukset
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [material, stakeholder, cost_type]
@@ -7673,7 +7674,7 @@ nodes:
 # - id: tree_planting_cost
 #   name_en: Tree planting cost
 #   name_fi: Puiden istutuskustannukset
-#   type: simple.MultiplicativeNode
+#   type: generic.GenericNode
 #   quantity: currency
 #   unit: MEUR/a
 #   input_dimensions: [area_distance, cost_type]
@@ -7722,7 +7723,7 @@ nodes:
 # - id: co2_reduction_by_trees
 #   name_en: CO2 reduction by trees
 #   name_fi: Puiden aikaansaama hiilidioksidin vähennys
-#   type: simple.MultiplicativeNode
+#   type: generic.GenericNode
 #   quantity: emissions
 #   unit: kt/a
 #   input_dimensions: [area_distance]
@@ -7746,7 +7747,7 @@ nodes:
 # - id: forestation_emissions
 #   name_en: Forestation emissions
 #   name_fi: Metsityksen päästöt
-#   type: simple.AdditiveNode
+#   type: generic.GenericNode
 #   quantity: emissions
 #   unit: kt/a
 #   color: '#76B7B2'
@@ -7762,7 +7763,7 @@ nodes:
 # - id: forestation_co2_cost
 #   name_en: Forestation CO2 cost
 #   name_fi: Metsityksen hiilidioksidikustannukset
-#   type: simple.MultiplicativeNode
+#   type: generic.GenericNode
 #   quantity: currency
 #   unit: MEUR/a
 #   input_dimensions: [scope, cost_type, ghg]
@@ -7791,7 +7792,7 @@ nodes:
 # - id: forestation_cost
 #   name_en: Forestation cost
 #   name_fi: Metsityskustannukset
-#   type: simple.AdditiveNode
+#   type: generic.GenericNode
 #   quantity: currency
 #   unit: MEUR/a
 #   input_dimensions: [cost_type, stakeholder]
@@ -7830,7 +7831,7 @@ nodes:
 # - id: tree_co_benefits
 #   name_en: Monetary co-benefits
 #   name_fi: Rahalliset rinnakkaishyödyt
-#   type: simple.MultiplicativeNode
+#   type: generic.GenericNode
 #   quantity: currency
 #   unit: MEUR/a
 #   input_dimensions: [cost_type, area_distance, stakeholder]
