@@ -139,6 +139,14 @@ dimensions:
   - id: lime_application
     label: Lime Application
 
+- id: scenario_id
+  label: Scenario
+  categories: 
+  - id: baseline
+    label: Business As Usual 
+  - id: adjusted_baseline
+    label: Adjusted Business As Usual 
+
 - id: scope
   label: Scope
   categories:
@@ -162,13 +170,19 @@ dimensions:
     label: CH4
   - id: co2
     label: CO2
-  - id: co2e
-    label: CO2e
   - id: n2o
     label: N2O
 
+- id: factor_type
+  label: Factor Type
+  categories: 
+  - id: ac_factor
+    label: AC Factor
+  - id: cool_roof_factor
+    label: Cool Roof Factor 
+
 - id: energy_provider
-  label: Energy provider 
+  label: Energy provider
   categories:
   - id: PG&E
     label: PG&E
@@ -177,10 +191,10 @@ dimensions:
 
 - id: energy_carrier
   label: Energy Carrier
-  categories: 
+  categories:
   - id: electricity
     label: Electricity
-  - id: natural_gas 
+  - id: natural_gas
     label: Natural Gas
 
 - id: building_type
@@ -195,7 +209,7 @@ dimensions:
 
 - id: building_status
   label: Building Status
-  categories: 
+  categories:
   - id: new
     label: New
   - id: existing
@@ -392,6 +406,20 @@ nodes:
       categories: [level]
   input_dataset_processors: [LinearInterpolation]
 
+# -- global warming potential 
+
+- id: global_warming_potential
+  name: Global Warming Potential
+  type: simple.AdditiveNode
+  quantity: factor
+  unit: t_co2e/t
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_datasets: 
+  - id: yolo/global-warming-potential
+    forecast_from: 2023
+  input_dataset_processors: [LinearInterpolation]
+
 # -- energy emission factors 
 
 - id: electricity_emission_factor
@@ -458,6 +486,21 @@ nodes:
       categories: [new]
     - dimension: scenario_id
       categories: [adjusted_baseline]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_natural_gas_use
+  label: Building Natural Gas Use
+  type: simple.AdditiveNode
+  quantity: energy_consumption
+  unit: therms/year
+  input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
+  output_dimensions: [subsector, energy_provider, building_type, building_status]
+  input_datasets:
+  - id: yolo/building-input
+    forecast_from: 2023
+    filters:
+    - dimension: energy_carrier
+      categories: [natural_gas]
   input_dataset_processors: [LinearInterpolation]
 
 # --- nodes related to action eb1b
@@ -882,21 +925,6 @@ nodes:
   output_nodes:
   - id: building_electricity_use
 
-- id: building_natural_gas_use
-  label: Building Natural Gas Use
-  type: simple.AdditiveNode
-  quantity: energy_consumption
-  unit: therms/year
-  input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
-  output_dimensions: [subsector, energy_provider, building_type, building_status]
-  input_datasets:
-  - id: yolo/building-input
-    forecast_from: 2023
-    filters:
-    - dimension: energy_carrier
-      categories: [natural_gas]
-  input_dataset_processors: [LinearInterpolation]
-
 - id: building_emissions
   label: Building Energy
   type: formula.FormulaNode #possible to simplify this to a multiplicative node 
@@ -905,7 +933,7 @@ nodes:
   input_dimensions: [scope, subsector, ghg, building_type, building_status, energy_provider]
   output_dimensions: [scope, subsector, ghg, building_type, building_status]
   params: 
-    formula: electricity_from_pge*pge_electricity_emfac + electricity_from_vce*vce_electricity_emfac + gas_from_pge*pge_gas_emfac
+    formula: (electricity_from_pge*pge_electricity_emfac + electricity_from_vce*vce_electricity_emfac + gas_from_pge*pge_gas_emfac)*gwp
   input_nodes:
   - id: building_electricity_use
     filters: 
@@ -937,6 +965,8 @@ nodes:
     - dimension: energy_provider
       categories: [PG&E]
     tags: [pge_gas_emfac]
+  - id: global_warming_potential
+    tags: [gwp]
   output_nodes:
   - id: net_emissions
     to_dimensions: [scope]
@@ -1082,7 +1112,7 @@ nodes:
   label: ICE Transportation Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: t_co2e/a  
+  unit: t_co2e/a
   input_dimensions: [scope, travel_boundary, speed_bin, vehicle_type]
   output_dimensions: [scope, travel_boundary, vehicle_type]
   params: 
@@ -1197,10 +1227,10 @@ nodes:
   type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [scope, subsector,ghg, energy_provider, energy_carrier, water_source]
+  input_dimensions: [scope, subsector, ghg, energy_provider, energy_carrier, water_source]
   output_dimensions: [scope, ghg, water_source]
   params: 
-    formula: groundwater_use*pumping_energy_intensity*pump_electricity_emission_factor
+    formula: (groundwater_use*pumping_energy_intensity*pump_electricity_emission_factor)*gwp
   input_nodes:
   - id: water_use
     tags: [groundwater_use]
@@ -1217,8 +1247,8 @@ nodes:
     filters: 
     - dimension: energy_provider
       categories: [PG&E]
-    - dimension: ghg
-      categories: [co2e]
+  - id: global_warming_potential
+    tags: [gwp]
   output_nodes: 
   - id: net_emissions
     to_dimensions: [scope]
@@ -1323,7 +1353,7 @@ nodes:
   input_dimensions: [ghg, influent_source, scope]
   output_dimensions: [ghg, influent_source, scope]
   params:
-    formula: annual_influent_volume*energy_intensity*pge_electricity_emfac
+    formula: (annual_influent_volume*energy_intensity*pge_electricity_emfac)*gwp
   input_nodes: 
   - id: influent_volume 
     tags: [annual_influent_volume]
@@ -1334,6 +1364,8 @@ nodes:
     - dimension: energy_provider
       categories: [PG&E]
     tags: [pge_electricity_emfac]
+  - id: global_warming_potential
+    tags: [gwp]
 
 - id: wastewater_treatment_bod_emissions
   name: Wastewater Treatment BOD Emissions
@@ -1343,7 +1375,7 @@ nodes:
   input_dimensions: [ghg, influent_source, scope]
   output_dimensions: [ghg, influent_source, scope]
   params: 
-    formula: bod_rate*wastewater_population*ch4_emission_factor*ch4_correction_factor
+    formula: (bod_rate*wastewater_population*ch4_emission_factor*ch4_correction_factor)*gwp
   input_nodes: 
   - id: wastewater_influent_BOD_factor
     tags: [bod_rate]
@@ -1353,6 +1385,8 @@ nodes:
     tags: [ch4_emission_factor]
   - id: wastewater_ch4_correction_factor
     tags: [ch4_correction_factor]
+  - id: global_warming_potential
+    tags: [gwp]
   
 - id: wastewater_emissions
   name: Wastewater Emissions
@@ -1427,6 +1461,7 @@ nodes:
   input_nodes: 
   - id: agricultural_pumps_volume
   - id: ag_pump_emission_factor
+  - id: global_warming_potential
 
 # ---- residue burning
 - id: crop_area
@@ -1505,6 +1540,7 @@ nodes:
   - id: fraction_acreage_burned
   - id: crop_residue
   - id: residue_burning_emfac
+  - id: global_warming_potential
 
 # ---- livestock
 - id: livestock_population
@@ -1548,6 +1584,7 @@ nodes:
   input_nodes: 
   - id: livestock_population
   - id: livestock_emission_factors
+  - id: global_warming_potential
 
 # ---- rice cultivation
 
@@ -1580,6 +1617,7 @@ nodes:
     - dimension: crops_harvested
       categories: [rice]
   - id: rice_cultivation_emfac
+  - id: global_warming_potential
 
 # ---- nitrogen application
 
@@ -1625,6 +1663,7 @@ nodes:
   input_nodes:
   - id: nitrogen_consumption
   - id: nitrogen_application_emfac
+  - id: global_warming_potential
 
 # ---- urea application 
 
@@ -1670,6 +1709,7 @@ nodes:
   input_nodes:
   - id: urea_consumption
   - id: urea_application_emfac
+  - id: global_warming_potential
 
 # ---- lime application 
 
@@ -1715,6 +1755,7 @@ nodes:
   input_nodes:
   - id: lime_consumption
   - id: lime_application_emfac
+  - id: global_warming_potential
 
 # ---- overall agriculture emissions 
 
@@ -1920,8 +1961,8 @@ actions:
   output_nodes:
   - id: eb3d_electricity_reduction
 
-- id: eb3e
-  name: Facilitate adoption of enhanced solar PV system requirements
+# - id: eb3e
+#   name: Facilitate adoption of enhanced solar PV system requirements
 
 - id: eb4d
   name: Encourage enrollment in "UltraGreen" program by VCE
