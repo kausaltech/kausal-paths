@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bisko.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ac85a97ae197b18baeccf6b9567e767c9cb0b18c
+  commit: 2d325c384f4c5608cc75ef5fb7e57ea819aaa971
   dvc_remote: kausal-s3
 name: Klima-Monitor-BISKO
 owner: Kausal Ltd
