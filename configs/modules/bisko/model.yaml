@@ -248,24 +248,24 @@ dimensions:
   - id: private_households
     label_en: Private Households
     label_de: Private Haushalte
-    aliases: [private_haushalte, Private_Haushalte, HE_, HTHG_, HTHG]
+    aliases: [private_haushalte, Private_Haushalte, HE_, HE, HTHG_, HTHG]
     color: '#009ebe'
   - id: municipal_facilities
     label_en: Municipal Facilities
     label_de: Kommunale Einrichtungen
     aliases: [kommunale_einrichtungen, Kommunale_Einrichtungen, 
-        stadtische_gebaude, KE_, KTHG_, KTHG]
+        stadtische_gebaude, KE_, KE, KTHG_, KTHG]
     color: '#6bc248'
   - id: commerce_trade_services
     label_en: Commerce, Trade & Services
     label_de: Gewerbe, Handel, Dienstleistungen
     aliases: [gewerbe_handel_dienstleistungen, Gewerbe_Handel_Dienstleistungen, 
-        gewerbe_sonstiges, GE_, GTHG_, GTHG]
+        gewerbe_sonstiges, GE_, GE, GTHG_, GTHG]
     color: '#fe8035'
   - id: industry
     label_en: Industry
     label_de: Industrie
-    aliases: [industrie, Industrie, IE_, ITHG_, ITHG]
+    aliases: [industrie, Industrie, IE_, IE, ITHG_, ITHG]
     color: '#737373'
   - id: electricity
     label_en: Electricity
@@ -550,43 +550,8 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: bisko/final_energy_use_data_quality  # is automatically created by upload_new_dataset.py when uploading to DVC
-
-# - id: final_transport_energy_use
-#   name_de: Endenergie Verkehr
-#   name_en: Final transport energy use
-#   type: generic.GenericNode
-#   quantity: energy
-#   unit: MWh/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_nodes:
-#   - id: final_energy_use
-#     from_dimensions:
-#     - id: sector
-#       categories: [transport]
-
-# - id: transport_difference
-#   name_de: Transportdifferenz
-#   name_en: Transport difference
-#   type: formula.FormulaNode
-#   quantity: energy
-#   unit: MWh/a
-#   input_dimensions: [energy_carrier]
-#   output_dimensions: [energy_carrier]
-#   input_nodes:
-#   - id: final_transport_energy_use
-#     tags: [ksp]
-#     from_dimensions:
-#     - id: sector
-#       flatten: true
-#   - id: transport_energy
-#     tags: [ifeu]
-#     from_dimensions:
-#     - id: vehicle_type
-#       flatten: true
-#   params:
-#     formula: ksp - ifeu
+  - id: bisko/final_energy  # is automatically created by upload_new_dataset.py when uploading to DVC
+    column: quality
 
 - id: final_private_household_energy_use
   name_de: Endenergie Private Haushalte
@@ -1405,3 +1370,18 @@ nodes:
   params:
   - id: formula
     value: drop_nans(sum_dim(quality * energy, sector) / sum_dim(energy, sector))
+
+- id: total_weighted_data_quality
+  name_en: Total weighted data quality
+  name_de: Gesamte gewichtete Datenqualität
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: final_energy_use_data_quality
+    tags: [quality]
+  - id: final_energy_use
+    tags: [energy]
+  params:
+  - id: formula
+    value: drop_nans(sum_dim(sum_dim(quality * energy, sector),energy_carrier) / sum_dim(sum_dim(energy, sector), energy_carrier))

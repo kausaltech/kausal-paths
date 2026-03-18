@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bisko.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2d325c384f4c5608cc75ef5fb7e57ea819aaa971
+  commit: 042ea36e00165e5960343bcbf5b7aa14cdc4f549
   dvc_remote: kausal-s3
 name: Klima-Monitor-BISKO
 owner: Kausal Ltd
@@ -99,6 +99,7 @@ result_excels:
   - emission_factors_for_district_heating_by_generic_fuel
   - vehicle_kilometers_ifeu
   - other_transport_energy
+
 pages:
 - id: home
   name: Klima-Monitor-BISKO Treibhausgasinventar
