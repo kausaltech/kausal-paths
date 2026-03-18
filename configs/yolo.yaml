@@ -176,9 +176,9 @@ dimensions:
 - id: factor_type
   label: Factor Type
   categories: 
-  - id: ac_factor
+  - id: ac
     label: AC Factor
-  - id: cool_roof_factor
+  - id: cool_roof
     label: Cool Roof Factor 
 
 - id: energy_provider
@@ -888,6 +888,96 @@ nodes:
   output_nodes:
   - id: building_electricity_use
 
+# --- nodes related to action eb3e
+- id: eb3e_residential_energy
+  name: EB3E Residential Annual Energy (Existing Units)
+  type: formula.FormulaNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: []
+  output_dimensions: []
+  params:
+    formula: fraction * 11546 * 6688
+  input_nodes:
+  - id: eb3e
+    filters:
+    - dimension: subsector
+      categories: [residential]
+    tags: [fraction]
+
+- id: eb3e_commercial_energy
+  name: EB3E Commercial Annual Energy (Existing Units)
+  type: formula.FormulaNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: []
+  output_dimensions: []
+  params:
+    formula: fraction * 136570 * 663.5
+  input_nodes:
+  - id: eb3e
+    filters:
+    - dimension: subsector
+      categories: [commercial]
+    tags: [fraction]
+
+- id: eb3e_energy_by_subsector
+  name: EB3E Energy by Subsector (Existing Buildings)
+  type: simple.AdditiveNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [subsector]
+  output_dimensions: [subsector]
+  input_nodes:
+  - id: eb3e_residential_energy
+    to_dimensions:
+    - id: subsector
+      categories: [residential]
+  - id: eb3e_commercial_energy
+    to_dimensions:
+    - id: subsector
+      categories: [commercial]
+
+- id: eb3e_existing_buildings_electricity
+  name: EB3E Existing Buildings Electricity Use (Adjusted BAU)
+  type: simple.AdditiveNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
+  output_dimensions: [subsector, energy_provider, building_type, building_status]
+  input_datasets:
+  - id: yolo/building-input
+    forecast_from: 2023
+    filters:
+    - dimension: energy_carrier
+      categories: [electricity]
+    - dimension: building_status
+      categories: [existing]
+    - dimension: subsector
+      categories: [residential, commercial]
+    - dimension: scenario_id
+      categories: [adjusted_baseline]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: eb3e_electricity_reduction
+  name: EB3E Electricity Reduction from Solar PV on Existing Buildings
+  type: formula.FormulaNode
+  quantity: energy_consumption
+  unit: kWh/year
+  input_dimensions: [subsector, energy_provider, building_type, building_status]
+  output_dimensions: [subsector, energy_provider, building_type, building_status]
+  params:
+    formula: -energy * existing_elec / total_elec
+  input_nodes:
+  - id: eb3e_energy_by_subsector
+    tags: [energy]
+  - id: eb3e_existing_buildings_electricity
+    tags: [existing_elec]
+  - id: eb3d_total_electricity_by_subsector
+    tags: [total_elec]
+  output_nodes:
+  - id: building_electricity_use
+
 # --- nodes related to action eb4d
 - id: eb4d_building_electricity
   name: Building Electricity Use (Adjusted BAU)
@@ -1166,7 +1256,7 @@ nodes:
   input_dimensions: [subsector, scope]
   output_dimensions: [subsector, scope]
   input_datasets:
-  - id: yolo/solid_waste
+  - id: yolo/solid-waste-input
     column: emissions
     forecast_from: 2023
   input_dataset_processors: [LinearInterpolation]
@@ -1961,8 +2051,26 @@ actions:
   output_nodes:
   - id: eb3d_electricity_reduction
 
-# - id: eb3e
-#   name: Facilitate adoption of enhanced solar PV system requirements
+- id: eb3e
+  name: Facilitate adoption of enhanced solar PV system requirements
+  type: simple.AdditiveAction
+  group: buildings_act
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [subsector]
+  output_dimensions: [subsector]
+  input_datasets:
+  - id: yolo/actions-input
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: eb3e
+    - column: quantity
+      value: fraction
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: eb3e_residential_energy
+  - id: eb3e_commercial_energy
 
 - id: eb4d
   name: Encourage enrollment in "UltraGreen" program by VCE
