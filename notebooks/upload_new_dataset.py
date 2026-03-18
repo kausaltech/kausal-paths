@@ -22,7 +22,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 # Configure Django
 django.setup()
 
-from nodes.constants import VALUE_COLUMN  # noqa: E402
+from nodes.constants import VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
 from notebooks.notebook_support import get_context  # noqa: E402
 
 if TYPE_CHECKING:
@@ -368,11 +368,32 @@ def pivot_by_compound_id(df: pl.DataFrame) -> pl.DataFrame:
     return result_df
 
 
-def check_for_duplicates(df: pl.DataFrame) -> bool:
-    """Check if the dataframe has any duplicate rows by all columns."""
-    if len(df) == df.unique().shape[0]:
-        return False  # No duplicates
-    return True  # Has duplicates
+def check_for_duplicates(
+    df: pl.DataFrame,
+    metric_columns: list[str] | None = None,
+) -> None:
+    """
+    Check if the dataframe has duplicate rows by key (dimension columns + Year).
+
+    Duplicates are determined by (Year, dimension columns); differing values
+    in metric columns still count as duplicates. If metric_columns is None,
+    checks by all columns (legacy: duplicate full rows).
+    """
+    if metric_columns is None:
+        key_columns = df.columns
+    else:
+        key_columns = [c for c in df.columns if c not in metric_columns]
+    if not key_columns:
+        return
+    dup = df.select(key_columns).is_duplicated()
+    if any(dup):
+        dups = df.filter(dup)
+        print(dups.sort(key_columns))
+        dims = [col for col in key_columns if col != YEAR_COLUMN]
+        print(dups.select(dims).unique())
+        raise ValueError("Dataframe has duplicate rows. Cannot upload to DVC.")
+    return
+
 
 
 def prepare_for_dvc(df: pl.DataFrame, units: dict[str, str]) -> pl.DataFrame:
@@ -457,6 +478,8 @@ def push_to_dvc(
         units = {(getattr(m, 'column_id', None) or m.id): _node_metric_unit_str(m) for m in metrics}
     if units is None:
         units = {}
+
+    check_for_duplicates(df, metric_columns=list(units.keys()))
 
     # Get index columns (excluding metric value columns)
     index_columns = [col for col in df.columns if col not in units.keys()]
@@ -562,9 +585,9 @@ def process_dataset(
     # 7. Pivot by compound ID
     df = pivot_by_compound_id(df)
 
-    # 8. Check for issues
-    if check_for_duplicates(df):
-        print("Warning: Dataframe contains duplicate rows")
+    # 8. Check for issues (duplicates = same Year + dimensions, any metric values)
+    if check_for_duplicates(df, metric_columns=list(units.keys())):
+        print("Warning: Dataframe contains duplicate rows (same Year + dimension keys)")
 
     # 9. Prepare for DVC (standardize column names)
     df = prepare_for_dvc(df, units)

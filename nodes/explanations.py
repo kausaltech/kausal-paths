@@ -80,7 +80,7 @@ TAG_DESCRIPTIONS = {
     'and': _('Logical AND: min(a, b). Warns if inputs deviate from 0 or 1 (see node explanation).'),
     'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
     'bring_to_maximum_historical_year': _('Makes all years up to maximum historical year non-forecasts.'),
-    'complement': _('Take the complement of the dimensionless values (1-x).'),
+    'complement': _('Take the complement of the unitless values (1-x).'),
     'complement_cumulative_product': _('Take the cumulative product of the dimensionless complement values over time.'),
     'concat_datasets': _('Get and concatenate datasets vertically, only then prepare the output.'),
     'cumulative': _('Take the cumulative sum over time.'),

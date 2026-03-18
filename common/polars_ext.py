@@ -123,7 +123,7 @@ class PathsExt:
         dup = df.select(dim_cols).is_duplicated()
         if any(dup):
             dups = df.filter(dup)
-            print(dups)
+            print(dups.sort(dups.primary_keys))
             print(dups.select(dim_ids).unique())
             raise ValueError("Dataframe has duplicate rows.")
 
