@@ -7,7 +7,7 @@ import os
 import pickle
 import re
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, Literal, Self, TypedDict, cast, overload
@@ -29,6 +29,7 @@ from nodes.exceptions import NodeError
 from nodes.explanations import NodeExplanationSystem
 from nodes.normalization import Normalization
 from pages.config import pages_from_config
+from params.discover import discover_global_parameters
 
 from .excel_results import InstanceResultExcel
 
@@ -116,7 +117,7 @@ class InstanceYAMLMeta(BaseModel):
 @dataclass
 class InstanceYAMLConfig:
     meta: InstanceYAMLMeta
-    data: dict | None = None
+    data: dict[str, Any] | None = None
 
     def _merge_framework_config(
         self, confs: list[CommentedMap], fw_confs: list[CommentedMap], entity_type: str, config_path: Path | None
@@ -191,7 +192,7 @@ class InstanceYAMLConfig:
         entrypoint = meta.entrypoint
         yaml = RuamelYAML()
         with entrypoint.path.open('r', encoding='utf8') as f:
-            data: dict = yaml.load(f)
+            data: dict[str, Any] = yaml.load(f)
         if 'instance' in data:
             data = data['instance']
 
@@ -350,16 +351,16 @@ class InstanceLoader:
     context: Context
     default_language: str
     yaml_file_path: Path | None = None
-    config: CommentedMap | dict
+    config: CommentedMap | dict[str, Any]
     fw_config: FrameworkConfig | None = None
     config_mtime_hash: str | None = None
 
     _node_classes: dict[str, type[Node]]
-    _input_nodes: dict[str, list[dict | str]]
-    _output_nodes: dict[str, list[dict | str]]
+    _input_nodes: dict[str, list[dict[str, Any] | str]]
+    _output_nodes: dict[str, list[dict[str, Any] | str]]
     _subactions: dict[str, list[str]]
     _scenario_values: dict[str, list[tuple[Parameter, Any]]]
-    _node_visualizations: dict[str, list[dict]]
+    _node_visualizations: dict[str, list[dict[str, Any]]]
 
     @staticmethod
     def wrap_with_span[**P, R, SC: InstanceLoader](
@@ -380,30 +381,33 @@ class InstanceLoader:
     @overload
     def make_trans_string(
         self,
-        config: dict,
+        config: dict[str, Any],
         attr: str,
         pop: bool = False,
         required: Literal[True] = True,
         default_language=None,
+        fallback: TranslatedString | None = None,
     ) -> TranslatedString: ...
 
     @overload
     def make_trans_string(
         self,
-        config: dict,
+        config: dict[str, Any],
         attr: str,
         pop: bool = False,
         required: Literal[False] = False,
         default_language=None,
+        fallback: TranslatedString | None = None,
     ) -> TranslatedString | None: ...
 
     def make_trans_string(  # noqa: C901
         self,
-        config: dict,
+        config: dict[str, Any],
         attr: str,
         pop: bool = False,
         required: bool = False,
         default_language=None,
+        fallback: TranslatedString | None = None,
     ) -> None | TranslatedString:
         default_language = default_language or self.config['default_language']
         all_langs = {self.config['default_language']}
@@ -434,6 +438,7 @@ class InstanceLoader:
             langs[full] = config[key]
             if pop:
                 del config[key]
+
         if not langs:
             if required:
                 raise Exception('Value for field %s missing' % attr)
@@ -446,7 +451,7 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
+    def _make_node_datasets(self, config: dict[str, Any], node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.generic import GenericNode
         from nodes.simple import AdditiveNode
@@ -527,8 +532,9 @@ class InstanceLoader:
             datasets.append(fds)
         return datasets
 
-    def _make_node_params(self, config: dict, node: Node) -> None:  # noqa: C901, PLR0912
-        from params.param import Parameter, ReferenceParameter
+    def _make_node_params(self, config: dict[str, Any], node: Node) -> None:  # noqa: C901, PLR0912
+        from params.base import Parameter
+        from params.param import ReferenceParameter
 
         params = config.get('params', [])
         if not params:
@@ -537,7 +543,7 @@ class InstanceLoader:
             params = [dict(id=param_id, value=value) for param_id, value in params.items()]
         # Ensure that the node class allows these parameters
         node_class = type(node)
-        class_allowed_params = {p.local_id: p for p in getattr(node_class, 'allowed_parameters', [])}
+        class_allowed_params: dict[str, Parameter] = {p.local_id: p for p in getattr(node_class, 'allowed_parameters', [])}
         for pc in params:
             param_id = pc.pop('id')
 
@@ -546,9 +552,9 @@ class InstanceLoader:
                 raise NodeError(node, 'Parameter %s not allowed by node class' % param_id)
             param_class = type(param_obj)
 
-            label = self.make_trans_string(pc, 'label', pop=True) or param_obj.label
+            label = self.make_trans_string(pc, 'label', pop=True, required=False) or param_obj.label
             ref = pc.pop('ref', None)
-            description = self.make_trans_string(pc, 'description', pop=True) or param_obj.description
+            description = self.make_trans_string(pc, 'description', pop=True, required=False) or param_obj.description
             is_customizable = pc.pop('is_customizable', None)
 
             scenario_values = pc.pop('values', {})
@@ -568,17 +574,16 @@ class InstanceLoader:
                             type(target),
                         ),
                     )
-                param = ReferenceParameter(
+                ref_param = ReferenceParameter(
                     local_id=param_obj.local_id,
                     label=param_obj.label,
-                    target=target,
-                    context=self.context,
+                    target_id=target.global_id,
                 )
-                node.add_parameter(param)
+                node.add_parameter(ref_param)
                 continue
 
             # Merge parameter values
-            fields = asdict(param_obj)
+            fields = param_obj.model_dump()
             fields.update(pc)
             if description is not None:
                 fields['description'] = description
@@ -586,7 +591,6 @@ class InstanceLoader:
                 fields['label'] = label
             if is_customizable is not None:
                 fields['is_customizable'] = is_customizable
-            fields['context'] = self.context
 
             unit = fields.get('unit', None)
             if unit is not None and isinstance(unit, str):
@@ -608,7 +612,7 @@ class InstanceLoader:
                 sv = self._scenario_values.setdefault(scenario_id, list())
                 sv.append((param, param.clean(value)))
 
-    def _make_node_visualizations(self, node: Node, config: list[dict]) -> None:
+    def _make_node_visualizations(self, node: Node, config: list[dict[str, Any]]) -> None:
         from nodes.visualizations import NodeVisualizations
 
         ctx = NodeVisualizations.ValidationContext(context=self.context, node=None, root_node=node)
@@ -617,7 +621,7 @@ class InstanceLoader:
         except Exception as e:
             raise NodeError(node, 'Error validating visualizations') from e
 
-    def make_node(self, node_class: type[Node], config: dict, yaml_lc: LineCol | None = None) -> Node:  # noqa: C901, PLR0912
+    def make_node(self, node_class: type[Node], config: dict[str, Any], yaml_lc: LineCol | None = None) -> Node:  # noqa: C901, PLR0912  # pyright: ignore[reportUnusedParameter]
         from nodes.node import NodeMetric
         from nodes.units import Unit
 
@@ -648,8 +652,8 @@ class InstanceLoader:
 
         datasets = self._make_node_datasets(config, node_class, unit)
 
-        loc_conf = config.get('config_location')
-        config_location = ConfigLocation(**loc_conf) if loc_conf else None  # type: ignore
+        loc_conf: ConfigLocation | None = config.get('config_location')
+        config_location = ConfigLocation(**loc_conf) if loc_conf else None
 
         node: Node = node_class(
             id=config['id'],
@@ -972,6 +976,8 @@ class InstanceLoader:
             self.setup_progress_tracking_scenario()
 
     def setup_global_parameters(self):
+        global_params = discover_global_parameters()
+
         context = self.context
         for pc in self.config.get('params', []):
             param_id = pc.pop('id')
@@ -980,20 +986,26 @@ class InstanceLoader:
             if unit_str is not None:
                 unit = context.unit_registry.parse_units(unit_str)
                 pc['unit'] = unit
-            param_type = context.get_parameter_type(param_id)
+            param = global_params.get(param_id)
+            if param is None:
+                raise Exception('Unknown global parameter: %s' % param_id)
             param_val = pc.pop('value', None)
             if 'is_customizable' not in pc:
                 pc['is_customizable'] = False
             pc['label'] = self.make_trans_string(pc, 'label', pop=True)
             pc['description'] = self.make_trans_string(pc, 'description', pop=True)
+
+            param_type = type(param)
             param = param_type(**pc)
+            param.set_context(context)
+            param.set(param_val)
+
             sub_node_ids = pc.get('subscription_nodes', None)
             if sub_node_ids is not None:
-                sub_nodes = []
                 for node_id in sub_node_ids:
-                    sub_nodes += [context.get_node(node_id)]
-                param.subscription_nodes = sub_nodes
-            param.set(param_val)
+                    sub_node = context.get_node(node_id)
+                    param.subscribe_changes(sub_node)
+
             context.add_global_parameter(param)
 
     def setup_impact_overviews(self):
@@ -1072,7 +1084,7 @@ class InstanceLoader:
         nes.generate_explanations()
 
     @classmethod
-    def from_dict_config(cls, config: dict, fw_config: FrameworkConfig | None = None) -> Self:
+    def from_dict_config(cls, config: dict[str, Any], fw_config: FrameworkConfig | None = None) -> Self:
         yaml_path = config.get('yaml_file_path')
         return cls(
             config=config,
@@ -1104,7 +1116,7 @@ class InstanceLoader:
 
     def __init__(
         self,
-        config: dict,
+        config: dict[str, Any],
         yaml_file_path: Path | None = None,
         fw_config: FrameworkConfig | None = None,
         config_mtime_hash: str | None = None,
@@ -1137,7 +1149,7 @@ class InstanceLoader:
         except InstanceConfig.DoesNotExist:
             self.db_datasets = {}
             return
-        ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at')  # type: ignore
+        ds_objs = DBDatasetModel.objects.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at')
         self.db_datasets = {ds.identifier: ds for ds in ds_objs}
 
     def _init_instance(self) -> None:  # noqa: PLR0915
@@ -1261,9 +1273,9 @@ class InstanceLoader:
         self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()
         self.load_db_datasets()
-        self.setup_nodes()  # type: ignore[misc]
-        self.setup_actions()  # type: ignore[misc]
-        self.setup_edges()  # type: ignore[misc]
+        self.setup_nodes()
+        self.setup_actions()
+        self.setup_edges()
         self.setup_impact_overviews()
         self.setup_scenarios()
         self.setup_normalizations()

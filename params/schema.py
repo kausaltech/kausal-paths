@@ -7,14 +7,12 @@ from graphql.error import GraphQLError
 
 from paths.graphql_helpers import ensure_instance
 
-from . import BoolParameter, NumberParameter, PercentageParameter, StringParameter, ValidationError
+from . import BoolParameter, NumberParameter, Parameter, PercentageParameter, StringParameter, ValidationError
 
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo
 
-    from paths.graphql_helpers import GQLInstanceInfo
-
-    from . import Parameter
+    from paths.types import GQLInstanceInfo
 
 
 class ResolveDefaultValueMixin:
@@ -27,7 +25,7 @@ class ResolveDefaultValueMixin:
         return scenario.get_parameter_value(root)
 
 
-class ParameterInterface(graphene.Interface):
+class ParameterInterface(graphene.Interface[Parameter[Any, Any]]):
     id = graphene.ID(required=True, description='Global ID for the parameter in the instance')
     local_id = graphene.ID(required=False, description="ID of parameter in the node's namespace")
     label = graphene.String(required=False)
@@ -48,8 +46,8 @@ class ParameterInterface(graphene.Interface):
         return root.local_id
 
     @classmethod
-    def resolve_type(cls, instance: Parameter, info: GQLInfo) -> type[graphene.ObjectType]:  # noqa: ARG003
-        type_map = {
+    def resolve_type(cls, instance: Parameter, info: GQLInfo) -> type[graphene.ObjectType[Any]]:  # noqa: ARG003
+        type_map: dict[type[Parameter[Any, Any]], type[graphene.ObjectType[Any]]] = {
             BoolParameter: BoolParameterType,
             NumberParameter: NumberParameterType,
             StringParameter: StringParameterType,
@@ -63,7 +61,7 @@ class ParameterInterface(graphene.Interface):
         return UnknownParameterType
 
 
-class BoolParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
+class BoolParameterType(ResolveDefaultValueMixin, graphene.ObjectType[BoolParameter]):
     class Meta:
         interfaces = (ParameterInterface,)
 
@@ -71,7 +69,7 @@ class BoolParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
     default_value = graphene.Boolean()
 
 
-class NumberParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
+class NumberParameterType(ResolveDefaultValueMixin, graphene.ObjectType[NumberParameter]):
     class Meta:
         interfaces = (ParameterInterface,)
 
@@ -83,7 +81,7 @@ class NumberParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
     unit = graphene.Field('paths.schema.UnitType')
 
 
-class StringParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
+class StringParameterType(ResolveDefaultValueMixin, graphene.ObjectType[StringParameter]):
     class Meta:
         interfaces = (ParameterInterface,)
 
@@ -91,7 +89,7 @@ class StringParameterType(ResolveDefaultValueMixin, graphene.ObjectType):
     default_value = graphene.String()
 
 
-class UnknownParameterType(graphene.ObjectType):
+class UnknownParameterType(graphene.ObjectType[Any]):
     class Meta:
         interfaces = (ParameterInterface,)
 
@@ -225,13 +223,13 @@ class ActivateScenarioMutation(graphene.Mutation):
         return dict(ok=True, active_scenario=scenario)
 
 
-class Mutations(graphene.ObjectType):
+class Mutations(graphene.ObjectType[Any]):
     set_parameter = SetParameterMutation.Field()
     reset_parameter = ResetParameterMutation.Field()
     activate_scenario = ActivateScenarioMutation.Field()
 
 
-class Query(graphene.ObjectType):
+class Query(graphene.ObjectType[Any]):
     parameters = graphene.List(graphene.NonNull(ParameterInterface), required=True)
     parameter = graphene.Field(ParameterInterface, id=graphene.ID(required=True))
 

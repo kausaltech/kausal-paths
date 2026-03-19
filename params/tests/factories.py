@@ -6,7 +6,8 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.tests.factories import ContextFactory
 from nodes.units import unit_registry
-from params.param import BoolParameter, NumberParameter, Parameter, StringParameter
+from params.base import Parameter
+from params.param import BoolParameter, NumberParameter, StringParameter
 
 if TYPE_CHECKING:
     from nodes.context import Context

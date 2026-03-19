@@ -484,7 +484,7 @@ class DatasetPlusOneNode(DatasetNode):
 class DetailedDatasetNode(DatasetNode):
     allowed_parameters = [
         *DatasetNode.allowed_parameters,
-        StringParameter('action', description='Detailed action module', is_customizable=False),
+        StringParameter(local_id='action', description='Detailed action module', is_customizable=False),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -514,7 +514,7 @@ class DetailedDatasetNode(DatasetNode):
 class CorrectionNode(DatasetNode):  # FIXME Separate correction into another node?
     allowed_parameters = [
         *DatasetNode.allowed_parameters,
-        BoolParameter('do_correction', description='Should the values be corrected?'),
+        BoolParameter(local_id='do_correction', description='Should the values be corrected?'),
     ]
 
     def compute(self):
@@ -539,7 +539,7 @@ class CorrectionNode(DatasetNode):  # FIXME Separate correction into another nod
 class CorrectionNode2(AdditiveNode):
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        BoolParameter('do_correction', description='Should the values be corrected?'),
+        BoolParameter(local_id='do_correction', description='Should the values be corrected?'),
     ]
 
     def compute(self):

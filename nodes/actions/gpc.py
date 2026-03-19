@@ -48,9 +48,9 @@ class DatasetAction2(DatasetAction):
 
 class DatasetActionMFM(DatasetAction):
     allowed_parameters = [
-        StringParameter('action', description='Action name in GPC dataset', is_customizable=False),
-        NumberParameter('target_value', description='Target action impact value', is_customizable=True),
-        StringParameter('target_metric', description='Target action metric id', is_customizable=False),
+        StringParameter(local_id='action', description='Action name in GPC dataset', is_customizable=False),
+        NumberParameter(local_id='target_value', description='Target action impact value', is_customizable=True),
+        StringParameter(local_id='target_metric', description='Target action metric id', is_customizable=False),
     ]
     allow_null_categories = True
     no_effect_value = 0.0
@@ -143,10 +143,10 @@ class DatasetActionMFM(DatasetAction):
 
 class StockReplacementAction(DatasetAction):
     allowed_parameters = [
-        StringParameter('sector', description='GPC sector', is_customizable=False),
-        StringParameter('action', description='Detailed action module', is_customizable=False),
-        NumberParameter('investment_value', description='Maximum annual investment', is_customizable=True),
-        StringParameter('investment_units', description='Investment units', is_customizable=False),
+        StringParameter(local_id='sector', description='GPC sector', is_customizable=False),
+        StringParameter(local_id='action', description='Detailed action module', is_customizable=False),
+        NumberParameter(local_id='investment_value', description='Maximum annual investment', is_customizable=True),
+        StringParameter(local_id='investment_units', description='Investment units', is_customizable=False),
     ]
     allow_null_categories = True
 

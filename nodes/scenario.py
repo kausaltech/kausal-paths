@@ -119,6 +119,7 @@ class CustomScenario(Scenario):
         for param_id, val in params:
             param = self.context.get_parameter(param_id, required=False)
             is_valid = True
+            cleaned_val = None
             if param is None:
                 # The parameter might be stale (e.g. set with an older version of the backend)
                 self.context.log.error('parameter %s not found in context' % param_id)
