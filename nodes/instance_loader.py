@@ -7,7 +7,7 @@ import os
 import pickle
 import re
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, Literal, Self, TypedDict, cast, overload
@@ -29,6 +29,7 @@ from nodes.exceptions import NodeError
 from nodes.explanations import NodeExplanationSystem
 from nodes.normalization import Normalization
 from pages.config import pages_from_config
+from params.discover import discover_global_parameters
 
 from .excel_results import InstanceResultExcel
 
@@ -389,6 +390,7 @@ class InstanceLoader:
         pop: bool = False,
         required: Literal[True] = True,
         default_language=None,
+        fallback: TranslatedString | None = None,
     ) -> TranslatedString: ...
 
     @overload
@@ -399,6 +401,7 @@ class InstanceLoader:
         pop: bool = False,
         required: Literal[False] = False,
         default_language=None,
+        fallback: TranslatedString | None = None,
     ) -> TranslatedString | None: ...
 
     def make_trans_string(  # noqa: C901
@@ -408,6 +411,7 @@ class InstanceLoader:
         pop: bool = False,
         required: bool = False,
         default_language=None,
+        fallback: TranslatedString | None = None,
     ) -> None | TranslatedString:
         default_language = default_language or self.config['default_language']
         all_langs = {self.config['default_language']}
@@ -438,6 +442,7 @@ class InstanceLoader:
             langs[full] = config[key]
             if pop:
                 del config[key]
+
         if not langs:
             if required:
                 raise Exception('Value for field %s missing' % attr)
@@ -450,9 +455,7 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    def _make_node_datasets(  # noqa: C901, PLR0912, PLR0915
-        self, config: dict[str, Any], node_class: type[Node], unit: Unit | None
-    ) -> list[Dataset]:
+    def _make_node_datasets(self, config: dict[str, Any], node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.generic import GenericNode
         from nodes.simple import AdditiveNode
@@ -534,7 +537,8 @@ class InstanceLoader:
         return datasets
 
     def _make_node_params(self, config: dict[str, Any], node: Node) -> None:  # noqa: C901, PLR0912
-        from params.param import Parameter, ReferenceParameter
+        from params.base import Parameter
+        from params.param import ReferenceParameter
 
         params = config.get('params', [])
         if not params:
@@ -543,7 +547,7 @@ class InstanceLoader:
             params = [dict(id=param_id, value=value) for param_id, value in params.items()]
         # Ensure that the node class allows these parameters
         node_class = type(node)
-        class_allowed_params = {p.local_id: p for p in getattr(node_class, 'allowed_parameters', [])}
+        class_allowed_params: dict[str, Parameter] = {p.local_id: p for p in getattr(node_class, 'allowed_parameters', [])}
         for pc in params:
             param_id = pc.pop('id')
 
@@ -552,9 +556,9 @@ class InstanceLoader:
                 raise NodeError(node, 'Parameter %s not allowed by node class' % param_id)
             param_class = type(param_obj)
 
-            label = self.make_trans_string(pc, 'label', pop=True) or param_obj.label
+            label = self.make_trans_string(pc, 'label', pop=True, required=False) or param_obj.label
             ref = pc.pop('ref', None)
-            description = self.make_trans_string(pc, 'description', pop=True) or param_obj.description
+            description = self.make_trans_string(pc, 'description', pop=True, required=False) or param_obj.description
             is_customizable = pc.pop('is_customizable', None)
 
             scenario_values = pc.pop('values', {})
@@ -574,17 +578,16 @@ class InstanceLoader:
                             type(target),
                         ),
                     )
-                param = ReferenceParameter(
+                ref_param = ReferenceParameter(
                     local_id=param_obj.local_id,
                     label=param_obj.label,
-                    target=target,
-                    context=self.context,
+                    target_id=target.global_id,
                 )
-                node.add_parameter(param)
+                node.add_parameter(ref_param)
                 continue
 
             # Merge parameter values
-            fields = asdict(param_obj)
+            fields = param_obj.model_dump()
             fields.update(pc)
             if description is not None:
                 fields['description'] = description
@@ -592,7 +595,6 @@ class InstanceLoader:
                 fields['label'] = label
             if is_customizable is not None:
                 fields['is_customizable'] = is_customizable
-            fields['context'] = self.context
 
             unit = fields.get('unit', None)
             if unit is not None and isinstance(unit, str):
@@ -656,8 +658,8 @@ class InstanceLoader:
 
         datasets = self._make_node_datasets(config, node_class, unit)
 
-        loc_conf = config.get('config_location')
-        config_location = ConfigLocation(**cast('ConfigLocation', loc_conf)) if loc_conf is not None else None
+        loc_conf: ConfigLocation | None = config.get('config_location')
+        config_location = ConfigLocation(**loc_conf) if loc_conf else None
 
         node: Node = node_class(
             id=config['id'],
@@ -982,6 +984,8 @@ class InstanceLoader:
             self.setup_progress_tracking_scenario()
 
     def setup_global_parameters(self):
+        global_params = discover_global_parameters()
+
         context = self.context
         for pc in self.config.get('params', []):
             param_id = pc.pop('id')
@@ -990,20 +994,26 @@ class InstanceLoader:
             if unit_str is not None:
                 unit = context.unit_registry.parse_units(unit_str)
                 pc['unit'] = unit
-            param_type = context.get_parameter_type(param_id)
+            param = global_params.get(param_id)
+            if param is None:
+                raise Exception('Unknown global parameter: %s' % param_id)
             param_val = pc.pop('value', None)
             if 'is_customizable' not in pc:
                 pc['is_customizable'] = False
             pc['label'] = self.make_trans_string(pc, 'label', pop=True)
             pc['description'] = self.make_trans_string(pc, 'description', pop=True)
+
+            param_type = type(param)
             param = param_type(**pc)
+            param.set_context(context)
+            param.set(param_val)
+
             sub_node_ids = pc.get('subscription_nodes', None)
             if sub_node_ids is not None:
-                sub_nodes = []
                 for node_id in sub_node_ids:
-                    sub_nodes += [context.get_node(node_id)]
-                param.subscription_nodes = sub_nodes
-            param.set(param_val)
+                    sub_node = context.get_node(node_id)
+                    param.subscribe_changes(sub_node)
+
             context.add_global_parameter(param)
 
     def setup_impact_overviews(self):
@@ -1150,7 +1160,7 @@ class InstanceLoader:
         except InstanceConfig.DoesNotExist:
             self.db_datasets = {}
             return
-        ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at')
+        ds_objs = DBDatasetModel.objects.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at')
         self.db_datasets = {ds.identifier: ds for ds in ds_objs}
 
     def _init_instance(self) -> None:  # noqa: PLR0915

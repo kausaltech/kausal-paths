@@ -35,7 +35,7 @@ from nodes.node import Node
 from nodes.normalization import Normalization
 from nodes.scenario import Scenario, ScenarioKind
 from pages.models import ActionListPage
-from params.param import Parameter
+from params import Parameter
 
 from . import visualizations as viz
 from .actions.action import ActionGroup, ActionNode, ImpactOverview

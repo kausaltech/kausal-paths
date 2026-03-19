@@ -107,7 +107,7 @@ class BuildingEnergySavingAction(ActionNode):
         'Heat': NodeMetric('kWh/a/m**2', 'energy_per_area'),
         'Electricity': NodeMetric('kWh/a/m**2', 'energy_per_area'),
     }
-    allowed_parameters: typing.ClassVar[list[Parameter[typing.Any]]] = [
+    allowed_parameters: typing.ClassVar[list[Parameter]] = [
         NumberParameter(
             local_id='investment_lifetime',
             label=_('Investment lifetime (a)'),

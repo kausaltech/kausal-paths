@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from django.utils.translation import gettext_lazy as _
 from pydantic import BaseModel, Field, RootModel, validator
@@ -20,7 +19,8 @@ from nodes.constants import (
     YEAR_COLUMN,
 )
 from nodes.exceptions import NodeError
-from params import Parameter, ParameterWithUnit
+from params import ParameterWithUnit
+from params.base import parameter
 from params.param import BoolParameter, NumberParameter, ValidationError
 
 from .action import ActionNode
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
     from nodes.node import Node
     from nodes.units import Unit
+    from params import Parameter
 
 
 class ReduceAmount(BaseModel):
@@ -91,18 +92,10 @@ class ReduceParameterValue(RootModel[list[ReduceFlow]]):
     root: list[ReduceFlow]
 
 
-@dataclass
-class ReduceParameter(ParameterWithUnit, Parameter[ReduceParameterValue]):
+@parameter
+class ReduceParameter(ParameterWithUnit[ReduceParameterValue]):
+    type: Literal['reduce'] = 'reduce'
     value: ReduceParameterValue | None = None
-
-    unit_str: InitVar[str | None] = None
-
-    def __post_init__(self, unit_str: str | None):
-        self._init_unit(unit_str)
-        super().__post_init__()
-
-    def serialize_value(self) -> Any:
-        return super().serialize_value()
 
     def clean(self, value: Any) -> ReduceParameterValue:
         if not isinstance(value, list):
@@ -235,7 +228,7 @@ class DatasetReduceAction(ActionNode):
     a multiplier.
     """)
 
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
         BoolParameter(local_id='relative_goal'),
     ]
 

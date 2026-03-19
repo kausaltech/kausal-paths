@@ -1570,10 +1570,10 @@ class GenerationCapacityNode(GenericNode):
     }
     allowed_parameters = [
         *GenericNode.allowed_parameters,
-        NumberParameter('lifetime', label=_('Lifetime of the installation in full years')),
-        NumberParameter('efficiency', label=_('Intrinsic production efficiency')),
-        NumberParameter('performance_ratio', label=_('Performance without losses')),
-        NumberParameter('ef_upstream_production', label=_('Scope 3 emissions from upstream of installation')),
+        NumberParameter(local_id='lifetime', label=_('Lifetime of the installation in full years')),
+        NumberParameter(local_id='efficiency', label=_('Intrinsic production efficiency')),
+        NumberParameter(local_id='performance_ratio', label=_('Performance without losses')),
+        NumberParameter(local_id='ef_upstream_production', label=_('Scope 3 emissions from upstream of installation')),
     ]
     DEFAULT_OPERATIONS = 'add,generation_capacity'
 
@@ -1616,12 +1616,12 @@ class GenerationCapacityNode(GenericNode):
 class ChpNode(GenericNode):
     allowed_parameters = [
         *GenericNode.allowed_parameters,
-        StringParameter('method', label=_('Emission splitting method')),
-        NumberParameter('electricity_fraction', label=_('Fraction of electricity in the output energy')),
-        NumberParameter('t_supply', label=_('Temperature (in K) of district heating supply slow')),
-        NumberParameter('t_return', label=_('Temperature (in K) of district heating return flow')),
-        NumberParameter('electricity_reference_efficiency', label=_('Efficiency of producing electricity separately')),
-        NumberParameter('heat_reference_efficiency', label=_('Efficiency of producing heat separately')),
+        StringParameter(local_id='method', label=_('Emission splitting method')),
+        NumberParameter(local_id='electricity_fraction', label=_('Fraction of electricity in the output energy')),
+        NumberParameter(local_id='t_supply', label=_('Temperature (in K) of district heating supply slow')),
+        NumberParameter(local_id='t_return', label=_('Temperature (in K) of district heating return flow')),
+        NumberParameter(local_id='electricity_reference_efficiency', label=_('Efficiency of producing electricity separately')),
+        NumberParameter(local_id='heat_reference_efficiency', label=_('Efficiency of producing heat separately')),
     ]
     DEFAULT_OPERATIONS = 'add,chp_ef_split'
 
@@ -1715,8 +1715,8 @@ class ChpNode(GenericNode):
 class ConstantNode(GenericNode):
     allowed_parameters = [
         *GenericNode.allowed_parameters,
-        NumberParameter('constant', label=_('Constant value')),
-        BoolParameter('condition', label=_('Boolean parameter to convert to float')),
+        NumberParameter(local_id='constant', label=_('Constant value')),
+        BoolParameter(local_id='condition', label=_('Boolean parameter to convert to float')),
     ]
     DEFAULT_OPERATIONS = 'constant,add'
 

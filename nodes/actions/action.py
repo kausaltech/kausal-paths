@@ -25,7 +25,8 @@ from nodes.constants import (
     YEAR_COLUMN,
     DecisionLevel,
 )
-from nodes.node import Node, NodeError
+from nodes.exceptions import NodeError
+from nodes.node import Node
 from nodes.units import Quantity, unit_registry
 from params import BoolParameter, NumberParameter
 
@@ -36,7 +37,7 @@ if typing.TYPE_CHECKING:
 
     from nodes.context import Context
     from nodes.units import Unit
-    from params.param import Parameter
+    from params import Parameter
 
     from .parent import ParentActionNode
 
@@ -53,13 +54,13 @@ class ActionGroup:
 
 class EnabledParam(BoolParameter):
     def set_node(self, node: Node):
-        if self.context is not None:
-            # If the Instance defines a custom label for the 'enabled' parameter,
-            # replace the default with it.
-            instance = self.context.instance
-            if instance.terms.enabled_label:
-                self.label = instance.terms.enabled_label
-        return super().set_node(node)
+        super().set_node(node)
+        assert self.context is not None
+        # If the Instance defines a custom label for the 'enabled' parameter,
+        # replace the default with it.
+        instance = self.context.instance
+        if instance.terms.enabled_label:
+            self.label = instance.terms.enabled_label
 
 
 ENABLED_PARAM = EnabledParam(
@@ -113,7 +114,8 @@ class ActionNode(Node):
             else:
                 raise NodeError(self, "'enabled' is missing from allowed parameters")
             param = param.copy()
-            param.context = self.context
+            assert param.context is None
+            assert param.node is None
             self.add_parameter(param)
         assert isinstance(param, BoolParameter)
         assert param.node == self

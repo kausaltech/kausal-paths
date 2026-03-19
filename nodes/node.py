@@ -35,7 +35,6 @@ from nodes.constants import (
     get_quantity_icon,
 )
 from nodes.goals import NodeGoals
-from params.param import ParameterWithUnit
 
 from .datasets import JSONDataset
 from .edges import Edge
@@ -665,6 +664,8 @@ class Node:
     def get_global_parameter_value(self, id: str, *, required: Literal[False], units: Literal[False] = ...) -> object | None: ...
 
     def get_global_parameter_value(self, id: str, *, required: bool = True, units: bool = False) -> object | None:
+        from params.base import ParameterWithUnit
+
         if id not in self.global_parameters:
             if not required:
                 return None
@@ -1338,7 +1339,7 @@ class Node:
 
     def __str__(self):
         cls = type(self)
-        return '%s <%s.%s>' % (self.id, cls.__module__, cls.__name__)
+        return '%s.%s(id=%s, instance=%s)' % (cls.__module__, cls.__name__, self.id, self.context.instance.id)
 
     def __repr__(self):
         return self.__str__()
