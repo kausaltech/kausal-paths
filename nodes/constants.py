@@ -21,7 +21,9 @@ UNCERTAINTY_COLUMN = 'iteration'
 SCENARIO_ACTION_GROUP = 'Scenario'
 # With action disabled
 WITHOUT_ACTION_GROUP = 'WithoutAction'
-# Impact of action
+# Reference scenario (for scenario impact)
+REFERENCE_SCENARIO_GROUP = 'Reference'
+# Impact of action or scenario
 IMPACT_GROUP = 'Impact'
 
 

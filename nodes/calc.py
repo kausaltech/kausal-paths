@@ -5,11 +5,20 @@ from typing import TYPE_CHECKING
 import polars as pl
 
 from common import polars as ppl
-
-from .constants import FORECAST_COLUMN, YEAR_COLUMN
+from nodes.constants import (
+    FORECAST_COLUMN,
+    IMPACT_COLUMN,
+    IMPACT_GROUP,
+    REFERENCE_SCENARIO_GROUP,
+    SCENARIO_ACTION_GROUP,
+    YEAR_COLUMN,
+)
+from nodes.exceptions import NodeError
 
 if TYPE_CHECKING:
     import pandas as pd
+
+    from nodes.node import Node
 
 
 def nafill_all_forecast_years(df: pd.DataFrame, end_year: int) -> pd.DataFrame:
@@ -111,3 +120,76 @@ def convert_to_co2e(df: ppl.PathsDataFrame, dim_id: str) -> ppl.PathsDataFrame:
     df = df.drop('gwp_factor')
     df = df.paths.sum_over_dims([dim_id])
     return df
+
+
+def compute_scenario_impact( # Gets inspiration from ActionNode.compute_impact
+    target_node: Node,
+    reference_scenario_id: str = 'baseline',
+) -> ppl.PathsDataFrame:
+    """
+    Compute scenario impact: current scenario vs reference scenario for target_node.
+
+    Always "current vs reference" (no baseline/action-style variant). Returns three
+    blocks in IMPACT_COLUMN: Scenario, Reference, Impact (same pattern as compute_impact).
+    """
+    ref_scenario = target_node.context.scenarios[reference_scenario_id]
+    current_df = target_node.get_output_pl()
+    with ref_scenario.override():
+        reference_df = target_node.get_output_pl()
+
+    if len(current_df) != len(reference_df):
+        raise NodeError(
+            target_node,
+            'Scenario impact: current and reference output row counts differ (%d vs %d)'
+            % (len(current_df), len(reference_df)),
+        )
+
+    metrics = target_node.output_metrics.values()
+    mcols = [m.column_id for m in metrics]
+    renames = {}
+    for m in mcols:
+        if m not in reference_df.metric_cols:
+            raise NodeError(
+                target_node,
+                'Output of %s did not contain the %s metric column' % (target_node.id, m),
+            )
+        renames[m] = '%s:Reference' % m
+    reference_df = reference_df.rename(renames)
+    df = current_df.paths.join_over_index(reference_df)
+
+    impact_cols = []
+    impact_units = {}
+    for m in mcols:
+        wc = pl.col(m)
+        wref = pl.col('%s:Reference' % m)
+        tol = 1e-6
+        wref = pl.when((wc - wref).abs() < (tol * wref).abs()).then(wc).otherwise(wref)
+        ic_name = '%s:Impact' % m
+        ic = (wc - wref).alias(ic_name)
+        impact_cols.append(ic)
+        impact_units[ic_name] = df.get_unit(m)
+
+    df = df.with_columns(impact_cols)
+    for col, unit in impact_units.items():
+        df = df.set_unit(col, unit)
+    common_cols = [YEAR_COLUMN, *df.dim_ids, FORECAST_COLUMN]
+    # Long format (concat blocks) instead of pivot: IMPACT_COLUMN is a dimension, same
+    # metric column names in every block, so downstream can filter e.g. IMPACT_GROUP and
+    # get one table with a single schema; pivot would give wide columns (m1_Scenario, ...).
+    current_block = df.select([*common_cols, pl.lit(SCENARIO_ACTION_GROUP).alias(IMPACT_COLUMN), *mcols])
+    reference_block = df.select(
+        [
+            *common_cols,
+            pl.lit(REFERENCE_SCENARIO_GROUP).alias(IMPACT_COLUMN),
+            *[pl.col('%s:Reference' % m).alias(m) for m in mcols],
+        ],
+    )
+    impact_block = df.select(
+        [*common_cols, pl.lit(IMPACT_GROUP).alias(IMPACT_COLUMN), *[pl.col('%s:Impact' % m).alias(m) for m in mcols]],
+    )
+
+    meta = current_block.get_meta()
+    zdf = pl.concat([current_block, reference_block, impact_block], how='vertical')
+    result = ppl.to_ppdf(zdf, meta=meta)
+    result = result.add_to_index(IMPACT_COLUMN)
+    return result

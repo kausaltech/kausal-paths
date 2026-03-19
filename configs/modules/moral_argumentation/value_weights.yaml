@@ -293,14 +293,13 @@ nodes:
 
 - id: emission_reduction_achieved
   name: Emission reduction achieved
-  description: Reduction from baseline due to policy
-  type: generic.GenericNode
+  description: Reduction from baseline due to all policy actions combined.
+  type: generic.ScenarioImpactNode
   quantity: emissions
-  unit: t_co2e/person/a
+  unit: kg_co2e/person/a
   input_nodes:
   - id: net_emissions_per_person
-  params:
-    operations: add,scenario_impact
+    tags: [scenario_impact]
 
 - id: emission_reduction_target_per_person
   name: Emission reduction target per person

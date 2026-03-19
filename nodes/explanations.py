@@ -348,6 +348,10 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         and emissions avoided from the capacity that gets replaced.
         """)),
     'GenericNode': NodeInfo(_("")),
+    'ScenarioImpactNode': NodeInfo(_(
+        """Gives the difference between the current scenario and a reference scenario
+        for the single input node. Reference scenario is configurable (default: baseline)."""
+    )),
     'GenericAction': NodeInfo(_("")),
     'GpcTrajectoryAction': NodeInfo(_(
         """

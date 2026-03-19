@@ -1377,22 +1377,14 @@ class Node:
     def get_baseline_values(self) -> ppl.PathsDataFrame:
         if self._baseline_values is not None:
             return self._baseline_values
-        try:
-            self._computing_baseline = True
-            if self.context.active_scenario.id != 'baseline':
-                baseline = self.context.scenarios['baseline']
-                with baseline.override():
-                    df = self.get_output_pl()
-            else:
+        if self.context.active_scenario.id != 'baseline':
+            baseline = self.context.scenarios['baseline']
+            with baseline.override():
                 df = self.get_output_pl()
-        finally:
-            self._computing_baseline = False
-        # For scenario_impact nodes, _baseline_values was set in _operation_scenario_impact to the pre-impact result
-        ops = self.get_parameter_value_str('operations', required=False) or ''
-        if 'scenario_impact' not in ops:
-            self._baseline_values = df
-        assert self._baseline_values is not None  # set above or by _operation_scenario_impact
-        return self._baseline_values
+        else:
+            df = self.get_output_pl()
+        self._baseline_values = df
+        return df
 
     def baseline_values_calculated(self) -> bool:
         return self._baseline_values is not None
