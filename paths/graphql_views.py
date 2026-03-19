@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import time
-from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.http import HttpRequest
-from graphql.execution import ExecutionContext
 from strawberry.channels import (
     ChannelsRequest,
 )
@@ -19,72 +17,20 @@ from kausal_common.testing.graphql import capture_query
 
 from paths.schema_context import PathsGraphQLContext
 
-from .graphql_helpers import GraphQLPerfNode
-
 if TYPE_CHECKING:
-    from contextlib import AbstractContextManager
-
     from django.http.response import HttpResponse
-    from graphql import (
-        GraphQLOutputType,
-    )
-    from graphql.error import GraphQLError
-    from graphql.language import FieldNode
-    from graphql.pyutils import AwaitableOrValue, Path
-    from graphql.type import GraphQLObjectType
     from strawberry.http import GraphQLRequestData
     from strawberry.http.temporal_response import TemporalResponse
     from strawberry.types import ExecutionResult
 
     from kausal_common.users import UserOrAnon
 
-    from paths.types import GQLInstanceContext
 
+GRAPHQL_CAPTURE_QUERIES = env_bool('GRAPHQL_CAPTURE_QUERIES', default=False)
 
 SUPPORTED_LANGUAGES = {x[0] for x in settings.LANGUAGES}
 
 logger = logger.bind(markup=True)
-
-GRAPHQL_CAPTURE_QUERIES = env_bool('GRAPHQL_CAPTURE_QUERIES', default=False)
-
-
-# FIXME: Not used anywhere; any code worth keeping?
-class PathsExecutionContext(ExecutionContext):
-    context_value: GQLInstanceContext
-
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-    def handle_field_error(
-        self,
-        error: GraphQLError,
-        return_type: GraphQLOutputType,
-    ) -> None:
-        if settings.DEBUG and error.original_error is not None and not getattr(error, '_was_printed', False):
-            exc = error.original_error
-            logger.opt(exception=exc).error('GraphQL field error at {path}', path=error.path)
-            setattr(error, '_was_printed', True)  # noqa: B010
-        return super().handle_field_error(error, return_type)
-
-    def execute_fields(
-        self,
-        parent_type: GraphQLObjectType,
-        source_value: Any,
-        path: Path | None,
-        fields: dict[str, list[FieldNode]],
-    ) -> AwaitableOrValue[dict[str, Any]]:
-        path_parts = path.as_list() if path else []
-        span_cm: AbstractContextManager[Any]
-        str_path = '.'.join([str(x) for x in path_parts])
-        if path_parts:
-            node = GraphQLPerfNode(str_path)
-            span_cm = self.context_value.graphql_perf.exec_node(node)
-        else:
-            span_cm = nullcontext()
-        with span_cm:
-            _rich_traceback_omit = True
-            ret = super().execute_fields(parent_type, source_value, path, fields)
-        return ret
 
 
 def graphql_capture_query(
@@ -97,7 +43,7 @@ def graphql_capture_query(
 ):
     from paths.const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER, WILDCARD_DOMAINS_HEADER
 
-    if not env_bool('GRAPHQL_CAPTURE_QUERIES', default=False):
+    if not GRAPHQL_CAPTURE_QUERIES:
         return
     headers = [INSTANCE_IDENTIFIER_HEADER, INSTANCE_HOSTNAME_HEADER, WILDCARD_DOMAINS_HEADER]
     http_headers = context.get_request_headers()

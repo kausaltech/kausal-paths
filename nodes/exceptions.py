@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar, Literal
 
 if TYPE_CHECKING:
+    from params import Parameter
+
     from .node import Node
 
 
@@ -48,3 +50,8 @@ class NodeMissingDefaultUnitError(NodeError):
     def __init__(self, node: Node):
         msg = 'Node does not have a default unit'
         super().__init__(node, msg)
+
+
+class ParameterError(Exception):
+    def __init__(self, param: Parameter, msg: str):
+        super().__init__(f'[{param.global_id}: {msg}')

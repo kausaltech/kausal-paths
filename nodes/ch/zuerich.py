@@ -22,6 +22,8 @@ from nodes.simple import AdditiveNode, MixNode, MultiplicativeNode, SimpleNode
 from params.param import BoolParameter
 
 if TYPE_CHECKING:
+    from polars.expr.expr import Expr
+
     from nodes.units import Unit
 
 
@@ -409,7 +411,7 @@ class GasGridMixin(Node):
         zdf = df.select(YEAR_COLUMN).join(mdf, on=YEAR_COLUMN, how='left').join(sdf, on=YEAR_COLUMN, how='left')
         zdf = zdf.with_columns(pl.col('GridShare').fill_null(0.0))
 
-        def fc_only(col: str):
+        def fc_only(col: str) -> Expr:
             own_supply = (1 - zdf['GridShare']) * pl.col(col)
             grid_supply = zdf['GridShare'] * zdf[col] * pl.col('all_gas')
             return pl.when(pl.col(FORECAST_COLUMN)).then(own_supply + grid_supply).otherwise(pl.col(col)).fill_nan(0.0).alias(col)
@@ -432,7 +434,10 @@ class GasGridMixin(Node):
 
 
 class DistrictHeatProductionMix(MixNode, GasGridMixin):
-    allowed_parameters = [*MixNode.allowed_parameters, BoolParameter('use_gas_network', label='District heat uses gas grid mix')]
+    allowed_parameters = [
+        *MixNode.allowed_parameters,
+        BoolParameter(local_id='use_gas_network', label='District heat uses gas grid mix'),
+    ]
 
     def compute(self) -> ppl.PathsDataFrame:
         mix_df = self.get_input_dataset_pl()

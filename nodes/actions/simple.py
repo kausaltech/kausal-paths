@@ -9,9 +9,9 @@ import polars as pl
 
 from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.exceptions import NodeError
 from nodes.generic import GenericNode
 from nodes.gpc import DatasetNode
-from nodes.node import NodeError
 from nodes.simple import SimpleNode
 from params import BoolParameter, NumberParameter, PercentageParameter, StringParameter
 
@@ -19,7 +19,7 @@ from .action import ActionNode
 
 if TYPE_CHECKING:
     from common.polars import PathsDataFrame
-    from params.param import Parameter
+    from params.base import Parameter
 
 
 class GenericAction(GenericNode, ActionNode):
@@ -52,7 +52,7 @@ class ValueAction(GenericAction):
     allowed_parameters = [
         *GenericAction.allowed_parameters,
         NumberParameter(
-            'constant',
+            local_id='constant',
             label=_('Weight'),
             description=_('How much to weight this value (0 = ignore in priorities)'),
             is_customizable=True,
@@ -120,7 +120,7 @@ class CumulativeAdditiveAction(ActionNode):
     explanation = _("""Additive action where the effect is cumulative and remains in the future.""")
 
     allowed_parameters: ClassVar[list[Parameter[Any]]] = [
-        PercentageParameter('target_year_ratio', min_value=0),
+        PercentageParameter(local_id='target_year_ratio', min_value=0),
     ]
 
     def add_cumulatively(self, df):
@@ -156,12 +156,12 @@ class CumulativeAdditiveAction(ActionNode):
 
 class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
     allowed_parameters = CumulativeAdditiveAction.allowed_parameters + [
-        NumberParameter('target_year_level'),
+        NumberParameter(local_id='target_year_level'),
         NumberParameter(
             local_id='action_delay',
             label='Years of delay (a)',
         ),
-        NumberParameter('multiplier'),
+        NumberParameter(local_id='multiplier'),
     ]
 
     explanation = _("""Cumulative additive action where a yearly target is set and the effect is linear.
@@ -277,11 +277,13 @@ class GpcTrajectoryAction(TrajectoryAction, DatasetNode):
 class ParameterAction(ActionNode):
     allowed_parameters = [
         *ActionNode.allowed_parameters,
-        NumberParameter('from_value', description='Starting parameter value', is_customizable=True),
-        NumberParameter('percent_change', description='Annual percent change in parameter value', is_customizable=True),
-        NumberParameter('from_year', description='Starting year', is_customizable=True),
-        NumberParameter('default_value', description='Default parameter value', is_customizable=False),
-        NumberParameter('default_change', description='Default annual percent change in parameter value', is_customizable=False),
+        NumberParameter(local_id='from_value', description='Starting parameter value', is_customizable=True),
+        NumberParameter(local_id='percent_change', description='Annual percent change in parameter value', is_customizable=True),
+        NumberParameter(local_id='from_year', description='Starting year', is_customizable=True),
+        NumberParameter(local_id='default_value', description='Default parameter value', is_customizable=False),
+        NumberParameter(
+            local_id='default_change', description='Default annual percent change in parameter value', is_customizable=False
+        ),
     ]
 
     def compute_effect(self):

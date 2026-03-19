@@ -19,11 +19,11 @@ from paths.const import MODEL_CACHE_OP, MODEL_CALC_OP
 
 from common import (
     base32_crockford,
-    polars as pl,  # noqa: F401  # pyright: ignore[reportUnusedImport]
-    polars_ext,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    polars as _pl,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    polars_ext as _polars_ext,  # noqa: F401  # pyright: ignore[reportUnusedImport]
 )
 from common.cache import Cache
-from params.discover import discover_parameter_types
+from nodes.exceptions import ParameterError
 
 from .datasets import DVCDataset, FixedDataset
 from .units import unit_registry
@@ -129,12 +129,6 @@ class Context:
     Will be `None` if no normalization is the default.
     """
 
-    supported_parameter_types: dict[str, type]
-    """All supported parameter types.
-
-    Dictionary values will be subclasses of `Parameter`.
-    """
-
     cache: Cache
     """Cache for computation results and datasets."""
 
@@ -202,7 +196,6 @@ class Context:
         self.dataset_repo = dataset_repo
         self.dataset_repo_default_path = dataset_repo_default_path
         self.sample_size = sample_size
-        self.supported_parameter_types = discover_parameter_types()
         # will be set later
         self.instance = None  # type: ignore
         self.active_scenario = None  # type: ignore
@@ -228,6 +221,15 @@ class Context:
     def __rich_repr__(self) -> RichReprResult:
         yield 'instance', self.instance.id
         yield 'obj_id', self.obj_id
+
+    def __str__(self) -> str:
+        instance_id = self.instance.id if self.instance is not None else None  # pyright: ignore[reportUnnecessaryComparison]
+        if instance_id is None:
+            instance_id = '<unknown>'
+        return f'Context(instance={instance_id}, obj_id={self.obj_id})'
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
     @contextmanager
     def start_span(self, name: str, op: str | None = None, attributes: dict[str, Any] | None = None):
@@ -263,12 +265,6 @@ class Context:
         if self.instance.result_excels:
             for excel_res in self.instance.result_excels:
                 excel_res.validate_for_instance(self.instance)
-
-    def get_parameter_type(self, parameter_id: str) -> type:
-        param_type = self.supported_parameter_types.get(parameter_id)
-        if param_type is None:
-            raise Exception('Unknown parameter: %s' % parameter_id)
-        return param_type
 
     def load_dvc_dataset(self, ds_id: str) -> dvc_pandas.Dataset:
         """
@@ -370,7 +366,12 @@ class Context:
         """
         if parameter.local_id in self.global_parameters:
             msg = f'Global parameter {parameter.local_id} already defined'
-            raise Exception(msg)
+            raise ParameterError(parameter, msg)
+        assert parameter.node is None
+        if parameter.context is not None:
+            assert parameter.context == self
+        else:
+            parameter.set_context(self)
         self.global_parameters[parameter.local_id] = parameter
 
     def add_normalization(self, id: str, norm: Normalization):

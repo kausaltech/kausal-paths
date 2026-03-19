@@ -225,8 +225,8 @@ class HistoricalNode(AdditiveNode):
 
 class CCSNode(SimpleNode):
     allowed_parameters = [
-        NumberParameter('capture_efficiency', unit_str='%', is_customizable=True),
-        NumberParameter('storage_efficiency', unit_str='%', is_customizable=True),
+        NumberParameter(local_id='capture_efficiency', unit_str='%', is_customizable=True),
+        NumberParameter(local_id='storage_efficiency', unit_str='%', is_customizable=True),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:

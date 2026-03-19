@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field, RootModel, model_validator
 
@@ -20,7 +19,8 @@ from nodes.constants import (
     YEAR_COLUMN,
 )
 from nodes.exceptions import NodeError
-from params import Parameter, ParameterWithUnit
+from params import ParameterWithUnit
+from params.base import parameter
 from params.param import ValidationError
 
 from .action import ActionNode
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
     from nodes.node import Node
     from nodes.units import Unit
+    from params import Parameter
 
 
 class ShiftTarget(BaseModel):
@@ -114,15 +115,10 @@ class ShiftParameterValue(RootModel[list[ShiftEntry]]):
     root: list[ShiftEntry]
 
 
-@dataclass
-class ShiftParameter(ParameterWithUnit, Parameter[ShiftParameterValue]):
+@parameter
+class ShiftParameter(ParameterWithUnit[ShiftParameterValue]):
+    type: Literal['shift'] = 'shift'
     value: ShiftParameterValue | None = None
-
-    unit_str: InitVar[str | None] = None
-
-    def __post_init__(self, unit_str: str | None):
-        self._init_unit(unit_str)
-        super().__post_init__()
 
     def serialize_value(self) -> Any:
         return super().serialize_value()
@@ -143,7 +139,7 @@ class ShiftParameter(ParameterWithUnit, Parameter[ShiftParameterValue]):
 class ShiftAction(ActionNode):
     allowed_parameters: ClassVar[list[Parameter[Any]]] = [*ActionNode.allowed_parameters, ShiftParameter(local_id='shift')]
 
-    def _compute_one(self, flow_id: str, param: ShiftEntry, unit: Unit) -> ppl.PathsDataFrame:
+    def _compute_one(self, flow_id: str, param: ShiftEntry, unit: Unit) -> ppl.PathsDataFrame:  # noqa: C901, PLR0915
         amounts = sorted(param.amounts, key=lambda x: x.year)
         data = [[a.year, a.source_amount, *a.dest_amounts] for a in param.amounts]
         if len(data) == 1:

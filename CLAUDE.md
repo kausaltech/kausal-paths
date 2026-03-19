@@ -131,6 +131,16 @@ pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema
 - Follow Django model patterns with proper managers and querysets
 - Use Pydantic for data validation where appropriate
 
+#### Ruff & TYPE_CHECKING imports
+- Ruff config lives in `kausal_common/configs/ruff.toml`
+- When a base class or decorator causes ruff's `TC004` rule to incorrectly
+  demand moving imports out of `TYPE_CHECKING` (which would cause circular
+  imports), add the decorator/base class to `runtime-evaluated-decorators`
+  or `runtime-evaluated-base-classes` in the `[lint.flake8-type-checking]`
+  section of that file. This tells ruff that the listed classes/decorators
+  evaluate type annotations at runtime (via Pydantic), so imports used only
+  in annotations of those classes are allowed to stay behind `TYPE_CHECKING`.
+
 #### Models
 - All models inherit from appropriate base classes (`UUIDIdentifiedModel`, `PathsModel`)
 - Use proper type annotations for fields and relationships

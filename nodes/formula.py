@@ -517,10 +517,11 @@ class FormulaNode(Node):
                     datasets[tag] = df
 
         # Collect parameters that have units (for use in formulas)
-        from params.param import ParameterWithUnit
+        from params.base import ParameterWithUnit
 
         parameters: dict[str, QuantityType | bool] = {}
         for param_id, param in self.parameters.items():
+            val: Any
             if isinstance(param, ParameterWithUnit) and param.unit is not None:
                 val = self.get_parameter_value(param_id, required=False, units=True)
                 if val is not None:
