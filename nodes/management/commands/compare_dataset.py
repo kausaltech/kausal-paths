@@ -447,7 +447,7 @@ def _print_value_diffs(
 def diff_rows(
     dvc_df: ppl.PathsDataFrame, db_df: ppl.PathsDataFrame,
     *, vertical: bool = False, dvc_modified_at: datetime | None = None, verbose: bool = False,
-    overview_only: bool = False,
+    overview_only: bool = False, approx: bool = False,
 ):
     """Compare row contents after normalizing order. Print differing rows (or overview only)."""
     console.rule('Row diff')
@@ -461,7 +461,7 @@ def diff_rows(
     else:
         console.print(f'Row count: {sd.dvc_row_count}')
 
-    rd = compute_row_diff(dvc_df, db_df)
+    rd = compute_row_diff(dvc_df, db_df, approx=approx)
     if rd is None:
         common_cols = set(dvc_df.columns) & set(db_df.columns)
         if not common_cols:
@@ -486,7 +486,9 @@ def diff_rows(
     _print_value_diffs(rd, vertical=vertical, dp_info=dp_info, verbose=verbose)
 
 
-def _dataset_differs(ic: InstanceConfig, ctx: Context, dataset_id: str) -> bool:
+def _dataset_differs(
+    ic: InstanceConfig, ctx: Context, dataset_id: str, *, approx: bool = False
+) -> bool:
     """Return True if the dataset exists and differs in DVC and DB (schema or rows)."""
     dvc_df = None
     db_df = None
@@ -506,7 +508,7 @@ def _dataset_differs(ic: InstanceConfig, ctx: Context, dataset_id: str) -> bool:
     sd = compute_schema_diff(dvc_df, db_df)
     if not sd.identical:
         return True
-    rd = compute_row_diff(dvc_df, db_df)
+    rd = compute_row_diff(dvc_df, db_df, approx=approx)
     if rd is None:
         return True
     return (
@@ -579,6 +581,7 @@ def _export_dataset_to_gpc(df: ppl.PathsDataFrame, dataset_id: str) -> pl.DataFr
 def compare_dataset(
     ic: InstanceConfig, ctx: Context, dataset_id: str, *,
     vertical: bool = False, verbose: bool = False, overview_if_different: bool = False,
+    approx: bool = False,
 ) -> None:
     dvc_df = None
     db_df = None
@@ -605,7 +608,7 @@ def compare_dataset(
     if dvc_df is not None and db_df is not None:
         sd = compute_schema_diff(dvc_df, db_df)
         diff_schemas(dvc_df, db_df)
-        rd = compute_row_diff(dvc_df, db_df)
+        rd = compute_row_diff(dvc_df, db_df, approx=approx)
         identical = (
             sd.identical
             and rd is not None
@@ -617,7 +620,7 @@ def compare_dataset(
         diff_rows(
             dvc_df, db_df,
             vertical=vertical, dvc_modified_at=dvc_modified_at, verbose=verbose,
-            overview_only=overview_only,
+            overview_only=overview_only, approx=approx,
         )
 
 
@@ -657,6 +660,10 @@ class Command(BaseCommand):
                 'all (default) or different (only those that differ in DB vs DVC)'
             ),
         )
+        parser.add_argument(
+            '--approx', action='store_true',
+            help='Round values to 5 significant digits before comparing (reduces noise from float representation)',
+        )
 
     def handle(self, *args, **options):
         if options['find_overlapping']:
@@ -681,6 +688,7 @@ class Command(BaseCommand):
         if export_filename:
             self._do_export(
                 ic, ctx, export_filename, export_format_name, export_select, dataset_id,
+                approx=options['approx'],
             )
             return
 
@@ -688,7 +696,7 @@ class Command(BaseCommand):
             compare_dataset(
                 ic, ctx, dataset_id,
                 vertical=options['vertical'], verbose=options['verbose'],
-                overview_if_different=False,
+                overview_if_different=False, approx=options['approx'],
             )
         else:
             overlap = get_overlapping_dataset_ids(ic)
@@ -704,7 +712,7 @@ class Command(BaseCommand):
                 compare_dataset(
                     ic, ctx, ds_id,
                     vertical=options['vertical'], verbose=options['verbose'],
-                    overview_if_different=True,
+                    overview_if_different=True, approx=options['approx'],
                 )
 
     def _do_export(
@@ -715,6 +723,7 @@ class Command(BaseCommand):
         format_name: str,
         select_mode: str,
         dataset_id: str | None,
+        approx: bool = False,
     ) -> None:
         if format_name != 'gpc':
             raise CommandError(f'Unsupported export format: {format_name}')
@@ -728,7 +737,7 @@ class Command(BaseCommand):
                     f'No overlapping datasets for instance "{ic.identifier}" to export.'
                 )
             if select_mode == 'different':
-                dataset_ids = [ds_id for ds_id in sorted(overlap) if _dataset_differs(ic, ctx, ds_id)]
+                dataset_ids = [ds_id for ds_id in sorted(overlap) if _dataset_differs(ic, ctx, ds_id, approx=approx)]
                 if not dataset_ids:
                     raise CommandError('No differing datasets to export (all match DVC).')
             else:

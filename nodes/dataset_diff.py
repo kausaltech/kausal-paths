@@ -98,8 +98,31 @@ def compute_schema_diff(dvc_df: PathsDataFrame, db_df: PathsDataFrame) -> Schema
         pk_diff=pk_diff,
     )
 
+# Gets inspiration from PolarsExt._round_to_five_significant_digits
+def round_to_five_significant_digits(df: pl.DataFrame) -> pl.DataFrame:
+    """Round values to 5 significant digits rather than 5 decimal places. Zero and NaN have special handling."""
+    n_significant = 5
+    metric_cols = [col for col in df.columns if df.schema[col] == pl.Float64]
 
-def compute_row_diff(dvc_df: PathsDataFrame, db_df: PathsDataFrame) -> RowDiff | None:
+    for col in metric_cols:
+        val_col = pl.col(col)
+        order = val_col.abs().log10().floor()
+        power = n_significant - 1 - order
+        multiplier = pl.lit(10.0) ** power
+
+        rounded = (
+            pl.when((val_col == 0.0) | val_col.is_nan())
+            .then(val_col)
+            .otherwise((val_col * multiplier).round() / multiplier)
+        )
+
+        df = df.with_columns(rounded.alias(col))
+
+    return df
+
+def compute_row_diff(
+    dvc_df: PathsDataFrame, db_df: PathsDataFrame, *, approx: bool = False
+) -> RowDiff | None:
     common_cols = sorted(set(dvc_df.columns) & set(db_df.columns))
     if not common_cols:
         return None
@@ -130,6 +153,10 @@ def compute_row_diff(dvc_df: PathsDataFrame, db_df: PathsDataFrame) -> RowDiff |
             pk_cols=pk_cols,
             value_cols=value_cols,
         )
+
+    if approx:
+        dvc_norm = round_to_five_significant_digits(df=dvc_norm)
+        db_norm = round_to_five_significant_digits(df=db_norm)
 
     joined = dvc_norm.join(db_norm, on=pk_cols, how='inner', suffix='_db', nulls_equal=True)
 
