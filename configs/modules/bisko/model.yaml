@@ -248,24 +248,24 @@ dimensions:
   - id: private_households
     label_en: Private Households
     label_de: Private Haushalte
-    aliases: [private_haushalte, Private_Haushalte, HE_, HTHG_, HTHG]
+    aliases: [private_haushalte, Private_Haushalte, HE_, HE, HTHG_, HTHG]
     color: '#009ebe'
   - id: municipal_facilities
     label_en: Municipal Facilities
     label_de: Kommunale Einrichtungen
     aliases: [kommunale_einrichtungen, Kommunale_Einrichtungen, 
-        stadtische_gebaude, KE_, KTHG_, KTHG]
+        stadtische_gebaude, KE_, KE, KTHG_, KTHG]
     color: '#6bc248'
   - id: commerce_trade_services
     label_en: Commerce, Trade & Services
     label_de: Gewerbe, Handel, Dienstleistungen
     aliases: [gewerbe_handel_dienstleistungen, Gewerbe_Handel_Dienstleistungen, 
-        gewerbe_sonstiges, GE_, GTHG_, GTHG]
+        gewerbe_sonstiges, GE_, GE, GTHG_, GTHG]
     color: '#fe8035'
   - id: industry
     label_en: Industry
     label_de: Industrie
-    aliases: [industrie, Industrie, IE_, ITHG_, ITHG]
+    aliases: [industrie, Industrie, IE_, IE, ITHG_, ITHG]
     color: '#737373'
   - id: electricity
     label_en: Electricity
@@ -550,43 +550,8 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: bisko/final_energy_use_data_quality  # is automatically created by upload_new_dataset.py when uploading to DVC
-
-# - id: final_transport_energy_use
-#   name_de: Endenergie Verkehr
-#   name_en: Final transport energy use
-#   type: generic.GenericNode
-#   quantity: energy
-#   unit: MWh/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_nodes:
-#   - id: final_energy_use
-#     from_dimensions:
-#     - id: sector
-#       categories: [transport]
-
-# - id: transport_difference
-#   name_de: Transportdifferenz
-#   name_en: Transport difference
-#   type: formula.FormulaNode
-#   quantity: energy
-#   unit: MWh/a
-#   input_dimensions: [energy_carrier]
-#   output_dimensions: [energy_carrier]
-#   input_nodes:
-#   - id: final_transport_energy_use
-#     tags: [ksp]
-#     from_dimensions:
-#     - id: sector
-#       flatten: true
-#   - id: transport_energy
-#     tags: [ifeu]
-#     from_dimensions:
-#     - id: vehicle_type
-#       flatten: true
-#   params:
-#     formula: ksp - ifeu
+  - id: bisko/final_energy  # is automatically created by upload_new_dataset.py when uploading to DVC
+    column: quality
 
 - id: final_private_household_energy_use
   name_de: Endenergie Private Haushalte
@@ -1283,7 +1248,7 @@ nodes:
   quantity: probability
   unit: dimensionless
   input_nodes:
-  - id: has_weather_correction
+  - id: has_no_weather_correction
     tags: [weather]
   - id: has_national_electricity_emission_factors
     tags: [electricity]
@@ -1292,12 +1257,11 @@ nodes:
   - id: has_quality_a_data_for_grid_based_energy
     tags: [grid_energy]
   params:
-    formula: complement(weather) * electricity * district_heating * 
-      prod_dim(grid_energy, energy_carrier)
+    formula: weather * electricity * district_heating * grid_energy
 
-- id: has_weather_correction
-  name_en: Has weather correction?
-  name_de: Hat Witterungsbereinigung?
+- id: has_no_weather_correction
+  name_en: Has no weather correction?
+  name_de: Hat keine Witterungsbereinigung?
   description_en: BISKO inventory must not be corrected for weather.
   description_de: BISKO-Inventar muss nicht für Wetter korrigiert werden.
   type: generic.ConstantNode
@@ -1306,6 +1270,8 @@ nodes:
   params:
   - id: condition
     ref: weather_correction
+  - id: operations
+    value: constant,complement
 
 - id: has_national_electricity_emission_factors
   name_en: Has national electricity emission factors?
@@ -1335,6 +1301,19 @@ nodes:
   - id: condition
     ref: use_local_values
 
+- id: quality_criteria
+  name_en: Quality criteria
+  name_de: Qualitätskriterien
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: bisko/quality_criteria
+  params:
+    operations: get_single_dataset,extend_all
+
 - id: has_quality_a_data_for_grid_based_energy
   name_en: Has quality A data for grid-based energy?
   name_de: Hat Qualität A-Daten für gitterbasierte Energie?
@@ -1345,18 +1324,64 @@ nodes:
   type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
+  # input_dimensions: [energy_carrier, sector]
+  # output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: final_energy_use_data_quality
+    tags: [data_quality]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity, natural_gas, district_heating]
+  - id: quality_criteria
+  params:
+  - id: formula # FIXME Check if quality A applies to every combination of subsectors.
+    value: prod_dim(prod_dim(data_quality >= quality_criteria, energy_carrier), sector)
+
+- id: weighted_data_quality_by_sector
+  name_en: Weighted data quality by sector
+  name_de: Gewichtete Datenqualität nach Sektor
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_nodes:
+  - id: final_energy_use_data_quality
+    tags: [quality]
+  - id: final_energy_use
+    tags: [energy]
+  params:
+  - id: formula
+    value: drop_nans(sum_dim(quality * energy, energy_carrier) / sum_dim(energy, energy_carrier))
+
+- id: weighted_data_quality_by_energy_carrier
+  name_en: Weighted data quality by energy carrier
+  name_de: Gewichtete Datenqualität nach Energieträger
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
   - id: final_energy_use_data_quality
-    tags: [grid_energy]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity, natural_gas, district_heating]
+    tags: [quality]
+  - id: final_energy_use
+    tags: [energy]
   params:
-  - id: formula # FIXME Check if quality A applies to every combination of subsectors.
-    value: prod_dim((inventory_only(grid_energy) >= constant), sector)
-  - id: constant
-    value: 0.4 # Should be 1.0 but it is temporarily relaxed.
-    unit: dimensionless
+  - id: formula
+    value: drop_nans(sum_dim(quality * energy, sector) / sum_dim(energy, sector))
 
+- id: total_weighted_data_quality
+  name_en: Total weighted data quality
+  name_de: Gesamte gewichtete Datenqualität
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: final_energy_use_data_quality
+    tags: [quality]
+  - id: final_energy_use
+    tags: [energy]
+  params:
+  - id: formula
+    value: drop_nans(sum_dim(sum_dim(quality * energy, sector),energy_carrier) / sum_dim(sum_dim(energy, sector), energy_carrier))

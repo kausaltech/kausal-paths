@@ -624,8 +624,8 @@ msgstr ""
 
 #: nodes/explanations.py
 #, fuzzy
-#| msgid "    - Take the complement of the dimensionless values (1-x).\n"
-msgid "Take the complement of the dimensionless values (1-x)."
+#| msgid "    - Take the complement of the unitless values (1-x).\n"
+msgid "Take the complement of the unitless values (1-x)."
 msgstr "    - Πάρτε το συμπλήρωμα των χωρίς διάσταση τιμών (1-x).\n"
 
 #: nodes/explanations.py

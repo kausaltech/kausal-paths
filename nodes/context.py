@@ -25,8 +25,8 @@ from common import (
 from common.cache import Cache
 from params.discover import discover_parameter_types
 
-from .datasets import Dataset, DVCDataset, FixedDataset
-from .units import Unit, unit_registry
+from .datasets import DVCDataset, FixedDataset
+from .units import unit_registry
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -42,12 +42,13 @@ if TYPE_CHECKING:
     from params.storage import SettingStorage
 
     from .actions.action import ActionNode, ImpactOverview
+    from .datasets import Dataset
     from .dimensions import Dimension
     from .instance import Instance
     from .node import Node
     from .normalization import Normalization
     from .scenario import CustomScenario, Scenario
-    from .units import CachingUnitRegistry
+    from .units import CachingUnitRegistry, Unit
 
 
 @dataclass

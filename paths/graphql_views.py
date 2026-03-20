@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import time
-from contextlib import AbstractContextManager, nullcontext
+from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.http import HttpRequest
 from graphql.execution import ExecutionContext
-from graphql.language.ast import VariableNode
 from strawberry.channels import (
     ChannelsRequest,
 )
@@ -23,6 +22,8 @@ from paths.schema_context import PathsGraphQLContext
 from .graphql_helpers import GraphQLPerfNode
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
+
     from django.http.response import HttpResponse
     from graphql import (
         GraphQLOutputType,
@@ -41,13 +42,6 @@ if TYPE_CHECKING:
 
 
 SUPPORTED_LANGUAGES = {x[0] for x in settings.LANGUAGES}
-
-
-def _arg_value(arg, variable_vals) -> Any:
-    if isinstance(arg.value, VariableNode):
-        return variable_vals.get(arg.value.name.value)
-    return arg.value.value
-
 
 logger = logger.bind(markup=True)
 
@@ -104,14 +98,16 @@ def graphql_capture_query(
     if not env_bool('GRAPHQL_CAPTURE_QUERIES', default=False):
         return
     headers = [INSTANCE_IDENTIFIER_HEADER, INSTANCE_HOSTNAME_HEADER, WILDCARD_DOMAINS_HEADER]
+    http_headers = context.get_request_headers()
+    instance_id = http_headers.get(INSTANCE_IDENTIFIER_HEADER.lower())
     if isinstance(view, PathsGraphQLHTTPConsumer):
         assert isinstance(request, ChannelsRequest)
         processed_response = view.process_result(request, response)
-        capture_query(context, headers, request_data, processed_response, exec_time)
+        capture_query(context, headers, request_data, processed_response, exec_time, instance_id=instance_id)
     else:
         assert isinstance(request, HttpRequest)
         processed_response = view.process_result(request, response)  # type: ignore[arg-type]
-        capture_query(context, headers, request_data, processed_response, exec_time)
+        capture_query(context, headers, request_data, processed_response, exec_time, instance_id=instance_id)
 
 
 class PathsGraphQLWSConsumer(GraphQLWSConsumer[PathsGraphQLContext]):

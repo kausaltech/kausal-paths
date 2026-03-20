@@ -6,12 +6,13 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import TYPE_CHECKING, overload
 
-from pydantic.dataclasses import dataclass as pydantic_dataclass
+from pydantic import BaseModel, ConfigDict
 
 from loguru import logger
 
+from kausal_common.i18n.pydantic import I18nBaseModel, TranslatedString
+
 from common import base32_crockford
-from common.i18n import I18nBaseModel, TranslatedString
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -39,8 +40,7 @@ class InstanceTerms(I18nBaseModel):
     enabled_label: TranslatedString | None = None
 
 
-@pydantic_dataclass
-class InstanceFeatures:
+class InstanceFeatures(BaseModel):
     """
     Features available for the instance.
 
@@ -76,6 +76,8 @@ class InstanceFeatures:
 
     show_category_warnings: bool = False
     """Whether to show category warnings in the node explanation."""
+
+    model_config = ConfigDict(use_attribute_docstrings=True)
 
 
 @dataclass
@@ -260,13 +262,13 @@ class Instance:
         """
         # Workaround for pytests; if we have a globally set instance, do not
         # clean it.
-        from nodes.models import _pytest_instances  # pyright: ignore
+        from nodes.models import _pytest_instances
 
         if _pytest_instances.get(self.id) == self:
             return
 
         self.log.debug('Cleaning instance')
-        self.context.clean()  # type: ignore
+        self.context.clean()
         self.context.instance = None  # type: ignore
         self.config = None  # type: ignore
         self.fw_config = None

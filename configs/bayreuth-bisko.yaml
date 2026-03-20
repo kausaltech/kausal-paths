@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bayreuth-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 614342be8a596caca5b5d7025443550d3be1615d
+  commit: 042ea36e00165e5960343bcbf5b7aa14cdc4f549
   dvc_remote: kausal-s3
 name_de: Bayreuth Klima-Monitor-BISKO
 name_en: Bayreuth Climate Monitor BISKO

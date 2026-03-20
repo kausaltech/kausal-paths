@@ -6,11 +6,12 @@ from django.utils.translation import gettext_lazy as _
 
 import polars as pl
 
+from kausal_common.i18n.pydantic import TranslatedString
+
 from common import polars as ppl
-from common.i18n import TranslatedString
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.units import Quantity
-from params.param import BoolParameter, NumberParameter, Parameter, StringParameter
+from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .constants import FORECAST_COLUMN, MIX_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
 from .exceptions import NodeError
@@ -22,11 +23,14 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
+    from params.param import Parameter
+
 EMISSION_UNIT = 'kg'
 
 
 class SimpleNode(Node):
     allowed_parameters: ClassVar[Sequence[Parameter[Any]]] = [
+        # FIXME Get rid of many of these parameters and use operations instead.
         BoolParameter(
             local_id='fill_gaps_using_input_dataset',
             label=TranslatedString(en="Fill in gaps in computation using input dataset"),

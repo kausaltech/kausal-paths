@@ -7,7 +7,7 @@ from __future__ import annotations
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -32,13 +32,16 @@ django.setup()
 from common import polars as ppl  # noqa: E402
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
 from nodes.exceptions import NodeComputationError  # noqa: E402
-from nodes.units import Quantity, unit_registry  # noqa: E402
+from nodes.units import unit_registry  # noqa: E402
 from notebooks.notebook_support import get_context, get_nodes  # noqa: E402
 
 # initialize_notebook_env()
 
 if TYPE_CHECKING:
+    from datetime import date
+
     from common.polars import PathsDataFrame
+    from nodes.units import Quantity
 
 # config_file = '../netzeroplanner-framework-config/emission_potential.yaml'
 

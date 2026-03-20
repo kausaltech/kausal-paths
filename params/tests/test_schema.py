@@ -1,10 +1,14 @@
-import pytest
-from nodes.context import Context
-from nodes.instance import Instance
-from nodes.scenario import Scenario
+from typing import TYPE_CHECKING
 
-from params.tests.factories import BoolParameterFactory, NumberParameterFactory, StringParameterFactory
+import pytest
+
 from nodes.tests.factories import NodeFactory
+from params.tests.factories import BoolParameterFactory, NumberParameterFactory, StringParameterFactory
+
+if TYPE_CHECKING:
+    from nodes.context import Context
+    from nodes.instance import Instance
+    from nodes.scenario import Scenario
 
 pytestmark = pytest.mark.django_db
 

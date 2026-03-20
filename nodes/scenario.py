@@ -5,16 +5,20 @@ from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+import strawberry as sb
+
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
 
-    from common.i18n import I18nString
+    from kausal_common.i18n.pydantic import I18nString
+
     from params import Parameter
     from params.storage import SettingStorage
 
     from .context import Context
 
 
+@sb.enum
 class ScenarioKind(Enum):
     DEFAULT = 'default'
     BASELINE = 'baseline'

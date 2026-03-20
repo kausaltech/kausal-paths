@@ -1,0 +1,28 @@
+#:schema https://mise.jdx.dev/schema/mise.json
+[settings]
+python.uv_venv_auto = "source"
+
+[tools]
+prek = "latest"
+vault = "latest"
+fnox = "latest"
+
+[env]
+_.python.venv = { path = ".venv", create = true, uv_create_args = [] }
+_.fnox-env = { tools = true }
+
+[prepare.uv]
+auto = true
+
+[prepare.sync-all-groups]
+auto = true
+run = "uv sync --all-groups --all-extras"
+sources = ["uv.lock"]
+outputs = [".venv/lib/python*/site-packages/mypy/"]
+
+[plugins]
+fnox-env = "https://github.com/jdx/mise-env-fnox"
+
+[tasks.vault-token]
+description = "Refresh the Vault token in the keychain"
+run = "vault login -address=https://vault.kausal.tech -path=keycloak -method=oidc -token-only | fnox set -p keychain FNOX_VAULT_TOKEN"

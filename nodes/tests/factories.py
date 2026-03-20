@@ -1,21 +1,24 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from factory import Factory, RelatedFactory, SelfAttribute, Sequence, SubFactory, post_generation
 from factory.django import DjangoModelFactory
 
-from common.i18n import TranslatedString
+from kausal_common.i18n.pydantic import TranslatedString
+
 from nodes.actions import ActionNode
 from nodes.actions.simple import AdditiveAction
-from nodes.context import Context, unit_registry
+from nodes.context import Context
 from nodes.datasets import FixedDataset
 from nodes.instance import Instance
 from nodes.models import InstanceConfig, NodeConfig
 from nodes.node import Node
 from nodes.scenario import CustomScenario, Scenario, ScenarioKind
 from nodes.simple import SimpleNode
+from nodes.units import unit_registry
+from orgs.models import Organization
 from orgs.tests.factories import OrganizationFactory
 
 
@@ -30,7 +33,7 @@ class ContextFactory(Factory[Context]):
     target_year = 2030
 
     @classmethod
-    def create(cls, **kwargs: Any) -> Context:  # noqa: ANN401
+    def create(cls, **kwargs: Any) -> Context:
         return super().create(**kwargs)
 
     @post_generation
@@ -49,7 +52,7 @@ class InstanceFactory(Factory[Instance]):
         model = Instance
 
     id = Sequence(lambda i: f'instance{i}')
-    name = 'instance'
+    name = Sequence(lambda i: f'instance{i}')
     owner = 'owner'
     default_language = 'fi'
     context: RelatedFactory[Any, Context] = RelatedFactory(ContextFactory, 'instance')
@@ -61,7 +64,7 @@ class InstanceFactory(Factory[Instance]):
     # content_refreshed_at: Optional[datetime] = field(init=False)
 
     @classmethod
-    def create(cls, **kwargs: Any) -> Instance:  # noqa: ANN401
+    def create(cls, **kwargs: Any) -> Instance:
         ret = super().create(**kwargs)
         return ret
 
@@ -76,15 +79,21 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
         exclude = ('instance',)
 
     identifier = Sequence(lambda i: f'ic{i}')
+    name = Sequence(lambda i: f'instanceconfig{i}')
     lead_title = "lead title"
     lead_paragraph = "Lead paragraph"
     instance: SubFactory[str, Instance] = SubFactory(InstanceFactory, id=SelfAttribute('..identifier'))
-    organization = SubFactory(OrganizationFactory)  # type: ignore[var-annotated]
+    organization = SubFactory[Any, Organization](OrganizationFactory)
 
     @classmethod
     def create(cls, **kwargs: Any) -> InstanceConfig:
-        instance = kwargs.get('instance', None)
-        obj: InstanceConfig = super().create(**kwargs)
+        instance = cast('Instance | None', kwargs.get('instance'))
+        name = kwargs.pop('name', None)
+        if not name:
+            assert instance is not None
+            name = instance.name
+
+        obj: InstanceConfig = super().create(name=name, **kwargs)
         if instance:
             from nodes.models import _pytest_instances
             # For tests we want to avoid reading a YAML file to configure the Instance
@@ -92,13 +101,13 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
 
         return obj
 
-class NodeConfigFactory(DjangoModelFactory):
+class NodeConfigFactory(DjangoModelFactory[NodeConfig]):
     class Meta:
         model = NodeConfig
 
     instance: SubFactory[Any, InstanceConfig] = SubFactory(InstanceConfigFactory)
     identifier = Sequence(lambda i: f'nodeconfig{i}')
-    name = "name"
+    name = Sequence(lambda i: f'Test node config {i}')
     short_description = "short description"
     description = "description"
 
@@ -109,7 +118,7 @@ class NodeFactory(Factory[Node]):
 
     id = Sequence(lambda i: f'node{i}')
     context: SubFactory[Any, Context] = SubFactory(ContextFactory)
-    name = TranslatedString('name')
+    name = Sequence(lambda i: TranslatedString(f'Test node {i}'))
     description = TranslatedString('description')
     color = 'pink'
     unit = unit_registry('kWh').units
@@ -146,7 +155,7 @@ class SimpleNodeFactory(NodeFactory):
         model = SimpleNode
 
 
-class ScenarioFactory(Factory):
+class ScenarioFactory[S: Scenario = Scenario](Factory[S]):
     class Meta:
         model = Scenario
 
@@ -154,11 +163,11 @@ class ScenarioFactory(Factory):
     name = TranslatedString('scenario')
     kind: ScenarioKind | None = None
     all_actions_enabled = False
-    context = SubFactory(ContextFactory)
+    context = SubFactory[Any, Context](ContextFactory)
 
 
-class CustomScenarioFactory(ScenarioFactory):
+class CustomScenarioFactory(ScenarioFactory[CustomScenario]):
     class Meta:
         model = CustomScenario
 
-    base_scenario = SubFactory(ScenarioFactory)
+    base_scenario = SubFactory[Any, Scenario](ScenarioFactory)

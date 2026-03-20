@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "ENABLE_LSP_TOOL": "1",
+    "ENABLE_TOOL_SEARCH": "true"
+  },
+  "permissions": {
+    "allow": [
+      "WebFetch",
+      "Bash(grep:*)",
+      "Bash(mkdir:*)",
+      "Bash(uv:*)",
+      "Bash(find:*)",
+      "Bash(mv:*)",
+      "Bash(ls:*)",
+      "Bash(uvx turms:*)",
+      "mcp__sentry__*",
+      "Bash(kausal_common/development/tools/generate-mcp-schema.sh:*)",
+      "Bash(pnpx @graphql-inspector/cli diff:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python manage.py export_schema paths.schema)",
+      "mcp__plugin_context7_context7__query-docs"
+    ]
+  },
+  "enabledPlugins": {
+    "basedpyright-lsp@kausal-backend-plugins": true
+  },
+  "extraKnownMarketplaces": {
+    "kausal-backend-plugins": {
+      "source": {
+        "source": "directory",
+        "path": "./kausal_common/development/claude"
+      }
+    }
+  }
+}

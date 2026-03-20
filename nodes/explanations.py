@@ -4,12 +4,11 @@ from abc import ABC, abstractmethod
 from dataclasses import InitVar, dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from common.i18n import I18nString, gettext_lazy as _
+from kausal_common.i18n.pydantic import gettext_lazy as _
 
 from .constants import TIME_INTERVAL
 from .formula import (
     FormulaSpec,
-    UnitOverride,
     analyze_formula_dimensions,
     analyze_formula_units,
     build_name_dimension_map,
@@ -18,10 +17,17 @@ from .formula import (
     make_identifier,
     normalize_formula_identifiers,
 )
-from .units import Unit, unit_registry
+from .units import unit_registry
 
 if TYPE_CHECKING:
+    from kausal_common.i18n.pydantic import I18nString
+
     from nodes.context import Context
+
+    from .formula import (
+        UnitOverride,
+    )
+    from .units import Unit
 
 TAG_TO_BASKET = {
     'additive': 'add',
@@ -74,7 +80,7 @@ TAG_DESCRIPTIONS = {
     'and': _('Logical AND: min(a, b). Warns if inputs deviate from 0 or 1 (see node explanation).'),
     'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
     'bring_to_maximum_historical_year': _('Makes all years up to maximum historical year non-forecasts.'),
-    'complement': _('Take the complement of the dimensionless values (1-x).'),
+    'complement': _('Take the complement of the unitless values (1-x).'),
     'complement_cumulative_product': _('Take the cumulative product of the dimensionless complement values over time.'),
     'concat_datasets': _('Get and concatenate datasets vertically, only then prepare the output.'),
     'cumulative': _('Take the cumulative sum over time.'),
@@ -342,6 +348,10 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         and emissions avoided from the capacity that gets replaced.
         """)),
     'GenericNode': NodeInfo(_("")),
+    'ScenarioImpactNode': NodeInfo(_(
+        """Gives the difference between the current scenario and a reference scenario
+        for the single input node. Reference scenario is configurable (default: baseline)."""
+    )),
     'GenericAction': NodeInfo(_("")),
     'GpcTrajectoryAction': NodeInfo(_(
         """

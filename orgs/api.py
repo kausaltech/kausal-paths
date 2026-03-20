@@ -7,7 +7,7 @@ from rest_framework import exceptions, serializers
 from kausal_common.api.bulk import BulkListSerializer, BulkModelViewSet
 from kausal_common.api.exceptions import HandleProtectedErrorMixin
 from kausal_common.api.tree import TreebeardModelSerializerMixin
-from kausal_common.api.utils import RegisteredAPIView, register_view
+from kausal_common.api.utils import register_view
 from kausal_common.models.general import public_fields
 
 from paths import permissions
@@ -17,6 +17,8 @@ from orgs.models import Organization
 
 if TYPE_CHECKING:
     from rest_framework.permissions import BasePermission
+
+    from kausal_common.api.utils import RegisteredAPIView
 
 all_views: list[RegisteredAPIView] = []
 

@@ -33,13 +33,17 @@ class GraphQLPerfNode:
 
 
 def _instance_or_bust(info: InfoType) -> Instance:
-    if getattr(info.context, 'instance', None) is None:
+    if (instance := getattr(info.context, 'instance', None)) is None:
         raise GraphQLError(
             "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
             info.field_nodes,
         )
-    context = info.context
-    return context.instance
+    if instance is None:
+        raise GraphQLError(
+            "Instance is not set in the context. Use the 'instance' directive or HTTP headers.",
+            info.field_nodes,
+        )
+    return instance
 
 
 type InfoType = GQLInstanceInfo | SBInfo
@@ -82,17 +86,17 @@ def pass_context[**P, R, I: InfoType](
         base_resolver = method_or_field.base_resolver
         assert base_resolver is not None
         method = cast('ResolverWithContext[P, R, I]', base_resolver.wrapped_func)
-        is_field = True
     else:
         method = method_or_field
-        is_field = False
+        base_resolver = None
+        field = None
 
     @functools.wraps(method)
     def method_wrapper(root, info: I, *args: P.args, **kwargs: P.kwargs) -> R:
         instance = _instance_or_bust(info)
         return method(root, info, instance.context, *args, **kwargs)
 
-    if not is_field:
+    if field is None:
         # The signature of the wrapper method must be changed to remove the context parameter
         # for strawberry's signature reflection to work.
         s = inspect.signature(method)
@@ -101,6 +105,7 @@ def pass_context[**P, R, I: InfoType](
         return method_wrapper
 
     assert base_resolver is not None
+    assert field is not None
     base_resolver.wrapped_func = method_wrapper
     return field
 

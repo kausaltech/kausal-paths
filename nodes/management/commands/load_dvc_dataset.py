@@ -22,9 +22,9 @@ from kausal_common.datasets.models import (
     DimensionCategory,
     DimensionScope,
 )
+from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
-from common.i18n import TranslatedString
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.datasets import JSONDataset
 from nodes.models import InstanceConfig
@@ -179,7 +179,11 @@ class Command(BaseCommand):
         # this management command did.
         num_created = 0
         for row in table['data']:
-            year = date(year=row['Year'], month=1, day=1)  # FIXME: other granularities?
+            year_val = row['Year']
+            if year_val > 100:
+                year = date(year=year_val, month=1, day=1)  # FIXME: other granularities?
+            else:
+                year = date(year=year_val+1, month=2, day=1)  # FIXME: Hotfix for NZC.
             for metric_identifier, metric in metrics.items():
                 value = row[metric_identifier]
                 if value is None:

@@ -15,9 +15,9 @@ from django_pydantic_field import SchemaField
 
 from kausal_common.models.roles import role_registry
 
-from paths.const import NONE_ROLE, PathsRoleIdentifier
+from paths.const import NONE_ROLE
 
-from .base import AbstractUser, UserManager
+from .base import AbstractUser
 
 if TYPE_CHECKING:
 
@@ -26,10 +26,14 @@ if TYPE_CHECKING:
     from kausal_common.models.roles import InstanceSpecificRole, UserPermissionCache
     from kausal_common.models.types import FK, QS, RevOne
 
+    from paths.const import PathsRoleIdentifier
+
     from frameworks.roles import FrameworkRoleDef
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
     from orgs.models import Organization
     from people.models import Person
+
+    from .base import UserManager
 
 
 class UserFrameworkRole(BaseModel):

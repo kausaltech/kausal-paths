@@ -15,6 +15,7 @@ dependencies = [
   "colored",
   "colormath",
   "dal-admin-filters>=1.1.0",
+  "deepdiff>=8.6.1",
   "diffsync",
   "django",
   "django-anymail[mailgun,mailjet,sendgrid]",
@@ -72,7 +73,6 @@ dependencies = [
   "pytest-factoryboy",
   "pytest-html",
   "python-dotenv",
-  "recursive-diff",
   "redis",
   "rich",
   "ruamel-yaml",
@@ -221,6 +221,7 @@ deprecateTypingAliases = true
 enableTypeIgnoreComments = true
 reportAny = false
 reportAttributeAccessIssue = "error"
+reportConstantRedefinition = false
 reportExplicitAny = false
 reportIgnoreCommentWithoutRule = false
 reportImplicitOverride = false
@@ -283,6 +284,7 @@ dev = [
   {include-group = "lint"},
 ]
 lint = [
+  "altair>=6.0.0",
   "celery-types",
   "django-stubs",
   "djangorestframework-stubs",

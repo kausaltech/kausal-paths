@@ -154,13 +154,6 @@ class PathsSchema(UnifiedSchema):
             PathsAuthenticationExtension,
             PathsExecutionCacheExtension,
         )
-
-        schema_directives = kwargs.pop('schema_directives', [])
-        schema_directives.extend([
-            context_directive,
-            instance_directive,
-        ])
-        kwargs['schema_directives'] = schema_directives
         extensions = kwargs.pop('extensions', [])
         extensions.extend([
             LoggingTracingExtension(context_class=PathsGraphQLContext),

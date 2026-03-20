@@ -68,6 +68,10 @@ def resolve_unit(root: Unit | str, info: GQLInfo) -> Unit:
 @sb.type(name='UnitType')
 class UnitType:
     @sb.field
+    def id(self, parent: sb.Parent[Unit]) -> sb.ID:
+        return sb.ID(str(parent))
+
+    @sb.field
     def short(self, parent: sb.Parent[Unit]) -> str:
         return format_unit(parent, html=False)
 
@@ -91,11 +95,13 @@ class UnitType:
         #     parent, uspec='Z', sort_func=None, use_plural=True, length='short', locale='en'
         # )
 
-@convert_django_field.register(UnitField)  # pyright: ignore
-def convert_unit_field(field, registry=None):
+
+@convert_django_field.register(UnitField)
+def convert_unit_field(field, _registry=None):
     return graphene.Field(
         UnitType, description=get_django_field_description(field), required=not field.null,
     )
+
 
 type SBInfo = sb.Info['PathsGraphQLContext']
 

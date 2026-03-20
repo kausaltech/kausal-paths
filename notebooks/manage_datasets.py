@@ -129,6 +129,20 @@ class FileLoader:
     """Handles opening and reading files in different formats."""
 
     @staticmethod
+    def _make_column_names_unique(names: list[str]) -> list[str]:
+        """Make duplicate column names unique by appending _2, _3, etc. so Polars accepts the schema."""
+        seen: dict[str, int] = {}
+        result: list[str] = []
+        for name in names:
+            if name not in seen:
+                seen[name] = 1
+                result.append(name)
+            else:
+                seen[name] += 1
+                result.append(f"{name}_{seen[name]}")
+        return result
+
+    @staticmethod
     def detect_file_type(file_path: str | Path) -> str:
         """Detect file type from extension."""
         path = Path(file_path)
@@ -209,11 +223,14 @@ class FileLoader:
             col_names = [f"column_{i+1}" for i in range(max_cols)]
             data_rows = padded_data
 
+        # Make duplicate column names unique so Polars accepts the schema (user can rename later)
+        col_names = FileLoader._make_column_names_unique(col_names[:max_cols])
+
         if not data_rows:
             return pl.DataFrame()
 
         # Create DataFrame
-        df = pl.DataFrame(data_rows, schema=col_names[:max_cols], orient="row")
+        df = pl.DataFrame(data_rows, schema=col_names, orient="row")
         return df
 
     @classmethod
@@ -667,7 +684,7 @@ class OperationsExecutor:
         output_path = op_params.get('output_path')
         if not output_path:
             raise ValueError("process_datasets operation requires 'output_path' parameter")
-        dataset_name = op_params.get('dataset_name') or self.dataset_name or 'dataset'
+        dataset_name = op_params.get('dataset_name') or self.dataset_name or None
         language = op_params.get('language', 'en')
         process_datasets(df, outcsvpath, output_path, language, self.context, dataset_name)
         return df

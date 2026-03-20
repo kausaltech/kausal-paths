@@ -45,5 +45,6 @@ celerybeat-schedule
 /.tags
 /reset-db.sh
 /*.dump
-CLAUDE.md
-.claude/**
+/.mise/
+.claude/*.local.json
+/schema.graphql

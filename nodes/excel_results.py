@@ -15,10 +15,10 @@ from openpyxl.utils import absolute_coordinate, get_column_letter, quote_sheetna
 from openpyxl.workbook.defined_name import DefinedName
 
 from kausal_common.debugging.perf import PerfCounter
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 
 from paths.const import MODEL_CALC_OP
 
-from common.i18n import I18nBaseModel, I18nStringInstance
 from nodes.constants import BASELINE_SCENARIO, FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, VALUE_COLUMN, YEAR_COLUMN
 
 if TYPE_CHECKING:

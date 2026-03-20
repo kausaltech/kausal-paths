@@ -7,7 +7,7 @@ supported_languages: [en]
 site_url: https://koeln-dev.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c1d44785522619923009ab9817773b44c5c1e6d4
+  commit: 6507e1755a4c402b794565e9908db8a37a0d2a42
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Treibhausgasinventar
@@ -31,6 +31,38 @@ normalizations:
   quantities:
   - id: emissions
     unit: t/cap/a
+
+# Abfallreduktion & Anlageneffizienz		nicht aktiv, da nicht in Bilanz
+# Wasser-/Abwasserreduktion & Anlageneffizienz		Aktiv
+# Ernährung & Lebensmittel		nicht aktiv, da nicht in Bilanz
+# Aufforstung & nachhaltige Bewirtschaftung von Wäldern 		nicht aktiv, da nicht in Bilanz
+# Wiedervernässung organischer Böden		nicht aktiv, da nicht in Bilanz
+# Klimafreundlicheres Konsumverhalten der Bevölkerung		nicht aktiv, da nicht in Bilanz
+# Mobilitätswende - Nahmobilität		Basis (aktiv)
+# Antriebswende - Motorisierter Individualverkehr		Basis (aktiv)
+# Antriebswende - Güterverkehr		Basis (nicht aktiv)
+# Antriebswende - Bus		Basis (aktiv)
+# Mobilitätswende - Regionale Mobilität		Basis (aktiv)
+# Mobilitätswende - Güterverkehr		Basis (nicht aktiv)
+# Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen		Basis (aktiv)
+# Erneuerbare Stromerzeugung in der Fläche		Basis (aktiv)
+# Stromeinsparung durch Haushalte		Basis (nicht aktiv)
+# Stromeinsparung im Gewerbesektor 		Basis (aktiv)
+# Stromeinsparung in der Industrie		Basis (nicht aktiv)
+# Erneuerbare Stromerzeugung durch Kraftwerke		Basis (aktiv)
+# THG neutrale Verwaltung - Scope 1 & 2		Basis (aktiv)
+# THG neutrale Verwaltung - Scope 3		nicht aktiv, da nicht in Bilanz
+# Übergreifende Klimaschutzaspekte		Basis (aktiv)
+# Wärmequellenerschließung für Wärmenetze		Basis (aktiv)
+# Erweiterung und Verdichtung der Wärmenetze		Basis (nicht aktiv)
+# Dezentraler Heizungstausch in Haushalten 		Basis (nicht aktiv)
+# Sanierung Wohngebäude 		Basis (aktiv)
+# Effiziente Wärmenutzung im Industriesektor		Basis (nicht aktiv)
+# Neubau Wohngebäude		Basis (aktiv)
+# Verhaltensänderung beim Wärmeverbrauch in Haushalten 		Basis (nicht aktiv)
+# Dezentraler Heizungstausch im Gewerbe		Basis (aktiv)
+# Effiziente Wärmenutzung im Gewerbe		Basis (nicht aktiv)
+# Neubau Gewerbe/Industrie		Basis (nicht aktiv)
 
 include:
 - file: frameworks/standard_dims.yaml
@@ -418,6 +450,82 @@ nodes:
     value: get_single_dataset,apply_multiplier
   - id: multiplier
     value: 1
+    unit: t/t_co2e
+
+- id: stationary_energy_by_type
+  name: Stationäre Endenergieverbrauch nach Typ
+  name_en: Stationary energy use by type
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/stationary_energy_by_type
+
+- id: vehicle_energy_by_type
+  name: Verkehrsenergieverbrauch nach Typ
+  name_en: Vehicle energy use by type
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: koeln/vehicle_energy_by_type
+
+- id: action_emission_shares
+  name: Emissionenanteil nach Maßnahme
+  name_en: Action emission shares
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier, vehicle_type, action]
+  output_dimensions: [sector, energy_carrier, vehicle_type, action]
+  input_nodes:
+  - id: stationary_energy_by_type
+    tags: [st]
+    to_dimensions:
+    - id: vehicle_type
+      categories: [none]
+    - id: energy_carrier
+    - id: sector
+  - id: vehicle_energy_by_type
+    tags: [veh]
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: emission_factors
+    tags: [ef]
+  - id: action_index
+    tags: [index]
+  params:
+    formula: (st + veh) * ef * index / sum_dim(sum_dim(sum_dim((st + veh) * ef *
+      index, energy_carrier), sector), vehicle_type)
+
+- id: action_potential_by_dimensions
+  name_de: Aktion Potential nach Dimensionen
+  name_en: Action potential by dimensions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energy_carrier, vehicle_type, action]
+  output_dimensions: [sector, energy_carrier, vehicle_type, action]
+  input_nodes:
+  - id: action_emission_shares
+    tags: [shares]
+  - id: emission_reduction_potential
+    tags: [potential]
+    from_dimensions:
+    - id: sector
+      flatten: true
+  params:
+  - id: formula
+    value: extend_all(shares) * potential * constant
+  - id: constant
+    value: -1.0
     unit: t/t_co2e
 
 - id: net_emissions_historical # TODO Remove when no longer needed.
@@ -1039,49 +1147,34 @@ nodes:
     formula: 3 * (max(0, min(1, (year(n) - n) / (2035 - n)))) ** 2 - 2 * (max(0,
       min(1, (year(n) - n) / (2035 - n)))) ** 3
 
-- id: emission_raduction_potential
+- id: emission_reduction_potential
   name_de: Emission Reduktionspotential
   name_en: Emission reduction potential
   type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
-  input_dimensions: [action, sector]
-  output_dimensions: [action, sector]
+  input_dimensions: [sector, action] # TODO sector --> handlungsfeld
+  output_dimensions: [sector, action]
   input_datasets:
   - id: koeln/emission_reduction_potential_total
     tags: [potential]
+  input_nodes:
+  - id: scaling_rate
   params:
-    formula: extend_all(potential)
+    formula: extend_all(potential) * scaling_rate
 
-- id: action_index_transport
-  name: Aktion Index Verkehr
-  name_en: Action index transport
-  type: formula.FormulaNode
+- id: action_index
+  name: Aktion Index
+  name_en: Action index
+  type: generic.GenericNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [action, sector, energy_carrier, vehicle_type]
   output_dimensions: [action, sector, energy_carrier, vehicle_type]
   input_datasets:
   - id: koeln/action_index
-    tags: [index]
-    column: transport
   params:
-    formula: drop_unnecessary_levels(index) # TODO Should sropping be automatic?
-
-- id: action_index_stationary
-  name: Aktion Index Stationär
-  name_en: Action index stationary
-  type: formula.FormulaNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [action, sector, energy_carrier]
-  output_dimensions: [action, sector, energy_carrier]
-  input_datasets:
-  - id: koeln/action_index
-    tags: [index]
-    column: stationary
-  params:
-    formula: drop_unnecessary_levels(index) # TODO Should sropping be automatic?
+    operations: get_single_dataset,inventory_only
 
 - id: emission_factors
   name_de: Emissionsfaktoren
@@ -1136,16 +1229,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: electricity
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: renewable_generation_small_decentralized_systems
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [renewable_generation_small_decentralized_systems]
+      flatten: true
   output_nodes:
   - id: electricity_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: renewable_generation_open_space
   name: Erneuerbare Stromerzeugung in der Fläche
@@ -1171,16 +1267,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: electricity
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: renewable_generation_open_space
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [renewable_generation_open_space]
+      flatten: true
   output_nodes:
   - id: electricity_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: renewable_generation_power_plants
   name: Erneuerbare Stromerzeugung durch Kraftwerke
@@ -1197,16 +1296,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: electricity
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: renewable_generation_power_plants
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [renewable_generation_power_plants]
+      flatten: true
   output_nodes:
   - id: electricity_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: electricity_savings_commercial_sector
   name: Stromeinsparung im Gewerbesektor
@@ -1222,16 +1324,69 @@ actions:
   quantity: emissions
   unit: kt/a
   group: electricity
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: electricity_savings_commercial_sector
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [electricity_savings_commercial_sector]
+      flatten: true
   output_nodes:
   - id: electricity_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: electricity_savings_households
+  name: Stromeinsparung durch Haushalte
+  name_en: Electricity Savings in Households
+  description_en: The strategy consists of these measures:<ul><li>(No specific 
+    measures listed)</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
+    spezifischen Maßnahmen aufgeführt)</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [electricity_savings_households]
+      flatten: true
+  output_nodes:
+  - id: electricity_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: electricity_savings_industry
+  name: Stromeinsparung in der Industrie
+  name_en: Electricity Savings in Industry
+  description_en: The strategy consists of these measures:<ul><li>(No specific 
+    measures listed)</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
+    spezifischen Maßnahmen aufgeführt)</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [electricity_savings_industry]
+      flatten: true
+  output_nodes:
+  - id: electricity_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: heat_source_development_for_heat_networks
   name: Wärmequellenerschließung für Wärmenetze
@@ -1247,16 +1402,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: heat
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: heat_source_development_for_heat_networks
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [heat_source_development_for_heat_networks]
+      flatten: true
   output_nodes:
   - id: private_household_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: expansion_and_densification_of_heat_networks
   name: Erweiterung und Verdichtung der Wärmenetze
@@ -1269,16 +1427,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: heat
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: expansion_and_densification_of_heat_networks
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [expansion_and_densification_of_heat_networks]
+      flatten: true
   output_nodes:
   - id: private_household_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: decentralized_heating_replacement_households
   name: Dezentraler Heizungstausch in Haushalten
@@ -1295,16 +1456,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: heat
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: decentralized_heating_replacement_households
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [decentralized_heating_replacement_households]
+      flatten: true
   output_nodes:
   - id: private_household_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: new_construction_residential_buildings
   name: Neubau Wohngebäude
@@ -1320,16 +1484,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: heat
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: new_construction_residential_buildings
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [new_construction_residential_buildings]
+      flatten: true
   output_nodes:
   - id: private_household_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: new_construction_commercial_industrial
   name: Neubau Gewerbe/Industrie
@@ -1342,18 +1509,21 @@ actions:
   quantity: emissions
   unit: kt/a
   group: heat
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: new_construction_commercial_industrial
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [new_construction_commercial_industrial]
+      flatten: true
   output_nodes:
   - id: private_household_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
-- id: decentralized_heating_replacement_commercial
+- id: decentralized_heating_replacement_commercial # TODO No categories.
   name: Dezentraler Heizungstausch im Gewerbe
   name_en: Decentralized Heating System Replacement in Commercial Sector
   description_en: The strategy consists of these measures:<ul><li>Promotion of 
@@ -1367,16 +1537,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: heat
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: decentralized_heating_replacement_commercial
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [decentralized_heating_replacement_commercial]
+      flatten: true
   output_nodes:
   - id: private_household_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: renovation_residential_buildings
   name: Sanierung Wohngebäude
@@ -1400,16 +1573,94 @@ actions:
   quantity: emissions
   unit: kt/a
   group: heat
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: renovation_residential_buildings
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [renovation_residential_buildings]
+      flatten: true
   output_nodes:
   - id: private_household_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: efficient_heat_use_industry
+  name: Effiziente Wärmenutzung im Industriesektor
+  name_en: Efficient Heat Use in Industry
+  description_en: The strategy consists of these measures:<ul><li>(No specific 
+    measures listed)</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
+    spezifischen Maßnahmen aufgeführt)</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [efficient_heat_use_industry]
+      flatten: true
+  output_nodes:
+  - id: private_household_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: behavioral_change_heat_consumption_households
+  name: Verhaltensänderung beim Wärmeverbrauch in Haushalten
+  name_en: Behavioral Change in Heat Consumption in Households
+  description_en: The strategy consists of these measures:<ul><li>(No specific 
+    measures listed)</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
+    spezifischen Maßnahmen aufgeführt)</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [behavioral_change_heat_consumption_households]
+      flatten: true
+  output_nodes:
+  - id: private_household_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: efficient_heat_use_commercial
+  name: Effiziente Wärmenutzung im Gewerbe
+  name_en: Efficient Heat Use in Commercial Sector
+  description_en: The strategy consists of these measures:<ul><li>(No specific 
+    measures listed)</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
+    spezifischen Maßnahmen aufgeführt)</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [efficient_heat_use_commercial]
+      flatten: true
+  output_nodes:
+  - id: private_household_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: drive_transition_motorized_individual_transport
   name: Antriebswende – Motorisierter Individualverkehr
@@ -1425,16 +1676,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: mobility
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: drive_transition_motorized_individual_transport
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [drive_transition_motorized_individual_transport]
+      flatten: true
   output_nodes:
   - id: traffic_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: drive_transition_freight_transport
   name: Antriebswende – Güterverkehr
@@ -1450,16 +1704,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: mobility
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: drive_transition_freight_transport
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [drive_transition_freight_transport]
+      flatten: true
   output_nodes:
   - id: traffic_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: drive_transition_bus
   name: Antriebswende – Bus
@@ -1474,16 +1731,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: mobility
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: drive_transition_bus
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [drive_transition_bus]
+      flatten: true
   output_nodes:
   - id: traffic_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: mobility_transition_freight_transport
   name: Mobilitätswende – Güterverkehr
@@ -1496,16 +1756,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: mobility
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: mobility_transition_freight_transport
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [mobility_transition_freight_transport]
+      flatten: true
   output_nodes:
   - id: traffic_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: mobility_transition_local_mobility
   name: Mobilitätswende – Nahmobilität
@@ -1523,16 +1786,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: mobility
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: mobility_transition_local_mobility
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [mobility_transition_local_mobility]
+      flatten: true
   output_nodes:
   - id: traffic_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: mobility_transition_regional_mobility
   name: Mobilitätswende – Regionale Mobilität
@@ -1549,16 +1815,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: mobility
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: mobility_transition_regional_mobility
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [mobility_transition_regional_mobility]
+      flatten: true
   output_nodes:
   - id: traffic_actions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: food_and_nutrition
   name: Ernährung & Lebensmittel
@@ -1588,6 +1857,64 @@ actions:
   - id: enabled
     is_customizable: false
     is_visible: false
+
+# - id: afforestation_and_sustainable_forest_management # TODO Missing from action dataset
+#   name: Aufforstung & nachhaltige Bewirtschaftung von Wäldern
+#   name_en: Afforestation & Sustainable Forest Management
+#   description_en: The strategy consists of these measures:<ul><li>(No specific 
+#     measures listed)</li></ul>
+#   description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
+#     spezifischen Maßnahmen aufgeführt)</li></ul>
+#   type: simple.GenericAction
+#   quantity: emissions
+#   unit: kt/a
+#   group: food_and_land_use
+#   input_dimensions: [energy_carrier, sector, vehicle_type]
+#   output_dimensions: [energy_carrier, sector, vehicle_type]
+#   input_nodes:
+#   - id: action_potential_by_dimensions
+#     from_dimensions:
+#     - id: action
+#       categories: [afforestation_and_sustainable_forest_management]
+#       flatten: true
+#   output_nodes:
+#   - id: food_and_land_use_emissions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
+#   params:
+#   - id: enabled
+#     is_customizable: false
+#     is_visible: false
+
+# - id: rewetting_organic_soils # TODO Missing from action dataset
+#   name: Wiedervernässung organischer Böden
+#   name_en: Rewetting of Organic Soils
+#   description_en: The strategy consists of these measures:<ul><li>(No specific 
+#     measures listed)</li></ul>
+#   description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
+#     spezifischen Maßnahmen aufgeführt)</li></ul>
+#   type: simple.GenericAction
+#   quantity: emissions
+#   unit: kt/a
+#   group: food_and_land_use
+#   input_dimensions: [energy_carrier, sector, vehicle_type]
+#   output_dimensions: [energy_carrier, sector, vehicle_type]
+#   input_nodes:
+#   - id: action_potential_by_dimensions
+#     from_dimensions:
+#     - id: action
+#       categories: [rewetting_organic_soils]
+#       flatten: true
+#   output_nodes:
+#   - id: food_and_land_use_emissions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
+#   params:
+#   - id: enabled
+#     is_customizable: false
+#     is_visible: false
 
 - id: climate_friendly_consumption_behavior
   name: Klimafreundlicheres Konsumverhalten der Bevölkerung
@@ -1639,16 +1966,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: administration
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: ghg_neutral_administration_scope_1_and_2
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [ghg_neutral_administration_scope_1_and_2]
+      flatten: true
   output_nodes:
   - id: administration_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
   params:
   - id: enabled
     is_customizable: false
@@ -1713,6 +2043,31 @@ actions:
       value: waste_reduction_and_facility_efficiency
   output_nodes:
   - id: waste_and_wastewater_emissions
+
+- id: water_wastewater_reduction_and_facility_efficiency
+  name: Wasser-/Abwasserreduktion & Anlageneffizienz
+  name_en: Water/Wastewater Reduction & Facility Efficiency
+  description_en: The strategy consists of these measures:<ul><li>(No specific 
+    measures listed)</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
+    spezifischen Maßnahmen aufgeführt)</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: waste_and_wastewater
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [water_wastewater_reduction_and_facility_efficiency]
+      flatten: true
+  output_nodes:
+  - id: waste_and_wastewater_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
   params:
   - id: enabled
     is_customizable: false
@@ -1737,16 +2092,19 @@ actions:
   quantity: emissions
   unit: kt/a
   group: cross_cutting_climate_protection
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: cross_cutting_climate_protection_aspects
+  input_dimensions: [energy_carrier, sector, vehicle_type]
+  output_dimensions: [energy_carrier, sector, vehicle_type]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [cross_cutting_climate_protection_aspects]
+      flatten: true
   output_nodes:
   - id: cross_cutting_climate_protection_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
   params:
   - id: enabled
     is_customizable: false
@@ -2232,6 +2590,41 @@ scenarios:
   name_de: Klimaschutzplan
   name_en: Climate Action Plan
   all_actions_enabled: true
+  params:
+  # Nicht aktiv, da nicht in Bilanz
+  - id: waste_reduction_and_facility_efficiency.enabled
+    value: false
+  - id: food_and_nutrition.enabled
+    value: false
+  # - id: afforestation_and_sustainable_forest_management.enabled
+  #   value: false
+  # - id: rewetting_organic_soils.enabled
+  #   value: false
+  - id: climate_friendly_consumption_behavior.enabled
+    value: false
+  - id: ghg_neutral_administration_scope_3.enabled
+    value: false
+  # Basis (nicht aktiv)
+  - id: drive_transition_freight_transport.enabled
+    value: false
+  - id: mobility_transition_freight_transport.enabled
+    value: false
+  - id: electricity_savings_households.enabled
+    value: false
+  - id: electricity_savings_industry.enabled
+    value: false
+  - id: expansion_and_densification_of_heat_networks.enabled
+    value: false
+  - id: decentralized_heating_replacement_households.enabled
+    value: false
+  - id: efficient_heat_use_industry.enabled
+    value: false
+  - id: behavioral_change_heat_consumption_households.enabled
+    value: false
+  - id: efficient_heat_use_commercial.enabled
+    value: false
+  - id: new_construction_commercial_industrial.enabled
+    value: false
 
 - id: active
   default: false

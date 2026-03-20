@@ -1,0 +1,16 @@
+#:schema https://fnox.jdx.dev/schema.json
+default_provider = "vault"
+root = true
+
+[providers]
+vault = { type = "vault", address = "https://vault.kausal.tech", path = "common-prod/developers/paths", token = { secret = "FNOX_VAULT_TOKEN" } }
+vault-fi = { type = "vault", address = "https://vault.kausal.tech", path = "common-prod/developers/paths/fi", token = { secret = "FNOX_VAULT_TOKEN" } }
+keychain = { type = "keychain", service = "fnox", prefix = "paths-backend/" }
+
+[secrets]
+UV_INDEX_KAUSAL_PASSWORD = { provider = "vault", value = "uv/UV_INDEX_KAUSAL_PASSWORD" }
+UV_INDEX_KAUSAL_USERNAME = { provider = "vault", value = "uv/UV_INDEX_KAUSAL_USERNAME" }
+FNOX_VAULT_TOKEN= { provider = "keychain", value = "FNOX_VAULT_TOKEN" }
+
+[profiles.fi-prod.secrets]
+S3_MEDIA_STORAGE_URL = { provider = "vault-fi", value = "media-s3/S3_MEDIA_STORAGE_URL" }

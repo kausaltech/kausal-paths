@@ -12,15 +12,16 @@ from nodes.models import InstanceConfig
 from nodes.schema import NodeType
 from pages.page_interface import PageInterface
 
-from .models import OutcomePage, Page, PathsPage
+from .models import OutcomePage, PathsPage
 from .perms import PagePermissionPolicy
 
 if TYPE_CHECKING:
-    from wagtail.query import PageQuerySet
 
     from paths.graphql_helpers import GQLInstanceInfo
 
     from nodes.node import Node
+
+    from .models import Page
 
 policy = PagePermissionPolicy()
 

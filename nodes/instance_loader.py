@@ -18,10 +18,11 @@ from pydantic import BaseModel, Field, field_validator
 import platformdirs
 from loguru import logger
 from rich import print
-from ruamel.yaml import YAML as RuamelYAML, CommentedMap  # noqa: N811
+from ruamel.yaml import YAML as RuamelYAML  # noqa: N811
 from sentry_sdk import start_span
 
-from common.i18n import TranslatedString, gettext_lazy as _, set_default_language
+from kausal_common.i18n.pydantic import TranslatedString, gettext_lazy as _, set_default_language
+
 from nodes.actions import ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
@@ -34,6 +35,7 @@ from .excel_results import InstanceResultExcel
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from ruamel.yaml import CommentedMap
     from ruamel.yaml.comments import LineCol
 
     from frameworks.models import FrameworkConfig

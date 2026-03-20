@@ -1,7 +1,11 @@
+from typing import TYPE_CHECKING
+
 import pytest
-from nodes.scenario import Scenario
 
 from params.param import ValidationError
+
+if TYPE_CHECKING:
+    from nodes.scenario import Scenario
 
 pytestmark = pytest.mark.django_db
 

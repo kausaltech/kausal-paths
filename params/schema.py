@@ -7,12 +7,14 @@ from graphql.error import GraphQLError
 
 from paths.graphql_helpers import ensure_instance
 
-from . import BoolParameter, NumberParameter, Parameter, PercentageParameter, StringParameter, ValidationError
+from . import BoolParameter, NumberParameter, PercentageParameter, StringParameter, ValidationError
 
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo
 
     from paths.graphql_helpers import GQLInstanceInfo
+
+    from . import Parameter
 
 
 class ResolveDefaultValueMixin:

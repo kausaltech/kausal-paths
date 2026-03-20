@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING
 
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -13,6 +13,9 @@ from paths.context import realm_context
 
 from admin_site.viewsets import PathsEditView, PathsViewSet
 from pages.models import InstanceSiteContent
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class SiteContentPermissionPolicy(ParentInheritedPolicy):

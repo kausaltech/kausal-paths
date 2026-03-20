@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.core.management.base import BaseCommand, CommandError
 
+import polars as pl
 from loguru import logger
 from rich.console import Console
 from rich.table import Table
@@ -12,16 +13,16 @@ from rich.table import Table
 from kausal_common.datasets.models import Dataset as DBDatasetModel
 
 from common import polars as ppl
-from nodes.dataset_diff import RowDiff, compute_row_diff, compute_schema_diff
+from nodes.constants import YEAR_COLUMN
+from nodes.dataset_diff import compute_row_diff, compute_schema_diff
 from nodes.datasets import DBDataset, FixedDataset
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
     from datetime import datetime
 
-    import polars as pl
-
     from nodes.context import Context
+    from nodes.dataset_diff import RowDiff
 
 console = Console()
 
@@ -31,8 +32,8 @@ class DataPointInfo:
     database_pk: int
     last_modified_at: datetime | None
     last_modified_by_name: str | None
-    comments: list[dict] = field(default_factory=list)
-    source_references: list[dict] = field(default_factory=list)
+    comments: list[dict[str, Any]] = field(default_factory=list)
+    source_references: list[dict[str, Any]] = field(default_factory=list)
 
 
 def enrich_data_points(dp_pks: set[int]) -> dict[int, DataPointInfo]:
@@ -110,6 +111,13 @@ def get_db_dataset_ids(ic: InstanceConfig) -> set[str]:
         DBDatasetModel.objects.for_instance_config(ic)   # type: ignore[arg-type]
         .values_list('identifier', flat=True)
     )
+
+
+def get_overlapping_dataset_ids(ic: InstanceConfig) -> set[str]:
+    """Get dataset IDs that exist in both instance config and DB for this instance."""
+    config_ids = get_config_dataset_ids(ic)
+    db_ids = get_db_dataset_ids(ic)
+    return config_ids & db_ids
 
 
 def find_overlapping_datasets() -> None:
@@ -260,8 +268,13 @@ def _print_dp_info(info: DataPointInfo, label_width: int, *, verbose: bool = Fal
 
 
 def _print_enrichment_for_row(
-    row: dict, dp_pk_cols: list[str], dp_info: dict[int, DataPointInfo],
-    *, show_missing: bool = False, label_width: int = 16, verbose: bool = False,
+    row: dict[str, Any],
+    dp_pk_cols: list[str],
+    dp_info: dict[int, DataPointInfo],
+    *,
+    show_missing: bool = False,
+    label_width: int = 16,
+    verbose: bool = False,
 ) -> None:
     found_any = False
     for col in dp_pk_cols:
@@ -434,8 +447,9 @@ def _print_value_diffs(
 def diff_rows(
     dvc_df: ppl.PathsDataFrame, db_df: ppl.PathsDataFrame,
     *, vertical: bool = False, dvc_modified_at: datetime | None = None, verbose: bool = False,
+    overview_only: bool = False, approx: bool = False,
 ):
-    """Compare row contents after normalizing order. Print differing rows."""
+    """Compare row contents after normalizing order. Print differing rows (or overview only)."""
     console.rule('Row diff')
 
     if dvc_modified_at is not None:
@@ -447,7 +461,7 @@ def diff_rows(
     else:
         console.print(f'Row count: {sd.dvc_row_count}')
 
-    rd = compute_row_diff(dvc_df, db_df)
+    rd = compute_row_diff(dvc_df, db_df, approx=approx)
     if rd is None:
         common_cols = set(dvc_df.columns) & set(db_df.columns)
         if not common_cols:
@@ -456,13 +470,118 @@ def diff_rows(
             console.print('[red]No common primary keys — cannot align rows.[/red]')
         return
 
+    if overview_only:
+        if len(rd.dvc_only):
+            console.print(f'[yellow]{len(rd.dvc_only)} row(s) only in DVC[/yellow]')
+        if len(rd.db_only):
+            console.print(f'[yellow]{len(rd.db_only)} row(s) only in DB[/yellow]')
+        if len(rd.value_diffs):
+            console.print(
+                f'[yellow]{len(rd.value_diffs)} row(s) with value differences (out of {rd.matched_count} matched)[/yellow]'
+            )
+        return
+
     dp_info = _maybe_enrich(vertical, rd)
     _print_exclusive_rows(rd, vertical=vertical, dp_info=dp_info, verbose=verbose)
     _print_value_diffs(rd, vertical=vertical, dp_info=dp_info, verbose=verbose)
 
 
+def _dataset_differs(
+    ic: InstanceConfig, ctx: Context, dataset_id: str, *, approx: bool = False
+) -> bool:
+    """Return True if the dataset exists and differs in DVC and DB (schema or rows)."""
+    dvc_df = None
+    db_df = None
+    try:
+        dvc_ds = ctx.load_dvc_dataset(dataset_id)
+        dvc_df = ppl.from_dvc_dataset(dvc_ds)
+    except Exception:
+        logger.warning(f'Could not load dataset from DVC: {dataset_id}')
+        return False
+    try:
+        db_obj = DBDatasetModel.objects.for_instance_config(ic).get(identifier=dataset_id)  # type: ignore[attr-defined]
+        db_df = DBDataset.deserialize_df(db_obj, include_data_point_primary_keys=False)
+    except (DBDatasetModel.DoesNotExist, Exception):
+        logger.warning(f'Could not load dataset from DB: {dataset_id}')
+        return False
+
+    sd = compute_schema_diff(dvc_df, db_df)
+    if not sd.identical:
+        return True
+    rd = compute_row_diff(dvc_df, db_df, approx=approx)
+    if rd is None:
+        return True
+    return (
+        len(rd.dvc_only) > 0 or len(rd.db_only) > 0 or len(rd.value_diffs) > 0
+    )
+
+
+def _load_dataset_for_export(ic: InstanceConfig, ctx: Context, dataset_id: str) -> ppl.PathsDataFrame | None:
+    """Load dataset for export; prefer DB when available."""
+    try:
+        db_obj = DBDatasetModel.objects.for_instance_config(ic).get(identifier=dataset_id)  # type: ignore[attr-defined]
+        return DBDataset.deserialize_df(db_obj, include_data_point_primary_keys=False)
+    except (DBDatasetModel.DoesNotExist, Exception):
+        logger.warning(f'Could not load dataset from DB: {dataset_id}')
+    try:
+        dvc_ds = ctx.load_dvc_dataset(dataset_id)
+        return ppl.from_dvc_dataset(dvc_ds)
+    except Exception:
+        logger.warning(f'Could not load dataset from DVC: {dataset_id}')
+    return None
+
+
+def _export_dataset_to_gpc(df: ppl.PathsDataFrame, dataset_id: str) -> pl.DataFrame:
+    """
+    Export a PathsDataFrame to GPC format.
+
+    Dimensions as columns (long), each year as a column (wide),
+    plus Metric, Unit, Quantity, Dataset.
+    """
+    print(f"Exporting dataset: {dataset_id}")
+    meta = df.get_meta()
+    dim_ids = meta.dim_ids
+    year_col = YEAR_COLUMN
+    fixed_cols = ['Metric', 'Unit', 'Quantity', 'Dataset']
+
+    blocks: list[pl.DataFrame] = []
+
+    for metric_col in meta.metric_cols:
+        if metric_col not in df.columns:
+            continue
+        sub = df.select([*dim_ids, year_col, metric_col]).with_columns(
+            pl.lit(metric_col).alias('Metric')
+        )
+        pivot_index = [*dim_ids, 'Metric']
+        pivoted = sub.pivot(
+            on=year_col,
+            index=pivot_index,
+            values=metric_col,
+            aggregate_function='first',
+        )
+        unit = meta.units[metric_col]
+        unit_str = str(unit) or 'dimensionless'
+        pivoted = pivoted.with_columns([
+            pl.lit(unit_str).alias('Unit'),
+            pl.lit('').alias('Quantity'), # Quantity does not exist in DB metric.
+            pl.lit(dataset_id).alias('Dataset'),
+        ])
+        year_cols = [c for c in pivoted.columns if c not in dim_ids and c not in fixed_cols]
+        col_order = fixed_cols + dim_ids + sorted(year_cols)
+        pivoted = pivoted.select([c for c in col_order if c in pivoted.columns])
+        blocks.append(pivoted)
+
+    if not blocks:
+        return pl.DataFrame(schema=dict.fromkeys(fixed_cols, pl.Utf8))
+
+    combined = pl.concat(blocks, how='diagonal')
+    return combined
+
+
 def compare_dataset(
-    ic: InstanceConfig, ctx: Context, dataset_id: str, *, vertical: bool = False, verbose: bool = False,
+    ic: InstanceConfig, ctx: Context, dataset_id: str, *,
+    vertical: bool = False, verbose: bool = False, overview_if_different: bool = False,
+    approx: bool = False,
 ) -> None:
     dvc_df = None
     db_df = None
@@ -476,7 +595,7 @@ def compare_dataset(
         console.print(f'[red]Could not load dataset from DVC: {e}[/red]')
 
     try:
-        db_obj = DBDatasetModel.objects.for_instance_config(ic).get(identifier=dataset_id)
+        db_obj = DBDatasetModel.objects.for_instance_config(ic).get(identifier=dataset_id)  # type: ignore[attr-defined]
         db_df = DBDataset.deserialize_df(db_obj, include_data_point_primary_keys=True)
     except DBDatasetModel.DoesNotExist:
         console.print(f'[red]Dataset "{dataset_id}" not found in database for instance "{ic.identifier}"[/red]')
@@ -487,8 +606,22 @@ def compare_dataset(
         raise CommandError(f'Dataset "{dataset_id}" not found in either DVC or database.')
 
     if dvc_df is not None and db_df is not None:
+        sd = compute_schema_diff(dvc_df, db_df)
         diff_schemas(dvc_df, db_df)
-        diff_rows(dvc_df, db_df, vertical=vertical, dvc_modified_at=dvc_modified_at, verbose=verbose)
+        rd = compute_row_diff(dvc_df, db_df, approx=approx)
+        identical = (
+            sd.identical
+            and rd is not None
+            and len(rd.dvc_only) == 0
+            and len(rd.db_only) == 0
+            and len(rd.value_diffs) == 0
+        )
+        overview_only = bool(overview_if_different and not identical)
+        diff_rows(
+            dvc_df, db_df,
+            vertical=vertical, dvc_modified_at=dvc_modified_at, verbose=verbose,
+            overview_only=overview_only, approx=approx,
+        )
 
 
 class Command(BaseCommand):
@@ -512,6 +645,25 @@ class Command(BaseCommand):
             '--verbose', action='store_true',
             help='Show additional details like database primary keys in enrichment info',
         )
+        parser.add_argument(
+            '--export', type=str, metavar='FILENAME',
+            help='Export selected dataset(s) to a CSV file',
+        )
+        parser.add_argument(
+            '--format', type=str, default='gpc', choices=['gpc'],
+            help='Output format for export (default: gpc)',
+        )
+        parser.add_argument(
+            '--select', type=str, default='all', choices=['all', 'different'],
+            help=(
+                'Which datasets to export when not specifying dataset_id: '
+                'all (default) or different (only those that differ in DB vs DVC)'
+            ),
+        )
+        parser.add_argument(
+            '--approx', action='store_true',
+            help='Round values to 5 significant digits before comparing (reduces noise from float representation)',
+        )
 
     def handle(self, *args, **options):
         if options['find_overlapping']:
@@ -520,9 +672,89 @@ class Command(BaseCommand):
 
         instance_id = options['instance_id']
         dataset_id = options['dataset_id']
-        if not instance_id or not dataset_id:
-            raise CommandError('instance_id and dataset_id are required when not using --find-overlapping')
+        export_filename = options.get('export')
+        export_format_name = options.get('format', 'gpc')
+        export_select = options.get('select', 'all')
+
+        if not instance_id:
+            raise CommandError('instance_id is required when not using --find-overlapping')
+
+        if export_filename and dataset_id and export_select != 'all':
+            raise CommandError('--select is not allowed when dataset_id is given')
 
         ic = InstanceConfig.objects.get(identifier=instance_id)
         ctx = ic.get_instance().context
-        compare_dataset(ic, ctx, dataset_id, vertical=options['vertical'], verbose=options['verbose'])
+
+        if export_filename:
+            self._do_export(
+                ic, ctx, export_filename, export_format_name, export_select, dataset_id,
+                approx=options['approx'],
+            )
+            return
+
+        if dataset_id:
+            compare_dataset(
+                ic, ctx, dataset_id,
+                vertical=options['vertical'], verbose=options['verbose'],
+                overview_if_different=False, approx=options['approx'],
+            )
+        else:
+            overlap = get_overlapping_dataset_ids(ic)
+            if not overlap:
+                msg = (
+                    f'[yellow]No overlapping datasets for instance "{instance_id}" '
+                    '(no dataset exists in both DVC and DB).[/yellow]'
+                )
+                console.print(msg)
+                return
+            for ds_id in sorted(overlap):
+                console.rule(f'Dataset: {ds_id}')
+                compare_dataset(
+                    ic, ctx, ds_id,
+                    vertical=options['vertical'], verbose=options['verbose'],
+                    overview_if_different=True, approx=options['approx'],
+                )
+
+    def _do_export(
+        self,
+        ic: InstanceConfig,
+        ctx: Context,
+        filename: str,
+        format_name: str,
+        select_mode: str,
+        dataset_id: str | None,
+        approx: bool = False,
+    ) -> None:
+        if format_name != 'gpc':
+            raise CommandError(f'Unsupported export format: {format_name}')
+
+        if dataset_id:
+            dataset_ids = [dataset_id]
+        else:
+            overlap = get_overlapping_dataset_ids(ic)
+            if not overlap:
+                raise CommandError(
+                    f'No overlapping datasets for instance "{ic.identifier}" to export.'
+                )
+            if select_mode == 'different':
+                dataset_ids = [ds_id for ds_id in sorted(overlap) if _dataset_differs(ic, ctx, ds_id, approx=approx)]
+                if not dataset_ids:
+                    raise CommandError('No differing datasets to export (all match DVC).')
+            else:
+                dataset_ids = sorted(overlap)
+
+        all_blocks: list[pl.DataFrame] = []
+        for ds_id in dataset_ids:
+            df = _load_dataset_for_export(ic, ctx, ds_id)
+            if df is None:
+                console.print(f'[yellow]Could not load dataset "{ds_id}", skipping.[/yellow]')
+                continue
+            gpc_df = _export_dataset_to_gpc(df, ds_id)
+            all_blocks.append(gpc_df)
+
+        if not all_blocks:
+            raise CommandError('No dataset could be loaded for export.')
+
+        combined = pl.concat(all_blocks, how='diagonal')
+        combined.write_csv(filename)
+        console.print(f'[green]Exported {combined.height} row(s) to {filename}[/green]')

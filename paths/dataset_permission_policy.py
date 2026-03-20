@@ -18,9 +18,7 @@ from kausal_common.datasets.models import (
     DataSource,
 )
 from kausal_common.models.permission_policy import (
-    BaseObjectAction,
     ModelPermissionPolicy,
-    ObjectSpecificAction,
     ParentInheritedPolicy,
 )
 from kausal_common.models.permissions import PermissionedQuerySet
@@ -41,6 +39,10 @@ if TYPE_CHECKING:
     from django.contrib.auth.models import AnonymousUser
     from django.db.models import Model
 
+    from kausal_common.models.permission_policy import (
+        BaseObjectAction,
+        ObjectSpecificAction,
+    )
     from kausal_common.models.permissions import PermissionedModel
     from kausal_common.models.roles import InstanceSpecificRole
 

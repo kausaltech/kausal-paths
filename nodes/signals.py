@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from django.db.models import Model, Q
+from django.db.models import Q
 from django.db.models.signals import m2m_changed, post_save, pre_save
 from django.dispatch import receiver
 
@@ -14,6 +14,7 @@ from users.models import User
 from users.signals import user_permissions_changed
 
 if TYPE_CHECKING:
+    from django.db.models import Model
     class InstanceConfigWithTempVar(InstanceConfig):
         _old_role_groups: dict[str, int | None] | None
 

@@ -4,12 +4,14 @@ from typing import TYPE_CHECKING, TypeGuard, cast, override
 
 from django.db.models import Q
 
-from kausal_common.models.permission_policy import ModelPermissionPolicy, ObjectSpecificAction
+from kausal_common.models.permission_policy import ModelPermissionPolicy
 
 from nodes.models import InstanceConfig
 from orgs.models import Organization
 
 if TYPE_CHECKING:
+
+    from kausal_common.models.permission_policy import ObjectSpecificAction
 
     from paths.permissions import CreateContext
 

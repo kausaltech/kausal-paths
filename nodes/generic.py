@@ -12,15 +12,18 @@ from common import polars as ppl
 from common.polars import PathsDataFrame
 from nodes.actions import ActionNode
 from nodes.calc import extend_last_historical_value_pl
-from nodes.node import Node, NodeMetric
+from nodes.node import NodeMetric
 from nodes.units import Quantity, Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
 
+from .calc import compute_scenario_impact
 from .constants import (
     EMISSION_FACTOR_QUANTITY,
     EMISSION_QUANTITY,
     ENERGY_QUANTITY,
     FORECAST_COLUMN,
+    IMPACT_COLUMN,
+    IMPACT_GROUP,
     STACKABLE_QUANTITIES,
     VALUE_COLUMN,
     YEAR_COLUMN,
@@ -33,6 +36,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any
 
+    from nodes.node import Node
     from params import Parameter
 
 
@@ -79,7 +83,6 @@ class GenericNode(SimpleNode):
             'goal_gap': self._operation_goal_gap,
             'multiply': self._operation_multiply,
             'other': self._operation_other,
-            'scenario_impact': self._operation_scenario_impact,
             'select_variant': self._operation_select_variant,
             'skip_dim_test': self._operation_skip_dim_test,
             'split_by_existing_shares': self._operation_split_by_existing_shares,
@@ -212,17 +215,6 @@ class GenericNode(SimpleNode):
         mult = self.get_parameter_value('multiplier', required=False, units=True)
         if mult is not None:
             df = df.multiply_quantity(VALUE_COLUMN, mult)
-        return df
-
-    def _operation_scenario_impact(self, df: PathsDataFrame | None) -> OperationReturn:
-        """Replace output with (active - baseline). When computing baseline, cache pre-impact df and return zeros."""
-        if df is None:
-            raise NodeError(self, "Cannot compute scenario_impact because no PathsDataFrame is available.")
-        if getattr(self, '_computing_baseline', False):
-            self._baseline_values = df
-            return df.with_columns(pl.lit(0.0).alias(VALUE_COLUMN))
-        baseline_df = self.get_baseline_values()
-        df = df.paths.subtract_with_dims(baseline_df, how='outer')
         return df
 
     def _operation_skip_dim_test(self, df: PathsDataFrame | None) -> OperationReturn:
@@ -490,6 +482,39 @@ class GenericNode(SimpleNode):
 
         return df
 
+
+class ScenarioImpactNode(GenericNode):
+    """Node that outputs scenario impact of one input node (current vs reference scenario)."""
+
+    explanation = _(
+        "Outputs Scenario, Reference, and Impact blocks for the single input node (tag: scenario_impact)."
+    )
+    allowed_parameters = [
+        *GenericNode.allowed_parameters,
+        StringParameter(
+            local_id='scenario_impact_reference',
+            label=_('Reference scenario (default: baseline)'),
+        ),
+    ]
+    DEFAULT_OPERATIONS = 'scenario_impact'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.OPERATIONS['scenario_impact'] = self._operation_scenario_impact
+        self.default_operations = self.DEFAULT_OPERATIONS
+
+    def _operation_scenario_impact(self, _df: PathsDataFrame | None) -> OperationReturn:
+        """Output = scenario impact of one input node (current vs reference). Tag: scenario_impact."""
+        if _df is not None:
+            raise NodeError(self, "scenario_impact must be the first operation, so df must be None.")
+        target_node = self.get_input_node(tag='scenario_impact', required=True)
+        reference_scenario_id = self.get_parameter_value_str('scenario_impact_reference', required=False) or 'baseline'
+        df = compute_scenario_impact(target_node, reference_scenario_id)
+        df = (df # Impact column not needed here.
+            .filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP))
+            .drop(IMPACT_COLUMN)
+        )
+        return df
 
 class LeverNode(GenericNode):
     explanation = _(

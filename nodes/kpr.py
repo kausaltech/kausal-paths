@@ -1,9 +1,16 @@
-from nodes.context import Context
+from typing import TYPE_CHECKING
+
 import pandas as pd
-from .simple import SectorEmissions as BaseSectorEmissions
-from .constants import FORECAST_COLUMN, VALUE_COLUMN
+
+from kausal_common.i18n.pydantic import TranslatedString
+
 from params import StringParameter
-from common.i18n import TranslatedString
+
+from .constants import FORECAST_COLUMN, VALUE_COLUMN
+from .simple import SectorEmissions as BaseSectorEmissions
+
+if TYPE_CHECKING:
+    from nodes.context import Context
 
 
 class SectorEmissions(BaseSectorEmissions):
