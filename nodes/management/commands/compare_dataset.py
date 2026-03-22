@@ -108,8 +108,7 @@ def get_config_dataset_ids(ic: InstanceConfig) -> set[str]:
 
 def get_db_dataset_ids(ic: InstanceConfig) -> set[str]:
     return set(
-        DBDatasetModel.objects.for_instance_config(ic)   # type: ignore[arg-type]
-        .values_list('identifier', flat=True)
+        DBDatasetModel.objects.for_instance_config(ic).values_list('identifier', flat=True)  # type: ignore[arg-type]
     )
 
 
@@ -208,10 +207,7 @@ def _split_identical_diff_cols(rd: RowDiff) -> tuple[list[str], list[str]]:
     identical: list[str] = []
     differing: list[str] = []
     for col in rd.value_cols:
-        all_same = all(
-            str(row[col]) == str(row[f'{col}_db'])
-            for row in rd.value_diffs.iter_rows(named=True)
-        )
+        all_same = all(str(row[col]) == str(row[f'{col}_db']) for row in rd.value_diffs.iter_rows(named=True))
         if all_same:
             identical.append(col)
         else:
@@ -329,8 +325,11 @@ def _build_value_diff_table(rd: RowDiff, differing_cols: list[str]) -> Table:
 
 
 def _print_vertical_rows(
-    df: pl.DataFrame, cols: list[str],
-    *, dp_info: dict[int, DataPointInfo] | None = None, verbose: bool = False,
+    df: pl.DataFrame,
+    cols: list[str],
+    *,
+    dp_info: dict[int, DataPointInfo] | None = None,
+    verbose: bool = False,
 ) -> None:
     """Print rows of a plain DataFrame in vertical label : value format."""
     dp_pk_cols = _get_dp_pk_cols(df)
@@ -342,13 +341,23 @@ def _print_vertical_rows(
             console.print(f'  {col:>{max_label}} : {row[col]}')
         if dp_pk_cols:
             _print_enrichment_for_row(
-                row, dp_pk_cols, dp_info or {}, show_missing=False, label_width=max_label, verbose=verbose,
+                row,
+                dp_pk_cols,
+                dp_info or {},
+                show_missing=False,
+                label_width=max_label,
+                verbose=verbose,
             )
 
 
 def _print_only_rows(
-    df: pl.DataFrame, pk_cols: list[str], value_cols: list[str],
-    *, vertical: bool, dp_info: dict[int, DataPointInfo] | None = None, verbose: bool = False,
+    df: pl.DataFrame,
+    pk_cols: list[str],
+    value_cols: list[str],
+    *,
+    vertical: bool,
+    dp_info: dict[int, DataPointInfo] | None = None,
+    verbose: bool = False,
 ) -> None:
     """Print rows that exist only in one source, extracting constant columns."""
     present_value_cols = [c for c in value_cols if c in df.columns]
@@ -361,8 +370,11 @@ def _print_only_rows(
 
 
 def _print_vertical_diffs(
-    rd: RowDiff, differing_cols: list[str],
-    *, dp_info: dict[int, DataPointInfo] | None = None, verbose: bool = False,
+    rd: RowDiff,
+    differing_cols: list[str],
+    *,
+    dp_info: dict[int, DataPointInfo] | None = None,
+    verbose: bool = False,
 ) -> None:
     """Print each differing row as a vertical block with PK + differing value columns."""
     dp_pk_cols = _get_dp_pk_cols(rd.value_diffs)
@@ -389,7 +401,12 @@ def _print_vertical_diffs(
             console.print(f'  {db_label:>{max_label}} : {db_display}')
         if dp_pk_cols:
             _print_enrichment_for_row(
-                row, dp_pk_cols, dp_info or {}, show_missing=False, label_width=max_label, verbose=verbose,
+                row,
+                dp_pk_cols,
+                dp_info or {},
+                show_missing=False,
+                label_width=max_label,
+                verbose=verbose,
             )
 
 
@@ -407,7 +424,11 @@ def _maybe_enrich(vertical: bool, rd: RowDiff) -> dict[int, DataPointInfo] | Non
 
 
 def _print_exclusive_rows(
-    rd: RowDiff, *, vertical: bool, dp_info: dict[int, DataPointInfo] | None, verbose: bool = False,
+    rd: RowDiff,
+    *,
+    vertical: bool,
+    dp_info: dict[int, DataPointInfo] | None,
+    verbose: bool = False,
 ) -> None:
     if len(rd.dvc_only):
         console.print(f'[yellow]{len(rd.dvc_only)} row(s) only in DVC:[/yellow]')
@@ -418,7 +439,11 @@ def _print_exclusive_rows(
 
 
 def _print_value_diffs(
-    rd: RowDiff, *, vertical: bool, dp_info: dict[int, DataPointInfo] | None, verbose: bool = False,
+    rd: RowDiff,
+    *,
+    vertical: bool,
+    dp_info: dict[int, DataPointInfo] | None,
+    verbose: bool = False,
 ) -> None:
     if not rd.value_cols:
         return
@@ -428,9 +453,7 @@ def _print_value_diffs(
         return
 
     console.print('\n\n')
-    console.print(
-        f'[yellow]{len(rd.value_diffs)} row(s) with value differences (out of {rd.matched_count} matched):[/yellow]'
-    )
+    console.print(f'[yellow]{len(rd.value_diffs)} row(s) with value differences (out of {rd.matched_count} matched):[/yellow]')
 
     identical_cols, differing_cols = _split_identical_diff_cols(rd)
     _print_identical_diff_cols(rd, identical_cols)
@@ -445,9 +468,14 @@ def _print_value_diffs(
 
 
 def diff_rows(
-    dvc_df: ppl.PathsDataFrame, db_df: ppl.PathsDataFrame,
-    *, vertical: bool = False, dvc_modified_at: datetime | None = None, verbose: bool = False,
-    overview_only: bool = False, approx: bool = False,
+    dvc_df: ppl.PathsDataFrame,
+    db_df: ppl.PathsDataFrame,
+    *,
+    vertical: bool = False,
+    dvc_modified_at: datetime | None = None,
+    verbose: bool = False,
+    overview_only: bool = False,
+    approx: bool = False,
 ):
     """Compare row contents after normalizing order. Print differing rows (or overview only)."""
     console.rule('Row diff')
@@ -486,9 +514,7 @@ def diff_rows(
     _print_value_diffs(rd, vertical=vertical, dp_info=dp_info, verbose=verbose)
 
 
-def _dataset_differs(
-    ic: InstanceConfig, ctx: Context, dataset_id: str, *, approx: bool = False
-) -> bool:
+def _dataset_differs(ic: InstanceConfig, ctx: Context, dataset_id: str, *, approx: bool = False) -> bool:
     """Return True if the dataset exists and differs in DVC and DB (schema or rows)."""
     dvc_df = None
     db_df = None
@@ -501,7 +527,7 @@ def _dataset_differs(
     try:
         db_obj = DBDatasetModel.objects.for_instance_config(ic).get(identifier=dataset_id)  # type: ignore[attr-defined]
         db_df = DBDataset.deserialize_df(db_obj, include_data_point_primary_keys=False)
-    except (DBDatasetModel.DoesNotExist, Exception):
+    except DBDatasetModel.DoesNotExist, Exception:
         logger.warning(f'Could not load dataset from DB: {dataset_id}')
         return False
 
@@ -511,9 +537,7 @@ def _dataset_differs(
     rd = compute_row_diff(dvc_df, db_df, approx=approx)
     if rd is None:
         return True
-    return (
-        len(rd.dvc_only) > 0 or len(rd.db_only) > 0 or len(rd.value_diffs) > 0
-    )
+    return len(rd.dvc_only) > 0 or len(rd.db_only) > 0 or len(rd.value_diffs) > 0
 
 
 def _load_dataset_for_export(ic: InstanceConfig, ctx: Context, dataset_id: str) -> ppl.PathsDataFrame | None:
@@ -521,7 +545,7 @@ def _load_dataset_for_export(ic: InstanceConfig, ctx: Context, dataset_id: str) 
     try:
         db_obj = DBDatasetModel.objects.for_instance_config(ic).get(identifier=dataset_id)  # type: ignore[attr-defined]
         return DBDataset.deserialize_df(db_obj, include_data_point_primary_keys=False)
-    except (DBDatasetModel.DoesNotExist, Exception):
+    except DBDatasetModel.DoesNotExist, Exception:
         logger.warning(f'Could not load dataset from DB: {dataset_id}')
     try:
         dvc_ds = ctx.load_dvc_dataset(dataset_id)
@@ -538,7 +562,7 @@ def _export_dataset_to_gpc(df: ppl.PathsDataFrame, dataset_id: str) -> pl.DataFr
     Dimensions as columns (long), each year as a column (wide),
     plus Metric, Unit, Quantity, Dataset.
     """
-    print(f"Exporting dataset: {dataset_id}")
+    print(f'Exporting dataset: {dataset_id}')
     meta = df.get_meta()
     dim_ids = meta.dim_ids
     year_col = YEAR_COLUMN
@@ -549,9 +573,7 @@ def _export_dataset_to_gpc(df: ppl.PathsDataFrame, dataset_id: str) -> pl.DataFr
     for metric_col in meta.metric_cols:
         if metric_col not in df.columns:
             continue
-        sub = df.select([*dim_ids, year_col, metric_col]).with_columns(
-            pl.lit(metric_col).alias('Metric')
-        )
+        sub = df.select([*dim_ids, year_col, metric_col]).with_columns(pl.lit(metric_col).alias('Metric'))
         pivot_index = [*dim_ids, 'Metric']
         pivoted = sub.pivot(
             on=year_col,
@@ -563,7 +585,7 @@ def _export_dataset_to_gpc(df: ppl.PathsDataFrame, dataset_id: str) -> pl.DataFr
         unit_str = str(unit) or 'dimensionless'
         pivoted = pivoted.with_columns([
             pl.lit(unit_str).alias('Unit'),
-            pl.lit('').alias('Quantity'), # Quantity does not exist in DB metric.
+            pl.lit('').alias('Quantity'),  # Quantity does not exist in DB metric.
             pl.lit(dataset_id).alias('Dataset'),
         ])
         year_cols = [c for c in pivoted.columns if c not in dim_ids and c not in fixed_cols]
@@ -579,8 +601,13 @@ def _export_dataset_to_gpc(df: ppl.PathsDataFrame, dataset_id: str) -> pl.DataFr
 
 
 def compare_dataset(
-    ic: InstanceConfig, ctx: Context, dataset_id: str, *,
-    vertical: bool = False, verbose: bool = False, overview_if_different: bool = False,
+    ic: InstanceConfig,
+    ctx: Context,
+    dataset_id: str,
+    *,
+    vertical: bool = False,
+    verbose: bool = False,
+    overview_if_different: bool = False,
     approx: bool = False,
 ) -> None:
     dvc_df = None
@@ -610,17 +637,17 @@ def compare_dataset(
         diff_schemas(dvc_df, db_df)
         rd = compute_row_diff(dvc_df, db_df, approx=approx)
         identical = (
-            sd.identical
-            and rd is not None
-            and len(rd.dvc_only) == 0
-            and len(rd.db_only) == 0
-            and len(rd.value_diffs) == 0
+            sd.identical and rd is not None and len(rd.dvc_only) == 0 and len(rd.db_only) == 0 and len(rd.value_diffs) == 0
         )
         overview_only = bool(overview_if_different and not identical)
         diff_rows(
-            dvc_df, db_df,
-            vertical=vertical, dvc_modified_at=dvc_modified_at, verbose=verbose,
-            overview_only=overview_only, approx=approx,
+            dvc_df,
+            db_df,
+            vertical=vertical,
+            dvc_modified_at=dvc_modified_at,
+            verbose=verbose,
+            overview_only=overview_only,
+            approx=approx,
         )
 
 
@@ -630,38 +657,52 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('instance_id', type=str, nargs='?', help='InstanceConfig identifier')
         parser.add_argument(
-            'dataset_id', type=str, nargs='?',
+            'dataset_id',
+            type=str,
+            nargs='?',
             help='Dataset identifier (e.g. longmont/greenhouse_gas_emissions_by_subsector)',
         )
         parser.add_argument(
-            '--find-overlapping', action='store_true',
+            '--find-overlapping',
+            action='store_true',
             help='Find datasets that exist in both DVC and the database across all instances',
         )
         parser.add_argument(
-            '--vertical', action='store_true',
+            '--vertical',
+            action='store_true',
             help='Show differing rows in vertical (row-by-row) format instead of a table',
         )
         parser.add_argument(
-            '--verbose', action='store_true',
+            '--verbose',
+            action='store_true',
             help='Show additional details like database primary keys in enrichment info',
         )
         parser.add_argument(
-            '--export', type=str, metavar='FILENAME',
+            '--export',
+            type=str,
+            metavar='FILENAME',
             help='Export selected dataset(s) to a CSV file',
         )
         parser.add_argument(
-            '--format', type=str, default='gpc', choices=['gpc'],
+            '--format',
+            type=str,
+            default='gpc',
+            choices=['gpc'],
             help='Output format for export (default: gpc)',
         )
         parser.add_argument(
-            '--select', type=str, default='all', choices=['all', 'different'],
+            '--select',
+            type=str,
+            default='all',
+            choices=['all', 'different'],
             help=(
                 'Which datasets to export when not specifying dataset_id: '
                 'all (default) or different (only those that differ in DB vs DVC)'
             ),
         )
         parser.add_argument(
-            '--approx', action='store_true',
+            '--approx',
+            action='store_true',
             help='Round values to 5 significant digits before comparing (reduces noise from float representation)',
         )
 
@@ -687,16 +728,25 @@ class Command(BaseCommand):
 
         if export_filename:
             self._do_export(
-                ic, ctx, export_filename, export_format_name, export_select, dataset_id,
+                ic,
+                ctx,
+                export_filename,
+                export_format_name,
+                export_select,
+                dataset_id,
                 approx=options['approx'],
             )
             return
 
         if dataset_id:
             compare_dataset(
-                ic, ctx, dataset_id,
-                vertical=options['vertical'], verbose=options['verbose'],
-                overview_if_different=False, approx=options['approx'],
+                ic,
+                ctx,
+                dataset_id,
+                vertical=options['vertical'],
+                verbose=options['verbose'],
+                overview_if_different=False,
+                approx=options['approx'],
             )
         else:
             overlap = get_overlapping_dataset_ids(ic)
@@ -710,9 +760,13 @@ class Command(BaseCommand):
             for ds_id in sorted(overlap):
                 console.rule(f'Dataset: {ds_id}')
                 compare_dataset(
-                    ic, ctx, ds_id,
-                    vertical=options['vertical'], verbose=options['verbose'],
-                    overview_if_different=True, approx=options['approx'],
+                    ic,
+                    ctx,
+                    ds_id,
+                    vertical=options['vertical'],
+                    verbose=options['verbose'],
+                    overview_if_different=True,
+                    approx=options['approx'],
                 )
 
     def _do_export(
@@ -733,9 +787,7 @@ class Command(BaseCommand):
         else:
             overlap = get_overlapping_dataset_ids(ic)
             if not overlap:
-                raise CommandError(
-                    f'No overlapping datasets for instance "{ic.identifier}" to export.'
-                )
+                raise CommandError(f'No overlapping datasets for instance "{ic.identifier}" to export.')
             if select_mode == 'different':
                 dataset_ids = [ds_id for ds_id in sorted(overlap) if _dataset_differs(ic, ctx, ds_id, approx=approx)]
                 if not dataset_ids:

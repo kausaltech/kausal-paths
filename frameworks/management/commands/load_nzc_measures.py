@@ -55,16 +55,12 @@ class Command(BaseCommand):
         fw.root_section = root_section
         fw.save()
 
-        dc_section = root_section.add_child(instance=Section(
-            framework=fw,
-            name='%s Data Collection' % name,
-            identifier='data_collection'
-        ))
-        fa_section = root_section.add_child(instance=Section(
-            framework=fw,
-            name='%s Future Assumptions' % name,
-            identifier='future_assumptions'
-        ))
+        dc_section = root_section.add_child(
+            instance=Section(framework=fw, name='%s Data Collection' % name, identifier='data_collection')
+        )
+        fa_section = root_section.add_child(
+            instance=Section(framework=fw, name='%s Future Assumptions' % name, identifier='future_assumptions')
+        )
         # Process the data
         self.process_items(data['dataCollection']['items'], dc_section)
         self.process_items(data['futureAssumptions']['items'], fa_section)
@@ -109,11 +105,13 @@ class Command(BaseCommand):
                     section = parent
                 else:
                     # Create a Section
-                    section = parent.add_child(instance=Section(
-                        framework=parent.framework,
-                        name=item['label'],
-                        available_years=None,
-                    ))
+                    section = parent.add_child(
+                        instance=Section(
+                            framework=parent.framework,
+                            name=item['label'],
+                            available_years=None,
+                        )
+                    )
                 if 'items' in item:
                     self.process_items(item['items'], section)
             else:

@@ -2,12 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
-    "platform_machine == 'x86_64' and sys_platform == 'linux'",
     "platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "platform_machine == 'x86_64' and sys_platform == 'linux'",
 ]
 supported-markers = [
-    "platform_machine == 'x86_64' and sys_platform == 'linux'",
     "platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "platform_machine == 'x86_64' and sys_platform == 'linux'",
 ]
 
 [[package]]
@@ -2602,7 +2602,7 @@ requires-dist = [
     { name = "channels-redis" },
     { name = "colored" },
     { name = "colormath" },
-    { name = "dal-admin-filters", specifier = ">=1.1.0" },
+    { name = "dal-admin-filters", specifier = ">=1.1" },
     { name = "deepdiff", specifier = ">=8.6.1" },
     { name = "diffsync" },
     { name = "django" },
@@ -2636,7 +2636,7 @@ requires-dist = [
     { name = "logfmter" },
     { name = "loguru" },
     { name = "modelsearch", specifier = "<1.2" },
-    { name = "nanoid", specifier = "==2.0.0" },
+    { name = "nanoid", specifier = "==2" },
     { name = "numba" },
     { name = "openpyxl" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
@@ -2651,7 +2651,7 @@ requires-dist = [
     { name = "pint" },
     { name = "pint-pandas" },
     { name = "polars" },
-    { name = "psycopg", extras = ["pool", "binary"] },
+    { name = "psycopg", extras = ["binary", "pool"] },
     { name = "pycryptodome" },
     { name = "pydantic" },
     { name = "pydantic-extra-types" },
@@ -2668,7 +2668,7 @@ requires-dist = [
     { name = "s3cmd" },
     { name = "sentry-sdk", extras = ["django", "opentelemetry"] },
     { name = "social-auth-app-django" },
-    { name = "starlette", specifier = ">=0.51.0" },
+    { name = "starlette", specifier = ">=0.51" },
     { name = "strawberry-graphql" },
     { name = "strawberry-graphql-django" },
     { name = "tzdata" },
@@ -2680,17 +2680,17 @@ requires-dist = [
     { name = "wagtail-generic-chooser" },
     { name = "wagtail-grapple" },
     { name = "wagtail-localize" },
-    { name = "wagtail-modeladmin", specifier = ">=2.2.0" },
+    { name = "wagtail-modeladmin", specifier = ">=2.2" },
     { name = "wagtailgeowidget", specifier = ">=8.2.1" },
     { name = "watchfiles" },
-    { name = "willow", specifier = ">=1.9.0" },
+    { name = "willow", specifier = ">=1.9" },
     { name = "xxhash" },
 ]
 provides-extras = ["kausal"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "altair", specifier = ">=6.0.0" },
+    { name = "altair", specifier = ">=6" },
     { name = "basedpyright" },
     { name = "celery-types" },
     { name = "daphne" },
@@ -2729,7 +2729,7 @@ dev = [
     { name = "viztracer" },
 ]
 lint = [
-    { name = "altair", specifier = ">=6.0.0" },
+    { name = "altair", specifier = ">=6" },
     { name = "celery-types" },
     { name = "django-stubs" },
     { name = "djangorestframework-stubs" },
@@ -2763,7 +2763,7 @@ notebook = [
 ]
 prod = [
     { name = "gunicorn", extras = ["gthread"] },
-    { name = "rustface", marker = "sys_platform == 'linux'", specifier = ">=0.1.0" },
+    { name = "rustface", marker = "sys_platform == 'linux'", specifier = ">=0.1" },
     { name = "uvicorn-worker" },
 ]
 

@@ -33,12 +33,12 @@ class SimpleNode(Node):
         # FIXME Get rid of many of these parameters and use operations instead.
         BoolParameter(
             local_id='fill_gaps_using_input_dataset',
-            label=TranslatedString(en="Fill in gaps in computation using input dataset"),
+            label=TranslatedString(en='Fill in gaps in computation using input dataset'),
             is_customizable=False,
         ),
         BoolParameter(
             local_id='replace_output_using_input_dataset',
-            label=TranslatedString(en="Replace output using input dataset"),
+            label=TranslatedString(en='Replace output using input dataset'),
             is_customizable=False,
         ),
         BoolParameter(
@@ -76,7 +76,7 @@ class SimpleNode(Node):
             description='A category is sliced at edge before offering as input to another node',
             is_customizable=False,
         ),
-        StringParameter( # FIXME Is this the same functionality as variant?
+        StringParameter(  # FIXME Is this the same functionality as variant?
             local_id='filter_categories',
             description='Categories to filter in format dimension:category,category2',
             is_customizable=False,
@@ -138,7 +138,8 @@ class SimpleNode(Node):
         rep = self.get_parameter_value('replace_nans', required=False)
         if rep is not None:
             df = df.with_columns(
-                pl.when(pl.col(VALUE_COLUMN).is_nan() | pl.col(VALUE_COLUMN).is_infinite())
+                pl
+                .when(pl.col(VALUE_COLUMN).is_nan() | pl.col(VALUE_COLUMN).is_infinite())
                 .then(pl.lit(rep))
                 .otherwise(pl.col(VALUE_COLUMN))
                 .alias(VALUE_COLUMN)
@@ -165,7 +166,7 @@ class SimpleNode(Node):
 
     def get_shares(self, df: ppl.PathsDataFrame, dim: str | None = None) -> ppl.PathsDataFrame:
         if not dim:
-            dim = self.get_parameter_value_str('share_dimension', required = False)
+            dim = self.get_parameter_value_str('share_dimension', required=False)
         if dim:
             df = df.paths.calculate_shares(VALUE_COLUMN, VALUE_COLUMN, [dim])
 
@@ -222,12 +223,9 @@ Missing values are assumed to be zero.""")
                         cols.append(FORECAST_COLUMN)
                     df = df.select(cols)
                 else:
-                    raise NodeError(self, "Metric is not found in metric columns")
+                    raise NodeError(self, 'Metric is not found in metric columns')
             else:
-                compatible_cols = [
-                    col for col, unit in df.get_meta().units.items()
-                    if self.is_compatible_unit(unit, self.unit)
-                ]
+                compatible_cols = [col for col, unit in df.get_meta().units.items() if self.is_compatible_unit(unit, self.unit)]
                 if len(compatible_cols) == 1:
                     df = df.rename({compatible_cols[0]: VALUE_COLUMN})
                     cols = [YEAR_COLUMN, *df.dim_ids, VALUE_COLUMN]
@@ -235,7 +233,7 @@ Missing values are assumed to be zero.""")
                         cols.append(FORECAST_COLUMN)
                     df = df.select(cols)
                 else:
-                    raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
+                    raise NodeError(self, 'Input dataset has multiple metric columns, but no Value column')
 
         df = self.apply_multiplier(df, required=False, units=True)
         df = df.ensure_unit(VALUE_COLUMN, self.single_metric_unit)
@@ -275,13 +273,15 @@ Missing values are assumed to be zero.""")
         return df
 
 
-class SubtractiveNode(Node): # FIXME Remove, when you clean Longmont.
+class SubtractiveNode(Node):  # FIXME Remove, when you clean Longmont.
     explanation = _(
         'This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it.',
     )  # FIXME Is this needed? Edge process arithmetic_inverse could be used instead.
     allowed_parameters = [
         BoolParameter(
-            local_id='only_historical', description='Perform subtraction on only historical data', is_customizable=False,
+            local_id='only_historical',
+            description='Perform subtraction on only historical data',
+            is_customizable=False,
         ),
     ]
 
@@ -297,7 +297,7 @@ class SubtractiveNode(Node): # FIXME Remove, when you clean Longmont.
 
 
 class SectorEmissions(AdditiveNode):
-    explanation = _("This is a Sector Emissions Node. It is like Additive Node but for subsector emissions")
+    explanation = _('This is a Sector Emissions Node. It is like Additive Node but for subsector emissions')
     # FIXME Is this needed?
     quantity = 'emissions'
 
@@ -316,15 +316,15 @@ class SectorEmissions(AdditiveNode):
                     raise NodeError(self, "Dataset doesn't have dimension %s" % dim_id)
                 df_dims.remove(dim_id)
             if len(df_dims) != 1:
-                raise NodeError(self, "Emission sector dimension missing")
+                raise NodeError(self, 'Emission sector dimension missing')
             sector_dim = df_dims[0]
             df = df.filter(pl.col(sector_dim).eq(val))
             if not len(df):
-                raise NodeError(self, "Emission sector %s not found in input data" % val)
+                raise NodeError(self, 'Emission sector %s not found in input data' % val)
             df = df.drop(sector_dim)
             m = self.get_default_output_metric()
             if len(df.metric_cols) != 1:
-                raise NodeError(self, "Input dataset has more than 1 metric")
+                raise NodeError(self, 'Input dataset has more than 1 metric')
             df = df.rename({df.metric_cols[0]: m.column_id})
             df = extend_last_historical_value_pl(df, self.get_end_year())
             df = df.drop_nulls()
@@ -403,7 +403,7 @@ class MultiplicativeNode(SimpleNode):
         non_additive_nodes = self.get_input_nodes(tag='non_additive')
         for node in self.input_nodes:
             if node.unit is None:
-                raise NodeError(self, "Input node %s does not have a unit" % str(node))
+                raise NodeError(self, 'Input node %s does not have a unit' % str(node))
             if node in non_additive_nodes:
                 operation_nodes.append(node)
             elif self.is_compatible_unit(node.unit, self.unit):
@@ -412,8 +412,11 @@ class MultiplicativeNode(SimpleNode):
                 operation_nodes.append(node)
 
         if len(operation_nodes) < 2 and input_df is None:
-            raise NodeError(self, "Must receive at least two inputs to operate %s on. Now received %s."
-                            % (self.operation_label, [node.id for node in operation_nodes]))
+            raise NodeError(
+                self,
+                'Must receive at least two inputs to operate %s on. Now received %s.'
+                % (self.operation_label, [node.id for node in operation_nodes]),
+            )
 
         outputs: list[ppl.PathsDataFrame] = []
         for idx, n in enumerate(operation_nodes):
@@ -459,7 +462,6 @@ class MultiplicativeNode(SimpleNode):
         return self._compute()
 
 
-
 class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Tampere/other_electricity_consumption_emisisons
     explanation = _("""This is an Emission Factor Activity Node. It multiplies an activity by an emission factor.""")
     # FIXME Do we need a separate node class?
@@ -476,7 +478,7 @@ class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Ta
         if not ds_list:
             return None
         efdf = None  # emission factors
-        adf = None   # activity
+        adf = None  # activity
         for ds in list(ds_list):
             if 'emission_factor' in ds.metric_cols:
                 assert efdf is None
@@ -486,7 +488,7 @@ class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Ta
                 adf = ds
 
         if efdf is None or adf is None:
-            raise NodeError(self, "Missing either emission factor or activity datasets")
+            raise NodeError(self, 'Missing either emission factor or activity datasets')
 
         a_metric = adf.metric_cols[0]
 
@@ -508,9 +510,9 @@ class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Ta
         for edf in edfs:
             edf = edf.rename({edf.metric_cols[0]: '_Right'}).ensure_unit('_Right', m.unit)  # noqa: PLW2901
             df = df.paths.join_over_index(edf, how='outer', index_from='union')
-            df = df.with_columns(
-                (pl.col(m.column_id).fill_null(0.0) + pl.col('_Right').fill_null(0.0)).alias(m.column_id)
-            ).drop('_Right')
+            df = df.with_columns((pl.col(m.column_id).fill_null(0.0) + pl.col('_Right').fill_null(0.0)).alias(m.column_id)).drop(
+                '_Right'
+            )
 
         return df
 
@@ -524,18 +526,19 @@ class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Ta
         return df
 
 
-class PerCapitaActivity(MultiplicativeNode): # FIXME Remove. Replace with GenericNode
+class PerCapitaActivity(MultiplicativeNode):  # FIXME Remove. Replace with GenericNode
     pass
 
 
-class FixedScenarioNode(MultiplicativeNode): # FIXME Inherit from GenericNode instead.
+class FixedScenarioNode(MultiplicativeNode):  # FIXME Inherit from GenericNode instead.
     def compute(self) -> ppl.PathsDataFrame:
         scenario = self.context.scenarios['baseline']
         with scenario.override():
             df = MultiplicativeNode.compute(self)
         return df
 
-class Activity(AdditiveNode): # FIXME Are these special classes useful?
+
+class Activity(AdditiveNode):  # FIXME Are these special classes useful?
     explanation = _("""This is Activity Node. It adds activity amounts together.""")
     pass
 
@@ -591,7 +594,7 @@ class MixNode(AdditiveNode):
     def add_mix_normalized(self, df: ppl.PathsDataFrame, nodes: list[Node], over_dims: list[str] | None = None):
         df = self.add_nodes_pl(df=df, nodes=nodes)
         if len(df.metric_cols) != 1:
-            raise NodeError(self, "Must have exactly one metric column")
+            raise NodeError(self, 'Must have exactly one metric column')
 
         # Fill missing values with zeroes
         df = df.paths.to_wide()
@@ -602,9 +605,7 @@ class MixNode(AdditiveNode):
         if over_dims is None:
             over_dims = df.dim_ids
         col = df.metric_cols[0]
-        df = (df
-            .ensure_unit(col, 'dimensionless')
-        )
+        df = df.ensure_unit(col, 'dimensionless')
         if not self.skip_normalize:
             # Normalize so that all values are 0 <= x <= 1.0 and
             # the yearly sum is 1.0
@@ -631,7 +632,7 @@ class MixNode(AdditiveNode):
         return self.add_mix_normalized(df, nodes)
 
 
-class ImprovementNode(MultiplicativeNode): # FIXME Remove, when you clean Longmont.
+class ImprovementNode(MultiplicativeNode):  # FIXME Remove, when you clean Longmont.
     explanation = _("""First does what MultiplicativeNode does, then calculates 1 - result.
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
@@ -650,7 +651,7 @@ class ImprovementNode(MultiplicativeNode): # FIXME Remove, when you clean Longmo
         return df
 
 
-class ImprovementNode2(MultiplicativeNode): # FIXME Remove, when you clean Longmont.
+class ImprovementNode2(MultiplicativeNode):  # FIXME Remove, when you clean Longmont.
     explanation = _("""First does what MultiplicativeNode does, then calculates 1 + result.
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
@@ -669,7 +670,7 @@ class ImprovementNode2(MultiplicativeNode): # FIXME Remove, when you clean Longm
         return df
 
 
-class RelativeNode(AdditiveNode): # FIXME Remove. Only Espoo and budget use this.
+class RelativeNode(AdditiveNode):  # FIXME Remove. Only Espoo and budget use this.
     explanation = _("""
     First like AdditiveNode, then multiply with a node with "non_additive".
     The relative node is assumed to be the relative difference R = V / N - 1,
@@ -694,13 +695,15 @@ class RelativeNode(AdditiveNode): # FIXME Remove. Only Espoo and budget use this
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
+
 class FillNewCategoryNode(AdditiveNode):
     explanation = _(
         """This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation
         it creates a new category such that the values along that dimension sum up to 1. The input nodes
         must have a dimensionless unit. The new category in an existing dimension is given as parameter
         'new_category' in format 'dimension:category
-        """)
+        """
+    )
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
         StringParameter(local_id='new_category'),
@@ -728,7 +731,7 @@ class FillNewCategoryNode(AdditiveNode):
         return df
 
 
-class FillNewCategoryNode2(AdditiveNode): # FIXME Merge into FillNewCategoryNode
+class FillNewCategoryNode2(AdditiveNode):  # FIXME Merge into FillNewCategoryNode
     explanation = _(
         """This is a Fill New Category Node.
 
@@ -736,7 +739,8 @@ class FillNewCategoryNode2(AdditiveNode): # FIXME Merge into FillNewCategoryNode
         it creates a new category such that the values along that dimension sum up to 1. The input nodes
         must have a dimensionless unit. The new category in an existing dimension is given as parameter
         'new_category' in format 'dimension:category
-        """)
+        """
+    )
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
         StringParameter(local_id='new_category'),
@@ -775,11 +779,13 @@ class ChooseInputNode(AdditiveNode):
         This is a ChooseInputNode. It can have several input nodes, and it selects the one that has the same
         tag as given in the parameter node_tag. The idea of the node is that you can change the parameter value
         in the scenario and thus have different nodes used in different contexts.
-        """)
+        """
+    )
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        StringParameter(local_id='node_tag', label='Tag to use as selecting the input node')
+        StringParameter(local_id='node_tag', label='Tag to use as selecting the input node'),
     ]
+
     def compute(self) -> ppl.PathsDataFrame:
         node_tag = self.get_parameter_value_str('node_tag', required=True)
         df = self.get_input_node(tag=node_tag).get_output_pl(target_node=self)
@@ -796,8 +802,9 @@ class RelativeYearScaledNode(AdditiveNode):
     )
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        NumberParameter(local_id='reference_year', label='The year whose values are used for scaling')
+        NumberParameter(local_id='reference_year', label='The year whose values are used for scaling'),
     ]
+
     def compute(self) -> ppl.PathsDataFrame:
         df = AdditiveNode.compute(self)
         year = self.get_parameter_value_int('reference_year', required=False)
@@ -809,14 +816,14 @@ class RelativeYearScaledNode(AdditiveNode):
 
 
 class AnnuityNode(AdditiveNode):
-
     def compute(self) -> ppl.PathsDataFrame:
         targetyear = self.get_target_year()
         outputdf = ppl.PathsDataFrame()
 
         discountnode = self.get_input_node(tag='discount_rate')
         discountdf = discountnode.get_output_pl(target_node=self)
-        discountdf = (discountdf
+        discountdf = (
+            discountdf
             .drop(FORECAST_COLUMN)
             .rename({VALUE_COLUMN: 'discount_rate'})
             .with_columns(pl.col('discount_rate') / pl.lit(100.0))
@@ -833,17 +840,23 @@ class AnnuityNode(AdditiveNode):
         dimensions = list(self.input_dimensions.keys())
         partitions = inputdf.partition_by(dimensions)
         for partdf in partitions:
-            annuitydf = (partdf
+            annuitydf = (
+                partdf
                 .join(discountdf, on=YEAR_COLUMN, how='left')
-
                 .with_columns(((pl.lit(1.0) + pl.col('discount_rate')) ** pl.col('term')).alias('compound_factor'))
-                .with_columns(((pl.col('discount_rate') * pl.col('compound_factor')) /
-                               (pl.col('compound_factor') - pl.lit(1.0))).alias('capital_recovery_factor'))
-
-                .with_columns((pl.when(pl.col('capital_recovery_factor').is_not_nan())
-                    .then(pl.col('currency') * pl.col('capital_recovery_factor'))
-                    .otherwise(pl.col('currency') / pl.col('term'))).alias('annual_payment'))
-
+                .with_columns(
+                    ((pl.col('discount_rate') * pl.col('compound_factor')) / (pl.col('compound_factor') - pl.lit(1.0))).alias(
+                        'capital_recovery_factor'
+                    )
+                )
+                .with_columns(
+                    (
+                        pl
+                        .when(pl.col('capital_recovery_factor').is_not_nan())
+                        .then(pl.col('currency') * pl.col('capital_recovery_factor'))
+                        .otherwise(pl.col('currency') / pl.col('term'))
+                    ).alias('annual_payment')
+                )
                 .with_columns(pl.int_ranges(pl.col(YEAR_COLUMN), pl.col(YEAR_COLUMN) + pl.col('term')).alias('payment_years'))
                 .explode('payment_years')
                 .group_by('payment_years')
@@ -852,7 +865,8 @@ class AnnuityNode(AdditiveNode):
                 .sort(YEAR_COLUMN)
             )
 
-            joindf = (partdf
+            joindf = (
+                partdf
                 .join(annuitydf, on=YEAR_COLUMN, how='outer', coalesce=True)
                 .with_columns(pl.col('annual_payment').alias('currency'))
                 .drop(['term', 'annual_payment'])
@@ -873,7 +887,7 @@ class AnnuityNode(AdditiveNode):
 class DiscountNode(AdditiveNode):
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        NumberParameter(local_id='start_year', label='The first year in which the discount rate is applied.')
+        NumberParameter(local_id='start_year', label='The first year in which the discount rate is applied.'),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -881,7 +895,8 @@ class DiscountNode(AdditiveNode):
 
         ratenode = self.get_input_node(tag='discount_rate')
         ratedf = ratenode.get_output_pl(target_node=self)
-        ratedf = (ratedf
+        ratedf = (
+            ratedf
             .drop(FORECAST_COLUMN)
             .rename({VALUE_COLUMN: 'discount_rate'})
             .with_columns((pl.col('discount_rate') + pl.lit(100.0)) / pl.lit(100.0))
@@ -889,8 +904,9 @@ class DiscountNode(AdditiveNode):
 
         currencynode = self.get_input_node(tag='currency')
         df = currencynode.get_output_pl(target_node=self)
-        df = (df
-            .paths.join_over_index(ratedf)
+        df = (
+            df.paths
+            .join_over_index(ratedf)
             .with_columns((pl.col(YEAR_COLUMN) - pl.lit(minyear)).clip(lower_bound=0).alias('year_count'))
             .with_columns(pl.col(VALUE_COLUMN) / (pl.col('discount_rate') ** pl.col('year_count')))
             .drop(['discount_rate', 'year_count'])

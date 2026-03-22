@@ -30,7 +30,7 @@ class RoleSelectionWidget(forms.RadioSelect):
         disable_reason: StrOrPromise | None = None,
         label: StrOrPromise | None = None,
         errors: ErrorList | None = None,
-        attrs=None
+        attrs=None,
     ):
         assert choices is not None
         self.disable_role_options = disable_role_options
@@ -41,9 +41,7 @@ class RoleSelectionWidget(forms.RadioSelect):
         super().__init__({'help_text': help_text}, choices)
 
     class Media:
-        css = {
-            'all': ('people/css/role_selection.css',)
-        }
+        css = {'all': ('people/css/role_selection.css',)}
 
     def get_context(self, name, value, attrs):
         help_text = self.help_text
@@ -55,25 +53,23 @@ class RoleSelectionWidget(forms.RadioSelect):
             label=self.label,
             errors=self.errors,
             show_options=not self.disable_role_options,
-            emphasize_help_text=self.disable_reason is not None
+            emphasize_help_text=self.disable_reason is not None,
         )
 
         context = super().get_context(name, value, attrs)
         context['widget'].update(widget_opts)
         return context
 
-    def create_option(
-        self, name, value, label, selected, index, subindex=None, attrs=None
-    ):
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
         if self.disable_role_options:
-            selected = (value == NONE_ROLE)
+            selected = value == NONE_ROLE
         option = super().create_option(name, value, label, selected, index, subindex, attrs)
         try:
             role = role_registry.get_role(option['value'])
         except KeyError:
             if option['value'] != NONE_ROLE:
                 raise
-            option['help_text'] = _("The person has no access")
+            option['help_text'] = _('The person has no access')
         else:
             option['help_text'] = role.description
         return option

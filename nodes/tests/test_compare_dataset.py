@@ -97,10 +97,13 @@ def test_schema_diff_different_dtypes():
         units={'value': 'kg'},
     )
     db_raw = pl.DataFrame({'Year': [2020], 'value': [1]})
-    db = to_ppdf(db_raw, DataFrameMeta(
-        units={'value': unit_registry.parse_units('kg')},
-        primary_keys=['Year'],
-    ))
+    db = to_ppdf(
+        db_raw,
+        DataFrameMeta(
+            units={'value': unit_registry.parse_units('kg')},
+            primary_keys=['Year'],
+        ),
+    )
     sd = compute_schema_diff(dvc, db)
     assert sd.identical is False
     assert 'value' in sd.dtype_diffs
@@ -142,10 +145,13 @@ def test_normalize_df_casts_categorical_to_string():
         'sector': pl.Series(['a', 'b']).cast(pl.Categorical),
         'value': [1.0, 2.0],
     })
-    df = to_ppdf(raw, DataFrameMeta(
-        units={'value': unit_registry.parse_units('kg')},
-        primary_keys=['Year', 'sector'],
-    ))
+    df = to_ppdf(
+        raw,
+        DataFrameMeta(
+            units={'value': unit_registry.parse_units('kg')},
+            primary_keys=['Year', 'sector'],
+        ),
+    )
     result = normalize_df(df)
     assert result.schema['sector'] == pl.Utf8
 
@@ -319,10 +325,13 @@ def test_row_diff_different_column_order():
         units={'value': 'kg'},
     )
     db_raw = pl.DataFrame({'value': [2.0, 1.0], 'sector': ['b', 'a'], 'Year': [2021, 2020]})
-    db = to_ppdf(db_raw, DataFrameMeta(
-        units={'value': unit_registry.parse_units('kg')},
-        primary_keys=['Year', 'sector'],
-    ))
+    db = to_ppdf(
+        db_raw,
+        DataFrameMeta(
+            units={'value': unit_registry.parse_units('kg')},
+            primary_keys=['Year', 'sector'],
+        ),
+    )
     rd = compute_row_diff(dvc, db)
     assert rd is not None
     assert len(rd.dvc_only) == 0
@@ -353,10 +362,13 @@ def test_row_diff_mismatched_dtypes_aligned_and_compared():
         units={'value': 'kg'},
     )
     db_raw = pl.DataFrame({'Year': [2020], 'value': [1]})
-    db = to_ppdf(db_raw, DataFrameMeta(
-        units={'value': unit_registry.parse_units('kg')},
-        primary_keys=['Year'],
-    ))
+    db = to_ppdf(
+        db_raw,
+        DataFrameMeta(
+            units={'value': unit_registry.parse_units('kg')},
+            primary_keys=['Year'],
+        ),
+    )
     rd = compute_row_diff(dvc, db)
     assert rd is not None
     assert len(rd.dvc_only) == 0

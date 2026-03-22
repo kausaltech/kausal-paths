@@ -18,7 +18,7 @@ def test_action_enabled(graphql_client_query_data, default_scenario, action_node
           }
         }
         """,
-        variables={'param': param_id}
+        variables={'param': param_id},
     )
     expected = {
         'parameter': {
@@ -47,7 +47,7 @@ def test_set_parameter_action_enabled(graphql_client_query_data, action_node, cu
           }
         }
         """,
-        variables={'param': param_id, 'value': enabled}
+        variables={'param': param_id, 'value': enabled},
     )
     expected = {
         'setParameter': {
@@ -55,7 +55,7 @@ def test_set_parameter_action_enabled(graphql_client_query_data, action_node, cu
             'parameter': {
                 'id': param_id,
                 'value': enabled,
-            }
+            },
         }
     }
     assert data == expected

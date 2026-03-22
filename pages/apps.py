@@ -17,8 +17,7 @@ def _get_language_choices():
             # the Django settings.
             lang_name_local = settings.LOCAL_LANGUAGE_NAMES[lang_code]
         language_choices.append((lang_code, lang_name_local))
-    return sorted(BLANK_CHOICE_DASH + language_choices,
-                  key=lambda l: l[1].lower())
+    return sorted(BLANK_CHOICE_DASH + language_choices, key=lambda lang: lang[1].lower())
 
 
 class PagesConfig(AppConfig):
@@ -30,4 +29,5 @@ class PagesConfig(AppConfig):
         # Monkey-patch Wagtail's _get_language_choices to transform language codes to lower case. See the comment above
         # LANGUAGES in settings.py for details about this.
         from wagtail.admin.forms import account
+
         account.LocalePreferencesForm.base_fields['preferred_language']._choices.choices_func = _get_language_choices

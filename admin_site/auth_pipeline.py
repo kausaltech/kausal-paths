@@ -22,7 +22,11 @@ if TYPE_CHECKING:
 
 
 def assign_roles(
-    *, backend: type[BaseAuth], user: User | None, details: dict[str, Any], **kwargs,
+    *,
+    backend: type[BaseAuth],
+    user: User | None,
+    details: dict[str, Any],
+    **kwargs,
 ) -> None:
     from frameworks.models import Framework
     from frameworks.roles import framework_admin_role, framework_viewer_role

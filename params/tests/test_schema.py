@@ -38,7 +38,7 @@ def test_parameter_interface(graphql_client_query_data, context: Context, is_glo
           }
         }
         """,
-        variables={'param': param.global_id}
+        variables={'param': param.global_id},
     )
     if is_global:
         expected_node = None
@@ -78,7 +78,7 @@ def test_bool_parameter_type(graphql_client_query_data, instance: Instance, defa
           }
         }
         """,
-        variables={'param': param.global_id}
+        variables={'param': param.global_id},
     )
     expected = {
         'parameter': {
@@ -115,7 +115,7 @@ def test_number_parameter_type(graphql_client_query_data, context, default_scena
           }
         }
         """,
-        variables={'param': param.global_id}
+        variables={'param': param.global_id},
     )
     expected = {
         'parameter': {
@@ -152,7 +152,7 @@ def test_string_parameter_type(graphql_client_query_data, context, default_scena
           }
         }
         """,
-        variables={'param': param.global_id}
+        variables={'param': param.global_id},
     )
     expected = {
         'parameter': {
@@ -183,7 +183,7 @@ def test_set_parameter_bool(graphql_client_query_data, bool_parameter, context, 
           }
         }
         """,
-        variables={'param': param_id, 'value': value}
+        variables={'param': param_id, 'value': value},
     )
     expected = {
         'setParameter': {
@@ -191,7 +191,7 @@ def test_set_parameter_bool(graphql_client_query_data, bool_parameter, context, 
             'parameter': {
                 'id': param_id,
                 'value': value,
-            }
+            },
         }
     }
     assert data == expected
@@ -215,7 +215,7 @@ def test_set_parameter_number(graphql_client_query_data, number_parameter, conte
           }
         }
         """,
-        variables={'param': param_id, 'value': value}
+        variables={'param': param_id, 'value': value},
     )
     expected = {
         'setParameter': {
@@ -223,7 +223,7 @@ def test_set_parameter_number(graphql_client_query_data, number_parameter, conte
             'parameter': {
                 'id': param_id,
                 'value': value,
-            }
+            },
         }
     }
     assert data == expected
@@ -247,7 +247,7 @@ def test_set_parameter_string(graphql_client_query_data, string_parameter, conte
           }
         }
         """,
-        variables={'param': param_id, 'value': value}
+        variables={'param': param_id, 'value': value},
     )
     expected = {
         'setParameter': {
@@ -255,15 +255,13 @@ def test_set_parameter_string(graphql_client_query_data, string_parameter, conte
             'parameter': {
                 'id': param_id,
                 'value': value,
-            }
+            },
         }
     }
     assert data == expected
 
 
-def test_set_parameter_activates_custom_scenario(
-    graphql_client_query_data, bool_parameter, context, custom_scenario
-):
+def test_set_parameter_activates_custom_scenario(graphql_client_query_data, bool_parameter, context, custom_scenario):
     context.add_global_parameter(bool_parameter)
     assert context.active_scenario != custom_scenario
     param_id = bool_parameter.global_id
@@ -275,7 +273,7 @@ def test_set_parameter_activates_custom_scenario(
           }
         }
         """,
-        variables={'param': param_id, 'value': True}
+        variables={'param': param_id, 'value': True},
     )
     assert context.active_scenario == custom_scenario
 
@@ -295,7 +293,7 @@ def test_reset_parameter(graphql_client_query_data, string_parameter, context, d
           }
         }
         """,
-        variables={'param': param_id}
+        variables={'param': param_id},
     )
     context.activate_scenario(custom_scenario)
     assert string_parameter.get() == default_scenario_setting
@@ -333,14 +331,14 @@ def test_activate_scenario(graphql_client_query_data, context, custom_scenario):
           }
         }
         """,
-        variables={'scenario': custom_scenario.id}
+        variables={'scenario': custom_scenario.id},
     )
     expected = {
         'activateScenario': {
             'ok': True,
             'activeScenario': {
                 'id': custom_scenario.id,
-            }
+            },
         }
     }
     assert data == expected

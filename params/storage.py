@@ -48,6 +48,7 @@ class SettingStorage:
         """Return the scenario currently marked as active."""
         raise NotImplementedError()
 
+
 class InstanceData(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
     options: dict[str, Any] = Field(default_factory=dict)

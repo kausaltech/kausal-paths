@@ -50,11 +50,14 @@ class ReduceFlow(BaseModel):
     @validator('amounts')
     def enough_years(cls, v):  # noqa: N805
         if len(v) < 2:
-            raise ValueError("Must supply values for at least two years")
+            raise ValueError('Must supply values for at least two years')
         return v
 
     def make_index(
-        self, output_nodes: list[Node], extra_level: str | None = None, extra_level_values: Iterable[str] | None = None,
+        self,
+        output_nodes: list[Node],
+        extra_level: str | None = None,
+        extra_level_values: Iterable[str] | None = None,
     ) -> pd.MultiIndex:
         dims: dict[str, set[str]] = {dim: set() for dim in list(self.target.categories.keys())}
         nodes: set[str] = set()
@@ -93,6 +96,7 @@ class ReduceParameter(ParameterWithUnit, Parameter[ReduceParameterValue]):
     value: ReduceParameterValue | None = None
 
     unit_str: InitVar[str | None] = None
+
     def __post_init__(self, unit_str: str | None):
         self._init_unit(unit_str)
         super().__post_init__()
@@ -102,7 +106,7 @@ class ReduceParameter(ParameterWithUnit, Parameter[ReduceParameterValue]):
 
     def clean(self, value: Any) -> ReduceParameterValue:
         if not isinstance(value, list):
-            raise ValidationError(self, "Input must be a list")
+            raise ValidationError(self, 'Input must be a list')
 
         return ReduceParameterValue.validate(value)
 
@@ -131,7 +135,7 @@ class ReduceAction(ActionNode):
         df = years.join(df, how='left', on=YEAR_COLUMN)
         dupes = df.filter(pl.col(YEAR_COLUMN).is_duplicated())
         if len(dupes):
-            raise NodeError(self, "Duplicate rows")
+            raise NodeError(self, 'Duplicate rows')
 
         df = df.group_by(YEAR_COLUMN).agg(pl.first('Target')).sort(YEAR_COLUMN)
         df = df.with_columns(df['Target'].interpolate()).fill_null(0)
@@ -175,15 +179,12 @@ class ReduceAction(ActionNode):
 
         dfs = [make_target_df(target, col) for col, target in targets]
         df = pl.concat(dfs).sort(YEAR_COLUMN)
-        #df = df.groupby([NODE_COLUMN, *all_dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
+        # df = df.groupby([NODE_COLUMN, *all_dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
         df = df.with_columns([
             pl.lit(True).alias(FORECAST_COLUMN),  # noqa: FBT003
             pl.lit(flow_id).alias(FLOW_ID_COLUMN),
         ])
-        meta = ppl.DataFrameMeta(
-            units={VALUE_COLUMN: unit},
-            primary_keys=[FLOW_ID_COLUMN, YEAR_COLUMN, NODE_COLUMN, *all_dims]
-        )
+        meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit}, primary_keys=[FLOW_ID_COLUMN, YEAR_COLUMN, NODE_COLUMN, *all_dims])
         ret = ppl.to_ppdf(df, meta=meta)
         return ret
 
@@ -220,6 +221,7 @@ class ReduceAction(ActionNode):
         value = po.get()
         assert isinstance(value, ReduceParameterValue)
         return len(value.root) > 1
+
 
 class DatasetReduceAction(ActionNode):
     explanation = _("""
@@ -264,13 +266,10 @@ class DatasetReduceAction(ActionNode):
         gdf = goal_input_df
 
         assert len(gdf.metric_cols) == 1
-        gdf = (
-            gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN})
-            .with_columns(pl.lit(value=True).alias(FORECAST_COLUMN))
-        )
+        gdf = gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN}).with_columns(pl.lit(value=True).alias(FORECAST_COLUMN))
 
         if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
-            raise NodeError(self, "Dimension mismatch to input nodes")
+            raise NodeError(self, 'Dimension mismatch to input nodes')
 
         gdf = gdf.paths.cast_index_to_str()
 
@@ -305,10 +304,7 @@ class DatasetReduceAction(ActionNode):
 
         df = df.drop([m for m in df.metric_cols if df[m].is_null().all()])
         df = df.with_columns([
-            pl.when(~pl.col(FORECAST_COLUMN))
-              .then(pl.col(m).fill_null(0.0))
-              .otherwise(pl.col(m))
-            for m in df.metric_cols
+            pl.when(~pl.col(FORECAST_COLUMN)).then(pl.col(m).fill_null(0.0)).otherwise(pl.col(m)) for m in df.metric_cols
         ])
         df = df.paths.make_forecast_rows(end_year=self.get_end_year())
         df = df.with_columns([pl.col(m).interpolate() for m in df.metric_cols])
@@ -324,9 +320,7 @@ class DatasetReduceAction(ActionNode):
                 raise NodeError(self, "Metric column '%s' not found in output" % m.column_id)
             if not self.is_enabled():
                 # Replace non-null columns with 0 when action is not enabled
-                df = df.with_columns(
-                    pl.when(pl.col(m.column_id).is_null()).then(None).otherwise(0.0).alias(m.column_id)
-                )
+                df = df.with_columns(pl.when(pl.col(m.column_id).is_null()).then(None).otherwise(0.0).alias(m.column_id))
             df = df.ensure_unit(m.column_id, m.unit)
         return df
 
@@ -369,7 +363,7 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
             gdf = gn.get_output_pl(target_node=self)
 
         if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
-            raise NodeError(self, "Dimension mismatch to input nodes")
+            raise NodeError(self, 'Dimension mismatch to input nodes')
 
         # Filter historical data with only the categories that are
         # specified in the goal dataset.
@@ -380,8 +374,7 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
 
         assert len(gdf.metric_cols) == 1
         gdf = (
-            gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN})
-            .with_columns(pl.lit(True).alias(FORECAST_COLUMN))  # noqa: FBT003
+            gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN}).with_columns(pl.lit(True).alias(FORECAST_COLUMN))  # noqa: FBT003
         )
 
         is_mult = self.get_parameter_value('relative_goal', required=False)
@@ -419,8 +412,6 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
         for m in self.output_metrics.values():
             if not self.is_enabled():
                 # Replace non-null columns with 0 when action is not enabled
-                df = df.with_columns(
-                    pl.when(pl.col(m.column_id).is_null()).then(None).otherwise(0.0).alias(m.column_id)
-                )
+                df = df.with_columns(pl.when(pl.col(m.column_id).is_null()).then(None).otherwise(0.0).alias(m.column_id))
             df = df.ensure_unit(m.column_id, m.unit)
         return df

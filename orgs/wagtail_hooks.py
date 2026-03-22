@@ -56,13 +56,14 @@ else:
 class CondensedInlinePanel[M: Model, RelatedM: Model](InlinePanel[M, RelatedM]):
     pass
 
+
 class OrganizationForm(NodeForm[Organization]):
     user: User
 
     set_as_instance_organization = forms.BooleanField(
         required=False,
-        label=_("Set as instance organization"),
-        help_text=_("Make this the default organization for this instance"),
+        label=_('Set as instance organization'),
+        help_text=_('Make this the default organization for this instance'),
     )
 
     def __init__(self, *args, **kwargs):
@@ -72,9 +73,7 @@ class OrganizationForm(NodeForm[Organization]):
         super().__init__(*args, **kwargs)
 
         if self.instance and self.instance.pk:
-            self.fields['set_as_instance_organization'].initial = (
-                self.instance.set_as_instance_organization
-            )
+            self.fields['set_as_instance_organization'].initial = self.instance.set_as_instance_organization
 
         has_parent = False
         if self.instance and self.instance.pk and self.instance.depth != 1:
@@ -93,27 +92,28 @@ class OrganizationForm(NodeForm[Organization]):
             return parent
 
         if self.instance._state.adding and not self.user.is_superuser:
-            raise ValidationError(_("Creating organizations without a parent not allowed."), code='invalid_parent')
+            raise ValidationError(_('Creating organizations without a parent not allowed.'), code='invalid_parent')
 
         if self.instance.parent is None:
             return parent
-        raise ValidationError(_("Removing parent from organization is not allowed."), code='invalid_parent')
+        raise ValidationError(_('Removing parent from organization is not allowed.'), code='invalid_parent')
 
     def save(self, commit=True):
         instance = super().save(commit=commit)
 
         if self.user.is_superuser and self.cleaned_data.get('set_as_instance_organization'):
-                # Update the realm instance's organization_id
-                realm_instance = realm_context.get().realm
-                if realm_instance and hasattr(realm_instance, 'organization_id'):
-                    realm_instance.organization_id = instance.pk
-                    realm_instance.save()
+            # Update the realm instance's organization_id
+            realm_instance = realm_context.get().realm
+            if realm_instance and hasattr(realm_instance, 'organization_id'):
+                realm_instance.organization_id = instance.pk
+                realm_instance.save()
 
         return instance
 
+
 class OrganizationViewSet(PathsViewSet):
     model = Organization
-    menu_label = _("Organizations")
+    menu_label = _('Organizations')
     icon = 'kausal-organisations'
     menu_order = 301
     index_view_class = OrganizationIndexView
@@ -130,7 +130,8 @@ class OrganizationViewSet(PathsViewSet):
         TranslatedFieldPanel('name'),
         FieldPanel(
             # virtual field, needs to be specified in the form
-            'parent', heading=pgettext_lazy('organization', 'Part of'),
+            'parent',
+            heading=pgettext_lazy('organization', 'Part of'),
             help_text=pgettext_lazy('organization', 'Pick the main organization that this organization is part of'),
         ),
         # FieldPanel('logo'),
@@ -146,9 +147,7 @@ class OrganizationViewSet(PathsViewSet):
         GoogleMapsPanel('location', permission='superuser'),
     ]
 
-    superuser_panels = [
-        FieldPanel('set_as_instance_organization')
-    ]
+    superuser_panels = [FieldPanel('set_as_instance_organization')]
 
     @property
     def add_child_view(self):
@@ -156,7 +155,7 @@ class OrganizationViewSet(PathsViewSet):
         return self.construct_view(CreateChildNodeView, **self.get_add_view_kwargs())
 
     def get_urlpatterns(self) -> list[URLPattern]:
-        urls =  super().get_urlpatterns()
+        urls = super().get_urlpatterns()
         add_child_url = path(
             route=f'{self.add_child_url_name}/<str:parent_pk>/',
             view=self.add_child_view,
@@ -189,45 +188,38 @@ class OrganizationViewSet(PathsViewSet):
 
     def _get_edit_button(self, instance: Organization) -> SnippetListingButton:
         return SnippetListingButton(
-            _("Edit"),
-            url=reverse(self.get_url_name("edit"), args=(quote(instance.pk),)),
-            icon_name="edit",
-            attrs={
-                "aria-label": _("Edit '%(title)s'") % {"title": str(instance)}
-            },
+            _('Edit'),
+            url=reverse(self.get_url_name('edit'), args=(quote(instance.pk),)),
+            icon_name='edit',
+            attrs={'aria-label': _("Edit '%(title)s'") % {'title': str(instance)}},
             priority=10,
         )
 
     def _get_copy_button(self, instance: Organization) -> SnippetListingButton:
         return SnippetListingButton(
-            _("Copy"),
-            url=reverse(self.get_url_name("copy"), args=(quote(instance.pk),)),
-            icon_name="copy",
-            attrs={
-                "aria-label": _("Copy '%(title)s'") % {"title": str(instance)}
-            },
+            _('Copy'),
+            url=reverse(self.get_url_name('copy'), args=(quote(instance.pk),)),
+            icon_name='copy',
+            attrs={'aria-label': _("Copy '%(title)s'") % {'title': str(instance)}},
             priority=20,
         )
 
     def _get_delete_button(self, instance: Organization) -> SnippetListingButton:
         return SnippetListingButton(
-            _("Delete"),
-            url=reverse(self.get_url_name("delete"), args=(quote(instance.pk),)),
-            icon_name="bin",
-            attrs={
-                "aria-label": _("Delete '%(title)s'") % {"title": str(instance)}
-            },
+            _('Delete'),
+            url=reverse(self.get_url_name('delete'), args=(quote(instance.pk),)),
+            icon_name='bin',
+            attrs={'aria-label': _("Delete '%(title)s'") % {'title': str(instance)}},
             priority=30,
         )
 
     def _get_add_child_button(self, instance: Organization) -> SnippetListingButton:
         return SnippetListingButton(
             url=reverse(self.get_url_name(self.add_child_url_name), kwargs={'parent_pk': quote(instance.pk)}),
-            label=_("Add suborganization"),
+            label=_('Add suborganization'),
             icon_name='plus',
-            attrs={'aria-label': _("Add suborganization")},
+            attrs={'aria-label': _('Add suborganization')},
         )
-
 
     def get_index_view_buttons(self, user: User, instance: Organization, instance_config: InstanceConfig):
         """Get the buttons to show in the index view for an organization."""
@@ -241,11 +233,11 @@ class OrganizationViewSet(PathsViewSet):
         buttons = []
 
         # Basic buttons provided by Wagtail
-        if self.permission_policy.user_has_permission_for_instance(user, "change", instance):
+        if self.permission_policy.user_has_permission_for_instance(user, 'change', instance):
             buttons.append(self._get_edit_button(instance))
-        if self.permission_policy.user_has_permission(user, "add"):
+        if self.permission_policy.user_has_permission(user, 'add'):
             buttons.append(self._get_copy_button(instance))
-        if self.permission_policy.user_has_permission_for_instance(user, "delete", instance):
+        if self.permission_policy.user_has_permission_for_instance(user, 'delete', instance):
             buttons.append(self._get_delete_button(instance))
 
         # Show "add child" button
@@ -261,6 +253,7 @@ class OrganizationViewSet(PathsViewSet):
         active_instance = realm_context.get().realm
         qs = Organization.objects.qs.available_for_instance(active_instance)
         return qs
+
 
 # If kausal_paths_extensions is installed, an extended version of the view set is registered there
 if not find_spec('kausal_paths_extensions'):

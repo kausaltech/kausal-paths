@@ -49,11 +49,10 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         )
 
         uuids = df['UUID'].unique().to_list()
-        measures = (
-            Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
-        )
+        measures = Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
         dps = (
-            MeasureDataPoint.objects.filter(measure__in=measures)
+            MeasureDataPoint.objects
+            .filter(measure__in=measures)
             .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
             .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
         )
@@ -106,9 +105,13 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             )
 
         jdf = jdf.with_columns([
-            pl.when(pl.col('NrSectorYears') == 1).then(
+            pl
+            .when(pl.col('NrSectorYears') == 1)
+            .then(
                 pl.coalesce(['MeasureYear', YEAR_COLUMN]),
-            ).otherwise(pl.col(YEAR_COLUMN)).alias(YEAR_COLUMN),
+            )
+            .otherwise(pl.col(YEAR_COLUMN))
+            .alias(YEAR_COLUMN),
             pl.coalesce(['MeasureValue', 'MeasureDefaultValue', 'Value']).alias('Value'),
             pl.coalesce(['MeasureUnit', 'Unit']).alias('Unit'),
             (pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null()).alias('FromMeasureDataPoint'),

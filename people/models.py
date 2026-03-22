@@ -58,7 +58,9 @@ class PersonQuerySet(MultilingualQuerySet['Person'], PermissionedQuerySet['Perso
 
 if TYPE_CHECKING:
     _PersonManager = models.Manager.from_queryset(PersonQuerySet)
+
     class PersonManager(MLModelManager['Person', PersonQuerySet], _PersonManager): ...  # pyright: ignore
+
     del _PersonManager
 else:
     PersonManager = MLModelManager.from_queryset(PersonQuerySet)
@@ -73,19 +75,19 @@ class Person(PermissionedModel, BasePerson):
         index.SearchField('email'),
         index.SearchField('title'),
     ]
+
     class Meta:
         verbose_name = _('Person')
         verbose_name_plural = _('People')
         ordering = ['last_name', 'first_name', 'id']
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name}"
+        return f'{self.first_name} {self.last_name}'
 
     def __rich_repr__(self):
         yield 'first_name', self.first_name
         yield 'last_name', self.last_name
         yield 'email', self.email
-
 
     def download_avatar(self):
         # Since this is a base implementation, we'll return None
@@ -172,6 +174,7 @@ class Person(PermissionedModel, BasePerson):
     @classmethod
     def permission_policy(cls) -> PersonPermissionPolicy:
         from .permission_policy import PersonPermissionPolicy
+
         return PersonPermissionPolicy()
 
 
@@ -180,8 +183,12 @@ class PersonGroupQuerySet(PathsQuerySet['PersonGroup']):
 
 
 _PersonGroupManager = cast('models.Manager[PersonGroup]', models.Manager).from_queryset(PersonGroupQuerySet)
+
+
 class PersonGroupManager(ModelManager['PersonGroup', PersonGroupQuerySet], _PersonGroupManager):  # type: ignore[valid-type, misc]
     """Model manager for PersonGroup."""
+
+
 del _PersonGroupManager
 
 
@@ -216,6 +223,7 @@ class PersonGroup(PathsModel, ClusterableModel):
     @classmethod
     def permission_policy(cls) -> PersonGroupPermissionPolicy:
         from .permissions import PersonGroupPermissionPolicy
+
         return PersonGroupPermissionPolicy()
 
     def __str__(self) -> str:
@@ -236,6 +244,7 @@ class PersonGroupMember(models.Model):
 
 
 if TYPE_CHECKING:
+
     class DatasetSchemaGroupPermission(ObjectGroupPermissionBase[DatasetSchema]):
         object: FK[DatasetSchema] = ForeignKey(DatasetSchema, on_delete=models.CASCADE, related_name='group_permissions')
 
@@ -245,6 +254,7 @@ if TYPE_CHECKING:
         object: FK[DatasetSchema] = ForeignKey(DatasetSchema, on_delete=models.CASCADE, related_name='person_permissions')
 
         objects: ClassVar[models.Manager[DatasetSchemaPersonPermission]] = models.Manager()
+
 else:
     # Create permission membership models here, in the `people` app, since they will be part of this app. If you call
     # `create_permission_membership_models` in a different app, `shell_plus` will get confused.

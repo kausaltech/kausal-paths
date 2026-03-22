@@ -64,7 +64,6 @@ if TYPE_CHECKING:
     from params.schema import ParameterInterface
 
 
-
 logger = logger.bind(name='nodes.schema')
 markdown = MarkdownIt('commonmark', {'html': True})
 
@@ -146,7 +145,6 @@ class InstanceGoalEntry:
     def unit(self) -> Unit:
         df = self._goal._get_values_df()
         return df.get_unit(self.outcome_node.get_default_output_metric().column_id)
-
 
 
 @sb.type
@@ -336,6 +334,7 @@ class DimensionalMetricType:
     measure_datapoint_years: strawberry.auto
 
     if TYPE_CHECKING:
+
         @staticmethod
         def from_pydantic(instance: DimensionalMetric, extra: dict[str, Any] | None = None) -> DimensionalMetricType: ...  # pyright: ignore[reportUnusedParameter]
 
@@ -610,7 +609,11 @@ class NodeInterface:
     @sb.field(graphql_type=list['NodeInterface'])
     @staticmethod
     def downstream_nodes(
-        root: Node, info: gql.Info, max_depth: int | None = None, only_outcome: bool = False, until_node: sb.ID | None = None,
+        root: Node,
+        info: gql.Info,
+        max_depth: int | None = None,
+        only_outcome: bool = False,
+        until_node: sb.ID | None = None,
     ) -> list[Node]:
         info.context._upstream_node = root  # type: ignore
         if until_node is not None:
@@ -899,8 +902,8 @@ class ScenarioType:
 @sb.type
 class ActionImpact:
     action: ActionNode = sb.field(graphql_type=ActionNodeType)
-    cost_values: list[YearlyValue] | None = sb.field(deprecation_reason="Use costDim instead.")
-    impact_values: list[YearlyValue | None] | None = sb.field(deprecation_reason="Use effectDim instead.")
+    cost_values: list[YearlyValue] | None = sb.field(deprecation_reason='Use costDim instead.')
+    impact_values: list[YearlyValue | None] | None = sb.field(deprecation_reason='Use effectDim instead.')
     cost_dim: DimensionalMetric | None = sb.field(graphql_type=DimensionalMetricType | None)
     effect_dim: DimensionalMetric = sb.field(graphql_type=DimensionalMetricType)
     unit_adjustment_multiplier: float | None
@@ -951,17 +954,19 @@ class ImpactOverviewType:
                 cost_values = None
             effect_dim = DimensionalMetric.from_action_impact(ae, root, 'Effect')
             if effect_dim is None:
-                raise ValueError("Effect dimension is None")
-            out.append(ActionImpact(
-                action=ae.action,
-                cost_values=cost_values,
-                impact_values=[
-                    YearlyValue(year=year, value=float(val)) for year, val in zip(years, list(ae.df['Effect']), strict=False)
-                ],
-                cost_dim=DimensionalMetric.from_action_impact(ae, root, 'Cost'),
-                effect_dim=effect_dim,
-                unit_adjustment_multiplier=ae.unit_adjustment_multiplier,
-            ))
+                raise ValueError('Effect dimension is None')
+            out.append(
+                ActionImpact(
+                    action=ae.action,
+                    cost_values=cost_values,
+                    impact_values=[
+                        YearlyValue(year=year, value=float(val)) for year, val in zip(years, list(ae.df['Effect']), strict=False)
+                    ],
+                    cost_dim=DimensionalMetric.from_action_impact(ae, root, 'Cost'),
+                    effect_dim=effect_dim,
+                    unit_adjustment_multiplier=ae.unit_adjustment_multiplier,
+                )
+            )
         return out
 
     @sb.field(graphql_type=UnitType | None)
@@ -1042,9 +1047,7 @@ class Query(graphene.ObjectType[Any]):
     )
     action = graphene.Field(ActionNodeType, id=graphene.ID(required=True))
     action_efficiency_pairs = graphene.List(
-        graphene.NonNull(ImpactOverviewType),
-        required=True,
-        deprecation_reason="Use impactOverviews instead"
+        graphene.NonNull(ImpactOverviewType), required=True, deprecation_reason='Use impactOverviews instead'
     )
     impact_overviews = graphene.List(graphene.NonNull(ImpactOverviewType), required=True)
     scenarios = graphene.List(graphene.NonNull(ScenarioType), required=True)
@@ -1132,7 +1135,6 @@ class SBQuery(Query):
         if only_root:
             actions = list(filter(lambda act: act.parent_action is None, actions))
         return actions
-
 
     @sb.field(graphql_type=list[InstanceBasicConfiguration])
     @staticmethod

@@ -10,7 +10,6 @@ kausal_common/api/exceptions.py:0: error: "perform_destroy" undefined in supercl
 nodes/costs.py:0: error: Dict entry 0 has incompatible type "str": "PlainUnit"; expected "str": "Unit"  [dict-item]
 nodes/buildings.py:0: error: Incompatible types in assignment (expression has type "DataFrame", variable has type "PathsDataFrame | None")  [assignment]
 nodes/buildings.py:0: error: Item "None" of "PathsDataFrame | None" has no attribute "ensure_unit"  [union-attr]
-nodes/buildings.py:0: error: Argument 1 to "include_custom_dimension" of "FloorAreaNode" has incompatible type "PathsDataFrame | None"; expected "PathsDataFrame"  [arg-type]
 kausal_paths_extensions/management/commands/extract_transifex.py:0: error: Need type annotation for "rest"  [var-annotated]
 kausal_paths_extensions/management/commands/export_syke_indicators.py:0: error: Incompatible types in assignment (expression has type "list[dict[str, Any]]", target has type "Collection[str]")  [assignment]
 kausal_paths_extensions/management/commands/export_syke_indicators.py:0: error: Item "None" of "DataFrame | None" has no attribute "to_pandas"  [union-attr]

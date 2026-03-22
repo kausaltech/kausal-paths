@@ -2,6 +2,7 @@ import pytest
 
 pytestmark = pytest.mark.django_db
 
+
 def test_context_get_parameter_global(context, parameter):
     context.add_global_parameter(parameter)
     assert parameter.global_id == parameter.local_id

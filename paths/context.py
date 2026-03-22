@@ -38,7 +38,6 @@ class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel):
         abstract = True
 
 
-
 class HasParent(Protocol):
     def __init__(self, parent: Any, /): ...
 
@@ -82,6 +81,7 @@ class InstanceSpecificCache:
     @cached_property
     def action_list_page(self) -> ActionListPage | None:
         from pages.models import ActionListPage
+
         for page in self.visible_pages:
             if isinstance(page, ActionListPage):
                 return page
@@ -97,6 +97,7 @@ class PathsObjectCache:
 
     def __post_init__(self):
         from frameworks.object_cache import FrameworkCache
+
         self.frameworks = FrameworkCache(None, self.user)
 
     def _get_or_create[C: HasParent](self, obj: Model, klass: type[C], caches: dict[int, C]) -> C:
@@ -128,7 +129,7 @@ class PathsObjectCache:
             if page_path.startswith(root_page.path):
                 return instance_cache
 
-        ic = cast('PathsPage',page.specific).instance_config
+        ic = cast('PathsPage', page.specific).instance_config
         return self.for_instance(ic)
 
 

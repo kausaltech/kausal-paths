@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 
 # config_file = '../netzeroplanner-framework-config/emission_potential.yaml'
 
+
 @dataclass
 class NodeData:
     """Individual node with its dataframe."""
@@ -120,16 +121,10 @@ class DataCollection:
                 obs_year = df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()
                 if obs_year is None:
                     obs_year = df[YEAR_COLUMN].min()
-                    self.logs.append(f"No historical data found for node {instance.id}/{node.id}. Using first year {obs_year!r}.")
-                df = (
-                    df.filter(pl.col(YEAR_COLUMN).is_in([obs_year, target_year]))
-                    .sort(by=[YEAR_COLUMN])
-                )
+                    self.logs.append(f'No historical data found for node {instance.id}/{node.id}. Using first year {obs_year!r}.')
+                df = df.filter(pl.col(YEAR_COLUMN).is_in([obs_year, target_year])).sort(by=[YEAR_COLUMN])
                 df = df.with_columns(
-                    pl.when(pl.col(YEAR_COLUMN) == obs_year)
-                    .then(pl.lit('newest'))
-                    .otherwise(pl.lit('target'))
-                    .alias('param')
+                    pl.when(pl.col(YEAR_COLUMN) == obs_year).then(pl.lit('newest')).otherwise(pl.lit('target')).alias('param')
                 )
                 df = ppl.to_ppdf(df, meta).add_to_index('param')
                 instance.update_node_df(node.id, df)
@@ -163,12 +158,9 @@ class DataCollection:
 
         def _sum_over_instances(df: PathsDataFrame, topic: str) -> PathsDataFrame:
             return (
-                df.paths.sum_over_dims(['Instance', YEAR_COLUMN])
-                .with_columns([
-                    pl.lit(topic).alias('Instance'),
-                    pl.lit(0).alias(YEAR_COLUMN),
-                    pl.lit(0).alias('CreatedAt')
-                ])
+                df.paths
+                .sum_over_dims(['Instance', YEAR_COLUMN])
+                .with_columns([pl.lit(topic).alias('Instance'), pl.lit(0).alias(YEAR_COLUMN), pl.lit(0).alias('CreatedAt')])
                 .add_to_index(['Instance', YEAR_COLUMN])
             )
 
@@ -177,13 +169,10 @@ class DataCollection:
         for instance in self.instances:
             for node in instance.nodes:
                 df: PathsDataFrame = node.df
-                df = (df
-                    .with_columns([
-                        pl.lit(instance.id).alias('Instance'),
-                        pl.lit(instance.created_at).alias('CreatedAt')
-                    ])
-                    .add_to_index('Instance')
-                )
+                df = df.with_columns([
+                    pl.lit(instance.id).alias('Instance'),
+                    pl.lit(instance.created_at).alias('CreatedAt'),
+                ]).add_to_index('Instance')
                 sum_df: PathsDataFrame | None = summary.get_node_df(node.id)
                 if sum_df is None:
                     summary.add_node(node.id, df)
@@ -192,9 +181,12 @@ class DataCollection:
                 else:
                     print(df.head())
                     print(sum_df.head())
-                    self.logs.append("".join([
-                        f"Node {node.id} has primary keys {df.primary_keys} in instance {instance.id}",
-                        f" but expected {sum_df.primary_keys}. Ignore the node in sum."]))
+                    self.logs.append(
+                        ''.join([
+                            f'Node {node.id} has primary keys {df.primary_keys} in instance {instance.id}',
+                            f' but expected {sum_df.primary_keys}. Ignore the node in sum.',
+                        ])
+                    )
         for node in summary.nodes:
             number = _sum_over_instances(node.df.with_columns(pl.lit(1.0).alias(VALUE_COLUMN)), 'NUMBER')
             total = _sum_over_instances(node.df, 'TOTAL')
@@ -206,17 +198,15 @@ class DataCollection:
 
         return self
 
-
     def round_summaries(self) -> DataCollection:
-        self.logs.append("Rounding summaries to 8 decimal places.")
+        self.logs.append('Rounding summaries to 8 decimal places.')
         for summary in self.summaries:
             for node in summary.nodes:
                 node.df = node.df.with_columns(pl.col(VALUE_COLUMN).round(8))
         return self
 
-
     def calculate_difference(self) -> DataCollection:
-        self.logs.append("Calculating difference between the newest and target values.")
+        self.logs.append('Calculating difference between the newest and target values.')
         for summary in self.summaries:
             new_nodes: list[NodeData] = []
             for node in summary.nodes:
@@ -224,25 +214,14 @@ class DataCollection:
                 if 'param' not in df.columns:
                     continue
                 diff_df = (
-                    df.filter(pl.col('param').is_in(['newest', 'target']))
+                    df
+                    .filter(pl.col('param').is_in(['newest', 'target']))
                     .group_by(['Instance', 'CreatedAt'])
                     .agg([
-                        pl.col(VALUE_COLUMN)
-                        .filter(pl.col('param') == 'newest')
-                        .max()
-                        .alias('newest_value'),
-                        pl.col(VALUE_COLUMN)
-                        .filter(pl.col('param') == 'target')
-                        .max()
-                        .alias('target_value'),
-                        pl.col(YEAR_COLUMN)
-                        .filter(pl.col('param') == 'newest')
-                        .max()
-                        .alias('newest_year'),
-                        pl.col(YEAR_COLUMN)
-                        .filter(pl.col('param') == 'target')
-                        .max()
-                        .alias('target_year'),
+                        pl.col(VALUE_COLUMN).filter(pl.col('param') == 'newest').max().alias('newest_value'),
+                        pl.col(VALUE_COLUMN).filter(pl.col('param') == 'target').max().alias('target_value'),
+                        pl.col(YEAR_COLUMN).filter(pl.col('param') == 'newest').max().alias('newest_year'),
+                        pl.col(YEAR_COLUMN).filter(pl.col('param') == 'target').max().alias('target_year'),
                     ])
                     .with_columns([
                         (pl.col('target_value') - pl.col('newest_value')).alias(VALUE_COLUMN),
@@ -254,14 +233,14 @@ class DataCollection:
                     .sort('CreatedAt')
                 )
                 diff_df = ppl.to_ppdf(diff_df, df.get_meta())
-                new_nodes.append(NodeData(id=f"{node.id}_difference", df=diff_df))
+                new_nodes.append(NodeData(id=f'{node.id}_difference', df=diff_df))
             summary.nodes.extend(new_nodes)
         return self
 
     def report_log(self, file_name: str) -> None:
-        date = str(datetime.now().strftime("%Y-%m-%d"))  # noqa: DTZ005
-        self.logs.append(f"Saving log file to {self.output_path}log_{date}.txt")
-        out = ["During processing, the following things happened:"]
+        date = str(datetime.now().strftime('%Y-%m-%d'))  # noqa: DTZ005
+        self.logs.append(f'Saving log file to {self.output_path}log_{date}.txt')
+        out = ['During processing, the following things happened:']
         out.extend(self.logs)
         outtext = '\n'.join(out)
         with open(f'{self.output_path}log_{file_name}_{date}.txt', 'w') as f:  # noqa: PTH123
@@ -269,19 +248,19 @@ class DataCollection:
         print(outtext)
 
     def save_summaries(self) -> DataCollection:
-        self.logs.append("Saving summaries about:")
+        self.logs.append('Saving summaries about:')
         output_path = self.output_path
-        date = str(datetime.now().strftime("%Y-%m-%d"))  # noqa: DTZ005
+        date = str(datetime.now().strftime('%Y-%m-%d'))  # noqa: DTZ005
         for summary in self.summaries:
-            self.logs.append(f"- {summary.id}:")
+            self.logs.append(f'- {summary.id}:')
             for node in summary.nodes:
                 unit_id = node.id
                 if unit_id not in self.target_units and unit_id.endswith('_difference'):
                     unit_id = unit_id.removesuffix('_difference')
                 unit = self.target_units[unit_id].replace('/', '-')
-                output_file = f"{output_path}{summary.id}_{node.id}_{unit}_{date}.csv"
+                output_file = f'{output_path}{summary.id}_{node.id}_{unit}_{date}.csv'
                 node.df.write_csv(output_file)
-                self.logs.append(f"  - Saved nodes {node.id} in {output_file}.")
+                self.logs.append(f'  - Saved nodes {node.id} in {output_file}.')
         return self
 
     def no_processing(self) -> DataCollection:
@@ -292,15 +271,15 @@ class DataCollection:
         processors = config.get('processors', [])
         output_path = config.get('output_path', '')
         original_instance_map: dict[str, str] = config.get('original_instance', {})
-        output_date: str = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))  # noqa: DTZ005
+        output_date: str = str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))  # noqa: DTZ005
 
         self.output_path = output_path
         self.output_date = output_date
         self.processors = processors
         self.instances = []
         self.summaries = []
-        self.target_units = {node['id']: node['target_unit'] for node in config['nodes'] }
-        self.logs = [f"Collect data from {config_file}."]
+        self.target_units = {node['id']: node['target_unit'] for node in config['nodes']}
+        self.logs = [f'Collect data from {config_file}.']
 
         instances = config['instances']
         # instances = instances[0:10] # Used to simplify testing
@@ -310,7 +289,7 @@ class DataCollection:
             try:
                 context = get_context(instance_id)
             except FileNotFoundError:
-                self.logs.append(f"Instance {instance_id} not found. Skipping.")
+                self.logs.append(f'Instance {instance_id} not found. Skipping.')
                 continue
 
             nodes = get_nodes(instance_id)
@@ -323,8 +302,8 @@ class DataCollection:
                     original_context = get_context(created_at_instance_id)
                 except FileNotFoundError:
                     self.logs.append(
-                        f"Original instance {created_at_instance_id} not found for {instance_id}. "
-                        + "Using the current instance created_at."
+                        f'Original instance {created_at_instance_id} not found for {instance_id}. '
+                        + 'Using the current instance created_at.'
                     )
                     created_at = context.instance.config.created_at.date()
                 else:
@@ -333,13 +312,13 @@ class DataCollection:
             for node_id in node_ids:
                 node = nodes.get(node_id)
                 if node is None:
-                    self.logs.append(f"Node {node_id} not found in instance {instance.id}.")
+                    self.logs.append(f'Node {node_id} not found in instance {instance.id}.')
                     continue
                 try:
                     df = node.get_output_pl()
                     instance.add_node(node_id=node_id, df=df)
-                except (ValueError, NodeComputationError):
-                    self.logs.append(f"Node {node_id} in instance {instance.id} gave and error and is skipped.")
+                except ValueError, NodeComputationError:
+                    self.logs.append(f'Node {node_id} in instance {instance.id} gave and error and is skipped.')
                     continue
 
     def process_data(self) -> DataCollection:
@@ -357,9 +336,9 @@ class DataCollection:
         dc = self
         for processor in dc.processors:
             if processor not in PROCESS_DATA.keys():
-                dc.logs.append(f"Processor {processor} is not defined. Ignoring.")
+                dc.logs.append(f'Processor {processor} is not defined. Ignoring.')
                 continue
-            dc.logs.append(f"Processing {processor} ...")
+            dc.logs.append(f'Processing {processor} ...')
             dc = PROCESS_DATA[processor]()
         return dc
 
@@ -374,5 +353,6 @@ def main():
 
     dc.report_log(file_name)
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()

@@ -85,7 +85,7 @@ class AdminMiddleware:
     async def activate_language(self, ic: InstanceConfig, user: User):
         profile = await sync_to_async(UserProfile.get_for_user)(user)
         lang = profile.preferred_language
-        if (not lang or lang not in (x[0] for x in settings.LANGUAGES)):
+        if not lang or lang not in (x[0] for x in settings.LANGUAGES):
             if ic is not None:
                 lang = ic.primary_language
                 profile.preferred_language = lang
@@ -109,12 +109,15 @@ class AdminMiddleware:
 
         def update_wagtail_site() -> None:
             request._wagtail_site = ic.site
+
         await sync_to_async(update_wagtail_site)()
 
         # If it's an admin method that changes something, invalidate GraphQL cache.
         if request.method in ('POST', 'PUT', 'DELETE'):
+
             def invalidate_cache() -> None:
                 ic.invalidate_cache()
+
             await sync_to_async(transaction.on_commit)(invalidate_cache)
 
         ctx = RealmContext(realm=ic, user=request.user)

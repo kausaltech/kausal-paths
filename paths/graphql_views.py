@@ -47,6 +47,7 @@ logger = logger.bind(markup=True)
 
 GRAPHQL_CAPTURE_QUERIES = env_bool('GRAPHQL_CAPTURE_QUERIES', default=False)
 
+
 # FIXME: Not used anywhere; any code worth keeping?
 class PathsExecutionContext(ExecutionContext):
     context_value: GQLInstanceContext
@@ -95,6 +96,7 @@ def graphql_capture_query(
     exec_time: float,
 ):
     from paths.const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER, WILDCARD_DOMAINS_HEADER
+
     if not env_bool('GRAPHQL_CAPTURE_QUERIES', default=False):
         return
     headers = [INSTANCE_IDENTIFIER_HEADER, INSTANCE_HOSTNAME_HEADER, WILDCARD_DOMAINS_HEADER]
@@ -132,6 +134,7 @@ class PathsGraphQLHTTPConsumer(SyncGraphQLHTTPConsumer[PathsGraphQLContext]):
         response = super().execute_single(request, request_adapter, sub_response, context, root_value, request_data)
         graphql_capture_query(self, request, context, request_data, response, (time.time() - start) * 1000)
         return response
+
     def get_context(self, request: ChannelsRequest, response: TemporalResponse) -> PathsGraphQLContext:
         base_ctx = self.get_base_context(request, response)
         return PathsGraphQLContext(
@@ -144,6 +147,7 @@ class PathsGraphQLView(GraphQLView[PathsGraphQLContext]):
 
     def __init__(self):
         from .schema import schema
+
         super().__init__(schema=schema)
 
     def execute_single(

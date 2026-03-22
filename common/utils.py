@@ -14,4 +14,3 @@ def hash_unit(unit: Unit) -> bytes:
     h = orjson.dumps(dict(unit._units))
     unit._paths_hash = h
     return h
-

@@ -51,10 +51,7 @@ class MeasureDataPointModel(DjangoDiffModel[MeasureDataPoint]):
         mdp_fields = cls._django_fields.field_names - {'measure'}
         measure_f = Concat(F('measure__measure_template__uuid'), Value('__'), F('measure__framework_config__uuid'))
         mdp_objs = (
-            MeasureDataPoint.objects.filter(q)
-                .values(*mdp_fields)
-                .annotate(_instance_pk=F('pk'))
-                .annotate(measure=measure_f)
+            MeasureDataPoint.objects.filter(q).values(*mdp_fields).annotate(_instance_pk=F('pk')).annotate(measure=measure_f)
         )
         return mdp_objs
 
@@ -84,22 +81,32 @@ class MeasureModel(DjangoDiffModel[Measure]):
         else:
             q = Q(framework_config__framework=fwc_or_fw)
 
-        dps = MeasureDataPoint.objects.filter(
-            measure_id=OuterRef('pk'),
-        ).annotate(data=JSONObject(
-            year=F('year'), value=F('value'), default_value=F('default_value'),
-        )).values_list('data')
+        dps = (
+            MeasureDataPoint.objects
+            .filter(
+                measure_id=OuterRef('pk'),
+            )
+            .annotate(
+                data=JSONObject(
+                    year=F('year'),
+                    value=F('value'),
+                    default_value=F('default_value'),
+                )
+            )
+            .values_list('data')
+        )
         m_fields = cls._django_fields.field_names - {'measure_template', 'framework_config'}
         m_objs = (
-            Measure.objects.filter(q)
-                .values(*m_fields)
-                .annotate(_instance_pk=F('pk'))
-                .annotate(_template_order=F('measure_template__order'))
-                .annotate(_section_order=F('measure_template__section__path'))
-                .annotate(measure_template=F('measure_template__uuid'))
-                .annotate(framework_config=F('framework_config__uuid'))
-                .annotate(data_points=ArraySubquery(dps))
-                .order_by('_section_order', '_template_order')
+            Measure.objects
+            .filter(q)
+            .values(*m_fields)
+            .annotate(_instance_pk=F('pk'))
+            .annotate(_template_order=F('measure_template__order'))
+            .annotate(_section_order=F('measure_template__section__path'))
+            .annotate(measure_template=F('measure_template__uuid'))
+            .annotate(framework_config=F('framework_config__uuid'))
+            .annotate(data_points=ArraySubquery(dps))
+            .order_by('_section_order', '_template_order')
         )
         return m_objs
 
@@ -140,7 +147,12 @@ class FrameworkConfigModel(DjangoDiffModel[FrameworkConfig]):
     _modelname = 'framework_config'
     _identifiers = ('uuid',)
     _attributes = (
-        'framework', 'organization_name', 'organization_identifier', 'organization_slug', 'baseline_year', 'created_at',
+        'framework',
+        'organization_name',
+        'organization_identifier',
+        'organization_slug',
+        'baseline_year',
+        'created_at',
         'instance_identifier',
     )
     _children = {'measure': 'measures'}
@@ -157,11 +169,11 @@ class FrameworkConfigModel(DjangoDiffModel[FrameworkConfig]):
         fields = cls._django_fields.field_names - {'framework'}
         fwc_objs = (
             qs
-                .values(*fields)
-                .annotate(_instance_pk=F('pk'))
-                .annotate(framework=F('framework__uuid'))
-                .annotate(instance_identifier=F('instance_config__identifier'))
-                .order_by('created_at')
+            .values(*fields)
+            .annotate(_instance_pk=F('pk'))
+            .annotate(framework=F('framework__uuid'))
+            .annotate(instance_identifier=F('instance_config__identifier'))
+            .order_by('created_at')
         )
         return fwc_objs
 
@@ -183,7 +195,11 @@ class FrameworkConfigModel(DjangoDiffModel[FrameworkConfig]):
             uuid = UUID(uuid)
         instance_identifier = create_kwargs.pop('instance_identifier')
         fwc = FrameworkConfig.create_instance(
-            fw, instance_identifier=instance_identifier, org_name=org_name, baseline_year=baseline_year, uuid=uuid,
+            fw,
+            instance_identifier=instance_identifier,
+            org_name=org_name,
+            baseline_year=baseline_year,
+            uuid=uuid,
         )
         for key, val in create_kwargs.items():
             setattr(fwc, key, val)

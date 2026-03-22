@@ -16,11 +16,7 @@ class SectorEmissions(BaseSectorEmissions):
         'kpr/emission_statistics',
     ]
     allowed_parameters = [
-        StringParameter(
-            local_id='panorama_id',
-            label=TranslatedString(en="Node ID in Panorama"),
-            is_customizable=False
-        ),
+        StringParameter(local_id='panorama_id', label=TranslatedString(en='Node ID in Panorama'), is_customizable=False),
     ]
 
     def compute(self):
@@ -32,9 +28,7 @@ class SectorEmissions(BaseSectorEmissions):
 
         sec_id = self.get_parameter_value_str('panorama_id')
         edf = df.loc[sec_id]
-        df = pd.DataFrame(
-            edf.values, index=edf.index.astype(int), columns=[VALUE_COLUMN]
-        )
+        df = pd.DataFrame(edf.values, index=edf.index.astype(int), columns=[VALUE_COLUMN])
         df[FORECAST_COLUMN] = False
         last_year = df.index.max()
         model_end_year = context.model_end_year

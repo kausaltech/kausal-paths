@@ -17,8 +17,8 @@ class ParameterFactory[P: Parameter[Any] = Parameter[Any]](Factory[P]):
         model = Parameter
 
     local_id = Sequence(lambda i: f'param{i}')
-    label = TranslatedString("Parameter label")
-    description = TranslatedString("Parameter description")
+    label = TranslatedString('Parameter label')
+    description = TranslatedString('Parameter description')
     is_customizable = True
     is_visible = True
     context: SubFactory[Parameter[Any], Context] = SubFactory(ContextFactory)

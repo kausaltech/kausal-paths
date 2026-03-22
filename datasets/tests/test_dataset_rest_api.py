@@ -21,26 +21,30 @@ from datasets.tests.utils import AssertIdenticalUUIDs, AssertNewUUID, AssertRemo
 
 pytestmark = pytest.mark.django_db()
 
+
 @pytest.fixture
 def api_client():
     return APIClient()
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'has_access', 'expected_schemas'), [
-    pytest.param('superuser', True, {'Schema 1', 'Schema 2', 'Schema 3', 'Unused schema', 'Unused schema 2'}, id='superuser'),
-    pytest.param('super_admin_user', True, {'Schema 1', 'Unused schema'}, id='super_admin_user'),
-    pytest.param('admin_user', True, {'Schema 1', 'Unused schema'}, id='admin_user'),
-    pytest.param('reviewer_user', True, {'Schema 1', 'Unused schema'}, id='reviewer_user'),
-    pytest.param('viewer_user', True, {'Schema 1', 'Unused schema'}, id='viewer_user'),
-    pytest.param('schema1_viewer', True, {'Schema 1'}, id='schema1_viewer'),
-    pytest.param('schema1_editor', True, {'Schema 1'}, id='schema1_editor'),
-    pytest.param('schema1_admin', True, {'Schema 1'}, id='schema1_admin'),
-    pytest.param('schema1_viewer_group_user', True, {'Schema 1'}, id='schema1_viewer_group_user'),
-    pytest.param('schema1_editor_group_user', True, {'Schema 1'}, id='schema1_editor_group_user'),
-    pytest.param('schema1_admin_group_user', True, {'Schema 1'}, id='schema1_admin_group_user'),
-    pytest.param('regular_user', False, set(), id='regular_user'),
-])
+@pytest.mark.parametrize(
+    ('user_key', 'has_access', 'expected_schemas'),
+    [
+        pytest.param('superuser', True, {'Schema 1', 'Schema 2', 'Schema 3', 'Unused schema', 'Unused schema 2'}, id='superuser'),
+        pytest.param('super_admin_user', True, {'Schema 1', 'Unused schema'}, id='super_admin_user'),
+        pytest.param('admin_user', True, {'Schema 1', 'Unused schema'}, id='admin_user'),
+        pytest.param('reviewer_user', True, {'Schema 1', 'Unused schema'}, id='reviewer_user'),
+        pytest.param('viewer_user', True, {'Schema 1', 'Unused schema'}, id='viewer_user'),
+        pytest.param('schema1_viewer', True, {'Schema 1'}, id='schema1_viewer'),
+        pytest.param('schema1_editor', True, {'Schema 1'}, id='schema1_editor'),
+        pytest.param('schema1_admin', True, {'Schema 1'}, id='schema1_admin'),
+        pytest.param('schema1_viewer_group_user', True, {'Schema 1'}, id='schema1_viewer_group_user'),
+        pytest.param('schema1_editor_group_user', True, {'Schema 1'}, id='schema1_editor_group_user'),
+        pytest.param('schema1_admin_group_user', True, {'Schema 1'}, id='schema1_admin_group_user'),
+        pytest.param('regular_user', False, set(), id='regular_user'),
+    ],
+)
 def test_dataset_schema_list(api_client, dataset_test_data, user_key, has_access, expected_schemas):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
@@ -57,7 +61,8 @@ def test_dataset_schema_list(api_client, dataset_test_data, user_key, has_access
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   schema_key  access_allowed  should_be_found
 superuser                  schema1     +               +
 superuser                  schema2     +               +
@@ -83,7 +88,8 @@ schema1_admin_group_user   schema1     +               +
 schema1_admin_group_user   schema2     +               -
 regular_user               schema1     -               -
 regular_user               schema2     -               -
-"""))
+""")
+)
 def test_dataset_schema_retrieve(api_client, dataset_test_data, user_key, schema_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     schema = dataset_test_data[schema_key]
@@ -102,7 +108,8 @@ def test_dataset_schema_retrieve(api_client, dataset_test_data, user_key, schema
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   schema_key  expected_status
 
 superuser                  schema1     200
@@ -131,7 +138,8 @@ schema1_admin              schema2     404
 schema1_viewer_group_user  schema2     404
 schema1_editor_group_user  schema2     404
 schema1_admin_group_user   schema2     404
-"""))
+""")
+)
 def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_key, expected_status):
     user = dataset_test_data[user_key]
     schema = dataset_test_data[schema_key]
@@ -151,8 +159,10 @@ def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_k
 
 # TODO add unused_schema2 (to instance2)
 
+
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   schema_key     delete_allowed  should_be_found  has_linked_objects
 
 # The schemas below have datasets linked to them so deletion won't work (HTTP 400)
@@ -199,7 +209,8 @@ schema1_editor             unused_schema  +               -                -
 schema1_editor_group_user  unused_schema  +               -                -
 schema1_viewer             unused_schema  +               -                -
 schema1_viewer_group_user  unused_schema  +               -                -
-"""))
+""")
+)
 def test_dataset_schema_delete(
     api_client,
     dataset_test_data,
@@ -240,7 +251,8 @@ def test_dataset_schema_delete(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key          access_allowed
 superuser         +
 admin_user        +
@@ -248,7 +260,8 @@ super_admin_user  +
 reviewer_user     -
 viewer_user       -
 regular_user      -
-"""))
+""")
+)
 def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_allowed):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
@@ -269,21 +282,41 @@ def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_a
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', [
-    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user',
-    'schema1_viewer', 'schema1_editor', 'schema1_admin',
-    'schema1_viewer_group_user', 'schema1_editor_group_user', 'schema1_admin_group_user',
-    'regular_user'
-])
+@pytest.mark.parametrize(
+    'user_key',
+    [
+        'superuser',
+        'admin_user',
+        'super_admin_user',
+        'reviewer_user',
+        'viewer_user',
+        'schema1_viewer',
+        'schema1_editor',
+        'schema1_admin',
+        'schema1_viewer_group_user',
+        'schema1_editor_group_user',
+        'schema1_admin_group_user',
+        'regular_user',
+    ],
+)
 def test_dataset_list(api_client, dataset_test_data, user_key):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
 
     if user_key == 'superuser':
         expected_datasets = {'dataset1', 'dataset2', 'dataset3'}
-    elif user_key in ['admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user',
-                      'schema1_viewer', 'schema1_editor', 'schema1_admin',
-                      'schema1_viewer_group_user', 'schema1_editor_group_user', 'schema1_admin_group_user']:
+    elif user_key in [
+        'admin_user',
+        'super_admin_user',
+        'reviewer_user',
+        'viewer_user',
+        'schema1_viewer',
+        'schema1_editor',
+        'schema1_admin',
+        'schema1_viewer_group_user',
+        'schema1_editor_group_user',
+        'schema1_admin_group_user',
+    ]:
         expected_datasets = {'dataset1'}
     else:
         expected_datasets = set()
@@ -302,7 +335,8 @@ def test_dataset_list(api_client, dataset_test_data, user_key):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   dataset_key  access_allowed  should_be_found
 superuser                  dataset1     +               +
 superuser                  dataset2     +               +
@@ -328,7 +362,8 @@ schema1_admin_group_user   dataset1     +               +
 schema1_admin_group_user   dataset2     +               -
 regular_user               dataset1     -               -
 regular_user               dataset2     -               -
-"""))
+""")
+)
 def test_dataset_retrieve(api_client, dataset_test_data, user_key, dataset_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -347,7 +382,8 @@ def test_dataset_retrieve(api_client, dataset_test_data, user_key, dataset_key, 
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   dataset_key  expected_status
 
 superuser                  dataset1     200
@@ -377,7 +413,8 @@ schema1_viewer             dataset2     404
 schema1_viewer_group_user  dataset2     404
 admin_user                 dataset2     404
 super_admin_user           dataset2     404
-"""))
+""")
+)
 def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -392,7 +429,8 @@ def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, ex
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   dataset_key  expected_status
 
 superuser                  dataset1     204
@@ -421,7 +459,8 @@ schema1_admin              dataset2     404
 schema1_viewer_group_user  dataset2     404
 schema1_editor_group_user  dataset2     404
 schema1_admin_group_user   dataset2     404
-"""))
+""")
+)
 def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -439,7 +478,8 @@ def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, ex
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key          access_allowed
 superuser         +
 admin_user        +
@@ -447,7 +487,8 @@ super_admin_user  +
 reviewer_user     -
 viewer_user       -
 regular_user      -
-"""))
+""")
+)
 def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
@@ -481,7 +522,8 @@ def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed)
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   dataset_key  expected_status
 
 # Access to everything
@@ -515,7 +557,8 @@ schema1_admin_group_user   dataset2     404
 # No access to endpoint
 regular_user               dataset1     403
 regular_user               dataset2     403
-"""))
+""")
+)
 def test_datapoint_list(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -529,7 +572,8 @@ def test_datapoint_list(api_client, dataset_test_data, user_key, dataset_key, ex
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   datapoint_key  access_allowed  should_be_found
 superuser                  data_point1    +               +
 superuser                  data_point2    +               +
@@ -555,7 +599,8 @@ schema1_admin_group_user   data_point1    +               +
 schema1_admin_group_user   data_point2    +               -
 regular_user               data_point1    -               -
 regular_user               data_point2    -               -
-"""))
+""")
+)
 def test_datapoint_retrieve(api_client, dataset_test_data, user_key, datapoint_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[datapoint_key]
@@ -575,7 +620,8 @@ def test_datapoint_retrieve(api_client, dataset_test_data, user_key, datapoint_k
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   dataset_key  expected_status
 superuser                  dataset1     201
 admin_user                 dataset1     201
@@ -589,7 +635,8 @@ viewer_user                dataset1     403
 schema1_viewer             dataset1     403
 schema1_viewer_group_user  dataset1     403
 regular_user               dataset1     403
-"""))
+""")
+)
 def test_datapoint_create(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -618,7 +665,8 @@ def test_datapoint_create(api_client, dataset_test_data, user_key, dataset_key, 
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   datapoint_key  expected_status
 
 # Access to data_point2 ( instance2 )
@@ -654,7 +702,8 @@ reviewer_user              data_point2    403
 viewer_user                data_point2    403
 regular_user               data_point1    403
 regular_user               data_point2    403
-"""))
+""")
+)
 def test_datapoint_update(api_client, dataset_test_data, user_key, datapoint_key, expected_status):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[datapoint_key]
@@ -666,11 +715,7 @@ def test_datapoint_update(api_client, dataset_test_data, user_key, datapoint_key
     # Test PATCH (partial update)
     patch_data = {'value': 999.99}
     with AssertIdenticalUUIDs(DataPoint.objects):
-        response = api_client.patch(
-            f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/',
-            patch_data,
-            format='json'
-        )
+        response = api_client.patch(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/', patch_data, format='json')
     assert response.status_code == expected_status
     if response.status_code == 200:
         data = response.json()
@@ -684,11 +729,7 @@ def test_datapoint_update(api_client, dataset_test_data, user_key, datapoint_key
         'dimension_categories': [str(dc.uuid) for dc in dimension_categories],
     }
     with AssertIdenticalUUIDs(DataPoint.objects):
-        response = api_client.put(
-            f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/',
-            put_data,
-            format='json'
-        )
+        response = api_client.put(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/', put_data, format='json')
     assert response.status_code == expected_status
     if response.status_code == 200:
         data = response.json()
@@ -697,7 +738,8 @@ def test_datapoint_update(api_client, dataset_test_data, user_key, datapoint_key
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   datapoint_key  access_allowed  should_be_found
 superuser                  data_point1    +               +
 superuser                  data_point2    +               +
@@ -725,7 +767,8 @@ schema1_editor_group_user  data_point1    -               -
 schema1_editor_group_user  data_point2    +               -
 regular_user               data_point1    -               -
 regular_user               data_point2    -               -
-"""))
+""")
+)
 def test_datapoint_delete(api_client, dataset_test_data, user_key, datapoint_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[datapoint_key]
@@ -746,7 +789,8 @@ def test_datapoint_delete(api_client, dataset_test_data, user_key, datapoint_key
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   data_point_key  expected_status
 
 # Access to data_point1 (instance1)
@@ -780,7 +824,8 @@ schema1_admin_group_user   data_point2     404
 # No access to endpoint
 regular_user               data_point1     403
 regular_user               data_point2     403
-"""))
+""")
+)
 def test_datapoint_comment_list(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[data_point_key]
@@ -795,7 +840,8 @@ def test_datapoint_comment_list(api_client, dataset_test_data, user_key, data_po
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   comment_key  expected_status
 
 # Access to comment1 (on data_point1, instance1)
@@ -829,7 +875,8 @@ schema1_admin_group_user   comment2     404
 # No access to endpoint
 regular_user               comment1     403
 regular_user               comment2     403
-"""))
+""")
+)
 def test_datapoint_comment_retrieve(api_client, dataset_test_data, user_key, comment_key, expected_status):
     user = dataset_test_data[user_key]
     comment = dataset_test_data[comment_key]
@@ -846,7 +893,8 @@ def test_datapoint_comment_retrieve(api_client, dataset_test_data, user_key, com
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   data_point_key  expected_status
 
 # Access to data_point1 instance1
@@ -882,7 +930,8 @@ schema1_viewer_group_user  data_point2     404
 viewer_user                data_point2     403
 regular_user               data_point1     403
 regular_user               data_point2     403
-"""))
+""")
+)
 def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[data_point_key]
@@ -897,9 +946,7 @@ def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_
     if expected_status == 201:
         with AssertNewUUID(DataPointComment.objects) as uuid_tracker:
             response = api_client.post(
-                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/',
-                create_data,
-                format='json'
+                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/', create_data, format='json'
             )
         assert response.status_code == 201
         data = response.json()
@@ -908,15 +955,14 @@ def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_
     else:
         with AssertIdenticalUUIDs(DataPointComment.objects):
             response = api_client.post(
-                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/',
-                create_data,
-                format='json'
+                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/', create_data, format='json'
             )
         assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   comment_key  expected_status
 
 # Access to comment1 on data_point1 instance1
@@ -952,7 +998,8 @@ reviewer_user              comment2     403
 viewer_user                comment2     403
 regular_user               comment1     403
 regular_user               comment2     403
-"""))
+""")
+)
 def test_datapoint_comment_delete(api_client, dataset_test_data, user_key, comment_key, expected_status):
     user = dataset_test_data[user_key]
     comment = dataset_test_data[comment_key]
@@ -971,7 +1018,8 @@ def test_datapoint_comment_delete(api_client, dataset_test_data, user_key, comme
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   dataset_key  expected_status
 superuser                  dataset1     200
 superuser                  dataset2     200
@@ -997,7 +1045,8 @@ schema1_admin_group_user   dataset1     200
 schema1_admin_group_user   dataset2     404
 regular_user               dataset1     403
 regular_user               dataset2     403
-"""))
+""")
+)
 def test_dataset_comment_list(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -1011,9 +1060,9 @@ def test_dataset_comment_list(api_client, dataset_test_data, user_key, dataset_k
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', [
-    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
-])
+@pytest.mark.parametrize(
+    'user_key', ['superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user']
+)
 def test_dataset_comment_create(api_client, dataset_test_data, user_key):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data['dataset1']
@@ -1029,7 +1078,8 @@ def test_dataset_comment_create(api_client, dataset_test_data, user_key):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   dataset_key  expected_status
 
 # Access to dataset1 (instance1)
@@ -1063,7 +1113,8 @@ schema1_admin_group_user   dataset2     404
 # No access to endpoint
 regular_user               dataset1     403
 regular_user               dataset2     403
-"""))
+""")
+)
 def test_dataset_source_reference_list_via_dataset(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -1078,7 +1129,8 @@ def test_dataset_source_reference_list_via_dataset(api_client, dataset_test_data
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   source_ref_key  expected_status
 
 # Access to source_ref1 (on dataset1, instance1)
@@ -1112,7 +1164,8 @@ schema1_admin_group_user   source_ref2     404
 # No access to endpoint
 regular_user               source_ref1     403
 regular_user               source_ref2     403
-"""))
+""")
+)
 def test_dataset_source_reference_retrieve_via_dataset(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
     user = dataset_test_data[user_key]
     source_ref = dataset_test_data[source_ref_key]
@@ -1128,7 +1181,8 @@ def test_dataset_source_reference_retrieve_via_dataset(api_client, dataset_test_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   source_ref_key  expected_status
 
 # Access to source_ref1 (on dataset1, instance1)
@@ -1164,7 +1218,8 @@ reviewer_user              source_ref2     403
 viewer_user                source_ref2     403
 regular_user               source_ref1     403
 regular_user               source_ref2     403
-"""))
+""")
+)
 def test_dataset_source_reference_update_via_dataset(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
     user = dataset_test_data[user_key]
     source_ref = dataset_test_data[source_ref_key]
@@ -1176,11 +1231,7 @@ def test_dataset_source_reference_update_via_dataset(api_client, dataset_test_da
     # Test PATCH (partial update)
     patch_data = {'data_source': str(alternative_data_source.uuid)}
     with AssertIdenticalUUIDs(DatasetSourceReference.objects):
-        response = api_client.patch(
-            f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/',
-            patch_data,
-            format='json'
-        )
+        response = api_client.patch(f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/', patch_data, format='json')
     assert response.status_code == expected_status
     if response.status_code == 200:
         data = response.json()
@@ -1191,11 +1242,7 @@ def test_dataset_source_reference_update_via_dataset(api_client, dataset_test_da
         'data_source': str(original_data_source.uuid),
     }
     with AssertIdenticalUUIDs(DatasetSourceReference.objects):
-        response = api_client.put(
-            f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/',
-            put_data,
-            format='json'
-        )
+        response = api_client.put(f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/', put_data, format='json')
     assert response.status_code == expected_status
     if response.status_code == 200:
         data = response.json()
@@ -1203,7 +1250,8 @@ def test_dataset_source_reference_update_via_dataset(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   dataset_key  expected_status
 
 # Access to dataset1 (instance1)
@@ -1239,7 +1287,8 @@ reviewer_user              dataset2     403
 viewer_user                dataset2     403
 regular_user               dataset1     403
 regular_user               dataset2     403
-"""))
+""")
+)
 def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -1264,7 +1313,8 @@ def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   source_ref_key  expected_status
 
 # Access to source_ref1 on dataset1  instance1
@@ -1300,7 +1350,8 @@ reviewer_user              source_ref2     403
 viewer_user                source_ref2     403
 regular_user               source_ref1     403
 regular_user               source_ref2     403
-"""))
+""")
+)
 def test_dataset_source_reference_delete_via_dataset(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
     user = dataset_test_data[user_key]
     source_ref = dataset_test_data[source_ref_key]
@@ -1318,7 +1369,8 @@ def test_dataset_source_reference_delete_via_dataset(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   data_point_key  expected_status
 
 # Access to data_point1 (instance1)
@@ -1352,7 +1404,8 @@ schema1_admin_group_user   data_point2     404
 # No access to endpoint
 regular_user               data_point1     403
 regular_user               data_point2     403
-"""))
+""")
+)
 def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[data_point_key]
@@ -1368,7 +1421,8 @@ def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   source_ref_key              expected_status
 
 # Access to source_ref_on_datapoint (on data_point1, instance1)
@@ -1402,13 +1456,10 @@ schema1_admin_group_user   source_ref_on_datapoint2    404
 # No access to endpoint
 regular_user               source_ref_on_datapoint     403
 regular_user               source_ref_on_datapoint2    403
-"""))
+""")
+)
 def test_dataset_source_reference_retrieve_via_datapoint(
-    api_client,
-    dataset_test_data,
-    user_key,
-    source_ref_key,
-    expected_status
+    api_client, dataset_test_data, user_key, source_ref_key, expected_status
 ):
     user = dataset_test_data[user_key]
     source_ref = dataset_test_data[source_ref_key]
@@ -1425,7 +1476,8 @@ def test_dataset_source_reference_retrieve_via_datapoint(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   source_ref_key              expected_status
 
 # Access to source_ref_on_datapoint (on data_point1, instance1)
@@ -1461,7 +1513,8 @@ reviewer_user              source_ref_on_datapoint2    403
 viewer_user                source_ref_on_datapoint2    403
 regular_user               source_ref_on_datapoint     403
 regular_user               source_ref_on_datapoint2    403
-"""))
+""")
+)
 def test_dataset_source_reference_update_via_datapoint(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
     user = dataset_test_data[user_key]
     source_ref = dataset_test_data[source_ref_key]
@@ -1475,9 +1528,7 @@ def test_dataset_source_reference_update_via_datapoint(api_client, dataset_test_
     patch_data = {'data_source': str(alternative_data_source.uuid)}
     with AssertIdenticalUUIDs(DatasetSourceReference.objects):
         response = api_client.patch(
-            f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/',
-            patch_data,
-            format='json'
+            f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/', patch_data, format='json'
         )
     assert response.status_code == expected_status
     if response.status_code == 200:
@@ -1490,9 +1541,7 @@ def test_dataset_source_reference_update_via_datapoint(api_client, dataset_test_
     }
     with AssertIdenticalUUIDs(DatasetSourceReference.objects):
         response = api_client.put(
-            f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/',
-            put_data,
-            format='json'
+            f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/', put_data, format='json'
         )
     assert response.status_code == expected_status
     if response.status_code == 200:
@@ -1501,7 +1550,8 @@ def test_dataset_source_reference_update_via_datapoint(api_client, dataset_test_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   data_point_key  expected_status
 
 # Access to data_point1 (instance1)
@@ -1537,7 +1587,8 @@ reviewer_user              data_point2     403
 viewer_user                data_point2     403
 regular_user               data_point1     403
 regular_user               data_point2     403
-"""))
+""")
+)
 def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[data_point_key]
@@ -1552,9 +1603,7 @@ def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_
     if expected_status == 201:
         with AssertNewUUID(DatasetSourceReference.objects) as uuid_tracker:
             response = api_client.post(
-                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/',
-                create_data,
-                format='json'
+                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/', create_data, format='json'
             )
         assert response.status_code == 201
         data = response.json()
@@ -1563,15 +1612,14 @@ def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_
     else:
         with AssertIdenticalUUIDs(DatasetSourceReference.objects):
             response = api_client.post(
-                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/',
-                create_data,
-                format='json'
+                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/', create_data, format='json'
             )
         assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   expected_status
 superuser                  204
 admin_user                 204
@@ -1585,7 +1633,8 @@ schema1_editor             403
 schema1_viewer_group_user  403
 schema1_editor_group_user  403
 regular_user               403
-"""))
+""")
+)
 def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_data, user_key, expected_status):
     user = dataset_test_data[user_key]
     source_ref = dataset_test_data['source_ref_on_datapoint']
@@ -1595,20 +1644,17 @@ def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_
 
     if expected_status == 204:
         with AssertRemovedUUID(DatasetSourceReference.objects, source_ref.uuid):
-            response = api_client.delete(
-                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/'
-            )
+            response = api_client.delete(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/')
         assert response.status_code == 204
     else:
         with AssertIdenticalUUIDs(DatasetSourceReference.objects):
-            response = api_client.delete(
-                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/'
-            )
+            response = api_client.delete(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/')
         assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   schema_key  access_allowed  schema_should_be_found
 superuser                  schema1     +               +
 superuser                  schema2     +               +
@@ -1634,7 +1680,8 @@ schema1_admin_group_user   schema1     +               +
 schema1_admin_group_user   schema2     +               -
 regular_user               schema1     -               -
 regular_user               schema2     -               -
-"""))
+""")
+)
 def test_dataset_metric_list(api_client, dataset_test_data, user_key, schema_key, access_allowed, schema_should_be_found):
     user = dataset_test_data[user_key]
     schema = dataset_test_data[schema_key]
@@ -1653,7 +1700,8 @@ def test_dataset_metric_list(api_client, dataset_test_data, user_key, schema_key
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   metric_key  access_allowed  should_be_found
 superuser                  metric1     +               +
 superuser                  metric2     +               +
@@ -1679,7 +1727,8 @@ schema1_admin_group_user   metric1     +               +
 schema1_admin_group_user   metric2     +               -
 regular_user               metric1     -               -
 regular_user               metric2     -               -
-"""))
+""")
+)
 def test_dataset_metric_retrieve(api_client, dataset_test_data, user_key, metric_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     metric = dataset_test_data[metric_key]
@@ -1699,9 +1748,9 @@ def test_dataset_metric_retrieve(api_client, dataset_test_data, user_key, metric
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', [
-    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
-])
+@pytest.mark.parametrize(
+    'user_key', ['superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user']
+)
 def test_dataset_metric_create(api_client, dataset_test_data, user_key):
     user = dataset_test_data[user_key]
     schema = dataset_test_data['schema1']
@@ -1717,9 +1766,9 @@ def test_dataset_metric_create(api_client, dataset_test_data, user_key):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', [
-    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
-])
+@pytest.mark.parametrize(
+    'user_key', ['superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user']
+)
 def test_dataset_metric_update(api_client, dataset_test_data, user_key):
     user = dataset_test_data[user_key]
     metric = dataset_test_data['metric1']
@@ -1733,9 +1782,9 @@ def test_dataset_metric_update(api_client, dataset_test_data, user_key):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', [
-    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
-])
+@pytest.mark.parametrize(
+    'user_key', ['superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user']
+)
 def test_dataset_metric_delete(api_client, dataset_test_data, user_key):
     user = dataset_test_data[user_key]
     metric = dataset_test_data['metric1']
@@ -1748,7 +1797,8 @@ def test_dataset_metric_delete(api_client, dataset_test_data, user_key):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key         dataset_key expected_status
 superuser        dataset1    201
 admin_user       dataset1    201
@@ -1756,7 +1806,8 @@ super_admin_user dataset1    201
 reviewer_user    dataset1    403
 viewer_user      dataset1    403
 regular_user     dataset1    403
-"""))
+""")
+)
 def test_data_point_bulk_create(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -1776,7 +1827,7 @@ def test_data_point_bulk_create(api_client, dataset_test_data, user_key, dataset
             'value': 10.0,
             'metric': str(metric.uuid),
             'dimension_categories': [str(dimension_category.uuid)],
-        }
+        },
     ]
 
     if expected_status == 201:
@@ -1785,10 +1836,7 @@ def test_data_point_bulk_create(api_client, dataset_test_data, user_key, dataset
         assert response.status_code == 201
         data = response.json()
         # Only compare fields present in expected data, ignoring new fields (e.g., UUID of created object)
-        data_to_compare = [
-            {k: actual[k] for k in expected}
-            for actual, expected in zip(data, create_data, strict=True)
-        ]
+        data_to_compare = [{k: actual[k] for k in expected} for actual, expected in zip(data, create_data, strict=True)]
         assert data_to_compare == create_data
         uuid_tracker.assert_created(data, 2)
     else:
@@ -1798,7 +1846,8 @@ def test_data_point_bulk_create(api_client, dataset_test_data, user_key, dataset
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key         data_point_keys         expected_status
 
 # Actual bulk editing (see individual cases below for explanations about the status).
@@ -1847,7 +1896,8 @@ reviewer_user    data_point2             403
 viewer_user      data_point2             403
 regular_user     data_point1             403
 regular_user     data_point2             403
-"""))
+""")
+)
 def test_data_point_bulk_update(api_client, dataset_test_data, user_key, data_point_keys, expected_status):
     data_point_keys = data_point_keys.split(',')
     user = dataset_test_data[user_key]
@@ -1861,10 +1911,13 @@ def test_data_point_bulk_update(api_client, dataset_test_data, user_key, data_po
     api_client.force_authenticate(user=user)
 
     # Test PATCH (partial update)
-    patch_data = [{
-        'uuid': str(dp.uuid),
-        'value': 999.99,
-    } for dp in data_points]
+    patch_data = [
+        {
+            'uuid': str(dp.uuid),
+            'value': 999.99,
+        }
+        for dp in data_points
+    ]
     with AssertIdenticalUUIDs(DataPoint.objects):
         response = api_client.patch(f'/v1/datasets/{dataset.uuid}/data_points/', patch_data, format='json')
     assert response.status_code == expected_status
@@ -1874,13 +1927,16 @@ def test_data_point_bulk_update(api_client, dataset_test_data, user_key, data_po
         assert all(d['value'] == 999.99 for d in data)
 
     # Test PUT (full update)
-    put_data = [{
-        'uuid': str(dp.uuid),
-        'date': '2025-01-01',
-        'value': 888.88,
-        'metric': str(metric.uuid),
-        'dimension_categories': [str(dc.uuid) for dc in dimension_categories],
-    } for dp in data_points]
+    put_data = [
+        {
+            'uuid': str(dp.uuid),
+            'date': '2025-01-01',
+            'value': 888.88,
+            'metric': str(metric.uuid),
+            'dimension_categories': [str(dc.uuid) for dc in dimension_categories],
+        }
+        for dp in data_points
+    ]
     with AssertIdenticalUUIDs(DataPoint.objects):
         response = api_client.put(f'/v1/datasets/{dataset.uuid}/data_points/', put_data, format='json')
     assert response.status_code == expected_status

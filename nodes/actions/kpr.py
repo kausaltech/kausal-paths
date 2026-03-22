@@ -17,16 +17,10 @@ class ActionNode(BaseActionNode):
     input_datasets = ['kpr/indicator_results']
 
     allowed_parameters = [
-        StringParameter(
-            local_id='panorama_id',
-            label=TranslatedString(en="Node ID in Panorama"),
-            is_customizable=False
-        ),
+        StringParameter(local_id='panorama_id', label=TranslatedString(en='Node ID in Panorama'), is_customizable=False),
         NumberParameter(
-            local_id='panorama_reduction_mton',
-            label=TranslatedString(en="Panorama reduction potential"),
-            is_customizable=False
-        )
+            local_id='panorama_reduction_mton', label=TranslatedString(en='Panorama reduction potential'), is_customizable=False
+        ),
     ]
 
     def compute_effect(self) -> pd.DataFrame:

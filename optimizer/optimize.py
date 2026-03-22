@@ -66,14 +66,14 @@ class OptimizeParameter:
         self.entries = []
 
     def set_source_value(self, start: ShiftAmount | None, end: ShiftAmount, new_val: float):
-        #new_val = round(float(new_val), 3)
+        # new_val = round(float(new_val), 3)
         if start is not None:
             start.source_amount = new_val
             # print('%s: set source %d from %f to %f' % (self.action.id, id(start), start.source_amount, new_val))
         end.source_amount = new_val
 
     def set_dest_value(self, start: ShiftAmount | None, end: ShiftAmount, idx: int, new_val: float):
-        #new_val = round(float(new_val), 1)
+        # new_val = round(float(new_val), 1)
         if start is not None:
             start.dest_amounts[idx] = new_val
         end.dest_amounts[idx] = new_val
@@ -102,16 +102,16 @@ class OptimizeParameter:
             x0 = start.source_amount
             if start.source_amount < 0:
                 bounds = (-100, 0)
-                #x0 = -0.1
+                # x0 = -0.1
             else:
                 bounds = (0, 100)
-                #x0 = 0.1
+                # x0 = 0.1
 
             id_prefix = '%d+%d-%d' % (start.year, end.year, eidx)
 
             # First the source values
             e = OptimizeParameterEntry(
-                id="%s-source" % (id_prefix),
+                id='%s-source' % (id_prefix),
                 # x0=start.source_amount,
                 x0=x0,
                 bounds=bounds,
@@ -136,7 +136,7 @@ class OptimizeParameter:
                 else:
                     finalize = None
                 e = OptimizeParameterEntry(
-                    id="%s-dest-%d" % (id_prefix, idx),
+                    id='%s-dest-%d' % (id_prefix, idx),
                     x0=x0,
                     bounds=(0, 100),
                     xstep=0.01,
@@ -156,7 +156,7 @@ class OptimizeParameter:
             return val
 
         for entry in out:
-            amounts = entry["amounts"]  # pyright: ignore
+            amounts = entry['amounts']  # pyright: ignore
             for idx, amt in enumerate(list(amounts)):
                 src = round(amt['source_amount'], 3)
                 amt['source_amount'] = format_num(src, prec=3)
@@ -184,11 +184,11 @@ class OptimizeParameter:
 
     def save(self, param_cfg: dict):
         for pc in param_cfg:
-            if pc["id"] == "shift":
+            if pc['id'] == 'shift':
                 break
         else:
             raise Exception("Action %s does not have 'shift' param" % self.action.id)
-        pc["value"] = self.to_yaml_dict()
+        pc['value'] = self.to_yaml_dict()
 
 
 class OptimizeParameterSet:
@@ -240,7 +240,7 @@ class OptimizeParameterSet:
         from rich.table import Table
 
         table = Table()
-        for col in ("Action", "Param", "x0", "bounds", "step"):
+        for col in ('Action', 'Param', 'x0', 'bounds', 'step'):
             table.add_column(col)
         for param in self.params:
             for e in param.entries:
@@ -253,19 +253,19 @@ class OptimizeParameterSet:
         with Path(instance.yaml_file_path).open('r') as f:
             cfg = yaml.load(f)
         main = cfg
-        if "instance" in cfg:
-            main = cfg["instance"]
-        acts = main["actions"]
-        acts_by_id = {act["id"]: act for act in acts}
+        if 'instance' in cfg:
+            main = cfg['instance']
+        acts = main['actions']
+        acts_by_id = {act['id']: act for act in acts}
 
         for param in self.params:
             act_cfg = acts_by_id[param.action.id]
-            param_cfg = act_cfg["params"]
+            param_cfg = act_cfg['params']
             print(param_cfg)
             param.save(param_cfg)
             print(param_cfg)
 
-        with open(instance.yaml_file_path, "w", encoding="utf8") as f:
+        with Path(instance.yaml_file_path).open('w') as f:
             yaml.dump(cfg, f)
 
     def print_params(self):
@@ -274,10 +274,7 @@ class OptimizeParameterSet:
         out = []
         for param in self.params:
             d = param.to_yaml_dict()
-            out.append(dict(
-                id=param.action.id,
-                params=[dict(id='shift', value=d)]
-            ))
+            out.append(dict(id=param.action.id, params=[dict(id='shift', value=d)]))
 
         string_stream = StringIO()
         yaml.dump(out, string_stream)
@@ -288,10 +285,7 @@ class OptimizeParameterSet:
 
 
 class Optimizer:
-    def __init__(
-            self, context: Context, outcome_node: Node, goal_df: ppl.PathsDataFrame,
-            action_nodes: list[ActionNode]
-        ):
+    def __init__(self, context: Context, outcome_node: Node, goal_df: ppl.PathsDataFrame, action_nodes: list[ActionNode]):
         self.context = context
         self.outcome_node = outcome_node
 
@@ -303,14 +297,16 @@ class Optimizer:
         self.action_nodes = action_nodes
         self.outcome_cols = outcome_cols
 
-    def compute_and_compare(
-        self, x: np.ndarray, year: int, goal: np.ndarray, params: OptimizeParameterSet
-    ):
+    def compute_and_compare(self, x: np.ndarray, year: int, goal: np.ndarray, params: OptimizeParameterSet):
         params.set_values(x)
 
         df = (
-            self.outcome_node.compute().paths.to_wide(only_category_names=True).lazy()
-            .drop(FORECAST_COLUMN).filter(pl.col(YEAR_COLUMN) == year)
+            self.outcome_node
+            .compute()
+            .paths.to_wide(only_category_names=True)
+            .lazy()
+            .drop(FORECAST_COLUMN)
+            .filter(pl.col(YEAR_COLUMN) == year)
             .drop(YEAR_COLUMN)
             .collect()
         )
@@ -338,7 +334,7 @@ class Optimizer:
                 bounds=params.bounds,
                 diff_step=params.xstep,
                 max_nfev=500,
-                method="trf",
+                method='trf',
                 kwargs=dict(
                     goal=goal,
                     year=target_year,
@@ -359,15 +355,13 @@ class Optimizer:
         params = OptimizeParameterSet()
         path_nodes = set()
         for act in self.action_nodes:
-            all_paths = list(nx.all_simple_paths(
-                ctx.node_graph, source=act.id, target=self.outcome_node.id
-            ))
+            all_paths = list(nx.all_simple_paths(ctx.node_graph, source=act.id, target=self.outcome_node.id))
             assert all_paths
             for path in all_paths:
                 path_nodes.update(path)
 
             assert isinstance(act, ShiftAction)
-            param = act.get_parameter("shift")
+            param = act.get_parameter('shift')
             opt = OptimizeParameter(act, param)
             params.add(opt)
 
@@ -398,17 +392,20 @@ class Optimizer:
             out_df = self.outcome_node.compute()
             unit = self.outcome_node.get_default_output_metric().unit
             df = (
-                out_df
-                .paths.to_wide(only_category_names=True)
+                out_df.paths
+                .to_wide(only_category_names=True)
                 .filter(pl.col(YEAR_COLUMN).is_in(self.goal_df[YEAR_COLUMN]))
                 .drop(FORECAST_COLUMN)
                 .with_columns(pl.lit('After').alias('Optimize'))
             )
             gdf = self.goal_df.with_columns(pl.lit('Before').alias('Optimize'))
             df = ppl.to_ppdf(pl.concat([gdf, df]), meta=df.get_meta())
-            df = df.with_columns(
-                pl.sum_horizontal(df.metric_cols).alias("Sum")
-            ).set_unit('Sum', unit).select_metrics([*self.outcome_cols, 'Sum'])
+            df = (
+                df
+                .with_columns(pl.sum_horizontal(df.metric_cols).alias('Sum'))
+                .set_unit('Sum', unit)
+                .select_metrics([*self.outcome_cols, 'Sum'])
+            )
             print(df)
         finally:
             params.restore()

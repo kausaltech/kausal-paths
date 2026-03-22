@@ -13,10 +13,10 @@ if TYPE_CHECKING:
 
 class DjangoPythonFilter(watchfiles.PythonFilter):
     def __init__(
-            self,
-            *,
-            ignore_paths: Sequence[str | Path] | None = None,
-            extra_extensions: Sequence[str] = (),
+        self,
+        *,
+        ignore_paths: Sequence[str | Path] | None = None,
+        extra_extensions: Sequence[str] = (),
     ) -> None:
         ignore_dirs = list(self.ignore_dirs)
         if 'site-packages' in ignore_dirs:

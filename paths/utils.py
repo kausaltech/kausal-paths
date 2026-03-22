@@ -73,9 +73,9 @@ def validate_unit(s: str):
             unit_str = e.unit_names
         else:
             unit_str = ', '.join(e.unit_names)
-        raise ValidationError('%s: %s' % (gettext("Invalid unit"), unit_str)) from None
-    except (ValueError, TypeError):
-        raise ValidationError(gettext("Invalid unit")) from None
+        raise ValidationError('%s: %s' % (gettext('Invalid unit'), unit_str)) from None
+    except ValueError, TypeError:
+        raise ValidationError(gettext('Invalid unit')) from None
     return unit
 
 

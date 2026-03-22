@@ -52,7 +52,7 @@ class GenericNode(SimpleNode):
     Each operation works on its corresponding basket of nodes.
     """
 
-    explanation = _("Multiply input nodes whose unit does not match the output. Add the rest.")
+    explanation = _('Multiply input nodes whose unit does not match the output. Add the rest.')
 
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
@@ -63,7 +63,7 @@ class GenericNode(SimpleNode):
         NumberParameter(local_id='no_correction_value', label='Value to use for no correction'),
     ]
     # Class-level default operations
-    DEFAULT_OPERATIONS = 'get_single_dataset,multiply,add,other,apply_multiplier' # FIXME
+    DEFAULT_OPERATIONS = 'get_single_dataset,multiply,add,other,apply_multiplier'  # FIXME
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -123,7 +123,7 @@ class GenericNode(SimpleNode):
         if len(self.input_nodes) != 1:
             raise NodeError(
                 self,
-                "goal_gap requires exactly one input node; got %d." % len(self.input_nodes),
+                'goal_gap requires exactly one input node; got %d.' % len(self.input_nodes),
             )
         source = self.input_nodes[0]
         df = source.get_output_pl(target_node=self)
@@ -132,14 +132,14 @@ class GenericNode(SimpleNode):
         if sum_dims:
             df = df.paths.sum_over_dims(list(sum_dims))
         if not source.goals or not source.goals.root:
-            self.logger.warning(f"No goals found for node {source.id}. Are you sure you want to use goal_gap?")
+            self.logger.warning(f'No goals found for node {source.id}. Are you sure you want to use goal_gap?')
             return df.with_columns(pl.lit(0.0).alias(VALUE_COLUMN))
         goal_df = source.goals.root[0]._get_values_df()
 
         if set(goal_df.dim_ids) != output_dims:
             raise NodeError(
                 self,
-                "Goal dimensions must match input node output_dimensions: got %s, expected %s."
+                'Goal dimensions must match input node output_dimensions: got %s, expected %s.'
                 % (sorted(goal_df.dim_ids), sorted(output_dims)),
             )
 
@@ -211,7 +211,7 @@ class GenericNode(SimpleNode):
     def _operation_apply_multiplier(self, df: PathsDataFrame | None) -> OperationReturn:
         """Apply the node's multiplier parameter to the dataframe."""
         if df is None:
-            raise NodeError(self, "Cannot apply multiplier because no PathsDataFrame is available.")
+            raise NodeError(self, 'Cannot apply multiplier because no PathsDataFrame is available.')
         mult = self.get_parameter_value('multiplier', required=False, units=True)
         if mult is not None:
             df = df.multiply_quantity(VALUE_COLUMN, mult)
@@ -221,10 +221,7 @@ class GenericNode(SimpleNode):
         """Skip dimension test on loading; exactly one input must have tag 'skip_dim_test'."""
         if df is not None:
             raise NodeError(self, "'skip_dim_test' must be the first of the operations.")
-        return self.get_input_node(tag='skip_dim_test', required=True).get_output_pl(
-            target_node=self, skip_dim_test=True
-        )
-
+        return self.get_input_node(tag='skip_dim_test', required=True).get_output_pl(target_node=self, skip_dim_test=True)
 
     def _operation_concat_datasets(self, df: PathsDataFrame | None) -> OperationReturn:
         dfs = self.get_input_datasets_pl()
@@ -247,22 +244,15 @@ class GenericNode(SimpleNode):
         'add_from_incoming_dims',
     ]
 
-    def _preprocess_for_one(
-            self,
-            df: PathsDataFrame | None,
-            operation: OperationType,
-            stackable: bool = True) -> PathsDataFrame:
+    def _preprocess_for_one(self, df: PathsDataFrame | None, operation: OperationType, stackable: bool = True) -> PathsDataFrame:
         if df is None:
-            raise NodeError(self, "Cannot operate because no PathsDataFrame is available.")
+            raise NodeError(self, 'Cannot operate because no PathsDataFrame is available.')
         if self.quantity not in STACKABLE_QUANTITIES and stackable:
-            raise NodeError(self, f"Split operations are only allowed for stackable quantities, not {self.quantity}.")
+            raise NodeError(self, f'Split operations are only allowed for stackable quantities, not {self.quantity}.')
         n = self.get_input_node(tag=operation, required=True)
         return n.get_output_pl(target_node=self, skip_dim_test=True)
 
-    def _operation_split_dims(
-            self,
-            df: PathsDataFrame,
-            operation: OperationType) -> OperationReturn:
+    def _operation_split_dims(self, df: PathsDataFrame, operation: OperationType) -> OperationReturn:
         """
         Split operations with different strategies.
 
@@ -287,7 +277,7 @@ class GenericNode(SimpleNode):
 
         newdims = [dim for dim in splittee.dim_ids if dim not in splitter.dim_ids]
         if newdims and operation not in use_as:
-            raise NodeError(self, f"Splittee node cannot bring in new dimensions but has {newdims}.")
+            raise NodeError(self, f'Splittee node cannot bring in new dimensions but has {newdims}.')
 
         dims = [dim for dim in splitter.dim_ids if dim not in splittee.dim_ids]
         if not dims and not newdims:
@@ -301,10 +291,7 @@ class GenericNode(SimpleNode):
         df_ratio = splitter.paths.join_over_index(df_summed)
         df_ratio = df_ratio.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
         df_ratio = df_ratio.with_columns(
-            pl.when(pl.col(VALUE_COLUMN + '_right') == 0)
-            .then(pl.lit(0.0))
-            .otherwise(pl.col(VALUE_COLUMN))
-            .alias(VALUE_COLUMN)
+            pl.when(pl.col(VALUE_COLUMN + '_right') == 0).then(pl.lit(0.0)).otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)
         ).drop([VALUE_COLUMN + '_right'])
 
         df_scaled = splittee.paths.multiply_with_dims(df_ratio)
@@ -314,10 +301,7 @@ class GenericNode(SimpleNode):
 
         return df_scaled
 
-    def _operation_add_non_stackable_dims(
-            self,
-            df: PathsDataFrame,
-            operation: OperationType) -> OperationReturn:
+    def _operation_add_non_stackable_dims(self, df: PathsDataFrame, operation: OperationType) -> OperationReturn:
         nodes = self.get_input_nodes(tag=operation)
         if not nodes:
             raise NodeError(self, f"At least one input node must have tag '{operation}'.")
@@ -335,7 +319,7 @@ class GenericNode(SimpleNode):
 
             newdims = [dim for dim in splittee.dim_ids if dim not in splitter.dim_ids]
             if newdims:
-                raise NodeError(self, f"Splittee node cannot bring in new dimensions but has {newdims}.")
+                raise NodeError(self, f'Splittee node cannot bring in new dimensions but has {newdims}.')
 
             dims = [dim for dim in splitter.dim_ids if dim not in splittee.dim_ids]
             if not dims and not newdims:
@@ -366,7 +350,7 @@ class GenericNode(SimpleNode):
 
     def _operation_add_from_incoming_dims(self, df: PathsDataFrame) -> OperationReturn:
         if self.quantity in STACKABLE_QUANTITIES:
-            raise NodeError(self, f"Node cannot have stackable quantity but has {self.quantity}.")
+            raise NodeError(self, f'Node cannot have stackable quantity but has {self.quantity}.')
         return self._operation_split_dims(df, 'add_from_incoming_dims')
 
     def drop_unnecessary_levels(self, df: PathsDataFrame, droplist: list[str]) -> PathsDataFrame:
@@ -424,7 +408,7 @@ class GenericNode(SimpleNode):
             if isinstance(val, (int, float)):
                 idx = round(val)
                 if idx < 0 or idx >= len(cat_list):
-                    raise ValueError(f"Selected number {val} is out of range for categories {cat_list}")
+                    raise ValueError(f'Selected number {val} is out of range for categories {cat_list}')
                 cat = cat_list[idx]
             else:
                 cat = cat_list[0]  # Default to first category if no selection
@@ -458,7 +442,7 @@ class GenericNode(SimpleNode):
         if 'goal_gap' in operations and operations != ['goal_gap']:
             raise NodeError(
                 self,
-                "goal_gap must be the first and only operation; got operations: %s." % operations_str,
+                'goal_gap must be the first and only operation; got operations: %s.' % operations_str,
             )
 
         df = None
@@ -468,14 +452,14 @@ class GenericNode(SimpleNode):
                 df = op(df, self.context)
             else:
                 if op_name not in self.OPERATIONS:
-                    raise NodeError(self, f"Unknown operation: {op_name}")
+                    raise NodeError(self, f'Unknown operation: {op_name}')
                 operation_func = self.OPERATIONS[op_name]
                 df = operation_func(df)
         if not isinstance(df, PathsDataFrame):
-            raise NodeError(self, "The output is not a PathsDataFrame.")
+            raise NodeError(self, 'The output is not a PathsDataFrame.')
 
         if VALUE_COLUMN not in df.columns:
-            raise NodeError(self, f"{VALUE_COLUMN} not found, only {df.metric_cols}.")
+            raise NodeError(self, f'{VALUE_COLUMN} not found, only {df.metric_cols}.')
         for col in df.metric_cols:
             unit = next(metric.unit for metric in self.output_metrics.values() if metric.column_id == col)
             df = df.ensure_unit(col, unit)
@@ -486,9 +470,7 @@ class GenericNode(SimpleNode):
 class ScenarioImpactNode(GenericNode):
     """Node that outputs scenario impact of one input node (current vs reference scenario)."""
 
-    explanation = _(
-        "Outputs Scenario, Reference, and Impact blocks for the single input node (tag: scenario_impact)."
-    )
+    explanation = _('Outputs Scenario, Reference, and Impact blocks for the single input node (tag: scenario_impact).')
     allowed_parameters = [
         *GenericNode.allowed_parameters,
         StringParameter(
@@ -506,20 +488,16 @@ class ScenarioImpactNode(GenericNode):
     def _operation_scenario_impact(self, _df: PathsDataFrame | None) -> OperationReturn:
         """Output = scenario impact of one input node (current vs reference). Tag: scenario_impact."""
         if _df is not None:
-            raise NodeError(self, "scenario_impact must be the first operation, so df must be None.")
+            raise NodeError(self, 'scenario_impact must be the first operation, so df must be None.')
         target_node = self.get_input_node(tag='scenario_impact', required=True)
         reference_scenario_id = self.get_parameter_value_str('scenario_impact_reference', required=False) or 'baseline'
         df = compute_scenario_impact(target_node, reference_scenario_id)
-        df = (df # Impact column not needed here.
-            .filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP))
-            .drop(IMPACT_COLUMN)
-        )
+        df = df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)  # Impact column not needed here.
         return df
 
+
 class LeverNode(GenericNode):
-    explanation = _(
-        """LeverNode replaces the upstream computation completely, if the lever is enabled."""
-    )
+    explanation = _("""LeverNode replaces the upstream computation completely, if the lever is enabled.""")
     allowed_parameters = [
         *GenericNode.allowed_parameters,
         StringParameter(local_id='new_category'),
@@ -532,7 +510,7 @@ class LeverNode(GenericNode):
 
         lever = self.get_input_node(tag='other_node', required=True)
         if not isinstance(lever, ActionNode):
-            raise NodeError(self, f"Lever {lever} must be an action.")
+            raise NodeError(self, f'Lever {lever} must be an action.')
 
         if not lever.is_enabled():
             return df
@@ -541,15 +519,15 @@ class LeverNode(GenericNode):
         dfl = dfl.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
         out = df.paths.join_over_index(dfl, how='left', index_from='left')
         out = out.with_columns(
-            (pl.when(pl.col(FORECAST_COLUMN))
-            .then(pl.col(VALUE_COLUMN + '_right'))
-            .otherwise(pl.col(VALUE_COLUMN))).alias(VALUE_COLUMN)
+            (pl.when(pl.col(FORECAST_COLUMN)).then(pl.col(VALUE_COLUMN + '_right')).otherwise(pl.col(VALUE_COLUMN))).alias(
+                VALUE_COLUMN
+            )
         )
         out = out.drop(VALUE_COLUMN + '_right')
 
         if len(df) != len(out):
-            s = f"({len(out)} rows) as the affected node {self.id} ({len(df)} rows)."
-            raise NodeError(self, f"Lever {lever.id} must result in the same structure {s}")
+            s = f'({len(out)} rows) as the affected node {self.id} ({len(df)} rows).'
+            raise NodeError(self, f'Lever {lever.id} must result in the same structure {s}')
 
         return out
 
@@ -616,7 +594,7 @@ class WeightedSumNode(GenericNode):
 
         node_weights = node_weights.drop(metrics)
         if not valid_metric:
-            raise NodeError(self, f"No valid metric column found for weight dataset for node {node.id}")
+            raise NodeError(self, f'No valid metric column found for weight dataset for node {node.id}')
 
         # Create a version with this metric renamed to VALUE_COLUMN
         if valid_metric != VALUE_COLUMN:
@@ -634,7 +612,7 @@ class WeightedSumNode(GenericNode):
         # Process each unique node in the weights dataframe
         for node_id in weights_df['node'].unique():
             if node_id not in node_map:
-                self.logger.warning(f"Node {node_id} not found in additive nodes")
+                self.logger.warning(f'Node {node_id} not found in additive nodes')
                 continue
 
             # Get node and its weights
@@ -673,7 +651,7 @@ class WeightedSumNode(GenericNode):
         result = self._combine_weighted_outputs(weights_df, additive_nodes)
 
         if result is None:
-            self.logger.warning(f"No matching nodes found in weights DataFrame for {self.id}")
+            self.logger.warning(f'No matching nodes found in weights DataFrame for {self.id}')
             return df
         return result
 
@@ -702,20 +680,16 @@ class LogitNode(WeightedSumNode):
         # Get observations dataset
         df_obs = self.get_input_dataset_pl(tag='observations', required=False)
         if df_obs is None:
-            raise NodeError(self, f"LogitNode {self.id} must have one dataset for baseline values.")
+            raise NodeError(self, f'LogitNode {self.id} must have one dataset for baseline values.')
 
         # Validate and transform observations to logit space
         df_obs = df_obs.ensure_unit(VALUE_COLUMN, 'dimensionless')
-        test = df_obs.with_columns(
-            (pl.lit(0.0) < pl.col(VALUE_COLUMN)) & (pl.col(VALUE_COLUMN) < pl.lit(1.0))
-        )['literal'].all()
+        test = df_obs.with_columns((pl.lit(0.0) < pl.col(VALUE_COLUMN)) & (pl.col(VALUE_COLUMN) < pl.lit(1.0)))['literal'].all()
 
         if not test:
-            raise NodeError(self, f"All values in {self.id} must be between 0 and 1, exclusive.")
+            raise NodeError(self, f'All values in {self.id} must be between 0 and 1, exclusive.')
 
-        df_obs = df_obs.with_columns(
-            (pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN))).log().alias(VALUE_COLUMN)
-        )
+        df_obs = df_obs.with_columns((pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN))).log().alias(VALUE_COLUMN))
 
         # Join observations with weighted sum
         df = df.paths.join_over_index(df_obs, how='outer', index_from='left')
@@ -742,16 +716,12 @@ class SectorParseResult(TypedDict):
 
 
 class DimensionalSectorNode(GenericNode):
-    explanation = _("Reads in a dataset and filters and interprets its content according to the <i>sector</i> parameter.")
+    explanation = _('Reads in a dataset and filters and interprets its content according to the <i>sector</i> parameter.')
     default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
     allowed_parameters = [
         *GenericNode.allowed_parameters,
-        StringParameter(
-            local_id='sector',
-            label='Sector path in HSY emission database',
-            is_customizable=False
-        ),
+        StringParameter(local_id='sector', label='Sector path in HSY emission database', is_customizable=False),
     ]
 
     def parse_dimension_names_from_sector_string(self, sector_name: str) -> SectorParseResult:
@@ -775,11 +745,7 @@ class DimensionalSectorNode(GenericNode):
         full_pattern = r'\|'.join(filter_pattern)
         return {'pattern': full_pattern, 'dimensions': dimension_map}
 
-    def process_sector_data_pl(
-        self,
-        df: PathsDataFrame,
-        columns: str | list[str]
-    ) -> PathsDataFrame:
+    def process_sector_data_pl(self, df: PathsDataFrame, columns: str | list[str]) -> PathsDataFrame:
         """
         Process sector data from a polars DataFrame.
 
@@ -827,9 +793,7 @@ class DimensionalSectorNode(GenericNode):
 
             # Group by dimensions and year
             group_cols = [YEAR_COLUMN] + list(dimension_map.values())
-            result = matching_sectors.group_by(group_cols).agg([
-                pl.sum(col).alias(col) for col in columns
-            ])
+            result = matching_sectors.group_by(group_cols).agg([pl.sum(col).alias(col) for col in columns])
 
             # Add dimension columns to index
             result = ppl.to_ppdf(result, meta)
@@ -837,9 +801,7 @@ class DimensionalSectorNode(GenericNode):
                 result = result.add_to_index(dim_name)
         else:
             # No dimensions, just group by year
-            result = matching_sectors.group_by(YEAR_COLUMN).agg([
-                pl.sum(col).alias(col) for col in columns
-            ])
+            result = matching_sectors.group_by(YEAR_COLUMN).agg([pl.sum(col).alias(col) for col in columns])
             result = ppl.to_ppdf(result, meta)
 
         # Add forecast column if not present
@@ -851,7 +813,7 @@ class DimensionalSectorNode(GenericNode):
     def _operation_process_sector(self, df: PathsDataFrame | None) -> OperationReturn:
         """Process the sector data from HSY nodes."""
         if df is not None:
-            raise NodeError(self, "process_sector must be the first operation, so df must be None.")
+            raise NodeError(self, 'process_sector must be the first operation, so df must be None.')
         n = self.get_input_node(tag='other_node', required=True)
         data_df = n.get_output_pl()
 
@@ -872,7 +834,7 @@ class DimensionalSectorNode(GenericNode):
 
 
 class DimensionalSectorEmissions(DimensionalSectorNode):
-    explanation = _("Filters emissions according to the <i>sector</i> parameter.")
+    explanation = _('Filters emissions according to the <i>sector</i> parameter.')
     default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
 
@@ -883,7 +845,7 @@ class DimensionalSectorEmissions(DimensionalSectorNode):
 
 
 class DimensionalSectorEnergy(DimensionalSectorNode):
-    explanation = _("Filters energy use according to the <i>sector</i> parameter.")
+    explanation = _('Filters energy use according to the <i>sector</i> parameter.')
     default_unit = 'GWh/a'
     quantity = ENERGY_QUANTITY
 
@@ -894,14 +856,14 @@ class DimensionalSectorEnergy(DimensionalSectorNode):
 
 
 class DimensionalSectorEmissionFactor(DimensionalSectorNode):
-    explanation = _("Filters emissions and energy according to the <i>sector</i> parameter and calculates emission factor.")
+    explanation = _('Filters emissions and energy according to the <i>sector</i> parameter and calculates emission factor.')
     default_unit = 'g/kWh'
     quantity = EMISSION_FACTOR_QUANTITY
 
     def _operation_process_emission_factor(self, df: PathsDataFrame | None) -> OperationReturn:
         """Calculate emission factors from energy and emission data."""
         if df is not None:
-            raise NodeError(self, "process_sector must be the first operation, so df must be None.")
+            raise NodeError(self, 'process_sector must be the first operation, so df must be None.')
         n = self.get_input_node(tag='other_node', required=True)
         data_df = n.get_output_pl()
 
@@ -925,7 +887,8 @@ class IterativeNode(GenericNode):
         It calculates one year at a time based on previous year's value and inputs and outputs
         starting from the first forecast year. In addition, it must have a feedback loop (otherwise it makes
         no sense to use this node class), which is given as a growth rate per year from the previous year's value.
-        """)
+        """
+    )
 
     def _operation_year_iteration(self, df: PathsDataFrame | None) -> OperationReturn:
         """Perform year-by-year iteration using previous values, growth rate and changes."""
@@ -962,7 +925,7 @@ class IterativeNode(GenericNode):
         # Find historical and forecast boundary
         historical_df = df_out.filter(~pl.col(FORECAST_COLUMN))
         if len(historical_df) == 0:
-            raise NodeError(self, "IterativeNode must have historical values.")
+            raise NodeError(self, 'IterativeNode must have historical values.')
 
         # Get years needed for iteration
         last_historical_year = historical_df[YEAR_COLUMN].sort().last()
@@ -975,24 +938,19 @@ class IterativeNode(GenericNode):
 
         keep_cols = [YEAR_COLUMN, FORECAST_COLUMN, VALUE_COLUMN] + df_out.dim_ids
         # First add all historical data to our result (unchanged)
-        processed_years[last_historical_year] = (
-            df_out.filter(pl.col(YEAR_COLUMN) <= last_historical_year)
-            .select(keep_cols))
+        processed_years[last_historical_year] = df_out.filter(pl.col(YEAR_COLUMN) <= last_historical_year).select(keep_cols)
 
         # Process each forecast year sequentially
         for forecast_year in range(int(last_historical_year) + 1, int(end_year) + 1):
             # Get previous year's data
             prev_year = forecast_year - 1
-            prev_year_data = (
-                processed_years[prev_year]
-                .filter(pl.col(YEAR_COLUMN) == prev_year)
-                .drop(YEAR_COLUMN))
+            prev_year_data = processed_years[prev_year].filter(pl.col(YEAR_COLUMN) == prev_year).drop(YEAR_COLUMN)
 
             # Get current year's changes and rates
             current_year_data = df_out.filter(pl.col(YEAR_COLUMN) == forecast_year)
 
             if len(current_year_data) == 0:
-                raise NodeError(self, f"Year {forecast_year} is missing in the input data")
+                raise NodeError(self, f'Year {forecast_year} is missing in the input data')
 
             # Create a new dataframe for the current year by joining with previous year
             # Use outer join to ensure we process all dimension combinations
@@ -1002,9 +960,9 @@ class IterativeNode(GenericNode):
             # Now calculate the new values with a vectorized operation on all dimensions
             result_year = result_year.with_columns([
                 # New value = (prev_value + changes) * rate
-                ((pl.col('prev_value').fill_null(0.0) +
-                pl.col('changes').fill_null(0.0)) *
-                pl.col('rate').fill_null(1.0)).alias(VALUE_COLUMN)
+                ((pl.col('prev_value').fill_null(0.0) + pl.col('changes').fill_null(0.0)) * pl.col('rate').fill_null(1.0)).alias(
+                    VALUE_COLUMN
+                )
             ])
 
             # Add the needed columns to our processed years
@@ -1030,9 +988,7 @@ class IterativeNode(GenericNode):
 
 
 class CoalesceNode(GenericNode):
-    explanation = _(
-        """Coalesces the empty values with the values from the node with the tag 'coalesce'."""
-    )
+    explanation = _("""Coalesces the empty values with the values from the node with the tag 'coalesce'.""")
     DEFAULT_OPERATIONS = 'multiply,coalesce,add'
 
     def __init__(self, *args, **kwargs):
@@ -1043,7 +999,7 @@ class CoalesceNode(GenericNode):
     def _operation_coalesce(self, df: PathsDataFrame | None) -> OperationReturn:
         """Coalesce requires exactly one input with tag primary or secondary. Prefer using coalesce in formula."""
         if df is None:
-            raise NodeError(self, "Cannot apply coalesce because no PathsDataFrame is available.")
+            raise NodeError(self, 'Cannot apply coalesce because no PathsDataFrame is available.')
 
         primary = self.get_input_nodes(tag='primary')
         secondary = self.get_input_nodes(tag='secondary')
@@ -1058,25 +1014,26 @@ class CoalesceNode(GenericNode):
         else:
             raise NodeError(
                 self,
-                ("Coalesce requires exactly one input with tag 'primary' or 'secondary'; "
-                 "got %d primary, %d secondary.") % (len(primary), len(secondary)),
+                ("Coalesce requires exactly one input with tag 'primary' or 'secondary'; got %d primary, %d secondary.")
+                % (len(primary), len(secondary)),
             )
         return df
 
 
 class CohortNode(GenericNode):
     explanation = _(
-    """
+        """
     Cohort node take in initial age structure (inventory) and follows the cohort in time as it ages.
 
     Harvest describes how much is removed from the cohort.
-    """)
+    """
+    )
 
     output_metrics = {
-         'hectares': NodeMetric('t_ha', 'area'),
-         'total_volume': NodeMetric('m3_solid', 'volume'),
-         'harvest_volume': NodeMetric('m3_solid/a', 'volume'),
-         'natural_mortality': NodeMetric('m3_solid/a', 'volume'),
+        'hectares': NodeMetric('t_ha', 'area'),
+        'total_volume': NodeMetric('m3_solid', 'volume'),
+        'harvest_volume': NodeMetric('m3_solid/a', 'volume'),
+        'natural_mortality': NodeMetric('m3_solid/a', 'volume'),
     }
     # allowed_parameters = [
     #     *GenericNode.allowed_parameters,
@@ -1088,7 +1045,7 @@ class CohortNode(GenericNode):
         """Create a transition matrix with age-specific harvest probabilities."""
         # This method is fine as is - no changes needed
         # Ensure we have the right number of probabilities
-        assert len(harvest_probabilities) == n_ages, "Must provide harvest probability for each age group"
+        assert len(harvest_probabilities) == n_ages, 'Must provide harvest probability for each age group'
 
         # Create transition matrix
         transition_matrix = np.zeros((n_ages, n_ages))
@@ -1099,7 +1056,8 @@ class CohortNode(GenericNode):
 
             # Sanity check on probability
             assert 0 <= harvest_prob <= 1, (
-                f"Harvest probability must be between 0 and 1, got {harvest_prob} for age {current_age}")
+                f'Harvest probability must be between 0 and 1, got {harvest_prob} for age {current_age}'
+            )
 
             # Probability of being harvested (moves to age 0)
             if harvest_prob > 0:
@@ -1115,14 +1073,7 @@ class CohortNode(GenericNode):
 
         return transition_matrix
 
-    def simulate_age_dynamics(
-            self,
-            initial_ages,
-            years,
-            harvest_probabilities,
-            growth_curve,
-            mortality_rate_fn
-        ):
+    def simulate_age_dynamics(self, initial_ages, years, harvest_probabilities, growth_curve, mortality_rate_fn):
         """
         Core simulation function handling pure age dynamics and returning a DataFrame.
 
@@ -1164,7 +1115,7 @@ class CohortNode(GenericNode):
             transition_matrix = self.get_transition_matrix(n_ages, harvest_probabilities)
 
             # Calculate pre-transition state
-            pre_hectares = hectares[year_idx-1].copy()
+            pre_hectares = hectares[year_idx - 1].copy()
 
             # Track harvest volume by age class
             for age in range(n_ages):
@@ -1210,7 +1161,7 @@ class CohortNode(GenericNode):
                     'hectares': hectares[year_idx, age],
                     'total_volume': total_volume,
                     'harvest_volume': harvest_volume[year_idx, age],
-                    'natural_mortality': natural_mortality[year_idx, age]
+                    'natural_mortality': natural_mortality[year_idx, age],
                 }
 
                 results_data.append(row)
@@ -1218,12 +1169,7 @@ class CohortNode(GenericNode):
         # Create and return DataFrame without dimension data
         return pl.DataFrame(results_data)
 
-    def simulate_cohort(
-            self,
-            initial_year: PathsDataFrame,
-            years: range,
-            max_age: int = 161
-        ):
+    def simulate_cohort(self, initial_year: PathsDataFrame, years: range, max_age: int = 161):
         """
         Simulate forest development for all dimension combinations.
 
@@ -1242,7 +1188,7 @@ class CohortNode(GenericNode):
 
         """
         if len(initial_year.dim_ids) < 2:
-            raise NodeError(self, "CohortNode must receive at least one dimension in addition to Age.")
+            raise NodeError(self, 'CohortNode must receive at least one dimension in addition to Age.')
         # Process each dimension combination separately
         all_results = []
 
@@ -1251,11 +1197,7 @@ class CohortNode(GenericNode):
 
         for combo in dim_combinations.iter_rows(named=True):
             # Extract data for this combination of dimensions
-            combo_data = initial_year.filter(
-                pl.all_horizontal(
-                    pl.col(dim) == combo[dim] for dim in dim_combinations.columns
-                )
-            )
+            combo_data = initial_year.filter(pl.all_horizontal(pl.col(dim) == combo[dim] for dim in dim_combinations.columns))
 
             # Create array of hectares by age and harvest probabilities
             initial_ages = np.zeros(max_age)
@@ -1275,13 +1217,7 @@ class CohortNode(GenericNode):
             mortality_rate_fn = params['mortality_rates']
 
             # Run core simulation without dimension data
-            sim_results = self.simulate_age_dynamics(
-                initial_ages,
-                years,
-                harvest_probabilities,
-                growth_curve,
-                mortality_rate_fn
-            )
+            sim_results = self.simulate_age_dynamics(initial_ages, years, harvest_probabilities, growth_curve, mortality_rate_fn)
 
             # Add dimension data to results
             for dim in dim_combinations.columns:
@@ -1320,20 +1256,10 @@ class CohortNode(GenericNode):
 
         """
         # Site factors for growth - use region if available, otherwise default
-        site_factors = {
-            "herb-rich": 1.3,
-            "fresh": 1.0,
-            "sub-dry": 0.7,
-            "dry": 0.5
-        }
+        site_factors = {'herb-rich': 1.3, 'fresh': 1.0, 'sub-dry': 0.7, 'dry': 0.5}
 
         # Species factors for growth - use species if available, otherwise default
-        species_factors = {
-            "pine": 1.0,
-            "spruce": 1.2,
-            "birch": 0.8,
-            "other": 0.7
-        }
+        species_factors = {'pine': 1.0, 'spruce': 1.2, 'birch': 0.8, 'other': 0.7}
 
         # Get region and species from combo if available, otherwise use defaults
         region = combo.get('region', 'unknown')
@@ -1349,23 +1275,23 @@ class CohortNode(GenericNode):
 
         # Create mortality rate function - could be customized based on other dimensions
         def mortality_rates(age: int) -> float:
-            return 0.005 + 0.0005 * age/10
+            return 0.005 + 0.0005 * age / 10
 
         # Build parameter dictionary - include all combo items for reference
         params = {
             **combo,  # Include all dimension values
             'max_age': max_age,
             'growth_curve': growth_curve,
-            'mortality_rates': mortality_rates
+            'mortality_rates': mortality_rates,
         }
 
         return params
 
     def expand_to_annual_ages(
-            self,
-            forest_df: PathsDataFrame,
-            age_groups: list[tuple[int, int]],
-        ) -> PathsDataFrame:
+        self,
+        forest_df: PathsDataFrame,
+        age_groups: list[tuple[int, int]],
+    ) -> PathsDataFrame:
         """Convert aggregated age group data to annual age classes."""
         annual_data = []
         meta = forest_df.get_meta()
@@ -1393,8 +1319,8 @@ class CohortNode(GenericNode):
                 annual_data.append({  # noqa: PERF401
                     **{k: v for k, v in record.items() if k not in {'age', VALUE_COLUMN, VALUE_COLUMN + '_right'}},
                     'annual_age': age,
-                    'hectares': hectares_per_year, # Initial_year
-                    'harvest_probability': record[VALUE_COLUMN + '_right'], # Harvest_probability
+                    'hectares': hectares_per_year,  # Initial_year
+                    'harvest_probability': record[VALUE_COLUMN + '_right'],  # Harvest_probability
                 })
 
         new_keys = {VALUE_COLUMN: 'hectares', VALUE_COLUMN + '_right': 'harvest_probability'}
@@ -1403,31 +1329,25 @@ class CohortNode(GenericNode):
             if old_key in meta.units:
                 meta.units[new_key] = meta.units.pop(old_key)
 
-
         out = pl.DataFrame(annual_data)
         meta.primary_keys = [col for col in out.columns if col in meta.primary_keys + ['annual_age']]
         out = ppl.to_ppdf(out, meta=meta)
 
         return out
 
-    def aggregate_to_age_groups(
-            self,
-            annual_results: PathsDataFrame,
-            age_groups: list[tuple[int, int]]) -> PathsDataFrame:
+    def aggregate_to_age_groups(self, annual_results: PathsDataFrame, age_groups: list[tuple[int, int]]) -> PathsDataFrame:
         """Aggregate annual age results back to original age groups."""
 
-        def find_age_group(age: int) -> str: #, age_groups: list[tuple[int, int]]) -> str:
+        def find_age_group(age: int) -> str:  # , age_groups: list[tuple[int, int]]) -> str:
             for start, end in age_groups:
                 if start <= age <= end:
-                    return f"{start}"
+                    return f'{start}'
 
             # If no range matches, return the start of the last group
-            return f"{age_groups[-1][0]}"
+            return f'{age_groups[-1][0]}'
 
         # Add age group ID
-        df = annual_results.with_columns([
-            pl.col('annual_age').map_elements(find_age_group, return_dtype=pl.Utf8).alias('age')
-        ])
+        df = annual_results.with_columns([pl.col('annual_age').map_elements(find_age_group, return_dtype=pl.Utf8).alias('age')])
         df = df.add_to_index('age')
         df = df.with_columns((pl.col(YEAR_COLUMN) > pl.col(YEAR_COLUMN).min()).alias(FORECAST_COLUMN))
         df = df.paths.sum_over_dims('annual_age')
@@ -1436,8 +1356,7 @@ class CohortNode(GenericNode):
 
     def compute(self) -> PathsDataFrame:
         # Define age groups
-        age_groups = [(0,0), (1,20), (21,40), (41,60), (61,80), (81,100),
-                    (101,120), (121,140), (141,160)]
+        age_groups = [(0, 0), (1, 20), (21, 40), (41, 60), (61, 80), (81, 100), (101, 120), (121, 140), (141, 160)]
 
         # Define simulation years
         years = range(2022, 2050)
@@ -1506,7 +1425,7 @@ class DatasetReduceNode(GenericNode):
         df = df.paths.cast_index_to_str()
 
         if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
-            raise NodeError(self, "Dimension mismatch to input nodes")
+            raise NodeError(self, 'Dimension mismatch to input nodes')
 
         # Filter historical data with only the categories that are
         # specified in the goal dataset.
@@ -1518,8 +1437,7 @@ class DatasetReduceNode(GenericNode):
         end_year = self.get_end_year()
         assert len(gdf.metric_cols) == 1
         gdf = (
-            gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN})
-            .with_columns(pl.lit(True).alias(FORECAST_COLUMN))  # noqa: FBT003
+            gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN}).with_columns(pl.lit(True).alias(FORECAST_COLUMN))  # noqa: FBT003
         )
 
         is_mult = self.get_parameter_value('relative_goal', required=False)
@@ -1554,7 +1472,7 @@ class DatasetReduceNode(GenericNode):
         df = df.filter(pl.col(FORECAST_COLUMN))
         df = df.filter(pl.col(YEAR_COLUMN).lt(end_year + 1))
         df = df.paths.to_narrow()
-        for m in self.output_metrics.values(): # TODO Not sure that multimetric functionalities are needed.
+        for m in self.output_metrics.values():  # TODO Not sure that multimetric functionalities are needed.
             if m.column_id not in df.metric_cols:
                 raise NodeError(self, "Metric column '%s' not found in output" % m.column_id)
             df = df.ensure_unit(m.column_id, m.unit)
@@ -1563,17 +1481,12 @@ class DatasetReduceNode(GenericNode):
 
 class GenerationCapacityNode(GenericNode):
     output_metrics = {
-        'default': NodeMetric(
-            'MWh/a', 'energy', 'default',
-            'Energy generated with old and new capacity', VALUE_COLUMN
-        ),
+        'default': NodeMetric('MWh/a', 'energy', 'default', 'Energy generated with old and new capacity', VALUE_COLUMN),
         'emissions_avoided': NodeMetric(
-            'kt_co2e/a', 'emissions', 'emissions_avoided',
-            'Emissions avoided by replacing other sources', 'emissions_avoided'
+            'kt_co2e/a', 'emissions', 'emissions_avoided', 'Emissions avoided by replacing other sources', 'emissions_avoided'
         ),
         'upstream_emissions': NodeMetric(
-            'kt_co2e/a', 'emissions', 'upstream_emissions',
-            'Production emissions caused upstream', 'upstream_emissions'
+            'kt_co2e/a', 'emissions', 'upstream_emissions', 'Production emissions caused upstream', 'upstream_emissions'
         ),
     }
     allowed_parameters = [
@@ -1587,28 +1500,27 @@ class GenerationCapacityNode(GenericNode):
 
     def _operation_generation_capacity(self, df: PathsDataFrame | None) -> OperationReturn:
         if df is None:
-            raise NodeError(self, "Node must receive new installations as input node(s).")
+            raise NodeError(self, 'Node must receive new installations as input node(s).')
 
         stock = df.paths._cumulative(df, self.context)
-        _lifetime = self.get_parameter_value_int('lifetime') # FIXME Add retirement
+        _lifetime = self.get_parameter_value_int('lifetime')  # FIXME Add retirement
 
         up = self.get_input_dataset_pl('ef_upstream_production', required=True)
-        df= df.paths.multiply_with_dims(up).rename({VALUE_COLUMN: 'upstream_emissions'})
+        df = df.paths.multiply_with_dims(up).rename({VALUE_COLUMN: 'upstream_emissions'})
 
         efficiency = self.get_parameter_value('efficiency', required=True, units=True)
         assert isinstance(efficiency, Quantity)
         performance = self.get_parameter_value_float('performance_ratio', units=False)
 
-        stock = ( # Calculate energy generation
-            stock.multiply_quantity(VALUE_COLUMN, efficiency)
-            .with_columns(
-                pl.col(VALUE_COLUMN) * pl.lit(performance)
-        ))
+        stock = (  # Calculate energy generation
+            stock.multiply_quantity(VALUE_COLUMN, efficiency).with_columns(pl.col(VALUE_COLUMN) * pl.lit(performance))
+        )
 
         ef = self.get_input_dataset_pl(tag='ef_displacement')
 
-        stock = ( # FIXME Emissions avoided do double count with downstream emissions
-            stock.paths.join_over_index(ef) # TODO Should this be inner join?
+        stock = (  # FIXME Emissions avoided do double count with downstream emissions
+            stock.paths
+            .join_over_index(ef)  # TODO Should this be inner join?
             .multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], 'emissions_avoided')
             .drop(VALUE_COLUMN + '_right')
             .with_columns(pl.col('emissions_avoided').fill_null(0.0))
@@ -1636,10 +1548,10 @@ class ChpNode(GenericNode):
 
     def _operation_chp_ef_split(self, df: PathsDataFrame | None) -> OperationReturn:
         if df is None:
-            raise NodeError(self, "Node must receive average CHP fuel emission factors.")
+            raise NodeError(self, 'Node must receive average CHP fuel emission factors.')
 
         if 'energy_carrier' in df.dim_ids:
-            raise NodeError(self, "Input emission factors contain dimension energy_carrier but it must be averaged over it.")
+            raise NodeError(self, 'Input emission factors contain dimension energy_carrier but it must be averaged over it.')
 
         methods = {
             'energy_content': self._energy_method,
@@ -1650,35 +1562,32 @@ class ChpNode(GenericNode):
         method = self.get_parameter_value_str('method', required=True)
         metfun = methods.get(method)
         if metfun is None:
-            raise NodeError(self, f"Parameter method got value {method} but must be one of: {methods.keys()}.")
+            raise NodeError(self, f'Parameter method got value {method} but must be one of: {methods.keys()}.')
 
-        df = metfun(df) # Add z factors
+        df = metfun(df)  # Add z factors
 
         f_el = self.get_parameter_value_float('electricity_fraction', required=True)
+        df = df.with_columns([pl.lit(f_el).alias('f_el'), pl.lit(1.0 - f_el).alias('f_heat')])
         df = df.with_columns([
-            pl.lit(f_el).alias('f_el'),
-            pl.lit(1.0 - f_el).alias('f_heat')
+            (pl.col('z_el') * pl.col('f_el') / (pl.col('z_el') * pl.col('f_el') + pl.col('z_heat') * pl.col('f_heat'))).alias(
+                'a_el'
+            )
         ])
-        df = df.with_columns([
-            (pl.col('z_el') * pl.col('f_el')
-                / (
-                    pl.col('z_el') * pl.col('f_el')
-                    + pl.col('z_heat') * pl.col('f_heat')
-                )
-            ).alias('a_el')])
-        df = df.with_columns([
-            (pl.lit(1.0) - pl.col('a_el')).alias('a_heat')
-        ])
+        df = df.with_columns([(pl.lit(1.0) - pl.col('a_el')).alias('a_heat')])
 
         drops = ['f_el', 'f_heat', 'z_el', 'z_heat', 'a_el', 'a_heat']
-        df_el = df.with_columns([
-            pl.col(VALUE_COLUMN) * pl.col('a_el'),
-            pl.lit('electricity').alias('energy_carrier')
-        ]).drop(drops).add_to_index('energy_carrier')
-        df_heat = df.with_columns([
-            pl.col(VALUE_COLUMN) * pl.col('a_heat'),
-            pl.lit('district_heating').alias('energy_carrier')
-        ]).drop(drops).add_to_index('energy_carrier')
+        df_el = (
+            df
+            .with_columns([pl.col(VALUE_COLUMN) * pl.col('a_el'), pl.lit('electricity').alias('energy_carrier')])
+            .drop(drops)
+            .add_to_index('energy_carrier')
+        )
+        df_heat = (
+            df
+            .with_columns([pl.col(VALUE_COLUMN) * pl.col('a_heat'), pl.lit('district_heating').alias('energy_carrier')])
+            .drop(drops)
+            .add_to_index('energy_carrier')
+        )
         df = df_el.paths.concat_vertical(df_heat)
 
         return df
@@ -1722,6 +1631,7 @@ class ChpNode(GenericNode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.OPERATIONS['chp_ef_split'] = self._operation_chp_ef_split
+
 
 class ConstantNode(GenericNode):
     allowed_parameters = [

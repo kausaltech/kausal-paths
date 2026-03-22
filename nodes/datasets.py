@@ -45,7 +45,7 @@ class Dataset(ABC):
         self.df = None
         self.hash = None
         self.interpolate = False
-        self.rng = default_rng() # type: ignore
+        self.rng = default_rng()  # type: ignore
         if getattr(self, 'unit', None) is None:
             self.unit = None
 
@@ -109,8 +109,7 @@ class Dataset(ABC):
         cols = []
         for col in df.columns:
             # FIXME Invent a generic way to ignore sampling when content is not probabilities
-            if (col not in [FORECAST_COLUMN, 'Unit', 'UUID', 'muni'] + df.primary_keys and
-                isinstance(df[col].dtype, pl.String)):
+            if col not in [FORECAST_COLUMN, 'Unit', 'UUID', 'muni'] + df.primary_keys and isinstance(df[col].dtype, pl.String):
                 cols += [col]
         if size == 0 or len(cols) == 0:
             # TODO Whether too use uncertainties depends on the node
@@ -141,7 +140,7 @@ class Dataset(ABC):
                 out = out.join(dfc, how='inner', on=['row_index', UNCERTAINTY_COLUMN])
 
         df = df.drop(cols)
-        df = df.join(out, how='inner', on='row_index').drop('row_index') # type: ignore
+        df = df.join(out, how='inner', on='row_index').drop('row_index')  # type: ignore
         df = ppl.to_ppdf(df, meta=meta)
         df = df.with_columns(pl.col(UNCERTAINTY_COLUMN).cast(pl.Categorical))
 
@@ -150,42 +149,51 @@ class Dataset(ABC):
     def loguniform(self, match, size) -> list:
         low = np.log(float(match.group(1)))
         high = np.log(float(match.group(2)))
-        return np.exp(self.rng.uniform(low, high, size)).tolist() # type: ignore
+        return np.exp(self.rng.uniform(low, high, size)).tolist()  # type: ignore
+
     def uniform(self, match, size) -> list:
         low = float(match.group(1))
         high = float(match.group(2))
-        return self.rng.uniform(low, high, size).tolist() # type: ignore
+        return self.rng.uniform(low, high, size).tolist()  # type: ignore
+
     def lognormal_plusminus(self, match, size) -> list:
         mean_lognormal = float(match.group(1))
         std_lognormal = float(match.group(2))
-        sigma = np.sqrt(np.log(1 + (std_lognormal ** 2) / (mean_lognormal ** 2)))
-        mu = np.log(mean_lognormal) - (sigma ** 2) / 2
-        return self.rng.lognormal(mu, sigma, size).tolist() # type: ignore
+        sigma = np.sqrt(np.log(1 + (std_lognormal**2) / (mean_lognormal**2)))
+        mu = np.log(mean_lognormal) - (sigma**2) / 2
+        return self.rng.lognormal(mu, sigma, size).tolist()  # type: ignore
+
     def normal_plusminus(self, match, size) -> list:
         loc = float(match.group(1))
         scale = float(match.group(2))
-        return self.rng.normal(loc, scale, size).tolist() # type: ignore
+        return self.rng.normal(loc, scale, size).tolist()  # type: ignore
+
     def normal_interval(self, match, size) -> list:
         loc = float(match.group(1))
         lower = float(match.group(2))
         upper = float(match.group(3))
         scale = (upper - lower) / 2 / 1.959963984540054
-        return self.rng.normal(loc, scale, size).tolist() # type: ignore
+        return self.rng.normal(loc, scale, size).tolist()  # type: ignore
+
     def beta(self, match, size) -> list:
         a = float(match.group(1))
         b = float(match.group(2))
-        return self.rng.beta(a, b, size).tolist() # type: ignore
+        return self.rng.beta(a, b, size).tolist()  # type: ignore
+
     def poisson(self, match, size) -> list:
         lam = float(match.group(1))
-        s = self.rng.poisson(lam, size).tolist() # type: ignore
+        s = self.rng.poisson(lam, size).tolist()  # type: ignore
         return [float(v) for v in s]
+
     def exponential(self, match, size) -> list:
         mean = float(match.group(1))
-        return self.rng.exponential(scale=mean, size=size).tolist() # type: ignore
+        return self.rng.exponential(scale=mean, size=size).tolist()  # type: ignore
+
     def problist(self, match, size) -> list:
         s = match.group(1)
         s = [float(x) for x in s.split(',')]
-        return self.rng.choice(s, size, replace=True).tolist() # type: ignore
+        return self.rng.choice(s, size, replace=True).tolist()  # type: ignore
+
     def scalar(self, match, size) -> list:
         value = float(match.group(1))
         return [value] * size
@@ -279,7 +287,7 @@ class DatasetWithFilters(Dataset):
             if len(df) == 0:
                 print(df_orig)
                 print(self.filters)
-                raise ValueError("Nothing left after filtering. See original dataset above.")
+                raise ValueError('Nothing left after filtering. See original dataset above.')
 
         return df
 
@@ -344,7 +352,7 @@ class DatasetWithFilters(Dataset):
         col = d['rename_col']
         val = d.get('value')
         if col not in df.columns:
-            raise NameError(self, f"Column {col} not found. Available columns are {df.columns}")
+            raise NameError(self, f'Column {col} not found. Available columns are {df.columns}')
         if val:
             df = df.rename({col: val})
         return df
@@ -357,7 +365,7 @@ class DatasetWithFilters(Dataset):
         item = old[1]
         new_item = d.get('value', '')
         if new_item == '':
-            raise ValueError(self, "rename_item must have value.")
+            raise ValueError(self, 'rename_item must have value.')
         # str.replace_all requires Utf8; cast if column is not string (e.g. Categorical)
         series = pl.col(col)
         if df.schema[col] != pl.Utf8:
@@ -371,6 +379,7 @@ class DatasetWithFilters(Dataset):
 
         # FIXME Don't let DatasetNodes get double preparation of gpc. Remove when you gte rid of DatasetNodes
         from nodes.gpc import DatasetNode
+
         tags = self.tags.copy()
         for n in context.nodes.values():
             if any(ds is self for ds in n.input_dataset_instances) and isinstance(n, DatasetNode):
@@ -414,19 +423,20 @@ class DatasetWithFilters(Dataset):
                 baseline_year = context.instance.reference_year
                 if baseline_year is None:
                     raise Exception(
-                        'The reference_year from instance is not given. ' +
-                        'It is needed by dataset %s to define the baseline for relative data.'
-                        % self.id,
+                        'The reference_year from instance is not given. '
+                        + 'It is needed by dataset %s to define the baseline for relative data.' % self.id,
                     )
                 df = df.with_columns(
-                    pl.when(pl.col(YEAR_COLUMN) < 90)
+                    pl
+                    .when(pl.col(YEAR_COLUMN) < 90)
                     .then(pl.col(YEAR_COLUMN) + pl.lit(baseline_year))
                     .otherwise(pl.col(YEAR_COLUMN))
                     .alias(YEAR_COLUMN),
                 )
                 target_year = context.instance.target_year
                 df = df.with_columns(
-                    pl.when((pl.col(YEAR_COLUMN) >= 90) & (pl.col(YEAR_COLUMN) < 200))
+                    pl
+                    .when((pl.col(YEAR_COLUMN) >= 90) & (pl.col(YEAR_COLUMN) < 200))
                     .then(pl.col(YEAR_COLUMN) + pl.lit(target_year) - pl.lit(100))
                     .otherwise(pl.col(YEAR_COLUMN))
                     .alias(YEAR_COLUMN),
@@ -441,7 +451,8 @@ class DatasetWithFilters(Dataset):
             cols.append(FORECAST_COLUMN)
         elif self.forecast_from is not None:
             df = df.with_columns(
-                pl.when(pl.col(YEAR_COLUMN) >= self.forecast_from)
+                pl
+                .when(pl.col(YEAR_COLUMN) >= self.forecast_from)
                 .then(pl.lit(value=True))
                 .otherwise(pl.lit(value=False))
                 .alias(FORECAST_COLUMN),
@@ -612,14 +623,11 @@ class GenericDataset(DVCDataset):
 
         # Create a new metric column for each unit
         for unit_str in unique_units:
-            column_name = f"{VALUE_COLUMN}_{unit_str.replace('/', '_per_')}"
+            column_name = f'{VALUE_COLUMN}_{unit_str.replace("/", "_per_")}'
 
             # Create a filtered column with values only where Unit matches
             result = result.with_columns(
-                pl.when(pl.col('Unit') == unit_str)
-                .then(pl.col(VALUE_COLUMN))
-                .otherwise(None)
-                .alias(column_name)
+                pl.when(pl.col('Unit') == unit_str).then(pl.col(VALUE_COLUMN)).otherwise(None).alias(column_name)
             )
 
             # Add unit to metadata
@@ -627,17 +635,14 @@ class GenericDataset(DVCDataset):
             new_units[column_name] = unit
 
         result = result.drop([VALUE_COLUMN, 'Unit'])
-        new_meta = ppl.DataFrameMeta(
-            primary_keys=meta.primary_keys,
-            units=new_units
-        )
+        new_meta = ppl.DataFrameMeta(primary_keys=meta.primary_keys, units=new_units)
 
         return ppl.to_ppdf(result, meta=new_meta)
 
     # -----------------------------------------------------------------------------------
     def convert_names_to_ids(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Unit', 'UUID'}
-        exset |= {col for col in df.columns if col.startswith(f"{VALUE_COLUMN}_")}
+        exset |= {col for col in df.columns if col.startswith(f'{VALUE_COLUMN}_')}
         exset |= set(df.metric_cols)
         cols = list(set(df.columns) - exset)
 
@@ -717,12 +722,11 @@ class GenericDataset(DVCDataset):
         if FORECAST_COLUMN not in df.columns:
             df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))  # noqa: FBT003
 
-        self.interpolate = True # TODO Do we need this?
+        self.interpolate = True  # TODO Do we need this?
         if self.interpolate:
             df = self._linear_interpolate(df)
 
-        new_dims = [col for col, dtype in zip(df.columns, df.dtypes, strict=False)
-           if dtype in [pl.Utf8, pl.Categorical]]
+        new_dims = [col for col, dtype in zip(df.columns, df.dtypes, strict=False) if dtype in [pl.Utf8, pl.Categorical]]
         df = df.add_to_index([dim for dim in new_dims if dim not in df.dim_ids])
         df = extend_last_historical_value_pl(df, end_year=context.instance.model_end_year)
 
@@ -811,7 +815,7 @@ class FixedDataset(Dataset):
 
         df = self.df
         assert df is not None
-        df = self.interpret(df, context) # FIXME If all are scalars, do not create interpret dimension.
+        df = self.interpret(df, context)  # FIXME If all are scalars, do not create interpret dimension.
         self.df = df
         if cache_key:
             context.cache.set(cache_key, df, expiry=0)
@@ -820,10 +824,7 @@ class FixedDataset(Dataset):
     def hash_data(self, context: Context) -> dict[str, Any]:
         assert self.df is not None
         df = self.df.to_pandas()
-        return dict(
-            hash=int(self.pd.util.hash_pandas_object(df).sum()),
-            sample_size=context.sample_size
-        )
+        return dict(hash=int(self.pd.util.hash_pandas_object(df).sum()), sample_size=context.sample_size)
 
     def get_unit(self, context: Context) -> Unit:
         assert self.unit is not None
@@ -915,6 +916,7 @@ class DBDataset(DatasetWithFilters):
         super().__post_init__()
         if self.db_dataset_id is not None:
             from kausal_common.datasets.models import Dataset as DBDatasetModel
+
             self.db_dataset_obj = DBDatasetModel.objects.get(uuid=self.db_dataset_id)
 
     def load(self, context: Context) -> ppl.PathsDataFrame:
@@ -964,27 +966,41 @@ class DBDataset(DatasetWithFilters):
         #     )
         # )
 
-        dims = DatasetSchemaDimension.objects.filter(schema=ds_in.schema).annotate(
-            dim_uuid=F('dimension__uuid'),
-            dim_id=Coalesce(F('dimension__scopes__identifier'), Cast('dimension__uuid', output_field=CharField())),
-        ).order_by('id').distinct('id').values_list('dim_uuid', 'dim_id')
+        dims = (
+            DatasetSchemaDimension.objects
+            .filter(schema=ds_in.schema)
+            .annotate(
+                dim_uuid=F('dimension__uuid'),
+                dim_id=Coalesce(F('dimension__scopes__identifier'), Cast('dimension__uuid', output_field=CharField())),
+            )
+            .order_by('id')
+            .distinct('id')
+            .values_list('dim_uuid', 'dim_id')
+        )
         dim_anns = {
-            str(dim[1]): DimensionCategory.objects.filter(dimension__uuid=dim[0])
+            str(dim[1]): DimensionCategory.objects
+            .filter(dimension__uuid=dim[0])
             .filter(data_points=OuterRef('pk'))
             .annotate(cat_id=Coalesce(F('identifier'), Cast('uuid', output_field=CharField())))
             .values_list('cat_id', flat=True)
             for dim in dims
         }
 
-        dps = DataPoint.objects.filter(dataset=OuterRef('pk')).order_by().distinct('id').values(
-            json=JSONObject(
-                id=F('id'),
-                **{YEAR_COLUMN: F('date__year')},
-                value=F('value'),
-                metric=F('metric__uuid'),
-                #dim_cats=ArraySubquery(dim_cats),
-                **dim_anns,
-            ),
+        dps = (
+            DataPoint.objects
+            .filter(dataset=OuterRef('pk'))
+            .order_by()
+            .distinct('id')
+            .values(
+                json=JSONObject(
+                    id=F('id'),
+                    **{YEAR_COLUMN: F('date__year')},
+                    value=F('value'),
+                    metric=F('metric__uuid'),
+                    # dim_cats=ArraySubquery(dim_cats),
+                    **dim_anns,
+                ),
+            )
         )
 
         metrics = DatasetMetric.objects.filter(schema=OuterRef('schema')).values(
@@ -1021,19 +1037,18 @@ class DBDataset(DatasetWithFilters):
         if include_data_point_primary_keys and id_map is not None:
             id_pivoted = id_map.pivot(on='metric_name', index=[YEAR_COLUMN, *dim_ids], values='id')  # noqa: PD010
             id_pivoted = id_pivoted.rename({
-                col: f'_dp_pk_{col}' for col in id_pivoted.columns
-                if col not in [YEAR_COLUMN, *dim_ids]
+                col: f'_dp_pk_{col}' for col in id_pivoted.columns if col not in [YEAR_COLUMN, *dim_ids]
             })
             df = df.join(id_pivoted, on=[YEAR_COLUMN, *dim_ids], how='left', nulls_equal=True)
 
         meta = ppl.DataFrameMeta(
             units={
-                m['name']: unit_registry.parse_units(m['unit']) for m in ds.metrics  # type: ignore
+                m['name']: unit_registry.parse_units(m['unit'])
+                for m in ds.metrics  # type: ignore
             },
-            primary_keys=[YEAR_COLUMN, *dim_ids]
+            primary_keys=[YEAR_COLUMN, *dim_ids],
         )
 
         pdf = ppl.to_ppdf(df, meta)
 
         return pdf
-

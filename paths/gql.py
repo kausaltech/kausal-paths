@@ -45,6 +45,7 @@ def get_ic_or_error(info: Info, ic_id: str) -> InstanceConfig:
 @overload
 def mutation(*, extensions: list[FieldExtension] | None = None, **kwargs: Unpack[MutationArgs]) -> DjangoMutationBase: ...
 
+
 @overload
 def mutation(resolver: ResolverFunc, **kwargs: Unpack[MutationArgs]) -> DjangoMutationBase: ...
 
@@ -61,5 +62,6 @@ def mutation(
 @copy_signature(strawberry.field)
 def field(*args, **kwargs) -> Any:
     return grapple_field(*args, **kwargs)
+
 
 __all__ = ['Info', 'field', 'get_ic_or_error', 'mutation', 'parse_input', 'prepare_create_update', 'prepare_instance']

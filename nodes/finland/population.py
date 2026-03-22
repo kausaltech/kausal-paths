@@ -9,13 +9,11 @@ HISTORICAL_DATASET = 'statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re'
 FORECAST_DATASET = 'statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f'
 
 
-class Population(Node): # FIXME Convert functionality to GenericNode
+class Population(Node):  # FIXME Convert functionality to GenericNode
     TOTAL_POPULATION_COLUMN = 'Väestö 31.12.'
 
     global_parameters = ['municipality_name']
-    input_datasets = [
-        HISTORICAL_DATASET, FORECAST_DATASET
-    ]
+    input_datasets = [HISTORICAL_DATASET, FORECAST_DATASET]
     default_unit = 'person'
     quantity = 'population'
 
@@ -33,10 +31,7 @@ class Population(Node): # FIXME Convert functionality to GenericNode
         if 'Alue' in hist_cols:
             df_hist = df_hist.filter(pl.col('Alue') == muni_name)
         df_hist = df_hist.group_by('Vuosi').agg(pl.col(self.TOTAL_POPULATION_COLUMN).sum().alias(VALUE_COLUMN))
-        df_hist = df_hist.with_columns([
-            pl.col('Vuosi').cast(pl.Int64),
-            pl.lit(False).alias(FORECAST_COLUMN)
-        ])
+        df_hist = df_hist.with_columns([pl.col('Vuosi').cast(pl.Int64), pl.lit(value=False).alias(FORECAST_COLUMN)])
         df = df_hist.collect()
 
         fc_df = self.get_forecast_input()
@@ -50,20 +45,14 @@ class Population(Node): # FIXME Convert functionality to GenericNode
                 raise NodeError(self, 'Unable to find population forecast column')
             col = pop_col[0]
             ldf = ldf.group_by('Vuosi').agg(pl.col(col).sum().alias(VALUE_COLUMN))
-            ldf = ldf.with_columns([
-                pl.col('Vuosi').cast(pl.Utf8).cast(pl.Int64)
-            ])
+            ldf = ldf.with_columns([pl.col('Vuosi').cast(pl.Utf8).cast(pl.Int64)])
             # remove years that are also in historical df
             ldf = ldf.filter(~pl.col('Vuosi').is_in(df['Vuosi']))
-            ldf = ldf.with_columns([
-                pl.lit(True).alias(FORECAST_COLUMN)
-            ])
+            ldf = ldf.with_columns([pl.lit(value=True).alias(FORECAST_COLUMN)])
             df = pl.concat([df, ldf.collect()])
 
         df = df.sort('Vuosi').rename(dict(Vuosi=YEAR_COLUMN))
-        df = df.with_columns([
-            pl.col(VALUE_COLUMN).cast(pl.Float64)
-        ])
+        df = df.with_columns([pl.col(VALUE_COLUMN).cast(pl.Float64)])
         assert self.unit is not None
         df = ppl.to_ppdf(df, meta=ppl.DataFrameMeta(units={VALUE_COLUMN: self.unit}, primary_keys=[YEAR_COLUMN]))
         return df

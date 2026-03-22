@@ -62,7 +62,7 @@ class PathsAdminPageForm(WagtailAdminPageForm):
             if site is not None:
                 break
         else:
-            raise Exception("No sites found for page: %s" % self.instance)
+            raise Exception('No sites found for page: %s' % self.instance)
 
         return cast('InstanceConfig', site.instance)  # pyright: ignore
 
@@ -101,7 +101,7 @@ class PathsPage(Page):
     )
 
     content_panels: Sequence[Panel] = [
-        FieldPanel('title', classname="full title"),
+        FieldPanel('title', classname='full title'),
     ]
     common_settings_panels = [
         FieldPanel('seo_title'),
@@ -111,10 +111,13 @@ class PathsPage(Page):
         FieldPanel('search_description'),
     ]
     settings_panels = [
-        MultiFieldPanel([
-            FieldPanel('slug'),
-            *common_settings_panels,
-        ], _('Common page configuration')),
+        MultiFieldPanel(
+            [
+                FieldPanel('slug'),
+                *common_settings_panels,
+            ],
+            _('Common page configuration'),
+        ),
     ]
     promote_panels: Sequence[Panel] = []
 
@@ -218,11 +221,14 @@ class PathsPage(Page):
 
 
 class InstanceRootPage(PathsPage):
-    body = StreamField([
-        ('outcome', OutcomeBlock()),
-    ], block_counts={
-        'outcome': {'min_num': 1, 'max_num': 1},
-    })
+    body = StreamField(
+        [
+            ('outcome', OutcomeBlock()),
+        ],
+        block_counts={
+            'outcome': {'min_num': 1, 'max_num': 1},
+        },
+    )
 
     content_panels = [
         *PathsPage.content_panels,
@@ -233,10 +239,14 @@ class InstanceRootPage(PathsPage):
 
 
 class StaticPage(PathsPage):
-    body = StreamField[StreamValue | None]([
-        ('paragraph', blocks.RichTextBlock(label=_('Paragraph'))),
-        ('outcome', OutcomeBlock()),
-    ], blank=True, null=True)
+    body = StreamField[StreamValue | None](
+        [
+            ('paragraph', blocks.RichTextBlock(label=_('Paragraph'))),
+            ('outcome', OutcomeBlock()),
+        ],
+        blank=True,
+        null=True,
+    )
 
     content_panels = [
         *PathsPage.content_panels,
@@ -250,6 +260,7 @@ class StaticPage(PathsPage):
 
 class OutcomePageQuerySet(PageQuerySet['OutcomePage']):
     pass
+
 
 class OutcomePageManager(PathsPageManager['OutcomePage']):
     pass
@@ -290,9 +301,9 @@ class OutcomePage(PathsPage):
 
 class ActionListPage(PathsPage):
     class ActionSortOrder(models.TextChoices):
-        STANDARD = "standard", _("Standard")
-        IMPACT = "impact", _("Impact")
-        CUM_IMPACT = "cum_impact", _("Cumulative impact")
+        STANDARD = 'standard', _('Standard')
+        IMPACT = 'impact', _('Impact')
+        CUM_IMPACT = 'cum_impact', _('Cumulative impact')
 
     lead_title = models.CharField[str, str](verbose_name=_('Lead title'), blank=True, max_length=100)
     lead_paragraph = RichTextField(blank=True, verbose_name=_('Lead paragraph'))
@@ -365,7 +376,7 @@ class InstanceSiteContentManager(models.Manager['InstanceSiteContent']):
 
 
 class InstanceSiteContent(models.Model):
-    instance = models.OneToOneField(InstanceConfig, on_delete=models.CASCADE, related_name="site_content")
+    instance = models.OneToOneField(InstanceConfig, on_delete=models.CASCADE, related_name='site_content')
 
     intro_content = StreamField(
         block_types=[
@@ -373,7 +384,8 @@ class InstanceSiteContent(models.Model):
             (
                 'paragraph',
                 blocks.RichTextBlock(
-                    label=_('Introductory content to show in the UI'), features=['h2', 'h3', 'h4', 'bold', 'italic', 'embed'],
+                    label=_('Introductory content to show in the UI'),
+                    features=['h2', 'h3', 'h4', 'bold', 'italic', 'embed'],
                 ),
             ),
         ],
@@ -392,7 +404,7 @@ class InstanceSiteContent(models.Model):
         ordering = ['instance', 'id']
 
     def __str__(self) -> str:
-        return "Site contents for %s" % self.instance.name
+        return 'Site contents for %s' % self.instance.name
 
     def natural_key(self):
         return self.instance.natural_key()

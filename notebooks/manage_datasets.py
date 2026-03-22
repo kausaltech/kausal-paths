@@ -363,16 +363,16 @@ class OperationsExecutor:
         frames = self.all_results
         for i, f in enumerate(frames):
             if f.width == 0:
-                raise ValueError(f"concat_all_results: frame {i} has no columns.")
+                raise ValueError(f'concat_all_results: frame {i} has no columns.')
         ref_cols = frames[0].columns
         ref_counter = Counter(ref_cols)
         aligned: list[pl.DataFrame] = []
         for i, f in enumerate(frames):
             if Counter(f.columns) != ref_counter:
                 msg = (
-                    f"concat_all_results: frame {i} columns differ from frame 0 "
-                    + "(names and duplicate counts must match; order may differ). "
-                    + f"Reference: {ref_cols!r}. This frame: {f.columns!r}."
+                    f'concat_all_results: frame {i} columns differ from frame 0 '
+                    + '(names and duplicate counts must match; order may differ). '
+                    + f'Reference: {ref_cols!r}. This frame: {f.columns!r}.'
                 )
                 raise ValueError(msg)
             sub = f.select(ref_cols)
@@ -454,7 +454,8 @@ class OperationsExecutor:
             print(f"Extracting dimensions from '{description_col}' column: {sorted(all_dimensions)}")
 
         df = df.with_columns(
-            pl.col(description_col)
+            pl
+            .col(description_col)
             .map_elements(
                 lambda x: find_category_matches(x, category_mapping),
                 return_dtype=pl.Struct([pl.Field(dim, pl.Utf8) for dim in all_dimensions]),

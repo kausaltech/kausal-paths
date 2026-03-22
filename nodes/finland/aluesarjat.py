@@ -65,12 +65,8 @@ HEAT_CONSUMPTION = 'heat_consumption'
 
 
 class BuildingStock(AdditiveNode):
-    output_metrics = {
-        FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')
-    }
-    input_datasets = [
-        'helsinki/aluesarjat/02um_rakennukset_lammitys'
-    ]
+    output_metrics = {FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')}
+    input_datasets = ['helsinki/aluesarjat/02um_rakennukset_lammitys']
     output_dimension_ids = [
         'building_heat_source',
         'building_use',
@@ -87,20 +83,16 @@ class BuildingStock(AdditiveNode):
         if 'Alue' in df.columns:
             df = df.loc[df.Alue == muni]
         df = df.loc[
-            (df.Tiedot == 'Kerrosala (m2)') &
-            (df['Rakennuksen käyttötarkoitus'] != 'Asuinrakennukset yhteensä') &
-            (df['Rakennuksen käyttötarkoitus'] != 'Rakennukset yhteensä') &
-            (df['Rakennuksen lämmitysaine'] != 'Yhteensä')
+            (df.Tiedot == 'Kerrosala (m2)')
+            & (df['Rakennuksen käyttötarkoitus'] != 'Asuinrakennukset yhteensä')
+            & (df['Rakennuksen käyttötarkoitus'] != 'Rakennukset yhteensä')
+            & (df['Rakennuksen lämmitysaine'] != 'Yhteensä')
         ]
 
         hs_dim = self.output_dimensions['building_heat_source']
-        df[hs_dim.id] = hs_dim.series_to_ids(
-            df['Rakennuksen lämmitysaine'].map(HEAT_SOURCE_MAP)
-        )
+        df[hs_dim.id] = hs_dim.series_to_ids(df['Rakennuksen lämmitysaine'].map(HEAT_SOURCE_MAP))
         use_dim = self.output_dimensions['building_use']
-        df[use_dim.id] = use_dim.series_to_ids(
-            df['Rakennuksen käyttötarkoitus'].map(BUILDING_USE_MAP)
-        )
+        df[use_dim.id] = use_dim.series_to_ids(df['Rakennuksen käyttötarkoitus'].map(BUILDING_USE_MAP))
 
         df[YEAR_COLUMN] = df['Vuosi'].astype(int)
         m = self.output_metrics[FLOOR_AREA]
@@ -125,9 +117,7 @@ class FutureBuildingStock(SimpleNode):
     (unless floor area decreases) and assume the same ratio will hold in the future.
     """
 
-    output_metrics = {
-        FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')
-    }
+    output_metrics = {FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')}
     input_dimension_ids = [
         'building_heat_source',
         'building_use',
@@ -160,7 +150,7 @@ class FutureBuildingStock(SimpleNode):
         pop = df.pop('PopDiff').astype(pop_dt)
         pc_dt = pint_pandas.PintType(area_dt.units / pop_dt.units)
         for col in list(df.columns):
-            df[col] = (df[col].astype(area_dt) / pop)
+            df[col] = df[col].astype(area_dt) / pop
 
         total_sum = df.sum(axis=1).astype(pc_dt)
         # Remove the building types that have been decreasing
@@ -172,7 +162,7 @@ class FutureBuildingStock(SimpleNode):
         area_per_new_cap_df = df.mul(total_sum, axis=0)
 
         # Now look into the future
-        pop_diff = pop_df.loc[pop_df.index >= last_hist_year, VALUE_COLUMN].diff().dropna() # type: ignore
+        pop_diff = pop_df.loc[pop_df.index >= last_hist_year, VALUE_COLUMN].diff().dropna()  # type: ignore
         df = area_per_new_cap_df
         future_index = pd.RangeIndex(last_hist_year + 1, self.context.model_end_year + 1, name=YEAR_COLUMN)
         df = df.reindex(df.index.append(future_index))
@@ -192,5 +182,3 @@ class FutureBuildingStock(SimpleNode):
         # self.add_nodes(df, nodes)  FIXME
 
         return df
-
-

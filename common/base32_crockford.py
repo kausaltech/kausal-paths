@@ -28,10 +28,10 @@ within the string.
 
 import re
 
-__all__ = ["decode", "encode", "normalize"]
+__all__ = ['decode', 'encode', 'normalize']
 
 
-string_types = str,
+string_types = (str,)
 
 # The encoded symbol space does not include I, L, O or U
 symbols = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
@@ -41,8 +41,7 @@ check_symbols = '*~$=U'
 encode_symbols = dict(enumerate(symbols + check_symbols))
 decode_symbols = {ch: i for (i, ch) in enumerate(symbols + check_symbols)}
 normalize_symbols = str.maketrans('IiLlOo', '111100')  # pyright: ignore
-valid_symbols = re.compile('^[%s]+[%s]?$' % (symbols,
-                                             re.escape(check_symbols)))
+valid_symbols = re.compile('^[%s]+[%s]?$' % (symbols, re.escape(check_symbols)))
 
 base = len(symbols)
 check_base = len(symbols + check_symbols)
@@ -87,7 +86,7 @@ def encode(number: int, checksum: bool = False, split: int = 0):
     if split:
         chunks = []
         for pos in range(0, len(symbol_string), split):
-            chunks.append(symbol_string[pos:pos + split])
+            chunks.append(symbol_string[pos : pos + split])  # noqa: PERF401
         symbol_string = '-'.join(chunks)
 
     return symbol_string
@@ -120,8 +119,7 @@ def decode(symbol_string, checksum=False, strict=False):
         check_value = decode_symbols[check_symbol]
         modulo = number % check_base
         if check_value != modulo:
-            raise ValueError("invalid check symbol '%s' for string '%s'" %
-                             (check_symbol, symbol_string))
+            raise ValueError("invalid check symbol '%s' for string '%s'" % (check_symbol, symbol_string))
 
     return number
 
@@ -162,6 +160,7 @@ def normalize(symbol_string: str, strict=False):
 def gen_obj_id(obj: object) -> str:
     """Generate a readable ASCII string out of a Python object id with shuffled bits."""
     from numpy import random
+
     rng = random.default_rng(id(obj))
     num = rng.integers(0, 2**32, size=1)
     return encode(num[0])

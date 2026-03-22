@@ -40,9 +40,7 @@ class ContextFactory(Factory[Context]):
     @staticmethod
     def post(obj: Context, create: bool, extracted, **kwargs) -> None:
         obj.instance.set_context(obj)
-        default_scenario = ScenarioFactory.create(
-            id='default', kind=ScenarioKind.DEFAULT, context=obj, all_actions_enabled=True
-        )
+        default_scenario = ScenarioFactory.create(id='default', kind=ScenarioKind.DEFAULT, context=obj, all_actions_enabled=True)
         obj.add_scenario(default_scenario)
         obj.activate_scenario(obj.get_default_scenario())
 
@@ -73,6 +71,7 @@ class InstanceFactory(Factory[Instance]):
     def post(obj: Instance, create: bool, extracted, **kwargs) -> None:
         obj.modified_at = datetime.now(UTC) + timedelta(hours=1)
 
+
 class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
     class Meta:
         model = InstanceConfig
@@ -80,8 +79,8 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
 
     identifier = Sequence(lambda i: f'ic{i}')
     name = Sequence(lambda i: f'instanceconfig{i}')
-    lead_title = "lead title"
-    lead_paragraph = "Lead paragraph"
+    lead_title = 'lead title'
+    lead_paragraph = 'Lead paragraph'
     instance: SubFactory[str, Instance] = SubFactory(InstanceFactory, id=SelfAttribute('..identifier'))
     organization = SubFactory[Any, Organization](OrganizationFactory)
 
@@ -96,10 +95,12 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
         obj: InstanceConfig = super().create(name=name, **kwargs)
         if instance:
             from nodes.models import _pytest_instances
+
             # For tests we want to avoid reading a YAML file to configure the Instance
             _pytest_instances[instance.id] = instance
 
         return obj
+
 
 class NodeConfigFactory(DjangoModelFactory[NodeConfig]):
     class Meta:
@@ -108,8 +109,8 @@ class NodeConfigFactory(DjangoModelFactory[NodeConfig]):
     instance: SubFactory[Any, InstanceConfig] = SubFactory(InstanceConfigFactory)
     identifier = Sequence(lambda i: f'nodeconfig{i}')
     name = Sequence(lambda i: f'Test node config {i}')
-    short_description = "short description"
-    description = "description"
+    short_description = 'short description'
+    description = 'description'
 
 
 class NodeFactory(Factory[Node]):
@@ -124,13 +125,15 @@ class NodeFactory(Factory[Node]):
     unit = unit_registry('kWh').units
     quantity = 'energy'
     goals = [dict(values=[dict(year=2035, value=500)])]
-    input_datasets = [FixedDataset(
-        id='test',
-        unit='kWh',
-        historical=[(2020, 1.23)],
-        forecast=[(2021, 2.34)],
-        tags=[],
-    )]
+    input_datasets = [
+        FixedDataset(
+            id='test',
+            unit='kWh',
+            historical=[(2020, 1.23)],
+            forecast=[(2021, 2.34)],
+            tags=[],
+        )
+    ]
 
     @post_generation
     @staticmethod

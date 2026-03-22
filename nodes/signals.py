@@ -15,6 +15,7 @@ from users.signals import user_permissions_changed
 
 if TYPE_CHECKING:
     from django.db.models import Model
+
     class InstanceConfigWithTempVar(InstanceConfig):
         _old_role_groups: dict[str, int | None] | None
 

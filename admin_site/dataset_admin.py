@@ -45,13 +45,11 @@ class DatasetSchemaCreateView(PathsCreateView[DatasetSchema, WagtailAdminModelFo
         callback = getattr(dataset_config, 'SCHEMA_DEFAULT_SCOPE_FUNCTION', None)
         if callback is not None:
             default_scope_model_instance = callback()
-            DatasetSchemaScope.objects.create(
-                schema=instance,
-                scope=default_scope_model_instance
-            )
+            DatasetSchemaScope.objects.create(schema=instance, scope=default_scope_model_instance)
             if dataset_config.SCHEMA_HAS_SINGLE_DATASET:
                 Dataset.objects.get_or_create(schema=instance, defaults={'scope': default_scope_model_instance})
         return instance
+
 
 class DatasetSchemaFormWithDimensionFormSet(BaseInlineFormSet):
     active_instance: InstanceConfig
@@ -81,7 +79,6 @@ class DatasetSchemaFormWithDimensionFormSet(BaseInlineFormSet):
                 new_dimension = form.cleaned_data.get('dimension')
 
                 if old_dimension_pk and new_dimension and old_dimension_pk != new_dimension.pk:
-
                     old_dimension = Dimension.objects.get(pk=old_dimension_pk)
 
                     data_point_count = DataPointDimensionCategory.objects.filter(
@@ -90,12 +87,14 @@ class DatasetSchemaFormWithDimensionFormSet(BaseInlineFormSet):
                     ).count()
 
                     if data_point_count > 0:
-                        form.add_error('dimension', _(
-                            'Cannot change from "%(old)s" because it is used by %(count)d data point(s).'
-                        ) % {
-                            'old': str(old_dimension),
-                            'count': data_point_count,
-                        })
+                        form.add_error(
+                            'dimension',
+                            _('Cannot change from "%(old)s" because it is used by %(count)d data point(s).')
+                            % {
+                                'old': str(old_dimension),
+                                'count': data_point_count,
+                            },
+                        )
 
         errors = []
         for form in self.deleted_forms:
@@ -111,13 +110,16 @@ class DatasetSchemaFormWithDimensionFormSet(BaseInlineFormSet):
                     ).count()
 
                     if data_point_count > 0:
-                        errors.append(_(
-                            'Cannot remove dimension "%(dimension)s" because it is used by %(count)d data point(s). '
-                            'Please remove the data first.'
-                        ) % {
-                            'dimension': str(dimension),
-                            'count': data_point_count,
-                        })
+                        errors.append(
+                            _(
+                                'Cannot remove dimension "%(dimension)s" because it is used by %(count)d data point(s). '
+                                'Please remove the data first.'
+                            )
+                            % {
+                                'dimension': str(dimension),
+                                'count': data_point_count,
+                            }
+                        )
 
         if errors:
             raise ValidationError(errors)
@@ -131,17 +133,11 @@ class DatasetSchemaMetricFormSet(BaseInlineFormSet):
 
         # Check that at least one metric is present
         valid_forms = [
-            form for form in self.forms
-            if form not in self.deleted_forms and not form.cleaned_data.get('DELETE', False)
+            form for form in self.forms if form not in self.deleted_forms and not form.cleaned_data.get('DELETE', False)
         ]
-        non_empty_forms = [
-            form for form in valid_forms
-            if form.cleaned_data and not form.cleaned_data.get('DELETE', False)
-        ]
+        non_empty_forms = [form for form in valid_forms if form.cleaned_data and not form.cleaned_data.get('DELETE', False)]
         if len(non_empty_forms) == 0:
-            raise ValidationError(
-                _('At least one metric must be defined for the dataset schema.')
-            )
+            raise ValidationError(_('At least one metric must be defined for the dataset schema.'))
 
         for form in self.deleted_forms:
             if form.instance and form.instance.pk:
@@ -150,13 +146,16 @@ class DatasetSchemaMetricFormSet(BaseInlineFormSet):
                 data_point_count = DataPoint.objects.filter(metric=metric).count()
 
                 if data_point_count > 0:
-                    errors.append(_(
-                        'Cannot remove metric "%(metric)s" because it is used by %(count)d data point(s). '
-                        'Please remove the data first.'
-                    ) % {
-                        'metric': str(metric),
-                        'count': data_point_count,
-                    })
+                    errors.append(
+                        _(
+                            'Cannot remove metric "%(metric)s" because it is used by %(count)d data point(s). '
+                            'Please remove the data first.'
+                        )
+                        % {
+                            'metric': str(metric),
+                            'count': data_point_count,
+                        }
+                    )
 
         if errors:
             raise ValidationError(errors)
@@ -181,6 +180,7 @@ class DatasetSchemaViewSet(PathsViewSet):
 
     def get_form_class(self, for_update=False):
         form_class = super().get_form_class(for_update)
+
         class DatasetSchemaWithDimensionForm(form_class):  # type: ignore[valid-type, misc]
             class Meta(form_class.Meta):
                 model = DatasetSchema
@@ -209,5 +209,6 @@ class DatasetSchemaViewSet(PathsViewSet):
                         self.fields['time_resolution'].disabled = True
 
         return DatasetSchemaWithDimensionForm
+
 
 register_snippet(DatasetSchemaViewSet)

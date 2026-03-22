@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 class SiteContentPermissionPolicy(ParentInheritedPolicy):
     def __init__(self):
         from nodes.models import InstanceConfig
+
         super().__init__(model=InstanceSiteContent, parent_model=InstanceConfig, parent_field='instance')
 
     def user_has_permission(self, user, action):
@@ -31,13 +32,12 @@ class SiteContentPermissionPolicy(ParentInheritedPolicy):
 
 
 class InstanceSiteContentModelMenuItem(MenuItem):
-
     def __init__(self, view_set, order):
         self.view_set = view_set
 
         super().__init__(
             label=view_set.menu_label,
-            url="",  # This is set in render_component
+            url='',  # This is set in render_component
             name=view_set.menu_name,
             icon_name=view_set.icon,
             order=order,

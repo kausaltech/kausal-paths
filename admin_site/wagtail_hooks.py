@@ -26,9 +26,11 @@ if TYPE_CHECKING:
 def global_admin_css():
     return format_html('<link rel="stylesheet" href="{}">', static('css/admin-styles.css'))
 
+
 hooks.register('insert_global_admin_css', global_admin_css)
 
-@hooks.register("register_icons")
+
+@hooks.register('register_icons')
 def register_icons(icons):
     return icons + [
         'wagtailadmin/icons/kausal-node.svg',
@@ -40,7 +42,7 @@ def register_icons(icons):
         'wagtailadmin/icons/kausal-plans.svg',
         'wagtailadmin/icons/kausal-spreadsheets.svg',
         'wagtailadmin/icons/kausal-categories.svg',
-        'wagtailadmin/icons/kausal-attributes.svg'
+        'wagtailadmin/icons/kausal-attributes.svg',
     ]
 
 
@@ -78,11 +80,11 @@ instance_chooser = InstanceChooserMenu(None)
 
 
 def register_instance_chooser():
-    return InstanceChooserMenuItem(
-        _('Choose instance'), instance_chooser, icon_name='home', order=9000
-    )
+    return InstanceChooserMenuItem(_('Choose instance'), instance_chooser, icon_name='home', order=9000)
+
 
 hooks.register('register_admin_menu_item', register_instance_chooser)
+
 
 @hooks.register('construct_main_menu')
 def hide_snippets_menu_item(request, menu_items):
@@ -91,6 +93,7 @@ def hide_snippets_menu_item(request, menu_items):
     # are implemented as snippets) under one menu item does not bring any value
     # to us.
     menu_items[:] = [item for item in menu_items if item.name != 'snippets']
+
 
 @hooks.register('construct_main_menu')
 def hide_reports_menu_item(request, menu_items):
@@ -110,12 +113,12 @@ def patch_translations_report_menu_item(request: PathsAdminRequest, menu_items: 
         return
     menu_items[:] = [menu_item for menu_item in menu_items if not isinstance(menu_item, TranslationsReportMenuItem)]
 
+
 hooks.register(
     'register_bulk_action',
     fn=PermissionAwareDeleteBulkAction,
     # The order needs to be high so that our bulk delete action overrides the built-in
     # bulk delete action which does not properly check permissions. Less would do
     # but why not keep it safe.
-    order=10000
+    order=10000,
 )
-

@@ -10,7 +10,6 @@ from nodes.models import InstanceConfig
 from orgs.models import Organization, OrganizationQuerySet
 
 if TYPE_CHECKING:
-
     from kausal_common.models.permission_policy import ObjectSpecificAction
 
     from users.models import User
@@ -20,6 +19,7 @@ class OrganizationPermissionPolicy(ModelPermissionPolicy[Organization, InstanceC
     def __init__(self):
         org_class: type[Organization] = Organization
         from nodes.roles import instance_super_admin_role
+
         self.super_admin_role = instance_super_admin_role
         super().__init__(org_class)
 
@@ -54,9 +54,7 @@ class OrganizationPermissionPolicy(ModelPermissionPolicy[Organization, InstanceC
             return True
         ancestors = obj.get_ancestors()
         instance_configs_with_organization = InstanceConfig.objects.filter(organization__in=[obj] + list(ancestors))
-        return any(
-            user.has_instance_role(self.super_admin_role, instance) for instance in instance_configs_with_organization
-        )
+        return any(user.has_instance_role(self.super_admin_role, instance) for instance in instance_configs_with_organization)
 
     @override
     def anon_has_perm(self, action: ObjectSpecificAction, obj: Organization) -> bool:
@@ -66,6 +64,7 @@ class OrganizationPermissionPolicy(ModelPermissionPolicy[Organization, InstanceC
     @override
     def is_create_context_valid(self, context: InstanceConfig) -> TypeGuard[InstanceConfig]:
         from nodes.models import InstanceConfig
+
         return isinstance(context, InstanceConfig)
 
     @override

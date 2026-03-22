@@ -17,5 +17,5 @@ __all__ = [
     'PercentageParameter',
     'StringParameter',
     'ValidationError',
-    'register_parameter_type'
+    'register_parameter_type',
 ]

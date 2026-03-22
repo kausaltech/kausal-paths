@@ -49,6 +49,7 @@ def username_to_uuid(username: str):
 
 UMM = TypeVar('UMM', bound='AbstractUser')
 
+
 class UserManager(DjangoUserManager[UMM]):
     def create_superuser(self, username=None, email=None, password=None, **extra_fields) -> UMM:
         uuid = uuid4()

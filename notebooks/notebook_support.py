@@ -19,7 +19,7 @@ def initialize_notebook_env():
 
     path = Path(__file__).parent.parent
     if not (path / Path('manage.py')).exists():
-        raise Exception("Unable to find project root")
+        raise Exception('Unable to find project root')
     if str(path) not in sys.path:
         sys.path.append(str(path))
 
@@ -31,9 +31,10 @@ def initialize_notebook_env():
         ip.run_line_magic(magic_name='autoreload', line='2')
     ip.run_line_magic(magic_name='matplotlib', line='ipympl')
 
-    os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "1"
+    os.environ['DJANGO_ALLOW_ASYNC_UNSAFE'] = '1'
 
     from kausal_common.development.django import init_django
+
     init_django()
 
 
@@ -106,23 +107,17 @@ def plot_node(node: Node):
                 facet_col, _ = dim_ids.pop(0)
                 assert not dim_ids
 
-        labels = {
-            YEAR_COLUMN: 'Year',
-            m_col: '%s (%s)' % (metric.label or m_col, str(unit))
-        }
-        fig = px.line(
-            mdf.to_dict(as_series=False),
-            x=YEAR_COLUMN,
-            y=m_col,
-            color=color_col,
-            facet_col=facet_col,
-            labels=labels
-        )
+        labels = {YEAR_COLUMN: 'Year', m_col: '%s (%s)' % (metric.label or m_col, str(unit))}
+        fig = px.line(mdf.to_dict(as_series=False), x=YEAR_COLUMN, y=m_col, color=color_col, facet_col=facet_col, labels=labels)
         fc_years = df.filter(pl.col(FORECAST_COLUMN))[YEAR_COLUMN].unique().sort()
         fc_start = fc_years.min()
         fc_end = fc_years.max()
         fig.add_vrect(
-            fc_start, fc_end, fillcolor='grey', opacity=0.2, annotation_text='Forecast',
+            fc_start,
+            fc_end,
+            fillcolor='grey',
+            opacity=0.2,
+            annotation_text='Forecast',
             annotation_position='top left',
         )
         return fig

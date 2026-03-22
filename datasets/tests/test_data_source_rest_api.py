@@ -12,29 +12,36 @@ from datasets.tests.utils import AssertIdenticalUUIDs, AssertNewUUID, AssertRemo
 
 pytestmark = pytest.mark.django_db()
 
+
 @pytest.fixture
 def api_client():
     return APIClient()
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', [
-    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user',
-    'schema1_viewer', 'schema1_editor', 'schema1_admin',
-    'schema1_viewer_group_user', 'schema1_editor_group_user', 'schema1_admin_group_user',
-    'regular_user'
-])
+@pytest.mark.parametrize(
+    'user_key',
+    [
+        'superuser',
+        'admin_user',
+        'super_admin_user',
+        'reviewer_user',
+        'viewer_user',
+        'schema1_viewer',
+        'schema1_editor',
+        'schema1_admin',
+        'schema1_viewer_group_user',
+        'schema1_editor_group_user',
+        'schema1_admin_group_user',
+        'regular_user',
+    ],
+)
 def test_data_source_list(api_client, dataset_test_data, user_key):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
 
-
     if user_key == 'superuser':
-        expected_data_sources = {
-            'data_source1',
-            'data_source1_alternative',
-            'data_source2'
-        }
+        expected_data_sources = {'data_source1', 'data_source1_alternative', 'data_source2'}
     elif user_key in [
         'admin_user',
         'super_admin_user',
@@ -45,12 +52,9 @@ def test_data_source_list(api_client, dataset_test_data, user_key):
         'schema1_admin',
         'schema1_viewer_group_user',
         'schema1_editor_group_user',
-        'schema1_admin_group_user'
+        'schema1_admin_group_user',
     ]:
-        expected_data_sources = {
-            'data_source1',
-            'data_source1_alternative'
-        }
+        expected_data_sources = {'data_source1', 'data_source1_alternative'}
     else:
         expected_data_sources = set()
 
@@ -67,7 +71,8 @@ def test_data_source_list(api_client, dataset_test_data, user_key):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   data_source_key           expected_status
 #-------------------------------------------------------------------
 superuser                  data_source1              200
@@ -98,7 +103,8 @@ schema1_admin_group_user   data_source2              404
 
 regular_user               data_source1              403
 regular_user               data_source2              403
-"""))
+""")
+)
 def test_data_source_retrieve(api_client, dataset_test_data, user_key, data_source_key, expected_status):
     user = dataset_test_data[user_key]
     data_source = dataset_test_data[data_source_key]
@@ -113,7 +119,8 @@ def test_data_source_retrieve(api_client, dataset_test_data, user_key, data_sour
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   data_source_key           expected_status
 
 superuser                  data_source1              200
@@ -145,7 +152,8 @@ regular_user               data_source2              403
 
 admin_user                 data_source2              404
 super_admin_user           data_source2              404
-"""))
+""")
+)
 def test_data_source_update(api_client, dataset_test_data, user_key, data_source_key, expected_status):
     user = dataset_test_data[user_key]
     data_source = dataset_test_data[data_source_key]
@@ -164,7 +172,8 @@ def test_data_source_update(api_client, dataset_test_data, user_key, data_source
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key                   data_source_key                expected_status
 
 superuser                  data_source1_alternative       204
@@ -190,7 +199,8 @@ schema1_viewer_group_user  data_source2                   403
 schema1_editor_group_user  data_source2                   403
 schema1_admin_group_user   data_source2                   403
 regular_user               data_source2                   403
-"""))
+""")
+)
 def test_data_source_delete(api_client, dataset_test_data, user_key, data_source_key, expected_status):
     user = dataset_test_data[user_key]
     data_source = dataset_test_data[data_source_key]
@@ -208,7 +218,8 @@ def test_data_source_delete(api_client, dataset_test_data, user_key, data_source
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(*parse_table("""
+@pytest.mark.parametrize(
+    *parse_table("""
 user_key          access_allowed
 superuser         +
 admin_user        +
@@ -216,7 +227,8 @@ super_admin_user  +
 reviewer_user     -
 viewer_user       -
 regular_user      -
-"""))
+""")
+)
 def test_data_source_create(api_client, dataset_test_data, user_key, access_allowed):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)

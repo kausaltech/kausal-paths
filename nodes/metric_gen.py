@@ -401,7 +401,6 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
     else:
         nnode = None
 
-
     dm = DimensionalMetric(
         id=node.id,
         name=str(node.name),
@@ -606,7 +605,7 @@ def from_action_impact(
     cost_node_id = root.cost_node.id if root.cost_node else ''
 
     dm = DimensionalMetric(  # Normalization or grouping is not possible at the moment.
-        id=f"{root.effect_node.id}:{cost_node_id}:{action.id}_{col.lower()}",
+        id=f'{root.effect_node.id}:{cost_node_id}:{action.id}_{col.lower()}',
         name=str(action.name),
         dimensions=dims,
         values=vals,
