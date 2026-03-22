@@ -93,7 +93,7 @@ def test_bool_parameter_type(graphql_client_query_data, instance: Instance, defa
 
 def test_number_parameter_type(graphql_client_query_data, context, default_scenario):
     default_value = 42.42
-    param = NumberParameterFactory(context=context)
+    param = NumberParameterFactory.create(context=context)
     context.add_global_parameter(param)
     default_scenario.add_parameter(param, default_value)
     data = graphql_client_query_data(
@@ -136,7 +136,7 @@ def test_number_parameter_type(graphql_client_query_data, context, default_scena
 
 def test_string_parameter_type(graphql_client_query_data, context, default_scenario):
     default_value = 'foobar'
-    param = StringParameterFactory()
+    param = StringParameterFactory.create(context=context)
     context.add_global_parameter(param)
     default_scenario.add_parameter(param, default_value)
     data = graphql_client_query_data(

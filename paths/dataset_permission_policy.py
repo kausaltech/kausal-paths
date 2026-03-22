@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, TypeGuard, TypeVar, cast, final, override
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, TypeGuard, final, override
 
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Q, QuerySet
+from django.db.models import Model, Q
 
 from kausal_common.datasets.models import (
     DataPoint,
@@ -37,7 +37,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
     from django.contrib.auth.models import AnonymousUser
-    from django.db.models import Model
 
     from kausal_common.models.permission_policy import (
         BaseObjectAction,
@@ -47,22 +46,21 @@ if TYPE_CHECKING:
     from kausal_common.models.roles import InstanceSpecificRole
 
     from paths.const import InstanceRoleIdentifier
-    from paths.permissions import CreateContext
 
     from users.models import User
 
-_M = TypeVar('_M', bound='PermissionedModel')
-_CCTX = TypeVar('_CCTX', bound='Model | None')  # create context
-_QS = TypeVar('_QS', bound=QuerySet[Any], default=QuerySet[_M])
 
-
-class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS], metaclass=ABCMeta):
+class InstanceConfigScopedPermissionPolicy[
+    M: PermissionedModel,
+    CreateCtx: Model | None = None,
+    QS: 'PermissionedQuerySet[Any]' = 'PermissionedQuerySet[M]',
+](ModelPermissionPolicy[M, CreateCtx, QS], ABC):
     """Permission policy for models that have one or many InstanceConfig objects as scope."""
 
     roles: dict[str, InstanceGroupMembershipRole]
-    models: type[_M]
+    models: type[M]
 
-    def __init__(self, model: type[_M]):
+    def __init__(self, model: type[M]):
         self.model = model
         self._role_registry = role_registry
         super().__init__(model)
@@ -82,15 +80,14 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS]
 
     @override
     @abstractmethod
-    def is_create_context_valid(self, context: Any) -> TypeGuard[_CCTX]:
-        pass
+    def is_create_context_valid(self, context: Any) -> TypeGuard[CreateCtx]: ...
 
     @abstractmethod
-    def get_instance_configs_for_obj(self, obj: _M) -> list[int]:
+    def get_instance_configs_for_obj(self, obj: M) -> list[int]:
         """Get IDs of all InstanceConfigs this obj is scoped for."""
 
     @override
-    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: _M) -> bool:
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: M) -> bool:
         if user.is_superuser:
             return True
         try:
@@ -121,11 +118,11 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS]
         return False
 
     @override
-    def anon_has_perm(self, action: BaseObjectAction, obj: _M) -> bool:
+    def anon_has_perm(self, action: BaseObjectAction, obj: M) -> bool:
         return False
 
     @override
-    def user_can_create(self, user: User, context: _CCTX) -> bool:
+    def user_can_create(self, user: User, context: CreateCtx) -> bool:
         return (
             user.is_superuser or
             user.has_instance_role_in_any_instance('instance-admin') or
@@ -414,8 +411,8 @@ class DataPointCommentPermissionPolicy(
         return isinstance(context, DataPoint)
 
     @override
-    def user_can_create(self, user: User, context: CreateContext) -> bool:
-        data_point: DataPoint = cast('DataPoint', context)
+    def user_can_create(self, user: User, context: DataPoint) -> bool:
+        data_point = context
         dataset = data_point.dataset
         instance_config_in_scope = dataset.scope
         if not isinstance(instance_config_in_scope, InstanceConfig):
@@ -455,8 +452,8 @@ class DatasetSourceReferencePermissionPolicy(
         return isinstance(context, Dataset)
 
     @override
-    def user_can_create(self, user: User, context: CreateContext) -> bool:
-        dataset: Dataset = cast('Dataset', context)
+    def user_can_create(self, user: User, context: Dataset) -> bool:
+        dataset = context
         instance_config_in_scope = dataset.scope
         if not isinstance(instance_config_in_scope, InstanceConfig):
             raise TypeError('Only InstanceConfigs supported as Dataset scopes in Paths.')

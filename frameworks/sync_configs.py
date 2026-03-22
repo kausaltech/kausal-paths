@@ -169,7 +169,7 @@ class FrameworkConfigModel(DjangoDiffModel[FrameworkConfig]):
     @classmethod
     def get_create_kwargs(cls, adapter: DjangoAdapter, ids: dict, attrs: dict) -> dict:
         kwargs = super().get_create_kwargs(adapter, ids, attrs)
-        fw_model = cast('FrameworkModel', adapter.get(FrameworkModel, str(kwargs.pop('framework'))))
+        fw_model = adapter.get(FrameworkModel, str(kwargs.pop('framework')))
         assert fw_model._instance is not None
         kwargs['framework'] = fw_model._instance
         return kwargs
@@ -180,6 +180,8 @@ class FrameworkConfigModel(DjangoDiffModel[FrameworkConfig]):
         org_name = create_kwargs.pop('organization_name')
         baseline_year = create_kwargs.pop('baseline_year')
         uuid = create_kwargs.pop('uuid')
+        if isinstance(uuid, str):
+            uuid = UUID(uuid)
         instance_identifier = create_kwargs.pop('instance_identifier')
         fwc = FrameworkConfig.create_instance(
             fw, instance_identifier=instance_identifier, org_name=org_name, baseline_year=baseline_year, uuid=uuid,

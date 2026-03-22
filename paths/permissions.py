@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
-from django.db.models import QuerySet
 from rest_framework import permissions
 
 from kausal_common.models.permission_policy import ParentInheritedPolicy
+from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.users import user_or_bust
 
 from paths.context import realm_context
@@ -21,15 +21,10 @@ if TYPE_CHECKING:
     from nodes.models import InstanceConfig
     from users.models import User
 
-_M = TypeVar('_M', bound='PathsModel')
-_QS = TypeVar('_QS', bound=QuerySet[Any], default=QuerySet[_M])
-CreateContext = TypeVar('CreateContext', default=Any)
 
-
-_ParentM = TypeVar('_ParentM', bound='PathsModel')
-
-
-class PathsParentPolicy(ParentInheritedPolicy[_M, _ParentM, _QS]):
+class PathsParentPolicy[M: PathsModel, ParentM: PathsModel, QS: PermissionedQuerySet[Any] = PermissionedQuerySet[M]](
+    ParentInheritedPolicy[M, ParentM, QS]
+):
     pass
 
 

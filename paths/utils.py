@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING
 
 from django import forms
 from django.conf import settings
@@ -14,6 +14,11 @@ from django.utils.translation import gettext, gettext_lazy as _
 from kausal_common.models.ordered import OrderedModel as OrderedModel  # noqa: PLC0414
 from kausal_common.models.types import copy_signature
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from django_stubs_ext import StrOrPromise
+
 
 class IdentifierValidator(RegexValidator):
     regex = r'^[a-z0-9-_]+$'
@@ -23,10 +28,7 @@ class InstanceIdentifierValidator(RegexValidator):
     regex = r'^[a-z0-9-]+$'
 
 
-_ST = TypeVar('_ST', bound=Any | None, default=str)
-_GT = TypeVar('_GT', bound=Any | None, default=str)
-
-class IdentifierField(models.CharField[_ST, _GT]):
+class IdentifierField[ST: str | None = str, GT: str | None = str](models.CharField[ST, GT]):
     def __init__(self, *args, **kwargs):
         validator_kwargs = {}
         if 'regex' in kwargs:
@@ -40,7 +42,7 @@ class IdentifierField(models.CharField[_ST, _GT]):
         super().__init__(*args, **kwargs)
 
 
-class ChoiceArrayField(ArrayField):
+class ChoiceArrayField[ST, GT](ArrayField[ST, GT]):
     """
     A field that allows us to store an array of choices.
 
@@ -49,21 +51,18 @@ class ChoiceArrayField(ArrayField):
     """
 
     @copy_signature(ArrayField.formfield)
-    def formfield(self, **kwargs) -> forms.Field:
-        defaults = {
-            'form_class': forms.MultipleChoiceField,
-            'choices': self.base_field.choices,
-        }
-        defaults.update(kwargs)
+    def formfield(self, **kwargs) -> forms.Field | None:
+        from_class = kwargs.pop('from_class', forms.MultipleChoiceField)
+        choices = kwargs.pop('choices', self.base_field.choices)
         # Skip our parent's formfield implementation completely as we don't
         # care for it.
-        return super(ArrayField, self).formfield(**defaults)  # type: ignore[arg-type]
+        return super(ArrayField, self).formfield(from_class, choices=choices, **kwargs)
 
 
 def validate_unit(s: str):
     from pint.errors import UndefinedUnitError
 
-    from nodes.context import unit_registry
+    from nodes.units import unit_registry
 
     try:
         unit = unit_registry.parse_units(s)
@@ -78,7 +77,7 @@ def validate_unit(s: str):
     return unit
 
 
-class UnitField(models.CharField):
+class UnitField[T: str | None = str](models.CharField[T, T]):
     def __init__(self, *args, **kwargs):
         defaults = dict(
             validators=[validate_unit],
@@ -92,7 +91,7 @@ class UnitField(models.CharField):
         super().__init__(*args, **kwargs)
 
 
-class UUIDIdentifierField(models.UUIDField):
+class UUIDIdentifierField(models.UUIDField[uuid.UUID, uuid.UUID]):
     def __init__(self, *args, **kwargs):
         defaults = dict(
             editable=False,
@@ -106,7 +105,7 @@ class UUIDIdentifierField(models.UUIDField):
         super().__init__(*args, **kwargs)
 
 
-def get_supported_languages():
+def get_supported_languages() -> Generator[tuple[str, StrOrPromise]]:
     yield from settings.LANGUAGES
 
 

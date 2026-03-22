@@ -107,10 +107,13 @@ kausal = ["kausal-paths-extensions>=0.6.50"]
 max-line-length = "120"
 ignore = "E309"
 
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "paths.tests.settings"
+[tool.pytest]
+DJANGO_SETTINGS_MODULE = "paths.settings"
 norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
-filterwarnings = ["ignore::DeprecationWarning:graphene"]
+filterwarnings = [
+  "ignore::DeprecationWarning:graphene",
+  "ignore:.*iscoroutinefunction:DeprecationWarning",
+]
 
 [[tool.uv.index]]
 url = "https://pypi.org/simple"
@@ -122,6 +125,10 @@ authenticate = "always"
 
 [tool.ruff]
 extend = './kausal_common/configs/ruff.toml'
+
+[tool.ty.environment]
+extra-paths = ["./kausal_common/typings"]
+
 
 [tool.mypy]
 plugins = [
@@ -143,7 +150,7 @@ cache_fine_grained = true
 explicit_package_bases = true
 strict_optional = true
 fixed_format_cache = true
-always_true = ['IS_PATHS']
+always_true = ['IS_PATHS', 'IS_MYPY']
 always_false = ['IS_WATCH']
 
 
@@ -216,7 +223,7 @@ exclude = [
   '**/node_modules',
   '.*',
 ]
-defineConstant = { 'IS_PATHS' = true, 'IS_WATCH' = false }
+defineConstant = { 'IS_PATHS' = true, 'IS_WATCH' = false, 'IS_MYPY' = false }
 deprecateTypingAliases = true
 enableTypeIgnoreComments = true
 reportAny = false

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from __future__ import annotations
 
 import pandas as pd
 
@@ -9,12 +9,9 @@ from params import StringParameter
 from .constants import FORECAST_COLUMN, VALUE_COLUMN
 from .simple import SectorEmissions as BaseSectorEmissions
 
-if TYPE_CHECKING:
-    from nodes.context import Context
-
 
 class SectorEmissions(BaseSectorEmissions):
-    unit = 'kt'
+    default_unit = 'kt'
     input_datasets = [
         'kpr/emission_statistics',
     ]
@@ -26,14 +23,14 @@ class SectorEmissions(BaseSectorEmissions):
         ),
     ]
 
-    def compute(self, context: Context):
-        # Hack to avoid double counting
+    def compute(self):
+        context = self.context
         if self.output_nodes[0].id == 'net_emissions':
-            return self.add_nodes(context, None, self.input_nodes)
+            return self.add_nodes(None, self.input_nodes)
 
-        df = self.get_input_dataset(context).set_index('Utsläpp ID')
+        df = self.get_input_dataset().set_index('Utsläpp ID')
 
-        sec_id = self.get_parameter_value('panorama_id')
+        sec_id = self.get_parameter_value_str('panorama_id')
         edf = df.loc[sec_id]
         df = pd.DataFrame(
             edf.values, index=edf.index.astype(int), columns=[VALUE_COLUMN]
@@ -46,4 +43,4 @@ class SectorEmissions(BaseSectorEmissions):
         df[VALUE_COLUMN] = df[VALUE_COLUMN].interpolate()
         df.loc[df.index > last_year, FORECAST_COLUMN] = True
 
-        return self.add_nodes(context, df, self.input_nodes)
+        return self.add_nodes(df, self.input_nodes)

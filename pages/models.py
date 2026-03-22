@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
     from django.db.models.expressions import Combinable
     from django.db.models.fields import AutoField
+    from django.forms import ModelChoiceField
     from modelcluster.fields import PK
     from wagtail.admin.panels import (
         Panel,
@@ -281,9 +282,10 @@ class OutcomePage(PathsPage):
 
     @classmethod
     def process_form(cls, form: PathsAdminPageForm) -> None:
-        f = form.fields.get('outcome_node')
+        f = cast('ModelChoiceField[NodeConfig] | None', form.fields.get('outcome_node'))
         if f is not None:
-            f.queryset = f.queryset.filter(instance=form.admin_instance)
+            qs = cast('models.QuerySet[NodeConfig]', f.queryset)
+            f.queryset = qs.filter(instance=form.admin_instance)
 
 
 class ActionListPage(PathsPage):
@@ -387,6 +389,7 @@ class InstanceSiteContent(models.Model):
     class Meta:
         verbose_name = _('Site content')
         verbose_name_plural = _('Site contents')
+        ordering = ['instance', 'id']
 
     def __str__(self) -> str:
         return "Site contents for %s" % self.instance.name

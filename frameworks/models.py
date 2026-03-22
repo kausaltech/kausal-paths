@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
+from uuid import uuid4
 
 from django.conf import settings
 from django.contrib import admin
@@ -55,8 +56,8 @@ if TYPE_CHECKING:
     from .object_cache import (
         FrameworkConfigCacheData,  # noqa: F401
         FrameworkSpecificCache,  # noqa: F401
-        MeasureCache,  # noqa: F401
-        MeasureDataPointCache,  # noqa: F401
+        MeasureCache,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+        MeasureDataPointCache,  # noqa: F401  # pyright: ignore[reportUnusedImport]
         MeasureTemplateDefaultDataPointCache,  # noqa: F401
         SectionCacheData,  # noqa: F401
     )
@@ -147,7 +148,10 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
 
     public_fields: ClassVar = ["name", "identifier", "description"]
 
-    objects: ClassVar[FrameworkManager] = FrameworkManager()  # pyright: ignore
+    objects: ClassVar[FrameworkManager] = FrameworkManager()
+
+    class Meta:
+        ordering = ['name']
 
     id: int
     root_section_id: int | None
@@ -238,7 +242,7 @@ class FrameworkDimension(UUIDIdentifiedModel, OrderedModel):
 
     categories: RevMany[FrameworkDimensionCategory]
 
-    class Meta:  # pyright: ignore
+    class Meta:
         ordering = ["framework", "order"]
 
     def __str__(self):
@@ -266,9 +270,9 @@ class FrameworkDimensionCategory(UUIDIdentifiedModel, OrderedModel):
     dimension = models.ForeignKey(FrameworkDimension, on_delete=models.CASCADE, related_name="categories")
     name = models.CharField(max_length=200)
 
-    objects: models.Manager[FrameworkDimensionCategory]  # pyright: ignore
+    objects: models.Manager[FrameworkDimensionCategory]
 
-    class Meta:  # pyright: ignore
+    class Meta:
         ordering = ["dimension", "order"]
 
     def __str__(self):
@@ -280,7 +284,7 @@ class FrameworkDimensionCategory(UUIDIdentifiedModel, OrderedModel):
 
 class SectionQuerySet(MP_NodeQuerySet['Section'], PathsQuerySet['Section']):  # type: ignore[override]
     def _parents(self) -> SectionQuerySet:
-        model = cast('type[Section]', self.model)
+        model = self.model
         qs = cast('SectionQuerySet', model._default_manager.get_queryset())
         parents = qs.filter(
             path=Substr(OuterRef('path'), 1, Length(OuterRef('path')) - model.steplen),
@@ -331,9 +335,10 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
     ]
 
     objects: ClassVar[SectionManager] = SectionManager()
-    _default_manager: ClassVar[SectionManager]  # type: ignore[assignment]
+    _default_manager: ClassVar[SectionManager]
 
     class Meta:
+        ordering = ['path']
         constraints = [
             models.UniqueConstraint(name='section_identifier', fields=['framework', 'identifier'], nulls_distinct=True),
         ]
@@ -438,11 +443,11 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
         "year_bound", "hidden", "help_text", "include_in_progress_tracker",
     ]
 
-    objects: ClassVar[MeasureTemplateManager] = MeasureTemplateManager()  # pyright: ignore
+    objects: ClassVar[MeasureTemplateManager] = MeasureTemplateManager()
 
     section_id: int
 
-    class Meta:  # pyright: ignore
+    class Meta:
         ordering = ["section", "order"]
 
     @property
@@ -489,7 +494,7 @@ class MeasureTemplateDimension(OrderedModel):
     template = models.ForeignKey(MeasureTemplate, on_delete=models.CASCADE, related_name="dimensions_through")
     dimension = models.ForeignKey(FrameworkDimension, on_delete=models.CASCADE, related_name="measure_templates_through")
 
-    class Meta:  # pyright: ignore
+    class Meta:
         ordering = ["template", "order"]
 
     def filter_siblings(self, qs: models.QuerySet[Self]) -> models.QuerySet[Self]:
@@ -499,10 +504,12 @@ class MeasureTemplateDimension(OrderedModel):
 class MeasureTemplateDefaultDataPointQuerySet(PathsQuerySet['MeasureTemplateDefaultDataPoint']):
     pass
 
-_MeasureTemplateDefaultDataPointManager = models.Manager.from_queryset(MeasureTemplateDefaultDataPointQuerySet)
-class MeasureTemplateDefaultDataPointManager(  # pyright: ignore
+_MeasureTemplateDefaultDataPointManager = cast(
+    'models.Manager[MeasureTemplateDefaultDataPoint]', models.Manager.from_queryset(MeasureTemplateDefaultDataPointQuerySet)
+)
+class MeasureTemplateDefaultDataPointManager(
     ModelManager['MeasureTemplateDefaultDataPoint', MeasureTemplateDefaultDataPointQuerySet],
-    _MeasureTemplateDefaultDataPointManager,
+    _MeasureTemplateDefaultDataPointManager,  # type: ignore[misc, valid-type]
 ):
     """Model manager for MeasureTemplateDefaultDataPoint."""
 del _MeasureTemplateDefaultDataPointManager
@@ -526,7 +533,7 @@ class MeasureTemplateDefaultDataPoint(CacheablePathsModel['MeasureTemplateDefaul
 
     public_fields: ClassVar = ['year', 'value']
 
-    objects: ClassVar[MeasureTemplateDefaultDataPointManager] = MeasureTemplateDefaultDataPointManager()  # pyright: ignore
+    objects: ClassVar[MeasureTemplateDefaultDataPointManager] = MeasureTemplateDefaultDataPointManager()
 
     template_id: int
 
@@ -561,8 +568,8 @@ class FrameworkConfigQuerySet(PathsQuerySet['FrameworkConfig']):
     pass
 
 
-_FrameworkConfigManager = models.Manager.from_queryset(FrameworkConfigQuerySet)
-class FrameworkConfigManager(ModelManager['FrameworkConfig', FrameworkConfigQuerySet], _FrameworkConfigManager):  # pyright: ignore
+_FrameworkConfigManager = cast('models.Manager[FrameworkConfig]', models.Manager.from_queryset(FrameworkConfigQuerySet))
+class FrameworkConfigManager(ModelManager['FrameworkConfig', FrameworkConfigQuerySet], _FrameworkConfigManager):  # type: ignore[misc, valid-type]
     """Model manager for FrameworkConfig."""
 del _FrameworkConfigManager
 
@@ -588,7 +595,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     categories: M2M[FrameworkDimensionCategory, Any] = models.ManyToManyField(FrameworkDimensionCategory)
     token = models.CharField(max_length=50, default=create_random_token)
 
-    objects: ClassVar[FrameworkConfigManager] = FrameworkConfigManager()  # pyright: ignore
+    objects: ClassVar[FrameworkConfigManager] = FrameworkConfigManager()
 
     instance_config_id: int
     framework_id: int
@@ -596,7 +603,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
 
     public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'target_year', 'uuid', 'instance_config']
 
-    class Meta:  # pyright: ignore
+    class Meta:
+        ordering = ['framework', 'instance_config']
         constraints = [
             models.UniqueConstraint(fields=['framework', 'instance_config'], name='unique_framework_instance'),
         ]
@@ -618,7 +626,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     @classmethod
     @transaction.atomic
     def create_instance(
-        cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, uuid: str | None = None,
+        cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, uuid: uuid.UUID | None = None,
         target_year: int | None = None, user: UserOrAnon | None = None,
     ) -> FrameworkConfig:
         from nodes.models import InstanceConfig
@@ -642,6 +650,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             extra = cls.permission_policy().get_create_defaults(user, framework)
         else:
             extra = {}
+        if uuid is None:
+            uuid = uuid4()
         fc = cls.objects.create(
             framework=framework,
             instance_config=ic,
@@ -649,7 +659,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             baseline_year=baseline_year,
             target_year=target_year,
             uuid=uuid,
-            created_by=user_or_none(user),  # type: ignore[misc]
+            created_by=user_or_none(user),
             **extra,
         )
         if pp.user_is_authenticated(user):
@@ -721,7 +731,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         if update_measure_data_points:
             MeasureDataPoint.objects.bulk_update(update_measure_data_points, fields=['default_value'])
 
-    def create_model_instance(self, ic: InstanceConfig) -> Instance:
+    def create_model_instance(self, _ic: InstanceConfig) -> Instance:
         from nodes.instance_loader import InstanceLoader
 
         fw = self.framework
@@ -842,7 +852,7 @@ class Measure(CacheablePathsModel['FrameworkConfigCacheData'], models.Model):
 
     framework_config: FK[FrameworkConfig] = models.ForeignKey(FrameworkConfig, on_delete=models.CASCADE, related_name="measures")
     measure_template: FK[MeasureTemplate] = models.ForeignKey(MeasureTemplate, on_delete=models.CASCADE, related_name="measures")
-    unit = UnitField(null=True, blank=True)
+    unit = UnitField[str | None](null=True, blank=True)
     internal_notes = models.TextField(blank=True)
 
     data_points: RevMany[MeasureDataPoint]
@@ -852,13 +862,14 @@ class Measure(CacheablePathsModel['FrameworkConfigCacheData'], models.Model):
         'framework_config', 'measure_template', 'unit', 'data_points', 'internal_notes',
     ]
 
-    objects: ClassVar[MeasureManager] = MeasureManager()  # pyright: ignore
+    objects: ClassVar[MeasureManager] = MeasureManager()
 
     framework_config_id: int
 
     _node: tuple[Node | None, NodeDimensionSelection | None]
 
     class Meta:
+        ordering = ['framework_config', 'measure_template']
         constraints = [
             models.UniqueConstraint(fields=['framework_config', 'measure_template'], name='unique_instance_measure'),
         ]
@@ -907,7 +918,7 @@ class MeasureDataPoint(CacheablePathsModel[None], models.Model):
 
     public_fields: ClassVar = ['id', 'year', 'value', 'default_value']
 
-    objects: ClassVar[MeasureDataPointManager] = MeasureDataPointManager()  # pyright: ignore
+    objects: ClassVar[MeasureDataPointManager] = MeasureDataPointManager()
     _default_manager: ClassVar[MeasureDataPointManager]
 
     measure_id: int

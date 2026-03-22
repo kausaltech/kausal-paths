@@ -140,9 +140,9 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
         return self.filter(query_pk_or_uuid_or_identifier(id_or_identifier))
 
 
-_InstanceConfigManager = models.Manager.from_queryset(InstanceConfigQuerySet)
+_InstanceConfigManager = cast('models.Manager[InstanceConfig]', models.Manager.from_queryset(InstanceConfigQuerySet))
 class InstanceConfigManager(
-    MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager
+    MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager  # type: ignore[valid-type, misc]
 ):
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
         return self.get(identifier=identifier)
@@ -309,13 +309,13 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
 
     primary_language = models.CharField[str, str](
         max_length=8,
-        choices=get_supported_languages,  # type: ignore[arg-type]
+        choices=get_supported_languages,
         default=get_default_language
     )
     other_languages = ChoiceArrayField(
         models.CharField(
             max_length=8,
-            choices=get_supported_languages,  # type: ignore[arg-type]
+            choices=get_supported_languages,
             default=get_default_language
         ),
         default=list,
@@ -373,7 +373,8 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         index.SearchField('name_i18n'),
     ]
 
-    class Meta:  # pyright: ignore
+    class Meta:
+        ordering = ['id']
         verbose_name = _('Instance')
         verbose_name_plural = _('Instances')
 
@@ -838,6 +839,7 @@ class InstanceHostname(models.Model):
     objects = InstanceHostnameManager()
 
     class Meta:
+        ordering = ['instance', 'hostname']
         verbose_name = _('Instance hostname')
         verbose_name_plural = _('Instance hostnames')
         unique_together = (('instance', 'hostname'), ('hostname', 'base_path'))
@@ -865,6 +867,7 @@ class InstanceToken(models.Model):
     objects = InstanceTokenManager()
 
     class Meta:
+        ordering = ['instance', '-created_at']
         verbose_name = _('Instance token')
         verbose_name_plural = _('Instance tokens')
 
@@ -875,12 +878,12 @@ class InstanceToken(models.Model):
         return self.instance.natural_key() + (self.token, self.created_at)
 
 
-class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['NodeConfig']):  # type: ignore[override, misc]
+class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['NodeConfig']):
     pass
 
 
-_NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)
-class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeConfigManager):  # pyright: ignore
+_NodeConfigManager = cast('models.Manager[NodeConfig]', models.Manager).from_queryset(NodeConfigQuerySet)
+class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeConfigManager):  # type: ignore[valid-type, misc]
     """Model manager for NodeConfig."""
 
     def get_by_natural_key(self, instance_identifier, identifier):
@@ -902,10 +905,10 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
     goal = RichTextField[str | None, str | None](
         null=True, blank=True, verbose_name=_('Goal'), editor='very-limited',
         max_length=1000,
-    ) # pyright: ignore
+    )
     short_description = RichTextField[str | None, str | None](
         null=True, blank=True, verbose_name=_('Short description'), editor='limited',
-    ) # pyright: ignore
+    )
     description = RichTextField[str | None, str | None](
         null=True, blank=True, verbose_name=_('Description'),
     ) # -> StreamField
@@ -953,6 +956,7 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
     indicates_nodes: RevMany[NodeConfig]
 
     class Meta:
+        ordering = ['instance', 'id']
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)
@@ -1090,8 +1094,10 @@ class NodeDataset(models.Model):
     dataset = models.ForeignKey(DatasetModel, on_delete=models.PROTECT, related_name='nodes_edges')
 
     class Meta:
+        ordering = ['node', 'dataset']
         verbose_name = _('Node dataset')
         verbose_name_plural = _('Node datasets')
+        unique_together = (('node', 'dataset'),)
 
     def __str__(self) -> str:
         node_name = self.node.name or self.node.identifier

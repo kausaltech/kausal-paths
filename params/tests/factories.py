@@ -1,13 +1,18 @@
+from typing import TYPE_CHECKING, Any
+
 from factory import Factory, Sequence, SubFactory
 
 from kausal_common.i18n.pydantic import TranslatedString
 
-from nodes.context import unit_registry
 from nodes.tests.factories import ContextFactory
+from nodes.units import unit_registry
 from params.param import BoolParameter, NumberParameter, Parameter, StringParameter
 
+if TYPE_CHECKING:
+    from nodes.context import Context
 
-class ParameterFactory(Factory[Parameter]):
+
+class ParameterFactory[P: Parameter[Any] = Parameter[Any]](Factory[P]):
     class Meta:
         model = Parameter
 
@@ -16,10 +21,10 @@ class ParameterFactory(Factory[Parameter]):
     description = TranslatedString("Parameter description")
     is_customizable = True
     is_visible = True
-    context = SubFactory(ContextFactory)
+    context: SubFactory[Parameter[Any], Context] = SubFactory(ContextFactory)
 
 
-class NumberParameterFactory(ParameterFactory):
+class NumberParameterFactory(ParameterFactory[NumberParameter]):
     class Meta:
         model = NumberParameter
 
@@ -29,11 +34,11 @@ class NumberParameterFactory(ParameterFactory):
     unit = unit_registry('kt').units
 
 
-class BoolParameterFactory(ParameterFactory):
+class BoolParameterFactory(ParameterFactory[BoolParameter]):
     class Meta:
         model = BoolParameter
 
 
-class StringParameterFactory(ParameterFactory):
+class StringParameterFactory(ParameterFactory[StringParameter]):
     class Meta:
         model = StringParameter

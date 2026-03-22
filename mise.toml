@@ -13,12 +13,7 @@ _.fnox-env = { tools = true }
 
 [prepare.uv]
 auto = true
-
-[prepare.sync-all-groups]
-auto = true
 run = "uv sync --all-groups --all-extras"
-sources = ["uv.lock"]
-outputs = [".venv/lib/python*/site-packages/mypy/"]
 
 [plugins]
 fnox-env = "https://github.com/jdx/mise-env-fnox"
@@ -26,3 +21,17 @@ fnox-env = "https://github.com/jdx/mise-env-fnox"
 [tasks.vault-token]
 description = "Refresh the Vault token in the keychain"
 run = "vault login -address=https://vault.kausal.tech -path=keycloak -method=oidc -token-only | fnox set -p keychain FNOX_VAULT_TOKEN"
+
+[tasks.export-graphql-schema]
+description = "Export the GraphQL schema from the Django project"
+run = [
+  "mkdir -p __generated__",
+  '''
+    #!/usr/bin/env bash
+    set -e
+    echo "Exporting main schema..."
+    python manage.py export_schema paths.schema > __generated__/schema.graphql
+    echo "Exporting test mode schema..."
+    ENABLE_TEST_MODE=1 python manage.py export_schema paths.schema > __generated__/schema-test-mode.graphql
+  '''
+]

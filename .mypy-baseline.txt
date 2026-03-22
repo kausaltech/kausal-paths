@@ -1,54 +1,9 @@
 kausal_common/typings/celery/app/__init__.pyi:0: error: Module "celery.app.utils" has no attribute "AppPickler"  [attr-defined]
-paths/utils.py:0: error: Incompatible return value type (got "Field | None", expected "Field")  [return-value]
-paths/utils.py:0: note: Error code "return-value" not covered by "type: ignore" comment
-paths/graphql_helpers.py:0: error: Incompatible return value type (got "Instance | None", expected "Instance")  [return-value]
 nodes/actions/parent.py:0: error: Item "None" of "Unit | None" has no attribute "is_compatible_with"  [union-attr]
-pages/models.py:0: error: StreamField is nullable but its generic get type parameter is not optional  [misc]
-kausal_paths_extensions/auth_support/redirect_uri.py:0: error: Argument 1 to "for_hostname" of "InstanceConfigQuerySet" has incompatible type "str | None"; expected "str"  [arg-type]
-paths/authentication.py:0: error: Return type "str | None" of "authenticate" incompatible with return type "tuple[Any, Any] | None" in supertype "rest_framework.authentication.BaseAuthentication"  [override]
-paths/tests/settings.py:0: error: Need type annotation for "INSTANCE_LOADER_CONFIG" (hint: "INSTANCE_LOADER_CONFIG: <type> | None = ...")  [var-annotated]
 pages/apps.py:0: error: Module "wagtail.admin.forms" has no attribute "account"  [attr-defined]
-optimizer/optimize.py:0: error: Module "nodes" has no attribute "Node"  [attr-defined]
-nodes/kpr.py:0: error: Incompatible types in assignment (expression has type "str", base class "Node" defined the type as "Unit | None")  [assignment]
-nodes/kpr.py:0: error: Signature of "compute" incompatible with supertype "nodes.simple.SectorEmissions"  [override]
-nodes/kpr.py:0: note: Superclass:
-nodes/kpr.py:0: note: def compute(self) -> PathsDataFrame
-nodes/kpr.py:0: note: Subclass:
-nodes/kpr.py:0: note: def compute(self, context: Context) -> Any
-nodes/kpr.py:0: error: Signature of "compute" incompatible with supertype "nodes.simple.AdditiveNode"  [override]
-nodes/kpr.py:0: note: Superclass:
-nodes/kpr.py:0: note: def compute(self) -> PathsDataFrame
-nodes/kpr.py:0: note: Subclass:
-nodes/kpr.py:0: note: def compute(self, context: Context) -> Any
-nodes/kpr.py:0: error: Signature of "compute" incompatible with supertype "nodes.node.Node"  [override]
-nodes/kpr.py:0: note: Superclass:
-nodes/kpr.py:0: note: def compute(self) -> DataFrame | PathsDataFrame
-nodes/kpr.py:0: note: Subclass:
-nodes/kpr.py:0: note: def compute(self, context: Context) -> Any
-nodes/kpr.py:0: error: Argument 1 to "add_nodes" of "AdditiveNode" has incompatible type "Context"; expected "DataFrame | None"  [arg-type]
-nodes/kpr.py:0: error: Argument 2 to "add_nodes" of "AdditiveNode" has incompatible type "None"; expected "list[Node]"  [arg-type]
-nodes/kpr.py:0: error: Argument 3 to "add_nodes" of "AdditiveNode" has incompatible type "list[Node]"; expected "str | None"  [arg-type]
-nodes/kpr.py:0: error: No overload variant of "get_input_dataset" of "Node" matches argument type "Context"  [call-overload]
-nodes/kpr.py:0: note: Possible overload variants:
-nodes/kpr.py:0: note: def get_input_dataset(self, required: Literal[True] = ...) -> DataFrame
-nodes/kpr.py:0: note: def get_input_dataset(self, required: Literal[False]) -> DataFrame | None
-nodes/kpr.py:0: error: Argument 1 to "add_nodes" of "AdditiveNode" has incompatible type "Context"; expected "DataFrame | None"  [arg-type]
-nodes/kpr.py:0: error: Argument 2 to "add_nodes" of "AdditiveNode" has incompatible type "DataFrame"; expected "list[Node]"  [arg-type]
-nodes/kpr.py:0: error: Argument 3 to "add_nodes" of "AdditiveNode" has incompatible type "list[Node]"; expected "str | None"  [arg-type]
 nodes/finland/syke.py:0: error: Argument "label" to "Dimension" has incompatible type "dict[str, str]"; expected "TranslatedString | str"  [arg-type]
 nodes/finland/syke.py:0: error: Incompatible types in assignment (expression has type "str", base class "Node" defined the type as "Unit | None")  [assignment]
 nodes/finland/syke.py:0: error: Incompatible types in assignment (expression has type "DataFrame | Series[Any]", variable has type "DataFrame")  [assignment]
-nodes/actions/kpr.py:0: error: Incompatible types in assignment (expression has type "str", base class "Node" defined the type as "Unit | None")  [assignment]
-nodes/actions/kpr.py:0: error: Signature of "compute_effect" incompatible with supertype "nodes.actions.action.ActionNode"  [override]
-nodes/actions/kpr.py:0: note: Superclass:
-nodes/actions/kpr.py:0: note: def compute_effect(self) -> DataFrame | PathsDataFrame
-nodes/actions/kpr.py:0: note: Subclass:
-nodes/actions/kpr.py:0: note: def compute_effect(self, context: Context) -> DataFrame
-nodes/actions/kpr.py:0: error: No overload variant of "get_input_dataset" of "Node" matches argument type "Context"  [call-overload]
-nodes/actions/kpr.py:0: note: Possible overload variants:
-nodes/actions/kpr.py:0: note: def get_input_dataset(self, required: Literal[True] = ...) -> DataFrame
-nodes/actions/kpr.py:0: note: def get_input_dataset(self, required: Literal[False]) -> DataFrame | None
-nodes/actions/kpr.py:0: error: Unsupported operand types for * ("object" and "int")  [operator]
 kausal_paths_extensions/wagtail_admin.py:0: error: "PathsAdminRequest" has no attribute "admin_instance"  [attr-defined]
 kausal_common/api/tree.py:0: error: "BaseSerializer[Any]" has no attribute "Meta"  [attr-defined]
 kausal_common/api/tree.py:0: error: "get_field_names" undefined in superclass  [misc]
@@ -59,31 +14,15 @@ kausal_common/api/tree.py:0: error: "TreebeardModelSerializerMixin[M]" has no at
 kausal_common/api/tree.py:0: error: "update" undefined in superclass  [misc]
 kausal_common/api/exceptions.py:0: error: "perform_destroy" undefined in superclass  [misc]
 nodes/costs.py:0: error: Dict entry 0 has incompatible type "str": "PlainUnit"; expected "str": "Unit"  [dict-item]
-nodes/costs.py:0: error: Argument 3 to "add_nodes_pl" of "Node" has incompatible type "object"; expected "str | None"  [arg-type]
-nodes/costs.py:0: error: Argument 3 to "add_nodes_pl" of "Node" has incompatible type "object"; expected "str | None"  [arg-type]
 nodes/buildings.py:0: error: Incompatible types in assignment (expression has type "DataFrame", variable has type "PathsDataFrame | None")  [assignment]
 nodes/buildings.py:0: error: Item "None" of "PathsDataFrame | None" has no attribute "ensure_unit"  [union-attr]
 nodes/buildings.py:0: error: Argument 1 to "include_custom_dimension" of "FloorAreaNode" has incompatible type "PathsDataFrame | None"; expected "PathsDataFrame"  [arg-type]
-nodes/management/commands/load_dvc_dataset.py:0: error: Cannot instantiate abstract class "Dimension" with abstract attribute "permission_policy"  [abstract]
-nodes/management/commands/load_dvc_dataset.py:0: error: Cannot instantiate abstract class "DimensionCategory" with abstract attribute "permission_policy"  [abstract]
 kausal_paths_extensions/management/commands/extract_transifex.py:0: error: Need type annotation for "rest"  [var-annotated]
 kausal_paths_extensions/management/commands/export_syke_indicators.py:0: error: Incompatible types in assignment (expression has type "list[dict[str, Any]]", target has type "Collection[str]")  [assignment]
 kausal_paths_extensions/management/commands/export_syke_indicators.py:0: error: Item "None" of "DataFrame | None" has no attribute "to_pandas"  [union-attr]
 kausal_paths_extensions/management/commands/export_syke_indicators.py:0: error: "Command" has no attribute "MUNI_IDS"  [attr-defined]
-kausal_common/datasets/tests/factories.py:0: error: Need type annotation for "dimension"  [var-annotated]
-kausal_common/datasets/tests/factories.py:0: error: Need type annotation for "schema"  [var-annotated]
-kausal_paths_extensions/dataset_editor.py:0: error: "DatasetAdminView" has no attribute "form"  [attr-defined]
-kausal_paths_extensions/dataset_editor.py:0: error: Incompatible return value type (got "type[Any]", expected "Model")  [return-value]
-kausal_paths_extensions/dataset_editor.py:0: error: "Model" has no attribute "_default_manager"  [attr-defined]
-kausal_paths_extensions/dataset_editor.py:0: error: "get_context_data" undefined in superclass  [misc]
-kausal_paths_extensions/dataset_editor.py:0: error: "BasePermissionPolicy[Any, Any, Any]" has no attribute "user_can_review"  [attr-defined]
-kausal_paths_extensions/dataset_editor.py:0: error: Item "None" of "DatasetSchema | None" has no attribute "delete"  [union-attr]
-kausal_paths_extensions/dataset_editor.py:0: error: Incompatible types in assignment (expression has type "type[DatasetCreateView]", base class "PathsViewSet" defined the type as "type[PathsCreateView[Any, Any]]")  [assignment]
 admin_site/dataset_admin.py:0: error: Name "form_class.Meta" is not defined  [name-defined]
 nodes/tests/factories.py:0: error: Argument "unit" to "FixedDataset" has incompatible type "str"; expected "Unit"  [arg-type]
-nodes/tests/factories.py:0: error: Need type annotation for "context"  [var-annotated]
-nodes/tests/factories.py:0: error: Need type annotation for "base_scenario"  [var-annotated]
-params/tests/factories.py:0: error: Need type annotation for "context"  [var-annotated]
 kausal_paths_extensions/wagtail_hooks.py:0: error: Need type annotation for "items" (hint: "items: list[<type>] = ...")  [var-annotated]
 kausal_common/api/bulk.py:0: error: "BulkSerializerValidationInstanceMixin" has no attribute "parent"  [attr-defined]
 kausal_common/api/bulk.py:0: error: "BulkSerializerValidationInstanceMixin" has no attribute "instance"; maybe "_instance"?  [attr-defined]
@@ -95,12 +34,5 @@ kausal_common/api/bulk.py:0: error: "ModelSerializer[M]" has no attribute "enabl
 kausal_common/api/bulk.py:0: error: "ModelSerializer[M]" has no attribute "get_deferred_operations"  [attr-defined]
 kausal_common/api/bulk.py:0: error: "ModelSerializer[M]" has no attribute "enable_deferred_operations"  [attr-defined]
 kausal_common/api/bulk.py:0: error: "ModelSerializer[M]" has no attribute "get_deferred_operations"  [attr-defined]
-params/tests/test_schema.py:0: error: "NumberParameterFactory" has no attribute "global_id"  [attr-defined]
-params/tests/test_schema.py:0: error: "NumberParameterFactory" has no attribute "global_id"  [attr-defined]
-params/tests/test_schema.py:0: error: "NumberParameterFactory" has no attribute "value"  [attr-defined]
-params/tests/test_schema.py:0: error: "StringParameterFactory" has no attribute "global_id"  [attr-defined]
-params/tests/test_schema.py:0: error: "StringParameterFactory" has no attribute "global_id"  [attr-defined]
-params/tests/test_schema.py:0: error: "StringParameterFactory" has no attribute "value"  [attr-defined]
 kausal_common/people/api.py:0: error: Definition of "run_validation" in base class "BulkSerializerValidationInstanceMixin" is incompatible with definition in base class "Field"  [misc]
-kausal_common/datasets/sync.py:0: error: Cannot instantiate abstract class "DatasetSchemaDimension" with abstract attributes "__rich_repr__", "__str__" and "permission_policy"  [abstract]
 admin_site/urls.py:0: error: Module "wagtail.admin" has no attribute "urls"  [attr-defined]

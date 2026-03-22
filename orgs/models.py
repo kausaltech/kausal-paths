@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Self, override
+from typing import TYPE_CHECKING, ClassVar, Self, cast, override
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from kausal_common.models.permissions import PermissionedModel
+from kausal_common.models.permissions import PermissionedModel, PermissionedQuerySet
 from kausal_common.models.types import MLModelManager
 from kausal_common.organizations.models import (
     BaseNamespace,
@@ -27,20 +27,23 @@ if TYPE_CHECKING:
 
 class OrganizationClass(BaseOrganizationClass):
     class Meta:
+        ordering = ['name']
         verbose_name = _('Organization class')
         verbose_name_plural = _('Organization classes')
 
 class Namespace(BaseNamespace):
     class Meta:
+        ordering = ['identifier']
         verbose_name = _('Namespace')
         verbose_name_plural = _('Namespaces')
 
 class OrganizationIdentifier(BaseOrganizationIdentifier):
     class Meta:
+        ordering = ['organization', 'namespace']
         verbose_name = _('Organization identifier')
         verbose_name_plural = _('Organization identifiers')
 
-class OrganizationQuerySet(BaseOrganizationQuerySet['Organization']):  # type: ignore[override]
+class OrganizationQuerySet(BaseOrganizationQuerySet['Organization'], PermissionedQuerySet['Organization']):  # type: ignore[override]
     def editable_by_user(self, user):
         # Superusers can edit all organizations
         if user.is_superuser:
@@ -58,21 +61,22 @@ class OrganizationQuerySet(BaseOrganizationQuerySet['Organization']):  # type: i
             path__startswith=instance.organization.path
         )
 
-_OrganizationManager = models.Manager.from_queryset(OrganizationQuerySet)
-class OrganizationManager(  # type: ignore[misc]
-    MLModelManager['Organization', OrganizationQuerySet], _OrganizationManager
+_OrganizationManager = cast('models.Manager[Organization]', models.Manager).from_queryset(OrganizationQuerySet)
+class OrganizationManager(
+    MLModelManager['Organization', OrganizationQuerySet], _OrganizationManager  # type: ignore[valid-type, misc]
 ): ...
 
 
 del _OrganizationManager
 
 class Organization(PermissionedModel, BaseOrganization, Node[OrganizationQuerySet]):
-    objects: ClassVar[OrganizationManager] = OrganizationManager()  # type: ignore[assignment]
+    objects: ClassVar[OrganizationManager] = OrganizationManager()
+
     VIEWSET_CLASS = 'orgs.wagtail_hooks.OrganizationViewSet'
     class Meta:
         verbose_name = _('Organization')
         verbose_name_plural = _('Organizations')
-        ordering = ['name']
+        ordering = ['path']
 
     @override
     def __rich_repr__(self):

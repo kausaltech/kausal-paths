@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import uuid
-from typing import TYPE_CHECKING, ClassVar, override
+from typing import TYPE_CHECKING, ClassVar, cast, override
 
 from django.db import models
 from django.db.models import Q
@@ -18,9 +18,12 @@ from loguru import logger
 from kausal_common.datasets.models import DatasetSchema
 
 # from wagtail.images.rect import Rect
-from kausal_common.models.permissions import PermissionedModel
+from kausal_common.models.permissions import PermissionedModel, PermissionedQuerySet
 from kausal_common.models.types import MLModelManager, ModelManager
-from kausal_common.people.models import BasePerson, create_permission_membership_models
+from kausal_common.people.models import (
+    BasePerson,
+    create_permission_membership_models,
+)
 
 from paths.types import PathsModel, PathsQuerySet
 
@@ -28,16 +31,21 @@ from orgs.models import Organization
 from users.models import User
 
 if TYPE_CHECKING:
+    from django.db.models import ForeignKey
     from django.http import HttpRequest
 
-    from kausal_common.models.permission_policy import ModelPermissionPolicy
     from kausal_common.models.types import FK, M2M
+    from kausal_common.people.models import (
+        ObjectGroupPermissionBase,
+        ObjectPersonPermissionBase,
+    )
 
     from nodes.models import InstanceConfig
+    from people.permission_policy import PersonPermissionPolicy
     from people.permissions import PersonGroupPermissionPolicy
 
 
-class PersonQuerySet(MultilingualQuerySet['Person']):
+class PersonQuerySet(MultilingualQuerySet['Person'], PermissionedQuerySet['Person']):
     def available_for_instance(self, instance: InstanceConfig):
         related = Organization.objects.filter(id=instance.organization_id)
         # TODO: Replace with the following if / when we add `related_organizations` to InstanceConfig
@@ -57,7 +65,7 @@ else:
 
 
 class Person(PermissionedModel, BasePerson):
-    objects: ClassVar[PersonManager] = PersonManager()  # pyright: ignore
+    objects: ClassVar[PersonManager] = PersonManager()
 
     search_fields = BasePerson.search_fields + [
         index.SearchField('first_name'),
@@ -68,6 +76,7 @@ class Person(PermissionedModel, BasePerson):
     class Meta:
         verbose_name = _('Person')
         verbose_name_plural = _('People')
+        ordering = ['last_name', 'first_name', 'id']
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -144,7 +153,7 @@ class Person(PermissionedModel, BasePerson):
         user.save()
         return user
 
-    def visible_for_user(self, user, **kwargs) -> bool:
+    def visible_for_user(self, user, **_kwargs) -> bool:
         # By default, make the person visible to all authenticated users
         # and to the person themselves
         if not user.is_authenticated:
@@ -161,7 +170,7 @@ class Person(PermissionedModel, BasePerson):
         return False
 
     @classmethod
-    def permission_policy(cls) -> ModelPermissionPolicy:
+    def permission_policy(cls) -> PersonPermissionPolicy:
         from .permission_policy import PersonPermissionPolicy
         return PersonPermissionPolicy()
 
@@ -170,8 +179,8 @@ class PersonGroupQuerySet(PathsQuerySet['PersonGroup']):
     pass
 
 
-_PersonGroupManager = models.Manager.from_queryset(PersonGroupQuerySet)
-class PersonGroupManager(ModelManager['PersonGroup', PersonGroupQuerySet], _PersonGroupManager):
+_PersonGroupManager = cast('models.Manager[PersonGroup]', models.Manager).from_queryset(PersonGroupQuerySet)
+class PersonGroupManager(ModelManager['PersonGroup', PersonGroupQuerySet], _PersonGroupManager):  # type: ignore[valid-type, misc]
     """Model manager for PersonGroup."""
 del _PersonGroupManager
 
@@ -193,9 +202,10 @@ class PersonGroup(PathsModel, ClusterableModel):
         related_name='person_groups',
     )
 
-    objects = PersonGroupManager()
+    objects: ClassVar[PersonGroupManager] = PersonGroupManager()
 
     class Meta:
+        ordering = ['instance', 'name']
         constraints = [
             models.UniqueConstraint(
                 fields=['instance', 'name'],
@@ -217,6 +227,7 @@ class PersonGroupMember(models.Model):
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='groups_edges')
 
     class Meta:
+        ordering = ['group', 'person']
         verbose_name = _('Group member')
         verbose_name_plural = _('Group members')
 
@@ -224,6 +235,17 @@ class PersonGroupMember(models.Model):
         return f'{self.person} ∈ {self.group}'
 
 
-# Create permission membership models here, in the `people` app, since they will be part of this app. If you call
-# `create_permission_membership_models` in a different app, `shell_plus` will get confused.
-DatasetSchemaGroupPermission, DatasetSchemaPersonPermission = create_permission_membership_models(DatasetSchema)
+if TYPE_CHECKING:
+    class DatasetSchemaGroupPermission(ObjectGroupPermissionBase[DatasetSchema]):
+        object: FK[DatasetSchema] = ForeignKey(DatasetSchema, on_delete=models.CASCADE, related_name='group_permissions')
+
+        objects: ClassVar[models.Manager[DatasetSchemaGroupPermission]] = models.Manager()
+
+    class DatasetSchemaPersonPermission(ObjectPersonPermissionBase[DatasetSchema]):
+        object: FK[DatasetSchema] = ForeignKey(DatasetSchema, on_delete=models.CASCADE, related_name='person_permissions')
+
+        objects: ClassVar[models.Manager[DatasetSchemaPersonPermission]] = models.Manager()
+else:
+    # Create permission membership models here, in the `people` app, since they will be part of this app. If you call
+    # `create_permission_membership_models` in a different app, `shell_plus` will get confused.
+    DatasetSchemaGroupPermission, DatasetSchemaPersonPermission = create_permission_membership_models(DatasetSchema)

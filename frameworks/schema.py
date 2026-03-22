@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, cast
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import graphene
 import strawberry as sb
@@ -438,7 +438,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         name: str,
         baseline_year: int,
         target_year: int | None = None,
-        uuid: str | None = None,
+        uuid: UUID | None = None,
     ) -> FrameworkConfig:
         id_field = cast('CharField[str, str]', InstanceConfig._meta.get_field('identifier'))
         try:
@@ -451,9 +451,6 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
 
         if framework.configs.filter(organization_name__iexact=name).exists():
             raise GraphQLError("Framework config with organization name '%s' already exists" % name, nodes=info.field_nodes)
-
-        if not uuid:
-            uuid = str(uuid4())
 
         user = info.context.get_user()
         fc = FrameworkConfig.create_instance(
@@ -475,6 +472,10 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         pp = FrameworkConfig.permission_policy()
         if not pp.gql_action_allowed(info, 'add', context=framework):
             raise GraphQLError("Permission denied", nodes=info.field_nodes)
+        uuid = cast('UUID | str | None', config_input.uuid)
+        if uuid and isinstance(uuid, str):
+            uuid = UUID(uuid)
+        uuid = cast('UUID | None', config_input.uuid)
         fc = cls._create_fwc(
             info=info,
             framework=framework,
@@ -482,14 +483,22 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
             name=cast('str', config_input.name),
             baseline_year=cast('int', config_input.baseline_year),
             target_year=cast('int | None', config_input.target_year),
-            uuid=cast('str | None', config_input.uuid),
+            uuid=uuid,
         )
         return CreateFrameworkConfigMutation(ok=True, framework_config=fc)
 
     @staticmethod
     def mutate(
-        root, info: GQLInfo, framework_id: str, instance_identifier: str, name: str, baseline_year: int, uuid: str | None = None,
+        root,
+        info: GQLInfo,
+        framework_id: str,
+        instance_identifier: str,
+        name: str,
+        baseline_year: int,
+        uuid: str | UUID | None = None,
     ) -> CreateFrameworkConfigMutation:
+        if uuid is not None and not isinstance(uuid, UUID):
+            uuid = UUID(uuid)
         config = FrameworkConfigInput(
             framework_id=framework_id,
             instance_identifier=instance_identifier,
@@ -728,7 +737,7 @@ class UpdateMeasureDataPoints(graphene.Mutation):
                 measure.internal_notes = m_in.get('internal_notes', '')
                 measure.save()
 
-            dps_in: list[dict] = m_in.get('data_points', [])
+            dps_in: list[dict[str, Any]] = m_in.get('data_points', [])
             if not dps_in:
                 continue
             for dp_input in dps_in:
@@ -794,7 +803,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         fwc = cast('FrameworkConfig', ret.framework_config)
         instance = fwc.instance_config.get_instance()
         dvc_repo = instance.context.dataset_repo
-        data = cast('dict', nzc_data)
+        data = cast('dict[str, Any]', nzc_data)
         defaults = get_nzc_default_values(dvc_repo, NZCPlaceholderInput(
             population=data['population'],
             renewmix=lowhigh_to_str(data['renewable_mix']),
@@ -804,7 +813,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         return ret
 
 
-class Mutations(graphene.ObjectType):
+class Mutations(graphene.ObjectType[Any]):
     create_framework_config = CreateFrameworkConfigMutation.Field()
     create_nzc_framework_config = CreateNZCFrameworkConfigMutation.Field()
     update_framework_config = UpdateFrameworkConfigMutation.Field()

@@ -1,25 +1,22 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeGuard, cast, override
+from typing import TYPE_CHECKING, TypeGuard, override
 
 from django.db.models import Q
 
 from kausal_common.models.permission_policy import ModelPermissionPolicy
 
 from nodes.models import InstanceConfig
-from orgs.models import Organization
+from orgs.models import Organization, OrganizationQuerySet
 
 if TYPE_CHECKING:
 
     from kausal_common.models.permission_policy import ObjectSpecificAction
 
-    from paths.permissions import CreateContext
-
     from users.models import User
 
 
-class OrganizationPermissionPolicy(ModelPermissionPolicy[Organization]):
-
+class OrganizationPermissionPolicy(ModelPermissionPolicy[Organization, InstanceConfig, OrganizationQuerySet]):
     def __init__(self):
         org_class: type[Organization] = Organization
         from nodes.roles import instance_super_admin_role
@@ -67,12 +64,12 @@ class OrganizationPermissionPolicy(ModelPermissionPolicy[Organization]):
         return False
 
     @override
-    def is_create_context_valid(self, context: CreateContext) -> TypeGuard[InstanceConfig]:
+    def is_create_context_valid(self, context: InstanceConfig) -> TypeGuard[InstanceConfig]:
         from nodes.models import InstanceConfig
         return isinstance(context, InstanceConfig)
 
     @override
-    def user_can_create(self, user: User, context: CreateContext) -> bool:
+    def user_can_create(self, user: User, context: InstanceConfig) -> bool:
         """Check if user can create a new object."""
-        active_instance = cast('InstanceConfig', context)
+        active_instance = context
         return user.is_superuser or user.has_instance_role(self.super_admin_role, active_instance)
