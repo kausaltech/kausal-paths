@@ -1,6 +1,7 @@
 #:schema https://mise.jdx.dev/schema/mise.json
 [settings]
 python.uv_venv_auto = "source"
+experimental = true
 
 [tools]
 prek = "latest"
@@ -10,10 +11,17 @@ fnox = "latest"
 [env]
 _.python.venv = { path = ".venv", create = true, uv_create_args = [] }
 _.fnox-env = { tools = true }
+PYTHONPATH = "{{ config_root }}"
 
 [prepare.uv]
 auto = true
 run = "uv sync --all-groups --all-extras"
+
+[prepare.uv-tools]
+auto = true
+description = "Install development tools with uv"
+outputs = [".mise/uv_tools_installed"]
+run = "sh -c 'uv tool install pyproject-fmt@latest && echo $(date) >> .mise/uv_tools_installed'"
 
 [plugins]
 fnox-env = "https://github.com/jdx/mise-env-fnox"
@@ -27,8 +35,8 @@ description = "Export the GraphQL schema from the Django project"
 run = [
   "mkdir -p __generated__",
   '''
-    #!/usr/bin/env bash
     set -e
+    #!/usr/bin/env bash
     echo "Exporting main schema..."
     python manage.py export_schema paths.schema > __generated__/schema.graphql
     echo "Exporting test mode schema..."
