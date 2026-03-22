@@ -160,7 +160,7 @@ class Metric:
                     baseline.append(YearlyValue(year=year, value=bl_val))
                 forecast.append(YearlyValue(year=year, value=val))
 
-        cum_fc = df.filter(pl.col(FORECAST_COLUMN))[VALUE_COLUMN].sum()
+        cum_fc = float(df.filter(pl.col(FORECAST_COLUMN))[VALUE_COLUMN].sum())
 
         out = SplitValues(
             historical=hist,

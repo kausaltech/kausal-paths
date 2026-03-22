@@ -12,7 +12,6 @@ from django.db import models
 from django.utils.translation import gettext, gettext_lazy as _
 
 from kausal_common.models.ordered import OrderedModel as OrderedModel  # noqa: PLC0414
-from kausal_common.models.types import copy_signature
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -50,13 +49,16 @@ class ChoiceArrayField[ST, GT](ArrayField[ST, GT]):
     and a MultipleChoiceField for its formfield.
     """
 
-    @copy_signature(ArrayField.formfield)
-    def formfield(self, **kwargs) -> forms.Field | None:
-        from_class = kwargs.pop('from_class', forms.MultipleChoiceField)
+    def formfield(
+        self, form_class: type[forms.Field] | None = None, choices_form_class: type[forms.ChoiceField] | None = None, **kwargs
+    ) -> forms.Field | None:
+        form_class = form_class or forms.MultipleChoiceField
         choices = kwargs.pop('choices', self.base_field.choices)
         # Skip our parent's formfield implementation completely as we don't
         # care for it.
-        return super(ArrayField, self).formfield(from_class, choices=choices, **kwargs)
+        return super(ArrayField, self).formfield(
+            form_class=form_class, choices_form_class=choices_form_class, choices=choices, **kwargs
+        )
 
 
 def validate_unit(s: str):
