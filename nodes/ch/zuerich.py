@@ -1,4 +1,4 @@
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import polars as pl
 
@@ -18,8 +18,10 @@ from nodes.constants import (
 )
 from nodes.node import Node, NodeError, NodeMetric
 from nodes.simple import AdditiveNode, MixNode, MultiplicativeNode, SimpleNode
-from nodes.units import Unit
 from params.param import BoolParameter
+
+if TYPE_CHECKING:
+    from nodes.units import Unit
 
 
 class BuildingEnergy(AdditiveNode):
@@ -377,7 +379,7 @@ class ElectricityProductionMixLegacy(MixNode):
 
         m = self.get_default_output_metric()
         gdf = gdf.divide_cols(['TotalEnergy', 'YearSum'], m.column_id, m.unit)
-        dim_id = list(self.output_dimensions.keys())[0]
+        dim_id = next(iter(self.output_dimensions.keys()))
         df = gdf.select([YEAR_COLUMN, pl.col(es_dim).alias(dim_id), m.column_id])
 
         df = df.filter(pl.col(m.column_id).is_not_null() & pl.col(m.column_id).is_not_nan())
@@ -446,7 +448,7 @@ class DistrictHeatProductionMix(MixNode, GasGridMixin):
         assert len(mix_df.metric_cols) == 1
         assert len(mix_df.dim_ids) == 1
         m = self.get_default_output_metric()
-        ec_dim_id, ec_dim = list(self.input_dimensions.items())[0]
+        ec_dim_id, ec_dim = next(iter(self.input_dimensions.items()))
         ec_s = ec_dim.series_to_ids_pl(mix_df[mix_df.dim_ids[0]])
         df = mix_df.select([pl.col(YEAR_COLUMN), ec_s.alias(ec_dim_id), pl.col(mix_df.metric_cols[0]).alias(m.column_id)])
         df = extend_last_historical_value_pl(df, self.get_end_year())
@@ -477,10 +479,10 @@ class GasGridNode(AdditiveNode, GasGridMixin):
         other_dim_cats = df.select(other_dims).unique()
         dfs = []
         for row in other_dim_cats.iter_rows():
-            filters = [pl.col(dim).eq(cat) for dim, cat in zip(other_dims, row)]
+            filters = [pl.col(dim).eq(cat) for dim, cat in zip(other_dims, row, strict=False)]
             fdf = df.filter(pl.all_horizontal(filters)).drop(other_dims)
             fdf = self.use_gas_grid(fdf).with_columns([
-                pl.lit(cat).alias(dim) for dim, cat in zip(other_dims, row)
+                pl.lit(cat).alias(dim) for dim, cat in zip(other_dims, row, strict=False)
             ])
             dfs.append(fdf)
         df = ppl.to_ppdf(pl.concat(dfs), meta=meta)
@@ -509,7 +511,7 @@ class EnergyProductionEmissionFactor(AdditiveNode):
         if len(self.input_dimensions) != 1:
             raise NodeError(self, "Must have exactly 1 input dimensions (%d given)" % len(self.input_dimensions))
 
-        es_dim_id, es_dim = list(self.input_dimensions.items())[0]
+        es_dim_id, es_dim = next(iter(self.input_dimensions.items()))
         ef_df = ef_df.with_columns([es_dim.series_to_ids_pl(ef_df[es_dim_id])])
         ef_df = ef_df.rename({ef_df.metric_cols[0]: 'EF'})
 
@@ -637,7 +639,7 @@ class ToPerCapita(Node):
         meta = act_df.get_meta()
         df = ppl.to_ppdf(act_df.join(pop_df, on=YEAR_COLUMN, how='left'), meta=meta)
 
-        pc_unit = cast(Unit, act_df.get_unit('Value') / pop_df.get_unit('Pop'))
+        pc_unit = cast('Unit', act_df.get_unit('Value') / pop_df.get_unit('Pop'))
         df = df.with_columns([
             (pl.col(VALUE_COLUMN) / pl.col('Pop')).alias('PerCapita'),
             (pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right')).alias(FORECAST_COLUMN)
@@ -893,7 +895,7 @@ class TransportFuelFactor(AdditiveNode):
         for col, m in (('electricity', e_m), ('fuel', f_m)):
             u = df.get_unit(col)
             if 'vehicle' not in u.dimensionality:
-                df = df.set_unit(col, cast(Unit, u / v_unit), force=True)
+                df = df.set_unit(col, cast('Unit', u / v_unit), force=True)
             df = df.ensure_unit(col, m.unit).rename({col: m.column_id})
             df = df.with_columns(pl.col(m.column_id).fill_nan(None))
             exprs.append(pl.col(m.column_id).is_null() | pl.col(m.column_id).eq(0.0))

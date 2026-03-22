@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any, TypedDict, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from django.contrib.postgres.expressions import ArraySubquery
 from django.db.models import Q
@@ -23,7 +23,6 @@ from frameworks.sync_frameworks import FrameworkModel
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from uuid import UUID
 
     from django.db.models import QuerySet
 

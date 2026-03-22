@@ -59,8 +59,7 @@ def pconvert(value):
     if value['Value']:
         pquantity = value['Value'] * ureg(value['Unit'])
         return pquantity.to(value['ToUnit'])._magnitude
-    else:
-        return float('nan')
+    return float('nan')
 
 # ---------------------------------------------------------------------------------------
 df = pl.read_csv(incsvpath, separator = incsvsep, infer_schema_length = 1000)
@@ -220,8 +219,8 @@ for sector in sectors:
 
         if not dff.is_empty():
             report.write('\n\t%s (%i T, %i F, %i N):\n\t\t' % (qtype,
-                                                               len(dff.filter(pl.col('Status') == True)),
-                                                               len(dff.filter(pl.col('Status') == False)),
+                                                               len(dff.filter(pl.col('Status'))),
+                                                               len(dff.filter(not pl.col('Status'))),
                                                                len(dff.filter(pl.col('Status').is_null()))))
             dff = unitcheck(dff, values, report)
             qunit = dff.select('Unit').unique().to_series(0).to_list()[0]

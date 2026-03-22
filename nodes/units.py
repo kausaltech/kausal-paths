@@ -51,6 +51,8 @@ def split_specifier(name: str) -> tuple[str, str | None]:
 
 
 class Unit(pint.registry.Unit):
+    _paths_hash: bytes
+
     @classmethod
     def __get_pydantic_core_schema__(
         cls, source: type[Any], handler: GetCoreSchemaHandler

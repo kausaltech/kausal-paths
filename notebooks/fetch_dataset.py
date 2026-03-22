@@ -29,7 +29,7 @@ def fetch_and_process_dataset(ekey, output_filename):
                 if ekey == key:
                     found = True
                     print(f"Found direct key match: {key}")
-                    
+
                     try:
                         print(f"Reading parquet file from: {path + key}")
                         df = pl.read_parquet(path + key)

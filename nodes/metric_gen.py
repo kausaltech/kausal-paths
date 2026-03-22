@@ -391,7 +391,7 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
     goals = _get_goals(node, dims)
 
     stackable = m.quantity in STACKABLE_QUANTITIES
-    if isinstance(node, ActionNode) and m.quantity in ('mix',):
+    if isinstance(node, ActionNode) and m.quantity == 'mix':
         stackable = False
 
     data = _generate_output_data(node, dims, df)

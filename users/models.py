@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
     from paths.const import PathsRoleIdentifier
 
-    from frameworks.roles import FrameworkRoleDef
+    from frameworks.roles import FrameworkRoleDef  # noqa: TC004
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
     from orgs.models import Organization
     from people.models import Person
@@ -53,7 +53,7 @@ class UserExtra(BaseModel):
 
     @classmethod
     def get_default(cls) -> Self:
-        from frameworks.roles import FrameworkRoleDef  # noqa: F401
+        from frameworks.roles import FrameworkRoleDef  # noqa: F401  # pyright: ignore[reportUnusedImport]
         cls.model_rebuild()
         return cls()
 

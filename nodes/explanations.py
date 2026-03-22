@@ -804,7 +804,7 @@ class NodeClassRule(ValidationRule):
 
     def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
         typ: str = node_config.get('type') or ''
-        typ = typ.split('.')[-1]
+        typ = typ.rsplit('.', maxsplit=1)[-1]
         html: list[str] = [f"{node_config['id']} ({typ})<br>"]
         desc = NODE_CLASS_DESCRIPTIONS.get(typ) or NODE_CLASS_DESCRIPTIONS['Unknown']
         html.append(f"{desc.description}<ul>")
@@ -1188,7 +1188,7 @@ class BasketRule(ValidationRule):
 
         remaining_baskets = [
             basket for basket in baskets.keys()
-            if basket not in operations and basket not in {'skip'}
+            if basket not in operations and basket != 'skip'
         ]
         if remaining_baskets:
             html.append(_("These groups are left over without an operation:") + "<ol>")

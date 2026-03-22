@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.utils.translation import gettext_lazy as _
@@ -92,7 +92,8 @@ class ReduceParameterValue(RootModel[list[ReduceFlow]]):
 class ReduceParameter(ParameterWithUnit, Parameter[ReduceParameterValue]):
     value: ReduceParameterValue | None = None
 
-    def __post_init__(self, unit_str: str | None = None):
+    unit_str: InitVar[str | None] = None
+    def __post_init__(self, unit_str: str | None):
         self._init_unit(unit_str)
         super().__post_init__()
 

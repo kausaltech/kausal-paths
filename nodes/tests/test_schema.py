@@ -18,7 +18,7 @@ pytestmark = pytest.mark.django_db
 
 def test_instance_type(graphql_client_query_data, instance, instance_config):
     data = graphql_client_query_data(
-        '''
+        """
         query {
           instance {
             __typename
@@ -33,7 +33,7 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
             leadParagraph
           }
         }
-        '''
+        """
     )
     expected = {
         'instance': {
@@ -267,7 +267,7 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
 def test_scenario_type(graphql_client_query_data, context, scenario):
     is_active = scenario == context.active_scenario
     data = graphql_client_query_data(
-        '''
+        """
         query($id: ID!) {
           scenario(id: $id) {
             __typename
@@ -277,7 +277,7 @@ def test_scenario_type(graphql_client_query_data, context, scenario):
             isDefault
           }
         }
-        ''',
+        """,
         variables={'id': scenario.id}
     )
     expected = {

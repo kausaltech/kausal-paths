@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass
 from functools import partial
 from io import StringIO
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -89,7 +90,7 @@ class OptimizeParameter:
 
         # remove all the values after our start year
         for eidx, entry in enumerate(value.root):
-            entry.amounts = list(sorted([a for a in entry.amounts if a.year <= start_year], key=lambda x: x.year))
+            entry.amounts = sorted([a for a in entry.amounts if a.year <= start_year], key=lambda x: x.year)
             start = entry.amounts[-1]
             if start.year != start_year:
                 start = entry.amounts[-1].model_copy()
@@ -128,7 +129,7 @@ class OptimizeParameter:
 
             dests = start.dest_amounts[:-1]
             x0 = 100.0 / len(start.dest_amounts)
-            for idx, amount in enumerate(dests):
+            for idx, _amount in enumerate(dests):
                 # Set the finalizer for the penultimate dest param
                 if idx == len(dests) - 1:
                     finalize = partial(self.set_last_dest_value, start, end, idx + 1)
@@ -229,7 +230,7 @@ class OptimizeParameterSet:
         return tuple(e.finalize for param in self.params for e in param.entries if e.finalize is not None)
 
     def set_values(self, vals: np.ndarray):
-        for val, set_value in zip(vals, self.value_setters):  # pyright: ignore
+        for val, set_value in zip(vals, self.value_setters, strict=False):  # pyright: ignore
             set_value(float(val))
         for finalize in self.finalizers:  # pyright: ignore
             finalize()
@@ -249,7 +250,8 @@ class OptimizeParameterSet:
 
     def save_to_yaml(self, instance: Instance):
         assert instance.yaml_file_path
-        cfg = yaml.load(open(instance.yaml_file_path, "r", encoding="utf8"))
+        with Path(instance.yaml_file_path).open('r') as f:
+            cfg = yaml.load(f)
         main = cfg
         if "instance" in cfg:
             main = cfg["instance"]
@@ -360,7 +362,7 @@ class Optimizer:
             all_paths = list(nx.all_simple_paths(
                 ctx.node_graph, source=act.id, target=self.outcome_node.id
             ))
-            assert len(all_paths)
+            assert all_paths
             for path in all_paths:
                 path_nodes.update(path)
 
@@ -382,7 +384,6 @@ class Optimizer:
         years = sorted(self.goal_df[YEAR_COLUMN])
         # Start with the first forecast year
         range_start_year = last_hist_year + 1
-        previous_end_year = ctx.model_end_year
         try:
             for goal_year in years:
                 print('%d -> %d' % (range_start_year, goal_year))

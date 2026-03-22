@@ -25,7 +25,7 @@ def insert_model_translation_panels(model: Model, panels: Sequence[Panel], insta
 
     field_map: dict[str, dict[str, TranslatedVirtualField]] = {}
     for f in cast('Iterator[TranslatedVirtualField]', i18n_field.get_translated_fields()):
-        lang = cast(str, f.language)
+        lang = cast('str', f.language)
         field_map.setdefault(f.original_name, {})[lang] = f # type: ignore
 
     for p in panels:

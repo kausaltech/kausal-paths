@@ -125,6 +125,7 @@ authenticate = "always"
 
 [tool.ruff]
 extend = './kausal_common/configs/ruff.toml'
+extend-exclude = ["*.ipynb"]
 
 [tool.ty.environment]
 extra-paths = ["./kausal_common/typings"]

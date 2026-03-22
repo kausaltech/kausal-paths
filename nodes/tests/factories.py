@@ -70,7 +70,7 @@ class InstanceFactory(Factory[Instance]):
 
     @post_generation
     @staticmethod
-    def post(obj: Instance, create: bool, extracted, **kwargs):
+    def post(obj: Instance, create: bool, extracted, **kwargs) -> None:
         obj.modified_at = datetime.now(UTC) + timedelta(hours=1)
 
 class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
@@ -134,7 +134,7 @@ class NodeFactory(Factory[Node]):
 
     @post_generation
     @staticmethod
-    def post(obj: Node, create: bool, extracted, **kwargs):
+    def post(obj: Node, create: bool, extracted, **kwargs) -> None:
         assert obj.context.instance is not None
         obj.context.add_node(obj)
         obj.context.finalize_nodes()

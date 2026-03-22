@@ -197,7 +197,7 @@ class InstanceResultExcel(I18nBaseModel):
 
         # Add a dummy grouping column as at least one is required
         df = df.with_columns(pl.lit(1).alias('_dummy_group'))
-        grouping_cols = df.dim_ids if df.dim_ids else ['_dummy_group']
+        grouping_cols = df.dim_ids or ['_dummy_group']
 
         # Create forecast_from values
         forecast_from_df = (df

@@ -7,7 +7,7 @@ from wagtail.admin.localization import get_available_admin_languages
 
 def _get_language_choices():
     language_choices = []
-    for lang_code, lang_name in get_available_admin_languages():
+    for lang_code, _lang_name in get_available_admin_languages():
         lang_info = get_language_info(lang_code.lower())
         if lang_info['code'] == lang_code.lower():
             lang_name_local = lang_info['name_local']

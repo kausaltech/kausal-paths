@@ -209,7 +209,8 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
     max_value: float | None = None
     step: float | None = None
 
-    def __post_init__(self, unit_str: str | None = None):
+    unit_str: InitVar[str | None] = None
+    def __post_init__(self, unit_str: str | None):
         self._init_unit(unit_str)
         if self.min_value is not None:
             self.min_value = float(self.min_value)
@@ -254,7 +255,7 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
             unit = None
         super().set(value) # type: ignore
         if unit is not None:
-            self.unit = cast(Unit, unit)
+            self.unit = cast('Unit', unit)
 
 
 @dataclass

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel, Field, RootModel, model_validator
@@ -114,7 +114,8 @@ class ShiftParameterValue(RootModel[list[ShiftEntry]]):
 class ShiftParameter(ParameterWithUnit, Parameter[ShiftParameterValue]):
     value: ShiftParameterValue | None = None
 
-    def __post_init__(self, unit_str: str | None = None):
+    unit_str: InitVar[str | None] = None
+    def __post_init__(self, unit_str: str | None):
         self._init_unit(unit_str)
         super().__post_init__()
 

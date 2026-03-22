@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import KW_ONLY, dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self
 
 import strawberry as sb
@@ -68,12 +68,12 @@ class VisualizationNodeDimension(BaseModel):
 
 
 @sb.enum(description='Desired (benificial) direction for the values of the output of a node')
-class DesiredOutcome(str, Enum):
+class DesiredOutcome(StrEnum):
     increasing = 'increasing'
     decreasing = 'decreasing'
 
 
-class VisualizationKind(str, Enum):
+class VisualizationKind(StrEnum):
     node = 'node'
     group = 'group'
 

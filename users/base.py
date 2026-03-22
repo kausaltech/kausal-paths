@@ -8,7 +8,7 @@ from django.contrib.auth.models import AbstractUser as DjangoAbstractUser, UserM
 from django.db import models
 
 if TYPE_CHECKING:
-    from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
+    from django.db.models.fields.related_descriptors import RelatedManager  # pyright: ignore
     from django.db.models.manager import RelatedManager  # type: ignore  # noqa
 
     from social_django.models import UserSocialAuth
@@ -67,14 +67,14 @@ class AbstractUser(DjangoAbstractUser):
 
     def save(self, *args, **kwargs):
         self.clean()
-        return super(AbstractUser, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
     def clean(self):
         self._make_sure_uuid_is_set()
         if not self.username:
             self.set_username_from_uuid()
 
-    def _make_sure_uuid_is_set(self):
+    def _make_sure_uuid_is_set(self) -> None:
         if self.uuid is None:
             self.uuid = uuid4()
 
@@ -84,9 +84,8 @@ class AbstractUser(DjangoAbstractUser):
 
     def get_display_name(self):
         if self.first_name and self.last_name:
-            return '{0} {1}'.format(self.first_name, self.last_name).strip()
-        else:
-            return self.email
+            return f'{self.first_name} {self.last_name}'.strip()
+        return self.email
 
     def get_short_name(self):
         if self.first_name:
@@ -101,8 +100,7 @@ class AbstractUser(DjangoAbstractUser):
     def __str__(self):
         if self.first_name and self.last_name:
             return '%s %s (%s)' % (self.last_name, self.first_name, self.email)
-        else:
-            return self.email
+        return self.email
 
     class Meta:
         abstract = True

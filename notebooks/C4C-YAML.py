@@ -60,7 +60,7 @@ def makeid(label: str):
 
 def dimlist(df):
     dimlist = []
-    for dim in list(set(df.columns) - set(['Sector', 'Quantity', 'Unit', 'Value', 'Year'])):
+    for dim in list(set(df.columns) - {'Sector', 'Quantity', 'Unit', 'Value', 'Year'}):
         if df.select(dim).unique().to_series(0).to_list() != [None]:
             dimlist.append(makeid(dim))
 
@@ -148,7 +148,7 @@ quantitylookup = {'Emission Factor'   : {'name': 'Emission Factor', 'quantity': 
                   'Price'             : {'name': 'Price'          , 'quantity': 'currency'},
                   'Unit Price'        : {'name': 'Unit Price'     , 'quantity': 'unit_price'}}
 
-activityquantities = set(['Energy Consumption', 'Fuel Consumption', 'Mileage'])
+activityquantities = {'Energy Consumption', 'Fuel Consumption', 'Mileage'}
 
 # -------------------------------------------------------------------------------------------------
 nodetemplates = {
@@ -448,7 +448,7 @@ yamlfile.write(yaml)
 
 # -------------------------------------------------------------------------------------------------
 yamlfile.write('dimensions:\n')
-dims = list(set(df.columns) - set(['Sector', 'Quantity', 'Unit', 'Value', 'Year']))
+dims = list(set(df.columns) - {'Sector', 'Quantity', 'Unit', 'Value', 'Year'})
 for dim in dims:
     cats = df.select(pl.col(dim)).filter(pl.col(dim).is_null().not_()).unique().to_series(0).to_list()
 
@@ -456,8 +456,7 @@ for dim in dims:
         yamlfile.write('- id: %s\n  label: %s\n  categories:\n' % (makeid(dim), dim))
 
         cats.sort()
-        for cat in cats:
-            yamlfile.write("  - id: %s\n    label: '%s'\n" % (makeid(cat), cat))
+        yamlfile.writelines("  - id: %s\n    label: '%s'\n" % (makeid(cat), cat) for cat in cats)
         yamlfile.write('\n')
 
 # -------------------------------------------------------------------------------------------------
@@ -480,7 +479,7 @@ if pid in pnodes:
 
 # -------------------------------------------------------------------------------------------------
 for nodeset in [leafnodes, enodes, pnodes]:
-    nodeids = list(set(nodeset.keys()) - set([eid, pid]))
+    nodeids = list(set(nodeset.keys()) - {eid, pid})
     nodeids.sort()
     for nid in nodeids:
         yaml = nodetemplates[nodeset[nid]['template']].replace('[nodeid]', nid)

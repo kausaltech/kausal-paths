@@ -64,8 +64,8 @@ class Role:
     def get_group_name(self, instance: InstanceConfig) -> str:
         return '%s %s' % (instance.name,self.group_name)
 
-    def _update_model_perms(self, group: Group, instance: InstanceConfig):
-        old_perms = set(list(group.permissions.all()))
+    def _update_model_perms(self, group: Group, instance: InstanceConfig) -> None:
+        old_perms = set(group.permissions.all())
         new_perms = set()
         for app_label, perms in self.model_perms.items():
             for p in list(perms):
@@ -76,7 +76,7 @@ class Role:
             group.permissions.set(new_perms)
 
     @transaction.atomic()
-    def _update_page_perms(self, group: Group, instance: InstanceConfig):
+    def _update_page_perms(self, group: Group, instance: InstanceConfig) -> None:
         if instance.site is None:
             return
 

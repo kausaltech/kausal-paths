@@ -100,11 +100,11 @@ def plot_node(node: Node):
         dim_ids = sorted(dim_ids, key=lambda x: x[1], reverse=True)
         color_col = None
         facet_col = None
-        if len(dim_ids):
+        if dim_ids:
             color_col, _ = dim_ids.pop(0)
-            if len(dim_ids):
+            if dim_ids:
                 facet_col, _ = dim_ids.pop(0)
-                assert not len(dim_ids)
+                assert not dim_ids
 
         labels = {
             YEAR_COLUMN: 'Year',
