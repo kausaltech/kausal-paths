@@ -98,6 +98,7 @@ class PickledPathsDataFrame:
 
 type LRUFuncT[**P, R, SC: LocalLRUCache] = Callable[Concatenate[SC, P], R]
 
+
 class LocalLRUCache:
     """
     A Least Recently Used (LRU) cache implementation with a maximum size limit.
@@ -117,6 +118,7 @@ class LocalLRUCache:
             _rich_traceback_omit = True
             with self.lock:
                 return method(self, *args, **kwargs)
+
         return cast('LRUFuncT[P, R, SC]', wrapper)
 
     def __init__(self, max_size: int, log: loguru.Logger):
@@ -448,6 +450,7 @@ class Cache(AbstractContextManager):
         self.local = LocalLRUCache(32 * 1024 * 1024, self.log)
         self.allowed_kinds = {CacheKind.RUN, CacheKind.LOCAL, CacheKind.EXT}
         from pandas import DataFrame as PandasDataFrame
+
         self.PandasDataFrame = PandasDataFrame
         self.cache_misses = set()
 

@@ -7,7 +7,7 @@ def test_action_enabled(graphql_client_query_data, default_scenario, action_node
     action_node.on_scenario_created(default_scenario)
     param_id = action_node.enabled_param.global_id
     data = graphql_client_query_data(
-        '''
+        """
         query($param: ID!) {
           parameter(id: $param) {
             __typename
@@ -17,8 +17,8 @@ def test_action_enabled(graphql_client_query_data, default_scenario, action_node
             }
           }
         }
-        ''',
-        variables={'param': param_id}
+        """,
+        variables={'param': param_id},
     )
     expected = {
         'parameter': {
@@ -34,7 +34,7 @@ def test_action_enabled(graphql_client_query_data, default_scenario, action_node
 def test_set_parameter_action_enabled(graphql_client_query_data, action_node, custom_scenario, enabled):
     param_id = action_node.enabled_param.global_id
     data = graphql_client_query_data(
-        '''
+        """
         mutation($param: ID!, $value: Boolean!) {
           setParameter(id: $param, boolValue: $value) {
             ok
@@ -46,8 +46,8 @@ def test_set_parameter_action_enabled(graphql_client_query_data, action_node, cu
             }
           }
         }
-        ''',
-        variables={'param': param_id, 'value': enabled}
+        """,
+        variables={'param': param_id, 'value': enabled},
     )
     expected = {
         'setParameter': {
@@ -55,7 +55,7 @@ def test_set_parameter_action_enabled(graphql_client_query_data, action_node, cu
             'parameter': {
                 'id': param_id,
                 'value': enabled,
-            }
+            },
         }
     }
     assert data == expected

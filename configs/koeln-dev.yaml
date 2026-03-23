@@ -7,7 +7,7 @@ supported_languages: [en]
 site_url: https://koeln-dev.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6507e1755a4c402b794565e9908db8a37a0d2a42
+  commit: c5d07d401ee97bed2552ad0573117812272384de
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Treibhausgasinventar
@@ -451,6 +451,18 @@ nodes:
   - id: multiplier
     value: 1
     unit: t/t_co2e
+
+- id: historical_emissions2
+  name: Historische Emissionen
+  name_en: Historical emissions from excel
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  color: '#00A969'
+  input_dimensions: [sector, energy_carrier, vehicle_type]
+  output_dimensions: [sector, energy_carrier, vehicle_type]
+  input_datasets:
+  - id: koeln/historical_emissions
 
 - id: stationary_energy_by_type
   name: Stationäre Endenergieverbrauch nach Typ

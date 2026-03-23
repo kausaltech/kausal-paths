@@ -22,7 +22,7 @@ from .models import Person, PersonQuerySet
 
 class PersonIndexView(PathsIndexView[Person, PersonQuerySet]):
     def search_queryset(self, queryset):
-       # Workaround to prevent Wagtail from looking for `path` (from Organization) in the search fields for Person
+        # Workaround to prevent Wagtail from looking for `path` (from Organization) in the search fields for Person
         queryset = Person.objects.qs.filter(id__in=queryset)
 
         return super().search_queryset(queryset)
@@ -53,7 +53,7 @@ class PersonSnippetViewSet(PathsViewSet[Person, PersonQuerySet]):
 
     search_fields = ['first_name', 'last_name', 'email', 'title']
     list_per_page = 50
-    list_display =  ['avatar', 'first_name', 'last_name', 'email', 'organization', 'title']
+    list_display = ['avatar', 'first_name', 'last_name', 'email', 'organization', 'title']
     index_view_class = PersonIndexView
 
     def get_queryset(self, request):

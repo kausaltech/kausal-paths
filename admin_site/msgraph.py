@@ -10,7 +10,7 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _get_token(user: 'User'):
+def _get_token(user: User) -> str | None:
     auth = user.social_auth.filter(provider='azure_ad').first()
     if not auth:
         backends = [x.provider for x in user.social_auth.all()]
@@ -31,10 +31,10 @@ def graph_get_json(resource: str, token: str):
     return res.json()
 
 
-def get_user_data(user: 'User', principal_name: str | None = None):
+def get_user_data(user: User, principal_name: str | None = None):
     token = _get_token(user)
     if not token:
-        return
+        return None
     if principal_name:
         resource = 'users/%s' % principal_name
     else:
@@ -43,11 +43,11 @@ def get_user_data(user: 'User', principal_name: str | None = None):
     return data
 
 
-def get_user_photo(user: 'User'):
+def get_user_photo(user: User):
     token = _get_token(user)
     if not token:
-        return
+        return None
     out = graph_get('me/photo/$value', token)
     if out.status_code == 404:
-        return
+        return None
     return out

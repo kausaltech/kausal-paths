@@ -48,18 +48,21 @@ class FrameworkPermissionPolicy(ModelReadOnlyPolicy['Framework', 'FrameworkQuery
 
     def __init__(self):
         from .models import Framework
+
         super().__init__(Framework)
 
 
 class SectionPermissionPolicy(ModelReadOnlyPolicy['Section', 'SectionQuerySet']):
     def __init__(self):
         from .models import Section
+
         super().__init__(Section)
 
 
 class MeasureTemplatePermissionPolicy(ModelReadOnlyPolicy['MeasureTemplate', 'MeasureTemplateQuerySet']):
     def __init__(self):
         from .models import MeasureTemplate
+
         super().__init__(MeasureTemplate)
 
 

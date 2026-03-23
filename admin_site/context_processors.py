@@ -12,4 +12,3 @@ def i18n(request):
         language_fallbacks_json=json.dumps(settings.MODELTRANS_FALLBACK),
         supported_languages_json=json.dumps([x[0] for x in settings.LANGUAGES]),
     )
-

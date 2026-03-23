@@ -391,7 +391,7 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
     goals = _get_goals(node, dims)
 
     stackable = m.quantity in STACKABLE_QUANTITIES
-    if isinstance(node, ActionNode) and m.quantity in ('mix',):
+    if isinstance(node, ActionNode) and m.quantity == 'mix':
         stackable = False
 
     data = _generate_output_data(node, dims, df)
@@ -400,7 +400,6 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
         nnode = NormalizerNode(id=normalizer.id, name=str(normalizer.name))
     else:
         nnode = None
-
 
     dm = DimensionalMetric(
         id=node.id,
@@ -606,7 +605,7 @@ def from_action_impact(
     cost_node_id = root.cost_node.id if root.cost_node else ''
 
     dm = DimensionalMetric(  # Normalization or grouping is not possible at the moment.
-        id=f"{root.effect_node.id}:{cost_node_id}:{action.id}_{col.lower()}",
+        id=f'{root.effect_node.id}:{cost_node_id}:{action.id}_{col.lower()}',
         name=str(action.name),
         dimensions=dims,
         values=vals,

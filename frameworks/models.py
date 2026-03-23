@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
+from uuid import uuid4
 
 from django.conf import settings
 from django.contrib import admin
@@ -55,8 +56,8 @@ if TYPE_CHECKING:
     from .object_cache import (
         FrameworkConfigCacheData,  # noqa: F401
         FrameworkSpecificCache,  # noqa: F401
-        MeasureCache,  # noqa: F401
-        MeasureDataPointCache,  # noqa: F401
+        MeasureCache,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+        MeasureDataPointCache,  # noqa: F401  # pyright: ignore[reportUnusedImport]
         MeasureTemplateDefaultDataPointCache,  # noqa: F401
         SectionCacheData,  # noqa: F401
     )
@@ -74,8 +75,12 @@ class FrameworkQuerySet(PathsQuerySet['Framework']):
 
 
 _FrameworkManager = models.Manager.from_queryset(FrameworkQuerySet)
+
+
 class FrameworkManager(ModelManager['Framework', FrameworkQuerySet], _FrameworkManager):  # pyright: ignore
     """Model manager for Framework."""
+
+
 del _FrameworkManager
 
 
@@ -91,9 +96,9 @@ class MinMaxDefaultInt(BaseModel):
 
     def validate_value(self, value: int) -> int:
         if self.min is not None and value < self.min:
-            raise ValueError(f"Value must be at least {self.min}")
+            raise ValueError(f'Value must be at least {self.min}')
         if self.max is not None and value > self.max:
-            raise ValueError(f"Value must be at most {self.max}")
+            raise ValueError(f'Value must be at most {self.max}')
         return value
 
 
@@ -122,14 +127,17 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
 
     """
 
-    name = models.CharField(max_length=200, verbose_name=_("Name"))
+    name = models.CharField(max_length=200, verbose_name=_('Name'))
     identifier = IdentifierField()
     description = models.TextField(blank=True)
     public_base_fqdn = models.CharField(max_length=100, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     root_section: OneToOne[Section | None] = models.OneToOneField(
-        "frameworks.Section", on_delete=models.CASCADE, related_name="root_for_framework", null=True,
+        'frameworks.Section',
+        on_delete=models.CASCADE,
+        related_name='root_for_framework',
+        null=True,
     )
     result_excel_url = models.URLField(max_length=250, null=True, blank=True)
     result_excel_node_ids = ArrayField(base_field=models.CharField(max_length=200), null=True, blank=True)
@@ -137,17 +145,26 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
     defaults = SchemaField(schema=FrameworkDefaults, default=FrameworkDefaults)
 
     admin_group: OneToOne[Group | None] = models.OneToOneField(
-        Group, on_delete=models.PROTECT, editable=False, related_name='admin_for_framework',
+        Group,
+        on_delete=models.PROTECT,
+        editable=False,
+        related_name='admin_for_framework',
         null=True,
     )
     viewer_group: OneToOne[Group | None] = models.OneToOneField(
-        Group, on_delete=models.PROTECT, editable=False, related_name='viewer_for_framework',
+        Group,
+        on_delete=models.PROTECT,
+        editable=False,
+        related_name='viewer_for_framework',
         null=True,
     )
 
-    public_fields: ClassVar = ["name", "identifier", "description"]
+    public_fields: ClassVar = ['name', 'identifier', 'description']
 
-    objects: ClassVar[FrameworkManager] = FrameworkManager()  # pyright: ignore
+    objects: ClassVar[FrameworkManager] = FrameworkManager()
+
+    class Meta:
+        ordering = ['name']
 
     id: int
     root_section_id: int | None
@@ -167,6 +184,7 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
     @classmethod
     def permission_policy(cls) -> FrameworkPermissionPolicy:
         from .permissions import FrameworkPermissionPolicy
+
         return FrameworkPermissionPolicy()
 
     def to_dict(self):
@@ -208,20 +226,21 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
 
     @copy_signature(models.Model.save)
     def save(self, *args, **kwargs):
-        #from .roles import framework_admin_role
+        # from .roles import framework_admin_role
         super().save(*args, **kwargs)
-        #framework_admin_role.create_or_update_instance_group(self)
+        # framework_admin_role.create_or_update_instance_group(self)
 
     def create_root_section(self) -> Section:
         if self.root_section:
             return self.root_section
-        root_section = Section.add_root(instance=Section(framework=self, name=f"{self.name} Root"))
+        root_section = Section.add_root(instance=Section(framework=self, name=f'{self.name} Root'))
         self.root_section = root_section
         self.save(update_fields=['root_section'])
         return root_section
 
     def measure_templates(self) -> MeasureTemplateQuerySet:
         return MeasureTemplate.objects.get_queryset().filter(section__framework=self)
+
 
 class FrameworkDimension(UUIDIdentifiedModel, OrderedModel):
     """
@@ -232,17 +251,17 @@ class FrameworkDimension(UUIDIdentifiedModel, OrderedModel):
     depending on the region, sector, etc. of the instance.
     """
 
-    framework = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name="dimensions")
+    framework = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name='dimensions')
     name = models.CharField(max_length=200)
     identifier = IdentifierField()
 
     categories: RevMany[FrameworkDimensionCategory]
 
-    class Meta:  # pyright: ignore
-        ordering = ["framework", "order"]
+    class Meta:
+        ordering = ['framework', 'order']
 
     def __str__(self):
-        return f"{self.framework.name} - {self.name}"
+        return f'{self.framework.name} - {self.name}'
 
     def filter_siblings(self, qs: models.QuerySet[Self]) -> models.QuerySet[Self]:
         return qs.filter(framework=self.framework)
@@ -263,16 +282,16 @@ class FrameworkDimensionCategory(UUIDIdentifiedModel, OrderedModel):
 
     """
 
-    dimension = models.ForeignKey(FrameworkDimension, on_delete=models.CASCADE, related_name="categories")
+    dimension = models.ForeignKey(FrameworkDimension, on_delete=models.CASCADE, related_name='categories')
     name = models.CharField(max_length=200)
 
-    objects: models.Manager[FrameworkDimensionCategory]  # pyright: ignore
+    objects: models.Manager[FrameworkDimensionCategory]
 
-    class Meta:  # pyright: ignore
-        ordering = ["dimension", "order"]
+    class Meta:
+        ordering = ['dimension', 'order']
 
     def __str__(self):
-        return f"{self.dimension.name} - {self.name}"
+        return f'{self.dimension.name} - {self.name}'
 
     def filter_siblings(self, qs: models.QuerySet[Self]) -> models.QuerySet[Self]:
         return qs.filter(dimension=self.dimension)
@@ -280,7 +299,7 @@ class FrameworkDimensionCategory(UUIDIdentifiedModel, OrderedModel):
 
 class SectionQuerySet(MP_NodeQuerySet['Section'], PathsQuerySet['Section']):  # type: ignore[override]
     def _parents(self) -> SectionQuerySet:
-        model = cast('type[Section]', self.model)
+        model = self.model
         qs = cast('SectionQuerySet', model._default_manager.get_queryset())
         parents = qs.filter(
             path=Substr(OuterRef('path'), 1, Length(OuterRef('path')) - model.steplen),
@@ -309,7 +328,7 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
     Each section can contain subsections and measure templates.
     """
 
-    framework: FK[Framework] = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name="sections")
+    framework: FK[Framework] = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name='sections')
     identifier = IdentifierField[str | None, str | None](null=True, blank=True)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -326,14 +345,23 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
     )
 
     public_fields: ClassVar = [
-        "identifier", "uuid", "path", "name", "description", "available_years", "min_total", "max_total", "help_text",
-        "influencing_measure_templates",
+        'identifier',
+        'uuid',
+        'path',
+        'name',
+        'description',
+        'available_years',
+        'min_total',
+        'max_total',
+        'help_text',
+        'influencing_measure_templates',
     ]
 
     objects: ClassVar[SectionManager] = SectionManager()
-    _default_manager: ClassVar[SectionManager]  # type: ignore[assignment]
+    _default_manager: ClassVar[SectionManager]
 
     class Meta:
+        ordering = ['path']
         constraints = [
             models.UniqueConstraint(name='section_identifier', fields=['framework', 'identifier'], nulls_distinct=True),
         ]
@@ -343,15 +371,16 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
 
     def __rich_repr__(self):
         yield self.name
-        yield "framework", self.framework.identifier
-        yield "uuid", self.uuid
+        yield 'framework', self.framework.identifier
+        yield 'uuid', self.uuid
 
     @classmethod
     def permission_policy(cls) -> SectionPermissionPolicy:
         from .permissions import SectionPermissionPolicy
+
         return SectionPermissionPolicy()
 
-    @admin.display(description=_("Name"), ordering='name')
+    @admin.display(description=_('Name'), ordering='name')
     def indented_name(self) -> str:
         return get_indented_name(self, html=True)
 
@@ -359,11 +388,11 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
         """Print the subsections and measures in each section as an indented hierarchical tree."""
 
         # Print the current section
-        print("  " * indent + f"Section: {self.name}")
+        print('  ' * indent + f'Section: {self.name}')
 
         # Print measures in the current section
         for measure_template in self.measure_templates.all():
-            print("  " * (indent + 1) + f"Measure: {measure_template.name}")
+            print('  ' * (indent + 1) + f'Measure: {measure_template.name}')
 
         # Recursively print subsections
         for child in self.get_children():
@@ -372,20 +401,19 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
     def to_dict(self):
         parent = self.get_parent()
         return {
-            "uuid": str(self.uuid),
-            "identifier": self.identifier,
-            "name": self.name,
-            "description": self.description,
-            "available_years": self.available_years,
-            "parent": str(parent.uuid) if parent else None,
+            'uuid': str(self.uuid),
+            'identifier': self.identifier,
+            'name': self.name,
+            'description': self.description,
+            'available_years': self.available_years,
+            'parent': str(parent.uuid) if parent else None,
         }
 
 
-
 class MeasurePriority(models.TextChoices):
-    HIGH = "high", _("High")
-    MEDIUM = "medium", _("Medium")
-    LOW = "low", _("Low")
+    HIGH = 'high', _('High')
+    MEDIUM = 'medium', _('Medium')
+    LOW = 'low', _('Low')
 
 
 class MeasureTemplateQuerySet(PathsQuerySet['MeasureTemplate']):
@@ -393,8 +421,12 @@ class MeasureTemplateQuerySet(PathsQuerySet['MeasureTemplate']):
 
 
 _MeasureTemplateManager = models.Manager.from_queryset(MeasureTemplateQuerySet)
+
+
 class MeasureTemplateManager(ModelManager['MeasureTemplate', MeasureTemplateQuerySet], _MeasureTemplateManager):  # pyright: ignore
     """Model manager for MeasureTemplate."""
+
+
 del _MeasureTemplateManager
 
 
@@ -412,7 +444,7 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
 
     """
 
-    section: FK[Section] = models.ForeignKey(Section, on_delete=models.CASCADE, related_name="measure_templates")
+    section: FK[Section] = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='measure_templates')
     name = models.CharField(max_length=200)
     unit = UnitField()
     priority = models.CharField(max_length=10, choices=MeasurePriority.choices, default=MeasurePriority.MEDIUM)
@@ -427,23 +459,36 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
     default_value_source = models.TextField(blank=True)
 
     dimensions: models.ManyToManyField[FrameworkDimension, MeasureTemplateDimension] = models.ManyToManyField(
-        FrameworkDimension, through="MeasureTemplateDimension", blank=True, related_name="measure_templates",
+        FrameworkDimension,
+        through='MeasureTemplateDimension',
+        blank=True,
+        related_name='measure_templates',
     )
 
     default_data_points: RevMany[MeasureTemplateDefaultDataPoint]
     measures: RevMany[Measure]
 
     public_fields: ClassVar = [
-        "uuid", "name", "unit", "priority", "min_value", "max_value", "time_series_max", "default_value_source",
-        "year_bound", "hidden", "help_text", "include_in_progress_tracker",
+        'uuid',
+        'name',
+        'unit',
+        'priority',
+        'min_value',
+        'max_value',
+        'time_series_max',
+        'default_value_source',
+        'year_bound',
+        'hidden',
+        'help_text',
+        'include_in_progress_tracker',
     ]
 
-    objects: ClassVar[MeasureTemplateManager] = MeasureTemplateManager()  # pyright: ignore
+    objects: ClassVar[MeasureTemplateManager] = MeasureTemplateManager()
 
     section_id: int
 
-    class Meta:  # pyright: ignore
-        ordering = ["section", "order"]
+    class Meta:
+        ordering = ['section', 'order']
 
     @property
     def framework(self) -> Framework:
@@ -452,33 +497,32 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
     @classmethod
     def permission_policy(cls) -> MeasureTemplatePermissionPolicy:
         from .permissions import MeasureTemplatePermissionPolicy
+
         return MeasureTemplatePermissionPolicy()
 
     def __str__(self):
-        return f"{self.section.name} - {self.name}"
+        return f'{self.section.name} - {self.name}'
 
     def __rich_repr__(self):
         yield self.name
-        yield "unit", self.unit
-        yield "framework", self.framework.identifier
-        yield "section", self.section.name
+        yield 'unit', self.unit
+        yield 'framework', self.framework.identifier
+        yield 'section', self.section.name
 
     def filter_siblings(self, qs: models.QuerySet[Self]) -> models.QuerySet[Self]:
         return qs.filter(section=self.section)
 
     def to_dict(self, include_section: bool = True):
         out = {
-            "uuid": str(self.uuid),
-            "name": self.name,
-            "unit": self.unit,
-            "priority": self.priority,
-            "min_value": self.min_value,
-            "max_value": self.max_value,
-            "time_series_max": self.time_series_max,
-            "default_value_source": self.default_value_source,
-            "default_data_points": [
-                dict(year=dp.year, value=dp.value) for dp in self.default_data_points.all()
-            ],
+            'uuid': str(self.uuid),
+            'name': self.name,
+            'unit': self.unit,
+            'priority': self.priority,
+            'min_value': self.min_value,
+            'max_value': self.max_value,
+            'time_series_max': self.time_series_max,
+            'default_value_source': self.default_value_source,
+            'default_data_points': [dict(year=dp.year, value=dp.value) for dp in self.default_data_points.all()],
         }
         if include_section:
             out['section'] = str(self.section.uuid)
@@ -486,11 +530,11 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
 
 
 class MeasureTemplateDimension(OrderedModel):
-    template = models.ForeignKey(MeasureTemplate, on_delete=models.CASCADE, related_name="dimensions_through")
-    dimension = models.ForeignKey(FrameworkDimension, on_delete=models.CASCADE, related_name="measure_templates_through")
+    template = models.ForeignKey(MeasureTemplate, on_delete=models.CASCADE, related_name='dimensions_through')
+    dimension = models.ForeignKey(FrameworkDimension, on_delete=models.CASCADE, related_name='measure_templates_through')
 
-    class Meta:  # pyright: ignore
-        ordering = ["template", "order"]
+    class Meta:
+        ordering = ['template', 'order']
 
     def filter_siblings(self, qs: models.QuerySet[Self]) -> models.QuerySet[Self]:
         return qs.filter(template=self.template)
@@ -499,12 +543,19 @@ class MeasureTemplateDimension(OrderedModel):
 class MeasureTemplateDefaultDataPointQuerySet(PathsQuerySet['MeasureTemplateDefaultDataPoint']):
     pass
 
-_MeasureTemplateDefaultDataPointManager = models.Manager.from_queryset(MeasureTemplateDefaultDataPointQuerySet)
-class MeasureTemplateDefaultDataPointManager(  # pyright: ignore
+
+_MeasureTemplateDefaultDataPointManager = cast(
+    'models.Manager[MeasureTemplateDefaultDataPoint]', models.Manager.from_queryset(MeasureTemplateDefaultDataPointQuerySet)
+)
+
+
+class MeasureTemplateDefaultDataPointManager(
     ModelManager['MeasureTemplateDefaultDataPoint', MeasureTemplateDefaultDataPointQuerySet],
-    _MeasureTemplateDefaultDataPointManager,
+    _MeasureTemplateDefaultDataPointManager,  # type: ignore[misc, valid-type]
 ):
     """Model manager for MeasureTemplateDefaultDataPoint."""
+
+
 del _MeasureTemplateDefaultDataPointManager
 
 
@@ -518,7 +569,9 @@ class MeasureTemplateDefaultDataPoint(CacheablePathsModel['MeasureTemplateDefaul
     """
 
     template: FK[MeasureTemplate] = models.ForeignKey(
-        MeasureTemplate, on_delete=models.CASCADE, related_name='default_data_points',
+        MeasureTemplate,
+        on_delete=models.CASCADE,
+        related_name='default_data_points',
     )
     categories: M2M[FrameworkDimensionCategory, Any] = models.ManyToManyField(FrameworkDimensionCategory)
     year = models.IntegerField()
@@ -526,21 +579,21 @@ class MeasureTemplateDefaultDataPoint(CacheablePathsModel['MeasureTemplateDefaul
 
     public_fields: ClassVar = ['year', 'value']
 
-    objects: ClassVar[MeasureTemplateDefaultDataPointManager] = MeasureTemplateDefaultDataPointManager()  # pyright: ignore
+    objects: ClassVar[MeasureTemplateDefaultDataPointManager] = MeasureTemplateDefaultDataPointManager()
 
     template_id: int
 
     class Meta:
-        ordering = ["template", "year"]
+        ordering = ['template', 'year']
 
     def __str__(self):
-        return f"{self.template.name} - {self.year}"
+        return f'{self.template.name} - {self.year}'
 
     def __rich_repr__(self):
-        yield "template", self.template.name
-        yield "year", self.year
-        yield "value", self.value
-        yield "unit", self.template.unit
+        yield 'template', self.template.name
+        yield 'year', self.year
+        yield 'value', self.value
+        yield 'unit', self.template.unit
 
     @classmethod
     def permission_policy(cls) -> ModelPermissionPolicy[Self, QS[Self]]:
@@ -561,9 +614,13 @@ class FrameworkConfigQuerySet(PathsQuerySet['FrameworkConfig']):
     pass
 
 
-_FrameworkConfigManager = models.Manager.from_queryset(FrameworkConfigQuerySet)
-class FrameworkConfigManager(ModelManager['FrameworkConfig', FrameworkConfigQuerySet], _FrameworkConfigManager):  # pyright: ignore
+_FrameworkConfigManager = cast('models.Manager[FrameworkConfig]', models.Manager.from_queryset(FrameworkConfigQuerySet))
+
+
+class FrameworkConfigManager(ModelManager['FrameworkConfig', FrameworkConfigQuerySet], _FrameworkConfigManager):  # type: ignore[misc, valid-type]
     """Model manager for FrameworkConfig."""
+
+
 del _FrameworkConfigManager
 
 
@@ -576,9 +633,11 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     for specifying the organization name, baseline year, and associated categories.
     """
 
-    framework: FK[Framework] = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name="configs")
+    framework: FK[Framework] = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name='configs')
     instance_config: OneToOne[InstanceConfig] = models.OneToOneField(
-        'nodes.InstanceConfig', on_delete=models.CASCADE, related_name='framework_config',
+        'nodes.InstanceConfig',
+        on_delete=models.CASCADE,
+        related_name='framework_config',
     )
     organization_name = models.CharField(max_length=200, blank=True, null=True)
     organization_identifier = models.CharField(max_length=200, blank=True, null=True)
@@ -588,7 +647,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     categories: M2M[FrameworkDimensionCategory, Any] = models.ManyToManyField(FrameworkDimensionCategory)
     token = models.CharField(max_length=50, default=create_random_token)
 
-    objects: ClassVar[FrameworkConfigManager] = FrameworkConfigManager()  # pyright: ignore
+    objects: ClassVar[FrameworkConfigManager] = FrameworkConfigManager()
 
     instance_config_id: int
     framework_id: int
@@ -596,30 +655,38 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
 
     public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'target_year', 'uuid', 'instance_config']
 
-    class Meta:  # pyright: ignore
+    class Meta:
+        ordering = ['framework', 'instance_config']
         constraints = [
             models.UniqueConstraint(fields=['framework', 'instance_config'], name='unique_framework_instance'),
         ]
 
     def __str__(self):
-        return f"{self.framework.name}: {self.instance_config.name}"
+        return f'{self.framework.name}: {self.instance_config.name}'
 
     def __rich_repr__(self) -> RichReprResult:
-        yield "id", self.pk
-        yield "framework", self.framework.identifier
-        yield "instance", self.instance_config.identifier
-        yield "nr_measures", len(self.measures.all())
+        yield 'id', self.pk
+        yield 'framework', self.framework.identifier
+        yield 'instance', self.instance_config.identifier
+        yield 'nr_measures', len(self.measures.all())
 
     @classmethod
     def permission_policy(cls) -> FrameworkConfigPermissionPolicy:
         from .permissions import FrameworkConfigPermissionPolicy
+
         return FrameworkConfigPermissionPolicy()
 
     @classmethod
     @transaction.atomic
     def create_instance(
-        cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, uuid: str | None = None,
-        target_year: int | None = None, user: UserOrAnon | None = None,
+        cls,
+        framework: Framework,
+        instance_identifier: str,
+        org_name: str,
+        baseline_year: int,
+        uuid: uuid.UUID | None = None,
+        target_year: int | None = None,
+        user: UserOrAnon | None = None,
     ) -> FrameworkConfig:
         from nodes.models import InstanceConfig
         from orgs.models import Organization
@@ -627,12 +694,12 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         instance_name = '%s: %s' % (framework.name, org_name)
 
         # Create new organization for instance
-        org = Organization.objects.get(name="NetZeroCities")
+        org = Organization.objects.get(name='NetZeroCities')
 
         ic = InstanceConfig.objects.create(
             name=instance_name,
             identifier=instance_identifier,
-            primary_language="en",
+            primary_language='en',
             other_languages=[],
             organization=org,
         )
@@ -642,6 +709,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             extra = cls.permission_policy().get_create_defaults(user, framework)
         else:
             extra = {}
+        if uuid is None:
+            uuid = uuid4()
         fc = cls.objects.create(
             framework=framework,
             instance_config=ic,
@@ -649,7 +718,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             baseline_year=baseline_year,
             target_year=target_year,
             uuid=uuid,
-            created_by=user_or_none(user),  # type: ignore[misc]
+            created_by=user_or_none(user),
             **extra,
         )
         if pp.user_is_authenticated(user):
@@ -677,15 +746,19 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         measure_templates_qs = framework.measure_templates()
         measures_qs = self.measures.filter(measure_template__in=measure_templates_qs)
         measure_by_uuid: dict[uuid.UUID, Measure] = {
-            m.mt_uuid: m for m in measures_qs.annotate(mt_uuid=F('measure_template__uuid'))  # type: ignore[attr-defined]
+            m.mt_uuid: m  # type: ignore[attr-defined]
+            for m in measures_qs.annotate(mt_uuid=F('measure_template__uuid'))
         }
         year = self.baseline_year
         measure_data_points_qs = (
-            MeasureDataPoint.objects.get_queryset().filter(year=year, measure__in=measures_qs)
+            MeasureDataPoint.objects
+            .get_queryset()
+            .filter(year=year, measure__in=measures_qs)
             .annotate(mt_uuid=F('measure__measure_template__uuid'))
         )
         measure_data_point_by_uuid: dict[uuid.UUID, MeasureDataPoint] = {
-            mdp.mt_uuid: mdp for mdp in measure_data_points_qs  # type: ignore[attr-defined]
+            mdp.mt_uuid: mdp  # type: ignore[attr-defined]
+            for mdp in measure_data_points_qs
         }
         new_measures: list[Measure] = []
         for measure_template in measure_templates_qs:
@@ -721,7 +794,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         if update_measure_data_points:
             MeasureDataPoint.objects.bulk_update(update_measure_data_points, fields=['default_value'])
 
-    def create_model_instance(self, ic: InstanceConfig) -> Instance:
+    def create_model_instance(self, _ic: InstanceConfig) -> Instance:
         from nodes.instance_loader import InstanceLoader
 
         fw = self.framework
@@ -756,9 +829,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             return []
         uuids = {x for x in df.get_column('UUID').to_list() if x is not None}
         dimensions = node.output_dimensions.values()
-        column_names = ['UUID'] + [
-            self._dimension_name_to_dataset_column_label(dim.id) for dim in dimensions
-        ]
+        column_names = ['UUID'] + [self._dimension_name_to_dataset_column_label(dim.id) for dim in dimensions]
         if len(uuids) < 2 or len(node.output_dimensions) == 0:
             return [(u, None) for u in uuids]
 
@@ -822,12 +893,18 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             sentry_sdk.capture_message(msg)
         return measure_template_uuid_to_single_node_dimension_selection
 
+
 class MeasureQuerySet(PathsQuerySet['Measure']):
     pass
 
+
 _MeasureManager = models.Manager.from_queryset(MeasureQuerySet)
+
+
 class MeasureManager(ModelManager['Measure', MeasureQuerySet], _MeasureManager):  # pyright: ignore
     """Model manager for Measure."""
+
+
 del _MeasureManager
 
 
@@ -840,37 +917,42 @@ class Measure(CacheablePathsModel['FrameworkConfigCacheData'], models.Model):
     from the template and store internal notes.
     """
 
-    framework_config: FK[FrameworkConfig] = models.ForeignKey(FrameworkConfig, on_delete=models.CASCADE, related_name="measures")
-    measure_template: FK[MeasureTemplate] = models.ForeignKey(MeasureTemplate, on_delete=models.CASCADE, related_name="measures")
-    unit = UnitField(null=True, blank=True)
+    framework_config: FK[FrameworkConfig] = models.ForeignKey(FrameworkConfig, on_delete=models.CASCADE, related_name='measures')
+    measure_template: FK[MeasureTemplate] = models.ForeignKey(MeasureTemplate, on_delete=models.CASCADE, related_name='measures')
+    unit = UnitField[str | None](null=True, blank=True)
     internal_notes = models.TextField(blank=True)
 
     data_points: RevMany[MeasureDataPoint]
     measure_template_id: int
 
     public_fields: ClassVar = [
-        'framework_config', 'measure_template', 'unit', 'data_points', 'internal_notes',
+        'framework_config',
+        'measure_template',
+        'unit',
+        'data_points',
+        'internal_notes',
     ]
 
-    objects: ClassVar[MeasureManager] = MeasureManager()  # pyright: ignore
+    objects: ClassVar[MeasureManager] = MeasureManager()
 
     framework_config_id: int
 
     _node: tuple[Node | None, NodeDimensionSelection | None]
 
     class Meta:
+        ordering = ['framework_config', 'measure_template']
         constraints = [
             models.UniqueConstraint(fields=['framework_config', 'measure_template'], name='unique_instance_measure'),
         ]
 
     def __str__(self):
-        return f"{self.framework_config.framework.name} - {self.measure_template.name}"
+        return f'{self.framework_config.framework.name} - {self.measure_template.name}'
 
     def __rich_repr__(self) -> RichReprResult:
-        yield "framework", self.framework_config.framework.name
-        yield "instance", self.framework_config.instance_config.name
-        yield "template", self.measure_template.name
-        yield "nr_data_points", len(self.data_points.all())
+        yield 'framework', self.framework_config.framework.name
+        yield 'instance', self.framework_config.instance_config.name
+        yield 'template', self.measure_template.name
+        yield 'nr_data_points', len(self.data_points.all())
 
     @classmethod
     def permission_policy(cls) -> ParentInheritedPolicy[Self, FrameworkConfig, MeasureQuerySet]:
@@ -886,8 +968,12 @@ class MeasureDataPointQuerySet(PathsQuerySet['MeasureDataPoint']):
 
 
 _MeasureDataPointManager = models.Manager.from_queryset(MeasureDataPointQuerySet)
+
+
 class MeasureDataPointManager(ModelManager['MeasureDataPoint', MeasureDataPointQuerySet], _MeasureDataPointManager):  # pyright: ignore
     """Model manager for MeasureDataPoint."""
+
+
 del _MeasureDataPointManager
 
 
@@ -900,31 +986,31 @@ class MeasureDataPoint(CacheablePathsModel[None], models.Model):
     organization-specific measure instance.
     """
 
-    measure: FK[Measure] = models.ForeignKey(Measure, on_delete=models.CASCADE, related_name="data_points")
+    measure: FK[Measure] = models.ForeignKey(Measure, on_delete=models.CASCADE, related_name='data_points')
     year = models.IntegerField()
     value = models.FloatField(null=True)
     default_value = models.FloatField(null=True)
 
     public_fields: ClassVar = ['id', 'year', 'value', 'default_value']
 
-    objects: ClassVar[MeasureDataPointManager] = MeasureDataPointManager()  # pyright: ignore
+    objects: ClassVar[MeasureDataPointManager] = MeasureDataPointManager()
     _default_manager: ClassVar[MeasureDataPointManager]
 
     measure_id: int
 
     class Meta(TypedModelMeta):
-        ordering = ["measure", "year"]
+        ordering = ['measure', 'year']
         constraints = [
             models.UniqueConstraint(fields=['measure', 'year'], name='unique_measure_year_datapoints'),
         ]
 
     def __str__(self):
-        return f"{self.measure.measure_template.name} - {self.year}"
+        return f'{self.measure.measure_template.name} - {self.year}'
 
     def __rich_repr__(self):
-        yield "year", self.year
-        yield "value", self.value
-        yield "measure", self.measure
+        yield 'year', self.year
+        yield 'value', self.value
+        yield 'measure', self.measure
 
     @classmethod
     def permission_policy(cls) -> ParentInheritedPolicy[Self, Measure, MeasureDataPointQuerySet]:

@@ -65,14 +65,14 @@ def load_data(file_path: str, separator: str, encoding: str) -> pl.DataFrame:
     # return pl.read_csv(file_path, separator=separator, infer_schema_length=1000)
 
     try:
-        print(f"trying {encoding}")
-        return pl.read_csv(file_path, separator=separator,
-                            infer_schema_length=1000, encoding=encoding)
+        print(f'trying {encoding}')
+        return pl.read_csv(file_path, separator=separator, infer_schema_length=1000, encoding=encoding)
     except pl.exceptions.ComputeError as e:
-        print(f"encooding {encoding} failed.")
+        print(f'encooding {encoding} failed.')
         print(e)
 
-    raise Exception(f"Could not read {file_path} with any encoding")
+    raise Exception(f'Could not read {file_path} with any encoding')
+
 
 def validate_required_columns(df: pl.DataFrame) -> None:
     """Validate that required columns exist in the dataframe."""
@@ -80,7 +80,7 @@ def validate_required_columns(df: pl.DataFrame) -> None:
     missing_columns = [col for col in required_columns if col not in df.columns]
 
     if missing_columns:
-        raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
+        raise ValueError(f'Missing required columns: {", ".join(missing_columns)}')
 
 
 def determine_metric_column(df: pl.DataFrame) -> str:
@@ -108,7 +108,7 @@ def create_metric_col(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
     len_m_names = len(df.select('Metric').unique())
     if len_ms != len_m_names:
         print(unique_metrics.filter(pl.col(metric_col).is_duplicated()).sort(pl.col(metric_col)))
-        raise ValueError(f"Column {metric_col} has {len_m_names} names but there are {len_ms} unique metrics.")
+        raise ValueError(f'Column {metric_col} has {len_m_names} names but there are {len_ms} unique metrics.')
 
     df = df.with_columns(pl.col('Metric').alias('metric_col'))
 
@@ -129,7 +129,7 @@ def split_by_dataset(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
         if dataset_name is not None:
             dataset_df = df.filter(pl.col(d) == dataset_name).drop(d)
             datasets[dataset_name] = dataset_df
-            print(f"Created dataset for dataset: {dataset_name} with {len(dataset_df)} rows")
+            print(f'Created dataset for dataset: {dataset_name} with {len(dataset_df)} rows')
 
     return datasets
 
@@ -150,6 +150,7 @@ def extract_units(df: pl.DataFrame) -> dict[str, str]:
 
     return units
 
+
 def extract_units_from_row(df: pl.DataFrame) -> tuple[dict[str, str], pl.DataFrame]:
     """Extract units from the first row if it contains only strings, otherwise treat as data."""
     units: dict[str, str] = {}
@@ -167,7 +168,7 @@ def extract_units_from_row(df: pl.DataFrame) -> tuple[dict[str, str], pl.DataFra
                 float(value)
                 has_numeric = True
                 break
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 continue
     if has_numeric:
         return units, df
@@ -176,14 +177,13 @@ def extract_units_from_row(df: pl.DataFrame) -> tuple[dict[str, str], pl.DataFra
             units[col_name] = str(unit_value).strip()
 
     df_cleaned = df.slice(1)
-    df_cleaned = df_cleaned.with_columns([
-        pl.col(col).cast(pl.Float64, strict=False) for col in units.keys()
-    ])
+    df_cleaned = df_cleaned.with_columns([pl.col(col).cast(pl.Float64, strict=False) for col in units.keys()])
     return units, df_cleaned
+
 
 def extract_description(df: pl.DataFrame) -> str | None:
     """Extract description from the dataframe."""
-    description = None # FIXME Does not show up in admin UI.
+    description = None  # FIXME Does not show up in admin UI.
     if 'Description' in df.columns:
         descriptions = []
         rows_with_description = df.filter(pl.col('Description').is_not_null())
@@ -198,20 +198,20 @@ def extract_description(df: pl.DataFrame) -> str | None:
             # Add values from dimension columns
             for col in df.columns:
                 if (
-                    (df[col].dtype == pl.Utf8 or df[col].dtype == pl.String) and
-                    (col not in ['metric_col', 'Unit', 'Value', 'Description', 'Quantity', 'Year']) and
-                    (row.get(col))
+                    (df[col].dtype == pl.Utf8 or df[col].dtype == pl.String)
+                    and (col not in ['metric_col', 'Unit', 'Value', 'Description', 'Quantity', 'Year'])
+                    and (row.get(col))
                 ):
-                    parts.append(f"{col}: {row[col]}")  # noqa: PERF401
+                    parts.append(f'{col}: {row[col]}')  # noqa: PERF401
 
             if row['Description']:
                 parts.append(row['Description'])
 
             if parts:
-                descriptions.append(" - ".join(parts))
+                descriptions.append(' - '.join(parts))
 
         if descriptions:
-            description = "<br/>".join(descriptions)
+            description = '<br/>'.join(descriptions)
     return description
 
 
@@ -250,11 +250,13 @@ def extract_metrics(df: pl.DataFrame, language: str) -> list[MetricData]:
         quantity = row['Quantity']
 
         if metric_name and quantity:
-            metrics.append(MetricData(
-                id = 'default' if metric_id == VALUE_COLUMN else to_snake_case(metric_id),
-                quantity = to_snake_case(quantity),
-                label = {language: metric_name}
-            ))
+            metrics.append(
+                MetricData(
+                    id='default' if metric_id == VALUE_COLUMN else to_snake_case(metric_id),
+                    quantity=to_snake_case(quantity),
+                    label={language: metric_name},
+                )
+            )
 
     return metrics
 
@@ -285,16 +287,19 @@ def convert_to_standard_format(df: pl.DataFrame) -> pl.DataFrame:
     year_columns = [col for col in df.columns if col.isdigit()]
 
     if not year_columns:
-        raise ValueError("No year columns found and no Year column exists")
+        raise ValueError('No year columns found and no Year column exists')
 
     # Get non-year columns
     context_columns = [col for col in df.columns if not col.isdigit()]
 
     # Initialize result dataframe
-    result_df = df.head(1).select(context_columns).with_columns([
-        (pl.lit(0).alias('Year').cast(pl.Int64)),
-        (pl.lit('0.0').alias('Value').cast(pl.String))
-    ]).clear()
+    result_df = (
+        df
+        .head(1)
+        .select(context_columns)
+        .with_columns([(pl.lit(0).alias('Year').cast(pl.Int64)), (pl.lit('0.0').alias('Value').cast(pl.String))])
+        .clear()
+    )
 
     # For each row and year, create a new row in the result
     df = df.with_row_index(name='__row_idx')
@@ -312,7 +317,7 @@ def convert_to_standard_format(df: pl.DataFrame) -> pl.DataFrame:
             # Create new row with context values and year/value
             new_row = row.select(context_columns).with_columns([
                 pl.lit(int(year)).cast(pl.Int64).alias('Year'),
-                pl.lit(str(value)).alias('Value')
+                pl.lit(str(value)).alias('Value'),
             ])
 
             result_df = pl.concat([result_df, new_row], rechunk=False)
@@ -331,39 +336,36 @@ def pivot_by_compound_id(df: pl.DataFrame) -> pl.DataFrame:
 
     # Ensure no null metric labels
     df = df.with_columns(
-        pl.when(pl.col('metric_col').is_null())
-          .then(pl.lit('Value'))
-          .otherwise(pl.col('metric_col'))
-          .alias('metric_col')
+        pl.when(pl.col('metric_col').is_null()).then(pl.lit('Value')).otherwise(pl.col('metric_col')).alias('metric_col')
     )
 
     # Pivot to have metric labels as columns
     try:
         df = df.with_columns(pl.col('Value').cast(pl.Float64))
     except ValueError:
-        warnings.warn(' '.join(  # noqa: FLY002
-            ["Some values could not be converted to float and will be kept as strings.",
-            "This is normal for some datasets that contain non-numeric values."]),
+        warnings.warn(
+            ' '.join(  # noqa: FLY002
+                [
+                    'Some values could not be converted to float and will be kept as strings.',
+                    'This is normal for some datasets that contain non-numeric values.',
+                ]
+            ),
             UserWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
     # Check for duplicates in the combination of index + pivot columns
-    duplicate_check_cols = dim_cols + ["metric_col"]
+    duplicate_check_cols = dim_cols + ['metric_col']
     duplicates_mask = df.select(duplicate_check_cols).is_duplicated()
 
     if duplicates_mask.any():
-        print("Duplicates found:")
+        print('Duplicates found:')
         duplicates = df.filter(duplicates_mask)
         print(duplicates)
         print(duplicates.columns)
-        raise ValueError("Stopping execution due to unexpected duplicates")
+        raise ValueError('Stopping execution due to unexpected duplicates')
 
-    result_df = df.pivot(
-        values="Value",
-        index=dim_cols,
-        on="metric_col"
-    )
+    result_df = df.pivot(values='Value', index=dim_cols, on='metric_col')
 
     return result_df
 
@@ -391,9 +393,8 @@ def check_for_duplicates(
         print(dups.sort(key_columns))
         dims = [col for col in key_columns if col != YEAR_COLUMN]
         print(dups.select(dims).unique())
-        raise ValueError("Dataframe has duplicate rows. Cannot upload to DVC.")
+        raise ValueError('Dataframe has duplicate rows. Cannot upload to DVC.')
     return
-
 
 
 def prepare_for_dvc(df: pl.DataFrame, units: dict[str, str]) -> pl.DataFrame:
@@ -427,7 +428,7 @@ def convert_names_to_cats(df: pl.DataFrame, context: Context) -> pl.DataFrame:
     cols = [col for col in df.columns if col.lower() in context.dimensions]
     if not cols:
         return df
-    print(f"Converting names to categories for columns: {cols}")
+    print(f'Converting names to categories for columns: {cols}')
     for col in cols:
         col_low = col.lower()
         df = df.rename({col: col_low})
@@ -452,7 +453,7 @@ def write_dataframe_to_csv(
 def save_to_csv(df: pl.DataFrame, file_stem: str, dataset_name: str) -> None:
     """Save dataframe to CSV if a path is provided."""
     if file_stem.upper() not in ['N', 'NONE']:
-        dataset_file_path = f"{file_stem}_{to_snake_case(dataset_name)}.csv"
+        dataset_file_path = f'{file_stem}_{to_snake_case(dataset_name)}.csv'
         write_dataframe_to_csv(df, dataset_file_path, verbose=True)
 
 
@@ -495,12 +496,7 @@ def push_to_dvc(
         metadata['metrics'] = [node_metric_to_metadata_dict(m) for m in metrics]
 
     # Create dataset metadata
-    meta = DatasetMeta(
-        identifier=output_path,
-        index_columns=index_columns,
-        units=units,
-        metadata=metadata
-    )
+    meta = DatasetMeta(identifier=output_path, index_columns=index_columns, units=units, metadata=metadata)
 
     # dvc_pandas.Dataset.to_parquet() calls df.to_pandas() then df.set_index(index_columns).
     # PathsDataFrame.to_pandas() already moves primary_keys into the index, so the columns
@@ -522,14 +518,11 @@ def push_to_dvc(
     )
 
     # Initialize repository
-    repo = Repository(
-        repo_url='https://github.com/kausaltech/dvctest.git',
-        dvc_remote='kausal-s3',
-        repo_credentials=creds
-    )
+    repo = Repository(repo_url='https://github.com/kausaltech/dvctest.git', dvc_remote='kausal-s3', repo_credentials=creds)
 
     # Add timestamp to force update
     import time
+
     if ds.meta.metadata is None:
         ds.meta.metadata = {}
     ds.meta.metadata['updated_at'] = str(int(time.time()))
@@ -541,18 +534,13 @@ def push_to_dvc(
 
 
 def process_dataset(
-        df: pl.DataFrame,
-        dataset_name: str,
-        outcsvpath: str,
-        outdvcpath: str,
-        language: str,
-        context: Context | None
-    ) -> None:
+    df: pl.DataFrame, dataset_name: str, outcsvpath: str, outdvcpath: str, language: str, context: Context | None
+) -> None:
     """Process a single dataset of data."""
-    print(f"\n==== Processing dataset: {dataset_name} ====\n")
+    print(f'\n==== Processing dataset: {dataset_name} ====\n')
 
     if len(df) == 0:
-        print(f"Dataset {dataset_name} has no data. Skipping.")
+        print(f'Dataset {dataset_name} has no data. Skipping.')
         return
 
     # 1. Validate required columns
@@ -569,30 +557,30 @@ def process_dataset(
     units = extract_units(df)
     metrics = extract_metrics(df, language)
     description = extract_description(df)
-    print(f"Units: {units}")
-    print(f"Metrics: {len(metrics)} entries")
+    print(f'Units: {units}')
+    print(f'Metrics: {len(metrics)} entries')
     print(metrics)
     if description:
-        print("Description extracted")
+        print('Description extracted')
 
     # 5. Clean dataframe (remove metadata columns)
     df = clean_dataframe(df)
 
     # 6. Convert to standard format with Year column if needed
     df = convert_to_standard_format(df)
-    print(f"Data converted to standard format with {len(df)} rows")
+    print(f'Data converted to standard format with {len(df)} rows')
 
     # 7. Pivot by compound ID
     df = pivot_by_compound_id(df)
 
     # 8. Check for issues (duplicates = same Year + dimensions, any metric values)
     if check_for_duplicates(df, metric_columns=list(units.keys())):
-        print("Warning: Dataframe contains duplicate rows (same Year + dimension keys)")
+        print('Warning: Dataframe contains duplicate rows (same Year + dimension keys)')
 
     # 9. Prepare for DVC (standardize column names)
     df = prepare_for_dvc(df, units)
     dim_ids = [s for s in df.columns if s not in units.keys()]
-    print(f"Data pivoted by compound identifiers with dimension columns: {dim_ids}")
+    print(f'Data pivoted by compound identifiers with dimension columns: {dim_ids}')
     if context is not None:
         df = convert_names_to_cats(df, context)
 
@@ -602,11 +590,10 @@ def process_dataset(
 
     # 11. Push to DVC if requested
     if outdvcpath:
-        dataset_dvc_path = f"{outdvcpath}/{to_snake_case(dataset_name)}"
+        dataset_dvc_path = f'{outdvcpath}/{to_snake_case(dataset_name)}'
         node_metrics = [metric_data_to_node_metric(m, units.get(m.id, '')) for m in metrics]
-        push_to_dvc(
-            df, dataset_dvc_path, dataset_name, description, node_metrics, language, units=units
-        )
+        push_to_dvc(df, dataset_dvc_path, dataset_name, description, node_metrics, language, units=units)
+
 
 def process_datasets(
     full_df: pl.DataFrame,
@@ -614,20 +601,20 @@ def process_datasets(
     outdvcpath: str,
     language: str,
     context: Context | None = None,
-    dataset_name: str | None = None
+    dataset_name: str | None = None,
 ) -> None:
     # Process all datasets
     # Process datasets
     if dataset_name:
         if dataset_name == 'plain_csv':
-            print("Uploading the csv file as is, but checking for units.")
+            print('Uploading the csv file as is, but checking for units.')
             units, full_df = extract_units_from_row(full_df)
             push_to_dvc(full_df, outdvcpath, '', None, [], language, units=units)
         else:
             d = 'Dataset'
             if d in full_df.columns:
                 # Process only the specified
-                print(f"Processing only dataset: {dataset_name}")
+                print(f'Processing only dataset: {dataset_name}')
                 dataset_df = full_df.filter(pl.col(d) == dataset_name).drop(d)
                 process_dataset(dataset_df, dataset_name, outcsvpath, outdvcpath, language, context)
             else:
@@ -636,56 +623,40 @@ def process_datasets(
     else:
         # Process all datasets
         dataset_dfs = split_by_dataset(full_df)
-        print(f"Found {len(dataset_dfs)} datasets to process")
+        print(f'Found {len(dataset_dfs)} datasets to process')
 
         for ds_name, dataset_df in dataset_dfs.items():
             process_dataset(dataset_df, ds_name, outcsvpath, outdvcpath, language, context)
+
 
 def main():
     """Process and convert data for all datasets."""
     load_dotenv()
 
     # Set up argument parser
-    parser = argparse.ArgumentParser(description="Process and convert data for all datasets")
+    parser = argparse.ArgumentParser(description='Process and convert data for all datasets')
 
     # Required arguments
-    parser.add_argument('--input-csv', '-i',
-                       required=True,
-                       help='Input CSV file path')
+    parser.add_argument('--input-csv', '-i', required=True, help='Input CSV file path')
 
-    parser.add_argument('--output-dvc', '-o',
-                       required=False,
-                       default=None,
-                       help='Output DVC file path')
+    parser.add_argument('--output-dvc', '-o', required=False, default=None, help='Output DVC file path')
 
     # Arguments with defaults
-    parser.add_argument('--output-csv', '-c',
-                       required=False,
-                       default='NONE',
-                       help='Output CSV file stem')
+    parser.add_argument('--output-csv', '-c', required=False, default='NONE', help='Output CSV file stem')
 
-    parser.add_argument('--csv-separator', '-s',
-                       default=',',
-                       choices=[',', ';', '\t', '|'],
-                       help='CSV separator (default: comma)')
+    parser.add_argument(
+        '--csv-separator', '-s', default=',', choices=[',', ';', '\t', '|'], help='CSV separator (default: comma)'
+    )
 
-    parser.add_argument('--encoding', '-e',
-                        default='utf-8',
-                        choices=['utf-8', 'cp1252', 'latin-1'],
-                        help='CSV file encoding (default: utf-8)')
+    parser.add_argument(
+        '--encoding', '-e', default='utf-8', choices=['utf-8', 'cp1252', 'latin-1'], help='CSV file encoding (default: utf-8)'
+    )
 
-    parser.add_argument('--language', '-l',
-                       default='en',
-                       help='Language code (default: en)')
+    parser.add_argument('--language', '-l', default='en', help='Language code (default: en)')
 
-    parser.add_argument('--dataset', '-d',
-                       default=None,
-                       help='Process only specific dataset (optional)')
+    parser.add_argument('--dataset', '-d', default=None, help='Process only specific dataset (optional)')
 
-    parser.add_argument('--instance', '-n',
-                       required=False,
-                       default=None,
-                       help='Use dimensions and categories from an instance')
+    parser.add_argument('--instance', '-n', required=False, default=None, help='Use dimensions and categories from an instance')
 
     # Parse arguments
     args = parser.parse_args()
@@ -708,5 +679,5 @@ def main():
     process_datasets(full_df, outcsvpath, outdvcpath, language, context, dataset_name)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

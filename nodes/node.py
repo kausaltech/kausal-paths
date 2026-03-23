@@ -267,7 +267,7 @@ class Node:
     input_dimension_ids: list[str] = []
     "References to the dimensions that this node's input must contain (typically set in a class)."
 
-    explanation: str | I18nString = "Text about the node class missing." # FIXME Remove attribute as redundant
+    explanation: str | I18nString = 'Text about the node class missing.'  # FIXME Remove attribute as redundant
     'Textual explanation about what the node computes (typicallly set in a class).'
 
     # set if this node has a specific goal for the simulation target year
@@ -283,48 +283,48 @@ class Node:
     """
 
     input_datasets: list[str]
-    "List of input dataset identifiers for the node."
+    'List of input dataset identifiers for the node.'
     input_dataset_instances: list[Dataset]
-    "List of input dataset instances for the node."
+    'List of input dataset instances for the node.'
 
     edges: list[Edge]
-    "List of edges that connect this node to other nodes, both input and output."
+    'List of edges that connect this node to other nodes, both input and output.'
 
     global_parameters: list[str] = []
     "List of identifiers for global parameters that affect the node's output."
 
     parameters: dict[str, Parameter[Any]]
-    "Parameters with their values."
+    'Parameters with their values.'
 
     allowed_parameters: ClassVar[Sequence[Parameter[Any]]]
-    "All allowed parameters for this node class."
+    'All allowed parameters for this node class.'
 
     _baseline_values: ppl.PathsDataFrame | None
-    "Cached output for the node in the baseline scenario."
+    'Cached output for the node in the baseline scenario.'
 
     _last_historical_year: int | None
     "Cached last historical year for in the node's output."
 
     context: Context
-    "Computation context."
+    'Computation context.'
 
     hasher: NodeHasher
-    "Cache helper for the node."
+    'Cache helper for the node.'
 
     logger: loguru.Logger
-    "Logger for the node."
+    'Logger for the node.'
 
     debug: bool = False
-    "If debug mode is enabled for the node. Will print extra debug information."
+    'If debug mode is enabled for the node. Will print extra debug information.'
 
     disable_cache: bool = False
-    "If caching should be disabled for this node. Used for debugging."
+    'If caching should be disabled for this node. Used for debugging.'
 
     config_location: ConfigLocation | None = None
     """Location of the node configuration in a YAML file"""
 
     DEFAULT_OPERATIONS = 'multiply,add'
-    "Ordering of operations. Relevant for basket explanations."
+    'Ordering of operations. Relevant for basket explanations.'
 
     def __post_init__(self): ...
 
@@ -620,7 +620,6 @@ class Node:
     def get_parameter_value_str(self, param_id: str, *, required: bool = True) -> str | None:
         return self.get_typed_parameter_value(param_id, str, required=required)
 
-
     @overload
     def get_parameter_value_int(self, param_id: str, *, required: Literal[True] = True) -> int: ...
     @overload
@@ -634,7 +633,6 @@ class Node:
             return int(ret)
         assert isinstance(ret, int)
         return ret
-
 
     @overload
     def get_parameter_value_float(self, param_id: str, *, required: bool = True, units: Literal[True]) -> Quantity: ...
@@ -887,10 +885,11 @@ class Node:
         return df
 
     def _get_output_for_target(  # noqa: C901, PLR0912, PLR0915
-            self, df: ppl.PathsDataFrame,
-            target_node: Node,
-            skip_dim_test: bool = False  # pyright: ignore[reportUnusedParameter]
-        ) -> ppl.PathsDataFrame:
+        self,
+        df: ppl.PathsDataFrame,
+        target_node: Node,
+        skip_dim_test: bool = False,  # pyright: ignore[reportUnusedParameter]
+    ) -> ppl.PathsDataFrame:
         for edge in self.edges:
             if edge.output_node == target_node:
                 break
@@ -1087,7 +1086,7 @@ class Node:
         target_node: Node | None = None,
         metric: str | None = None,
         extra_span_desc: str | None = None,
-        skip_dim_test: bool = False
+        skip_dim_test: bool = False,
     ) -> ppl.PathsDataFrame:
         perf_cm = self.context.perf_context
         span_ctx: AbstractContextManager[None | Span]
@@ -1099,7 +1098,9 @@ class Node:
             else:
                 span_name = '%s:get' % self.id
             span_ctx = self.context.start_span(
-                span_name, op=NODE_CALC_OP, attributes=dict(node_id=self.id, node_class=self.__class__.__name__),
+                span_name,
+                op=NODE_CALC_OP,
+                attributes=dict(node_id=self.id, node_class=self.__class__.__name__),
             )
         with span_ctx as span, perf_cm.exec_node(self) as node_run:
             try:
@@ -1519,13 +1520,13 @@ class Node:
         return df
 
     def multiply_nodes_pl(
-            self,
-            df: ppl.PathsDataFrame | None,
-            nodes: list[Node],
-            metric: str | None = None,
-            unit: Unit | None = None,
-            start_from_year: int | None = None,
-        ) -> ppl.PathsDataFrame | None:
+        self,
+        df: ppl.PathsDataFrame | None,
+        nodes: list[Node],
+        metric: str | None = None,
+        unit: Unit | None = None,
+        start_from_year: int | None = None,
+    ) -> ppl.PathsDataFrame | None:
         """Multiply outputs from the given nodes using inner join and union of dimensions."""
         if len(nodes) == 0:
             if df is None:
@@ -1590,17 +1591,16 @@ class Node:
         return df[YEAR_COLUMN].unique().sort().to_list()
 
     def _get_measure_datapoint_years(self, n: DatasetNode, dims: list[VisualizationNodeDimension]) -> list[int]:
-            datacol = 'ObservedDataPoint'
+        datacol = 'ObservedDataPoint'
 
-            df = n.get_filtered_dataset_df()
-            if datacol in df.columns:
-                df = df.filter(pl.col(datacol)).drop(datacol)
-                df = n.drop_unnecessary_levels(df, droplist=['Description', 'FromMeasureDataPoint'])
-                df = n.rename_dimensions(df)
-                df = n.convert_names_to_ids(df)
-                return self._filter_measure_datapoint_years(df, dims)
-            return []
-
+        df = n.get_filtered_dataset_df()
+        if datacol in df.columns:
+            df = df.filter(pl.col(datacol)).drop(datacol)
+            df = n.drop_unnecessary_levels(df, droplist=['Description', 'FromMeasureDataPoint'])
+            df = n.rename_dimensions(df)
+            df = n.convert_names_to_ids(df)
+            return self._filter_measure_datapoint_years(df, dims)
+        return []
 
     def get_measure_datapoint_years(self, dims: list[VisualizationNodeDimension]) -> list[int]:
         """Get the years with measure data points from the input datasets and upstream nodes."""
@@ -1625,12 +1625,12 @@ class Node:
         years = set[int]([])
         nodes = self.get_upstream_nodes()
         for n in nodes:
-            if not isinstance(n, DatasetNode) or issubclass(type(n), ActionNode): # Ignore action data
+            if not isinstance(n, DatasetNode) or issubclass(type(n), ActionNode):  # Ignore action data
                 continue
             if any(issubclass(type(d), ActionNode) for d in n.get_downstream_nodes()):
-                continue # Ignore data that is used in actions
+                continue  # Ignore data that is used in actions
             if n.id in ['energy_use_intensity_change_new', 'relative_transport_mode_switches']:
-                continue # Last resort to get rid of non-observed data
+                continue  # Last resort to get rid of non-observed data
             years.update(n._get_measure_datapoint_years(n, dims))
 
         return sorted(years)

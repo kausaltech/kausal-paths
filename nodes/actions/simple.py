@@ -73,9 +73,7 @@ class ValueAction(GenericAction):
         assert self.unit is not None
         start_year = self.context.instance.minimum_historical_year
         end_year = self.context.instance.model_end_year
-        last_historical_year = getattr(
-            self.context.instance, 'maximum_historical_year', None
-        ) or start_year
+        last_historical_year = getattr(self.context.instance, 'maximum_historical_year', None) or start_year
         years = list(range(start_year, end_year + 1))
         df = pl.DataFrame({
             YEAR_COLUMN: years,
@@ -98,18 +96,16 @@ class AdditiveAction(ActionNode):
 
         for m in self.output_metrics.values():
             if not self.is_enabled():
-                df = df.with_columns(pl.when(pl.col(m.column_id).is_null()).then(None)
-                                     .otherwise(self.no_effect_value).alias(m.column_id))
+                df = df.with_columns(
+                    pl.when(pl.col(m.column_id).is_null()).then(None).otherwise(self.no_effect_value).alias(m.column_id)
+                )
             df = df.ensure_unit(m.column_id, m.unit)
 
         return df
 
 
 class AdditiveAction2(AdditiveAction, SimpleNode):  # FIXME Merge with AdditiveAction
-    allowed_parameters = [
-        *AdditiveAction.allowed_parameters,
-        *SimpleNode.allowed_parameters
-    ]
+    allowed_parameters = [*AdditiveAction.allowed_parameters, *SimpleNode.allowed_parameters]
 
     def compute_effect(self):
         df = super().compute_effect()
@@ -174,6 +170,7 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
     action_delay is the year when the implementation of the action starts.
     multiplier scales the size of the impact (useful between scenarios).
     """)
+
     def compute_effect(self):
         df = self.get_input_dataset()
         start_year = df.index.min()
@@ -187,7 +184,7 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
         target_year_level = cast('float | None', self.get_parameter_value('target_year_level', required=False))
         if target_year_level is not None:
             if set(df.columns) != {VALUE_COLUMN, FORECAST_COLUMN}:
-                raise NodeError(self, "target_year_level parameter can only be used with single-value nodes")
+                raise NodeError(self, 'target_year_level parameter can only be used with single-value nodes')
             df.loc[target_year, VALUE_COLUMN] = target_year_level
             if delay is not None:
                 df.loc[range(start_year + 1, target_year), VALUE_COLUMN] = nan
@@ -234,6 +231,7 @@ class TrajectoryAction(ActionNode):
         NumberParameter(local_id='baseline_year_level'),
         BoolParameter(local_id='keep_dimension'),
     ]
+
     def compute_effect(self):
         df = self.get_input_dataset_pl()
         dim_id = self.get_parameter_value_str('dimension', required=True)
@@ -256,10 +254,7 @@ class GpcTrajectoryAction(TrajectoryAction, DatasetNode):
     explanation = _("""
     GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.
     """)
-    allowed_parameters = [
-        *TrajectoryAction.allowed_parameters,
-        *DatasetNode.allowed_parameters
-    ]
+    allowed_parameters = [*TrajectoryAction.allowed_parameters, *DatasetNode.allowed_parameters]
 
     def compute_effect(self):
         df = DatasetNode.compute(self)
@@ -307,11 +302,9 @@ class ParameterAction(ActionNode):
         else:
             percentchange = 1.0
 
-        df = pl.DataFrame(
-            {'Year': range(fromyear, toyear)}
-        ).with_columns(
+        df = pl.DataFrame({'Year': range(fromyear, toyear)}).with_columns(
             (pl.lit(fromvalue) * pl.lit(percentchange) ** (pl.col('Year') - fromyear)).alias('Value'),
-            pl.lit(value=True).alias('Forecast')
+            pl.lit(value=True).alias('Forecast'),
         )
 
         meta = ppl.DataFrameMeta(units={'Value': self.unit}, primary_keys=['Year'])  # type: ignore

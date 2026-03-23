@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 all_views: list[RegisteredAPIView] = []
 
+
 class OrganizationSerializer(TreebeardModelSerializerMixin[Organization], serializers.ModelSerializer[Organization]):  # type: ignore[misc]
     uuid = serializers.UUIDField(required=False)
 
@@ -38,6 +39,7 @@ class OrganizationSerializer(TreebeardModelSerializerMixin[Organization], serial
         # ic = realm_context.get().realm
         # ic.related_organizations.add(instance)
         return instance
+
 
 @register_view
 class OrganizationViewSet(HandleProtectedErrorMixin, BulkModelViewSet):
@@ -71,6 +73,6 @@ class OrganizationViewSet(HandleProtectedErrorMixin, BulkModelViewSet):
         try:
             instance = InstanceConfig.objects.get(identifier=instance_identifier)
         except InstanceConfig.DoesNotExist as e:
-            raise exceptions.NotFound(detail="Instance not found") from e
+            raise exceptions.NotFound(detail='Instance not found') from e
         available_organizations = Organization.objects.qs.available_for_instance(instance)
         return available_organizations

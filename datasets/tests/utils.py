@@ -49,14 +49,14 @@ class AssertNewUUID(UUIDSetTracker):
         assert self.uuids_after is not None
         assert self.uuids_before is not None
         new_uuids = self.uuids_after - self.uuids_before
-        assert len(new_uuids) == expected_num_created, \
+        assert len(new_uuids) == expected_num_created, (
             f'Expected exactly {expected_num_created} new UUIDs, but found {len(new_uuids)}'
+        )
         if self.bulk:
             created_uuids = {UUID(d['uuid']) for d in response_data}
         else:
             created_uuids = {UUID(response_data['uuid'])}
-        assert new_uuids == created_uuids, \
-            f'Expected new UUIDs to match response UUIDs {created_uuids}'
+        assert new_uuids == created_uuids, f'Expected new UUIDs to match response UUIDs {created_uuids}'
 
 
 class AssertRemovedUUID(UUIDSetTracker):
@@ -70,6 +70,7 @@ class AssertRemovedUUID(UUIDSetTracker):
         super().__exit__(exc_type, exc_val, exc_tb)
         assert self.uuids_after is not None
         assert self.uuids_before is not None
-        assert self.uuids_after == self.uuids_before - {self.removed_uuid}, \
+        assert self.uuids_after == self.uuids_before - {self.removed_uuid}, (
             f'Expected UUID {self.removed_uuid} to be removed, but UUID set changed incorrectly'
+        )
         return False

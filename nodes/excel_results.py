@@ -89,12 +89,12 @@ class InstanceResultExcel(I18nBaseModel):
         if self.node_ids is not None:
             for node_id in self.node_ids:
                 if node_id not in ctx.nodes:
-                    raise KeyError(f"Node {node_id} not found.")
+                    raise KeyError(f'Node {node_id} not found.')
         if self.action_ids is not None:
             actions = {n.id for n in ctx.get_actions()}
             for action_id in self.action_ids:
                 if action_id not in actions:
-                    raise KeyError(f"Action {action_id} not found.")
+                    raise KeyError(f'Action {action_id} not found.')
 
     def _output_node_long(  # noqa: PLR0913
         self,
@@ -142,7 +142,7 @@ class InstanceResultExcel(I18nBaseModel):
             with context.start_span('compute impact: %s' % actions[i].id, op='function'):
                 adf = actions[i].compute_impact(node)
                 ametrics = adf.metric_cols
-                if len(ametrics) > 1: # FIXME: This is a hack to handle multimetric nodes as outcome of actions.
+                if len(ametrics) > 1:  # FIXME: This is a hack to handle multimetric nodes as outcome of actions.
                     logger.warning('Multimetric node %s as outcome of action %s' % (node.id, actions[i].id))
                     adf = adf.select_metrics(ametrics[0], rename=VALUE_COLUMN)
             act_col = 'Impact_%s' % actions[i].id
@@ -197,41 +197,33 @@ class InstanceResultExcel(I18nBaseModel):
 
         # Add a dummy grouping column as at least one is required
         df = df.with_columns(pl.lit(1).alias('_dummy_group'))
-        grouping_cols = df.dim_ids if df.dim_ids else ['_dummy_group']
+        grouping_cols = df.dim_ids or ['_dummy_group']
 
         # Create forecast_from values
-        forecast_from_df = (df
-            .filter(pl.col(FORECAST_COLUMN))
-            .group_by(grouping_cols)
-            .agg(
-                pl.col(YEAR_COLUMN).min().alias('Forecast_from')
-            )
+        forecast_from_df = (
+            df.filter(pl.col(FORECAST_COLUMN)).group_by(grouping_cols).agg(pl.col(YEAR_COLUMN).min().alias('Forecast_from'))
         )
 
-        dfout: pl.DataFrame = df.join(
-            forecast_from_df,
-            on=grouping_cols,
-            how='left'
-        ).drop('_dummy_group')  # Remove the dummy column after join
+        dfout: pl.DataFrame = df.join(forecast_from_df, on=grouping_cols, how='left').drop(
+            '_dummy_group'
+        )  # Remove the dummy column after join
 
         index_cols = [*fixed_cols, *dim_ids]
         dfout = dfout.select([
-                *[col_map[col_id].alias(col_id) for col_id in index_cols],
-                pl.col(YEAR_COLUMN),
-                pl.col(VALUE_COLUMN),
-                pl.col(FORECAST_COLUMN)
-            ]).pivot(
-                values=VALUE_COLUMN,
-                index=index_cols,  # Includes Forecast_from and dimensions
-                on=YEAR_COLUMN,
-                maintain_order=True,
-                aggregate_function='first'
-            )
+            *[col_map[col_id].alias(col_id) for col_id in index_cols],
+            pl.col(YEAR_COLUMN),
+            pl.col(VALUE_COLUMN),
+            pl.col(FORECAST_COLUMN),
+        ]).pivot(
+            values=VALUE_COLUMN,
+            index=index_cols,  # Includes Forecast_from and dimensions
+            on=YEAR_COLUMN,
+            maintain_order=True,
+            aggregate_function='first',
+        )
 
         dfout = dfout.with_columns([
-            pl.col(col).cast(pl.String, strict=False).fill_null("")
-            for col in dfout.columns
-            if col in dim_ids
+            pl.col(col).cast(pl.String, strict=False).fill_null('') for col in dfout.columns if col in dim_ids
         ])
         for col in cols:
             if str(col) not in dfout.columns:
@@ -502,7 +494,10 @@ class InstanceResultExcel(I18nBaseModel):
 
     @classmethod
     def create_for_instance(
-        cls, ic: InstanceConfig, existing_wb: Path | str | None = None, context: Context | None = None,
+        cls,
+        ic: InstanceConfig,
+        existing_wb: Path | str | None = None,
+        context: Context | None = None,
         format: str | None = None,
     ) -> BytesIO:
         if context is None:

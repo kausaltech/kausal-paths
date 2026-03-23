@@ -22,12 +22,13 @@ logger = loguru.logger.opt(colors=True)
 
 
 def compare_func(x: Any, y: Any, _level: DiffLevel | None = None):
-    if (not isinstance(x, dict) or not isinstance(y, dict)):
+    if not isinstance(x, dict) or not isinstance(y, dict):
         raise CannotCompare
     try:
         return x['id'] == y['id']
     except Exception:
         raise CannotCompare() from None
+
 
 class Command(BaseCommand):
     help = 'Replay GraphQL request-response logs and validate responses'
@@ -46,11 +47,15 @@ class Command(BaseCommand):
         query = data['query']
         variables = data['variables']
         headers = {hdr: val for hdr, val in data['headers'].items() if val}
-        async with session.post('/v1/graphql/', json=dict(
-            query=query,
-            variables=variables,
-            operationName=data['operation_name'],
-        ), headers=headers) as resp:
+        async with session.post(
+            '/v1/graphql/',
+            json=dict(
+                query=query,
+                variables=variables,
+                operationName=data['operation_name'],
+            ),
+            headers=headers,
+        ) as resp:
             out = await resp.json()
             if resp.cookies:
                 session.cookie_jar.update_cookies(resp.cookies)
@@ -81,13 +86,12 @@ class Command(BaseCommand):
             if self.failures >= self.maxfail:
                 exit(1)
 
-
     async def replay_queries(self, fns: list[Path]):
         async with aiohttp.ClientSession(base_url=self.url) as session:
             for i, fn in enumerate(fns):
                 if i + 1 < self.start_from:
                     continue
-                logger.info("[%d/%d] running query %s" % (i + 1, len(fns), fn))
+                logger.info('[%d/%d] running query %s' % (i + 1, len(fns), fn))
                 with fn.open('r') as f:
                     data = json.load(f)
                     has_session = data['has_session']

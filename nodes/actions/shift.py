@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel, Field, RootModel, model_validator
@@ -58,13 +58,14 @@ class ShiftEntry(BaseModel):
     @model_validator(mode='after')
     def dimensions_must_match(self):
         existing_dims: set[str] = set()
+
         def validate_target(target: ShiftTarget) -> None:
             dims = set(target.categories.keys())
             if not existing_dims:
                 existing_dims.update(dims)
                 return
             if dims != existing_dims:
-                raise ValueError("Dimensions for yearly values for each target be equal")
+                raise ValueError('Dimensions for yearly values for each target be equal')
 
         validate_target(self.source)
         for dest in self.dests:
@@ -72,7 +73,10 @@ class ShiftEntry(BaseModel):
         return self
 
     def make_index(
-        self, output_nodes: list[Node], extra_level: str | None = None, extra_level_values: Iterable[str] | None = None,
+        self,
+        output_nodes: list[Node],
+        extra_level: str | None = None,
+        extra_level_values: Iterable[str] | None = None,
     ) -> pd.MultiIndex:
         dims: dict[str, set[str]] = {dim: set() for dim in list(self.source.categories.keys())}
         nodes: set[str] = set()
@@ -114,7 +118,9 @@ class ShiftParameterValue(RootModel[list[ShiftEntry]]):
 class ShiftParameter(ParameterWithUnit, Parameter[ShiftParameterValue]):
     value: ShiftParameterValue | None = None
 
-    def __post_init__(self, unit_str: str | None = None):
+    unit_str: InitVar[str | None] = None
+
+    def __post_init__(self, unit_str: str | None):
         self._init_unit(unit_str)
         super().__post_init__()
 
@@ -123,21 +129,19 @@ class ShiftParameter(ParameterWithUnit, Parameter[ShiftParameterValue]):
 
     def clean(self, value: Any) -> ShiftParameterValue:
         if not isinstance(value, list):
-            raise ValidationError(self, "Input must be a list")
+            raise ValidationError(self, 'Input must be a list')
 
         try:
             return ShiftParameterValue.model_validate(value)
         except:
             from rich import print
+
             print(value)
             raise
 
 
 class ShiftAction(ActionNode):
-    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
-        *ActionNode.allowed_parameters,
-        ShiftParameter(local_id='shift')
-    ]
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [*ActionNode.allowed_parameters, ShiftParameter(local_id='shift')]
 
     def _compute_one(self, flow_id: str, param: ShiftEntry, unit: Unit) -> ppl.PathsDataFrame:
         amounts = sorted(param.amounts, key=lambda x: x.year)
@@ -155,8 +159,8 @@ class ShiftAction(ActionNode):
 
         years = pl.LazyFrame(pl.int_range(amounts[0].year, self.get_end_year() + 1, eager=True), schema=[YEAR_COLUMN])
         df = years.join(df.lazy(), how='left', on=YEAR_COLUMN)
-        #dupes = df.filter(pl.col(YEAR_COLUMN).is_duplicated())
-        #if len(dupes):
+        # dupes = df.filter(pl.col(YEAR_COLUMN).is_duplicated())
+        # if len(dupes):
         #    raise NodeError(self, "Duplicate rows")
         df = df.group_by(YEAR_COLUMN).agg([pl.first(col) for col in ('Source', *dest_cols)]).sort(YEAR_COLUMN)
         df = df.with_columns(pl.col(col).interpolate().fill_null(0.0) for col in ('Source', *dest_cols))
@@ -178,7 +182,7 @@ class ShiftAction(ActionNode):
                 for node in self.output_nodes:
                     if node.id == node_id:
                         return node
-                raise NodeError(self, "Node %s not listed in output_nodes" % node_id)
+                raise NodeError(self, 'Node %s not listed in output_nodes' % node_id)
 
             if node_id is None:
                 nr = 0
@@ -194,10 +198,10 @@ class ShiftAction(ActionNode):
 
             for dim_id, cat_id in target_cats:
                 if dim_id not in node.input_dimensions:
-                    raise NodeError(self, "Dimension %s not found in node %s input dimensions" % (dim_id, node.id))
+                    raise NodeError(self, 'Dimension %s not found in node %s input dimensions' % (dim_id, node.id))
                 dim = node.input_dimensions[dim_id]
                 if cat_id not in dim.cat_map:
-                    raise NodeError(self, "Category %s not found in node %s input dimension %s" % (cat_id, node.id, dim.id))
+                    raise NodeError(self, 'Category %s not found in node %s input dimension %s' % (cat_id, node.id, dim.id))
 
             cat_exprs = [pl.lit(cat).alias(dim) for dim, cat in target_cats]
 
@@ -218,16 +222,13 @@ class ShiftAction(ActionNode):
         cdf = df.collect()
         dfs = [make_target_df(cdf.lazy(), target, col) for col, target in targets]
         df = pl.concat(dfs).sort(YEAR_COLUMN)
-        #df = df.groupby([NODE_COLUMN, *all_dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
+        # df = df.groupby([NODE_COLUMN, *all_dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
         df = df.with_columns([
             pl.lit(value=True).alias(FORECAST_COLUMN),
             pl.lit(flow_id).alias(FLOW_ID_COLUMN),
         ])
         zdf = df.collect()
-        meta = ppl.DataFrameMeta(
-            units={VALUE_COLUMN: unit},
-            primary_keys=[FLOW_ID_COLUMN, YEAR_COLUMN, NODE_COLUMN, *all_dims]
-        )
+        meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit}, primary_keys=[FLOW_ID_COLUMN, YEAR_COLUMN, NODE_COLUMN, *all_dims])
         ret = ppl.to_ppdf(zdf, meta=meta)
         return ret
 

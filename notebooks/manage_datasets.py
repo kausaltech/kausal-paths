@@ -7,6 +7,7 @@ import argparse
 import logging
 import re
 import sys
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
@@ -106,7 +107,7 @@ def parse_excel_range(range_str: str) -> tuple[int, int, int, int]:
     pattern = r'([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?'
     match = re.match(pattern, range_str.upper())
     if not match:
-        raise ValueError(f"Invalid Excel range format: {range_str}")
+        raise ValueError(f'Invalid Excel range format: {range_str}')
 
     start_col_str, start_row_str, end_col_str, end_row_str = match.groups()
 
@@ -139,7 +140,7 @@ class FileLoader:
                 result.append(name)
             else:
                 seen[name] += 1
-                result.append(f"{name}_{seen[name]}")
+                result.append(f'{name}_{seen[name]}')
         return result
 
     @staticmethod
@@ -168,7 +169,7 @@ class FileLoader:
         sheet_name: str | None = None,
         skip_rows: int = 0,
         has_header: bool = False,
-        excel_range: str | None = None
+        excel_range: str | None = None,
     ) -> pl.DataFrame:
         """Load an Excel file sheet into a Polars DataFrame."""
         wb = load_workbook(file_path, data_only=True, read_only=True)
@@ -215,12 +216,12 @@ class FileLoader:
             # Use first row as header
             header_row = padded_data[0]
             col_names = [
-                f"column_{i+1}" if (not h or str(h).strip() == '') else str(h).strip()
+                f'column_{i + 1}' if (not h or str(h).strip() == '') else str(h).strip()
                 for i, h in enumerate(header_row[:max_cols])
             ]
             data_rows = padded_data[1:]
         else:
-            col_names = [f"column_{i+1}" for i in range(max_cols)]
+            col_names = [f'column_{i + 1}' for i in range(max_cols)]
             data_rows = padded_data
 
         # Make duplicate column names unique so Polars accepts the schema (user can rename later)
@@ -230,7 +231,7 @@ class FileLoader:
             return pl.DataFrame()
 
         # Create DataFrame
-        df = pl.DataFrame(data_rows, schema=col_names, orient="row")
+        df = pl.DataFrame(data_rows, schema=col_names, orient='row')
         return df
 
     @classmethod
@@ -241,7 +242,7 @@ class FileLoader:
         sheet_name: str | None = None,
         skip_rows: int = 0,
         has_header: bool = False,
-        excel_range: str | None = None
+        excel_range: str | None = None,
     ) -> pl.DataFrame:
         """Load a file based on its type."""
         if file_type is None:
@@ -319,9 +320,9 @@ class OperationsExecutor:
         # Compile and evaluate the expression
         try:
             code = compile(expr_str, '<string>', 'eval')
-            expr = eval(code, {"__builtins__": {}}, namespace)  # noqa: S307
+            expr = eval(code, {'__builtins__': {}}, namespace)  # noqa: S307
             if not isinstance(expr, pl.Expr):
-                raise TypeError(f"Expression must evaluate to a Polars Expr, got {type(expr)}")  # noqa: TRY301
+                raise TypeError(f'Expression must evaluate to a Polars Expr, got {type(expr)}')  # noqa: TRY301
             return expr  # noqa: TRY300
         except Exception as e:
             raise ValueError(f"Invalid Polars expression '{expr_str}': {e}") from e
@@ -332,7 +333,7 @@ class OperationsExecutor:
         op_params = operation.get('params', {})
         method_name = f'_op_{op_type}'
         if not hasattr(self, method_name):
-            raise ValueError(f"Unknown operation type: {op_type}")
+            raise ValueError(f'Unknown operation type: {op_type}')
         return getattr(self, method_name)(df, op_params)
 
     def execute_operations(self, df: pl.DataFrame, operations: list[dict[str, Any]]) -> pl.DataFrame:
@@ -351,16 +352,43 @@ class OperationsExecutor:
         return clean_dataframe(df)
 
     def _op_concat_all_results(self, _df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
-        """Replace the current DataFrame with the concatenation of all DataFrames in all_results."""
+        """
+        Replace the current DataFrame with the concatenation of all DataFrames in all_results.
+
+        Column names must match (see Counter check). Categorical columns are cast to Utf8 so they
+        align with string columns across frames.
+        """
         if not self.all_results:
             return pl.DataFrame()
-        return pl.concat(self.all_results, rechunk=False)
+        frames = self.all_results
+        for i, f in enumerate(frames):
+            if f.width == 0:
+                raise ValueError(f'concat_all_results: frame {i} has no columns.')
+        ref_cols = frames[0].columns
+        ref_counter = Counter(ref_cols)
+        aligned: list[pl.DataFrame] = []
+        for i, f in enumerate(frames):
+            if Counter(f.columns) != ref_counter:
+                msg = (
+                    f'concat_all_results: frame {i} columns differ from frame 0 '
+                    + '(names and duplicate counts must match; order may differ). '
+                    + f'Reference: {ref_cols!r}. This frame: {f.columns!r}.'
+                )
+                raise ValueError(msg)
+            sub = f.select(ref_cols)
+            exprs: list[pl.Expr] = []
+            for j in range(sub.width):
+                if isinstance(sub.to_series(j).dtype, pl.Categorical):
+                    exprs.append(pl.nth(j).cast(pl.Utf8))
+                else:
+                    exprs.append(pl.nth(j))
+            aligned.append(sub.select(exprs))
+        return pl.concat(aligned, rechunk=False)
 
     def _op_convert_names_to_cats(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         if self.context is None:
             raise ValueError(
-                "convert_names_to_cats operation requires a context. "
-                + "Set 'instance' in the dataset configuration."
+                'convert_names_to_cats operation requires a context. ' + "Set 'instance' in the dataset configuration."
             )
         return convert_names_to_cats(df, self.context)
 
@@ -369,9 +397,7 @@ class OperationsExecutor:
 
     def _op_define_metrics(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         if not self.metrics:
-            raise ValueError(
-                "define_metrics operation requires metrics to be defined in the dataset configuration."
-            )
+            raise ValueError('define_metrics operation requires metrics to be defined in the dataset configuration.')
         metric_mapping = {}
         for metric in self.metrics:
             column_name = metric.column or metric.id
@@ -383,9 +409,7 @@ class OperationsExecutor:
         elif 'Quantity' in df.columns:
             metric_col_name = 'Quantity'
         else:
-            raise ValueError(
-                "define_metrics operation requires 'Metric' or 'Quantity' column in DataFrame."
-            )
+            raise ValueError("define_metrics operation requires 'Metric' or 'Quantity' column in DataFrame.")
 
         def map_to_metric_column(name: str | None) -> str:
             if name is None:
@@ -394,9 +418,7 @@ class OperationsExecutor:
             return metric_mapping.get(name_lower, to_snake_case(name))
 
         return df.with_columns(
-            pl.col(metric_col_name)
-            .map_elements(map_to_metric_column, return_dtype=pl.Utf8)
-            .alias('metric_col')
+            pl.col(metric_col_name).map_elements(map_to_metric_column, return_dtype=pl.Utf8).alias('metric_col')
         )
 
     def _op_drop(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:
@@ -406,15 +428,13 @@ class OperationsExecutor:
     def _op_extract_dimensions_from_text(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:  # noqa: C901
         description_col = op_params.get('column', 'Description')
         if description_col not in df.columns:
-            raise ValueError(
-                f"extract_dimensions_from_text operation requires '{description_col}' column in DataFrame."
-            )
+            raise ValueError(f"extract_dimensions_from_text operation requires '{description_col}' column in DataFrame.")
 
         category_mapping = op_params.get('mapping')
         if not isinstance(category_mapping, dict):
             raise TypeError(
                 "extract_dimensions_from_text operation requires 'mapping' parameter "
-                + "as a dict mapping dimension names to keyword->category_id dictionaries."
+                + 'as a dict mapping dimension names to keyword->category_id dictionaries.'
             )
 
         def find_category_matches(description: str | None, mapping: dict[str, dict[str, str]]) -> dict[str, str | None]:
@@ -434,27 +454,26 @@ class OperationsExecutor:
             print(f"Extracting dimensions from '{description_col}' column: {sorted(all_dimensions)}")
 
         df = df.with_columns(
-            pl.col(description_col)
+            pl
+            .col(description_col)
             .map_elements(
                 lambda x: find_category_matches(x, category_mapping),
-                return_dtype=pl.Struct([pl.Field(dim, pl.Utf8) for dim in all_dimensions])
+                return_dtype=pl.Struct([pl.Field(dim, pl.Utf8) for dim in all_dimensions]),
             )
-            .alias("_dimension_matches")
+            .alias('_dimension_matches')
         )
 
         for dimension in all_dimensions:
-            df = df.with_columns(
-                pl.col("_dimension_matches").struct.field(dimension).alias(dimension)
-            )
+            df = df.with_columns(pl.col('_dimension_matches').struct.field(dimension).alias(dimension))
 
-        df = df.drop("_dimension_matches")
+        df = df.drop('_dimension_matches')
 
         if verbose:
             for dimension in sorted(all_dimensions):
                 non_null_count = df.filter(pl.col(dimension).is_not_null()).height
                 if non_null_count > 0:
                     unique_values = df.select(dimension).unique().drop_nulls()
-                    print(f"  {dimension}: {non_null_count} matches, {len(unique_values)} unique values")
+                    print(f'  {dimension}: {non_null_count} matches, {len(unique_values)} unique values')
 
         return df
 
@@ -467,10 +486,7 @@ class OperationsExecutor:
 
     def _op_extract_units(self, df: pl.DataFrame, _op_params: dict[str, Any]) -> pl.DataFrame:
         if 'metric_col' not in df.columns:
-            raise ValueError(
-                "extract_units operation requires 'metric_col' column. "
-                + "Run 'define_metrics' operation first."
-            )
+            raise ValueError("extract_units operation requires 'metric_col' column. " + "Run 'define_metrics' operation first.")
         if 'Unit' not in df.columns:
             raise ValueError("extract_units operation requires 'Unit' column in DataFrame.")
         units = extract_units(df)
@@ -503,13 +519,9 @@ class OperationsExecutor:
         sectors = op_params.get('sectors')
         energy_carriers = op_params.get('energy_carriers')
         if not sectors or not energy_carriers:
-            raise ValueError(
-                "filter_by_sector_carrier requires 'sectors' and 'energy_carriers' lists in params."
-            )
+            raise ValueError("filter_by_sector_carrier requires 'sectors' and 'energy_carriers' lists in params.")
         if column not in df.columns:
-            raise ValueError(
-                f"filter_by_sector_carrier: column {column!r} not in DataFrame (columns: {list(df.columns)})"
-            )
+            raise ValueError(f'filter_by_sector_carrier: column {column!r} not in DataFrame (columns: {list(df.columns)})')
         allowed = build_sector_carrier_field_keys(sectors, energy_carriers)
         include = op_params.get('include', True)
         if include:
@@ -537,9 +549,7 @@ class OperationsExecutor:
         else:
             specs = self.column_specs
         if not specs:
-            raise ValueError(
-                "melt_with_column_specs requires 'column_specs' in dataset config or in params."
-            )
+            raise ValueError("melt_with_column_specs requires 'column_specs' in dataset config or in params.")
         default_quantity = self.metrics[0].quantity if self.metrics else ''
         default_unit = self.metrics[0].unit if self.metrics else ''
         value_name = op_params.get('value_name', 'Value')
@@ -547,20 +557,16 @@ class OperationsExecutor:
         drop_variable = op_params.get('drop_variable_column', True)
 
         # Data columns only (specs that have dimensions or quantity)
-        value_indices = sorted(
-            i for i in specs if i < len(df.columns) and specs[i].is_data_column()
-        )
+        value_indices = sorted(i for i in specs if i < len(df.columns) and specs[i].is_data_column())
         if not value_indices:
-            raise ValueError(
-                "melt_with_column_specs: no column_specs entries are data columns (need dimensions or quantity)."
-            )
+            raise ValueError('melt_with_column_specs: no column_specs entries are data columns (need dimensions or quantity).')
         value_vars = [df.columns[i] for i in value_indices]
         id_vars = op_params.get('id_vars')
         if id_vars is None:
             id_vars = [c for j, c in enumerate(df.columns) if j not in specs]
         if not id_vars:
             raise ValueError(
-                "melt_with_column_specs: need at least one id column (set id_vars or use column_specs for subset of columns)."
+                'melt_with_column_specs: need at least one id column (set id_vars or use column_specs for subset of columns).'
             )
 
         long_df = df.unpivot(
@@ -604,78 +610,76 @@ class OperationsExecutor:
         return df
 
     def _op_print_metadata(self, df: pl.DataFrame, op_params: dict[str, Any]) -> pl.DataFrame:  # noqa: C901, PLR0912, PLR0915
-        print("\n" + "=" * 80)
-        print("METADATA SUMMARY")
-        print("=" * 80)
+        print('\n' + '=' * 80)
+        print('METADATA SUMMARY')
+        print('=' * 80)
 
         units_to_print = op_params.get('units')
         if units_to_print is None:
             units_to_print = self._extracted_units
         if units_to_print:
-            print(f"\nUnits ({len(units_to_print)}):")
-            print("-" * 80)
+            print(f'\nUnits ({len(units_to_print)}):')
+            print('-' * 80)
             for metric_id, unit in sorted(units_to_print.items()):
-                print(f"  {metric_id:30s} -> {unit}")
+                print(f'  {metric_id:30s} -> {unit}')
         else:
-            print("\nUnits: None extracted")
+            print('\nUnits: None extracted')
 
         if self.metrics:
-            print(f"\nMetrics ({len(self.metrics)}):")
-            print("-" * 80)
+            print(f'\nMetrics ({len(self.metrics)}):')
+            print('-' * 80)
             for metric in self.metrics:
                 column_name = metric.column or metric.id
-                print(f"  Name:     {metric.name}")
-                print(f"    ID:     {metric.id}")
-                print(f"    Column: {column_name}")
-                print(f"    Unit:   {metric.unit}")
-                print(f"    Quantity: {metric.quantity}")
+                print(f'  Name:     {metric.name}')
+                print(f'    ID:     {metric.id}')
+                print(f'    Column: {column_name}')
+                print(f'    Unit:   {metric.unit}')
+                print(f'    Quantity: {metric.quantity}')
                 print()
         else:
-            print("\nMetrics: None defined in configuration")
+            print('\nMetrics: None defined in configuration')
 
-        print("DataFrame Structure:")
-        print("-" * 80)
-        print(f"  Rows: {len(df)}")
-        print(f"  Columns ({len(df.columns)}):")
+        print('DataFrame Structure:')
+        print('-' * 80)
+        print(f'  Rows: {len(df)}')
+        print(f'  Columns ({len(df.columns)}):')
         metric_cols = []
         dimension_cols = []
         other_cols = []
         units_dict = units_to_print or {}
         # Columns that are metrics (from YAML metric definitions) are metric columns
-        metric_column_names = {
-            m.column or m.id for m in self.metrics
-        }
+        metric_column_names = {m.column or m.id for m in self.metrics}
         for col in df.columns:
             if col in units_dict or col in metric_column_names:
                 metric_cols.append(col)
             elif col.lower() == 'year':
-                other_cols.append(f"{col} (time dimension)")
+                other_cols.append(f'{col} (time dimension)')
             else:
                 dimension_cols.append(col)
         if metric_cols:
-            print(f"    Metric columns ({len(metric_cols)}): {', '.join(sorted(metric_cols))}")
+            print(f'    Metric columns ({len(metric_cols)}): {", ".join(sorted(metric_cols))}')
         if dimension_cols:
-            print(f"    Dimension columns ({len(dimension_cols)}): {', '.join(sorted(dimension_cols))}")
+            print(f'    Dimension columns ({len(dimension_cols)}): {", ".join(sorted(dimension_cols))}')
         if other_cols:
-            print(f"    Other columns: {', '.join(other_cols)}")
-        print("  Column dtypes:")
+            print(f'    Other columns: {", ".join(other_cols)}')
+        print('  Column dtypes:')
         for col in df.columns:
             dtype = df.schema[col]
-            print(f"    {col:30s} -> {dtype}")
+            print(f'    {col:30s} -> {dtype}')
 
         if len(df) > 0:
             sample_size = op_params.get('sample_rows', 5)
-            print(f"\nSample Data (first {min(sample_size, len(df))} rows):")
-            print("-" * 80)
+            print(f'\nSample Data (first {min(sample_size, len(df))} rows):')
+            print('-' * 80)
             sample_df = df.head(sample_size)
             for idx, row in enumerate(sample_df.iter_rows(named=True), 1):
-                print(f"  Row {idx}:")
+                print(f'  Row {idx}:')
                 for key, value in row.items():
                     if value is not None:
-                        print(f"    {key}: {value}")
+                        print(f'    {key}: {value}')
                 print()
 
-        print("=" * 80 + "\n")
+        print('=' * 80 + '\n')
         print(df.describe())
         return df
 
@@ -719,10 +723,10 @@ class OperationsExecutor:
             raise TypeError("push_to_dvc operation requires 'units' to be a dict")
 
         if not units:
-            print("Warning: No units found. Units should be:")
+            print('Warning: No units found. Units should be:')
             print("  1. Provided via params['units']")
-            print("  2. From PathsDataFrame meta (e.g. after to_paths_dataframe or load from DVC/DB)")
-            print("  3. Defined in YAML metrics (metric.unit)")
+            print('  2. From PathsDataFrame meta (e.g. after to_paths_dataframe or load from DVC/DB)')
+            print('  3. Defined in YAML metrics (metric.unit)')
             print("  4. Extracted via 'extract_units' operation (before pivot/extract_metadata)")
 
         description = op_params.get('description') or self.description
@@ -745,11 +749,9 @@ class OperationsExecutor:
         elif op_params.get('extract_metrics', False):
             if 'metric_col' in df.columns and 'Metric' in df.columns and 'Quantity' in df.columns:
                 legacy_metrics = extract_metrics(df, language)
-                node_metrics = [
-                    metric_data_to_node_metric(m, units.get(m.id, '')) for m in legacy_metrics
-                ]
+                node_metrics = [metric_data_to_node_metric(m, units.get(m.id, '')) for m in legacy_metrics]
             else:
-                print("Warning: Cannot extract metrics - missing required columns (metric_col, Metric, Quantity)")
+                print('Warning: Cannot extract metrics - missing required columns (metric_col, Metric, Quantity)')
 
         push_to_dvc(
             df=df,
@@ -776,8 +778,8 @@ class OperationsExecutor:
         set_unit_fn = getattr(df, 'set_unit', None)
         if not callable(set_unit_fn):
             raise TypeError(
-                "set_unit operation requires a PathsDataFrame (e.g. load with source: dvc or source: db). "
-                + "File-loaded data does not carry unit metadata; use metrics in YAML or push_to_dvc params instead."
+                'set_unit operation requires a PathsDataFrame (e.g. load with source: dvc or source: db). '
+                + 'File-loaded data does not carry unit metadata; use metrics in YAML or push_to_dvc params instead.'
             )
         mapping = op_params.get('mapping', {})
         if not mapping:
@@ -788,7 +790,7 @@ class OperationsExecutor:
             mapping = {col: unit}
         for col, unit_str in mapping.items():
             if col not in df.columns:
-                raise ValueError(f"set_unit: column {col!r} not in DataFrame.")
+                raise ValueError(f'set_unit: column {col!r} not in DataFrame.')
             df = cast('pl.DataFrame', set_unit_fn(col, unit_str, force=True))
         return df
 
@@ -812,9 +814,7 @@ class OperationsExecutor:
         primary_keys = op_params.get('primary_keys', [])
         if not isinstance(units_dict, dict):
             raise TypeError("to_paths_dataframe requires 'units' to be a dict")
-        units_parsed = {
-            col: unit_registry.parse_units(u) for col, u in units_dict.items()
-        }
+        units_parsed = {col: unit_registry.parse_units(u) for col, u in units_dict.items()}
         meta = ppl.DataFrameMeta(units=units_parsed, primary_keys=list(primary_keys))
         return ppl.to_ppdf(df, meta=meta)
 
@@ -875,7 +875,7 @@ class DatasetProcessor:
         if self.config.source == 'file':
             assert self.config.input_file_path is not None
             if verbose:
-                print(f"Loading file: {self.config.input_file_path}")
+                print(f'Loading file: {self.config.input_file_path}')
             df = self.file_loader.load_file(
                 self.config.input_file_path,
                 self.config.file_type,
@@ -888,16 +888,16 @@ class DatasetProcessor:
             assert self.config.instance is not None
             assert self.config.dataset_id is not None
             if verbose:
-                print(f"Loading from DVC: {self.config.dataset_id} (instance: {self.config.instance})")
+                print(f'Loading from DVC: {self.config.dataset_id} (instance: {self.config.instance})')
             df = load_from_dvc(self.config.instance, self.config.dataset_id)
         elif self.config.source == 'db':
             assert self.config.instance is not None
             assert self.config.dataset_id is not None
             if verbose:
-                print(f"Loading from database: {self.config.dataset_id} (instance: {self.config.instance})")
+                print(f'Loading from database: {self.config.dataset_id} (instance: {self.config.instance})')
             df = load_from_db(self.config.instance, self.config.dataset_id)
         else:
-            raise ValueError(f"Unknown source: {self.config.source!r}")
+            raise ValueError(f'Unknown source: {self.config.source!r}')
 
         get_meta = getattr(df, 'get_meta', None)
         saved_meta = get_meta() if callable(get_meta) else None
@@ -922,6 +922,7 @@ class DatasetProcessor:
             'data_columns': len(data_cols),
         }
 
+
 def build_sector_carrier_field_keys(
     sectors: list[str],
     energy_carriers: list[str],
@@ -941,10 +942,10 @@ def list_excel_sheets(file_path: str | Path) -> list[str]:
     file_path = Path(file_path)
 
     if not file_path.exists():
-        raise FileNotFoundError(f"File not found: {file_path}")
+        raise FileNotFoundError(f'File not found: {file_path}')
 
     if file_path.suffix.lower() not in ['.xlsx', '.xls']:
-        raise ValueError(f"File is not an Excel file: {file_path}")
+        raise ValueError(f'File is not an Excel file: {file_path}')
 
     wb = load_workbook(file_path, read_only=True)
     sheet_names = wb.sheetnames
@@ -978,16 +979,14 @@ def parse_column_specs(config_dict: dict[str, Any]) -> dict[int, ColumnSpec]:
         # Create ColumnSpec based on whether it's a dimension or data column
         if spec_dict.get('dimension_name'):
             # This is a dimension column (long format)
-            column_specs[col_num] = ColumnSpec(
-                dimension_name=spec_dict['dimension_name']
-            )
+            column_specs[col_num] = ColumnSpec(dimension_name=spec_dict['dimension_name'])
         else:
             # This is a data column (wide format)
             column_specs[col_num] = ColumnSpec(
                 quantity=spec_dict.get('quantity', ''),
                 unit=spec_dict.get('unit', ''),
                 year=spec_dict.get('year'),
-                dimensions=spec_dict.get('dimensions', {})
+                dimensions=spec_dict.get('dimensions', {}),
             )
     return column_specs
 
@@ -1002,16 +1001,14 @@ def parse_metrics(config_list: list[dict[str, Any]] | None) -> list[MetricSpec]:
             id=metric_dict['id'],
             unit=metric_dict['unit'],
             quantity=metric_dict['quantity'],
-            column=metric_dict.get('column')  # Optional, defaults to None
+            column=metric_dict.get('column'),  # Optional, defaults to None
         )
         for metric_dict in config_list
     ]
 
 
 def parse_dataset_config(
-    config_dict: dict[str, Any],
-    default_output: str | None = None,
-    base_config: dict[str, Any] | None = None
+    config_dict: dict[str, Any], default_output: str | None = None, base_config: dict[str, Any] | None = None
 ) -> DatasetConfig:
     """Parse a single dataset configuration from dictionary."""
     # Merge with base config if provided (property inheritance)
@@ -1031,9 +1028,9 @@ def parse_dataset_config(
         file_type = config_dict.get('file_type') or FileLoader.detect_file_type(Path(input_file_path))
     else:
         if not dataset_id:
-            raise ValueError(f"dataset_id is required when source is {source!r}.")
+            raise ValueError(f'dataset_id is required when source is {source!r}.')
         if not config_dict.get('instance'):
-            raise ValueError(f"instance is required when source is {source!r}.")
+            raise ValueError(f'instance is required when source is {source!r}.')
         file_type = None
 
     # Parse column_specs and metrics if present
@@ -1077,7 +1074,7 @@ def load_config(yaml_file_path: str | Path) -> tuple[list[DatasetConfig], str | 
     yaml_file_path = Path(yaml_file_path)
 
     if not yaml_file_path.exists():
-        raise FileNotFoundError(f"Configuration file not found: {yaml_file_path}")
+        raise FileNotFoundError(f'Configuration file not found: {yaml_file_path}')
 
     with yaml_file_path.open('r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
@@ -1102,9 +1099,7 @@ def load_config(yaml_file_path: str | Path) -> tuple[list[DatasetConfig], str | 
             top_level_base['output_file_path'] = default_output
 
         for dataset_dict in config['datasets']:
-            dataset_config = parse_dataset_config(
-                dataset_dict, default_output, top_level_base or None
-            )
+            dataset_config = parse_dataset_config(dataset_dict, default_output, top_level_base or None)
             dataset_configs.append(dataset_config)
         return dataset_configs, default_output
 
@@ -1132,12 +1127,12 @@ def process_yaml_datasets(config_path: str | Path, verbose: bool = True) -> pl.D
     """
     # Load configuration
     if verbose:
-        print(f"Loading configuration from: {config_path}")
+        print(f'Loading configuration from: {config_path}')
 
     dataset_configs, _ = load_config(config_path)
 
     if verbose:
-        print(f"Found {len(dataset_configs)} dataset configuration(s)")
+        print(f'Found {len(dataset_configs)} dataset configuration(s)')
 
     # Shared list for append_to_all_results; same list is passed to every processor
     all_results: list[pl.DataFrame] = []
@@ -1145,27 +1140,27 @@ def process_yaml_datasets(config_path: str | Path, verbose: bool = True) -> pl.D
 
     for idx, config in enumerate(dataset_configs, 1):
         if verbose:
-            print(f"\n{'='*80}")
-            print(f"Processing dataset {idx}/{len(dataset_configs)}")
+            print(f'\n{"=" * 80}')
+            print(f'Processing dataset {idx}/{len(dataset_configs)}')
 
         # Validate input file exists when loading from file
         if config.source == 'file' and config.input_file_path:
             input_path = Path(config.input_file_path)
             if not input_path.exists():
-                raise FileNotFoundError(f"Input file not found: {input_path}")
+                raise FileNotFoundError(f'Input file not found: {input_path}')
 
         processor = DatasetProcessor(config, all_results=all_results)
         result_df = processor.process(verbose=verbose)
         last_result = result_df
 
         if verbose and config.column_specs:
-            print("\nColumn specs summary:")
+            print('\nColumn specs summary:')
             summary = processor.get_summary()
             for key, value in summary.items():
-                print(f"  {key}: {value}")
+                print(f'  {key}: {value}')
 
         if verbose and len(result_df) > 0:
-            print(f"  Collected {len(result_df)} rows")
+            print(f'  Collected {len(result_df)} rows')
 
     return last_result
 
@@ -1182,6 +1177,7 @@ def main():
 
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
     import django
+
     django.setup()
 
     parser = argparse.ArgumentParser(
@@ -1193,44 +1189,24 @@ Examples:
   %(prog)s config.yaml --quiet
   %(prog)s config.yaml --show-data
   %(prog)s config.yaml --list-sheets
-        """
+        """,
     )
 
-    parser.add_argument(
-        'config',
-        type=str,
-        help='Path to YAML configuration file'
-    )
+    parser.add_argument('config', type=str, help='Path to YAML configuration file')
 
-    parser.add_argument(
-        '-q', '--quiet',
-        action='store_true',
-        help='Suppress progress output'
-    )
+    parser.add_argument('-q', '--quiet', action='store_true', help='Suppress progress output')
 
-    parser.add_argument(
-        '-s', '--show-data',
-        action='store_true',
-        help='Display the transformed data'
-    )
+    parser.add_argument('-s', '--show-data', action='store_true', help='Display the transformed data')
 
-    parser.add_argument(
-        '--head',
-        type=int,
-        metavar='N',
-        help='Show first N rows of output (implies --show-data)'
-    )
+    parser.add_argument('--head', type=int, metavar='N', help='Show first N rows of output (implies --show-data)')
 
-    parser.add_argument(
-        '--list-sheets',
-        action='store_true',
-        help='List available sheets in Excel file and exit'
-    )
+    parser.add_argument('--list-sheets', action='store_true', help='List available sheets in Excel file and exit')
 
     args = parser.parse_args()
 
     # Reduce log noise: default INFO (no DEBUG from nodes/dvc_pandas/dulwich), or WARNING if -q
     from loguru import logger
+
     logger.remove()
     logger.add(sys.stderr, level='WARNING' if args.quiet else 'INFO')
     logging.getLogger().setLevel(logging.WARNING if args.quiet else logging.INFO)
@@ -1245,15 +1221,16 @@ Examples:
                 return 1
             if config.file_type == 'excel':
                 sheets = list_excel_sheets(config.input_file_path)
-                print(f"\nAvailable sheets in {config.input_file_path}:")
+                print(f'\nAvailable sheets in {config.input_file_path}:')
                 for i, sheet in enumerate(sheets, 1):
-                    print(f"  {i}. {sheet}")
+                    print(f'  {i}. {sheet}')
                 return 0
-            print(f"File is not an Excel file: {config.input_file_path}")
+            print(f'File is not an Excel file: {config.input_file_path}')
             return 1  # noqa: TRY300
         except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
+            print(f'Error: {e}', file=sys.stderr)
             import traceback
+
             traceback.print_exc()
             return 1
 
@@ -1262,9 +1239,9 @@ Examples:
 
         # Display data if requested
         if args.show_data or args.head:
-            print("\n" + "="*80)
-            print("Transformed Data:")
-            print("="*80)
+            print('\n' + '=' * 80)
+            print('Transformed Data:')
+            print('=' * 80)
             if args.head:
                 print(result_df.head(args.head))
             else:
@@ -1273,11 +1250,12 @@ Examples:
         return 0  # noqa: TRY300
 
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f'Error: {e}', file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 1
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     sys.exit(main())

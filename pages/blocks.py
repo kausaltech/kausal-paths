@@ -126,7 +126,7 @@ class CategoryBreakdownBlock(blocks.StructBlock):
     # TODO: dimension_id should be a choice block. Need to implement some way of getting the choices.
     dimension_id = blocks.CharBlock(
         required=False,
-        help_text=_("Break down the given dimension into its categories. If empty, break down into input nodes."),
+        help_text=_('Break down the given dimension into its categories. If empty, break down into input nodes.'),
     )
 
     # TODO Validate that the dimension id actually exists in the instance.
@@ -175,12 +175,14 @@ class DashboardCardBlock(blocks.StructBlock):
         ('reference_progress_bar', ReferenceProgressBarBlock()),
         ('current_progress_bar', CurrentProgressBarBlock()),
         ('scenario_progress_bar', ScenarioProgressBarBlock()),
-        ('category_breakdown', CategoryBreakdownBlock(
-            label=_("Category breakdown"), help_text=_("Break down the value into its components")
-        )),
-        ('action_impact', ActionImpactBlock(
-            label=_("Action impact"), help_text=_("Visualize the impact of actions in a scenario")
-        )),
+        (
+            'category_breakdown',
+            CategoryBreakdownBlock(label=_('Category breakdown'), help_text=_('Break down the value into its components')),
+        ),
+        (
+            'action_impact',
+            ActionImpactBlock(label=_('Action impact'), help_text=_('Visualize the impact of actions in a scenario')),
+        ),
     ])
     call_to_action = CallToActionBlock()
 
@@ -190,7 +192,7 @@ class DashboardCardBlock(blocks.StructBlock):
         GraphQLImage('image', required=False),
         GraphQLField('node', 'nodes.schema.NodeType', required=True),  # pyright: ignore
         GraphQLField('unit', 'paths.schema.UnitType', required=True),  # pyright: ignore
-        GraphQLFloat('goal_value', required=False, deprecation_reason="Use goalValues instead"),
+        GraphQLFloat('goal_value', required=False, deprecation_reason='Use goalValues instead'),
         GraphQLField(
             'goal_values',
             'nodes.schema.MetricYearlyGoalType',  # pyright: ignore
@@ -227,15 +229,15 @@ class DashboardCardBlock(blocks.StructBlock):
 
         if not node:
             # No good way of explaining this to the user...
-            errors['node_config'] = ValidationError(_("This object does not correspond to a node."))
+            errors['node_config'] = ValidationError(_('This object does not correspond to a node.'))
         elif not node.goals or not node.goals.root:
-            errors['node_config'] = ValidationError(_("This node has no goals."))
+            errors['node_config'] = ValidationError(_('This node has no goals.'))
         elif node.context.instance.reference_year is None:
             errors['node_config'] = ValidationError(_("This node's instance has no reference year."))
 
         goal_index = cleaned_data.get('goal_index')
         if node and node.goals and goal_index is not None and goal_index >= len(node.goals.root):
-            errors['goal_index'] = ValidationError(_("This goal index is invalid."))
+            errors['goal_index'] = ValidationError(_('This goal index is invalid.'))
 
         if errors:
             raise blocks.StructBlockValidationError(errors)
@@ -248,7 +250,7 @@ class DashboardCardBlock(blocks.StructBlock):
         assert isinstance(node_config, NodeConfig)
         node = node_config.get_node()
         if not node:
-            raise ValueError("Node config has no node.")  # hopefully prevented by validation
+            raise ValueError('Node config has no node.')  # hopefully prevented by validation
         return node
 
     def unit(self, info: GQLInstanceInfo, values: dict) -> Unit:
@@ -261,7 +263,7 @@ class DashboardCardBlock(blocks.StructBlock):
         node = self.node(info, values)
         target_year = node.get_target_year()
         if target_year is None:
-            raise ValueError("Node has no target year")
+            raise ValueError('Node has no target year')
         goal_index = values.get('goal_index')
         return self._goal_value_for_year(node, target_year, goal_index)
 
@@ -275,12 +277,12 @@ class DashboardCardBlock(blocks.StructBlock):
         node = self.node(info, values)
         reference_year = info.context.instance.reference_year
         if reference_year is None:
-            raise ValueError("Instance has no reference year")
+            raise ValueError('Instance has no reference year')
         return self._value_for_year(node, reference_year)
 
     def last_historical_year_value(self, info: GQLInstanceInfo, values: dict) -> float | None:
         node = self.node(info, values)
-        dm  = self._dimensional_metric(node)
+        dm = self._dimensional_metric(node)
         last_historical_year = self._last_historical_year(dm)
         if last_historical_year is None:
             return None
@@ -289,10 +291,11 @@ class DashboardCardBlock(blocks.StructBlock):
     def scenario_values(self, info: GQLInstanceInfo, values: dict) -> Iterable[ScenarioValue]:
         """Return the value for each scenario for the node's target year."""
         from nodes.schema import ScenarioValue
+
         node = self.node(info, values)
         target_year = node.get_target_year()
         if target_year is None:
-            raise ValueError("Node has no target year")
+            raise ValueError('Node has no target year')
         return [
             ScenarioValue(
                 scenario=cast('ScenarioType', s),
@@ -311,6 +314,7 @@ class DashboardCardBlock(blocks.StructBlock):
         Returns None if there is no historical data.
         """
         from nodes.schema import MetricDimensionCategoryValue
+
         node = self.node(info, values)
         dm = self._dimensional_metric(node)
         year = self._last_historical_year(dm)
@@ -328,23 +332,24 @@ class DashboardCardBlock(blocks.StructBlock):
                     continue  # Can this be? Handle this better?
                 assert len(cat_df) == 1
                 value = cat_df.item(0, VALUE_COLUMN)
-                result.append(MetricDimensionCategoryValue(
-                    dimension=cast('MetricDimensionType', dimension),  # pyright: ignore[reportArgumentType]
-                    category=cast('MetricDimensionCategoryType', category),  # pyright: ignore[reportArgumentType]
-                    value=value,
-                    year=year,
-                ))
+                result.append(
+                    MetricDimensionCategoryValue(
+                        dimension=cast('MetricDimensionType', dimension),  # pyright: ignore[reportArgumentType]
+                        category=cast('MetricDimensionCategoryType', category),  # pyright: ignore[reportArgumentType]
+                        value=value,
+                        year=year,
+                    )
+                )
         return result
 
-    def scenario_action_impacts(
-        self, info: GQLInstanceInfo, values: dict
-    ) -> Iterable[ScenarioActionImpacts]:
+    def scenario_action_impacts(self, info: GQLInstanceInfo, values: dict) -> Iterable[ScenarioActionImpacts]:
         """Return the impact of each action in the node's target year for each scenario."""
         from nodes.schema import ScenarioActionImpacts
+
         node = self.node(info, values)
         target_year = node.get_target_year()
         if target_year is None:
-            raise ValueError("Node has no target year")
+            raise ValueError('Node has no target year')
         return [
             ScenarioActionImpacts(
                 scenario=cast('ScenarioType', scenario),
@@ -358,7 +363,7 @@ class DashboardCardBlock(blocks.StructBlock):
         with context:
             dm = DimensionalMetric.from_node(node)
         if not dm:
-            raise ValueError("Could not obtain dimensional metric from node")
+            raise ValueError('Could not obtain dimensional metric from node')
         return dm
 
     def _goal_values(self, node: Node, goal_index: int | None) -> list[MetricYearlyGoal]:
@@ -366,7 +371,7 @@ class DashboardCardBlock(blocks.StructBlock):
             goal_index = 0
         dm = self._dimensional_metric(node)
         if goal_index < 0 or goal_index >= len(dm.goals):
-            raise ValueError("Goal index is invalid")
+            raise ValueError('Goal index is invalid')
         goal = dm.goals[goal_index]
         return goal.values
 
@@ -405,6 +410,7 @@ class DashboardCardBlock(blocks.StructBlock):
 
     def _impact_for_action(self, action: ActionNode, node: Node, year: int) -> ActionImpactType:
         from nodes.schema import ActionImpactType
+
         df = action.compute_impact(node)
         df = df.filter(pl.col(IMPACT_COLUMN) == IMPACT_GROUP).drop(IMPACT_COLUMN)
         df = df.filter(pl.col(YEAR_COLUMN) == year)

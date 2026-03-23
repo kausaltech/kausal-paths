@@ -24,11 +24,11 @@ class EdgeDimension:
             if len(node_dims) == 1:
                 dim_id, dim = next(iter(node_dims.items()))
             else:
-                raise NodeError(node, "dimension id not supplied")
+                raise NodeError(node, 'dimension id not supplied')
         else:
             dim_id = dc['id']
             if dim_id not in context.dimensions:
-                raise NodeError(node, "dimension %s not found" % dim_id)
+                raise NodeError(node, 'dimension %s not found' % dim_id)
             dim = context.dimensions[dim_id]
 
         flatten = dc.get('flatten')
@@ -81,13 +81,13 @@ class Edge:
         else:
             s = config.get('id')
             if s is None:
-                raise NodeError(node, "node id not given in edge definition")
+                raise NodeError(node, 'node id not given in edge definition')
             assert isinstance(s, str)
             other_id = s
         assert isinstance(other_id, str)
         other = context.nodes.get(other_id)
         if other is None:
-            raise NodeError(node, "node %s not found" % other_id)
+            raise NodeError(node, 'node %s not found' % other_id)
 
         args: dict[str, Any] = {}
         args['output_node'], args['input_node'] = (other, node) if is_output else (node, other)

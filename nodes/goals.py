@@ -21,7 +21,6 @@ if typing.TYPE_CHECKING:
     from .node import Node
 
 
-
 class GoalValue(BaseModel):
     year: int
     value: float
@@ -122,7 +121,6 @@ class NodeGoalsEntry(I18nBaseModel):
             unit = m.unit
         return goal_norm, unit
 
-
     def _get_values_df(self) -> ppl.PathsDataFrame:
         context = self._node.context
         goal_norm, unit = self.get_normalization_info()
@@ -138,13 +136,10 @@ class NodeGoalsEntry(I18nBaseModel):
             years = range(df[YEAR_COLUMN].min(), df[YEAR_COLUMN].max() + 1)  # type: ignore
             ydf = ppl.to_ppdf(
                 pl.DataFrame(years, schema=[YEAR_COLUMN], orient='row'),
-                meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={})
+                meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={}),
             )
             df = df.paths.join_over_index(ydf, how='outer', index_from='left')
-            df = df.with_columns([
-                pl.col(VALUE_COLUMN).interpolate(),
-                pl.col('IsInterpolated').fill_null(value=True)
-            ])
+            df = df.with_columns([pl.col(VALUE_COLUMN).interpolate(), pl.col('IsInterpolated').fill_null(value=True)])
 
         if context.active_normalization:
             df_before_norm = df
@@ -214,7 +209,6 @@ class NodeGoals(RootModel[list[NodeGoalsEntry]]):
         self._node = node
         for ge in self.root:
             ge.set_node(node)
-
 
     @model_validator(mode='after')
     def validate_unique(self):

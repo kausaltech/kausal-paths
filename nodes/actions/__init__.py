@@ -7,4 +7,4 @@ from .action import ActionGroup, ActionImpact, ActionNode, ImpactOverview
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-__all__: Sequence[str] = ["ActionGroup", "ActionImpact", "ActionNode", "ImpactOverview"]
+__all__: Sequence[str] = ['ActionGroup', 'ActionImpact', 'ActionNode', 'ImpactOverview']

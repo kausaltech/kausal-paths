@@ -1,5 +1,6 @@
 import json
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from django.core.management.base import BaseCommand
 
@@ -39,7 +40,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # Load JSON data
-        with open(options['file'], 'r') as file:
+        with Path(options['file']).open('r') as file:
             data = json.load(file)
 
         # Create or get the Framework
@@ -54,33 +55,30 @@ class Command(BaseCommand):
         fw.root_section = root_section
         fw.save()
 
-        dc_section = root_section.add_child(instance=Section(
-            framework=fw,
-            name='%s Data Collection' % name,
-            identifier='data_collection'
-        ))
-        fa_section = root_section.add_child(instance=Section(
-            framework=fw,
-            name='%s Future Assumptions' % name,
-            identifier='future_assumptions'
-        ))
+        dc_section = root_section.add_child(
+            instance=Section(framework=fw, name='%s Data Collection' % name, identifier='data_collection')
+        )
+        fa_section = root_section.add_child(
+            instance=Section(framework=fw, name='%s Future Assumptions' % name, identifier='future_assumptions')
+        )
         # Process the data
         self.process_items(data['dataCollection']['items'], dc_section)
         self.process_items(data['futureAssumptions']['items'], fa_section)
 
         self.stdout.write(self.style.SUCCESS('Successfully loaded measures and sections'))
 
-    def process_measure(self, data: dict, section: Section):
+    def process_measure(self, data: dict[str, Any], section: Section):
         unit_str = data['unit']
         try:
             unit = unit_registry.parse_units(unit_str)
-        except Exception:
+        except Exception as err:
             if unit_str in UNIT_CONVERSION_MAP:
                 unit = unit_registry.parse_units(UNIT_CONVERSION_MAP[unit_str])
             elif '%' in unit_str:
                 unit = unit_registry.parse_units('%')
             else:
                 self.stderr.write(self.style.ERROR('Unable to parse unit: %s' % unit_str))
+                raise Exception('Unable to parse unit: %s' % unit_str) from err
 
         src = data.get('fallbackSource', '').strip()
         measure = MeasureTemplate.objects.create(
@@ -107,11 +105,13 @@ class Command(BaseCommand):
                     section = parent
                 else:
                     # Create a Section
-                    section = parent.add_child(instance=Section(
-                        framework=parent.framework,
-                        name=item['label'],
-                        available_years=None,
-                    ))
+                    section = parent.add_child(
+                        instance=Section(
+                            framework=parent.framework,
+                            name=item['label'],
+                            available_years=None,
+                        )
+                    )
                 if 'items' in item:
                     self.process_items(item['items'], section)
             else:
@@ -120,7 +120,6 @@ class Command(BaseCommand):
     def get_priority(self, priority_str):
         if priority_str == 'HIGH':
             return MeasurePriority.HIGH
-        elif priority_str == 'LOW':
+        if priority_str == 'LOW':
             return MeasurePriority.LOW
-        else:
-            return MeasurePriority.MEDIUM
+        return MeasurePriority.MEDIUM

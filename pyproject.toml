@@ -1,11 +1,19 @@
 [build-system]
-requires = ["setuptools>=61.2"]
 build-backend = "setuptools.build_meta"
+requires = [ "setuptools>=61.2" ]
 
 [project]
 name = "kausal-paths"
-requires-python = ">= 3.14"
 version = "1.0.0"
+requires-python = ">=3.14"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
 dependencies = [
   "asgi-cors",
   "babel",
@@ -14,7 +22,7 @@ dependencies = [
   "channels-redis",
   "colored",
   "colormath",
-  "dal-admin-filters>=1.1.0",
+  "dal-admin-filters>=1.1",
   "deepdiff>=8.6.1",
   "diffsync",
   "django",
@@ -47,7 +55,7 @@ dependencies = [
   "logfmter",
   "loguru",
   "modelsearch<1.2",
-  "nanoid==2.0.0",
+  "nanoid==2",
   "numba",
   "openpyxl",
   "opentelemetry-exporter-otlp-proto-http",
@@ -62,7 +70,7 @@ dependencies = [
   "pint",
   "pint-pandas",
   "polars",
-  "psycopg[pool,binary]",
+  "psycopg[binary,pool]",
   "pycryptodome",
   "pydantic",
   "pydantic-extra-types",
@@ -79,7 +87,7 @@ dependencies = [
   "s3cmd",
   "sentry-sdk[django,opentelemetry]",
   "social-auth-app-django",
-  "starlette>=0.51.0",
+  "starlette>=0.51",
   "strawberry-graphql",
   "strawberry-graphql-django",
   "tzdata",
@@ -91,37 +99,93 @@ dependencies = [
   "wagtail-generic-chooser",
   "wagtail-grapple",
   "wagtail-localize",
-  "wagtail-modeladmin>=2.2.0",
+  "wagtail-modeladmin>=2.2",
   "wagtailgeowidget>=8.2.1",
   "watchfiles",
-  "willow>=1.9.0",
+  "willow>=1.9",
   "xxhash",
 ]
+optional-dependencies.kausal = [ "kausal-paths-extensions>=0.6.50" ]
 
-[project.optional-dependencies]
-kausal = ["kausal-paths-extensions>=0.6.50"]
+[dependency-groups]
+dev = [
+  "basedpyright",
+  "daphne",
+  "debugpy>=1.8.15",
+  "django-debug-toolbar",
+  "inotify",
+  "ipdb",
+  "ipython",
+  "libcst>=1.8.2",
+  "line-profiler",
+  "ondivi",
+  "pdbr[ipython]",
+  "pip",
+  "plotext",
+  "pre-commit",
+  "uv",
+  "virtualenvwrapper>=6.1.1",
+  "viztracer",
+  { include-group = "lint" },
+]
+lint = [
+  "altair>=6",
+  "celery-types",
+  "django-stubs",
+  "djangorestframework-stubs",
+  "graphene-stubs",
+  "mypy",
+  "mypy-baseline",
+  "pandas-stubs",
+  "pyarrow-stubs",
+  "ruff",
+  "scipy-stubs>=1.16.2.4",
+  "types-django-filter>=25.2.0.20251010",
+  "types-factory-boy",
+  "types-jwcrypto>=1.5.0.20251102",
+  "types-networkx",
+  "types-oauthlib",
+  "types-openpyxl",
+  "types-orjson",
+  "types-pygit2",
+  "types-requests>=2.32.4.20260107",
+]
+notebook = [
+  "altair",
+  "great-tables",
+  "ipympl",
+  "jupyterlab",
+  "jupyterlab-lsp",
+  "plotly",
+  "pyright",
+  "seaborn[stats]",
+  "strawberry-graphql[cli]",
+]
+prod = [
+  "gunicorn[gthread]",
+  "rustface>=0.1; sys_platform=='linux'",
+  "uvicorn-worker",
+]
 
-[tool.pip-tools]
+[tool.setuptools]
+include-package-data = false
+py-modules = []
 
-[tool.pep8]
-max-line-length = "120"
-ignore = "E309"
-
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "paths.tests.settings"
-norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
-filterwarnings = ["ignore::DeprecationWarning:graphene"]
-
-[[tool.uv.index]]
-url = "https://pypi.org/simple"
-
-[[tool.uv.index]]
-name = "kausal"
-url = "https://pypi.kausal.tech/"
-authenticate = "always"
+[tool.uv]
+sources.django-modeltrans = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
+sources.kausal-paths-extensions = { index = "kausal" }
+index = [
+  { url = "https://pypi.org/simple" },
+  { name = "kausal", url = "https://pypi.kausal.tech/", authenticate = "always" }
+]
+environments = [
+  "python_full_version >= '3.14' and sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "python_full_version >= '3.14' and sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
 
 [tool.ruff]
-extend = './kausal_common/configs/ruff.toml'
+extend = "./kausal_common/configs/ruff.toml"
+extend-exclude = [ "*.ipynb" ]
 
 [tool.mypy]
 plugins = [
@@ -131,21 +195,20 @@ plugins = [
 ]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings"
 exclude = [
-  '^Attic/',
-  '/migrations/',
-  '^notebooks/',
-  '^local_settings\.py',
-  '^\.*env*',
-  '^kausal_common/typings/django-stubs',
+  "^Attic/",
+  "/migrations/",
+  "^notebooks/",
+  "^local_settings\\.py",
+  "^\\.*env*",
+  "^kausal_common/typings/django-stubs",
 ]
 check_untyped_defs = true
 cache_fine_grained = true
 explicit_package_bases = true
 strict_optional = true
 fixed_format_cache = true
-always_true = ['IS_PATHS']
-always_false = ['IS_WATCH']
-
+always_true = [ "IS_PATHS", "IS_MYPY" ]
+always_false = [ "IS_WATCH" ]
 
 [[tool.mypy.overrides]]
 module = [
@@ -199,24 +262,17 @@ module = [
 ]
 ignore_missing_imports = true
 
-[tool.mypy-baseline]
-baseline_path = ".mypy-baseline.txt"
-preserve_position = false
-
-[tool.pydantic-mypy]
-init_typed = true
-
 [tool.pyright]
 stubPath = "./kausal_common/typings"
 exclude = [
-  'Attic/',
-  '**/__pycache__',
-  'local_settings.py',
-  '**/migrations',
-  '**/node_modules',
-  '.*',
+  "Attic/",
+  "**/__pycache__",
+  "local_settings.py",
+  "**/migrations",
+  "**/node_modules",
+  ".*",
 ]
-defineConstant = { 'IS_PATHS' = true, 'IS_WATCH' = false }
+defineConstant = { IS_PATHS = true, IS_WATCH = false, IS_MYPY = false }
 deprecateTypingAliases = true
 enableTypeIgnoreComments = true
 reportAny = false
@@ -245,79 +301,29 @@ reportUnreachable = false
 reportUnsafeMultipleInheritance = "information"
 reportUnusedCallResult = false
 
+[tool.ty]
+environment.extra-paths = [ "./kausal_common/typings" ]
+
 [tool.django-stubs]
 django_settings_module = "paths.settings"
 
-[tool.setuptools]
-include-package-data = false
-py-modules = []
-
-[tool.uv]
-environments = [
-  "python_full_version >= '3.14' and sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "python_full_version >= '3.14' and sys_platform == 'darwin' and platform_machine == 'arm64'",
+[tool.pytest]
+DJANGO_SETTINGS_MODULE = "paths.settings"
+norecursedirs = [ "node_modules", "data", ".git", "venv", "Attic" ]
+filterwarnings = [
+  "ignore::DeprecationWarning:graphene",
+  "ignore:.*iscoroutinefunction:DeprecationWarning",
 ]
 
-[tool.uv.sources]
-django-modeltrans = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
-kausal-paths-extensions = { index = "kausal"}
+[tool.pip-tools]
 
-[dependency-groups]
-dev = [
-  "basedpyright",
-  "daphne",
-  "debugpy>=1.8.15",
-  "django-debug-toolbar",
-  "inotify",
-  "ipdb",
-  "ipython",
-  "libcst>=1.8.2",
-  "line-profiler",
-  "ondivi",
-  "pdbr[ipython]",
-  "pip",
-  "plotext",
-  "pre-commit",
-  "uv",
-  "virtualenvwrapper>=6.1.1",
-  "viztracer",
-  {include-group = "lint"},
-]
-lint = [
-  "altair>=6.0.0",
-  "celery-types",
-  "django-stubs",
-  "djangorestframework-stubs",
-  "graphene-stubs",
-  "mypy",
-  "mypy-baseline",
-  "pandas-stubs",
-  "pyarrow-stubs",
-  "ruff",
-  "scipy-stubs>=1.16.2.4",
-  "types-django-filter>=25.2.0.20251010",
-  "types-factory-boy",
-  "types-jwcrypto>=1.5.0.20251102",
-  "types-networkx",
-  "types-oauthlib",
-  "types-openpyxl",
-  "types-orjson",
-  "types-pygit2",
-  "types-requests>=2.32.4.20260107",
-]
-notebook = [
-  "altair",
-  "great-tables",
-  "ipympl",
-  "jupyterlab",
-  "jupyterlab-lsp",
-  "plotly",
-  "pyright",
-  "seaborn[stats]",
-  "strawberry-graphql[cli]",
-]
-prod = [
-  "gunicorn[gthread]",
-  "rustface>=0.1.0; sys_platform == 'linux'",
-  "uvicorn-worker",
-]
+[tool.pep8]
+max-line-length = "120"
+ignore = "E309"
+
+[tool.mypy-baseline]
+baseline_path = ".mypy-baseline.txt"
+preserve_position = false
+
+[tool.pydantic-mypy]
+init_typed = true

@@ -62,33 +62,96 @@ VALUE_WEIGHT_QUANTITY = 'value_weight'
 FRACTION_QUANTITY = 'fraction'
 
 ACTIVITY_QUANTITIES = {
-    EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, VEHICLE_MILEAGE_QUANTITY,
-    PASSENGER_MILEAGE_QUANTITY, FREIGHT_MILEAGE_QUANTITY, UTILITY_QUANTITY, 'fuel_consumption', 'consumption',
-    'mass', 'volume', 'area', 'employment', 'activity', 'traffic_volume',
+    EMISSION_QUANTITY,
+    ENERGY_QUANTITY,
+    MILEAGE_QUANTITY,
+    VEHICLE_MILEAGE_QUANTITY,
+    PASSENGER_MILEAGE_QUANTITY,
+    FREIGHT_MILEAGE_QUANTITY,
+    UTILITY_QUANTITY,
+    'fuel_consumption',
+    'consumption',
+    'mass',
+    'volume',
+    'area',
+    'employment',
+    'activity',
+    'traffic_volume',
 }
 
 ACTIVITY_FACTOR_QUANTITIES = {
-    ENERGY_FACTOR_QUANTITY, CONSUMPTION_FACTOR_QUANTITY, 'energy_per_area', 'occupancy_factor', 'fuel_factor',
-    'demand_factor', 'time_factor', 'factor',
+    ENERGY_FACTOR_QUANTITY,
+    CONSUMPTION_FACTOR_QUANTITY,
+    'energy_per_area',
+    'occupancy_factor',
+    'fuel_factor',
+    'demand_factor',
+    'time_factor',
+    'factor',
 }
 
 UNIT_PRICE_QUANTITIES = {
-    UNIT_PRICE_QUANTITY, 'energy_unit_price', 'floor_area_unit_price', 'fuel_unit_price', 'mileage_unit_price',
+    UNIT_PRICE_QUANTITY,
+    'energy_unit_price',
+    'floor_area_unit_price',
+    'fuel_unit_price',
+    'mileage_unit_price',
     'price',
 }
 
 STACKABLE_QUANTITIES = ACTIVITY_QUANTITIES | {
-    MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY, FLOOR_AREA_QUANTITY, CURRENCY_QUANTITY,
-    NUMBER_QUANTITY, 'area', 'disease_burden', 'health_effect', 'length', 'volume',
+    MIX_QUANTITY,
+    GROUPED_MIX_QUANTITY,
+    POPULATION_QUANTITY,
+    FLOOR_AREA_QUANTITY,
+    CURRENCY_QUANTITY,
+    NUMBER_QUANTITY,
+    'area',
+    'disease_burden',
+    'health_effect',
+    'length',
+    'volume',
 }
 
-KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | ACTIVITY_FACTOR_QUANTITIES | UNIT_PRICE_QUANTITIES | STACKABLE_QUANTITIES | {
-    EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, PER_CAPITA_QUANTITY, FLOOR_AREA_QUANTITY,
-    MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY, VALUE_WEIGHT_QUANTITY,
-    'ratio', 'exposure', 'exposure_response', 'disease_burden', 'case_burden', 'mass_concentration', 'concentration',
-    'body_weight', 'incidence', 'fraction', 'probability', 'ingestion', 'area', 'effect', 'health_effect', 'rate',
-    'speed', 'argument', 'duration', 'distance', 'elasticity', 'quality_of_data'
-}
+KNOWN_QUANTITIES = (
+    ACTIVITY_QUANTITIES
+    | ACTIVITY_FACTOR_QUANTITIES
+    | UNIT_PRICE_QUANTITIES
+    | STACKABLE_QUANTITIES
+    | {
+        EMISSION_FACTOR_QUANTITY,
+        CURRENCY_QUANTITY,
+        NUMBER_QUANTITY,
+        PER_CAPITA_QUANTITY,
+        FLOOR_AREA_QUANTITY,
+        MIX_QUANTITY,
+        GROUPED_MIX_QUANTITY,
+        POPULATION_QUANTITY,
+        VALUE_WEIGHT_QUANTITY,
+        'ratio',
+        'exposure',
+        'exposure_response',
+        'disease_burden',
+        'case_burden',
+        'mass_concentration',
+        'concentration',
+        'body_weight',
+        'incidence',
+        'fraction',
+        'probability',
+        'ingestion',
+        'area',
+        'effect',
+        'health_effect',
+        'rate',
+        'speed',
+        'argument',
+        'duration',
+        'distance',
+        'elasticity',
+        'quality_of_data',
+    }
+)
 
 
 DEFAULT_METRIC = 'default'
@@ -96,7 +159,8 @@ DEFAULT_METRIC = 'default'
 
 def ensure_known_quantity(quantity: str):
     if quantity not in KNOWN_QUANTITIES:
-        raise Exception(f"Quantity {quantity} is unknown")
+        raise Exception(f'Quantity {quantity} is unknown')
+
 
 @sb.enum(name='DecisionLevel', description='Which governance level is applicable for an action')
 class DecisionLevel(Enum):
@@ -120,7 +184,7 @@ QUANTITY_ICONS = {
     GROUPED_MIX_QUANTITY: '💯',
     CURRENCY_QUANTITY: '💰',
     FRACTION_QUANTITY: '➗',
-    VALUE_WEIGHT_QUANTITY: '⚓',   # balance scale: weighing values, not money
+    VALUE_WEIGHT_QUANTITY: '⚓',  # balance scale: weighing values, not money
     UTILITY_QUANTITY: '♥',
 }
 

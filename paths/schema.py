@@ -64,10 +64,7 @@ def instance_directive(
     pass
 
 
-
-class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery,
-                    OrgsQuery
-                    ):
+class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery, OrgsQuery):
     unit = graphene.Field(UnitType, value=graphene.String(required=True))
 
     instance_organizations = graphene.List(
@@ -75,6 +72,7 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, Server
         instance=graphene.ID(),
         with_ancestors=graphene.Boolean(default_value=False),
     )
+
     class Meta:
         name = 'Query'
 
@@ -98,7 +96,6 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, Server
         else:
             instance_obj = InstanceConfig.objects.get(identifier=instance)
         return list(Organization.objects.qs.available_for_instance(instance_obj))
-
 
 
 class GrapheneMutations(ParamsMutations, FrameworksMutations):
@@ -137,6 +134,7 @@ if test_mode_enabled():
 
 SBMutation = merge_types('Mutation', tuple(SB_MUTATION_TYPES))
 
+
 @sb.type
 class Mutation(GrapheneMutations, SBMutation):  # type: ignore[valid-type, misc]
     pass
@@ -154,6 +152,7 @@ class PathsSchema(UnifiedSchema):
             PathsAuthenticationExtension,
             PathsExecutionCacheExtension,
         )
+
         extensions = kwargs.pop('extensions', [])
         extensions.extend([
             LoggingTracingExtension(context_class=PathsGraphQLContext),

@@ -15,20 +15,23 @@ from .fixtures import *
 class TestDataSourceAdminAuthorization:
     """Test authorization for data source admin views."""
 
-    @pytest.mark.parametrize(('user_key', 'expected_data_sources'), [
-        ('superuser', ['data_source1', 'data_source1_alternative']),
-        ('admin_user', ['data_source1', 'data_source1_alternative']),
-        ('super_admin_user', ['data_source1', 'data_source1_alternative']),
-        ('reviewer_user', ['data_source1', 'data_source1_alternative']),
-        ('viewer_user', ['data_source1', 'data_source1_alternative']),
-        ('schema1_viewer', ['data_source1', 'data_source1_alternative']),
-        ('schema1_editor', ['data_source1', 'data_source1_alternative']),
-        ('schema1_admin', ['data_source1', 'data_source1_alternative']),
-        ('schema1_viewer_group_user', ['data_source1', 'data_source1_alternative']),
-        ('schema1_editor_group_user', ['data_source1', 'data_source1_alternative']),
-        ('schema1_admin_group_user', ['data_source1', 'data_source1_alternative']),
-        ('regular_user', []),
-    ])
+    @pytest.mark.parametrize(
+        ('user_key', 'expected_data_sources'),
+        [
+            ('superuser', ['data_source1', 'data_source1_alternative']),
+            ('admin_user', ['data_source1', 'data_source1_alternative']),
+            ('super_admin_user', ['data_source1', 'data_source1_alternative']),
+            ('reviewer_user', ['data_source1', 'data_source1_alternative']),
+            ('viewer_user', ['data_source1', 'data_source1_alternative']),
+            ('schema1_viewer', ['data_source1', 'data_source1_alternative']),
+            ('schema1_editor', ['data_source1', 'data_source1_alternative']),
+            ('schema1_admin', ['data_source1', 'data_source1_alternative']),
+            ('schema1_viewer_group_user', ['data_source1', 'data_source1_alternative']),
+            ('schema1_editor_group_user', ['data_source1', 'data_source1_alternative']),
+            ('schema1_admin_group_user', ['data_source1', 'data_source1_alternative']),
+            ('regular_user', []),
+        ],
+    )
     def test_data_source_index_view(self, client, dataset_test_data, user_key, expected_data_sources, get_in_admin_context):
         """Test access to data source index view."""
         data = dataset_test_data
@@ -55,7 +58,8 @@ class TestDataSourceAdminAuthorization:
         # data_source2 should not be visible to instance1 users
         assert data['data_source2'].name not in content
 
-    @pytest.mark.parametrize(*parse_table("""
+    @pytest.mark.parametrize(
+        *parse_table("""
 user_key                   data_source_key                access_allowed
 
 superuser                  data_source1                   +
@@ -94,15 +98,10 @@ schema1_admin_group_user   data_source2                   -
 regular_user               data_source1                   -
 regular_user               data_source1_alternative       -
 regular_user               data_source2                   -
-"""))
+""")
+    )
     def test_data_source_edit_view(
-        self,
-        client,
-        dataset_test_data,
-        user_key,
-        data_source_key,
-        access_allowed,
-        get_in_admin_context
+        self, client, dataset_test_data, user_key, data_source_key, access_allowed, get_in_admin_context
     ):
         """Test access to data source edit view."""
         data = dataset_test_data
@@ -118,7 +117,8 @@ regular_user               data_source2                   -
         with pytest.raises(PermissionDenied):
             response = get_in_admin_context(user, view, url, data['instance1'], {'pk': data_source.id})
 
-    @pytest.mark.parametrize(*parse_table("""
+    @pytest.mark.parametrize(
+        *parse_table("""
 user_key                   data_source_key                access_allowed
 
 superuser                  data_source1_alternative       +
@@ -145,7 +145,8 @@ schema1_admin_group_user   data_source1_alternative       -
 schema1_admin_group_user   data_source2                   -
 regular_user               data_source1_alternative       -
 regular_user               data_source2                   -
-"""))
+""")
+    )
     def test_data_source_delete_view(
         self, client, dataset_test_data, user_key, data_source_key, access_allowed, get_in_admin_context
     ):
@@ -164,7 +165,8 @@ regular_user               data_source2                   -
         with pytest.raises(PermissionDenied):
             response = get_in_admin_context(user, view, url, data['instance1'], {'pk': data_source.id})
 
-    @pytest.mark.parametrize(*parse_table("""
+    @pytest.mark.parametrize(
+        *parse_table("""
 user_key          access_allowed
 
 superuser         +
@@ -173,7 +175,8 @@ super_admin_user  +
 reviewer_user     -
 viewer_user       -
 regular_user      -
-"""))
+""")
+    )
     def test_data_source_create_view(self, client, dataset_test_data, user_key, access_allowed, get_in_admin_context):
         """Test access to data source create view."""
         data = dataset_test_data
