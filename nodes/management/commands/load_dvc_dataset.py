@@ -99,8 +99,7 @@ class Command(BaseCommand):
                 schema.delete()
             else:
                 print(
-                    f"Dataset '{dataset}' with identifier '{identifier}' exists already for instance "
-                    f"'{instance_config}'. Aborting."
+                    f"Dataset '{dataset}' with identifier '{identifier}' exists for instance '{instance_config}'. Aborting."
                 )
                 return
 
@@ -116,7 +115,12 @@ class Command(BaseCommand):
         dataset = Dataset.objects.create(**create_kwargs)
         print(f"Created dataset '{dataset}'")
 
-        metrics_meta = {m.get('id', None): m for m in dvc_metadata.get('metrics', [])}  # Don't blame me for this!
+        # Match DB metric columns (DVC units keys) to meta: column_id is the physical column name; id is optional slug.
+        metrics_meta = {
+            (m.get('column_id') or m.get('id')): m
+            for m in dvc_metadata.get('metrics') or []
+            if m.get('column_id') or m.get('id')
+        }
         # Map metric identifiers (column names) to Metric instances
         metrics = {
             col: self.create_metric(
@@ -242,9 +246,9 @@ class Command(BaseCommand):
         except DimensionScope.DoesNotExist:
             return self.create_dimension(schema, instance_config, default_language, spec)
         print(
-            f"There is already a dimension with identifier '{spec.id}' for '{instance_config}'; skipping creation of "
-            f'Dimension, DimensionCategory and DimensionScope instances and linking the existing dimension to the '
-            f"schema '{schema}'"
+            f"There is already a dimension with identifier '{spec.id}' for '{instance_config}'; "
+            + "skipping creation of Dimension, DimensionCategory and DimensionScope instances and "
+            + f"linking the existing dimension to the schema '{schema}'"
         )
         DatasetSchemaDimension.objects.create(schema=schema, dimension=existing_scope.dimension)
         return existing_scope.dimension

@@ -4,9 +4,8 @@ import argparse
 import os
 import re
 import warnings
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import django
 
@@ -22,19 +21,32 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 # Configure Django
 django.setup()
 
+from kausal_common.i18n.pydantic import TranslatedString  # noqa: E402
+
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
+from nodes.node import NodeMetric  # noqa: E402
 from notebooks.notebook_support import get_context  # noqa: E402
 
 if TYPE_CHECKING:
     from common import polars as ppl
     from nodes.context import Context
-    from nodes.node import NodeMetric
 
 
 def _node_metric_unit_str(m: NodeMetric) -> str:
     """Return unit as string for a NodeMetric (unit may be parsed Unit or default_unit string)."""
     u = getattr(m, 'unit', None) or getattr(m, 'default_unit', '')
     return str(u) if u else ''
+
+
+def _node_metric_label_dict(m: NodeMetric) -> dict[str, str]:
+    lab = m.label
+    if lab is None:
+        return {}
+    if isinstance(lab, TranslatedString):
+        return dict(lab.i18n)
+    if isinstance(lab, dict):
+        return {str(k): str(v) for k, v in lab.items()}
+    return {}
 
 
 def node_metric_to_metadata_dict(m: NodeMetric) -> dict[str, Any]:
@@ -44,7 +56,7 @@ def node_metric_to_metadata_dict(m: NodeMetric) -> dict[str, Any]:
         'column_id': getattr(m, 'column_id', None) or m.id,
         'quantity': m.quantity,
         'unit': _node_metric_unit_str(m),
-        'label': m.label or {},
+        'label': _node_metric_label_dict(m),
     }
 
 
@@ -192,7 +204,9 @@ def extract_description(df: pl.DataFrame) -> str | None:
             row = rows_with_description.row(row_idx, named=True)
 
             parts = []
-            if row.get('metric_col'):
+            if row.get('Metric'):
+                parts.append(row['Metric'])
+            elif row.get('metric_col'):
                 parts.append(row['metric_col'])
 
             # Add values from dimension columns
@@ -215,46 +229,45 @@ def extract_description(df: pl.DataFrame) -> str | None:
     return description
 
 
-@dataclass
-class MetricData:
-    """Legacy metric descriptor; prefer NodeMetric for new code."""
-
-    id: str
-    quantity: str
-    label: dict[str, str]
+def canonical_metric_column_id(raw: str) -> str:
+    """Map a raw metric label to a valid Parquet / NodeMetric column identifier."""
+    if raw == VALUE_COLUMN:
+        return 'default'
+    return to_snake_case(raw)
 
 
-def metric_data_to_node_metric(m: MetricData, unit: str) -> NodeMetric:
-    """Convert MetricData to NodeMetric (e.g. when units come from extract_units)."""
-    from nodes.node import NodeMetric  # Deferred to avoid Django AppRegistryNotReady when imported by manage_datasets
+def canonicalize_metric_column_values(df: pl.DataFrame) -> pl.DataFrame:
+    """Replace ``metric_col`` with canonical ids (pivot columns and DVC ``units`` keys match ``NodeMetric``)."""
+    df = df.with_columns(pl.col('metric_col').fill_null(VALUE_COLUMN))
+    raw_unique = [x for x in df.select('metric_col').unique().to_series().to_list() if x is not None]
+    canonical = [canonical_metric_column_id(m) for m in raw_unique]
+    if len(canonical) != len(set(canonical)):
+        raise ValueError(
+            'Two or more metric labels map to the same canonical id after normalization; use distinct source labels.'
+        )
+    mapping = {m: canonical_metric_column_id(m) for m in raw_unique}
+    return df.with_columns(pl.col('metric_col').replace(mapping))
 
-    return NodeMetric(
-        unit=unit,
-        quantity=m.quantity,
-        id=m.id,
-        label=cast('Any', m.label),
-        column_id=m.id,
-    )
 
-
-def extract_metrics(df: pl.DataFrame, language: str) -> list[MetricData]:
-    """Extract metrics from the dataframe using metric labels."""
-    metrics = []
-
-    # Use the already created metric labels
+def extract_metrics(df: pl.DataFrame, language: str, units: dict[str, str]) -> list[NodeMetric]:
+    """Build NodeMetric instances from metric labels; ``metric_col`` must already be canonicalized."""
+    metrics: list[NodeMetric] = []
     unique_metrics = df.select(['metric_col', 'Metric', 'Quantity']).unique()
 
     for row in unique_metrics.iter_rows(named=True):
-        metric_id = row['metric_col']
+        metric_col = row['metric_col']
         metric_name = row['Metric']
         quantity = row['Quantity']
 
         if metric_name and quantity:
+            unit_str = units.get(metric_col, '')
             metrics.append(
-                MetricData(
-                    id='default' if metric_id == VALUE_COLUMN else to_snake_case(metric_id),
+                NodeMetric(
+                    unit=unit_str,
                     quantity=to_snake_case(quantity),
-                    label={language: metric_name},
+                    id=metric_col,
+                    column_id=metric_col,
+                    label=TranslatedString(default_language=language, **{language: metric_name}),
                 )
             )
 
@@ -553,9 +566,12 @@ def process_dataset(
     # 3. Create metric labels
     df = create_metric_col(df, metric_col)
 
+    # 3b. Canonical Parquet/NodeMetric column names (valid identifiers; human names stay in Metric + labels)
+    df = canonicalize_metric_column_values(df)
+
     # 4. Extract metadata using metric labels
     units = extract_units(df)
-    metrics = extract_metrics(df, language)
+    metrics = extract_metrics(df, language, units)
     description = extract_description(df)
     print(f'Units: {units}')
     print(f'Metrics: {len(metrics)} entries')
@@ -574,8 +590,7 @@ def process_dataset(
     df = pivot_by_compound_id(df)
 
     # 8. Check for issues (duplicates = same Year + dimensions, any metric values)
-    if check_for_duplicates(df, metric_columns=list(units.keys())):
-        print('Warning: Dataframe contains duplicate rows (same Year + dimension keys)')
+    check_for_duplicates(df, metric_columns=list(units.keys()))
 
     # 9. Prepare for DVC (standardize column names)
     df = prepare_for_dvc(df, units)
@@ -591,8 +606,7 @@ def process_dataset(
     # 11. Push to DVC if requested
     if outdvcpath:
         dataset_dvc_path = f'{outdvcpath}/{to_snake_case(dataset_name)}'
-        node_metrics = [metric_data_to_node_metric(m, units.get(m.id, '')) for m in metrics]
-        push_to_dvc(df, dataset_dvc_path, dataset_name, description, node_metrics, language, units=units)
+        push_to_dvc(df, dataset_dvc_path, dataset_name, description, metrics, language, units=units)
 
 
 def process_datasets(

@@ -22,6 +22,7 @@ from notebooks.notebook_support import get_context
 
 # Import operations from upload_new_dataset.py
 from notebooks.upload_new_dataset import (
+    canonicalize_metric_column_values,
     clean_dataframe,
     convert_names_to_cats,
     convert_to_standard_format,
@@ -29,7 +30,6 @@ from notebooks.upload_new_dataset import (
     extract_metrics,
     extract_units,
     extract_units_from_row,
-    metric_data_to_node_metric,
     pivot_by_compound_id,
     prepare_for_dvc,
     process_datasets,
@@ -489,6 +489,7 @@ class OperationsExecutor:
             raise ValueError("extract_units operation requires 'metric_col' column. " + "Run 'define_metrics' operation first.")
         if 'Unit' not in df.columns:
             raise ValueError("extract_units operation requires 'Unit' column in DataFrame.")
+        df = canonicalize_metric_column_values(df)
         units = extract_units(df)
         self._extracted_units = units
         return df
@@ -748,8 +749,10 @@ class OperationsExecutor:
                 )
         elif op_params.get('extract_metrics', False):
             if 'metric_col' in df.columns and 'Metric' in df.columns and 'Quantity' in df.columns:
-                legacy_metrics = extract_metrics(df, language)
-                node_metrics = [metric_data_to_node_metric(m, units.get(m.id, '')) for m in legacy_metrics]
+                df = canonicalize_metric_column_values(df)
+                extracted_units = extract_units(df)
+                node_metrics = extract_metrics(df, language, extracted_units)
+                units = extracted_units
             else:
                 print('Warning: Cannot extract metrics - missing required columns (metric_col, Metric, Quantity)')
 
