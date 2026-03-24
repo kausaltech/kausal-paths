@@ -3406,16 +3406,17 @@ nodes:
   unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department, scope]
   output_dimensions: [asset, energy_carrier, department, scope]
+  is_outcome: true
   input_nodes:
   - id: leased_asset_electricity_emissions
   - id: leased_asset_stationary_combustion_emissions
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: asset
-      flatten: true
-    - id: energy_carrier
-      flatten: true
+  # output_nodes:
+  # - id: net_emissions
+  #   from_dimensions:
+  #   - id: asset
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
 
 # ----- HRPS
 
@@ -3549,6 +3550,7 @@ nodes:
   unit: t_co2e/a
   input_dimensions: [department, scope]
   output_dimensions: [department, scope]
+  is_outcome: true
   input_nodes:
   - id: hrps_waste_emissions
     from_dimensions:
@@ -3572,8 +3574,8 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
-  output_nodes:
-  - id: net_emissions
+  # output_nodes:
+  # - id: net_emissions
 
 # ----- Landfill Waste
 
