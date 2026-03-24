@@ -218,9 +218,11 @@ class CacheKind(Enum):
 
 type CacheEvent = Literal['req', 'hit', 'miss']
 
+type CacheResultT = ppl.PathsDataFrame | PandasDataFrame | object
 
-@dataclass(slots=True)
-class CacheResult[ObjT]:
+
+@dataclass
+class CacheResult[ObjT: object = CacheResultT]:
     key: str
     is_hit: bool = False
     kind: CacheKind = CacheKind.RUN
@@ -290,7 +292,7 @@ class CacheRun:
             style = 'bold red'
 
         self.cache.log.info(
-            'End execution run ([%(style)s]{comp_time:.2f}[/] ms, {nr_reqs} reqs ({nr_hits} hits, {nr_misses} misses); '
+            'End execution run ([%(style)s]{comp_time:.2f}[/] ms, {nr_reqs} reqs ({nr_hits} hits, {nr_misses} misses); '  # pyright: ignore[reportImplicitStringConcatenation]
             'caching {nr_new_objs} new objects ({nr_new_bytes} MiB) took {dump_time:.2f} ms)' % dict(style=style),
             comp_time=comp_time,
             nr_reqs=self.stats.nr_calls,
@@ -302,7 +304,7 @@ class CacheRun:
         )
         if self.local_stats.nr_calls or self.ext_stats.nr_calls:
             self.cache.log.debug(
-                'Cache stats:\nRun cache: {run}\nLocal cache: {local}\nExt cache: {ext}\n'
+                'Cache stats:\nRun cache: {run}\nLocal cache: {local}\nExt cache: {ext}\n'  # pyright: ignore[reportImplicitStringConcatenation]
                 'Objs in LRU {lru_count}, KiB in LRU: {lru_size}, discarded KiB: {lru_discarded}',
                 run=repr(self.run_stats),
                 local=repr(self.local_stats),
@@ -426,7 +428,7 @@ class RedisCache(ExtCache):
         return RedisCacheBatch(self.client)
 
 
-class Cache(AbstractContextManager):
+class Cache(AbstractContextManager['Cache']):
     ext_cache: ExtCache | None
     prefix: str
     cache_misses: set[str]
@@ -440,6 +442,8 @@ class Cache(AbstractContextManager):
         return key
 
     def __init__(self, ureg: UnitRegistry, redis_url: str | None = None, base_logger: loguru.Logger | None = None):
+        from pandas import DataFrame as PandasDataFrame
+
         self.prefix = 'kausal-paths-model'
         self.ext_cache_ttl = 60 * 60
         self.ureg = ureg
@@ -449,7 +453,6 @@ class Cache(AbstractContextManager):
         self.pc = PerfCounter(f'cache {self.obj_id}')
         self.local = LocalLRUCache(32 * 1024 * 1024, self.log)
         self.allowed_kinds = {CacheKind.RUN, CacheKind.LOCAL, CacheKind.EXT}
-        from pandas import DataFrame as PandasDataFrame
 
         self.PandasDataFrame = PandasDataFrame
         self.cache_misses = set()
@@ -666,7 +669,7 @@ class Cache(AbstractContextManager):
             CacheResult: An object containing the cache hit status, cache kind, and the retrieved object (if found).
 
         """
-        res = CacheResult[ppl.PathsDataFrame](key=key, is_hit=True, key_prefix=self.prefix)
+        res = CacheResult(key=key, is_hit=True, key_prefix=self.prefix)
         if expiry is None:
             expiry = self.ext_cache_ttl
         self._record_event(None, 'req')

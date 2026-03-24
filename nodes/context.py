@@ -19,8 +19,8 @@ from paths.const import MODEL_CACHE_OP, MODEL_CALC_OP
 
 from common import (
     base32_crockford,
-    polars as pl,  # noqa: F401
-    polars_ext,  # noqa: F401
+    polars as pl,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    polars_ext,  # noqa: F401  # pyright: ignore[reportUnusedImport]
 )
 from common.cache import Cache
 from params.discover import discover_parameter_types
@@ -673,7 +673,7 @@ class Context:
             html_short='~H',
             html_long='H',
         )
-        return {k: self.unit_registry.formatter.format_unit_babel(unit) for k, v in formats.items()}
+        return {k: self.unit_registry.formatter.format_unit_babel(unit) for k, _ in formats.items()}
 
     def get_actions(self) -> list[ActionNode]:
         """Get a list of all the action nodes in the context."""

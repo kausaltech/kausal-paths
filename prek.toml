@@ -15,6 +15,15 @@ require_serial = true
 entry = "ruff format --force-exclude"
 
 [[repos.hooks]]
+id = "run-ruff-autofix"
+name = "Autofix linting errors with Ruff"
+types = ["python"]
+stages = ["pre-commit", "manual"]
+language = "system"
+require_serial = true
+entry = "ruff check --fix --force-exclude"
+
+[[repos.hooks]]
 id = "run-ruff"
 name = "Run Ruff"
 types = ["python"]
