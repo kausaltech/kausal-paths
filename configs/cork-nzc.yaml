@@ -7,7 +7,7 @@ dataset_repo:
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
-theme_identifier: default
+theme_identifier: ie-cork
 target_year: 2030
 model_end_year: 2060
 reference_year: 2018
