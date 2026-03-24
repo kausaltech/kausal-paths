@@ -10,7 +10,7 @@
 # - Build models for e.g. wastewater emissions etc (3 wd)
 
 id: longmont-dev
-default_language: enf
+default_language: en
 supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
