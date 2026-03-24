@@ -283,17 +283,6 @@ nodes:
   output_nodes:
   - id: net_emissions
 
-- id: population
-  name: City population
-  type: generic.GenericNode
-  quantity: population
-  unit: persons
-  input_nodes:
-  - id: income_group_size
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-
 - id: net_emissions_per_person
   name: Net emissions per person
   description: Annual CO2 emissions per capita from transport sector in city
@@ -309,6 +298,9 @@ nodes:
       flatten: true
     tags: [emissions]
   - id: population
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
   params:
     formula: emissions / population
 

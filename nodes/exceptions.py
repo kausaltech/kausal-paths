@@ -22,7 +22,10 @@ class NodeError(Exception):
         self.node_paths.append(node.id)
 
     def get_dependency_path(self):
-        return ' -> '.join(reversed(self.node_paths))
+        node_ids = list(reversed(self.node_paths))
+        node_ids[0] += ' (start node)'
+        node_ids[-1] += ' (failed node)'
+        return ' -> '.join(node_ids)
 
     def __str__(self):
         msg = super().__str__()

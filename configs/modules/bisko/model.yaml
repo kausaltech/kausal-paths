@@ -1314,6 +1314,38 @@ nodes:
   params:
     operations: get_single_dataset,extend_all
 
+- id: quality_a_data_for_grid_based_energy
+  name_en: Quality A data for grid-based energy
+  name_de: Qualität A-Daten für gitterbasierte Energie
+  # FIXME When we fix the graph, it will show 1 rather than 3.
+  description_en: BISKO inventory must use regional primary data for grid-based 
+    energy. To be BISKO-compliant, each sector should have value 3 in the graph.
+    It means that all three critical energy carriers (electricity, natural gas,
+    district heating) have quality A data. Use this node to identify data points
+    that don't meet the quality criteria yet and need to be improved to reach
+    BISKO-compliance.
+  description_de: BISKO-Inventar muss regionale Primärdaten für gitterbasierte 
+    Energie verwenden. Um BISKO-konform zu sein, sollte jeder Sektor den Wert 3
+    in der Grafik haben. Das bedeutet, dass alle drei kritischen Energieträger 
+    (Strom, Erdgas, Fernwärme) Qualität A-Daten haben. Verwenden Sie diesen Knoten,
+    um Datenpunkte zu identifizieren, die noch nicht die Qualitätskriterien
+    erfüllen und verbessert werden müssen, um BISKO-Konformität zu erreichen.
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use_data_quality
+    tags: [data_quality]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity, natural_gas, district_heating]
+  - id: quality_criteria
+  params:
+  - id: formula
+    value: data_quality >= quality_criteria
+
 - id: has_quality_a_data_for_grid_based_energy
   name_en: Has quality A data for grid-based energy?
   name_de: Hat Qualität A-Daten für gitterbasierte Energie?
@@ -1324,18 +1356,12 @@ nodes:
   type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
-  # input_dimensions: [energy_carrier, sector]
-  # output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: final_energy_use_data_quality
-    tags: [data_quality]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity, natural_gas, district_heating]
-  - id: quality_criteria
+  - id: quality_a_data_for_grid_based_energy
+    tags: [quality_a]
   params:
-  - id: formula # FIXME Check if quality A applies to every combination of subsectors.
-    value: prod_dim(prod_dim(data_quality >= quality_criteria, energy_carrier), sector)
+  - id: formula
+    value: prod_dim(prod_dim(quality_a, energy_carrier), sector)
 
 - id: weighted_data_quality_by_sector
   name_en: Weighted data quality by sector
