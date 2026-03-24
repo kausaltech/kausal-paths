@@ -1,9 +1,10 @@
 id: lucia
 default_language: en
+supported_languages: [de, fi]
 site_url: https://lucia.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a84e85a8ae081106bd99982a9808962e17548ab1
+  commit: fae50461629fb1c2727aad72326b6144c2ca9e7f
   dvc_remote: kausal-s3
 name: Lucia Greenhouse Gas Inventory
 owner: Kausal Ltd
@@ -26,7 +27,7 @@ features:
   show_explanations: true
 
 result_excels:
-- base_excel_url:
+- base_excel_url: 
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
   name: Climate City Contract Tables
   node_ids:
@@ -209,22 +210,6 @@ dimensions:
     aliases: [moderate_renovations]
     label: Moderate renovation
 
-- id: city_area
-  label: City area
-  categories:
-  - id: grey
-    label: Grey area
-  - id: green
-    label: Green area
-  - id: grey_inside
-    label: Grey area inside city
-  - id: green_inside
-    label: Green area inside city
-  - id: green_outside
-    label: Green area outside city
-  - id: grey_outside
-    label: Grey area outside city
-
 - id: cost_type
   label: Cost Type
   categories:
@@ -294,54 +279,6 @@ dimensions:
     label: Other sources
   - id: grid_stability
     label: Storage, grid stability etc.
-
-- id: country
-  label: Country
-  categories:
-  - id: at
-    label: Austria
-  - id: be
-    label: Belgium
-  - id: cz
-    label: Czeck Republic
-  - id: dk
-    label: Denmark
-  - id: fr
-    label: France
-  - id: de
-    label: Germany
-  - id: it
-    label: Italy
-  - id: lt
-    label: Latvia
-  # - id: 'no'
-  #   label: Norway
-  - id: pl
-    label: Poland
-  - id: ro
-    label: Romania
-  - id: sk
-    label: Slovakia
-  - id: es
-    label: Spain
-  - id: se
-    label: Sweden
-  - id: average
-    label: Average
-
-- id: diet
-  label: Diet
-  categories:
-  - id: current_average
-    label: Current average
-  - id: flexitarian
-    label: Flexitarian
-  - id: pescetarian
-    label: Pescetarian
-  - id: vegetarian
-    label: Vegetarian
-  - id: vegan
-    label: Vegan
 
 - id: efficiency_programme
   label: Energy efficiency programme
@@ -480,7 +417,8 @@ dimensions:
 
 - id: sector
   label: Sector
-  help_text: Sectors as categorised in the Mission City Climate City Contracts (CCC).
+  help_text: Sectors as categorised in the Mission City Climate City Contracts 
+    (CCC).
   categories:
   - id: transport
     label: Transport
@@ -998,12 +936,6 @@ dimensions:
   - id: composting
     label: Composting
 
-emission_sectors:
-
-- id: net_emissions
-  name: Net emissions
-  is_outcome: true
-
 actions:
 
 # --------------- TRANSPORT -------------
@@ -1016,8 +948,8 @@ actions:
   group: transport
   input_datasets: [nzc/defaults]
   params:
-    sector: Transportation need reduction by 2030 from urban planning, digital meetings
-      and other transport-reducing initiatives
+    sector: Transportation need reduction by 2030 from urban planning, digital 
+      meetings and other transport-reducing initiatives
   output_nodes:
   - id: motorised_transport_change
     to_dimensions: []
@@ -1038,7 +970,8 @@ actions:
 
 - id: a13_car_pooling
   name: 1.3 Car pooling
-  description: How many % increase there is in the average number of people in a car.
+  description: How many % increase there is in the average number of people in a
+    car.
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -1376,7 +1309,8 @@ actions:
 
 - id: a344_top_performance_improvement # FIXME New dataset is broken: thinks that Year is data.
   # FIXME See load_dvc_dataset.py line 183.
-  name: 3.4.4 Top performance standard improvement compared with the regular new buildings
+  name: 3.4.4 Top performance standard improvement compared with the regular new
+    buildings
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -1384,8 +1318,8 @@ actions:
   parent: a34_decarbonising_heat_generation
   input_datasets: [nzc/defaults]
   params:
-    sector: 3.4.4 Top performance standard improvement compared with the regular new
-      buildings
+    sector: 3.4.4 Top performance standard improvement compared with the regular
+      new buildings
   output_nodes:
   - id: energy_use_intensity_change_new
     to_dimensions:
@@ -1465,8 +1399,8 @@ actions:
   - id: nzc/defaults
     forecast_from: 2025
   params:
-    sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in Other
-      sector
+    sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in 
+      Other sector
 
 # --------------- Scope 3 ---------------
 
@@ -1587,12 +1521,21 @@ nodes:
 
 - id: technical_root_node
   name: Technical root node
-  description: This node is used as the outcome node of ParentActionNodes so that
-    they don't pick a random root node from the model.
+  description: This node is used as the outcome node of ParentActionNodes so 
+    that they don't pick a random root node from the model.
   type: simple.AdditiveNode
   quantity: fraction
   unit: m**3
   historical_values: [[2018, 0.0], [2025, 0.0]]
+
+- id: net_emissions
+  name: Net emissions
+  is_outcome: true
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [scope, ghg, sector]
+  output_dimensions: [scope, ghg, sector]
 
 - id: population
   name: Population
@@ -1601,7 +1544,7 @@ nodes:
   unit: cap
   input_datasets:
   - id: nzc/population
-    column: Population
+    column: population
     filters:
     - column: uuid
   input_nodes:
@@ -1615,7 +1558,7 @@ nodes:
   unit: '%/a'
   input_datasets:
   - id: nzc/population
-    column: Expected annual population growth (up until 2030)
+    column: expected_annual_population_growth_up_until_2030
     filters:
     - column: uuid
 
@@ -1654,7 +1597,7 @@ nodes:
   output_dimensions: [cost_type, ghg]
   input_datasets:
   - id: nzc/other_sectors
-    column: Value of CO2 reduction
+    column: value_of_co2_reduction
     filters:
     - column: uuid
 
@@ -1704,7 +1647,7 @@ nodes:
   output_dimensions: [cost_type, aggregated_cost_type]
   input_datasets:
   - id: nzc/other_sectors
-    column: Aggregated cost types
+    column: aggregated_cost_types
     filters:
     - column: uuid
 
@@ -1892,10 +1835,10 @@ nodes:
 - id: building_emissions
   name_en: Building emissions
   name_fi: Rakennusten päästöt
-  description_en: This module (all nodes upstream) is based on the excel sheets 3.0
-    - 3.4 Building & heat levers.
-  description_fi: Tämä moduuli (kaikki ylävirtasolmut) perustuu excel-taulukoihin
-    3.0 - 3.4 Rakennusten ja lämmityksen vipuvaikutukset.
+  description_en: This module (all nodes upstream) is based on the excel sheets 
+    3.0 - 3.4 Building & heat levers.
+  description_fi: Tämä moduuli (kaikki ylävirtasolmut) perustuu 
+    excel-taulukoihin 3.0 - 3.4 Rakennusten ja lämmityksen vipuvaikutukset.
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -2231,7 +2174,8 @@ nodes:
     to_dimensions: []
   params:
   - id: formula
-    value: observed_only_extend_all(observed) * use_obs + modeled * complement(use_obs)
+    value: observed_only_extend_all(observed) * use_obs + modeled * 
+      complement(use_obs)
 
 - id: emissions_from_other_sectors
   name_en: Emissions from other sectors
@@ -2253,7 +2197,7 @@ nodes:
       categories: [other]
   input_datasets:
   - id: nzc/other_sectors
-    column: Emissions from other sectors
+    column: emissions_from_other_sectors
     filters:
     - column: uuid
   visualizations:
@@ -2291,10 +2235,10 @@ nodes:
 - id: electrification_year_of_transport
   name_en: Electrification year of passenger cars
   name_fi: Henkilöautojen sähköistämisvuosi
-  description_en: This node is needed as output for NetZeroPlanner. It is used in
-    the Climate City Contract tables.
-  description_fi: Tämä solmu tarvitaan NetZeroPlannerin tuloksena. Sitä käytetään
-    Climate City Contract -taulukoissa.
+  description_en: This node is needed as output for NetZeroPlanner. It is used 
+    in the Climate City Contract tables.
+  description_fi: Tämä solmu tarvitaan NetZeroPlannerin tuloksena. Sitä 
+    käytetään Climate City Contract -taulukoissa.
   type: generic.GenericNode
   quantity: fraction
   unit: dimensionless
@@ -2302,7 +2246,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Electrification of transport fleet
+    column: electrification_of_transport_fleet
     filters:
     - column: uuid
     - column: parameter
@@ -2313,13 +2257,37 @@ nodes:
 - id: baseline_year_fleet_emission_factor_pre # TODO include trucks in name. Update description.
   name_en: Baseline year car and bus fleet emission factor before splitting
   name_fi: Perusvuoden henkilöautojen ja bussien päästökerroin ennen jakamista
-  description_en: 'Emission factor is a weighted average of existing and
-    new car and bus fleet, where 0.5 * X % is renewed annually (X = share of fleet that is less than 2 years old). Cars are calculated by<br>=L174*(1-M$172)+M164*M$172<br>while buses are calculated by
-    =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
-    There are a few key differences: 1) the existing fleet in the formula is that of year 2018, while with cars it is the previous year; 2) the percentage change is the total from 2018, while with cars it is from the previous year; 3) bus emission factor cannot increase, which would happen if the baseline emission factor (given by the user) would be larger than the new bus emission factor. There differences 1 & 2 are coherent, but it also results in a situation where the cohorts between 2019 and the previous year (inclusive) suddenly disappear and are replaced by current year fleet. However, this is not a problem because new bus fleet does not improve and the emission factors are the same for evary year. Difference 3 is handled (TO BE DISCUSSED!) by replacing the new emission factor with the baseline year value if it is smaller, so that at the actual calculation there is no need to consideer this any more.</p>'
-  description_fi: 'Päästökerroin on painotettu keskiarvo nykyisestä ja uudesta henkilöauto- ja bussikannasta, josta 0,5 * X % uusiutuu vuosittain (X = alle 2 vuotta vanhan kaluston osuus). Henkilöautot lasketaan kaavalla<br>=L174*(1-M$172)+M164*M$172<br>kun taas bussit lasketaan kaavalla
-    =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
-    Näissä on muutamia keskeisiä eroja: 1) kaavassa oleva nykyinen kalusto on vuoden 2018, kun taas henkilöautoilla se on edellisen vuoden; 2) prosentuaalinen muutos on kokonaismuutos vuodesta 2018, kun taas henkilöautoilla se on edellisestä vuodesta; 3) bussien päästökerroin ei voi kasvaa, mikä tapahtuisi, jos käyttäjän antama perusvuoden päästökerroin olisi suurempi kuin uuden bussin päästökerroin. Erot 1 & 2 ovat yhdenmukaisia, mutta se johtaa myös tilanteeseen, jossa vuosien 2019 ja edellisen vuoden (mukaan lukien) kohortit yhtäkkiä katoavat ja ne korvataan nykyisen vuoden kalustolla. Tämä ei kuitenkaan ole ongelma, koska uusi bussikalusto ei parane ja päästökertoimet ovat samat joka vuosi. Ero 3 käsitellään (KESKUSTELTAVA!) korvaamalla uusi päästökerroin perusvuoden arvolla, jos se on pienempi, joten varsinaisessa laskennassa tätä ei tarvitse enää huomioida.</p>'
+  description_en: 'Emission factor is a weighted average of existing and new car and
+    bus fleet, where 0.5 * X % is renewed annually (X = share of fleet that is less
+    than 2 years old). Cars are calculated by<br>=L174*(1-M$172)+M164*M$172<br>while
+    buses are calculated by =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
+    There are a few key differences: 1) the existing fleet in the formula is that
+    of year 2018, while with cars it is the previous year; 2) the percentage change
+    is the total from 2018, while with cars it is from the previous year; 3) bus emission
+    factor cannot increase, which would happen if the baseline emission factor (given
+    by the user) would be larger than the new bus emission factor. There differences
+    1 & 2 are coherent, but it also results in a situation where the cohorts between
+    2019 and the previous year (inclusive) suddenly disappear and are replaced by
+    current year fleet. However, this is not a problem because new bus fleet does
+    not improve and the emission factors are the same for evary year. Difference 3
+    is handled (TO BE DISCUSSED!) by replacing the new emission factor with the baseline
+    year value if it is smaller, so that at the actual calculation there is no need
+    to consideer this any more.</p>'
+  description_fi: 'Päästökerroin on painotettu keskiarvo nykyisestä ja uudesta henkilöauto-
+    ja bussikannasta, josta 0,5 * X % uusiutuu vuosittain (X = alle 2 vuotta vanhan
+    kaluston osuus). Henkilöautot lasketaan kaavalla<br>=L174*(1-M$172)+M164*M$172<br>kun
+    taas bussit lasketaan kaavalla =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
+    Näissä on muutamia keskeisiä eroja: 1) kaavassa oleva nykyinen kalusto on vuoden
+    2018, kun taas henkilöautoilla se on edellisen vuoden; 2) prosentuaalinen muutos
+    on kokonaismuutos vuodesta 2018, kun taas henkilöautoilla se on edellisestä vuodesta;
+    3) bussien päästökerroin ei voi kasvaa, mikä tapahtuisi, jos käyttäjän antama
+    perusvuoden päästökerroin olisi suurempi kuin uuden bussin päästökerroin. Erot
+    1 & 2 ovat yhdenmukaisia, mutta se johtaa myös tilanteeseen, jossa vuosien 2019
+    ja edellisen vuoden (mukaan lukien) kohortit yhtäkkiä katoavat ja ne korvataan
+    nykyisen vuoden kalustolla. Tämä ei kuitenkaan ole ongelma, koska uusi bussikalusto
+    ei parane ja päästökertoimet ovat samat joka vuosi. Ero 3 käsitellään (KESKUSTELTAVA!)
+    korvaamalla uusi päästökerroin perusvuoden arvolla, jos se on pienempi, joten
+    varsinaisessa laskennassa tätä ei tarvitse enää huomioida.</p>'
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/vkm
@@ -2327,35 +2295,57 @@ nodes:
   output_dimensions: [transport_pollutant, transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_emissions
-    column: Transport Emission factors
+    column: transport_emission_factors
     filters:
     - column: uuid
 
 - id: new_fleet_emission_factor_pre
   name_en: New fleet emission factor before splitting
   name_fi: Uuden kaluston päästökerroin ennen jakamista
-  description_en: '<p>Emission factors for new cars following the EURO 6 standard. (EU: Cars and Light Trucks.
-    https://www.dieselnet.com/standards/eu/ld.php)<br>
-    This node is needed in vehicle fleet upgrade. The idea is that there are several cohorts i of vehicles, each faving its own emission factor. The first cohort comes from node baseline_year_fleet_emission_factor and it contains all cars that were in the fleet in the baseline. Each year after that, a new cohort of cars enter the fleet, each having the emission factor that was for that year in node new_fleet_emission_factor. Each cohort has a proportion of P<sub>i</sub> among the fleet. The average emission factor is therefore<br>
-    E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>where i is class and t is timepoint. This is complicated by gradual removal of vehicle classes from the fleet such that<br>
-    N<sub>i,t</sub> = N<sub>i,t0</sub> * product(s<sub>i,0</sub>, ..., s<sub>i,t</sub>), <br>where s<sub>i,t</sub> are the survival rates, N<sub>i,t</sub> is the number of cars in a cohort at timepoint t, t0 is the timepoint of entry for that cohort, and proportion P<sub>i,t</sub> = N<sub>i,t</sub>/sum<sub>i</sub>(N<sub>i,t</sub>).
-    It must be noted that for each timepoint, there are the existing cohorts and a new cohort that enters in that year.</p>
-    <p>In this use case, it is important to separate these cohorts because the emission factor is decreasing in time.
-    The computation logic is that after a vehicle has entered the fleet, it has the same survival probability as all other
-    cars in the fleet. (Not realistic but that is how NZC excel works)</p>
-    Finally, we assume that E is constant for each vehicle as long as it is in the fleet.
-    This is handled by looking at each E<sub>i,t</sub> cohort until the last time point.'
-  description_fi: '<p>Uusien autojen päästökertoimet noudattavat EURO 6 -standardia. (EU: Henkilöautot ja kevyet kuorma-autot.
-    https://www.dieselnet.com/standards/eu/ld.php)<br>
-    Tämä solmu tarvitaan ajoneuvokannan päivityksessä. Ajatuksena on, että on useita ajoneuvoluokkia i, joilla kullakin on oma päästökertoimensa. Ensimmäinen luokka tulee solmusta baseline_year_fleet_emission_factor, ja se sisältää kaikki perusvuoden kannassa olleet autot. Joka vuosi sen jälkeen kantaan tulee uusi autoluokka, jolla kullakin on solmun new_fleet_emission_factor kyseisen vuoden päästökerroin. Kullakin luokalla on osuus P<sub>i</sub> kannasta. Keskimääräinen päästökerroin on siten<br>
-    E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>missä i on luokka ja t on ajankohta. Tätä mutkistaa ajoneuvojen asteittainen poistuminen kannasta siten, että<br>
-    N<sub>i,t</sub> = N<sub>i,t0</sub> * product(s<sub>i,0</sub>, ..., s<sub>i,t</sub>), <br>missä s<sub>i,t</sub> ovat selviytymisasteet, N<sub>i,t</sub> on luokan autojen määrä ajankohtana t, t0 on luokan tuloajankohta ja osuus P<sub>i,t</sub> = N<sub>i,t</sub>/sum<sub>i</sub>(N<sub>i,t</sub>).
-    On huomattava, että jokaisena ajankohtana on olemassa olevat luokat ja uusi luokka, joka tulee kyseisenä vuonna.</p>
-    <p>Tässä käyttötapauksessa ontärkeää erottaa nämä luokat toisistaan, koska päästökerroin pienenee ajan myötä.
-    Laskennan logiikka on, että kun ajoneuvo on tullut kantaan, sillä on sama selviytymistodennäköisyys kuin kaikilla muilla
-    autoilla kannassa. (Ei realistista, mutta näin NZC-excel toimii)</p>
-    Lopuksi oletamme, että E on vakio kullekin ajoneuvolle niin kauan kuin se on kannassa.
-    Tämä käsitellään tarkastelemalla kutakin E<sub>i,t</sub>-luokkaa viimeiseen ajankohtaan asti.'
+  description_en: '<p>Emission factors for new cars following the EURO 6 standard.
+    (EU: Cars and Light Trucks. https://www.dieselnet.com/standards/eu/ld.php)<br>
+    This node is needed in vehicle fleet upgrade. The idea is that there are several
+    cohorts i of vehicles, each faving its own emission factor. The first cohort comes
+    from node baseline_year_fleet_emission_factor and it contains all cars that were
+    in the fleet in the baseline. Each year after that, a new cohort of cars enter
+    the fleet, each having the emission factor that was for that year in node new_fleet_emission_factor.
+    Each cohort has a proportion of P<sub>i</sub> among the fleet. The average emission
+    factor is therefore<br> E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>)
+    <br>where i is class and t is timepoint. This is complicated by gradual removal
+    of vehicle classes from the fleet such that<br> N<sub>i,t</sub> = N<sub>i,t0</sub>
+    * product(s<sub>i,0</sub>, ..., s<sub>i,t</sub>), <br>where s<sub>i,t</sub> are
+    the survival rates, N<sub>i,t</sub> is the number of cars in a cohort at timepoint
+    t, t0 is the timepoint of entry for that cohort, and proportion P<sub>i,t</sub>
+    = N<sub>i,t</sub>/sum<sub>i</sub>(N<sub>i,t</sub>). It must be noted that for
+    each timepoint, there are the existing cohorts and a new cohort that enters in
+    that year.</p> <p>In this use case, it is important to separate these cohorts
+    because the emission factor is decreasing in time. The computation logic is that
+    after a vehicle has entered the fleet, it has the same survival probability as
+    all other cars in the fleet. (Not realistic but that is how NZC excel works)</p>
+    Finally, we assume that E is constant for each vehicle as long as it is in the
+    fleet. This is handled by looking at each E<sub>i,t</sub> cohort until the last
+    time point.'
+  description_fi: '<p>Uusien autojen päästökertoimet noudattavat EURO 6 -standardia.
+    (EU: Henkilöautot ja kevyet kuorma-autot. https://www.dieselnet.com/standards/eu/ld.php)<br>
+    Tämä solmu tarvitaan ajoneuvokannan päivityksessä. Ajatuksena on, että on useita
+    ajoneuvoluokkia i, joilla kullakin on oma päästökertoimensa. Ensimmäinen luokka
+    tulee solmusta baseline_year_fleet_emission_factor, ja se sisältää kaikki perusvuoden
+    kannassa olleet autot. Joka vuosi sen jälkeen kantaan tulee uusi autoluokka, jolla
+    kullakin on solmun new_fleet_emission_factor kyseisen vuoden päästökerroin. Kullakin
+    luokalla on osuus P<sub>i</sub> kannasta. Keskimääräinen päästökerroin on siten<br>
+    E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>missä i
+    on luokka ja t on ajankohta. Tätä mutkistaa ajoneuvojen asteittainen poistuminen
+    kannasta siten, että<br> N<sub>i,t</sub> = N<sub>i,t0</sub> * product(s<sub>i,0</sub>,
+    ..., s<sub>i,t</sub>), <br>missä s<sub>i,t</sub> ovat selviytymisasteet, N<sub>i,t</sub>
+    on luokan autojen määrä ajankohtana t, t0 on luokan tuloajankohta ja osuus P<sub>i,t</sub>
+    = N<sub>i,t</sub>/sum<sub>i</sub>(N<sub>i,t</sub>). On huomattava, että jokaisena
+    ajankohtana on olemassa olevat luokat ja uusi luokka, joka tulee kyseisenä vuonna.</p>
+    <p>Tässä käyttötapauksessa ontärkeää erottaa nämä luokat toisistaan, koska päästökerroin
+    pienenee ajan myötä. Laskennan logiikka on, että kun ajoneuvo on tullut kantaan,
+    sillä on sama selviytymistodennäköisyys kuin kaikilla muilla autoilla kannassa.
+    (Ei realistista, mutta näin NZC-excel toimii)</p> Lopuksi oletamme, että E on
+    vakio kullekin ajoneuvolle niin kauan kuin se on kannassa. Tämä käsitellään tarkastelemalla
+    kutakin E<sub>i,t</sub>-luokkaa viimeiseen ajankohtaan asti.'
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/vkm
@@ -2363,7 +2353,7 @@ nodes:
   output_dimensions: [transport_pollutant, transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_emissions
-    column: new fleet emission factor
+    column: new_fleet_emission_factor
     filters:
     - column: uuid
   # params:
@@ -2372,8 +2362,28 @@ nodes:
 - id: transport_pollutant_split
   name_en: Transport pollutant split
   name_fi: Liikenteen päästöjen jakautuminen
-  description_en: Particulate pollutants (PM2.5 and PM10) are entered as totals by the user. However, calculations are based on a split between combustion pollutants (from tailpipe) and wear & tear (dust from breaks and tyres). This node has the fractions of these subcategories. Note! The NZC excel treats combustion and non-combustion fractions differently. Non-combustion value is taken from the user multiplied by its split fraction and assumed to stay constant across time. Combustion value for new cars comes from an EU report and is assumed to improve over time. The difference is substantial, as the default for current PM10 is 30 mg/vkm, while the new fleet assumes 8 mg/vkm. Here, we use the lower value, which is consistent with the calculation logic.
-  description_fi: Käyttäjä syöttää hiukkaspäästöt (PM2.5 ja PM10) kokonaismäärinä. Laskelmat perustuvat kuitenkin jakoon palamispäästöjen (pakoputkesta) ja kulumisen (jarruista ja renkaista irtoava pöly) välillä. Tämä solmu sisältää näiden alakategorioiden osuudet. Huomaa! NZC-excel käsittelee palamisperäisiä ja ei-palamisperäisiä osuuksia eri tavoin. Ei-palamisperäinen arvo otetaan käyttäjältä kerrottuna sen jakauman osuudella ja sen oletetaan pysyvän vakiona ajan myötä. Palamisperäinen arvo uusille autoille tulee EU:n raportista, ja sen oletetaan paranevan ajan myötä. Ero on merkittävä, sillä nykyisen PM10:n oletusarvo on 30 mg/vkm, kun taas uuden kaluston oletetaan olevan 8 mg/vkm. Tässä käytämme alempaa arvoa, mikä on yhdenmukaista laskennan logiikan kanssa.
+  description_en: Particulate pollutants (PM2.5 and PM10) are entered as totals 
+    by the user. However, calculations are based on a split between combustion 
+    pollutants (from tailpipe) and wear & tear (dust from breaks and tyres). 
+    This node has the fractions of these subcategories. Note! The NZC excel 
+    treats combustion and non-combustion fractions differently. Non-combustion 
+    value is taken from the user multiplied by its split fraction and assumed to
+    stay constant across time. Combustion value for new cars comes from an EU 
+    report and is assumed to improve over time. The difference is substantial, 
+    as the default for current PM10 is 30 mg/vkm, while the new fleet assumes 8 
+    mg/vkm. Here, we use the lower value, which is consistent with the 
+    calculation logic.
+  description_fi: Käyttäjä syöttää hiukkaspäästöt (PM2.5 ja PM10) 
+    kokonaismäärinä. Laskelmat perustuvat kuitenkin jakoon palamispäästöjen 
+    (pakoputkesta) ja kulumisen (jarruista ja renkaista irtoava pöly) välillä. 
+    Tämä solmu sisältää näiden alakategorioiden osuudet. Huomaa! NZC-excel 
+    käsittelee palamisperäisiä ja ei-palamisperäisiä osuuksia eri tavoin. 
+    Ei-palamisperäinen arvo otetaan käyttäjältä kerrottuna sen jakauman 
+    osuudella ja sen oletetaan pysyvän vakiona ajan myötä. Palamisperäinen arvo 
+    uusille autoille tulee EU:n raportista, ja sen oletetaan paranevan ajan 
+    myötä. Ero on merkittävä, sillä nykyisen PM10:n oletusarvo on 30 mg/vkm, kun
+    taas uuden kaluston oletetaan olevan 8 mg/vkm. Tässä käytämme alempaa arvoa,
+    mikä on yhdenmukaista laskennan logiikan kanssa.
   type: generic.GenericNode
   quantity: fraction
   unit: dimensionless
@@ -2381,7 +2391,7 @@ nodes:
   output_dimensions: [pollutant, transport_pollutant, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_emissions
-    column: transport pollutant split
+    column: transport_pollutant_split
     filters:
     - column: uuid
 
@@ -2391,8 +2401,10 @@ nodes:
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
-  output_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
+  input_dimensions: [pollutant, transport_pollutant, transport_mode, 
+      energy_carrier]
+  output_dimensions: [pollutant, transport_pollutant, transport_mode, 
+      energy_carrier]
   input_nodes:
   - id: baseline_year_fleet_emission_factor_pre
     tags: [non_additive]
@@ -2411,8 +2423,10 @@ nodes:
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
-  output_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
+  input_dimensions: [pollutant, transport_pollutant, transport_mode, 
+      energy_carrier]
+  output_dimensions: [pollutant, transport_pollutant, transport_mode, 
+      energy_carrier]
   input_nodes:
   - id: new_fleet_emission_factor_pre
     tags: [truncate_before_start, non_additive]
@@ -2429,15 +2443,17 @@ nodes:
   name_en: Old fleet removal
   name_fi: Vanhan kaluston poistuminen
   type: generic.GenericNode
-  description_en: The fraction of current car and bus fleet that is removed each year from the fleet.
-  description_fi: Osuus nykyisestä henkilöauto- ja bussikannasta, joka poistuu vuosittain kannasta.
+  description_en: The fraction of current car and bus fleet that is removed each
+    year from the fleet.
+  description_fi: Osuus nykyisestä henkilöauto- ja bussikannasta, joka poistuu 
+    vuosittain kannasta.
   quantity: fraction
   unit: '%/a'
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Share of fleet that is less than 2 years old
+    column: share_of_fleet_that_is_less_than_2_years_old
     filters:
     - column: uuid
   params:
@@ -2448,8 +2464,10 @@ nodes:
 - id: fleet_emission_factor # FIXME Output car/CO2 differs from NZC due to an unknown reason.
   name_en: Fleet emission factor
   name_fi: Kaluston päästökerroin
-  description_en: Emission factor for the current car and bus fleet. (Assuming there are no diesel trains)
-  description_fi: Nykyisen henkilöauto- ja bussikannan päästökerroin. (Olettaen, että dieseljunia ei ole)
+  description_en: Emission factor for the current car and bus fleet. (Assuming 
+    there are no diesel trains)
+  description_fi: Nykyisen henkilöauto- ja bussikannan päästökerroin. (Olettaen,
+    että dieseljunia ei ole)
   type: costs.DilutionNode
   quantity: emission_factor
   unit: g/vkm
@@ -2519,7 +2537,8 @@ nodes:
   - id: transport_emission_factor
     from_dimensions:
     - id: pollutant
-      categories: [pm25_combustion, pm10_combustion, pm25_wear_tear, pm10_wear_tear, nox]
+      categories: [pm25_combustion, pm10_combustion, pm25_wear_tear, 
+          pm10_wear_tear, nox]
     to_dimensions:
     - id: pollutant
     - id: transport_mode
@@ -2559,15 +2578,17 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Share of fleet fully electric (not including hybrids)
+    column: share_of_fleet_fully_electric_not_including_hybrids
     filters:
     - column: uuid
 
 - id: fully_electric_vehicle_share
   name_en: Fully electric car and truck share
   name_fi: Täyssähköautojen ja -kuorma-autojen osuus
-  description_en: Share of car and truck fleet fully electric (not including hybrids)
-  description_fi: Täyssähköautojen ja -kuoma-autojen osuus henkilöautokannasta (ei sisällä hybridejä)
+  description_en: Share of car and truck fleet fully electric (not including 
+    hybrids)
+  description_fi: Täyssähköautojen ja -kuoma-autojen osuus henkilöautokannasta 
+    (ei sisällä hybridejä)
   type: generic.GenericNode
   quantity: fraction
   unit: '%'
@@ -2576,7 +2597,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Share of fleet fully electric (not including hybrids)
+    column: share_of_fleet_fully_electric_not_including_hybrids
     filters:
     - column: uuid
 
@@ -2593,7 +2614,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Share of bus fleet as fully electric buses (not incl...
+    column: share_of_bus_fleet_as_fully_electric_buses_not_incl
     filters:
     - column: uuid
 
@@ -2607,7 +2628,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Number of buses in city bus fleet
+    column: number_of_buses_in_city_bus_fleet
     filters:
     - column: uuid
 
@@ -2684,7 +2705,7 @@ nodes:
     - id: transport_mode
       categories: [trains]
   params:
-    new_category: 'energy_carrier:petrol_diesel'
+    new_category: energy_carrier:petrol_diesel
 
 - id: transport_electricity_consumption
   name_en: Transport electricity consumption
@@ -2723,7 +2744,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Number of passengers per vehicle
+    column: number_of_passengers_per_vehicle
     filters:
     - column: uuid
 
@@ -2735,7 +2756,7 @@ nodes:
   unit: Mpkm/a
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Transport need
+    column: transport_need
     filters:
     - column: uuid
   input_dimensions: [transport_mode]
@@ -2793,7 +2814,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Share of car + motorcycle km reduced shifted towards...
+    column: share_of_car_motorcycle_km_reduced_shifted_towards
     filters:
     - column: uuid
 
@@ -2825,7 +2846,7 @@ nodes:
   unit: Mpkm/a
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Transport need
+    column: transport_need
     filters:
     - column: uuid
   input_dimensions: [transport_mode]
@@ -2858,7 +2879,8 @@ nodes:
     to_dimensions: []
   params:
   - id: formula
-    value: observed_only_extend_all(observed) * use_obs + modeled * complement(use_obs)
+    value: observed_only_extend_all(observed) * use_obs + modeled * 
+      complement(use_obs)
 
 - id: measure_data_override
   name_en: Measure data override
@@ -2880,7 +2902,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: motorised transport index
+    column: motorised_transport_index
     filters:
     - column: uuid
 
@@ -2888,7 +2910,8 @@ nodes:
   name_en: Motorised transport change
   name_fi: Moottoroidun liikenteen muutos
   description_en: Positive values are reductions in motorised transport.
-  description_fi: Positiiviset arvot ovat vähennyksiä moottoroidussa liikenteessä.
+  description_fi: Positiiviset arvot ovat vähennyksiä moottoroidussa 
+    liikenteessä.
   type: generic.GenericNode
   quantity: fraction
   unit: '%'
@@ -2910,7 +2933,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: relative transport efficiency
+    column: relative_transport_efficiency
     filters:
     - column: uuid
   output_nodes:
@@ -2931,7 +2954,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
-    column: Cost of driving a car per kilometre (excluding fuel)
+    column: cost_of_driving_a_car_per_kilometre_excluding_fuel
 
 - id: car_driving_costs
   name_en: Car driving costs (excluding fuel)
@@ -2978,7 +3001,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
-    column: Charging infrastructure costs
+    column: charging_infrastructure_costs
 
 - id: charging_infrastructure_shares
   name_en: Charging infrastructure shares
@@ -2990,7 +3013,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
-    column: ev charging infrastructure
+    column: ev_charging_infrastructure
 
 - id: total_number_of_cars
   name_en: Total number of cars
@@ -3002,7 +3025,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Total number of cars + motorcycles in city
+    column: total_number_of_cars_motorcycles_in_city
     filters:
     - column: uuid
 
@@ -3113,7 +3136,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
-    column: Total cost of ownership
+    column: total_cost_of_ownership
 
 - id: total_cost_of_ownership_shares
   name_en: Total cost of ownership shares
@@ -3125,7 +3148,7 @@ nodes:
   output_dimensions: [cost_type, transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
-    column: Total cost of ownership shares
+    column: total_cost_of_ownership_shares
 
 - id: total_cost_of_ownership
   name_en: Total cost of ownership
@@ -3183,7 +3206,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier, cost_type]
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
-    column: Additional costs for electric vehicles
+    column: additional_costs_for_electric_vehicles
 
 - id: electric_vehicles_unit_price_rate
   name_en: Electric vehicles additional unit price rate
@@ -3195,7 +3218,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier, cost_type]
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
-    column: Additional costs for electric vehicles rate
+    column: additional_costs_for_electric_vehicles_rate
 
 - id: electric_vehicles_additional_unit_price
   name_en: Electric vehicles additional unit price
@@ -3283,7 +3306,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Electricity consumption average vehicle
+    column: electricity_consumption_average_vehicle
     filters:
     - column: uuid
 
@@ -3297,21 +3320,27 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier, stakeholder, cost_type]
   input_datasets:
   - id: nzc/passenger_transport_costs_ownership
-    column: up-front costs for EVs
+    column: up_front_costs_for_evs
 
 - id: public_transport_operation_unit_price
   name_en: Public transport operation unit price
   name_fi: Joukkoliikenteen liikennöinnin yksikköhinta
-  description_en: Operational costs of buses and trains come from Sveriges kommuner och landsting (2017)
-    and values are at 1.1 Reduce transport need G236:G241. The values are constant across time.
-    <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport.
-    For European Commission Directorate-General for Mobility and Transport</li>
-    <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
-  description_fi: Bussien ja junien liikennöintikustannukset ovat peräisin Sveriges kommuner och landstin (2017)
-    ja arvot löytyvät kohdasta 1.1 Liikennetarpeen vähentäminen G236:G241. Arvot ovat vakioita ajan suhteen.
-    <h2>Lähteet</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport.
-    Euroopan komission liikenne- ja liikkuvuusasioiden pääosastolle</li>
-    <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
+  description_en: Operational costs of buses and trains come from Sveriges 
+    kommuner och landsting (2017) and values are at 1.1 Reduce transport need 
+    G236:G241. The values are constant across time. 
+    <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external 
+    costs of transport. For European Commission Directorate-General for Mobility
+    and Transport</li> <li>Sveriges kommuner och landsting (2017). 
+    Kollektivtrafikens kostnadsutveckling – en överblick. 
+    https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
+  description_fi: Bussien ja junien liikennöintikustannukset ovat peräisin 
+    Sveriges kommuner och landstin (2017) ja arvot löytyvät kohdasta 1.1 
+    Liikennetarpeen vähentäminen G236:G241. Arvot ovat vakioita ajan suhteen. 
+    <h2>Lähteet</h2><ul><li>Essen et. al. (2019). Handbook on the external costs
+    of transport. Euroopan komission liikenne- ja liikkuvuusasioiden 
+    pääosastolle</li> <li>Sveriges kommuner och landsting (2017). 
+    Kollektivtrafikens kostnadsutveckling – en överblick. 
+    https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
   # type: gpc.DatasetNode
   type: generic.GenericNode
   quantity: unit_price
@@ -3335,7 +3364,7 @@ nodes:
   output_dimensions: [stakeholder, cost_type, transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_costs_walking_pt
-    column: public transport operation costs
+    column: public_transport_operation_costs
 
 - id: public_transport_operation_cost
   name_en: Public transport operation cost (excluding fuel)
@@ -3380,20 +3409,20 @@ nodes:
 - id: transport_energy_factor_ice_petrol_diesel
   name_en: Transport energy factor - ICE petrol/diesel
   name_fi: Liikenteen energiakerroin - polttomoottoriautot bensiini/diesel
-  description_en: Values come from European Commission (2019) and are found from 1.1 Reduce transport need G266.
-    <h2>References</h2>
-    European commission (2019) - Reducing CO2 emissions from passenger cars.
+  description_en: Values come from European Commission (2019) and are found from
+    1.1 Reduce transport need G266. <h2>References</h2> European commission 
+    (2019) - Reducing CO2 emissions from passenger cars. 
     https://ec.europa.eu/clima/policies/transport/vehicles/cars_en
-  description_fi: Arvot ovat peräisin Euroopan komissiolta (2019) ja löytyvät kohdasta 1.1 Liikennetarpeen vähentäminen G266.
-    <h2>Lähteet</h2>
-    Euroopan komissio (2019) - Henkilöautojen CO2-päästöjen vähentäminen.
+  description_fi: Arvot ovat peräisin Euroopan komissiolta (2019) ja löytyvät 
+    kohdasta 1.1 Liikennetarpeen vähentäminen G266. <h2>Lähteet</h2> Euroopan 
+    komissio (2019) - Henkilöautojen CO2-päästöjen vähentäminen. 
     https://ec.europa.eu/clima/policies/transport/vehicles/cars_en
   type: generic.GenericNode
   quantity: emission_factor
   unit: l/g
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: transport energy factor ice petrol diesel
+    column: transport_energy_factor_ice_petrol_diesel
 
 - id: bus_mileage
   name_en: Bus mileage (fuel use)
@@ -3405,7 +3434,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    column: Average fuel consumption of buses, based on current ...
+    column: average_fuel_consumption_of_buses_based_on_current_
   output_nodes:
   - id: vehicle_mileage
     to_dimensions:
@@ -3417,8 +3446,10 @@ nodes:
 - id: fuel_unit_price
   name_en: Fuel unit price
   name_fi: Polttoaineen yksikköhinta
-  description_en: The values come from Eurostat (2019) - Electricity prices for household consumers and are found from MIA D430.
-  description_fi: Arvot ovat peräisin Eurostatista (2019) - Sähkön hinnat kotitalouskuluttajille ja löytyvät MIA D430:sta.
+  description_en: The values come from Eurostat (2019) - Electricity prices for 
+    household consumers and are found from MIA D430.
+  description_fi: Arvot ovat peräisin Eurostatista (2019) - Sähkön hinnat 
+    kotitalouskuluttajille ja löytyvät MIA D430:sta.
   type: generic.GenericNode
   quantity: unit_price
   unit: EUR/l
@@ -3426,7 +3457,7 @@ nodes:
   output_dimensions: [cost_type]
   input_datasets:
   - id: nzc/passenger_transport_costs_walking_pt
-    column: fuel unit price
+    column: fuel_unit_price
 
 - id: vehicle_mileage
   name_en: Vehicle mileage (fuel use)
@@ -3493,7 +3524,7 @@ nodes:
   unit: EUR/pkm
   input_datasets:
   - id: nzc/passenger_transport_costs_walking_pt
-    column: Average value of increased walking/cycling
+    column: average_value_of_increased_walkingcycling
   input_dimensions: [transport_mode, cost_type]
   output_dimensions: [transport_mode, cost_type]
 
@@ -3505,7 +3536,7 @@ nodes:
   unit: EUR/pkm
   input_datasets:
   - id: nzc/passenger_transport_costs_walking_pt
-    column: Total Average cost of cycling/walking
+    column: total_average_cost_of_cyclingwalking
   input_dimensions: [transport_mode, cost_type]
   output_dimensions: [transport_mode, cost_type]
 
@@ -3555,7 +3586,7 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: nzc/passenger_transport_costs_walking_pt
-    column: investment costs in walking & cycling
+    column: investment_costs_in_walking_cycling
   input_dimensions: [transport_mode, cost_type, stakeholder]
   output_dimensions: [transport_mode, cost_type, stakeholder]
 
@@ -3601,16 +3632,20 @@ nodes:
 - id: air_pollution_unit_price
   name_en: Air pollution unit price
   name_fi: Ilmansaasteiden yksikköhinta
-  description_en: 'Unit prices for air pollutants, noise, accidents, and CO2 come from a single source
-    (Essen et al., 2019). Datasets can be created from 1.1 Reduce transport need G129:G134 (CO2 and air pollutants),
-    G169:G179 (noise), G204:G209 (accidents). The values are constant across time.
-    <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport.
-    For European Commission Directorate-General for Mobility and Transport</li></ul>'
-  description_fi: 'Yksikköhinnat ilmansaasteille, melulle, onnettomuuksille ja CO2:lle tulevat yhdestä lähteestä
-    (Essen et al., 2019). Datasetin voi luoda kohdista 1.1 Liikennetarpeen vähentäminen G129:G134 (CO2 ja ilmansaasteet),
-    G169:G179 (melu), G204:G209 (onnettomuudet). Arvot ovat vakioita ajan suhteen.
-    <h2>Lähteet</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport.
-    Euroopan komission liikenne- ja liikkuvuusasioiden pääosastolle</li></ul>'
+  description_en: Unit prices for air pollutants, noise, accidents, and CO2 come
+    from a single source (Essen et al., 2019). Datasets can be created from 1.1 
+    Reduce transport need G129:G134 (CO2 and air pollutants), G169:G179 (noise),
+    G204:G209 (accidents). The values are constant across time. 
+    <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external 
+    costs of transport. For European Commission Directorate-General for Mobility
+    and Transport</li></ul>
+  description_fi: Yksikköhinnat ilmansaasteille, melulle, onnettomuuksille ja 
+    CO2:lle tulevat yhdestä lähteestä (Essen et al., 2019). Datasetin voi luoda 
+    kohdista 1.1 Liikennetarpeen vähentäminen G129:G134 (CO2 ja ilmansaasteet), 
+    G169:G179 (melu), G204:G209 (onnettomuudet). Arvot ovat vakioita ajan 
+    suhteen. <h2>Lähteet</h2><ul><li>Essen et. al. (2019). Handbook on the 
+    external costs of transport. Euroopan komission liikenne- ja 
+    liikkuvuusasioiden pääosastolle</li></ul>
   type: generic.GenericNode
   quantity: unit_price
   unit: EUR/t
@@ -3618,13 +3653,17 @@ nodes:
   output_dimensions: [pollutant, cost_type, area_distance]
   input_datasets:
   - id: nzc/passenger_transport_costs_external
-    column: Air pollution unit price
+    column: air_pollution_unit_price
 
 - id: transport_air_pollution_costs
   name_en: Transport air pollution costs
   name_fi: Liikenteen ilmansaastekustannukset
-  description_en: TODO Air pollution costs also include CO2 even if it is calculated elsewhere. This results in double counting. CO2 should be removed from here.
-  description_fi: TODO Ilmansaastekustannuksiin sisältyy myös CO2, vaikka se lasketaan muualla. Tämä johtaa kaksinkertaiseen laskentaan. CO2 pitäisi poistaa täältä.
+  description_en: TODO Air pollution costs also include CO2 even if it is 
+    calculated elsewhere. This results in double counting. CO2 should be removed
+    from here.
+  description_fi: TODO Ilmansaastekustannuksiin sisältyy myös CO2, vaikka se 
+    lasketaan muualla. Tämä johtaa kaksinkertaiseen laskentaan. CO2 pitäisi 
+    poistaa täältä.
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
@@ -3670,7 +3709,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets:
   - id: nzc/passenger_transport_costs_external
-    column: Noise
+    column: noise
 
 - id: transport_noise_unit_price_per_vkm
   name_en: Transport noise unit price per vehicle km
@@ -3697,7 +3736,7 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/passenger_transport_costs_external
-    column: distribution of co-benefits
+    column: distribution_of_co_benefits
 
 - id: transport_noise_cost
   name_en: Transport noise cost
@@ -3739,7 +3778,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets:
   - id: nzc/passenger_transport_costs_external
-    column: Traffic accidents
+    column: traffic_accidents
 
 - id: transport_accident_unit_price_per_vkm
   name_en: Transport accident unit price per vehicle km
@@ -3798,15 +3837,17 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/freight_transport
-    column: Share of trucks fully electric (not including hybrids)
+    column: share_of_trucks_fully_electric_not_including_hybrids
     filters:
     - column: uuid
 
 - id: fully_electric_light_truck_share
   name_en: Fully electric light truck share
   name_fi: Kevyiden täyssähkökuorma-autojen osuus
-  description_en: Share of light truck fleet fully electric (not including hybrids)
-  description_fi: Kevyiden täyssähkökuoma-autojen osuus henkilöautokannasta (ei sisällä hybridejä)
+  description_en: Share of light truck fleet fully electric (not including 
+    hybrids)
+  description_fi: Kevyiden täyssähkökuoma-autojen osuus henkilöautokannasta (ei 
+    sisällä hybridejä)
   type: generic.GenericNode
   quantity: fraction
   unit: '%'
@@ -3815,15 +3856,17 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/freight_transport
-    column: Share of trucks fully electric (not including hybrids)
+    column: share_of_trucks_fully_electric_not_including_hybrids
     filters:
     - column: uuid
 
 - id: fully_electric_heavy_truck_share
   name_en: Fully electric heavy truck share
   name_fi: Raskaiden täyssähkökuorma-autojen osuus
-  description_en: Share of heavy truck fleet fully electric (not including hybrids)
-  description_fi: Raskaiden täyssähkökuoma-autojen osuus henkilöautokannasta (ei sisällä hybridejä)
+  description_en: Share of heavy truck fleet fully electric (not including 
+    hybrids)
+  description_fi: Raskaiden täyssähkökuoma-autojen osuus henkilöautokannasta (ei
+    sisällä hybridejä)
   type: generic.GenericNode
   quantity: fraction
   unit: '%'
@@ -3832,7 +3875,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/freight_transport
-    column: Share of trucks fully electric (not including hybrids)
+    column: share_of_trucks_fully_electric_not_including_hybrids
     filters:
     - column: uuid
 
@@ -3855,7 +3898,7 @@ nodes:
     - id: energy_carrier
     - id: transport_mode
   params:
-    new_category: 'energy_carrier:petrol_diesel'
+    new_category: energy_carrier:petrol_diesel
 
 # ---------------- Freight transport -------------
 
@@ -3869,7 +3912,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    column: Total transportation need within city - Road freight...
+    column: total_transportation_need_within_city_road_freight
     filters:
     - column: uuid
 
@@ -3924,7 +3967,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    column: Average utilisation
+    column: average_utilisation
     filters:
     - column: uuid
 
@@ -3938,7 +3981,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    column: Average utilisation
+    column: average_utilisation
     filters:
     - column: uuid
 
@@ -3952,7 +3995,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    column: Utilisation of trucks in decarbonisation scenario
+    column: utilisation_of_trucks_in_decarbonisation_scenario
     filters:
     - column: uuid
 
@@ -3966,7 +4009,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    column: Max load weight
+    column: max_load_weight
     filters:
     - column: uuid
 
@@ -4032,7 +4075,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    column: Number of trucks registered within city
+    column: number_of_trucks_registered_within_city
     filters:
     - column: uuid
 
@@ -4080,8 +4123,10 @@ nodes:
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [pollutant, transport_mode, transport_pollutant, energy_carrier]
-  output_dimensions: [pollutant, transport_mode, transport_pollutant, energy_carrier]
+  input_dimensions: [pollutant, transport_mode, transport_pollutant, 
+      energy_carrier]
+  output_dimensions: [pollutant, transport_mode, transport_pollutant, 
+      energy_carrier]
   input_nodes:
   - id: baseline_year_fleet_emission_factor
     from_dimensions:
@@ -4116,7 +4161,7 @@ nodes:
   output_dimensions: [transport_mode, pollutant]
   input_datasets:
   - id: nzc/freight_transport
-    column: New truck emission factor
+    column: new_truck_emission_factor
     filters:
     - column: uuid
   # params:
@@ -4186,7 +4231,7 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/freight_transport
-    column: Fleet average consumption
+    column: fleet_average_consumption
     filters:
     - column: uuid
 
@@ -4310,7 +4355,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets:
   - id: nzc/freight_transport
-    column: Freight transport Noise
+    column: freight_transport_noise
     filters:
     - column: uuid
 
@@ -4357,7 +4402,7 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets:
   - id: nzc/freight_transport
-    column: Freight transport Traffic accidents
+    column: freight_transport_traffic_accidents
     filters:
     - column: uuid
 
@@ -4422,15 +4467,19 @@ nodes:
   output_dimensions: [cost_type, transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    column: Freight labour cost fraction
+    column: freight_labour_cost_fraction
     filters:
     - column: uuid
 
 - id: freight_ownership_cost_without_labour
   name_en: Freight ownership cost without labour
   name_fi: Rahdin omistuskustannus ilman työvoimaa
-  description_en: Labour costs are dropped here because those are assumed to stay constant despite changes in vehicle kilometres. Therefore, they are not included in total costs where the impacts are calculated.
-  description_fi: Työvoimakustannukset jätetään tässä pois, koska niiden oletetaan pysyvän vakiona ajoneuvokilometrien muutoksista huolimatta. Siksi niitä ei sisällytetä kokonaiskustannuksiin, joissa vaikutukset lasketaan.
+  description_en: Labour costs are dropped here because those are assumed to 
+    stay constant despite changes in vehicle kilometres. Therefore, they are not
+    included in total costs where the impacts are calculated.
+  description_fi: Työvoimakustannukset jätetään tässä pois, koska niiden 
+    oletetaan pysyvän vakiona ajoneuvokilometrien muutoksista huolimatta. Siksi 
+    niitä ei sisällytetä kokonaiskustannuksiin, joissa vaikutukset lasketaan.
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
@@ -4473,7 +4522,7 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    column: Fuel consumption change of 1% utilisation change
+    column: fuel_consumption_change_of_1_utilisation_change
     filters:
     - column: uuid
 
@@ -4555,8 +4604,15 @@ nodes:
 - id: existing_building_stock
   name_en: Existing building stock
   name_fi: Nykyinen rakennuskanta
-  description_en: 'Calculations: The logic is that the floor area per inhabitant stays constant. Amount of construction is a fixed fraction of existing building stock and the difference between building stock increase and construction is assumed to be demolished. So, logically, construction must be greater than or equal to population growth.'
-  description_fi: 'Laskelmat: Logiikka on, että kerrosala asukasta kohden pysyy vakiona. Rakentamisen määrä on kiinteä osuus nykyisestä rakennuskannasta, ja rakennuskannan kasvun ja rakentamisen välinen erotus oletetaan purettavaksi. Loogisesti rakentamisen on siis oltava suurempi tai yhtä suuri kuin väestönkasvu.'
+  description_en: 'Calculations: The logic is that the floor area per inhabitant stays
+    constant. Amount of construction is a fixed fraction of existing building stock
+    and the difference between building stock increase and construction is assumed
+    to be demolished. So, logically, construction must be greater than or equal to
+    population growth.'
+  description_fi: 'Laskelmat: Logiikka on, että kerrosala asukasta kohden pysyy vakiona.
+    Rakentamisen määrä on kiinteä osuus nykyisestä rakennuskannasta, ja rakennuskannan
+    kasvun ja rakentamisen välinen erotus oletetaan purettavaksi. Loogisesti rakentamisen
+    on siis oltava suurempi tai yhtä suuri kuin väestönkasvu.'
   type: generic.GenericNode
   quantity: floor_area
   unit: ksqm
@@ -4564,7 +4620,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Total floor area (residental & non-residential)
+    column: total_floor_area_residental_non_residential
     filters:
     - column: uuid
 
@@ -4593,7 +4649,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Share of new buildings built
+    column: share_of_new_buildings_built
     filters:
     - column: uuid
   params:
@@ -4609,7 +4665,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Share of new buildings built with high energy effici...
+    column: share_of_new_buildings_built_with_high_energy_effici
     filters:
     - column: uuid
 
@@ -4623,7 +4679,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Share of new buildings built
+    column: share_of_new_buildings_built
     filters:
     - column: uuid
 
@@ -4637,7 +4693,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Demolition rate existing buildings
+    column: demolition_rate_existing_buildings
     filters:
     - column: uuid
 
@@ -4690,8 +4746,10 @@ nodes:
 - id: building_stock
   name_en: Building stock
   name_fi: Rakennuskanta
-  description_en: Existing building stock minus demolition plus new construction.
-  description_fi: Nykyinen rakennuskanta vähennettynä purkamisella plus uudisrakentaminen.
+  description_en: Existing building stock minus demolition plus new 
+    construction.
+  description_fi: Nykyinen rakennuskanta vähennettynä purkamisella plus 
+    uudisrakentaminen.
   type: generic.GenericNode
   quantity: floor_area
   unit: km**2
@@ -4719,7 +4777,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Share of building stock renovated each year
+    column: share_of_building_stock_renovated_each_year
     filters:
     - column: uuid
 
@@ -4733,15 +4791,21 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Renovation rate - decarbonisation scenario
+    column: renovation_rate_decarbonisation_scenario
     filters:
     - column: uuid
 
 - id: old_building_renovation_rate_observed
   name_en: Old building renovation rate
   name_fi: Vanhojen rakennusten peruskorjausaste
-  description_en: Shifts building stock from non-renovated to minor or agressively renovated stock. The effect is cumulative, i.e. the renovated stock stays permanently in the new category and thus the stock accumulates to renovated categories.
-  description_fi: Siirtää rakennuskantaa ei-peruskorjatuista vähäisesti tai aggressiivisesti peruskorjattuun kantaan. Vaikutus on kumulatiivinen, eli peruskorjattu kanta pysyy pysyvästi uudessa luokassa ja siten kanta kertyy peruskorjattuihin luokkiin.
+  description_en: Shifts building stock from non-renovated to minor or 
+    agressively renovated stock. The effect is cumulative, i.e. the renovated 
+    stock stays permanently in the new category and thus the stock accumulates 
+    to renovated categories.
+  description_fi: Siirtää rakennuskantaa ei-peruskorjatuista vähäisesti tai 
+    aggressiivisesti peruskorjattuun kantaan. Vaikutus on kumulatiivinen, eli 
+    peruskorjattu kanta pysyy pysyvästi uudessa luokassa ja siten kanta kertyy 
+    peruskorjattuihin luokkiin.
   type: generic.GenericNode
   quantity: fraction
   unit: '%/a'
@@ -4749,7 +4813,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Share of building stock renovated each year
+    column: share_of_building_stock_renovated_each_year
     filters:
     - column: uuid
 
@@ -4763,7 +4827,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Renovations Actual share of market in baseline scenario
+    column: renovations_actual_share_of_market_in_baseline_scenario
     filters:
     - column: uuid
 
@@ -4825,7 +4889,7 @@ nodes:
   unit: GWh/a
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Total heating demand (space heating + domestic hot w...
+    column: total_heating_demand_space_heating_domestic_hot_w
     filters:
     - column: uuid
 
@@ -4839,15 +4903,17 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: energy use intensity
+    column: energy_use_intensity
     filters:
     - column: uuid
 
 - id: energy_use_intensity_ratio
   name_en: Energy use intensity ratio for heating
   name_fi: Energiankäytön intensiteetin suhde lämmitykselle
-  description_en: Relative energy use intensity by building energy class. Old, no renovations gets value 1.
-  description_fi: Suhteellinen energiankäytön intensiteetti rakennusten energialuokan mukaan. Vanha, ei peruskorjauksia saa arvon 1.
+  description_en: Relative energy use intensity by building energy class. Old, 
+    no renovations gets value 1.
+  description_fi: Suhteellinen energiankäytön intensiteetti rakennusten 
+    energialuokan mukaan. Vanha, ei peruskorjauksia saa arvon 1.
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: dimensionless
@@ -4856,7 +4922,7 @@ nodes:
   input_nodes: [energy_use_intensity_data]
   params:
     use_input_node_unit_when_adding: true
-    reference_category: 'building_energy_class:old_no_renovations'
+    reference_category: building_energy_class:old_no_renovations
 
 - id: energy_use_intensity_relative_old
   name_en: Relative energy use intensity of existing building classes
@@ -4868,7 +4934,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Energy efficiency improvements from building renovat...
+    column: energy_efficiency_improvements_from_building_renovat
     filters:
     - column: uuid
 
@@ -4971,7 +5037,7 @@ nodes:
   output_dimensions: [heating_type]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Heating technologies
+    column: heating_technologies
     filters:
     - column: uuid
 
@@ -4986,7 +5052,7 @@ nodes:
   output_dimensions: [heating_type]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Heating technologies in 2030
+    column: heating_technologies_in_2030
     filters:
     - column: uuid
 
@@ -5002,7 +5068,7 @@ nodes:
   output_dimensions: [heating_type]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Heating technologies
+    column: heating_technologies
     filters:
     - column: uuid
 
@@ -5016,7 +5082,7 @@ nodes:
   output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Share of heating fuel
+    column: share_of_heating_fuel
     filters:
     - column: uuid
 
@@ -5030,7 +5096,7 @@ nodes:
   output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Share of heating fuel
+    column: share_of_heating_fuel
     filters:
     - column: uuid
 
@@ -5044,7 +5110,7 @@ nodes:
   output_dimensions: [heating_type, fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Share of heating in 2030
+    column: share_of_heating_in_2030
     filters:
     - column: uuid
 
@@ -5059,7 +5125,7 @@ nodes:
   output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Share of heating fuel
+    column: share_of_heating_fuel
     filters:
     - column: uuid
     - column: heating_type
@@ -5077,7 +5143,7 @@ nodes:
   color: '#ff69b4'
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Share of heating fuel
+    column: share_of_heating_fuel
     filters:
     - column: uuid
     - column: heating_type
@@ -5105,7 +5171,7 @@ nodes:
   output_dimensions: [fuel_type, heating_type, energy_carrier]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Share of waste used in district heating that is foss...
+    column: share_of_waste_used_in_district_heating_that_is_foss
     filters:
     - column: uuid
 
@@ -5119,15 +5185,17 @@ nodes:
   output_dimensions: [fuel_type, heating_type, energy_carrier]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Share of waste in 2030 used in district heating that...
+    column: share_of_waste_in_2030_used_in_district_heating_that
     filters:
     - column: uuid
 
 - id: heating_waste_fossil_share
   name_en: Heating fossil shares
   name_fi: Lämmityksen fossiiliset osuudet
-  description_en: This node applies to fossil shares of waste used in district heating.
-  description_fi: Tämä solmu koskee kaukolämmössä käytetyn jätteen fossiilisia osuuksia.
+  description_en: This node applies to fossil shares of waste used in district 
+    heating.
+  description_fi: Tämä solmu koskee kaukolämmössä käytetyn jätteen fossiilisia 
+    osuuksia.
   type: generic.GenericNode
   quantity: fraction
   unit: '%'
@@ -5208,20 +5276,26 @@ nodes:
   output_dimensions: [scope, heating_type, energy_carrier]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    column: Scope of energy carriers
+    column: scope_of_energy_carriers
     filters:
     - column: uuid
 
 - id: building_heat_energy_use_before_obs
   name_en: Building heat energy use before observations
   name_fi: Rakennusten lämmitysenergian käyttö ennen havaintoja
-  description_en: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed.
-  description_fi: Rakennusten lämmitykseen, lämpimään veteen ja ruoanlaittoon kulutettu lämmitysenergia. Huomaa, että lämpöpumppujen osalta tämä on tuotetun lämmön määrä, ei kulutetun sähkön määrä.
+  description_en: Building heat energy consumed for building heating, hot water,
+    and cooking. Note that for heat pumps, this is the amount of heat produced, 
+    not the amount of electricity consumed.
+  description_fi: Rakennusten lämmitykseen, lämpimään veteen ja ruoanlaittoon 
+    kulutettu lämmitysenergia. Huomaa, että lämpöpumppujen osalta tämä on 
+    tuotetun lämmön määrä, ei kulutetun sähkön määrä.
   type: generic.GenericNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type, scope]
-  output_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type, scope]
+  input_dimensions: [heating_type, building_energy_class, energy_carrier, 
+      fuel_type, scope]
+  output_dimensions: [heating_type, building_energy_class, energy_carrier, 
+      fuel_type, scope]
   input_nodes:
   - id: building_stock
     to_dimensions:
@@ -5252,7 +5326,8 @@ nodes:
     tags: [observed, prepare_gpc_dataset, framework_measure_data]
     filters:
     - column: Sector
-      value: Total heating demand (space heating + domestic hot water + heat for cooking)
+      value: Total heating demand (space heating + domestic hot water + heat for
+        cooking)
       drop_col: false
   params:
   - id: formula
@@ -5277,13 +5352,19 @@ nodes:
 - id: building_heat_energy_use
   name_en: Building heat energy use
   name_fi: Rakennusten lämmitysenergian käyttö
-  description_en: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed.
-  description_fi: Rakennusten lämmitykseen, lämpimään veteen ja ruoanlaittoon kulutettu lämmitysenergia. Huomaa, että lämpöpumppujen osalta tämä on tuotetun lämmön määrä, ei kulutetun sähkön määrä.
+  description_en: Building heat energy consumed for building heating, hot water,
+    and cooking. Note that for heat pumps, this is the amount of heat produced, 
+    not the amount of electricity consumed.
+  description_fi: Rakennusten lämmitykseen, lämpimään veteen ja ruoanlaittoon 
+    kulutettu lämmitysenergia. Huomaa, että lämpöpumppujen osalta tämä on 
+    tuotetun lämmön määrä, ei kulutetun sähkön määrä.
   type: generic.GenericNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type, scope]
-  output_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type, scope]
+  input_dimensions: [heating_type, building_energy_class, energy_carrier, 
+      fuel_type, scope]
+  output_dimensions: [heating_type, building_energy_class, energy_carrier, 
+      fuel_type, scope]
   input_nodes:
   - id: building_heat_energy_use_before_obs
   - id: building_heat_energy_use_observed
@@ -5301,20 +5382,24 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Efficiency of heat pumps
+    column: efficiency_of_heat_pumps
     filters:
     - column: uuid
 
 - id: building_heat_electricity_use
   name_en: Building heat electricity use
   name_fi: Rakennusten lämmityssähkön käyttö
-  description_en: Electricity used to produce heat with heat pumps and direct electricity.
-  description_fi: Sähkö, jota käytetään lämmön tuottamiseen lämpöpumpuilla ja suoralla sähköllä.
+  description_en: Electricity used to produce heat with heat pumps and direct 
+    electricity.
+  description_fi: Sähkö, jota käytetään lämmön tuottamiseen lämpöpumpuilla ja 
+    suoralla sähköllä.
   type: generic.GenericNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
-  output_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
+  input_dimensions: [fuel_type, heating_type, building_energy_class, 
+      energy_carrier, scope]
+  output_dimensions: [fuel_type, heating_type, building_energy_class, 
+      energy_carrier, scope]
   input_nodes:
   - id: building_heat_energy_use
     tags: [non_additive]
@@ -5357,8 +5442,10 @@ nodes:
 - id: average_heating_emission_factor
   name_en: Average heating emission factor
   name_fi: Keskimääräinen lämmityksen päästökerroin
-  description_en: Emission factor for building heating. Averaged over all heating types currently in use.
-  description_fi: Rakennusten lämmityksen päästökerroin. Keskiarvo kaikista käytössä olevista lämmitystyypeistä.
+  description_en: Emission factor for building heating. Averaged over all 
+    heating types currently in use.
+  description_fi: Rakennusten lämmityksen päästökerroin. Keskiarvo kaikista 
+    käytössä olevista lämmitystyypeistä.
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
@@ -5366,7 +5453,7 @@ nodes:
   output_dimensions: [pollutant, heating_type]
   input_datasets:
   - id: nzc/buildings_heating_emission_factors
-    column: Emission factors from heat production
+    column: emission_factors_from_heat_production
     filters:
     - column: uuid
 
@@ -5424,8 +5511,11 @@ nodes:
 - id: heating_emission_factor
   name_en: Heating emission factor
   name_fi: Lämmityksen päästökerroin
-  description_en: Emission factor for building heating. This applies only to fossil fuel types, as non-fossil fuels are assumed to have zero emissions.
-  description_fi: Rakennusten lämmityksen päästökerroin. Tämä koskee vain fossiilisia polttoainetyyppejä, sillä ei-fossiilisten polttoaineiden päästöjen oletetaan olevan nolla.
+  description_en: Emission factor for building heating. This applies only to 
+    fossil fuel types, as non-fossil fuels are assumed to have zero emissions.
+  description_fi: Rakennusten lämmityksen päästökerroin. Tämä koskee vain 
+    fossiilisia polttoainetyyppejä, sillä ei-fossiilisten polttoaineiden 
+    päästöjen oletetaan olevan nolla.
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
@@ -5451,8 +5541,10 @@ nodes:
 - id: building_heating_emissions
   name_en: Building heating emissions
   name_fi: Rakennusten lämmityksen päästöt
-  description_en: Building heating emissions exclude emissions from electricity, which are calculated elsewhere.
-  description_fi: Rakennusten lämmityksen päästöihin eivät sisälly sähkön päästöt, jotka lasketaan muualla.
+  description_en: Building heating emissions exclude emissions from electricity,
+    which are calculated elsewhere.
+  description_fi: Rakennusten lämmityksen päästöihin eivät sisälly sähkön 
+    päästöt, jotka lasketaan muualla.
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -5503,7 +5595,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    column: Building costs - new buildings
+    column: building_costs_new_buildings
     filters:
     - column: uuid
 
@@ -5532,7 +5624,7 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    column: investment costs in new buildings
+    column: investment_costs_in_new_buildings
     filters:
     - column: uuid
 
@@ -5568,7 +5660,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Share of building stock renovated each year
+    column: share_of_building_stock_renovated_each_year
     filters:
     - column: uuid
 
@@ -5612,7 +5704,7 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Average electricity use for lighting & appliances
+    column: average_electricity_use_for_lighting_appliances
     filters:
     - column: uuid
 
@@ -5626,7 +5718,7 @@ nodes:
   output_dimensions: [efficiency_programme, energy_carrier]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    column: Current share of type of efficiency programme
+    column: current_share_of_type_of_efficiency_programme
     filters:
     - column: uuid
 
@@ -5640,7 +5732,7 @@ nodes:
   output_dimensions: [efficiency_programme, energy_carrier]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    column: Assumed share of type of efficiency programme for lever
+    column: assumed_share_of_type_of_efficiency_programme_for_lever
     filters:
     - column: uuid
 
@@ -5655,7 +5747,7 @@ nodes:
   input_nodes:
   - id: efficiency_programme_shares_historical
   params:
-    new_category: 'efficiency_programme:no_improvements'
+    new_category: efficiency_programme:no_improvements
 
 - id: electricity_need_reduction
   name_en: Electricity need reduction after improvements
@@ -5675,7 +5767,7 @@ nodes:
     - id: energy_carrier
   input_datasets:
   - id: nzc/electricity
-    column: Efficiency improvements for each renovation
+    column: efficiency_improvements_for_each_renovation
     filters:
     - column: uuid
 
@@ -5696,7 +5788,8 @@ nodes:
 - id: electricity_non_renovated_old_buildings
   name_en: Electricity-non-renovated old buildings
   name_fi: Sähköperuskorjaamattomat vanhat rakennukset
-  description_en: Old buildings that have not (yet) gone through electricity renovation
+  description_en: Old buildings that have not (yet) gone through electricity 
+    renovation
   description_fi: Vanhat rakennukset, joita ei ole (vielä) sähköremontoitu
   type: generic.GenericNode
   quantity: fraction
@@ -5738,7 +5831,8 @@ nodes:
       categories: [electricity]
   - id: efficiency_programme_shares
   params:
-    formula: efficiency_programme_shares * (electricity_non_renovated_old_buildings + building_stock)
+    formula: efficiency_programme_shares * 
+      (electricity_non_renovated_old_buildings + building_stock)
 
 - id: building_stock_by_electricity_renovation
   name_en: Building stock by electricity renovation
@@ -5809,7 +5903,7 @@ nodes:
   unit: jobs/(MEUR/a)
   input_datasets:
   - id: nzc/buildings_materials_costs
-    column: Jobs created by investment in renovation
+    column: jobs_created_by_investment_in_renovation
     filters:
     - column: uuid
 
@@ -5842,7 +5936,7 @@ nodes:
   output_dimensions: [pollutant, heating_type, area_distance]
   input_datasets:
   - id: nzc/other_sectors
-    column: Air pollutant distance index
+    column: air_pollutant_distance_index
     filters:
     - column: uuid
 
@@ -5852,8 +5946,10 @@ nodes:
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [pollutant, heating_type, area_distance, cost_type, stakeholder]
-  output_dimensions: [pollutant, heating_type, area_distance, cost_type, stakeholder]
+  input_dimensions: [pollutant, heating_type, area_distance, cost_type, 
+      stakeholder]
+  output_dimensions: [pollutant, heating_type, area_distance, cost_type, 
+      stakeholder]
   input_nodes:
   - id: building_air_pollutant_emissions
     to_dimensions:
@@ -5895,7 +5991,7 @@ nodes:
   output_dimensions: [efficiency_programme, energy_carrier, cost_type]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    column: Cost of efficiency programme per m2
+    column: cost_of_efficiency_programme_per_m2
     filters:
     - column: uuid
 
@@ -5909,7 +6005,7 @@ nodes:
   output_dimensions: [building_energy_class, cost_type]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    column: Cost of energy renovations
+    column: cost_of_energy_renovations
     filters:
     - column: uuid
 
@@ -5923,7 +6019,7 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    column: building renovation investments
+    column: building_renovation_investments
     filters:
     - column: uuid
 
@@ -5963,8 +6059,10 @@ nodes:
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
-  output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
+  input_dimensions: [efficiency_programme, energy_carrier, stakeholder, 
+      cost_type]
+  output_dimensions: [efficiency_programme, energy_carrier, stakeholder, 
+      cost_type]
   input_nodes:
   - id: building_stock_by_electricity_renovation
     tags: [difference]
@@ -5986,8 +6084,16 @@ nodes:
 - id: heating_re_investment_fraction
   name_en: Heating re-investment fraction
   name_fi: Lämmityksen uudelleensijoitusosuus
-  description_en: Share of current fossil production that would need to be re-invested in by 2030, if current production were to continue. (However, the calculations account for re-investments also after 2030, so the user can use their own timeline here as long as they interpret the results accordingly.)
-  description_fi: Osuus nykyisestä fossiilisesta tuotannosta, joka pitäisi investoida uudelleen vuoteen 2030 mennessä, jos nykyinen tuotanto jatkuisi. (Laskelmat ottavat kuitenkin huomioon myös vuoden 2030 jälkeiset uudelleensijoitukset, joten käyttäjä voi käyttää omaa aikajanaansa, kunhan tulkitsee tuloksia sen mukaisesti.)
+  description_en: Share of current fossil production that would need to be 
+    re-invested in by 2030, if current production were to continue. (However, 
+    the calculations account for re-investments also after 2030, so the user can
+    use their own timeline here as long as they interpret the results 
+    accordingly.)
+  description_fi: Osuus nykyisestä fossiilisesta tuotannosta, joka pitäisi 
+    investoida uudelleen vuoteen 2030 mennessä, jos nykyinen tuotanto jatkuisi. 
+    (Laskelmat ottavat kuitenkin huomioon myös vuoden 2030 jälkeiset 
+    uudelleensijoitukset, joten käyttäjä voi käyttää omaa aikajanaansa, kunhan 
+    tulkitsee tuloksia sen mukaisesti.)
   type: generic.GenericNode
   quantity: fraction
   unit: '%'
@@ -5995,15 +6101,22 @@ nodes:
   output_dimensions: [heating_type, energy_carrier]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    column: Share of current fossil production that would need t...
+    column: share_of_current_fossil_production_that_would_need_t
     filters:
     - column: uuid
 
 - id: new_heating_capacity_needed
   name_en: New heating capacity needed (differential investments)
   name_fi: Tarvittava uusi lämmityskapasiteetti (erotusinvestoinnit)
-  description_en: This the amount that is needed to invest or de-vest on heat production due to changes in production types compared with a situation where the production types remain constant. The investments needed in the constant situation are ignored here and only the difference is estimated.
-  description_fi: Tämä on määrä, joka tarvitaan investointeihin tai divestointeihin lämmöntuotannossa johtuen tuotantotyyppien muutoksista verrattuna tilanteeseen, jossa tuotantotyypit pysyvät vakiona. Vakiotilanteessa tarvittavat investoinnit jätetään tässä huomiotta ja arvioidaan vain erotus.
+  description_en: This the amount that is needed to invest or de-vest on heat 
+    production due to changes in production types compared with a situation 
+    where the production types remain constant. The investments needed in the 
+    constant situation are ignored here and only the difference is estimated.
+  description_fi: Tämä on määrä, joka tarvitaan investointeihin tai 
+    divestointeihin lämmöntuotannossa johtuen tuotantotyyppien muutoksista 
+    verrattuna tilanteeseen, jossa tuotantotyypit pysyvät vakiona. 
+    Vakiotilanteessa tarvittavat investoinnit jätetään tässä huomiotta ja 
+    arvioidaan vain erotus.
   type: generic.GenericNode
   quantity: currency
   unit: GWh/a**2
@@ -6037,7 +6150,7 @@ nodes:
   output_dimensions: [stakeholder, cost_type, heating_type]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    column: heating costs
+    column: heating_costs
     filters:
     - column: uuid
 
@@ -6082,7 +6195,7 @@ nodes:
   unit: EUR/MWh
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    column: Retail price of heating
+    column: retail_price_of_heating
     filters:
     - column: uuid
 
@@ -6140,7 +6253,7 @@ nodes:
   output_dimensions: [energy_carrier, heating_type, cost_type]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    column: (Un-levelised) costs of Decarbonised heating
+    column: un_levelised_costs_of_decarbonised_heating
     filters:
     - column: uuid
 
@@ -6203,7 +6316,7 @@ nodes:
   output_dimensions: [energy_carrier, heating_type, cost_type]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    column: Un-levelized capital cost of heating
+    column: un_levelized_capital_cost_of_heating
     filters:
     - column: uuid
 
@@ -6217,7 +6330,7 @@ nodes:
   output_dimensions: [heating_type, cost_type]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    column: Un-levelized capital cost of heating network
+    column: un_levelized_capital_cost_of_heating_network
     filters:
     - column: uuid
 
@@ -6294,8 +6407,10 @@ nodes:
 - id: total_electricity_consumption_uncorr
   name_en: Total electricity consumption, uncorrected
   name_fi: Sähkön kokonaiskulutus, korjaamaton
-  description_en: Consumption is not corrected for the actual consumption statistics.
-  description_fi: Kulutusta ei ole korjattu todellisten kulutustilastojen mukaan.
+  description_en: Consumption is not corrected for the actual consumption 
+    statistics.
+  description_fi: Kulutusta ei ole korjattu todellisten kulutustilastojen 
+    mukaan.
   type: generic.GenericNode
   quantity: energy
   unit: GWh/a
@@ -6305,10 +6420,11 @@ nodes:
 - id: total_electricity_consumption_corr
   name_en: Total electricity consumption, corrected
   name_fi: Sähkön kokonaiskulutus, korjattu
-  description_en: These consumption values are corrected for actual consumption statistics,
-    if the global parameter <i>Statistical correction</i> is turned on.
-  description_fi: Nämä kulutusarvot on korjattu todellisten kulutustilastojen mukaan,
-    jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
+  description_en: These consumption values are corrected for actual consumption 
+    statistics, if the global parameter <i>Statistical correction</i> is turned 
+    on.
+  description_fi: Nämä kulutusarvot on korjattu todellisten kulutustilastojen 
+    mukaan, jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
   type: generic.GenericNode
   quantity: energy
   unit: GWh/a
@@ -6349,10 +6465,11 @@ nodes:
 - id: total_electricity_production
   name_en: Total electricity production by shares
   name_fi: Sähköntuotannon kokonaismäärä osuuksittain
-  description_en: These production values are corrected for actual consumption statistics,
-    if the global parameter <i>Statistical correction</i> is turned on.
-  description_fi: Nämä tuotantoarvot on korjattu todellisten kulutustilastojen mukaan,
-    jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
+  description_en: These production values are corrected for actual consumption 
+    statistics, if the global parameter <i>Statistical correction</i> is turned 
+    on.
+  description_fi: Nämä tuotantoarvot on korjattu todellisten kulutustilastojen 
+    mukaan, jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
   type: generic.GenericNode
   quantity: energy
   unit: GWh/a
@@ -6397,7 +6514,7 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Total electricity demand within city boundaries
+    column: total_electricity_demand_within_city_boundaries
     filters:
     - column: uuid
 
@@ -6450,7 +6567,7 @@ nodes:
   output_dimensions: [pollutant, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Emission factors from electricity generation
+    column: emission_factors_from_electricity_generation
     filters:
     - column: uuid
 
@@ -6464,7 +6581,7 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Spot price electricity
+    column: spot_price_electricity
     filters:
     - column: uuid
 
@@ -6478,7 +6595,7 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Retail price of electricity
+    column: retail_price_of_electricity
     filters:
     - column: uuid
 
@@ -6525,8 +6642,10 @@ nodes:
 - id: effective_electricity_emission_factor
   name_en: Effective electricity emission factor
   name_fi: Sähköntuotannon efektiivinen päästökerroin
-  description_en: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
-  description_fi: Sähköntuotannon efektiivinen päästökerroin riippuu kaikkien sähköntuotantomuotojen määristä ja päästökertoimista.
+  description_en: The effective electricity emission factor depends on amounts 
+    and emission factors of all electricity production modes.
+  description_fi: Sähköntuotannon efektiivinen päästökerroin riippuu kaikkien 
+    sähköntuotantomuotojen määristä ja päästökertoimista.
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
@@ -6642,7 +6761,7 @@ nodes:
   output_dimensions: [cost_type, fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Operating cost for renewables
+    column: operating_cost_for_renewables
     filters:
     - column: uuid
 
@@ -6726,15 +6845,18 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Assumed uptime of wind/solar
+    column: assumed_uptime_of_windsolar
     filters:
     - column: uuid
 
 - id: job_demand_of_renewables
   name_en: Job demand of renewables
   name_fi: Uusiutuvien työvoiman tarve
-  description_en: Are these jobs permanent or do they relate to the building phase of PV? Now we assume that they are permanent and accumulate.
-  description_fi: Ovatko nämä työpaikat pysyviä vai liittyvätkö ne aurinkopaneelien rakennusvaiheeseen? Nyt oletamme, että ne ovat pysyviä ja kertyvät.
+  description_en: Are these jobs permanent or do they relate to the building 
+    phase of PV? Now we assume that they are permanent and accumulate.
+  description_fi: Ovatko nämä työpaikat pysyviä vai liittyvätkö ne 
+    aurinkopaneelien rakennusvaiheeseen? Nyt oletamme, että ne ovat pysyviä ja 
+    kertyvät.
   type: generic.GenericNode
   quantity: demand_factor
   unit: jobs/MW
@@ -6742,7 +6864,7 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Jobs created per MW
+    column: jobs_created_per_mw
     filters:
     - column: uuid
 
@@ -6750,7 +6872,8 @@ nodes:
   name_en: Jobs created by renewables
   name_fi: Uusiutuvien luomat työpaikat
   description_en: Cumulative number of existing jobs due to renewables
-  description_fi: Uusiutuvien energialähteiden ansiosta olevien työpaikkojen kertyvä määrä
+  description_fi: Uusiutuvien energialähteiden ansiosta olevien työpaikkojen 
+    kertyvä määrä
   type: generic.GenericNode
   quantity: employment
   unit: jobs
@@ -6787,7 +6910,7 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Distribution of type of new renewables
+    column: distribution_of_type_of_new_renewables
     filters:
     - column: uuid
 
@@ -6801,7 +6924,7 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Share of total electricity demand produced by fossil...
+    column: share_of_total_electricity_demand_produced_by_fossil
     filters:
     - column: uuid
 
@@ -6865,7 +6988,7 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier, cost_type]
   input_datasets:
   - id: nzc/electricity
-    column: 'PV: Upfront investment cost'
+    column: pv_upfront_investment_cost
     filters:
     - column: uuid
 
@@ -6879,7 +7002,7 @@ nodes:
   output_dimensions: [fuel_type, stakeholder, cost_type]
   input_datasets:
   - id: nzc/electricity
-    column: solar panel costs
+    column: solar_panel_costs
     filters:
     - column: uuid
   output_nodes:
@@ -6949,15 +7072,17 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/electricity
-    column: fossil/current electricity supply
+    column: fossilcurrent_electricity_supply
     filters:
     - column: uuid
 
 - id: fossil_electricity_goal
   name_en: Fossil electricity reduction goal
   name_fi: Fossiilisen sähkön vähennystavoite
-  description_en: Share of current fossil production replaced by renewables (or nuclear)
-  description_fi: Osuus nykyisestä fossiilisesta tuotannosta, joka korvataan uusiutuvilla energialähteillä (tai ydinvoimalla)
+  description_en: Share of current fossil production replaced by renewables (or 
+    nuclear)
+  description_fi: Osuus nykyisestä fossiilisesta tuotannosta, joka korvataan 
+    uusiutuvilla energialähteillä (tai ydinvoimalla)
   type: generic.GenericNode
   quantity: fraction
   unit: '%'
@@ -6965,7 +7090,7 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Share of current fossil production replaced by renew...
+    column: share_of_current_fossil_production_replaced_by_renew
     filters:
     - column: uuid
 
@@ -7005,7 +7130,7 @@ nodes:
       categories: [other]
   - id: fossil_electricity_shares_goal
   params:
-    new_category: 'fuel_type:non_fossil'
+    new_category: fuel_type:non_fossil
     drop_nans: true
 
 - id: electricity_shares
@@ -7019,7 +7144,7 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Share of total electricity demand produced by fossil...
+    column: share_of_total_electricity_demand_produced_by_fossil
     filters:
     - column: uuid
 
@@ -7033,7 +7158,7 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    column: Share of total electricity demand produced by fossil...
+    column: share_of_total_electricity_demand_produced_by_fossil
     filters:
     - column: uuid
     - column: fuel_type
@@ -7054,7 +7179,7 @@ nodes:
   output_dimensions: [waste_type]
   input_datasets:
   - id: nzc/waste_management
-    column: Total collected waste within city boundaries by type
+    column: total_collected_waste_within_city_boundaries_by_type
     filters:
     - column: uuid
 
@@ -7068,7 +7193,7 @@ nodes:
   output_dimensions: [waste_treatment, waste_type]
   input_datasets:
   - id: nzc/waste_recycling_shares
-    column: Share recycling/incineration/landfill
+    column: share_recyclingincinerationlandfill
     filters:
     - column: uuid
 
@@ -7082,7 +7207,7 @@ nodes:
   output_dimensions: [waste_treatment, waste_type]
   input_datasets:
   - id: nzc/waste_recycling_shares
-    column: Share recycling/incineration/landfill baseline
+    column: share_recyclingincinerationlandfill_baseline
     filters:
     - column: uuid
 
@@ -7107,7 +7232,7 @@ nodes:
   output_dimensions: [waste_treatment, waste_type]
   input_datasets:
   - id: nzc/waste_recycling_goal
-    column: 5.1. Increased recycling of waste
+    column: 51_increased_recycling_of_waste
     forecast_from: 2026
     filters:
     - column: uuid
@@ -7143,8 +7268,10 @@ nodes:
 - id: waste_emission_factor
   name_en: Waste emission factor
   name_fi: Jätteiden päästökerroin
-  description_en: OK. But has mixed waste also, although does not come from the same place as the others.
-  description_fi: OK. Mutta sisältää myös sekajätteen, vaikka se ei tule samasta paikasta kuin muut.
+  description_en: OK. But has mixed waste also, although does not come from the 
+    same place as the others.
+  description_fi: OK. Mutta sisältää myös sekajätteen, vaikka se ei tule samasta
+    paikasta kuin muut.
   type: generic.GenericNode
   quantity: emission_factor
   unit: t/t
@@ -7152,7 +7279,7 @@ nodes:
   output_dimensions: [waste_type, waste_treatment, pollutant]
   input_datasets:
   - id: nzc/waste_management
-    column: waste emission factor
+    column: waste_emission_factor
     filters:
     - column: uuid
   output_nodes:
@@ -7201,7 +7328,7 @@ nodes:
   output_dimensions: [pollutant, waste_treatment, energy_carrier]
   input_datasets:
   - id: nzc/waste_management
-    column: Emission factors from waste management
+    column: emission_factors_from_waste_management
     filters:
     - column: uuid
   output_nodes:
@@ -7258,7 +7385,7 @@ nodes:
   output_dimensions: [waste_type, cost_type, energy_carrier]
   input_datasets:
   - id: nzc/waste_management
-    column: Prices of sorted waste
+    column: prices_of_sorted_waste
     filters:
     - column: uuid
   output_nodes:
@@ -7297,7 +7424,7 @@ nodes:
   output_dimensions: [waste_treatment, cost_type, energy_carrier]
   input_datasets:
   - id: nzc/waste_management
-    column: Waste management costs
+    column: waste_management_costs
     filters:
     - column: uuid
   output_nodes:
@@ -7345,7 +7472,7 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/waste_management
-    column: waste recycling
+    column: waste_recycling
     filters:
     - column: uuid
 
@@ -7454,7 +7581,7 @@ nodes:
   output_dimensions: [material]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    column: Materials as share of total mass
+    column: materials_as_share_of_total_mass
     filters:
     - column: uuid
 
@@ -7466,7 +7593,7 @@ nodes:
   unit: t/m**2
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    column: Tonnes material used in for new buildings (2010)
+    column: tonnes_material_used_in_for_new_buildings_2010
     filters:
     - column: uuid
 
@@ -7512,7 +7639,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    column: Tonnes material used for renovations
+    column: tonnes_material_used_for_renovations
     filters:
     - column: uuid
 
@@ -7550,31 +7677,6 @@ nodes:
   - id: building_construction_material_use
   - id: building_renovation_material_use
 
-# - id: building_material_composition
-#   name_en: Building material composition
-#   name_fi: Rakennusmateriaalien koostumus
-#   type: gpc.DatasetNode
-#   quantity: mass
-#   unit: t/m**2
-#   input_dimensions: [material]
-#   output_dimensions: [material] 
-#   input_datasets:
-#   - id: nzc/defaults
-#   params:
-#     sector: New materials composition due to materials efficiency
-
-# - id: building_material_emission_factor
-#   name_en: Building material emission factor
-#   name_fi: Rakennusmateriaalien päästökerroin
-#   type: gpc.DatasetNode
-#   quantity: emission_factor
-#   unit: t/t
-#   input_dimensions: [material]
-#   output_dimensions: [material]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Emissions from production
-
 - id: building_material_unit_price
   name_en: Building material unit price
   name_fi: Rakennusmateriaalien yksikköhinta
@@ -7585,7 +7687,7 @@ nodes:
   output_dimensions: [material]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    column: Production costs per tonne
+    column: production_costs_per_tonne
     filters:
     - column: uuid
 
@@ -7619,237 +7721,3 @@ nodes:
     to_dimensions:
     - id: cost_type
     - id: stakeholder
-
-# ------------- Food -------------------
-
-# - id: food_consumption_per_person
-#   name_en: Food consumption per person
-#   name_fi: Ruoankulutus henkeä kohti
-#   type: gpc.DatasetNode
-#   quantity: energy
-#   unit: kcal/cap/d
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Average food Consumption per capita
-
-# ----------- AFOLU --------------
-
-# - id: distribution_between_trees_in_grey_and_green_area
-#   name_en: Distribution between trees in grey and green area
-#   name_fi: Puiden jakautuminen harmaan ja vihreän alueen välillä
-#   type: gpc.DatasetNode
-#   quantity: fraction
-#   unit: dimensionless
-#   input_dimensions: [city_area, area_distance]
-#   output_dimensions: [city_area, area_distance]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Distribution between trees in grey and green area
-
-# - id: number_of_new_trees
-#   name_en: Number of new trees
-#   name_fi: Uusien puiden määrä
-#   type: gpc.DatasetNode
-#   quantity: number
-#   unit: pcs
-#   input_dimensions: [area_distance]
-#   output_dimensions: [area_distance]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Number of planted trees until 2030
-#     inventory_only: true
-
-# - id: tree_planting_unit_price
-#   name_en: Tree planting unit price
-#   name_fi: Puiden istutuksen yksikköhinta
-#   type: gpc.DatasetNode
-#   quantity: unit_price
-#   unit: EUR/pcs
-#   input_dimensions: [area_distance, cost_type]
-#   output_dimensions: [area_distance, cost_type]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Cost of planting trees  by area distance
-
-# - id: tree_planting_cost
-#   name_en: Tree planting cost
-#   name_fi: Puiden istutuskustannukset
-#   type: generic.GenericNode
-#   quantity: currency
-#   unit: MEUR/a
-#   input_dimensions: [area_distance, cost_type]
-#   output_dimensions: [area_distance, cost_type]
-#   input_nodes:
-#   - id: tree_planting_unit_price
-#   - id: number_of_new_trees
-#     tags: [difference]
-#     to_dimensions:
-#     - id: area_distance
-#   output_nodes:
-#   - id: forestation_cost
-#     from_dimensions:
-#     - id: area_distance
-#       flatten: true
-#     to_dimensions:
-#     - id: cost_type
-#     - id: stakeholder
-#       categories: [city]
-
-# - id: population_density_outside_city_compared_to_inside_city
-#   name_en: Population density outside city compared to inside city
-#   name_fi: Väestöntiheys kaupungin ulkopuolella verrattuna kaupungin sisäpuolelle
-#   type: gpc.DatasetNode
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: [area_distance]
-#   output_dimensions: [area_distance]
-#   input_datasets:
-#   - id: nzc/defaults
-#   params:
-#     sector: Population density outside city compared to inside city
-
-# - id: annual_co2_capture_by_trees
-#   name_en: Annual CO2 capture by trees
-#   name_fi: Puiden vuotuinen hiilidioksidin sitominen
-#   type: gpc.DatasetNode
-#   quantity: emission_factor
-#   unit: t/pcs/a
-#   input_datasets:
-#   - id: nzc/defaults
-#   params:
-#   - id: sector
-#     value: Annual CO2 capture per tree
-
-# - id: co2_reduction_by_trees
-#   name_en: CO2 reduction by trees
-#   name_fi: Puiden aikaansaama hiilidioksidin vähennys
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [area_distance]
-#   output_dimensions: [area_distance]
-#   input_nodes:
-#   - id: number_of_new_trees
-#   - id: annual_co2_capture_by_trees
-#     to_dimensions: []
-#   output_nodes:
-#   - id: forestation_emissions
-#     tags: [arithmetic_inverse]
-#     from_dimensions:
-#     - id: area_distance
-#       flatten: true
-#     to_dimensions:
-#     - id: scope
-#       categories: [scope1]
-#     - id: ghg
-#       categories: [co2e]
-
-# - id: forestation_emissions
-#   name_en: Forestation emissions
-#   name_fi: Metsityksen päästöt
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt/a
-#   color: '#76B7B2'
-#   input_dimensions: [ghg, scope]
-#   output_dimensions: [ghg, scope]
-#   output_nodes:
-#   - id: emissions_from_other_sectors
-#     to_dimensions:
-#     - id: ghg
-#     - id: scope
-#     - id: cost_type
-#       categories: [agriculture_afolu]
-# - id: forestation_co2_cost
-#   name_en: Forestation CO2 cost
-#   name_fi: Metsityksen hiilidioksidikustannukset
-#   type: generic.GenericNode
-#   quantity: currency
-#   unit: MEUR/a
-#   input_dimensions: [scope, cost_type, ghg]
-#   output_dimensions: [scope, cost_type, ghg]
-#   input_nodes:
-#   - id: forestation_emissions
-#     to_dimensions:
-#     - id: scope
-#     - id: ghg
-#   - id: co2_unit_price
-#     to_dimensions:
-#     - id: cost_type
-#     - id: ghg
-#   output_nodes:
-#   - id: forestation_cost
-#     from_dimensions:
-#     - id: scope
-#       flatten: true
-#     - id: ghg
-#       flatten: true
-#     to_dimensions:
-#     - id: cost_type
-#     - id: stakeholder
-#       categories: [city]
-
-# - id: forestation_cost
-#   name_en: Forestation cost
-#   name_fi: Metsityskustannukset
-#   type: generic.GenericNode
-#   quantity: currency
-#   unit: MEUR/a
-#   input_dimensions: [cost_type, stakeholder]
-#   output_dimensions: [cost_type, stakeholder]
-#   output_nodes:
-#   - id: total_cost
-#     to_dimensions:
-#     - id: cost_type
-#     - id: stakeholder
-
-# - id: tree_benefit_unit_price
-#   name_en: Tree benefit unit price
-#   name_fi: Puiden hyötyjen yksikköhinta
-#   type: gpc.DatasetNode
-#   quantity: unit_price
-#   unit: MEUR/pcs/a
-#   input_dimensions: [cost_type]
-#   output_dimensions: [cost_type]
-#   input_datasets: [nzc/defaults]
-#   params:
-#   - id: sector
-#     value: 'Benefits from planting trees '
-
-# - id: tree_benefit_stakeholders
-#   name_en: Tree benefit stakeholders
-#   name_fi: Puiden hyötyjen sidosryhmät
-#   type: gpc.DatasetNode
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: [stakeholder, cost_type]
-#   output_dimensions: [stakeholder, cost_type]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: forest costs and savings
-
-# - id: tree_co_benefits
-#   name_en: Monetary co-benefits
-#   name_fi: Rahalliset rinnakkaishyödyt
-#   type: generic.GenericNode
-#   quantity: currency
-#   unit: MEUR/a
-#   input_dimensions: [cost_type, area_distance, stakeholder]
-#   output_dimensions: [cost_type, area_distance, stakeholder]
-#   input_nodes:
-#   - id: number_of_new_trees
-#     to_dimensions:
-#     - id: area_distance
-#   - id: tree_benefit_unit_price
-#     to_dimensions:
-#     - id: cost_type
-#   - id: tree_benefit_stakeholders
-#     to_dimensions:
-#     - id: stakeholder
-#     - id: cost_type
-#   output_nodes:
-#   - id: forestation_cost
-#     tags: [arithmetic_inverse]
-#     from_dimensions:
-#     - id: area_distance
-#       flatten: true
