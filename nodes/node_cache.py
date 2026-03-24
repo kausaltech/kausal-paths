@@ -16,13 +16,14 @@ import sentry_sdk
 import xxhash
 
 from kausal_common.deployment import get_deployment_build_id
+from kausal_common.logging.errors import capture_error
 
+from common.polars import PathsDataFrame
 from nodes.datasets import DVCDataset
 from nodes.exceptions import NodeHashingError
 
 if TYPE_CHECKING:
     from common.cache import CacheResult
-    from common.polars import PathsDataFrame
     from nodes.context import Context
 
     from .node import Node
@@ -455,6 +456,9 @@ class NodeHasher:
                 self.node.logger.debug('Cache miss for node %s' % self.node.id)
 
         out = cache_res.obj
+        if out is not None and not isinstance(out, PathsDataFrame):
+            capture_error('Cached output for node %s (key: %s) is not a PathsDataFrame' % (self.node.id, cache_key))
+            cache_res.obj = None
 
         if DEBUG_CACHE_MISSES and out is None and self.prev_hash_parts:
             # ruff: noqa: T203
@@ -470,9 +474,9 @@ class NodeHasher:
                     continue
                 if old != new:
                     pprint('\told: %s\n\tnew: %s' % (old, new))
-        return cache_res
+        return cast('CacheResult[PathsDataFrame]', cache_res)
 
-    def cache_output(self, res: CacheResult, df: PathsDataFrame):
+    def cache_output(self, res: CacheResult[PathsDataFrame], df: PathsDataFrame):
         """
         Store the computed output in the cache.
 

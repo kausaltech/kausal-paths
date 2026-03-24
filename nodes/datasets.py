@@ -15,6 +15,8 @@ import polars as pl
 from loguru import logger
 from numpy.random import default_rng  # TODO Could call Generator to give hints about rng attributes but requires code change
 
+from kausal_common.logging.errors import capture_error
+
 from common import polars as ppl
 from nodes.calc import extend_last_historical_value_pl
 from nodes.units import Unit, unit_registry
@@ -495,8 +497,10 @@ class DVCDataset(DatasetWithFilters):
             cache_key = None
 
         if obj is not None:
-            self.df = obj
-            return obj
+            if isinstance(obj, ppl.PathsDataFrame):
+                self.df = obj
+                return obj
+            capture_error('Cached dataset %s (key: %s) is not a PathsDataFrame' % (self.id, cache_key))
 
         if self.input_dataset:
             ds_id = self.input_dataset
@@ -659,7 +663,7 @@ class GenericDataset(DVCDataset):
         return df
 
     # -----------------------------------------------------------------------------------
-    def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
+    def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list[str]) -> ppl.PathsDataFrame:
         # Get all metric columns from the DataFrame's metadata
         metric_cols = list(df.get_meta().units.keys())
 
@@ -698,8 +702,10 @@ class GenericDataset(DVCDataset):
             cache_key = None
 
         if obj is not None:
-            self.df = obj
-            return obj
+            if isinstance(obj, ppl.PathsDataFrame):
+                self.df = obj
+                return obj
+            capture_error('Cached dataset %s (key: %s) is not a PathsDataFrame' % (self.id, cache_key))
 
         if self.input_dataset:
             ds_id = self.input_dataset
@@ -810,8 +816,10 @@ class FixedDataset(Dataset):
             cache_key = None
 
         if obj is not None:
-            self.df = obj
-            return obj
+            if isinstance(obj, ppl.PathsDataFrame):
+                self.df = obj
+                return obj
+            capture_error('Cached dataset %s (key: %s) is not a PathsDataFrame' % (self.id, cache_key))
 
         df = self.df
         assert df is not None
