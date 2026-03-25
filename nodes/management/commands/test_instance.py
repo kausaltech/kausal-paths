@@ -31,16 +31,24 @@ if TYPE_CHECKING:
 console = Console()
 
 
-def make_comparable(table: dict[str, Any]):
-    schema: dict[str, Any] = table['schema']
-    pks: list[str] = schema['primaryKey']
+def sort_schema(schema: dict[str, Any]):
+    pks = schema['primaryKey']
     pks.sort()
-    fields: list[dict[str, Any]] = schema['fields']
 
+    fields: list[dict[str, Any]] = schema['fields']
     fields.sort(key=lambda x: x['name'])
-    data: list[dict[str, Any]] = table['data']
-    data.sort(key=lambda x: tuple([x[key] for key in pks]))
-    return data
+    for field in fields:
+        constraints = field.get('constraints')
+        if constraints and 'enum' in constraints:
+            constraints['enum'].sort()
+    return schema
+
+
+def get_sorted_rows(table: dict[str, Any]):
+    pks: list[str] = table['schema']['primaryKey']
+    rows: list[dict[str, Any]] = table['data']
+    rows.sort(key=lambda x: tuple([x[key] for key in pks]))
+    return rows
 
 
 def dir_path(str_path: str) -> Path:
@@ -223,15 +231,25 @@ class Command(BaseCommand):
                 return False
             logger.info('Comparing output to %s' % fn)
             with fn.open('r') as f:
-                data = json.load(f)
+                reference = json.load(f)
             df = node.get_output_pl()
-            df_ser = JSONDataset.serialize_df(df)
-            diffs = list(DeepDiff(make_comparable(data), make_comparable(df_ser), math_epsilon=1e-6))
-            if diffs:
-                logger.error('Instance %s, node %s differs' % (node.context.instance.id, node.id))
-                print(diffs)
-                return False
-            return True
+            current = JSONDataset.serialize_df(df)
+            schema_diff = DeepDiff(sort_schema(reference['schema']), sort_schema(current['schema']))
+            has_diffs = False
+            if schema_diff:
+                logger.error('Instance %s, node %s schema differs' % (node.context.instance.id, node.id))
+                print(schema_diff)
+                print('Reference schema:')
+                print(reference['schema'])
+                print('Current schema:')
+                print(current['schema'])
+                has_diffs = True
+            diff = DeepDiff(get_sorted_rows(reference), get_sorted_rows(current), math_epsilon=1e-6)
+            if diff:
+                logger.error('Instance %s, node %s rows differ' % (node.context.instance.id, node.id))
+                print(diff)
+                has_diffs = True
+            return not has_diffs
         return True
 
     def check_node(self, node: Node) -> bool:
@@ -250,7 +268,7 @@ class Command(BaseCommand):
                     'Error checking node {instance_id}:{node_id}\nNode dependency path: {dep_path}',
                     instance_id=node.context.instance.id,
                     node_id=node.id,
-                    dep_path=e.get_dependency_path(),
+                    dep_path=e.get_event_chain(),
                 )
             success = False
         if not success:

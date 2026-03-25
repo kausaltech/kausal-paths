@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import PrivateAttr
 
@@ -98,16 +98,16 @@ class NumberParameter(ParameterWithUnit[float, float | Quantity]):
         super().model_post_init(__context)
 
     def clean(self, value: float | Quantity) -> float:
-        # Store unit first if available
         if isinstance(value, Quantity):
             if self.unit is not None:
                 assert isinstance(self.unit, Quantity)
                 assert self.unit.is_compatible_with(value.units)
-            value = value.m
+            unit_value = value.to(self.unit)
+            value = unit_value.m
 
         # Avoid converting, e.g., bool to float
         if not isinstance(value, int | float | str):
-            raise ValidationError(self)
+            raise ValidationError(self, 'Invalid value type: %s' % type(value))
         try:
             value = float(value)
         except ValueError:
@@ -123,17 +123,6 @@ class NumberParameter(ParameterWithUnit[float, float | Quantity]):
                 raise ValidationError(self, 'Above max_value')
 
         return value
-
-    def set(self, value: Quantity | float, notify: bool = True) -> None:
-        if isinstance(value, Quantity):
-            unit = value.units
-            float_value = value.m
-        else:
-            unit = None
-            float_value = value
-        super().set(float_value, notify=notify)
-        if unit is not None:
-            self.unit = cast('Unit', unit)
 
 
 @parameter

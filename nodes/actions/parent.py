@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from common import polars as ppl
     from params import Parameter
 
-    from ..node import Node
 
 
 def first_common_descendant(G, sources, target):
@@ -59,9 +58,6 @@ class ParentActionNode(ActionNode):
         assert action not in self.subactions
         self.subactions.append(action)
 
-    def find_first_common_descendant(self, target_node: Node):
-        pass
-
     def notify_parameter_change(self, param: Parameter):
         if param == self.enabled_param:
             for action in self.subactions:
@@ -72,7 +68,7 @@ class ParentActionNode(ActionNode):
         for root_node in self.context.get_root_nodes():
             if isinstance(root_node, ParentActionNode):
                 continue
-            rnu = root_node.unit.is_compatible_with(self.unit)
+            rnu = root_node.single_metric_unit.is_compatible_with(self.single_metric_unit)
             if rnu and (root_node.id != self.id):  # FIXME Quickfix done. But this can produce unintended results
                 break
         else:

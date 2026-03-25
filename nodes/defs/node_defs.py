@@ -91,6 +91,8 @@ class NodeSpec(BaseModel):
 
     # Node behaviour flags
     is_outcome: bool = False
+    # TODO: Replace with a pipeline operation that clips years.
+    minimum_year: int | None = None
 
     # Legacy fields — see NodeSpecExtra docstring
     extra: NodeSpecExtra = NodeSpecExtra()

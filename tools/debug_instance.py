@@ -43,14 +43,17 @@ import json
 import sys
 import textwrap
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from common.cache import CacheKind
 from nodes.instance_loader import InstanceLoader
 from nodes.models import InstanceConfig
 
+if TYPE_CHECKING:
+    from nodes.instance import Instance
 
-def _load_from_yaml(instance_id: str) -> InstanceLoader:
+
+def _load_from_yaml(instance_id: str) -> Instance:
     config_path = Path(f'configs/{instance_id}.yaml').resolve()
     if not config_path.exists():
         # Try other patterns
@@ -60,32 +63,16 @@ def _load_from_yaml(instance_id: str) -> InstanceLoader:
     if not config_path.exists():
         print(f'YAML config not found for {instance_id}', file=sys.stderr)
         sys.exit(1)
-    return InstanceLoader.from_yaml(config_path)
+    loader = InstanceLoader.from_yaml(config_path)
+    return loader.instance
 
 
-def _load_from_db(instance_id: str, skip_validation: bool = True) -> InstanceLoader:
-    from nodes.instance_from_db import serialize_instance_to_dict
-
+def _load_from_db(instance_id: str) -> Instance:
     ic = InstanceConfig.objects.get(identifier=instance_id)
     if ic.config_source != 'database':
         print(f'Warning: {instance_id} config_source is "{ic.config_source}", not "database"', file=sys.stderr)
-
-    config = serialize_instance_to_dict(ic)
-
-    if skip_validation:
-        orig = InstanceLoader.setup_validations
-
-        def _nop(self) -> None:  # pyright: ignore[reportUnusedParameter]
-            pass
-
-        InstanceLoader.setup_validations = _nop  # type: ignore[method-assign]
-        try:
-            loader = InstanceLoader(config=config)
-        finally:
-            InstanceLoader.setup_validations = orig  # type: ignore[method-assign]
-    else:
-        loader = InstanceLoader(config=config)
-    return loader
+        ic.config_source = 'database'
+    return ic.get_instance()
 
 
 def _get_config_dict(instance_id: str, source: str) -> dict[str, Any]:
@@ -96,8 +83,15 @@ def _get_config_dict(instance_id: str, source: str) -> dict[str, Any]:
         ic = InstanceConfig.objects.get(identifier=instance_id)
         return serialize_instance_to_dict(ic)
 
-    loader = _load_from_yaml(instance_id)
-    return dict(loader.config)
+    import yaml
+
+    config_path = Path(f'configs/{instance_id}.yaml').resolve()
+    if not config_path.exists():
+        for p in Path('configs').glob(f'{instance_id}*.yaml'):
+            config_path = p.resolve()
+            break
+    with config_path.open() as f:
+        return yaml.safe_load(f)
 
 
 def _find_node_in_config(config: dict[str, Any], node_id: str) -> dict[str, Any] | None:
@@ -144,15 +138,12 @@ def _diff_node(instance_id: str, node_id: str) -> None:
 
 def _run_instance(args: argparse.Namespace) -> None:
     """Load an instance and run the requested operation (eval, compute, or summary)."""
-    skip_validation = args.no_validation and not args.with_validation
-
     if args.source == 'yaml':
-        loader = _load_from_yaml(args.instance)
+        instance = _load_from_yaml(args.instance)
     else:
-        loader = _load_from_db(args.instance, skip_validation=skip_validation)
+        instance = _load_from_db(args.instance)
 
-    instance = loader.instance
-    ctx = loader.context
+    ctx = instance.context
 
     if args.no_cache:
         ctx.cache.set_allowed_cache_kinds({CacheKind.RUN, CacheKind.LOCAL})
@@ -169,7 +160,6 @@ def _run_instance(args: argparse.Namespace) -> None:
             'instance': instance,
             'ctx': ctx,
             'node': node,
-            'loader': loader,
             'json': json,
             'print': print,
         }
@@ -207,8 +197,6 @@ def main():
     parser.add_argument('--filter', help='Output filter (e.g. 2020-2024,T)')
     parser.add_argument('--no-cache', action='store_true', help='Disable computation cache')
     parser.add_argument('--flush-cache', action='store_true', help='Flush external cache')
-    parser.add_argument('--no-validation', action='store_true', default=True, help='Skip setup_validations (default: True)')
-    parser.add_argument('--with-validation', action='store_true', help='Enable setup_validations')
     parser.add_argument('--sync', action='store_true', help='Sync YAML → DB before loading (implies --source db)')
     parser.add_argument('-c', '--code', help='Python code to eval (instance, ctx, node in scope)')
     parser.add_argument('--diff-node', help='Diff a node config between YAML and DB')

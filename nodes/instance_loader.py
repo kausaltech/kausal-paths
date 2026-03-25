@@ -608,7 +608,7 @@ class InstanceLoader:
 
             try:
                 if value is not None:
-                    param.set(value)
+                    param.value = param.clean(value)
             except:
                 self.instance.log.error('Error setting parameter %s for node %s' % (param.local_id, node.id))
                 raise

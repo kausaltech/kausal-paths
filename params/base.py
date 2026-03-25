@@ -122,7 +122,7 @@ class Parameter[ValueT = Any, SetValueT = ValueT](BaseModel):
     def set(self, value: SetValueT, notify: bool = True):
         prev_val = getattr(self, 'value', None)
         self.value = self.clean(value)
-        if notify and not self.is_value_equal(prev_val):
+        if notify and not self.is_value_equal(value=prev_val):
             self.notify_change()
 
     def reset_to_scenario_setting(self, scenario: Scenario, value: SetValueT):  # pyright: ignore[reportUnusedParameter]

@@ -108,6 +108,7 @@ def export_node_spec(node: Node) -> NodeSpec:
         output_dimensions=output_dim_ids,
         params=params,
         is_outcome=node.is_outcome,
+        minimum_year=node.minimum_year,
         extra=extra,
     )
 

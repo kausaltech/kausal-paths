@@ -245,6 +245,8 @@ Missing values are assumed to be zero.""")
         return df
 
     def compute(self) -> ppl.PathsDataFrame:
+        if self.id == 'van_emissions':
+            breakpoint()
         idf = self.get_input_dataset_pl(required=False)
         metric = self.get_parameter_value_str('metric', required=False)
         assert self.unit is not None
