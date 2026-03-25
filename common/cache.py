@@ -745,7 +745,7 @@ class Cache(AbstractContextManager['Cache']):
 
         obj_size = obj.estimated_size() if isinstance(obj, pl.DataFrame) else obj.__sizeof__()
         if obj_size > 128 * 1024:
-            self.log.warning('Attempting to cache a large object of %d KiB: %s' % (obj_size // 1024, key))
+            self.log.info('Attempting to cache a large object of %d KiB: %s' % (obj_size // 1024, key))
         if obj_size > self.local.max_size:
             warnings.warn('Discarding a large object of %d KiB: %s' % (obj_size // 1024, key), stacklevel=3)
             return

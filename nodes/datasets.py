@@ -241,9 +241,9 @@ class Dataset(ABC):
 
 
 @dataclass
-class DatasetWithFilters(Dataset):
+class DatasetWithFilters(Dataset, ABC):
     column: str | None = None
-    filters: list | None = None
+    filters: list[dict[str, Any]] | None = None
     dropna: bool | None = None
     min_year: int | None = None
     max_year: int | None = None
@@ -732,7 +732,7 @@ class GenericDataset(DVCDataset):
         if self.interpolate:
             df = self._linear_interpolate(df)
 
-        new_dims = [col for col, dtype in zip(df.columns, df.dtypes, strict=False) if dtype in [pl.Utf8, pl.Categorical]]
+        new_dims = [col for col, dtype in zip(df.columns, df.dtypes, strict=False) if dtype in [pl.Utf8(), pl.Categorical()]]
         df = df.add_to_index([dim for dim in new_dims if dim not in df.dim_ids])
         df = extend_last_historical_value_pl(df, end_year=context.instance.model_end_year)
 
@@ -841,13 +841,13 @@ class FixedDataset(Dataset):
 
 @dataclass
 class JSONDataset(Dataset):
-    data: dict
+    data: dict[str, Any]
     unit: Unit | None
     df: ppl.PathsDataFrame = field(init=False)
 
     def __post_init__(self):
         super().__post_init__()
-        self.df = JSONDataset.deserialize_df(self.data)  # type: ignore[override]
+        self.df = JSONDataset.deserialize_df(self.data)
         meta = self.df.get_meta()
         if len(meta.units) == 1:
             self.unit = next(iter(meta.units.values()))
@@ -866,7 +866,7 @@ class JSONDataset(Dataset):
         return cast('Unit', self.unit)
 
     @classmethod
-    def deserialize_df(cls, value: dict) -> ppl.PathsDataFrame:
+    def deserialize_df(cls, value: dict[str, Any]) -> ppl.PathsDataFrame:
         import pandas as pd
         from pint_pandas import PintType
 
@@ -881,7 +881,7 @@ class JSONDataset(Dataset):
         return ppl.from_pandas(df)
 
     @classmethod
-    def serialize_df(cls, pdf: ppl.PathsDataFrame, add_uuids: bool = False) -> dict:
+    def serialize_df(cls, pdf: ppl.PathsDataFrame, add_uuids: bool = False) -> dict[str, Any]:
         units = {}
         df = pdf.to_pandas()
         df = df.copy()

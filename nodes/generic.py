@@ -176,14 +176,11 @@ class GenericNode(SimpleNode):
             if edge_or_node_tags.intersection(TAG_TO_BASKET.keys()):
                 continue
             # Untagged: assign by unit compatibility
-            try:
-                out_df = node.get_output_pl(target_node=self)
-                df_unit = out_df.get_unit(VALUE_COLUMN)
-                if self.is_compatible_unit(self.unit, df_unit):
-                    add_nodes.append(node)
-                else:
-                    multiply_nodes.append(node)
-            except Exception:
+            out_df = node.get_output_pl(target_node=self)
+            df_unit = out_df.get_unit(VALUE_COLUMN)
+            if self.is_compatible_unit(self.unit, df_unit):
+                add_nodes.append(node)
+            else:
                 multiply_nodes.append(node)
         return add_nodes, multiply_nodes
 

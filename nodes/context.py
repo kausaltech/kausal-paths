@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     import networkx  # noqa: ICN001
     from rich.repr import RichReprResult
 
+    from kausal_common.perf.perf_context import PerfRunContext
+
     from nodes.explanations import NodeExplanationSystem
     from params import Parameter
     from params.storage import SettingStorage
@@ -156,6 +158,9 @@ class Context:
 
     perf_context: PerfContext[Node]
     """Performance context for the context."""
+
+    perf_run: PerfRunContext[Node] | None = None
+    """Performance run context for the current execution run."""
 
     node_graph: networkx.DiGraph[str]
     """Directed NetworkX graph for the nodes and edges in the model."""
@@ -711,8 +716,9 @@ class Context:
             )
             stack.enter_context(span_ctx)
             stack.enter_context(self.cache)
-            stack.enter_context(self.perf_context)
+            self.perf_run = stack.enter_context(self.perf_context)
             yield
+        self.perf_run = None
 
     def clean(self):
         for param in self.get_all_parameters():

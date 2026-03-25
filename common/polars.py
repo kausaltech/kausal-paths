@@ -566,6 +566,7 @@ class PathsDataFrame(pl.DataFrame):
         from rich.console import Console
         from rich.table import Table
 
+        console = Console()
         table = Table()
         for col in self.columns:
             col_newlines = col.replace('@', '\n').replace(':', ':\n')
@@ -578,7 +579,6 @@ class PathsDataFrame(pl.DataFrame):
                 else:
                     vals.append(val)
             table.add_row(*vals)
-        console = Console()
         console.print(table)
 
     def select_category(

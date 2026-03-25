@@ -17,6 +17,7 @@ from polars.datatypes.group import INTEGER_DTYPES, NUMERIC_DTYPES
 from rich import print as pprint
 from sentry_sdk.consts import SPANSTATUS
 
+from kausal_common.deployment import env_bool
 from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
 
 from paths.const import NODE_CALC_OP
@@ -63,6 +64,19 @@ if typing.TYPE_CHECKING:
     from .models import NodeConfig
     from .node_cache import NodeHasher
     from .scenario import Scenario
+
+
+DEBUG_NODE_EXCEPTIONS = env_bool('DEBUG_NODE_EXCEPTIONS', default=False)
+
+
+def post_mortem_possibly(e: Exception):
+    global DEBUG_NODE_EXCEPTIONS  # noqa: PLW0603
+    if DEBUG_NODE_EXCEPTIONS:
+        from kausal_common.debugging import post_mortem
+
+        # post_mortem() only once
+        DEBUG_NODE_EXCEPTIONS = False
+        post_mortem(e)
 
 
 class NodeMetric:
@@ -1107,12 +1121,17 @@ class Node:
             try:
                 df, cache_res = self._get_output_pl(target_node=target_node, metric=metric, skip_dim_test=skip_dim_test)
             except Exception as e:
-                if isinstance(e, NodeComputationError):
-                    e.add_node(self)
-                    raise
+                attrs: list[tuple[str, str]] = []
+                if metric:
+                    attrs.append(('metric', metric))
                 if target_node:
-                    raise NodeComputationError(self, "Error getting output for node '%s'" % target_node.id) from e
-                raise NodeComputationError(self, 'Error getting output') from e
+                    attrs.append(('target_node', target_node.id))
+                event_str = ' (%s)' % ', '.join([f'{k}={v}' for k, v in attrs]) if attrs else ''
+                if isinstance(e, NodeError):
+                    e.add_node_event(self, 'get_output%s' % event_str)
+                    raise
+                raise NodeComputationError(self, 'get_output%s' % event_str) from e
+
             if span is not None:
                 if cache_res is None or not cache_res.is_hit:
                     span.set_data('cache', 'miss')
@@ -1144,8 +1163,11 @@ class Node:
                 df = self.compute()
             except Exception as e:
                 self.context.log.error('Exception when computing node %s: %s' % (str(self), str(e)))
+                post_mortem_possibly(e)
+                if not isinstance(e, NodeError):
+                    raise NodeComputationError(self, 'compute') from e
                 raise
-            if df is None:
+            if df is None:  # pyright: ignore[reportUnnecessaryComparison]
                 raise NodeError(self, 'Node returned no output')
 
             if isinstance(df, pd.DataFrame):
@@ -1339,7 +1361,7 @@ class Node:
 
     def __str__(self):
         cls = type(self)
-        return '%s.%s(id=%s, instance=%s)' % (cls.__module__, cls.__name__, self.id, self.context.instance.id)
+        return '%s(id=%s)' % (cls.__name__, self.id)
 
     def __repr__(self):
         return self.__str__()

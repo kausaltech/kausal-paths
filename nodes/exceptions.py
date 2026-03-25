@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Literal
 
 if TYPE_CHECKING:
@@ -11,28 +12,36 @@ if TYPE_CHECKING:
 type NodeErrorCode = Literal['hash_error', 'computation_error', 'no_default_unit_error']
 
 
+@dataclass
+class NodeEvent:
+    node: Node
+    event: str | None = None
+
+    def __str__(self):
+        if self.event:
+            return '%s: %s' % (self.node.id, self.event)
+        return '%s' % self.node.id
+
+
 class NodeError(Exception):
     error_code: ClassVar[NodeErrorCode | None] = None
-    node_paths: list[str] = []
+    event_chain: list[NodeEvent] = []
 
     def __init__(self, node: Node, msg: str, *args, **kwargs):
-        self.node_paths = []
-        msg = '[%s] %s' % (str(node), msg)
-        super().__init__(msg, *args, **kwargs)
+        self.event_chain = [NodeEvent(node, msg)]
+        msg_with_id = 'Node %s: %s' % (node.id, msg)
+        super().__init__(msg_with_id, *args, **kwargs)
 
-    def add_node(self, node: Node):
-        self.node_paths.append(node.id)
+    def add_node_event(self, node: Node, event: str | None = None):
+        self.event_chain.append(NodeEvent(node, event))
 
-    def get_dependency_path(self):
-        node_ids = list(reversed(self.node_paths))
-        node_ids[0] += ' (start node)'
-        node_ids[-1] += ' (failed node)'
-        return ' -> '.join(node_ids)
+    def get_event_chain(self) -> str:
+        return ' -> '.join([str(event) for event in reversed(self.event_chain)])
 
     def __str__(self):
         msg = super().__str__()
-        if self.node_paths:
-            msg += '\nNode dependency path: %s' % self.get_dependency_path()
+        if len(self.event_chain) > 1:
+            msg += '\nEvent chain: %s' % self.get_event_chain()
         return msg
 
 

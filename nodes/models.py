@@ -530,6 +530,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         if self.config_source == 'database':
             from .instance_from_db import serialize_instance_to_dict
 
+            self.log.debug('Creating instance from database')
             config = serialize_instance_to_dict(self)
             loader = InstanceLoader(config=config)
             return loader.instance
@@ -539,6 +540,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             instance = fwc.create_model_instance(self)
         else:
             config_fn = Path(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
+            self.log.debug('Creating instance from YAML file: %s' % config_fn)
             loader = InstanceLoader.from_yaml(config_fn)
             instance = loader.instance
         return instance

@@ -317,7 +317,11 @@ class Command(BaseCommand):
         if self.compare and not self.state_dir:
             self.logger.error('--compare requires --state-dir')
             exit(1)
-        if not instance_ids:
+
+        only_instance = options['only']
+        if only_instance:
+            instance_ids = [only_instance]
+        elif not instance_ids:
             self.logger.info('No instances provided, checking all instances')
             if self.compare:
                 instance_ids = list(self.state.checked_instances - self.state.failed_instances)
@@ -336,6 +340,7 @@ class Command(BaseCommand):
                 continue
             if options['skip'] and iid in options['skip']:
                 continue
+
             ic = InstanceConfig.objects.get(identifier=iid)
             if ic.has_framework_config():
                 continue

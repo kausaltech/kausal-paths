@@ -3,12 +3,15 @@
 Quick debug tool for investigating DB-backed vs YAML-backed model instances.
 
 Usage examples:
+    # Sync YAML → DB, then compute from DB
+    python tools/debug_instance.py -i espoo --sync --node net_emissions --filter 2020-2024,T
+
     # Compare YAML vs DB output for a node
-    python debug_instance.py -i espoo --node net_emissions --filter 2020-2024,T
-    python debug_instance.py -i espoo --source db --node net_emissions --filter 2020-2024,T
+    python tools/debug_instance.py -i espoo --source yaml --node net_emissions --filter 2020-2024,T
+    python tools/debug_instance.py -i espoo --source db --node net_emissions --filter 2020-2024,T
 
     # Eval Python with instance/ctx/node in scope
-    python debug_instance.py -i espoo --source db -c "
+    python tools/debug_instance.py -i espoo --source db -c "
         for n in ctx.nodes.values():
             if not n.input_dataset_instances:
                 continue
@@ -16,14 +19,14 @@ Usage examples:
     "
 
     # Check a specific node's edges and inputs
-    python debug_instance.py -i espoo --source db --node building_heating_emissions -c "
+    python tools/debug_instance.py -i espoo --source db --node building_heating_emissions -c "
         for e in node.edges:
             if e.output_node.id == node.id:
                 print(f'{e.input_node.id} -> tags={e.tags}')
     "
 
     # Diff a node's config dict between YAML and DB
-    python debug_instance.py -i espoo --diff-node building_type_index
+    python tools/debug_instance.py -i espoo --diff-node building_type_index
 """
 
 # ruff: noqa: E402
@@ -31,7 +34,7 @@ from __future__ import annotations
 
 from kausal_common.development.django import init_django
 
-from common.cache import CacheKind
+from nodes.exceptions import NodeError
 
 init_django()
 
@@ -42,6 +45,7 @@ import textwrap
 from pathlib import Path
 from typing import Any
 
+from common.cache import CacheKind
 from nodes.instance_loader import InstanceLoader
 from nodes.models import InstanceConfig
 
@@ -138,37 +142,10 @@ def _diff_node(instance_id: str, node_id: str) -> None:
     sys.stdout.writelines(diff)
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Debug model instances (YAML vs DB)')
-    parser.add_argument('-i', '--instance', required=True, help='Instance identifier')
-    parser.add_argument('--source', choices=['yaml', 'db'], default='db', help='Config source (default: db)')
-    parser.add_argument('--node', help='Node identifier to inspect/compute')
-    parser.add_argument('--filter', help='Output filter (e.g. 2020-2024,T)')
-    parser.add_argument('--no-cache', action='store_true', help='Disable computation cache')
-    parser.add_argument('--flush-cache', action='store_true', help='Flush external cache')
-    parser.add_argument('--no-validation', action='store_true', default=True, help='Skip setup_validations (default: True)')
-    parser.add_argument('--with-validation', action='store_true', help='Enable setup_validations')
-    parser.add_argument('-c', '--code', help='Python code to eval (instance, ctx, node in scope)')
-    parser.add_argument('--diff-node', help='Diff a node config between YAML and DB')
-    parser.add_argument('-q', '--quiet', action='store_true', help='Suppress log output')
-
-    args = parser.parse_args()
-
-    if args.quiet:
-        from loguru import logger
-
-        logger.disable('nodes')
-        logger.disable('common')
-        logger.disable('dvc_pandas')
-
-    # Handle diff mode separately
-    if args.diff_node:
-        _diff_node(args.instance, args.diff_node)
-        return
-
+def _run_instance(args: argparse.Namespace) -> None:
+    """Load an instance and run the requested operation (eval, compute, or summary)."""
     skip_validation = args.no_validation and not args.with_validation
 
-    # Load instance
     if args.source == 'yaml':
         loader = _load_from_yaml(args.instance)
     else:
@@ -186,7 +163,6 @@ def main():
     if args.node:
         node = ctx.get_node(args.node)
 
-    # Eval mode
     if args.code:
         code = textwrap.dedent(args.code)
         ns = {
@@ -201,22 +177,64 @@ def main():
             exec(compile(code, '<debug>', 'exec'), ns)  # noqa: S102
         return
 
-    # Default: compute and print node output
     if node is not None:
         filters: list[str] = []
         if args.filter:
             filters = args.filter.split(',')
-
-        with ctx.run():
-            node.print_output(filters=filters or None)
+        try:
+            with ctx.run():
+                node.print_output(filters=filters or None)
+        except NodeError as e:
+            if e.event_chain:
+                print('Error in computing node %s\nEvent chain: %s' % (e.event_chain[0].node.id, e.get_event_chain()))
+            if e.__cause__:
+                raise e.__cause__ from None
+            raise
     else:
-        # No node specified, print instance summary
         print(f'Instance: {instance.id}')
         print(f'Source: {args.source}')
         print(f'Nodes: {len(ctx.nodes)}')
         print(f'Scenarios: {list(ctx.scenarios.keys())}')
         print(f'Global params: {list(ctx.global_parameters.keys())}')
         print(f'Dimensions: {list(ctx.dimensions.keys())}')
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Debug model instances (YAML vs DB)')
+    parser.add_argument('-i', '--instance', required=True, help='Instance identifier')
+    parser.add_argument('--source', choices=['yaml', 'db'], default='db', help='Config source (default: db)')
+    parser.add_argument('--node', help='Node identifier to inspect/compute')
+    parser.add_argument('--filter', help='Output filter (e.g. 2020-2024,T)')
+    parser.add_argument('--no-cache', action='store_true', help='Disable computation cache')
+    parser.add_argument('--flush-cache', action='store_true', help='Flush external cache')
+    parser.add_argument('--no-validation', action='store_true', default=True, help='Skip setup_validations (default: True)')
+    parser.add_argument('--with-validation', action='store_true', help='Enable setup_validations')
+    parser.add_argument('--sync', action='store_true', help='Sync YAML → DB before loading (implies --source db)')
+    parser.add_argument('-c', '--code', help='Python code to eval (instance, ctx, node in scope)')
+    parser.add_argument('--diff-node', help='Diff a node config between YAML and DB')
+    parser.add_argument('-q', '--quiet', action='store_true', help='Suppress log output')
+
+    args = parser.parse_args()
+
+    if args.quiet:
+        from loguru import logger
+
+        from kausal_common.logging.handler import loguru_logfmt_sink
+
+        logger.remove()
+        logger.add(loguru_logfmt_sink, format='{message}', level='WARNING')
+
+    if args.diff_node:
+        _diff_node(args.instance, args.diff_node)
+        return
+
+    if args.sync:
+        from nodes.spec_export import sync_instance_to_db
+
+        sync_instance_to_db(args.instance)
+        args.source = 'db'
+
+    _run_instance(args)
 
 
 if __name__ == '__main__':

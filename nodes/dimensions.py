@@ -64,7 +64,7 @@ class Dimension(I18nBaseModel):
     groups: list[DimensionCategoryGroup] = Field(default_factory=list)
     categories: list[DimensionCategory] = Field(default_factory=list)
     is_internal: bool = False
-    mtime_hash: str | None = None
+    mtime_hash: str | None = Field(default=None, exclude=True)
 
     _hash: bytes | None = PrivateAttr(default=None)
     _cat_map: OrderedDict[str, DimensionCategory] = PrivateAttr()

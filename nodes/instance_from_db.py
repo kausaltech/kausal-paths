@@ -248,6 +248,9 @@ def _build_edge_maps(
                 if transforms.get('to_dimensions'):
                     for entry in (output_entry, input_entry):
                         entry['to_dimensions'] = transforms['to_dimensions']
+                if transforms.get('metrics'):
+                    for entry in (output_entry, input_entry):
+                        entry['metrics'] = transforms['metrics']
 
         output_edges.setdefault(from_id, []).append(output_entry)
         input_edges.setdefault(to_id, []).append(input_entry)

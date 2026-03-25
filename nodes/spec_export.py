@@ -20,7 +20,6 @@ from nodes.defs import (
     ActionConfig,
     ActionGroupDef,
     DatasetRepoDef,
-    FormulaConfig,
     InstanceSpec,
     NodeSpec,
     OutputMetricDef,
@@ -31,13 +30,20 @@ from nodes.defs import (
 )
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from kausal_common.i18n.pydantic import I18nString
 
     from nodes.context import Context
+    from nodes.defs import (
+        FormulaConfig,
+    )
     from nodes.defs.node_defs import NodeSpecExtra
+    from nodes.edges import Edge, EdgeDimension
     from nodes.instance import Instance
     from nodes.node import Node, NodeMetric
     from nodes.scenario import Scenario, ScenarioKind
+    from params import Parameter
 
 
 def _to_ts(val: I18nString | None) -> TranslatedString | None:
@@ -62,7 +68,6 @@ def export_instance_spec(instance: Instance) -> InstanceSpec:
     )
 
     dataset_repo = _export_dataset_repo(ctx)
-    features = _export_features(instance)
     params = _export_global_params(ctx)
     action_groups = _export_action_groups(instance)
     scenarios = _export_scenarios(ctx)
@@ -71,7 +76,7 @@ def export_instance_spec(instance: Instance) -> InstanceSpec:
         years=years,
         dataset_repo=dataset_repo,
         dimensions=_export_dimensions(ctx),
-        features=features,
+        features=instance.features.model_dump(),
         params=params,
         action_groups=action_groups,
         scenarios=scenarios,
@@ -113,10 +118,7 @@ def export_node_spec(node: Node) -> NodeSpec:
 
 
 def _export_dimensions(ctx: Context) -> list[dict[str, Any]]:
-    dims: list[dict[str, Any]] = []
-    for dim in ctx.dimensions.values():
-        dims.append(dim.model_dump(exclude_none=True, exclude={'mtime_hash'}))
-    return dims
+    return [dim.model_dump(exclude_none=True) for dim in ctx.dimensions.values()]
 
 
 def _export_dataset_repo(ctx: Context) -> DatasetRepoDef:
@@ -124,30 +126,14 @@ def _export_dataset_repo(ctx: Context) -> DatasetRepoDef:
     if repo is None:
         return DatasetRepoDef()
     return DatasetRepoDef(
-        url=getattr(repo, 'repo_url', '') or '',
-        commit=getattr(repo, 'commit', None),
-        dvc_remote=getattr(repo, 'dvc_remote', None),
+        url=repo.repo_url,
+        commit=repo.target_commit_id,
+        dvc_remote=repo.dvc_remote,
     )
 
 
-def _export_features(instance: Instance) -> dict[str, object]:
-    features = instance.features
-    if features is None:
-        return {}
-    # InstanceFeatures is a dataclass-like object; dump its fields.
-    if hasattr(features, '__dict__'):
-        return {k: v for k, v in features.__dict__.items() if not k.startswith('_')}
-    return {}
-
-
-def _export_global_params(ctx: Context) -> list[Any]:
-    params: list[Any] = []
-    for param in ctx.global_parameters.values():
-        try:
-            params.append(param.model_copy())
-        except Exception:
-            logger.warning('Could not export global parameter {id}', id=param.local_id)
-    return params
+def _export_global_params(ctx: Context) -> list[Parameter]:
+    return [param.model_copy() for param in ctx.global_parameters.values()]
 
 
 def _export_action_groups(instance: Instance) -> list[ActionGroupDef]:
@@ -217,10 +203,7 @@ def _export_type_config(node: Node) -> FormulaConfig | ActionConfig | SimpleConf
                 decision_level = str(node.decision_level)
         return ActionConfig(decision_level=decision_level)
 
-    # Check if the node has a formula attribute (FormulaNode, etc.)
-    formula = getattr(node, 'formula', None)
-    if formula is not None:
-        return FormulaConfig(formula=str(formula))
+    assert not hasattr(node, 'formula')
 
     return SimpleConfig()
 
@@ -233,14 +216,14 @@ def _export_output_metrics(node: Node) -> list[OutputMetricDef]:
 
 
 def _export_metric(metric_id: str, metric: NodeMetric) -> OutputMetricDef:
-    unit = metric.unit
-    unit_str = str(unit) if unit is not None else ''
-    if not unit_str and unit is not None and unit.dimensionless:
-        unit_str = 'dimensionless'
+    assert metric.unit is not None
+    unit = str(metric.unit)
+    if not unit and metric.unit.dimensionless:
+        unit = 'dimensionless'
     return OutputMetricDef(
         id=metric_id,
         label=_to_ts(metric.label),
-        unit=unit_str,
+        unit=unit,
         quantity=metric.quantity or '',
     )
 
@@ -310,12 +293,128 @@ def _export_node_extra(node: Node) -> NodeSpecExtra:
     )
 
 
-def _export_node_params(node: Node) -> list[Any]:
+def _export_node_params(node: Node) -> list[Parameter]:
     """Export node-local parameters (including reference params)."""
-    params: list[Any] = []
-    for param in node.parameters.values():
-        try:
-            params.append(param.model_copy())
-        except Exception:
-            logger.warning('Could not export parameter {id} on node {node}', id=param.local_id, node=node.id)
-    return params
+    return [param.model_copy() for param in node.parameters.values()]
+
+
+# ---------------------------------------------------------------------------
+# Edge serialization
+# ---------------------------------------------------------------------------
+
+
+def serialize_edge_dimension(dim_id: str, ed: EdgeDimension) -> dict[str, Any]:
+    """Serialize an EdgeDimension to the YAML-compatible dict format."""
+    d: dict[str, Any] = {'id': dim_id}
+    cat_ids = [c.id for c in ed.categories]
+    if cat_ids:
+        d['categories'] = cat_ids
+    if ed.flatten:
+        d['flatten'] = True
+    if ed.exclude:
+        d['exclude'] = True
+    return d
+
+
+def edge_to_transforms(edge: Edge) -> dict[str, Any]:
+    """
+    Convert runtime Edge dimension mappings to a dict with from/to separated.
+
+    Also includes `metrics` (list of metric IDs to pass through), since
+    NodeEdge doesn't have a dedicated field for it yet.
+    """
+    result: dict[str, Any] = {}
+    if edge.from_dimensions:
+        result['from_dimensions'] = [serialize_edge_dimension(dim_id, ed) for dim_id, ed in edge.from_dimensions.items()]
+    if edge.to_dimensions:
+        result['to_dimensions'] = [serialize_edge_dimension(dim_id, ed) for dim_id, ed in edge.to_dimensions.items()]
+    if edge.metrics:
+        result['metrics'] = list(edge.metrics)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Full sync: runtime → DB
+# ---------------------------------------------------------------------------
+
+
+def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -> None:  # noqa: C901
+    """
+    Load an instance from YAML and sync its spec to the DB.
+
+    If yaml_path is not given, tries configs/{instance_id}.yaml.
+    """
+    from pathlib import Path as _Path
+
+    from django.db import transaction
+
+    from nodes.instance_loader import InstanceLoader
+    from nodes.models import InstanceConfig, NodeConfig, NodeEdge
+
+    if yaml_path is None:
+        yaml_path = _Path(f'configs/{instance_id}.yaml').resolve()
+    else:
+        yaml_path = _Path(yaml_path).resolve()
+
+    if not yaml_path.exists():
+        # Try globbing
+        for p in _Path('configs').glob(f'{instance_id}*.yaml'):
+            yaml_path = p.resolve()
+            break
+
+    loader = InstanceLoader.from_yaml(yaml_path)
+    instance = loader.instance
+    ctx = loader.context
+
+    instance_spec = export_instance_spec(instance)
+
+    with transaction.atomic():
+        ic, _created = InstanceConfig.objects.get_or_create(identifier=instance.id)
+        ic.spec = instance_spec
+        ic.config_source = 'database'
+        ic.save()
+
+        # Update or create node configs
+        existing_ncs = {nc.identifier: nc for nc in NodeConfig.objects.filter(instance=ic)}
+        node_configs: dict[str, NodeConfig] = {}
+        for node_id, node in ctx.nodes.items():
+            nc = existing_ncs.get(node_id)
+            if nc is None:
+                nc = NodeConfig(instance=ic, identifier=node_id)
+            nc.name = getattr(node, 'name', node_id)
+            nc.spec = export_node_spec(node)
+            nc.save()
+            node_configs[node_id] = nc
+
+        # Remove stale node configs
+        stale_ids = set(existing_ncs.keys()) - set(node_configs.keys())
+        if stale_ids:
+            NodeConfig.objects.filter(instance=ic, identifier__in=stale_ids).delete()
+
+        # Recreate edges
+        NodeEdge.objects.filter(instance=ic).delete()
+        edge_count = 0
+        for node in ctx.nodes.values():
+            for edge_obj in node.edges:
+                if edge_obj.input_node.id != node.id:
+                    continue  # only process outgoing edges from this node
+                from_nc = node_configs.get(edge_obj.input_node.id)
+                to_nc = node_configs.get(edge_obj.output_node.id)
+                if from_nc and to_nc:
+                    NodeEdge.objects.create(
+                        instance=ic,
+                        from_node=from_nc,
+                        to_node=to_nc,
+                        from_port='output',
+                        to_port=f'from_{edge_obj.input_node.id}',
+                        transformations=edge_to_transforms(edge_obj),
+                        tags=list(edge_obj.tags) if edge_obj.tags else [],
+                    )
+                    edge_count += 1
+
+    logger.info(
+        'Synced {id}: {nodes} nodes, {edges} edges',
+        id=instance.id,
+        nodes=len(node_configs),
+        edges=edge_count,
+    )
