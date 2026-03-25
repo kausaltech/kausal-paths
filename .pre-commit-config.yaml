@@ -1,0 +1,52 @@
+# $schema: https://www.schemastore.org/prek.json
+default_install_hook_types: [pre-commit, pre-push]
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: Format Python files with Ruff
+        types: [python]
+        stages: [pre-commit, manual]
+        language: system
+        require_serial: true
+        entry: ruff format --force-exclude
+
+      - id: run-ruff-autofix
+        name: Autofix linting errors with Ruff
+        types: [python]
+        stages: [pre-commit, manual]
+        language: system
+        require_serial: true
+        entry: ruff check --fix --force-exclude
+
+      - id: run-ruff
+        name: Run Ruff
+        types: [python]
+        stages: [pre-commit, manual]
+        language: script
+        require_serial: true
+        entry: kausal_common/development/git-hooks/ruff-pre-commit.sh
+
+      - id: run-pyproject-fmt
+        name: Run Pyproject Fmt
+        types: [toml]
+        files: "^pyproject\\.toml$"
+        stages: [pre-commit, manual]
+        language: system
+        entry: uv tool run pyproject-fmt
+
+      - id: check-submodules
+        name: Check submodules
+        stages: [pre-push, manual]
+        types: [directory]
+        language: script
+        require_serial: true
+        entry: kausal_common/development/git-hooks/check-submodules.sh
+
+      - id: run-mypy-pre-push
+        name: Run Mypy
+        types: [python]
+        stages: [pre-push, manual]
+        language: script
+        require_serial: true
+        entry: kausal_common/development/git-hooks/mypy-pre-push.sh
