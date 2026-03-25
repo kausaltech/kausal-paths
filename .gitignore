@@ -50,3 +50,4 @@ celerybeat-schedule
 /schema*.graphql
 /.devstate
 /__generated__
+mise.local.toml

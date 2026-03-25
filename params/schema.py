@@ -7,7 +7,7 @@ from graphql.error import GraphQLError
 
 from paths.graphql_helpers import ensure_instance
 
-from . import BoolParameter, NumberParameter, Parameter, PercentageParameter, StringParameter, ValidationError
+from . import BoolParameter, NumberParameter, Parameter, StringParameter, ValidationError
 
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo
@@ -51,7 +51,6 @@ class ParameterInterface(graphene.Interface[Parameter[Any, Any]]):
             BoolParameter: BoolParameterType,
             NumberParameter: NumberParameterType,
             StringParameter: StringParameterType,
-            PercentageParameter: NumberParameterType,
         }
         # Try to find the parameter type by going through the superclasses
         # of the parameter instance.

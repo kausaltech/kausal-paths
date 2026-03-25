@@ -4,7 +4,11 @@ import importlib
 import inspect
 import pkgutil
 from functools import cache
+from importlib.util import find_spec
 from pathlib import Path
+from typing import Annotated
+
+from pydantic import Field
 
 from params.global_params import (
     BoolGlobalParameter,
@@ -35,7 +39,11 @@ def discover_global_parameters() -> dict[str, Parameter]:
 
     this_pkg = __package__
     this_path = Path(__file__).parent
-    pkgs = pkgutil.iter_modules([str(this_path)], prefix='%s.' % this_pkg)
+    pkgs = list(pkgutil.iter_modules([str(this_path)], prefix='%s.' % this_pkg))
+    nodes = find_spec('nodes.actions')
+    assert nodes is not None
+    assert nodes.submodule_search_locations
+    pkgs.extend(pkgutil.iter_modules(nodes.submodule_search_locations, prefix='nodes.actions.'))
 
     all_params: dict[str, Parameter] = {}
 
@@ -65,3 +73,21 @@ def discover_global_parameters() -> dict[str, Parameter]:
             all_params[param_id] = param
 
     return all_params
+
+
+@cache
+def get_parameter_type_union():
+    from typing import Union  # pyright: ignore[reportDeprecated]
+
+    from .registry import param_type_registry
+
+    discover_global_parameters()
+    return Union[tuple(param_type_registry)]  # noqa: UP007  # pyright: ignore[reportDeprecated]
+
+
+@cache
+def get_parameter_pydantic_annotation():
+    return Annotated[get_parameter_type_union(), Field(discriminator='type')]
+
+
+type AnyParameter = get_parameter_pydantic_annotation()  # type: ignore[valid-type]

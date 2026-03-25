@@ -18,7 +18,6 @@ def test_context_get_parameter_global(context: Context, parameter: Parameter[Any
 
 
 def test_context_get_parameter_local(context: Context, node: Node, parameter: Parameter[Any]):
-    parameter.context = None
     node.add_parameter(parameter)
     assert parameter.global_id != parameter.local_id
     assert context.get_parameter(parameter.global_id) == parameter

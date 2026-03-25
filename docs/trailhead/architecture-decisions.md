@@ -25,12 +25,12 @@ model, rather than spreading it across dozens of individual Django model fields.
 **What stays as Django fields:**
 - Identity: `identifier`, `instance` (FK), `name`, i18n fields
 - Display/CMS: `color`, `order`, `is_visible`, `body` (StreamField), descriptions
-- Relational: `action_group` (FK), `indicator_node` (FK to self)
+- Relational: `indicator_node` (FK to self)
 - Node type: `node_type` (determines Python class — fundamental to what a node *is*)
 
 **What goes into `spec`:**
 - `NodeSpec`: type-specific config, ports, output metrics, pipeline, params, `is_outcome`
-- `InstanceSpec`: year boundaries, dataset repo, features, params, action groups, scenarios
+- `InstanceSpec`: year boundaries, dataset repo, features, params, action groups, scenarios, dimensions
 
 **Schema changes** are handled via `RunPython` migrations that reshape the JSON
 data in place — simpler than coordinating `AddField` + `RunPython` + `RemoveField`.
@@ -49,13 +49,15 @@ data in place — simpler than coordinating `AddField` + `RunPython` + `RemoveFi
 **Example — `NodeSpec`:**
 ```python
 {
+    "node_class": "nodes.simple.AdditiveNode",
     "type_config": {"kind": "formula", "formula": "a + b"},
     "input_ports": [...],
     "output_ports": [...],
     "output_metrics": [{"id": "emissions", "unit": "kt/a", "quantity": "emissions"}],
     "pipeline": [...],
     "params": [...],
-    "is_outcome": false
+    "is_outcome": false,
+    "extra": {"historical_values": [...], "tags": [...]}
 }
 ```
 
@@ -138,3 +140,142 @@ to populate the `i18n` dict for a set of languages.
   the ability to translate into other languages.
 - When a parameter is bound to a `Context`, `resolve_languages()` can be
   called with the instance's supported languages to populate all translations.
+
+## 8. Runtime-to-DB export via introspection (not YAML re-parsing)
+
+**Decision:** The `sync_instance_to_db` command loads a YAML instance via the
+normal `InstanceLoader` path, then introspects the live runtime objects
+(Instance, Node, Context, Scenario, etc.) to build `InstanceSpec` and `NodeSpec`.
+
+**Why:**
+- The runtime objects are already validated and fully resolved — no need to
+  re-parse YAML dicts and manually map fields.
+- Edge dimensions, dataset configs, and parameters are all available in their
+  final form on the runtime objects.
+- Single source of truth: if the YAML loader works, the data is correct.
+
+**Key files:**
+- `nodes/spec_export.py` — builds InstanceSpec/NodeSpec from live objects
+- `nodes/instance_from_db.py` — serializes DB specs back to config dicts for InstanceLoader
+- `nodes/management/commands/sync_instance_to_db.py` — management command
+
+## 9. NodeSpecExtra: the attic
+
+**Decision:** `NodeSpec.extra` is a `NodeSpecExtra` Pydantic model that holds
+legacy config fields we haven't properly modeled yet.
+
+**Why:**
+- The InstanceLoader reads many node config fields (`historical_values`,
+  `forecast_values`, `input_dataset_processors`, `tags`, etc.) that don't
+  yet have proper places in the NodeSpec schema.
+- Dumping them into an untyped `dict` loses validation. A typed attic model
+  lets us see what's there and plan removal.
+- Each field in `NodeSpecExtra` is a candidate for either promotion to a
+  proper NodeSpec field or removal when the corresponding YAML-era feature
+  is replaced.
+
+**Current contents:**
+- `historical_values`, `forecast_values` — create FixedDatasets at load time
+- `input_dataset_processors` — e.g. `["LinearInterpolation"]`
+- `tags` — node-level tags like `other_node` used for input node filtering
+- `other` — catch-all dict for anything else
+
+---
+
+# Known Hacks and Workarounds (to clean up later)
+
+## Dimensions stored as raw dicts in InstanceSpec
+
+`InstanceSpec.dimensions` is `list[dict[str, Any]]` — the raw YAML dimension
+config passed through without validation. Dimensions should eventually be
+proper Pydantic models, but some dimensions are created dynamically by node
+classes at runtime (e.g. `sector` from `HsyNode` with `is_internal=True`),
+so the schema needs to account for that distinction.
+
+## Edge transformations format
+
+`NodeEdge.transformations` stores a dict with `from_dimensions` and
+`to_dimensions` keys — the same format the InstanceLoader expects. This was
+changed from the original flat list of `{kind, dimension, ...}` transforms
+because that format conflated source-side and target-side dimension operations.
+The current format works but is just pass-through; it should eventually use
+proper Pydantic models matching `EdgeTransformation`.
+
+## TranslatedString in InstanceLoader.make_trans_string
+
+`make_trans_string` was patched to handle dict values (from Pydantic's
+compact TranslatedString serialization). When a parameter label is serialized
+as `{"en": "...", "fi": "..."}`, the original code would store the whole dict
+as the value for the default language key, producing broken TranslatedString
+objects. The fix detects dict values and constructs TranslatedString directly.
+
+## explanations.py label handling
+
+`_explain_column_filter` in `explanations.py` was patched to handle
+`TranslatedString` labels that might be dicts (from the Pydantic serialization
+round-trip). The root cause is that some code paths create parameters from
+dicts where labels aren't fully converted to TranslatedString. This should
+be fixed by ensuring all parameter labels are proper TranslatedString objects
+after deserialization.
+
+## Dimensionless unit serialization
+
+`str(pint.Unit('dimensionless'))` returns `''` (empty string). The export
+explicitly checks for dimensionless units and stores `'dimensionless'` to
+prevent the InstanceLoader from thinking the node has no unit.
+
+## InstanceLoader.generate_nodes_from_emission_sectors
+
+Patched to return early if no emission sectors are configured, rather than
+asserting that `emission_unit` is present. DB-backed instances don't use
+emission sectors (they have explicit node definitions).
+
+## AnyParameter dynamic union
+
+The `AnyParameter` type (discriminated union of all parameter types) must be
+built dynamically from the parameter type registry because action-specific
+types like `ShiftParameter` and `ReduceParameter` are registered at import
+time. `NodeSpec` and `InstanceSpec` use this type for their `params` field.
+The union is built via `params.discover.get_parameter_type_union()` and the
+cache must be cleared + models rebuilt after all node modules are imported.
+
+## Scenario parameter overrides
+
+Scenario overrides can set "magic" node parameters like `operations` and
+`categories` that change how GenericNode computes. These parameters exist
+on `GenericNode.allowed_parameters` but are only created when the node config's
+`params` list includes them. The export must include ALL node parameters
+(including ReferenceParameters) to ensure scenario overrides can find them.
+
+## ReferenceParameter serialization
+
+`ReferenceParameter` instances are serialized as `{"id": "param_id", "ref": "global_param_id"}`
+in the config dict, not as full Pydantic model dumps. The InstanceLoader
+reconstructs them from this format.
+
+## One known computation error in Espoo
+
+`road_traffic_emissions` → `road_traffic_mileage` fails with an error during
+DB-backed computation. This doesn't affect `net_emissions` output (the values
+match YAML exactly) but indicates a missing config field somewhere in the
+transport sub-graph. Needs investigation.
+
+---
+
+# Validation status
+
+**First successful DB-backed computation: Espoo `net_emissions` (2024-03-24)**
+
+YAML output:
+```
+2020: 903.086091 kt/a
+2021: 830.813897 kt/a
+2022: 897.153434 kt/a
+2023: 742.827907 kt/a
+2024: 708.86517  kt/a
+```
+
+DB output: **identical** (bit-for-bit match)
+
+135 nodes, 176 edges, 3 scenarios, 7 action groups, 4 global params,
+19 dimensions exported and loaded successfully from DB.

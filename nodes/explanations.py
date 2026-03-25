@@ -1007,7 +1007,10 @@ class DatasetRule(ValidationRule):
             vals.append(v)
         if ref:
             param = context.global_parameters[ref]
-            vals.append(_('global parameter %(label)s') % {'label': param.label})
+            label = param.label
+            if isinstance(label, dict):
+                label = next(iter(label.values()), '')
+            vals.append(_('global parameter %(label)s') % {'label': str(label)})
         drop: bool = d.get('drop_col', True)
         exclude: bool = d.get('exclude', False)
         if ''.join(vals):

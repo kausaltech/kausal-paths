@@ -85,6 +85,7 @@ parser.add_argument('--profile', action='store_true', help='profile computation 
 parser.add_argument('--disable-ext-cache', action='store_true', help='disable external cache')
 parser.add_argument('--cache-benchmark', action='store_true', help='Perform cache benchmarks')
 parser.add_argument('--generate-result-excel', type=str, metavar='FILENAME', help='Create an Excel file from model outputs')
+parser.add_argument('-q', '--quiet', action='store_true', help='Sshhhh!')
 parser.add_argument(
     '--format',
     choices=['long', 'wide'],
@@ -193,7 +194,8 @@ def print_db_datasets():
     console.print(table)
 
 
-print_db_datasets()
+if not args.quiet:
+    print_db_datasets()
 
 if args.pull_datasets:
     with start_span(name='pull-datasets', op='init') as span:

@@ -328,8 +328,7 @@ class Context:
             if param_id not in self.global_parameters:
                 continue
             param = self.global_parameters[param_id]
-            assert node not in param.subscription_nodes
-            param.subscription_nodes.append(node)
+            param.subscribe_changes(node)
 
     def get_node(self, id: str) -> Node:
         """
@@ -717,8 +716,10 @@ class Context:
 
     def clean(self):
         for param in self.get_all_parameters():
-            param.context = None
-            param.node = None
+            param._context = None
+            param._node = None
+            param._subscription_nodes = []
+            param._subscription_params = []
         for node in self.nodes.values():
             node.context = None  # type: ignore
             node.edges = []

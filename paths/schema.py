@@ -156,15 +156,13 @@ class PathsSchema(UnifiedSchema):
         )
 
         extensions = kwargs.pop('extensions', [])
-        extensions.extend(
-            [
-                LoggingTracingExtension(context_class=PathsGraphQLContext),
-                DetermineInstanceContextExtension,
-                PathsExecutionCacheExtension,
-                ActivateInstanceContextExtension,
-                PathsAuthenticationExtension,
-            ]
-        )
+        extensions.extend([
+            LoggingTracingExtension(context_class=PathsGraphQLContext),
+            DetermineInstanceContextExtension,
+            PathsExecutionCacheExtension,
+            ActivateInstanceContextExtension,
+            PathsAuthenticationExtension,
+        ])
         kwargs['extensions'] = extensions
         super().__init__(*args, **kwargs)
 

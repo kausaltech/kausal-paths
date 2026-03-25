@@ -25,6 +25,8 @@ def _apply_filters(df: ppl.PathsDataFrame, filters: list[str]) -> ppl.PathsDataF
                 years.append(int(f))
         elif f == 'S':
             df = df.sort(by=[YEAR_COLUMN, *df.dim_ids])
+        elif f == 'T':
+            df = df.paths.sum_over_dims(df.dim_ids)
         elif ':' in f:
             dim, cat = f.split(':')
             exprs.append(pl.col(dim).eq(cat))
@@ -42,7 +44,6 @@ def _apply_filters(df: ppl.PathsDataFrame, filters: list[str]) -> ppl.PathsDataF
 
 def _get_output_with_baseline(node: Node, filters: list[str] | None):
     df = node.get_output_pl()
-    meta = df.get_meta()
 
     if node.context.active_normalization:
         norm = node.context.active_normalization
@@ -54,7 +55,7 @@ def _get_output_with_baseline(node: Node, filters: list[str] | None):
     if filters:
         df = _apply_filters(df, filters)
 
-    if meta.dim_ids:
+    if df.dim_ids:
         df = df.paths.to_wide()
         if node.quantity in STACKABLE_QUANTITIES:
             df = df.with_columns(pl.sum_horizontal(df.metric_cols).alias('Total'))

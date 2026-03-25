@@ -1,28 +1,42 @@
 """
-Serialize model editor DB models to the dict format InstanceLoader expects.
+Serialize DB-stored specs to the dict format InstanceLoader expects.
 
-This module converts the relational models (InstanceConfig, NodeConfig,
-NodeEdge, DatasetPort, ActionGroup, Scenario) into the same dict structure
-that YAML config parsing produces, so the existing InstanceLoader machinery
-can consume it without changes.
+Reads InstanceConfig.spec and NodeConfig.spec (Pydantic models stored via
+SchemaField) and converts them to the same dict structure that YAML config
+parsing produces, so the existing InstanceLoader machinery can consume it.
+
+Edges and DatasetPorts are still read from their Django models.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from nodes.defs.instance_defs import ActionGroupDef, InstanceSpec, ScenarioDef
+    from nodes.defs.node_defs import NodeSpec
     from nodes.models import InstanceConfig, NodeConfig, NodeEdge
+    from params.base import Parameter
 
 
 def serialize_instance_to_dict(ic: InstanceConfig) -> dict[str, Any]:
     """Convert a DB-sourced InstanceConfig and its related models into a YAML-equivalent dict."""
-    config = _serialize_instance_metadata(ic)
-    _add_related_data(ic, config)
+    spec = ic.spec
+    config = _serialize_instance_metadata(ic, spec)
+    config['action_groups'] = [_serialize_action_group(ag) for ag in spec.action_groups]
+    config['scenarios'] = [_serialize_scenario(s) for s in spec.scenarios]
+
+    _add_nodes_and_edges(ic, config)
+    config['dimensions'] = spec.dimensions
     return config
 
 
-def _serialize_instance_metadata(ic: InstanceConfig) -> dict[str, Any]:
+def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceSpec) -> dict[str, Any]:
+    years = spec.years
+    repo = spec.dataset_repo
+
     config: dict[str, Any] = {
         'id': ic.identifier,
         'default_language': ic.primary_language,
@@ -30,71 +44,182 @@ def _serialize_instance_metadata(ic: InstanceConfig) -> dict[str, Any]:
         'owner': ic.organization.name if ic.organization_id else '',
         'site_url': ic.site_url,
         'supported_languages': list(ic.other_languages or []),
-        'target_year': ic.target_year,
-        'reference_year': ic.reference_year,
-        'minimum_historical_year': ic.minimum_historical_year,
-        'maximum_historical_year': ic.maximum_historical_year,
-        'model_end_year': ic.model_end_year or ic.target_year,
-        'emission_unit': ic.emission_unit or '',
-        'features': ic.features or {},
-        'parameters': ic.parameters or [],
+        'target_year': years.target,
+        'reference_year': years.reference,
+        'minimum_historical_year': years.min_historical,
+        'maximum_historical_year': years.max_historical,
+        'model_end_year': years.model_end or years.target,
+        'features': spec.features or {},
+        'params': [_param_to_dict(p) for p in cast('Sequence[Parameter]', spec.params)],
+        'dataset_repo': {
+            'url': repo.url,
+            'commit': repo.commit,
+            'dvc_remote': repo.dvc_remote,
+        },
     }
-
-    if ic.dataset_repo_url:
-        config['dataset_repo'] = {
-            'url': ic.dataset_repo_url,
-            'commit': ic.dataset_repo_commit,
-            'dvc_remote': ic.dataset_repo_dvc_remote,
-        }
-    else:
-        config['dataset_repo'] = {'url': '', 'commit': None, 'dvc_remote': None}
-
-    # Merge catch-all extra fields
-    if ic.extra:
-        for key, val in ic.extra.items():
-            config.setdefault(key, val)
-
     return config
 
 
-def _add_related_data(ic: InstanceConfig, config: dict[str, Any]) -> None:
-    from nodes.models import ActionGroup as ActionGroupModel, DatasetPort, NodeConfig, NodeEdge, Scenario as ScenarioModel
+def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> None:
+    from nodes.models import NodeConfig, NodeEdge
 
-    # Action groups
-    action_groups = ActionGroupModel.objects.filter(instance=ic).order_by('order')
-    config['action_groups'] = [_serialize_action_group(ag) for ag in action_groups]
-
-    # Pre-fetch related data
-    node_configs = list(NodeConfig.objects.filter(instance=ic).select_related('action_group'))
+    node_configs = list(NodeConfig.objects.filter(instance=ic))
     edges = list(NodeEdge.objects.filter(instance=ic).select_related('from_node', 'to_node'))
-    dataset_ports = list(DatasetPort.objects.filter(instance=ic).select_related('node', 'dataset', 'metric'))
 
-    # Build lookup maps
     output_edges, _input_edges = _build_edge_maps(edges)
-    datasets_by_node = _build_dataset_map(dataset_ports)
 
-    # Nodes and actions
     nodes_list: list[dict[str, Any]] = []
     actions_list: list[dict[str, Any]] = []
     for nc in node_configs:
         node_dict = _serialize_node_config(
             nc,
             output_nodes=output_edges.get(nc.identifier, []),
-            input_datasets=datasets_by_node.get(nc.identifier, []),
         )
-        if nc.node_type == 'action':
+        spec = nc.spec
+        if spec.type_config.kind == 'action':
             actions_list.append(node_dict)
         else:
             nodes_list.append(node_dict)
+
     config['nodes'] = nodes_list
     config['actions'] = actions_list
 
-    # Scenarios
-    scenarios = ScenarioModel.objects.filter(instance=ic)
-    config['scenarios'] = [_serialize_scenario(s) for s in scenarios]
 
-    # Dimensions placeholder
-    config.setdefault('dimensions', [])
+def _serialize_node_config(
+    nc: NodeConfig,
+    output_nodes: list[dict[str, Any]],
+) -> dict[str, Any]:
+    spec: NodeSpec = nc.spec
+    node: dict[str, Any] = {'id': nc.identifier}
+
+    if nc.name:
+        node['name'] = nc.name
+    if nc.i18n:
+        node.update(nc.i18n)
+
+    # Python class path
+    if spec.node_class:
+        node['type'] = spec.node_class
+
+    # Display fields (still on Django model)
+    if nc.color:
+        node['color'] = nc.color
+    if nc.order is not None:
+        node['order'] = nc.order
+    if not nc.is_visible:
+        node['is_visible'] = False
+
+    # Spec-derived fields
+    if spec.is_outcome:
+        node['is_outcome'] = True
+
+    # Output metrics → unit/quantity (for single-metric nodes) or output_metrics list
+    if spec.output_metrics:
+        if len(spec.output_metrics) == 1:
+            m = spec.output_metrics[0]
+            if m.unit:
+                node['unit'] = m.unit
+            if m.quantity:
+                node['quantity'] = m.quantity
+        else:
+            node['output_metrics'] = [{'id': m.id, 'unit': m.unit, 'quantity': m.quantity} for m in spec.output_metrics]
+
+    # Parameters
+    if spec.params:
+        params = cast('Sequence[Parameter]', spec.params)
+        node['params'] = [_param_to_dict(p) for p in params]
+
+    # Computation
+    if spec.pipeline is not None:
+        node['pipeline'] = spec.pipeline
+    if spec.input_ports:
+        node['input_ports'] = [p.model_dump() for p in spec.input_ports]
+    if spec.output_ports:
+        node['output_ports'] = [p.model_dump() for p in spec.output_ports]
+
+    # Type-config specifics
+    tc = spec.type_config
+    if tc.kind == 'formula':
+        node['formula'] = tc.formula
+    elif tc.kind == 'action' and tc.decision_level:
+        node['decision_level'] = tc.decision_level
+
+    # Datasets and dimensions from spec
+    if spec.input_datasets:
+        node['input_datasets'] = spec.input_datasets
+    if spec.input_dimensions:
+        node['input_dimensions'] = spec.input_dimensions
+    if spec.output_dimensions:
+        node['output_dimensions'] = spec.output_dimensions
+
+    # Legacy extra fields
+    extra = spec.extra
+    if extra.historical_values:
+        node['historical_values'] = extra.historical_values
+    if extra.forecast_values:
+        node['forecast_values'] = extra.forecast_values
+    if extra.input_dataset_processors:
+        node['input_dataset_processors'] = extra.input_dataset_processors
+    if extra.tags:
+        node['tags'] = extra.tags
+    if extra.other:
+        for key, val in extra.other.items():
+            node.setdefault(key, val)
+
+    # Edges (from Django models)
+    if output_nodes:
+        node['output_nodes'] = output_nodes
+
+    return node
+
+
+def _param_to_dict(p: Parameter) -> dict[str, Any]:
+    """Serialize a Parameter to the dict format InstanceLoader expects."""
+    from params.param import ReferenceParameter
+
+    if isinstance(p, ReferenceParameter):
+        return {'id': p.local_id, 'ref': p.target_id}
+    d = p.model_dump(exclude_none=True)
+    # InstanceLoader expects 'id', Pydantic model uses 'local_id'
+    d['id'] = d.pop('local_id')
+    return d
+
+
+def _serialize_action_group(ag: ActionGroupDef) -> dict[str, Any]:
+    result: dict[str, Any] = {'id': ag.id}
+    if ag.name:
+        result['name'] = str(ag.name)
+    if ag.color:
+        result['color'] = ag.color
+    return result
+
+
+def _serialize_scenario(scenario: ScenarioDef) -> dict[str, Any]:
+    result: dict[str, Any] = {'id': scenario.id}
+    if scenario.name:
+        result['name'] = str(scenario.name)
+    if scenario.description:
+        result['description'] = str(scenario.description)
+    if scenario.kind is not None and scenario.kind.value == 'default':
+        result['default'] = True
+    if scenario.all_actions_enabled:
+        result['all_actions_enabled'] = True
+
+    if scenario.params:
+        params = []
+        for override in scenario.params:
+            param: dict[str, Any] = {'id': override.parameter_id, 'value': override.value}
+            if override.node_id:
+                param['node'] = override.node_id
+            params.append(param)
+        result['params'] = params
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Edge and dataset helpers (unchanged — these read from Django models)
+# ---------------------------------------------------------------------------
 
 
 def _build_edge_maps(
@@ -110,151 +235,21 @@ def _build_edge_maps(
         output_entry: dict[str, Any] = {'id': to_id}
         input_entry: dict[str, Any] = {'id': from_id}
 
-        if edge.transformations:
+        if edge.tags:
             for entry in (output_entry, input_entry):
-                entry['tags'] = edge.tags or []
-            _add_dimension_transforms(output_entry, edge.transformations)
-            _add_dimension_transforms(input_entry, edge.transformations)
+                entry['tags'] = edge.tags
+        # transformations is stored as {'from_dimensions': [...], 'to_dimensions': [...]}
+        if edge.transformations:
+            transforms = edge.transformations
+            if isinstance(transforms, dict):
+                if transforms.get('from_dimensions'):
+                    for entry in (output_entry, input_entry):
+                        entry['from_dimensions'] = transforms['from_dimensions']
+                if transforms.get('to_dimensions'):
+                    for entry in (output_entry, input_entry):
+                        entry['to_dimensions'] = transforms['to_dimensions']
 
         output_edges.setdefault(from_id, []).append(output_entry)
         input_edges.setdefault(to_id, []).append(input_entry)
 
     return output_edges, input_edges
-
-
-def _build_dataset_map(dataset_ports: list[Any]) -> dict[str, list[dict[str, Any]]]:
-    result: dict[str, list[dict[str, Any]]] = {}
-    for dp in dataset_ports:
-        ds_entry: dict[str, Any] = {'id': dp.dataset.identifier}
-        if dp.metric:
-            ds_entry['metric'] = dp.metric.name
-        result.setdefault(dp.node.identifier, []).append(ds_entry)
-    return result
-
-
-def _serialize_action_group(ag: Any) -> dict[str, Any]:
-    result: dict[str, Any] = {'id': ag.identifier, 'name': ag.name}
-    if ag.color:
-        result['color'] = ag.color
-    if ag.i18n:
-        result.update(ag.i18n)
-    return result
-
-
-def _serialize_node_config(  # noqa: C901, PLR0912
-    nc: NodeConfig,
-    output_nodes: list[dict[str, Any]],
-    input_datasets: list[dict[str, Any]],
-) -> dict[str, Any]:
-    node: dict[str, Any] = {'id': nc.identifier}
-
-    if nc.name:
-        node['name'] = nc.name
-    if nc.i18n:
-        node.update(nc.i18n)
-
-    # Python class path stored in extra during import
-    if nc.extra and 'type' in nc.extra:
-        node['type'] = nc.extra['type']
-
-    for attr in ('quantity', 'unit', 'color', 'node_group'):
-        val = getattr(nc, attr)
-        if val:
-            node[attr] = val
-
-    if nc.order is not None:
-        node['order'] = nc.order
-    if nc.is_outcome:
-        node['is_outcome'] = True
-    if not nc.is_visible:
-        node['is_visible'] = False
-    if nc.params:
-        node['params'] = nc.params
-    if nc.input_ports:
-        node['input_ports'] = nc.input_ports
-    if nc.output_ports:
-        node['output_ports'] = nc.output_ports
-    if nc.pipeline is not None:
-        node['pipeline'] = nc.pipeline
-    if nc.formula:
-        node['formula'] = nc.formula
-
-    # Action-specific fields
-    if nc.node_type == 'action':
-        if nc.action_group:
-            node['group'] = nc.action_group.identifier
-        if nc.decision_level:
-            node['decision_level'] = nc.decision_level
-
-    if output_nodes:
-        node['output_nodes'] = output_nodes
-    # input_nodes are not serialized — edges are defined from the source side only.
-    # Including both output_nodes and input_nodes would cause duplicate edge errors.
-    if input_datasets:
-        node['input_datasets'] = input_datasets
-
-    # Merge extra fields (excluding 'type' which is handled above)
-    if nc.extra:
-        for key, val in nc.extra.items():
-            if key != 'type':
-                node.setdefault(key, val)
-
-    return node
-
-
-def _serialize_scenario(scenario: Any) -> dict[str, Any]:
-    result: dict[str, Any] = {'id': scenario.identifier, 'name': scenario.name}
-    if scenario.i18n:
-        result.update(scenario.i18n)
-    if scenario.description:
-        result['description'] = scenario.description
-    if scenario.kind == 'default':
-        result['default'] = True
-    if scenario.kind:
-        result['kind'] = scenario.kind
-    if scenario.all_actions_enabled:
-        result['all_actions_enabled'] = True
-
-    if scenario.parameter_overrides:
-        params = []
-        for override in scenario.parameter_overrides:
-            param: dict[str, Any] = {
-                'id': override.get('parameter_id', override.get('id', '')),
-                'value': override.get('value'),
-            }
-            if override.get('node_id'):
-                param['node'] = override['node_id']
-            params.append(param)
-        result['params'] = params
-
-    return result
-
-
-def _add_dimension_transforms(
-    edge_entry: dict[str, Any],
-    transformations: list[dict[str, Any]],
-) -> None:
-    """Convert edge transformations to from_dimensions/to_dimensions format."""
-    from_dims: list[dict[str, Any]] = []
-    to_dims: list[dict[str, Any]] = []
-
-    for t in transformations:
-        kind = t.get('kind', '')
-        if kind == 'flatten':
-            from_dims.append({'id': t['dimension'], 'flatten': True})
-        elif kind == 'select_categories':
-            entry: dict[str, Any] = {'id': t['dimension']}
-            if t.get('categories'):
-                entry['categories'] = t['categories']
-            if t.get('flatten'):
-                entry['flatten'] = True
-            if t.get('exclude'):
-                entry['exclude'] = True
-            to_dims.append(entry)
-        elif kind == 'assign_category':
-            to_dims.append({'id': t['dimension'], 'categories': [t['category']]})
-
-    if from_dims:
-        edge_entry['from_dimensions'] = from_dims
-    if to_dims:
-        edge_entry['to_dimensions'] = to_dims

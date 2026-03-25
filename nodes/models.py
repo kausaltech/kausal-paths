@@ -409,6 +409,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
     class Meta:
         verbose_name = _('Instance')
         verbose_name_plural = _('Instances')
+        ordering = ['id']
 
     def __str__(self) -> str:
         return self.get_name()
@@ -908,6 +909,7 @@ class InstanceHostname(models.Model):
         verbose_name = _('Instance hostname')
         verbose_name_plural = _('Instance hostnames')
         unique_together = (('instance', 'hostname'), ('hostname', 'base_path'))
+        ordering = ['instance', 'hostname', 'base_path']
 
     def __str__(self):
         return '%s at %s [basepath %s]' % (self.instance, self.hostname, self.base_path)
@@ -936,6 +938,7 @@ class InstanceToken(models.Model):
     class Meta:
         verbose_name = _('Instance token')
         verbose_name_plural = _('Instance tokens')
+        ordering = ['instance', '-created_at']
 
     def __str__(self) -> str:
         return 'Token for %s' % str(self.instance)
@@ -1025,6 +1028,7 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
         null=True,
         blank=True,
     )
+
     spec = SchemaField(schema=NodeSpec, default=NodeSpec)
 
     created_at = models.DateTimeField(default=timezone.now)
@@ -1038,6 +1042,7 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
     short_description_i18n: str | None
     description_i18n: str | None
     goal_i18n: str | None
+    indicates_nodes: RevMany[NodeConfig]
 
     search_fields = [
         index.AutocompleteField('identifier'),
@@ -1053,12 +1058,11 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
 
     _node: Node | None
 
-    indicates_nodes: RevMany[NodeConfig]
-
     class Meta:
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)
+        ordering = ['instance', 'order']
 
     @classmethod
     def permission_policy(cls) -> ParentInheritedPolicy[Self, InstanceConfig, NodeConfigQuerySet]:
@@ -1195,6 +1199,8 @@ class NodeDataset(models.Model):
     class Meta:
         verbose_name = _('Node dataset')
         verbose_name_plural = _('Node datasets')
+        unique_together = (('node', 'dataset'),)
+        ordering = ['node', 'dataset']
 
     def __str__(self) -> str:
         node_name = self.node.name or self.node.identifier
@@ -1244,6 +1250,9 @@ class NodeEdge(UUIDIdentifiedModel, UserModifiableModel):
         blank=True,
     )
 
+    objects: ClassVar[models.Manager[NodeEdge]] = models.Manager()
+    _default_manager: ClassVar[models.Manager[NodeEdge]]
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -1251,6 +1260,7 @@ class NodeEdge(UUIDIdentifiedModel, UserModifiableModel):
                 name='unique_edge_per_input_port',
             ),
         ]
+        ordering = ['instance', 'from_node', 'to_node', 'to_port']
         verbose_name = _('Node edge')
         verbose_name_plural = _('Node edges')
 
@@ -1287,8 +1297,13 @@ class DatasetPort(UUIDIdentifiedModel, UserModifiableModel):
         on_delete=models.PROTECT,
         related_name='node_ports',
     )
+    metric_id: int
+
+    objects: ClassVar[models.Manager[DatasetPort]] = models.Manager()
+    _default_manager: ClassVar[models.Manager[DatasetPort]]
 
     class Meta:
+        ordering = ['node', 'metric__order']
         constraints = [
             models.UniqueConstraint(
                 fields=['node', 'port_id'],

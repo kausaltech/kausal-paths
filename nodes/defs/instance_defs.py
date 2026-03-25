@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from kausal_common.i18n.pydantic import TranslatedString
 
 from common.types import ActionGroupIdentifier, NodeIdentifier, ParameterGlobalId, ScenarioIdentifier
 from nodes.scenario import ScenarioKind
-from params import AnyParameter
+from params.discover import AnyParameter
 
 
 class YearsDef(BaseModel):
@@ -64,3 +66,5 @@ class InstanceSpec(BaseModel):
     params: list[AnyParameter] = Field(default_factory=list)
     action_groups: list[ActionGroupDef] = Field(default_factory=list)
     scenarios: list[ScenarioDef] = Field(default_factory=list)
+    # Raw dimension configs — will be properly modeled later
+    dimensions: list[dict[str, Any]] = Field(default_factory=list)

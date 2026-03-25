@@ -416,6 +416,11 @@ class InstanceLoader:
         default = config.get(attr)
         if pop and default is not None:
             del config[attr]
+        # If default is already a TranslatedString or a multi-language dict, use it directly
+        if isinstance(default, TranslatedString):
+            return default
+        if isinstance(default, dict):
+            return TranslatedString(default_language=default_language, **default)
         langs = {}
         if default is not None:
             langs[self.config['default_language']] = default
@@ -758,10 +763,14 @@ class InstanceLoader:
         from nodes.node import Node
 
         for nc in self.config.get('nodes', []):
+            if nc['type'].startswith('nodes.'):
+                prefix = None
+            else:
+                prefix = 'nodes'
             try:
                 node_class = self.import_class(
                     nc['type'],
-                    'nodes',
+                    prefix,
                     allowed_classes=[Node],
                     disallowed_classes=[ActionNode],
                     node_id=nc['id'],
@@ -774,6 +783,9 @@ class InstanceLoader:
 
     def generate_nodes_from_emission_sectors(self):
         from nodes.simple import SectorEmissions
+
+        if not self.config.get('emission_sectors'):
+            return
 
         node_class = self.import_class(
             'SectorEmissions',
@@ -822,9 +834,13 @@ class InstanceLoader:
         from nodes.actions.action import ActionNode
 
         for nc in self.config.get('actions', []):
+            if nc['type'].startswith('nodes.'):
+                prefix = None
+            else:
+                prefix = 'nodes.actions'
             node_class = self.import_class(
                 nc['type'],
-                'nodes.actions',
+                prefix,
                 allowed_classes=[ActionNode],
                 node_id=nc['id'],
             )
@@ -1000,11 +1016,7 @@ class InstanceLoader:
             param.set_context(context)
             param.set(param_val)
 
-            sub_node_ids = pc.get('subscription_nodes', None)
-            if sub_node_ids is not None:
-                for node_id in sub_node_ids:
-                    sub_node = context.get_node(node_id)
-                    param.subscribe_changes(sub_node)
+            assert 'subscription_nodes' not in pc  # check for legacy
 
             context.add_global_parameter(param)
 

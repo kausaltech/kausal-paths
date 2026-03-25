@@ -74,7 +74,7 @@ class ReferenceParameter[ValueT = Any, SetValueT = ValueT](Parameter[ValueT, Set
         if target is None:
             raise Exception(f'ReferenceParameter {self.global_id} target parameter {self.target_id} not found')
         self._target = target
-        target.subscription_params.append(self)
+        target._subscription_params.append(self)
 
     def clean(self, value: Any) -> Any:
         raise NotImplementedError()
@@ -134,11 +134,6 @@ class NumberParameter(ParameterWithUnit[float, float | Quantity]):
         super().set(float_value, notify=notify)
         if unit is not None:
             self.unit = cast('Unit', unit)
-
-
-@parameter
-class PercentageParameter(NumberParameter):
-    unit_str: str | None = '%'
 
 
 @parameter

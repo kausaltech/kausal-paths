@@ -55,12 +55,11 @@ class ActionGroup:
 class EnabledParam(BoolParameter):
     def set_node(self, node: Node):
         super().set_node(node)
-        assert self.context is not None
+        assert self._context is not None
         # If the Instance defines a custom label for the 'enabled' parameter,
         # replace the default with it.
-        instance = self.context.instance
-        if instance.terms.enabled_label:
-            self.label = instance.terms.enabled_label
+        if self.instance.terms.enabled_label:
+            self.label = self.instance.terms.enabled_label
 
 
 ENABLED_PARAM = EnabledParam(
@@ -118,7 +117,7 @@ class ActionNode(Node):
             assert param.node is None
             self.add_parameter(param)
         assert isinstance(param, BoolParameter)
-        assert param.node == self
+        assert param._node == self
         if param.value is None:
             param.set(False, notify=False)
         self.enabled_param = param
@@ -470,6 +469,7 @@ class ImpactOverview:
         if has_cost:
             df = df.set_unit('Cost', df.get_unit('Cost') * unit_registry.a, force=True)
         df = df.set_unit('Effect', df.get_unit('Effect') * unit_registry.a, force=True)
+        cost_unit: Unit | None = None
         if is_same_unit:
             cost_unit = effect_unit = self.indicator_unit
         else:
@@ -501,7 +501,7 @@ class ImpactOverview:
             except pint.DimensionalityError as e:
                 raise Exception(f'Indicator unit {self.indicator_unit} is not compatible with Effect / Cost.') from e
 
-        def _unity(df: ppl.PathsDataFrame) -> float:
+        def _unity(_df: ppl.PathsDataFrame) -> float:
             return 1.0
 
         unit_adjustments = {
