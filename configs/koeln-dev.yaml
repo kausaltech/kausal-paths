@@ -15,11 +15,11 @@ owner: Köln Stadt
 theme_identifier: de-koeln
 target_year: 2035
 model_end_year: 2050
-reference_year: 2008
-minimum_historical_year: 2008
-maximum_historical_year: 2023
+reference_year: 2024
+minimum_historical_year: 2024 # 2008 when the historical data is in order.
+maximum_historical_year: 2024
 emission_unit: kt/a
-emission_forecast_from: 2022
+emission_forecast_from: 2025
 emission_dimensions: [scope]
 features:
   baseline_visible_in_graphs: true
@@ -439,6 +439,7 @@ nodes:
   output_dimensions: [sector, energy_carrier, vehicle_type]
   input_datasets:
   - id: koeln/historical_emissions
+    forecast_from: 2025
   params:
   - id: operations
     value: get_single_dataset,apply_multiplier
@@ -563,6 +564,24 @@ nodes:
     - id: energy_carrier
     - id: sector
       categories: [transport]
+
+- id: total_emissions
+  name_de: Gesamtemissionen
+  name_en: Total emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: emission_factors
+  - id: total_energy_use
+  params:
+  - id: formula
+    value: emission_factors * total_energy_use * constant
+  - id: constant
+    value: 1
+    unit: t/t_co2e
 
 - id: emission_factors_derived
   name_de: Emissionsfaktoren abgeleitet aus historischen Emissionen
