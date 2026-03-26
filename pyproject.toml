@@ -8,10 +8,6 @@ version = "1.0.0"
 requires-python = ">=3.14"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
@@ -263,6 +259,9 @@ module = [
 ignore_missing_imports = true
 
 [tool.pyright]
+# So Pyright resolves packages installed in .venv (Django, etc.).
+venvPath = "."
+venv = ".venv"
 stubPath = "./kausal_common/typings"
 exclude = [
   "Attic/",

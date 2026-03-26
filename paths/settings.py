@@ -550,7 +550,7 @@ if find_spec('daphne') is not None:
 
 if find_spec('kausal_paths_extensions') is not None:
     INSTALLED_APPS.append('kausal_paths_extensions')
-    from kausal_paths_extensions import register_settings
+    from kausal_paths_extensions import register_settings  # type: ignore[import-not-found]
 
     register_settings(locals())
 
