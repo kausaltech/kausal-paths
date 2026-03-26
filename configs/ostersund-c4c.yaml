@@ -9,8 +9,8 @@ dataset_repo:
 name: Östersund Greenhouse Gas Inventory
 owner: City of Östersund
 theme_identifier: eu-climate-4-cast
-target_year: 2030
-model_end_year: 2030
+target_year: 2040
+model_end_year: 2040
 reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2023
@@ -108,6 +108,10 @@ dimensions:
     label: Alkylate Gasoline
   - id: aviation_gasoline
     label: Aviation Gasoline
+  - id: biodiesel_fame
+    label: Biodiesel (FAME)
+  - id: biodiesel_hvo
+    label: Biodiesel (HVO)
   - id: biogas
     label: Biogas
   - id: diesel
