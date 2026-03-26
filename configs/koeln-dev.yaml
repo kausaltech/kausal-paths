@@ -7,7 +7,7 @@ supported_languages: [en]
 site_url: https://koeln-dev.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c5d07d401ee97bed2552ad0573117812272384de
+  commit: 73beccb754153b9b6761e7cdc7ea4cb39574e9e3
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Treibhausgasinventar
@@ -32,37 +32,37 @@ normalizations:
   - id: emissions
     unit: t/cap/a
 
-# Abfallreduktion & Anlageneffizienz		nicht aktiv, da nicht in Bilanz
-# Wasser-/Abwasserreduktion & Anlageneffizienz		Aktiv
-# Ernährung & Lebensmittel		nicht aktiv, da nicht in Bilanz
-# Aufforstung & nachhaltige Bewirtschaftung von Wäldern 		nicht aktiv, da nicht in Bilanz
-# Wiedervernässung organischer Böden		nicht aktiv, da nicht in Bilanz
-# Klimafreundlicheres Konsumverhalten der Bevölkerung		nicht aktiv, da nicht in Bilanz
-# Mobilitätswende - Nahmobilität		Basis (aktiv)
-# Antriebswende - Motorisierter Individualverkehr		Basis (aktiv)
-# Antriebswende - Güterverkehr		Basis (nicht aktiv)
-# Antriebswende - Bus		Basis (aktiv)
-# Mobilitätswende - Regionale Mobilität		Basis (aktiv)
-# Mobilitätswende - Güterverkehr		Basis (nicht aktiv)
-# Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen		Basis (aktiv)
-# Erneuerbare Stromerzeugung in der Fläche		Basis (aktiv)
-# Stromeinsparung durch Haushalte		Basis (nicht aktiv)
-# Stromeinsparung im Gewerbesektor 		Basis (aktiv)
-# Stromeinsparung in der Industrie		Basis (nicht aktiv)
-# Erneuerbare Stromerzeugung durch Kraftwerke		Basis (aktiv)
-# THG neutrale Verwaltung - Scope 1 & 2		Basis (aktiv)
-# THG neutrale Verwaltung - Scope 3		nicht aktiv, da nicht in Bilanz
-# Übergreifende Klimaschutzaspekte		Basis (aktiv)
-# Wärmequellenerschließung für Wärmenetze		Basis (aktiv)
-# Erweiterung und Verdichtung der Wärmenetze		Basis (nicht aktiv)
-# Dezentraler Heizungstausch in Haushalten 		Basis (nicht aktiv)
-# Sanierung Wohngebäude 		Basis (aktiv)
-# Effiziente Wärmenutzung im Industriesektor		Basis (nicht aktiv)
-# Neubau Wohngebäude		Basis (aktiv)
-# Verhaltensänderung beim Wärmeverbrauch in Haushalten 		Basis (nicht aktiv)
-# Dezentraler Heizungstausch im Gewerbe		Basis (aktiv)
-# Effiziente Wärmenutzung im Gewerbe		Basis (nicht aktiv)
-# Neubau Gewerbe/Industrie		Basis (nicht aktiv)
+# Abfallreduktion & Anlageneffizienz  nicht aktiv, da nicht in Bilanz
+# Wasser-/Abwasserreduktion & Anlageneffizienz  Aktiv
+# Ernährung & Lebensmittel  nicht aktiv, da nicht in Bilanz
+# Aufforstung & nachhaltige Bewirtschaftung von Wäldern   nicht aktiv, da nicht in Bilanz
+# Wiedervernässung organischer Böden  nicht aktiv, da nicht in Bilanz
+# Klimafreundlicheres Konsumverhalten der Bevölkerung  nicht aktiv, da nicht in Bilanz
+# Mobilitätswende - Nahmobilität  Basis (aktiv)
+# Antriebswende - Motorisierter Individualverkehr  Basis (aktiv)
+# Antriebswende - Güterverkehr  Basis (nicht aktiv)
+# Antriebswende - Bus  Basis (aktiv)
+# Mobilitätswende - Regionale Mobilität  Basis (aktiv)
+# Mobilitätswende - Güterverkehr  Basis (nicht aktiv)
+# Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen  Basis (aktiv)
+# Erneuerbare Stromerzeugung in der Fläche  Basis (aktiv)
+# Stromeinsparung durch Haushalte  Basis (nicht aktiv)
+# Stromeinsparung im Gewerbesektor   Basis (aktiv)
+# Stromeinsparung in der Industrie  Basis (nicht aktiv)
+# Erneuerbare Stromerzeugung durch Kraftwerke  Basis (aktiv)
+# THG neutrale Verwaltung - Scope 1 & 2  Basis (aktiv)
+# THG neutrale Verwaltung - Scope 3  nicht aktiv, da nicht in Bilanz
+# Übergreifende Klimaschutzaspekte  Basis (aktiv)
+# Wärmequellenerschließung für Wärmenetze  Basis (aktiv)
+# Erweiterung und Verdichtung der Wärmenetze  Basis (nicht aktiv)
+# Dezentraler Heizungstausch in Haushalten   Basis (nicht aktiv)
+# Sanierung Wohngebäude   Basis (aktiv)
+# Effiziente Wärmenutzung im Industriesektor  Basis (nicht aktiv)
+# Neubau Wohngebäude  Basis (aktiv)
+# Verhaltensänderung beim Wärmeverbrauch in Haushalten   Basis (nicht aktiv)
+# Dezentraler Heizungstausch im Gewerbe  Basis (aktiv)
+# Effiziente Wärmenutzung im Gewerbe  Basis (nicht aktiv)
+# Neubau Gewerbe/Industrie  Basis (nicht aktiv)
 
 include:
 - file: frameworks/standard_dims.yaml
@@ -71,7 +71,7 @@ include:
 # result_excels:
 # - base_excel_url: 
 #     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
-#   name: Comparison of different emission factors
+#   name_en: Comparison of different emission factors
 #   node_ids:
 #   - end_energy_emission_factors_local
 #   - end_energy_emission_factors_national
@@ -100,35 +100,35 @@ params:
 action_groups:
 
 - id: electricity
-  name: Strom
+  name_de: Strom
   name_en: Electricity
   color: '#FDB813'
 - id: heat
-  name: Wärme
+  name_de: Wärme
   name_en: Heat
   color: '#E67E22'
 - id: mobility
-  name: Mobilität
+  name_de: Mobilität
   name_en: Mobility
   color: '#3498DB'
 - id: consumption
-  name: Konsum
+  name_de: Konsum
   name_en: Consumption
   color: '#9B59B6'
 - id: waste_and_wastewater
-  name: Abfall & (Ab-)Wasser
+  name_de: Abfall & (Ab-)Wasser
   name_en: Waste & Wastewater
   color: '#27AE60'
 - id: food_and_land_use
-  name: Ernährung & Landnutzung
+  name_de: Ernährung & Landnutzung
   name_en: Food & Land Use
   color: '#2ECC71'
 - id: cross_cutting_climate_protection
-  name: Übergreifende Klimaschutzaspekte
+  name_de: Übergreifende Klimaschutzaspekte
   name_en: Cross-cutting Climate Protection Aspects
   color: '#1ABC9C'
 - id: administration
-  name: Verwaltung
+  name_de: Verwaltung
   name_en: Administration
   color: '#34495E'
 
@@ -403,7 +403,7 @@ nodes:
       value: 163
 
 - id: weather_correction
-  name: Witterungsbereinigung
+  name_de: Witterungsbereinigung
   name_en: Weather Correction
   type: generic.GenericNode
   quantity: ratio
@@ -429,22 +429,16 @@ nodes:
     column: einwohnerin
 
 - id: historical_emissions
-  name: Historische Emissionen
+  name_de: Historische Emissionen
   name_en: Historical emissions
   type: generic.GenericNode
   quantity: emissions
   unit: t/a
   color: '#00A969'
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
+  input_dimensions: [sector, energy_carrier, vehicle_type]
+  output_dimensions: [sector, energy_carrier, vehicle_type]
   input_datasets:
-  - id: koeln/koln_emissionen_update_2023
-    column: emissions
-    filters:
-    - column: energy_carrier
-      value: total
-      exclude: true
-      drop_col: false
+  - id: koeln/historical_emissions
   params:
   - id: operations
     value: get_single_dataset,apply_multiplier
@@ -452,20 +446,8 @@ nodes:
     value: 1
     unit: t/t_co2e
 
-- id: historical_emissions2
-  name: Historische Emissionen
-  name_en: Historical emissions from excel
-  type: generic.GenericNode
-  quantity: emissions
-  unit: t_co2e/a
-  color: '#00A969'
-  input_dimensions: [sector, energy_carrier, vehicle_type]
-  output_dimensions: [sector, energy_carrier, vehicle_type]
-  input_datasets:
-  - id: koeln/historical_emissions
-
 - id: stationary_energy_by_type
-  name: Stationäre Endenergieverbrauch nach Typ
+  name_de: Stationäre Endenergieverbrauch nach Typ
   name_en: Stationary energy use by type
   type: generic.GenericNode
   quantity: energy
@@ -474,9 +456,10 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/stationary_energy_by_type
+    forecast_from: 2025
 
 - id: vehicle_energy_by_type
-  name: Verkehrsenergieverbrauch nach Typ
+  name_de: Verkehrsenergieverbrauch nach Typ
   name_en: Vehicle energy use by type
   type: generic.GenericNode
   quantity: energy
@@ -485,9 +468,10 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: koeln/vehicle_energy_by_type
+    forecast_from: 2025
 
 - id: action_emission_shares
-  name: Emissionenanteil nach Maßnahme
+  name_de: Emissionenanteil nach Maßnahme
   name_en: Action emission shares
   type: formula.FormulaNode
   quantity: fraction
@@ -540,37 +524,48 @@ nodes:
     value: -1.0
     unit: t/t_co2e
 
-- id: net_emissions_historical # TODO Remove when no longer needed.
-  name: Historische Emissionen2
-  name_en: Historical emissions
+- id: transport_energy_by_energy_carrier
+  name_de: Transportenergieverbrauch nach Energieträger
+  name_en: Transport energy use by energy carrier
+  description_en: Data from Klimaschutz-Planer 2008-2023 (year 2023 unused
+    because other data is available).
   type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  color: '#00A969'
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_datasets:
-  - id: koeln/historische_emissionen
-    column: emissions
+  - id: koeln/transport_energy_by_energy_carrier
+    forecast_from: 2023
+  params:
+    operations: get_single_dataset,inventory_only
 
-- id: final_energy_use
-  name: Energieverbrauch
+- id: total_energy_use
+  name_de: Gesamtenergieverbrauch
+  name_en: Total energy use
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: koeln/koln_endenergie_update_2023
-    column: energy
-    filters:
-    - column: energy_carrier
-      value: total
-      exclude: true
-      drop_col: false
+  input_nodes:
+  - id: stationary_energy_by_type
+  - id: transport_energy_by_energy_carrier
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
+  - id: vehicle_energy_by_type
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
 
 - id: emission_factors_derived
-  name: Emissionsfaktoren abgeleitet aus historischen Emissionen
+  name_de: Emissionsfaktoren abgeleitet aus historischen Emissionen
   name_en: Emission factors derived from historical emissions
   type: formula.FormulaNode
   quantity: emission_factor
@@ -580,13 +575,19 @@ nodes:
   input_nodes:
   - id: historical_emissions
     tags: [emissions]
-  - id: final_energy_use
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: vehicle_energy_by_type
     tags: [energy]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
   params:
     formula: extend_all(drop_nans(emissions / energy))
 
 - id: sector_emission_factors_derived # Transport values added to the dataset for local emission facotrs.
-  name: Sektoren-Emissionsfaktoren abgeleitet aus historischen Emissionen
+  name_de: Sektoren-Emissionsfaktoren abgeleitet aus historischen Emissionen
   name_en: Sector emission factors derived from historical emissions
   type: formula.FormulaNode
   quantity: emission_factor
@@ -599,7 +600,9 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
-  - id: final_energy_use
+    - id: vehicle_type
+      flatten: true
+  - id: total_energy_use
     tags: [energy]
     from_dimensions:
     - id: energy_carrier
@@ -608,7 +611,7 @@ nodes:
     formula: emissions / energy
 
 - id: end_energy_emission_factors_national # From IFEU dataset
-  name: Endenergie Emissionsfaktoren national
+  name_de: Endenergie Emissionsfaktoren national
   name_en: End energy emission factors
   type: generic.GenericNode
   quantity: emission_factor
@@ -628,7 +631,7 @@ nodes:
     unit: g/g_co2e
 
 - id: end_energy_emission_factors_local
-  name: Endenergie Emissionsfaktoren lokal
+  name_de: Endenergie Emissionsfaktoren lokal
   name_en: End energy emission factors local
   type: generic.GenericNode
   quantity: emission_factor
@@ -645,7 +648,7 @@ nodes:
     unit: g/g_co2e
 
 - id: use_national_electricity_emission_factors
-  name: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO)
+  name_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO)
   name_en: Use national rather than local electricity emission factors (BISKO)
   type: generic.GenericNode
   quantity: fraction
@@ -664,7 +667,7 @@ nodes:
     value: 0.0
 
 - id: sector_index
-  name: Sektorenindex
+  name_de: Sektorenindex
   name_en: Sector index
   type: generic.GenericNode
   quantity: ratio
@@ -677,7 +680,7 @@ nodes:
     operations: get_single_dataset,extend_to_history
 
 - id: end_energy_emission_factors
-  name: Endenergie Emissionsfaktoren
+  name_de: Endenergie Emissionsfaktoren
   name_en: End energy emission factors
   type: formula.FormulaNode
   quantity: emission_factor
@@ -697,7 +700,7 @@ nodes:
     formula: bisko * national + complement(bisko) * local
 
 - id: electricity_emissions
-  name: Strom
+  name_de: Strom
   name_en: Electricity
   type: generic.GenericNode
   quantity: emissions
@@ -711,11 +714,13 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
+    - id: vehicle_type
+      flatten: true
   output_nodes:
   - id: emission_reductions
 
 - id: heat_emissions
-  name: Private Haushalte
+  name_de: Private Haushalte
   name_en: Private households
   type: generic.GenericNode
   quantity: emissions
@@ -732,11 +737,13 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [private_households]
+    - id: vehicle_type
+      flatten: true
   output_nodes:
   - id: net_emissions
 
 - id: transport_emissions
-  name: Verkehr
+  name_de: Verkehr
   name_en: Mobility
   type: generic.GenericNode
   quantity: emissions
@@ -753,11 +760,13 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [transport]
+    - id: vehicle_type # FIXME Do we want to flatten this?
+      flatten: true
   output_nodes:
   - id: net_emissions
 
 - id: industrial_emissions
-  name: Industrie
+  name_de: Industrie
   name_en: Industrial emissions
   type: generic.GenericNode
   quantity: emissions
@@ -774,11 +783,12 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [industry]
+    - id: vehicle_type
+      flatten: true
   output_nodes:
   - id: net_emissions
 
 - id: service_emissions
-  name: GHD
   name_en: Commerce, Trade & Services
   name_de: Gewerbe, Handel, Dienstleistungen
   type: generic.GenericNode
@@ -796,11 +806,13 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [commerce_trade_services]
+    - id: vehicle_type
+      flatten: true
   output_nodes:
   - id: net_emissions
 
 - id: municipality_building_emissions
-  name: Kommunale Einrichtungen
+  name_de: Kommunale Einrichtungen
   name_en: Municipality buildings
   type: generic.GenericNode
   quantity: emissions
@@ -817,11 +829,13 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [municipal_facilities]
+    - id: vehicle_type
+      flatten: true
   output_nodes:
   - id: net_emissions
 
 - id: emission_reductions
-  name: Emissionenreduktionen
+  name_de: Emissionenreduktionen
   name_en: Emission reductions
   type: generic.GenericNode
   quantity: emissions
@@ -834,7 +848,7 @@ nodes:
   - id: net_emissions
 
 - id: consumption_emissions
-  name: Konsum
+  name_de: Konsum
   name_en: Consumption
   type: generic.GenericNode
   quantity: emissions
@@ -846,7 +860,7 @@ nodes:
   - id: emission_reductions
 
 - id: waste_and_wastewater_emissions
-  name: Abfall & (Ab-)Wasser
+  name_de: Abfall & (Ab-)Wasser
   name_en: Waste & Wastewater
   color: '#27AE60'
   type: generic.GenericNode
@@ -858,7 +872,7 @@ nodes:
   - id: emission_reductions
 
 - id: food_and_land_use_emissions
-  name: Ernährung & Landnutzung
+  name_de: Ernährung & Landnutzung
   name_en: Food & Land Use
   color: '#2ECC71'
   type: generic.GenericNode
@@ -870,7 +884,7 @@ nodes:
   - id: emission_reductions
 
 - id: cross_cutting_climate_protection_emissions
-  name: Übergreifende Klimaschutzaspekte
+  name_de: Übergreifende Klimaschutzaspekte
   name_en: Cross-cutting Climate Protection Aspects
   color: '#1ABC9C'
   type: generic.GenericNode
@@ -882,7 +896,7 @@ nodes:
   - id: emission_reductions
 
 - id: administration_emissions
-  name: Verwaltung
+  name_de: Verwaltung
   name_en: Administration
   color: '#34495E'
   type: generic.GenericNode
@@ -894,7 +908,7 @@ nodes:
   - id: emission_reductions
 
 - id: electricity_emissions_total
-  name: Total Stromemissionen
+  name_de: Total Stromemissionen
   name_en: Total electricity emissions
   type: generic.GenericNode
   quantity: emissions
@@ -913,7 +927,7 @@ nodes:
   output_dimensions: [emission_scope]
 
 - id: heat_emissions_total
-  name: Total Wärmemissionen
+  name_de: Total Wärmemissionen
   name_en: Total heat emissions
   type: generic.GenericNode
   quantity: emissions
@@ -932,7 +946,7 @@ nodes:
   output_dimensions: [emission_scope]
 
 - id: transport_emissions_total
-  name: Total Verkehrsemissionen
+  name_de: Total Verkehrsemissionen
   name_en: Total transport emissions
   type: generic.GenericNode
   quantity: emissions
@@ -951,7 +965,7 @@ nodes:
   output_dimensions: [emission_scope]
 
 - id: industrial_emissions_total
-  name: Total Industrieemissionen
+  name_de: Total Industrieemissionen
   name_en: Total industrial emissions
   type: generic.GenericNode
   quantity: emissions
@@ -970,7 +984,7 @@ nodes:
   output_dimensions: [emission_scope]
 
 - id: service_emissions_total
-  name: Total GHDemissionen
+  name_de: Total GHDemissionen
   name_en: Total service emissions
   type: generic.GenericNode
   quantity: emissions
@@ -989,7 +1003,7 @@ nodes:
   output_dimensions: [emission_scope]
 
 - id: municipality_building_emissions_total
-  name: Total Kommunale Einrichtungenemissionen
+  name_de: Total Kommunale Einrichtungenemissionen
   name_en: Total municipality building emissions
   type: generic.GenericNode
   quantity: emissions
@@ -1008,7 +1022,7 @@ nodes:
   output_dimensions: [emission_scope]
 
 - id: consumption_emissions_total
-  name: Total Konsumemissionen
+  name_de: Total Konsumemissionen
   name_en: Total consumption emissions
   type: generic.GenericNode
   quantity: emissions
@@ -1027,7 +1041,7 @@ nodes:
   output_dimensions: [emission_scope]
 
 - id: waste_and_wastewater_emissions_total
-  name: Total Abfall- und (Ab-)Wasseremissionen
+  name_de: Total Abfall- und (Ab-)Wasseremissionen
   name_en: Total waste and wastewater emissions
   type: generic.GenericNode
   quantity: emissions
@@ -1046,7 +1060,7 @@ nodes:
   output_dimensions: [emission_scope]
 
 - id: food_and_land_use_emissions_total
-  name: Total Ernährung- und Landnutzungsemissionen
+  name_de: Total Ernährung- und Landnutzungsemissionen
   name_en: Total food and land use emissions
   type: generic.GenericNode
   quantity: emissions
@@ -1065,7 +1079,7 @@ nodes:
   output_dimensions: [emission_scope]
 
 - id: cross_cutting_climate_protection_emissions_total
-  name: Total Übergreifende Klimaschutzaspekteemissionen
+  name_de: Total Übergreifende Klimaschutzaspekteemissionen
   name_en: Total cross-cutting climate protection aspects emissions
   type: generic.GenericNode
   quantity: emissions
@@ -1084,7 +1098,7 @@ nodes:
   output_dimensions: [emission_scope]
 
 - id: administration_emissions_total
-  name: Total Verwaltungsemissionen
+  name_de: Total Verwaltungsemissionen
   name_en: Total administration emissions
   type: generic.GenericNode
   quantity: emissions
@@ -1103,7 +1117,7 @@ nodes:
       categories: [scope1]
 
 - id: traffic_actions
-  name: Verkehrsmaßnahmen
+  name_de: Verkehrsmaßnahmen
   name_en: Traffic actions
   type: generic.GenericNode
   quantity: emissions
@@ -1114,7 +1128,7 @@ nodes:
   - id: transport_emissions
 
 - id: private_household_actions
-  name: Privathaushaltsmaßnahmen
+  name_de: Privathaushaltsmaßnahmen
   name_en: Private household actions
   type: generic.GenericNode
   quantity: emissions
@@ -1125,7 +1139,7 @@ nodes:
   - id: heat_emissions
 
 - id: electricity_actions
-  name: Strommaßnahmen
+  name_de: Strommaßnahmen
   name_en: Electricity actions
   type: generic.GenericNode
   quantity: emissions
@@ -1136,7 +1150,7 @@ nodes:
   - id: electricity_emissions
 
 - id: now_year
-  name: Aktuelles Jahr
+  name_de: Aktuelles Jahr
   name_en: Current year
   type: generic.ConstantNode
   quantity: number
@@ -1147,7 +1161,7 @@ nodes:
     unit: dimensionless
 
 - id: scaling_rate
-  name: Skalierungsfaktor
+  name_de: Skalierungsfaktor
   name_en: Scaling rate
   type: formula.FormulaNode
   quantity: fraction
@@ -1176,7 +1190,7 @@ nodes:
     formula: extend_all(potential) * scaling_rate
 
 - id: action_index
-  name: Aktion Index
+  name_de: Aktion Index
   name_en: Action index
   type: generic.GenericNode
   quantity: fraction
@@ -1203,7 +1217,7 @@ nodes:
     formula: extend_all(factors)
 
 - id: vehicle_energy_use_by_type
-  name: Fahrzeugenergieverbrauch nach Fahrzeugtyp
+  name_de: Fahrzeugenergieverbrauch nach Fahrzeugtyp
   name_en: Vehicle energy use by vehicle type
   type: formula.FormulaNode
   quantity: energy
@@ -1219,7 +1233,7 @@ nodes:
 actions:
 
 - id: renewable_generation_small_decentralized_systems
-  name: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen
+  name_de: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen
   name_en: Renewable Electricity Generation through Small Decentralized Systems
   description_en: The strategy consists of these measures:<ul><li>PV Funding 
     Programs of City Administration</li><li>Cologne Solar Cadastre for PV and 
@@ -1256,7 +1270,7 @@ actions:
       flatten: true
 
 - id: renewable_generation_open_space
-  name: Erneuerbare Stromerzeugung in der Fläche
+  name_de: Erneuerbare Stromerzeugung in der Fläche
   name_en: Renewable Electricity Generation in Open Spaces
   description_en: The strategy consists of these measures:<ul><li>Solar Cadastre
     by City Administration</li><li>Planning and Analysis of Wind Energy 
@@ -1294,7 +1308,7 @@ actions:
       flatten: true
 
 - id: renewable_generation_power_plants
-  name: Erneuerbare Stromerzeugung durch Kraftwerke
+  name_de: Erneuerbare Stromerzeugung durch Kraftwerke
   name_en: Renewable Electricity Generation through Power Plants
   description_en: The strategy consists of these measures:<ul><li>HGK Group 
     Climate Protection Measures - Complete Green Electricity Procurement for 
@@ -1323,7 +1337,7 @@ actions:
       flatten: true
 
 - id: electricity_savings_commercial_sector
-  name: Stromeinsparung im Gewerbesektor
+  name_de: Stromeinsparung im Gewerbesektor
   name_en: Electricity Savings in Commercial Sector
   description_en: 'The strategy consists of these measures:<ul><li>KölnBusiness Economic
     Development GmbH Consulting: Promoting Sustainability Projects incl. Financing
@@ -1351,7 +1365,7 @@ actions:
       flatten: true
 
 - id: electricity_savings_households
-  name: Stromeinsparung durch Haushalte
+  name_de: Stromeinsparung durch Haushalte
   name_en: Electricity Savings in Households
   description_en: The strategy consists of these measures:<ul><li>(No specific 
     measures listed)</li></ul>
@@ -1376,7 +1390,7 @@ actions:
       flatten: true
 
 - id: electricity_savings_industry
-  name: Stromeinsparung in der Industrie
+  name_de: Stromeinsparung in der Industrie
   name_en: Electricity Savings in Industry
   description_en: The strategy consists of these measures:<ul><li>(No specific 
     measures listed)</li></ul>
@@ -1401,7 +1415,7 @@ actions:
       flatten: true
 
 - id: heat_source_development_for_heat_networks
-  name: Wärmequellenerschließung für Wärmenetze
+  name_de: Wärmequellenerschließung für Wärmenetze
   name_en: Heat Source Development for District Heating Networks
   description_en: The strategy consists of these measures:<ul><li>Transformation
     Plans of RheinEnergie AG for Cologne District Heating Networks</li></ul>
@@ -1429,7 +1443,7 @@ actions:
       flatten: true
 
 - id: expansion_and_densification_of_heat_networks
-  name: Erweiterung und Verdichtung der Wärmenetze
+  name_de: Erweiterung und Verdichtung der Wärmenetze
   name_en: Expansion and Densification of District Heating Networks
   description_en: The strategy consists of these 
     measures:<ul><li>Climate-Neutral Heat Supply at KVB</li></ul>
@@ -1454,7 +1468,7 @@ actions:
       flatten: true
 
 - id: decentralized_heating_replacement_households
-  name: Dezentraler Heizungstausch in Haushalten
+  name_de: Dezentraler Heizungstausch in Haushalten
   name_en: Decentralized Heating System Replacement in Households
   description_en: The strategy consists of these measures:<ul><li>KlimaVeedel by
     RheinEnergie AG</li><li>Decarbonization Strategy of GAG Immobilien 
@@ -1483,7 +1497,7 @@ actions:
       flatten: true
 
 - id: new_construction_residential_buildings
-  name: Neubau Wohngebäude
+  name_de: Neubau Wohngebäude
   name_en: New Construction Residential Buildings
   description_en: The strategy consists of these measures:<ul><li>Building 
     Standards in New Construction (public, private and 
@@ -1511,7 +1525,7 @@ actions:
       flatten: true
 
 - id: new_construction_commercial_industrial
-  name: Neubau Gewerbe/Industrie
+  name_de: Neubau Gewerbe/Industrie
   name_en: New Construction Commercial/Industrial
   description_en: The strategy consists of these measures:<ul><li>Allocation of 
     Municipal Land in Large-Scale Commercial Areas</li></ul>
@@ -1536,7 +1550,7 @@ actions:
       flatten: true
 
 - id: decentralized_heating_replacement_commercial # TODO No categories.
-  name: Dezentraler Heizungstausch im Gewerbe
+  name_de: Dezentraler Heizungstausch im Gewerbe
   name_en: Decentralized Heating System Replacement in Commercial Sector
   description_en: The strategy consists of these measures:<ul><li>Promotion of 
     Sustainable Start-ups by KölnBusiness Economic Development 
@@ -1564,7 +1578,7 @@ actions:
       flatten: true
 
 - id: renovation_residential_buildings
-  name: Sanierung Wohngebäude
+  name_de: Sanierung Wohngebäude
   name_en: Renovation of Residential Buildings
   description_en: The strategy consists of these measures:<ul><li>Energy 
     Retrofitting of Heritage-Protected Building Stock</li><li>KfW 432 
@@ -1600,7 +1614,7 @@ actions:
       flatten: true
 
 - id: efficient_heat_use_industry
-  name: Effiziente Wärmenutzung im Industriesektor
+  name_de: Effiziente Wärmenutzung im Industriesektor
   name_en: Efficient Heat Use in Industry
   description_en: The strategy consists of these measures:<ul><li>(No specific 
     measures listed)</li></ul>
@@ -1625,7 +1639,7 @@ actions:
       flatten: true
 
 - id: behavioral_change_heat_consumption_households
-  name: Verhaltensänderung beim Wärmeverbrauch in Haushalten
+  name_de: Verhaltensänderung beim Wärmeverbrauch in Haushalten
   name_en: Behavioral Change in Heat Consumption in Households
   description_en: The strategy consists of these measures:<ul><li>(No specific 
     measures listed)</li></ul>
@@ -1650,7 +1664,7 @@ actions:
       flatten: true
 
 - id: efficient_heat_use_commercial
-  name: Effiziente Wärmenutzung im Gewerbe
+  name_de: Effiziente Wärmenutzung im Gewerbe
   name_en: Efficient Heat Use in Commercial Sector
   description_en: The strategy consists of these measures:<ul><li>(No specific 
     measures listed)</li></ul>
@@ -1675,7 +1689,7 @@ actions:
       flatten: true
 
 - id: drive_transition_motorized_individual_transport
-  name: Antriebswende – Motorisierter Individualverkehr
+  name_de: Antriebswende – Motorisierter Individualverkehr
   name_en: Drive Transition – Motorized Individual Transport
   description_en: The strategy consists of these measures:<ul><li>Charging 
     Station Infrastructure in Public Road Space</li></ul>
@@ -1703,7 +1717,7 @@ actions:
       flatten: true
 
 - id: drive_transition_freight_transport
-  name: Antriebswende – Güterverkehr
+  name_de: Antriebswende – Güterverkehr
   name_en: Drive Transition – Freight Transport
   description_en: The strategy consists of these measures:<ul><li>Charging 
     Infrastructure in Public Space</li></ul>
@@ -1731,7 +1745,7 @@ actions:
       flatten: true
 
 - id: drive_transition_bus
-  name: Antriebswende – Bus
+  name_de: Antriebswende – Bus
   name_en: Drive Transition – Bus
   description_en: The strategy consists of these measures:<ul><li>Expansion of 
     E-Bus Fleet at KVB</li></ul>
@@ -1758,7 +1772,7 @@ actions:
       flatten: true
 
 - id: mobility_transition_freight_transport
-  name: Mobilitätswende – Güterverkehr
+  name_de: Mobilitätswende – Güterverkehr
   name_en: Mobility Transition – Freight Transport
   description_en: The strategy consists of these measures:<ul><li>(No specific 
     measures listed)</li></ul>
@@ -1783,7 +1797,7 @@ actions:
       flatten: true
 
 - id: mobility_transition_local_mobility
-  name: Mobilitätswende – Nahmobilität
+  name_de: Mobilitätswende – Nahmobilität
   name_en: Mobility Transition – Local Mobility
   description_en: The strategy consists of these measures:<ul><li>Adjustments in
     Motorized Individual Transport (MIT)</li><li>Bicycle Traffic 
@@ -1813,7 +1827,7 @@ actions:
       flatten: true
 
 - id: mobility_transition_regional_mobility
-  name: Mobilitätswende – Regionale Mobilität
+  name_de: Mobilitätswende – Regionale Mobilität
   name_en: Mobility Transition – Regional Mobility
   description_en: The strategy consists of these measures:<ul><li>Light Rail 
     Expansion</li><li>Bicycle Traffic Promotion</li><li>Networked 
@@ -1842,7 +1856,7 @@ actions:
       flatten: true
 
 - id: food_and_nutrition
-  name: Ernährung & Lebensmittel
+  name_de: Ernährung & Lebensmittel
   name_en: Food & Nutrition
   description_en: The strategy consists of these measures:<ul><li>School and 
     Extra-curricular Sustainability Education</li></ul>
@@ -1871,7 +1885,7 @@ actions:
     is_visible: false
 
 # - id: afforestation_and_sustainable_forest_management # TODO Missing from action dataset
-#   name: Aufforstung & nachhaltige Bewirtschaftung von Wäldern
+#   name_de: Aufforstung & nachhaltige Bewirtschaftung von Wäldern
 #   name_en: Afforestation & Sustainable Forest Management
 #   description_en: The strategy consists of these measures:<ul><li>(No specific 
 #     measures listed)</li></ul>
@@ -1900,7 +1914,7 @@ actions:
 #     is_visible: false
 
 # - id: rewetting_organic_soils # TODO Missing from action dataset
-#   name: Wiedervernässung organischer Böden
+#   name_de: Wiedervernässung organischer Böden
 #   name_en: Rewetting of Organic Soils
 #   description_en: The strategy consists of these measures:<ul><li>(No specific 
 #     measures listed)</li></ul>
@@ -1929,7 +1943,7 @@ actions:
 #     is_visible: false
 
 - id: climate_friendly_consumption_behavior
-  name: Klimafreundlicheres Konsumverhalten der Bevölkerung
+  name_de: Klimafreundlicheres Konsumverhalten der Bevölkerung
   name_en: Climate-Friendly Consumption Behavior of the Population
   description_en: 'The strategy consists of these measures:<ul><li>Zero-Waste Concept:
     Waste Avoidance through Second-Life Promotion</li></ul>'
@@ -1957,7 +1971,7 @@ actions:
     is_visible: false
 
 - id: ghg_neutral_administration_scope_1_and_2
-  name: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und Scope
+  name_de: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und Scope
     2)
   name_en: GHG-Neutral Administration (Direct Influence via Scope 1 and Scope 2)
   description_en: The strategy consists of these measures:<ul><li>Renovation 
@@ -1997,7 +2011,7 @@ actions:
     is_visible: false
 
 - id: ghg_neutral_administration_scope_3
-  name: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
+  name_de: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
   name_en: GHG-Neutral Administration (Indirect Influence via Scope 3)
   description_en: The strategy consists of these measures:<ul><li>Internal 
     Change Agent Network for Climate Protection</li><li>Integration of Climate 
@@ -2030,7 +2044,7 @@ actions:
     is_visible: false
 
 - id: waste_reduction_and_facility_efficiency
-  name: Abfallreduktion & Anlageneffizienz
+  name_de: Abfallreduktion & Anlageneffizienz
   name_en: Waste Reduction & Facility Efficiency
   description_en: 'The strategy consists of these measures:<ul><li>Resource Recovery
     from Waste Utilization</li><li>Zero-Waste Concept Measures</li><li>Zero-Waste
@@ -2057,7 +2071,7 @@ actions:
   - id: waste_and_wastewater_emissions
 
 - id: water_wastewater_reduction_and_facility_efficiency
-  name: Wasser-/Abwasserreduktion & Anlageneffizienz
+  name_de: Wasser-/Abwasserreduktion & Anlageneffizienz
   name_en: Water/Wastewater Reduction & Facility Efficiency
   description_en: The strategy consists of these measures:<ul><li>(No specific 
     measures listed)</li></ul>
@@ -2086,7 +2100,7 @@ actions:
     is_visible: false
 
 - id: cross_cutting_climate_protection_aspects
-  name: Übergreifende Klimaschutz-aspekte
+  name_de: Übergreifende Klimaschutz-aspekte
   name_en: Cross-cutting Climate Protection Aspects
   description_en: The strategy consists of these measures:<ul><li>School and 
     Extra-curricular Sustainability Education</li><li>KlimaVeedel by 
@@ -2125,7 +2139,7 @@ actions:
 # ---------- DIRECT ACTIONS
 
 - id: pv_on_municipal_holdings_buildings
-  name: Photovoltaik auf Beteiligungsgebäuden
+  name_de: Photovoltaik auf Beteiligungsgebäuden
   name_en: Photovoltaics on Municipal Holdings Buildings
   type: simple.GenericAction
   quantity: emissions
@@ -2143,7 +2157,7 @@ actions:
   - id: electricity_actions
 
 - id: pv_on_city_buildings
-  name: Photovoltaik auf städtischen Gebäuden
+  name_de: Photovoltaik auf städtischen Gebäuden
   name_en: Photovoltaics on City Buildings
   type: simple.GenericAction
   quantity: emissions
@@ -2161,7 +2175,7 @@ actions:
   - id: electricity_actions
 
 - id: digitalization_and_energy_efficiency_in_city_data_centers
-  name: Digitalisierung und Energieeffizienz in städtischen Rechenzentren
+  name_de: Digitalisierung und Energieeffizienz in städtischen Rechenzentren
   name_en: Digitalization and Energy Efficiency in City Data Centers
   type: simple.GenericAction
   quantity: emissions
@@ -2179,7 +2193,7 @@ actions:
   - id: electricity_actions
 
 - id: efficiency_improvement_in_administration
-  name: Effizienzsteigerung in der Verwaltung
+  name_de: Effizienzsteigerung in der Verwaltung
   name_en: Efficiency Improvement in Administration
   type: simple.GenericAction
   quantity: emissions
@@ -2197,7 +2211,7 @@ actions:
   - id: electricity_actions
 
 - id: efficiency_improvement_at_holdings
-  name: Effizienzsteigerung bei Beteiligungen
+  name_de: Effizienzsteigerung bei Beteiligungen
   name_en: Efficiency Improvement at Municipal Holdings
   type: simple.GenericAction
   quantity: emissions
@@ -2215,7 +2229,7 @@ actions:
   - id: electricity_actions
 
 - id: green_electricity_procurement_at_holdings
-  name: Ökostrombezug bei Beteiligungen
+  name_de: Ökostrombezug bei Beteiligungen
   name_en: Green Electricity Procurement at Municipal Holdings
   type: simple.GenericAction
   quantity: emissions
@@ -2233,7 +2247,7 @@ actions:
   - id: electricity_actions
 
 - id: led_conversion_at_holdings_outdoor_lighting
-  name: LED-Umstellung bei Beteiligungen (Außenbeleuchtung)
+  name_de: LED-Umstellung bei Beteiligungen (Außenbeleuchtung)
   name_en: LED Conversion at Municipal Holdings (Outdoor Lighting)
   type: simple.GenericAction
   quantity: emissions
@@ -2251,7 +2265,7 @@ actions:
   - id: electricity_actions
 
 - id: led_conversion_at_holdings_indoor_lighting
-  name: LED-Umstellung bei Beteiligungen (Innenbeleuchtung)
+  name_de: LED-Umstellung bei Beteiligungen (Innenbeleuchtung)
   name_en: LED Conversion at Municipal Holdings (Indoor Lighting)
   type: simple.GenericAction
   quantity: emissions
@@ -2269,7 +2283,7 @@ actions:
   - id: electricity_actions
 
 - id: climate_friendly_heat_generation_decentralized_at_holdings
-  name: Klimafreundliche Wärmeerzeugung (dezentral) in Beteiligungen
+  name_de: Klimafreundliche Wärmeerzeugung (dezentral) in Beteiligungen
   name_en: Climate-Friendly Heat Generation (Decentralized) at Municipal 
     Holdings
   type: simple.GenericAction
@@ -2288,7 +2302,7 @@ actions:
   - id: private_household_actions
 
 - id: climate_friendly_heat_supply_at_city_holdings
-  name: Klimafreundliche Wärmeversorgung in städtischen Beteiligungen
+  name_de: Klimafreundliche Wärmeversorgung in städtischen Beteiligungen
   name_en: Climate-Friendly Heat Supply at City Holdings
   type: simple.GenericAction
   quantity: emissions
@@ -2306,7 +2320,7 @@ actions:
   - id: private_household_actions
 
 - id: optimization_of_heat_regulation_at_city_holdings
-  name: Optimierung der Wärmeregulierung der städtischen Beteiligungen
+  name_de: Optimierung der Wärmeregulierung der städtischen Beteiligungen
   name_en: Optimization of Heat Regulation at City Holdings
   type: simple.GenericAction
   quantity: emissions
@@ -2324,7 +2338,7 @@ actions:
   - id: private_household_actions
 
 - id: renovation_and_energy_optimization_of_city_buildings
-  name: Sanierung und energetische Optimierung städtischer Gebäude
+  name_de: Sanierung und energetische Optimierung städtischer Gebäude
   name_en: Renovation and Energy Optimization of City Buildings
   type: simple.GenericAction
   quantity: emissions
@@ -2342,7 +2356,7 @@ actions:
   - id: private_household_actions
 
 - id: electrification_of_holdings_vehicle_fleet
-  name: Elektrifizierung des Fuhrparks der Beteiligungen
+  name_de: Elektrifizierung des Fuhrparks der Beteiligungen
   name_en: Electrification of Municipal Holdings Vehicle Fleet
   type: simple.GenericAction
   quantity: emissions
@@ -2360,7 +2374,7 @@ actions:
   - id: traffic_actions
 
 - id: electrification_of_city_vehicle_fleet
-  name: Elektrifizierung des städtischen Fuhrparks
+  name_de: Elektrifizierung des städtischen Fuhrparks
   name_en: Electrification of City Vehicle Fleet
   type: simple.GenericAction
   quantity: emissions
@@ -2378,7 +2392,7 @@ actions:
   - id: traffic_actions
 
 - id: electrification_of_bus_fleet_at_holdings
-  name: Elektrifizierung der Busflotte bei Beteiligungen
+  name_de: Elektrifizierung der Busflotte bei Beteiligungen
   name_en: Electrification of Bus Fleet at Municipal Holdings
   type: simple.GenericAction
   quantity: emissions
@@ -2396,7 +2410,7 @@ actions:
   - id: traffic_actions
 
 - id: conversion_of_administration_vehicle_fleet
-  name: Umstellung des Fuhrparks der Verwaltung
+  name_de: Umstellung des Fuhrparks der Verwaltung
   name_en: Conversion of Administration Vehicle Fleet
   type: simple.GenericAction
   quantity: emissions
@@ -2414,7 +2428,7 @@ actions:
   - id: traffic_actions
 
 - id: decarbonization_of_inland_waterway_shipping_by_hgk
-  name: Dekarbonisierung der Binnenschifffahrt durch HGK
+  name_de: Dekarbonisierung der Binnenschifffahrt durch HGK
   name_en: Decarbonization of Inland Waterway Shipping by HGK
   type: simple.GenericAction
   quantity: emissions
@@ -2432,7 +2446,7 @@ actions:
   - id: traffic_actions
 
 - id: ghg_reduction_through_circular_use_of_wood_and_building_materials
-  name: THG-Minderung durch Kreislaufnutzung von Holz- und Baumaterialien
+  name_de: THG-Minderung durch Kreislaufnutzung von Holz- und Baumaterialien
   name_en: GHG Reduction through Circular Use of Wood and Building Materials
   type: simple.GenericAction
   quantity: emissions
@@ -2454,7 +2468,7 @@ actions:
     is_visible: false
 
 - id: optimization_of_residual_waste_utilization_by_avg
-  name: Optimierung der Restmüllverwertung durch AVG
+  name_de: Optimierung der Restmüllverwertung durch AVG
   name_en: Optimization of Residual Waste Utilization by AVG
   type: simple.GenericAction
   quantity: emissions
@@ -2476,7 +2490,7 @@ actions:
     is_visible: false
 
 - id: waste_incineration_co2_reduction_through_ccs_at_avg
-  name: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der AVG'
+  name_de: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der AVG'
   name_en: 'Waste Incineration: CO2 Reduction through Carbon Capture at AVG'
   type: simple.GenericAction
   quantity: emissions
@@ -2498,7 +2512,7 @@ actions:
     is_visible: false
 
 - id: sump_development_by_city_administration
-  name: SUMP Entwicklung durch die Stadtverwaltung
+  name_de: SUMP Entwicklung durch die Stadtverwaltung
   name_en: SUMP Development by City Administration
   type: simple.GenericAction
   quantity: emissions
@@ -2516,7 +2530,7 @@ actions:
   - id: net_emissions
 
 - id: digital_climate_protection_monitoring_by_administration
-  name: Digitales Klimaschutz-Monitoring durch die Verwaltung
+  name_de: Digitales Klimaschutz-Monitoring durch die Verwaltung
   name_en: Digital Climate Protection Monitoring by Administration
   type: simple.GenericAction
   quantity: emissions
@@ -2538,7 +2552,7 @@ actions:
     is_visible: false
 
 - id: climate_protection_coordination_office
-  name: Koordinationsstelle Klimaschutz
+  name_de: Koordinationsstelle Klimaschutz
   name_en: Climate Protection Coordination Office
   type: simple.GenericAction
   quantity: emissions
@@ -2560,7 +2574,7 @@ actions:
     is_visible: false
 
 - id: municipal_heat_planning_preparation_by_administration
-  name: Erstellung der kommunalen Wärmeplanung durch die Verwaltung
+  name_de: Erstellung der kommunalen Wärmeplanung durch die Verwaltung
   name_en: Municipal Heat Planning Preparation by Administration
   type: simple.GenericAction
   quantity: emissions
