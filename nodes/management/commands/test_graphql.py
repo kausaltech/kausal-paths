@@ -42,6 +42,7 @@ class Command(BaseCommand):
         parser.add_argument('--url', '-u', metavar='URL', type=str, action='store', default='http://127.0.0.1:8000')
         parser.add_argument('--maxfail', metavar='NUM', type=int, action='store', default=1)
         parser.add_argument('--start-from', metavar='NUM', type=int, action='store', default=0)
+        parser.add_argument('--limit', metavar='NUM', type=int, action='store', default=0)
 
     async def replay_query(self, session: aiohttp.ClientSession, fn: Path, data: dict[str, Any]):
         query = data['query']
@@ -87,6 +88,7 @@ class Command(BaseCommand):
                 exit(1)
 
     async def replay_queries(self, fns: list[Path]):
+        count = 0
         async with aiohttp.ClientSession(base_url=self.url) as session:
             for i, fn in enumerate(fns):
                 if i + 1 < self.start_from:
@@ -98,6 +100,9 @@ class Command(BaseCommand):
                     if not has_session:
                         session.cookie_jar.clear()
                     await self.replay_query(session, fn, data)
+                count += 1
+                if self.limit and count >= self.limit:
+                    break
 
     def handle(self, *args, **options):
         self.dir = Path(options['dir'])
@@ -106,6 +111,7 @@ class Command(BaseCommand):
         self.url = options['url']
         self.maxfail = options['maxfail']
         self.start_from = options['start_from']
+        self.limit = options['limit']
         asyncio.run(self.replay_queries(files))
         if self.failures:
             exit(1)

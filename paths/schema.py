@@ -39,7 +39,7 @@ from nodes.schema_model_editor import ModelEditorMutation, ModelEditorQuery
 from orgs.models import Organization
 from orgs.schema import OrganizationNode, Query as OrgsQuery
 from pages.schema import Query as PagesQuery
-from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
+from params.schema import SBMutation as SBParamsMutation, SBQuery as SBParamsQuery, types as params_types
 from users.schema import Query as UsersQuery
 
 if TYPE_CHECKING:
@@ -65,7 +65,7 @@ def instance_directive(
     pass
 
 
-class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery, OrgsQuery):
+class GrapheneQuery(NodesQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery, OrgsQuery):
     unit = graphene.Field(UnitType, value=graphene.String(required=True))
 
     instance_organizations = graphene.List(
@@ -99,7 +99,7 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, Server
         return list(Organization.objects.qs.available_for_instance(instance_obj))
 
 
-class GrapheneMutations(ParamsMutations, FrameworksMutations):
+class GrapheneMutations(FrameworksMutations):
     pass
 
 
@@ -119,7 +119,7 @@ def context_directive(info: gql.Info, input: InstanceContextInput):
     return
 
 
-SBQuery = merge_types('Query', (SBNodesQuery, ModelEditorQuery))
+SBQuery = merge_types('Query', (SBNodesQuery, ModelEditorQuery, SBParamsQuery))
 
 
 @sb.type
@@ -130,6 +130,7 @@ class Query(GrapheneQuery, SBQuery):  # type: ignore[valid-type, misc]
 SB_MUTATION_TYPES: list[type] = [
     NodesMutation,
     ModelEditorMutation,
+    SBParamsMutation,
 ]
 if test_mode_enabled():
     SB_MUTATION_TYPES.append(TestModeMutations)

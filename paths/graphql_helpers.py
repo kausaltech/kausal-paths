@@ -10,6 +10,7 @@ import graphene
 from django.utils.module_loading import import_string
 from graphql.error import GraphQLError
 from strawberry.types.field import StrawberryField
+from strawberry.types.info import Info as StrawberryInfo
 
 from paths.graphql_types import AdminButton
 
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
     from .graphql_types import SBInfo
 
 
-@dataclass(slots=True)
+@dataclass
 class GraphQLPerfNode:
     id: str
 
@@ -66,51 +67,109 @@ P = ParamSpec('P')
 R = TypeVar('R')
 
 type ResolverWithContext[**P, R, I: InfoType] = Callable[Concatenate[Any, I, Context, P], R]
+type ResolverWithRootAndContext[**P, R] = Callable[Concatenate[Any, Context, P], R]
+type ResolverWithInfoAndContext[**P, R, I: InfoType] = Callable[Concatenate[I, Context, P], R]
+type ResolverContextOnly[**P, R] = Callable[Concatenate[Context, P], R]
+
+type ContextResolver[**P, R, I: InfoType] = (
+    ResolverWithContext[P, R, I]
+    | ResolverWithRootAndContext[P, R]
+    | ResolverWithInfoAndContext[P, R, I]
+    | ResolverContextOnly[P, R]
+)
+
+
+def _get_public_context_resolver_signature(sig: inspect.Signature) -> inspect.Signature:
+    public_params = [param for param in sig.parameters.values() if param.name != 'context']
+    if any(param.name == 'info' for param in public_params):
+        return sig.replace(parameters=public_params)
+
+    insert_at = 1 if public_params and public_params[0].name in {'self', 'cls', 'root'} else 0
+    public_params.insert(
+        insert_at,
+        inspect.Parameter(
+            'info',
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            annotation=StrawberryInfo,
+        ),
+    )
+    return sig.replace(parameters=public_params)
+
+
+def _call_context_resolver[R](
+    method: Callable[..., R],
+    sig: inspect.Signature,
+    public_sig: inspect.Signature,
+    *args: Any,
+    **kwargs: Any,
+) -> R:
+    bound = public_sig.bind_partial(*args, **kwargs)
+    info = cast('InfoType', bound.arguments['info'])
+    instance = _instance_or_bust(info)
+    call_args: list[Any] = []
+    call_kwargs: dict[str, Any] = {}
+
+    for param in sig.parameters.values():
+        if param.name == 'context':
+            value = instance.context
+        elif param.name in bound.arguments:
+            value = bound.arguments[param.name]
+        else:
+            continue
+
+        if param.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD):
+            call_args.append(value)
+        elif param.kind == inspect.Parameter.VAR_POSITIONAL:
+            call_args.extend(cast('tuple[Any, ...]', value))
+        elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+            call_kwargs[param.name] = value
+        elif param.kind == inspect.Parameter.VAR_KEYWORD:
+            call_kwargs.update(cast('dict[str, Any]', value))
+
+    return method(*call_args, **call_kwargs)
 
 
 @overload
-def pass_context(method_or_field: StrawberryField) -> StrawberryField: ...
+def pass_context[**P, R, I: InfoType](method_or_field: ResolverWithContext[P, R, I]) -> Callable[Concatenate[Any, I, P], R]: ...
+
+
+@overload
+def pass_context[**P, R](method_or_field: ResolverWithRootAndContext[P, R]) -> Callable[Concatenate[Any, P], R]: ...
 
 
 @overload
 def pass_context[**P, R, I: InfoType](
-    method_or_field: ResolverWithContext[P, R, I],
-) -> Callable[Concatenate[Any, I, P], R]: ...
+    method_or_field: ResolverWithInfoAndContext[P, R, I],
+) -> Callable[Concatenate[I, P], R]: ...
+
+
+@overload
+def pass_context[**P, R](
+    method_or_field: ResolverContextOnly[P, R],
+) -> Callable[P, R]: ...
 
 
 def pass_context[**P, R, I: InfoType](
-    method_or_field: ResolverWithContext[P, R, I] | StrawberryField,
-) -> Callable[Concatenate[Any, I, P], R] | StrawberryField:
+    method_or_field: object,
+) -> Callable[..., Any]:
     """Wrap a resolver function to provide Context as an argument."""
 
-    if isinstance(method_or_field, StrawberryField):
-        field = method_or_field
-        field.arguments = [arg for arg in field.arguments if arg.python_name != 'context']
-        base_resolver = method_or_field.base_resolver
-        assert base_resolver is not None
-        method = cast('ResolverWithContext[P, R, I]', base_resolver.wrapped_func)
-    else:
-        method = method_or_field
-        base_resolver = None
-        field = None
+    if isinstance(method_or_field, StrawberryField) or not callable(method_or_field):
+        msg = 'pass_context must wrap the resolver function before @sb.field'
+        raise TypeError(msg)
 
-    @functools.wraps(method)
-    def method_wrapper(root, info: I, *args: P.args, **kwargs: P.kwargs) -> R:
-        instance = _instance_or_bust(info)
-        return method(root, info, instance.context, *args, **kwargs)
+    method = cast('Callable[..., R]', method_or_field)
 
-    if field is None:
-        # The signature of the wrapper method must be changed to remove the context parameter
-        # for strawberry's signature reflection to work.
-        s = inspect.signature(method)
-        params = [param for param in s.parameters.values() if param.name != 'context']
-        setattr(method_wrapper, '__signature__', s.replace(parameters=params))  # noqa: B010
-        return method_wrapper
+    sig = inspect.signature(method)
+    public_sig = _get_public_context_resolver_signature(sig)
 
-    assert base_resolver is not None
-    assert field is not None
-    base_resolver.wrapped_func = method_wrapper
-    return field
+    @functools.wraps(cast('Callable[..., Any]', method))
+    def method_wrapper(*args: Any, **kwargs: Any) -> Any:
+        return _call_context_resolver(method, sig, public_sig, *args, **kwargs)
+
+    del method_wrapper.__wrapped__
+    setattr(method_wrapper, '__signature__', public_sig)  # noqa: B010
+    return method_wrapper
 
 
 def get_instance_context(info: InfoType) -> Context:

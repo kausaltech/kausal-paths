@@ -80,8 +80,8 @@ class ActionGroupType:
     name: str
     color: str | None
 
-    @pass_context
     @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])
+    @pass_context
     @staticmethod
     def actions(root: ActionGroup, info: gql.Info, context: Context) -> list[ActionNode]:
         return [act for act in context.get_actions() if act.group == root]
@@ -537,8 +537,8 @@ class NodeInterface:
             return None
         return val.value
 
-    @pass_context
     @sb.field
+    @pass_context
     @staticmethod
     def goals(root: Node, info: gql.Info, context: Context, active_goal: sb.ID | None = None) -> list[NodeGoal]:
         if root.goals is None:
@@ -566,8 +566,8 @@ class NodeInterface:
     def is_action(root: Node) -> bool:
         return isinstance(root, ActionNode)
 
-    @pass_context
     @sb.field
+    @pass_context
     @staticmethod
     def explanation(root: Node, info: gql.Info, context: Context) -> str | None:
         if context.instance.features.show_explanations:
@@ -658,8 +658,8 @@ class NodeInterface:
 
     # If resolving through `descendant_nodes`, `impact_metric` will be
     # by default be calculated from the ancestor node.
-    @pass_context
     @sb.field(graphql_type=ForecastMetricType | None)
+    @pass_context
     @staticmethod
     def impact_metric(
         root: Node,
@@ -780,8 +780,8 @@ class NodeInterface:
                 return html
         return None
 
-    @pass_context
     @sb.field
+    @pass_context
     @staticmethod
     def description(root: Node, info: gql.Info, context: Context) -> str | None:
         nc = root.db_obj
@@ -887,8 +887,8 @@ class ScenarioType:
     is_selectable: bool
     actual_historical_years: list[int] | None
 
-    @pass_context
     @sb.field
+    @pass_context
     @staticmethod
     def is_active(root: Scenario, info: gql.Info, context: Context) -> bool:
         return context.active_scenario == root
@@ -938,8 +938,8 @@ class ImpactOverviewType:
             return 'return_on_investment'
         return root.graph_type
 
-    @pass_context
     @sb.field
+    @pass_context
     @staticmethod
     def actions(root: ImpactOverview, info: gql.Info, context: Context) -> list[ActionImpact]:
         all_aes = root.calculate(context)
@@ -1031,8 +1031,8 @@ class NormalizationType:
     def normalizer(root: Normalization) -> Node:
         return root.normalizer_node
 
-    @pass_context
     @sb.field
+    @pass_context
     @staticmethod
     def is_active(root: Normalization, info: gql.Info, context: Context) -> bool:
         return context.active_normalization == root
@@ -1121,13 +1121,13 @@ class Query(graphene.ObjectType[Any]):
 
 @sb.type
 class SBQuery(Query):
-    @pass_context
     @sb.field(graphql_type=list[NormalizationType])
-    def active_normalizations(self, info: gql.Info, context: Context) -> list[Normalization]:
+    @pass_context
+    def active_normalizations(self, context: Context) -> list[Normalization]:
         return list(context.normalizations.values())
 
-    @pass_context
     @sb.field(graphql_type=list[ActionNodeType])
+    @pass_context
     @staticmethod
     def actions(root: SBQuery, info: gql.Info, context: Context, only_root: bool = False) -> list[ActionNode]:
         instance = context.instance

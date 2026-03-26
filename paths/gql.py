@@ -14,8 +14,6 @@ from kausal_common.strawberry.mutations import (
     prepare_instance,
 )
 
-from nodes.models import InstanceConfig
-
 from .graphql_types import SBInfo as Info
 
 if TYPE_CHECKING:
@@ -27,6 +25,8 @@ if TYPE_CHECKING:
         ResolverFunc,
     )
 
+    from nodes.models import InstanceConfig
+
 
 def get_ic_or_error(info: Info, ic_id: str) -> InstanceConfig:
     """
@@ -34,6 +34,7 @@ def get_ic_or_error(info: Info, ic_id: str) -> InstanceConfig:
 
     Raises a GraphQL error if the instance config is not found or not visible for the user.
     """
+    from nodes.models import InstanceConfig
 
     # Permission/visibility check is done in `get_or_error()`
     qs = InstanceConfig.objects.qs.by_all_identifiers(ic_id)

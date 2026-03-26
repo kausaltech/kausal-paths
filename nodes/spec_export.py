@@ -378,11 +378,15 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
         # Update or create node configs
         existing_ncs = {nc.identifier: nc for nc in NodeConfig.objects.filter(instance=ic)}
         node_configs: dict[str, NodeConfig] = {}
+        default_lang = instance.default_language
         for node_id, node in ctx.nodes.items():
             nc = existing_ncs.get(node_id)
             if nc is None:
                 nc = NodeConfig(instance=ic, identifier=node_id)
-            nc.name = getattr(node, 'name', node_id)
+            # Use as_node_config_attributes to properly populate name + i18n
+            conf = node.as_node_config_attributes()
+            nc.name = conf.get('name', node_id)
+            nc.i18n = conf.get('i18n', {})
             nc.spec = export_node_spec(node)
             nc.save()
             node_configs[node_id] = nc

@@ -112,6 +112,8 @@ def _serialize_node_config(
     # Spec-derived fields
     if spec.is_outcome:
         node['is_outcome'] = True
+    if not hasattr(spec, 'minimum_year'):
+        breakpoint()
     if spec.minimum_year is not None:
         node['minimum_year'] = spec.minimum_year
 

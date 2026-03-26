@@ -1,213 +1,258 @@
+# ruff: noqa: UP007
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated, Any, Union  # pyright: ignore[reportDeprecated]
 
-import graphene
+import strawberry as sb
 from graphql.error import GraphQLError
 
-from paths.graphql_helpers import ensure_instance
+from paths import gql
+from paths.graphql_helpers import get_instance_context
+
+from nodes.node import Node
 
 from . import BoolParameter, NumberParameter, Parameter, StringParameter, ValidationError
 
 if TYPE_CHECKING:
-    from kausal_common.graphene import GQLInfo
+    from paths.graphql_types import UnitType
 
-    from paths.types import GQLInstanceInfo
+    from nodes.scenario import Scenario
+    from nodes.schema import NodeInterface, ScenarioType
 
 
-class ResolveDefaultValueMixin:
+def _resolve_default_value(info: gql.Info, root: Parameter[Any, Any]) -> Any:
+    context = get_instance_context(info)
+    scenario: Scenario = context.get_default_scenario()
+    if not scenario.has_parameter(root):
+        return None
+    return scenario.get_parameter_value(root)
+
+
+def _get_parameter_type_name(instance: Parameter[Any, Any]) -> str:
+    type_map: dict[type[Parameter[Any, Any]], str] = {
+        BoolParameter: 'BoolParameterType',
+        NumberParameter: 'NumberParameterType',
+        StringParameter: 'StringParameterType',
+    }
+    for param_type in type(instance).mro():
+        if param_type in type_map:
+            return type_map[param_type]
+    return 'UnknownParameterType'
+
+
+def _get_parameter_or_error(info: gql.Info, id: str) -> Parameter[Any, Any]:
+    context = get_instance_context(info)
+    try:
+        return context.get_parameter(id)
+    except KeyError:
+        raise GraphQLError(f'Parameter {id} does not exist', info.field_nodes) from None
+
+
+def _get_parameter_value_for_mutation(
+    info: gql.Info,
+    param: Parameter[Any, Any],
+    *,
+    number_value: float | None,
+    bool_value: bool | None,
+    string_value: str | None,
+) -> Any:
+    parameter_values = {
+        NumberParameter: (number_value, 'numberValue'),
+        BoolParameter: (bool_value, 'boolValue'),
+        StringParameter: (string_value, 'stringValue'),
+    }
+    param_type = type(param)
+    for klass, (value, attr_name) in parameter_values.items():  # noqa: B007
+        if issubclass(param_type, klass):
+            break
+    else:
+        msg = f'Attempting to mutate an unsupported parameter class: {type(param)}'
+        raise Exception(msg)
+
+    if value is None:
+        raise GraphQLError(f"You must specify '{attr_name}' for '{param.global_id}'", info.field_nodes)
+
+    del parameter_values[klass]
+    for other_value, _ in parameter_values.values():
+        if other_value is not None:
+            raise GraphQLError('Only one type of value allowed', info.field_nodes)
+
+    try:
+        return param.clean(value)
+    except ValidationError as e:
+        raise GraphQLError(str(e), info.field_nodes) from e
+
+
+@sb.interface
+class ParameterInterface:
+    local_id: sb.ID | None
+    is_customized: bool
+    is_customizable: bool
+
+    @sb.field(description='Global ID for the parameter in the instance')
     @staticmethod
-    def resolve_default_value(root: Parameter, info: GQLInstanceInfo) -> Any:
-        context = info.context.instance.context
-        scenario = context.get_default_scenario()
-        if not scenario.has_parameter(root):
+    def id(root: Parameter[Any, Any]) -> sb.ID:
+        return sb.ID(root.global_id)
+
+    @sb.field
+    @staticmethod
+    def label(root: Parameter[Any, Any]) -> str | None:
+        if root.label is None:
             return None
-        return scenario.get_parameter_value(root)
+        return str(root.label)
 
-
-class ParameterInterface(graphene.Interface[Parameter[Any, Any]]):
-    id = graphene.ID(required=True, description='Global ID for the parameter in the instance')
-    local_id = graphene.ID(required=False, description="ID of parameter in the node's namespace")
-    label = graphene.String(required=False)
-    description = graphene.String(required=False)
-    node_relative_id = graphene.ID(required=False)  # can be null if node is null
-    node = graphene.Field('nodes.schema.NodeInterface', required=False)  # can be null for global parameters
-    is_customized = graphene.Boolean(required=True)
-    is_customizable = graphene.Boolean(required=True)
-
-    # TODO: Use the proper field names instead of defining this alias?
+    @sb.field
     @staticmethod
-    def resolve_id(root: Parameter, info) -> str:
-        return root.global_id
+    def description(root: Parameter[Any, Any]) -> str | None:
+        if root.description is None:
+            return None
+        return str(root.description)
 
-    # TODO: Use the proper field names instead of defining this alias?
+    @sb.field(description="ID of parameter in the node's namespace")
     @staticmethod
-    def resolve_node_relative_id(root: Parameter, info) -> str:
-        return root.local_id
+    def node_relative_id(root: Parameter[Any, Any]) -> sb.ID | None:
+        return sb.ID(root.local_id)
 
+    @sb.field(graphql_type=Union[Annotated['NodeInterface', sb.lazy('nodes.schema')], None])  # pyright: ignore[reportDeprecated]
+    @staticmethod
+    def node(root: Parameter[Any, Any]) -> Node | None:
+        return root.node
+
+    @staticmethod
+    def resolve_type(instance: Parameter[Any, Any], _info: gql.Info, _abstract_type: Any) -> str:
+        return _get_parameter_type_name(instance)
+
+
+@sb.type(name='BoolParameterType')
+class BoolParameterType(ParameterInterface):
     @classmethod
-    def resolve_type(cls, instance: Parameter, info: GQLInfo) -> type[graphene.ObjectType[Any]]:  # noqa: ARG003
-        type_map: dict[type[Parameter[Any, Any]], type[graphene.ObjectType[Any]]] = {
-            BoolParameter: BoolParameterType,
-            NumberParameter: NumberParameterType,
-            StringParameter: StringParameterType,
-        }
-        # Try to find the parameter type by going through the superclasses
-        # of the parameter instance.
-        for param_type in type(instance).mro():
-            if param_type in type_map:
-                return type_map[param_type]
-        return UnknownParameterType
+    def is_type_of(cls, obj: Any, _info: gql.Info) -> bool:
+        return isinstance(obj, BoolParameter)
 
+    value: bool | None
 
-class BoolParameterType(ResolveDefaultValueMixin, graphene.ObjectType[BoolParameter]):
-    class Meta:
-        interfaces = (ParameterInterface,)
-
-    value = graphene.Boolean()
-    default_value = graphene.Boolean()
-
-
-class NumberParameterType(ResolveDefaultValueMixin, graphene.ObjectType[NumberParameter]):
-    class Meta:
-        interfaces = (ParameterInterface,)
-
-    value = graphene.Float()
-    default_value = graphene.Float()
-    min_value = graphene.Float()
-    max_value = graphene.Float()
-    step = graphene.Float()
-    unit = graphene.Field('paths.schema.UnitType')
-
-
-class StringParameterType(ResolveDefaultValueMixin, graphene.ObjectType[StringParameter]):
-    class Meta:
-        interfaces = (ParameterInterface,)
-
-    value = graphene.String()
-    default_value = graphene.String()
-
-
-class UnknownParameterType(graphene.ObjectType[Any]):
-    class Meta:
-        interfaces = (ParameterInterface,)
-
-
-class SetParameterMutation(graphene.Mutation):
-    class Arguments:
-        id = graphene.ID(required=True)
-        number_value = graphene.Float()
-        bool_value = graphene.Boolean()
-        string_value = graphene.String()
-
-    ok = graphene.Boolean()
-    parameter = graphene.Field(ParameterInterface)
-
-    @ensure_instance
+    @sb.field
     @staticmethod
-    def mutate(
-        root,
-        info: GQLInstanceInfo,
-        id: str,
+    def default_value(root: BoolParameter, info: gql.Info) -> bool | None:
+        return _resolve_default_value(info, root)
+
+
+@sb.type(name='NumberParameterType')
+class NumberParameterType(ParameterInterface):
+    @classmethod
+    def is_type_of(cls, obj: Any, _info: gql.Info) -> bool:
+        return isinstance(obj, NumberParameter)
+
+    value: float | None
+    min_value: float | None
+    max_value: float | None
+    step: float | None
+    unit: Annotated['UnitType', sb.lazy('paths.graphql_types')] | None
+
+    @sb.field
+    @staticmethod
+    def default_value(root: NumberParameter, info: gql.Info) -> float | None:
+        return _resolve_default_value(info, root)
+
+
+@sb.type(name='StringParameterType')
+class StringParameterType(ParameterInterface):
+    @classmethod
+    def is_type_of(cls, obj: Any, _info: gql.Info) -> bool:
+        return isinstance(obj, StringParameter)
+
+    value: str | None
+
+    @sb.field
+    @staticmethod
+    def default_value(root: StringParameter, info: gql.Info) -> str | None:
+        return _resolve_default_value(info, root)
+
+
+@sb.type(name='UnknownParameterType')
+class UnknownParameterType(ParameterInterface):
+    @classmethod
+    def is_type_of(cls, obj: Any, _info: gql.Info) -> bool:
+        return isinstance(obj, Parameter) and _get_parameter_type_name(obj) == 'UnknownParameterType'
+
+
+@sb.type
+class SetParameterResult:
+    ok: bool
+    parameter: Parameter[Any] | None = sb.field(
+        graphql_type=Union[Annotated['ParameterInterface', sb.lazy('params.schema')], None]  # pyright: ignore[reportDeprecated]
+    )
+
+
+@sb.type
+class ResetParameterResult:
+    ok: bool
+
+
+@sb.type
+class ActivateScenarioResult:
+    ok: bool
+    active_scenario: 'Scenario' = sb.field(graphql_type=Annotated['ScenarioType', sb.lazy('nodes.schema')])
+
+
+@sb.type
+class SBMutation:
+    @sb.mutation
+    def set_parameter(
+        self,
+        info: gql.Info,
+        id: sb.ID,
         number_value: float | None = None,
         bool_value: bool | None = None,
         string_value: str | None = None,
-    ) -> SetParameterMutation:
-        context = info.context.instance.context
-        try:
-            param = context.get_parameter(id)
-        except KeyError:
-            raise GraphQLError('Parameter %s does not exist', info.field_nodes) from None
+    ) -> SetParameterResult:
+        context = get_instance_context(info)
+        param = _get_parameter_or_error(info, str(id))
 
         if not param.is_customizable:
-            raise GraphQLError('Parameter %s is not customizable', info.field_nodes)
+            raise GraphQLError(f'Parameter {id} is not customizable', info.field_nodes)
 
-        parameter_values = {
-            NumberParameter: (number_value, 'numberValue'),
-            BoolParameter: (bool_value, 'boolValue'),
-            StringParameter: (string_value, 'stringValue'),
-        }
-        param_type = type(param)
-        for klasses, (value, attr_name) in parameter_values.items():  # noqa: B007
-            # if isinstance(klasses, tuple):
-            #     found = False
-            #     for k in klasses:
-            #         if issubclass(param_type, k):
-            #             found = True
-            #             break
-            #     if found:
-            #         break
-            #     continue
-            if issubclass(param_type, klasses):
-                break
-        else:
-            raise Exception('Attempting to mutate an unsupported parameter class: %s' % type(param))
+        value = _get_parameter_value_for_mutation(
+            info,
+            param,
+            number_value=number_value,
+            bool_value=bool_value,
+            string_value=string_value,
+        )
 
-        if value is None:
-            raise GraphQLError("You must specify '%s' for '%s'" % (attr_name, param.global_id), info.field_nodes)
-
-        del parameter_values[klasses]
-        for v, _ in parameter_values.values():
-            if v is not None:
-                raise GraphQLError('Only one type of value allowed', info.field_nodes)
-
-        try:
-            value = param.clean(value)
-        except ValidationError as e:
-            raise GraphQLError(str(e), info.field_nodes)  # noqa: B904
-
-        setting_storage = info.context.instance.context.setting_storage
+        setting_storage = context.setting_storage
         assert setting_storage is not None
-        setting_storage.set_param(id, value)
+        setting_storage.set_param(str(id), value)
         setting_storage.set_active_scenario(context.custom_scenario.id)
         context.activate_scenario(context.custom_scenario)
 
-        return SetParameterMutation(ok=True, parameter=param)
+        return SetParameterResult(ok=True, parameter=param)
 
-
-class ResetParameterMutation(graphene.Mutation):
-    class Arguments:
-        id = graphene.ID()
-
-    ok = graphene.Boolean()
-
-    @staticmethod
-    @ensure_instance
-    def mutate(root, info: GQLInstanceInfo, id: str | None = None) -> ResetParameterMutation:
-        context = info.context.instance.context
+    @sb.mutation
+    def reset_parameter(self, info: gql.Info, id: sb.ID | None = None) -> ResetParameterResult:
+        context = get_instance_context(info)
         storage = context.setting_storage
         assert storage is not None
         if id is None:
-            # Reset all parameters to defaults
             storage.reset()
         else:
-            storage.reset_param(id)
+            storage.reset_param(str(id))
 
         customized_params = storage.get_customized_param_values()
         if not customized_params:
-            # If we no longer have customized parameters, activate the default scenario
             default_scenario_id = context.get_default_scenario().id
             active_scenario_id = storage.get_active_scenario()
             if active_scenario_id is not None and active_scenario_id != default_scenario_id:
                 storage.set_active_scenario(None)
 
-        return ResetParameterMutation(ok=True)
+        return ResetParameterResult(ok=True)
 
-
-class ActivateScenarioMutation(graphene.Mutation):
-    class Arguments:
-        id = graphene.ID(required=True)
-
-    ok = graphene.Boolean()
-    active_scenario = graphene.Field('nodes.schema.ScenarioType')
-
-    @staticmethod
-    @ensure_instance
-    def mutate(root, info: GQLInstanceInfo, id: str) -> dict[str, Any]:
-        context = info.context.instance.context
-        scenario = context.scenarios.get(id)
+    @sb.mutation
+    def activate_scenario(self, info: gql.Info, id: sb.ID) -> ActivateScenarioResult:
+        context = get_instance_context(info).instance.context
+        scenario = context.scenarios.get(str(id))
         if scenario is None:
-            raise GraphQLError("Scenario '%s' not found" % id, info.field_nodes)
+            raise GraphQLError(f"Scenario '{id}' not found", info.field_nodes)
 
         assert context.setting_storage is not None
 
@@ -219,36 +264,21 @@ class ActivateScenarioMutation(graphene.Mutation):
         context.setting_storage.set_active_scenario(val)
         context.activate_scenario(scenario)
 
-        return dict(ok=True, active_scenario=scenario)
+        return ActivateScenarioResult(ok=True, active_scenario=scenario)
 
 
-class Mutations(graphene.ObjectType[Any]):
-    set_parameter = SetParameterMutation.Field()
-    reset_parameter = ResetParameterMutation.Field()
-    activate_scenario = ActivateScenarioMutation.Field()
+@sb.type
+class SBQuery:
+    @sb.field(graphql_type=list[ParameterInterface])
+    def parameters(self, info: gql.Info) -> list[Parameter[Any, Any]]:
+        context = get_instance_context(info)
+        return [param for param in context.global_parameters.values() if param.is_visible]
 
-
-class Query(graphene.ObjectType[Any]):
-    parameters = graphene.List(graphene.NonNull(ParameterInterface), required=True)
-    parameter = graphene.Field(ParameterInterface, id=graphene.ID(required=True))
-
-    @staticmethod
-    @ensure_instance
-    def resolve_parameters(root, info: GQLInstanceInfo) -> list[Parameter[Any]]:
-        instance = info.context.instance
-        params = [param for param in instance.context.global_parameters.values() if param.is_visible]
-        return params
-
-    @staticmethod
-    @ensure_instance
-    def resolve_parameter(root, info: GQLInstanceInfo, id: str) -> Parameter[Any] | None:
-        instance = info.context.instance
-        try:
-            param = instance.context.get_parameter(id)
-            if not param.is_visible:
-                return None
-        except KeyError:
-            raise GraphQLError(f'Parameter {id} does not exist', info.field_nodes) from None
+    @sb.field(graphql_type=Union[Annotated['ParameterInterface', sb.lazy('params.schema')], None])  # pyright: ignore[reportDeprecated]
+    def parameter(self, info: gql.Info, id: sb.ID) -> Parameter[Any, Any] | None:
+        param = _get_parameter_or_error(info, str(id))
+        if not param.is_visible:
+            return None
         return param
 
 
