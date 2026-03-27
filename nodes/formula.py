@@ -303,6 +303,7 @@ class FormulaNode(Node):
     _CUSTOM_FUNC_HANDLERS: dict[str, str] = {
         'convert_gwp': '_custom_convert_gwp',
         'sum_dim': '_custom_sum_dim',
+        'sum_into_cat': '_custom_sum_into_cat',
         'prod_dim': '_custom_prod_dim',
         'zero_fill': '_custom_zero_fill',
         'select_port': '_custom_select_port',
@@ -340,6 +341,35 @@ class FormulaNode(Node):
         assert isinstance(dim_arg, ast.Name)
         assert isinstance(dim_arg.id, str)
         return df.paths.prod_over_dims(dim_arg.id)
+
+    def _ast_category_label(self, node: ast.expr) -> str:
+        """Parse a dimension category id (quoted string or bare identifier, like ``dim``)."""
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        raise NodeError(self, 'Expected a string literal or identifier for the category name.')
+
+    def _ast_str_sequence_literal(self, node: ast.expr) -> list[str]:
+        """Parse ``['a', 'b']``, ``(a, b)``, or mixed quoted/unquoted category ids from the formula AST."""
+        if not isinstance(node, (ast.List, ast.Tuple)):
+            raise NodeError(self, 'Expected a list or tuple of category names.')
+        return [self._ast_category_label(el) for el in node.elts]
+
+    def _custom_sum_into_cat(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        """
+        Handle ``sum_into_cat``; see ``PathsExt.sum_into_cat``.
+
+        Syntax: ``sum_to_cat(df, dim, [src, ...], target)``. Use identifiers or quoted strings for
+        ``dim``, each source category, and ``target``.
+        """
+        assert len(node.args) == 4, 'sum_into_cat(df, dim, source_categories, target) requires four arguments'
+        assert isinstance(df, PDF)
+        dim_arg = node.args[1]
+        assert isinstance(dim_arg, ast.Name)
+        sources = self._ast_str_sequence_literal(node.args[2])
+        target = self._ast_category_label(node.args[3])
+        return df.paths.sum_into_cat(dim_arg.id, sources, target)
 
     def _custom_zero_fill(self, _func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert isinstance(df, PDF)
@@ -727,7 +757,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 if isinstance(override_unit, str):
                     return unit_registry.parse_units(override_unit)
                 return override_unit
-            if func_name == 'sum_dim':
+            if func_name in ('sum_dim', 'sum_into_cat'):
                 return first
             if func_name == 'coalesce':
                 unit = first
@@ -847,6 +877,8 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                         return None
                     return set(d for d in first if d != dim)
                 analysis.errors.append('sum_dim expects a dimension name as second argument.')
+                return first
+            if func_name == 'sum_into_cat':
                 return first
             if func_name == 'coalesce':
                 dims = first

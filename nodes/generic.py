@@ -1649,7 +1649,7 @@ class ConstantNode(GenericNode):
             constant = const_float * Quantity(1.0, 'dimensionless')
         if df is not None:
             raise NodeError(self, "Operation 'constant' must be the first of the operations.")
-        start_year = self.context.instance.minimum_historical_year
+        start_year = self.context.instance.reference_year
         end_year = self.context.instance.model_end_year
         last_historical_year = self.context.instance.maximum_historical_year
         if last_historical_year is None or last_historical_year < start_year:

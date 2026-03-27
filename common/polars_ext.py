@@ -328,6 +328,68 @@ class PathsExt:
         )
         return ppl.to_ppdf(zdf, meta=meta)
 
+    def sum_into_cat(
+        self,
+        dim: str,
+        source_categories: list[str],
+        target: str,
+    ) -> ppl.PathsDataFrame:
+        """
+        Sum selected categories of one dimension into a single target category.
+
+        Rows where ``dim`` is in ``source_categories`` or already equals ``target`` are aggregated
+        (same numeric columns and forecast rule as :meth:`sum_over_dims`), and the result is
+        written with ``dim`` set to ``target``. All other categories are left unchanged. If the
+        target category already had rows, their values are included in the same sum as the sources.
+        """
+        df = self._df
+        meta = df.get_meta()
+        if dim not in meta.dim_ids:
+            raise ValueError('sum_into_cat: dim %r is not a dimension column (dim_ids=%s)' % (dim, meta.dim_ids))
+
+        fold_categories = list(frozenset(source_categories) | {target})
+
+        if FORECAST_COLUMN in df.columns:
+            fc = [pl.any(FORECAST_COLUMN)]
+        else:
+            fc = []
+
+        known_cols = set(meta.primary_keys) | set(meta.metric_cols) | {FORECAST_COLUMN, YEAR_COLUMN}
+        sum_cols = list(meta.metric_cols)
+        for col, dt in df.schema.items():
+            if col in known_cols:
+                continue
+            if dt.is_numeric():
+                sum_cols.append(col)
+
+        group_keys = [k for k in meta.primary_keys if k != dim]
+        dim_dtype = df.schema[dim]
+        target_dim = pl.lit(target).cast(dim_dtype)
+
+        df_keep = df.filter(~pl.col(dim).is_in(fold_categories))
+        df_fold = df.filter(pl.col(dim).is_in(fold_categories))
+
+        z_fold = df_fold.group_by(group_keys).agg([
+            *[pl.sum(col).alias(col) for col in sum_cols],
+            *fc,
+            target_dim.alias(dim),
+        ])
+
+        missing_cols = [c for c in df.columns if c not in z_fold.columns]
+        if missing_cols:
+            z_fold = z_fold.with_columns([pl.lit(None).cast(df.schema[c]).alias(c) for c in missing_cols])
+        z_fold = z_fold.select(df.columns)
+
+        if len(df_keep) == 0:
+            zdf = z_fold
+        elif len(z_fold) == 0:
+            zdf = df_keep
+        else:
+            zdf = pl.concat([df_keep, z_fold], how='vertical')
+
+        zdf = zdf.sort(meta.primary_keys)
+        return ppl.to_ppdf(zdf, meta=meta)
+
     # TODO Maybe merge with sum_over_dims into a generic function?
     def prod_over_dims(self, dims: str | list[str] | None = None) -> ppl.PathsDataFrame:
         df = self._df
