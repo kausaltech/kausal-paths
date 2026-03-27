@@ -15,8 +15,8 @@ owner: Köln Stadt
 theme_identifier: de-koeln
 target_year: 2035
 model_end_year: 2050
-reference_year: 2024
-minimum_historical_year: 2024 # 2008 when the historical data is in order.
+reference_year: 2008
+minimum_historical_year: 2008 # 2008 when the historical data is in order.
 maximum_historical_year: 2024
 emission_unit: kt/a
 emission_forecast_from: 2025
@@ -428,12 +428,18 @@ nodes:
   - id: koeln/einwohnerin
     column: einwohnerin
 
-- id: historical_emissions
-  name_de: Historische Emissionen
-  name_en: Historical emissions
+- id: bau_scenario_emissions
+  name_de: BAU-Szenario-Emissionen
+  name_en: BAU scenario emissions
+  description_en: The data comes from file Emissionsrechner Gesamt_mit_szenarien_v1-2.xlsx
+    (version 2026-03-16) from sheet 'THG Emissionen mit Strategien'. This data contains
+    the scenario about future emissions under business as usual actions.
+  description_de: Die Daten kommen aus der Datei Emissionsrechner Gesamt_mit_szenarien_v1-2.xlsx
+    (Version 2026-03-16) aus dem Blatt 'THG Emissionen mit Strategien'. Diese Daten enthalten
+    die Szenario über zukünftige Emissionen unter geschäftstauglichen Maßnahmen.
   type: generic.GenericNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   color: '#00A969'
   input_dimensions: [sector, energy_carrier, vehicle_type]
   output_dimensions: [sector, energy_carrier, vehicle_type]
@@ -446,6 +452,29 @@ nodes:
   - id: multiplier
     value: 1
     unit: t/t_co2e
+
+- id: difference
+  name_de: Differenz
+  name_en: Difference
+  description_en: A technical node showing the difference between two data sources,
+    one from the BAU scenario model in excel, the other from three datasets.
+  description_de: Ein technischer Knoten, der die Differenz zwischen zwei Datenquellen
+    zeigt, einer aus dem BAU-Szenario-Modell in Excel, der andere aus drei Datensätzen.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: bau_scenario_emissions
+    tags: [bau]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: total_emissions
+    tags: [datasets]
+  params:
+    formula: bau - datasets
 
 - id: stationary_energy_by_type
   name_de: Stationäre Endenergieverbrauch nach Typ
@@ -530,6 +559,8 @@ nodes:
   name_en: Transport energy use by energy carrier
   description_en: Data from Klimaschutz-Planer 2008-2023 (year 2023 unused
     because other data is available).
+  description_de: Daten aus Klimaschutz-Planer 2008-2023 (Jahr 2023 nicht
+    verwendet, weil andere Daten verfügbar sind).
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
@@ -541,9 +572,34 @@ nodes:
   params:
     operations: get_single_dataset,inventory_only
 
+- id: transport_fuel_energy
+  name_de: Transportkraftstoffenergie
+  name_en: Transport fuel energy
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: transport_energy_by_energy_carrier
+    tags: [energy]
+  params:
+    formula: sum_into_cat(energy, energy_carrier, [petrol, diesel, bio_petrol,
+      biodiesel, cng_bio, cng_fossil, kerosene, lpg], fuels)
+
 - id: total_energy_use
   name_de: Gesamtenergieverbrauch
   name_en: Total energy use
+  description_en: 'The data comes from three different datasets from file 
+    Emissionsrechner Gesamt_mit_szenarien_v1-2.xlsx (version 2026-03-16):<ul><li>
+    Stationary energy by type: from sheet "Stationär EEV"</li><li>
+    Transport fuel energy (years 2008 - 2022): from sheet "Verkehr"</li><li>
+    Vehicle energy by type (years 2023 - 2050): from sheet "Verkehr EEV (LKW, PKW, übrige)</li></ul>'
+  description_de: 'Die Daten kommen aus drei verschiedenen Datensätzen aus der Datei 
+    Emissionsrechner Gesamt_mit_szenarien_v1-2.xlsx (Version 2026-03-16):<ul><li>
+    Stationäre Endenergieverbrauch nach Typ: aus Blatt "Stationär EEV"</li><li>
+    Transportkraftstoffenergie (Jahre 2008 - 2022): aus Blatt "Verkehr"</li><li>
+    Verkehrsenergieverbrauch nach Typ (Jahre 2023 - 2050): aus Blatt "Verkehr EEV (LKW, PKW, übrige)</li></ul>'
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
@@ -551,7 +607,7 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: stationary_energy_by_type
-  - id: transport_energy_by_energy_carrier
+  - id: transport_fuel_energy
     to_dimensions:
     - id: energy_carrier
     - id: sector
@@ -592,7 +648,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: historical_emissions
+  - id: bau_scenario_emissions
     tags: [emissions]
     from_dimensions:
     - id: vehicle_type
@@ -614,7 +670,7 @@ nodes:
   input_dimensions: [sector]
   output_dimensions: [sector]
   input_nodes:
-  - id: historical_emissions
+  - id: bau_scenario_emissions
     tags: [emissions]
     from_dimensions:
     - id: energy_carrier
@@ -728,7 +784,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: historical_emissions
+  - id: bau_scenario_emissions
     tags: [inventory_only]
     from_dimensions:
     - id: energy_carrier
@@ -752,7 +808,7 @@ nodes:
   # - id: end_energy_emission_factors
   #   to_dimensions:
   #   - id: energy_carrier
-  - id: historical_emissions
+  - id: bau_scenario_emissions
     from_dimensions:
     - id: sector
       categories: [private_households]
@@ -775,7 +831,7 @@ nodes:
   # - id: end_energy_emission_factors
   #   to_dimensions:
   #   - id: energy_carrier
-  - id: historical_emissions
+  - id: bau_scenario_emissions
     from_dimensions:
     - id: sector
       categories: [transport]
@@ -798,7 +854,7 @@ nodes:
   # - id: end_energy_emission_factors
   #   to_dimensions:
   #   - id: energy_carrier
-  - id: historical_emissions
+  - id: bau_scenario_emissions
     from_dimensions:
     - id: sector
       categories: [industry]
@@ -821,7 +877,7 @@ nodes:
   # - id: end_energy_emission_factors
   #   to_dimensions:
   #   - id: energy_carrier
-  - id: historical_emissions
+  - id: bau_scenario_emissions
     from_dimensions:
     - id: sector
       categories: [commerce_trade_services]
@@ -844,7 +900,7 @@ nodes:
   # - id: end_energy_emission_factors
   #   to_dimensions:
   #   - id: energy_carrier
-  - id: historical_emissions
+  - id: bau_scenario_emissions
     from_dimensions:
     - id: sector
       categories: [municipal_facilities]
