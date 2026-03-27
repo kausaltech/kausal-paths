@@ -30,6 +30,7 @@ from paths.graphql_helpers import ensure_instance, get_instance_context, pass_co
 from paths.graphql_types import UnitType
 
 from nodes.context import Context
+from nodes.defs.instance_defs import ActionGroup
 from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.node import Node
 from nodes.normalization import Normalization
@@ -38,7 +39,7 @@ from pages.models import ActionListPage
 from params import Parameter
 
 from . import visualizations as viz
-from .actions.action import ActionGroup, ActionNode, ImpactOverview
+from .actions import ActionNode, ImpactOverview
 from .actions.parent import ParentActionNode
 from .constants import FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN, DecisionLevel
 from .instance import Instance, InstanceFeatures

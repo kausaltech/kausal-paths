@@ -341,9 +341,12 @@ class Node:
 
     def __post_init__(self): ...
 
-    def finalize_init(self):
-        """Customization and validation that is run after the node graph is fully configured."""  # noqa: D401
-        pass
+    def finalize_init(self) -> None:
+        """
+        Customizate and validate the node spec after the node graph is fully configured.
+
+        Nothing to do in the generic case, might be implemented by subclasses.
+        """
 
     @property
     def single_metric_unit(self) -> Unit:

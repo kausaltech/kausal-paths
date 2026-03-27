@@ -4,13 +4,13 @@ from pydantic import BaseModel, Field
 
 from kausal_common.i18n.pydantic import TranslatedString
 
-from common.types import Identifier
+from common.types import NodePortIdentifier
 
 
 class InputPortDef(BaseModel):
     """Definition of a node input port (stored in NodeConfig.input_ports JSONField)."""
 
-    id: Identifier
+    id: NodePortIdentifier
     label: TranslatedString | None = None
     quantity: str = ''
     unit: str = ''
@@ -21,7 +21,7 @@ class InputPortDef(BaseModel):
 class OutputPortDef(BaseModel):
     """Definition of a node output port (stored in NodeConfig.output_ports JSONField)."""
 
-    id: Identifier
+    id: NodePortIdentifier
     label: TranslatedString | None = None
     quantity: str = ''
     unit: str = ''

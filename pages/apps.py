@@ -30,4 +30,4 @@ class PagesConfig(AppConfig):
         # LANGUAGES in settings.py for details about this.
         from wagtail.admin.forms import account
 
-        account.LocalePreferencesForm.base_fields['preferred_language']._choices.choices_func = _get_language_choices
+        account.LocalePreferencesForm.base_fields['preferred_language']._choices.choices_func = _get_language_choices  # type: ignore[attr-defined]

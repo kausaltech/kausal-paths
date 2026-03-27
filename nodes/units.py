@@ -81,8 +81,11 @@ class Unit(pint.registry.Unit):
         return str(value)
 
 
-class Quantity(pint.registry.Quantity):
-    pass
+class Quantity(pint.registry.Quantity[float]):
+    if TYPE_CHECKING:
+
+        @property
+        def units(self) -> Unit: ...
 
 
 QuantityType: TypeAlias = Quantity | PlainQuantity[Any]  # noqa: UP040

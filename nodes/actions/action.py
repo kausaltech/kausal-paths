@@ -36,6 +36,7 @@ if typing.TYPE_CHECKING:
     from kausal_common.i18n.pydantic import TranslatedString
 
     from nodes.context import Context
+    from nodes.defs.instance_defs import ActionGroup
     from nodes.units import Unit
     from params import Parameter
 
@@ -43,13 +44,6 @@ if typing.TYPE_CHECKING:
 
 
 ENABLED_PARAM_ID = 'enabled'
-
-
-@dataclass
-class ActionGroup:
-    id: str
-    name: TranslatedString | str
-    color: str | None
 
 
 class EnabledParam(BoolParameter):

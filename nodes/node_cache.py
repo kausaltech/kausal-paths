@@ -6,11 +6,10 @@ import inspect
 import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from functools import wraps
 from pathlib import Path
 from pprint import pprint
 from time import time_ns
-from typing import TYPE_CHECKING, Any, Concatenate, cast
+from typing import TYPE_CHECKING, Concatenate, cast
 
 import sentry_sdk
 import xxhash
@@ -20,7 +19,7 @@ from kausal_common.logging.errors import capture_error
 
 from common.polars import PathsDataFrame
 from nodes.datasets import DVCDataset
-from nodes.exceptions import NodeHashingError
+from nodes.exceptions import NodeError, NodeHashingError
 
 if TYPE_CHECKING:
     from common.cache import CacheResult
@@ -104,33 +103,6 @@ class NodeHasher:
     metrics_hash: bytes | None = field(init=False, default=None)
     """Cached hash of the node's output metrics."""
 
-    @staticmethod
-    def _wrap_hashing_error[**P, R](func: NodeHasherFuncT[P, R]) -> NodeHasherFuncT[P, R]:
-        """
-        Provide better error reporting for hashing functions.
-
-        Args:
-            func: The function to wrap
-
-        Returns:
-            The wrapped function that catches exceptions and converts them to NodeHashingError
-
-        """
-
-        @wraps(func)
-        def report_error(*args, **kwargs) -> Any:
-            _rich_traceback_omit = True
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                node = args[0]
-                if isinstance(e, NodeHashingError):
-                    e.add_node(node)
-                    raise
-                raise NodeHashingError(args[0], 'Unable to hash node') from e
-
-        return cast('NodeHasherFuncT[P, R]', report_error)
-
     def _get_cached_hash(self) -> bytes | None:
         """
         Return the cached hash if it's still valid, None otherwise.
@@ -207,8 +179,8 @@ class NodeHasher:
             ret = self._calculate_hash(state)
             state.upstream_node_keys[self.node.id] = self._get_cache_key(self.node, ret)
         except Exception as e:
-            if isinstance(e, NodeHashingError):
-                e.add_node(self.node)
+            if isinstance(e, NodeError):
+                e.add_node_event(self.node, 'calculate hash')
                 raise
             raise NodeHashingError(self.node, 'Unable to hash node') from e
         return ret

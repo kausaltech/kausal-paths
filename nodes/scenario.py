@@ -1,21 +1,23 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import strawberry as sb
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+
+from kausal_common.i18n.pydantic import I18nString
+
+from common.types import ParameterGlobalId, ScenarioIdentifier
+from params.storage import SettingStorage
+
+from .context import Context
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
 
-    from kausal_common.i18n.pydantic import I18nString
-
     from params import Parameter
-    from params.storage import SettingStorage
-
-    from .context import Context
 
 
 @sb.enum
@@ -26,23 +28,29 @@ class ScenarioKind(Enum):
     PROGRESS_TRACKING = 'progress_tracking'
 
 
-@dataclass
-class Scenario:
-    context: Context
-    id: str
+class Scenario(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    id: ScenarioIdentifier
     name: I18nString
-
-    _: KW_ONLY
-
+    description: I18nString | None = None
     kind: ScenarioKind | None = None
     all_actions_enabled: bool = False
     is_selectable: bool = True
-    param_values: dict[str, Any] = field(default_factory=dict)
+    param_values: dict[ParameterGlobalId, Any] = Field(default_factory=dict)
     actual_historical_years: list[int] | None = None
+
+    _context: Context | None = PrivateAttr(default=None)
 
     @property
     def default(self) -> bool:
         return self.kind == ScenarioKind.DEFAULT
+
+    @property
+    def context(self) -> Context:
+        if self._context is None:
+            raise RuntimeError('Context is not set')
+        return self._context
 
     def get_param_values(self) -> Iterable[tuple[Parameter, Any]]:
         for param_id, val in self.param_values.items():
@@ -91,7 +99,7 @@ class Scenario:
         return self.id
 
     def __repr__(self) -> str:
-        instance = self.context.instance if self.context is not None else None
+        instance = self.context.instance if self._context is not None else None
         return "Scenario(id=%s, name='%s', instance=%s)" % (
             self.id,
             str(self.name),
@@ -99,23 +107,20 @@ class Scenario:
         )
 
 
-@dataclass
 class CustomScenario(Scenario):
-    _: KW_ONLY
-
     base_scenario: Scenario
     kind: ScenarioKind | None = ScenarioKind.CUSTOM
-    storage: SettingStorage = field(init=False)
+    _storage: SettingStorage = PrivateAttr(init=False)
 
     def set_storage(self, storage: SettingStorage):
-        self.storage = storage
+        self._storage = storage
 
     def reset(self):
-        self.storage.reset()
+        self._storage.reset()
         self.base_scenario.activate()
 
     def get_param_values(self) -> Iterable[tuple[Parameter, Any]]:
-        params = list(self.storage.get_customized_param_values().items())
+        params = list(self._storage.get_customized_param_values().items())
         for param_id, val in params:
             param = self.context.get_parameter(param_id, required=False)
             is_valid = True
@@ -131,7 +136,7 @@ class CustomScenario(Scenario):
                     self.context.log.error('parameter %s has invalid value: %s', param_id, val)
                     is_valid = False
             if not is_valid:
-                self.storage.reset_param(param_id)
+                self._storage.reset_param(param_id)
                 continue
             assert param is not None
             yield param, cleaned_val
@@ -144,4 +149,4 @@ class CustomScenario(Scenario):
                 param.is_customized = True
             else:
                 self.context.log.warning('parameter %s was set to default value (%s)', param.global_id, val)
-                self.storage.reset_param(param.global_id)
+                self._storage.reset_param(param.global_id)

@@ -6,24 +6,9 @@ from typing import TYPE_CHECKING
 from graphene_django.utils.testing import graphql_query
 
 import pytest
-
-from nodes.scenario import ScenarioKind
-from people.tests.factories import PersonFactory
-
-if TYPE_CHECKING:
-    from nodes.context import Context
-    from nodes.instance import Instance
-else:
-    from factory import Factory, SubFactory
-
-    # These classes need to support the generics syntax
-    for kls in (Factory, SubFactory):
-        if not hasattr(kls, '__class_getitem__'):
-            kls.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore
-
-
 from pytest_factoryboy import LazyFixture, register
 
+from nodes.scenario import ScenarioKind
 from nodes.tests.factories import (
     ActionNodeFactory,
     AdditiveActionFactory,
@@ -37,7 +22,12 @@ from nodes.tests.factories import (
 )
 from orgs.tests.factories import OrganizationFactory
 from params.tests.factories import BoolParameterFactory, NumberParameterFactory, ParameterFactory, StringParameterFactory
+from people.tests.factories import PersonFactory
 from users.tests.factories import UserFactory
+
+if TYPE_CHECKING:
+    from nodes.context import Context
+    from nodes.instance import Instance
 
 
 @pytest.fixture(autouse=True)
@@ -77,51 +67,54 @@ def action_node(context):
 
 
 @pytest.fixture
-def additive_action(context: Context, instance):
+def additive_action(context: Context):
     assert context.instance is not None
     node = AdditiveActionFactory.create(context=context)
     return node
 
 
 @pytest.fixture
-def scenario(context):
-    """Does not notify any nodes of the scenario's creation."""
-    scenario = ScenarioFactory()
+def scenario(context: Context):
+    """
+    Create new scenario and add it to the context.
+
+    Does not notify any nodes of the scenario's creation.
+    """
+    scenario = ScenarioFactory.create(context=context)
     context.add_scenario(scenario)
     return scenario
 
 
 @pytest.fixture
 def simple_node(context):
-    node = SimpleNodeFactory(context=context)
+    node = SimpleNodeFactory.create(context=context)
     return node
 
 
 @pytest.fixture(autouse=True)  # autouse=True since InstanceMiddleware requires a default scenario
 def default_scenario(instance: Instance, context):
-    """Adds default scenario but doesn't notify any nodes of its creation."""
+    """Add default scenario but doesn't notify any nodes of its creation."""
     assert context == instance.context
     return context.get_default_scenario()
 
 
 @pytest.fixture
 def baseline_scenario(instance: Instance):
-    """Adds baseline scenario but doesn't notify any nodes of its creation."""
+    """Add baseline scenario but doesn't notify any nodes of its creation."""
     context = instance.context
-    scenario = ScenarioFactory.create(id='baseline', all_actions_enabled=True, context=context, kind=ScenarioKind.BASELINE)
+    scenario = ScenarioFactory.create(id='baseline', all_actions_enabled=True, kind=ScenarioKind.BASELINE)
     context.add_scenario(scenario)
     return scenario
 
 
 @pytest.fixture
 def custom_scenario(instance: Instance):
+    """Add custom scenario but doesn't notify any nodes of its creation."""
     context = instance.context
-    """Adds custom scenario but doesn't notify any nodes of its creation."""
     custom_scenario = CustomScenarioFactory.create(
         id='custom',
         name='Custom',
         base_scenario=context.get_default_scenario(),
-        context=context,
     )
     context.set_custom_scenario(custom_scenario)
     return custom_scenario
@@ -159,5 +152,15 @@ def graphql_client_query_data(graphql_client_query):
 
 
 @pytest.fixture
+def graphql_test_client(client, instance_config):
+    """Strawberry-based GraphQL test client with the autouse instance pre-configured."""
+    from paths.tests.graphql import PathsTestClient
+
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(instance_config)
+    return gql_client
+
+
+@pytest.fixture
 def admin_user():
-    return UserFactory(is_staff=True, is_superuser=True)
+    return UserFactory.create(is_staff=True, is_superuser=True)

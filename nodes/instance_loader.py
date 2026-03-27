@@ -36,6 +36,7 @@ from .excel_results import InstanceResultExcel
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    import dvc_pandas
     from ruamel.yaml import CommentedMap
     from ruamel.yaml.comments import LineCol
 
@@ -386,7 +387,6 @@ class InstanceLoader:
         pop: bool = False,
         required: Literal[True] = True,
         default_language=None,
-        fallback: TranslatedString | None = None,
     ) -> TranslatedString: ...
 
     @overload
@@ -397,17 +397,15 @@ class InstanceLoader:
         pop: bool = False,
         required: Literal[False] = False,
         default_language=None,
-        fallback: TranslatedString | None = None,
     ) -> TranslatedString | None: ...
 
-    def make_trans_string(  # noqa: C901
+    def make_trans_string(  # noqa: C901, PLR0912
         self,
         config: dict[str, Any],
         attr: str,
         pop: bool = False,
         required: bool = False,
         default_language=None,
-        fallback: TranslatedString | None = None,
     ) -> None | TranslatedString:
         default_language = default_language or self.config['default_language']
         all_langs = {self.config['default_language']}
@@ -940,7 +938,17 @@ class InstanceLoader:
 
         default_scenario = None
 
-        for sc in self.config['scenarios']:
+        scenario_confs: list[dict[str, Any]] = self.config.get('scenarios', [])
+        if not scenario_confs:
+            scenario_confs = [
+                {
+                    'id': 'default',
+                    'name': _('Default'),
+                    'default': True,
+                }
+            ]
+
+        for sc in scenario_confs:
             name = self.make_trans_string(sc, 'name', pop=True)
             params_config = sc.pop('params', [])
             actual_historical_years = sc.pop('actual_historical_years', None)
@@ -953,9 +961,8 @@ class InstanceLoader:
                 kind = ScenarioKind.PROGRESS_TRACKING
             elif scenario_id == 'baseline':
                 kind = ScenarioKind.BASELINE
-            scenario = Scenario(
-                context=self.context, id=scenario_id, name=name, actual_historical_years=actual_historical_years, kind=kind, **sc
-            )
+            scenario = Scenario(id=scenario_id, name=name, actual_historical_years=actual_historical_years, kind=kind, **sc)
+            scenario._context = self.context
 
             for pc in params_config:
                 param = self.context.get_parameter(pc['id'])
@@ -979,14 +986,13 @@ class InstanceLoader:
                 continue
             default_scenario.add_parameter(param, param.value)
 
-        self.context.set_custom_scenario(
-            CustomScenario(
-                context=self.context,
-                id='custom',
-                name=_('Custom'),
-                base_scenario=default_scenario,
-            ),
+        custom_scenario = CustomScenario(
+            id='custom',
+            name=_('Custom'),
+            base_scenario=default_scenario,
         )
+
+        self.context.set_custom_scenario(custom_scenario)
 
         if self.fw_config is not None:
             self.setup_progress_tracking_scenario()
@@ -1164,22 +1170,9 @@ class InstanceLoader:
         ds_objs = DBDatasetModel.objects.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at')
         self.db_datasets = {ds.identifier: ds for ds in ds_objs}
 
-    def _init_instance(self) -> None:  # noqa: PLR0915
+    def _get_dvc_dataset_repo_config(self, dataset_repo_config: dict[str, Any]) -> dvc_pandas.Repository | None:
         import dvc_pandas
 
-        from nodes.actions.action import ActionGroup
-        from nodes.context import Context
-
-        from .instance import Instance
-
-        config = self.config
-        instance_id: str = config['id']
-        fwc = self.fw_config
-        if fwc is not None:
-            instance_id = fwc.instance_config.identifier
-        dataset_repo_default_path = None
-
-        dataset_repo_config = self.config['dataset_repo']
         repo_url = dataset_repo_config['url']
         commit = dataset_repo_config.get('commit')
         creds = dvc_pandas.RepositoryCredentials(
@@ -1195,15 +1188,34 @@ class InstanceLoader:
             # cache_prefix=instance_id
         )
         dataset_repo.set_target_commit(commit)
-        dataset_repo_default_path = dataset_repo_config.get('default_path')
+        return dataset_repo
+
+    def _init_instance(self) -> None:  # noqa: PLR0915
+        from nodes.context import Context
+        from nodes.defs.instance_defs import ActionGroup
+
+        from .instance import Instance
+
+        config = self.config
+        instance_id: str = config['id']
+        fwc = self.fw_config
+        if fwc is not None:
+            instance_id = fwc.instance_config.identifier
+
+        dataset_repo_config = config.get('dataset_repo')
+        if dataset_repo_config is not None:
+            dataset_repo = self._get_dvc_dataset_repo_config(dataset_repo_config)
+        else:
+            dataset_repo = None
 
         agc_all = self.config.get('action_groups', [])
         agcs = []
-        for agc in agc_all:
+        for idx, agc in enumerate(agc_all):
             ag = ActionGroup(
-                agc['id'],
-                self.make_trans_string(agc, 'name', required=True),
-                agc.get('color'),
+                id=agc['id'],
+                name=self.make_trans_string(agc, 'name', required=True),
+                color=agc.get('color') or '',
+                order=idx,
             )
             agcs.append(ag)
 
@@ -1268,7 +1280,6 @@ class InstanceLoader:
                 dataset_repo=dataset_repo,
                 target_year=target_year,
                 model_end_year=model_end_year,
-                dataset_repo_default_path=dataset_repo_default_path,
                 sample_size=sample_size,
             )
         self.instance.set_context(self.context)

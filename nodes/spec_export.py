@@ -18,15 +18,12 @@ from nodes.actions.action import ActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs import (
     ActionConfig,
-    ActionGroupDef,
-    DatasetRepoDef,
+    DatasetRepoSpec,
     InstanceSpec,
     NodeSpec,
     OutputMetricDef,
-    ScenarioDef,
-    ScenarioParameterOverrideDef,
     SimpleConfig,
-    YearsDef,
+    YearsSpec,
 )
 
 if TYPE_CHECKING:
@@ -36,13 +33,14 @@ if TYPE_CHECKING:
 
     from nodes.context import Context
     from nodes.defs import (
+        ActionGroup,
         FormulaConfig,
     )
     from nodes.defs.node_defs import NodeSpecExtra
     from nodes.edges import Edge, EdgeDimension
     from nodes.instance import Instance
     from nodes.node import Node, NodeMetric
-    from nodes.scenario import Scenario, ScenarioKind
+    from nodes.scenario import Scenario
     from params import Parameter
 
 
@@ -59,7 +57,7 @@ def export_instance_spec(instance: Instance) -> InstanceSpec:
     """Build an InstanceSpec from a live Instance."""
     ctx = instance.context
 
-    years = YearsDef(
+    years = YearsSpec(
         reference=instance.reference_year,
         min_historical=instance.minimum_historical_year,
         max_historical=instance.maximum_historical_year,
@@ -76,7 +74,7 @@ def export_instance_spec(instance: Instance) -> InstanceSpec:
         years=years,
         dataset_repo=dataset_repo,
         dimensions=_export_dimensions(ctx),
-        features=instance.features.model_dump(),
+        features=instance.features,
         params=params,
         action_groups=action_groups,
         scenarios=scenarios,
@@ -122,11 +120,11 @@ def _export_dimensions(ctx: Context) -> list[dict[str, Any]]:
     return [dim.model_dump(exclude_none=True) for dim in ctx.dimensions.values()]
 
 
-def _export_dataset_repo(ctx: Context) -> DatasetRepoDef:
+def _export_dataset_repo(ctx: Context) -> DatasetRepoSpec:
     repo = ctx.dataset_repo
     if repo is None:
-        return DatasetRepoDef()
-    return DatasetRepoDef(
+        return DatasetRepoSpec()
+    return DatasetRepoSpec(
         url=repo.repo_url,
         commit=repo.target_commit_id,
         dvc_remote=repo.dvc_remote,
@@ -137,56 +135,14 @@ def _export_global_params(ctx: Context) -> list[Parameter]:
     return [param.model_copy() for param in ctx.global_parameters.values()]
 
 
-def _export_action_groups(instance: Instance) -> list[ActionGroupDef]:
-    groups: list[ActionGroupDef] = []
-    for idx, ag in enumerate(instance.action_groups):
-        groups.append(
-            ActionGroupDef(
-                id=ag.id,
-                name=_to_ts(ag.name),
-                color=ag.color or '',
-                order=idx,
-            )
-        )
-    return groups
+def _export_action_groups(instance: Instance) -> list[ActionGroup]:
+    return [ag.model_copy(update={'order': idx}) for idx, ag in enumerate(instance.action_groups)]
 
 
-def _export_scenarios(ctx: Context) -> list[ScenarioDef]:
+def _export_scenarios(ctx: Context) -> list[Scenario]:
     from nodes.scenario import CustomScenario
 
-    scenarios: list[ScenarioDef] = []
-    for scenario in ctx.scenarios.values():
-        if isinstance(scenario, CustomScenario):
-            continue
-        scenarios.append(_export_scenario(scenario))
-    return scenarios
-
-
-def _export_scenario(scenario: Scenario) -> ScenarioDef:
-    overrides: list[ScenarioParameterOverrideDef] = []
-    for param, value in scenario.get_param_values():
-        node_id = None
-        if param._node is not None:
-            node_id = param._node.id
-        overrides.append(
-            ScenarioParameterOverrideDef(
-                parameter_id=param.global_id,
-                value=value,
-                node_id=node_id,
-            )
-        )
-
-    kind: ScenarioKind | None = None
-    if scenario.kind is not None:
-        kind = scenario.kind
-
-    return ScenarioDef(
-        id=scenario.id,
-        name=_to_ts(scenario.name),
-        kind=kind,
-        all_actions_enabled=scenario.all_actions_enabled,
-        params=overrides,
-    )
+    return [s for s in ctx.scenarios.values() if not isinstance(s, CustomScenario)]
 
 
 # ---------------------------------------------------------------------------

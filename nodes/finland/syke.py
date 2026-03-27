@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 import pandas as pd
+
+from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.calc import extend_last_historical_value
 from nodes.constants import (
@@ -32,7 +36,7 @@ class AlasNode(Node):
         EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY),
     }
     output_dimensions = {
-        'Sector': Dimension(id='syke_sector', label=dict(en='SYKE emission sector'), is_internal=True),
+        'Sector': Dimension(id='syke_sector', label=TranslatedString(en='SYKE emission sector'), is_internal=True),
     }
 
     def compute(self) -> pd.DataFrame:
@@ -114,7 +118,7 @@ class AlasNode(Node):
 
 
 class AlasEmissions(Node):
-    unit = 'kt/a'
+    default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
     allowed_input_classes = [
         AlasNode,
@@ -138,7 +142,7 @@ class AlasEmissions(Node):
         sector = self.get_parameter_value('sector')
         required = self.get_parameter_value('required', required=False)
         try:
-            df = df.xs(sector, level='Sector')
+            df = cast('pd.DataFrame', df.xs(sector, level='Sector'))
         except KeyError:
             if not required:
                 years = df.index.get_level_values(YEAR_COLUMN).unique()

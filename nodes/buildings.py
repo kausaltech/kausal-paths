@@ -104,9 +104,9 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
                 df_out = df
             else:
                 meta = df.get_meta()
-                df_out = pl.concat([df_out, df], rechunk=True)
-                df_out = ppl.to_ppdf(df_out, meta)
+                df_out = ppl.to_ppdf(pl.concat([df_out, df], rechunk=True), meta)
 
+        assert df_out is not None
         df_out = df_out.ensure_unit('floor_area', self.unit)
         df_out = df_out.with_columns(pl.col('floor_area').alias(VALUE_COLUMN))
 

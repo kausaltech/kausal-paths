@@ -15,9 +15,10 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from nodes.defs.instance_defs import ActionGroupDef, InstanceSpec, ScenarioDef
+    from nodes.defs.instance_defs import ActionGroup, InstanceSpec
     from nodes.defs.node_defs import NodeSpec
     from nodes.models import InstanceConfig, NodeConfig, NodeEdge
+    from nodes.scenario import Scenario
     from params.base import Parameter
 
 
@@ -49,13 +50,11 @@ def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceSpec) -> dict
         'minimum_historical_year': years.min_historical,
         'maximum_historical_year': years.max_historical,
         'model_end_year': years.model_end or years.target,
-        'features': spec.features or {},
+        'features': spec.features.model_dump(),
         'params': [_param_to_dict(p) for p in cast('Sequence[Parameter]', spec.params)],
-        'dataset_repo': {
-            'url': repo.url,
-            'commit': repo.commit,
-            'dvc_remote': repo.dvc_remote,
-        },
+        **(
+            {'dataset_repo': {'url': repo.url, 'commit': repo.commit, 'dvc_remote': repo.dvc_remote}} if repo and repo.url else {}
+        ),
     }
     return config
 
@@ -189,7 +188,7 @@ def _param_to_dict(p: Parameter) -> dict[str, Any]:
     return d
 
 
-def _serialize_action_group(ag: ActionGroupDef) -> dict[str, Any]:
+def _serialize_action_group(ag: ActionGroup) -> dict[str, Any]:
     result: dict[str, Any] = {'id': ag.id}
     if ag.name:
         result['name'] = str(ag.name)
@@ -198,7 +197,7 @@ def _serialize_action_group(ag: ActionGroupDef) -> dict[str, Any]:
     return result
 
 
-def _serialize_scenario(scenario: ScenarioDef) -> dict[str, Any]:
+def _serialize_scenario(scenario: Scenario) -> dict[str, Any]:
     result: dict[str, Any] = {'id': scenario.id}
     if scenario.name:
         result['name'] = str(scenario.name)
@@ -208,16 +207,8 @@ def _serialize_scenario(scenario: ScenarioDef) -> dict[str, Any]:
         result['default'] = True
     if scenario.all_actions_enabled:
         result['all_actions_enabled'] = True
-
-    if scenario.params:
-        params = []
-        for override in scenario.params:
-            param: dict[str, Any] = {'id': override.parameter_id, 'value': override.value}
-            if override.node_id:
-                param['node'] = override.node_id
-            params.append(param)
-        result['params'] = params
-
+    if scenario.param_values:
+        result['params'] = [{'id': k, 'value': v} for k, v in scenario.param_values.items()]
     return result
 
 

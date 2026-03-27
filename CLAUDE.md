@@ -188,6 +188,12 @@ pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema
 #### Testing
 - Use pytest with Django plugin
 - Factory Boy for test data generation
+- **Always call `Factory.create()`** (not bare `Factory()`), so the return type
+  is the model class, not the factory class. This matters for mypy and attribute access.
+- Use `PathsTestClient` from `paths/tests/graphql.py` for new GraphQL tests
+  (replaces the old `graphql_client_query_data` fixture). Key methods:
+  `query_data()` (asserts no errors, returns `dict`), `query_errors()` (asserts
+  errors present, returns the error list).
 - Test files should be in respective app directories
 
 #### Performance

@@ -196,7 +196,7 @@ class PathsChooserViewSet[M: Model](SnippetChooserViewSet):
         super().__init__(*args, **kwargs)
 
 
-class PathsViewSet[M: Model, QS: QuerySet[Any, Any], FormT: BaseModelForm[Any] = WagtailAdminModelForm[Any]](
+class PathsViewSet[M: Model, QS: QuerySet[Any, Any] = QuerySet[M], FormT: BaseModelForm[Any] = WagtailAdminModelForm[Any]](
     SnippetViewSet[M, FormT]
 ):
     index_view_class: ClassVar = PathsIndexView

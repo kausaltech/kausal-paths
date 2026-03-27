@@ -58,7 +58,7 @@ class FormulaNode(Node):
         return self.eval_tree(expr.body, varss)
 
     def eval_constant(self, node: ast.Constant, _varss: EvalVars) -> Quantity:
-        q = Quantity(node.value)
+        q = Quantity(cast('float', node.value))
         return q  # pyright: ignore[reportReturnType]
 
     def eval_name(self, name: ast.Name, varss: EvalVars) -> EvalOutput:

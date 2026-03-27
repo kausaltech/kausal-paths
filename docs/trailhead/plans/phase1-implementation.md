@@ -70,8 +70,8 @@ migrations. No behavior changes — YAML instances still work exactly as before.
 
 ### Validation:
 - `python -m pytest --reuse-db` passes
-- `mypy . | mypy-baseline filter` has no new errors
-- `ruff check .` clean
+- `mypy .` has no errors
+- `ruff check --output-format concise . | ondivi --baseline HEAD --only-violations` check for new linting errors
 - Existing YAML-based instances load and work as before
 
 

@@ -131,7 +131,6 @@ lint = [
   "djangorestframework-stubs",
   "graphene-stubs",
   "mypy",
-  "mypy-baseline",
   "pandas-stubs",
   "pyarrow-stubs",
   "ruff",
@@ -172,7 +171,7 @@ sources.django-modeltrans = { url = "https://github.com/kausaltech/django-modelt
 sources.kausal-paths-extensions = { index = "kausal" }
 index = [
   { url = "https://pypi.org/simple" },
-  { name = "kausal", url = "https://pypi.kausal.tech/", authenticate = "always" }
+  { name = "kausal", url = "https://pypi.kausal.tech/", authenticate = "always" },
 ]
 environments = [
   "python_full_version >= '3.14' and sys_platform == 'darwin' and platform_machine == 'arm64'",
@@ -314,15 +313,9 @@ filterwarnings = [
   "ignore:.*iscoroutinefunction:DeprecationWarning",
 ]
 
-[tool.pip-tools]
-
 [tool.pep8]
 max-line-length = "120"
 ignore = "E309"
-
-[tool.mypy-baseline]
-baseline_path = ".mypy-baseline.txt"
-preserve_position = false
 
 [tool.pydantic-mypy]
 init_typed = true

@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from params import Parameter
 
 
-
 def first_common_descendant(G, sources, target):
     # Thank you, ChatGPT
     import networkx as nx

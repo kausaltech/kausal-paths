@@ -110,10 +110,9 @@ class Context:
     model_end_year: int
     """The end year for the model. This is the last year for which data is computed."""
 
-    dataset_repo: dvc_pandas.Repository
+    dataset_repo: dvc_pandas.Repository | None
     """The dvc-pandas dataset repository for the computation model."""
 
-    dataset_repo_default_path: str | None
     sample_size: int
 
     unit_registry: CachingUnitRegistry
@@ -178,10 +177,9 @@ class Context:
     def __init__(
         self,
         instance: Instance,
-        dataset_repo: dvc_pandas.Repository,
+        dataset_repo: dvc_pandas.Repository | None,
         target_year: int,
         model_end_year: int | None = None,
-        dataset_repo_default_path: str | None = None,
         sample_size: int = 0,
     ):
         from nodes.actions.action import ActionNode
@@ -199,7 +197,6 @@ class Context:
         self.model_end_year = model_end_year or target_year
         self.unit_registry = unit_registry
         self.dataset_repo = dataset_repo
-        self.dataset_repo_default_path = dataset_repo_default_path
         self.sample_size = sample_size
         # will be set later
         self.instance = None  # type: ignore
@@ -221,7 +218,6 @@ class Context:
         self.node_explanation_system = None
         if env_bool('DISABLE_PATHS_MODEL_CACHE', default=False):
             self.skip_cache = True
-        super().__init__()
 
     def __rich_repr__(self) -> RichReprResult:
         yield 'instance', self.instance.id
@@ -283,6 +279,9 @@ class Context:
         if ds is not None:
             return ds
 
+        if self.dataset_repo is None:
+            raise RuntimeError('Dataset repository not set')
+
         if not self.dataset_repo.has_dataset(ds_id):
             raise Exception('Dataset %s not found in DVC repo' % ds_id)
         if not self.dataset_repo.is_dataset_cached(ds_id):
@@ -309,6 +308,9 @@ class Context:
         Individual DVC operations can be slow, so loading all the datasets at once
         is generally faster.
         """
+
+        if self.dataset_repo is None:
+            raise RuntimeError('Dataset repository not set')
 
         all_datasets = self.get_all_dvc_dataset_ids()
         with self.start_span('load all datasets', op='model.load'):
@@ -452,6 +454,7 @@ class Context:
 
     def add_scenario(self, scenario: Scenario):
         assert scenario.id not in self.scenarios
+        scenario._context = self
         self.scenarios[scenario.id] = scenario
         for node in self.nodes.values():
             node.on_scenario_created(scenario)
@@ -582,6 +585,8 @@ class Context:
             str: The commit ID of the updated datasets.
 
         """
+        if self.dataset_repo is None:
+            raise RuntimeError('Dataset repository not set for instance %s' % self.instance.id)
         self.dataset_repo.set_target_commit(None)
         self.dataset_repo.pull_datasets()
         commit_id = self.dataset_repo.commit_id
@@ -737,7 +742,7 @@ class Context:
         self.nodes = {}
         self.global_parameters = {}
         for scenario in self.scenarios.values():
-            scenario.context = None  # type: ignore
+            scenario._context = None
         self.custom_scenario = None  # type: ignore
         self.setting_storage = None
         self.active_scenario = None  # type: ignore

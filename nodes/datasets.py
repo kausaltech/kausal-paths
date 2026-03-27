@@ -545,7 +545,8 @@ class DVCDataset(DatasetWithFilters):
         for f in extra_fields:
             d[f] = getattr(self, f)
 
-        d['commit_id'] = context.dataset_repo.commit_id
+        if context.dataset_repo is not None:
+            d['commit_id'] = context.dataset_repo.commit_id
         d['dvc_id'] = self.input_dataset or self.id
         return d
 

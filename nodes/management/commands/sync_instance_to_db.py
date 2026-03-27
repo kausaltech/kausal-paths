@@ -56,7 +56,7 @@ class Command(BaseCommand):
         self.stdout.write('\n--- Instance Spec ---')
         self.stdout.write(f'  Years: {instance_spec.years.model_dump()}')
         self.stdout.write(f'  Dataset repo: {instance_spec.dataset_repo.url or "(none)"}')
-        self.stdout.write(f'  Features: {len(instance_spec.features)} keys')
+        self.stdout.write(f'  Features: {instance_spec.features}')
         self.stdout.write(f'  Global params: {len(instance_spec.params)}')
         self.stdout.write(f'  Action groups: {len(instance_spec.action_groups)}')
         self.stdout.write(f'  Scenarios: {len(instance_spec.scenarios)}')

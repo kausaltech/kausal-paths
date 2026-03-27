@@ -16,7 +16,7 @@ ParameterLocalId = Annotated[str, Field(pattern=r'^[a-z0-9_]+$')]
 ParameterGlobalId = Annotated[str, Field(pattern=r'^[a-z0-9_]+(\.[a-z0-9_]+)?$')]
 ScenarioIdentifier = Annotated[str, Field(pattern=r'^[a-z0-9_]+$')]
 MetricIdentifier = Annotated[str, Field(pattern=r'^[A-Za-z0-9_]+$')]
-
+NodePortIdentifier = Annotated[str, Field(pattern=r'^[A-Za-z0-9_-]+$')]
 
 MixedCaseIdentifierAdapter = TypeAdapter(MixedCaseIdentifier)
 IdentifierAdapter = TypeAdapter(Identifier)

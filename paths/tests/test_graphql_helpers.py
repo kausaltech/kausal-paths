@@ -41,8 +41,8 @@ def test_pass_context_rejects_strawberry_field_objects():
     with pytest.raises(TypeError, match=r'pass_context must wrap the resolver function before @sb\.field'):
 
         @sb.type
-        class Query:
-            @pass_context
+        class Query:  # pyright: ignore[reportUnusedClass]
+            @pass_context  # type: ignore[arg-type]
             @sb.field
             def wrong_order(self, context: Any) -> str:
                 return context.marker

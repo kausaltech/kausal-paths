@@ -1,20 +1,18 @@
 from .edge_def import AssignCategoryTransformation, EdgeTransformation, FlattenTransformation, SelectCategoriesTransformation
 from .instance_defs import (
-    ActionGroupDef,
-    DatasetRepoDef,
+    ActionGroup,
+    DatasetRepoSpec,
     InstanceSpec,
-    ScenarioDef,
-    ScenarioParameterOverrideDef,
-    YearsDef,
+    YearsSpec,
 )
 from .node_defs import ActionConfig, FormulaConfig, NodeSpec, OutputMetricDef, SimpleConfig, TypeConfig
 from .port_def import InputPortDef, OutputPortDef
 
 __all__ = [
     'ActionConfig',
-    'ActionGroupDef',
+    'ActionGroup',
     'AssignCategoryTransformation',
-    'DatasetRepoDef',
+    'DatasetRepoSpec',
     'EdgeTransformation',
     'FlattenTransformation',
     'FormulaConfig',
@@ -23,10 +21,8 @@ __all__ = [
     'NodeSpec',
     'OutputMetricDef',
     'OutputPortDef',
-    'ScenarioDef',
-    'ScenarioParameterOverrideDef',
     'SelectCategoriesTransformation',
     'SimpleConfig',
     'TypeConfig',
-    'YearsDef',
+    'YearsSpec',
 ]

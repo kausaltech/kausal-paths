@@ -8,7 +8,7 @@ model instances (NodeConfig, NodeEdge, ActionGroup, Scenario).
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import strawberry as sb
 from django.db import transaction
@@ -16,13 +16,18 @@ from graphql import GraphQLError
 
 from paths import gql
 
+from nodes.schema_spec import (
+    InstanceSpecType,
+    NodeSpecType,
+    instance_spec_to_gql,
+    node_spec_to_gql,
+)
+
 if TYPE_CHECKING:
     from nodes.models import InstanceConfig
 
 
 # --- Types ---
-
-
 @sb.type(name='ModelActionGroup')
 class ActionGroupType:
     id: sb.ID
@@ -68,22 +73,10 @@ class NodeConfigType:
     id: sb.ID
     identifier: str
     name: str | None
-    node_type: str | None
-    unit: str | None
-    quantity: str | None
     color: str
     order: int | None
     is_visible: bool
-    is_outcome: bool
-    node_group: str | None
-    input_ports: sb.scalars.JSON
-    output_ports: sb.scalars.JSON
-    pipeline: sb.scalars.JSON | None
-    formula: str | None
-    decision_level: str | None
-    action_group_id: str | None
-    params: sb.scalars.JSON | None
-    extra: sb.scalars.JSON
+    spec: NodeSpecType
 
 
 @sb.type(name='ModelInstance')
@@ -91,22 +84,13 @@ class ModelInstanceType:
     id: sb.ID
     identifier: str
     config_source: str
-    target_year: int | None
-    reference_year: int | None
-    minimum_historical_year: int | None
-    maximum_historical_year: int | None
-    model_end_year: int | None
-    emission_unit: str | None
-    features: sb.scalars.JSON
-    parameters: sb.scalars.JSON
     live: bool
     has_unpublished_changes: bool
     first_published_at: datetime.datetime | None
     last_published_at: datetime.datetime | None
+    spec: InstanceSpecType
     nodes: list[NodeConfigType]
     edges: list[NodeEdgeType]
-    action_groups: list[ActionGroupType]
-    scenarios: list[ScenarioType]
     dataset_ports: list[DatasetPortType]
 
 
@@ -125,55 +109,35 @@ def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
         raise GraphQLError(f'Instance "{instance_id}" not found') from None
 
 
-def _resolve_model_instance(ic: InstanceConfig) -> ModelInstanceType:
-    from nodes.models import ActionGroup, DatasetPort, NodeConfig, NodeEdge, Scenario
+def _node_config_to_gql(nc: Any) -> NodeConfigType:
+    return NodeConfigType(
+        id=sb.ID(str(nc.pk)),
+        identifier=nc.identifier,
+        name=nc.name,
+        color=nc.color,
+        order=nc.order,
+        is_visible=nc.is_visible,
+        spec=node_spec_to_gql(nc.spec),
+    )
 
-    nodes = list(NodeConfig.objects.filter(instance=ic).select_related('action_group'))
-    edges = list(NodeEdge.objects.filter(instance=ic))
-    action_groups = list(ActionGroup.objects.filter(instance=ic).order_by('order'))
-    scenarios = list(Scenario.objects.filter(instance=ic))
-    dataset_ports = list(DatasetPort.objects.filter(instance=ic))
+
+def _resolve_model_instance(ic: InstanceConfig) -> ModelInstanceType:
+    from nodes.models import DatasetPort, NodeConfig, NodeEdge
+
+    nodes = list(NodeConfig.objects.filter(instance=ic))
+    edges = list(NodeEdge.objects.filter(instance=ic).select_related('from_node', 'to_node'))
+    dataset_ports = list(DatasetPort.objects.filter(instance=ic).select_related('node'))
 
     return ModelInstanceType(
         id=sb.ID(str(ic.pk)),
         identifier=ic.identifier,
         config_source=ic.config_source,
-        target_year=ic.target_year,
-        reference_year=ic.reference_year,
-        minimum_historical_year=ic.minimum_historical_year,
-        maximum_historical_year=ic.maximum_historical_year,
-        model_end_year=ic.model_end_year,
-        emission_unit=ic.emission_unit,
-        features=ic.features,
-        parameters=ic.parameters,
         live=ic.live,
         has_unpublished_changes=ic.has_unpublished_changes,
         first_published_at=ic.first_published_at,
         last_published_at=ic.last_published_at,
-        nodes=[
-            NodeConfigType(
-                id=sb.ID(str(nc.pk)),
-                identifier=nc.identifier,
-                name=nc.name,
-                node_type=nc.node_type,
-                unit=nc.unit,
-                quantity=nc.quantity,
-                color=nc.color,
-                order=nc.order,
-                is_visible=nc.is_visible,
-                is_outcome=nc.is_outcome,
-                node_group=nc.node_group,
-                input_ports=nc.input_ports,
-                output_ports=nc.output_ports,
-                pipeline=nc.pipeline,
-                formula=nc.formula,
-                decision_level=nc.decision_level,
-                action_group_id=nc.action_group.identifier if nc.action_group else None,
-                params=nc.params,
-                extra=nc.extra,
-            )
-            for nc in nodes
-        ],
+        spec=instance_spec_to_gql(ic.spec),
+        nodes=[_node_config_to_gql(nc) for nc in nodes],
         edges=[
             NodeEdgeType(
                 id=sb.ID(str(e.pk)),
@@ -185,28 +149,6 @@ def _resolve_model_instance(ic: InstanceConfig) -> ModelInstanceType:
                 tags=e.tags or [],
             )
             for e in edges
-        ],
-        action_groups=[
-            ActionGroupType(
-                id=sb.ID(str(ag.pk)),
-                identifier=ag.identifier,
-                name=ag.name,
-                color=ag.color,
-                order=ag.order,
-            )
-            for ag in action_groups
-        ],
-        scenarios=[
-            ScenarioType(
-                id=sb.ID(str(s.pk)),
-                identifier=s.identifier,
-                name=s.name,
-                description=s.description,
-                kind=s.kind,
-                all_actions_enabled=s.all_actions_enabled,
-                parameter_overrides=s.parameter_overrides,
-            )
-            for s in scenarios
         ],
         dataset_ports=[
             DatasetPortType(
@@ -333,43 +275,24 @@ class ModelEditorMutation:
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
+        from nodes.defs.node_defs import FormulaConfig, NodeSpec, SimpleConfig
+
+        spec = NodeSpec(
+            type_config=FormulaConfig(formula='') if input.node_type == 'formula' else SimpleConfig(),
+            is_outcome=input.is_outcome,
+        )
+
         with transaction.atomic():
             nc = NodeConfig.objects.create(
                 instance=ic,
                 identifier=input.identifier,
                 name=input.name,
                 node_type=input.node_type,
-                unit=input.unit,
-                quantity=input.quantity,
                 color=input.color,
-                is_outcome=input.is_outcome,
-                node_group=input.node_group or '',
+                spec=spec,
             )
 
-        return NodePayload(
-            ok=True,
-            node=NodeConfigType(
-                id=sb.ID(str(nc.pk)),
-                identifier=nc.identifier,
-                name=nc.name,
-                node_type=nc.node_type,
-                unit=nc.unit,
-                quantity=nc.quantity,
-                color=nc.color,
-                order=nc.order,
-                is_visible=nc.is_visible,
-                is_outcome=nc.is_outcome,
-                node_group=nc.node_group,
-                input_ports=nc.input_ports,
-                output_ports=nc.output_ports,
-                pipeline=nc.pipeline,
-                formula=nc.formula,
-                decision_level=nc.decision_level,
-                action_group_id=None,
-                params=nc.params,
-                extra=nc.extra,
-            ),
-        )
+        return NodePayload(ok=True, node=_node_config_to_gql(nc))
 
     @sb.mutation(description='Update an existing node')
     @staticmethod
@@ -377,7 +300,7 @@ class ModelEditorMutation:
         from nodes.models import NodeConfig
 
         try:
-            nc = NodeConfig.objects.select_related('action_group').get(pk=input.node_id)
+            nc = NodeConfig.objects.get(pk=input.node_id)
         except NodeConfig.DoesNotExist:
             raise GraphQLError('Node not found') from None
 
@@ -385,47 +308,25 @@ class ModelEditorMutation:
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
         with transaction.atomic():
-            for field_name in (
-                'name',
-                'unit',
-                'quantity',
-                'color',
-                'is_visible',
-                'is_outcome',
-                'node_group',
-                'pipeline',
-                'formula',
-                'params',
-            ):
+            # Direct model fields
+            for field_name in ('name', 'color', 'is_visible'):
                 val = getattr(input, field_name)
                 if val is not sb.UNSET:
                     setattr(nc, field_name, val)
+            # Spec fields
+            spec = nc.spec
+            for field_name in ('is_outcome', 'pipeline', 'params'):
+                val = getattr(input, field_name)
+                if val is not sb.UNSET:
+                    setattr(spec, field_name, val)
+            if input.formula is not sb.UNSET:
+                from nodes.defs.node_defs import FormulaConfig
+
+                spec.type_config = FormulaConfig(formula=input.formula or '')
+            nc.spec = spec
             nc.save()
 
-        return NodePayload(
-            ok=True,
-            node=NodeConfigType(
-                id=sb.ID(str(nc.pk)),
-                identifier=nc.identifier,
-                name=nc.name,
-                node_type=nc.node_type,
-                unit=nc.unit,
-                quantity=nc.quantity,
-                color=nc.color,
-                order=nc.order,
-                is_visible=nc.is_visible,
-                is_outcome=nc.is_outcome,
-                node_group=nc.node_group,
-                input_ports=nc.input_ports,
-                output_ports=nc.output_ports,
-                pipeline=nc.pipeline,
-                formula=nc.formula,
-                decision_level=nc.decision_level,
-                action_group_id=nc.action_group.identifier if nc.action_group else None,
-                params=nc.params,
-                extra=nc.extra,
-            ),
-        )
+        return NodePayload(ok=True, node=_node_config_to_gql(nc))
 
     @sb.mutation(description='Delete a node and its edges')
     @staticmethod
@@ -506,84 +407,17 @@ class ModelEditorMutation:
     @sb.mutation(description='Create a new scenario')
     @staticmethod
     def create_scenario(info: gql.Info, input: CreateScenarioInput) -> ScenarioPayload:
-        from nodes.models import Scenario
-
-        ic = _get_instance_config(info, input.instance_id)
-        if ic.config_source != 'database':
-            raise GraphQLError('Cannot edit YAML-sourced instances')
-
-        with transaction.atomic():
-            s = Scenario.objects.create(
-                instance=ic,
-                identifier=input.identifier,
-                name=input.name,
-                kind=input.kind,
-                all_actions_enabled=input.all_actions_enabled,
-            )
-
-        return ScenarioPayload(
-            ok=True,
-            scenario=ScenarioType(
-                id=sb.ID(str(s.pk)),
-                identifier=s.identifier,
-                name=s.name,
-                description=s.description,
-                kind=s.kind,
-                all_actions_enabled=s.all_actions_enabled,
-                parameter_overrides=s.parameter_overrides,
-            ),
-        )
+        raise GraphQLError('Scenario mutations not yet implemented')
 
     @sb.mutation(description='Update a scenario')
     @staticmethod
     def update_scenario(info: gql.Info, input: UpdateScenarioInput) -> ScenarioPayload:
-        from nodes.models import Scenario
-
-        try:
-            s = Scenario.objects.get(pk=input.scenario_id)
-        except Scenario.DoesNotExist:
-            raise GraphQLError('Scenario not found') from None
-
-        if s.instance.config_source != 'database':
-            raise GraphQLError('Cannot edit YAML-sourced instances')
-
-        with transaction.atomic():
-            for field_name in ('name', 'description', 'kind', 'all_actions_enabled', 'parameter_overrides'):
-                val = getattr(input, field_name)
-                if val is not sb.UNSET:
-                    setattr(s, field_name, val)
-            s.save()
-
-        return ScenarioPayload(
-            ok=True,
-            scenario=ScenarioType(
-                id=sb.ID(str(s.pk)),
-                identifier=s.identifier,
-                name=s.name,
-                description=s.description,
-                kind=s.kind,
-                all_actions_enabled=s.all_actions_enabled,
-                parameter_overrides=s.parameter_overrides,
-            ),
-        )
+        raise GraphQLError('Scenario mutations not yet implemented')
 
     @sb.mutation(description='Delete a scenario')
     @staticmethod
     def delete_scenario(info: gql.Info, scenario_id: sb.ID) -> DeletePayload:
-        from nodes.models import Scenario
-
-        try:
-            s = Scenario.objects.get(pk=scenario_id)
-        except Scenario.DoesNotExist:
-            raise GraphQLError('Scenario not found') from None
-
-        if s.instance.config_source != 'database':
-            raise GraphQLError('Cannot edit YAML-sourced instances')
-
-        with transaction.atomic():
-            s.delete()
-
-        return DeletePayload(ok=True)
+        raise GraphQLError('Scenario mutations not yet implemented')
 
     @sb.mutation(description='Publish the current model state as a new revision')
     @staticmethod

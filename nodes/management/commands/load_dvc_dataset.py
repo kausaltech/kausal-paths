@@ -98,9 +98,7 @@ class Command(BaseCommand):
                 print(f"Deleting dataset schema '{schema}'")
                 schema.delete()
             else:
-                print(
-                    f"Dataset '{dataset}' with identifier '{identifier}' exists for instance '{instance_config}'. Aborting."
-                )
+                print(f"Dataset '{dataset}' with identifier '{identifier}' exists for instance '{instance_config}'. Aborting.")
                 return
 
         schema = self.create_dataset_schema(
@@ -117,9 +115,7 @@ class Command(BaseCommand):
 
         # Match DB metric columns (DVC units keys) to meta: column_id is the physical column name; id is optional slug.
         metrics_meta = {
-            (m.get('column_id') or m.get('id')): m
-            for m in dvc_metadata.get('metrics') or []
-            if m.get('column_id') or m.get('id')
+            (m.get('column_id') or m.get('id')): m for m in dvc_metadata.get('metrics') or [] if m.get('column_id') or m.get('id')
         }
         # Map metric identifiers (column names) to Metric instances
         metrics = {
@@ -247,7 +243,7 @@ class Command(BaseCommand):
             return self.create_dimension(schema, instance_config, default_language, spec)
         print(
             f"There is already a dimension with identifier '{spec.id}' for '{instance_config}'; "
-            + "skipping creation of Dimension, DimensionCategory and DimensionScope instances and "
+            + 'skipping creation of Dimension, DimensionCategory and DimensionScope instances and '
             + f"linking the existing dimension to the schema '{schema}'"
         )
         DatasetSchemaDimension.objects.create(schema=schema, dimension=existing_scope.dimension)

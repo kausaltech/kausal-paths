@@ -32,7 +32,6 @@ from typing import Any
 
 from django.test import Client
 
-
 GQL_URL = '/v1/graphql/'
 
 

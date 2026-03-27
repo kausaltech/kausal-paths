@@ -818,6 +818,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         instance = fwc.instance_config.get_instance()
         dvc_repo = instance.context.dataset_repo
         data = cast('dict[str, Any]', nzc_data)
+        assert dvc_repo is not None
         defaults = get_nzc_default_values(
             dvc_repo,
             NZCPlaceholderInput(

@@ -40,7 +40,7 @@ class ContextFactory(Factory[Context]):
     @staticmethod
     def post(obj: Context, create: bool, extracted, **kwargs) -> None:
         obj.instance.set_context(obj)
-        default_scenario = ScenarioFactory.create(id='default', kind=ScenarioKind.DEFAULT, context=obj, all_actions_enabled=True)
+        default_scenario = ScenarioFactory.create(id='default', kind=ScenarioKind.DEFAULT, all_actions_enabled=True)
         obj.add_scenario(default_scenario)
         obj.activate_scenario(obj.get_default_scenario())
 
@@ -81,6 +81,7 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
     name = Sequence(lambda i: f'instanceconfig{i}')
     lead_title = 'lead title'
     lead_paragraph = 'Lead paragraph'
+    config_source = 'yaml'
     instance: SubFactory[str, Instance] = SubFactory(InstanceFactory, id=SelfAttribute('..identifier'))
     organization = SubFactory[Any, Organization](OrganizationFactory)
 
@@ -128,7 +129,7 @@ class NodeFactory(Factory[Node]):
     input_datasets = [
         FixedDataset(
             id='test',
-            unit='kWh',
+            unit=unit_registry.parse_units('kWh'),
             historical=[(2020, 1.23)],
             forecast=[(2021, 2.34)],
             tags=[],
@@ -166,7 +167,6 @@ class ScenarioFactory[S: Scenario = Scenario](Factory[S]):
     name = TranslatedString('scenario')
     kind: ScenarioKind | None = None
     all_actions_enabled = False
-    context = SubFactory[Any, Context](ContextFactory)
 
 
 class CustomScenarioFactory(ScenarioFactory[CustomScenario]):
