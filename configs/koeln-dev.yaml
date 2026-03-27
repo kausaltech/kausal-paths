@@ -18,7 +18,7 @@ model_end_year: 2050
 reference_year: 2008
 minimum_historical_year: 2008 # 2008 when the historical data is in order.
 maximum_historical_year: 2024
-emission_unit: kt/a
+emission_unit: kt_co2e/a
 emission_forecast_from: 2025
 emission_dimensions: [scope]
 features:
@@ -30,7 +30,7 @@ normalizations:
   default: false
   quantities:
   - id: emissions
-    unit: t/cap/a
+    unit: t_co2e/cap/a
 
 # Abfallreduktion & Anlageneffizienz  nicht aktiv, da nicht in Bilanz
 # Wasser-/Abwasserreduktion & Anlageneffizienz  Aktiv
@@ -378,7 +378,7 @@ nodes:
   name_en: Net emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   is_outcome: true
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -439,19 +439,19 @@ nodes:
     die Szenario über zukünftige Emissionen unter geschäftstauglichen Maßnahmen.
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   color: '#6C5CE7'
   input_dimensions: [sector, energy_carrier, vehicle_type]
   output_dimensions: [sector, energy_carrier, vehicle_type]
   input_datasets:
   - id: koeln/historical_emissions
     forecast_from: 2025
-  params:
-  - id: operations
-    value: get_single_dataset,apply_multiplier
-  - id: multiplier
-    value: 1
-    unit: t/t_co2e
+  # params:
+  # - id: operations
+  #   value: get_single_dataset,apply_multiplier
+  # - id: multiplier
+  #   value: 1
+  #   unit: t_co2e/t
 
 - id: historical_and_bau_emissions
   name_de: Differenz
@@ -462,7 +462,7 @@ nodes:
     von 2024 bis 2050.
   type: generic.CoalesceNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   color: '#6C5CE7'
   input_dimensions: [sector, energy_carrier, vehicle_type]
   output_dimensions: [sector, energy_carrier, vehicle_type]
@@ -533,7 +533,7 @@ nodes:
   name_en: Action potential by dimensions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier, vehicle_type, action]
   output_dimensions: [sector, energy_carrier, vehicle_type, action]
   input_nodes:
@@ -549,7 +549,7 @@ nodes:
     value: extend_all(shares) * potential * constant
   - id: constant
     value: -1.0
-    unit: t/t_co2e
+    unit: dimensionless
 
 - id: transport_energy_by_energy_carrier
   name_de: Transportenergieverbrauch nach Energieträger
@@ -633,7 +633,7 @@ nodes:
   name_en: Total emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   color: '#6C5CE7'
   input_dimensions: [sector, energy_carrier, vehicle_type]
   output_dimensions: [sector, energy_carrier, vehicle_type]
@@ -645,14 +645,14 @@ nodes:
     value: emission_factors * total_energy_use * constant
   - id: constant
     value: 1
-    unit: t/t_co2e
+    unit: dimensionless
 
 - id: emission_factors_derived
   name_de: Emissionsfaktoren abgeleitet aus historischen Emissionen
   name_en: Emission factors derived from historical emissions
   type: formula.FormulaNode
   quantity: emission_factor
-  unit: g/kWh
+  unit: g_co2e/kWh
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
@@ -763,7 +763,7 @@ nodes:
   name_en: Electricity
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   color: '#FDB813'
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -783,7 +783,7 @@ nodes:
   name_en: Private households
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   color: '#009ebe'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
@@ -806,7 +806,7 @@ nodes:
   name_en: Mobility
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
@@ -829,7 +829,7 @@ nodes:
   name_en: Industrial emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   color: '#737373'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
@@ -852,7 +852,7 @@ nodes:
   name_de: Gewerbe, Handel, Dienstleistungen
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   color: '#fe8035'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
@@ -875,7 +875,7 @@ nodes:
   name_en: Municipality buildings
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   color: '#6bc248'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
@@ -898,7 +898,7 @@ nodes:
   name_en: Emission reductions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   is_outcome: true
   # color: '#8eeffd'
   input_dimensions: [energy_carrier, sector]
@@ -911,7 +911,7 @@ nodes:
   name_en: Consumption
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   color: '#9B59B6'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
@@ -924,7 +924,7 @@ nodes:
   color: '#27AE60'
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -936,7 +936,7 @@ nodes:
   color: '#2ECC71'
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -948,7 +948,7 @@ nodes:
   color: '#1ABC9C'
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -960,7 +960,7 @@ nodes:
   color: '#34495E'
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -971,7 +971,7 @@ nodes:
   name_en: Total electricity emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_nodes:
   - id: electricity_emissions
     from_dimensions:
@@ -990,7 +990,7 @@ nodes:
   name_en: Total heat emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_nodes:
   - id: heat_emissions
     from_dimensions:
@@ -1009,7 +1009,7 @@ nodes:
   name_en: Total transport emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_nodes:
   - id: transport_emissions
     from_dimensions:
@@ -1028,7 +1028,7 @@ nodes:
   name_en: Total industrial emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_nodes:
   - id: industrial_emissions
     from_dimensions:
@@ -1047,7 +1047,7 @@ nodes:
   name_en: Total service emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_nodes:
   - id: service_emissions
     from_dimensions:
@@ -1066,7 +1066,7 @@ nodes:
   name_en: Total municipality building emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_nodes:
   - id: municipality_building_emissions
     from_dimensions:
@@ -1085,7 +1085,7 @@ nodes:
   name_en: Total consumption emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_nodes:
   - id: consumption_emissions
     from_dimensions:
@@ -1104,7 +1104,7 @@ nodes:
   name_en: Total waste and wastewater emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_nodes:
   - id: waste_and_wastewater_emissions
     from_dimensions:
@@ -1123,7 +1123,7 @@ nodes:
   name_en: Total food and land use emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_nodes:
   - id: food_and_land_use_emissions
     from_dimensions:
@@ -1142,7 +1142,7 @@ nodes:
   name_en: Total cross-cutting climate protection aspects emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_nodes:
   - id: cross_cutting_climate_protection_emissions
     from_dimensions:
@@ -1161,7 +1161,7 @@ nodes:
   name_en: Total administration emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
   input_nodes:
@@ -1180,7 +1180,7 @@ nodes:
   name_en: Traffic actions
   type: generic.GenericNode
   quantity: emissions
-  unit: t/a
+  unit: t_co2e/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -1191,7 +1191,7 @@ nodes:
   name_en: Private household actions
   type: generic.GenericNode
   quantity: emissions
-  unit: t/a
+  unit: t_co2e/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -1202,7 +1202,7 @@ nodes:
   name_en: Electricity actions
   type: generic.GenericNode
   quantity: emissions
-  unit: t/a
+  unit: t_co2e/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -1312,7 +1312,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1350,7 +1350,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1379,7 +1379,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1407,7 +1407,7 @@ actions:
     Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1432,7 +1432,7 @@ actions:
     spezifischen Maßnahmen aufgeführt)</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1457,7 +1457,7 @@ actions:
     spezifischen Maßnahmen aufgeführt)</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1485,7 +1485,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1510,7 +1510,7 @@ actions:
     Maßnahmen:<ul><li>Klimaneutrale Wärmeversorgung bei der KVB</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1539,7 +1539,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1567,7 +1567,7 @@ actions:
     AG</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1592,7 +1592,7 @@ actions:
     städtischer Grundstücke in großflächigen Gewerbegebieten</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1620,7 +1620,7 @@ actions:
     KölnBusiness</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1656,7 +1656,7 @@ actions:
     Immobilien AG</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1681,7 +1681,7 @@ actions:
     spezifischen Maßnahmen aufgeführt)</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1706,7 +1706,7 @@ actions:
     spezifischen Maßnahmen aufgeführt)</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1731,7 +1731,7 @@ actions:
     spezifischen Maßnahmen aufgeführt)</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1759,7 +1759,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1787,7 +1787,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1814,7 +1814,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1839,7 +1839,7 @@ actions:
     spezifischen Maßnahmen aufgeführt)</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1869,7 +1869,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1898,7 +1898,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1926,7 +1926,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: food_and_land_use
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -1939,6 +1939,9 @@ actions:
   output_nodes:
   - id: food_and_land_use_emissions
   params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -1952,7 +1955,7 @@ actions:
 #     spezifischen Maßnahmen aufgeführt)</li></ul>
 #   type: simple.GenericAction
 #   quantity: emissions
-#   unit: kt/a
+#   unit: kt_co2e/a
 #   group: food_and_land_use
 #   input_dimensions: [energy_carrier, sector, vehicle_type]
 #   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -1981,7 +1984,7 @@ actions:
 #     spezifischen Maßnahmen aufgeführt)</li></ul>
 #   type: simple.GenericAction
 #   quantity: emissions
-#   unit: kt/a
+#   unit: kt_co2e/a
 #   group: food_and_land_use
 #   input_dimensions: [energy_carrier, sector, vehicle_type]
 #   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -2012,7 +2015,7 @@ actions:
     Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: consumption
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2025,6 +2028,9 @@ actions:
   output_nodes:
   - id: consumption_emissions
   params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2049,7 +2055,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: administration
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -2085,7 +2091,7 @@ actions:
     Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: administration
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2098,6 +2104,9 @@ actions:
   output_nodes:
   - id: administration_emissions
   params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2116,7 +2125,7 @@ actions:
     Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: waste_and_wastewater
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2126,6 +2135,10 @@ actions:
     filters:
     - column: action
       value: waste_reduction_and_facility_efficiency
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: waste_and_wastewater_emissions
 
@@ -2138,7 +2151,7 @@ actions:
     spezifischen Maßnahmen aufgeführt)</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: waste_and_wastewater
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -2175,7 +2188,7 @@ actions:
     Beschlüssen</li></ul>
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: cross_cutting_climate_protection
   input_dimensions: [energy_carrier, sector, vehicle_type]
   output_dimensions: [energy_carrier, sector, vehicle_type]
@@ -2202,7 +2215,7 @@ actions:
   name_en: Photovoltaics on Municipal Holdings Buildings
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2212,6 +2225,10 @@ actions:
     filters:
     - column: action
       value: pv_on_municipal_holdings_buildings
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: electricity_actions
 
@@ -2220,7 +2237,7 @@ actions:
   name_en: Photovoltaics on City Buildings
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2230,6 +2247,10 @@ actions:
     filters:
     - column: action
       value: pv_on_city_buildings
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: electricity_actions
 
@@ -2238,7 +2259,7 @@ actions:
   name_en: Digitalization and Energy Efficiency in City Data Centers
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2248,6 +2269,10 @@ actions:
     filters:
     - column: action
       value: digitalization_and_energy_efficiency_in_city_data_centers
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: electricity_actions
 
@@ -2256,7 +2281,7 @@ actions:
   name_en: Efficiency Improvement in Administration
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2266,6 +2291,10 @@ actions:
     filters:
     - column: action
       value: efficiency_improvement_in_administration
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: electricity_actions
 
@@ -2274,7 +2303,7 @@ actions:
   name_en: Efficiency Improvement at Municipal Holdings
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2284,6 +2313,10 @@ actions:
     filters:
     - column: action
       value: efficiency_improvement_at_holdings
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: electricity_actions
 
@@ -2292,7 +2325,7 @@ actions:
   name_en: Green Electricity Procurement at Municipal Holdings
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2302,6 +2335,10 @@ actions:
     filters:
     - column: action
       value: green_electricity_procurement_at_holdings
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: electricity_actions
 
@@ -2310,7 +2347,7 @@ actions:
   name_en: LED Conversion at Municipal Holdings (Outdoor Lighting)
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2320,6 +2357,10 @@ actions:
     filters:
     - column: action
       value: led_conversion_at_holdings_outdoor_lighting
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: electricity_actions
 
@@ -2328,7 +2369,7 @@ actions:
   name_en: LED Conversion at Municipal Holdings (Indoor Lighting)
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: electricity
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2338,6 +2379,10 @@ actions:
     filters:
     - column: action
       value: led_conversion_at_holdings_indoor_lighting
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: electricity_actions
 
@@ -2347,7 +2392,7 @@ actions:
     Holdings
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2357,6 +2402,10 @@ actions:
     filters:
     - column: action
       value: climate_friendly_heat_generation_decentralized_at_holdings
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: private_household_actions
 
@@ -2365,7 +2414,7 @@ actions:
   name_en: Climate-Friendly Heat Supply at City Holdings
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2375,6 +2424,10 @@ actions:
     filters:
     - column: action
       value: climate_friendly_heat_supply_at_city_holdings
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: private_household_actions
 
@@ -2383,7 +2436,7 @@ actions:
   name_en: Optimization of Heat Regulation at City Holdings
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2393,6 +2446,10 @@ actions:
     filters:
     - column: action
       value: optimization_of_heat_regulation_at_city_holdings
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: private_household_actions
 
@@ -2401,7 +2458,7 @@ actions:
   name_en: Renovation and Energy Optimization of City Buildings
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2411,6 +2468,10 @@ actions:
     filters:
     - column: action
       value: renovation_and_energy_optimization_of_city_buildings
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: private_household_actions
 
@@ -2419,7 +2480,7 @@ actions:
   name_en: Electrification of Municipal Holdings Vehicle Fleet
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2429,6 +2490,10 @@ actions:
     filters:
     - column: action
       value: electrification_of_holdings_vehicle_fleet
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: traffic_actions
 
@@ -2437,7 +2502,7 @@ actions:
   name_en: Electrification of City Vehicle Fleet
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2447,6 +2512,10 @@ actions:
     filters:
     - column: action
       value: electrification_of_city_vehicle_fleet
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: traffic_actions
 
@@ -2455,7 +2524,7 @@ actions:
   name_en: Electrification of Bus Fleet at Municipal Holdings
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2465,6 +2534,10 @@ actions:
     filters:
     - column: action
       value: electrification_of_bus_fleet_at_holdings
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: traffic_actions
 
@@ -2473,7 +2546,7 @@ actions:
   name_en: Conversion of Administration Vehicle Fleet
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2483,6 +2556,10 @@ actions:
     filters:
     - column: action
       value: conversion_of_administration_vehicle_fleet
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: traffic_actions
 
@@ -2491,7 +2568,7 @@ actions:
   name_en: Decarbonization of Inland Waterway Shipping by HGK
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2501,6 +2578,10 @@ actions:
     filters:
     - column: action
       value: decarbonization_of_inland_waterway_shipping_by_hgk
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: traffic_actions
 
@@ -2509,7 +2590,7 @@ actions:
   name_en: GHG Reduction through Circular Use of Wood and Building Materials
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: consumption
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2522,6 +2603,9 @@ actions:
   output_nodes:
   - id: consumption_emissions
   params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2531,7 +2615,7 @@ actions:
   name_en: Optimization of Residual Waste Utilization by AVG
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: waste_and_wastewater
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2544,6 +2628,9 @@ actions:
   output_nodes:
   - id: waste_and_wastewater_emissions
   params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2553,7 +2640,7 @@ actions:
   name_en: 'Waste Incineration: CO2 Reduction through Carbon Capture at AVG'
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: waste_and_wastewater
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2566,6 +2653,9 @@ actions:
   output_nodes:
   - id: waste_and_wastewater_emissions
   params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2575,7 +2665,7 @@ actions:
   name_en: SUMP Development by City Administration
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: mobility
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2585,6 +2675,10 @@ actions:
     filters:
     - column: action
       value: sump_development_by_city_administration
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: net_emissions
 
@@ -2593,7 +2687,7 @@ actions:
   name_en: Digital Climate Protection Monitoring by Administration
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: cross_cutting_climate_protection
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2606,6 +2700,9 @@ actions:
   output_nodes:
   - id: cross_cutting_climate_protection_emissions
   params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2615,7 +2712,7 @@ actions:
   name_en: Climate Protection Coordination Office
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: cross_cutting_climate_protection
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2628,6 +2725,9 @@ actions:
   output_nodes:
   - id: cross_cutting_climate_protection_emissions
   params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2637,7 +2737,7 @@ actions:
   name_en: Municipal Heat Planning Preparation by Administration
   type: simple.GenericAction
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   group: heat
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2647,6 +2747,10 @@ actions:
     filters:
     - column: action
       value: municipal_heat_planning_preparation_by_administration
+  params:
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
   output_nodes:
   - id: private_household_actions
 
