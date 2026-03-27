@@ -20,6 +20,8 @@ Including another URLconf
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path, re_path
@@ -44,10 +46,16 @@ from users.views import change_admin_instance
 from .api_router import router as api_router
 from .graphql_views import PathsGraphQLView
 
+if TYPE_CHECKING:
+    from types import ModuleType
+
+kpe_urls: ModuleType | None
 try:
-    from kausal_paths_extensions import urls as kpe_urls  # type: ignore[import-not-found]
+    from kausal_paths_extensions import urls as _kpe_urls  # type: ignore[import-not-found]
 except ImportError:
     kpe_urls = None
+else:
+    kpe_urls = _kpe_urls
 
 for prefix, viewset, basename in datasets_api_root_router.registry:
     api_router.register(prefix, viewset, basename=basename)
