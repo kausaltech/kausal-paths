@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
-from nodes.defs.instance_defs import InstanceSpec, YearsSpec
-from nodes.defs.node_defs import NodeSpec, OutputMetricDef, SimpleConfig
+from nodes.actions.action import ImpactGraphType, ImpactOverviewSpec
+from nodes.actions.parent import ParentActionNode
+from nodes.defs.instance_defs import ActionGroup, InstanceSpec, YearsSpec
+from nodes.defs.node_defs import ActionConfig, NodeSpec, OutputMetricDef, SimpleConfig
+from nodes.normalization import NormalizationSpec
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 
 if TYPE_CHECKING:
     from paths.tests.graphql import PathsTestClient
 
+    from nodes.actions.action import ActionNode
     from nodes.context import Context
     from nodes.models import InstanceConfig
 
@@ -21,6 +25,12 @@ pytestmark = pytest.mark.django_db
 
 # Node class that InstanceLoader can import for roundtrip tests
 SIMPLE_NODE_CLASS = 'nodes.simple.SimpleNode'
+ACTION_NODE_CLASS = 'nodes.actions.simple.AdditiveAction'
+PARENT_ACTION_NODE_CLASS = 'nodes.tests.test_model_editor.ModelEditorParentActionNode'
+
+
+class ModelEditorParentActionNode(ParentActionNode):
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +75,7 @@ def db_instance_config() -> InstanceConfig:
     """Create an InstanceConfig with config_source='database' and valid years."""
     instance = InstanceFactory.create()
     spec = InstanceSpec(
+        primary_language='en',
         years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
     )
     return InstanceConfigFactory.create(
@@ -100,6 +111,8 @@ mutation CreateNode($input: CreateNodeInput!) {
             isVisible
             spec {
                 isOutcome
+                nodeGroup
+                allowNulls
                 kind
             }
         }
@@ -128,6 +141,8 @@ def test_create_node_formula(gql: PathsTestClient, db_instance_config: InstanceC
     assert node['color'] == '#ff0000'
     assert node['isVisible'] is True
     assert node['spec']['isOutcome'] is True
+    assert node['spec']['nodeGroup'] is None
+    assert node['spec']['allowNulls'] is False
     assert node['spec']['kind'] == 'formula'
 
 
@@ -146,6 +161,24 @@ def test_create_node_simple(gql: PathsTestClient, db_instance_config: InstanceCo
     assert node['identifier'] == 'simple_node'
     assert node['spec']['kind'] == 'simple'
     assert node['spec']['isOutcome'] is False
+
+
+def test_create_node_with_node_group_and_allow_nulls(gql: PathsTestClient, db_instance_config: InstanceConfig):
+    data = gql.query_data(
+        CREATE_NODE,
+        variables={
+            'input': {
+                'instanceId': str(db_instance_config.pk),
+                'identifier': 'grouped_node',
+                'nodeType': 'simple',
+                'nodeGroup': 'transport',
+                'allowNulls': True,
+            }
+        },
+    )
+    node = data['createNode']['node']
+    assert node['spec']['nodeGroup'] == 'transport'
+    assert node['spec']['allowNulls'] is True
 
 
 def test_create_node_rejects_yaml_instance(gql: PathsTestClient, db_instance_config: InstanceConfig):
@@ -183,6 +216,8 @@ mutation UpdateNode($input: UpdateNodeInput!) {
             isVisible
             spec {
                 isOutcome
+                nodeGroup
+                allowNulls
                 kind
                 formula
             }
@@ -221,14 +256,136 @@ def test_update_node_spec_fields(gql: PathsTestClient, db_instance_config: Insta
             'input': {
                 'nodeId': str(nc.pk),
                 'isOutcome': True,
+                'nodeGroup': 'industry',
+                'allowNulls': True,
                 'formula': 'a + b',
             }
         },
     )
     node = data['updateNode']['node']
     assert node['spec']['isOutcome'] is True
+    assert node['spec']['nodeGroup'] == 'industry'
+    assert node['spec']['allowNulls'] is True
     assert node['spec']['kind'] == 'formula'
     assert node['spec']['formula'] == 'a + b'
+
+
+def test_runtime_rebuild_preserves_node_group_and_allow_nulls(db_instance_config: InstanceConfig):
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='runtime_simple',
+        name='Runtime Simple',
+        spec=_make_node_spec(node_group='transport', allow_nulls=True),
+    )
+
+    ctx = _rebuild_from_db(db_instance_config)
+    node = ctx.nodes['runtime_simple']
+    assert node.node_group == 'transport'
+    assert node.allow_nulls is True
+
+
+def test_runtime_rebuild_preserves_action_group_and_zero_no_effect_value(db_instance_config: InstanceConfig):
+    db_instance_config.spec.action_groups = [ActionGroup(id='grp', name='Group')]
+    db_instance_config.save(update_fields=['spec'])
+
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='runtime_action',
+        name='Runtime Action',
+        spec=NodeSpec(
+            node_class=ACTION_NODE_CLASS,
+            type_config=ActionConfig(
+                decision_level='municipality',
+                group='grp',
+                no_effect_value=0.0,
+            ),
+            output_metrics=[OutputMetricDef(id='default', unit='kt/a', quantity='emissions')],
+        ),
+    )
+
+    ctx = _rebuild_from_db(db_instance_config)
+    action = cast('ActionNode', ctx.nodes['runtime_action'])
+    assert action.group is not None
+    assert action.group.id == 'grp'
+    assert action.no_effect_value == 0.0
+
+
+def test_runtime_rebuild_preserves_action_parent_link(db_instance_config: InstanceConfig):
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='parent_action',
+        name='Parent Action',
+        spec=NodeSpec(
+            node_class=PARENT_ACTION_NODE_CLASS,
+            type_config=ActionConfig(decision_level='municipality'),
+            output_metrics=[OutputMetricDef(id='default', unit='kt/a', quantity='emissions')],
+        ),
+    )
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='child_action',
+        name='Child Action',
+        spec=NodeSpec(
+            node_class=ACTION_NODE_CLASS,
+            type_config=ActionConfig(
+                decision_level='municipality',
+                parent='parent_action',
+            ),
+            output_metrics=[OutputMetricDef(id='default', unit='kt/a', quantity='emissions')],
+        ),
+    )
+
+    ctx = _rebuild_from_db(db_instance_config)
+    parent = cast('ModelEditorParentActionNode', ctx.nodes['parent_action'])
+    child = cast('ActionNode', ctx.nodes['child_action'])
+    assert child.parent_action is parent
+    assert child in parent.subactions
+
+
+def test_runtime_rebuild_preserves_impact_overviews(db_instance_config: InstanceConfig):
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='impact_effect',
+        name='Impact Effect',
+        spec=_make_node_spec(),
+    )
+    db_instance_config.spec.impact_overviews = [
+        ImpactOverviewSpec.model_validate({
+            'graph_type': ImpactGraphType.SIMPLE_EFFECT,
+            'effect_node_id': 'impact_effect',
+            'indicator_unit': 'kt/a',
+        })
+    ]
+    db_instance_config.save(update_fields=['spec'])
+
+    ctx = _rebuild_from_db(db_instance_config)
+    assert len(ctx.impact_overviews) == 1
+    overview = ctx.impact_overviews[0]
+    assert overview.spec.graph_type == ImpactGraphType.SIMPLE_EFFECT
+    assert overview.effect_node.id == 'impact_effect'
+
+
+def test_runtime_rebuild_preserves_normalizations(db_instance_config: InstanceConfig):
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='population_normalizer',
+        name='Population',
+        spec=_make_node_spec(),
+    )
+    db_instance_config.spec.normalizations = [
+        NormalizationSpec.model_validate({
+            'normalizer_node_id': 'population_normalizer',
+            'quantities': [{'id': 'energy', 'unit': 'kWh/cap/a'}],
+            'default': True,
+        })
+    ]
+    db_instance_config.save(update_fields=['spec'])
+
+    ctx = _rebuild_from_db(db_instance_config)
+    normalization = ctx.normalizations['population_normalizer']
+    assert normalization.normalizer_node.id == 'population_normalizer'
+    assert normalization.spec.default is True
+    assert ctx.default_normalization is normalization
 
 
 def test_update_node_not_found(gql: PathsTestClient, db_instance_config: InstanceConfig):  # pyright: ignore[reportUnusedParameter]

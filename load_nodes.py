@@ -6,6 +6,8 @@ from contextlib import ExitStack
 
 from kausal_common.development.django import init_django
 
+from common.utils import install_node_error_handler
+
 init_django()
 
 import argparse
@@ -19,7 +21,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, overload
 
 import polars as pl
-import rich.traceback
 import sentry_sdk
 from dotenv import load_dotenv
 from rich import print
@@ -42,12 +43,6 @@ if TYPE_CHECKING:
 load_dotenv()
 
 console = Console()
-
-if True:
-    from kausal_common.logging.warnings import register_warning_handler
-
-    rich.traceback.install(max_frames=10)
-    register_warning_handler()
 
 parser = argparse.ArgumentParser(description='Execute the computational graph')
 parser.add_argument('-i', '--instance', type=str, help='instance identifier')
@@ -130,6 +125,8 @@ def get_ic(instance_id: str, /, *, required: bool = False) -> InstanceConfig | N
     _instance_obj = ic
     return ic
 
+
+install_node_error_handler()
 
 stack = ExitStack()
 root_span = stack.enter_context(start_transaction(name='load-nodes', op='function'))
@@ -492,7 +489,6 @@ if args.print_impact_overviews:
 
                 rows.append((action.id, None))
 
-            console = Console()
             rows = sorted(rows, key=lambda x: x[1].m if x[1] is not None else 1e100)
             for row in rows:
                 table.add_row(row[0], str(row[1]))

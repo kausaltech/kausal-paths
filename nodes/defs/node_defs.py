@@ -2,40 +2,46 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from kausal_common.i18n.pydantic import TranslatedString
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
-from common.types import MetricIdentifier
+from paths.identifiers import MetricIdentifier
+
+from nodes.goals import NodeGoals
+from nodes.visualizations import NodeVisualizations
 from params.discover import AnyParameter
 
 from .port_def import InputPortDef, OutputPortDef
 
 
-class OutputMetricDef(BaseModel):
+class OutputMetricDef(I18nBaseModel):
     """A single output metric produced by a node."""
 
     id: MetricIdentifier
-    label: TranslatedString | None = None
+    label: I18nString | None = None
     unit: str
     quantity: str = ''
 
 
-class FormulaConfig(BaseModel):
+class FormulaConfig(I18nBaseModel):
     """Type-specific config for formula nodes."""
 
     kind: Literal['formula'] = 'formula'
     formula: str
 
 
-class ActionConfig(BaseModel):
+class ActionConfig(I18nBaseModel):
     """Type-specific config for action nodes."""
 
     kind: Literal['action'] = 'action'
     decision_level: str | None = None
+    group: str | None = None
+    parent: str | None = None
+    no_effect_value: float | None = None
 
 
-class SimpleConfig(BaseModel):
+class SimpleConfig(I18nBaseModel):
     """Type-specific config for nodes that are fully defined by their Python class."""
 
     kind: Literal['simple'] = 'simple'
@@ -47,7 +53,7 @@ TypeConfig = Annotated[
 ]
 
 
-class NodeSpecExtra(BaseModel):
+class NodeSpecExtra(I18nBaseModel):
     """
     Attic for legacy node config fields.
 
@@ -65,7 +71,7 @@ class NodeSpecExtra(BaseModel):
     other: dict[str, Any] = Field(default_factory=dict)
 
 
-class NodeSpec(BaseModel):
+class NodeSpec(I18nBaseModel):
     """Computation schema for a node, stored as a SchemaField on NodeConfig."""
 
     # Python class path, e.g. "nodes.simple.AdditiveNode"
@@ -88,6 +94,10 @@ class NodeSpec(BaseModel):
     # Computation
     pipeline: list[dict[str, object]] | None = None
     params: list[AnyParameter] = Field(default_factory=list)
+    goals: NodeGoals = Field(default_factory=NodeGoals)
+    visualizations: NodeVisualizations = Field(default_factory=NodeVisualizations)
+    allow_nulls: bool = False
+    node_group: str | None = None
 
     # Node behaviour flags
     is_outcome: bool = False

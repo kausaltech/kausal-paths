@@ -880,13 +880,13 @@ class ActionNodeType(NodeInterface):
         return nc.indicator_node.get_node(visible_for_user=info.context.user)
 
 
-@sb.type
+@sb.experimental.pydantic.type(model=Scenario)
 class ScenarioType:
     id: sb.ID
-    name: str
-    kind: ScenarioKind | None
-    is_selectable: bool
-    actual_historical_years: list[int] | None
+    name: strawberry.auto
+    kind: strawberry.auto
+    is_selectable: strawberry.auto
+    actual_historical_years: strawberry.auto
 
     @sb.field
     @pass_context
@@ -914,17 +914,6 @@ class ActionImpact:
 class ImpactOverviewType:
     cost_node: NodeType | None
     effect_node: NodeType
-    indicator_unit: UnitType
-    indicator_cutpoint: float | None
-    cost_cutpoint: float | None
-    plot_limit_for_indicator: float | None
-    label: str
-    cost_label: str | None
-    effect_label: str | None
-    indicator_label: str | None
-    cost_category_label: str | None
-    effect_category_label: str | None
-    description: str | None
 
     @sb.field
     @staticmethod
@@ -935,9 +924,64 @@ class ImpactOverviewType:
     @sb.field
     @staticmethod
     def graph_type(root: ImpactOverview) -> str | None:
-        if root.graph_type in ['benefit_cost_ratio', 'return_on_investment_gross']:
+        if root.spec.graph_type in ['benefit_cost_ratio', 'return_on_investment_gross']:
             return 'return_on_investment'
-        return root.graph_type
+        return root.spec.graph_type
+
+    @sb.field(graphql_type=UnitType)
+    @staticmethod
+    def indicator_unit(root: ImpactOverview) -> Unit:
+        return root.spec.indicator_unit
+
+    @sb.field
+    @staticmethod
+    def indicator_cutpoint(root: ImpactOverview) -> float | None:
+        return root.spec.indicator_cutpoint
+
+    @sb.field
+    @staticmethod
+    def cost_cutpoint(root: ImpactOverview) -> float | None:
+        return root.spec.cost_cutpoint
+
+    @sb.field
+    @staticmethod
+    def plot_limit_for_indicator(root: ImpactOverview) -> float | None:
+        return root.spec.plot_limit_for_indicator
+
+    @sb.field
+    @staticmethod
+    def label(root: ImpactOverview) -> str:
+        return str(root.spec.label or '')
+
+    @sb.field
+    @staticmethod
+    def cost_label(root: ImpactOverview) -> str | None:
+        return str(root.spec.cost_label) if root.spec.cost_label is not None else None
+
+    @sb.field
+    @staticmethod
+    def effect_label(root: ImpactOverview) -> str | None:
+        return str(root.spec.effect_label) if root.spec.effect_label is not None else None
+
+    @sb.field
+    @staticmethod
+    def indicator_label(root: ImpactOverview) -> str | None:
+        return str(root.spec.indicator_label) if root.spec.indicator_label is not None else None
+
+    @sb.field
+    @staticmethod
+    def cost_category_label(root: ImpactOverview) -> str | None:
+        return str(root.spec.cost_category_label) if root.spec.cost_category_label is not None else None
+
+    @sb.field
+    @staticmethod
+    def effect_category_label(root: ImpactOverview) -> str | None:
+        return str(root.spec.effect_category_label) if root.spec.effect_category_label is not None else None
+
+    @sb.field
+    @staticmethod
+    def description(root: ImpactOverview) -> str | None:
+        return str(root.spec.description) if root.spec.description is not None else None
 
     @sb.field
     @pass_context
@@ -973,12 +1017,12 @@ class ImpactOverviewType:
     @sb.field(graphql_type=UnitType | None)
     @staticmethod
     def cost_unit(root: ImpactOverview) -> Unit:
-        return root.cost_unit or root.indicator_unit
+        return root.spec.cost_unit or root.spec.indicator_unit
 
     @sb.field(graphql_type=UnitType | None)
     @staticmethod
     def effect_unit(root: ImpactOverview) -> Unit:
-        return root.effect_unit or root.indicator_unit
+        return root.spec.effect_unit or root.spec.indicator_unit
 
 
 @sb.type

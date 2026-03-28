@@ -25,6 +25,8 @@ from nodes.defs import (
     SimpleConfig,
     YearsSpec,
 )
+from nodes.goals import NodeGoals
+from nodes.visualizations import NodeVisualizations
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -71,10 +73,17 @@ def export_instance_spec(instance: Instance) -> InstanceSpec:
     scenarios = _export_scenarios(ctx)
 
     return InstanceSpec(
+        primary_language=instance.default_language,
+        other_languages=[lang for lang in instance.supported_languages if lang != instance.default_language],
         years=years,
         dataset_repo=dataset_repo,
         dimensions=_export_dimensions(ctx),
         features=instance.features,
+        terms=instance.terms,
+        result_excels=[result.model_copy() for result in instance.result_excels],
+        pages=[page.model_copy() for page in instance.pages],
+        impact_overviews=[overview.spec.model_copy() for overview in ctx.impact_overviews],
+        normalizations=[norm.spec.model_copy() for norm in ctx.normalizations.values()],
         params=params,
         action_groups=action_groups,
         scenarios=scenarios,
@@ -105,6 +114,10 @@ def export_node_spec(node: Node) -> NodeSpec:
         input_dimensions=input_dim_ids,
         output_dimensions=output_dim_ids,
         params=params,
+        goals=node.goals.model_copy() if node.goals is not None else NodeGoals(),
+        visualizations=node.visualizations.model_copy() if node.visualizations is not None else NodeVisualizations(),
+        allow_nulls=node.allow_nulls,
+        node_group=node.node_group,
         is_outcome=node.is_outcome,
         minimum_year=node.minimum_year,
         extra=extra,
@@ -158,7 +171,12 @@ def _export_type_config(node: Node) -> FormulaConfig | ActionConfig | SimpleConf
                 decision_level = node.decision_level.name.lower()
             else:
                 decision_level = str(node.decision_level)
-        return ActionConfig(decision_level=decision_level)
+        return ActionConfig(
+            decision_level=decision_level,
+            group=node.group.id if node.group is not None else None,
+            parent=node.parent_action.id if node.parent_action is not None else None,
+            no_effect_value=node.no_effect_value,
+        )
 
     assert not hasattr(node, 'formula')
 
@@ -185,7 +203,7 @@ def _export_metric(metric_id: str, metric: NodeMetric) -> OutputMetricDef:
     )
 
 
-def _export_input_datasets(node: Node) -> list[dict[str, Any]]:
+def _export_input_datasets(node: Node) -> list[dict[str, Any]]:  # noqa: C901
     """
     Export node input datasets as config dicts.
 
@@ -327,6 +345,8 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
 
     with transaction.atomic():
         ic, _created = InstanceConfig.objects.get_or_create(identifier=instance.id)
+        ic.primary_language = instance.default_language
+        ic.other_languages = [lang for lang in instance.supported_languages if lang != instance.default_language]
         ic.spec = instance_spec
         ic.config_source = 'database'
         ic.save()
@@ -334,7 +354,6 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
         # Update or create node configs
         existing_ncs = {nc.identifier: nc for nc in NodeConfig.objects.filter(instance=ic)}
         node_configs: dict[str, NodeConfig] = {}
-        default_lang = instance.default_language
         for node_id, node in ctx.nodes.items():
             nc = existing_ncs.get(node_id)
             if nc is None:

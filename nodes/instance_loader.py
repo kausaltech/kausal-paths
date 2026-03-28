@@ -21,13 +21,12 @@ from rich import print
 from ruamel.yaml import YAML as RuamelYAML  # noqa: N811
 from sentry_sdk import start_span
 
-from kausal_common.i18n.pydantic import TranslatedString, gettext_lazy as _, set_default_language
+from kausal_common.i18n.pydantic import TranslatedString, get_i18n_context, gettext_lazy as _, set_i18n_context
 
 from nodes.actions import ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
 from nodes.explanations import NodeExplanationSystem
-from nodes.normalization import Normalization
 from pages.config import pages_from_config
 from params.discover import discover_global_parameters
 
@@ -347,6 +346,75 @@ class InstanceYAMLConfig:
 type InstanceLoaderFuncT[**P, R, SC: InstanceLoader] = Callable[Concatenate[SC, P], R]
 
 
+@overload
+def make_trans_string(
+    config: dict[str, Any],
+    attr: str,
+    pop: bool = False,
+    required: Literal[True] = True,
+    default_language=None,
+) -> TranslatedString: ...
+
+
+@overload
+def make_trans_string(
+    config: dict[str, Any],
+    attr: str,
+    pop: bool = False,
+    required: Literal[False] = False,
+    default_language=None,
+) -> TranslatedString | None: ...
+
+
+def make_trans_string(  # noqa: C901, PLR0912
+    config: dict[str, Any],
+    attr: str,
+    pop: bool = False,
+    required: bool = False,
+    default_language=None,
+) -> None | TranslatedString:
+    ctx = get_i18n_context()
+    assert ctx is not None
+    default_language = default_language or ctx.default_language
+
+    default = config.get(attr)
+    if pop and default is not None:
+        del config[attr]
+    # If default is already a TranslatedString or a multi-language dict, use it directly
+    if isinstance(default, TranslatedString):
+        return default
+    if isinstance(default, dict):
+        return TranslatedString(default_language=default_language, **default)
+    langs = {}
+    if default is not None:
+        langs[default_language] = default
+    for key in list(config.keys()):
+        m = re.match(r'%s_(([a-z]{2})(-[A-Z]{2})?)$' % attr, key)
+        if m is None:
+            continue
+        full, lang, _region = m.groups()
+        if full not in ctx.all_languages:
+            matches = [x for x in ctx.all_languages if x.startswith('%s-' % lang)]
+            if len(matches) > 1:
+                raise Exception('Too many languages match %s' % full)
+            if len(matches) == 1:
+                full = matches[0]
+            else:
+                # FIXME: Re-enable later when configs have been cleaned up
+                # self.logger.warning("Ignoring '%s' due to unsupported language" % key)
+                continue
+
+        langs[full] = config[key]
+        if pop:
+            del config[key]
+
+    if not langs:
+        if required:
+            raise Exception('Value for field %s missing' % attr)
+        return None
+    return TranslatedString(**langs, default_language=default_language)
+
+
 class InstanceLoader:
     instance: Instance
     context: Context
@@ -378,75 +446,6 @@ class InstanceLoader:
             return cast('InstanceLoaderFuncT[P, R, SC]', wrapper)
 
         return wrap_with_span_outer
-
-    @overload
-    def make_trans_string(
-        self,
-        config: dict[str, Any],
-        attr: str,
-        pop: bool = False,
-        required: Literal[True] = True,
-        default_language=None,
-    ) -> TranslatedString: ...
-
-    @overload
-    def make_trans_string(
-        self,
-        config: dict[str, Any],
-        attr: str,
-        pop: bool = False,
-        required: Literal[False] = False,
-        default_language=None,
-    ) -> TranslatedString | None: ...
-
-    def make_trans_string(  # noqa: C901, PLR0912
-        self,
-        config: dict[str, Any],
-        attr: str,
-        pop: bool = False,
-        required: bool = False,
-        default_language=None,
-    ) -> None | TranslatedString:
-        default_language = default_language or self.config['default_language']
-        all_langs = {self.config['default_language']}
-        all_langs.update(set(self.config.get('supported_languages', [])))
-
-        default = config.get(attr)
-        if pop and default is not None:
-            del config[attr]
-        # If default is already a TranslatedString or a multi-language dict, use it directly
-        if isinstance(default, TranslatedString):
-            return default
-        if isinstance(default, dict):
-            return TranslatedString(default_language=default_language, **default)
-        langs = {}
-        if default is not None:
-            langs[self.config['default_language']] = default
-        for key in list(config.keys()):
-            m = re.match(r'%s_(([a-z]{2})(-[A-Z]{2})?)$' % attr, key)
-            if m is None:
-                continue
-            full, lang, _region = m.groups()
-            if full not in all_langs:
-                matches = [x for x in all_langs if x.startswith('%s-' % lang)]
-                if len(matches) > 1:
-                    raise Exception('Too many languages match %s' % full)
-                if len(matches) == 1:
-                    full = matches[0]
-                else:
-                    # FIXME: Re-enable later when configs have been cleaned up
-                    # self.logger.warning("Ignoring '%s' due to unsupported language" % key)
-                    continue
-
-            langs[full] = config[key]
-            if pop:
-                del config[key]
-
-        if not langs:
-            if required:
-                raise Exception('Value for field %s missing' % attr)
-            return None
-        return TranslatedString(**langs, default_language=default_language or self.default_language)
 
     def simple_trans_string(self, s: str) -> TranslatedString:
         langs = {
@@ -555,9 +554,9 @@ class InstanceLoader:
                 raise NodeError(node, 'Parameter %s not allowed by node class' % param_id)
             param_class = type(param_obj)
 
-            label = self.make_trans_string(pc, 'label', pop=True, required=False) or param_obj.label
+            label = make_trans_string(pc, 'label', pop=True, required=False) or param_obj.label
             ref = pc.pop('ref', None)
-            description = self.make_trans_string(pc, 'description', pop=True, required=False) or param_obj.description
+            description = make_trans_string(pc, 'description', pop=True, required=False) or param_obj.description
             is_customizable = pc.pop('is_customizable', None)
 
             scenario_values = pc.pop('values', {})
@@ -661,12 +660,12 @@ class InstanceLoader:
         node: Node = node_class(
             id=config['id'],
             context=self.context,
-            name=self.make_trans_string(config, 'name'),
-            short_name=self.make_trans_string(config, 'short_name'),
+            name=make_trans_string(config, 'name'),
+            short_name=make_trans_string(config, 'short_name'),
             quantity=quantity,
             unit=unit,
             node_group=config.get('node_group'),
-            description=self.make_trans_string(config, 'description'),
+            description=make_trans_string(config, 'description'),
             color=config.get('color'),
             order=config.get('order'),
             is_visible=config.get('is_visible', True),
@@ -704,7 +703,7 @@ class InstanceLoader:
             self._node_visualizations[node.id] = viz_config
 
         no_effect_value = config.get('no_effect_value')
-        if no_effect_value:
+        if no_effect_value is not None:
             assert isinstance(node, ActionNode)
             node.no_effect_value = no_effect_value
 
@@ -748,7 +747,8 @@ class InstanceLoader:
 
         for dc in self.config.get('dimensions', []):
             try:
-                dim = Dimension(**dc, mtime_hash=self.config_mtime_hash)
+                dc['mtime_hash'] = self.config_mtime_hash
+                dim = Dimension.from_yaml_config(dc)
             except Exception:
                 print(dc)
                 raise
@@ -933,7 +933,7 @@ class InstanceLoader:
         )
         pt_scenario.actual_historical_years = list(years)
 
-    def setup_scenarios(self):  # noqa: C901
+    def setup_scenarios(self):  # noqa: C901, PLR0912
         from nodes.scenario import CustomScenario, Scenario, ScenarioKind
 
         default_scenario = None
@@ -949,7 +949,7 @@ class InstanceLoader:
             ]
 
         for sc in scenario_confs:
-            name = self.make_trans_string(sc, 'name', pop=True)
+            name = make_trans_string(sc, 'name', pop=True)
             params_config = sc.pop('params', [])
             actual_historical_years = sc.pop('actual_historical_years', None)
             default = sc.pop('default', False)
@@ -1014,8 +1014,8 @@ class InstanceLoader:
             param_val = pc.pop('value', None)
             if 'is_customizable' not in pc:
                 pc['is_customizable'] = False
-            pc['label'] = self.make_trans_string(pc, 'label', pop=True)
-            pc['description'] = self.make_trans_string(pc, 'description', pop=True)
+            pc['label'] = make_trans_string(pc, 'label', pop=True)
+            pc['description'] = make_trans_string(pc, 'description', pop=True)
 
             param_type = type(param)
             param = param_type(**pc)
@@ -1027,49 +1027,40 @@ class InstanceLoader:
             context.add_global_parameter(param)
 
     def setup_impact_overviews(self):
-        from nodes.actions.action import ImpactOverview
+        from nodes.actions.action import ImpactOverview, ImpactOverviewSpec
 
         # TODO add an ID so that there can be several impact overviews for different decision makers.
         conf = self.config.get('impact_overviews', [])
         for aepc in conf:
-            label = self.make_trans_string(aepc, 'label', pop=False)
-            cost_category_label = self.make_trans_string(aepc, 'cost_category_label', pop=False)
-            effect_category_label = self.make_trans_string(aepc, 'effect_category_label', pop=False)
-            cost_label = self.make_trans_string(aepc, 'cost_label', pop=False)
-            effect_label = self.make_trans_string(aepc, 'effect_label', pop=False)
-            indicator_label = self.make_trans_string(aepc, 'indicator_label', pop=False)
-            description = self.make_trans_string(aepc, 'description', pop=False)
-            aep = ImpactOverview.from_config(
-                context=self.context,
-                graph_type=aepc['graph_type'],
-                cost_node_id=aepc.get('cost_node', None),
-                effect_node_id=aepc['effect_node'],
-                cost_unit=aepc.get('cost_unit', None),
-                effect_unit=aepc.get('effect_unit', None),
-                indicator_unit=aepc['indicator_unit'],
-                plot_limit_for_indicator=aepc.get('plot_limit_for_indicator', None),
-                invert_cost=aepc.get('invert_cost', False),
-                invert_effect=aepc.get('invert_effect', False),
-                indicator_cutpoint=aepc.get('indicator_cutpoint', None),
-                cost_cutpoint=aepc.get('cost_cutpoint', None),  # TODO Make these parameters.
-                stakeholder_dimension=aepc.get('stakeholder_dimension', None),
-                outcome_dimension=aepc.get('outcome_dimension', None),
-                label=label,
-                cost_category_label=cost_category_label,
-                effect_category_label=effect_category_label,
-                cost_label=cost_label,
-                effect_label=effect_label,
-                indicator_label=indicator_label,
-                description=description,
-            )
+            spec_config = dict(aepc)
+            rename_map = {
+                'effect_node': 'effect_node_id',
+                'cost_node': 'cost_node_id',
+                'stakeholder_dimension': 'stakeholder_dimension_id',
+                'outcome_dimension': 'outcome_dimension_id',
+            }
+            for old_name, new_name in rename_map.items():
+                if old_name in spec_config and new_name not in spec_config:
+                    spec_config[new_name] = spec_config.pop(old_name)
+            spec = ImpactOverviewSpec.from_yaml_config(spec_config)
+            aep = ImpactOverview(spec, self.context)
             self.context.impact_overviews.append(aep)
 
     def setup_normalizations(self):
+        from paths.refs import ValidationContext
+
+        from nodes.normalization import Normalization, NormalizationSpec
+
         ncs = self.config.get('normalizations', [])
         for nc in ncs:
-            n = Normalization.from_config(self.context, nc)
-            n_id = n.normalizer_node.id
-            self.context.add_normalization(n_id, n)
+            spec_config = dict(nc)
+            if 'normalizer_node' in spec_config and 'normalizer_node_id' not in spec_config:
+                spec_config['normalizer_node_id'] = spec_config.pop('normalizer_node')
+            normalization = Normalization(
+                NormalizationSpec.model_validate(spec_config, context=ValidationContext(context=self.context)),
+                self.context,
+            )
+            self.context.add_normalization(normalization.normalizer_node.id, normalization)
 
     def setup_validation_graph(self):
         config = self.config
@@ -1146,10 +1137,11 @@ class InstanceLoader:
         self.config = config
         self.fw_config = fw_config
         self.default_language = config['default_language']
+        self.other_languages = config.get('supported_languages', [])
         self.config_mtime_hash = config_mtime_hash
         self.logger = logger.bind(instance=config['id'])
         self._node_classes = {}
-        with set_default_language(self.default_language):
+        with set_i18n_context(self.default_language, self.other_languages):
             self._init_instance()
 
     def setup_node_visualizations(self):
@@ -1213,7 +1205,7 @@ class InstanceLoader:
         for idx, agc in enumerate(agc_all):
             ag = ActionGroup(
                 id=agc['id'],
-                name=self.make_trans_string(agc, 'name', required=True),
+                name=make_trans_string(agc, 'name', required=True),
                 color=agc.get('color') or '',
                 order=idx,
             )
@@ -1227,8 +1219,8 @@ class InstanceLoader:
         target_year = self.config['target_year']
 
         if fwc is None:
-            owner = self.make_trans_string(self.config, 'owner', required=True)
-            name = self.make_trans_string(self.config, 'name', required=True)
+            owner = make_trans_string(self.config, 'owner', required=True)
+            name = make_trans_string(self.config, 'name', required=True)
             max_hist_year: int | None = self.config.get('maximum_historical_year')
             min_hist_year: int = self.config['minimum_historical_year']
             site_url = self.config.get('site_url')
@@ -1259,7 +1251,7 @@ class InstanceLoader:
             action_groups=agcs,
             features=self.config.get('features', {}),
             terms=self.config.get('terms', {}),
-            result_excels=[InstanceResultExcel.model_validate(r) for r in self.config.get('result_excels', [])],
+            result_excels=[InstanceResultExcel.from_yaml_config(r) for r in self.config.get('result_excels', [])],
             yaml_file_path=self.yaml_file_path,
             pages=pages_from_config(self.config.get('pages', [])),
             maximum_historical_year=max_hist_year,
@@ -1322,6 +1314,6 @@ class InstanceLoader:
             return {}
         default_language = self.config['default_language']
         return {
-            'lead_title': self.make_trans_string(page, 'lead_title', default_language=default_language),
-            'lead_paragraph': self.make_trans_string(page, 'lead_paragraph', default_language=default_language),
+            'lead_title': make_trans_string(page, 'lead_title', default_language=default_language),
+            'lead_paragraph': make_trans_string(page, 'lead_paragraph', default_language=default_language),
         }

@@ -11,16 +11,16 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.django_db
 
 
-def test_context_get_parameter_global(context: Context, parameter: Parameter[Any]):
-    context.add_global_parameter(parameter)
-    assert parameter.global_id == parameter.local_id
-    assert context.get_parameter(parameter.global_id) == parameter
+def test_context_get_parameter_global(context: Context, number_parameter: Parameter[Any]):
+    context.add_global_parameter(number_parameter)
+    assert number_parameter.global_id == number_parameter.local_id
+    assert context.get_parameter(number_parameter.global_id) == number_parameter
 
 
-def test_context_get_parameter_local(context: Context, node: Node, parameter: Parameter[Any]):
-    node.add_parameter(parameter)
-    assert parameter.global_id != parameter.local_id
-    assert context.get_parameter(parameter.global_id) == parameter
+def test_context_get_parameter_local(context: Context, node: Node, number_parameter: Parameter[Any]):
+    node.add_parameter(number_parameter)
+    assert number_parameter.global_id != number_parameter.local_id
+    assert context.get_parameter(number_parameter.global_id) == number_parameter
 
 
 def test_context_activate_scenario_sets_active_scenario(context: Context, scenario: Scenario):

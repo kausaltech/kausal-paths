@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import PrivateAttr
 
-from common.types import ParameterGlobalId
+from paths.identifiers import ParameterGlobalId
+
 from nodes.units import Quantity
 
 from .base import Parameter, ParameterWithUnit, parameter

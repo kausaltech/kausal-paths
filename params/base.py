@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import json
+from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
-from kausal_common.i18n.pydantic import I18nString, TranslatedString
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nString, TranslatedString
 
-from common.types import ParameterLocalId
+from paths.identifiers import ParameterLocalId
+
 from nodes.exceptions import ParameterError
 from nodes.node import Node
 from nodes.units import Unit
@@ -26,7 +28,7 @@ def parameter[PT: Parameter[Any, Any]](cls: type[PT]) -> type[PT]:
     return cls
 
 
-class Parameter[ValueT = Any, SetValueT = ValueT](BaseModel):
+class Parameter[ValueT = Any, SetValueT = ValueT](I18nBaseModel, ABC):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     local_id: ParameterLocalId
@@ -46,7 +48,7 @@ class Parameter[ValueT = Any, SetValueT = ValueT](BaseModel):
     _subscription_nodes: list[Node] = PrivateAttr(default_factory=list)
     """Nodes that should be notified when the parameter changes value."""
 
-    _subscription_params: list[Parameter[Any, Any]] = PrivateAttr(default_factory=list)
+    _subscription_params: list[Parameter] = PrivateAttr(default_factory=list)
     """Parameters that should be notified when the parameter changes value."""
 
     _context: Context | None = PrivateAttr(default=None)
@@ -155,7 +157,8 @@ class Parameter[ValueT = Any, SetValueT = ValueT](BaseModel):
         self._hash = h
         return h
 
-    def clean(self, value: Any) -> Any:  # pyright: ignore[reportUnusedParameter]
+    @abstractmethod
+    def clean(self, value: Any) -> Any:
         raise NotImplementedError('Implement in subclass')
 
     @property
@@ -190,7 +193,7 @@ class Parameter[ValueT = Any, SetValueT = ValueT](BaseModel):
         raise ParameterError(self, 'Parameter does not have units' % self.global_id)
 
 
-class ParameterWithUnit[ValueT, SetValueT = ValueT](Parameter[ValueT, SetValueT]):
+class ParameterWithUnit[ValueT, SetValueT = ValueT](Parameter[ValueT, SetValueT], ABC):
     unit: Unit | None = Field(default=None, exclude=False)
     unit_str: str | None = Field(default=None, exclude=True, repr=False)
 

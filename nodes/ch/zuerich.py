@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, cast
 
+from django.utils.translation import gettext_lazy as _
+
 import polars as pl
 
 from common import polars as ppl
@@ -436,7 +438,7 @@ class GasGridMixin(Node):
 class DistrictHeatProductionMix(MixNode, GasGridMixin):
     allowed_parameters = [
         *MixNode.allowed_parameters,
-        BoolParameter(local_id='use_gas_network', label='District heat uses gas grid mix'),
+        BoolParameter(local_id='use_gas_network', label=_('District heat uses gas grid mix')),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:

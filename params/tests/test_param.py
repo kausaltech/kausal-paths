@@ -24,13 +24,13 @@ def test_parameter_add_scenario_setting_twice(parameter, scenario):
 """
 
 
-def test_parameter_global_id_global_param(parameter):
-    assert parameter.global_id == parameter.local_id
+def test_parameter_global_id_global_param(number_parameter):
+    assert number_parameter.global_id == number_parameter.local_id
 
 
-def test_parameter_global_id_node_param(node, parameter):
-    parameter.set_node(node)
-    assert parameter.global_id == f'{node.id}.{parameter.local_id}'
+def test_parameter_global_id_node_param(node, number_parameter):
+    number_parameter.set_node(node)
+    assert number_parameter.global_id == f'{node.id}.{number_parameter.local_id}'
 
 
 @pytest.mark.parametrize('value', [3, 3.5, '3', '3.5'])

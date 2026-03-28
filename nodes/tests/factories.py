@@ -120,8 +120,8 @@ class NodeFactory(Factory[Node]):
 
     id = Sequence(lambda i: f'node{i}')
     context: SubFactory[Any, Context] = SubFactory(ContextFactory)
-    name = Sequence(lambda i: TranslatedString(f'Test node {i}'))
-    description = TranslatedString('description')
+    name = Sequence(lambda i: TranslatedString(f'Test node {i}', default_language='en'))
+    description = TranslatedString('description', default_language='en')
     color = 'pink'
     unit = unit_registry('kWh').units
     quantity = 'energy'
@@ -164,7 +164,7 @@ class ScenarioFactory[S: Scenario = Scenario](Factory[S]):
         model = Scenario
 
     id = Sequence(lambda i: f'scenario{i}')
-    name = TranslatedString('scenario')
+    name = TranslatedString('scenario', default_language='en')
     kind: ScenarioKind | None = None
     all_actions_enabled = False
 

@@ -107,7 +107,7 @@ class ScenarioSpecType:
 class ActionGroupSpecType:
     id: str
     name: str | None
-    color: str
+    color: str | None
     order: int
 
 
@@ -123,6 +123,9 @@ class NodeSpecType:
     kind: str  # 'simple' | 'formula' | 'action'
     formula: str | None
     decision_level: str | None
+    action_group: str | None
+    action_parent: str | None
+    no_effect_value: float | None
     # Ports and metrics
     input_ports: list[InputPortType]
     output_ports: list[OutputPortType]
@@ -133,9 +136,13 @@ class NodeSpecType:
     # Flags
     is_outcome: bool
     minimum_year: int | None
+    allow_nulls: bool
+    node_group: str | None
     # Not yet modeled — exposed as opaque blobs
     input_datasets: JSON
     params: JSON
+    goals: JSON
+    visualizations: JSON
     pipeline: JSON | None
     extra: JSON
 
@@ -153,6 +160,11 @@ class InstanceSpecType:
     scenarios: list[ScenarioSpecType]
     # Not yet modeled — exposed as opaque blobs
     features: JSON
+    terms: JSON
+    result_excels: JSON
+    pages: JSON
+    impact_overviews: JSON
+    normalizations: JSON
     params: JSON
     dimensions: JSON
 
@@ -213,6 +225,9 @@ def node_spec_to_gql(spec: NodeSpec) -> NodeSpecType:
         kind=tc.kind,
         formula=getattr(tc, 'formula', None),
         decision_level=getattr(tc, 'decision_level', None),
+        action_group=getattr(tc, 'group', None),
+        action_parent=getattr(tc, 'parent', None),
+        no_effect_value=getattr(tc, 'no_effect_value', None),
         input_ports=[input_port_to_gql(p) for p in spec.input_ports],
         output_ports=[output_port_to_gql(p) for p in spec.output_ports],
         output_metrics=[output_metric_to_gql(m) for m in spec.output_metrics],
@@ -220,8 +235,12 @@ def node_spec_to_gql(spec: NodeSpec) -> NodeSpecType:
         output_dimensions=spec.output_dimensions,
         is_outcome=spec.is_outcome,
         minimum_year=spec.minimum_year,
+        allow_nulls=spec.allow_nulls,
+        node_group=spec.node_group,
         input_datasets=cast('JSON', spec.input_datasets),
         params=cast('JSON', [p.model_dump() for p in spec.params]),
+        goals=cast('JSON', spec.goals.model_dump()),
+        visualizations=cast('JSON', spec.visualizations.model_dump()),
         pipeline=cast('JSON', spec.pipeline),
         extra=cast('JSON', spec.extra.model_dump()),
     )
@@ -234,6 +253,11 @@ def instance_spec_to_gql(spec: InstanceSpec) -> InstanceSpecType:
         action_groups=[action_group_to_gql(ag) for ag in spec.action_groups],
         scenarios=[scenario_to_gql(s) for s in spec.scenarios],
         features=cast('JSON', spec.features.model_dump()),
+        terms=cast('JSON', spec.terms.model_dump(exclude_none=True)),
+        result_excels=cast('JSON', [result.model_dump(exclude_none=True) for result in spec.result_excels]),
+        pages=cast('JSON', [page.model_dump(exclude_none=True) for page in spec.pages]),
+        impact_overviews=cast('JSON', [overview.model_dump(exclude_none=True) for overview in spec.impact_overviews]),
+        normalizations=cast('JSON', [normalization.model_dump(exclude_none=True) for normalization in spec.normalizations]),
         params=cast('JSON', [p.model_dump() for p in spec.params]),
         dimensions=cast('JSON', spec.dimensions),
     )

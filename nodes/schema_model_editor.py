@@ -177,6 +177,7 @@ class CreateNodeInput:
     color: str = ''
     is_outcome: bool = False
     node_group: str | None = None
+    allow_nulls: bool = False
 
 
 @sb.input
@@ -189,6 +190,7 @@ class UpdateNodeInput:
     is_visible: bool | None = sb.UNSET
     is_outcome: bool | None = sb.UNSET
     node_group: str | None = sb.UNSET
+    allow_nulls: bool | None = sb.UNSET
     pipeline: sb.scalars.JSON | None = sb.UNSET
     formula: str | None = sb.UNSET
     params: sb.scalars.JSON | None = sb.UNSET
@@ -280,6 +282,8 @@ class ModelEditorMutation:
         spec = NodeSpec(
             type_config=FormulaConfig(formula='') if input.node_type == 'formula' else SimpleConfig(),
             is_outcome=input.is_outcome,
+            node_group=input.node_group,
+            allow_nulls=input.allow_nulls,
         )
 
         with transaction.atomic():
@@ -315,7 +319,7 @@ class ModelEditorMutation:
                     setattr(nc, field_name, val)
             # Spec fields
             spec = nc.spec
-            for field_name in ('is_outcome', 'pipeline', 'params'):
+            for field_name in ('is_outcome', 'node_group', 'allow_nulls', 'pipeline', 'params'):
                 val = getattr(input, field_name)
                 if val is not sb.UNSET:
                     setattr(spec, field_name, val)

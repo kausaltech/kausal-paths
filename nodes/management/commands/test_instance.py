@@ -14,6 +14,7 @@ from rich import print
 from rich.console import Console
 from rich.traceback import Traceback
 
+from kausal_common.logging.errors import print_exception
 from kausal_common.logging.warnings import register_warning_handler
 
 from nodes.datasets import JSONDataset
@@ -150,6 +151,8 @@ class Command(BaseCommand):
 
     store: bool
     compare: bool
+    spec_only: bool
+    dry_run: bool
     logger: loguru.Logger
     state: CheckState
     maxfail: int
@@ -172,6 +175,18 @@ class Command(BaseCommand):
             dest='compare',
             action='store_true',
             help='Compare outputs to previous run for each instance',
+        )
+        parser.add_argument(
+            '--spec-only',
+            dest='spec_only',
+            action='store_true',
+            help='Only initialize each instance; skip output comparison and node execution',
+        )
+        parser.add_argument(
+            '--dry-run',
+            dest='dry_run',
+            action='store_true',
+            help='Do not update the state file',
         )
         parser.add_argument(
             '--start-from', dest='start_from', metavar='INSTANCE_ID', action='store', help='Instance ID to start from'
@@ -208,11 +223,10 @@ class Command(BaseCommand):
             state.set_output_file(self.state_file)
         return state
 
-    def save_state(self, state: CheckState):
-        if not self.state_file:
+    def save_state(self):
+        if self.dry_run:
             return
-        with self.state_file.open('w') as f:
-            f.write(state.model_dump_json(indent=2))
+        self.state.save()
 
     def handle_node_output(self, logger: loguru.Logger, node: Node) -> bool:
         if self.store and self.model_output_dir:
@@ -259,21 +273,14 @@ class Command(BaseCommand):
         try:
             node.check()
             success = self.handle_node_output(logger, node)
-        except NodeError as e:
-            if e.__cause__:
-                err = e.__cause__
-                tb = Traceback.from_exception(type(err), err, err.__traceback__)
-                console.print(tb)
-                logger.error(
-                    'Error checking node {instance_id}:{node_id}\nNode dependency path: {dep_path}',
-                    instance_id=node.context.instance.id,
-                    node_id=node.id,
-                    dep_path=e.get_event_chain(),
-                )
+        except NodeError as err:
+            tb = Traceback.from_exception(type(err), err, err.__traceback__)
+            console.print(tb)
+            logger.error(f'Error checking node {node.context.instance.id}:{node.id}')
             success = False
         if not success:
             self.state.mark_failed(node.context.instance)
-        self.state.save()
+        self.save_state()
         return success
 
     def run_nodes(self, logger: loguru.Logger, ctx: Context) -> bool:
@@ -293,12 +300,17 @@ class Command(BaseCommand):
         try:
             instance = ic.get_instance()
         except Exception as e:
-            logger.error('Error initializing instance %s', ic.identifier)
-            console.print(e)
+            logger.error('Error initializing instance %s' % ic.identifier)
+            print_exception(e)
             self.state.failed_instances.add(ic.identifier)
             self.state.checked_instances.add(ic.identifier)
-            self.state.save()
+            self.save_state()
             return False
+
+        if self.spec_only:
+            self.state.mark_success(instance)
+            self.save_state()
+            return True
 
         ctx = instance.context
         ctx.cache.clear()
@@ -313,25 +325,28 @@ class Command(BaseCommand):
             self.state.mark_success(instance)
         else:
             self.state.mark_failed(instance)
-        self.state.save()
+        self.save_state()
         return succeeded
 
-    def handle(self, *args, **options):  # noqa: C901, PLR0912
+    def handle(self, *args, **options):  # noqa: C901, PLR0912, PLR0915
         instance_ids = options['instances']
         self.state_dir = options['state_dir']
         if self.state_dir:
             self.model_output_dir = self.state_dir / 'outputs'
             self.model_output_dir.mkdir(parents=True, exist_ok=True)
             self.state_file = self.state_dir / 'state.json'
-        self.logger = loguru.logger.bind(name='test_instance')
-        register_warning_handler()
-        if self.state_file:
             self.state = self.load_state()
         else:
+            self.state_file = None
             self.state = CheckState()
+
+        self.logger = loguru.logger.bind(name='test_instance')
+        register_warning_handler()
         self.maxfail = options['maxfail']
         self.store = bool(options['store'])
         self.compare = bool(options['compare'])
+        self.spec_only = bool(options['spec_only'])
+        self.dry_run = bool(options['dry_run'])
         if self.compare and not self.state_dir:
             self.logger.error('--compare requires --state-dir')
             exit(1)

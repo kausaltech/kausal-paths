@@ -292,8 +292,8 @@ class CfFloorAreaAction(BuildingEnergySavingAction):
         #        'natural_gas': NodeMetric('thm/m**2/a', 'consumption_factor', column_id='natural_gas')
     }
     allowed_parameters = BuildingEnergySavingAction.allowed_parameters + [
-        StringParameter(local_id='electricity_unit', label='Electricity unit', is_customizable=False),
-        StringParameter(local_id='natural_gas_unit', label='Natural gas unit', is_customizable=False),
+        StringParameter(local_id='electricity_unit', label=_('Electricity unit'), is_customizable=False),
+        StringParameter(local_id='natural_gas_unit', label=_('Natural gas unit'), is_customizable=False),
     ]
 
     def compute_effect(self) -> pd.DataFrame | ppl.PathsDataFrame:

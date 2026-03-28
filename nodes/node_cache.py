@@ -180,9 +180,9 @@ class NodeHasher:
             state.upstream_node_keys[self.node.id] = self._get_cache_key(self.node, ret)
         except Exception as e:
             if isinstance(e, NodeError):
-                e.add_node_event(self.node, 'calculate hash')
+                e.add_node_event(self.node, event='calculate hash')
                 raise
-            raise NodeHashingError(self.node, 'Unable to hash node') from e
+            raise NodeHashingError(self.node, 'Unable to hash node', event='calculate hash') from e
         return ret
 
     def is_run_cached(self) -> bool:

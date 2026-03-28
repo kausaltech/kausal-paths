@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 
     from loguru import Logger
 
-    from nodes.actions.action import ActionGroup
     from nodes.context import Context
+    from nodes.defs.instance_defs import ActionGroup
     from nodes.goals import NodeGoalsEntry
     from pages.config import OutcomePage
 

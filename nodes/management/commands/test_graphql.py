@@ -113,6 +113,11 @@ class Command(BaseCommand):
             body = json.dumps({'query': query, 'variables': variables, 'operationName': data.get('operation_name')})
             resp = client.post(GQL_URL, body, content_type='application/json', **kwargs)
             out = json.loads(resp.content)
+            if 'errors' in out:
+                print('Errors in response:')
+                for err in out['errors']:
+                    print(err)
+                exit(1)
 
             if _diff_responses(fn, data, out):
                 self.failures += 1

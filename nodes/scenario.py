@@ -5,11 +5,12 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import strawberry as sb
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import ConfigDict, Field, PrivateAttr
 
-from kausal_common.i18n.pydantic import I18nString
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
-from common.types import ParameterGlobalId, ScenarioIdentifier
+from paths.identifiers import ParameterGlobalId, ScenarioIdentifier
+
 from params.storage import SettingStorage
 
 from .context import Context
@@ -28,7 +29,7 @@ class ScenarioKind(Enum):
     PROGRESS_TRACKING = 'progress_tracking'
 
 
-class Scenario(BaseModel):
+class Scenario(I18nBaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: ScenarioIdentifier

@@ -550,7 +550,7 @@ def from_action_impact(
     if col not in df.columns:
         return None
 
-    dim_id_potential = [root.outcome_dimension, root.stakeholder_dimension]
+    dim_id_potential = [root.spec.outcome_dimension_id, root.spec.stakeholder_dimension_id]
     dim_potential = root.effect_node.output_dimensions.items()
     dimensions = [(dim_id, dim) for dim_id, dim in dim_potential if dim_id in dim_id_potential]
 

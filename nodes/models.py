@@ -340,7 +340,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         choices=[('yaml', 'YAML'), ('database', 'Database')],
         default='yaml',
     )
-    spec = SchemaField(schema=InstanceSpec, default=InstanceSpec)
+    spec = SchemaField(schema=InstanceSpec, default=lambda: InstanceSpec(primary_language='en'))
 
     viewer_group: FK[Group | None] = models.ForeignKey(
         Group,
@@ -512,7 +512,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         self.edges.all().delete()
         self.dataset_ports.all().delete()
         self.nodes.update(spec='{}')
-        self.spec = InstanceSpec()
+        self.spec = InstanceSpec(primary_language=self.primary_language, other_languages=list(self.other_languages or []))
 
     def publish_instance(self, user: User | None = None) -> None:
         """Serialize the current model state and publish as a Wagtail revision."""

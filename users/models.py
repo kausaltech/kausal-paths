@@ -230,7 +230,7 @@ class User(AbstractUser):
             return False
         return self.get_adminable_instances().exists()
 
-    def deactivate(self, admin_user):
+    def deactivate(self, admin_user: User | None):
         self.is_active = False
         self.deactivated_by = admin_user
         self.deactivated_at = timezone.now()

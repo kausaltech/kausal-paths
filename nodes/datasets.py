@@ -1040,11 +1040,24 @@ class DBDataset(DatasetWithFilters):
         if include_data_point_primary_keys:
             id_map = df.select([YEAR_COLUMN, *dim_ids, 'metric_name', 'id'])
 
-        df = df.with_columns(pl.col('metric_name').alias('metric')).drop('metric_name', 'id')
+        index_cols = [YEAR_COLUMN, *dim_ids]
+        uniq_cols = [*index_cols, 'metric']
+        df = df.with_columns(pl.col('metric_name').alias('metric')).drop('metric_name', 'id').sort(uniq_cols)
+
+        dupes = df.group_by(uniq_cols).agg(pl.count().alias('_count')).filter(pl.col('_count') > 1)
+        if len(dupes) > 0:
+            extra = dupes.head().to_dicts()
+            capture_error(
+                'Dataset %s (pk %d) has %s duplicate rows' % (ds_in.identifier, ds_in.pk, len(dupes)),
+                extras={'example_rows': extra},
+            )
+            # Filter out duplicate rows, keeping the first one
+            df = df.group_by(uniq_cols).first()
+
         df = df.pivot(on='metric', index=[YEAR_COLUMN, *dim_ids], values='value')  # noqa: PD010
 
         if include_data_point_primary_keys and id_map is not None:
-            id_pivoted = id_map.pivot(on='metric_name', index=[YEAR_COLUMN, *dim_ids], values='id')  # noqa: PD010
+            id_pivoted = id_map.pivot(on='metric_name', on_columns=[YEAR_COLUMN, *dim_ids], values='id')  # noqa: PD010
             id_pivoted = id_pivoted.rename({
                 col: f'_dp_pk_{col}' for col in id_pivoted.columns if col not in [YEAR_COLUMN, *dim_ids]
             })

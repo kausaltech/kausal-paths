@@ -43,42 +43,42 @@ class SimpleNode(Node):
         ),
         BoolParameter(
             local_id='drop_nulls',
-            description='At the end of compute() do you want to drop nulls?',
+            description=_('At the end of compute() do you want to drop nulls?'),
             is_customizable=False,
         ),
         NumberParameter(
             local_id='replace_nans',
-            description='At the end of compute() replace nans with this value',
+            description=_('At the end of compute() replace nans with this value'),
             is_customizable=False,
         ),
         StringParameter(
             local_id='reference_category',
-            description='Category to which all others are compared',
+            description=_('Category to which all others are compared'),
             is_customizable=False,
         ),
         NumberParameter(
             local_id='reference_year',
-            description='Year to which all others are compared',
+            description=_('Year to which all others are compared'),
             is_customizable=False,
         ),
         StringParameter(
             local_id='share_dimension',
-            description='Dimension over which values are converted to shares',
+            description=_('Dimension over which values are converted to shares'),
             is_customizable=False,
         ),
         NumberParameter(  # FIXME Make sure that the treatment is systematic in all node classes.
             local_id='multiplier',
-            description='Multiplier to implement after operation and before additions',
+            description=_('Multiplier to implement after operation and before additions'),
             is_customizable=False,
         ),
         StringParameter(
             local_id='slice_category_at_edge',
-            description='A category is sliced at edge before offering as input to another node',
+            description=_('A category is sliced at edge before offering as input to another node'),
             is_customizable=False,
         ),
         StringParameter(  # FIXME Is this the same functionality as variant?
             local_id='filter_categories',
-            description='Categories to filter in format dimension:category,category2',
+            description=_('Categories to filter in format dimension:category,category2'),
             is_customizable=False,
         ),
     ]
@@ -193,12 +193,12 @@ Missing values are assumed to be zero.""")
         StringParameter(local_id='metric', is_customizable=False),
         BoolParameter(
             local_id='inventory_only',
-            description='Node represents historical (inventory) values only',
+            description=_('Node represents historical (inventory) values only'),
             is_customizable=False,
         ),
         BoolParameter(
             local_id='use_input_node_unit_when_adding',
-            description='Use input node unit when doing add_nodes_pl()',
+            description=_('Use input node unit when doing add_nodes_pl()'),
             is_customizable=False,
         ),
     ]
@@ -280,7 +280,7 @@ class SubtractiveNode(Node):  # FIXME Remove, when you clean Longmont.
     allowed_parameters = [
         BoolParameter(
             local_id='only_historical',
-            description='Perform subtraction on only historical data',
+            description=_('Perform subtraction on only historical data'),
             is_customizable=False,
         ),
     ]
@@ -303,7 +303,9 @@ class SectorEmissions(AdditiveNode):
 
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        StringParameter(local_id='category', description='Category id for the emission sector dimension', is_customizable=False),
+        StringParameter(
+            local_id='category', description=_('Category id for the emission sector dimension'), is_customizable=False
+        ),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -343,12 +345,12 @@ class MultiplicativeNode(SimpleNode):
         *SimpleNode.allowed_parameters,
         BoolParameter(
             local_id='only_historical',
-            description='Process only historical rows',
+            description=_('Process only historical rows'),
             is_customizable=False,
         ),
         BoolParameter(
             local_id='extend_rows',
-            description='Extend last row to future years',
+            description=_('Extend last row to future years'),
             is_customizable=False,
         ),
     ]
@@ -783,7 +785,7 @@ class ChooseInputNode(AdditiveNode):
     )
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        StringParameter(local_id='node_tag', label='Tag to use as selecting the input node'),
+        StringParameter(local_id='node_tag', label=_('Tag to use as selecting the input node')),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -802,7 +804,7 @@ class RelativeYearScaledNode(AdditiveNode):
     )
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        NumberParameter(local_id='reference_year', label='The year whose values are used for scaling'),
+        NumberParameter(local_id='reference_year', label=_('The year whose values are used for scaling')),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -887,7 +889,7 @@ class AnnuityNode(AdditiveNode):
 class DiscountNode(AdditiveNode):
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        NumberParameter(local_id='start_year', label='The first year in which the discount rate is applied.'),
+        NumberParameter(local_id='start_year', label=_('The first year in which the discount rate is applied.')),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:

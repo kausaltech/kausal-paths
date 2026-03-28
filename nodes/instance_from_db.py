@@ -25,9 +25,15 @@ if TYPE_CHECKING:
 def serialize_instance_to_dict(ic: InstanceConfig) -> dict[str, Any]:
     """Convert a DB-sourced InstanceConfig and its related models into a YAML-equivalent dict."""
     spec = ic.spec
+    assert spec is not None, f'InstanceConfig {ic.identifier!r} has no spec'
     config = _serialize_instance_metadata(ic, spec)
     config['action_groups'] = [_serialize_action_group(ag) for ag in spec.action_groups]
     config['scenarios'] = [_serialize_scenario(s) for s in spec.scenarios]
+    config['terms'] = spec.terms.model_dump(exclude_none=True)
+    config['result_excels'] = [result.model_dump(exclude_none=True) for result in spec.result_excels]
+    config['pages'] = [page.model_dump(exclude_none=True) for page in spec.pages]
+    config['impact_overviews'] = [overview.model_dump(exclude_none=True) for overview in spec.impact_overviews]
+    config['normalizations'] = [normalization.model_dump(exclude_none=True) for normalization in spec.normalizations]
 
     _add_nodes_and_edges(ic, config)
     config['dimensions'] = spec.dimensions
@@ -40,11 +46,11 @@ def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceSpec) -> dict
 
     config: dict[str, Any] = {
         'id': ic.identifier,
-        'default_language': ic.primary_language,
+        'default_language': spec.primary_language,
         'name': ic.name,
         'owner': ic.organization.name if ic.organization_id else '',
         'site_url': ic.site_url,
-        'supported_languages': list(ic.other_languages or []),
+        'supported_languages': spec.other_languages,
         'target_year': years.target,
         'reference_year': years.reference,
         'minimum_historical_year': years.min_historical,
@@ -84,7 +90,7 @@ def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> None:
     config['actions'] = actions_list
 
 
-def _serialize_node_config(
+def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     nc: NodeConfig,
     output_nodes: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -111,10 +117,12 @@ def _serialize_node_config(
     # Spec-derived fields
     if spec.is_outcome:
         node['is_outcome'] = True
-    if not hasattr(spec, 'minimum_year'):
-        breakpoint()
     if spec.minimum_year is not None:
         node['minimum_year'] = spec.minimum_year
+    if spec.allow_nulls:
+        node['allow_nulls'] = True
+    if spec.node_group:
+        node['node_group'] = spec.node_group
 
     # Output metrics → unit/quantity (for single-metric nodes) or output_metrics list
     if spec.output_metrics:
@@ -131,6 +139,10 @@ def _serialize_node_config(
     if spec.params:
         params = cast('Sequence[Parameter]', spec.params)
         node['params'] = [_param_to_dict(p) for p in params]
+    if spec.goals.root:
+        node['goals'] = spec.goals.model_dump(exclude_none=True)
+    if spec.visualizations.root:
+        node['visualizations'] = spec.visualizations.model_dump(exclude_none=True)
 
     # Computation
     if spec.pipeline is not None:
@@ -144,8 +156,15 @@ def _serialize_node_config(
     tc = spec.type_config
     if tc.kind == 'formula':
         node['formula'] = tc.formula
-    elif tc.kind == 'action' and tc.decision_level:
-        node['decision_level'] = tc.decision_level
+    elif tc.kind == 'action':
+        if tc.decision_level:
+            node['decision_level'] = tc.decision_level
+        if tc.group:
+            node['group'] = tc.group
+        if tc.parent:
+            node['parent'] = tc.parent
+        if tc.no_effect_value is not None:
+            node['no_effect_value'] = tc.no_effect_value
 
     # Datasets and dimensions from spec
     if spec.input_datasets:
@@ -217,7 +236,7 @@ def _serialize_scenario(scenario: Scenario) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def _build_edge_maps(
+def _build_edge_maps(  # noqa: C901
     edges: list[NodeEdge],
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
     output_edges: dict[str, list[dict[str, Any]]] = {}

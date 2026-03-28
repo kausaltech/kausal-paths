@@ -382,7 +382,7 @@ class Context:
 
     def add_normalization(self, id: str, norm: Normalization):
         assert id not in self.normalizations
-        if norm.default:
+        if norm.spec.default:
             assert not self.default_normalization
             self.default_normalization = norm
         self.normalizations[id] = norm

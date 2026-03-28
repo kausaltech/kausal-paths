@@ -13,7 +13,7 @@ from strawberry.tools import merge_types
 
 from grapple.registry import registry as grapple_registry
 
-from kausal_common import graphql_gis  # noqa: F401
+from kausal_common import graphql_gis  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from kausal_common.deployment import test_mode_enabled
 from kausal_common.graphene.version_query import Query as ServerVersionQuery
 from kausal_common.models.types import copy_signature

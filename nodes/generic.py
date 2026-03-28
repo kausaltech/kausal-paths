@@ -56,11 +56,11 @@ class GenericNode(SimpleNode):
 
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
-        StringParameter(local_id='operations', label='Comma-separated list of operations to execute in order'),
-        StringParameter(local_id='categories', label='Dimension and categories to select'),
-        NumberParameter(local_id='selected_number', label='Number of the selected category'),
-        BoolParameter(local_id='do_correction', label='Correct values with a correction factor?'),
-        NumberParameter(local_id='no_correction_value', label='Value to use for no correction'),
+        StringParameter(local_id='operations', label=_('Comma-separated list of operations to execute in order')),
+        StringParameter(local_id='categories', label=_('Dimension and categories to select')),
+        NumberParameter(local_id='selected_number', label=_('Number of the selected category')),
+        BoolParameter(local_id='do_correction', label=_('Correct values with a correction factor?')),
+        NumberParameter(local_id='no_correction_value', label=_('Value to use for no correction')),
     ]
     # Class-level default operations
     DEFAULT_OPERATIONS = 'get_single_dataset,multiply,add,other,apply_multiplier'  # FIXME
@@ -718,7 +718,7 @@ class DimensionalSectorNode(GenericNode):
     quantity = EMISSION_QUANTITY
     allowed_parameters = [
         *GenericNode.allowed_parameters,
-        StringParameter(local_id='sector', label='Sector path in HSY emission database', is_customizable=False),
+        StringParameter(local_id='sector', label=_('Sector path in HSY emission database'), is_customizable=False),
     ]
 
     def parse_dimension_names_from_sector_string(self, sector_name: str) -> SectorParseResult:

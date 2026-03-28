@@ -3,14 +3,18 @@ from __future__ import annotations
 import typing
 
 # from collections.abc import Callable
-from dataclasses import dataclass
+from enum import StrEnum
 from typing import ClassVar, cast
+
+from pydantic import model_validator
 
 import pandas as pd
 import pint
 import polars as pl
 
-from kausal_common.i18n.pydantic import gettext_lazy as _
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance, gettext_lazy as _
+
+from paths.refs import DimensionRef
 
 from common import polars as ppl
 from nodes.constants import (
@@ -27,17 +31,14 @@ from nodes.constants import (
 )
 from nodes.exceptions import NodeError
 from nodes.node import Node
-from nodes.units import Quantity, unit_registry
+from nodes.units import Quantity, Unit, unit_registry
 from params import BoolParameter, NumberParameter
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator, Sequence
 
-    from kausal_common.i18n.pydantic import TranslatedString
-
     from nodes.context import Context
     from nodes.defs.instance_defs import ActionGroup
-    from nodes.units import Unit
     from params import Parameter
 
     from .parent import ParentActionNode
@@ -77,8 +78,8 @@ class ActionNode(Node):
     enabled_param: BoolParameter
     allowed_parameters: ClassVar[Sequence[Parameter]] = [
         ENABLED_PARAM,
-        NumberParameter(local_id='multiplier', label='Multiplies the output', is_customizable=True),
-        BoolParameter(local_id='allow_null_categories', description='Allow null dimension categories', is_customizable=False),
+        NumberParameter(local_id='multiplier', label=_('Multiplies the output'), is_customizable=True),
+        BoolParameter(local_id='allow_null_categories', description=_('Allow null dimension categories'), is_customizable=False),
     ]
 
     def __init_subclass__(cls) -> None:
@@ -266,8 +267,8 @@ class ActionNode(Node):
         return df
 
     def _get_cost_benefit(self, df: ppl.PathsDataFrame, io: ImpactOverview) -> ppl.PathsDataFrame:
-        od = io.outcome_dimension
-        sd = io.stakeholder_dimension
+        od = io.spec.outcome_dimension_id
+        sd = io.spec.stakeholder_dimension_id
         if od is not None:
             assert od in df.dim_ids
         if sd is not None:
@@ -289,15 +290,15 @@ class ActionNode(Node):
 
     def compute_indicator(self, io: ImpactOverview) -> ppl.PathsDataFrame:
 
-        dims = [io.outcome_dimension, io.stakeholder_dimension]
+        dims = [io.spec.outcome_dimension_id, io.spec.stakeholder_dimension_id]
 
         effect_df = self.compute_node_impact(io.effect_node, 'Effect', dims)
 
-        if io.graph_type == 'value_of_information':
+        if io.spec.graph_type == 'value_of_information':
             effect_df = self._get_value_of_information(effect_df)
 
         no_cost_io = ['cost_benefit', 'simple_effect']
-        if io.graph_type in no_cost_io:
+        if io.spec.graph_type in no_cost_io:
             df = self._get_cost_benefit(effect_df, io)
         else:
             assert io.cost_node is not None
@@ -313,13 +314,13 @@ class ActionNode(Node):
                 ).alias('Effect')
             ])
 
-            if io.invert_cost:
+            if io.spec.invert_cost:
                 df = df.with_columns((pl.col('Cost') * pl.lit(-1.0)).alias('Cost'))
 
-        if io.invert_effect:
+        if io.spec.invert_effect:
             df = df.with_columns((pl.col('Effect') * pl.lit(-1.0)).alias('Effect'))
 
-        if io.graph_type in [  # Flip sign for benefit
+        if io.spec.graph_type in [  # Flip sign for benefit
             'cost_efficiency',
             'return_on_investment',
             'return_on_investment_gross',
@@ -327,7 +328,7 @@ class ActionNode(Node):
         ]:
             df = df.with_columns((pl.col('Effect') * pl.lit(-1.0)).alias('Effect'))
 
-        if io.graph_type == 'return_on_investment_gross':
+        if io.spec.graph_type == 'return_on_investment_gross':
             df = df.with_columns((pl.col('Effect') - pl.col('Cost')).alias('Effect'))
 
         return df
@@ -339,12 +340,21 @@ class ActionImpact(typing.NamedTuple):
     unit_adjustment_multiplier: float
 
 
-@dataclass
-class ImpactOverview:
-    graph_type: str
-    effect_node: Node
+class ImpactGraphType(StrEnum):
+    COST_BENEFIT = 'cost_benefit'
+    COST_EFFICIENCY = 'cost_efficiency'
+    RETURN_ON_INVESTMENT = 'return_on_investment'
+    RETURN_ON_INVESTMENT_GROSS = 'return_on_investment_gross'
+    BENEFIT_COST_RATIO = 'benefit_cost_ratio'
+    VALUE_OF_INFORMATION = 'value_of_information'
+    SIMPLE_EFFECT = 'simple_effect'
+
+
+class ImpactOverviewSpec(I18nBaseModel):
+    graph_type: ImpactGraphType
+    effect_node_id: str
     indicator_unit: Unit
-    cost_node: Node | None = None
+    cost_node_id: str | None = None
     cost_unit: Unit | None = None
     effect_unit: Unit | None = None
     plot_limit_for_indicator: float | None = None
@@ -352,110 +362,69 @@ class ImpactOverview:
     invert_effect: bool = False
     indicator_cutpoint: float | None = None
     cost_cutpoint: float | None = None
-    stakeholder_dimension: str | None = None
-    outcome_dimension: str | None = None
-    label: TranslatedString | str | None = None
-    cost_category_label: TranslatedString | str | None = None
-    effect_category_label: TranslatedString | str | None = None
-    cost_label: TranslatedString | str | None = None
-    effect_label: TranslatedString | str | None = None
-    indicator_label: TranslatedString | str | None = None
-    description: TranslatedString | str | None = None
+    stakeholder_dimension_id: DimensionRef | None = None
+    outcome_dimension_id: DimensionRef | None = None
+    label: I18nStringInstance | None = None
+    cost_category_label: I18nStringInstance | None = None
+    effect_category_label: I18nStringInstance | None = None
+    cost_label: I18nStringInstance | None = None
+    effect_label: I18nStringInstance | None = None
+    indicator_label: I18nStringInstance | None = None
+    description: I18nStringInstance | None = None
 
-    @classmethod
-    def from_config(  # noqa: PLR0913
-        cls,
-        context: Context,
-        graph_type: str,
-        effect_node_id: str,
-        invert_cost: bool,
-        invert_effect: bool,
-        cost_node_id: str | None,
-        effect_unit: str | None,
-        cost_unit: str | None,
-        indicator_unit: str,
-        plot_limit_for_indicator: float | None,
-        indicator_cutpoint: float | None,
-        cost_cutpoint: float | None,
-        stakeholder_dimension: str | None,
-        outcome_dimension: str | None,
-        label: TranslatedString | str | None,
-        cost_category_label: TranslatedString | str | None,
-        effect_category_label: TranslatedString | str | None,
-        cost_label: TranslatedString | str | None,
-        effect_label: TranslatedString | str | None,
-        indicator_label: TranslatedString | str | None,
-        description: TranslatedString | str | None,
-    ) -> ImpactOverview:
-        if cost_node_id is not None:
-            cost_node = context.get_node(cost_node_id)
-        else:
-            cost_node = None
-        effect_node = context.get_node(effect_node_id)
-        indicator_unit_obj = context.unit_registry.parse_units(indicator_unit)
-        if cost_unit is not None:
-            cost_unit_obj = context.unit_registry.parse_units(cost_unit)
-        else:
-            cost_unit_obj = None
-        if effect_unit is not None:
-            effect_unit_obj = context.unit_registry.parse_units(effect_unit)
-        else:
-            effect_unit_obj = None
-        aep = ImpactOverview(
-            graph_type=graph_type,
-            cost_node=cost_node,
-            effect_node=effect_node,
-            cost_unit=cost_unit_obj,
-            effect_unit=effect_unit_obj,
-            indicator_unit=indicator_unit_obj,
-            plot_limit_for_indicator=plot_limit_for_indicator,
-            invert_cost=invert_cost,
-            invert_effect=invert_effect,
-            indicator_cutpoint=indicator_cutpoint,
-            cost_cutpoint=cost_cutpoint,
-            stakeholder_dimension=stakeholder_dimension,
-            outcome_dimension=outcome_dimension,
-            label=label,
-            cost_category_label=cost_category_label,
-            effect_category_label=effect_category_label,
-            cost_label=cost_label,
-            effect_label=effect_label,
-            indicator_label=indicator_label,
-            description=description,
-        )
-        aep.validate()
-        return aep
-
-    def validate(self):
-
-        if self.effect_node.quantity not in STACKABLE_QUANTITIES:
-            raise Exception(f'Effect node {self.effect_node.id} quantity {self.effect_node.quantity} is not stackable.')
-        if self.cost_node is not None and self.cost_node.quantity not in STACKABLE_QUANTITIES:
-            raise Exception(f'Cost node {self.cost_node.id} quantity {self.cost_node.quantity} is not stackable.')
-
-        rf = ['effect_node', 'cost_node', 'indicator_unit']
-        ff = ['outcome_dimension', 'stakeholder_dimension', 'cost_unit', 'effect_unit']
+    @model_validator(mode='after')
+    def validate_graph_type_fields(self) -> ImpactOverviewSpec:
+        rf = ['effect_node_id', 'cost_node_id', 'indicator_unit']
+        ff = ['outcome_dimension_id', 'stakeholder_dimension_id', 'cost_unit', 'effect_unit']
         field_lists = {
-            'cost_benefit': {
-                'required': ['effect_node', 'indicator_unit'],
-                'forbidden': ['cost_node', 'cost_unit', 'effect_unit'],
+            ImpactGraphType.COST_BENEFIT: {
+                'required': ['effect_node_id', 'indicator_unit'],
+                'forbidden': ['cost_unit', 'effect_unit'],
             },
-            'cost_efficiency': {'required': rf, 'forbidden': ['outcome_dimension', 'stakeholder_dimension']},
-            'return_on_investment': {'required': rf, 'forbidden': ff},
-            'return_on_investment_gross': {'required': rf, 'forbidden': ff},
-            'benefit_cost_ratio': {'required': rf, 'forbidden': ff},
-            'value_of_information': {'required': ['effect_node', 'indicator_unit'], 'forbidden': [*ff, 'cost_node']},
-            'simple_effect': {'required': ['effect_node', 'indicator_unit'], 'forbidden': [*ff, 'cost_node']},
+            ImpactGraphType.COST_EFFICIENCY: {'required': rf, 'forbidden': ['outcome_dimension_id', 'stakeholder_dimension_id']},
+            ImpactGraphType.RETURN_ON_INVESTMENT: {'required': rf, 'forbidden': ff},
+            ImpactGraphType.RETURN_ON_INVESTMENT_GROSS: {'required': rf, 'forbidden': ff},
+            ImpactGraphType.BENEFIT_COST_RATIO: {'required': rf, 'forbidden': ff},
+            ImpactGraphType.VALUE_OF_INFORMATION: {
+                'required': ['effect_node_id', 'indicator_unit'],
+                'forbidden': [*ff, 'cost_node_id'],
+            },
+            ImpactGraphType.SIMPLE_EFFECT: {
+                'required': ['effect_node_id', 'indicator_unit'],
+                'forbidden': [*ff, 'cost_node_id'],
+            },
         }
         required_fields = field_lists[self.graph_type]['required']
         forbidden_fields = field_lists[self.graph_type]['forbidden']
 
-        for field_name, field_value in self.__dict__.items():
-            if field_value is not None and field_name in forbidden_fields:
-                print(f"Field '{field_name}' must not be used for graph type '{self.graph_type}'")  # TODO raise ValueError
+        for field_name in required_fields:
+            if getattr(self, field_name) is None:
+                raise ValueError(f"Field '{field_name}' must be given for graph type '{self.graph_type}'")
 
-            if field_value is None and field_name in required_fields:
-                print(f"Field '{field_name}' must be given for graph type '{self.graph_type}'")  # TODO raise ValueError
+        for field_name in forbidden_fields:
+            if getattr(self, field_name) is not None:
+                raise ValueError(f"Field '{field_name}' must not be used for graph type '{self.graph_type}'")
+
+        return self
+
+
+class ImpactOverview:
+    spec: ImpactOverviewSpec
+    effect_node: Node
+    cost_node: Node | None
+
+    def __init__(self, spec: ImpactOverviewSpec, context: Context):
+        self.spec = spec
+        self.effect_node = context.get_node(spec.effect_node_id)
+        self.cost_node = context.get_node(spec.cost_node_id) if spec.cost_node_id is not None else None
+
+        effect_node = self.effect_node
+        cost_node = self.cost_node
+
+        if effect_node.quantity not in STACKABLE_QUANTITIES:
+            raise Exception(f'Effect node {effect_node.id} quantity {effect_node.quantity} is not stackable.')
+        if cost_node is not None and cost_node.quantity not in STACKABLE_QUANTITIES:
+            raise Exception(f'Cost node {cost_node.id} quantity {cost_node.quantity} is not stackable.')
 
     def _adjust_graph_units(self, df: ppl.PathsDataFrame, is_same_unit: bool) -> ppl.PathsDataFrame:
 
@@ -465,11 +434,11 @@ class ImpactOverview:
         df = df.set_unit('Effect', df.get_unit('Effect') * unit_registry.a, force=True)
         cost_unit: Unit | None = None
         if is_same_unit:
-            cost_unit = effect_unit = self.indicator_unit
+            cost_unit = effect_unit = self.spec.indicator_unit
         else:
             if has_cost:
-                cost_unit = self.cost_unit or df.get_unit('Cost')
-            effect_unit = self.effect_unit or df.get_unit('Effect')
+                cost_unit = self.spec.cost_unit or df.get_unit('Cost')
+            effect_unit = self.spec.effect_unit or df.get_unit('Effect')
 
         if has_cost:
             df = df.ensure_unit('Cost', cost_unit)
@@ -480,20 +449,20 @@ class ImpactOverview:
     def _get_unit_adjustment_function(self) -> tuple[Callable[[ppl.PathsDataFrame], float], bool]:
 
         def _cea(df: ppl.PathsDataFrame) -> float:
-            uam = 1 * df.get_unit('Cost') / df.get_unit('Effect') / self.indicator_unit
+            uam = 1 * df.get_unit('Cost') / df.get_unit('Effect') / self.spec.indicator_unit
             assert isinstance(uam, Quantity)
             try:
                 return uam.to('dimensionless').m
             except pint.DimensionalityError as e:
-                raise Exception(f'Indicator unit {self.indicator_unit} is not compatible with Cost / Effect.') from e
+                raise Exception(f'Indicator unit {self.spec.indicator_unit} is not compatible with Cost / Effect.') from e
 
         def _roi(df: ppl.PathsDataFrame) -> float:
-            uam = 1 * df.get_unit('Effect') / df.get_unit('Cost') / self.indicator_unit
+            uam = 1 * df.get_unit('Effect') / df.get_unit('Cost') / self.spec.indicator_unit
             assert isinstance(uam, Quantity)
             try:
                 return uam.to('dimensionless').m
             except pint.DimensionalityError as e:
-                raise Exception(f'Indicator unit {self.indicator_unit} is not compatible with Effect / Cost.') from e
+                raise Exception(f'Indicator unit {self.spec.indicator_unit} is not compatible with Effect / Cost.') from e
 
         def _unity(_df: ppl.PathsDataFrame) -> float:
             return 1.0
@@ -508,9 +477,9 @@ class ImpactOverview:
             'simple_effect': {'is_same_unit': True, 'fn': _unity},
         }
 
-        is_same_unit = unit_adjustments[self.graph_type]['is_same_unit']
+        is_same_unit = unit_adjustments[self.spec.graph_type]['is_same_unit']
         assert isinstance(is_same_unit, bool)
-        unit_adjustment_function = cast('Callable[[ppl.PathsDataFrame], float]', unit_adjustments[self.graph_type]['fn'])
+        unit_adjustment_function = cast('Callable[[ppl.PathsDataFrame], float]', unit_adjustments[self.spec.graph_type]['fn'])
 
         return unit_adjustment_function, is_same_unit
 
@@ -545,6 +514,9 @@ class ImpactOverview:
     def calculate(self, context: Context, actions: Iterable[ActionNode] | None = None) -> list[ActionImpact]:
         out = list(self.calculate_iter(context, actions))
         return out
+
+
+ImpactOverviewSpec.model_rebuild()
 
 
 """

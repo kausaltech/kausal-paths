@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import cast
 
+from django.utils.translation import gettext_lazy as _
+
 import numpy as np
 import pandas as pd
 
@@ -28,7 +30,7 @@ class AlasNode(Node):
     ]
     global_parameters = ['municipality_name', 'selected_framework']
     allowed_parameters = [
-        StringParameter(local_id='region', label='Region to be included', is_customizable=False),
+        StringParameter(local_id='region', label=_('Region to be included'), is_customizable=False),
     ]
     output_metrics = {
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
@@ -39,7 +41,7 @@ class AlasNode(Node):
         'Sector': Dimension(id='syke_sector', label=TranslatedString(en='SYKE emission sector'), is_internal=True),
     }
 
-    def compute(self) -> pd.DataFrame:
+    def compute(self) -> pd.DataFrame:  # noqa: C901, PLR0912
         df = self.get_input_dataset()
         if isinstance(df.index, pd.MultiIndex):
             df = df.reset_index()
@@ -152,7 +154,7 @@ class AlasEmissions(Node):
             else:
                 raise
         df = df[[EMISSION_QUANTITY]]
-        if df[EMISSION_QUANTITY].isnull().all():
+        if df[EMISSION_QUANTITY].isna().all():
             df = df.fillna(0.0)
         df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
         df[FORECAST_COLUMN] = False

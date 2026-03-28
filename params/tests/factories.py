@@ -13,13 +13,14 @@ if TYPE_CHECKING:
     from nodes.context import Context
 
 
-class ParameterFactory[P: Parameter[Any] = Parameter[Any]](Factory[P]):
+class ParameterFactory[P: Parameter[Any]](Factory[P]):
     class Meta:
         model = Parameter
+        abstract = True
 
     local_id = Sequence(lambda i: f'param{i}')
-    label = TranslatedString('Parameter label')
-    description = TranslatedString('Parameter description')
+    label = TranslatedString('Parameter label', default_language='en')
+    description = TranslatedString('Parameter description', default_language='en')
     is_customizable = True
     is_visible = True
     context: SubFactory[Parameter[Any], Context] = SubFactory(ContextFactory)

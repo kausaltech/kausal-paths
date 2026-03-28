@@ -47,6 +47,7 @@ celerybeat-schedule
 /*.dump
 /.mise/
 .claude/*.local.json
+.claude/projects/
 /schema*.graphql
 /.devstate
 /__generated__

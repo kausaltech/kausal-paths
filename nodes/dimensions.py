@@ -12,7 +12,7 @@ import xxhash
 
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance, TranslatedString
 
-from common.types import Identifier
+from paths.identifiers import Identifier
 
 if typing.TYPE_CHECKING:
     import pandas as pd

@@ -21,9 +21,9 @@ from kausal_common.deployment import env_bool
 from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
 
 from paths.const import NODE_CALC_OP
+from paths.identifiers import validate_identifier
 
 from common import polars as ppl
-from common.types import validate_identifier
 from common.utils import hash_unit
 from nodes.constants import (
     DEFAULT_METRIC,
@@ -51,8 +51,9 @@ if typing.TYPE_CHECKING:
 
     from kausal_common.i18n.pydantic import I18nString, I18nStringInstance, TranslatedString
 
+    from paths.identifiers import Identifier, MixedCaseIdentifier
+
     from common.cache import CacheResult
-    from common.types import Identifier, MixedCaseIdentifier
     from nodes.gpc import DatasetNode
     from nodes.instance_loader import ConfigLocation
     from nodes.visualizations import NodeVisualizations, VisualizationNodeDimension
@@ -1099,7 +1100,7 @@ class Node:
                     df = op(df, self.context)
         return df
 
-    def get_output_pl(  # noqa: C901, PLR0912
+    def get_output_pl(
         self,
         target_node: Node | None = None,
         metric: str | None = None,
@@ -1124,16 +1125,10 @@ class Node:
             try:
                 df, cache_res = self._get_output_pl(target_node=target_node, metric=metric, skip_dim_test=skip_dim_test)
             except Exception as e:
-                attrs: list[tuple[str, str]] = []
-                if metric:
-                    attrs.append(('metric', metric))
-                if target_node:
-                    attrs.append(('target_node', target_node.id))
-                event_str = ' (%s)' % ', '.join([f'{k}={v}' for k, v in attrs]) if attrs else ''
                 if isinstance(e, NodeError):
-                    e.add_node_event(self, 'get_output%s' % event_str)
+                    e.add_node_event(self, event='get_output', target_node=target_node)
                     raise
-                raise NodeComputationError(self, 'get_output%s' % event_str) from e
+                raise NodeComputationError(self, 'Error getting output', event='get_output', target_node=target_node) from e
 
             if span is not None:
                 if cache_res is None or not cache_res.is_hit:
@@ -1168,10 +1163,11 @@ class Node:
                 self.context.log.error('Exception when computing node %s: %s' % (str(self), str(e)))
                 post_mortem_possibly(e)
                 if not isinstance(e, NodeError):
-                    raise NodeComputationError(self, 'compute') from e
+                    raise NodeComputationError(self, 'Error computing node', event='compute') from e
                 raise
+
             if df is None:  # pyright: ignore[reportUnnecessaryComparison]
-                raise NodeError(self, 'Node returned no output')
+                raise NodeError(self, 'Node returned no output', event='compute', target_node=target_node)
 
             if isinstance(df, pd.DataFrame):
                 df = ppl.from_pandas(df)

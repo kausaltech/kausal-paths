@@ -50,7 +50,7 @@ class FormulaNode(Node):
         StringParameter(local_id='formula'),
         BoolParameter(local_id='extend_last_historical_value'),
         BoolParameter(local_id='condition'),
-        NumberParameter(local_id='constant', label='Constant value to add to the formula', is_customizable=True),
+        NumberParameter(local_id='constant', label=_('Constant value to add to the formula'), is_customizable=True),
     ]
 
     # Use varss instead of vars for variables to avoid shadowing.

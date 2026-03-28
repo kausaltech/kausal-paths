@@ -19,9 +19,5 @@ class OutcomePage(Page):
     lead_paragraph: I18nStringInstance | None = None
 
 
-def pages_from_config(conf: list[dict]):
-    pages = []
-    for pc in conf:
-        page = OutcomePage.model_validate(pc)
-        pages.append(page)
-    return pages
+def pages_from_config(conf: list[dict]) -> list[OutcomePage]:
+    return [OutcomePage.from_yaml_config(pc) for pc in conf]

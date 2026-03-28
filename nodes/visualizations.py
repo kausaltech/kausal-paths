@@ -11,16 +11,10 @@ import polars as pl
 
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 
-from paths.pydantic import (
-    DimensionCategoryIdentifier,
+from paths.refs import (
     InvalidContextError,
-    NodeIdentifier,
-    NodeOutputDimensionIdentifier,
-    NodeOutputMetricIdentifier,
-    ScenarioIdentifier,
     UniqueList,
     ValidationContext,
-    require_node_context,
 )
 
 from nodes.constants import VALUE_COLUMN
@@ -44,10 +38,10 @@ class VisualizationValidationContext(ValidationContext):
 class VisualizationNodeDimension(BaseModel):
     """Filters the values of the output of a node by dimension."""
 
-    id: NodeOutputDimensionIdentifier
+    id: str
     """The id of the node's output dimension to filter by."""
 
-    categories: UniqueList[DimensionCategoryIdentifier] | None = None
+    categories: UniqueList[str] | None = None
     """Categories to filter by. If not provided, all categories are included."""
 
     flatten: bool = True
@@ -56,15 +50,32 @@ class VisualizationNodeDimension(BaseModel):
     @field_validator('id', mode='after')
     @classmethod
     def validate_dimension_id(cls, id: str, info: ValidationInfo) -> str:
-        context = require_validation_context(info)
+        context = get_validation_context(info)
+        if context is None:
+            return id
         context.dimension = context.context.dimensions[id]
         return id
 
     @model_validator(mode='after')
     def restore_context(self, info: ValidationInfo) -> Self:
-        context = require_validation_context(info)
+        context = get_validation_context(info)
+        if context is None:
+            return self
         context.dimension = None
         return self
+
+    @field_validator('categories', mode='after')
+    @classmethod
+    def validate_categories(cls, categories: list[str] | None, info: ValidationInfo) -> list[str] | None:
+        context = get_validation_context(info)
+        if context is None or categories is None:
+            return categories
+        if context.dimension is None:
+            raise InvalidContextError('Dimension context is required')
+        for category in categories:
+            if category not in context.dimension.cat_map:
+                raise ValueError(f'Dimension {context.dimension.id} does not have a category with id {category}')
+        return categories
 
 
 @sb.enum(description='Desired (benificial) direction for the values of the output of a node')
@@ -78,9 +89,9 @@ class VisualizationKind(StrEnum):
     group = 'group'
 
 
-def require_validation_context(info: ValidationInfo) -> VisualizationValidationContext:
+def get_validation_context(info: ValidationInfo) -> VisualizationValidationContext | None:
     if not isinstance(info.context, VisualizationValidationContext):
-        raise InvalidContextError('Context is required')
+        return None
     return info.context
 
 
@@ -100,8 +111,9 @@ class VisualizationEntry(I18nBaseModel):
     @model_validator(mode='after')
     def set_id(self, info: ValidationInfo) -> Self:
         if self.id == AUTO_ID:
-            ctx = require_validation_context(info)
-            self.id = self.make_id(ctx)
+            ctx = get_validation_context(info)
+            if ctx is not None:
+                self.id = self.make_id(ctx)
         return self
 
 
@@ -109,31 +121,51 @@ class VisualizationNodeOutput(VisualizationEntry):
     """Visualization based on the output of a node."""
 
     kind: Literal[VisualizationKind.node]
-    node_id: NodeIdentifier
+    node_id: str
     desired_outcome: DesiredOutcome
     dimensions: list[VisualizationNodeDimension]
-    scenarios: list[ScenarioIdentifier] | None = None
+    scenarios: list[str] | None = None
     """Scenarios to include in the visualization."""
 
-    output_metric_id: NodeOutputMetricIdentifier | None = Field(validate_default=True, default=None)
+    output_metric_id: str | None = Field(validate_default=True, default=None)
     """The id of the node output metric to use. If not provided, the node's default output metric is used."""
 
     @field_validator('node_id', mode='after')
     @classmethod
     def add_node_context(cls, node_id: str, info: ValidationInfo) -> str:
-        ctx = require_validation_context(info)
+        ctx = get_validation_context(info)
+        if ctx is None:
+            return node_id
         ctx.node = ctx.context.nodes[node_id]
         return node_id
 
     @field_validator('output_metric_id', mode='after')
     @classmethod
     def validate_output_metric_id(cls, val: str | None, info: ValidationInfo) -> str | None:
-        node = require_node_context(info)
+        ctx = get_validation_context(info)
+        if ctx is None:
+            return val
+        node = ctx.node
+        if node is None:
+            raise InvalidContextError('Node context is required')
         if val is None and node.single_metric_unit is not None:
             metric = node.get_default_output_metric(required=False)
             if metric is None:
                 raise ValueError(f'Must provider output metric id for {node.id}')
+        elif val is not None and val not in node.output_metrics:
+            raise ValueError(f'Metric with id {val} not found')
         return val
+
+    @field_validator('scenarios', mode='after')
+    @classmethod
+    def validate_scenarios(cls, scenarios: list[str] | None, info: ValidationInfo) -> list[str] | None:
+        ctx = get_validation_context(info)
+        if ctx is None or scenarios is None:
+            return scenarios
+        for scenario_id in scenarios:
+            if scenario_id not in ctx.context.scenarios:
+                raise ValueError(f'Scenario with id {scenario_id} not found')
+        return scenarios
 
     def get_metric_data(self, node: Node) -> DimensionalMetric | None:
         from nodes.metric import DimensionalMetric
