@@ -64,7 +64,7 @@ class ActionGroup(I18nBaseModel):
 class InstanceSpec(I18nBaseModel):
     """Computation schema for a model instance, stored as a SchemaField on InstanceConfig."""
 
-    primary_language: str
+    primary_language: str = 'en'
     other_languages: list[str] = Field(default_factory=list)
 
     years: YearsSpec = YearsSpec()
