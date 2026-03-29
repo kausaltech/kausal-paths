@@ -2879,43 +2879,43 @@ nodes:
     formula: (fuels * ef_co2e + non_co2 + ng_buses + rng_trucks) * 
       complement(complement(biogenic_inclusion) * complement(extend_all(index)))
 
-- id: participation_smart_grid
-  name: Participation in smart grid projects
-  name_es-US: Participación en proyectos de redes inteligentes
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
+# - id: participation_smart_grid
+#   name: Participation in smart grid projects
+#   name_es-US: Participación en proyectos de redes inteligentes
+#   type: generic.GenericNode
+#   quantity: fraction
+#   unit: '%'
 
-- id: smart_grid_improvement
-  name: Relative improvement due to smart grid implementation
-  name_es-US: Mejora relativa debido a la aplicación de redes inteligentes
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    column: smart_grid_improvement
-    forecast_from: 2025
-  params:
-    operations: get_single_dataset,extend_to_history
+# - id: smart_grid_improvement
+#   name: Relative improvement due to smart grid implementation
+#   name_es-US: Mejora relativa debido a la aplicación de redes inteligentes
+#   type: generic.GenericNode
+#   quantity: fraction
+#   unit: '%'
+#   input_datasets:
+#   - id: longmont/energy_vehicle_and_waste_actions
+#     column: smart_grid_improvement
+#     forecast_from: 2025
+#   params:
+#     operations: get_single_dataset,extend_to_history
 
-- id: smart_grid_benefits
-  name: Smart grid action benefits
-  name_es-US: Beneficios de la acción de redes inteligentes
-  type: formula.FormulaNode
-  quantity: fraction
-  unit: dimensionless
-  input_nodes:
-  - id: participation_smart_grid
-    tags: [participation]
-  - id: smart_grid_improvement
-    tags: [improvement]
-  params:
-    formula: complement(participation * improvement)
-  output_nodes:
-  - id: electricity_use
-    to_dimensions: []
-    tags: [extend_to_history]
+# - id: smart_grid_benefits
+#   name: Smart grid action benefits
+#   name_es-US: Beneficios de la acción de redes inteligentes
+#   type: formula.FormulaNode
+#   quantity: fraction
+#   unit: dimensionless
+#   input_nodes:
+#   - id: participation_smart_grid
+#     tags: [participation]
+#   - id: smart_grid_improvement
+#     tags: [improvement]
+#   params:
+#     formula: complement(participation * improvement)
+#   output_nodes:
+#   - id: electricity_use
+#     to_dimensions: []
+#     tags: [extend_to_history]
 
 - id: energy_use_intensity_improvement
   name: Energy use intensity improvement
@@ -3473,6 +3473,7 @@ actions:
     column: last_mile_connections
   output_nodes:
   - id: total_transit_vmt
+    tags: [arithmetic_inverse]
     tags: [complement]
 
 # Trend actions. TODO Do we need these?
