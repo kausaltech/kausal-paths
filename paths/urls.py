@@ -35,7 +35,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 from social_django import urls as social_urls
 
 # from strawberry.django.views import GraphQLView
-from kausal_common.deployment.health_check_view import health_view
+from kausal_common.deployment.health_check_view import diagnostics_view, liveness_view, readiness_view
 
 from admin_site import urls as admin_urls
 from datasets.api import nested_routers as datasets_api_nested_routers, router as datasets_api_root_router
@@ -91,7 +91,10 @@ urlpatterns = [
     path('v1/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('auth/', include(social_urls, namespace='social')),
-    path('healthz/', csrf_exempt(health_view), name='healthcheck'),
+    path('livez/', liveness_view, name='liveness'),
+    path('readyz/', csrf_exempt(readiness_view), name='readiness'),
+    path('healthz/', csrf_exempt(readiness_view), name='healthcheck'),
+    path('diagnostics/', csrf_exempt(diagnostics_view), name='diagnostics'),
     path('', include(framework_urls)),
 ]
 
