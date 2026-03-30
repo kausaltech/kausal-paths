@@ -58,8 +58,13 @@ class FormulaNode(Node):
         return self.eval_tree(expr.body, varss)
 
     def eval_constant(self, node: ast.Constant, _varss: EvalVars) -> Quantity:
-        q = Quantity(node.value)
-        return q  # pyright: ignore[reportReturnType]
+        """AST numeric literals are explicit dimensionless quantities (matches ``analyze_formula_units``)."""
+        v = node.value
+        if isinstance(v, bool):
+            return cast('Quantity', Quantity(float(v), 'dimensionless'))
+        if isinstance(v, (int, float)):
+            return cast('Quantity', Quantity(v, 'dimensionless'))
+        raise NodeError(self, _('Unsupported constant in formula: %(type)s') % {'type': type(v).__name__})
 
     def eval_name(self, name: ast.Name, varss: EvalVars) -> EvalOutput:
         if name.id in varss.nodes:
@@ -114,9 +119,12 @@ class FormulaNode(Node):
             return df1.paths.add_with_dims(df2, how='outer')
 
         def one_df(df: PDF, val: QuantityType) -> PDF:
-            val = val.to(df.get_unit(VALUE_COLUMN))
-            df = df.with_columns(pl.col(VALUE_COLUMN) + val)
-            return df
+            col = VALUE_COLUMN
+            # Convert scalar to the series unit with pint, then add the magnitude only. Polars does not
+            # apply pint rules if you pass a Quantity into ``col + val`` — it can use the wrong .m.
+            adj = val.to(df.get_unit(col))
+            m = float(adj.m)
+            return df.with_columns((pl.col(col) + pl.lit(m)).alias(col))
 
         def both_quantity(val1: Quantity, val2: Quantity) -> Quantity:
             out = val1 + val2
@@ -159,7 +167,7 @@ class FormulaNode(Node):
         return self.apply_binom(left, right, both_df, left_df, right_df, both_quantity)
 
     def apply_sub(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
-        neg_one = cast('Quantity', Quantity(-1))
+        neg_one = cast('Quantity', Quantity(-1, 'dimensionless'))
         if isinstance(right, PDF):
             right = right.multiply_quantity(VALUE_COLUMN, neg_one)
         elif isinstance(right, Quantity):
