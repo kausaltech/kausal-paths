@@ -80,13 +80,13 @@ result_excels:
   - leakage_from_oil_and_gas_wells_emissions
   - msw_characterization
   - vehicle_fuel_use
-  - participation_smart_grid
+  # - participation_smart_grid
   - population
   - proportion_of_rail_lines_in_longmont
   - recycling_characterization
   - recycling_instead_of_virgin
   - refrigerant_loss
-  - smart_grid_improvement
+  # - smart_grid_improvement
   - square_feet_per_ton_of_cooling
   - stationary_wood_consumption
   - total_railway_ghg_emissions_boulder_county
@@ -436,7 +436,6 @@ dimensions:
   label_es-US: Gases de efecto invernadero
   categories:
   - id: co2e
-    label_en: CO2e
     label_de: CO2-Äquivalent
     aliases: [co2_eq, co2eq]
     label: CO2 equivalent
@@ -3232,30 +3231,30 @@ actions:
     - id: site
       categories: [platte_river_power_authority]
 
-- id: smart_grid_projects
-  name: Accelerate and implement smart grid projects
-  name_es-US: Acelerar y ejecutar proyectos de redes inteligentes
-  description: '<p>This action shows participation rate. Implement a variety of smart
-    grid projects that encourage reductions in electricity consumption through real-time
-    feedback, dynamic pricing, etc.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-7">Sustainability
-    Plan Strategy E-7</a></li></ul>'
-  description_es-US: '<p>Ejecutar una variedad de proyectos de redes inteligentes
-    que fomenten reducciones en el consumo de electricidad a través de información
-    en tiempo real, precios dinámicos, etc.</p> <p>Seguimiento de la aplicación: <ul><li><a
-    href="https://indicators.longmontcolorado.gov/sustainability/actions/E-7">Estrategia
-    del Plan de Sustentabilidad E-7</a></li></ul>'
-  type: simple.GenericAction
-  group: electric_grid
-  quantity: ratio
-  unit: '%'
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    column: participation_smart_grid
-    forecast_from: 2025
-  params:
-    operations: get_single_dataset,extend_to_history
-  output_nodes:
-  - id: participation_smart_grid
+# - id: smart_grid_projects
+#   name: Accelerate and implement smart grid projects
+#   name_es-US: Acelerar y ejecutar proyectos de redes inteligentes
+#   description: '<p>This action shows participation rate. Implement a variety of smart
+#     grid projects that encourage reductions in electricity consumption through real-time
+#     feedback, dynamic pricing, etc.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-7">Sustainability
+#     Plan Strategy E-7</a></li></ul>'
+#   description_es-US: '<p>Ejecutar una variedad de proyectos de redes inteligentes
+#     que fomenten reducciones en el consumo de electricidad a través de información
+#     en tiempo real, precios dinámicos, etc.</p> <p>Seguimiento de la aplicación: <ul><li><a
+#     href="https://indicators.longmontcolorado.gov/sustainability/actions/E-7">Estrategia
+#     del Plan de Sustentabilidad E-7</a></li></ul>'
+#   type: simple.GenericAction
+#   group: electric_grid
+#   quantity: ratio
+#   unit: '%'
+#   input_datasets:
+#   - id: longmont/energy_vehicle_and_waste_actions
+#     column: participation_smart_grid
+#     forecast_from: 2025
+#   params:
+#     operations: get_single_dataset,extend_to_history
+#   output_nodes:
+#   - id: participation_smart_grid
 
 - id: reduce_transmission_distribution_losses
   name: Encourage practices that reduce transmission and distribution losses
@@ -3473,8 +3472,7 @@ actions:
     column: last_mile_connections
   output_nodes:
   - id: total_transit_vmt
-    tags: [arithmetic_inverse]
-    tags: [complement]
+    tags: [complement, arithmetic_inverse]
 
 # Trend actions. TODO Do we need these?
 
