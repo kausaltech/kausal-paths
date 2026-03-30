@@ -22,6 +22,6 @@ class OutcomePage(Page):
 def pages_from_config(conf: list[dict]):
     pages = []
     for pc in conf:
-        page = OutcomePage.model_validate(pc)
+        page = OutcomePage.from_yaml_config(pc)
         pages.append(page)
     return pages

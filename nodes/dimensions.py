@@ -5,7 +5,7 @@ import typing
 from collections import OrderedDict
 from typing import Any, Self, overload
 
-from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
+from pydantic import Field, PrivateAttr, field_validator, model_validator
 
 import polars as pl
 import xxhash
@@ -18,7 +18,7 @@ if typing.TYPE_CHECKING:
     import pandas as pd
 
 
-class DimensionCategoryGroup(BaseModel):
+class DimensionCategoryGroup(I18nBaseModel):
     id: Identifier
     label: I18nStringInstance
     color: str | None = None

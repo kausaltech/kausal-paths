@@ -21,7 +21,7 @@ from rich import print
 from ruamel.yaml import YAML as RuamelYAML  # noqa: N811
 from sentry_sdk import start_span
 
-from kausal_common.i18n.pydantic import TranslatedString, gettext_lazy as _, set_default_language
+from kausal_common.i18n.pydantic import TranslatedString, gettext_lazy as _, set_i18n_context
 
 from nodes.actions import ActionNode
 from nodes.constants import DecisionLevel
@@ -446,7 +446,7 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
+    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.generic import GenericNode
         from nodes.simple import AdditiveNode
@@ -741,7 +741,9 @@ class InstanceLoader:
 
         for dc in self.config.get('dimensions', []):
             try:
-                dim = Dimension(**dc, mtime_hash=self.config_mtime_hash)
+                dim_cfg = dict(dc)
+                dim_cfg['mtime_hash'] = self.config_mtime_hash
+                dim = Dimension.from_yaml_config(dim_cfg)
             except Exception:
                 print(dc)
                 raise
@@ -1119,7 +1121,10 @@ class InstanceLoader:
         self.config_mtime_hash = config_mtime_hash
         self.logger = logger.bind(instance=config['id'])
         self._node_classes = {}
-        with set_default_language(self.default_language):
+        with set_i18n_context(
+            self.default_language,
+            self.config.get('supported_languages', []),
+        ):
             self._init_instance()
 
     def setup_node_visualizations(self):
