@@ -116,7 +116,7 @@ class InstanceYAMLMeta(BaseModel):
 @dataclass
 class InstanceYAMLConfig:
     meta: InstanceYAMLMeta
-    data: dict | None = None
+    data: dict[str, Any] | None = None
 
     def _merge_framework_config(
         self, confs: list[CommentedMap], fw_confs: list[CommentedMap], entity_type: str, config_path: Path | None
@@ -191,7 +191,11 @@ class InstanceYAMLConfig:
         entrypoint = meta.entrypoint
         yaml = RuamelYAML()
         with entrypoint.path.open('r', encoding='utf8') as f:
-            data: dict = yaml.load(f)
+            loaded = yaml.load(f)
+        if not isinstance(loaded, dict):
+            msg = 'Expected mapping at YAML root, got %s' % type(loaded).__name__
+            raise TypeError(msg)
+        data: dict[str, Any] = loaded
         if 'instance' in data:
             data = data['instance']
 
@@ -312,7 +316,7 @@ class InstanceYAMLConfig:
             logger.exception("Unable to load cached instance for '%s' from '%s'" % (entrypoint_path, cache_path))
             return None
         assert isinstance(data, dict)
-        conf.data = data
+        conf.data = cast('dict[str, Any]', data)
 
         return conf
 
@@ -350,16 +354,16 @@ class InstanceLoader:
     context: Context
     default_language: str
     yaml_file_path: Path | None = None
-    config: CommentedMap | dict
+    config: CommentedMap | dict[str, Any]
     fw_config: FrameworkConfig | None = None
     config_mtime_hash: str | None = None
 
     _node_classes: dict[str, type[Node]]
-    _input_nodes: dict[str, list[dict | str]]
-    _output_nodes: dict[str, list[dict | str]]
+    _input_nodes: dict[str, list[dict[str, Any] | str]]
+    _output_nodes: dict[str, list[dict[str, Any] | str]]
     _subactions: dict[str, list[str]]
-    _scenario_values: dict[str, list[tuple[Parameter, Any]]]
-    _node_visualizations: dict[str, list[dict]]
+    _scenario_values: dict[str, list[tuple[Parameter[Any], Any]]]
+    _node_visualizations: dict[str, list[dict[str, Any]]]
 
     @staticmethod
     def wrap_with_span[**P, R, SC: InstanceLoader](
@@ -380,7 +384,7 @@ class InstanceLoader:
     @overload
     def make_trans_string(
         self,
-        config: dict,
+        config: dict[str, Any],
         attr: str,
         pop: bool = False,
         required: Literal[True] = True,
@@ -390,7 +394,7 @@ class InstanceLoader:
     @overload
     def make_trans_string(
         self,
-        config: dict,
+        config: dict[str, Any],
         attr: str,
         pop: bool = False,
         required: Literal[False] = False,
@@ -399,7 +403,7 @@ class InstanceLoader:
 
     def make_trans_string(  # noqa: C901
         self,
-        config: dict,
+        config: dict[str, Any],
         attr: str,
         pop: bool = False,
         required: bool = False,
@@ -446,7 +450,9 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
+    def _make_node_datasets(  # noqa: C901, PLR0912, PLR0915
+        self, config: dict[str, Any], node_class: type[Node], unit: Unit | None
+    ) -> list[Dataset]:
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.generic import GenericNode
         from nodes.simple import AdditiveNode
@@ -527,7 +533,7 @@ class InstanceLoader:
             datasets.append(fds)
         return datasets
 
-    def _make_node_params(self, config: dict, node: Node) -> None:  # noqa: C901, PLR0912
+    def _make_node_params(self, config: dict[str, Any], node: Node) -> None:  # noqa: C901, PLR0912
         from params.param import Parameter, ReferenceParameter
 
         params = config.get('params', [])
@@ -608,7 +614,7 @@ class InstanceLoader:
                 sv = self._scenario_values.setdefault(scenario_id, list())
                 sv.append((param, param.clean(value)))
 
-    def _make_node_visualizations(self, node: Node, config: list[dict]) -> None:
+    def _make_node_visualizations(self, node: Node, config: list[dict[str, Any]]) -> None:
         from nodes.visualizations import NodeVisualizations
 
         ctx = NodeVisualizations.ValidationContext(context=self.context, node=None, root_node=node)
@@ -617,7 +623,9 @@ class InstanceLoader:
         except Exception as e:
             raise NodeError(node, 'Error validating visualizations') from e
 
-    def make_node(self, node_class: type[Node], config: dict, yaml_lc: LineCol | None = None) -> Node:  # noqa: C901, PLR0912
+    def make_node(  # noqa: C901, PLR0912
+        self, node_class: type[Node], config: dict[str, Any], _yaml_lc: LineCol | None = None
+    ) -> Node:
         from nodes.node import NodeMetric
         from nodes.units import Unit
 
@@ -649,7 +657,7 @@ class InstanceLoader:
         datasets = self._make_node_datasets(config, node_class, unit)
 
         loc_conf = config.get('config_location')
-        config_location = ConfigLocation(**loc_conf) if loc_conf else None  # type: ignore
+        config_location = ConfigLocation(**cast('ConfigLocation', loc_conf)) if loc_conf is not None else None
 
         node: Node = node_class(
             id=config['id'],
@@ -767,7 +775,7 @@ class InstanceLoader:
             except ImportError:
                 self.logger.error('Unable to import node class for %s' % nc.get('id'))
                 raise
-            node = self.make_node(node_class, nc, yaml_lc=getattr(nc, 'lc', None))
+            node = self.make_node(node_class, nc, _yaml_lc=getattr(nc, 'lc', None))
             self.context.add_node(node)
 
     def generate_nodes_from_emission_sectors(self):
@@ -812,7 +820,7 @@ class InstanceLoader:
                 params=dict(category=data_category) if data_category else [],
                 **ec,
             )
-            node = self.make_node(node_class, nc, yaml_lc=getattr(ec, 'lc', None))
+            node = self.make_node(node_class, nc, _yaml_lc=getattr(ec, 'lc', None))
             self.context.add_node(node)
 
     @wrap_with_span('setup-actions', 'function')
@@ -1074,7 +1082,7 @@ class InstanceLoader:
         nes.generate_explanations()
 
     @classmethod
-    def from_dict_config(cls, config: dict, fw_config: FrameworkConfig | None = None) -> Self:
+    def from_dict_config(cls, config: dict[str, Any], fw_config: FrameworkConfig | None = None) -> Self:
         yaml_path = config.get('yaml_file_path')
         return cls(
             config=config,
@@ -1106,7 +1114,7 @@ class InstanceLoader:
 
     def __init__(
         self,
-        config: dict,
+        config: dict[str, Any],
         yaml_file_path: Path | None = None,
         fw_config: FrameworkConfig | None = None,
         config_mtime_hash: str | None = None,
@@ -1142,7 +1150,7 @@ class InstanceLoader:
         except InstanceConfig.DoesNotExist:
             self.db_datasets = {}
             return
-        ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at')  # type: ignore
+        ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at')
         self.db_datasets = {ds.identifier: ds for ds in ds_objs}
 
     def _init_instance(self) -> None:  # noqa: PLR0915
@@ -1188,11 +1196,6 @@ class InstanceLoader:
             )
             agcs.append(ag)
 
-        instance_attrs = [
-            'supported_languages',
-            'theme_identifier',
-        ]
-
         target_year = self.config['target_year']
 
         if fwc is None:
@@ -1220,6 +1223,9 @@ class InstanceLoader:
             if fwc.target_year is not None:
                 target_year = fwc.target_year
 
+        # Tuple not dict: mypy treats dict[str, TranslatedString] near this call like a **kwargs and mismatches
+        # supported_languages (list[str]).
+        home_lead_title, home_lead_paragraph = self._build_instance_args_from_home_page()
         self.instance = Instance(
             id=instance_id,
             name=name,
@@ -1228,17 +1234,22 @@ class InstanceLoader:
             action_groups=agcs,
             features=self.config.get('features', {}),
             terms=self.config.get('terms', {}),
-            result_excels=[InstanceResultExcel.model_validate(r) for r in self.config.get('result_excels', [])],
+            result_excels=[InstanceResultExcel.from_yaml_config(r) for r in self.config.get('result_excels', [])],
             yaml_file_path=self.yaml_file_path,
             pages=pages_from_config(self.config.get('pages', [])),
             maximum_historical_year=max_hist_year,
             minimum_historical_year=min_hist_year,
             site_url=site_url,
             reference_year=reference_year,
-            **{attr: self.config.get(attr) for attr in instance_attrs},  # type: ignore
+            supported_languages=cast(
+                'list[str]',
+                self.config.get('supported_languages') or [],
+            ),
+            theme_identifier=cast('str | None', self.config.get('theme_identifier')),
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
             # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
-            **self._build_instance_args_from_home_page(),  # type: ignore[arg-type]
+            lead_title=home_lead_title,
+            lead_paragraph=home_lead_paragraph,
         )
 
         model_end_year = self.config.get('model_end_year', target_year)
@@ -1266,9 +1277,9 @@ class InstanceLoader:
         self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()
         self.load_db_datasets()
-        self.setup_nodes()  # type: ignore[misc]
-        self.setup_actions()  # type: ignore[misc]
-        self.setup_edges()  # type: ignore[misc]
+        self.setup_nodes()
+        self.setup_actions()
+        self.setup_edges()
         self.setup_impact_overviews()
         self.setup_scenarios()
         self.setup_normalizations()
@@ -1282,16 +1293,16 @@ class InstanceLoader:
             raise Exception('No default scenario defined')
         self.context.activate_scenario(scenario)
 
-    def _build_instance_args_from_home_page(self) -> dict[str, TranslatedString]:
+    def _build_instance_args_from_home_page(self) -> tuple[TranslatedString | None, TranslatedString | None]:
         # FIXME: This is an ugly hack
         pages = self.config.get('pages', [])
         for page in pages:
             if page['id'] == 'home':
                 break
         else:
-            return {}
+            return (None, None)
         default_language = self.config['default_language']
-        return {
-            'lead_title': self.make_trans_string(page, 'lead_title', default_language=default_language),
-            'lead_paragraph': self.make_trans_string(page, 'lead_paragraph', default_language=default_language),
-        }
+        return (
+            self.make_trans_string(page, 'lead_title', default_language=default_language),
+            self.make_trans_string(page, 'lead_paragraph', default_language=default_language),
+        )

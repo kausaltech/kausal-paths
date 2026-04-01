@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import polars as pl
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from ..node import Node
 
 
-def first_common_descendant(G, sources, target):
+def first_common_descendant(g, sources, target):
     # Thank you, ChatGPT
     import networkx as nx
 
@@ -27,7 +27,7 @@ def first_common_descendant(G, sources, target):
 
     # Find all shortest paths from each source to the target
     for source in sources:
-        paths = nx.all_shortest_paths(G, source, target)
+        paths = nx.all_shortest_paths(g, source, target)
         nodes_in_paths = set(node for path in paths for node in path)
 
         # Intersect with common_nodes to keep only common ones
@@ -41,7 +41,7 @@ def first_common_descendant(G, sources, target):
     common_nodes.difference_update(sources + [target])
 
     # Return the closest common node to the target
-    for node in nx.shortest_path(G, source=sources[0], target=target)[1:]:
+    for node in nx.shortest_path(g, source=sources[0], target=target)[1:]:
         if node in common_nodes:
             return node
 
@@ -59,20 +59,25 @@ class ParentActionNode(ActionNode):
         assert action not in self.subactions
         self.subactions.append(action)
 
-    def find_first_common_descendant(self, target_node: Node):
+    def find_first_common_descendant(self, _target_node: Node):
         pass
 
-    def notify_parameter_change(self, param: Parameter):
+    def notify_parameter_change(self, param: Parameter[Any]):
         if param == self.enabled_param:
             for action in self.subactions:
                 action.enabled_param.set(param.get())
         return super().notify_parameter_change(param)
 
     def compute_effect(self) -> ppl.PathsDataFrame:
+        if self.unit is None:
+            raise NodeError(self, 'ParentActionNode requires a unit for compute_effect')
         for root_node in self.context.get_root_nodes():
             if isinstance(root_node, ParentActionNode):
                 continue
-            rnu = root_node.unit.is_compatible_with(self.unit)
+            ru = root_node.unit
+            if ru is None:
+                continue
+            rnu = ru.is_compatible_with(self.unit)
             if rnu and (root_node.id != self.id):  # FIXME Quickfix done. But this can produce unintended results
                 break
         else:
