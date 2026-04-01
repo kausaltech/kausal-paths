@@ -550,10 +550,12 @@ class ActionWithHistoryNode(GenericNode):
         udf = udf.with_columns(pl.lit(forecast).alias(FORECAST_COLUMN))
 
         ctx = self.context
-        u = idf.get_unit(VALUE_COLUMN)
-        assert u is not None
+        u1 = df.get_unit(VALUE_COLUMN)
+        u2 = idf.get_unit(VALUE_COLUMN)
+        assert u1 is not None
+        assert u2 is not None
 
-        if df.get_unit(VALUE_COLUMN).is_compatible_with(u):
+        if u1.is_compatible_with(u2):
             partial = df.paths.subtract_with_dims(idf, how='left')
             baseline_hist = partial.paths._inventory_only(partial, ctx)
             if not len(baseline_hist):
