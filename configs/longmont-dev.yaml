@@ -1398,13 +1398,13 @@ nodes:
     kilowatt-hours per year.
   description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones 
     de kilovatios hora al año.
-  type: generic.GenericNode
+  type: generic.ActionWithHistoryNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   params:
-    operations: add,multiply
+    operations: add,action_with_history
   input_nodes:
   - id: building_electricity_use
     from_dimensions:
@@ -1647,17 +1647,25 @@ nodes:
 - id: emission_factor_fuel
   name: Emission factor of stationary fuels
   name_es-US: Factor de emisión de combustibles estacionarios
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: t_co2e/gal
   input_datasets:
-  - longmont/emission_factor_fuels
+  - id: longmont/emission_factor_fuels
+    tags: [ef, cleaned, extend_both_ways]
+    forecast_from: 2025
   input_dataset_processors: [LinearInterpolation]
-  output_dimensions: [energy_carrier, greenhouse_gases]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: greenhouse_gas_index
+    tags: [index]
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: ghg
+  - id: global_warming_potential_100a
+    tags: [gwp]
   params:
-  - id: multiplier # FIXME This needs to be fixed for N2O and CH4.
-    value: 1
-    unit: t_co2e/t
+    formula: sum_dim(ef * index * gwp, greenhouse_gases)
 
 - id: stationary_fuel_consumption_emissions
   name: Stationary fuel consumption emissions
@@ -1716,7 +1724,7 @@ nodes:
   type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
-  output_dimensions: [greenhouse_gases, emission_sectors, energy_carrier]
+  output_dimensions: [ghg, emission_sectors, energy_carrier]
   input_nodes:
   - id: stationary_fuel_consumption
     tags: [use]
@@ -1726,17 +1734,13 @@ nodes:
   - id: emission_factor_fuel
     tags: [ef]
     to_dimensions:
-    - id: greenhouse_gases
+    - id: ghg
     - id: energy_carrier
   output_nodes:
   - id: building_emissions
-    from_dimensions:
-    - id: greenhouse_gases
-      flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: ghg
-      categories: [co2e]
     - id: emission_sectors
     - id: scope
       categories: [scope1] 
@@ -3162,8 +3166,8 @@ actions:
           action: benchmark_energy_use
           emission_sectors: commercial_industrial_energy
       amounts:
-      - {year: 2025, source_amount: -88.0, dest_amounts: [100]}
-      - {year: 2026, source_amount: -0.0, dest_amounts: [100]}
+      - {year: 2027, source_amount: -88.0, dest_amounts: [100]}
+      - {year: 2028, source_amount: -0.0, dest_amounts: [100]}
 
 - id: efficiency_works_program
   name: Expand the Efficiency Works Program
@@ -3394,7 +3398,7 @@ actions:
     forecast_from: 2025
   output_nodes:
   - id: electricity_use
-    tags: [extend_to_history, complement]
+    tags: [extend_to_history, complement, action_with_history]
 
 - id: leak_detection
   name: Adopt and enforce leak detection and repair
@@ -3676,3 +3680,11 @@ scenarios:
   params:
   - id: energy_use_intensity_trend.enabled
     value: false
+
+- id: historical_actions
+  name: Historical actions
+  all_actions_enabled: false
+  is_selectable: false
+  params:
+  - id: reduce_transmission_distribution_losses.enabled
+    value: true
