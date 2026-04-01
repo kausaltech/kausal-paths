@@ -496,6 +496,81 @@ class ScenarioImpactNode(GenericNode):
         return df
 
 
+class ActionWithHistoryNode(GenericNode):
+    """
+    Calculate output when there is an input_node action that started already during historical years.
+
+        IF(forecast, latest - latest_action, observed - action_implemented) + action_active,
+
+    where latest = latest observed value, latest_action = latest implemented action value,
+    action = values from the action node, _implemented = historical_actions scenario, _active = active scenario.
+    If action unit is not compatible with the input dataframe, assume multiplication instead of addition.
+    """
+
+    allowed_parameters = [
+        *GenericNode.allowed_parameters,
+        StringParameter(
+            local_id='historical_actions_scenario_id',
+            label=_('Scenario id for implemented historical actions'),
+            description=_(
+                'Defaults to "historical_actions". Implemented column uses this scenario; '
+                + 'user column uses the active scenario.'
+            ),
+            is_customizable=False,
+        ),
+    ]
+    DEFAULT_OPERATIONS = 'get_single_dataset,action_with_history'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.OPERATIONS['action_with_history'] = self._operation_action_with_history
+        self.default_operations = self.DEFAULT_OPERATIONS
+
+    def _operation_action_with_history(self, df: PathsDataFrame | None) -> OperationReturn:
+        if df is None:
+            raise NodeError(
+                self,
+                'ActionWithHistoryNode needs a dataframe from a previous operation.',
+            )
+        if VALUE_COLUMN not in df.columns:
+            raise NodeError(self, 'action_with_history requires %s on the incoming dataframe.' % VALUE_COLUMN)
+        if len(df.metric_cols) != 1:
+            raise NodeError(
+                self,
+                'action_with_history expects exactly one metric on the incoming dataframe; got %s.' % df.metric_cols,
+            )
+
+        action_n = self.get_input_node(tag='action_with_history', required=True)
+        hist_scenario_id = self.get_parameter_value_str('historical_actions_scenario_id', required=False) or 'historical_actions'
+
+        idf = action_n.get_output_pl_for_scenario(hist_scenario_id, target_node=self)
+        udf = action_n.get_output_pl(target_node=self)
+        forecast = False
+        idf = idf.with_columns(pl.lit(forecast).alias(FORECAST_COLUMN))
+        udf = udf.with_columns(pl.lit(forecast).alias(FORECAST_COLUMN))
+
+        ctx = self.context
+
+        if df.get_unit(VALUE_COLUMN).is_compatible_with(idf.get_unit(VALUE_COLUMN)):
+            partial = df.paths.subtract_with_dims(idf, how='left')
+            baseline_hist = partial.paths._inventory_only(partial, ctx)
+            if not len(baseline_hist):
+                raise NodeError(self, 'No historical rows after inventory_only(observed - implemented action).')
+
+            baseline = baseline_hist.paths._extend_values(baseline_hist, ctx)
+            out = baseline.paths.add_with_dims(udf, how='left')
+        else:
+            partial = df.paths.divide_with_dims(idf, how='inner')
+            baseline_hist = partial.paths._inventory_only(partial, ctx)
+            if not len(baseline_hist):
+                raise NodeError(self, 'No historical rows after inventory_only(observed * implemented action).')
+
+            baseline = baseline_hist.paths._extend_values(baseline_hist, ctx)
+            out = baseline.paths.multiply_with_dims(udf, how='inner')
+
+        return out
+
+
 class LeverNode(GenericNode):
     explanation = _("""LeverNode replaces the upstream computation completely, if the lever is enabled.""")
     allowed_parameters = [

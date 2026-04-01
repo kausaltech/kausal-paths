@@ -1387,6 +1387,29 @@ class Node:
         self._baseline_values = df
         return df
 
+    def get_output_pl_for_scenario(
+        self,
+        scenario_id: str,
+        target_node: Node | None = None,
+        metric: str | None = None,
+        extra_span_desc: str | None = None,
+        skip_dim_test: bool = False,
+    ) -> ppl.PathsDataFrame:
+        """
+        Node output as under the scenario with the given id (same options as :meth:`get_output_pl`).
+
+        Used when the same node must be evaluated under a fixed scenario (e.g. ``historical_actions``)
+        while the active scenario differs. Does not use the baseline-values cache.
+        """
+        try:
+            scenario = self.context.scenarios[scenario_id]
+        except KeyError as e:
+            raise NodeError(self, 'Scenario %r not found' % scenario_id) from e
+        if self.context.active_scenario.id == scenario_id:
+            return self.get_output_pl(target_node, metric, extra_span_desc, skip_dim_test)
+        with scenario.override():
+            return self.get_output_pl(target_node, metric, extra_span_desc, skip_dim_test)
+
     def baseline_values_calculated(self) -> bool:
         return self._baseline_values is not None
 

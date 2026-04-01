@@ -116,6 +116,9 @@ TAG_DESCRIPTIONS = {
     'removing': _('This is the rate of stock removal.'),
     'round_to_five': _('Round values to 5 significant digits rather than 5 decimal places.'),
     'scenario_impact': _('Calculate the total impact of all actions in the current scenario.'),
+    'action_with_history': _(
+        'Action node evaluated under historical_actions (implemented) and active scenario (user) for ActionWithHistoryNode.'
+    ),
     'secondary': _('Use data only if a primary value does not exist.'),
     'select_port': _('If condition is True, select the first option, otherwise the second.'),
     'truncate_before_start': _('Truncate values before the reference year. There may be some from data'),
@@ -401,6 +404,14 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         _(
             """Gives the difference between the current scenario and a reference scenario
         for the single input node. Reference scenario is configurable (default: baseline)."""
+        )
+    ),
+    'ActionWithHistoryNode': NodeInfo(
+        _(
+            """
+        Calculates the effects of actions that started already during historical years.
+        The scenario historical_actions contains info about which actions were implemented.
+        """
         )
     ),
     'GenericAction': NodeInfo(_('')),
