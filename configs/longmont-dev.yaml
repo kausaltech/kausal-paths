@@ -2021,6 +2021,13 @@ nodes:
     tags: [option1]
   - id: electric_vehicle_miles_traveled
     tags: [option2]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [electricity]
   - id: transportation_electricity_factor
     tags: [ef]
   params:
@@ -2851,29 +2858,26 @@ nodes:
 - id: electric_vehicle_miles_traveled
   name: Electric vehicle miles traveled
   name_es-US: Millas recorridas por vehículos eléctricos
-  type: generic.GenericNode
+  description_en: Amount of electric vehicle miles traveled replacing combustion engine miles.
+    Note! The energy carrier shows what energy carrier is replaced by electric vehicles.
+  type: formula.FormulaNode
   quantity: mileage
   unit: VMT/a
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/vehicle_miles_traveled
+    tags: [vmt]
   input_nodes:
   - id: registered_electric_vehicles
-    to_dimensions:
-    - id: vehicle_type
-      categories: [car]
-    - id: energy_carrier
-      categories: [electricity]
+    tags: [vehicles]
   - id: vehicle_miles_per_vehicle
+    tags: [vmt_per_vehicle]
   output_nodes:
   - id: vehicle_miles_traveled
     tags: [electric_vmt]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: vehicle_type
-    - id: energy_carrier
-      categories: [petrol]
+  params:
+    formula: vehicles * vmt_per_vehicle * extend_all(vmt / sum_dim(sum_dim(vmt, vehicle_type), energy_carrier))
 
 - id: vmt_change_due_to_public_transportation
   name: Change in vehicle miles traveled due to public transportation
