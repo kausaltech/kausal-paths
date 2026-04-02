@@ -114,7 +114,7 @@ jobs:
       coverage_uploaded: ${{ steps.upload-coverage.outcome == 'success' }}
 
     container:
-      image: harbor.kausal.tech/library/playwright:v1.58.2
+      image: harbor.kausal.tech/library/playwright:v1.59.1
     env:
       CI: 1
       PATHS_BACKEND_URL: http://localhost:8000
