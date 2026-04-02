@@ -915,6 +915,61 @@ nodes:
   output_nodes:
   - id: ii53_offroad_transport_indirect_combustion_emissions
 
+- id: iii3_waste_incineration_emission_factor
+  name: III.3 Waste Incineration Emission Factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: [ghg, owner, scope]
+  output_dimensions: [ghg, owner, scope]
+  input_datasets:
+  - id: ostersund/organizational_waste
+    column: emission_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: iii32
+    - column: product_type
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: iii3_waste_incineration_emissions
+
+- id: iii3_waste_incineration_emissions
+  name: III.3 Waste Incineration Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [owner, ghg, scope]
+  output_dimensions: [owner, ghg, scope]
+  output_nodes:
+  - id: iii_waste_total_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+
+- id: iii3_waste_incineration_mass
+  name: III.3 Waste Incineration Mass
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
+  input_datasets:
+  - id: ostersund/organizational_waste
+    column: mass
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: iii32
+    - column: ghg
+    - column: product_type
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: iii3_waste_incineration_emissions
+    tags: [non_additive]
+
 - id: ii_transportation_emissions
   name: II Transportation Emissions
   type: simple.AdditiveNode
@@ -1045,6 +1100,17 @@ nodes:
   name: II Transportation Total Emissions
   type: simple.AdditiveNode
   color: '#e15759'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [owner, ghg]
+  output_dimensions: [owner, ghg]
+  output_nodes:
+  - id: net_emissions_organizational
+
+- id: iii_waste_total_emissions
+  name: III Waste Total Emissions
+  type: simple.AdditiveNode
+  color: '#59A14F'
   quantity: emissions
   unit: t/a
   input_dimensions: [owner, ghg]
