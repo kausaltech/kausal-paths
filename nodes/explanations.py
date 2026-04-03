@@ -113,6 +113,9 @@ TAG_DESCRIPTIONS = {
     'prepare_gpc_dataset': _('Prepare a GPC-style dataset for use.'),
     'primary': _('Use data as primary values even if a secondary value exists.'),
     'ratio_to_last_historical_value': _('Take the ratio of the values compared with the last historical value.'),
+    'ratio_to_max_hist_year': _(
+        'Take the ratio of the forecasted values compared with the maximum historical' + ' year (historical values = 1).'
+    ),
     'removing': _('This is the rate of stock removal.'),
     'round_to_five': _('Round values to 5 significant digits rather than 5 decimal places.'),
     'scenario_impact': _('Calculate the total impact of all actions in the current scenario.'),

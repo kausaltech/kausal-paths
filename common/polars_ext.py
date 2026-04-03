@@ -74,6 +74,7 @@ class PathsExt:
             'observed_only_extend_all': self._observed_only_extend_all,
             'prepare_gpc_dataset': self._prepare_gpc_dataset,
             'ratio_to_last_historical_value': self._ratio_to_last_historical_value,
+            'ratio_to_max_hist_year': self._ratio_to_max_hist_year,
             'round_to_five': self._round_to_five_significant_digits,
             'scale_by_reference_year': self._scale_by_reference_year,
             'truncate_before_start': self._truncate_before_start,
@@ -1181,9 +1182,31 @@ class PathsExt:
                 df = df.with_columns(context.dimensions[col].series_to_ids_pl(df[col]))
         return df
 
+    # TODO Depreciated version. May give surprises at node level.
     def _ratio_to_last_historical_value(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
         return self._scale_by_reference_year(df, year)
+
+    def _ratio_to_max_hist_year(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        year = context.instance.maximum_historical_year
+        if year is None:
+            year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
+            logger.warning(f'Maximum historical year is not set. Using last historical year: {year}')
+        dfy = df.filter(pl.col(YEAR_COLUMN) == year).drop(YEAR_COLUMN)
+
+        if not dfy.primary_keys and len(dfy) == 1:
+            df = df.with_columns(pl.lit(dfy[VALUE_COLUMN][0]).alias(VALUE_COLUMN + '_right'))
+        else:
+            df = df.paths.join_over_index(dfy, how='inner')
+        df = df.with_columns(
+            pl
+            .when(pl.col(YEAR_COLUMN) <= year)
+            .then(pl.lit(1.0))
+            .otherwise(pl.col(VALUE_COLUMN) / pl.col(VALUE_COLUMN + '_right'))
+            .alias(VALUE_COLUMN)
+        ).drop(VALUE_COLUMN + '_right')
+        df = df.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
+        return df
 
     def _round_to_five_significant_digits(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         """Round values to 5 significant digits rather than 5 decimal places. Zero and NaN have special handling."""
