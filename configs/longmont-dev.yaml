@@ -805,6 +805,7 @@ nodes:
   input_datasets:
   - id: longmont/population
     column: population
+    forecast_from: 2025
   input_dataset_processors: [LinearInterpolation]
 
 - id: net_emissions
@@ -2922,8 +2923,10 @@ nodes:
   input_nodes:
   - id: multimodal_transportation_system
     tags: [multimod]
+  - id: population
+    tags: [pop]
   params:
-    formula: (extend_all(baseline) - electric_vmt - transit) * complement(multimod)
+    formula: (extend_all(baseline) * ratio_to_max_hist_year(pop) - electric_vmt - transit) * complement(multimod)
 
 - id: vehicle_fuel_use
   name: Vehicle fuel use
@@ -3430,6 +3433,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: leakage_from_oil_and_gas_wells_emissions
     to_dimensions:
