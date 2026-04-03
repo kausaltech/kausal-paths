@@ -30,16 +30,16 @@ fnox-env = "https://github.com/jdx/mise-env-fnox"
 description = "Refresh the Vault token in the keychain"
 run = "vault login -address=https://vault.kausal.tech -path=keycloak -method=oidc -token-only | fnox set -p keychain FNOX_VAULT_TOKEN"
 
+[tasks.portless]
+description = "Run the backend with Portless"
+run = "portless --name paths-backend --app-port 8041 kausal_common/development/tools/portless-backend.sh"
+env = { PORTLESS_WILDCARD = "1", "PORTLESS_TLD" = "dev" }
+raw = true
+
 [tasks.export-graphql-schema]
 description = "Export the GraphQL schema from the Django project"
 run = [
   "mkdir -p __generated__",
-  '''
-    set -e
-    #!/usr/bin/env bash
-    echo "Exporting main schema..."
-    python manage.py export_schema paths.schema > __generated__/schema.graphql
-    echo "Exporting test mode schema..."
-    ENABLE_TEST_MODE=1 python manage.py export_schema paths.schema > __generated__/schema-test-mode.graphql
-  '''
+  "python manage.py export_schema paths.schema > __generated__/schema.graphql",
+  "ENABLE_TEST_MODE=1 python manage.py export_schema paths.schema > __generated__/schema-test-mode.graphql",
 ]
