@@ -7,6 +7,7 @@ import re
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
@@ -14,6 +15,7 @@ import orjson
 import polars as pl
 from loguru import logger
 from numpy.random import default_rng  # TODO Could call Generator to give hints about rng attributes but requires code change
+from numpy.typing import NDArray
 
 from kausal_common.logging.errors import capture_error
 
@@ -24,8 +26,6 @@ from nodes.units import Unit, unit_registry
 from .constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from pandas import DataFrame as PandasDataFrame
 
     from kausal_common.datasets.models import Dataset as DBDatasetModel
@@ -41,13 +41,11 @@ class Dataset(ABC):
     interpolate: bool = field(init=False)
     df: ppl.PathsDataFrame | None = field(init=False)
     hash: bytes | None = field(init=False)
-    rng: Callable = field(init=False)
 
     def __post_init__(self):
         self.df = None
         self.hash = None
         self.interpolate = False
-        self.rng = default_rng()  # type: ignore
         if getattr(self, 'unit', None) is None:
             self.unit = None
 
@@ -106,6 +104,107 @@ class Dataset(ABC):
     def get_unit(self, context: Context) -> Unit:  # pyright: ignore[reportUnusedParameter]
         raise NotImplementedError()
 
+    @cached_property
+    def sampler(self) -> DatasetSampler:
+        return DatasetSampler()
+
+
+type SampleRet = NDArray[np.float64]
+
+
+class DatasetSampler:
+    def __init__(self):
+        self.rng = default_rng()
+
+    def loguniform(self, match, size) -> SampleRet:
+        low = np.log(float(match.group(1)))
+        high = np.log(float(match.group(2)))
+        return np.exp(self.rng.uniform(low, high, size))
+
+    def uniform(self, match, size) -> SampleRet:
+        low = float(match.group(1))
+        high = float(match.group(2))
+        return self.rng.uniform(low, high, size)
+
+    def lognormal_plusminus(self, match, size) -> SampleRet:
+        mean_lognormal = float(match.group(1))
+        std_lognormal = float(match.group(2))
+        sigma = np.sqrt(np.log(1 + (std_lognormal**2) / (mean_lognormal**2)))
+        mu = np.log(mean_lognormal) - (sigma**2) / 2
+        return self.rng.lognormal(mu, sigma, size)
+
+    def normal_plusminus(self, match, size) -> SampleRet:
+        loc = float(match.group(1))
+        scale = float(match.group(2))
+        return self.rng.normal(loc, scale, size)
+
+    def normal_interval(self, match, size) -> SampleRet:
+        loc = float(match.group(1))
+        lower = float(match.group(2))
+        upper = float(match.group(3))
+        scale = (upper - lower) / 2 / 1.959963984540054
+        return self.rng.normal(loc, scale, size)
+
+    def beta(self, match, size) -> SampleRet:
+        a = float(match.group(1))
+        b = float(match.group(2))
+        return self.rng.beta(a, b, size)
+
+    def poisson(self, match, size) -> SampleRet:
+        lam = float(match.group(1))
+        return self.rng.poisson(lam, size)
+
+    def exponential(self, match, size) -> SampleRet:
+        mean = float(match.group(1))
+        return self.rng.exponential(scale=mean, size=size)
+
+    def problist(self, match, size) -> SampleRet:
+        s = match.group(1)
+        s = [float(x) for x in s.split(',')]
+        return self.rng.choice(s, size, replace=True)
+
+    def scalar(self, match, size) -> SampleRet:
+        value = float(match.group(1))
+        return np.repeat(value, size)
+
+    def get_sample(self, dist_string: str, size: int) -> SampleRet:
+        pos = r'(\d*.?\d+)'
+        real = r'(\-?\d*.?\d+)'
+        real2 = r'\-?\d*.?\d+'
+        expressions = {
+            'Loguniform': r'%s-%s\(log\)' % (pos, pos),  # low - high (log)
+            'Uniform': r'%s-%s' % (real, real),  # low - high
+            'Lognormal_plusminus': r'%s(?:\+-|±)%s\(log\)' % (pos, pos),  # mean +- sd (log)
+            'Normal_plusminus': r'%s(?:\+-|±)%s' % (real, pos),  # mean +- sd
+            'Normal_interval': r'%s\(%s,%s\)' % (real, real, real),  # mean (lower - upper) for 95 % CI
+            'Beta': r'(?i)beta\(%s,%s\)' % (pos, pos),  # Beta(a, b)
+            'Poisson': r'(?i)poisson\(%s\)' % pos,  # Poisson(lambda)
+            'Exponential': r'(?i)exponential\(%s\)' % pos,  # Exponential(mean)
+            'Problist': r'\[(%s(,%s)*)\]' % (real2, real2),  # [x1, x2, ... , xn]
+            'Scalar': real,  # value
+        }
+        functions = {
+            'Loguniform': self.loguniform,
+            'Uniform': self.uniform,
+            'Lognormal_plusminus': self.lognormal_plusminus,
+            'Normal_plusminus': self.normal_plusminus,
+            'Normal_interval': self.normal_interval,
+            'Beta': self.beta,
+            'Poisson': self.poisson,
+            'Exponential': self.exponential,
+            'Problist': self.problist,
+            'Scalar': self.scalar,
+        }
+
+        dist_string = dist_string.replace(' ', '')
+        for key, regex in expressions.items():  # noqa: B007
+            match = re.search(regex, dist_string)
+            if match:
+                break
+        else:
+            raise LookupError(self, f"String '{dist_string}' does not match any distribution.")
+        return functions[key](match, size)
+
     def interpret(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         size = context.sample_size
         cols = []
@@ -147,97 +246,6 @@ class Dataset(ABC):
         df = df.with_columns(pl.col(UNCERTAINTY_COLUMN).cast(pl.Categorical))
 
         return df
-
-    def loguniform(self, match, size) -> list:
-        low = np.log(float(match.group(1)))
-        high = np.log(float(match.group(2)))
-        return np.exp(self.rng.uniform(low, high, size)).tolist()  # type: ignore
-
-    def uniform(self, match, size) -> list:
-        low = float(match.group(1))
-        high = float(match.group(2))
-        return self.rng.uniform(low, high, size).tolist()  # type: ignore
-
-    def lognormal_plusminus(self, match, size) -> list:
-        mean_lognormal = float(match.group(1))
-        std_lognormal = float(match.group(2))
-        sigma = np.sqrt(np.log(1 + (std_lognormal**2) / (mean_lognormal**2)))
-        mu = np.log(mean_lognormal) - (sigma**2) / 2
-        return self.rng.lognormal(mu, sigma, size).tolist()  # type: ignore
-
-    def normal_plusminus(self, match, size) -> list:
-        loc = float(match.group(1))
-        scale = float(match.group(2))
-        return self.rng.normal(loc, scale, size).tolist()  # type: ignore
-
-    def normal_interval(self, match, size) -> list:
-        loc = float(match.group(1))
-        lower = float(match.group(2))
-        upper = float(match.group(3))
-        scale = (upper - lower) / 2 / 1.959963984540054
-        return self.rng.normal(loc, scale, size).tolist()  # type: ignore
-
-    def beta(self, match, size) -> list:
-        a = float(match.group(1))
-        b = float(match.group(2))
-        return self.rng.beta(a, b, size).tolist()  # type: ignore
-
-    def poisson(self, match, size) -> list:
-        lam = float(match.group(1))
-        s = self.rng.poisson(lam, size).tolist()  # type: ignore
-        return [float(v) for v in s]
-
-    def exponential(self, match, size) -> list:
-        mean = float(match.group(1))
-        return self.rng.exponential(scale=mean, size=size).tolist()  # type: ignore
-
-    def problist(self, match, size) -> list:
-        s = match.group(1)
-        s = [float(x) for x in s.split(',')]
-        return self.rng.choice(s, size, replace=True).tolist()  # type: ignore
-
-    def scalar(self, match, size) -> list:
-        value = float(match.group(1))
-        return [value] * size
-
-    def get_sample(self, dist_string: str, size: int) -> list:
-        pos = r'(\d*.?\d+)'
-        real = r'(\-?\d*.?\d+)'
-        real2 = r'\-?\d*.?\d+'
-        expressions = {
-            'Loguniform': r'%s-%s\(log\)' % (pos, pos),  # low - high (log)
-            'Uniform': r'%s-%s' % (real, real),  # low - high
-            'Lognormal_plusminus': r'%s(?:\+-|±)%s\(log\)' % (pos, pos),  # mean +- sd (log)
-            'Normal_plusminus': r'%s(?:\+-|±)%s' % (real, pos),  # mean +- sd
-            'Normal_interval': r'%s\(%s,%s\)' % (real, real, real),  # mean (lower - upper) for 95 % CI
-            'Beta': r'(?i)beta\(%s,%s\)' % (pos, pos),  # Beta(a, b)
-            'Poisson': r'(?i)poisson\(%s\)' % pos,  # Poisson(lambda)
-            'Exponential': r'(?i)exponential\(%s\)' % pos,  # Exponential(mean)
-            'Problist': r'\[(%s(,%s)*)\]' % (real2, real2),  # [x1, x2, ... , xn]
-            'Scalar': real,  # value
-        }
-        functions = {
-            'Loguniform': self.loguniform,
-            'Uniform': self.uniform,
-            'Lognormal_plusminus': self.lognormal_plusminus,
-            'Normal_plusminus': self.normal_plusminus,
-            'Normal_interval': self.normal_interval,
-            'Beta': self.beta,
-            'Poisson': self.poisson,
-            'Exponential': self.exponential,
-            'Problist': self.problist,
-            'Scalar': self.scalar,
-        }
-
-        dist_string = dist_string.replace(' ', '')
-        for key, regex in expressions.items():  # noqa: B007
-            match = re.search(regex, dist_string)
-            if match:
-                break
-        else:
-            raise LookupError(self, f"String '{dist_string}' does not match any distribution.")
-        s = functions[key](match, size)
-        return s
 
 
 @dataclass
@@ -513,7 +521,8 @@ class DVCDataset(DatasetWithFilters):
 
         df = self._filter_and_process_df(context, df)
         df = self.post_process(context, df)
-        df = self.interpret(df, context)
+        if context.sample_size > 0:
+            df = self.sampler.interpret(df, context)
         if cache_key:
             context.cache.set(cache_key, df, expiry=0)
 
@@ -732,12 +741,13 @@ class GenericDataset(DVCDataset):
         if self.interpolate:
             df = self._linear_interpolate(df)
 
-        new_dims = [col for col, dtype in zip(df.columns, df.dtypes, strict=False) if dtype in [pl.Utf8, pl.Categorical]]
+        new_dims = [col for col, dtype in zip(df.columns, df.dtypes, strict=False) if dtype in [pl.Utf8(), pl.Categorical()]]
         df = df.add_to_index([dim for dim in new_dims if dim not in df.dim_ids])
         df = extend_last_historical_value_pl(df, end_year=context.instance.model_end_year)
 
         # Finalize processing
-        df = self.interpret(df, context)
+        if context.sample_size > 0:
+            df = self.sampler.interpret(df, context)
         if cache_key:
             context.cache.set(cache_key, df, expiry=0)
 
@@ -823,7 +833,8 @@ class FixedDataset(Dataset):
 
         df = self.df
         assert df is not None
-        df = self.interpret(df, context)  # FIXME If all are scalars, do not create interpret dimension.
+        if context.sample_size > 0:
+            df = self.sampler.interpret(df, context)
         self.df = df
         if cache_key:
             context.cache.set(cache_key, df, expiry=0)
@@ -841,13 +852,13 @@ class FixedDataset(Dataset):
 
 @dataclass
 class JSONDataset(Dataset):
-    data: dict
+    data: dict[str, Any]
     unit: Unit | None
     df: ppl.PathsDataFrame = field(init=False)
 
     def __post_init__(self):
         super().__post_init__()
-        self.df = JSONDataset.deserialize_df(self.data)  # type: ignore[override]
+        self.df = JSONDataset.deserialize_df(self.data)
         meta = self.df.get_meta()
         if len(meta.units) == 1:
             self.unit = next(iter(meta.units.values()))
@@ -866,7 +877,7 @@ class JSONDataset(Dataset):
         return cast('Unit', self.unit)
 
     @classmethod
-    def deserialize_df(cls, value: dict) -> ppl.PathsDataFrame:
+    def deserialize_df(cls, value: dict[str, Any]) -> ppl.PathsDataFrame:
         import pandas as pd
         from pint_pandas import PintType
 
@@ -881,7 +892,7 @@ class JSONDataset(Dataset):
         return ppl.from_pandas(df)
 
     @classmethod
-    def serialize_df(cls, pdf: ppl.PathsDataFrame, add_uuids: bool = False) -> dict:
+    def serialize_df(cls, pdf: ppl.PathsDataFrame, add_uuids: bool = False) -> dict[str, Any]:
         units = {}
         df = pdf.to_pandas()
         df = df.copy()
