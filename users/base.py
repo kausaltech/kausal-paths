@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING, ClassVar, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID, uuid4
 
 from django.contrib.auth.models import AbstractUser as DjangoAbstractUser, UserManager as DjangoUserManager
 from django.db import models
 
 if TYPE_CHECKING:
-    from django.db.models.fields.related_descriptors import RelatedManager  # pyright: ignore
-    from django.db.models.manager import RelatedManager  # type: ignore  # noqa
+    from wagtail.users.models import UserProfile as WagtailUserProfile
 
     from social_django.models import UserSocialAuth
+
+    from kausal_common.models.types import RevMany, RevOne
 
 
 def uuid_to_username(uuid: UUID | str):
@@ -47,11 +48,8 @@ def username_to_uuid(username: str):
     return UUID(bytes=decoded)
 
 
-UMM = TypeVar('UMM', bound='AbstractUser')
-
-
-class UserManager(DjangoUserManager[UMM]):
-    def create_superuser(self, username=None, email=None, password=None, **extra_fields) -> UMM:
+class UserManager[UserM: DjangoAbstractUser](DjangoUserManager[UserM]):
+    def create_superuser(self, username=None, email=None, password=None, **extra_fields) -> UserM:
         uuid = uuid4()
         if not username:
             username = uuid_to_username(uuid)
@@ -59,12 +57,13 @@ class UserManager(DjangoUserManager[UMM]):
         return super().create_superuser(username, email, password, **extra_fields)
 
 
-class AbstractUser(DjangoAbstractUser):
+class AbstractUser[UserM: DjangoAbstractUser](DjangoAbstractUser):
     uuid = models.UUIDField(unique=True)
 
-    objects: ClassVar[UserManager] = UserManager()
+    objects: ClassVar[UserManager[Any]] = UserManager()
 
-    social_auth: RelatedManager[UserSocialAuth]
+    social_auth: RevMany[UserSocialAuth]
+    wagtail_userprofile: RevOne[UserM, WagtailUserProfile]
 
     def save(self, *args, **kwargs):
         self.clean()

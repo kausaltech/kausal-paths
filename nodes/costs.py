@@ -105,8 +105,8 @@ class ExponentialNode(AdditiveNode):
             if len(self.input_nodes) > 0:
                 raise NodeError(self, 'You must give either input node(s) or parameter current_value but not both.')
 
-            unit = current_value.units
-            current_value = current_value.m
+            unit = cast('NodeMetric', self.get_default_output_metric()).unit
+            current_val = current_value.m
             start_year = self.context.instance.minimum_historical_year
             current_year = self.context.instance.maximum_historical_year
             end_year = self.context.instance.model_end_year
@@ -118,7 +118,7 @@ class ExponentialNode(AdditiveNode):
                 .then(pl.lit(value=True))
                 .otherwise(pl.lit(value=False))
                 .alias(FORECAST_COLUMN),
-                pl.lit(current_value).alias(VALUE_COLUMN),
+                pl.lit(current_val).alias(VALUE_COLUMN),
             ])
             meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit}, primary_keys=[YEAR_COLUMN])
             df = ppl.to_ppdf(df, meta=meta)

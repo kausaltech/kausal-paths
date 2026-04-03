@@ -128,7 +128,7 @@ class NodeFactory(Factory[Node]):
     input_datasets = [
         FixedDataset(
             id='test',
-            unit='kWh',
+            unit=unit_registry.parse_units('kWh'),
             historical=[(2020, 1.23)],
             forecast=[(2021, 2.34)],
             tags=[],

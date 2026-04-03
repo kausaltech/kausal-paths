@@ -59,7 +59,7 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
         )
         df_bau = df_bau.with_columns((pl.col(VALUE_COLUMN) - pl.col('floor_old')).alias('floor_new'))
         # FIXME Bubblegum fix for wrong unit treatment in diff:
-        df_bau = df_bau.set_unit('floor_new', df_bau.get_unit('floor_old') * unit_registry(TIME_INTERVAL))
+        df_bau = df_bau.set_unit('floor_new', df_bau.get_unit('floor_old') * unit_registry.parse_units(TIME_INTERVAL))
         df_bau = df_bau.diff('floor_new').with_columns(pl.col('floor_new').fill_null(0))
         df_bau = df_bau.drop(VALUE_COLUMN)
 
@@ -104,9 +104,9 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
                 df_out = df
             else:
                 meta = df.get_meta()
-                df_out = pl.concat([df_out, df], rechunk=True)
-                df_out = ppl.to_ppdf(df_out, meta)
+                df_out = ppl.to_ppdf(pl.concat([df_out, df], rechunk=True), meta)
 
+        assert df_out is not None
         df_out = df_out.ensure_unit('floor_area', self.unit)
         df_out = df_out.with_columns(pl.col('floor_area').alias(VALUE_COLUMN))
 

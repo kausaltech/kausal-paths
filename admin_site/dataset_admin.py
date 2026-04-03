@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from django.forms import BaseInlineFormSet, ValidationError
 from django.urls import reverse
@@ -26,6 +26,8 @@ from kausal_paths_extensions.dataset_editor import DatasetViewSet
 from users.models import User
 
 if TYPE_CHECKING:
+    from django.forms.models import ModelFormOptions
+
     from nodes.models import InstanceConfig
 
 
@@ -161,7 +163,7 @@ class DatasetSchemaMetricFormSet(BaseInlineFormSet):
             raise ValidationError(errors)
 
 
-class DatasetSchemaEditView(PathsEditView):
+class DatasetSchemaEditView(PathsEditView[DatasetSchema]):
     def get_success_url(self):
         return reverse(DatasetViewSet().get_url_name('list'))
 
@@ -180,12 +182,13 @@ class DatasetSchemaViewSet(PathsViewSet):
 
     def get_form_class(self, for_update=False):
         form_class = super().get_form_class(for_update)
+        form_meta = cast('type[ModelFormOptions[DatasetSchema]]', form_class.Meta)  # type: ignore[attr-defined]
 
         class DatasetSchemaWithDimensionForm(form_class):  # type: ignore[valid-type, misc]
-            class Meta(form_class.Meta):
+            class Meta(form_meta):  # type: ignore[valid-type, misc]
                 model = DatasetSchema
-                fields = form_class.Meta.fields
-                formsets = getattr(form_class.Meta, 'formsets', {}).copy()
+                fields = form_meta.fields
+                formsets = getattr(form_meta, 'formsets', {}).copy()
                 formsets.update({
                     'dimensions': {
                         'formset': DatasetSchemaFormWithDimensionFormSet,

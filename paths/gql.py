@@ -19,6 +19,8 @@ from nodes.models import InstanceConfig
 from .graphql_types import SBInfo as Info
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from strawberry.extensions import FieldExtension
     from strawberry_django.mutations.fields import DjangoMutationBase
 
@@ -43,7 +45,9 @@ def get_ic_or_error(info: Info, ic_id: str) -> InstanceConfig:
 
 
 @overload
-def mutation(*, extensions: list[FieldExtension] | None = None, **kwargs: Unpack[MutationArgs]) -> DjangoMutationBase: ...
+def mutation(
+    *, extensions: list[FieldExtension] | None = None, **kwargs: Unpack[MutationArgs]
+) -> Callable[[ResolverFunc], DjangoMutationBase]: ...
 
 
 @overload
@@ -52,7 +56,7 @@ def mutation(resolver: ResolverFunc, **kwargs: Unpack[MutationArgs]) -> DjangoMu
 
 def mutation(
     resolver: ResolverFunc | None = None, *, extensions: list[FieldExtension] | None = None, **kwargs: Unpack[MutationArgs]
-) -> DjangoMutationBase:
+) -> DjangoMutationBase | Callable[[ResolverFunc], DjangoMutationBase]:
     ret = base_mutation(extensions=extensions, **kwargs)
     if resolver is not None:
         return ret(resolver)

@@ -248,13 +248,13 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
         return any(self.user_has_permission(user, action) for action in actions)
 
 
-class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, DatasetQuerySet]):
+class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, DatasetQuerySet, DatasetSchema]):
     """Permission policy for Dataset, inheriting from its schema."""
 
     def __init__(self):
         from kausal_common.datasets.models import Dataset, DatasetSchema
 
-        super().__init__(Dataset, DatasetSchema, 'schema')
+        super().__init__(Dataset, DatasetSchema, 'schema', create_context_type=DatasetSchema)
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: Dataset) -> bool:
@@ -272,17 +272,16 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
     def user_can_review(self, user: User) -> bool:
         return self.parent_policy.user_has_permission(user, 'review')
 
-    def is_create_context_valid(self, context: Any) -> TypeGuard[DatasetSchema]:
-        return isinstance(context, DatasetSchema)
 
-
-class DatasetMetricPermissionPolicy(ParentInheritedPolicy[DatasetMetric, DatasetSchema, PermissionedQuerySet[DatasetMetric]]):
+class DatasetMetricPermissionPolicy(
+    ParentInheritedPolicy[DatasetMetric, DatasetSchema, PermissionedQuerySet[DatasetMetric], DatasetSchema]
+):
     """Permission policy for DatasetMetric, inheriting from its schema."""
 
     def __init__(self):
         from kausal_common.datasets.models import DatasetMetric, DatasetSchema
 
-        super().__init__(DatasetMetric, DatasetSchema, 'schema')
+        super().__init__(DatasetMetric, DatasetSchema, 'schema', create_context_type=DatasetSchema)
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DatasetMetric) -> bool:
@@ -297,17 +296,14 @@ class DatasetMetricPermissionPolicy(ParentInheritedPolicy[DatasetMetric, Dataset
     def user_can_create(self, user: User, context: DatasetSchema) -> bool:
         return self.parent_policy.user_has_perm(user, 'change', context)
 
-    def is_create_context_valid(self, context: Any) -> TypeGuard[DatasetSchema]:
-        return isinstance(context, DatasetSchema)
 
-
-class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, PermissionedQuerySet[DataPoint]]):
+class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, PermissionedQuerySet[DataPoint], Dataset]):
     """Permission policy for DataPoint, inheriting from Dataset."""
 
     def __init__(self):
         from kausal_common.datasets.models import DataPoint, Dataset
 
-        super().__init__(DataPoint, Dataset, 'dataset')
+        super().__init__(DataPoint, Dataset, 'dataset', create_context_type=Dataset)
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DataPoint) -> bool:
@@ -321,9 +317,6 @@ class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, Permis
     @override
     def user_can_create(self, user: User, context: Dataset) -> bool:
         return self.parent_policy.user_has_perm(user, 'change', context)
-
-    def is_create_context_valid(self, context: Any) -> TypeGuard[Dataset]:
-        return isinstance(context, Dataset)
 
 
 class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource, None]):
@@ -384,12 +377,12 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
 
 
 class DataPointCommentPermissionPolicy(
-    ParentInheritedPolicy[DataPointComment, DataPoint, PermissionedQuerySet[DataPointComment]]
+    ParentInheritedPolicy[DataPointComment, DataPoint, PermissionedQuerySet[DataPointComment], DataPoint]
 ):
     """Permission policy for DataPointComment, delegating to DataPoint."""
 
     def __init__(self):
-        super().__init__(DataPointComment, DataPoint, 'data_point')
+        super().__init__(DataPointComment, DataPoint, 'data_point', create_context_type=DataPoint)
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DataPointComment) -> bool:
@@ -399,10 +392,6 @@ class DataPointCommentPermissionPolicy(
     @override
     def anon_has_perm(self, action: BaseObjectAction, obj: DataPointComment) -> bool:
         return False
-
-    @override
-    def is_create_context_valid(self, context: Any) -> TypeGuard[DataPoint]:
-        return isinstance(context, DataPoint)
 
     @override
     def user_can_create(self, user: User, context: DataPoint) -> bool:
@@ -417,12 +406,12 @@ class DataPointCommentPermissionPolicy(
 
 
 class DatasetSourceReferencePermissionPolicy(
-    ParentInheritedPolicy[DatasetSourceReference, Dataset, PermissionedQuerySet[DatasetSourceReference]]
+    ParentInheritedPolicy[DatasetSourceReference, Dataset, PermissionedQuerySet[DatasetSourceReference], Dataset]
 ):
     """Permission policy for DatasetSourceReference, delegating to DataSet."""
 
     def __init__(self):
-        super().__init__(DatasetSourceReference, Dataset, 'dataset')
+        super().__init__(DatasetSourceReference, Dataset, 'dataset', create_context_type=Dataset)
 
     @override
     def get_parent_obj(self, obj: DatasetSourceReference) -> Dataset:
@@ -440,10 +429,6 @@ class DatasetSourceReferencePermissionPolicy(
     @override
     def anon_has_perm(self, action: BaseObjectAction, obj: DatasetSourceReference) -> bool:
         return False
-
-    @override
-    def is_create_context_valid(self, context: Any) -> TypeGuard[Dataset]:
-        return isinstance(context, Dataset)
 
     @override
     def user_can_create(self, user: User, context: Dataset) -> bool:

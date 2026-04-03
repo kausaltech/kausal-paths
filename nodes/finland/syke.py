@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+from typing import cast
+
+from django.utils.translation import gettext_lazy as _
+
 import numpy as np
 import pandas as pd
+
+from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.calc import extend_last_historical_value
 from nodes.constants import (
@@ -24,7 +30,7 @@ class AlasNode(Node):
     ]
     global_parameters = ['municipality_name', 'selected_framework']
     allowed_parameters = [
-        StringParameter(local_id='region', label='Region to be included', is_customizable=False),
+        StringParameter(local_id='region', label=_('Region to be included'), is_customizable=False),
     ]
     output_metrics = {
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
@@ -32,10 +38,10 @@ class AlasNode(Node):
         EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY),
     }
     output_dimensions = {
-        'Sector': Dimension(id='syke_sector', label=dict(en='SYKE emission sector'), is_internal=True),
+        'Sector': Dimension(id='syke_sector', label=TranslatedString(en='SYKE emission sector'), is_internal=True),
     }
 
-    def compute(self) -> pd.DataFrame:
+    def compute(self) -> pd.DataFrame:  # noqa: C901, PLR0912
         df = self.get_input_dataset()
         if isinstance(df.index, pd.MultiIndex):
             df = df.reset_index()
@@ -114,7 +120,7 @@ class AlasNode(Node):
 
 
 class AlasEmissions(Node):
-    unit = 'kt/a'
+    default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
     allowed_input_classes = [
         AlasNode,
@@ -138,7 +144,7 @@ class AlasEmissions(Node):
         sector = self.get_parameter_value('sector')
         required = self.get_parameter_value('required', required=False)
         try:
-            df = df.xs(sector, level='Sector')
+            df = cast('pd.DataFrame', df.xs(sector, level='Sector'))
         except KeyError:
             if not required:
                 years = df.index.get_level_values(YEAR_COLUMN).unique()
@@ -148,7 +154,7 @@ class AlasEmissions(Node):
             else:
                 raise
         df = df[[EMISSION_QUANTITY]]
-        if df[EMISSION_QUANTITY].isnull().all():
+        if df[EMISSION_QUANTITY].isna().all():
             df = df.fillna(0.0)
         df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
         df[FORECAST_COLUMN] = False

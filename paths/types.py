@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC
 from typing import TYPE_CHECKING, Any, Self
 
 from django.core.exceptions import FieldDoesNotExist
@@ -8,7 +7,7 @@ from django.db.models import ForeignKey
 
 from kausal_common.models.object_cache import CacheableModel
 from kausal_common.models.permissions import PermissionedModel, PermissionedQuerySet
-from kausal_common.models.types import AbstractModelMeta
+from kausal_common.models.types import AbstractModel
 
 if TYPE_CHECKING:
     from collections import OrderedDict
@@ -50,7 +49,7 @@ if TYPE_CHECKING:
         wildcard_domains: list[str] | None
 
 
-class PathsModel(PermissionedModel, ABC, metaclass=AbstractModelMeta):
+class PathsModel[CreateContext: Any = None](PermissionedModel[CreateContext], AbstractModel):  # pyright: ignore[reportImplicitAbstractClass]
     if TYPE_CHECKING:
         Meta: Any
     else:
@@ -103,6 +102,6 @@ if TYPE_CHECKING:
         context: PathsGraphQLContext[Instance]
 
 
-class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel, ABC, metaclass=AbstractModelMeta):
+class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel):  # pyright: ignore[reportImplicitAbstractClass]
     class Meta:
         abstract = True
