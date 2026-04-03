@@ -172,7 +172,7 @@ sources.django-modeltrans = { url = "https://github.com/kausaltech/django-modelt
 sources.kausal-paths-extensions = { index = "kausal" }
 index = [
   { url = "https://pypi.org/simple" },
-  { name = "kausal", url = "https://pypi.kausal.tech/", authenticate = "always" }
+  { name = "kausal", url = "https://pypi.kausal.tech/", authenticate = "always" },
 ]
 environments = [
   "python_full_version >= '3.14' and sys_platform == 'darwin' and platform_machine == 'arm64'",
@@ -205,6 +205,8 @@ strict_optional = true
 fixed_format_cache = true
 always_true = [ "IS_PATHS", "IS_MYPY" ]
 always_false = [ "IS_WATCH" ]
+local_partial_types = true
+allow_redefinition_new = true
 
 [[tool.mypy.overrides]]
 module = [
