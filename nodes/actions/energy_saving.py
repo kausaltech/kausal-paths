@@ -3,12 +3,10 @@ from __future__ import annotations
 
 import typing
 
-import numba as nb
 import numpy as np
 import pandas as pd
 import pint_pandas
 import polars as pl
-from numba import njit, types as nbt
 
 from kausal_common.i18n.pydantic import gettext_lazy as _
 
@@ -52,21 +50,14 @@ class BuildingEnergyRet(typing.NamedTuple):
     el_saving: npt.NDArray[typing.Any]
 
 
-def named_tuple_to_nb(cls: type[typing.NamedTuple]):
-    nb_types = [nb.typeof(x()) for x in typing.get_type_hints(cls).values()]
-    nb_param = nbt.NamedTuple(nb_types, cls)
-    return nb_param
-
-
-@njit((named_tuple_to_nb(BuildingEnergyParams),), cache=True)  # pyright: ignore[reportUntypedFunctionDecorator]
-def simulate_building_energy_saving(params: BuildingEnergyParams):
+def simulate_building_energy_saving(params: BuildingEnergyParams) -> BuildingEnergyRet:
     years = np.arange(params.start_year, params.start_year + params.nr_years)
     total_renovated = np.zeros(params.nr_years, dtype=float)
     renovated_per_year = np.zeros(params.nr_years, dtype=float)
     cost = np.zeros(params.nr_years, dtype=float)
     he_saving = np.zeros(params.nr_years, dtype=float)
     el_saving = np.zeros(params.nr_years, dtype=float)
-    forecast = np.zeros(params.nr_years, dtype='int')
+    forecast = np.zeros(params.nr_years, dtype=int)
     new_renovations = params.renovation_rate
 
     for i in range(params.nr_years):
