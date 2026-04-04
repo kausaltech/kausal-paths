@@ -12,14 +12,13 @@ import loguru
 from deepdiff import DeepDiff
 from rich import print
 from rich.console import Console
-from rich.traceback import Traceback
 
+from kausal_common.logging.errors import print_exception
 from kausal_common.logging.warnings import register_warning_handler
 
 from nodes.datasets import JSONDataset
 from nodes.exceptions import NodeError
 from nodes.models import InstanceConfig
-from nodes.scenario import ScenarioKind
 
 if TYPE_CHECKING:
     from django.core.management.base import CommandParser
@@ -31,16 +30,24 @@ if TYPE_CHECKING:
 console = Console()
 
 
-def make_comparable(table: dict[str, Any]):
-    schema: dict[str, Any] = table['schema']
-    pks: list[str] = schema['primaryKey']
+def sort_schema(schema: dict[str, Any]):
+    pks = schema['primaryKey']
     pks.sort()
-    fields: list[dict[str, Any]] = schema['fields']
 
+    fields: list[dict[str, Any]] = schema['fields']
     fields.sort(key=lambda x: x['name'])
-    data: list[dict[str, Any]] = table['data']
-    data.sort(key=lambda x: tuple([x[key] for key in pks]))
-    return data
+    for field in fields:
+        constraints = field.get('constraints')
+        if constraints and 'enum' in constraints:
+            constraints['enum'].sort()
+    return schema
+
+
+def get_sorted_rows(table: dict[str, Any]):
+    pks: list[str] = table['schema']['primaryKey']
+    rows: list[dict[str, Any]] = table['data']
+    rows.sort(key=lambda x: tuple([x[key] for key in pks]))
+    return rows
 
 
 def dir_path(str_path: str) -> Path:
@@ -66,45 +73,36 @@ def file_path(str_path: str) -> Path:
     raise ValueError(f'{str_path} is not a file')
 
 
-type FailReason = Literal['output', 'compare', 'check']
+type NodeFailReason = Literal['output', 'compare', 'check']
 
 
 class NodeDetail(BaseModel):
     node_id: str
-    output_success: bool = False
-    compare_success: bool | None = None
-    check_success: bool | None = None
+    failure_at: NodeFailReason | None = None
     check_time_ms: float = 0
 
     def mark_success(self, check_time_ms: float):
-        self.check_success = True
-        self.output_success = True
-        self.compare_success = True
+        self.failure_at = None
         self.check_time_ms = check_time_ms
 
-    def mark_failed(self, reason: FailReason):
-        if reason == 'compare':
-            self.output_success = True
-            self.compare_success = False
-            self.check_success = False
-        elif reason == 'output':
-            self.output_success = False
-            self.compare_success = None
-            self.check_success = None
-        elif reason == 'check':
-            self.output_success = True
-            self.compare_success = True
-            self.check_success = False
+    def mark_failed(self, reason: NodeFailReason):
+        self.failure_at = reason
+
+
+type InstanceFailReason = Literal['init', 'nodes']
+type ScenarioId = Literal['default', 'baseline']
 
 
 class InstanceDetail(BaseModel):
     instance_id: str
-    success: bool = False
+    failure_at: InstanceFailReason | None = None
     nodes: list[NodeDetail] = Field(default_factory=list)
     baseline_nodes: list[NodeDetail] = Field(default_factory=list)
 
-    def add_node(self, node: Node, fail_reason: FailReason | None, check_time_ms: float, baseline: bool = False):
-        nodes = self.baseline_nodes if baseline else self.nodes
+    _active_scenario_id: ScenarioId = PrivateAttr(default='default')
+
+    def add_node(self, node: Node, fail_reason: NodeFailReason | None, check_time_ms: float):
+        nodes = self.baseline_nodes if self._active_scenario_id == 'baseline' else self.nodes
         for details in nodes:
             if details.node_id == node.id:
                 break
@@ -118,10 +116,15 @@ class InstanceDetail(BaseModel):
         details.check_time_ms = check_time_ms
 
     def get_node_details(self, node: Node) -> NodeDetail | None:
-        for details in self.nodes:
+        nodes = self.baseline_nodes if self._active_scenario_id == 'baseline' else self.nodes
+        for details in nodes:
             if details.node_id == node.id:
                 return details
         return None
+
+    def set_active_scenario_id(self, scenario_id: ScenarioId):
+        assert scenario_id in ['default', 'baseline']
+        self._active_scenario_id = scenario_id
 
 
 class CheckState(BaseModel):
@@ -132,53 +135,52 @@ class CheckState(BaseModel):
     _compare_mode: bool = PrivateAttr(default=False)
     _output_file: Path | None = PrivateAttr(default=None)
 
-    def add_node(self, node: Node, fail_reason: FailReason | None, check_time_ms: float):
+    def add_node(self, node: Node, fail_reason: NodeFailReason | None, check_time_ms: float):
         for details in self.instance_details:
             if details.instance_id == node.context.instance.id:
                 break
         else:
             details = InstanceDetail(instance_id=node.context.instance.id)
             self.instance_details.append(details)
-        context = node.context
-        details.add_node(node, fail_reason, check_time_ms, baseline=context.active_scenario.kind == ScenarioKind.BASELINE)
+        details.add_node(node, fail_reason, check_time_ms)
 
     def get_node_details(self, node: Node) -> NodeDetail | None:
-        details = self.get_details_for_instance(node.context.instance)
+        details = self.get_details_for_instance(node.context.instance.id)
         if details:
             return details.get_node_details(node)
         return None
 
-    def add_instance(self, instance: Instance) -> InstanceDetail:
-        details = self.get_details_for_instance(instance)
+    def add_instance(self, instance_id: str) -> InstanceDetail:
+        details = self.get_details_for_instance(instance_id)
         if not details:
-            details = InstanceDetail(instance_id=instance.id)
+            details = InstanceDetail(instance_id=instance_id)
             self.instance_details.append(details)
         return details
 
-    def get_details_for_instance(self, instance: Instance) -> InstanceDetail | None:
+    def get_details_for_instance(self, instance_id: str) -> InstanceDetail | None:
         for details in self.instance_details:
-            if details.instance_id == instance.id:
+            if details.instance_id == instance_id:
                 return details
-        details = InstanceDetail(instance_id=instance.id)
+        details = InstanceDetail(instance_id=instance_id)
         self.instance_details.append(details)
         return details
 
     def has_instance(self, instance_id: str) -> bool:
         return any(details.instance_id == instance_id for details in self.instance_details)
 
-    def mark_failed(self, instance: Instance):
+    def mark_failed(self, instance: Instance, reason: InstanceFailReason):
         self.failed_instances.add(instance.id)
         self.checked_instances.add(instance.id)
-        details = self.get_details_for_instance(instance)
+        details = self.get_details_for_instance(instance.id)
         if not details:
-            details = self.add_instance(instance)
-        details.success = False
+            details = self.add_instance(instance.id)
+        details.failure_at = reason
 
     def mark_success(self, instance: Instance):
         self.checked_instances.add(instance.id)
         self.failed_instances.discard(instance.id)
-        details = self.add_instance(instance)
-        details.success = True
+        details = self.add_instance(instance.id)
+        details.failure_at = None
 
     def set_output_file(self, output_file: Path):
         self._output_file = output_file
@@ -198,6 +200,8 @@ class Command(BaseCommand):
 
     store: bool
     compare: bool
+    spec_only: bool
+    dry_run: bool
     logger: loguru.Logger
     state: CheckState
     maxfail: int
@@ -220,6 +224,18 @@ class Command(BaseCommand):
             dest='compare',
             action='store_true',
             help='Compare outputs to previous run for each instance',
+        )
+        parser.add_argument(
+            '--spec-only',
+            dest='spec_only',
+            action='store_true',
+            help='Only initialize each instance; skip output comparison and node execution',
+        )
+        parser.add_argument(
+            '--dry-run',
+            dest='dry_run',
+            action='store_true',
+            help='Do not update the state file',
         )
         parser.add_argument(
             '--start-from', dest='start_from', metavar='INSTANCE_ID', action='store', help='Instance ID to start from'
@@ -256,69 +272,77 @@ class Command(BaseCommand):
             state.set_output_file(self.state_file)
         return state
 
-    def save_state(self, state: CheckState):
-        if not self.state_file:
+    def save_state(self):
+        if self.dry_run:
             return
-        with self.state_file.open('w') as f:
-            f.write(state.model_dump_json(indent=2))
+        self.state.save()
 
-    def handle_node_output(self, logger: loguru.Logger, node: Node) -> FailReason | None:
+    def handle_node_output(self, logger: loguru.Logger, node: Node) -> NodeFailReason | None:
+        if not self.model_output_dir:
+            return None
+        instance_path = self.model_output_dir / node.context.instance.id
+        path = instance_path / ('%s-%s.json' % (node.context.active_scenario.id, node.id))
         if self.store and self.model_output_dir:
+            instance_path.mkdir(parents=True, exist_ok=True)
             df = node.get_output_pl()
             out = JSONDataset.serialize_df(df)
-            store_path = self.model_output_dir
-            fn = store_path / ('%s-%s-%s.json' % (node.context.instance.id, node.context.active_scenario.id, node.id))
-            logger.info('Storing output to %s' % fn)
-            with fn.open('w') as f:
+            logger.info('Storing output to %s' % path)
+            if self.dry_run:
+                return None
+            with path.open('w') as f:
                 json.dump(out, f, indent=2)
-            return None
         if self.compare and self.model_output_dir:
-            fn = self.model_output_dir / ('%s-%s-%s.json' % (node.context.instance.id, node.context.active_scenario.id, node.id))
-            if not fn.exists():
-                logger.error('No output file found: %s' % fn)
+            if not path.exists():
+                logger.error('No output file found: %s' % path)
                 return 'output'
-            logger.info('Comparing output to %s' % fn)
-            with fn.open('r') as f:
-                data = json.load(f)
+            logger.info('Comparing output to %s' % path)
+            with path.open('r') as f:
+                reference = json.load(f)
             df = node.get_output_pl()
-            df_ser = JSONDataset.serialize_df(df)
-            diffs = list(DeepDiff(make_comparable(data), make_comparable(df_ser), math_epsilon=1e-6))
-            if diffs:
-                logger.error('Instance %s, node %s differs' % (node.context.instance.id, node.id))
-                print(diffs)
-                return 'output'
+            current = JSONDataset.serialize_df(df)
+            schema_diff = DeepDiff(sort_schema(reference['schema']), sort_schema(current['schema']))
+            has_diffs = False
+            if schema_diff:
+                logger.error('Instance %s, node %s schema differs' % (node.context.instance.id, node.id))
+                print(schema_diff)
+                print('Reference schema:')
+                print(reference['schema'])
+                print('Current schema:')
+                print(current['schema'])
+                has_diffs = True
+            diff = DeepDiff(get_sorted_rows(reference), get_sorted_rows(current), math_epsilon=1e-6)
+            if diff:
+                logger.error('Instance %s, node %s rows differ' % (node.context.instance.id, node.id))
+                print(diff)
+                has_diffs = True
+            if has_diffs:
+                return 'compare'
         return None
 
-    def check_node(self, node: Node) -> FailReason | None:
+    def check_node(self, node: Node) -> NodeFailReason | None:
         logger = self.logger.bind(node_id=node.id, instance_id=node.context.instance.id)
         logger.info('Checking node {node} (class: {node_class})', node=node.id, node_class=node.__class__.__name__)
-        fail_reason: FailReason | None = 'output'
+        fail_reason: NodeFailReason | None = 'output'
         try:
             fail_reason = self.handle_node_output(logger, node)
-            if fail_reason is None:
-                fail_reason = 'check'
-                node.check()
-        except NodeError as e:
-            if e.__cause__:
-                err = e.__cause__
+            if fail_reason:
+                return fail_reason
+            fail_reason = 'check'
+            node.check()
+        except NodeError as err:
+            if err.__cause__:
+                print_exception(err.__cause__)
             else:
-                err = e
-            tb = Traceback.from_exception(type(err), err, err.__traceback__)
-            console.print(tb)
-            logger.error(
-                'Error checking node {instance_id}:{node_id}',
-                # \nNode dependency path: {dep_path}',
-                instance_id=node.context.instance.id,
-                node_id=node.id,
-                # dep_path=e.get_dependency_path(),
-            )
+                print_exception(err)
+            logger.error(f'Error getting output for node {node.context.instance.id}:{node.id}')
+            return fail_reason
         fail_reason = None
         return fail_reason
 
     def run_nodes(self, logger: loguru.Logger, ctx: Context) -> bool:
         logger.info('Checking outcome nodes')
 
-        statuses: list[FailReason | None] = []
+        statuses: list[NodeFailReason | None] = []
 
         for node in ctx.get_outcome_nodes():
             now = time.time()
@@ -329,13 +353,9 @@ class Command(BaseCommand):
                 # Returns False (failure) if the same node succeeded in the previous run
                 if not details:
                     return True
-                if fail_reason == 'compare' and details.compare_success:
-                    return False
-                if fail_reason == 'output' and details.output_success:
-                    return False
-                if fail_reason == 'check' and details.check_success:
-                    return False
-                return True
+                if details.failure_at and details.failure_at == fail_reason:
+                    return True
+                return False
             self.state.add_node(node, fail_reason, check_time_ms)
             statuses.append(fail_reason)
         return not any(statuses)
@@ -343,63 +363,91 @@ class Command(BaseCommand):
     def check_instance(self, ic: InstanceConfig):
         logger = self.logger.bind(instance_id=ic.identifier)
         logger.info('Checking instance %s' % ic.identifier)
+        instance_details = self.state.add_instance(ic.identifier)
         try:
             instance = ic.get_instance()
         except Exception as e:
             logger.error('Error initializing instance %s', ic.identifier)
-            console.print(e)
+            print_exception(e)
             if self.compare and self.state.has_instance(ic.identifier):
                 return False
             self.state.failed_instances.add(ic.identifier)
             self.state.checked_instances.add(ic.identifier)
-            self.state.save()
+            self.save_state()
             return False
+
+        if self.spec_only:
+            self.state.mark_success(instance)
+            self.save_state()
+            return True
 
         ctx = instance.context
         ctx.cache.clear()
         baseline_scenario = ctx.scenarios.get('baseline', None)
         with ctx.run():
             succeeded = self.run_nodes(logger, ctx)
-            if succeeded and baseline_scenario:
+            if baseline_scenario:
+                instance_details.set_active_scenario_id('baseline')
                 logger.info('Checking baseline scenario')
                 with baseline_scenario.override(set_active=True):
                     succeeded = self.run_nodes(logger, ctx)
+                instance_details.set_active_scenario_id('default')
+        logger.info('Cleaning instance')
+        instance.clean()
+
         if succeeded:
             self.state.mark_success(instance)
         else:
-            self.state.mark_failed(instance)
-        self.state.save()
+            self.state.mark_failed(instance, 'nodes')
+        self.save_state()
+
+        if True:
+            import gc
+
+            logger.info('Collecting garbage')
+            nr_unreachable = gc.collect()
+            if nr_unreachable:
+                logger.warning('Garbage collection identified %d unreachable objects' % nr_unreachable)
         return succeeded
 
-    def handle(self, *args, **options):  # noqa: C901, PLR0912
+    def handle(self, *args, **options):  # noqa: C901, PLR0912, PLR0915
         instance_ids = options['instances']
         self.state_dir = options['state_dir']
         if self.state_dir:
             self.model_output_dir = self.state_dir / 'outputs'
             self.model_output_dir.mkdir(parents=True, exist_ok=True)
             self.state_file = self.state_dir / 'state.json'
-        self.logger = loguru.logger.bind(name='test_instance')
-        register_warning_handler()
-        if self.state_file:
             self.state = self.load_state()
         else:
+            self.state_file = None
             self.state = CheckState()
+
+        self.logger = loguru.logger.bind(name='test_instance')
+        register_warning_handler()
         self.maxfail = options['maxfail']
         self.store = bool(options['store'])
         self.compare = bool(options['compare'])
-        if self.compare and not self.state_dir:
-            self.logger.error('--compare requires --state-dir')
-            exit(1)
-        if not instance_ids:
+        self.spec_only = bool(options['spec_only'])
+        self.dry_run = bool(options['dry_run'])
+        if self.compare:
+            if not self.state_dir:
+                self.logger.error('--compare requires --state-dir')
+                exit(1)
+            self.state.set_compare_mode()
+
+        only_instance = options['only']
+        if only_instance:
+            instance_ids = [only_instance]
+        elif not instance_ids:
             self.logger.info('No instances provided, checking all instances')
             if self.compare:
-                instance_ids = list(self.state.checked_instances - self.state.failed_instances)
+                instance_ids = self.state.checked_instances
             else:
                 instance_ids = list(InstanceConfig.objects.all().order_by('identifier').values_list('identifier', flat=True))
 
         start_from = options['start_from']
 
-        for iid in instance_ids:
+        for iid in sorted(instance_ids):
             if start_from:
                 if iid == start_from:
                     start_from = None
@@ -409,6 +457,7 @@ class Command(BaseCommand):
                 continue
             if options['skip'] and iid in options['skip']:
                 continue
+
             ic = InstanceConfig.objects.get(identifier=iid)
             if ic.has_framework_config():
                 continue
