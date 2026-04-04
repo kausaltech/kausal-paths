@@ -11,29 +11,13 @@ repos:
         require_serial: true
         entry: ruff format --force-exclude
 
-      - id: run-ruff-autofix
-        name: Autofix linting errors with Ruff
-        types: [python]
-        stages: [pre-commit, manual]
-        language: system
-        require_serial: true
-        entry: ruff check --fix --force-exclude
-
       - id: run-ruff
-        name: Run Ruff
+        name: Check with Ruff
         types: [python]
         stages: [pre-commit, manual]
         language: script
         require_serial: true
         entry: kausal_common/development/git-hooks/ruff-pre-commit.sh
-
-      - id: run-pyproject-fmt
-        name: Run Pyproject Fmt
-        types: [toml]
-        files: "^pyproject\\.toml$"
-        stages: [pre-commit, manual]
-        language: system
-        entry: uv tool run pyproject-fmt
 
       - id: check-submodules
         name: Check submodules

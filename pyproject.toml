@@ -25,6 +25,7 @@ dependencies = [
   "django-anymail[mailgun,mailjet,sendgrid]",
   "django-autocomplete-light>=3.12.1",
   "django-celery-results",
+  "django-choices-field>=4",
   "django-cors-headers",
   "django-environ",
   "django-extensions",
@@ -129,7 +130,6 @@ lint = [
   "djangorestframework-stubs",
   "graphene-stubs",
   "mypy",
-  "mypy-baseline",
   "pandas-stubs",
   "pyarrow-stubs",
   "ruff",
@@ -201,7 +201,7 @@ cache_fine_grained = true
 explicit_package_bases = true
 strict_optional = true
 fixed_format_cache = true
-always_true = [ "IS_PATHS", "IS_MYPY" ]
+always_true = [ "IS_PATHS", "IS_MYPY", "HAS_BABEL" ]
 always_false = [ "IS_WATCH" ]
 local_partial_types = true
 allow_redefinition_new = true
@@ -224,7 +224,7 @@ module = [
   "graphene_django.*",
   "grapple.*",
   "gunicorn.*",
-  "gunicorn.*",
+  "gunicorn_prometheus_exporter.*",
   "ipdb.*",
   "laces.*",
   "modelcluster.*",
@@ -232,7 +232,6 @@ module = [
   "modelsearch.*",
   "nanoid.*",
   "networkx.*",
-  "numba.*",
   "oauth2_provider.*",
   "pdbr.*",
   "permissionedforms.*",
@@ -259,6 +258,7 @@ module = [
 ignore_missing_imports = true
 
 [tool.pyright]
+defineConstant = { IS_PATHS = true, IS_WATCH = false, IS_MYPY = false, HAS_BABEL = true }
 # So Pyright resolves packages installed in .venv (Django, etc.).
 venvPath = "."
 venv = ".venv"
@@ -271,7 +271,6 @@ exclude = [
   "**/node_modules",
   ".*",
 ]
-defineConstant = { IS_PATHS = true, IS_WATCH = false, IS_MYPY = false }
 deprecateTypingAliases = true
 enableTypeIgnoreComments = true
 reportAny = false
@@ -314,15 +313,9 @@ filterwarnings = [
   "ignore:.*iscoroutinefunction:DeprecationWarning",
 ]
 
-[tool.pip-tools]
-
 [tool.pep8]
 max-line-length = "120"
 ignore = "E309"
-
-[tool.mypy-baseline]
-baseline_path = ".mypy-baseline.txt"
-preserve_position = false
 
 [tool.pydantic-mypy]
 init_typed = true
