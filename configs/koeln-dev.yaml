@@ -15,8 +15,8 @@ owner: Köln Stadt
 theme_identifier: de-koeln
 target_year: 2035
 model_end_year: 2050
-reference_year: 2008
-minimum_historical_year: 2008 # 2008 when the historical data is in order.
+reference_year: 2019
+minimum_historical_year: 2019
 maximum_historical_year: 2024
 emission_unit: kt_co2e/a
 emission_forecast_from: 2025
@@ -373,6 +373,19 @@ dimensions:
 
 nodes:
 
+- id: emission_reductions # Located here to make this the default outcome node.
+  name_de: Emissionenreduktionen
+  name_en: Emission reductions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  is_outcome: true
+  # color: '#8eeffd'
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: net_emissions
+
 - id: net_emissions
   name_de: Netto Emissionen
   name_en: Net emissions
@@ -386,21 +399,11 @@ nodes:
   - label_de: Emissionen
     label_en: Emissions
     default: true
-    linear_interpolation: true
+    linear_interpolation: false
     is_main_goal: true
     values:
-    - year: 2020
-      value: 8805
-    - year: 2021
-      value: 8805
-    - year: 2029
-      value: 3509
-    - year: 2030
-      value: 2221
     - year: 2035
       value: 271
-    - year: 2050
-      value: 163
 
 - id: weather_correction
   name_de: Witterungsbereinigung
@@ -688,6 +691,7 @@ nodes:
   - id: multiplier
     value: 1
     unit: g/g_co2e
+    is_visible: false
 
 - id: end_energy_emission_factors_local
   name_de: Endenergie Emissionsfaktoren lokal
@@ -705,6 +709,7 @@ nodes:
   - id: multiplier
     value: 1
     unit: g/g_co2e
+    is_visible: false
 
 - id: use_national_electricity_emission_factors
   name_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO)
@@ -891,19 +896,6 @@ nodes:
     - id: vehicle_type
       flatten: true
   output_nodes:
-  - id: net_emissions
-
-- id: emission_reductions
-  name_de: Emissionenreduktionen
-  name_en: Emission reductions
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt_co2e/a
-  is_outcome: true
-  # color: '#8eeffd'
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes:
   - id: net_emissions
 
 - id: consumption_emissions
@@ -1942,6 +1934,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2031,6 +2024,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2107,6 +2101,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2139,6 +2134,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: waste_and_wastewater_emissions
 
@@ -2205,8 +2201,8 @@ actions:
       flatten: true
   params:
   - id: enabled
-    is_customizable: false
-    is_visible: false
+    is_customizable: true
+    is_visible: true
 
 # ---------- DIRECT ACTIONS
 
@@ -2229,6 +2225,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: electricity_actions
 
@@ -2251,6 +2248,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: electricity_actions
 
@@ -2273,6 +2271,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: electricity_actions
 
@@ -2295,6 +2294,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: electricity_actions
 
@@ -2317,6 +2317,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: electricity_actions
 
@@ -2339,6 +2340,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: electricity_actions
 
@@ -2361,6 +2363,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: electricity_actions
 
@@ -2383,6 +2386,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: electricity_actions
 
@@ -2406,6 +2410,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: private_household_actions
 
@@ -2428,6 +2433,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: private_household_actions
 
@@ -2450,6 +2456,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: private_household_actions
 
@@ -2472,6 +2479,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: private_household_actions
 
@@ -2494,6 +2502,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: traffic_actions
 
@@ -2516,6 +2525,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: traffic_actions
 
@@ -2538,6 +2548,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: traffic_actions
 
@@ -2560,6 +2571,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: traffic_actions
 
@@ -2582,6 +2594,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: traffic_actions
 
@@ -2606,6 +2619,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2631,6 +2645,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2656,6 +2671,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2679,6 +2695,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: net_emissions
 
@@ -2703,6 +2720,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2728,6 +2746,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2751,6 +2770,7 @@ actions:
   - id: multiplier
     value: 1
     unit: t_co2e/t
+    is_visible: false
   output_nodes:
   - id: private_household_actions
 
