@@ -131,6 +131,7 @@ class Command(BaseCommand):
 
             if _diff_responses(fn, data, out):
                 self.failures += 1
+                print(f'Differences in response for query {fn}')
                 if self.failures >= self.maxfail:
                     exit(1)
 

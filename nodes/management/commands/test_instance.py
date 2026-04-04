@@ -168,12 +168,10 @@ class CheckState(BaseModel):
     def has_instance(self, instance_id: str) -> bool:
         return any(details.instance_id == instance_id for details in self.instance_details)
 
-    def mark_failed(self, instance: Instance, reason: InstanceFailReason):
-        self.failed_instances.add(instance.id)
-        self.checked_instances.add(instance.id)
-        details = self.get_details_for_instance(instance.id)
-        if not details:
-            details = self.add_instance(instance.id)
+    def mark_failed(self, instance_id: str, reason: InstanceFailReason):
+        self.checked_instances.add(instance_id)
+        self.failed_instances.add(instance_id)
+        details = self.add_instance(instance_id)
         details.failure_at = reason
 
     def mark_success(self, instance: Instance):
@@ -369,10 +367,9 @@ class Command(BaseCommand):
         except Exception as e:
             logger.error('Error initializing instance %s', ic.identifier)
             print_exception(e)
-            if self.compare and self.state.has_instance(ic.identifier):
-                return False
-            self.state.failed_instances.add(ic.identifier)
-            self.state.checked_instances.add(ic.identifier)
+            if self.compare and instance_details.failure_at == 'init':
+                return True
+            self.state.mark_failed(ic.identifier, 'init')
             self.save_state()
             return False
 
@@ -398,7 +395,7 @@ class Command(BaseCommand):
         if succeeded:
             self.state.mark_success(instance)
         else:
-            self.state.mark_failed(instance, 'nodes')
+            self.state.mark_failed(ic.identifier, 'nodes')
         self.save_state()
 
         if True:
