@@ -7,7 +7,7 @@ supported_languages: [en]
 site_url: https://koeln-dev.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 73beccb754153b9b6761e7cdc7ea4cb39574e9e3
+  commit: 85c4cb99dc475e5f500c2dba77ae8f273b937f9d
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Treibhausgasinventar
@@ -381,8 +381,8 @@ nodes:
   unit: kt_co2e/a
   is_outcome: true
   # color: '#8eeffd'
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   input_nodes:
   - id: net_emissions
 
@@ -434,12 +434,14 @@ nodes:
 - id: bau_scenario_emissions
   name_de: BAU-Szenario-Emissionen
   name_en: BAU scenario emissions
-  description_en: The data comes from file Emissionsrechner Gesamt_mit_szenarien_v1-2.xlsx
-    (version 2026-03-16) from sheet 'THG Emissionen mit Strategien'. This data contains
-    the scenario about future emissions under business as usual actions.
-  description_de: Die Daten kommen aus der Datei Emissionsrechner Gesamt_mit_szenarien_v1-2.xlsx
-    (Version 2026-03-16) aus dem Blatt 'THG Emissionen mit Strategien'. Diese Daten enthalten
-    die Szenario über zukünftige Emissionen unter geschäftstauglichen Maßnahmen.
+  description_en: The data comes from file Emissionsrechner 
+    Gesamt_mit_szenarien_v1-2.xlsx (version 2026-03-16) from sheet 'THG 
+    Emissionen mit Strategien'. This data contains the scenario about future 
+    emissions under business as usual actions.
+  description_de: Die Daten kommen aus der Datei Emissionsrechner 
+    Gesamt_mit_szenarien_v1-2.xlsx (Version 2026-03-16) aus dem Blatt 'THG 
+    Emissionen mit Strategien'. Diese Daten enthalten die Szenario über 
+    zukünftige Emissionen unter geschäftstauglichen Maßnahmen.
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
@@ -459,10 +461,10 @@ nodes:
 - id: historical_and_bau_emissions
   name_de: Differenz
   name_en: Historical and BAU scenario emissions
-  description_en: Historical emissions from inventories until 2023 and BAU scenario
-    emissions from 2024 to 2050.
-  description_de: Historische Emissionen aus Inventaren bis 2023 und BAU-Szenario-Emissionen
-    von 2024 bis 2050.
+  description_en: Historical emissions from inventories until 2023 and BAU 
+    scenario emissions from 2024 to 2050.
+  description_de: Historische Emissionen aus Inventaren bis 2023 und 
+    BAU-Szenario-Emissionen von 2024 bis 2050.
   type: generic.CoalesceNode
   quantity: emissions
   unit: kt_co2e/a
@@ -557,9 +559,9 @@ nodes:
 - id: transport_energy_by_energy_carrier
   name_de: Transportenergieverbrauch nach Energieträger
   name_en: Transport energy use by energy carrier
-  description_en: Data from Klimaschutz-Planer 2008-2023 (year 2023 unused
+  description_en: Data from Klimaschutz-Planer 2008-2023 (year 2023 unused 
     because other data is available).
-  description_de: Daten aus Klimaschutz-Planer 2008-2023 (Jahr 2023 nicht
+  description_de: Daten aus Klimaschutz-Planer 2008-2023 (Jahr 2023 nicht 
     verwendet, weil andere Daten verfügbar sind).
   type: generic.GenericNode
   quantity: energy
@@ -584,22 +586,22 @@ nodes:
   - id: transport_energy_by_energy_carrier
     tags: [energy]
   params:
-    formula: sum_into_cat(energy, energy_carrier, [petrol, diesel, bio_petrol,
+    formula: sum_into_cat(energy, energy_carrier, [petrol, diesel, bio_petrol, 
       biodiesel, cng_bio, cng_fossil, kerosene, lpg], fuels)
 
 - id: total_energy_use
   name_de: Gesamtenergieverbrauch
   name_en: Total energy use
-  description_en: 'The data comes from three different datasets from file 
-    Emissionsrechner Gesamt_mit_szenarien_v1-2.xlsx (version 2026-03-16):<ul><li>
-    Stationary energy by type: from sheet "Stationär EEV"</li><li>
-    Transport fuel energy (years 2008 - 2022): from sheet "Verkehr"</li><li>
-    Vehicle energy by type (years 2023 - 2050): from sheet "Verkehr EEV (LKW, PKW, übrige)</li></ul>'
-  description_de: 'Die Daten kommen aus drei verschiedenen Datensätzen aus der Datei 
+  description_en: 'The data comes from three different datasets from file Emissionsrechner
+    Gesamt_mit_szenarien_v1-2.xlsx (version 2026-03-16):<ul><li> Stationary energy
+    by type: from sheet "Stationär EEV"</li><li> Transport fuel energy (years 2008
+    - 2022): from sheet "Verkehr"</li><li> Vehicle energy by type (years 2023 - 2050):
+    from sheet "Verkehr EEV (LKW, PKW, übrige)</li></ul>'
+  description_de: 'Die Daten kommen aus drei verschiedenen Datensätzen aus der Datei
     Emissionsrechner Gesamt_mit_szenarien_v1-2.xlsx (Version 2026-03-16):<ul><li>
-    Stationäre Endenergieverbrauch nach Typ: aus Blatt "Stationär EEV"</li><li>
-    Transportkraftstoffenergie (Jahre 2008 - 2022): aus Blatt "Verkehr"</li><li>
-    Verkehrsenergieverbrauch nach Typ (Jahre 2023 - 2050): aus Blatt "Verkehr EEV (LKW, PKW, übrige)</li></ul>'
+    Stationäre Endenergieverbrauch nach Typ: aus Blatt "Stationär EEV"</li><li> Transportkraftstoffenergie
+    (Jahre 2008 - 2022): aus Blatt "Verkehr"</li><li> Verkehrsenergieverbrauch nach
+    Typ (Jahre 2023 - 2050): aus Blatt "Verkehr EEV (LKW, PKW, übrige)</li></ul>'
   type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
@@ -2030,8 +2032,8 @@ actions:
     is_visible: false
 
 - id: ghg_neutral_administration_scope_1_and_2
-  name_de: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und Scope
-    2)
+  name_de: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und 
+    Scope 2)
   name_en: GHG-Neutral Administration (Direct Influence via Scope 1 and Scope 2)
   description_en: The strategy consists of these measures:<ul><li>Renovation 
     Roadmap for Municipal Facilities</li><li>Transformation of Municipal Vehicle
@@ -2651,7 +2653,8 @@ actions:
     is_visible: false
 
 - id: waste_incineration_co2_reduction_through_ccs_at_avg
-  name_de: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der AVG'
+  name_de: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der
+    AVG'
   name_en: 'Waste Incineration: CO2 Reduction through Carbon Capture at AVG'
   type: simple.GenericAction
   quantity: emissions
