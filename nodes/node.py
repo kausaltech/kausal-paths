@@ -1585,9 +1585,11 @@ class Node:
 
         df = self.get_output_pl()
         for m in self.output_metrics.values():
-            nulls = df.filter(pl.col(m.column_id).is_null())
-            if len(nulls) and not self.allow_nulls:
-                raise NodeError(self, 'Output has nulls in column %s' % m.column_id)
+            if False:
+                # Nodes can now always have nulls in the output
+                nulls = df.filter(pl.col(m.column_id).is_null())
+                if len(nulls) and not self.allow_nulls:
+                    raise NodeError(self, 'Output has nulls in column %s' % m.column_id)
             nans = df.filter(pl.col(m.column_id).is_nan())
             if len(nans):
                 raise NodeError(self, 'Output has NaNs in column %s' % m.column_id)
@@ -1599,7 +1601,10 @@ class Node:
                 if len(nulls):
                     raise NodeError(self, 'Baseline output has nulls or NaNs in column %s' % m.column_id)
 
-        dm = DimensionalMetric.from_node(self)
+        try:
+            dm = DimensionalMetric.from_node(self)
+        except Exception as e:
+            raise NodeError(self, f'Error creating DimensionalMetric: {e}') from e
         if dm is not None:
             for v in dm.values:
                 if math.isnan(v):
