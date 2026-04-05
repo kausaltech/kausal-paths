@@ -1060,6 +1060,9 @@ class DBDataset(DatasetWithFilters):
             })
             df = df.join(id_pivoted, on=[YEAR_COLUMN, *dim_ids], how='left', nulls_equal=True)
 
+        if dim_ids:
+            df = df.with_columns([pl.col(dim_id).cast(pl.Categorical) for dim_id in dim_ids])
+
         meta = ppl.DataFrameMeta(
             units={
                 m['name']: unit_registry.parse_units(m['unit'])
