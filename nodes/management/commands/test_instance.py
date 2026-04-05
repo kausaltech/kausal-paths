@@ -3,7 +3,10 @@ from __future__ import annotations
 import ctypes
 import gc
 import json
+import sys
 import time
+import tracemalloc
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -14,11 +17,14 @@ import loguru
 import polars as pl
 import psutil
 from deepdiff import DeepDiff
+from pandas import DataFrame as PandasDataFrame
+from polars import DataFrame as PolarsDataFrame
 from rich import print
 from rich.console import Console
 
 from kausal_common.logging.errors import print_exception
 from kausal_common.logging.warnings import register_warning_handler
+from kausal_common.perf.perf_context import estimate_size_bytes
 
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.datasets import JSONDataset
@@ -28,6 +34,7 @@ from nodes.models import InstanceConfig
 if TYPE_CHECKING:
     from django.core.management.base import CommandParser
 
+    from nodes.actions.action import ActionNode
     from nodes.context import Context
     from nodes.instance import Instance
     from nodes.node import Node
@@ -35,7 +42,7 @@ if TYPE_CHECKING:
 console = Console()
 
 
-def sort_schema(schema: dict[str, Any]):
+def sort_schema(schema: dict[str, Any], ignore_dim_enums: bool = False):
     pks = schema['primaryKey']
     pks.sort()
 
@@ -43,6 +50,12 @@ def sort_schema(schema: dict[str, Any]):
     fields.sort(key=lambda x: x['name'])
     for field in fields:
         constraints = field.get('constraints')
+        if field['type'] == 'any' and 'constraints' in field and ignore_dim_enums:
+            field['type'] = 'string'
+            field['extDtype'] = 'str'
+            field.pop('constraints', None)
+            field.pop('ordered', None)
+            continue
         if constraints and 'enum' in constraints:
             constraints['enum'].sort()
     return schema
@@ -51,7 +64,7 @@ def sort_schema(schema: dict[str, Any]):
 def get_sorted_rows(table: dict[str, Any]):
     pks: list[str] = table['schema']['primaryKey']
     rows: list[dict[str, Any]] = table['data']
-    rows.sort(key=lambda x: tuple([x[key] for key in pks]))
+    rows.sort(key=lambda x: tuple([x[key] or '' for key in pks]))
     return rows
 
 
@@ -213,6 +226,7 @@ class Command(BaseCommand):
     state_file: Path | None
     check_perf: bool
     model_output_dir: Path | None
+    action_impact_output_dir: Path | None
     trace_rss: bool
     gc_after_instance: bool
     malloc_trim_after_instance: bool
@@ -223,6 +237,13 @@ class Command(BaseCommand):
     all_nodes: bool
     graph_dir: Path | None
     manifest_dir: Path | None
+    trace_object_graph: bool
+    trace_object_limit: int
+    trace_tracemalloc: bool
+    trace_tracemalloc_limit: int
+    trace_new_objects: bool
+    trace_new_object_limit: int
+    limit: int
 
     def add_arguments(self, parser: CommandParser):
         parser.add_argument('instances', metavar='INSTANCE_ID', type=str, nargs='*')
@@ -238,6 +259,7 @@ class Command(BaseCommand):
             dest='compare',
             action='store_true',
             help='Compare outputs to previous run for each instance',
+            default=None,
         )
         parser.add_argument(
             '--spec-only',
@@ -270,6 +292,7 @@ class Command(BaseCommand):
             metavar='DIR',
             type=dir_path,
             action='store',
+            default='./model-outputs',
             help='Directory for test state files',
         )
         parser.add_argument(
@@ -301,6 +324,48 @@ class Command(BaseCommand):
             action='store_true',
             default=False,
             help='Store/compare outputs for all nodes instead of only outcome nodes',
+        )
+        parser.add_argument(
+            '--trace-object-graph',
+            action='store_true',
+            default=False,
+            help='After each instance, force GC and log surviving Instance/Context/Node/Dataset/PathsDataFrame objects',
+        )
+        parser.add_argument(
+            '--trace-object-limit',
+            type=int,
+            default=8,
+            help='Maximum number of retained datasets/dataframes to print in --trace-object-graph mode',
+        )
+        parser.add_argument(
+            '--trace-tracemalloc',
+            action='store_true',
+            default=False,
+            help='Take tracemalloc snapshots before and after each instance and log the largest Python allocation deltas',
+        )
+        parser.add_argument(
+            '--trace-tracemalloc-limit',
+            type=int,
+            default=8,
+            help='Maximum number of tracemalloc diff entries to print in --trace-tracemalloc mode',
+        )
+        parser.add_argument(
+            '--trace-new-objects',
+            action='store_true',
+            default=False,
+            help='Log newly surviving GC-tracked objects after each instance, with allocation traceback when available',
+        )
+        parser.add_argument(
+            '--trace-new-object-limit',
+            type=int,
+            default=8,
+            help='Maximum number of new surviving objects to print in --trace-new-objects mode',
+        )
+        parser.add_argument(
+            '--limit',
+            type=int,
+            default=0,
+            help='Maximum number of instances to check (0 means no limit)',
         )
 
     def load_state(self) -> CheckState:
@@ -443,56 +508,111 @@ class Command(BaseCommand):
         with path.open('w') as f:
             json.dump(payload, f, indent=2)
 
+    # def _schema_exclude_obj(self, obj: Any, path: str) -> bool:
+    #     print(path)
+    #     # if 'constraints' in path:
+    #     #    breakpoint()
+    #     return False
+
+    def handle_output_artifact(
+        self,
+        logger: loguru.Logger,
+        path: Path,
+        current: dict[str, Any],
+        *,
+        artifact_type: str,
+        artifact_id: str,
+        instance_id: str,
+    ) -> NodeFailReason | None:
+        if self.store:
+            logger.info('Storing {artifact_type} to {path}', artifact_type=artifact_type, path=path)
+            if self.dry_run:
+                return None
+            with path.open('w') as f:
+                json.dump(current, f, indent=2)
+
+        if not self.compare:
+            return None
+        if not path.exists():
+            logger.error('No {artifact_type} file found: {path}', artifact_type=artifact_type, path=path)
+            return 'output'
+
+        logger.info('Comparing {artifact_type} to {path}', artifact_type=artifact_type, path=path)
+        with path.open('r') as f:
+            reference = json.load(f)
+
+        schema_diff = DeepDiff(sort_schema(reference['schema']), sort_schema(current['schema']))
+        has_diffs = False
+        if schema_diff:
+            logger.error('Instance {instance_id}, {artifact_id} schema differs', instance_id=instance_id, artifact_id=artifact_id)
+            print(schema_diff)
+            print('Reference schema:')
+            print(reference['schema'])
+            print('Current schema:')
+            print(current['schema'])
+            has_diffs = True
+
+        ref_rows = get_sorted_rows(reference)
+        cur_rows = get_sorted_rows(current)
+        if len(ref_rows) != len(cur_rows):
+            logger.error(
+                'Instance {instance_id}, {artifact_id} row counts differ',
+                instance_id=instance_id,
+                artifact_id=artifact_id,
+            )
+            print(f'Reference rows: {len(ref_rows)}')
+            print(f'Current rows: {len(cur_rows)}')
+            print('Reference rows (first and last 5):\n%s\n...\n%s' % (ref_rows[:5], ref_rows[-5:]))
+            print('Current rows (first and last 5):\n%s\n...\n%s' % (cur_rows[:5], cur_rows[-5:]))
+            has_diffs = True
+
+        diff = DeepDiff(ref_rows, cur_rows, math_epsilon=1e-6)
+        if diff:
+            logger.error('Instance {instance_id}, {artifact_id} rows differ', instance_id=instance_id, artifact_id=artifact_id)
+            print(diff)
+            has_diffs = True
+
+        if has_diffs:
+            return 'compare'
+        return None
+
     def handle_node_output(self, logger: loguru.Logger, node: Node) -> NodeFailReason | None:
         if not self.model_output_dir:
             return None
         instance_path = self.model_output_dir / node.context.instance.id
         path = instance_path / ('%s-%s.json' % (node.context.active_scenario.id, node.id))
-        if self.store and self.model_output_dir:
-            instance_path.mkdir(parents=True, exist_ok=True)
-            df = node.get_output_pl()
-            out = JSONDataset.serialize_df(df)
-            logger.info('Storing output to %s' % path)
-            if self.dry_run:
-                return None
-            with path.open('w') as f:
-                json.dump(out, f, indent=2)
-        if self.compare and self.model_output_dir:
-            if not path.exists():
-                logger.error('No output file found: %s' % path)
-                return 'output'
-            logger.info('Comparing output to %s' % path)
-            with path.open('r') as f:
-                reference = json.load(f)
-            df = node.get_output_pl()
-            current = JSONDataset.serialize_df(df)
-            schema_diff = DeepDiff(sort_schema(reference['schema']), sort_schema(current['schema']))
-            has_diffs = False
-            if schema_diff:
-                logger.error('Instance %s, node %s schema differs' % (node.context.instance.id, node.id))
-                print(schema_diff)
-                print('Reference schema:')
-                print(reference['schema'])
-                print('Current schema:')
-                print(current['schema'])
-                has_diffs = True
-            ref_rows = get_sorted_rows(reference)
-            cur_rows = get_sorted_rows(current)
-            if len(ref_rows) != len(cur_rows):
-                logger.error('Instance %s, node %s row counts' % (node.context.instance.id, node.id))
-                print(f'Reference rows: {len(ref_rows)}')
-                print(f'Current rows: {len(cur_rows)}')
-                print('Reference rows (first and last 5):\n%s\n...\n%s' % (ref_rows[:5], ref_rows[-5:]))
-                print('Current rows (first and last 5):\n%s\n...\n%s' % (cur_rows[:5], cur_rows[-5:]))
-                has_diffs = True
-            diff = DeepDiff(get_sorted_rows(reference), get_sorted_rows(current), math_epsilon=1e-6)
-            if diff:
-                logger.error('Instance %s, node %s rows differ' % (node.context.instance.id, node.id))
-                print(diff)
-                has_diffs = True
-            if has_diffs:
-                return 'compare'
-        return None
+        instance_path.mkdir(parents=True, exist_ok=True)
+        df = node.get_output_pl()
+        out = JSONDataset.serialize_df(df)
+        return self.handle_output_artifact(
+            logger,
+            path,
+            out,
+            artifact_type='output',
+            artifact_id='node %s' % node.id,
+            instance_id=node.context.instance.id,
+        )
+
+    def handle_action_impact_output(self, logger: loguru.Logger, action: ActionNode, node: Node) -> NodeFailReason | None:
+        if not self.action_impact_output_dir:
+            return None
+        instance_path = self.action_impact_output_dir / action.context.instance.id
+        impact_path = instance_path / 'action-impacts'
+        impact_path.mkdir(parents=True, exist_ok=True)
+        instance_details = self.state.get_details_for_instance(action.context.instance.id)
+        assert instance_details is not None
+        path = instance_path / ('%s-%s.json' % (action.id, node.id))
+        instance_path.mkdir(parents=True, exist_ok=True)
+        df = action.compute_impact(node)
+        out = JSONDataset.serialize_df(df)
+        return self.handle_output_artifact(
+            logger,
+            path,
+            out,
+            artifact_type='action impact',
+            artifact_id='action %s -> node %s' % (action.id, node.id),
+            instance_id=action.context.instance.id,
+        )
 
     def check_node(self, node: Node) -> NodeFailReason | None:
         logger = self.logger.bind(node_id=node.id, instance_id=node.context.instance.id)
@@ -518,7 +638,6 @@ class Command(BaseCommand):
                         % node.id
                     )
                     return fail_reason
-                return fail_reason
             if err.__cause__:
                 print_exception(err.__cause__)
             else:
@@ -547,6 +666,106 @@ class Command(BaseCommand):
     def format_mib(num_bytes: int) -> str:
         return f'{num_bytes / (1024 * 1024):.1f} MiB'
 
+    def log_object_graph(self, instance_id: str):
+        if not self.trace_object_graph:
+            return
+
+        from common.polars import PathsDataFrame
+        from nodes.context import Context
+        from nodes.datasets import Dataset
+        from nodes.instance import Instance
+        from nodes.node import Node
+
+        gc.collect()
+        objects = gc.get_objects()
+        instances = [obj for obj in objects if isinstance(obj, Instance)]
+        contexts = [obj for obj in objects if isinstance(obj, Context)]
+        nodes = [obj for obj in objects if isinstance(obj, Node)]
+        datasets = [obj for obj in objects if isinstance(obj, Dataset)]
+        dataframes = [obj for obj in objects if isinstance(obj, PathsDataFrame)]
+
+        owner_map: dict[int, list[str]] = defaultdict(list)
+        for ds in datasets:
+            df = getattr(ds, 'df', None)
+            if isinstance(df, PathsDataFrame):
+                owner_map[id(df)].append(f'Dataset:{ds.id}')
+
+        total_df_bytes = 0
+        df_infos: list[dict[str, Any]] = []
+        for df in dataframes:
+            size_bytes = estimate_size_bytes(df)
+            assert size_bytes is not None
+            total_df_bytes += size_bytes
+            units = df.get_meta().units
+            owner_labels = owner_map.get(id(df), [])
+            df_infos.append({
+                'rows': len(df),
+                'cols': len(df.columns),
+                'size_bytes': size_bytes,
+                'primary_keys': list(df.primary_keys),
+                'units': {col: str(unit) for col, unit in units.items()},
+                'owners': owner_labels,
+            })
+
+        dataset_infos: list[dict[str, Any]] = []
+        for ds in datasets:
+            df = getattr(ds, 'df', None)
+            size_bytes = estimate_size_bytes(df) if isinstance(df, PathsDataFrame) else 0
+            dataset_infos.append({
+                'id': ds.id,
+                'class': type(ds).__name__,
+                'has_df': isinstance(df, PathsDataFrame),
+                'df_bytes': size_bytes,
+            })
+
+        self.logger.info(
+            'Retained objects after {instance_id}: '
+            'instances={instances} contexts={contexts} nodes={nodes} '
+            'datasets={datasets} dataframes={dataframes} dataframe_bytes={dataframe_bytes}',
+            instance_id=instance_id,
+            instances=len(instances),
+            contexts=len(contexts),
+            nodes=len(nodes),
+            datasets=len(datasets),
+            dataframes=len(dataframes),
+            dataframe_bytes=self.format_mib(total_df_bytes),
+        )
+
+        top_datasets = sorted(dataset_infos, key=lambda item: item['df_bytes'], reverse=True)[: self.trace_object_limit]
+        for info in top_datasets:
+            if not info['has_df']:
+                continue
+            self.logger.info(
+                'Retained dataset {dataset_id} ({dataset_class}) df={df_bytes}',
+                dataset_id=info['id'],
+                dataset_class=info['class'],
+                df_bytes=self.format_mib(info['df_bytes']),
+            )
+
+        top_dataframes = sorted(df_infos, key=lambda item: item['size_bytes'], reverse=True)[: self.trace_object_limit]
+        for index, info in enumerate(top_dataframes, start=1):
+            owners = ', '.join(info['owners']) if info['owners'] else '<unknown>'
+            unit_summary = ', '.join(f'{col}={unit}' for col, unit in info['units'].items()) or '<none>'
+            self.logger.info(
+                'Retained dataframe #{index}: rows={rows} cols={cols} '
+                'size={size} owners={owners} primary_keys={primary_keys} units={units}',
+                index=index,
+                rows=info['rows'],
+                cols=info['cols'],
+                size=self.format_mib(info['size_bytes']),
+                owners=owners,
+                primary_keys=info['primary_keys'],
+                units=unit_summary,
+            )
+
+        if contexts:
+            context_ids = Counter(getattr(ctx, 'obj_id', '<unknown>') for ctx in contexts)
+            self.logger.info(
+                'Retained context ids after {instance_id}: {context_ids}',
+                instance_id=instance_id,
+                context_ids=dict(context_ids),
+            )
+
     def log_rss(self, instance_id: str, before_rss: int, after_rss: int, after_gc_rss: int | None = None):
         if self.rss_start_bytes is None:
             self.rss_start_bytes = before_rss
@@ -574,6 +793,126 @@ class Command(BaseCommand):
         else:
             self.rss_prev_bytes = after_rss
 
+    def maybe_log_tracemalloc(
+        self,
+        instance_id: str,
+        before_snapshot: tracemalloc.Snapshot | None,
+    ):
+        if not self.trace_tracemalloc or before_snapshot is None:
+            return
+
+        gc.collect()
+        after_snapshot = tracemalloc.take_snapshot()
+        stats = after_snapshot.compare_to(before_snapshot, 'lineno')
+        positive_stats = [stat for stat in stats if stat.size_diff > 0]
+        total_size_diff = sum(stat.size_diff for stat in positive_stats)
+        total_count_diff = sum(stat.count_diff for stat in positive_stats)
+        self.logger.info(
+            'tracemalloc after {instance_id}: +{size_diff:.1f} MiB across {count_diff} Python allocations',
+            instance_id=instance_id,
+            size_diff=total_size_diff / (1024 * 1024),
+            count_diff=total_count_diff,
+        )
+
+        for index, stat in enumerate(positive_stats[: self.trace_tracemalloc_limit], start=1):
+            frame = stat.traceback[0]
+            self.logger.info(
+                'tracemalloc #{index} after {instance_id}: {source_path}:{source_line} '
+                '+{size_diff:.1f} KiB in {count_diff:+d} blocks',
+                index=index,
+                instance_id=instance_id,
+                source_path=frame.filename,
+                source_line=frame.lineno,
+                size_diff=stat.size_diff / 1024,
+                count_diff=stat.count_diff,
+            )
+
+    @staticmethod
+    def object_sort_key(obj: Any) -> tuple[int, str]:
+        from common.polars import PathsDataFrame
+        from nodes.datasets import Dataset
+
+        if isinstance(obj, PathsDataFrame):
+            size = estimate_size_bytes(obj) or 0
+            return (size, 'PathsDataFrame')
+        if isinstance(obj, Dataset):
+            df = getattr(obj, 'df', None)
+            size = estimate_size_bytes(df) if isinstance(df, PathsDataFrame) else 0
+            return (size or 0, 'Dataset')
+        return (sys.getsizeof(obj), type(obj).__name__)
+
+    def log_new_object_detail(self, instance_id: str, index: int, obj: Any, after_objects: list[Any], top_objects: list[Any]):
+        from common.polars import PathsDataFrame
+        from nodes.datasets import Dataset
+
+        extra: dict[str, Any]
+        if isinstance(obj, PathsDataFrame):
+            extra = {
+                'kind': 'PathsDataFrame',
+                'rows': len(obj),
+                'cols': len(obj.columns),
+                'size': self.format_mib(estimate_size_bytes(obj) or 0),
+                'primary_keys': list(obj.primary_keys),
+            }
+        else:
+            assert isinstance(obj, Dataset)
+            df = getattr(obj, 'df', None)
+            extra = {
+                'kind': f'Dataset:{type(obj).__name__}',
+                'dataset_id': obj.id,
+                'has_df': isinstance(df, PathsDataFrame),
+                'df_size': self.format_mib(estimate_size_bytes(df) or 0) if isinstance(df, PathsDataFrame) else '0.0 MiB',
+            }
+
+        tb = tracemalloc.get_object_traceback(obj) if tracemalloc.is_tracing() else None
+        alloc_site = '<unknown>'
+        if tb and len(tb) > 0:
+            frame = tb[0]
+            alloc_site = f'{frame.filename}:{frame.lineno}'
+
+        referrers = [ref for ref in gc.get_referrers(obj) if ref is not after_objects and ref is not top_objects]
+        referrer_counts = Counter(type(ref).__name__ for ref in referrers)
+        self.logger.info(
+            'New surviving object #{index} after {instance_id}: kind={kind} alloc_site={alloc_site} '
+            'details={details} referrers={referrers}',
+            index=index,
+            instance_id=instance_id,
+            kind=extra.pop('kind'),
+            alloc_site=alloc_site,
+            details=extra,
+            referrers=dict(referrer_counts.most_common(5)),
+        )
+
+    def maybe_log_new_objects(self, instance_id: str, before_object_ids: set[int] | None):
+        if not self.trace_new_objects or before_object_ids is None:
+            return
+
+        from common.polars import PathsDataFrame
+        from nodes.datasets import Dataset
+
+        gc.collect()
+        after_objects = gc.get_objects()
+        new_objects = [obj for obj in after_objects if id(obj) not in before_object_ids]
+        type_counts = Counter(type(obj).__name__ for obj in new_objects)
+        self.logger.info(
+            'New surviving objects after {instance_id}: total={total} top_types={top_types}',
+            instance_id=instance_id,
+            total=len(new_objects),
+            top_types=dict(type_counts.most_common(8)),
+        )
+
+        interesting_objects = [
+            obj for obj in new_objects if isinstance(obj, (PathsDataFrame, Dataset, PolarsDataFrame, PandasDataFrame))
+        ]
+
+        if not interesting_objects:
+            self.logger.info('No new surviving Dataset or PathsDataFrame objects after {instance_id}', instance_id=instance_id)
+            return
+
+        top_objects = sorted(interesting_objects, key=self.object_sort_key, reverse=True)[: self.trace_new_object_limit]
+        for index, obj in enumerate(top_objects, start=1):
+            self.log_new_object_detail(instance_id, index, obj, after_objects, top_objects)
+
     def run_nodes(self, logger: loguru.Logger, ctx: Context) -> bool:
         if self.all_nodes:
             logger.info('Checking all nodes')
@@ -587,6 +926,8 @@ class Command(BaseCommand):
         instance_details = self.state.get_details_for_instance(ctx.instance.id)
         assert instance_details is not None
 
+        failed = False
+
         for node in nodes:
             now = time.time()
             fail_reason = self.check_node(node)
@@ -595,15 +936,78 @@ class Command(BaseCommand):
             if fail_reason and self.compare:
                 # Returns False (failure) if the same node succeeded in the previous run
                 if not details:
-                    return True
+                    continue
                 if details.failure_at and details.failure_at == fail_reason:
-                    return True
+                    continue
+                self.nr_fails += 1
+                if self.maxfail > 0 and self.nr_fails < self.maxfail:
+                    failed = True
+                    continue
                 return False
             self.evaluate_perf(check_time_ms, details)
 
             instance_details.add_node(node, fail_reason, check_time_ms)
             statuses.append(fail_reason)
-        return not any(statuses)
+        return not any(statuses) and not failed
+
+    def run_action_impacts(self, logger: loguru.Logger, ctx: Context) -> bool:  # noqa: C901
+        if ctx.active_scenario.id == 'baseline':
+            return True
+
+        actions = sorted((action for action in ctx.get_actions() if action.is_enabled()), key=lambda action: action.id)
+        if not actions:
+            return True
+
+        statuses: list[NodeFailReason | None] = []
+        failed = False
+
+        for action in actions:
+            outcome_nodes = sorted(action.get_downstream_nodes(only_outcome=True), key=lambda node: node.id)
+            if not outcome_nodes:
+                continue
+
+            action_logger = logger.bind(action_id=action.id)
+            action_logger.info(
+                'Checking action impacts for {action} against {count} outcome nodes',
+                action=action.id,
+                count=len(outcome_nodes),
+            )
+
+            for node in outcome_nodes:
+                impact_logger = action_logger.bind(node_id=node.id)
+                fail_reason: NodeFailReason | None = 'output'
+                try:
+                    fail_reason = self.handle_action_impact_output(impact_logger, action, node)
+                except NodeError as err:
+                    if err.__cause__:
+                        print_exception(err.__cause__)
+                    else:
+                        print_exception(err)
+                    impact_logger.error(
+                        'Error getting action impact for {instance_id}:{action_id}->{node_id}',
+                        instance_id=ctx.instance.id,
+                        action_id=action.id,
+                        node_id=node.id,
+                    )
+                except Exception as err:
+                    print_exception(err)
+                    impact_logger.error(
+                        'Unexpected error getting action impact for {instance_id}:{action_id}->{node_id}',
+                        instance_id=ctx.instance.id,
+                        action_id=action.id,
+                        node_id=node.id,
+                    )
+
+                if fail_reason and self.compare:
+                    self.nr_fails += 1
+                    if self.maxfail > 0 and self.nr_fails < self.maxfail:
+                        failed = True
+                        continue
+                    return False
+
+                statuses.append(fail_reason)
+
+        return not any(statuses) and not failed
 
     def maybe_log_rss(self, instance_id: str, before_rss: int):
         if not self.trace_rss:
@@ -629,19 +1033,28 @@ class Command(BaseCommand):
             )
             self.rss_prev_bytes = after_trim_rss
 
-    def check_instance(self, ic: InstanceConfig):
+    def check_instance(self, ic: InstanceConfig):  # noqa: PLR0915
         logger = self.logger.bind(instance_id=ic.identifier)
         logger.info('Checking instance %s' % ic.identifier)
+        instance_id = ic.identifier
         before_rss = self.get_rss_bytes() if self.trace_rss else 0
-        instance_details = self.state.add_instance(ic.identifier)
+        before_snapshot: tracemalloc.Snapshot | None = None
+        before_object_ids: set[int] | None = None
+        if self.trace_tracemalloc:
+            gc.collect()
+            before_snapshot = tracemalloc.take_snapshot()
+        if self.trace_new_objects:
+            gc.collect()
+            before_object_ids = {id(obj) for obj in gc.get_objects()}
+        instance_details = self.state.add_instance(instance_id)
         try:
             instance = ic.get_instance()
         except Exception as e:
-            logger.error('Error initializing instance %s', ic.identifier)
+            logger.error('Error initializing instance %s' % instance_id)
             print_exception(e)
             if self.compare and instance_details.failure_at == 'init':
                 return True
-            self.state.mark_failed(ic.identifier, 'init')
+            self.state.mark_failed(instance_id, 'init')
             self.save_state()
             return False
 
@@ -656,6 +1069,7 @@ class Command(BaseCommand):
         baseline_scenario = ctx.scenarios.get('baseline', None)
         with ctx.run():
             succeeded = self.run_nodes(logger, ctx)
+            succeeded = self.run_action_impacts(logger, ctx) and succeeded
             self.dump_scenario_manifest(instance)
             if baseline_scenario:
                 logger.info('Checking baseline scenario')
@@ -672,9 +1086,17 @@ class Command(BaseCommand):
         if succeeded:
             self.state.mark_success(instance)
         else:
-            self.state.mark_failed(ic.identifier, 'nodes')
+            self.state.mark_failed(instance_id, 'nodes')
         self.save_state()
-        self.maybe_log_rss(ic.identifier, before_rss)
+
+        baseline_scenario = None
+        ctx = None  # type: ignore[assignment]
+        instance = None  # type: ignore[assignment]
+        instance_details = None
+
+        self.maybe_log_new_objects(instance_id, before_object_ids)
+        self.maybe_log_tracemalloc(instance_id, before_snapshot)
+        self.maybe_log_rss(instance_id, before_rss)
         return succeeded
 
     def handle(self, *args, **options):  # noqa: C901, PLR0912, PLR0915
@@ -683,6 +1105,8 @@ class Command(BaseCommand):
         if self.state_dir:
             self.model_output_dir = self.state_dir / 'outputs'
             self.model_output_dir.mkdir(parents=True, exist_ok=True)
+            self.action_impact_output_dir = self.state_dir / 'action-impacts'
+            self.action_impact_output_dir.mkdir(parents=True, exist_ok=True)
             self.graph_dir = self.state_dir / 'graphs'
             self.graph_dir.mkdir(parents=True, exist_ok=True)
             self.manifest_dir = self.state_dir / 'manifests'
@@ -692,14 +1116,19 @@ class Command(BaseCommand):
         else:
             self.state_file = None
             self.state = CheckState()
+            self.action_impact_output_dir = None
             self.graph_dir = None
             self.manifest_dir = None
 
         self.logger = loguru.logger.bind(name='test_instance')
         register_warning_handler()
+        self.limit = options['limit']
         self.maxfail = options['maxfail']
         self.store = bool(options['store'])
-        self.compare = bool(options['compare'])
+        if options['compare'] is None and not self.store:
+            self.compare = True
+        else:
+            self.compare = bool(options['compare'])
         self.spec_only = bool(options['spec_only'])
         self.dry_run = bool(options['dry_run'])
         self.check_perf = bool(options['check_perf'])
@@ -707,7 +1136,15 @@ class Command(BaseCommand):
         self.gc_after_instance = bool(options['gc_after_instance'])
         self.malloc_trim_after_instance = bool(options['malloc_trim_after_instance'])
         self.all_nodes = bool(options['all_nodes'])
+        self.trace_object_graph = bool(options['trace_object_graph'])
+        self.trace_object_limit = int(options['trace_object_limit'])
+        self.trace_tracemalloc = bool(options['trace_tracemalloc'])
+        self.trace_tracemalloc_limit = int(options['trace_tracemalloc_limit'])
+        self.trace_new_objects = bool(options['trace_new_objects'])
+        self.trace_new_object_limit = int(options['trace_new_object_limit'])
         self.process = psutil.Process()
+        if (self.trace_tracemalloc or self.trace_new_objects) and not tracemalloc.is_tracing():
+            tracemalloc.start(25)
         if self.malloc_trim_after_instance:
             try:
                 libc = ctypes.CDLL('libc.so.6')
@@ -756,6 +1193,14 @@ class Command(BaseCommand):
                     self.logger.error('Maximum number of failures reached, stopping')
                     break
                 continue
+            del ic
+            self.log_object_graph(iid)
+            if self.limit > 0:
+                self.limit -= 1
+                if self.limit == 0:
+                    self.logger.info('Maximum number of instances reached, stopping')
+                    break
+
         if self.nr_fails:
             self.logger.error('Failed {nr_fails} instances', nr_fails=self.nr_fails)
             exit(1)
