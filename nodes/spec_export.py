@@ -29,6 +29,7 @@ from nodes.defs import (
 )
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.goals import NodeGoals
+from nodes.models import NodeEdge
 from nodes.visualizations import NodeVisualizations
 
 if TYPE_CHECKING:
@@ -45,7 +46,7 @@ if TYPE_CHECKING:
     from nodes.defs.node_defs import NodeSpecExtra
     from nodes.edges import Edge, EdgeDimension
     from nodes.instance import Instance
-    from nodes.models import NodeConfig
+    from nodes.models import InstanceConfig, NodeConfig
     from nodes.node import Node
     from nodes.scenario import Scenario
     from params import Parameter
@@ -218,19 +219,54 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
     for edge in node.edges:
         if edge.output_node.id != node.id:
             continue
-        node_idx = node_counts[edge.input_node.id]
-        port_id = uuid_from_identifiers(node.context.instance, [edge.input_node.id, node.id, 'edge', str(node_idx)])
-        src = edge.input_node
-        port = InputPortDef(
-            id=port_id,
-            quantity=src.quantity or None,
-            unit=src.unit,
-            # TODO: multi & dimensions?
-            # supported_dimensions=src.supported_dimensions,
-            # required_dimensions=src.required_dimensions,
-        )
-        port._from_node = edge.input_node.id
-        ports.append(port)
+        from_node = edge.input_node
+        if not edge.metrics:
+            edge_metric_ids = [metric.column_id for metric in from_node.output_metrics.values()]
+        else:
+            edge_metric_ids = edge.metrics
+        # if edge.tags:
+        #     raise ValueError(f'Edge {from_node.id}:{node.id} has tags: {edge.tags}')
+        seen_metric_ids = set[str]()
+        for edge_metric_id in edge_metric_ids:
+            # # First we need to hunt for the right metric; match by column_id
+            # for from_metric_idx, from_metric in from_node.output_metrics.values():
+            #     if metric.column_id == metric_id:
+            #         break
+            # else:
+            #     raise ValueError(f'Metric {metric_id} not found in {from_node.id}')
+            metrics_by_column_id = {metric.column_id: metric for metric in from_node.output_metrics.values()}
+            from_metric = from_node.output_metrics.get(edge_metric_id)
+            if from_metric is None:
+                from_metric = metrics_by_column_id.get(edge_metric_id)
+            if from_metric is None:
+                raise ValueError(f'Metric {edge_metric_id} not found in {from_node.id}')
+
+            #     if len(from_node.output_metrics) != 1:
+            #         raise ValueError(f'Node {from_node.id} has multiple metrics: {from_node.output_metrics.keys()}')
+
+            #     from_metric_id, from_metric = next(iter(from_node.output_metrics.items()))
+            #     if from_metric.column_id != edge_metric_id:
+            #         raise ValueError(f'Metric {edge_metric_id} not found in {from_node.id}')
+            # else:
+            #     from_metric_id = edge_metric_id
+            assert from_metric.id not in seen_metric_ids
+            seen_metric_ids.add(from_metric.id)
+            port_id = uuid_from_identifiers(node.context.instance, [from_node.id, node.id, 'edge', from_metric.id])
+            assert str(port_id) not in edge._to_port_ids
+            edge._to_port_ids.append(str(port_id))
+            assert from_metric.id not in edge._from_output_metric_ids
+            edge._from_output_metric_ids.append(from_metric.id)
+            port = InputPortDef(
+                id=port_id,
+                quantity=from_metric.quantity,
+                unit=from_metric.unit,
+                # TODO: multi & dimensions? tags? transformations?
+                # supported_dimensions=src.supported_dimensions,
+                # required_dimensions=src.required_dimensions,
+            )
+            port._from_node = edge.input_node.id
+            port._edge_metric_id = from_metric.id
+            ports.append(port)
         node_counts[edge.input_node.id] += 1
 
     return ports
@@ -248,16 +284,16 @@ def _export_output_ports(node: Node) -> list[OutputPortDef]:
     ports: list[OutputPortDef] = []
     for metric_id, metric in node.output_metrics.items():
         assert metric.unit is not None
-        ports.append(
-            OutputPortDef(
-                id=uuid_from_identifiers(node.context.instance, [node.id, metric_id]),
-                label=_to_ts(metric.label),
-                unit=metric.unit,
-                quantity=metric.quantity or None,
-                column_id=metric.column_id,
-                is_editable=metric_id not in class_metric_ids,
-            )
+        port = OutputPortDef(
+            id=uuid_from_identifiers(node.context.instance, [node.id, metric_id]),
+            label=_to_ts(metric.label),
+            unit=metric.unit,
+            quantity=metric.quantity or None,
+            column_id=metric.column_id,
+            is_editable=metric_id not in class_metric_ids,
         )
+        port._metric_id = metric_id
+        ports.append(port)
     return ports
 
 
@@ -344,32 +380,30 @@ def serialize_edge_dimension(dim_id: str, ed: EdgeDimension) -> dict[str, Any]:
     return d
 
 
-def _resolve_from_port(edge: Edge, from_node: NodeSpec) -> UUID:
+def _resolve_from_port(edge: Edge, from_node: NodeSpec, metric_id: str) -> OutputPortDef:
     """Determine the output port ID for an edge's source side."""
     assert len(from_node.output_ports) >= 1
     ports = from_node.output_ports
-    if not edge.metrics:
-        # Single-metric node or no metric filter — use the first port
-        return ports[0].id
-
-    # Edge specifies which metric(s) to use — match by quantity
-    assert len(edge.metrics) == 1
-    metric_quantity = edge.metrics[0]
     for port in ports:
-        if port.quantity == metric_quantity:
-            return port.id
+        if port._metric_id == metric_id:
+            return port
 
-    raise ValueError(f'No port found for node {from_node.identifier} metric {metric_quantity}')
+    raise ValueError(
+        f'No port found for node {from_node.identifier} edge {edge.input_node.id}:{edge.output_node.id} metric {metric_id}'
+    )
 
 
-def _resolve_to_port(edge: Edge, to_node: NodeSpec) -> UUID:
+def _resolve_to_port(to_node: NodeSpec, from_node: NodeSpec, metric_id: str) -> InputPortDef:
     """Determine the input port ID for an edge's target side."""
     assert len(to_node.input_ports) >= 1
-    ports = to_node.input_ports
-    for port in ports:
-        if port._from_node == edge.input_node.id:
-            return port.id
-    raise ValueError(f'No port found for node {to_node.identifier} edge to {edge.input_node.id}')
+    for to_port in to_node.input_ports:
+        if to_port._from_node != from_node.identifier:
+            continue
+        if to_port._edge_metric_id == metric_id:
+            return to_port
+    raise ValueError(
+        f'No input port found for node {to_node.identifier} for edge from {from_node.identifier}, metric {metric_id}'
+    )
 
 
 def edge_to_transforms(edge: Edge) -> dict[str, Any]:
@@ -384,8 +418,8 @@ def edge_to_transforms(edge: Edge) -> dict[str, Any]:
         result['from_dimensions'] = [serialize_edge_dimension(dim_id, ed) for dim_id, ed in edge.from_dimensions.items()]
     if edge.to_dimensions:
         result['to_dimensions'] = [serialize_edge_dimension(dim_id, ed) for dim_id, ed in edge.to_dimensions.items()]
-    if edge.metrics:
-        result['metrics'] = list(edge.metrics)
+    # if edge.metrics:
+    #    result['metrics'] = list(edge.metrics)
     return result
 
 
@@ -394,7 +428,48 @@ def edge_to_transforms(edge: Edge) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -> None:  # noqa: PLR0915
+def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, NodeConfig]) -> int:
+    # Recreate edges
+    NodeEdge.objects.filter(instance=ic).delete()
+    edge_count = 0
+    edge_objs = []
+    for node in ctx.nodes.values():
+        for edge in node.edges:
+            if edge.input_node.id != node.id:
+                continue  # only process outgoing edges from this node
+            from_nc = node_configs.get(edge.input_node.id)
+            to_nc = node_configs.get(edge.output_node.id)
+            if not from_nc:
+                raise ValueError(f'Source node {edge.input_node.id} not found in node configs')
+            if not to_nc:
+                raise ValueError(f'Target node {edge.output_node.id} not found in node configs')
+            assert len(edge._to_port_ids)
+            for from_metric_id, to_port_id in zip(edge._from_output_metric_ids, edge._to_port_ids, strict=True):
+                from_port = _resolve_from_port(edge, from_nc.spec, from_metric_id)
+                for to_port in to_nc.spec.input_ports:
+                    if str(to_port.id) == to_port_id:
+                        break
+                else:
+                    raise ValueError(
+                        f'No input port found for node {to_nc.spec.identifier} for edge from '
+                        + f'{from_nc.spec.identifier}, metric {from_metric_id}'
+                    )
+                edge_obj = NodeEdge(
+                    instance=ic,
+                    from_node=from_nc,
+                    from_port=from_port.id,
+                    to_node=to_nc,
+                    to_port=to_port.id,
+                    transformations=edge_to_transforms(edge),
+                    tags=list(edge.tags) if edge.tags else [],
+                )
+                edge_objs.append(edge_obj)
+            edge_count += 1
+    NodeEdge.objects.bulk_create(edge_objs)
+    return edge_count
+
+
+def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -> None:
     """
     Load an instance from YAML and sync its spec to the DB.
 
@@ -404,7 +479,7 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
 
     from nodes.dataset_placeholders import sync_instance_dataset_placeholders
     from nodes.instance_loader import InstanceLoader
-    from nodes.models import InstanceConfig, NodeConfig, NodeEdge
+    from nodes.models import InstanceConfig, NodeConfig
 
     if yaml_path is None:
         yaml_path = Path(f'configs/{instance_id}.yaml').resolve()
@@ -417,7 +492,6 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
     loader = InstanceLoader.from_yaml(yaml_path)
     instance = loader.instance
     ctx = loader.context
-
     with transaction.atomic(), set_i18n_context(instance.default_language, instance.supported_languages):
         instance_spec = export_instance_spec(instance)
         ic, _created = InstanceConfig.objects.get_or_create(identifier=instance.id)
@@ -452,27 +526,7 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
             stale_nodes.update(is_stale=True)
             # NodeConfig.objects.filter(instance=ic, identifier__in=stale_ids, pages__isnull=True).defer('spec').delete()
 
-        # Recreate edges
-        NodeEdge.objects.filter(instance=ic).delete()
-        edge_count = 0
-        for node in ctx.nodes.values():
-            for edge_obj in node.edges:
-                if edge_obj.input_node.id != node.id:
-                    continue  # only process outgoing edges from this node
-                from_nc = node_configs.get(edge_obj.input_node.id)
-                to_nc = node_configs.get(edge_obj.output_node.id)
-                if from_nc and to_nc:
-                    from_port = _resolve_from_port(edge_obj, from_nc.spec)
-                    NodeEdge.objects.create(
-                        instance=ic,
-                        from_node=from_nc,
-                        to_node=to_nc,
-                        from_port=from_port,
-                        to_port=_resolve_to_port(edge_obj, to_nc.spec),
-                        transformations=edge_to_transforms(edge_obj),
-                        tags=list(edge_obj.tags) if edge_obj.tags else [],
-                    )
-                    edge_count += 1
+        edge_count = _update_edges(ic, ctx, node_configs)
 
         created_placeholder_ids = sync_instance_dataset_placeholders(ic, ctx)
 

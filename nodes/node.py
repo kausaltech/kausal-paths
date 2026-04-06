@@ -44,6 +44,7 @@ if typing.TYPE_CHECKING:
     from contextlib import AbstractContextManager
 
     import loguru
+    from rich.repr import RichReprResult
     from sentry_sdk.tracing import Span
 
     from kausal_common.i18n.pydantic import I18nString, I18nStringInstance, TranslatedString
@@ -132,6 +133,13 @@ class NodeMetric:
             self.column_id = validate_identifier(column_id, mixed=True)
         else:
             self.column_id = None  # type: ignore
+
+    def __rich_repr__(self) -> RichReprResult:
+        yield 'id', self.id
+        yield 'column_id', self.column_id
+        yield 'unit', str(self.unit)
+        yield 'quantity', self.quantity
+        yield 'label', self.label
 
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> Self:

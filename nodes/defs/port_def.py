@@ -28,8 +28,9 @@ class InputPortDef(I18nBaseModel):
     required_dimensions: UniqueList[DimensionRef] = Field(default_factory=list)
     supported_dimensions: UniqueList[DimensionRef] = Field(default_factory=list)
 
-    # This is used only temporarily at export time to store the node reference.
+    # These are used only temporarily at export time to store the node reference and metric ID.
     _from_node: NodeRef | None = PrivateAttr(default=None)
+    _edge_metric_id: str | None = PrivateAttr(default=None)
 
 
 class OutputPortDef(I18nBaseModel):
@@ -50,5 +51,7 @@ class OutputPortDef(I18nBaseModel):
     is_editable: bool = True
     """Whether the user can modify this port in the model editor."""
     dimensions: UniqueList[DimensionRef] = Field(default_factory=list)
+
+    _metric_id: str | None = PrivateAttr(default=None)
 
     _node: 'Node | None' = PrivateAttr(default=None)

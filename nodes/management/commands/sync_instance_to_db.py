@@ -76,6 +76,7 @@ class Command(BaseCommand):
         node_specs: list[tuple[str, NodeSpec]] = list(node_qs.values_list('identifier', 'spec'))
         dataset_repo_url = instance_spec.dataset_repo.url if instance_spec.dataset_repo else None
         self.stdout.write('\n--- Instance Spec ---')
+        self.stdout.write(f'  ID: {instance_id}')
         self.stdout.write(f'  Years: {instance_spec.years.model_dump()}')
         self.stdout.write(f'  Dataset repo: {dataset_repo_url or "(none)"}')
         self.stdout.write(f'  Features: {instance_spec.features}')

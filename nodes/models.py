@@ -1030,7 +1030,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         )
 
     def for_serialization(self) -> Self:
-        return self.with_spec().annotate_ports()
+        return self.active().with_spec().annotate_ports()
 
 
 _NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from enum import StrEnum
+from functools import cached_property
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
@@ -322,3 +323,11 @@ class NodeSpec(I18nBaseModel):
 
     # Legacy fields — see NodeSpecExtra docstring
     extra: NodeSpecExtra = NodeSpecExtra()
+
+    @cached_property
+    def output_port_by_id(self) -> dict[UUID, OutputPortDef]:
+        return {port.id: port for port in self.output_ports}
+
+    @cached_property
+    def input_port_by_id(self) -> dict[UUID, InputPortDef]:
+        return {port.id: port for port in self.input_ports}

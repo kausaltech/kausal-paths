@@ -124,6 +124,7 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
     @staticmethod
     def input_ports(root: 'NodeSpecType') -> list[InputPortType]:
         nc = _require_nc(root)
+        node = root._node
         spec = root._original_model
         edge_bindings = nc.port_edge_bindings
         dataset_bindings = nc.port_dataset_bindings
@@ -132,10 +133,10 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
         for edge in edge_bindings:
             if edge.to_ref.node_id != spec.identifier:
                 continue
-            sb_edge = NodeEdgeType.from_binding(edge)
+            sb_edge = NodeEdgeType.from_binding(edge, node=node)
             edges_by_id.setdefault(edge.to_ref.port_id, []).append(sb_edge)
         for dataset in dataset_bindings:
-            sb_dataset = DatasetPortType.from_binding(dataset)
+            sb_dataset = DatasetPortType.from_binding(dataset, node=node)
             assert sb_dataset.node_ref.node_id == spec.identifier
             edges_by_id.setdefault(dataset.node_ref.port_id, []).append(sb_dataset)
         for port in spec.input_ports:

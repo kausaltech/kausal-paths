@@ -10,6 +10,8 @@ Edges and DatasetPorts are still read from their Django models.
 
 from __future__ import annotations
 
+import json
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any, cast
 
 from django.db.models import F
@@ -95,7 +97,9 @@ def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> list[Nod
     node_configs = ic.nodes_for_serialization
     edges = list(ic.edges.annotate(from_node_identifier=F('from_node__identifier'), to_node_identifier=F('to_node__identifier')))
 
-    output_edges, _input_edges = _build_edge_maps(cast('list[EdgeWithNodeIdentifiers]', edges))
+    nodes_by_identifier: dict[str, NodeConfig] = {nc.identifier: nc for nc in node_configs}
+
+    output_edges, _input_edges = _build_edge_maps(cast('list[EdgeWithNodeIdentifiers]', edges), nodes_by_identifier)
 
     nodes_list: list[dict[str, Any]] = []
     actions_list: list[dict[str, Any]] = []
@@ -284,37 +288,54 @@ if TYPE_CHECKING:
         to_node_identifier: str
 
 
-def _build_edge_maps(  # noqa: C901
+def _build_edge_maps(  # noqa: C901, PLR0912
     edges: Sequence[EdgeWithNodeIdentifiers],
+    nodes_by_identifier: dict[str, NodeConfig],
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
     output_edges: dict[str, list[dict[str, Any]]] = {}
     input_edges: dict[str, list[dict[str, Any]]] = {}
 
+    edge_metrics: defaultdict[str, defaultdict[str, list[tuple[str, EdgeWithNodeIdentifiers]]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
+
     for edge in edges:
-        from_id = edge.from_node_identifier
-        to_id = edge.to_node_identifier
+        from_spec = nodes_by_identifier[edge.from_node_identifier].spec
+        from_port = from_spec.output_port_by_id[edge.from_port]
+        assert from_port.column_id is not None
+        edge_metrics[edge.from_node_identifier][edge.to_node_identifier].append((from_port.column_id, edge))
 
-        output_entry: dict[str, Any] = {'id': to_id}
-        input_entry: dict[str, Any] = {'id': from_id}
+    for from_node_id, to_nodes in edge_metrics.items():
+        for to_node_id, metric_tuples in to_nodes.items():
+            from_entry: dict[str, Any] = {'id': from_node_id}
+            to_entry: dict[str, Any] = {'id': to_node_id}
 
-        if edge.tags:
-            for entry in (output_entry, input_entry):
-                entry['tags'] = edge.tags
-        # transformations is stored as {'from_dimensions': [...], 'to_dimensions': [...]}
-        if edge.transformations:
-            transforms = edge.transformations
-            if isinstance(transforms, dict):
-                if transforms.get('from_dimensions'):
-                    for entry in (output_entry, input_entry):
-                        entry['from_dimensions'] = transforms['from_dimensions']
-                if transforms.get('to_dimensions'):
-                    for entry in (output_entry, input_entry):
-                        entry['to_dimensions'] = transforms['to_dimensions']
-                if transforms.get('metrics'):
-                    for entry in (output_entry, input_entry):
-                        entry['metrics'] = transforms['metrics']
+            metrics_entry: list[str] = []
+            _, first_edge = metric_tuples[0]
+            transformations = first_edge.transformations
+            tags = first_edge.tags
+            for metric_column_id, edge in metric_tuples:
+                if transformations:
+                    assert json.dumps(edge.transformations) == json.dumps(transformations)
+                if tags:
+                    assert tuple(edge.tags) == tuple(tags)
+                metrics_entry.append(metric_column_id)
 
-        output_edges.setdefault(from_id, []).append(output_entry)
-        input_edges.setdefault(to_id, []).append(input_entry)
+            for entry in (from_entry, to_entry):
+                entry['metrics'] = metrics_entry
+
+            if tags:
+                for entry in (from_entry, to_entry):
+                    entry['tags'] = tags
+            if transformations:
+                if transformations.get('from_dimensions'):
+                    for entry in (from_entry, to_entry):
+                        entry['from_dimensions'] = transformations['from_dimensions']
+                if transformations.get('to_dimensions'):
+                    for entry in (from_entry, to_entry):
+                        entry['to_dimensions'] = transformations['to_dimensions']
+
+            output_edges.setdefault(from_node_id, []).append(to_entry)
+            input_edges.setdefault(to_node_id, []).append(from_entry)
 
     return output_edges, input_edges

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 import strawberry as sb
@@ -11,6 +11,7 @@ from nodes.actions.action import ActionNode
 from nodes.context import Context
 from nodes.defs.binding_def import DatasetPortBindingDef
 from nodes.defs.instance_defs import ActionGroup
+from nodes.graphql.types.metric import DimensionalMetricType
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
@@ -18,6 +19,9 @@ if TYPE_CHECKING:
     from nodes.defs.binding_def import EdgeBindingDef
     from nodes.graphql.types.node import ActionNodeType
     from nodes.models import NodeEdge
+    from nodes.node import Node
+
+from nodes.metric import DimensionalMetric
 
 
 @sb.type
@@ -40,15 +44,38 @@ class NodeEdgeType:
     transformations: sb.scalars.JSON
     tags: list[str]
 
+    _node: sb.Private['Node | None'] = None
+    """The target node that this edge feeds into (set when resolving input port bindings)."""
+
+    @sb.field(graphql_type=list[DimensionalMetricType])
+    @staticmethod
+    def data(root: 'NodeEdgeType') -> list[DimensionalMetric]:
+        """Compute the upstream node's output as seen through this edge."""
+        if root._node is None:
+            return []
+        ctx = root._node.context
+        source_node = ctx.nodes.get(str(root.from_ref.node_id))
+        if source_node is None:
+            return []
+        for edge in source_node.edges:
+            if edge.output_node == root._node and edge.input_node == source_node:
+                break
+        else:
+            return []
+        result = DimensionalMetric.from_edge_input(source_node, edge)
+        return [result] if result is not None else []
+
     @classmethod
-    def from_binding(cls, binding: EdgeBindingDef) -> NodeEdgeType:
-        return NodeEdgeType(
+    def from_binding(cls, binding: EdgeBindingDef, node: Node | None = None) -> NodeEdgeType:
+        edge = NodeEdgeType(
             id=sb.ID(str(binding.id)),
             from_ref=NodePortRef(node_id=sb.ID(str(binding.from_ref.node_id)), port_id=binding.from_ref.port_id),
             to_ref=NodePortRef(node_id=sb.ID(str(binding.to_ref.node_id)), port_id=binding.to_ref.port_id),
             transformations=sb.scalars.JSON([]),
             tags=binding.tags,
         )
+        edge._node = node
+        return edge
 
     @classmethod
     def from_node_edge(cls, edge: NodeEdge) -> NodeEdgeType:
@@ -68,40 +95,6 @@ class DatasetExternalRefType:
     repo_url: str = sb.field(description='URL of the external dataset repository.')
     commit: str | None = sb.field(description='Repository commit used for this dataset snapshot.')
     dataset_id: str = sb.field(description='Path-like identifier of the dataset inside the external repository.')
-
-
-@sb.type
-class DatasetRefType:
-    """Lightweight reference to a dataset object bound in the model."""
-
-    id: sb.ID = sb.field(description='Globally unique identifier of the dataset object.')
-    identifier: str | None = sb.field(description='Scoped identifier of the dataset object.')
-    is_external_placeholder: bool = sb.field(
-        description='Whether the dataset object is only a placeholder without imported datapoints.'
-    )
-    external_ref: DatasetExternalRefType | None = sb.field(
-        description='External source reference for externally backed datasets.'
-    )
-
-    @classmethod
-    def from_binding(cls, binding: DatasetPortBindingDef) -> DatasetRefType | None:
-        if binding.dataset_uuid is None:
-            return None
-        return DatasetRefType(
-            id=sb.ID(str(binding.dataset_uuid)),
-            identifier=_external_dataset_id_from_dataset(binding),
-            is_external_placeholder=binding.dataset_is_external_placeholder,
-            external_ref=_dataset_external_ref_to_gql(binding.dataset_external_ref),
-        )
-
-    @classmethod
-    def from_model(cls, dataset: DatasetModel) -> DatasetRefType:
-        return DatasetRefType(
-            id=sb.ID(str(dataset.uuid)),
-            identifier=dataset.identifier,
-            is_external_placeholder=dataset.is_external_placeholder,
-            external_ref=_dataset_external_ref_to_gql(dataset.external_ref),
-        )
 
 
 @sb.type
@@ -137,23 +130,64 @@ class DatasetPortType:
 
     id: sb.ID = sb.field(description='Globally unique identifier of this dataset-port binding.')
     node_ref: NodePortRef = sb.field(description='Reference to the node that owns the bound input port.')
-    dataset: DatasetRefType | None = sb.field(description='Dataset object bound to this port.')
     metric: DatasetMetricRefType | None = sb.field(description='Dataset metric object bound to this port.')
     external_dataset_id: str | None = sb.field(
         description='Stable identifier of the external dataset, usually the dataset repo path without extension.'
     )
     external_metric_id: str | None = sb.field(description='Stable identifier of the metric within the external dataset.')
 
+    _node: sb.Private['Node | None'] = None
+    """The node that owns the bound input port (set when resolving input port bindings)."""
+
+    _dataset: sb.Private[Any] = None
+
+    @sb.field(graphql_type=Annotated['DatasetType', sb.lazy('datasets.graphql.types')] | None)  # type: ignore[name-defined]  # noqa: F821
+    @staticmethod
+    def dataset(root: 'DatasetPortType') -> Any:
+        """Dataset object bound to this port."""
+        return root._dataset
+
+    @sb.field(graphql_type=list[DimensionalMetricType])
+    @staticmethod
+    def data(root: 'DatasetPortType') -> list[DimensionalMetric]:
+        """Return the dataset's data as DimensionalMetric objects (one per metric column), filtered as the node sees it."""
+        if root._node is None:
+            return []
+        # Match by external_dataset_id (string identifier) or by dataset UUID
+        ds_id = root.external_dataset_id
+        ds_uuid = str(root._dataset.id) if root._dataset else None
+        matched_ds = None
+        for ds in root._node.input_dataset_instances:
+            if ds_id is not None and ds.id == ds_id:
+                matched_ds = ds
+                break
+            if ds_uuid is not None:
+                from nodes.datasets import DBDataset
+
+                if isinstance(ds, DBDataset) and ds.db_dataset_obj is not None and str(ds.db_dataset_obj.uuid) == ds_uuid:
+                    matched_ds = ds
+                    break
+        if matched_ds is None:
+            return []
+        try:
+            return DimensionalMetric.from_input_dataset(matched_ds, root._node.context)
+        except Exception:
+            return []
+
     @classmethod
-    def from_binding(cls, binding: DatasetPortBindingDef) -> DatasetPortType:
-        return DatasetPortType(
+    def from_binding(cls, binding: DatasetPortBindingDef, node: Node | None = None) -> DatasetPortType:
+        from datasets.graphql.types import DatasetType
+
+        port = DatasetPortType(
             id=sb.ID(str(binding.id)),
             node_ref=NodePortRef(node_id=sb.ID(str(binding.node_ref.node_id)), port_id=binding.node_ref.port_id),
-            dataset=DatasetRefType.from_binding(binding),
             metric=DatasetMetricRefType.from_binding(binding),
             external_dataset_id=binding.external_dataset_id,
             external_metric_id=binding.external_metric_id,
         )
+        port._dataset = DatasetType.from_binding(binding)
+        port._node = node
+        return port
 
 
 InputPortBinding = Annotated[NodeEdgeType | DatasetPortType, sb.union('InputPortBindingUnion')]

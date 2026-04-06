@@ -15,6 +15,7 @@ from paths import gql
 from paths.graphql_helpers import pass_context
 from paths.graphql_types import UnitType
 
+from datasets.graphql import DatasetType
 from nodes.defs import InstanceSpec
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.goals import GoalActualValue, NodeGoalsEntry
@@ -30,7 +31,6 @@ from .graph import (
     ActionGroupType,
     DatasetMetricRefType,
     DatasetPortType,
-    DatasetRefType,
     InstanceHostname,
     NodeEdgeType,
     NodePortRef,
@@ -232,17 +232,29 @@ class InstanceType:
     @staticmethod
     def dataset_ports(root: Instance) -> list[DatasetPortType]:
         dataset_ports = root.config.dataset_ports.select_related('node', 'dataset', 'metric')
-        return [
-            DatasetPortType(
+        result = []
+        for dp in dataset_ports:
+            port = DatasetPortType(
                 id=sb.ID(str(dp.uuid)),
                 node_ref=NodePortRef(node_id=sb.ID(str(dp.node.identifier)), port_id=dp.port_id),
-                dataset=DatasetRefType.from_model(dp.dataset),
                 metric=DatasetMetricRefType.from_model(dp.metric),
                 external_dataset_id=_external_dataset_id_from_dataset(dp.dataset),
                 external_metric_id=dp.metric.name,
             )
-            for dp in dataset_ports
-        ]
+            port._dataset = DatasetType.from_model(dp.dataset)
+            result.append(port)
+        return result
+
+    @sb.field(graphql_type=list[DatasetType])
+    @staticmethod
+    def datasets(root: Instance) -> list[DatasetType]:
+        """All DB-backed datasets scoped to this instance."""
+        from kausal_common.datasets.models import Dataset as DatasetModel
+
+        ic = root.config
+        qs = DatasetModel.objects.get_queryset().for_instance_config(ic).select_related('schema')
+        # FIXME: Permission checks
+        return [DatasetType.from_model(ds) for ds in qs]
 
     @sb.field(graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.schema')]])
     @staticmethod

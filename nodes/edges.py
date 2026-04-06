@@ -64,8 +64,9 @@ class Edge:
     to_dimensions: dict[str, EdgeDimension] | None = None
     metrics: list[str] = field(default_factory=list)
 
-    _input_port_id: str | None = None
-    _output_port_id: str | None = None
+    # These are used only temporarily at export time to store the port IDs.
+    _to_port_ids: list[str] = field(default_factory=list, init=False, repr=False)
+    _from_output_metric_ids: list[str] = field(default_factory=list, init=False, repr=False)
 
     def __post_init__(self):
         self.tags = self.tags.copy()

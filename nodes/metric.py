@@ -35,7 +35,10 @@ if TYPE_CHECKING:
     import polars as pl
 
     from common import polars as ppl
+    from nodes.context import Context
+    from nodes.datasets import Dataset as RuntimeDataset
     from nodes.defs.port_def import OutputPortDef
+    from nodes.edges import Edge
     from nodes.scenario import Scenario
     from nodes.visualizations import VisualizationNodeOutput
 
@@ -401,6 +404,55 @@ class DimensionalMetric(BaseModel):
         else:
             raise ValueError(f'Metric for column {port.column_id} not found')
         return from_node_output_metric(node, metric, scenarios=(), include_input_nodes=False, port=port)
+
+    @classmethod
+    def from_input_dataset(
+        cls,
+        dataset: RuntimeDataset,
+        context: Context,
+    ) -> list[DimensionalMetric]:
+        """Build one DimensionalMetric per metric column in a node's input dataset."""
+        from .metric_gen import metric_from_dataframe
+
+        df = dataset.get_copy()
+        meta = df.get_meta()
+        return [
+            metric_from_dataframe(
+                df,
+                metric_col=col,
+                context=context,
+                metric_id=f'{dataset.id}:{col}',
+                metric_name=col,
+            )
+            for col in meta.metric_cols
+        ]
+
+    @classmethod
+    def from_edge_input(
+        cls,
+        source_node: Node,
+        edge: Edge,
+    ) -> DimensionalMetric | None:
+        """Build a DimensionalMetric from the upstream node's output as seen through an edge."""
+        from .metric_gen import metric_from_dataframe
+
+        try:
+            df = source_node.get_output_pl()
+        except Exception:
+            return None
+        df = source_node._get_output_for_node(df, edge)
+        meta = df.get_meta()
+        metric_cols = meta.metric_cols
+        if not metric_cols:
+            return None
+        col = metric_cols[0]
+        return metric_from_dataframe(
+            df,
+            metric_col=col,
+            context=source_node.context,
+            metric_id=f'{source_node.id}:{col}',
+            metric_name=str(source_node.name),
+        )
 
     @classmethod
     def from_node(
