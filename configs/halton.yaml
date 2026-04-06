@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://halton.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 35f192871c7f3a0946c9907f03a778dafbf1795b
+  commit: fda39eb245ee6683673c8e545dfb22f72fb0455d
   dvc_remote: kausal-s3
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
@@ -22,6 +22,9 @@ features:
   use_datasets_from_db: true
 
 action_groups:
+- id: green_fleet_strategy
+  name: Green Fleet Strategy
+  color: '#E15759'
 - id: system_retrofits
   name: System Retrofits
   color: '#B07AA1'
@@ -1046,6 +1049,8 @@ dimensions:
     label: WWT Digester Biogas Combustion (WEAO)
   - id: propane_combustion
     label: Propane Combustion
+  - id: ev_fleet
+    label: EV Fleet
 
   # ----- Leased Asset
   - id: 232_south_service_rd_e_b_health_center
@@ -1882,11 +1887,13 @@ nodes:
 
 - id: ems_fleet_emissions
   name: EMS Fleet Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [energy_carrier, vehicle_fleet, department, scope]
   output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  params:
+    formula: mobile_fuel_combustion * other_fuel_emission_factors * ems_green_fleet_strategy
   input_nodes:
   - id: other_fuel_emission_factors
     to_dimensions:
@@ -1898,11 +1905,13 @@ nodes:
 
 - id: pw_fleet_emissions
   name: Public Works Fleet Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [energy_carrier, vehicle_fleet, department, scope]
   output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  params:
+    formula: mobile_fuel_combustion * other_fuel_emission_factors * pw_green_fleet_strategy
   input_nodes:
   - id: other_fuel_emission_factors
     to_dimensions:
@@ -2253,6 +2262,14 @@ nodes:
   - id: pw_purchased_electricity_inventory
   - id: pw_purchased_electricity_reduction
 
+- id: pw_purchased_electricity_ev_fleet
+  name: Public Works Purchased Electricity (EV Fleet)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+
 - id: biosolids_management_centre_electricity_emissions
   name: Biosolids Management Centre Electricity Emissions
   short_name: Biosolids Management Centre Emissions
@@ -2505,6 +2522,20 @@ nodes:
       categories: [well]
       flatten: true
 
+- id: pw_ev_fleet_electricity_emissions
+  name: Public Works EV Fleet Electricity Emissions
+  short_name: EV Fleet Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity_ev_fleet
+
 - id: pw_electricity_emissions
   name: Public Works Electricity Emissions
   short_name: Public Works Emissions
@@ -2528,6 +2559,7 @@ nodes:
   - id: wtp_electricity_emissions
   - id: pumping_station_electricity_emissions
   - id: well_electricity_emissions
+  - id: pw_ev_fleet_electricity_emissions
 
 # ---------- EMS
 
@@ -2636,9 +2668,17 @@ nodes:
   - id: ems_purchased_electricity_renewables_reduction
     tags: [reduction]
 
-- id: ems_electricity_emissions
-  name: EMS Electricity Emissions
-  short_name: EMS Emissions
+- id: ems_purchased_electricity_ev_fleet
+  name: EMS Purchased Electricity (EV Fleet)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+
+- id: ems_facility_electricity_emissions
+  name: EMS Facility Electricity Emissions
+  short_name: Facility Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
@@ -2649,6 +2689,32 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   - id: ems_purchased_electricity
+
+- id: ems_ev_fleet_electricity_emissions
+  name: EMS EV Fleet Electricity Emissions
+  short_name: EV Fleet Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: ems_purchased_electricity_ev_fleet
+
+- id: ems_electricity_emissions
+  name: EMS Electricity Emissions
+  short_name: EMS Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: ems_facility_electricity_emissions
+  - id: ems_ev_fleet_electricity_emissions
 
 # ---------- HCHC
 
@@ -3467,9 +3533,17 @@ nodes:
     - column: asset_class
     - column: property
 
-- id: hrps_electricity_emissions
-  name: HRPS Electricity Emissions
-  short_name: Purchased Electricity Emissions
+- id: hrps_purchased_electricity_ev_fleet
+  name: HRPS Purchased Electricity (EV Fleet)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+
+- id: hrps_facility_electricity_emissions
+  name: HRPS Facility Electricity Emissions
+  short_name: Facility Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
@@ -3480,6 +3554,32 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   - id: hrps_purchased_electricity
+
+- id: hrps_ev_fleet_electricity_emissions
+  name: HRPS EV Fleet Electricity Emissions
+  short_name: EV Fleet Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hrps_purchased_electricity_ev_fleet
+
+- id: hrps_electricity_emissions
+  name: HRPS Electricity Emissions
+  short_name: Purchased Electricity Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: hrps_facility_electricity_emissions
+  - id: hrps_ev_fleet_electricity_emissions
 
 - id: hrps_stationary_fuel_combustion
   name: HRPS Stationary Fuel Combustion
@@ -3531,11 +3631,13 @@ nodes:
 - id: hrps_fleet_emissions
   name: HRPS Fleet Emissions
   short_name: Fleet Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [energy_carrier, vehicle_fleet, department, scope]
   output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  params:
+    formula: hrps_fleet_fuel_combustion * other_fuel_emission_factors * hrps_green_fleet_strategy
   input_nodes:
   - id: other_fuel_emission_factors
     to_dimensions:
@@ -3593,6 +3695,105 @@ nodes:
     forecast_from: 2025
 
 actions:
+- id: ems_green_fleet_strategy
+  name: EMS Green Fleet Strategy
+  group: green_fleet_strategy
+  type: simple.AdditiveAction
+  input_dimensions: [department, asset, energy_carrier, scope]
+  output_dimensions: [department, asset, energy_carrier, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: halton/green_fleet_strategy_actions
+    forecast_from: 2025
+    filters:
+    - dimension: department
+      categories: [emergency_medical_services_ems]
+  output_metrics:
+  - id: energy
+    unit: kWh/a
+    quantity: energy
+  - id: reduction
+    unit: '%'
+    quantity: fraction
+  output_nodes:
+  - id: ems_purchased_electricity_ev_fleet
+    metrics: [energy]
+  - id: ems_fleet_emissions
+    metrics: [reduction]
+    tags: [complement]
+    from_dimensions:
+    - id: asset
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: hrps_green_fleet_strategy
+  name: HRPS Green Fleet Strategy
+  group: green_fleet_strategy
+  type: simple.AdditiveAction
+  input_dimensions: [department, asset, energy_carrier, scope]
+  output_dimensions: [department, asset, energy_carrier, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: halton/green_fleet_strategy_actions
+    forecast_from: 2025
+    filters:
+    - dimension: department
+      categories: [halton_regional_police_service_hrps]
+  output_metrics:
+  - id: energy
+    unit: kWh/a
+    quantity: energy
+  - id: reduction
+    unit: '%'
+    quantity: fraction
+  output_nodes:
+  - id: hrps_purchased_electricity_ev_fleet
+    metrics: [energy]
+  - id: hrps_fleet_emissions
+    metrics: [reduction]
+    tags: [complement]
+    from_dimensions:
+    - id: asset
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: pw_green_fleet_strategy
+  name: Public Works Green Fleet Strategy
+  group: green_fleet_strategy
+  type: simple.AdditiveAction
+  input_dimensions: [department, asset, energy_carrier, scope]
+  output_dimensions: [department, asset, energy_carrier, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: halton/green_fleet_strategy_actions
+    forecast_from: 2025
+    filters:
+    - dimension: department
+      categories: [public_works]
+  output_metrics:
+  - id: energy
+    unit: kWh/a
+    quantity: energy
+  - id: reduction
+    unit: '%'
+    quantity: fraction
+  output_nodes:
+  - id: pw_purchased_electricity_ev_fleet
+    metrics: [energy]
+  - id: pw_fleet_emissions
+    metrics: [reduction]
+    tags: [complement]
+    from_dimensions:
+    - id: asset
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
 - id: cs_system_1_retrofits
   name: Corporate Services System 1 Retrofits (Heating and Cooling)
   type: simple.AdditiveAction
