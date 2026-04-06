@@ -940,7 +940,7 @@ class Node:
                 new_cols.append((dim_id, cat.id))
 
             if new_cols:
-                exprs = [pl.lit(cat).alias(dim_id) for dim_id, cat in new_cols]
+                exprs = [pl.lit(cat).cast(pl.Categorical).alias(dim_id) for dim_id, cat in new_cols]
                 df = df.with_columns(exprs)
                 for dim_id, _ in new_cols:
                     meta.primary_keys.append(dim_id)
@@ -1580,7 +1580,7 @@ class Node:
 
         return result_df
 
-    def check(self):
+    def check(self):  # noqa: C901
         from nodes.metric import DimensionalMetric
 
         df = self.get_output_pl()

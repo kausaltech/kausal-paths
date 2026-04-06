@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import io
 import json
 import re
@@ -8,7 +9,8 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, cast
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import numpy as np
 import orjson
@@ -35,6 +37,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class Dataset(ABC):
+    _class_hash: ClassVar[bytes | None] = None
+
     id: str
     tags: list[str]
     output_dimensions: list[dict[str, Any] | str] | None = field(default=None, kw_only=True)
@@ -49,6 +53,10 @@ class Dataset(ABC):
         if getattr(self, 'unit', None) is None:
             self.unit = None
 
+    def __init_subclass__(cls, **kwargs: Any):
+        super().__init_subclass__(**kwargs)
+        cls._class_hash = cls.get_class_hash()
+
     @abstractmethod
     def load(self, context: Context) -> ppl.PathsDataFrame:
         raise NotImplementedError()
@@ -57,10 +65,28 @@ class Dataset(ABC):
     def hash_data(self, context: Context) -> dict[str, Any]:
         raise NotImplementedError()
 
+    @classmethod
+    def get_class_hash(cls) -> bytes:
+        h = hashlib.md5(usedforsecurity=False)
+        for parent_class in cls.mro():
+            if parent_class is object:
+                continue
+            try:
+                class_file = inspect.getfile(parent_class)
+            except TypeError:
+                continue
+            mod_mtime = Path(class_file).stat().st_mtime_ns
+            h.update(str(mod_mtime).encode('ascii'))
+        return h.digest()
+
     def calculate_hash(self, context: Context) -> bytes:
         if self.hash is not None:
             return self.hash
-        d = {'id': self.id, 'interpolate': self.interpolate}
+        class_hash = type(self)._class_hash
+        if class_hash is None:
+            class_hash = type(self).get_class_hash()
+            type(self)._class_hash = class_hash
+        d = {'id': self.id, 'interpolate': self.interpolate, 'class_hash': class_hash.hex()}
         d.update(self.hash_data(context))
         h = hashlib.md5(orjson.dumps(d, option=orjson.OPT_SORT_KEYS), usedforsecurity=False).digest()
         self.hash = h

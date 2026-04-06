@@ -509,7 +509,7 @@ class PathsExt:
             mismatch_str = ''
         return mismatch_str
 
-    def join_over_index(  # noqa: C901, PLR0912
+    def join_over_index(  # noqa: C901, PLR0912, PLR0915
         self,
         other: ppl.PathsDataFrame,
         how: Literal['left', 'outer', 'inner'] = 'left',
@@ -526,10 +526,30 @@ class PathsExt:
                 raise Exception('invalid access')
             raise ValueError('No shared primary keys between joined DFs')
 
+        other_schema = other.schema
+
+        def is_string_like(dtype: pl.DataType) -> bool:
+            return dtype in (pl.Utf8, pl.String, pl.Utf8(), pl.String())
+
+        cast_exprs: list[pl.Expr] = []
+        left_cast_exprs: list[pl.Expr] = []
+
         for col in join_on:
             sdt = sdf[col].dtype
-            if sdt != other[col].dtype:
-                other = other.with_columns([pl.col(col).cast(sdt)])
+            odt = other_schema[col]
+            target_dtype = sdt
+            if sdt != odt:
+                if (sdt == pl.Categorical and is_string_like(odt)) or (odt == pl.Categorical and is_string_like(sdt)):
+                    target_dtype = pl.Categorical
+                    if sdt != target_dtype:
+                        left_cast_exprs.append(pl.col(col).cast(target_dtype))
+                cast_exprs.append(pl.col(col).cast(target_dtype))
+
+        if left_cast_exprs:
+            sdf = sdf.with_columns(left_cast_exprs)
+        if cast_exprs:
+            other = other.with_columns(cast_exprs)
+
         pl_how: pl_types.JoinStrategy = how
         if how == 'outer':
             pl_how = 'outer_coalesce'
