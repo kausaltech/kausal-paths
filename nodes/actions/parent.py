@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import polars as pl
 
@@ -10,11 +10,13 @@ from nodes.exceptions import NodeError
 from .action import ActionNode
 
 if TYPE_CHECKING:
+    import networkx as nx
+
     from common import polars as ppl
     from params import Parameter
 
 
-def first_common_descendant(G, sources, target):
+def first_common_descendant(G: nx.DiGraph[str], sources: list[str], target: str) -> str | None:  # noqa: N803
     # Thank you, ChatGPT
     import networkx as nx
 

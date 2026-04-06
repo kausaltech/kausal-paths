@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
+from uuid import NAMESPACE_URL, uuid5
 
 from django.utils.translation import gettext_lazy as _
 
@@ -21,6 +22,7 @@ from .pipeline.compat import PipelineCompatibleNode
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from typing import Any
+    from uuid import UUID
 
     import pandas as pd
 
@@ -31,6 +33,10 @@ if TYPE_CHECKING:
     from params.base import Parameter
 
 EMISSION_UNIT = 'kg'
+
+
+def _runtime_port_id(node_id: str, index: int) -> UUID:
+    return uuid5(NAMESPACE_URL, f'kausal-paths:{node_id}:pipeline-input:{index}')
 
 
 class SimpleNode(Node):
@@ -241,7 +247,7 @@ Missing values are assumed to be zero.""")
         if spec.input_ports and len(spec.input_ports) == len(self.input_nodes):
             port_ids = [port.id for port in spec.input_ports]
         else:
-            port_ids = [f'input_{idx}' for idx, _ in enumerate(self.input_nodes)]
+            port_ids = [_runtime_port_id(self.id, idx) for idx, _ in enumerate(self.input_nodes)]
 
         port_bindings: dict[NodePortIdentifier, PipelinePortBinding] = {
             port_id: InputNodeBinding(node=input_node.id) for port_id, input_node in zip(port_ids, self.input_nodes, strict=True)
@@ -473,7 +479,7 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         if spec.input_ports and len(spec.input_ports) == len(self.input_nodes):
             port_ids = [port.id for port in spec.input_ports]
         else:
-            port_ids = [f'input_{idx}' for idx, _ in enumerate(self.input_nodes)]
+            port_ids = [_runtime_port_id(self.id, idx) for idx, _ in enumerate(self.input_nodes)]
 
         port_bindings: dict[NodePortIdentifier, PipelinePortBinding] = {
             port_id: InputNodeBinding(node=input_node.id) for port_id, input_node in zip(port_ids, self.input_nodes, strict=True)

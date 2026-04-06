@@ -394,7 +394,7 @@ def edge_to_transforms(edge: Edge) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -> None:
+def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -> None:  # noqa: PLR0915
     """
     Load an instance from YAML and sync its spec to the DB.
 

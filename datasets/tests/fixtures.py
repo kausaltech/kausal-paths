@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(scope='module')
-def dataset_test_data(django_db_setup, django_db_blocker):
+def dataset_test_data(django_db_setup, django_db_blocker):  # noqa: PLR0915
     import uuid
 
     with django_db_blocker.unblock():

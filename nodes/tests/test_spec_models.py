@@ -4,8 +4,10 @@ from pydantic import ValidationError
 
 import pytest
 
-from nodes.actions.action import ImpactGraphType, ImpactOverview, ImpactOverviewSpec
-from nodes.normalization import Normalization, NormalizationSpec
+from nodes.actions.action import ImpactOverview
+from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
+from nodes.defs.instance_defs import NormalizationSpec
+from nodes.normalization import Normalization
 from nodes.tests.factories import ContextFactory, NodeFactory
 from nodes.visualizations import NodeVisualizations
 

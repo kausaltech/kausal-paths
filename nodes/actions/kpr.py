@@ -8,7 +8,7 @@ from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from params import StringParameter
 from params.param import NumberParameter
 
-from . import ActionNode as BaseActionNode
+from .action import ActionNode as BaseActionNode
 
 
 class ActionNode(BaseActionNode):

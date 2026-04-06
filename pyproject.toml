@@ -180,7 +180,7 @@ environments = [
 
 [tool.ruff]
 extend = "./kausal_common/configs/ruff.toml"
-extend-exclude = [ "*.ipynb" ]
+extend-exclude = [ "*.ipynb", "notebooks/*" ]
 
 [tool.mypy]
 plugins = [

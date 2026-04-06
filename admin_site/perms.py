@@ -12,6 +12,7 @@ from wagtail.models import PAGE_PERMISSION_CODENAMES, GroupPagePermission
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from django.db.models import Model
     from django_stubs_ext import StrPromise
 
     from nodes.models import InstanceConfig
@@ -20,14 +21,14 @@ if TYPE_CHECKING:
 ALL_MODEL_PERMS = ('view', 'change', 'delete', 'add')
 
 
-def _get_perm_objs(model, perms):
+def _get_perm_objs(model: Model, perms: Sequence[str]) -> list[Permission]:
     content_type = ContentType.objects.get_for_model(model)
     perms = ['%s_%s' % (x, model._meta.model_name) for x in perms]
     perm_objs = Permission.objects.filter(content_type=content_type, codename__in=perms)
     return list(perm_objs)
 
 
-def _model_perms(app_label: str, models: str | Sequence[str], perms: Sequence[str]):
+def _model_perms(app_label: str, models: str | Sequence[str], perms: Sequence[str]) -> tuple[str, list[str]]:
     if isinstance(models, str):
         models = [models]
 
@@ -83,7 +84,7 @@ class Role:
             content_type__model='page',
         )
         root_page = instance.site.root_page
-        grp_perms = root_page.group_permissions.filter(group=group)
+        grp_perms = root_page.group_permissions.filter(group=group)  # pyright: ignore[reportAttributeAccessIssue]
         old_perms = set(grp_perms.values_list('permission', flat=True))
         new_perms = set(Permission.objects.filter(**filt, codename__in=self.page_perms))
         if old_perms != new_perms:

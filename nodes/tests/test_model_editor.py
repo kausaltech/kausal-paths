@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
+from uuid import NAMESPACE_URL, uuid5
 
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
@@ -11,17 +12,18 @@ import pytest
 
 from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
 
-from nodes.actions.action import ImpactGraphType, ImpactOverviewSpec
 from nodes.actions.parent import ParentActionNode
 from nodes.constants import DecisionLevel
-from nodes.defs.instance_defs import ActionGroup, InstanceSpec, YearsSpec
+from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
+from nodes.defs.instance_defs import ActionGroup, InstanceSpec, NormalizationSpec, YearsSpec
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
-from nodes.normalization import NormalizationSpec
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from paths.tests.graphql import PathsTestClient
 
     from nodes.actions.action import ActionNode
@@ -46,6 +48,10 @@ class ModelEditorParentActionNode(ParentActionNode):
     pass
 
 
+def _port_uuid(name: str) -> UUID:
+    return uuid5(NAMESPACE_URL, f'kausal-paths:model-editor-port:{name}')
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -57,7 +63,7 @@ def _make_node_spec(**overrides: Any) -> NodeSpec:
     defaults: dict[str, Any] = {
         'kind': NodeKind.SIMPLE,
         'type_config': SimpleConfig(node_class=SIMPLE_NODE_CLASS),
-        'output_ports': [OutputPortDef(id='default', unit=unit, quantity='emissions')],
+        'output_ports': [OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
     }
     defaults.update(overrides)
     return NodeSpec(**defaults)
@@ -328,7 +334,7 @@ def test_runtime_rebuild_preserves_action_group_and_zero_no_effect_value(db_inst
                 group='grp',
                 no_effect_value=0.0,
             ),
-            output_ports=[OutputPortDef(id='default', unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
         ),
     )
 
@@ -348,7 +354,7 @@ def test_runtime_rebuild_preserves_action_parent_link(db_instance_config: Instan
         spec=NodeSpec(
             kind=NodeKind.ACTION,
             type_config=ActionConfig(node_class=PARENT_ACTION_NODE_CLASS, decision_level=DecisionLevel.MUNICIPALITY),
-            output_ports=[OutputPortDef(id='default', unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
         ),
     )
     NodeConfigFactory.create(
@@ -360,7 +366,7 @@ def test_runtime_rebuild_preserves_action_parent_link(db_instance_config: Instan
             type_config=ActionConfig(
                 node_class=ACTION_NODE_CLASS, decision_level=DecisionLevel.MUNICIPALITY, parent='parent_action'
             ),
-            output_ports=[OutputPortDef(id='default', unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
         ),
     )
 
@@ -504,14 +510,14 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     nc_a = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='node_a',
-        spec=_make_node_spec(output_ports=[OutputPortDef(id='default', unit=unit, quantity='emissions')]),
+        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')]),
     )
     nc_b = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='node_b',
         spec=_make_node_spec(
-            input_ports=[InputPortDef(id='input', unit=unit, quantity='emissions')],
-            output_ports=[OutputPortDef(id='default', unit=unit, quantity='emissions')],
+            input_ports=[InputPortDef(id=_port_uuid('input'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
         ),
     )
 
@@ -532,7 +538,7 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     assert edge['__typename'] == 'NodeEdgeType'
     assert edge['fromRef']['nodeId'] == 'node_a'
     assert edge['toRef']['nodeId'] == 'node_b'
-    assert edge['toRef']['portId'] == 'input'
+    assert edge['toRef']['portId'] == str(_port_uuid('input'))
 
     # Delete
     edge_obj = NodeEdge.objects.get(instance=db_instance_config, from_node=nc_a, to_node=nc_b)
@@ -691,11 +697,11 @@ query ModelInstance($id: ID!) {
 
 
 def _make_input_port(id: str = 'input', unit: str = 'kt/a', quantity: str = 'emissions', multi: bool = True) -> InputPortDef:
-    return InputPortDef(id=id, unit=unit_registry.parse_units(unit), quantity=quantity, multi=multi)
+    return InputPortDef(id=_port_uuid(id), unit=unit_registry.parse_units(unit), quantity=quantity, multi=multi)
 
 
 def _make_output_port(id: str = 'default', unit: str = 'kt/a', quantity: str = 'emissions') -> OutputPortDef:
-    return OutputPortDef(id=id, unit=unit_registry.parse_units(unit), quantity=quantity)
+    return OutputPortDef(id=_port_uuid(id), unit=unit_registry.parse_units(unit), quantity=quantity)
 
 
 def test_model_instance_query(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -707,8 +713,8 @@ def test_model_instance_query(gql_client: PathsTestClient, db_instance_config: I
         instance=db_instance_config,
         from_node=source,
         to_node=target,
-        from_port='output',
-        to_port='input',
+        from_port=_port_uuid('default'),
+        to_port=_port_uuid('input'),
         transformations=[],
         tags=[],
     )
@@ -757,9 +763,9 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
         NodeEdge.objects.create(
             instance=db_instance_config,
             from_node=nodes[f'node_{idx - 1}'],
-            from_port='default',
+            from_port=_port_uuid('default'),
             to_node=nodes[f'node_{idx}'],
-            to_port='input',
+            to_port=_port_uuid('input'),
             transformations=[],
             tags=[],
         )
@@ -767,9 +773,9 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
             NodeEdge.objects.create(
                 instance=db_instance_config,
                 from_node=nodes[f'node_{idx - 2}'],
-                from_port='default',
+                from_port=_port_uuid('default'),
                 to_node=nodes[f'node_{idx}'],
-                to_port='input',
+                to_port=_port_uuid('input'),
                 transformations=[],
                 tags=[],
             )
@@ -778,7 +784,7 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
         DatasetPort.objects.create(
             instance=db_instance_config,
             node=nodes[f'node_{idx}'],
-            port_id='input',
+            port_id=_port_uuid('input'),
             dataset=dataset,
             metric=metric,
         )
@@ -923,9 +929,9 @@ def test_create_edge_rejects_second_binding_for_non_multi_port(gql_client: Paths
     NodeEdge.objects.create(
         instance=db_instance_config,
         from_node=src_a,
-        from_port='default',
+        from_port=_port_uuid('default'),
         to_node=dst,
-        to_port='input',
+        to_port=_port_uuid('input'),
         transformations=[],
         tags=[],
     )
@@ -938,8 +944,8 @@ def test_create_edge_rejects_second_binding_for_non_multi_port(gql_client: Paths
                 'instanceId': str(db_instance_config.pk),
                 'fromNodeId': 'src_b',
                 'toNodeId': 'dst',
-                'fromPort': 'default',
-                'toPort': 'input',
+                'fromPort': str(_port_uuid('default')),
+                'toPort': str(_port_uuid('input')),
             },
         },
         assert_error_message='already has a binding',
@@ -970,9 +976,9 @@ def test_create_edge_allows_second_binding_for_multi_port(gql_client: PathsTestC
     NodeEdge.objects.create(
         instance=db_instance_config,
         from_node=src_a,
-        from_port='default',
+        from_port=_port_uuid('default'),
         to_node=dst,
-        to_port='input',
+        to_port=_port_uuid('input'),
         transformations=[],
         tags=[],
     )
@@ -985,15 +991,15 @@ def test_create_edge_allows_second_binding_for_multi_port(gql_client: PathsTestC
                 'instanceId': str(db_instance_config.pk),
                 'fromNodeId': 'src_b',
                 'toNodeId': 'dst',
-                'fromPort': 'default',
-                'toPort': 'input',
+                'fromPort': str(_port_uuid('default')),
+                'toPort': str(_port_uuid('input')),
             },
         },
     )
     edge = data['instanceEditor']['createEdge']
     assert edge['__typename'] == 'NodeEdgeType'
     assert edge['fromRef']['nodeId'] == 'src_b'
-    assert edge['toRef']['portId'] == 'input'
+    assert edge['toRef']['portId'] == str(_port_uuid('input'))
 
 
 def test_delete_node_roundtrip(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

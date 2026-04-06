@@ -143,7 +143,7 @@ def test_forecast_metric_type(
 def test_node_type(graphql_client_query_data, additive_action, instance_config):
     from nodes.models import _pytest_instances
 
-    node_config = NodeConfigFactory(instance=instance_config, identifier=additive_action.id)  # noqa
+    NodeConfigFactory.create(instance=instance_config, identifier=additive_action.id)
     instance = _pytest_instances[instance_config.identifier]
     ctx = instance.context
     assert ctx.instance == instance

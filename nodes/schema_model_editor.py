@@ -6,6 +6,7 @@ model instances (NodeConfig, NodeEdge, ActionGroup, Scenario).
 """
 
 from typing import TYPE_CHECKING, Annotated, TypeGuard, cast
+from uuid import UUID
 
 import strawberry as sb
 from django.db import transaction
@@ -61,7 +62,7 @@ def _resolve_model_instance(ic: InstanceConfig) -> InstanceType:
     return cast('InstanceType', instance)
 
 
-def _resolve_runtime_node(ic: InstanceConfig, node_id: int) -> 'Node':
+def _resolve_runtime_node(ic: InstanceConfig, node_id: int) -> Node:
     from nodes.models import NodeConfig
 
     try:
@@ -76,23 +77,33 @@ def _resolve_runtime_node(ic: InstanceConfig, node_id: int) -> 'Node':
     return node
 
 
-def _get_output_port(nc: NodeConfig, port_id: str) -> OutputPortDef | None:
+def _parse_port_id(info: gql.Info, raw_port_id: str, *, field_name: str) -> UUID:
+    try:
+        return UUID(raw_port_id)
+    except ValueError as exc:
+        raise GraphQLValidationError(info, f'"{field_name}" must be a UUID, got "{raw_port_id}"') from exc
+
+
+def _get_output_port(nc: NodeConfig, port_id: UUID) -> OutputPortDef | None:
     for port in nc.spec.output_ports:
         if port.id == port_id:
             return port
     return None
 
 
-def _get_input_port(nc: NodeConfig, port_id: str) -> InputPortDef | None:
+def _get_input_port(nc: NodeConfig, port_id: UUID) -> InputPortDef | None:
     for port in nc.spec.input_ports:
         if port.id == port_id:
             return port
     return None
 
 
-def _resolve_target_port(info: gql.Info, to_node: NodeConfig, to_port: str | None) -> str:
+def _resolve_target_port(info: gql.Info, to_node: NodeConfig, to_port: str | None) -> UUID:
     if to_port is not None:
-        return to_port
+        port_id = _parse_port_id(info, to_port, field_name='toPort')
+        if _get_input_port(to_node, port_id) is not None:
+            return port_id
+        raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
     input_ports = to_node.spec.input_ports
     if len(input_ports) == 1:
         return input_ports[0].id
@@ -102,19 +113,20 @@ def _resolve_target_port(info: gql.Info, to_node: NodeConfig, to_port: str | Non
     )
 
 
-def _resolve_source_port(info: gql.Info, from_node: NodeConfig, from_port: str) -> str:
-    if _get_output_port(from_node, from_port) is not None:
-        return from_port
+def _resolve_source_port(info: gql.Info, from_node: NodeConfig, from_port: str) -> UUID:
     output_ports = from_node.spec.output_ports
     if from_port == 'output' and len(output_ports) == 1:
         return output_ports[0].id
+    port_id = _parse_port_id(info, from_port, field_name='fromPort')
+    if _get_output_port(from_node, port_id) is not None:
+        return port_id
     raise GraphQLValidationError(
         info,
         f'Output port "{from_port}" does not exist on node "{from_node.identifier}"',
     )
 
 
-def _validate_edge_ports(info: gql.Info, from_node: NodeConfig, from_port: str, to_node: NodeConfig, to_port: str) -> None:
+def _validate_edge_ports(info: gql.Info, from_node: NodeConfig, from_port: UUID, to_node: NodeConfig, to_port: UUID) -> None:
     from nodes.models import DatasetPort, NodeEdge
 
     source_port = _get_output_port(from_node, from_port)
@@ -424,8 +436,8 @@ class InstanceEditorMutation:
 
         return NodeEdgeType(
             id=sb.ID(str(edge.pk)),
-            from_ref=NodePortRef(node_id=sb.ID(str(from_node.identifier)), port_id=sb.ID(edge.from_port)),
-            to_ref=NodePortRef(node_id=sb.ID(str(to_node.identifier)), port_id=sb.ID(edge.to_port)),
+            from_ref=NodePortRef(node_id=sb.ID(str(from_node.identifier)), port_id=edge.from_port),
+            to_ref=NodePortRef(node_id=sb.ID(str(to_node.identifier)), port_id=edge.to_port),
             transformations=edge.transformations,
             tags=edge.tags or [],
         )

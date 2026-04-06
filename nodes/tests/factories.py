@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
+from uuid import NAMESPACE_URL, uuid5
 
 from factory import Factory, LazyAttribute, RelatedFactory, SelfAttribute, Sequence, SubFactory, post_generation
 from factory.django import DjangoModelFactory
 
 from kausal_common.i18n.pydantic import TranslatedString
 
-from nodes.actions import ActionNode
+from nodes.actions.action import ActionNode
 from nodes.actions.simple import AdditiveAction
 from nodes.context import Context
 from nodes.datasets import FixedDataset
@@ -24,9 +25,15 @@ from orgs.models import Organization
 from orgs.tests.factories import OrganizationFactory
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from factory.builder import Resolver
 
     from nodes.defs.instance_defs import DatasetRepoSpec
+
+
+def _port_id(label: str) -> UUID:
+    return uuid5(NAMESPACE_URL, f'kausal-paths:test-port:{label}')
 
 
 class ContextFactory(Factory[Context]):
@@ -122,7 +129,7 @@ class NodeConfigFactory(DjangoModelFactory[NodeConfig]):
     spec = NodeSpec(
         kind=NodeKind.SIMPLE,
         type_config=SimpleConfig(node_class='nodes.simple.SimpleNode'),
-        output_ports=[OutputPortDef(id='default', unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
+        output_ports=[OutputPortDef(id=_port_id('default'), unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
     )
 
 

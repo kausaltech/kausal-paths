@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import operator
-import re
 from typing import TYPE_CHECKING, Any, cast
 
 import polars as pl
@@ -37,6 +36,8 @@ from .ops.base import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from paths.identifiers import NodePortIdentifier
+
     from nodes.node import Node
 
     from .ir import (
@@ -66,7 +67,7 @@ OPERATORS = {
 class PipelineExecutor:
     """Execute pipeline operations against a live runtime node."""
 
-    def __init__(self, node: Node, *, port_bindings: Mapping[str, PipelinePortBinding] | None = None):
+    def __init__(self, node: Node, *, port_bindings: Mapping[NodePortIdentifier, PipelinePortBinding] | None = None):
         self.node = node
         self.port_bindings = dict(port_bindings or {})
         self._results: dict[str, RuntimeValue] = {}
@@ -196,31 +197,25 @@ class PipelineExecutor:
             return Quantity(value.value, value.unit)
         raise NodeError(self.node, f'Unsupported pipeline input type: {type(value).__name__}')
 
-    def _resolve_port(self, port_id: str) -> RuntimeValue:
+    def _resolve_port(self, port_id: NodePortIdentifier) -> RuntimeValue:
         binding = self.port_bindings.get(port_id)
         if binding is not None:
             return self._resolve_port_binding(binding)
 
-        tagged_node = self.node.get_input_node(tag=port_id, required=False)
-        if tagged_node is not None:
-            return tagged_node.get_output_pl(target_node=self.node)
-
-        tagged_dataset = self.node.get_input_dataset_pl(tag=port_id, required=False)
-        if tagged_dataset is not None:
-            return tagged_dataset
-
-        match = re.fullmatch(r'input_(\d+)', port_id)
-        if match:
-            index = int(match.group(1))
-            if 0 <= index < len(self.node.input_nodes):
+        input_ports = self.node.spec.input_ports
+        for index, port in enumerate(input_ports):
+            if port.id != port_id:
+                continue
+            if len(self.node.input_nodes) == len(input_ports):
                 return self.node.input_nodes[index].get_output_pl(target_node=self.node)
-            raise NodeError(self.node, f"Input port '{port_id}' refers to missing input node index {index}")
+            if len(self.node.input_dataset_instances) == len(input_ports):
+                return self.node.input_dataset_instances[index].get_copy()
+            raise NodeError(
+                self.node,
+                f"Input port '{port_id}' requires an explicit runtime binding for node {self.node.id}",
+            )
 
-        for input_node in self.node.input_nodes:
-            if input_node.id == port_id:
-                return input_node.get_output_pl(target_node=self.node)
-
-        raise NodeError(self.node, f"Input port '{port_id}' is not bound for node {self.node.id}")
+        raise NodeError(self.node, f"Input port '{port_id}' does not exist on node {self.node.id}")
 
     def _resolve_port_binding(self, binding: PipelinePortBinding) -> RuntimeValue:
         if isinstance(binding, InputNodeBinding):
@@ -422,7 +417,7 @@ def execute_pipeline_spec(
     node: Node,
     spec: PipelineSpec,
     *,
-    port_bindings: Mapping[str, PipelinePortBinding] | None = None,
+    port_bindings: Mapping[NodePortIdentifier, PipelinePortBinding] | None = None,
 ) -> PDF:
     executor = PipelineExecutor(node, port_bindings=port_bindings)
     return executor.execute(spec)
