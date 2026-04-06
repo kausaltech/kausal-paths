@@ -22,7 +22,7 @@ class DjangoPythonFilter(watchfiles.PythonFilter):
         if 'site-packages' in ignore_dirs:
             # We want to watch site-packages, too
             ignore_dirs.remove('site-packages')
-        for path in ('e2e-tests', 'query-store'):
+        for path in ('e2e-tests', 'query-store', '__generated__'):
             if path not in ignore_dirs:
                 ignore_dirs.append(path)
         self.ignore_dirs = ignore_dirs

@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     import polars as pl
 
     from common import polars as ppl
+    from nodes.defs.port_def import OutputPortDef
     from nodes.scenario import Scenario
     from nodes.visualizations import VisualizationNodeOutput
 
@@ -391,16 +392,28 @@ class DimensionalMetric(BaseModel):
         return idx_df
 
     @classmethod
+    def from_output_port(cls, node: Node, port: OutputPortDef) -> DimensionalMetric:
+        from .metric_gen import from_node_output_metric
+
+        for metric in node.output_metrics.values():
+            if metric.column_id == port.column_id:
+                break
+        else:
+            raise ValueError(f'Metric for column {port.column_id} not found')
+        return from_node_output_metric(node, metric, scenarios=(), include_input_nodes=False, port=port)
+
+    @classmethod
     def from_node(
         cls,
         node: Node,
         metric: NodeMetric | None = None,
+        include_input_nodes: bool = True,
         extra_scenarios: Sequence[Scenario] = (),
     ) -> DimensionalMetric | None:
         from .metric_gen import metric_from_node
 
         with sentry_sdk.start_span(name='Metric from node %s' % node.id, op='model.metric'):
-            return metric_from_node(node, metric, extra_scenarios)
+            return metric_from_node(node, metric, include_input_nodes=include_input_nodes, extra_scenarios=extra_scenarios)
 
     @classmethod
     def from_visualization(cls, node: Node, visualization: VisualizationNodeOutput) -> DimensionalMetric | None:

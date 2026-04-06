@@ -331,7 +331,7 @@ class PathsDataFrame(pl.DataFrame):
         meta = self.get_meta()
         if isinstance(unit, str):
             unit = unit_registry.parse_units(unit)
-        meta.units[col] = unit  # type: ignore
+        meta.units[col] = unit
         return PathsDataFrame._from_pydf(self._df, meta=meta, source_df=self)
 
     def clear_unit(self, col: str) -> PathsDataFrame:
@@ -563,7 +563,7 @@ class PathsDataFrame(pl.DataFrame):
                 lines[idx] = cat
             new_col = '\n'.join(lines)
 
-            new_col = '[%s] %s' % (str(unit), new_col)
+            new_col = '<%s> %s' % (str(unit), new_col)
             renames[col] = new_col
 
         for col in meta.primary_keys:
@@ -650,7 +650,7 @@ class PathsDataFrame(pl.DataFrame):
                 df = df.set_unit(VALUE_COLUMN, 'dimensionless')
             else:
                 unit = df.get_unit(VALUE_COLUMN)
-                baseline_year_level = cast('Quantity', baseline_year_level.to(unit))
+                baseline_year_level = baseline_year_level.to(unit)
                 df = df.with_columns(pl.col(VALUE_COLUMN) - pl.lit(baseline_year_level.m))
         return df
 

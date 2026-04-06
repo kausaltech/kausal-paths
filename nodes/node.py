@@ -1704,6 +1704,7 @@ class Node:
 
         years = set[int]([])
         nodes = self.get_upstream_nodes()
+        # FIXME: What is this?
         for n in nodes:
             if not isinstance(n, DatasetNode) or issubclass(type(n), ActionNode):  # Ignore action data
                 continue

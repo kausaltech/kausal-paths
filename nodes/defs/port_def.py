@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import Field, PrivateAttr
@@ -10,6 +11,9 @@ from paths.identifiers import MixedCaseIdentifier
 from paths.refs import DimensionRef, NodeRef, QuantityKindRef, UniqueList
 
 from nodes.units import Unit
+
+if TYPE_CHECKING:
+    from nodes.node import Node
 
 
 class InputPortDef(I18nBaseModel):
@@ -46,3 +50,5 @@ class OutputPortDef(I18nBaseModel):
     is_editable: bool = True
     """Whether the user can modify this port in the model editor."""
     dimensions: UniqueList[DimensionRef] = Field(default_factory=list)
+
+    _node: 'Node | None' = PrivateAttr(default=None)
