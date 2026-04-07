@@ -7,7 +7,7 @@ supported_languages: [en]
 site_url: https://koeln-dev.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 85c4cb99dc475e5f500c2dba77ae8f273b937f9d
+  commit: 3279790b3866175110bf4c78bb3517d46726266a
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Treibhausgasinventar
@@ -451,12 +451,6 @@ nodes:
   input_datasets:
   - id: koeln/historical_emissions
     forecast_from: 2025
-  # params:
-  # - id: operations
-  #   value: get_single_dataset,apply_multiplier
-  # - id: multiplier
-  #   value: 1
-  #   unit: t_co2e/t
 
 - id: historical_and_bau_emissions
   name_de: Differenz
@@ -502,6 +496,20 @@ nodes:
   - id: koeln/vehicle_energy_by_type
     forecast_from: 2025
 
+- id: planned_action_shares
+  name_de: Geplante Maßnahmenanteil
+  name_en: Planned action shares
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [action, sector, energy_carrier, vehicle_type]
+  output_dimensions: [action, sector, energy_carrier, vehicle_type]
+  input_datasets:
+  - id: koeln/planned_action_shares
+    tags: [shares]
+  params:
+    formula: inventory_only(shares)
+
 - id: action_emission_shares
   name_de: Emissionenanteil nach Maßnahme
   name_en: Action emission shares
@@ -529,9 +537,11 @@ nodes:
     tags: [ef]
   - id: action_index
     tags: [index]
+  - id: planned_action_shares
+    tags: [planned]
   params:
     formula: (st + veh) * ef * index / sum_dim(sum_dim(sum_dim((st + veh) * ef *
-      index, energy_carrier), sector), vehicle_type)
+      index, energy_carrier), sector), vehicle_type) + planned
 
 - id: action_potential_by_dimensions
   name_de: Aktion Potential nach Dimensionen
@@ -1924,80 +1934,95 @@ actions:
   group: food_and_land_use
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: food_and_nutrition
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [food_and_nutrition]
+      flatten: true
+    - id: vehicle_type
+      categories: [none]
+      flatten: true
   output_nodes:
   - id: food_and_land_use_emissions
   params:
-  - id: multiplier
-    value: 1
-    unit: t_co2e/t
-    is_visible: false
   - id: enabled
     is_customizable: false
     is_visible: false
 
-# - id: afforestation_and_sustainable_forest_management # TODO Missing from action dataset
-#   name_de: Aufforstung & nachhaltige Bewirtschaftung von Wäldern
-#   name_en: Afforestation & Sustainable Forest Management
-#   description_en: The strategy consists of these measures:<ul><li>(No specific 
-#     measures listed)</li></ul>
-#   description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
-#     spezifischen Maßnahmen aufgeführt)</li></ul>
-#   type: simple.GenericAction
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   group: food_and_land_use
-#   input_dimensions: [energy_carrier, sector, vehicle_type]
-#   output_dimensions: [energy_carrier, sector, vehicle_type]
-#   input_nodes:
-#   - id: action_potential_by_dimensions
-#     from_dimensions:
-#     - id: action
-#       categories: [afforestation_and_sustainable_forest_management]
-#       flatten: true
-#   output_nodes:
-#   - id: food_and_land_use_emissions
-#     from_dimensions:
-#     - id: vehicle_type
-#       flatten: true
-#   params:
-#   - id: enabled
-#     is_customizable: false
-#     is_visible: false
+- id: afforestation_and_sustainable_forest_management
+  name_de: Aufforstung & nachhaltige Bewirtschaftung von Wäldern
+  name_en: Afforestation & Sustainable Forest Management
+  description_en: The strategy consists of these 
+    measures:<ul><li>Afforestation</li><li>Sustainable forest 
+    management</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Aufforstung</li><li>Nachhaltige 
+    Waldbewirtschaftung</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt_co2e/a
+  group: food_and_land_use
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [afforestation_and_sustainable_forest_management]
+      flatten: true
+    - id: vehicle_type
+      categories: [none]
+      flatten: true
+    - id: energy_carrier
+      categories: [not_defined]
+      flatten: true
+  output_nodes:
+  - id: food_and_land_use_emissions
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+      categories: [not_defined]
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: false
 
-# - id: rewetting_organic_soils # TODO Missing from action dataset
-#   name_de: Wiedervernässung organischer Böden
-#   name_en: Rewetting of Organic Soils
-#   description_en: The strategy consists of these measures:<ul><li>(No specific 
-#     measures listed)</li></ul>
-#   description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
-#     spezifischen Maßnahmen aufgeführt)</li></ul>
-#   type: simple.GenericAction
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   group: food_and_land_use
-#   input_dimensions: [energy_carrier, sector, vehicle_type]
-#   output_dimensions: [energy_carrier, sector, vehicle_type]
-#   input_nodes:
-#   - id: action_potential_by_dimensions
-#     from_dimensions:
-#     - id: action
-#       categories: [rewetting_organic_soils]
-#       flatten: true
-#   output_nodes:
-#   - id: food_and_land_use_emissions
-#     from_dimensions:
-#     - id: vehicle_type
-#       flatten: true
-#   params:
-#   - id: enabled
-#     is_customizable: false
-#     is_visible: false
+- id: rewetting_organic_soils
+  name_de: Wiedervernässung organischer Böden
+  name_en: Rewetting of Organic Soils
+  description_en: The strategy consists of these measures:<ul><li>Rewetting of 
+    organic soils</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Wiedervernässung organischer Böden</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt_co2e/a
+  group: food_and_land_use
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [rewetting_organic_soils]
+      flatten: true
+    - id: vehicle_type
+      categories: [none]
+      flatten: true
+    - id: energy_carrier
+      categories: [not_defined]
+      flatten: true
+  output_nodes:
+  - id: food_and_land_use_emissions
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+      categories: [not_defined]
+  params:
+  - id: enabled
+    is_customizable: false
+    is_visible: false
 
 - id: climate_friendly_consumption_behavior
   name_de: Klimafreundlicheres Konsumverhalten der Bevölkerung
@@ -2014,19 +2039,18 @@ actions:
   group: consumption
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: climate_friendly_consumption_behavior
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [climate_friendly_consumption_behavior]
+      flatten: true
+    - id: vehicle_type
+      categories: [none]
+      flatten: true
   output_nodes:
   - id: consumption_emissions
   params:
-  - id: multiplier
-    value: 1
-    unit: t_co2e/t
-    is_visible: false
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2091,19 +2115,18 @@ actions:
   group: administration
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: ghg_neutral_administration_scope_3
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [ghg_neutral_administration_scope_3]
+      flatten: true
+    - id: vehicle_type
+      categories: [none]
+      flatten: true
   output_nodes:
   - id: administration_emissions
   params:
-  - id: multiplier
-    value: 1
-    unit: t_co2e/t
-    is_visible: false
   - id: enabled
     is_customizable: false
     is_visible: false
@@ -2126,17 +2149,15 @@ actions:
   group: waste_and_wastewater
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/manahmen_ikka
-    column: emissions
-    filters:
-    - column: action
-      value: waste_reduction_and_facility_efficiency
-  params:
-  - id: multiplier
-    value: 1
-    unit: t_co2e/t
-    is_visible: false
+  input_nodes:
+  - id: action_potential_by_dimensions
+    from_dimensions:
+    - id: action
+      categories: [waste_reduction_and_facility_efficiency]
+      flatten: true
+    - id: vehicle_type
+      categories: [none]
+      flatten: true
   output_nodes:
   - id: waste_and_wastewater_emissions
 
@@ -2808,10 +2829,10 @@ scenarios:
     value: false
   - id: food_and_nutrition.enabled
     value: false
-  # - id: afforestation_and_sustainable_forest_management.enabled
-  #   value: false
-  # - id: rewetting_organic_soils.enabled
-  #   value: false
+  - id: afforestation_and_sustainable_forest_management.enabled
+    value: false
+  - id: rewetting_organic_soils.enabled
+    value: false
   - id: climate_friendly_consumption_behavior.enabled
     value: false
   - id: ghg_neutral_administration_scope_3.enabled
