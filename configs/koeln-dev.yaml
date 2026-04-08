@@ -787,25 +787,6 @@ nodes:
   params:
     formula: bisko * national + complement(bisko) * local
 
-- id: electricity_emissions
-  name_de: Strom
-  name_en: Electricity
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt_co2e/a
-  color: '#FDB813'
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: historical_and_bau_emissions
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-    - id: vehicle_type
-      flatten: true
-  output_nodes:
-  - id: emission_reductions
-
 - id: heat_emissions
   name_de: Private Haushalte
   name_en: Private households
@@ -968,37 +949,6 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   output_nodes:
   - id: emission_reductions
-
-- id: administration_emissions
-  name_de: Verwaltung
-  name_en: Administration
-  color: '#34495E'
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  output_nodes:
-  - id: emission_reductions
-
-- id: electricity_emissions_total
-  name_de: Total Stromemissionen
-  name_en: Total electricity emissions
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt_co2e/a
-  input_nodes:
-  - id: electricity_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope2]
-  input_dimensions: [emission_scope]
-  output_dimensions: [emission_scope]
 
 - id: heat_emissions_total
   name_de: Total Wärmemissionen
@@ -1171,25 +1121,6 @@ nodes:
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
 
-- id: administration_emissions_total
-  name_de: Total Verwaltungsemissionen
-  name_en: Total administration emissions
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [emission_scope]
-  output_dimensions: [emission_scope]
-  input_nodes:
-  - id: administration_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-
 - id: traffic_actions
   name_de: Verkehrsmaßnahmen
   name_en: Traffic actions
@@ -1221,7 +1152,22 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   output_nodes:
-  - id: electricity_emissions
+  - id: heat_emissions
+    from_dimensions:
+    - id: sector
+      categories: [private_households]
+  - id: industrial_emissions
+    from_dimensions:
+    - id: sector
+      categories: [industry]
+  - id: service_emissions
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+  - id: municipality_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
 
 - id: now_year
   name_de: Aktuelles Jahr
@@ -2097,14 +2043,10 @@ actions:
       categories: [ghg_neutral_administration_scope_1_and_2]
       flatten: true
   output_nodes:
-  - id: administration_emissions
+  - id: net_emissions
     from_dimensions:
     - id: vehicle_type
       flatten: true
-  params:
-  - id: enabled
-    is_customizable: false
-    is_visible: false
 
 - id: ghg_neutral_administration_scope_3
   name_de: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
@@ -2136,7 +2078,7 @@ actions:
       categories: [none]
       flatten: true
   output_nodes:
-  - id: administration_emissions
+  - id: emission_reductions
   params:
   - id: enabled
     is_customizable: false
