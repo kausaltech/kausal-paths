@@ -96,6 +96,12 @@ params:
   value: false
   is_customizable: true
   is_visible: true
+- id: flatline
+  label_de: Verwenden Sie Flatline statt BAU-Prognose
+  label_en: Use flatline rather than BAU forecast
+  value: true
+  is_customizable: true
+  is_visible: true
 
 action_groups:
 
@@ -442,7 +448,7 @@ nodes:
     Gesamt_mit_szenarien_v1-2.xlsx (Version 2026-03-16) aus dem Blatt 'THG 
     Emissionen mit Strategien'. Diese Daten enthalten die Szenario über 
     zukünftige Emissionen unter geschäftstauglichen Maßnahmen.
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
   color: '#6C5CE7'
@@ -450,7 +456,13 @@ nodes:
   output_dimensions: [sector, energy_carrier, vehicle_type]
   input_datasets:
   - id: koeln/historical_emissions
+    tags: [data]
     forecast_from: 2025
+  params:
+  - id: formula
+    value: select_port(condition, extend_values(inventory_only(data)), data)
+  - id: condition
+    ref: flatline
 
 - id: historical_and_bau_emissions
   name_de: Differenz
@@ -786,7 +798,6 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_nodes:
   - id: historical_and_bau_emissions
-    tags: [inventory_only]
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
@@ -1207,8 +1218,8 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   output_nodes:
   - id: electricity_emissions
 
@@ -2817,6 +2828,9 @@ scenarios:
   name_de: Business as Usual
   name_en: Business as Usual
   all_actions_enabled: false
+  params:
+  - id: flatline
+    value: true
 
 - id: default
   default: true
@@ -2824,6 +2838,8 @@ scenarios:
   name_en: Climate Action Plan
   all_actions_enabled: true
   params:
+  - id: flatline
+    value: true
   # Nicht aktiv, da nicht in Bilanz
   - id: waste_reduction_and_facility_efficiency.enabled
     value: false
@@ -2864,3 +2880,15 @@ scenarios:
   name_de: Aktiv
   name_en: Active
   all_actions_enabled: true
+  params:
+  - id: flatline
+    value: true
+
+- id: bau_scenario
+  default: false
+  name_en: BAU forecast rather than flatline
+  name_de: BAU-Prognose statt Flatline
+  all_actions_enabled: true
+  params:
+  - id: flatline
+    value: false

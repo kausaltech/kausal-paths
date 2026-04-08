@@ -250,3 +250,8 @@ class SelectedNumber(NumberParameter):
 class AGSNumber(StringParameter):
     name = _('AGS Number')
     id = 'ags_number'
+
+
+class Flatline(BoolParameter):
+    name = _('Use flatline rather than forecast')
+    id = 'flatline'
