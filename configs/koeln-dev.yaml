@@ -465,7 +465,7 @@ nodes:
     ref: flatline
 
 - id: historical_and_bau_emissions
-  name_de: Differenz
+  name_de: Historische und BAU-Szenario-Emissionen
   name_en: Historical and BAU scenario emissions
   description_en: Historical emissions from inventories until 2023 and BAU 
     scenario emissions from 2024 to 2050.
