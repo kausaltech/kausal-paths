@@ -3523,8 +3523,8 @@ nodes:
     to_dimensions: []
   - id: hrps_corporate_waste
 
-- id: hrps_purchased_electricity
-  name: HRPS Purchased Electricity
+- id: hrps_purchased_electricity_inventory
+  name: HRPS Purchased Electricity (Inventory)
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -3539,6 +3539,44 @@ nodes:
       categories: [halton_regional_police_service_hrps]
     - column: asset_class
     - column: property
+
+- id: hrps_purchased_electricity_mix
+  name: HRPS Purchased Electricity (Mix)
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: hrps_purchased_electricity_inventory
+    tags: [activity]
+
+- id: hrps_purchased_electricity_renewables_reduction
+  name: HRPS Purchased Electricity (Renewables Reduction)
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: hrps_purchased_electricity_mix
+  - id: hrps_renewable_energy_production
+    tags: [arithmetic_inverse, non_additive]
+
+- id: hrps_purchased_electricity
+  name: HRPS Purchased Electricity
+  type: formula.FormulaNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+  params:
+    formula: inventory + reduction
+  input_nodes:
+  - id: hrps_purchased_electricity_inventory
+    tags: [inventory]
+  - id: hrps_purchased_electricity_renewables_reduction
+    tags: [reduction]
 
 - id: hrps_purchased_electricity_ev_fleet
   name: HRPS Purchased Electricity (EV Fleet)
@@ -4059,6 +4097,32 @@ actions:
     value: 7.5
     min_value: 0
     max_value: 15
+    step: 0.1
+    unit: GWh/a
+    description: Renewable Energy Production
+  - id: from_year
+    value: 2035
+    min_value: 2025
+    max_value: 2045
+    step: 1.0
+    description: Implementation Year
+  - id: default_value
+    value: 0
+    unit: GWh/a
+
+- id: hrps_renewable_energy_production
+  name: HRPS Renewable Energy Production
+  type: simple.ParameterAction
+  group: renewable_energy_production
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_value
+    value: 3.5
+    min_value: 0
+    max_value: 7
     step: 0.1
     unit: GWh/a
     description: Renewable Energy Production
