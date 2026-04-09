@@ -30,7 +30,7 @@ action_groups:
 - id: land_use
   name: Landnutzung
   name_en: Land Use
-  color: '#B07AA1'
+  color: '#59A14F'
 - id: trends
   name: Trends
   name_en: Trends
@@ -471,7 +471,7 @@ nodes:
 - id: iii_waste_emissions
   name: Abfall
   name_en: Waste
-  color: '#59A14F'
+  color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -495,7 +495,7 @@ nodes:
 - id: v_land_use_emissions
   name: Landnutzung
   name_en: Land Use
-  color: '#B07AA1'
+  color: '#59A14F'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -560,7 +560,7 @@ nodes:
 - id: v_land_use_costs
   name: Landnutzung
   name_en: Land Use
-  color: '#B07AA1'
+  color: '#59A14F'
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
@@ -633,7 +633,7 @@ nodes:
 - id: v_land_use_costs_cumulative
   name: Landnutzung (kumulativ)
   name_en: Land Use (Cumulative)
-  color: '#B07AA1'
+  color: '#59A14F'
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR
