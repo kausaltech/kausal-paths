@@ -43,6 +43,7 @@ if TYPE_CHECKING:
         ActionGroup,
         FormulaConfig,
     )
+    from nodes.defs.edge_def import EdgeTransformation
     from nodes.defs.node_defs import NodeSpecExtra
     from nodes.edges import Edge, EdgeDimension
     from nodes.instance import Instance
@@ -127,13 +128,14 @@ def export_node_spec(node: Node, nc: NodeConfig) -> NodeSpec:
         uuid = uuid4()
         nc.uuid = uuid
 
+    goals = node.goals.model_copy() if node.goals is not None else NodeGoals()
     return NodeSpec(
         uuid=uuid,
         kind=type_config.kind,
         identifier=node.id,
         name=_to_ts(node.name),
         description=_to_ts(node.description),
-        color=node.db_obj.color if node.db_obj is not None else None,
+        color=(node.db_obj.color if node.db_obj is not None and node.db_obj.color else None) or node.color,
         order=node.db_obj.order if node.db_obj is not None else None,
         is_visible=node.db_obj.is_visible if node.db_obj is not None else True,
         type_config=type_config,
@@ -143,7 +145,7 @@ def export_node_spec(node: Node, nc: NodeConfig) -> NodeSpec:
         input_dimensions=input_dim_ids,
         output_dimensions=output_dim_ids,
         params=params,
-        goals=node.goals.model_copy() if node.goals is not None else NodeGoals(),
+        goals=goals,
         visualizations=node.visualizations.model_copy() if node.visualizations is not None else NodeVisualizations(),
         allow_nulls=node.allow_nulls,
         node_group=node.node_group,
@@ -304,25 +306,26 @@ def _export_input_datasets(node: Node) -> list[InputDatasetDef]:
     FixedDatasets are skipped — they are created from historical_values/forecast_values
     at the node config level, not from input_datasets.
     """
-    from nodes.datasets import DatasetWithFilters
+    from nodes.datasets import DatasetWithFilters, FixedDataset
 
     result: list[InputDatasetDef] = []
     for ds in node.input_dataset_instances:
-        if not isinstance(ds, DatasetWithFilters):
+        if isinstance(ds, FixedDataset):
             continue
-        result.append(
-            InputDatasetDef(
-                id=ds.id,
-                tags=ds.tags or [],
-                input_dataset=ds.input_dataset if isinstance(ds, DVCDataset) else None,
-                column=ds.column,
-                forecast_from=ds.forecast_from,
-                filters=ds.filters or [],
-                dropna=ds.dropna,
-                min_year=ds.min_year,
-                max_year=ds.max_year,
-            )
+        assert isinstance(ds, DatasetWithFilters)
+        ds_def = InputDatasetDef(
+            id=ds.id,
+            tags=ds.tags or [],
+            input_dataset=ds.input_dataset if isinstance(ds, DVCDataset) else None,
+            column=ds.column,
+            forecast_from=ds.forecast_from,
+            filters=ds.filters or [],
+            dropna=ds.dropna,
+            min_year=ds.min_year,
+            max_year=ds.max_year,
+            unit=ds.unit,
         )
+        result.append(ds_def)
     return result
 
 
@@ -393,34 +396,42 @@ def _resolve_from_port(edge: Edge, from_node: NodeSpec, metric_id: str) -> Outpu
     )
 
 
-def _resolve_to_port(to_node: NodeSpec, from_node: NodeSpec, metric_id: str) -> InputPortDef:
-    """Determine the input port ID for an edge's target side."""
-    assert len(to_node.input_ports) >= 1
-    for to_port in to_node.input_ports:
-        if to_port._from_node != from_node.identifier:
-            continue
-        if to_port._edge_metric_id == metric_id:
-            return to_port
-    raise ValueError(
-        f'No input port found for node {to_node.identifier} for edge from {from_node.identifier}, metric {metric_id}'
-    )
+def edge_to_transforms(edge: Edge) -> list[EdgeTransformation]:
+    """Convert runtime Edge dimension mappings to a structured transformation pipeline."""
+    from nodes.defs.edge_def import AssignCategoryTransformation, FlattenTransformation, SelectCategoriesTransformation
 
+    transforms: list[EdgeTransformation] = []
 
-def edge_to_transforms(edge: Edge) -> dict[str, Any]:
-    """
-    Convert runtime Edge dimension mappings to a dict with from/to separated.
+    for dim_id, ed in edge.from_dimensions.items():
+        cat_refs = [cat.id for cat in ed.categories]
+        transforms.append(
+            SelectCategoriesTransformation(
+                dimension=dim_id,
+                categories=cat_refs,
+                flatten=ed.flatten,
+                exclude=ed.exclude,
+            )
+        )
 
-    Also includes `metrics` (list of metric IDs to pass through), since
-    NodeEdge doesn't have a dedicated field for it yet.
-    """
-    result: dict[str, Any] = {}
-    if edge.from_dimensions:
-        result['from_dimensions'] = [serialize_edge_dimension(dim_id, ed) for dim_id, ed in edge.from_dimensions.items()]
     if edge.to_dimensions:
-        result['to_dimensions'] = [serialize_edge_dimension(dim_id, ed) for dim_id, ed in edge.to_dimensions.items()]
-    # if edge.metrics:
-    #    result['metrics'] = list(edge.metrics)
-    return result
+        for dim_id, ed in edge.to_dimensions.items():
+            if not ed.categories:
+                if ed.flatten:
+                    # Flatten a dimension that the downstream node doesn't want.
+                    transforms.append(FlattenTransformation(dimension=dim_id))
+                # Entries with no categories and no flatten are pure shape
+                # declarations — skip for now.
+                continue
+            if len(ed.categories) != 1:
+                raise ValueError(f'to_dimensions can have only one category for now (got {len(ed.categories)} for {dim_id})')
+            transforms.append(
+                AssignCategoryTransformation(
+                    dimension=dim_id,
+                    category=ed.categories[0].id,
+                )
+            )
+
+    return transforms
 
 
 # ---------------------------------------------------------------------------
@@ -509,13 +520,14 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
             nc = existing_ncs.get(node_id)
             if nc is None:
                 nc = NodeConfig(instance=ic, identifier=node_id)
-            # Use as_node_config_attributes to properly populate name + i18n
-            conf = node.as_node_config_attributes()
-            nc.name = conf.get('name', node_id)
-            nc.i18n = conf.get('i18n', {})
-            nc.spec = export_node_spec(node, nc)
+            nc.update_from_node(node, update_relations=False, skip_descriptions=True)
+            spec = export_node_spec(node, nc)
             nc.is_stale = False
             nc.save()
+            # Write spec via queryset.update() to bypass ClusterableModel.save()
+            # which silently reverts SchemaField values.
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=spec)
+            nc.spec = spec
             node_configs[node_id] = nc
 
         # Remove stale node configs

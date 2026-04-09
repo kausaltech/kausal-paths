@@ -509,12 +509,14 @@ class DatasetWithFilters(Dataset, ABC):
 
         ldf = ldf.select(cols)
         cdf = ldf.collect()
+
         df = ppl.to_ppdf(cdf, meta=df.get_meta().select(cols))
         df = self._filter_df(df)
         df = self._operate_tags(df)
         ppl.validate_ppdf(df)
 
         df = self._process_output(df)
+
         return df
 
 

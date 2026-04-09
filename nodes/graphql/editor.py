@@ -409,13 +409,7 @@ class InstanceEditorMutation:
                 transformations=input.transformations or [],
             )
 
-        return NodeEdgeType(
-            id=sb.ID(str(edge.pk)),
-            from_ref=NodePortRef(node_id=sb.ID(str(from_node.identifier)), port_id=edge.from_port),
-            to_ref=NodePortRef(node_id=sb.ID(str(to_node.identifier)), port_id=edge.to_port),
-            transformations=edge.transformations,
-            tags=edge.tags or [],
-        )
+        return NodeEdgeType.from_node_edge(edge)
 
     @gql.mutation(description='Delete an edge')
     @staticmethod

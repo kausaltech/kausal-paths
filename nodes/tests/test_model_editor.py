@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
-from uuid import NAMESPACE_URL, uuid5
 
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
@@ -18,7 +17,7 @@ from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceSpec, NormalizationSpec, YearsSpec
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
-from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
+from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
@@ -49,7 +48,8 @@ class ModelEditorParentActionNode(ParentActionNode):
 
 
 def _port_uuid(name: str) -> UUID:
-    return uuid5(NAMESPACE_URL, f'kausal-paths:model-editor-port:{name}')
+    """Generate a deterministic port UUID matching the NodeConfigFactory convention."""
+    return _port_id(name)
 
 
 # ---------------------------------------------------------------------------
@@ -484,7 +484,18 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
                     nodeId
                     portId
                 }
-                transformations
+                transformations {
+                    __typename
+                    ... on SelectCategoriesTransformationType {
+                        dimension categories flatten exclude
+                    }
+                    ... on AssignCategoryTransformationType {
+                        dimension category
+                    }
+                    ... on FlattenTransformationType {
+                        dimension
+                    }
+                }
                 tags
             }
         }

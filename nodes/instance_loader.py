@@ -620,7 +620,7 @@ class InstanceLoader:
         except Exception as e:
             raise NodeError(node, 'Error validating visualizations') from e
 
-    def make_node(  # noqa: C901, PLR0912
+    def make_node(  # noqa: C901, PLR0912, PLR0915
         self, node_class: type[Node], config: dict[str, Any], _yaml_lc: LineCol | None = None
     ) -> Node:
         from nodes.node import NodeMetric
@@ -630,6 +630,18 @@ class InstanceLoader:
         metrics: dict[str, NodeMetric] | None
         if metrics_conf is not None:
             metrics = {m['id']: NodeMetric.from_config(m) for m in metrics_conf}
+            # If the class defines output_metrics, remap config keys to match
+            # class keys (e.g. class uses 'default' but config has 'Value').
+            # The config key is the port's column_id; match it against the
+            # class metric's column_id to find the canonical dict key.
+            class_metrics_def: dict[str, NodeMetric] | None = getattr(node_class, 'output_metrics', None)
+            if class_metrics_def:
+                col_to_class_key = {m.column_id: k for k, m in class_metrics_def.items()}
+                remapped: dict[str, NodeMetric] = {}
+                for config_key, metric in metrics.items():
+                    class_key = col_to_class_key.get(config_key, config_key)
+                    remapped[class_key] = metric
+                metrics = remapped
             class_metrics = None
         else:
             metrics = None
@@ -656,6 +668,7 @@ class InstanceLoader:
         loc_conf: ConfigLocation | None = config.get('config_location')
         config_location = ConfigLocation(**loc_conf) if loc_conf else None
 
+        description = make_trans_string(config, 'description')
         node: Node = node_class(
             id=config['id'],
             context=self.context,
@@ -664,7 +677,7 @@ class InstanceLoader:
             quantity=quantity,
             unit=unit,
             node_group=config.get('node_group'),
-            description=make_trans_string(config, 'description'),
+            description=description,
             color=config.get('color'),
             order=config.get('order'),
             is_visible=config.get('is_visible', True),
@@ -1026,7 +1039,8 @@ class InstanceLoader:
             context.add_global_parameter(param)
 
     def setup_impact_overviews(self):
-        from nodes.actions.action import ImpactOverview, ImpactOverviewSpec
+        from nodes.actions.action import ImpactOverview
+        from nodes.defs.action_def import ImpactOverviewSpec
 
         # TODO add an ID so that there can be several impact overviews for different decision makers.
         conf = self.config.get('impact_overviews', [])

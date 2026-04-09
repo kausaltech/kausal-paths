@@ -4,30 +4,32 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from paths.refs import DimensionCategoryRef, DimensionRef
+
 
 class SelectCategoriesTransformation(BaseModel):
-    """Filter or select categories within a dimension."""
+    """Filter or select categories within a dimension, optionally flattening afterward."""
 
     kind: Literal['select_categories'] = 'select_categories'
-    dimension: str
-    categories: list[str] = Field(default_factory=list)
+    dimension: DimensionRef
+    categories: list[DimensionCategoryRef] = Field(default_factory=list)
     flatten: bool = False
     exclude: bool = False
 
 
 class AssignCategoryTransformation(BaseModel):
-    """Assign a category to a dimension (adds a dimension if not present)."""
+    """Assign a fixed category to a (possibly new) dimension."""
 
     kind: Literal['assign_category'] = 'assign_category'
-    dimension: str
-    category: str
+    dimension: DimensionRef
+    category: DimensionCategoryRef
 
 
 class FlattenTransformation(BaseModel):
     """Flatten (sum over) a dimension."""
 
     kind: Literal['flatten'] = 'flatten'
-    dimension: str
+    dimension: DimensionRef
 
 
 EdgeTransformation = SelectCategoriesTransformation | AssignCategoryTransformation | FlattenTransformation

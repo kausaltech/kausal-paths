@@ -18,8 +18,6 @@ from nodes.models import InstanceConfig, NodeConfig
 if TYPE_CHECKING:
     from argparse import ArgumentParser
 
-    from nodes.defs import NodeSpec
-
 
 class DryRunError(Exception):
     pass
@@ -73,7 +71,7 @@ class Command(BaseCommand):
     def _print_summary(self, instance_id: str) -> None:
         instance_spec = InstanceConfig.objects.get(identifier=instance_id).spec
         node_qs = NodeConfig.objects.qs.filter(instance__identifier=instance_id).active()
-        node_specs: list[tuple[str, NodeSpec]] = list(node_qs.values_list('identifier', 'spec'))
+        nodes = node_qs.with_spec()
         dataset_repo_url = instance_spec.dataset_repo.url if instance_spec.dataset_repo else None
         self.stdout.write('\n--- Instance Spec ---')
         self.stdout.write(f'  ID: {instance_id}')
@@ -84,11 +82,12 @@ class Command(BaseCommand):
         self.stdout.write(f'  Action groups: {len(instance_spec.action_groups)}')
         self.stdout.write(f'  Scenarios: {len(instance_spec.scenarios)}')
 
-        self.stdout.write(f'\n--- Node Specs ({len(node_specs)}) ---')
-        for node_id, spec in node_specs[:5]:
+        self.stdout.write(f'\n--- Node Specs ({len(nodes)}) ---')
+        for node in nodes[:5]:
+            spec = node.spec
             n_metrics = len(spec.output_ports)
             n_params = len(spec.params)
-            self.stdout.write(f'  {node_id}: {n_metrics} metrics, {n_params} params, kind={spec.kind}')
+            self.stdout.write(f'  {node.identifier}: {n_metrics} metrics, {n_params} params, kind={spec.kind}')
 
-        if len(node_specs) > 5:
-            self.stdout.write(f'  ... and {len(node_specs) - 5} more')
+        if len(nodes) > 5:
+            self.stdout.write(f'  ... and {len(nodes) - 5} more')

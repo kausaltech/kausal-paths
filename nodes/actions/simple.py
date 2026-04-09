@@ -159,7 +159,7 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
         NumberParameter(local_id='target_year_level'),
         NumberParameter(
             local_id='action_delay',
-            label='Years of delay (a)',
+            label=_('Years of delay (a)'),
         ),
         NumberParameter(local_id='multiplier'),
     ]
@@ -277,12 +277,14 @@ class GpcTrajectoryAction(TrajectoryAction, DatasetNode):
 class ParameterAction(ActionNode):
     allowed_parameters = [
         *ActionNode.allowed_parameters,
-        NumberParameter(local_id='from_value', description='Starting parameter value', is_customizable=True),
-        NumberParameter(local_id='percent_change', description='Annual percent change in parameter value', is_customizable=True),
-        NumberParameter(local_id='from_year', description='Starting year', is_customizable=True),
-        NumberParameter(local_id='default_value', description='Default parameter value', is_customizable=False),
+        NumberParameter(local_id='from_value', description=_('Starting parameter value'), is_customizable=True),
         NumberParameter(
-            local_id='default_change', description='Default annual percent change in parameter value', is_customizable=False
+            local_id='percent_change', description=_('Annual percent change in parameter value'), is_customizable=True
+        ),
+        NumberParameter(local_id='from_year', description=_('Starting year'), is_customizable=True),
+        NumberParameter(local_id='default_value', description=_('Default parameter value'), is_customizable=False),
+        NumberParameter(
+            local_id='default_change', description=_('Default annual percent change in parameter value'), is_customizable=False
         ),
     ]
 

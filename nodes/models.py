@@ -74,6 +74,7 @@ from paths.utils import (
 )
 
 from nodes.defs import DatasetPortBindingDef, EdgeBindingDef, InstanceSpec, NodeSpec
+from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.node_defs import NodeKind
 from orgs.models import Organization
 from pages.blocks import CardListBlock
@@ -1165,7 +1166,7 @@ class NodeConfig(PathsModel[InstanceConfig], RevisionMixin, ClusterableModel, in
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)
-        ordering = ['instance', 'order']
+        ordering = ['instance', 'order', 'pk']
         base_manager_name = 'objects'
 
     @classmethod
@@ -1198,7 +1199,7 @@ class NodeConfig(PathsModel[InstanceConfig], RevisionMixin, ClusterableModel, in
 
         # FIXME: Override params
 
-    def update_from_node(self, node: Node, overwrite=False, skip_descriptions=False):
+    def update_from_node(self, node: Node, overwrite=False, skip_descriptions=False, update_relations=True):
         """Set attributes of this instance from revelant fields of the given node but does not save."""
 
         overwritten = False
@@ -1221,7 +1222,7 @@ class NodeConfig(PathsModel[InstanceConfig], RevisionMixin, ClusterableModel, in
         if overwritten:
             self.instance.log.info('Overwrote contents in node %s' % str(node))
 
-        if self.pk:
+        if self.pk and update_relations:
             self.update_relations_from_node(node)
 
     def update_relations_from_node(self, node: Node):
@@ -1368,7 +1369,7 @@ class NodeEdge(UUIDIdentifiedModel, UserModifiableModel):
         max_length=200,
         help_text='Input port ID on the target node',
     )
-    transformations = models.JSONField(default=list, blank=True)
+    transformations = SchemaField(schema=list[EdgeTransformation], default=list, blank=True)
     tags = ArrayField(
         models.CharField(max_length=200),
         default=list,
@@ -1382,7 +1383,7 @@ class NodeEdge(UUIDIdentifiedModel, UserModifiableModel):
     to_node_id: int
 
     class Meta:
-        ordering = ['instance', 'from_node', 'to_node', 'to_port']
+        ordering = ['instance', 'from_node_id', 'to_node_id', 'to_port']
         verbose_name = _('Node edge')
         verbose_name_plural = _('Node edges')
 

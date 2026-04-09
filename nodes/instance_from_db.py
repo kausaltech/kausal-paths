@@ -10,7 +10,6 @@ Edges and DatasetPorts are still read from their Django models.
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, cast
 
@@ -19,7 +18,9 @@ from django.utils.functional import Promise
 
 from kausal_common.i18n.pydantic import TranslatedString
 
+from nodes.constants import VALUE_COLUMN
 from nodes.defs import ActionConfig, FormulaConfig, SimpleConfig
+from nodes.defs.edge_def import AssignCategoryTransformation, SelectCategoriesTransformation
 from nodes.defs.node_defs import NodeKind
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
 
     from kausal_common.i18n.pydantic import I18nString
 
+    from nodes.defs.edge_def import EdgeTransformation
     from nodes.defs.instance_defs import ActionGroup, InstanceSpec
     from nodes.defs.node_defs import NodeSpec
     from nodes.models import InstanceConfig, NodeConfig, NodeEdge
@@ -155,6 +157,10 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
         node['is_visible'] = False
     elif not nc.is_visible:
         node['is_visible'] = False
+    if spec.description:
+        node['description'] = spec.description
+    elif nc.short_description:
+        node['description'] = nc.description
 
     # Spec-derived fields
     if spec.is_outcome:
@@ -177,6 +183,7 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
             node['output_metrics'] = [
                 {
                     'id': p.column_id,
+                    'column_id': p.column_id,
                     **p.model_dump(mode='json', include={'unit', 'quantity'}, exclude_defaults=True),
                 }
                 for p in spec.output_ports
@@ -288,6 +295,34 @@ if TYPE_CHECKING:
         to_node_identifier: str
 
 
+def _transforms_to_config(transforms: list[EdgeTransformation]) -> dict[str, list[dict[str, Any]]]:
+    """Convert structured EdgeTransformation list to the dict format Edge.from_config expects."""
+    from_dims: list[dict[str, Any]] = []
+    to_dims: list[dict[str, Any]] = []
+    from nodes.defs.edge_def import FlattenTransformation
+
+    for t in transforms:
+        if isinstance(t, SelectCategoriesTransformation):
+            d: dict[str, Any] = {'id': t.dimension}
+            if t.categories:
+                d['categories'] = list(t.categories)
+            if t.flatten:
+                d['flatten'] = True
+            if t.exclude:
+                d['exclude'] = True
+            from_dims.append(d)
+        elif isinstance(t, AssignCategoryTransformation):
+            to_dims.append({'id': t.dimension, 'categories': [t.category]})
+        elif isinstance(t, FlattenTransformation):
+            to_dims.append({'id': t.dimension, 'exclude': True, 'flatten': True})
+    result: dict[str, list[dict[str, Any]]] = {}
+    if from_dims:
+        result['from_dimensions'] = from_dims
+    if to_dims:
+        result['to_dimensions'] = to_dims
+    return result
+
+
 def _build_edge_maps(  # noqa: C901, PLR0912
     edges: Sequence[EdgeWithNodeIdentifiers],
     nodes_by_identifier: dict[str, NodeConfig],
@@ -302,8 +337,8 @@ def _build_edge_maps(  # noqa: C901, PLR0912
     for edge in edges:
         from_spec = nodes_by_identifier[edge.from_node_identifier].spec
         from_port = from_spec.output_port_by_id[edge.from_port]
-        assert from_port.column_id is not None
-        edge_metrics[edge.from_node_identifier][edge.to_node_identifier].append((from_port.column_id, edge))
+        column_id = from_port.column_id or VALUE_COLUMN
+        edge_metrics[edge.from_node_identifier][edge.to_node_identifier].append((column_id, edge))
 
     for from_node_id, to_nodes in edge_metrics.items():
         for to_node_id, metric_tuples in to_nodes.items():
@@ -312,11 +347,11 @@ def _build_edge_maps(  # noqa: C901, PLR0912
 
             metrics_entry: list[str] = []
             _, first_edge = metric_tuples[0]
-            transformations = first_edge.transformations
+            transforms = first_edge.transformations
             tags = first_edge.tags
             for metric_column_id, edge in metric_tuples:
-                if transformations:
-                    assert json.dumps(edge.transformations) == json.dumps(transformations)
+                if transforms:
+                    assert edge.transformations == transforms
                 if tags:
                     assert tuple(edge.tags) == tuple(tags)
                 metrics_entry.append(metric_column_id)
@@ -327,13 +362,14 @@ def _build_edge_maps(  # noqa: C901, PLR0912
             if tags:
                 for entry in (from_entry, to_entry):
                     entry['tags'] = tags
-            if transformations:
-                if transformations.get('from_dimensions'):
+            if transforms:
+                config = _transforms_to_config(transforms)
+                if 'from_dimensions' in config:
                     for entry in (from_entry, to_entry):
-                        entry['from_dimensions'] = transformations['from_dimensions']
-                if transformations.get('to_dimensions'):
+                        entry['from_dimensions'] = config['from_dimensions']
+                if 'to_dimensions' in config:
                     for entry in (from_entry, to_entry):
-                        entry['to_dimensions'] = transformations['to_dimensions']
+                        entry['to_dimensions'] = config['to_dimensions']
 
             output_edges.setdefault(from_node_id, []).append(to_entry)
             input_edges.setdefault(to_node_id, []).append(from_entry)

@@ -10,6 +10,12 @@ from paths.graphql_helpers import pass_context
 from nodes.actions.action import ActionNode
 from nodes.context import Context
 from nodes.defs.binding_def import DatasetPortBindingDef
+from nodes.defs.edge_def import (
+    AssignCategoryTransformation,
+    EdgeTransformation,
+    FlattenTransformation,
+    SelectCategoriesTransformation,
+)
 from nodes.defs.instance_defs import ActionGroup
 from nodes.graphql.types.metric import DimensionalMetricType
 
@@ -36,16 +42,53 @@ class NodePortRef:
     port_id: UUID
 
 
+@pydantic_type(SelectCategoriesTransformation)
+class SelectCategoriesTransformationType:
+    """Filter or select categories within a dimension, optionally flattening."""
+
+    dimension: sb.auto
+    categories: sb.auto
+    flatten: sb.auto
+    exclude: sb.auto
+
+
+@pydantic_type(AssignCategoryTransformation)
+class AssignCategoryTransformationType:
+    """Assign a fixed category to a (possibly new) dimension."""
+
+    dimension: sb.auto
+    category: sb.auto
+
+
+@pydantic_type(FlattenTransformation)
+class FlattenTransformationType:
+    """Flatten (sum over) a dimension."""
+
+    dimension: sb.auto
+
+
+EdgeTransformationType = Annotated[
+    SelectCategoriesTransformationType | AssignCategoryTransformationType | FlattenTransformationType,
+    sb.union('EdgeTransformationUnion'),
+]
+
+
 @sb.type
 class NodeEdgeType:
     id: sb.ID
     from_ref: NodePortRef
     to_ref: NodePortRef
-    transformations: sb.scalars.JSON
     tags: list[str]
 
     _node: sb.Private['Node | None'] = None
     """The target node that this edge feeds into (set when resolving input port bindings)."""
+
+    _transformations: sb.Private[list[EdgeTransformation] | None] = None
+
+    @sb.field(graphql_type=list[EdgeTransformationType])
+    @staticmethod
+    def transformations(root: 'NodeEdgeType') -> list[EdgeTransformation]:
+        return root._transformations or []
 
     @sb.field(graphql_type=list[DimensionalMetricType])
     @staticmethod
@@ -71,7 +114,6 @@ class NodeEdgeType:
             id=sb.ID(str(binding.id)),
             from_ref=NodePortRef(node_id=sb.ID(str(binding.from_ref.node_id)), port_id=binding.from_ref.port_id),
             to_ref=NodePortRef(node_id=sb.ID(str(binding.to_ref.node_id)), port_id=binding.to_ref.port_id),
-            transformations=sb.scalars.JSON([]),
             tags=binding.tags,
         )
         edge._node = node
@@ -79,13 +121,14 @@ class NodeEdgeType:
 
     @classmethod
     def from_node_edge(cls, edge: NodeEdge) -> NodeEdgeType:
-        return NodeEdgeType(
+        obj = NodeEdgeType(
             id=sb.ID(str(edge.uuid)),
             from_ref=NodePortRef(node_id=sb.ID(str(edge.from_node.identifier)), port_id=edge.from_port),
             to_ref=NodePortRef(node_id=sb.ID(str(edge.to_node.identifier)), port_id=edge.to_port),
-            transformations=edge.transformations,
             tags=edge.tags or [],
         )
+        obj._transformations = list(edge.transformations)
+        return obj
 
 
 @sb.type

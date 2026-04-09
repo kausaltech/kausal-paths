@@ -22,8 +22,11 @@ if TYPE_CHECKING:
 GQL_URL = '/v1/graphql/'
 
 
-def compare_func(x: Any, y: Any, _level: DiffLevel | None):
+def compare_func(x: Any, y: Any, level: DiffLevel | None):
     if not isinstance(x, dict) or not isinstance(y, dict):
+        raise CannotCompare
+
+    if level and 'metricDim' in level.path(output_format='list'):
         raise CannotCompare
 
     if '__typename' in x and '__typename' in y and x['__typename'] == y['__typename']:

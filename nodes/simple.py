@@ -281,7 +281,7 @@ Missing values are assumed to be zero.""")
         out = self.add_nodes_pl(df, nodes, metric)
         return out.to_pandas()
 
-    def _process_input_dataset_df(self, df: ppl.PathsDataFrame, metric: str | None) -> ppl.PathsDataFrame:
+    def _process_input_dataset_df(self, df: ppl.PathsDataFrame, metric: str | None) -> ppl.PathsDataFrame:  # noqa: PLR0912
         if VALUE_COLUMN not in df.columns:
             if len(df.metric_cols) == 1:
                 df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
@@ -304,6 +304,8 @@ Missing values are assumed to be zero.""")
                     df = df.select(cols)
                 else:
                     raise NodeError(self, 'Input dataset has multiple metric columns, but no Value column')
+        elif VALUE_COLUMN not in df.metric_cols:
+            raise NodeError(self, 'Value column is not a metric')
 
         df = self.apply_multiplier(df, required=False, units=True)
         df = df.ensure_unit(VALUE_COLUMN, self.single_metric_unit)

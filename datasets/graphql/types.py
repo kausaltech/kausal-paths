@@ -85,7 +85,9 @@ class DatasetType:
 
     id: sb.ID
     identifier: str | None
-    is_external: bool = sb.field(description='Whether the dataset is backed by an external source.')
+    is_external_placeholder: bool = sb.field(
+        description='Whether the dataset object is only a placeholder without imported datapoints.'
+    )
     external_ref: DatasetExternalRefType | None = sb.field(
         description='External source reference for externally backed datasets.'
     )
@@ -171,7 +173,7 @@ class DatasetType:
         obj = cls(
             id=sb.ID(str(dataset.uuid)),
             identifier=dataset.identifier,
-            is_external=dataset.is_external_placeholder,
+            is_external_placeholder=dataset.is_external_placeholder,
             external_ref=_dataset_external_ref_to_gql(dataset.external_ref),
         )
         obj._model = dataset
@@ -190,6 +192,6 @@ class DatasetType:
         return cls(
             id=sb.ID(str(binding.dataset_uuid)),
             identifier=binding.external_dataset_id,
-            is_external=binding.dataset_is_external_placeholder,
+            is_external_placeholder=binding.dataset_is_external_placeholder,
             external_ref=_dataset_external_ref_to_gql(binding.dataset_external_ref),
         )
