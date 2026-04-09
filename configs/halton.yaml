@@ -1153,6 +1153,11 @@ emission_sectors:
   name: Net Emissions
   is_outcome: true
 
+- id: corporate_emissions
+  name: Corporate Emissions
+  part_of: net_emissions
+  is_outcome: true
+
 nodes:
 - id: other_fuel_emission_factors
   name: Other Fuel Emission Factors
@@ -1227,7 +1232,7 @@ nodes:
   - id: pw_stationary_combustion_emissions
   - id: ems_stationary_combustion_emissions
   output_nodes:
-  - id: net_emissions
+  - id: corporate_emissions
     from_dimensions:
     - id: asset
       flatten: true
@@ -1960,7 +1965,7 @@ nodes:
   - id: fleet_emissions
   - id: nonfleet_emissions
   output_nodes:
-  - id: net_emissions
+  - id: corporate_emissions
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -1983,7 +1988,7 @@ nodes:
   - id: ems_electricity_emissions
   - id: hchc_electricity_emissions
   output_nodes:
-  - id: net_emissions
+  - id: corporate_emissions
     from_dimensions:
     - id: asset
       flatten: true
@@ -3123,6 +3128,8 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
+  output_nodes:
+  - id: net_emissions
 
 # ----- Corporate Waste
 
@@ -3139,7 +3146,7 @@ nodes:
   - id: pw_waste_emissions
   - id: ems_waste_emissions
   output_nodes:
-  - id: net_emissions
+  - id: corporate_emissions
     from_dimensions:
     - id: asset
       flatten: true
@@ -3476,13 +3483,13 @@ nodes:
   input_nodes:
   - id: leased_asset_electricity_emissions
   - id: leased_asset_stationary_combustion_emissions
-  # output_nodes:
-  # - id: net_emissions
-  #   from_dimensions:
-  #   - id: asset
-  #     flatten: true
-  #   - id: energy_carrier
-  #     flatten: true
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: asset
+      flatten: true
+    - id: energy_carrier
+      flatten: true
 
 # ----- HRPS
 
@@ -3676,8 +3683,8 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
-  # output_nodes:
-  # - id: net_emissions
+  output_nodes:
+  - id: net_emissions
 
 # ----- Landfill Waste
 
@@ -3693,6 +3700,13 @@ nodes:
   - id: halton/landfill_waste
     column: emissions
     forecast_from: 2025
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: emission_source
+      flatten: true
+    - id: asset
+      flatten: true
 
 actions:
 - id: ems_green_fleet_strategy
