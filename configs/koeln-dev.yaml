@@ -393,8 +393,8 @@ nodes:
   - id: net_emissions
 
 - id: net_emissions
-  name_de: Netto Emissionen
-  name_en: Net emissions
+  name_de: Treibhausgasemissionen
+  name_en: Greenhouse gas emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
@@ -405,9 +405,11 @@ nodes:
   - label_de: Emissionen
     label_en: Emissions
     default: true
-    linear_interpolation: false
+    linear_interpolation: true
     is_main_goal: true
     values:
+    - year: 2023
+      value: 8080
     - year: 2035
       value: 271
 
@@ -437,18 +439,18 @@ nodes:
   - id: koeln/einwohnerin
     column: einwohnerin
 
-- id: bau_scenario_emissions
-  name_de: BAU-Szenario-Emissionen
-  name_en: BAU scenario emissions
+- id: excel_scenario_emissions
+  name_de: Excel-Szenario-Emissionen
+  name_en: Excel scenario emissions
   description_en: The data comes from file Emissionsrechner 
-    Gesamt_mit_szenarien_v1-2.xlsx (version 2026-03-16) from sheet 'THG 
+    Gesamt_mit_szenarien_v1-4.xlsx (version 2026-03-30) from sheet 'THG 
     Emissionen mit Strategien'. This data contains the scenario about future 
     emissions under business as usual actions.
   description_de: Die Daten kommen aus der Datei Emissionsrechner 
-    Gesamt_mit_szenarien_v1-2.xlsx (Version 2026-03-16) aus dem Blatt 'THG 
+    Gesamt_mit_szenarien_v1-4.xlsx (Version 2026-03-30) aus dem Blatt 'THG 
     Emissionen mit Strategien'. Diese Daten enthalten die Szenario über 
     zukünftige Emissionen unter geschäftstauglichen Maßnahmen.
-  type: formula.FormulaNode
+  type: generic.CoalesceNode
   quantity: emissions
   unit: kt_co2e/a
   color: '#6C5CE7'
@@ -457,32 +459,34 @@ nodes:
   input_datasets:
   - id: koeln/historical_emissions
     tags: [data]
-    forecast_from: 2025
+    forecast_from: 2024
   params:
-  - id: formula
-    value: select_port(condition, extend_values(inventory_only(data)), data)
-  - id: condition
-    ref: flatline
+    operations: get_single_dataset,coalesce
+  input_nodes:
+  - id: total_emissions
+    tags: [secondary]
 
 - id: historical_and_bau_emissions
-  name_de: Historische und BAU-Szenario-Emissionen
-  name_en: Historical and BAU scenario emissions
-  description_en: Historical emissions from inventories until 2023 and BAU 
-    scenario emissions from 2024 to 2050.
+  name_de: Historische und Excel-Szenario-Emissionen
+  name_en: Historical and Excel scenario emissions
+  description_en: Historical emissions from inventories until 2023 and Excel 
+    scenario emissions or flatline from 2024 to 2050.
   description_de: Historische Emissionen aus Inventaren bis 2023 und 
-    BAU-Szenario-Emissionen von 2024 bis 2050.
-  type: generic.CoalesceNode
+    Excel-Szenario-Emissionen oder Flatline von 2024 bis 2050.
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
   color: '#6C5CE7'
   input_dimensions: [sector, energy_carrier, vehicle_type]
   output_dimensions: [sector, energy_carrier, vehicle_type]
   input_nodes:
-  - id: bau_scenario_emissions
-    tags: [primary]
-  - id: total_emissions
+  - id: excel_scenario_emissions
+    tags: [data]
   params:
-    operations: add,coalesce
+  - id: formula
+    value: select_port(condition, extend_values(inventory_only(data)), data)
+  - id: condition
+    ref: flatline
 
 - id: stationary_energy_by_type
   name_de: Stationäre Endenergieverbrauch nach Typ
@@ -494,7 +498,7 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/stationary_energy_by_type
-    forecast_from: 2025
+    forecast_from: 2024
 
 - id: vehicle_energy_by_type
   name_de: Verkehrsenergieverbrauch nach Typ
@@ -506,7 +510,7 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: koeln/vehicle_energy_by_type
-    forecast_from: 2025
+    forecast_from: 2024
 
 - id: planned_action_shares
   name_de: Geplante Maßnahmenanteil
@@ -615,12 +619,12 @@ nodes:
   name_de: Gesamtenergieverbrauch
   name_en: Total energy use
   description_en: 'The data comes from three different datasets from file Emissionsrechner
-    Gesamt_mit_szenarien_v1-2.xlsx (version 2026-03-16):<ul><li> Stationary energy
+    Gesamt_mit_szenarien_v1-4.xlsx (version 2026-03-30):<ul><li> Stationary energy
     by type: from sheet "Stationär EEV"</li><li> Transport fuel energy (years 2008
     - 2022): from sheet "Verkehr"</li><li> Vehicle energy by type (years 2023 - 2050):
     from sheet "Verkehr EEV (LKW, PKW, übrige)</li></ul>'
   description_de: 'Die Daten kommen aus drei verschiedenen Datensätzen aus der Datei
-    Emissionsrechner Gesamt_mit_szenarien_v1-2.xlsx (Version 2026-03-16):<ul><li>
+    Emissionsrechner Gesamt_mit_szenarien_v1-4.xlsx (Version 2026-03-30):<ul><li>
     Stationäre Endenergieverbrauch nach Typ: aus Blatt "Stationär EEV"</li><li> Transportkraftstoffenergie
     (Jahre 2008 - 2022): aus Blatt "Verkehr"</li><li> Verkehrsenergieverbrauch nach
     Typ (Jahre 2023 - 2050): aus Blatt "Verkehr EEV (LKW, PKW, übrige)</li></ul>'
@@ -653,7 +657,7 @@ nodes:
     - id: sector
       categories: [transport]
   params:
-    formula: st + fuel + veh
+    formula: empty_to_zero(st + fuel + veh)
 
 - id: total_emissions
   name_de: Gesamtemissionen
@@ -1247,6 +1251,7 @@ nodes:
   input_datasets:
   - id: koeln/vehicle_energy_by_type
     tags: [energy]
+    forecast_from: 2024
   params:
     formula: extend_all(energy)
 
@@ -2819,18 +2824,18 @@ scenarios:
 
 - id: active
   default: false
-  name_de: Aktiv
-  name_en: Active
+  name_de: Aktiv (Alle Strategien)
+  name_en: Active (All actions)
   all_actions_enabled: true
   params:
   - id: flatline
     value: true
 
-- id: bau_scenario
-  default: false
-  name_en: BAU forecast rather than flatline
-  name_de: BAU-Prognose statt Flatline
-  all_actions_enabled: true
-  params:
-  - id: flatline
-    value: false
+# - id: bau_scenario
+#   default: false
+#   name_en: Active + Excel forecast rather than flatline
+#   name_de: Aktiv + Excel-Prognose statt Flatline
+#   all_actions_enabled: true
+#   params:
+#   - id: flatline
+#     value: false
