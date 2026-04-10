@@ -61,6 +61,7 @@ class PathsExt:
             'extend_to_history': self._extend_to_history,
             'extend_values': self._extend_values,
             'extrapolate': self._extrapolate,
+            'fill_metrics_nan_null_zero': self._fill_metrics_nan_null_zero,
             'forecast_only': self._forecast_only,
             'geometric_inverse': self._geometric_inverse,
             'ignore_content': self._ignore_content,
@@ -941,9 +942,21 @@ class PathsExt:
         return df.filter(pl.col(VALUE_COLUMN) != 0.0)
 
     def _empty_to_zero(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
-        return df.with_columns(
-            pl.when(pl.col(VALUE_COLUMN).is_nan()).then(pl.lit(0.0)).otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN),
-        )
+        """
+        Replace missing values in every metric column with zero (float NaN and null).
+
+        With dimensions, sparse gaps only appear in wide form: round-trip via
+        :meth:`to_wide` → fill → :meth:`to_narrow` so implicit wide nulls become explicit
+        zeros in long format.
+        """
+        assert isinstance(df, ppl.PathsDataFrame)
+        if not df.metric_cols:
+            return df
+        if df.dim_ids:
+            wide = df.paths.to_wide()
+            filled = wide.paths._fill_metrics_nan_null_zero()
+            return filled.paths.to_narrow()
+        return df.paths._fill_metrics_nan_null_zero()
 
     def _exponential(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
@@ -1008,6 +1021,21 @@ class PathsExt:
         df = df.paths.to_narrow()
 
         return df
+
+    def _fill_metrics_nan_null_zero(self) -> ppl.PathsDataFrame:
+        """Fill NaN/null with 0 on all metric columns (long or wide shape)."""
+        df = self._df
+        assert isinstance(df, ppl.PathsDataFrame)
+        if not df.metric_cols:
+            return df
+        cols: list[pl.Expr] = []
+        for m in df.metric_cols:
+            c = pl.col(m)
+            if df.schema[m].is_float():
+                cols.append(c.fill_nan(0.0).fill_null(0.0).alias(m))
+            else:
+                cols.append(c.fill_null(0.0).alias(m))
+        return df.with_columns(cols)
 
     def _forecast_only(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.filter(pl.col(FORECAST_COLUMN))

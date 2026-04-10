@@ -86,7 +86,7 @@ TAG_DESCRIPTIONS = {
     'cumulative': _('Take the cumulative sum over time.'),
     'cumulative_product': _('Take the cumulative product of the dimensionless values over time.'),
     'difference': _('Take the difference over time (i.e. annual changes)'),
-    'empty_to_zero': _('Convert NaNs to zeros.'),
+    'empty_to_zero': _('Convert NaNs and Nulls to zeros in wide format.'),
     'expectation': _('Take the expected value over the uncertainty dimension.'),
     'extend_all': _('Extend the values to all the remaining missing years.'),
     'extend_both_ways': _('Extend the values beyond the first and last values, but do not interpolate.'),
