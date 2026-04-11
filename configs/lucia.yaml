@@ -4,7 +4,7 @@ supported_languages: [fi]
 site_url: https://lucia.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: fae50461629fb1c2727aad72326b6144c2ca9e7f
+  commit: d787c06e3ef94d33b02fb11a8523907eeb6976ae
   dvc_remote: kausal-s3
 name: Lucia Greenhouse Gas Inventory
 owner: Kausal Ltd
@@ -25,6 +25,7 @@ features:
   show_refresh_prompt: true
   requires_authentication: true
   show_explanations: true
+  use_datasets_from_db: false
 
 result_excels:
 - base_excel_url: 
@@ -2858,7 +2859,7 @@ nodes:
     value: 0.5
     unit: 1/a
 
-- id: fleet_emission_factor # FIXME Output car/CO2 differs from NZC due to an unknown reason.
+- id: fleet_emission_factor
   name_en: Fleet emission factor
   name_fi: Kaluston päästökerroin
   description_en: Emission factor for the current car and bus fleet. (Assuming 
@@ -5878,17 +5879,35 @@ nodes:
     - id: heating_type
     - id: fuel_type
 
-- id: building_heat_fossil_ratio
-  name_en: Building heat fossil ratio
-  name_fi: Rakennusten lämmityksen fossiilinen suhde
+- id: heating_emission_factor
+  name_en: Heating emission factor
+  name_fi: Lämmityksen päästökerroin
+  description_en: Emission factor for building heating. This applies only to
+    fossil fuel types, as non-fossil fuels are assumed to have zero emissions.
+  description_fi: Rakennusten lämmityksen päästökerroin. Tämä koskee vain
+    fossiilisia polttoainetyyppejä, sillä ei-fossiilisten polttoaineiden
+    päästöjen oletetaan olevan nolla.
   type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [heating_type, fuel_type]
-  output_dimensions: [heating_type, fuel_type]
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [pollutant, heating_type, fuel_type]
+  output_dimensions: [pollutant, heating_type, fuel_type]
   input_nodes:
+  - id: average_heating_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: pollutant
+    - id: heating_type
+  - id: building_heat_fossil_energy
+    tags: [inventory_only, geometric_inverse, extend_values]
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+    to_dimensions:
+    - id: heating_type
+    - id: fuel_type
   - id: building_heat_energy_use
-    tags: [geometric_inverse]
+    tags: [inventory_only, extend_values]
     from_dimensions:
     - id: building_energy_class
       flatten: true
@@ -5902,37 +5921,6 @@ nodes:
       flatten: true
     to_dimensions:
     - id: heating_type
-  - id: building_heat_fossil_energy
-  params:
-    replace_nans: 0.0
-
-- id: heating_emission_factor
-  name_en: Heating emission factor
-  name_fi: Lämmityksen päästökerroin
-  description_en: Emission factor for building heating. This applies only to 
-    fossil fuel types, as non-fossil fuels are assumed to have zero emissions.
-  description_fi: Rakennusten lämmityksen päästökerroin. Tämä koskee vain 
-    fossiilisia polttoainetyyppejä, sillä ei-fossiilisten polttoaineiden 
-    päästöjen oletetaan olevan nolla.
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [pollutant, heating_type, fuel_type]
-  output_dimensions: [pollutant, heating_type, fuel_type]
-  input_nodes:
-  - id: average_heating_emission_factor
-    tags: [non_additive]
-    to_dimensions:
-    - id: pollutant
-    - id: heating_type
-  - id: building_heat_fossil_ratio
-    tags: [inventory_only, geometric_inverse, extend_values]
-    from_dimensions:
-    - id: fuel_type
-      categories: [fossil]
-    to_dimensions:
-    - id: heating_type
-    - id: fuel_type
   params:
     replace_nans: 0.0
 
@@ -6186,7 +6174,7 @@ nodes:
 - id: electricity_non_renovated_old_buildings
   name_en: Electricity-non-renovated old buildings
   name_fi: Sähköperuskorjaamattomat vanhat rakennukset
-  description_en: Old buildings that have not (yet) gone through electricity 
+  description_en: Old buildings that have not (yet) gone through electricity
     renovation
   description_fi: Vanhat rakennukset, joita ei ole (vielä) sähköremontoitu
   type: generic.GenericNode
@@ -6271,26 +6259,6 @@ nodes:
 
 # --------------- Emissions ------------
 
-- id: building_air_pollutant_emissions
-  name_en: Building air pollutant emissions
-  name_fi: Rakennusten ilmansaastepäästöt
-  type: generic.GenericNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [pollutant]
-  output_dimensions: [pollutant]
-  input_nodes:
-  - id: building_heating_emissions
-    from_dimensions:
-    - id: heating_type
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: fuel_type
-      flatten: true
-    - id: pollutant
-      categories: [nox, pm25_combustion, pm10_combustion]
-
 # --------------- Costs ----------------
 
 - id: jobs_per_renovation_investment
@@ -6349,7 +6317,16 @@ nodes:
   output_dimensions: [pollutant, heating_type, area_distance, cost_type, 
       stakeholder]
   input_nodes:
-  - id: building_air_pollutant_emissions
+  - id: building_heating_emissions
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    - id: pollutant
+      categories: [nox, pm25_combustion, pm10_combustion]
     to_dimensions:
     - id: pollutant
   - id: air_pollutant_distance_index
