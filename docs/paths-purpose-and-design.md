@@ -10,7 +10,9 @@ Instructions for designing model YAML files and datasets for participatory clima
 
 The models are built to increase understanding among decision makers, civil servants, citizens, and stakeholders. Many models focus on city-level topics, but the platform itself is more generic.
 
-Importantly, the purpose not primarily to convince stakeholders or force them to adopt a consensus. Instead, it offers a platform for stakeholders to bring their ideas, concerns, and objections to the table and try to convince "us"—an imaginary group sharing common values.
+Importantly, the purpose is not primarily to convince stakeholders or force them to adopt a consensus. Instead, it offers a platform for stakeholders to bring their ideas, concerns, and objections to the table and try to convince "us"—an imaginary group sharing common values.
+
+The platform operationalizes the logic of **Theory of Change**: every model makes explicit the causal chain from action to outcome, together with the assumptions that must hold for change to occur. Unlike conventional Theory of Change diagrams, Kausal Paths encodes these causal chains computationally, making them testable, comparable across scenarios, and sensitive to stakeholder input.
 
 ### Common values
 
@@ -18,6 +20,8 @@ Importantly, the purpose not primarily to convince stakeholders or force them to
 - Future generations should have opportunity for living good lives.
 - Impartial consideration of all people.
 - Intergenerational equity.
+
+> **Note:** The common values are a working proposal and a starting point for deliberation — not a discovered or politically neutral foundation. They reflect a broadly cosmopolitan-consequentialist orientation. Alternative value frameworks are explicitly accommodated as model variants (see Value framework approach below).
 
 ### Value framework approach
 
@@ -29,11 +33,43 @@ Different stakeholders have different beliefs about causal relationships. These 
 
 ### Objections handling
 
+Making the type of objection visible is as important as handling it correctly. When a stakeholder objects to a policy recommendation, the nature of the objection determines the appropriate response — and conflating the three types leads to confused deliberation.
+
 **Empirical disputes** are claims about how the world works that can be investigated with evidence. Treatment: model them as causal chain parameters or uncertainties; explore with sensitivity analysis.
 
 **Value conflicts** are claims rooted in value frameworks that conflict with or are orthogonal to common values. Treatment: flag as alternative value framework; run scenarios with different value weights; output shows what values were violated.
 
 **Interests as values** are claims that appear principled but primarily protect material interests. Treatment: separate "How much will X lose?" (empirical) from "Should we care?" (normative). Within the common-values framework, weigh economic loss against suffering reduction.
+
+> **Note for facilitators:** Identifying an objection as primarily interest-based is a sensitive move that requires care. The model helps by quantifying impacts separately from normative weighting — making it easier to acknowledge losses honestly while keeping the value question distinct.
+
+### Methodological context
+
+Kausal Paths builds on and connects several established methodological traditions:
+
+- **Theory of Change** (Weiss, 1995; Funnell & Rogers, 2011): The platform makes causal chains and underlying assumptions explicit and testable, extending standard Theory of Change methodology into a computational and participatory setting.
+- **Value of Information** (Howard, 1966; Claxton, 1999): Sensitivity analysis in the model identifies which uncertain parameters most affect outcomes — equivalent to identifying parameters with high Expected Value of Perfect Partial Information (EVPPI). This guides where better evidence or deeper deliberation would have the most impact.
+- **Structured Decision Making** (Gregory et al., 2012): The platform shares the SDM emphasis on separating facts from values, making objectives explicit, and structuring stakeholder engagement around a transparent analytical framework.
+
+### Generic models and scaling
+
+A key challenge in participatory modeling is the barrier to entry: building a rigorous causal model from scratch requires expertise and time that most cities do not have. Kausal Paths addresses this through a library of **generic models** covering common city-level climate actions — transport, buildings, energy, land use, and others.
+
+Each generic model provides:
+- A pre-built causal chain with documented assumptions
+- Uncertainty ranges informed by current research literature
+- Common value framings and typical stakeholder objections encoded as argument nodes
+- Standard outcome nodes and scenario definitions
+
+Cities use generic models as a **scaffold**: a well-researched starting point that they adapt to local circumstances, stakeholder input, and political priorities. The scaffold makes building possible — it does not determine what gets built.
+
+**Implications for model designers:**
+- Design generic models to foreground their own assumptions, making it easy for city users to identify and challenge them.
+- Use argument nodes generously to document known empirical disputes, value conflicts, and stakeholder concerns from the research literature.
+- Prefer modular structures that cities can extend or adjust without restructuring the core model.
+- Generic models improve over time as cities contribute local adaptations — design for reusability from the start.
+
+**For outside experts:** Generic models provide a concrete and meaningful way for researchers, sector specialists, and NGOs to contribute to the platform without being tied to a single city project. Contributing to a generic model means contributing to every city that uses it.
 
 ---
 
@@ -57,7 +93,7 @@ The model is a directed acyclic graph (DAG) of nodes.
 
 Nodes can have multiple dimensions (categorical variables). The most common dimensions are `energy_carrier` and `sector`. Other examples: `time_of_day`, `vehicle_type`, `stakeholder`, `hypotheses`, `ghg` (greenhouse gas).
 
-**Dimension arithmetic:** Multiplication (and division) results in the union of dimensions from both inputs. Addition (and subtracton) requires dimensions to match; incompatible dimensions must be aggregated first. Also categories are treated differently: multiplication and division merge with inner join resulting in dropout of categories that do not exist in both sides. In contrast, addition and subtraction use outer join and the emerging null values are treated as zeros.
+**Dimension arithmetic:** Multiplication (and division) results in the union of dimensions from both inputs. Addition (and subtraction) requires dimensions to match; incompatible dimensions must be aggregated first. Also categories are treated differently: multiplication and division merge with inner join resulting in dropout of categories that do not exist in both sides. In contrast, addition and subtraction use outer join and the emerging null values are treated as zeros.
 
 **Flattening:** Use `from_dimensions` with `flatten: true` at edges to sum over a dimension. Use `sum_dim(expr, dimension)` in `FormulaNode` to aggregate within a formula.
 
@@ -157,7 +193,7 @@ Datasets are organized hierarchically (e.g. `transportation/dataset_id`). Format
 
 **Formula clarity:** Use descriptive tags (e.g. `[baseline]`, `[reduction]`, not `[x]`, `[y]`). Break complex calculations into multiple nodes. Document units in node names when ambiguous.
 
-**Argument nodes:** Connect them to the most directly relevant computational node(s). Use HTML in descriptions for rich documentation. List related nodes, stakeholders, and hypotheses in the description. They can connect to multiple nodes if the objection relates to several.
+**Argument nodes:** Connect them to the most directly relevant computational node(s). Use HTML in descriptions for rich documentation. List related nodes, stakeholders, and hypotheses in the description. They can connect to multiple nodes if the objection relates to several. In generic models, use argument nodes proactively to document known empirical disputes and stakeholder concerns from the research literature — this is part of the value generic models provide.
 
 **Naming conventions:** IDs in snake_case; names in sentence case; use single quotes for strings; only quote strings that contain special characters (e.g. `:`, `#`).
 
@@ -175,21 +211,31 @@ Datasets are organized hierarchically (e.g. `transportation/dataset_id`). Format
 
 ## Best practices
 
-Start simple: begin with a minimal viable model and expand incrementally. Test early: run the model as soon as possible to find issues. Document decisions: record rationale for design choices. Mark workarounds: use FIXME for temporary solutions. Keep structure explicit: include all intermediate nodes. Refine progressively: start with qualitative edge tags and add formulas later; start with placeholder data and refine values later; start with simple scenarios and add complexity later.
+**Start simple:** begin with a minimal viable model and expand incrementally. Test early: run the model as soon as possible to find issues. Document decisions: record rationale for design choices. Mark workarounds: use FIXME for temporary solutions. Keep structure explicit: include all intermediate nodes. Refine progressively: start with qualitative edge tags and add formulas later; start with placeholder data and refine values later; start with simple scenarios and add complexity later.
+
+**Generic model design:** When building a generic model intended for reuse across cities, design it to surface its own assumptions — cities should find it easy to identify what to challenge and customize. Use argument nodes generously to document known empirical disputes, value conflicts, and stakeholder concerns drawn from research literature. Write node descriptions as if explaining to a city expert who did not build the model. Prefer modular structures that can be extended locally without restructuring the core. Mark parameters that are most likely to vary by local context with clear documentation.
+
+**Sensitivity as priority signal:** Parameters where model outputs are highly sensitive to input values deserve explicit attention — in documentation, in argument nodes, and in facilitation. These are the parameters where better local data or deeper stakeholder deliberation will have the most impact. Identifying them is equivalent to Value of Information analysis: invest attention where uncertainty matters most.
 
 ---
 
 ## Key concepts
 
-**Participatory modeling:** The model is designed for stakeholder engagement, not expert prediction. The goal is to help stakeholders understand the implications of their beliefs and values. The goal is not to convince anyone or find an "optimal" policy.
+**Participatory modeling:** The model is designed for stakeholder engagement, not expert prediction. The goal is to help stakeholders understand the implications of their beliefs and values. The goal is not to convince anyone or find an "optimal" policy. However, one goal is to identify policies that appear tempting but are actually, based on current scientific knowledge and commonly shared values, performing much worse than people think. These are called "desctructive policies" and the models should highlight the discrepancy between perceived and actual performance.
+
+**Theory of Change:** The platform implements Theory of Change computationally. Causal chains from actions to outcomes are explicit, underlying assumptions are documented (including in argument nodes), and the model can be run under different causal hypotheses. This extends conventional Theory of Change by making assumptions testable and quantitatively comparable across stakeholder worldviews.
+
+**Value of Information:** Sensitivity analysis identifies which parameters most affect model outcomes — equivalent to estimating Expected Value of Perfect Partial Information (EVPPI). Parameters where conclusions are highly sensitive deserve more attention: better data, deeper deliberation, or explicit flagging as key uncertainties for decision makers.
 
 **Hypothesis dimensions:** Encode competing empirical beliefs as categories in a dimension. Different stakeholders select different categories to see "their" outcomes. The model structure stays the same; parameters vary.
 
 **Value weights:** MCDM converts outcomes to utilities. Different stakeholders weight outcomes differently.
 
-**Argument nodes:** They are documentation nodes that do not affect calculations. They link stakeholder concerns to relevant computational nodes and enable traceability (e.g. "This objection relates to these parameters").
+**Argument nodes:** They are documentation nodes that do not affect calculations. They link stakeholder concerns to relevant computational nodes and enable traceability (e.g. "This objection relates to these parameters"). In generic models, they also capture known objections and disputes from the research literature, making the model's epistemic grounding visible.
 
 **Outcome nodes:** Special nodes marked `is_outcome: true` for UI presentation. Use AdditiveNode to sum components.
+
+**Generic models:** Pre-built causal models covering common city-level climate actions. They serve as a scaffold — a well-researched starting point that cities adapt to local circumstances, stakeholder input, and political priorities. The scaffold makes participation possible; it does not determine what gets built. Generic models should be designed for reusability, with assumptions foregrounded and argument nodes documenting known debates.
 
 ---
 
