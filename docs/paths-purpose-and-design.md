@@ -221,7 +221,9 @@ Datasets are organized hierarchically (e.g. `transportation/dataset_id`). Format
 
 ## Key concepts
 
-**Participatory modeling:** The model is designed for stakeholder engagement, not expert prediction. The goal is to help stakeholders understand the implications of their beliefs and values. The goal is not to convince anyone or find an "optimal" policy. However, one goal is to identify policies that appear tempting but are actually, based on current scientific knowledge and commonly shared values, performing much worse than people think. These are called "desctructive policies" and the models should highlight the discrepancy between perceived and actual performance.
+**Participatory modeling:** The model is designed for stakeholder engagement, not expert prediction. The goal is to help stakeholders understand the implications of their beliefs and values. The goal is not to convince anyone or find an "optimal" policy.
+
+**Destructive policies:** However, one goal is to identify policies that appear tempting but are actually, based on current scientific knowledge and commonly shared values, performing much worse than people think. These are called "destructive policies" and the models should highlight the discrepancy between perceived and actual performance.
 
 **Theory of Change:** The platform implements Theory of Change computationally. Causal chains from actions to outcomes are explicit, underlying assumptions are documented (including in argument nodes), and the model can be run under different causal hypotheses. This extends conventional Theory of Change by making assumptions testable and quantitatively comparable across stakeholder worldviews.
 

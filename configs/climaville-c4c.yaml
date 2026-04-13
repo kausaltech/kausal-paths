@@ -1,0 +1,3500 @@
+id: climaville-c4c
+default_language: da
+supported_languages: [en]
+site_url: https://climaville-c4c.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 6a131ae009dfe6d5aef70fa15e38fca279ceceb0
+  dvc_remote: kausal-s3
+name: Climaville Greenhouse Gas Inventory
+owner: City of Climaville
+theme_identifier: eu-climate-4-cast
+target_year: 2030
+model_end_year: 2035
+reference_year: 1990
+minimum_historical_year: 2018
+maximum_historical_year: 2023
+emission_unit: t/a
+emission_forecast_from: 2024
+emission_dimensions: [ghg]
+features:
+  baseline_visible_in_graphs: true
+  use_datasets_from_db: true
+
+impact_overviews:
+- graph_type: cost_efficiency
+  cost_node: net_costs
+  effect_node: net_emissions
+  indicator_unit: DKK/t
+  cost_unit: DKK
+  effect_unit: t
+  plot_limit_for_indicator: 10000
+  label: Cost Efficiency
+
+action_groups:
+- id: energy
+  name: Energy
+  color: '#4E79A7'
+- id: transportation
+  name: Transportation
+  color: '#E15759'
+- id: transportation_green_mobility
+  name: Transportation (Green Mobility Plan)
+  color: '#E15759'
+- id: waste
+  name: Waste
+  color: '#59A14F'
+- id: ippu
+  name: Industrial Process & Product Use
+  color: '#F28E2B'
+- id: afolu
+  name: Agriculture, Forestry & Other Land Use
+  color: '#B07AA1'
+
+dimensions:
+- id: energy_usage
+  label: Energy Usage
+  categories:
+  - id: electricity_consumption
+    label: Electricity Consumption
+  - id: distribution_loss
+    label: Distribution Loss
+  - id: transportation
+    label: Transportation
+
+- id: owner
+  label: Owner
+  categories:
+  - id: municipal
+    label: Municipal
+  - id: private
+    label: Private
+
+- id: vehicle_type
+  label: Vehicle Type
+  categories:
+  - id: buses
+    label: Buses
+  - id: cycling
+    label: Cycling
+  - id: mopeds
+    label: Mopeds
+  - id: motorcycles
+    label: Motorcycles
+  - id: passenger_cars
+    label: Passenger Cars
+  - id: trucks
+    label: Trucks
+  - id: vans
+    label: Vans
+
+  - id: rail
+    label: Rail
+  - id: high_speed_trains
+    label: High-speed Trains
+  - id: inter_city_trains
+    label: Inter-city Trains
+  - id: light_rail
+    label: Light Rail
+  - id: local_trains
+    label: Local Trains
+  - id: regional_trains
+    label: Regional Trains
+
+  - id: ferry
+    label: Ferry
+  - id: aviation
+    label: Aviation
+
+- id: emission_source
+  label: Emission Source
+  categories:
+  - id: digestion
+    label: Digestion
+  - id: housing_manure_storage
+    label: Housing & Manure Storage
+
+- id: ghg
+  label: GHG
+  categories:
+  - id: co2
+    label: CO2
+  - id: co2e
+    label: CO2e
+  - id: ch4
+    label: CH4
+  - id: n2o
+    label: N2O
+
+- id: energy_carrier
+  label: Energy Carrier
+  categories:
+  - id: ambient_industrial_waste_heat_geothermal_energy
+    label: Ambient & Industrial Waste Heat, Geothermal Energy
+  - id: bio_oil
+    label: Bio Oil
+  - id: bio_natural_gas
+    label: Bio-natural Gas
+  - id: biodegradable_waste
+    label: Biodegradable Waste
+  - id: biodiesel
+    label: Biodiesel
+  - id: biogas
+    label: Biogas
+  - id: coal
+    label: Coal
+  - id: diesel
+    label: Diesel
+  - id: electricity
+    label: Electricity
+  - id: fuel_oil
+    label: Fuel Oil
+  - id: gasoline
+    label: Gasoline
+  - id: gasoline_hybrid
+    label: Gasoline Hybrid
+  - id: jp_1_jp_4
+    label: JP-1 & JP-4
+  - id: liquefied_petroleum_gas
+    label: Liquefied Petroleum Gas (LPG)
+  - id: natural_gas
+    label: Natural Gas
+  - id: non_biodegradable_waste
+    label: Non-biodegradable Waste
+  - id: other_renewable_energy
+    label: Other Renewable Energy
+  - id: other_wood
+    label: Other Wood
+  - id: refinery_gas
+    label: Refinery Gas
+  - id: solar_power
+    label: Solar Power
+  - id: straw
+    label: Straw
+  - id: unclassified_biomass
+    label: Unclassified Biomass
+  - id: waste_oil
+    label: Waste Oil
+  - id: wind_power
+    label: Wind Power
+  - id: wood_biomass_waste
+    label: Wood & Biomass Waste
+  - id: wood_chips
+    label: Wood Chips
+  - id: wood_pellets
+    label: Wood Pellets
+  - id: import_electricity
+    label: Import Electricity
+  - id: biogenic_fuels
+    label: Biogenic Fuels
+
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: infrastructure
+    label: Infrastructure
+  - id: operations
+    label: Operations
+
+- id: sector
+  label: Emission Sector
+  categories:
+  - id: i
+    label: I Energy
+  - id: i1
+    label: Combined Heat & Power (CHP)
+  - id: i11
+    label: 'CHP: District Heat'
+  - id: i12
+    label: 'CHP: Electricity Generation'
+  - id: i2
+    label: I.2 Electricity
+  - id: i21
+    label: I.2.1 Renewable Electricity Generation
+  - id: i22
+    label: I.2.2 Electricity Demand
+  - id: i3
+    label: I.3 Manufacturing
+  - id: i4
+    label: I.4 Other
+  - id: i41
+    label: 'I.4.1 Other: Heating'
+  - id: i42
+    label: 'I.4.2 Other: Energy Consumption'
+  - id: i5
+    label: I.5 Non-road
+  - id: i51
+    label: 'I.5.1 Non-road: Agriculture'
+  - id: i52
+    label: 'I.5.2 Non-road: Forestry'
+  - id: i53
+    label: 'I.5.3 Non-road: Commercial & Institutional'
+  - id: i54
+    label: 'I.5.4 Non-road: Residential'
+  - id: i55
+    label: 'I.5.5 Non-road: Construction & Civil Engineering'
+  - id: i56
+    label: 'I.5.6 Non-road: Fishing'
+  - id: ii
+    label: II Transportation
+  - id: ii1
+    label: II.1 On-Road Transport
+  - id: ii2
+    label: II.2 Rail Transport
+  - id: ii3
+    label: II.3 Waterborne Transport
+  - id: ii4
+    label: II.4 Aviation
+  - id: iii
+    label: III Waste
+  - id: iii1
+    label: Landfill Waste
+  - id: iii2
+    label: Biogas Production
+  - id: iii3
+    label: Wastewater
+  - id: iv
+    label: IPPU
+  - id: iv1
+    label: 'IPPU: Industrial Processes'
+  - id: iv2
+    label: 'IPPU: Product Use'
+  - id: v
+    label: AFOLU
+  - id: v1
+    label: Land
+  - id: v11
+    label: Cultivation
+  - id: v111
+    label: 'Cultivation: Conventional Farming'
+  - id: v112
+    label: 'Cultivation: Organic Farming'
+  - id: v12
+    label: Organic Soils
+  - id: v121
+    label: 'Organic Soils: Cultivation'
+  - id: v1211
+    label: 'Organic Soils: Cultivation: 6-12 % SOC'
+  - id: v1212
+    label: 'Organic Soils: Cultivation: > 12 % SOC'
+  - id: v122
+    label: 'Organic Soils: Permanent Grass'
+  - id: v1221
+    label: 'Organic Soils: Permanent Grass: 6-12 % SOC'
+  - id: v1222
+    label: 'Organic Soils: Permanent Grass: > 12 % SOC'
+  - id: v123
+    label: 'Organic Soils: Nature'
+  - id: v1231
+    label: 'Organic Soils: Nature: 6-12 % SOC'
+  - id: v1232
+    label: 'Organic Soils: Nature: > 12 % SOC'
+  - id: v13
+    label: Forestry
+  - id: v131
+    label: 'Forestry: Permanent Forest'
+  - id: v132
+    label: 'Forestry: Afforestation'
+  - id: v133
+    label: 'Forestry: New Forest'
+  - id: v2
+    label: Livestock
+  - id: v21
+    label: Cattle
+  - id: v22
+    label: Swine
+  - id: v23
+    label: Poultry
+  - id: v24
+    label: Other Livestock
+  - id: v25
+    label: Manure Delivered to Biogas Facilities
+
+- id: action
+  label: Action
+  categories:
+  # ----- Energy
+  - id: biogenic_energy_park_energy
+    label: Biogenic Energy Park (Energy)
+  - id: carbon_capture_and_storage
+    label: Carbon Capture and Storage
+  - id: energy_efficiency_improvements
+    label: Energy Efficiency Improvements
+  - id: energy_efficient_municipal_buildings
+    label: Energy Efficient Municipal Buildings
+  - id: expansion_of_renewable_energy
+    label: Expansion of Renewable Energy
+  - id: green_district_heating_of_the_future
+    label: Green District Heating of the Future
+
+  # ----- Transportation
+  - id: green_mobility_plan
+    label: Green Mobility Plan
+  - id: optimized_and_emission_free_municipal_fleet
+    label: Optimized and Emission Free Municipal Fleet
+  - id: sustainable_air_and_maritime_transport
+    label: Sustainable Air and Maritime Transport
+  - id: sustainable_municipal_facilities
+    label: Sustainable Municipal Facilities
+  - id: zero_emission_municipal_machinery_and_driving
+    label: Zero-emission Municipal Machinery and Driving
+
+  # ----- AFOLU
+  - id: biogenic_energy_park
+    label: Biogenic Energy Park
+  - id: climate_supervision_and_action_plans
+    label: Climate Supervision and Action Plans
+  - id: conversion_to_forestry_and_nature
+    label: Conversion to Forestry and Nature
+  - id: extraction_of_organic_soils
+    label: Extraction of Organic Soils
+  - id: sustainable_soil_management
+    label: Sustainable Soil Management
+
+  # ----- Waste
+  - id: biocover_on_landfills
+    label: Biocover on Landfills
+
+  # ----- IPPU
+  - id: green_materials_in_industry_and_construction
+    label: Green Materials in Industry and Construction
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+  target_year_goal: 0
+
+nodes:
+
+- id: energy_emission_factors
+  name: Energy Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/emission_factors__energy
+    column: emission_factor
+    forecast_from: 2024
+
+# ----- I Energy
+
+- id: energy_emissions
+  name_da: Energi
+  name_en: Energy Emissions
+  color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: chp_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+  - id: electricity_emissions
+  - id: manufacturing_emissions
+  - id: other_energy_emissions
+  - id: nonroad_energy_emissions
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+# ---------- I.1 Combined Heat & Power
+
+- id: chp_district_heat_energy_consumption
+  name: CHP District Heat Energy Consumption (Excluding Electricity)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: aarhus/combined_heat_and_power
+    column: energy
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: energy_carrier
+      value: electricity
+      exclude: true
+      drop_col: false
+    - dimension: sector
+      categories: [i11]
+    - column: ghg
+
+- id: chp_district_heat_electricity_consumption
+  name: CHP District Heat Electricity Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: aarhus/combined_heat_and_power
+    column: energy
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: energy_carrier
+      categories: [electricity]
+    - dimension: sector
+      categories: [i11]
+    - column: ghg
+
+- id: chp_district_heat_emissions
+  name: CHP District Heat Emissions
+  short_name: District Heat Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg, sector]
+  output_dimensions: [energy_carrier, ghg, sector]
+  input_nodes:
+  - id: energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: chp_district_heat_energy_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+
+- id: chp_electricity_generation_energy_consumption
+  name: CHP Electricity Generation Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: aarhus/combined_heat_and_power
+    column: energy
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [i12]
+    - column: ghg
+
+- id: chp_electricity_generation_emissions
+  name: CHP Electricity Generation Emissions
+  short_name: Electricity Generation Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg, sector]
+  output_dimensions: [energy_carrier, ghg, sector]
+  input_nodes:
+  - id: energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: chp_electricity_generation_energy_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+
+- id: chp_electricity_generation_energy_factors
+  name: CHP Electricity Generation Energy Factors
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: TJ/TJ
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: aarhus/combined_heat_and_power
+    column: energy_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i12
+    - column: ghg
+
+- id: chp_electricity_generation_energy_production
+  name: CHP Electricity Generation Energy Production
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: chp_electricity_generation_energy_factors
+  - id: chp_electricity_generation_energy_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: sector
+      flatten: true
+
+- id: chp_emissions
+  name: Combined Heat & Power (CHP) Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, energy_carrier, ghg]
+  output_dimensions: [sector, energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/combined_heat_and_power
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+  input_nodes:
+  - id: chp_district_heat_emissions
+  - id: chp_electricity_generation_emissions
+
+# ---------- I.2 Electricity
+
+- id: renewable_electricity_generation
+  name: Renewable Electricity Generation
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: aarhus/electricity
+    column: energy
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i21
+    - column: energy_usage
+
+- id: electricity_demand
+  name: Electricity Demand
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_usage, energy_carrier]
+  output_dimensions: [energy_usage, energy_carrier]
+  input_datasets:
+  - id: aarhus/electricity
+    column: energy
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i22
+
+- id: electricity_import
+  name: Electricity Import
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: electricity_demand
+    from_dimensions:
+    - id: energy_usage
+      flatten: true
+  - id: chp_district_heat_electricity_consumption
+    from_dimensions:
+    - id: sector
+      flatten: true
+  - id: chp_electricity_generation_energy_production
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: renewable_electricity_generation
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: electricity_emissions
+  name: Electricity Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: energy_emission_factors
+  - id: electricity_import
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [import_electricity]
+
+# ---------- I.3 Manufacturing
+
+- id: manufacturing_energy_consumption
+  name: Manufacturing Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: aarhus/manufacturing
+    column: energy
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: ghg
+
+- id: manufacturing_emissions
+  name: Manufacturing Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  params:
+    formula: (manufacturing_energy_consumption * energy_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/manufacturing
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+  input_nodes:
+  - id: energy_emission_factors
+  - id: manufacturing_energy_consumption
+    to_dimensions:
+    - id: energy_carrier
+
+# ---------- I.4 Other Energy
+
+- id: other_energy_consumption
+  name: Other Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: aarhus/other_energy
+    column: energy
+    forecast_from: 2024
+
+- id: other_energy_heating_emissions
+  name: Other Energy Heating Emissions
+  short_name: Heating Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: energy_emission_factors
+  - id: other_energy_consumption
+    from_dimensions:
+    - id: sector
+      categories: [i41]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
+- id: other_energy_consumption_emissions
+  name: Other Energy Consumption Emissions
+  short_name: Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: energy_emission_factors
+  - id: other_energy_consumption
+    from_dimensions:
+    - id: sector
+      categories: [i42]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
+- id: other_energy_emissions
+  name: Other Energy Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: other_energy_heating_emissions
+  - id: other_energy_consumption_emissions
+
+# ---------- I.5 Non-Road Energy
+
+- id: nonroad_energy_agriculture_emissions
+  name: Non-Road Energy Agriculture Emissions
+  short_name: Agriculture Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/nonroad_energy
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i51
+
+- id: nonroad_energy_forestry_emissions
+  name: Non-Road Energy Forestry Emissions
+  short_name: Forestry Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/nonroad_energy
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i52
+
+- id: nonroad_energy_commercial_institutional_emissions
+  name: Non-Road Energy Commercial & Institutional Emissions
+  short_name: Commercial & Institutional Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/nonroad_energy
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i53
+
+- id: nonroad_energy_residential_emissions
+  name: Non-Road Energy Residential Emissions
+  short_name: Residential Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/nonroad_energy
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i54
+
+- id: nonroad_energy_construction_engineering_emissions
+  name: Non-Road Energy Construction & Civil Engineering Emissions
+  short_name: Construction & Civil Engineering Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/nonroad_energy
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i55
+
+- id: nonroad_energy_fishing_emissions
+  name: Non-Road Energy Fishing Emissions
+  short_name: Fishing Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/nonroad_energy
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i56
+
+- id: nonroad_energy_emissions
+  name: Non-Road Energy Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: nonroad_energy_agriculture_emissions
+  - id: nonroad_energy_forestry_emissions
+  - id: nonroad_energy_commercial_institutional_emissions
+  - id: nonroad_energy_residential_emissions
+  - id: nonroad_energy_construction_engineering_emissions
+  - id: nonroad_energy_fishing_emissions
+
+# ----- II Transportation
+
+- id: transportation_energy_biogenic_shares
+  name: Transportation Energy Biogenic Shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: aarhus/biogenic_shares
+    column: fraction
+    forecast_from: 2024
+
+- id: transportation_energy_emission_factors
+  name: Transportation Energy Emission Factors
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: energy_emission_factors
+    tags: [non_additive]
+  - id: transportation_energy_biogenic_shares
+    tags: [complement]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: transportation_mileage_emission_factors
+  name: Transportation Mileage Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/km
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/emission_factors__transportation
+    column: emission_factor
+    forecast_from: 2024
+    filters:
+    - dimension: vehicle_type
+      categories: [cycling, mopeds, motorcycles, passenger_cars, trucks, vans]
+    - column: owner
+
+- id: gasoline_hybrid_shares
+  name: Transportation Energy Hybrid Shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: aarhus/gasoline_hybrid_shares
+    column: fraction
+    forecast_from: 2024
+
+- id: gasoline_hybrid_emission_factors
+  name: Gasoline Hybrid Emission Factors
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: energy_emission_factors
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: gasoline_hybrid_shares
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+
+- id: transportation_emissions
+  name_da: Transport og Mobilitet
+  name_en: Transportation Emissions
+  color: '#E15759'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: onroad_transport_emissions
+  - id: rail_transport_emissions
+  - id: waterborne_transport_emissions
+  - id: aviation_emissions
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+# ---------- II.1 On-Road Transportation
+
+- id: onroad_transport_emissions
+  name: On-Road Transport Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: onroad_transport_bus_emissions
+    from_dimensions:
+    - id: owner
+      flatten: true
+  - id: onroad_transport_passenger_car_emissions
+  - id: onroad_transport_truck_emissions
+  - id: onroad_transport_van_emissions
+  - id: onroad_transport_other_emissions
+
+# --------------- Buses
+
+- id: onroad_transport_bus_mileage
+  name: On-Road Transport Bus Mileage
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: km/a
+  input_dimensions: [energy_carrier, owner, vehicle_type]
+  output_dimensions: [energy_carrier, owner, vehicle_type]
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    column: mileage
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: ghg
+    - dimension: vehicle_type
+      categories: [buses]
+
+- id: onroad_transport_bus_energy_factors
+  name: On-Road Transport Bus Energy Factors
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: MJ/km
+  input_dimensions: [energy_carrier, owner, vehicle_type]
+  output_dimensions: [energy_carrier, owner, vehicle_type]
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    column: energy_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: ghg
+    - dimension: vehicle_type
+      categories: [buses]
+
+- id: onroad_transport_bus_energy_consumption
+  name: On-Road Transport Bus Energy Consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier, owner, vehicle_type]
+  output_dimensions: [energy_carrier, owner, vehicle_type]
+  input_nodes:
+  - id: onroad_transport_bus_mileage
+  - id: onroad_transport_bus_energy_factors
+
+- id: onroad_transport_bus_emissions
+  name: On-Road Transport Bus Emissions
+  short_name: Bus Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, owner, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, owner, vehicle_type, ghg]
+  params:
+    formula: (energy_consumption * nonhybrid_emission_factors) +
+             (mileage * ch4_n2o_emission_factors) + reference
+  input_datasets:
+  # ----- Reference
+  - id: aarhus/onroad_transportation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: vehicle_type
+      categories: [buses]
+  # ----- CH4 & N2O Emission Factors
+  - id: aarhus/emission_factors__transportation
+    tags: [ch4_n2o_emission_factors]
+    column: emission_factor
+    forecast_from: 2024
+    filters:
+    - dimension: vehicle_type
+      categories: [buses]
+  input_nodes:
+  # ----- Mileage
+  - id: onroad_transport_bus_mileage
+    tags: [mileage]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [diesel]
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: vehicle_type
+  # ----- Energy Consumption
+  - id: onroad_transport_bus_energy_consumption
+    tags: [energy_consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: vehicle_type
+  # ----- Non-Hybrid Emission Factors
+  - id: transportation_energy_emission_factors
+    tags: [nonhybrid_emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+
+# --------------- Other Vehicles
+
+- id: onroad_transport_vehicle_mileage
+  name: On-Road Transport Vehicle Mileage
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: km/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    column: mileage
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: owner
+    - column: ghg
+    - dimension: vehicle_type
+      categories: [cycling, mopeds, motorcycles, passenger_cars, trucks, vans]
+
+- id: onroad_transport_vehicle_energy_factors
+  name: On-Road Transport Vehicle Energy Factors
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: MJ/km
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    column: energy_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: owner
+    - column: ghg
+    - dimension: vehicle_type
+      categories: [cycling, mopeds, motorcycles, passenger_cars, trucks, vans]
+
+- id: onroad_transport_vehicle_energy_consumption
+  name: On-Road Transport Vehicle Energy Consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: onroad_transport_vehicle_mileage
+  - id: onroad_transport_vehicle_energy_factors
+
+- id: onroad_transport_passenger_car_emissions
+  name: On-Road Transport Passenger Car Emissions
+  short_name: Passenger Car Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
+  params:
+    formula: ((nonhybrid_emission_factors * energy_consumption) +
+              (hybrid_emission_factors * energy_consumption) +
+              (ch4_n2o_emission_factors * mileage) + reference) *
+             complement(green_mobility_2a2) * complement(green_mobility_3b) *
+             complement(green_mobility_4) * complement(green_mobility_5) *
+             complement(green_mobility_7) * complement(green_mobility_8) *
+             complement(green_mobility_9) * complement(green_mobility_10a) *
+             complement(green_mobility_12a) * complement(green_mobility_14) *
+             complement(green_mobility_15a) * complement(green_mobility_17) *
+             complement(green_mobility_22a) * complement(green_mobility_23a) *
+             complement(green_mobility_24a) * complement(green_mobility_26_vans) *
+             complement(green_mobility_26_trucks) * complement(green_mobility_27a) *
+             complement(green_mobility_28) * complement(green_mobility_29a) *
+             complement(green_mobility_31) * complement(green_mobility_32) *
+             complement(green_mobility_other_1) * complement(green_mobility_other_2) *
+             complement(green_mobility_other_3)
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: owner
+    - dimension: vehicle_type
+      categories: [passenger_cars]
+  input_nodes:
+  # ----- Mileage
+  - id: onroad_transport_vehicle_mileage
+    tags: [mileage]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  # ----- Energy Consumption
+  - id: onroad_transport_vehicle_energy_consumption
+    tags: [energy_consumption]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [passenger_cars]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  # ----- Non-Hybrid Emission Factors
+  - id: transportation_energy_emission_factors
+    tags: [nonhybrid_emission_factors]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [gasoline, diesel, electricity]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  # ----- Hybrid Emission Factors
+  - id: gasoline_hybrid_emission_factors
+    tags: [hybrid_emission_factors]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [passenger_cars]
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [gasoline_hybrid]
+    - id: ghg
+  # ----- CH4 & N2O Emission Factors
+  - id: transportation_mileage_emission_factors
+    tags: [ch4_n2o_emission_factors]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [passenger_cars]
+
+- id: onroad_transport_truck_emissions
+  name: On-Road Transport Truck Emissions
+  short_name: Truck Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
+  params:
+    formula: (energy_consumption * nonhybrid_emission_factors) +
+             (mileage * ch4_n2o_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: owner
+    - dimension: vehicle_type
+      categories: [trucks]
+  input_nodes:
+  # ----- Mileage
+  - id: onroad_transport_vehicle_mileage
+    tags: [mileage]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [diesel]
+    - id: vehicle_type
+      categories: [trucks]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  # ----- Energy Consumption
+  - id: onroad_transport_vehicle_energy_consumption
+    tags: [energy_consumption]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [trucks]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  # ----- Non-Hybrid Emission Factors
+  - id: transportation_energy_emission_factors
+    tags: [nonhybrid_emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  # ----- CH4 & N2O Emission Factors
+  - id: transportation_mileage_emission_factors
+    tags: [ch4_n2o_emission_factors]
+
+- id: onroad_transport_van_emissions
+  name: On-Road Transport Van Emissions
+  short_name: Van Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
+  params:
+    formula: (nonhybrid_emission_factors * energy_consumption) +
+             (hybrid_emission_factors * energy_consumption) +
+             (ch4_n2o_emission_factors * mileage) + reference
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: owner
+    - dimension: vehicle_type
+      categories: [vans]
+  input_nodes:
+  # ----- Mileage
+  - id: onroad_transport_vehicle_mileage
+    tags: [mileage]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  # ----- Energy Consumption
+  - id: onroad_transport_vehicle_energy_consumption
+    tags: [energy_consumption]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [vans]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  # ----- Non-Hybrid Emission Factors
+  - id: transportation_energy_emission_factors
+    tags: [nonhybrid_emission_factors]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [gasoline, diesel, electricity]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  # ----- Hybrid Emission Factors
+  - id: gasoline_hybrid_emission_factors
+    tags: [hybrid_emission_factors]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [vans]
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [gasoline_hybrid]
+    - id: ghg
+  # ----- CH4 & N2O Emission Factors
+  - id: transportation_mileage_emission_factors
+    tags: [ch4_n2o_emission_factors]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [vans]
+
+- id: onroad_transport_other_emissions
+  name: On-Road Transport Bicycle, Moped & Motorcycle Emissions
+  short_name: Bicycle, Moped & Motorcycle Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  params:
+    formula: (energy_consumption * nonhybrid_emission_factors) +
+             (mileage * ch4_n2o_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: owner
+    - dimension: vehicle_type
+      categories: [cycling, mopeds, motorcycles]
+  input_nodes:
+  # ----- Mileage
+  - id: onroad_transport_vehicle_mileage
+    tags: [mileage]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [mopeds, motorcycles]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  # ----- Energy Consumption
+  - id: onroad_transport_vehicle_energy_consumption
+    tags: [energy_consumption]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [cycling, mopeds, motorcycles]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  # ----- Non-Hybrid Emission Factors
+  - id: transportation_energy_emission_factors
+    tags: [nonhybrid_emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  # ----- CH4 & N2O Emission Factors
+  - id: transportation_mileage_emission_factors
+    tags: [ch4_n2o_emission_factors]
+
+# ---------- II.2 Rail Transportation
+
+- id: rail_transport_mileage
+  name: Rail Transport Mileage
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: km/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: aarhus/rail_transportation
+    column: mileage
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: ghg
+
+- id: rail_transport_energy_factors
+  name: Rail Transport Energy Factors
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: MJ/km
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: aarhus/rail_transportation
+    column: energy_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: ghg
+
+- id: rail_transport_energy_consumption
+  name: Rail Transport Energy Consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: rail_transport_mileage
+  - id: rail_transport_energy_factors
+
+- id: rail_transport_regional_train_emissions
+  name: Rail Transport Regional Train Emissions
+  short_name: Regional Train Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
+  input_nodes:
+  - id: transportation_energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: rail_transport_energy_consumption
+    from_dimensions:
+    - id: vehicle_type
+      categories: [regional_trains]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: rail_transport_inter_city_train_emissions
+  name: Rail Transport Inter-city Train Emissions
+  short_name: Inter-city Train Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
+  input_nodes:
+  - id: transportation_energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: rail_transport_energy_consumption
+    from_dimensions:
+    - id: vehicle_type
+      categories: [inter_city_trains]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: rail_transport_high_speed_train_emissions
+  name: Rail Transport High-speed Train Emissions
+  short_name: High-speed Train Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
+  input_nodes:
+  - id: transportation_energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: rail_transport_energy_consumption
+    from_dimensions:
+    - id: vehicle_type
+      categories: [high_speed_trains]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: rail_transport_local_train_emissions
+  name: Rail Transport Local Train Emissions
+  short_name: Local Train Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
+  input_nodes:
+  - id: transportation_energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: rail_transport_energy_consumption
+    from_dimensions:
+    - id: vehicle_type
+      categories: [local_trains]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: rail_transport_light_rail_emissions
+  name: Rail Transport Light Rail Emissions
+  short_name: Light Rail Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
+  input_nodes:
+  - id: transportation_energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: rail_transport_energy_consumption
+    from_dimensions:
+    - id: vehicle_type
+      categories: [light_rail]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: rail_transport_emissions
+  name: Rail Transport Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/rail_transportation
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+  input_nodes:
+  - id: rail_transport_regional_train_emissions
+  - id: rail_transport_inter_city_train_emissions
+  - id: rail_transport_high_speed_train_emissions
+  - id: rail_transport_local_train_emissions
+  - id: rail_transport_light_rail_emissions
+
+# ---------- II.3 Waterborne Transportation
+
+- id: waterborne_transport_energy_consumption
+  name: Waterborne Transport Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets:
+  - id: aarhus/waterborne_transportation
+    column: energy
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: ghg
+
+- id: waterborne_transport_emissions
+  name: Waterborne Transport Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
+  params:
+    formula: (energy_consumption * emission_factors) + reference
+  input_datasets:
+  - id: aarhus/waterborne_transportation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+  input_nodes:
+  # ----- Energy Consumption
+  - id: waterborne_transport_energy_consumption
+    tags: [energy_consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  # ----- Emission Factors
+  - id: energy_emission_factors
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+
+# ---------- II.4 Aviation
+
+- id: aviation_energy_consumption
+  name: Aviation Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets:
+  - id: aarhus/aviation
+    column: energy
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: ghg
+
+- id: aviation_emissions
+  name: Aviation Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
+  params:
+    formula: (aviation_energy_consumption * transportation_energy_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/aviation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+  input_nodes:
+  - id: transportation_energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: aviation_energy_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+
+# ----- III Waste, Biogas Production & IPPU
+
+- id: waste_ippu_emissions
+  name_da: Materialer og Ressourcer
+  name_en: Waste & IPPU Emissions
+  color: '#59A14F'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+
+- id: waste_emissions
+  name: Waste Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  input_datasets:
+  - id: aarhus/waste
+    column: emissions
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_ippu_emissions
+
+- id: ippu_emissions
+  name: Industrial Process & Product Use Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  input_datasets:
+  - id: aarhus/ippu
+    column: emissions
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: waste_ippu_emissions
+
+# ----- V AFOLU
+
+- id: afolu_emissions
+  name_da: Natur og Landbrug
+  name_en: Agriculture, Forestry & Other Land Use Emissions
+  color: '#B07AA1'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  input_nodes:
+  - id: land_emissions
+  - id: livestock_emissions
+    from_dimensions:
+    - id: emission_source
+      flatten: true
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+
+# ---------- V.1 Land
+
+- id: land_emission_factors
+  name: Land Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/ha/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  input_datasets:
+  - id: aarhus/land
+    column: emission_factor
+    dropna: true
+    forecast_from: 2024
+
+- id: land_areas
+  name: Land Areas
+  type: simple.AdditiveNode
+  quantity: area
+  unit: ha
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: aarhus/land
+    column: area
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: ghg
+
+- id: cultivation_emissions
+  name: Cultivation Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  params:
+    formula: (land_areas * land_emission_factors) + reference + biogenic_energy_park + climate_supervision_and_action_plans
+  input_datasets:
+  - id: aarhus/land
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [v11]
+  input_nodes:
+  - id: land_emission_factors
+  - id: land_areas
+    from_dimensions:
+    - id: sector
+      categories: [v111, v112]
+    to_dimensions:
+    - id: sector
+
+- id: organic_soils_cultivation_emissions
+  name: Organic Soils Cultivation Emissions
+  short_name: Cultivation Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  params:
+    formula: (land_areas * land_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/land
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [v121]
+  input_nodes:
+  - id: land_emission_factors
+  - id: land_areas
+    from_dimensions:
+    - id: sector
+      categories: [v1211, v1212]
+    to_dimensions:
+    - id: sector
+
+- id: organic_soils_permanent_grass_emissions
+  name: Organic Soils Permanent Grass Emissions
+  short_name: Permanent Grass Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  params:
+    formula: (land_areas * land_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/land
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [v122]
+  input_nodes:
+  - id: land_emission_factors
+  - id: land_areas
+    from_dimensions:
+    - id: sector
+      categories: [v1221, v1222]
+    to_dimensions:
+    - id: sector
+
+- id: organic_soils_nature_emissions
+  name: Organic Soils Nature Emissions
+  short_name: Nature Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  input_nodes:
+  - id: land_emission_factors
+  - id: land_areas
+    from_dimensions:
+    - id: sector
+      categories: [v1231, v1232]
+    to_dimensions:
+    - id: sector
+
+- id: organic_soils_emissions
+  name: Organic Soils Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  input_nodes:
+  - id: organic_soils_cultivation_emissions
+  - id: organic_soils_permanent_grass_emissions
+  - id: organic_soils_nature_emissions
+
+- id: forestry_emissions
+  name: Forestry Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  input_nodes:
+  - id: land_emission_factors
+  - id: land_areas
+    from_dimensions:
+    - id: sector
+      categories: [v131, v132, v133]
+    to_dimensions:
+    - id: sector
+
+- id: land_emissions
+  name: Land Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  input_nodes:
+  - id: cultivation_emissions
+  - id: organic_soils_emissions
+  - id: forestry_emissions
+
+# ---------- V.2 Livestock
+
+- id: livestock_emission_factors
+  name: Livestock Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/count/a
+  input_dimensions: [sector, emission_source, ghg]
+  output_dimensions: [sector, emission_source, ghg]
+  input_datasets:
+  - id: aarhus/livestock
+    column: emission_factor
+    dropna: true
+    forecast_from: 2024
+
+- id: livestock_counts
+  name: Livestock Counts
+  type: simple.AdditiveNode
+  quantity: number
+  unit: count
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: aarhus/livestock
+    column: number
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: emission_source
+    - column: ghg
+
+- id: livestock_emissions
+  name: Livestock Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, emission_source, ghg]
+  output_dimensions: [sector, emission_source, ghg]
+  params:
+    formula: (livestock_counts * livestock_emission_factors) + reference + biogenic_energy_park
+  input_datasets:
+  - id: aarhus/livestock
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+  input_nodes:
+  - id: livestock_emission_factors
+  - id: livestock_counts
+    to_dimensions:
+    - id: sector
+
+# ----- Costs
+
+- id: energy_costs
+  name: Energy Costs
+  color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+  output_nodes:
+  - id: net_costs
+
+- id: transportation_costs
+  name: Transportation Costs
+  color: '#E15759'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+  output_nodes:
+  - id: net_costs
+
+- id: waste_costs
+  name: Waste Costs
+  color: '#59A14F'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+  output_nodes:
+  - id: net_costs
+
+- id: ippu_costs
+  name: Industrial Process & Product Use Costs
+  color: '#F28E2B'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+  output_nodes:
+  - id: net_costs
+
+- id: afolu_costs
+  name: Agriculture, Forestry & Other Land Use Costs
+  color: '#B07AA1'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+  output_nodes:
+  - id: net_costs
+
+- id: net_costs
+  name: Net Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+
+actions:
+# ----- Energy
+- id: carbon_capture_and_storage
+  name_da: Carbon capture and storage
+  name_en: Carbon Capture and Storage
+  group: energy
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, energy_usage, cost_type, sector, ghg]
+  output_dimensions: [energy_carrier, energy_usage, cost_type, sector, ghg]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/energy_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: carbon_capture_and_storage
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: chp_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: energy_usage
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: electricity_demand
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: energy_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: energy_usage
+      flatten: true
+    - id: ghg
+      flatten: true
+
+- id: energy_efficiency_improvements
+  name_da: Energieffektiviseringer
+  name_en: Energy Efficiency Improvements
+  group: energy
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
+  output_dimensions: [energy_carrier, energy_usage, cost_type, sector]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/energy_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: energy_efficiency_improvements
+    - column: ghg
+  output_metrics:
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: chp_district_heat_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: energy_usage
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: sector
+      categories: [i11]
+  - id: electricity_demand
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      categories: [i22]
+      flatten: true
+  - id: energy_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: energy_usage
+      flatten: true
+
+- id: energy_efficient_municipal_buildings
+  name_da: Energieffektive kommunale bygninger
+  name_en: Energy Efficient Municipal Buildings
+  group: energy
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
+  output_dimensions: [energy_carrier, energy_usage, cost_type, sector]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/energy_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: energy_efficient_municipal_buildings
+    - column: ghg
+  output_metrics:
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: chp_district_heat_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: energy_usage
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: sector
+      categories: [i11]
+  - id: renewable_electricity_generation
+    metrics: [energy]
+    from_dimensions:
+    - id: energy_usage
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: sector
+      categories: [i21]
+      flatten: true
+  - id: electricity_demand
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      categories: [i22]
+      flatten: true
+  - id: other_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: energy_usage
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: sector
+      categories: [i41]
+  - id: energy_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: energy_usage
+      flatten: true
+
+- id: expansion_of_renewable_energy
+  name_da: Udbygning af vedvarende energi
+  name_en: Expansion of Renewable Energy
+  group: energy
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, cost_type, sector]
+  output_dimensions: [energy_carrier, cost_type, sector]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/energy_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: expansion_of_renewable_energy
+    - column: energy_usage
+    - column: ghg
+  output_metrics:
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: area
+    unit: ha
+    quantity: area
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: renewable_electricity_generation
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+  - id: land_areas
+    metrics: [area]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: energy_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: green_district_heating_of_the_future
+  name_da: Fremtidens fjernvarme
+  name_en: Green District Heating of the Future
+  group: energy
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, cost_type, sector]
+  output_dimensions: [energy_carrier, cost_type, sector]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/energy_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: green_district_heating_of_the_future
+    - column: energy_usage
+    - column: ghg
+  output_metrics:
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: chp_district_heat_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      categories: [i11]
+  - id: chp_electricity_generation_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      categories: [i12]
+  - id: energy_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: sustainable_municipal_facilities
+  name_da: Kommunale bæredygtige anlæg
+  name_en: Sustainable Municipal Facilities
+  group: energy
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, cost_type, sector, ghg]
+  output_dimensions: [energy_carrier, cost_type, sector, ghg]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/energy_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: sustainable_municipal_facilities
+    - column: energy_usage
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: energy_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+  - id: energy_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+
+- id: zero_emission_municipal_machinery_and_driving
+  name_da: Kommunale emissionsfrie maskiner
+  name_en: Zero-emission Municipal Machinery and Driving
+  group: energy
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/energy_actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: zero_emission_municipal_machinery_and_driving
+    - column: energy_usage
+    - column: cost_type
+  output_nodes:
+  - id: energy_emissions
+
+# ----- Transportation
+- id: optimized_and_emission_free_municipal_fleet
+  name_da: Kommunal emissionsfri kørsel
+  name_en: Optimized and Emission Free Municipal Fleet
+  group: transportation
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  output_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: optimized_and_emission_free_municipal_fleet
+  output_metrics:
+  - id: mileage
+    unit: km/a
+    quantity: mileage
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_vehicle_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+  - id: transportation_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: sustainable_air_and_maritime_transport
+  name_da: Bæredygtig skibs- og luftfart
+  name_en: Sustainable Air and Maritime Transport
+  group: transportation
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  output_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: sustainable_air_and_maritime_transport
+  output_metrics:
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: waterborne_transport_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+  - id: aviation_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+  - id: transportation_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: sustainable_soil_management
+  name_da: Bæredygtig jordhåndtering
+  name_en: Sustainable Soil Management
+  group: transportation
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  output_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: sustainable_soil_management
+  output_metrics:
+  - id: mileage
+    unit: km/a
+    quantity: mileage
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_vehicle_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+  - id: transportation_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+# ----- Green Mobility Plan
+- id: green_mobility_2a2_zero_emission_zone
+  name_da: 2.A.2 Nulemissionszone i Aarhus
+  name_en: 2.A.2 Zero Emission Zone
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 2a2_zero_emission_zone
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_2a2]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_4_transport_oriented_city_development
+  name_da: 4 Stationsnær og transportorienteret byudvikling
+  name_en: 4 Transport Oriented City Development
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    column: fraction
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 4_transport_oriented_city_development
+    - column: sector
+    - column: cost_type
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    tags: [green_mobility_4]
+    to_dimensions: []
+
+- id: green_mobility_5_super_bike_path
+  name_da: 5 Fuldt udbygget supercykelstinet
+  name_en: 5 Super Bike Path
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 5_super_bike_path
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_5]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_7_upgrade_of_main_bike_path
+  name_da: 7 Fuldt opgraderet og udbygget hovedcykelstinet
+  name_en: 7 Upgrade of Main Bike Path
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 7_upgrade_of_main_bike_path
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_7]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_8_upgrade_of_local_path_system
+  name_da: 8 Opgradering af lokale stinet
+  name_en: 8 Upgrade of Local Path System
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 8_upgrade_of_local_path_system
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_8]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_9_more_and_better_bike_parking
+  name_da: 9 Mere og bedre cykelparkering
+  name_en: 9 More and Better Bike Parking
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 9_more_and_better_bike_parking
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_9]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_10a_development_of_railway_station_district
+  name_da: 10.A Udvikling af Banegårdskvarteret
+  name_en: 10.A Development of Railway Station District
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 10a_development_of_railway_station_district
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_10a]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_12a_improvement_of_school_roads
+  name_da: 12.A Forbedrede skoleveje, trafiksikkerhed og hjertezoner for skoler i Aarhus
+  name_en: 12.A Improvement of School Roads
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 12a_improvement_of_school_roads
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_12a]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_14_rental_of_electric_bikes
+  name_da: 14 Mere cyklisme for alle - udlån af elcykler
+  name_en: 14 Rental of Electric Bikes
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 14_rental_of_electric_bikes
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_14]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_15a_uncongested_bus_network
+  name_da: 15.A Fuldt udbygget og trængselsfrit busnet før 2030
+  name_en: 15.A Uncongested Bus Network
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 15a_uncongested_bus_network
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_15a]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_17_light_rail_stage_1
+  name_da: 17 Letbane etape 1 - udvidelse af frekvens og kapacitet
+  name_en: 17 Light Rail Stage 1
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 17_light_rail_stage_1
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_17]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_22a_road_structure_mobility_zones_speed_limits
+  name_da: 22.A Principper for vejstruktur, mobilitetszoner og hastighedsgrænser i Aarhus
+  name_en: 22.A Principles of Road Structure, Mobility Zones and Speed Limits
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 22a_road_structure_mobility_zones_speed_limits
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_22a]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_23a_new_traffic_structure_mobility_zone_in_center
+  name_da: 23.A Ny trafikstruktur og mobilitetszone for Midtbyen
+  name_en: 23.A New Traffic Structure and Mobility Zone in City Center
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 23a_new_traffic_structure_mobility_zone_in_center
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_23a]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_24a_new_traffic_structure_kongelunden_sydbyen
+  name_da: 24.A Ny trafikstruktur og mobilitetszone for Kongelunden og Sydbyen
+  name_en: 24.A New Traffic Structure and Mobility Zone in Kongelunden and Sydbyen
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 24a_new_traffic_structure_kongelunden_sydbyen
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_24a]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_26_faster_electrification_of_vans
+  name_da: '26 Hurtigere elektrificering af tung trafik og varelevering: Varebiler'
+  name_en: '26 Faster Electrification of Heavy Vehicles and Goods Transport: Vans'
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 26_faster_electrification_of_vans
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_26_vans]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_26_faster_electrification_of_trucks
+  name_da: '26 Hurtigere elektrificering af tung trafik og varelevering: Lastbiler'
+  name_en: '26 Faster Electrification of Heavy Vehicles and Goods Transport: Trucks'
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 26_faster_electrification_of_trucks
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_26_trucks]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_27a_increase_in_parking_regulation
+  name_da: 27.A Øget parkeringsregulering
+  name_en: 27.A Increase in Parking Regulation
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 27a_increase_in_parking_regulation
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_27a]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_28_new_and_green_parking_norms
+  name_da: 28 Nye grønne parkeringsnormer
+  name_en: 28 New and Green Parking Norms
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    column: fraction
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 28_new_and_green_parking_norms
+    - column: sector
+    - column: cost_type
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    tags: [green_mobility_28]
+    to_dimensions: []
+
+- id: green_mobility_29a_conversion_of_existing_parking_lots
+  name_da: 29.A Omdannelse af eksisterende parkeringspladser
+  name_en: 29.A Conversion of Existing Parking Lots
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 29a_conversion_of_existing_parking_lots
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_29a]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_31_facilitation_of_codriving
+  name_da: 31 Facilitering af samkørsel
+  name_en: 31 Facilitation of Co-driving
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 31_facilitation_of_codriving
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_31]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_32_expansion_of_charging_infrastructure
+  name_da: 32 Øget indsats for ladeinfrastruktur
+  name_en: 32 Expansion of Charging Infrastructure
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 32_expansion_of_charging_infrastructure
+  output_metrics:
+  - id: fraction
+    unit: '%'
+    quantity: fraction
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    metrics: [fraction]
+    tags: [green_mobility_32]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: transportation_costs
+    metrics: [currency]
+
+- id: green_mobility_3b_road_pricing
+  name_da: 3.B Grønne vejafgifter (roadpricing)
+  name_en: 3.B Road Pricing
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    column: fraction
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: 3b_road_pricing
+    - column: sector
+    - column: cost_type
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    tags: [green_mobility_3b]
+    to_dimensions: []
+
+- id: green_mobility_non_estimated_and_synergy_effects_1
+  name: Non-estimated and Synergy Effects (1)
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    column: fraction
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: non_estimated_and_synergy_effects_1
+    - column: sector
+    - column: cost_type
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    tags: [green_mobility_other_1]
+    to_dimensions: []
+
+- id: green_mobility_non_estimated_and_synergy_effects_2
+  name: Non-estimated and Synergy Effects (2)
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    column: fraction
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: non_estimated_and_synergy_effects_2
+    - column: sector
+    - column: cost_type
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    tags: [green_mobility_other_2]
+    to_dimensions: []
+
+- id: green_mobility_non_estimated_and_synergy_effects_3
+  name: Non-estimated and Synergy Effects (3)
+  group: transportation_green_mobility
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: aarhus/green_mobility_plan_actions
+    column: fraction
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: non_estimated_and_synergy_effects_3
+    - column: sector
+    - column: cost_type
+  output_nodes:
+  - id: onroad_transport_passenger_car_emissions
+    tags: [green_mobility_other_3]
+    to_dimensions: []
+
+# ----- Waste
+- id: biocover_on_landfills
+  name_da: Biocover på deponier
+  name_en: Biocover on Landfills
+  group: waste
+  type: simple.AdditiveAction
+  input_dimensions: [sector, ghg, cost_type]
+  output_dimensions: [sector, ghg, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/waste_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: biocover_on_landfills
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: waste_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: waste_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+
+# ----- IPPU
+- id: green_materials_in_industry_and_construction
+  name_da: Klimavenlige materialer i industrien og byggeriet
+  name_en: Green Materials in Industry and Construction
+  group: ippu
+  type: simple.AdditiveAction
+  input_dimensions: [sector, ghg, cost_type]
+  output_dimensions: [sector, ghg, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/ippu_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: green_materials_in_industry_and_construction
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: ippu_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: ippu_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+
+# ----- AFOLU
+- id: biogenic_energy_park
+  name_da: Biogen energipark
+  name_en: Biogenic Energy Park
+  group: afolu
+  type: simple.AdditiveAction
+  input_dimensions: [sector, emission_source, cost_type, ghg]
+  output_dimensions: [sector, emission_source, cost_type, ghg]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/afolu_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: biogenic_energy_park
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: area
+    unit: ha
+    quantity: area
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: livestock_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: sector
+      categories: [v21, v22, v23, v24]
+    - id: cost_type
+      flatten: true
+  - id: cultivation_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: sector
+      categories: [v111]
+    - id: emission_source
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: land_areas
+    metrics: [area]
+    from_dimensions:
+    - id: emission_source
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: afolu_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_source
+      flatten: true
+    - id: ghg
+      flatten: true
+
+- id: climate_supervision_and_action_plans
+  name_da: Klimatilsyn og klimahandleplaner
+  name_en: Climate Supervision and Action Plans
+  group: afolu
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type, ghg]
+  output_dimensions: [sector, cost_type, ghg]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/afolu_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: climate_supervision_and_action_plans
+    - column: emission_source
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: cultivation_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: afolu_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+
+- id: conversion_to_forestry_and_nature
+  name_da: Omdannelse til skov og natur
+  name_en: Conversion to Forestry and Nature
+  group: afolu
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/afolu_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: conversion_to_forestry_and_nature
+    - column: emission_source
+    - column: ghg
+  output_metrics:
+  - id: area
+    unit: ha
+    quantity: area
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: land_areas
+    metrics: [area]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: afolu_costs
+    metrics: [currency]
+
+- id: extraction_of_organic_soils
+  name_da: Udtagning af lavbundsjord
+  name_en: Extraction of Organic Soils
+  group: afolu
+  type: simple.AdditiveAction
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/afolu_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: extraction_of_organic_soils
+    - column: emission_source
+    - column: ghg
+  output_metrics:
+  - id: area
+    unit: ha
+    quantity: area
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: land_areas
+    metrics: [area]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: afolu_costs
+    metrics: [currency]
+
+pages:
+- id: home
+  name: Climaville Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Climaville Climate-4-CAST Decision Support Tool
+  lead_paragraph: Greenhouse gas inventory (2018-2022) and forecast (2023-2035) for the City of Climaville.
+
+scenarios:
+- id: baseline
+  name: Baseline
+
+- id: default
+  default: true
+  name_da: Klimaplanen 2025-2030
+  name_en: Climate Action Plan
+  all_actions_enabled: true
+  params:
+  - id: carbon_capture_and_storage.enabled
+    value: false
