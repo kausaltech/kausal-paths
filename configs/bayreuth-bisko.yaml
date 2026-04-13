@@ -145,13 +145,13 @@ nodes:
   - id: formula
     value: sector_index * sum_dim(municipal_facilities_emissions + commerce_trade_services_emissions + transport_emissions + private_household_emissions + industry_emissions, sector)  # does the same as from_dimensions flatten:true
 
-
-- id: private_household_emissions
+- id: heating_emissions
   name_de: Wärme Emissionen
   name_en: Heating Emissions
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
+  color: '#9C2B54'
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
@@ -162,13 +162,13 @@ nodes:
   output_nodes:
   - id: net_emissions
 
-
 - id: transport_emissions2
   name_de: Verkehr Emissionen
   name_en: Transport Emissions
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
+  color: '#299575'
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
@@ -179,13 +179,13 @@ nodes:
   output_nodes:
   - id: net_emissions
 
-
 - id: electricity_emissions
   name_de: Strom Emissionen
   name_en: Electricity Emissions
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
+  color: '#2B729C'
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
@@ -196,9 +196,75 @@ nodes:
   output_nodes:
   - id: net_emissions
 
-# create copy of bisko sectors, but have to remove output nodes so that they don't double-feed into the net_emissions node (from bisko model file)
+- id: private_household_emissions
+  name_de: Private Haushalte Emissionen
+  name_en: Private household emissions
+  color: '#009ebe'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_private_household_energy_use
+  - id: end_energy_emission_factors
 
+- id: municipal_facilities_emissions
+  name_de: Kommunale Einrichtungen Emissionen
+  name_en: Municipal facilities emissions
+  color: '#6bc248'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_municipal_facilities_energy_use
+  - id: end_energy_emission_factors
 
+- id: industry_emissions
+  name_de: Industrie Emissionen
+  name_en: Industry emissions
+  color: '#737373'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_industry_energy_use
+  - id: end_energy_emission_factors
+
+- id: commerce_trade_services_emissions
+  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_en: Commerce, trade, services emissions
+  color: '#fe8035'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_commerce_trade_services_energy_use
+  - id: end_energy_emission_factors
+
+- id: transport_emissions
+  name_en: Transport emissions
+  name_de: Transportemissionen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transport_emission_factors
+    to_dimensions:
+    - id: energy_carrier
 
 pages:
 - id: home
