@@ -6,11 +6,11 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 042ea36e00165e5960343bcbf5b7aa14cdc4f549
   dvc_remote: kausal-s3
-name_de: Bayreuth Klima-Monitor-BISKO
+name_de: Bayreuth Treibhausgas Monitor
 name_en: Bayreuth Climate Monitor BISKO
 owner: Bayreuth Stadt
 theme_identifier: de-bayreuth
-target_year: 2035
+target_year: 2040
 model_end_year: 2050
 reference_year: 1990
 minimum_historical_year: 1990
@@ -124,7 +124,7 @@ nodes:
   name_en: Total Emissions
   type: formula.FormulaNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
@@ -152,8 +152,8 @@ nodes:
   quantity: emissions
   unit: kt_co2e/a
   color: '#9C2B54'
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
+  input_dimensions: [energy_carrier, sector]  # switched around dimensions, because in Outcome page it shows the first listed dimension when "drilling down" 
+  output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: total_emissions
     from_dimensions:
@@ -169,8 +169,8 @@ nodes:
   quantity: emissions
   unit: kt_co2e/a
   color: '#299575'
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: total_emissions
     from_dimensions:
@@ -186,8 +186,8 @@ nodes:
   quantity: emissions
   unit: kt_co2e/a
   color: '#2B729C'
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: total_emissions
     from_dimensions:
@@ -266,6 +266,43 @@ nodes:
     to_dimensions:
     - id: energy_carrier
 
+
+#//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+# actions:
+# - id: zielpfad
+#   name_en: Target Path
+#   name_de: Zielpfad
+#   type: linear.DatasetReduceAction # linearly reduce, but define goal somewhere else
+#   quantity: emissions
+#   unit: kt_co2e/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_nodes: 
+#   - id: total_emissions
+#     tags: [historical] # tells the action that total emissions will be historical values
+#   input_datasets: 
+#   - id: bayreuth/zielpfad  # give it action node
+#     tags: [goal]  
+#   output_nodes:
+#   - id: heating_emissions
+#     from_dimensions:  # only the heating sector affects the heating emissions, so we need to filter out (the input node is larger than output node)
+#     - id: sector
+#       categories: [heating]
+#   - id: transport_emissions
+#     from_dimensions:
+#     - id: sector
+#       categories: [transport]
+#   - id: electricity_emissions
+#     from_dimensions:
+#     - id: sector
+#       categories: [electricity]
+
+
+
+
+#//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 pages:
 - id: home
   name_de: Bayreuth Treibhausgasbilanz
@@ -275,6 +312,9 @@ pages:
   outcome_node: net_emissions
   lead_title: Treibhausgasbilanz und -prognosen
   lead_paragraph: Historische Treibhausgasemissionen der Stadt Bayreuth und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+
+
+#//////  Scenarios  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 scenarios:
 
