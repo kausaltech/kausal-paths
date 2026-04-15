@@ -47,6 +47,47 @@ def _iter_mappable_index_columns(
     return cols
 
 
+def _collect_placeholder_metric_units_from_node_bindings(
+    ctx: Context,
+    ds_id: str,
+    reporter: Callable[[str], None] | None,
+) -> dict[str, Unit]:
+    """
+    Recover placeholder metrics for legacy emission datasets that do not store metric metadata.
+
+    Older wide DVC datasets can still be referenced by nodes via ``column`` plus a fixed unit
+    per column, even when the DVC dataset itself does not carry metric metadata. Until those
+    datasets are migrated away, use the runtime node bindings as the fallback source of truth
+    for placeholder metric creation.
+    """
+    from nodes.datasets import DVCDataset
+
+    metric_units: dict[str, Unit] = {}
+
+    for node in ctx.nodes.values():
+        for ds in node.input_dataset_instances:
+            if not isinstance(ds, DVCDataset):
+                continue
+            if ds.id != ds_id or ds.column is None:
+                continue
+            if ds.unit is None:
+                raise ValueError(f"Missing unit for placeholder '{ds_id}' on node {node.id}")
+            existing_unit = metric_units.get(ds.column)
+            if existing_unit is None:
+                metric_units[ds.column] = ds.unit
+                continue
+            if ds.unit != existing_unit:
+                raise ValueError(
+                    f"Conflicting units for placeholder '{ds_id}' column '{ds.column}': {existing_unit} vs {ds.unit}"
+                )
+
+    if not metric_units:
+        return {}
+
+    _report(reporter, f"Falling back to node dataset references for placeholder '{ds_id}' metrics.")
+    return metric_units
+
+
 def make_external_dataset_ref(ctx: Context, ds_id: str) -> dict[str, str | None] | None:
     repo = ctx.dataset_repo_spec
     if repo is None:
@@ -168,7 +209,7 @@ def _get_or_create_dimension(
     return scope.dimension
 
 
-def sync_dataset_placeholder(
+def sync_dataset_placeholder(  # noqa: C901
     instance_config: InstanceConfig,
     ctx: Context,
     ds_id: str,
@@ -176,6 +217,10 @@ def sync_dataset_placeholder(
     force: bool = False,
     reporter: Callable[[str], None] | None = None,
 ) -> tuple[Dataset | None, bool]:
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import DatasetSchemaScope
+
     try:
         dvc_ds = ctx.load_dvc_dataset(ds_id)
     except Exception as e:
@@ -183,18 +228,35 @@ def sync_dataset_placeholder(
         return None, False
 
     dvc_metadata = dvc_ds.metadata or {}
-    metric_units = dvc_ds.units or {}
+    metric_units = dvc_ds.units or _collect_placeholder_metric_units_from_node_bindings(ctx, ds_id, reporter)
     index_columns = _iter_mappable_index_columns(dvc_ds.index_columns or [], ds_id, reporter)
 
-    dataset_lookup = dict(
-        identifier=ds_id,
+    schema_scope_ids = DatasetSchemaScope.objects.filter(
+        scope_content_type=ContentType.objects.get_for_model(instance_config),
+        scope_id=instance_config.pk,
+    ).values_list('schema_id', flat=True)
+    existing = (
+        Dataset.objects
+        .filter(
+            identifier=ds_id,
+            schema_id__in=schema_scope_ids,
+            is_external_placeholder=True,
+        )
+        .select_related('schema')
+        .first()
     )
-    existing = Dataset.objects.qs.for_scope(instance_config).filter(identifier=ds_id).select_related('schema').first()
     if existing is not None:
-        if existing.is_external_placeholder and force:
+        should_recreate = False
+        if existing.is_external_placeholder:
+            schema = existing.schema
+            has_metrics = schema is not None and schema.metrics.exists()
+            should_recreate = force or (metric_units and not has_metrics)
+        if existing.is_external_placeholder and should_recreate:
             schema = existing.schema
             if schema is not None and schema.datasets.count() > 1:
                 raise RuntimeError(f"Dataset '{existing}' cannot be recreated because its schema is shared with other datasets.")
+            if not force:
+                _report(reporter, f"Recreating external placeholder dataset '{ds_id}' because its schema has no metrics.")
             existing.delete()
             if schema is not None:
                 schema.delete()
@@ -212,7 +274,7 @@ def sync_dataset_placeholder(
         name_i18n=dvc_metadata.get('name'),
     )
     dataset = Dataset.objects.create(
-        **dataset_lookup,
+        identifier=ds_id,
         schema=schema,
         external_ref=make_external_dataset_ref(ctx, ds_id),
         is_external_placeholder=True,

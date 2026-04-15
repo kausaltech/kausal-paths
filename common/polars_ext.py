@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, ClassVar, Literal, cast
 
 import numpy as np
 import polars as pl
-from line_profiler import profile
 from loguru import logger
 
 from kausal_common.deployment import env_bool
@@ -1363,11 +1362,11 @@ class PathsExt:
 if env_bool('ENABLE_DF_PERF_TRACING', default=False):
     import os
 
+    from line_profiler import profile
+
     os.environ['LINE_PROFILE'] = '1'
     # walk through all methods of `PathsExt` and wrap them with a line profiler decorator
     # profiled_method = profile(method)
     for method_name, method in inspect.getmembers(PathsExt):
-        # if method_name.startswith('_'):
-        #    continue
         if inspect.isfunction(method):
             setattr(PathsExt, method_name, profile(method))

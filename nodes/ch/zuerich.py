@@ -601,7 +601,7 @@ class EmissionFactorActivity(Node):
         fdf = fn.get_output_pl(self)
         fdf = fdf.rename({VALUE_COLUMN: 'EF'})
         df = edf.paths.join_over_index(fdf, index_from='union')
-        if df['EF'].has_validity():
+        if df['EF'].has_nulls():
             self.print(df.filter(pl.col('EF').is_null()))
             raise NodeError(self, 'Emission factor not found for some categories')
 

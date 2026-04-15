@@ -101,14 +101,14 @@ def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> list[Nod
 
     nodes_by_identifier: dict[str, NodeConfig] = {nc.identifier: nc for nc in node_configs}
 
-    output_edges, _input_edges = _build_edge_maps(cast('list[EdgeWithNodeIdentifiers]', edges), nodes_by_identifier)
+    _output_edges, input_edges = _build_edge_maps(cast('list[EdgeWithNodeIdentifiers]', edges), nodes_by_identifier)
 
     nodes_list: list[dict[str, Any]] = []
     actions_list: list[dict[str, Any]] = []
     for nc in node_configs:
         node_dict = _serialize_node_config(
             nc,
-            output_nodes=output_edges.get(nc.identifier, []),
+            input_nodes=input_edges.get(nc.identifier, []),
         )
         spec = nc.spec
         if spec.type_config.kind == NodeKind.ACTION:
@@ -124,7 +124,7 @@ def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> list[Nod
 
 def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     nc: NodeConfig,
-    output_nodes: list[dict[str, Any]],
+    input_nodes: list[dict[str, Any]],
 ) -> dict[str, Any]:
     spec: NodeSpec = nc.spec
     node: dict[str, Any] = {'id': spec.identifier or nc.identifier}
@@ -243,8 +243,10 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
             node.setdefault(key, val)
 
     # Edges (from Django models)
-    if output_nodes:
-        node['output_nodes'] = output_nodes
+    # Use incoming edges here so the target node's input port order survives
+    # the DB round-trip for order-sensitive nodes like MultiplicativeNode.
+    if input_nodes:
+        node['input_nodes'] = input_nodes
 
     return node
 
@@ -328,7 +330,7 @@ def _build_edge_maps(  # noqa: C901, PLR0912
     nodes_by_identifier: dict[str, NodeConfig],
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
     output_edges: dict[str, list[dict[str, Any]]] = {}
-    input_edges: dict[str, list[dict[str, Any]]] = {}
+    input_edges_with_order: defaultdict[str, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
 
     edge_metrics: defaultdict[str, defaultdict[str, list[tuple[str, EdgeWithNodeIdentifiers]]]] = defaultdict(
         lambda: defaultdict(list)
@@ -372,6 +374,14 @@ def _build_edge_maps(  # noqa: C901, PLR0912
                         entry['to_dimensions'] = config['to_dimensions']
 
             output_edges.setdefault(from_node_id, []).append(to_entry)
-            input_edges.setdefault(to_node_id, []).append(from_entry)
+            input_port_order = {port.id: idx for idx, port in enumerate(nodes_by_identifier[to_node_id].spec.input_ports)}
+            input_edges_with_order[to_node_id].append((
+                input_port_order.get(first_edge.to_port, len(input_port_order)),
+                from_entry,
+            ))
 
+    input_edges = {
+        node_id: [entry for _, entry in sorted(entries, key=lambda item: item[0])]
+        for node_id, entries in input_edges_with_order.items()
+    }
     return output_edges, input_edges

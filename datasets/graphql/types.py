@@ -5,6 +5,7 @@ from uuid import UUID
 
 import strawberry as sb
 
+from kausal_common.datasets.models import Dataset as DatasetModel
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from nodes.defs.binding_def import DatasetPortBindingDef  # noqa: TC001  # used in runtime annotation
@@ -14,7 +15,6 @@ from nodes.metric import DimensionalMetric
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import (
-        Dataset as DatasetModel,
         DatasetMetric as DatasetMetricModel,
         DatasetSchemaDimension,
         Dimension as DimensionModel,
@@ -93,6 +93,7 @@ class DatasetType:
     )
 
     _model: sb.Private['DatasetModel | None'] = None
+    _forecast_from: sb.Private[int | None] = None
 
     @sb.field
     @staticmethod
@@ -124,12 +125,25 @@ class DatasetType:
         """Load the full dataset as DimensionalMetric objects (one per metric column)."""
         if root._model is None:
             return []
+        from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
         from nodes.datasets import DBDataset
 
-        try:
-            df = DBDataset.deserialize_df(root._model)
-        except Exception:
-            return []
+        df = DBDataset.deserialize_df(root._model)
+
+        if FORECAST_COLUMN not in df.columns and root._forecast_from is not None:
+            import polars as pl
+
+            from common import polars as ppl
+
+            df = df.with_columns(
+                pl
+                .when(pl.col(YEAR_COLUMN) >= root._forecast_from)
+                .then(pl.lit(value=True))
+                .otherwise(pl.lit(value=False))
+                .alias(FORECAST_COLUMN),
+            )
+            df = ppl.to_ppdf(df, meta=df.get_meta())
+
         meta = df.get_meta()
         results: list[DimensionalMetric] = []
         from nodes.metric_gen import metric_from_dataframe_standalone
@@ -181,14 +195,13 @@ class DatasetType:
 
     @classmethod
     def from_binding(cls, binding: DatasetPortBindingDef) -> DatasetType | None:
-        """
-        Construct from a DatasetPortBindingDef without loading the model.
-
-        The lazy-resolved fields (name, dimensions, metrics, data) will
-        return empty values unless the model is later attached.
-        """
+        """Construct from a DatasetPortBindingDef, loading the DB model by UUID."""
         if binding.dataset_uuid is None:
             return None
+        model = DatasetModel.objects.filter(uuid=binding.dataset_uuid).select_related('schema').first()
+        if model is not None:
+            return cls.from_model(model)
+        # Fallback: construct without model (dimensions/data will be empty)
         return cls(
             id=sb.ID(str(binding.dataset_uuid)),
             identifier=binding.external_dataset_id,

@@ -6,15 +6,16 @@ model instances (NodeConfig, NodeEdge, ActionGroup, Scenario).
 """
 
 from typing import TYPE_CHECKING, Annotated, TypeGuard, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import strawberry as sb
 from django.db import transaction
 from graphql import GraphQLError
 from strawberry import Maybe, Some, auto
 
-from kausal_common.strawberry.errors import GraphQLValidationError, PermissionDeniedError
+from kausal_common.strawberry.errors import GraphQLValidationError, NotFoundError, PermissionDeniedError
 from kausal_common.strawberry.helpers import get_or_error
+from kausal_common.strawberry.ordering import SiblingPositionInputMixin
 from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_input
 
 from paths import gql
@@ -24,12 +25,16 @@ from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfi
 from nodes.models import InstanceConfig, NodeConfig
 from nodes.node import Node
 
-from .types.graph import NodeEdgeType, NodePortRef
+from .types.dimension import DimensionType
+from .types.graph import NodeEdgeType
 from .types.instance import InstanceType
 from .types.node import AnyNodeType, NodeInterface
 from .types.scenario import ScenarioType
 
 if TYPE_CHECKING:
+    from kausal_common.datasets.models import DimensionCategory as DimensionCategoryModel, DimensionScope
+    from kausal_common.models.ordered import OrderedModel
+
     from nodes.defs.port_def import InputPortDef, OutputPortDef
 
 
@@ -263,6 +268,27 @@ class UpdateScenarioInput:
     parameter_overrides: sb.scalars.JSON | None = sb.UNSET
 
 
+@sb.input
+class CreateDimensionCategoryInput(SiblingPositionInputMixin):
+    dimension_id: UUID
+    label: str
+    id: Maybe[UUID]
+    identifier: Maybe[str]
+
+
+@sb.input
+class UpdateDimensionCategoryInput(SiblingPositionInputMixin):
+    category_id: UUID
+    identifier: Maybe[str]
+    label: Maybe[str]
+
+
+@sb.input
+class UpdateDimensionInput:
+    dimension_id: UUID
+    name: Maybe[str]
+
+
 @sb.type(name='ModelNodePayload')
 class NodePayload:
     ok: bool
@@ -426,6 +452,166 @@ class InstanceEditorMutation:
 
         with transaction.atomic():
             edge.delete()
+
+    # -- Dimension mutations --------------------------------------------------
+
+    @staticmethod
+    def _get_dimension_scope(info: gql.Info, ic: InstanceConfig, dimension_id: UUID) -> DimensionScope:
+        from kausal_common.datasets.models import DimensionScope
+
+        scope = (
+            DimensionScope.objects
+            .get_queryset()
+            .for_instance_config(ic)
+            .filter(dimension__uuid=dimension_id)
+            .select_related('dimension')
+            .first()
+        )
+        if scope is None:
+            raise NotFoundError(info, f'Dimension "{dimension_id}" not found in instance "{ic.identifier}"')
+        return scope
+
+    @staticmethod
+    def _set_sibling_hints(info: gql.Info, target: OrderedModel, input: SiblingPositionInputMixin) -> None:
+        """Transfer previousSibling/nextSibling from a mutation input to an OrderedModel instance."""
+        prev = input.previous_sibling if is_maybe_set(input.previous_sibling) else None
+        nxt = input.next_sibling if is_maybe_set(input.next_sibling) else None
+        if prev is not None and nxt is not None:
+            raise GraphQLValidationError(info, 'Cannot specify both previousSibling and nextSibling')
+        if prev is not None:
+            target.previous_sibling = UUID(prev.value)
+        if nxt is not None:
+            target.next_sibling = UUID(nxt.value)
+
+    @gql.mutation(description='Update a dimension (e.g. rename)')
+    def update_dimension(self, info: gql.Info, root: sb.Parent[Me], input: UpdateDimensionInput) -> DimensionType:
+        ic = root.instance
+        scope = self._get_dimension_scope(info, ic, input.dimension_id)
+        dim = scope.dimension
+
+        updates: dict[str, object] = {}
+        if is_maybe_set(input.name):
+            updates['name'] = input.name.value
+        if updates:
+            type(dim).objects.filter(pk=dim.pk).update(**updates)
+            dim.refresh_from_db()
+        return DimensionType.from_scope(scope)
+
+    @gql.mutation(description='Add categories to a dimension')
+    def create_dimension_categories(
+        self, info: gql.Info, root: sb.Parent[Me], input: list[CreateDimensionCategoryInput]
+    ) -> DimensionType:
+        from kausal_common.datasets.models import DimensionCategory
+
+        if not input:
+            raise GraphQLValidationError(info, 'At least one category input is required')
+
+        ic = root.instance
+        # All inputs must target the same dimension
+        dim_ids = {item.dimension_id for item in input}
+        if len(dim_ids) > 1:
+            raise GraphQLValidationError(info, 'All categories in a batch must target the same dimension')
+
+        scope = self._get_dimension_scope(info, ic, input[0].dimension_id)
+        dim = scope.dimension
+
+        created: list[DimensionCategory] = []
+        with transaction.atomic():
+            for item in input:
+                cat_uuid = item.id.value if is_maybe_set(item.id) else uuid4()
+                identifier = item.identifier.value if is_maybe_set(item.identifier) else None
+
+                if identifier is not None and dim.categories.filter(identifier=identifier).exists():
+                    raise GraphQLValidationError(
+                        info,
+                        f'Category with identifier "{identifier}" already exists in dimension "{scope.identifier}"',
+                    )
+
+                cat = DimensionCategory(
+                    dimension=dim,
+                    uuid=cat_uuid,
+                    identifier=identifier,
+                    label=item.label,
+                )
+                cat.save()
+                self._set_sibling_hints(info, cat, item)
+                created.append(cat)
+
+            try:
+                DimensionCategory.finalize_sibling_order(dim.categories.all(), hinted=created)
+            except ValueError as e:
+                raise GraphQLValidationError(info, str(e)) from e
+
+        return DimensionType.from_scope(scope)
+
+    @staticmethod
+    def _apply_category_update(info: gql.Info, item: UpdateDimensionCategoryInput) -> DimensionCategoryModel:
+        """Look up and apply field updates for a single category. Returns the updated instance."""
+        from kausal_common.datasets.models import DimensionCategory
+
+        cat = DimensionCategory.objects.filter(uuid=item.category_id).select_related('dimension').first()
+        if cat is None:
+            raise NotFoundError(info, f'Category "{item.category_id}" not found')
+
+        updates: dict[str, object] = {}
+        if is_maybe_set(item.identifier):
+            updates['identifier'] = item.identifier.value
+        if is_maybe_set(item.label):
+            updates['label'] = item.label.value
+        if updates:
+            DimensionCategory.objects.filter(pk=cat.pk).update(**updates)
+        return cat
+
+    @gql.mutation(description='Update dimension categories')
+    def update_dimension_categories(
+        self, info: gql.Info, root: sb.Parent[Me], input: list[UpdateDimensionCategoryInput]
+    ) -> DimensionType:
+        from kausal_common.datasets.models import DimensionCategory, DimensionScope
+
+        if not input:
+            raise GraphQLValidationError(info, 'At least one category input is required')
+
+        ic = root.instance
+        dim = None
+        updated: list[DimensionCategory] = []
+
+        for item in input:
+            cat = self._apply_category_update(info, item)
+
+            if dim is None:
+                dim = cat.dimension
+                scope = DimensionScope.objects.for_instance_config(ic).filter(dimension=dim).first()
+                if scope is None:
+                    raise NotFoundError(info, 'Category does not belong to this instance')
+            elif cat.dimension_id != dim.pk:
+                raise GraphQLValidationError(info, 'All categories in a batch must belong to the same dimension')
+
+            self._set_sibling_hints(info, cat, item)
+            updated.append(cat)
+
+        assert dim is not None
+        try:
+            DimensionCategory.finalize_sibling_order(dim.categories.all(), hinted=updated)
+        except ValueError as e:
+            raise GraphQLValidationError(info, str(e)) from e
+
+        scope = self._get_dimension_scope(info, ic, dim.uuid)
+        return DimensionType.from_scope(scope)
+
+    @gql.mutation(description='Delete a dimension category')
+    def delete_dimension_category(self, info: gql.Info, root: sb.Parent[Me], category_id: UUID) -> None:
+        from kausal_common.datasets.models import DimensionCategory, DimensionScope
+
+        cat = DimensionCategory.objects.filter(uuid=category_id).select_related('dimension').first()
+        if cat is None:
+            raise NotFoundError(info, f'Category "{category_id}" not found')
+
+        ic = root.instance
+        scope = DimensionScope.objects.for_instance_config(ic).filter(dimension=cat.dimension).first()
+        if scope is None:
+            raise GraphQLError('Category does not belong to this instance')
+
+        cat.delete()
 
     @gql.mutation(description='Create a new scenario')
     @staticmethod

@@ -57,8 +57,8 @@ python manage.py collectstatic
 # Run specific test file
 python -m pytest --reuse-db path/to/test_file.py
 
-# Run mypy type checking (filter out known baseline errors)
-mypy . | mypy-baseline filter
+# Run mypy type checking
+mypy .
 
 # Run ruff linting
 ruff check .

@@ -20,6 +20,7 @@ from nodes.defs import InstanceSpec
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
+from nodes.graphql.types.dimension import DimensionType
 from nodes.instance import Instance
 from nodes.models import InstanceConfig
 from nodes.node import Node
@@ -255,6 +256,22 @@ class InstanceType:
         qs = DatasetModel.objects.get_queryset().for_instance_config(ic).select_related('schema')
         # FIXME: Permission checks
         return [DatasetType.from_model(ds) for ds in qs]
+
+    @sb.field(graphql_type=list[DimensionType])
+    @staticmethod
+    def dimensions(root: Instance) -> list[DimensionType]:
+        """All dimensions scoped to this model instance."""
+        from kausal_common.datasets.models import DimensionScope
+
+        ic = root.config
+        scopes = (
+            DimensionScope.objects
+            .for_instance_config(ic)
+            .select_related('dimension')
+            .prefetch_related('dimension__categories')
+            .order_by('order')
+        )
+        return [DimensionType.from_scope(scope) for scope in scopes]
 
     @sb.field(graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.schema')]])
     @staticmethod

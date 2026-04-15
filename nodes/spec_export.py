@@ -6,8 +6,6 @@ the live object graph and produce the Pydantic spec models that can be
 stored on InstanceConfig.spec and NodeConfig.spec.
 """
 
-from __future__ import annotations
-
 from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, overload
@@ -15,10 +13,11 @@ from uuid import uuid3, uuid4
 
 from loguru import logger
 
+from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
 from kausal_common.i18n.pydantic import TranslatedString, set_i18n_context
 
 from nodes.actions.action import ActionNode
-from nodes.datasets import DVCDataset
+from nodes.datasets import DatasetWithFilters, DVCDataset
 from nodes.defs import (
     ActionConfig,
     InputDatasetDef,
@@ -47,7 +46,7 @@ if TYPE_CHECKING:
     from nodes.defs.node_defs import NodeSpecExtra
     from nodes.edges import Edge, EdgeDimension
     from nodes.instance import Instance
-    from nodes.models import InstanceConfig, NodeConfig
+    from nodes.models import DatasetPort, InstanceConfig, NodeConfig
     from nodes.node import Node
     from nodes.scenario import Scenario
     from params import Parameter
@@ -480,6 +479,148 @@ def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, Node
     return edge_count
 
 
+def _resolve_dataset_port(
+    ic: InstanceConfig,
+    nc: NodeConfig,
+    node: Node,
+    idx: int,
+    ds_instance: DatasetWithFilters,
+    placeholder_datasets: dict[str, DatasetModel],
+    metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric],
+) -> DatasetPort:
+    from nodes.datasets import DBDataset
+    from nodes.models import DatasetPort
+
+    # The port_id must match the one generated in _export_input_ports
+    port_id = uuid_from_identifiers(node.context.instance, [node.id, 'dataset', str(idx)])
+
+    # Resolve the Dataset model object depending on the dataset type.
+    if isinstance(ds_instance, DBDataset):
+        dataset_obj = ds_instance.db_dataset_obj
+        assert dataset_obj is not None
+    elif isinstance(ds_instance, DVCDataset):
+        dataset_obj = placeholder_datasets.get(ds_instance.id)
+    else:
+        raise TypeError(f'Unknown dataset type: {type(ds_instance)}')
+
+    if dataset_obj is None:
+        raise ValueError(f'No dataset object for {ds_instance.id} on node {node.id}')
+
+    column = ds_instance.column
+    if column is None or dataset_obj.schema is None:
+        raise ValueError(
+            f'Cannot create dataset port: column={column}, schema={dataset_obj.schema} for {ds_instance.id} on node {node.id}'
+        )
+
+    metric = metrics_by_schema_and_name.get((dataset_obj.schema.pk, column))
+    if metric is None:
+        raise ValueError(f'No metric {column} in dataset {ds_instance.id} for node {node.id}')
+
+    return DatasetPort(
+        instance=ic,
+        node=nc,
+        port_id=port_id,
+        dataset=dataset_obj,
+        metric=metric,
+        forecast_from=ds_instance.forecast_from,
+    )
+
+
+def _get_placeholder_datasets(ic: InstanceConfig) -> dict[str, DatasetModel]:
+    """
+    Build a lookup of dataset identifier -> placeholder Dataset for an instance.
+
+    Placeholder datasets are scoped through their schema's DatasetSchemaScope,
+    not via the Dataset's own scope fields, so we query through the schema relation.
+    """
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import DatasetSchemaScope
+
+    schema_scope_ids = DatasetSchemaScope.objects.filter(
+        scope_content_type=ContentType.objects.get_for_model(ic),
+        scope_id=ic.pk,
+    ).values_list('schema_id', flat=True)
+    return {
+        ds.identifier: ds
+        for ds in DatasetModel.objects.filter(
+            schema_id__in=schema_scope_ids,
+            is_external_placeholder=True,
+        ).select_related('schema')
+        if ds.identifier
+    }
+
+
+def _collect_dataset_schema_pks(ctx: Context, placeholder_datasets: dict[str, DatasetModel]) -> set[int]:
+    """Collect schema PKs from both placeholder and DB-backed datasets."""
+    from nodes.datasets import DBDataset
+
+    pks: set[int] = set()
+    for ds in placeholder_datasets.values():
+        if ds.schema is not None:
+            pks.add(ds.schema.pk)
+    for node in ctx.nodes.values():
+        for ds_instance in node.input_dataset_instances:
+            if isinstance(ds_instance, DBDataset) and ds_instance.db_dataset_obj is not None:
+                db_ds = ds_instance.db_dataset_obj
+                if db_ds.schema is not None:
+                    pks.add(db_ds.schema.pk)
+    return pks
+
+
+def _dataset_metric_binding_key(metric: DatasetMetric) -> str:
+    """
+    Return the metric identifier used in dataset-port bindings.
+
+    DB-backed datasets deserialize their metric columns using the same fallback order:
+    ``name``, then ``label``, then ``uuid``. Keep dataset-port lookup aligned with that
+    runtime behavior so bindings resolve to the same effective metric column.
+    """
+    if metric.name:
+        return metric.name
+    if metric.label:
+        return metric.label
+    return str(metric.uuid)
+
+
+def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[str, NodeConfig]) -> int:
+    """Create DatasetPort objects linking placeholder datasets to node input ports."""
+    from nodes.datasets import FixedDataset
+    from nodes.models import DatasetPort
+
+    DatasetPort.objects.filter(instance=ic).delete()
+
+    placeholder_datasets = _get_placeholder_datasets(ic)
+    all_schema_pks = _collect_dataset_schema_pks(ctx, placeholder_datasets)
+    if not all_schema_pks:
+        return 0
+
+    # Build lookup: (schema_pk, metric_name) -> DatasetMetric
+    metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric] = {}
+    for metric in DatasetMetric.objects.filter(schema__pk__in=all_schema_pks):
+        metrics_by_schema_and_name[(metric.schema.pk, _dataset_metric_binding_key(metric))] = metric
+
+    port_objs: list[DatasetPort] = []
+    for node in ctx.nodes.values():
+        nc = node_configs.get(node.id)
+        if nc is None:
+            continue
+
+        for idx, ds_instance in enumerate(node.input_dataset_instances):
+            if isinstance(ds_instance, FixedDataset):
+                continue
+            if not isinstance(ds_instance, DatasetWithFilters):
+                continue
+            if ds_instance.column is None:
+                continue
+
+            port = _resolve_dataset_port(ic, nc, node, idx, ds_instance, placeholder_datasets, metrics_by_schema_and_name)
+            port_objs.append(port)
+
+    DatasetPort.objects.bulk_create(port_objs)
+    return len(port_objs)
+
+
 def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -> None:
     """
     Load an instance from YAML and sync its spec to the DB.
@@ -542,10 +683,13 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
 
         created_placeholder_ids = sync_instance_dataset_placeholders(ic, ctx)
 
+        dataset_port_count = _update_dataset_ports(ic, ctx, node_configs)
+
     logger.info(
-        'Synced {id}: {nodes} nodes, {edges} edges, {placeholders} dataset placeholders created',
+        'Synced {id}: {nodes} nodes, {edges} edges, {placeholders} dataset placeholders created, {ports} dataset ports',
         id=instance.id,
         nodes=len(node_configs),
         edges=edge_count,
         placeholders=len(created_placeholder_ids),
+        ports=dataset_port_count,
     )

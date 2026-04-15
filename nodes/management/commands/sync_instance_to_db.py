@@ -35,6 +35,8 @@ class Command(BaseCommand):
     def sync_one_instance(self, instance_id: str, dry_run: bool = False) -> None:
         from nodes.spec_export import sync_instance_to_db
 
+        self.stdout.write(f'Syncing instance {instance_id}')
+
         try:
             with transaction.atomic():
                 try:

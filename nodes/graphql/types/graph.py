@@ -228,7 +228,10 @@ class DatasetPortType:
             external_dataset_id=binding.external_dataset_id,
             external_metric_id=binding.external_metric_id,
         )
-        port._dataset = DatasetType.from_binding(binding)
+        dataset_type = DatasetType.from_binding(binding)
+        if dataset_type is not None and binding.forecast_from is not None:
+            dataset_type._forecast_from = binding.forecast_from
+        port._dataset = dataset_type
         port._node = node
         return port
 

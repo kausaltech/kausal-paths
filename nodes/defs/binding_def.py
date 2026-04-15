@@ -47,3 +47,7 @@ class DatasetPortBindingDef(BaseModel):
         default=None,
         description='Stable identifier of the external metric within the dataset.',
     )
+    forecast_from: int | None = Field(
+        default=None,
+        description='The year from which the time series becomes a forecast.',
+    )

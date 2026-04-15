@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 import polars as pl
-from line_profiler import profile
 
 from common import polars as ppl
 from nodes.constants import (
@@ -121,7 +120,6 @@ def extend_last_forecast_value_pl(df: ppl.PathsDataFrame, end_year: int) -> ppl.
     return df
 
 
-@profile
 def extend_to_history_pl(df: ppl.PathsDataFrame, start_year: int) -> ppl.PathsDataFrame:
     if FORECAST_COLUMN not in df.columns:
         raise ValueError('There is no FORECAST_COLUMN.')
