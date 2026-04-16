@@ -267,6 +267,10 @@ dimensions:
     label_de: Industrie
     aliases: [industrie, Industrie, IE_, IE, ITHG_, ITHG]
     color: '#737373'
+  - id: industry_commerce
+    label_en: Industry & Commerce
+    label_de: Industrie & Gewerbe
+    color: '#737373'
   - id: electricity
     label_en: Electricity
     label_de: Strom

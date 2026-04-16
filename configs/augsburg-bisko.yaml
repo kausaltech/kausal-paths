@@ -6,14 +6,14 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 042ea36e00165e5960343bcbf5b7aa14cdc4f549
   dvc_remote: kausal-s3
-name_de: Augsburg Klima-Monitor-BISKO
-name_en: Augsburg Climate Monitor BISKO
+name_de: Augsburg Klimadashboard
+name_en: Augsburg Climate Dashboard
 owner: Augsburg Stadt
 theme_identifier: de-augsburg
 target_year: 2035
 model_end_year: 2050
 reference_year: 1990
-minimum_historical_year: 1990
+minimum_historical_year: 1996
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
@@ -101,6 +101,21 @@ result_excels:
   - vehicle_kilometers_ifeu
   - other_transport_energy
 
+
+#//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#nodes:
+#- id:
+
+
+#//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#actions:
+#- id: 
+
+
+#//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 pages:
 - id: home
   name_de: Augsburg Treibhausgasbilanz
@@ -110,6 +125,10 @@ pages:
   outcome_node: net_emissions
   lead_title: Treibhausgasbilanz und -prognosen
   lead_paragraph: Historische Treibhausgasemissionen der Stadt Augsburg und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+
+
+#//////  Scenarios  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 scenarios:
 

@@ -6,8 +6,8 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 042ea36e00165e5960343bcbf5b7aa14cdc4f549
   dvc_remote: kausal-s3
-name_de: Bayreuth Treibhausgas Monitor
-name_en: Bayreuth Climate Monitor BISKO
+name_de: Bayreuth Klimadashboard
+name_en: Bayreuth Climate Dashboard
 owner: Bayreuth Stadt
 theme_identifier: de-bayreuth
 target_year: 2040
@@ -319,7 +319,7 @@ pages:
 scenarios:
 
 - id: baseline
-  name_de: Business as Usual
+  name_de: Status Quo
   name_en: Business as Usual
 
 - id: default

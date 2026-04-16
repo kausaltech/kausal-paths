@@ -23,7 +23,7 @@ features:
 
 include:
 - file: modules/bisko/model.yaml
-  allow_override: false
+  allow_override: true
   dataset_replacements:
   - from: bisko/final_energy
     to: duesseldorf/final_energy
@@ -41,8 +41,8 @@ params:
   label_de: Wetterkorrektur durchführen?
   label_en: Perform weather correction?
   value: false
-  is_customizable: true
-  is_visible: true
+  is_customizable: false
+  is_visible: false
 - id: municipality_name
   label_en: Municipality name
   label_de: Gemeindename
@@ -100,7 +100,53 @@ result_excels:
   - vehicle_kilometers_ifeu
   - other_transport_energy
 
+#//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
+nodes:
+# sum up Industry + Commercial
+- id: industry_commerce_emissions
+  name_en: Industry & Commerce
+  name_de: Industrie & Gewerbe
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_nodes: [industry_emissions, commerce_trade_services_emissions]
+  params:
+  - id: formula
+    value: sum_into_cat(industry_emissions + commerce_trade_services_emissions, sector, [industry, commerce_trade_services], industry_commerce)
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  output_nodes: [net_emissions]
 
+
+# copy them from bisko standard and remove output node net_emissions - don't forget to put allow_override=true
+- id: industry_emissions
+  name_de: Industrie Emissionen
+  name_en: Industry emissions
+  color: '#737373'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_industry_energy_use
+  - id: end_energy_emission_factors
+
+- id: commerce_trade_services_emissions
+  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_en: Commerce, trade, services emissions
+  color: '#fe8035'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_commerce_trade_services_energy_use
+  - id: end_energy_emission_factors
+
+
+#//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
 pages:
 - id: home
   name: Düsseldorf Treibhausgasinventar
@@ -111,6 +157,8 @@ pages:
   lead_title: Düsseldorf Treibhausgasinventar
   lead_paragraph: Historische Treibhausgasemissionen der Stadt Düsseldorf und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
 
+
+#//////  Scenarios  ///////////////////////////////////////////////////////////////////////////////////////////////////
 scenarios:
 
 - id: baseline
