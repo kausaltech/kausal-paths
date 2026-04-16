@@ -74,6 +74,7 @@ class Command(BaseCommand):
         instance_spec = InstanceConfig.objects.get(identifier=instance_id).spec
         node_qs = NodeConfig.objects.qs.filter(instance__identifier=instance_id).active()
         nodes = node_qs.with_spec()
+        assert instance_spec is not None
         dataset_repo_url = instance_spec.dataset_repo.url if instance_spec.dataset_repo else None
         self.stdout.write('\n--- Instance Spec ---')
         self.stdout.write(f'  ID: {instance_id}')
@@ -87,6 +88,7 @@ class Command(BaseCommand):
         self.stdout.write(f'\n--- Node Specs ({len(nodes)}) ---')
         for node in nodes[:5]:
             spec = node.spec
+            assert spec is not None
             n_metrics = len(spec.output_ports)
             n_params = len(spec.params)
             self.stdout.write(f'  {node.identifier}: {n_metrics} metrics, {n_params} params, kind={spec.kind}')

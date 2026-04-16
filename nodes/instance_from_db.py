@@ -111,6 +111,7 @@ def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> list[Nod
             input_nodes=input_edges.get(nc.identifier, []),
         )
         spec = nc.spec
+        assert spec is not None
         if spec.type_config.kind == NodeKind.ACTION:
             actions_list.append(node_dict)
         else:
@@ -126,6 +127,7 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     nc: NodeConfig,
     input_nodes: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    assert nc.spec is not None
     spec: NodeSpec = nc.spec
     node: dict[str, Any] = {'id': spec.identifier or nc.identifier}
 
@@ -338,6 +340,7 @@ def _build_edge_maps(  # noqa: C901, PLR0912
 
     for edge in edges:
         from_spec = nodes_by_identifier[edge.from_node_identifier].spec
+        assert from_spec is not None
         from_port = from_spec.output_port_by_id[edge.from_port]
         column_id = from_port.column_id or VALUE_COLUMN
         edge_metrics[edge.from_node_identifier][edge.to_node_identifier].append((column_id, edge))
@@ -374,7 +377,9 @@ def _build_edge_maps(  # noqa: C901, PLR0912
                         entry['to_dimensions'] = config['to_dimensions']
 
             output_edges.setdefault(from_node_id, []).append(to_entry)
-            input_port_order = {port.id: idx for idx, port in enumerate(nodes_by_identifier[to_node_id].spec.input_ports)}
+            to_spec = nodes_by_identifier[to_node_id].spec
+            assert to_spec is not None
+            input_port_order = {port.id: idx for idx, port in enumerate(to_spec.input_ports)}
             input_edges_with_order[to_node_id].append((
                 input_port_order.get(first_edge.to_port, len(input_port_order)),
                 from_entry,

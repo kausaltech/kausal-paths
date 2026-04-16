@@ -80,17 +80,19 @@ def _make_dimension(ic: InstanceConfig, identifier: str, name: str, categories: 
 INSTANCE_DIMENSIONS = gql("""
 query ModelInstance($instanceId: ID!) {
     modelInstance(instanceId: $instanceId) {
-        dimensions {
-            id
-            identifier
-            name
-            categories {
+        editor {
+            dimensions {
                 id
                 identifier
-                label
-                order
-                previousSibling
-                nextSibling
+                name
+                categories {
+                    id
+                    identifier
+                    label
+                    order
+                    previousSibling
+                    nextSibling
+                }
             }
         }
     }
@@ -101,7 +103,7 @@ query ModelInstance($instanceId: ID!) {
 def test_query_instance_dimensions(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     dim = _make_dimension(db_instance_config, 'sector', 'Sector', ['Energy', 'Transport', 'Buildings'])
     data = gql_client.query_data(INSTANCE_DIMENSIONS, variables={'instanceId': str(db_instance_config.pk)})
-    dims = data['modelInstance']['dimensions']
+    dims = data['modelInstance']['editor']['dimensions']
     assert len(dims) == 1
     d = dims[0]
     assert d['identifier'] == 'sector'
@@ -125,7 +127,7 @@ def test_query_instance_dimensions(gql_client: PathsTestClient, db_instance_conf
 def test_query_empty_dimension(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     _make_dimension(db_instance_config, 'empty', 'Empty Dim')
     data = gql_client.query_data(INSTANCE_DIMENSIONS, variables={'instanceId': str(db_instance_config.pk)})
-    d = data['modelInstance']['dimensions'][0]
+    d = data['modelInstance']['editor']['dimensions'][0]
     assert d['categories'] == []
 
 
@@ -133,7 +135,7 @@ def test_query_multiple_dimensions(gql_client: PathsTestClient, db_instance_conf
     _make_dimension(db_instance_config, 'sector', 'Sector', ['A'])
     _make_dimension(db_instance_config, 'fuel', 'Fuel Type', ['Gas', 'Oil'])
     data = gql_client.query_data(INSTANCE_DIMENSIONS, variables={'instanceId': str(db_instance_config.pk)})
-    dims = data['modelInstance']['dimensions']
+    dims = data['modelInstance']['editor']['dimensions']
     assert len(dims) == 2
     identifiers = {d['identifier'] for d in dims}
     assert identifiers == {'sector', 'fuel'}

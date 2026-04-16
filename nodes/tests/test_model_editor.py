@@ -133,9 +133,11 @@ mutation CreateNode($instanceId: ID!, $input: CreateNodeInput!) {
                 identifier
                 name
                 color
-                isVisible
                 kind
-                nodeGroup
+                editor {
+                    isVisible
+                    nodeGroup
+                }
             }
             ... on OperationInfo { messages { kind message } }
         }
@@ -163,7 +165,7 @@ def test_create_node_formula(gql_client: PathsTestClient, db_instance_config: In
     assert node['identifier'] == 'new_node'
     assert node['name'] == 'New Node'
     assert node['color'] == '#ff0000'
-    assert node['isVisible'] is True
+    assert node['editor']['isVisible'] is True
     assert node['kind'] == 'FORMULA'
 
 
@@ -205,7 +207,7 @@ def test_create_node_with_node_group_and_allow_nulls(gql_client: PathsTestClient
         },
     )
     node = data['instanceEditor']['createNode']
-    assert node['nodeGroup'] == 'transport'
+    assert node['editor']['nodeGroup'] == 'transport'
 
 
 def test_create_node_rejects_yaml_instance(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -241,9 +243,11 @@ mutation UpdateNode($instanceId: ID!, $nodeId: ID!, $input: UpdateNodeInput!) {
                 identifier
                 name
                 color
-                isVisible
                 kind
-                nodeGroup
+                isVisible
+                editor {
+                    nodeGroup
+                }
             }
             ... on OperationInfo { messages { kind message } }
         }
@@ -289,6 +293,7 @@ def test_runtime_rebuild_preserves_node_group_and_allow_nulls(db_instance_config
 
 def test_instance_spec_syncs_identity_fields(db_instance_config: InstanceConfig):
     db_instance_config.refresh_from_db()
+    assert db_instance_config.spec is not None
     assert db_instance_config.spec.uuid == db_instance_config.uuid
     assert db_instance_config.spec.identifier == db_instance_config.identifier
     assert str(db_instance_config.spec.name) == db_instance_config.name
@@ -297,6 +302,7 @@ def test_instance_spec_syncs_identity_fields(db_instance_config: InstanceConfig)
 def test_node_spec_syncs_identity_fields_on_save(db_instance_config: InstanceConfig):
     nc = NodeConfigFactory.create(instance=db_instance_config, identifier='spec_identity', name='Spec Identity')
     nc.refresh_from_db()
+    assert nc.spec is not None
     assert nc.spec.uuid == nc.uuid
     assert nc.spec.identifier == nc.identifier
     assert str(nc.spec.name) == nc.name
@@ -312,12 +318,14 @@ def test_node_spec_syncs_display_fields_on_save(db_instance_config: InstanceConf
         is_visible=False,
     )
     nc.refresh_from_db()
+    assert nc.spec is not None
     assert nc.spec.color == '#123456'
     assert nc.spec.order == 7
     assert nc.spec.is_visible is False
 
 
 def test_runtime_rebuild_preserves_action_group_and_zero_no_effect_value(db_instance_config: InstanceConfig):
+    assert db_instance_config.spec is not None
     db_instance_config.spec.action_groups = [ActionGroup(id='grp', name='Group')]
     db_instance_config.save(update_fields=['spec'])
 
@@ -384,6 +392,7 @@ def test_runtime_rebuild_preserves_impact_overviews(db_instance_config: Instance
         name='Impact Effect',
         spec=_make_node_spec(),
     )
+    assert db_instance_config.spec is not None
     db_instance_config.spec.impact_overviews = [
         ImpactOverviewSpec.model_validate({
             'graph_type': ImpactGraphType.SIMPLE_EFFECT,
@@ -407,6 +416,7 @@ def test_runtime_rebuild_preserves_normalizations(db_instance_config: InstanceCo
         name='Population',
         spec=_make_node_spec(),
     )
+    assert db_instance_config.spec is not None
     db_instance_config.spec.normalizations = [
         NormalizationSpec.model_validate({
             'normalizer_node_id': 'population_normalizer',
@@ -561,65 +571,186 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     assert not NodeEdge.objects.filter(pk=edge_obj.pk).exists()
 
 
+def test_delete_edge_cannot_cross_instance_boundary(client, db_instance_config: InstanceConfig):
+    from paths.tests.graphql import PathsTestClient
+
+    from nodes.models import NodeEdge
+    from nodes.roles import instance_admin_role
+    from nodes.tests.factories import InstanceFactory
+    from users.tests.factories import UserFactory
+
+    allowed_instance = db_instance_config
+    target_instance = InstanceConfigFactory.create(instance=InstanceFactory.create(), config_source='database')
+
+    unit = unit_registry.parse_units('kt/a')
+    source_node = NodeConfigFactory.create(
+        instance=target_instance,
+        identifier='source_node',
+        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')]),
+    )
+    target_node = NodeConfigFactory.create(
+        instance=target_instance,
+        identifier='target_node',
+        spec=_make_node_spec(
+            input_ports=[InputPortDef(id=_port_uuid('input'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+        ),
+    )
+    edge = NodeEdge.objects.create(
+        instance=target_instance,
+        from_node=source_node,
+        from_port=_port_uuid('default'),
+        to_node=target_node,
+        to_port=_port_uuid('input'),
+    )
+
+    user = UserFactory.create()
+    instance_admin_role.assign_user(allowed_instance, user)
+    client.force_login(user)
+
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(allowed_instance)
+    gql_client.query_errors(
+        DELETE_EDGE,
+        variables={'instanceId': str(allowed_instance.pk), 'edgeId': str(edge.pk)},
+        assert_error_message='Edge not found',
+    )
+
+    assert NodeEdge.objects.filter(pk=edge.pk).exists()
+
+
 # ---------------------------------------------------------------------------
 # model_instance query (smoke test)
 # ---------------------------------------------------------------------------
 
-MODEL_INSTANCE_QUERY = """
-query ModelInstance($id: ID!) {
+MODEL_INSTANCE_QUERY = gql("""
+query ModelInstanceTest($id: ID!) {
     modelInstance(instanceId: $id) {
         identifier
-        configSource
-        graphLayout {
-            coreNodeIds
-            ghostableContextSourceIds
-            hubIds
-            actionIds
-            outcomeIds
-            mainGraphNodeIds
-            thresholds {
-                hubDegree
-                ghostableOutDegree
-                ghostableTotalDegree
-                ghostableAvgOutgoingSpan
+        editor {
+            configSource
+            graphLayout {
+                coreNodeIds
+                ghostableContextSourceIds
+                hubIds
+                actionIds
+                outcomeIds
+                mainGraphNodeIds
+                thresholds {
+                    hubDegree
+                    ghostableOutDegree
+                    ghostableTotalDegree
+                    ghostableAvgOutgoingSpan
+                }
             }
-        }
-        spec {
-            years {
-                reference
-                target
+            spec {
+                years {
+                    reference
+                    target
+                }
+            }
+            edges {
+                fromRef {
+                    nodeId
+                }
+                toRef {
+                    nodeId
+                }
+            }
+            datasetPorts {
+                nodeRef {
+                    nodeId
+                    portId
+                }
+                dataset {
+                    id
+                    identifier
+                    isExternalPlaceholder
+                    externalRef {
+                        repoUrl
+                        commit
+                        datasetId
+                    }
+                }
+                metric {
+                    id
+                    name
+                    label
+                }
+                externalDatasetId
+                externalMetricId
             }
         }
         nodes {
             identifier
             color
-            isVisible
             kind
             uuid
-            nodeGroup
-            nodeType
-            inputDimensions
-            outputDimensions
-            tags
-            layoutMeta {
-                primaryClass
-                ghostable
-                ghostTargets
-                topologicalLayer
-                totalDegree
-            }
             inputNodes { identifier }
             outputNodes { identifier }
-            spec {
-                inputPorts {
-                    id
-                    quantity
-                    multi
-                    requiredDimensions
-                    supportedDimensions
-                    bindings {
-                        __typename
-                        ... on NodeEdgeType {
+            isVisible
+            editor {
+                nodeGroup
+                nodeType
+                inputDimensions
+                outputDimensions
+                tags
+                layoutMeta {
+                    primaryClass
+                    ghostable
+                    ghostTargets
+                    topologicalLayer
+                    totalDegree
+                }
+                spec {
+                    inputPorts {
+                        id
+                        quantity
+                        multi
+                        requiredDimensions
+                        supportedDimensions
+                        bindings {
+                            __typename
+                            ... on NodeEdgeType {
+                                fromRef {
+                                    nodeId
+                                    portId
+                                }
+                                toRef {
+                                    nodeId
+                                    portId
+                                }
+                            }
+                            ... on DatasetPortType {
+                                nodeRef {
+                                    nodeId
+                                    portId
+                                }
+                                dataset {
+                                    id
+                                    identifier
+                                    isExternalPlaceholder
+                                    externalRef {
+                                        repoUrl
+                                        commit
+                                        datasetId
+                                    }
+                                }
+                                metric {
+                                    id
+                                    name
+                                    label
+                                }
+                                externalDatasetId
+                                externalMetricId
+                            }
+                        }
+                    }
+                    outputPorts {
+                        id
+                        quantity
+                        dimensions
+                        edges {
                             fromRef {
                                 nodeId
                                 portId
@@ -629,82 +760,13 @@ query ModelInstance($id: ID!) {
                                 portId
                             }
                         }
-                        ... on DatasetPortType {
-                            nodeRef {
-                                nodeId
-                                portId
-                            }
-                            dataset {
-                                id
-                                identifier
-                                isExternalPlaceholder
-                                externalRef {
-                                    repoUrl
-                                    commit
-                                    datasetId
-                                }
-                            }
-                            metric {
-                                id
-                                name
-                                label
-                            }
-                            externalDatasetId
-                            externalMetricId
-                        }
-                    }
-                }
-                outputPorts {
-                    id
-                    quantity
-                    dimensions
-                    edges {
-                        fromRef {
-                            nodeId
-                            portId
-                        }
-                        toRef {
-                            nodeId
-                            portId
-                        }
                     }
                 }
             }
-        }
-        edges {
-            fromRef {
-                nodeId
-            }
-            toRef {
-                nodeId
-            }
-        }
-        datasetPorts {
-            nodeRef {
-                nodeId
-                portId
-            }
-            dataset {
-                id
-                identifier
-                isExternalPlaceholder
-                externalRef {
-                    repoUrl
-                    commit
-                    datasetId
-                }
-            }
-            metric {
-                id
-                name
-                label
-            }
-            externalDatasetId
-            externalMetricId
         }
     }
 }
-"""
+""")
 
 
 def _make_input_port(id: str = 'input', unit: str = 'kt/a', quantity: str = 'emissions', multi: bool = True) -> InputPortDef:
@@ -736,17 +798,17 @@ def test_model_instance_query(gql_client: PathsTestClient, db_instance_config: I
     )
     mi = data['modelInstance']
     assert mi['identifier'] == db_instance_config.identifier
-    assert mi['configSource'] == 'database'
+    assert mi['editor']['configSource'] == 'database'
     node_ids = [n['identifier'] for n in mi['nodes']]
     assert 'queried_node' in node_ids
-    assert mi['graphLayout']['thresholds']['hubDegree'] == 7
-    assert 'source_node' in mi['graphLayout']['ghostableContextSourceIds']
-    assert 'source_node' not in mi['graphLayout']['mainGraphNodeIds']
+    assert mi['editor']['graphLayout']['thresholds']['hubDegree'] == 7
+    assert 'source_node' in mi['editor']['graphLayout']['ghostableContextSourceIds']
+    assert 'source_node' not in mi['editor']['graphLayout']['mainGraphNodeIds']
 
     node_by_id = {node['identifier']: node for node in mi['nodes']}
-    assert node_by_id['source_node']['layoutMeta']['primaryClass'] == 'GHOSTABLE_CONTEXT_SOURCE'
-    assert node_by_id['source_node']['layoutMeta']['ghostTargets'] == ['queried_node']
-    assert node_by_id['queried_node']['layoutMeta']['primaryClass'] == 'CONTEXT_SOURCE'
+    assert node_by_id['source_node']['editor']['layoutMeta']['primaryClass'] == 'GHOSTABLE_CONTEXT_SOURCE'
+    assert node_by_id['source_node']['editor']['layoutMeta']['ghostTargets'] == ['queried_node']
+    assert node_by_id['queried_node']['editor']['layoutMeta']['primaryClass'] == 'CONTEXT_SOURCE'
 
 
 def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
@@ -807,11 +869,60 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
         )
 
     assert len(data['modelInstance']['nodes']) == node_count
-    assert data['modelInstance']['datasetPorts'][0]['dataset']['identifier'] == 'test_dataset'
-    assert data['modelInstance']['datasetPorts'][0]['metric']['name'] == 'test_metric'
-    assert data['modelInstance']['datasetPorts'][0]['externalDatasetId'] == 'test_dataset'
-    assert data['modelInstance']['datasetPorts'][0]['externalMetricId'] == 'test_metric'
+    assert data['modelInstance']['editor']['datasetPorts'][0]['dataset']['identifier'] == 'test_dataset'
+    assert data['modelInstance']['editor']['datasetPorts'][0]['metric']['name'] == 'test_metric'
+    assert data['modelInstance']['editor']['datasetPorts'][0]['externalDatasetId'] == 'test_dataset'
+    assert data['modelInstance']['editor']['datasetPorts'][0]['externalMetricId'] == 'test_metric'
     assert len(query_ctx) <= 20
+
+
+def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_instance_config: InstanceConfig):
+    from paths.tests.graphql import PathsTestClient
+
+    from nodes.models import _pytest_instances
+    from nodes.roles import instance_admin_role
+    from users.tests.factories import UserFactory
+
+    NodeConfigFactory.create(instance=db_instance_config, identifier='visible_node', is_visible=True)
+    NodeConfigFactory.create(instance=db_instance_config, identifier='hidden_node', is_visible=False)
+
+    query = """
+    query {
+        instance {
+            nodes {
+                identifier
+            }
+        }
+    }
+    """
+
+    public_client = PathsTestClient(client)
+    public_client.set_instance(db_instance_config)
+    cached = _pytest_instances.pop(db_instance_config.identifier, None)
+    try:
+        public_data = public_client.query_data(query)
+    finally:
+        if cached is not None:
+            _pytest_instances[db_instance_config.identifier] = cached
+    public_ids = {node['identifier'] for node in public_data['instance']['nodes']}
+    assert 'visible_node' in public_ids
+    assert 'hidden_node' not in public_ids
+
+    user = UserFactory.create()
+    instance_admin_role.assign_user(db_instance_config, user)
+    client.force_login(user)
+
+    editor_client = PathsTestClient(client)
+    editor_client.set_instance(db_instance_config)
+    cached = _pytest_instances.pop(db_instance_config.identifier, None)
+    try:
+        editor_data = editor_client.query_data(query)
+    finally:
+        if cached is not None:
+            _pytest_instances[db_instance_config.identifier] = cached
+    editor_ids = {node['identifier'] for node in editor_data['instance']['nodes']}
+    assert 'visible_node' in editor_ids
+    assert 'hidden_node' in editor_ids
 
 
 # ---------------------------------------------------------------------------

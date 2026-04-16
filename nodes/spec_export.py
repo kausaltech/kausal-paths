@@ -455,14 +455,18 @@ def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, Node
                 raise ValueError(f'Target node {edge.output_node.id} not found in node configs')
             assert len(edge._to_port_ids)
             for from_metric_id, to_port_id in zip(edge._from_output_metric_ids, edge._to_port_ids, strict=True):
-                from_port = _resolve_from_port(edge, from_nc.spec, from_metric_id)
-                for to_port in to_nc.spec.input_ports:
+                from_spec = from_nc.spec
+                assert from_spec is not None
+                to_spec = to_nc.spec
+                assert to_spec is not None
+                from_port = _resolve_from_port(edge, from_spec, from_metric_id)
+                for to_port in to_spec.input_ports:
                     if str(to_port.id) == to_port_id:
                         break
                 else:
                     raise ValueError(
-                        f'No input port found for node {to_nc.spec.identifier} for edge from '
-                        + f'{from_nc.spec.identifier}, metric {from_metric_id}'
+                        f'No input port found for node {to_spec.identifier} for edge from '
+                        + f'{from_spec.identifier}, metric {from_metric_id}'
                     )
                 edge_obj = NodeEdge(
                     instance=ic,

@@ -353,7 +353,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         choices=[('yaml', 'YAML'), ('database', 'Database')],
         default='yaml',
     )
-    spec = SchemaField(schema=InstanceSpec, default=make_empty_instance_spec)
+    spec = SchemaField(schema=InstanceSpec, null=True)
 
     viewer_group: FK[Group | None] = models.ForeignKey(
         Group,
@@ -436,11 +436,12 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         if not isinstance(self.uuid, uuid.UUID):
             self.uuid = uuid.uuid4()
 
-        self.spec.uuid = self.uuid
-        self.spec.identifier = self.identifier
-        self.spec.name = self.name
-        self.spec.primary_language = self.primary_language
-        self.spec.other_languages = list(self.other_languages or [])
+        if (spec := self.spec) is not None:
+            spec.uuid = self.uuid
+            spec.identifier = self.identifier
+            spec.name = self.name
+            spec.primary_language = self.primary_language
+            spec.other_languages = list(self.other_languages or [])
 
         if self.site is not None:
             # TODO: Update Site and root page attributes
@@ -1132,7 +1133,7 @@ class NodeConfig(PathsModel[InstanceConfig], RevisionMixin, ClusterableModel, in
         default=NodeKindChoices.FORMULA,
     )
 
-    spec = SchemaField(schema=NodeSpec, default=make_empty_node_spec)
+    spec = SchemaField(schema=NodeSpec, null=True)
 
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
@@ -1294,12 +1295,13 @@ class NodeConfig(PathsModel[InstanceConfig], RevisionMixin, ClusterableModel, in
         if not isinstance(self.uuid, uuid.UUID):
             self.uuid = uuid.uuid4()
 
-        self.spec.uuid = self.uuid
-        self.spec.identifier = self.identifier
-        self.spec.name = get_translated_string_from_modeltrans(self, 'name', self.instance.primary_language)
-        self.spec.color = self.color or None
-        self.spec.order = self.order
-        self.spec.is_visible = self.is_visible
+        if (spec := self.spec) is not None:
+            spec.uuid = self.uuid
+            spec.identifier = self.identifier
+            spec.name = get_translated_string_from_modeltrans(self, 'name', self.instance.primary_language)
+            spec.color = self.color or None
+            spec.order = self.order
+            spec.is_visible = self.is_visible
 
         return super().save(**kwargs)
 

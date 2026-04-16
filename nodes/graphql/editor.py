@@ -79,6 +79,7 @@ def _parse_port_id(info: gql.Info, raw_port_id: str, *, field_name: str) -> UUID
 
 
 def _get_output_port(nc: NodeConfig, port_id: UUID) -> OutputPortDef | None:
+    assert nc.spec is not None
     for port in nc.spec.output_ports:
         if port.id == port_id:
             return port
@@ -86,6 +87,7 @@ def _get_output_port(nc: NodeConfig, port_id: UUID) -> OutputPortDef | None:
 
 
 def _get_input_port(nc: NodeConfig, port_id: UUID) -> InputPortDef | None:
+    assert nc.spec is not None
     for port in nc.spec.input_ports:
         if port.id == port_id:
             return port
@@ -98,6 +100,7 @@ def _resolve_target_port(info: gql.Info, to_node: NodeConfig, to_port: str | Non
         if _get_input_port(to_node, port_id) is not None:
             return port_id
         raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
+    assert to_node.spec is not None
     input_ports = to_node.spec.input_ports
     if len(input_ports) == 1:
         return input_ports[0].id
@@ -108,6 +111,7 @@ def _resolve_target_port(info: gql.Info, to_node: NodeConfig, to_port: str | Non
 
 
 def _resolve_source_port(info: gql.Info, from_node: NodeConfig, from_port: str) -> UUID:
+    assert from_node.spec is not None
     output_ports = from_node.spec.output_ports
     if from_port == 'output' and len(output_ports) == 1:
         return output_ports[0].id
@@ -381,6 +385,7 @@ class InstanceEditorMutation:
 
         spec = nc.spec
         updates: dict[str, object] = {}
+        assert spec is not None
         if is_maybe_set(input.name):
             spec.name = input.name.value
             updates['name'] = input.name.value
@@ -439,15 +444,16 @@ class InstanceEditorMutation:
 
     @gql.mutation(description='Delete an edge')
     @staticmethod
-    def delete_edge(info: gql.Info, edge_id: sb.ID) -> None:
+    def delete_edge(root: sb.Parent[Me], info: gql.Info, edge_id: sb.ID) -> None:
         from nodes.models import NodeEdge
 
+        ic = root.instance
         try:
-            edge = NodeEdge.objects.get(pk=edge_id)
+            edge = NodeEdge.objects.get(instance=ic, pk=edge_id)
         except NodeEdge.DoesNotExist:
             raise GraphQLError('Edge not found') from None
 
-        if edge.instance.config_source != 'database':
+        if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
         with transaction.atomic():

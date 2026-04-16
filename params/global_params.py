@@ -295,6 +295,6 @@ class AGSNumber(StringGlobalParameter):
     id = 'ags_number'
 
 
-class Flatline(BoolParameter):
+class Flatline(BoolGlobalParameter):
     name = _('Use flatline rather than forecast')
     id = 'flatline'

@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 from uuid import NAMESPACE_URL, uuid5
 
-from factory import Factory, LazyAttribute, RelatedFactory, SelfAttribute, Sequence, SubFactory, post_generation
+from factory import Factory, LazyAttribute, LazyFunction, RelatedFactory, SelfAttribute, Sequence, SubFactory, post_generation
 from factory.django import DjangoModelFactory
 
 from kausal_common.i18n.pydantic import TranslatedString
@@ -16,7 +16,7 @@ from nodes.datasets import FixedDataset
 from nodes.defs.node_defs import NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import OutputPortDef
 from nodes.instance import Instance
-from nodes.models import InstanceConfig, NodeConfig
+from nodes.models import InstanceConfig, NodeConfig, make_empty_instance_spec
 from nodes.node import Node
 from nodes.scenario import CustomScenario, Scenario, ScenarioKind
 from nodes.simple import SimpleNode
@@ -96,6 +96,7 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
     lead_title = 'lead title'
     lead_paragraph = 'Lead paragraph'
     config_source = 'yaml'
+    spec = LazyFunction(make_empty_instance_spec)
     instance: SubFactory[str, Instance] = SubFactory(InstanceFactory, id=SelfAttribute('..identifier'))
     organization = SubFactory[Any, Organization](OrganizationFactory)
 

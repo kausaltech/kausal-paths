@@ -168,6 +168,66 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
         ]
 
 
+@sb.type(name='NodeEditor')
+class NodeEditorFields:
+    _node: sb.Private['Node']
+
+    @sb.field(graphql_type=NodeSpecType | None)
+    @staticmethod
+    def spec(root: 'NodeEditorFields') -> NodeSpecType | None:
+        node = root._node
+        nc = node.db_obj
+        if nc is None:
+            return None
+        if node.has_spec:
+            spec_type = NodeSpecType.from_pydantic(node.spec)
+        else:
+            if nc.spec is None:
+                return None
+            spec_type = NodeSpecType.from_pydantic(nc.spec)
+            node._spec = nc.spec
+        spec_type._node = node
+        return spec_type
+
+    @sb.field
+    @staticmethod
+    def node_group(root: 'NodeEditorFields') -> str | None:
+        node = root._node
+        nc = node.db_obj
+        if nc is not None and nc.spec is not None and nc.spec.node_group is not None:
+            return nc.spec.node_group
+        return node.node_group
+
+    @sb.field
+    @staticmethod
+    def layout_meta(root: 'NodeEditorFields') -> NodeGraphLayoutMeta:
+        return root._node.context.node_graph_classifier.for_node(root._node.id)
+
+    @sb.field
+    @staticmethod
+    def node_type(root: 'NodeEditorFields') -> str:
+        typ = str(type(root._node))
+        typstr = re.search(r"'([^']*)'", typ)
+        if typstr is not None:
+            return typstr.group(1)
+        return ''
+
+    @sb.field
+    @staticmethod
+    def tags(root: 'NodeEditorFields') -> list[str] | None:
+        return list(root._node.tags)
+
+    @sb.field
+    @staticmethod
+    def input_dimensions(root: 'NodeEditorFields') -> list[str] | None:
+        return list(root._node.input_dimensions.keys())
+
+    @sb.field
+    @staticmethod
+    def output_dimensions(root: 'NodeEditorFields') -> list[str] | None:
+        return list(root._node.output_dimensions.keys())
+
+
 @sb.interface
 class NodeInterface:
     id: sb.ID
@@ -212,19 +272,21 @@ class NodeInterface:
 
     @sb.field
     @staticmethod
-    def spec(root: 'Node', info: gql.Info) -> NodeSpecType | None:
+    def is_visible(root: 'Node') -> bool:
+        nc = root.db_obj
+        if nc is not None:
+            return nc.is_visible
+        return root.is_visible
+
+    @sb.field
+    @staticmethod
+    def editor(root: 'Node', info: gql.Info) -> NodeEditorFields | None:
         nc = root.db_obj
         if nc is None:
             return None
-        if not nc.gql_action_allowed(info, 'change'):
+        if not nc.gql_action_allowed(info, 'change', raise_on_denied=False):
             return None
-        if root.has_spec:
-            spec_type = NodeSpecType.from_pydantic(root.spec)
-        else:
-            spec_type = NodeSpecType.from_pydantic(nc.spec)
-            root._spec = nc.spec
-        spec_type._node = root
-        return spec_type
+        return NodeEditorFields(_node=root)
 
     @sb.field
     @staticmethod
@@ -243,32 +305,11 @@ class NodeInterface:
 
     @sb.field
     @staticmethod
-    def is_visible(root: 'Node') -> bool:
-        nc = root.db_obj
-        if nc and nc.is_visible:
-            return nc.is_visible
-        return root.is_visible
-
-    @sb.field
-    @staticmethod
     def uuid(root: 'Node') -> str | None:
         nc = root.db_obj
         if nc is None:
             return None
         return str(nc.uuid)
-
-    @sb.field
-    @staticmethod
-    def node_group(root: 'Node') -> str | None:
-        nc = root.db_obj
-        if nc is not None and nc.spec.node_group is not None:
-            return nc.spec.node_group
-        return root.node_group
-
-    @sb.field
-    @staticmethod
-    def layout_meta(root: 'Node') -> NodeGraphLayoutMeta:
-        return root.context.node_graph_classifier.for_node(root.id)
 
     @sb.field(deprecation_reason='Replaced by "goals".')
     @staticmethod
@@ -324,30 +365,6 @@ class NodeInterface:
         if context.instance.features.show_explanations:
             return None
         return root.get_explanation()
-
-    @sb.field
-    @staticmethod
-    def node_type(root: 'Node') -> str:
-        typ = str(type(root))
-        typstr = re.search(r"'([^']*)'", typ)
-        if typstr is not None:
-            return typstr.group(1)
-        return ''
-
-    @sb.field
-    @staticmethod
-    def tags(root: 'Node') -> list[str] | None:
-        return list(root.tags)
-
-    @sb.field
-    @staticmethod
-    def input_dimensions(root: 'Node') -> list[str] | None:
-        return list(root.input_dimensions.keys())
-
-    @sb.field
-    @staticmethod
-    def output_dimensions(root: 'Node') -> list[str] | None:
-        return list(root.output_dimensions.keys())
 
     @sb.field(graphql_type=list[VisualizationEntry] | None)
     @staticmethod
