@@ -2772,8 +2772,8 @@ pages:
 
 scenarios:
 - id: baseline
-  name_de: Business as Usual
-  name_en: Business as Usual
+  name_de: ohne Klimaschutz-Maßnahmen
+  name_en: Without Climate Protection Measures
   all_actions_enabled: false
   params:
   - id: flatline
@@ -2824,18 +2824,27 @@ scenarios:
 
 - id: active
   default: false
-  name_de: Aktiv (Alle Strategien)
-  name_en: Active (All actions)
+  name_de: Alle IkKA-Strategien
+  name_en: All IkKA Strategies
   all_actions_enabled: true
   params:
   - id: flatline
     value: true
 
-# - id: bau_scenario
-#   default: false
-#   name_en: Active + Excel forecast rather than flatline
-#   name_de: Aktiv + Excel-Prognose statt Flatline
-#   all_actions_enabled: true
-#   params:
-#   - id: flatline
-#     value: false
+- id: bau_scenario
+  default: false
+  name_en: Projection AH
+  name_de: Prognose AH
+  all_actions_enabled: false
+  params:
+  - id: flatline
+    value: false
+
+- id: bau_scenario_and_ikka_strategies
+  default: false
+  name_en: Projection AH + IkKA Strategies
+  name_de: Prognose AH + IkKa-Strategien
+  all_actions_enabled: true
+  params:
+  - id: flatline
+    value: false
