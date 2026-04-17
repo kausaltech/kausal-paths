@@ -29,7 +29,14 @@ impact_overviews:
   cost_unit: DKK
   effect_unit: t
   plot_limit_for_indicator: 10000
-  label: Cost Efficiency
+  label_en: Cost Efficiency
+
+- graph_type: cost_benefit
+  effect_node: net_costs
+  indicator_unit: MDKK
+  outcome_dimension: cost_type
+  label_da: Kost-nytte
+  label_en: Cost-benefit
 
 action_groups:
 - id: energy

@@ -47,10 +47,11 @@ impact_overviews:
   label: Kosteneffizienz
 
 - graph_type: cost_benefit
-  effect_node: cost_benefit_analysis
+  effect_node: total_costs
   indicator_unit: kEUR
-  outcome_dimension: cost_benefit
-  label: Kosten-Nutzen
+  outcome_dimension: cost_type
+  label_de: Kosten-Nutzen
+  label_en: Cost-benefit
 
 # - graph_type: return_on_investment_gross # Assumes gross benefits; costs will be subtracted
 #   cost_node: total_costs
