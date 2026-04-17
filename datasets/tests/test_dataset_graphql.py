@@ -97,6 +97,13 @@ query InstanceDatasets($instanceId: ID!) {
                     previousSibling
                     nextSibling
                 }
+                dataPoints {
+                    id
+                    date
+                    value
+                    metric { id name }
+                    dimensionCategories { uuid label }
+                }
             }
         }
     }
@@ -253,6 +260,33 @@ def test_dataset_metrics_include_sibling_ids(gql_client: PathsTestClient, datase
     assert metrics[1]['nextSibling'] == str(third_metric.uuid)
     assert metrics[2]['previousSibling'] == str(second_metric.uuid)
     assert metrics[2]['nextSibling'] is None
+
+
+def test_dataset_data_points_include_dimension_categories(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    data_point = DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        date=date(2024, 1, 1),
+        value=Decimal('42.5'),
+        dimension_categories=[category],
+    )
+
+    data = gql_client.query_data(
+        INSTANCE_DATASETS,
+        variables={'instanceId': str(instance_config.pk)},
+    )
+
+    datasets = data['modelInstance']['editor']['datasets']
+    result = next(item for item in datasets if item['id'] == str(dataset.uuid))
+    points = result['dataPoints']
+
+    assert len(points) == 1
+    assert points[0]['id'] == str(data_point.uuid)
+    assert points[0]['date'] == '2024-01-01'
+    assert points[0]['value'] == 42.5
+    assert points[0]['metric']['id'] == str(metric.uuid)
+    assert points[0]['dimensionCategories'] == [{'uuid': str(category.uuid), 'label': 'Energy'}]
 
 
 def test_dataset_editor_rejects_dataset_outside_instance(gql_client: PathsTestClient, db_instance_config):

@@ -6,7 +6,7 @@ from uuid import UUID
 
 import strawberry as sb
 
-from kausal_common.datasets.models import DataPoint as DataPointModel, Dataset as DatasetModel
+from kausal_common.datasets.models import Dataset as DatasetModel
 from kausal_common.strawberry.ordering import with_sibling_ids
 from kausal_common.strawberry.registry import register_strawberry_type
 
@@ -14,6 +14,7 @@ from nodes.defs.binding_def import DatasetPortBindingDef  # noqa: TC001  # used 
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import (
+        DataPoint as DataPointModel,
         DatasetMetric as DatasetMetricModel,
         DatasetSchemaDimension,
         Dimension as DimensionModel,
@@ -160,10 +161,11 @@ class DatasetType:
 
     @sb.field(graphql_type=list[DataPointType])
     @staticmethod
-    def data_points(root: 'DatasetType') -> list[DataPointModel]:
+    def data_points(root: 'DatasetType') -> list[DataPointType]:
         if root._model is None:
             return []
-        return list(root._model.data_points.select_related('metric').prefetch_related('dimension_categories__dimension'))
+        data_points = root._model.data_points.select_related('metric').prefetch_related('dimension_categories__dimension')
+        return [DataPointType.from_model(data_point) for data_point in data_points]
 
     @sb.field(graphql_type=list[Annotated['DimensionalMetricType', sb.lazy('nodes.graphql.types.metric')]])
     @staticmethod
