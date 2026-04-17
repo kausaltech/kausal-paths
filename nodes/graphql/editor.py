@@ -5,12 +5,14 @@ Provides queries and mutations for reading and editing DB-sourced
 model instances (NodeConfig, NodeEdge, ActionGroup, Scenario).
 """
 
-from typing import TYPE_CHECKING, Annotated, TypeGuard, cast
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, Annotated, Any, TypeGuard, cast
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import strawberry as sb
 from django.db import transaction
+from django.utils.module_loading import import_string
 from graphql import GraphQLError
+from pydantic import TypeAdapter, ValidationError as PydanticValidationError
 from strawberry import Maybe, Some, auto
 
 from kausal_common.strawberry.errors import GraphQLValidationError, NotFoundError, PermissionDeniedError
@@ -21,9 +23,12 @@ from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_i
 from paths import gql
 
 from nodes.defs import FormulaConfig, SimpleConfig
-from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig
-from nodes.models import InstanceConfig, NodeConfig
+from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, PipelineConfig
+from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.models import InstanceConfig, NodeConfig, NodeKindChoices
 from nodes.node import Node
+from nodes.units import unit_registry
+from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .types.dimension import DimensionType
 from .types.graph import NodeEdgeType
@@ -34,8 +39,6 @@ from .types.scenario import ScenarioType
 if TYPE_CHECKING:
     from kausal_common.datasets.models import DimensionCategory as DimensionCategoryModel, DimensionScope
     from kausal_common.models.ordered import OrderedModel
-
-    from nodes.defs.port_def import InputPortDef, OutputPortDef
 
 
 def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
@@ -195,6 +198,7 @@ class SimpleConfigInput(StrawberryPydanticType[SimpleConfig]):
 
 @pydantic_input(model=ActionConfig)
 class ActionConfigInput(StrawberryPydanticType[ActionConfig]):
+    node_class: str
     decision_level: auto
     group: auto
     parent: auto
@@ -202,8 +206,40 @@ class ActionConfigInput(StrawberryPydanticType[ActionConfig]):
 
 
 @sb.input
+class InputPortInput:
+    id: UUID | None = None
+    label: str | None = None
+    quantity: str | None = None
+    unit: str | None = None
+    multi: bool = False
+    required_dimensions: list[str] | None = None
+    supported_dimensions: list[str] | None = None
+
+
+@sb.input
+class OutputPortInput:
+    id: UUID | None = None
+    label: str | None = None
+    quantity: str | None = None
+    unit: str
+    column_id: str | None = None
+    is_editable: bool = True
+    dimensions: list[str] | None = None
+
+
+@sb.input
+class OutputMetricInput:
+    id: str
+    label: str | None = None
+    quantity: str | None = None
+    unit: str
+    column_id: str | None = None
+    port_id: UUID | None = None
+
+
+@sb.input
 class PipelineOperationInput:
-    kind: str
+    operation: str
 
 
 @pydantic_input(model=PipelineConfig)
@@ -222,15 +258,29 @@ class NodeConfigInput:
 type AnyTypeConfig = Some[FormulaConfigInput] | Some[SimpleConfigInput] | Some[ActionConfigInput] | Some[PipelineConfigInput]
 
 
-@pydantic_input(model=NodeSpec, name='CreateNodeInput')
+@sb.input(name='CreateNodeInput')
 class CreateNodeInput:
     identifier: sb.ID
-    name: auto
-    kind: auto = NodeKind.FORMULA
-    color: auto
-    is_outcome: auto
+    name: str = ''
+    kind: NodeKind = NodeKind.FORMULA
+    color: str | None = None
+    order: int | None = None
+    is_visible: bool = True
+    is_outcome: bool = False
+    short_name: str | None = None
+    description: str | None = None
     node_group: sb.ID | None = None
-    allow_nulls: auto = False
+    allow_nulls: bool = False
+    minimum_year: int | None = None
+    input_ports: list[InputPortInput] | None = None
+    output_ports: list[OutputPortInput] | None = None
+    output_metrics: list[OutputMetricInput] | None = None
+    input_dimensions: list[str] | None = None
+    output_dimensions: list[str] | None = None
+    input_datasets: sb.scalars.JSON | None = None
+    params: sb.scalars.JSON | None = None
+    tags: list[str] | None = None
+    i18n: sb.scalars.JSON | None = None
 
     config: NodeConfigInput
 
@@ -329,6 +379,159 @@ def is_maybe_set[T](maybe: Some[T] | None) -> TypeGuard[Some[T]]:
     return maybe is not None and maybe is not sb.UNSET
 
 
+def _generated_port_id(node_identifier: str, direction: str, key: str) -> UUID:
+    return uuid5(NAMESPACE_URL, f'kausal-paths:node-port:{node_identifier}:{direction}:{key}')
+
+
+def _input_port_to_def(node_identifier: str, index: int, port: InputPortInput) -> InputPortDef:
+    key = port.label or port.quantity or str(index)
+    return InputPortDef(
+        id=port.id or _generated_port_id(node_identifier, 'input', key),
+        label=port.label,
+        quantity=port.quantity,
+        unit=unit_registry.parse_units(port.unit) if port.unit is not None else None,
+        multi=port.multi,
+        required_dimensions=port.required_dimensions or [],
+        supported_dimensions=port.supported_dimensions or [],
+    )
+
+
+def _output_port_to_def(node_identifier: str, index: int, port: OutputPortInput) -> OutputPortDef:
+    key = port.column_id or port.label or port.quantity or str(index)
+    return OutputPortDef(
+        id=port.id or _generated_port_id(node_identifier, 'output', key),
+        label=port.label,
+        quantity=port.quantity,
+        unit=unit_registry.parse_units(port.unit),
+        column_id=port.column_id,
+        is_editable=port.is_editable,
+        dimensions=port.dimensions or [],
+    )
+
+
+def _output_metric_to_port_def(node_identifier: str, metric: OutputMetricInput, dimensions: list[str]) -> OutputPortDef:
+    column_id = metric.column_id or metric.id
+    return OutputPortDef(
+        id=metric.port_id or _generated_port_id(node_identifier, 'output', metric.id),
+        label=metric.label,
+        quantity=metric.quantity,
+        unit=unit_registry.parse_units(metric.unit),
+        column_id=column_id,
+        dimensions=dimensions,
+    )
+
+
+def _parse_input_datasets(info: gql.Info, raw: Any) -> list[InputDatasetDef]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise GraphQLValidationError(info, 'inputDatasets must be a list')
+    adapter = TypeAdapter(list[InputDatasetDef])
+    try:
+        return adapter.validate_python(raw)
+    except PydanticValidationError as exc:
+        raise GraphQLValidationError(info, f'Invalid inputDatasets: {exc}') from exc
+
+
+def _node_class_path(node_class: str, kind: NodeKind) -> str:
+    if node_class.startswith('nodes.'):
+        return node_class
+    if kind == NodeKind.ACTION:
+        return f'nodes.actions.{node_class}'
+    return f'nodes.{node_class}'
+
+
+def _allowed_parameter_templates(node_class: str, kind: NodeKind) -> dict[str, Any]:
+    try:
+        cls = import_string(_node_class_path(node_class, kind))
+    except ImportError:
+        return {}
+    return {p.local_id: p for p in getattr(cls, 'allowed_parameters', [])}
+
+
+def _normalize_param_config(raw_param: dict[str, Any]) -> dict[str, Any]:
+    param = dict(raw_param)
+    if 'localId' in param and 'local_id' not in param:
+        param['local_id'] = param.pop('localId')
+    if 'id' in param and 'local_id' not in param:
+        param['local_id'] = param.pop('id')
+    for camel, snake in (
+        ('isCustomized', 'is_customized'),
+        ('isCustomizable', 'is_customizable'),
+        ('isVisible', 'is_visible'),
+        ('minValue', 'min_value'),
+        ('maxValue', 'max_value'),
+    ):
+        if camel in param and snake not in param:
+            param[snake] = param.pop(camel)
+    return param
+
+
+def _raw_param_configs(info: gql.Info, raw: Any) -> list[dict[str, Any]]:
+    if raw is None:
+        return []
+    if isinstance(raw, dict):
+        return [{'local_id': key, 'value': value} for key, value in raw.items()]
+    if isinstance(raw, list):
+        if not all(isinstance(raw_param, dict) for raw_param in raw):
+            raise GraphQLValidationError(info, 'Each parameter config must be an object')
+        return cast('list[dict[str, Any]]', raw)
+    raise GraphQLValidationError(info, 'params must be an object or a list')
+
+
+def _infer_param_type(info: gql.Info, param_id: str, value: Any) -> str:
+    if isinstance(value, bool):
+        return 'bool'
+    if isinstance(value, int | float):
+        return 'number'
+    if isinstance(value, str):
+        return 'string'
+    raise GraphQLValidationError(info, f'Could not infer type for parameter "{param_id}"')
+
+
+def _build_custom_param(
+    info: gql.Info,
+    param_id: str,
+    param_config: dict[str, Any],
+    value: Any,
+    value_provided: bool,
+) -> BoolParameter | NumberParameter | StringParameter:
+    if 'type' not in param_config:
+        param_config['type'] = _infer_param_type(info, param_id, value)
+    param_type = param_config['type']
+    param_cls = {'bool': BoolParameter, 'number': NumberParameter, 'string': StringParameter}.get(param_type)
+    if param_cls is None:
+        raise GraphQLValidationError(info, f'Unsupported parameter type "{param_type}" for "{param_id}"')
+    param = param_cls(**param_config)
+    if value_provided:
+        param.set(value, notify=False)
+    return param
+
+
+def _parse_params(info: gql.Info, raw: Any, type_config: Any, kind: NodeKind) -> list[Any]:
+    node_class = getattr(type_config, 'node_class', None)
+    templates = _allowed_parameter_templates(node_class, kind) if isinstance(node_class, str) else {}
+    params = []
+    for raw_param in _raw_param_configs(info, raw):
+        param_config = _normalize_param_config(raw_param)
+        param_id = param_config.get('local_id')
+        if not isinstance(param_id, str):
+            raise GraphQLValidationError(info, 'Each parameter config must contain id or localId')
+        value_provided = 'value' in param_config
+        value = param_config.pop('value', None)
+
+        template = templates.get(param_id)
+        if template is not None:
+            param = template.copy(**param_config)
+            if value_provided:
+                param.set(value, notify=False)
+            params.append(param)
+            continue
+
+        params.append(_build_custom_param(info, param_id, param_config, value, value_provided))
+    return params
+
+
 @sb.type
 class InstanceEditorMutation:
     instance: sb.Private[InstanceConfig]
@@ -358,12 +561,37 @@ class InstanceEditorMutation:
 
         type_config = maybe_type_config.value
 
+        input_dimensions = input.input_dimensions or []
+        output_dimensions = input.output_dimensions or []
+        input_ports = [
+            _input_port_to_def(str(input.identifier), index, port) for index, port in enumerate(input.input_ports or [])
+        ]
+        output_ports = [
+            _output_port_to_def(str(input.identifier), index, port) for index, port in enumerate(input.output_ports or [])
+        ]
+        output_ports.extend(
+            _output_metric_to_port_def(str(input.identifier), metric, output_dimensions) for metric in input.output_metrics or []
+        )
+        if not output_ports:
+            raise GraphQLValidationError(info, 'At least one outputPort or outputMetric must be provided')
+
         spec = NodeSpec(
+            kind=input.kind,
             type_config=type_config.to_pydantic(),
+            short_name=input.short_name,
+            description=input.description,
             is_outcome=input.is_outcome,
             node_group=input.node_group,
             allow_nulls=input.allow_nulls,
+            minimum_year=input.minimum_year,
+            input_ports=input_ports,
+            output_ports=output_ports,
+            input_datasets=_parse_input_datasets(info, input.input_datasets),
+            input_dimensions=input_dimensions,
+            output_dimensions=output_dimensions,
         )
+        spec.params = _parse_params(info, input.params, spec.type_config, input.kind)
+        spec.extra.tags = input.tags or []
 
         nc = ic.nodes.filter(identifier=input.identifier).first()
         if nc is not None:
@@ -371,7 +599,12 @@ class InstanceEditorMutation:
         nc = ic.nodes.create(
             identifier=input.identifier,
             name=input.name or input.identifier,
-            color=input.color,
+            color=input.color or '',
+            order=input.order,
+            is_visible=input.is_visible,
+            description=input.description,
+            node_type=NodeKindChoices(input.kind.value),
+            i18n=input.i18n or {},
             spec=spec,
         )
 
@@ -482,8 +715,6 @@ class InstanceEditorMutation:
         """Transfer previousSibling/nextSibling from a mutation input to an OrderedModel instance."""
         prev = input.previous_sibling if is_maybe_set(input.previous_sibling) else None
         nxt = input.next_sibling if is_maybe_set(input.next_sibling) else None
-        if prev is not None and nxt is not None:
-            raise GraphQLValidationError(info, 'Cannot specify both previousSibling and nextSibling')
         if prev is not None:
             target.previous_sibling = UUID(prev.value)
         if nxt is not None:

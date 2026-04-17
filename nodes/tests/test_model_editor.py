@@ -129,14 +129,38 @@ CREATE_NODE = """
 mutation CreateNode($instanceId: ID!, $input: CreateNodeInput!) {
     instanceEditor(instanceId: $instanceId) {
         createNode(input: $input) {
-            ... on Node {
+            ... on NodeInterface {
                 identifier
                 name
                 color
                 kind
+                isVisible
                 editor {
-                    isVisible
                     nodeGroup
+                    spec {
+                        outputPorts {
+                            id
+                            quantity
+                            dimensions
+                            unit {
+                                standard
+                            }
+                        }
+                        typeConfig {
+                            __typename
+                            ... on ActionConfigType {
+                                nodeClass
+                                group
+                                noEffectValue
+                            }
+                            ... on SimpleConfigType {
+                                nodeClass
+                            }
+                            ... on FormulaConfigType {
+                                formula
+                            }
+                        }
+                    }
                 }
             }
             ... on OperationInfo { messages { kind message } }
@@ -146,7 +170,6 @@ mutation CreateNode($instanceId: ID!, $input: CreateNodeInput!) {
 """
 
 
-@pytest.mark.skip(reason='CreateNodeInput no longer accepts outputMetrics; server needs to support output ports')
 def test_create_node_formula(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     data = gql_client.query_data(
         CREATE_NODE,
@@ -158,6 +181,7 @@ def test_create_node_formula(gql_client: PathsTestClient, db_instance_config: In
                 'config': {'formula': {'formula': 'a + b'}},
                 'color': '#ff0000',
                 'isOutcome': True,
+                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions'}],
             },
         },
     )
@@ -165,11 +189,11 @@ def test_create_node_formula(gql_client: PathsTestClient, db_instance_config: In
     assert node['identifier'] == 'new_node'
     assert node['name'] == 'New Node'
     assert node['color'] == '#ff0000'
-    assert node['editor']['isVisible'] is True
+    assert node['isVisible'] is True
     assert node['kind'] == 'FORMULA'
+    assert node['editor']['spec']['outputPorts'][0]['quantity'] == 'emissions'
 
 
-@pytest.mark.skip(reason='CreateNodeInput no longer accepts outputMetrics; server needs to support output ports')
 def test_create_node_simple(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     data = gql_client.query_data(
         CREATE_NODE,
@@ -181,15 +205,16 @@ def test_create_node_simple(gql_client: PathsTestClient, db_instance_config: Ins
                 'kind': 'SIMPLE',
                 'config': {'simple': {'nodeClass': SIMPLE_NODE_CLASS}},
                 'color': '#000000',
+                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions'}],
             },
         },
     )
     node = data['instanceEditor']['createNode']
     assert node['identifier'] == 'simple_node'
     assert node['kind'] == 'SIMPLE'
+    assert node['editor']['spec']['typeConfig']['nodeClass'] == SIMPLE_NODE_CLASS
 
 
-@pytest.mark.skip(reason='CreateNodeInput no longer accepts outputMetrics; server needs to support output ports')
 def test_create_node_with_node_group_and_allow_nulls(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     data = gql_client.query_data(
         CREATE_NODE,
@@ -203,11 +228,77 @@ def test_create_node_with_node_group_and_allow_nulls(gql_client: PathsTestClient
                 'color': '#000000',
                 'nodeGroup': 'transport',
                 'allowNulls': True,
+                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions'}],
             },
         },
     )
     node = data['instanceEditor']['createNode']
     assert node['editor']['nodeGroup'] == 'transport'
+
+
+def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    assert db_instance_config.spec is not None
+    db_instance_config.spec.action_groups = [ActionGroup(id='energy', name='Energy')]
+    db_instance_config.spec.dimensions = [
+        {'id': dim_id, 'label': dim_id.replace('_', ' ').title(), 'categories': []}
+        for dim_id in ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
+    ]
+    db_instance_config.save(update_fields=['spec'])
+
+    data = gql_client.query_data(
+        CREATE_NODE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'identifier': 'carbon_capture_and_storage',
+                'name': 'Carbon Capture and Storage',
+                'kind': 'ACTION',
+                'config': {
+                    'action': {
+                        'nodeClass': ACTION_NODE_CLASS,
+                        'group': 'energy',
+                        'noEffectValue': 0.0,
+                    },
+                },
+                'inputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
+                'outputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
+                'inputDatasets': [
+                    {
+                        'id': 'aarhus/energy_actions',
+                        'forecast_from': 2024,
+                        'filters': [{'column': 'action', 'value': 'carbon_capture_and_storage'}],
+                    }
+                ],
+                'params': {'allow_null_categories': True},
+                'outputMetrics': [
+                    {'id': 'emissions', 'unit': 't/a', 'quantity': 'emissions'},
+                    {'id': 'energy', 'unit': 'TJ/a', 'quantity': 'energy'},
+                    {'id': 'currency', 'unit': 'DKK/a', 'quantity': 'currency'},
+                ],
+            },
+        },
+    )
+
+    node = data['instanceEditor']['createNode']
+    assert node['identifier'] == 'carbon_capture_and_storage'
+    assert node['kind'] == 'ACTION'
+    assert node['editor']['spec']['typeConfig']['nodeClass'] == ACTION_NODE_CLASS
+    assert node['editor']['spec']['typeConfig']['group'] == 'energy'
+    assert [port['quantity'] for port in node['editor']['spec']['outputPorts']] == ['emissions', 'energy', 'currency']
+
+    nc = db_instance_config.nodes.get(identifier='carbon_capture_and_storage')
+    assert nc.spec is not None
+    assert nc.spec.kind == NodeKind.ACTION
+    assert isinstance(nc.spec.type_config, ActionConfig)
+    assert nc.spec.type_config.node_class == ACTION_NODE_CLASS
+    assert nc.spec.type_config.group == 'energy'
+    assert nc.spec.input_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
+    assert nc.spec.output_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
+    assert nc.spec.input_datasets[0].id == 'aarhus/energy_actions'
+    assert nc.spec.input_datasets[0].forecast_from == 2024
+    assert [port.column_id for port in nc.spec.output_ports] == ['emissions', 'energy', 'currency']
+    allow_null_categories = next(param for param in nc.spec.params if param.local_id == 'allow_null_categories')
+    assert allow_null_categories.value is True
 
 
 def test_create_node_rejects_yaml_instance(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

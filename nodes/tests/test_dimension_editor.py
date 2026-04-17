@@ -278,15 +278,32 @@ def test_create_category_with_next_sibling(gql_client: PathsTestClient, db_insta
     assert [c['label'] for c in cats] == ['Alpha', 'Beta', 'Gamma']
 
 
-def test_create_category_both_siblings_fails(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+def test_create_category_with_consistent_siblings(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     dim = _make_dimension(db_instance_config, 'sector', 'Sector', ['A', 'B'])
     a = DimensionCategory.objects.get(dimension=dim, identifier='a')
     b = DimensionCategory.objects.get(dimension=dim, identifier='b')
+
+    result = _create_cats(
+        gql_client,
+        db_instance_config,
+        [
+            {'dimensionId': str(dim.uuid), 'label': 'X', 'previousSibling': str(a.uuid), 'nextSibling': str(b.uuid)},
+        ],
+    )
+
+    assert [cat['label'] for cat in result['categories']] == ['A', 'X', 'B']
+
+
+def test_create_category_inconsistent_siblings_fails(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    dim = _make_dimension(db_instance_config, 'sector', 'Sector', ['A', 'B', 'C'])
+    a = DimensionCategory.objects.get(dimension=dim, identifier='a')
+    c = DimensionCategory.objects.get(dimension=dim, identifier='c')
+
     gql_client.query_errors(
         CREATE_CATS,
         variables={
             'instanceId': str(db_instance_config.pk),
-            'input': [{'dimensionId': str(dim.uuid), 'label': 'X', 'previousSibling': str(a.uuid), 'nextSibling': str(b.uuid)}],
+            'input': [{'dimensionId': str(dim.uuid), 'label': 'X', 'previousSibling': str(a.uuid), 'nextSibling': str(c.uuid)}],
         },
     )
 
@@ -402,6 +419,50 @@ def test_move_category_to_middle(gql_client: PathsTestClient, db_instance_config
         ],
     )
     assert [cat['label'] for cat in result['categories']] == ['B', 'A', 'C']
+
+
+def test_move_category_with_consistent_siblings(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    """Move a category into the exact gap described by previousSibling and nextSibling."""
+    dim = _make_dimension(db_instance_config, 's', 'S', ['A', 'B', 'C'])
+    a = DimensionCategory.objects.get(dimension=dim, identifier='a')
+    b = DimensionCategory.objects.get(dimension=dim, identifier='b')
+    c = DimensionCategory.objects.get(dimension=dim, identifier='c')
+
+    result = _update_cats(
+        gql_client,
+        db_instance_config,
+        [
+            {'categoryId': str(c.uuid), 'previousSibling': str(a.uuid), 'nextSibling': str(b.uuid)},
+        ],
+    )
+
+    assert [cat['label'] for cat in result['categories']] == ['A', 'C', 'B']
+
+
+def test_bulk_reorder_with_final_sibling_chain(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    """Allow both sibling hints when they are consistent in the final batch order."""
+    dim = _make_dimension(db_instance_config, 's', 'S', ['Climate Change', 'Energy Costs', 'Infrastructure', 'Operations'])
+    climate = DimensionCategory.objects.get(dimension=dim, identifier='climate change')
+    energy = DimensionCategory.objects.get(dimension=dim, identifier='energy costs')
+    infrastructure = DimensionCategory.objects.get(dimension=dim, identifier='infrastructure')
+    operations = DimensionCategory.objects.get(dimension=dim, identifier='operations')
+
+    result = _update_cats(
+        gql_client,
+        db_instance_config,
+        [
+            {'categoryId': str(climate.uuid), 'nextSibling': str(infrastructure.uuid)},
+            {
+                'categoryId': str(infrastructure.uuid),
+                'previousSibling': str(climate.uuid),
+                'nextSibling': str(energy.uuid),
+            },
+            {'categoryId': str(energy.uuid), 'previousSibling': str(infrastructure.uuid), 'nextSibling': str(operations.uuid)},
+            {'categoryId': str(operations.uuid), 'previousSibling': str(energy.uuid)},
+        ],
+    )
+
+    assert [cat['label'] for cat in result['categories']] == ['Climate Change', 'Infrastructure', 'Energy Costs', 'Operations']
 
 
 def test_bulk_reorder(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
