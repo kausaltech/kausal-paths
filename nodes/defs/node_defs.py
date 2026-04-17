@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nString, TranslatedString
 
 from paths.identifiers import DatasetIdentifier, MetricIdentifier, MixedCaseIdentifier
 from paths.refs import ActionGroupRef, DimensionRef, NodeRef, QuantityKindRef
@@ -271,7 +271,8 @@ class NodeSpecExtra(BaseModel):
     These fields are passed through to the InstanceLoader config dict
     but are not part of the long-term NodeSpec schema. Each field here
     is a candidate for removal once we stop relying on the corresponding
-    YAML-era feature.
+    YAML-era feature. Durable node semantics should be modeled directly on
+    NodeSpec; the desired end state is for this class to be empty.
     """
 
     historical_values: list[tuple[int, float]] | None = None
@@ -288,6 +289,11 @@ class NodeSpec(I18nBaseModel):
     uuid: UUID = Field(default_factory=uuid.uuid4)
     identifier: str = ''
     name: I18nString = ''
+    short_name: str | TranslatedString | None = None
+    """
+    Short display label used when this node stands in for a category, for example
+    when an additive node disaggregates its output by input node.
+    """
     description: I18nString | None = None
     """Short description for the node (in markdown format)"""
     kind: NodeKind = NodeKind.FORMULA

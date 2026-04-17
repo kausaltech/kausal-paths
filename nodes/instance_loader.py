@@ -955,7 +955,7 @@ class InstanceLoader:
             scenario_confs = [
                 {
                     'id': 'default',
-                    'name': _('Default'),
+                    'name': TranslatedString(_('Default')),
                     'default': True,
                 }
             ]

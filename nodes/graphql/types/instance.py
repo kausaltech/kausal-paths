@@ -218,7 +218,6 @@ class InstanceEditorFields:
 class InstanceType:
     id: sb.ID
     uuid: UUID
-    name: str
     owner: str | None
     default_language: str
     supported_languages: list[str]
@@ -240,6 +239,11 @@ class InstanceType:
         if not hn:
             return None
         return InstanceHostname(hostname=hn.hostname, base_path=hn.base_path)
+
+    @sb.field
+    @staticmethod
+    def name(root: Instance) -> str:
+        return str(root.name)
 
     @sb.field
     @staticmethod

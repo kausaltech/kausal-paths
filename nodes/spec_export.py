@@ -133,6 +133,7 @@ def export_node_spec(node: Node, nc: NodeConfig) -> NodeSpec:
         kind=type_config.kind,
         identifier=node.id,
         name=_to_ts(node.name),
+        short_name=_to_ts(node.short_name),
         description=_to_ts(node.description),
         color=(node.db_obj.color if node.db_obj is not None and node.db_obj.color else None) or node.color,
         order=node.db_obj.order if node.db_obj is not None else None,

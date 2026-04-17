@@ -24,11 +24,15 @@ class ScenarioParameterOverrideType:
 @pydantic_type(model=Scenario)
 class ScenarioType:
     id: sb.ID
-    name: sb.auto
     kind: sb.auto
     all_actions_enabled: bool
     is_selectable: sb.auto
     actual_historical_years: sb.auto
+
+    @sb.field
+    @staticmethod
+    def name(root: Scenario) -> str:
+        return str(root.name)
 
     @sb.field
     @staticmethod

@@ -137,6 +137,8 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
         node['name'] = nc.name
     if nc.i18n:
         node.update(nc.i18n)
+    if spec.short_name:
+        node.update(_ts_to_yaml('short_name', spec.short_name))
 
     # Python class path
     kind_config = spec.type_config
