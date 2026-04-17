@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from typing import Any
+from .types import (
+    DataPointType,
+    DatasetDimensionCategoryType,
+    DatasetDimensionType,
+    DatasetMetricType,
+    DatasetType,
+)
 
 __all__ = [
     'DataPointType',
@@ -9,11 +15,3 @@ __all__ = [
     'DatasetMetricType',
     'DatasetType',
 ]
-
-
-def __getattr__(name: str) -> Any:
-    if name in __all__:
-        from . import types
-
-        return getattr(types, name)
-    raise AttributeError(name)
