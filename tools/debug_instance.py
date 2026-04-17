@@ -142,7 +142,8 @@ def _run_instance(args: argparse.Namespace) -> None:  # noqa: C901
 
     if args.save:
         ic = InstanceConfig.objects.get(identifier=instance.id)
-        ic.config_source = args.source
+        ic.config_source = 'database' if args.source == 'db' else 'yaml'
+        ic.full_clean()
         ic.save()
 
     ctx = instance.context
