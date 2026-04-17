@@ -40,6 +40,8 @@ if TYPE_CHECKING:
     from kausal_common.datasets.models import DimensionCategory as DimensionCategoryModel, DimensionScope
     from kausal_common.models.ordered import OrderedModel
 
+    from datasets.graphql.editor import DatasetEditorMutation
+
 
 def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
     qs = InstanceConfig.objects.qs.modifiable_by(info.context.user).by_all_identifiers(str(instance_id))
@@ -643,6 +645,27 @@ class InstanceEditorMutation:
         if not nc.gql_action_allowed(info, 'delete'):
             raise PermissionDeniedError(info, 'Permission denied for delete')
         nc.delete()
+
+    @sb.field(description='Edit a DB-backed dataset that belongs to this instance')
+    @staticmethod
+    def dataset_editor(
+        info: gql.Info, root: sb.Parent[Me], dataset_id: sb.ID
+    ) -> Annotated[
+        'DatasetEditorMutation',
+        sb.lazy('datasets.graphql.editor'),
+    ]:
+        from kausal_common.datasets.models import Dataset
+
+        from datasets.graphql.editor import DatasetEditorMutation
+
+        ic = root.instance
+        dataset = get_or_error(
+            info,
+            Dataset.objects.get_queryset().for_instance_config(ic),
+            uuid=str(dataset_id),
+            for_action='change',
+        )
+        return DatasetEditorMutation(dataset=dataset, instance=ic)
 
     @gql.mutation(description='Create a new edge between nodes')
     @staticmethod

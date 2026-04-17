@@ -1,17 +1,16 @@
 """Strawberry GraphQL types for DB-backed datasets."""
 
-from typing import TYPE_CHECKING, Annotated
+from datetime import date
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 import strawberry as sb
 
-from kausal_common.datasets.models import Dataset as DatasetModel
+from kausal_common.datasets.models import DataPoint as DataPointModel, Dataset as DatasetModel
+from kausal_common.strawberry.ordering import with_sibling_ids
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from nodes.defs.binding_def import DatasetPortBindingDef  # noqa: TC001  # used in runtime annotation
-from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType, _dataset_external_ref_to_gql
-from nodes.graphql.types.metric import DimensionalMetricType
-from nodes.metric import DimensionalMetric
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import (
@@ -20,6 +19,9 @@ if TYPE_CHECKING:
         Dimension as DimensionModel,
         DimensionCategory as DimensionCategoryModel,
     )
+
+    from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
+    from nodes.graphql.types.metric import DimensionalMetricType
 
 
 @sb.type(name='DatasetDimensionCategory')
@@ -67,14 +69,47 @@ class DatasetMetricType:
     name: str | None = sb.field(description='Column name used in DataFrames.')
     label: str = sb.field(description='Human-readable label.')
     unit: str
+    previous_sibling: sb.ID | None
+    next_sibling: sb.ID | None
 
     @classmethod
-    def from_model(cls, metric: DatasetMetricModel) -> DatasetMetricType:
+    def from_model(
+        cls,
+        metric: DatasetMetricModel,
+        previous_sibling: sb.ID | None = None,
+        next_sibling: sb.ID | None = None,
+    ) -> DatasetMetricType:
         return cls(
             id=sb.ID(str(metric.uuid)),
             name=metric.name,
             label=metric.label_i18n or metric.name or '',
             unit=metric.unit or '',
+            previous_sibling=previous_sibling,
+            next_sibling=next_sibling,
+        )
+
+
+@register_strawberry_type
+@sb.type(name='DataPoint')
+class DataPointType:
+    """A stored dataset data point."""
+
+    id: sb.ID
+    date: date
+    value: float | None
+    metric: DatasetMetricType
+    dimension_categories: list[DatasetDimensionCategoryType]
+
+    @classmethod
+    def from_model(cls, data_point: DataPointModel) -> DataPointType:
+        return cls(
+            id=sb.ID(str(data_point.uuid)),
+            date=data_point.date,
+            value=float(data_point.value) if data_point.value is not None else None,
+            metric=DatasetMetricType.from_model(data_point.metric),
+            dimension_categories=[
+                DatasetDimensionCategoryType.from_model(category) for category in data_point.dimension_categories.all()
+            ],
         )
 
 
@@ -88,7 +123,7 @@ class DatasetType:
     is_external_placeholder: bool = sb.field(
         description='Whether the dataset object is only a placeholder without imported datapoints.'
     )
-    external_ref: DatasetExternalRefType | None = sb.field(
+    external_ref: Annotated['DatasetExternalRefType', sb.lazy('nodes.graphql.types.graph')] | None = sb.field(
         description='External source reference for externally backed datasets.'
     )
 
@@ -117,11 +152,22 @@ class DatasetType:
     def metrics(root: 'DatasetType') -> list[DatasetMetricType]:
         if root._model is None or root._model.schema is None:
             return []
-        return [DatasetMetricType.from_model(m) for m in root._model.schema.metrics.all()]
+        metrics = list(root._model.schema.metrics.all())
+        return [
+            DatasetMetricType.from_model(metric, previous_sibling=prev_id, next_sibling=next_id)
+            for metric, prev_id, next_id in with_sibling_ids(metrics, lambda metric: sb.ID(str(metric.uuid)))
+        ]
 
-    @sb.field(graphql_type=list[DimensionalMetricType])
+    @sb.field(graphql_type=list[DataPointType])
     @staticmethod
-    def data(root: 'DatasetType') -> list[DimensionalMetric]:
+    def data_points(root: 'DatasetType') -> list[DataPointModel]:
+        if root._model is None:
+            return []
+        return list(root._model.data_points.select_related('metric').prefetch_related('dimension_categories__dimension'))
+
+    @sb.field(graphql_type=list[Annotated['DimensionalMetricType', sb.lazy('nodes.graphql.types.metric')]])
+    @staticmethod
+    def data(root: 'DatasetType') -> list[Any]:
         """Load the full dataset as DimensionalMetric objects (one per metric column)."""
         if root._model is None:
             return []
@@ -145,7 +191,7 @@ class DatasetType:
             df = ppl.to_ppdf(df, meta=df.get_meta())
 
         meta = df.get_meta()
-        results: list[DimensionalMetric] = []
+        results: list[Any] = []
         from nodes.metric_gen import metric_from_dataframe_standalone
 
         for col in meta.metric_cols:
@@ -162,7 +208,7 @@ class DatasetType:
 
     @sb.field(graphql_type=list[Annotated['DatasetPortType', sb.lazy('nodes.graphql.types.graph')]])
     @staticmethod
-    def port_bindings(root: 'DatasetType') -> list[DatasetPortType]:
+    def port_bindings(root: 'DatasetType') -> list[Any]:
         """Discover which node ports use this dataset."""
         from nodes.graphql.types.graph import DatasetPortType, NodePortRef
         from nodes.models import DatasetPort
@@ -184,6 +230,8 @@ class DatasetType:
 
     @classmethod
     def from_model(cls, dataset: DatasetModel) -> DatasetType:
+        from nodes.graphql.types.graph import _dataset_external_ref_to_gql
+
         obj = cls(
             id=sb.ID(str(dataset.uuid)),
             identifier=dataset.identifier,
@@ -196,6 +244,8 @@ class DatasetType:
     @classmethod
     def from_binding(cls, binding: DatasetPortBindingDef) -> DatasetType | None:
         """Construct from a DatasetPortBindingDef, loading the DB model by UUID."""
+        from nodes.graphql.types.graph import _dataset_external_ref_to_gql
+
         if binding.dataset_uuid is None:
             return None
         model = DatasetModel.objects.filter(uuid=binding.dataset_uuid).select_related('schema').first()
