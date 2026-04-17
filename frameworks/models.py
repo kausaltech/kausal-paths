@@ -141,6 +141,32 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
     )
     result_excel_url = models.URLField(max_length=250, null=True, blank=True)
     result_excel_node_ids = ArrayField(base_field=models.CharField(max_length=200), null=True, blank=True)
+    accept_invitation_url = models.URLField(
+        max_length=500,
+        null=True,
+        blank=True,
+        verbose_name=_('Accept invitation URL'),
+        help_text=_('URL template for the invitation acceptance page. Use {code} as a placeholder for the invitation code.'),
+    )
+    template_instance: FK[InstanceConfig | None] = models.ForeignKey(
+        'nodes.InstanceConfig',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name=_('Template instance'),
+        help_text=_('Instance to clone when creating new instances under this framework.'),
+    )
+    allow_user_registration = models.BooleanField(
+        default=False,
+        verbose_name=_('Allow user registration'),
+        help_text=_('Whether new users can self-register under this framework.'),
+    )
+    allow_instance_creation = models.BooleanField(
+        default=False,
+        verbose_name=_('Allow instance creation'),
+        help_text=_('Whether authenticated users can create new model instances under this framework.'),
+    )
 
     defaults = SchemaField(schema=FrameworkDefaults, default=FrameworkDefaults)
 
@@ -159,7 +185,13 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
         null=True,
     )
 
-    public_fields: ClassVar = ['name', 'identifier', 'description']
+    public_fields: ClassVar = [
+        'name',
+        'identifier',
+        'description',
+        'allow_user_registration',
+        'allow_instance_creation',
+    ]
 
     objects: ClassVar[FrameworkManager] = FrameworkManager()
 

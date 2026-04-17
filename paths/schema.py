@@ -26,6 +26,7 @@ from paths.graphql_types import UnitType
 from paths.schema_context import PathsGraphQLContext
 from paths.utils import validate_unit
 
+from frameworks.mutations import FrameworkMutation
 from frameworks.schema import Mutations as FrameworksMutations, Query as FrameworksQuery
 from nodes.models import InstanceConfig
 from nodes.schema import (
@@ -118,6 +119,7 @@ SB_MUTATION_TYPES: list[type] = [
     NodesMutation,
     ModelEditorMutation,
     SBParamsMutation,
+    FrameworkMutation,
 ]
 if test_mode_enabled():
     SB_MUTATION_TYPES.append(TestModeMutations)
