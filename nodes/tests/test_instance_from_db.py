@@ -11,6 +11,7 @@ from nodes.tests.factories import NodeConfigFactory
 @pytest.mark.django_db
 def test_serialize_node_config_round_trips_node_spec_short_name():
     nc = NodeConfigFactory.create()
+    assert nc.spec is not None
     nc.spec.short_name = TranslatedString(en='Short label', fi='Lyhyt nimi')
 
     config = _serialize_node_config(nc, input_nodes=[])

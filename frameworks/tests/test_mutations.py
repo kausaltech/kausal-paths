@@ -296,6 +296,7 @@ def test_landing_block_exposes_framework(client: Client, framework: Framework) -
     )
     locale, _ = Locale.objects.get_or_create(language_code='en')
     root = Page.get_first_root_node()
+    assert root is not None
     body = json.dumps([
         {
             'type': 'framework_landing',
