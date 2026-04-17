@@ -273,10 +273,10 @@ class ActionNode(Node):
     def _get_cost_benefit(self, df: ppl.PathsDataFrame, io: ImpactOverview) -> ppl.PathsDataFrame:
         od = io.outcome_dimension
         sd = io.stakeholder_dimension
-        if od is not None:
-            assert od in df.dim_ids
-        if sd is not None:
-            assert sd in df.dim_ids
+        if od is not None and od not in df.dim_ids:
+            raise ValueError(f'Outcome dimension {od} not found in dataframe dimensions: {df.dim_ids}')
+        if sd is not None and sd not in df.dim_ids:
+            raise ValueError(f'Stakeholder dimension {sd} not found in dataframe dimensions: {df.dim_ids}')
         return df
 
     def compute_node_impact(self, node: Node, colname: str | None, keepcols: list[str | None]) -> ppl.PathsDataFrame:

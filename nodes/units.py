@@ -398,6 +398,7 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'megaCAD', 'long': _('million Canadian dollars'), 'short': 'M$'},
         {'unit': 'kiloSEK', 'long': _('thousand kronor'), 'short': 'kSEK'},
         {'unit': 'megaSEK', 'long': _('million kronor'), 'short': 'MSEK'},
+        {'unit': 'megaDKK', 'long': _('million kronor'), 'short': 'M DKK'},
         {'unit': 'terawatt_hour', 'long': _('terawatt hours'), 'short': 'TWh'},
         {'unit': 'gigawatt_hour', 'long': _('gigawatt hours'), 'short': 'GWh'},
         {'unit': 'megawatt_hour', 'long': _('megawatt hour'), 'short': _('MWh')},

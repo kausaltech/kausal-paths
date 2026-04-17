@@ -924,6 +924,8 @@ class ImpactOverviewType:
     cost_category_label: str | None
     effect_category_label: str | None
     description: str | None
+    outcome_dimension: str | None
+    stakeholder_dimension: str | None
 
     @sb.field
     @staticmethod
