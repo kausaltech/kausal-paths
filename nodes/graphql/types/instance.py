@@ -42,6 +42,7 @@ from .spec import InstanceSpecType, YearsDefType
 
 if TYPE_CHECKING:
     from nodes.context import Context
+    from nodes.graphql.types.change_history import InstanceChangeOperationType
     from nodes.graphql.types.node import NodeInterface, NodeType
 
 
@@ -156,6 +157,32 @@ class InstanceEditorFields:
         edges = root._instance.config.edges.select_related('from_node', 'to_node')
         return [NodeEdgeType.from_node_edge(edge) for edge in edges]
 
+    @sb.field(
+        graphql_type=list[Annotated['InstanceChangeOperationType', sb.lazy('nodes.graphql.types.change_history')]],
+        description=(
+            'Audit trail of user-facing edits to this instance, newest first. '
+            'Each operation bundles one or more row-level entries.'
+        ),
+    )
+    @staticmethod
+    def change_history(
+        root: 'InstanceEditorFields',
+        limit: int = 50,
+        before: datetime | None = None,
+    ) -> 'list[InstanceChangeOperationType]':
+        from nodes.graphql.types.change_history import InstanceChangeOperationType
+        from nodes.models import InstanceChangeOperation
+
+        qs = (
+            InstanceChangeOperation.objects
+            .filter(instance_config=root._instance.config)
+            .select_related('user', 'superseded_by')
+            .order_by('-created_at')
+        )
+        if before is not None:
+            qs = qs.filter(created_at__lt=before)
+        return [InstanceChangeOperationType.from_model(op) for op in qs[:limit]]
+
     @sb.field(graphql_type=list[DatasetPortType])
     @staticmethod
     def dataset_ports(root: 'InstanceEditorFields') -> list[DatasetPortType]:
@@ -164,6 +191,7 @@ class InstanceEditorFields:
         for dp in dataset_ports:
             port = DatasetPortType(
                 id=sb.ID(str(dp.uuid)),
+                uuid=dp.uuid,
                 node_ref=NodePortRef(node_id=sb.ID(str(dp.node.identifier)), port_id=dp.port_id),
                 metric=DatasetMetricRefType.from_model(dp.metric),
                 external_dataset_id=_external_dataset_id_from_dataset(dp.dataset),

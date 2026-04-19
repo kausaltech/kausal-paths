@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
@@ -17,12 +18,14 @@ from nodes.defs.edge_def import (
     SelectCategoriesTransformation,
 )
 from nodes.defs.instance_defs import ActionGroup
+from nodes.graphql.types.change_history import EditableEntity
 from nodes.graphql.types.metric import DimensionalMetricType
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
 
     from nodes.defs.binding_def import EdgeBindingDef
+    from nodes.graphql.types.change_history import InstanceModelLogEntryType
     from nodes.graphql.types.node import ActionNodeType
     from nodes.models import NodeEdge
     from nodes.node import Node
@@ -74,8 +77,9 @@ EdgeTransformationType = Annotated[
 
 
 @sb.type
-class NodeEdgeType:
+class NodeEdgeType(EditableEntity):
     id: sb.ID
+    uuid: UUID
     from_ref: NodePortRef
     to_ref: NodePortRef
     tags: list[str]
@@ -112,6 +116,7 @@ class NodeEdgeType:
     def from_binding(cls, binding: EdgeBindingDef, node: Node | None = None) -> NodeEdgeType:
         edge = NodeEdgeType(
             id=sb.ID(str(binding.id)),
+            uuid=binding.id if isinstance(binding.id, UUID) else UUID(str(binding.id)),
             from_ref=NodePortRef(node_id=sb.ID(str(binding.from_ref.node_id)), port_id=binding.from_ref.port_id),
             to_ref=NodePortRef(node_id=sb.ID(str(binding.to_ref.node_id)), port_id=binding.to_ref.port_id),
             tags=binding.tags,
@@ -123,12 +128,31 @@ class NodeEdgeType:
     def from_node_edge(cls, edge: NodeEdge) -> NodeEdgeType:
         obj = NodeEdgeType(
             id=sb.ID(str(edge.uuid)),
+            uuid=edge.uuid,
             from_ref=NodePortRef(node_id=sb.ID(str(edge.from_node.identifier)), port_id=edge.from_port),
             to_ref=NodePortRef(node_id=sb.ID(str(edge.to_node.identifier)), port_id=edge.to_port),
             tags=edge.tags or [],
         )
         obj._transformations = list(edge.transformations)
         return obj
+
+    @sb.field(
+        graphql_type=list[Annotated['InstanceModelLogEntryType', sb.lazy('nodes.graphql.types.change_history')]],
+        description='Row-level change history for this edge, newest first.',
+    )
+    @staticmethod
+    def change_history(
+        root: 'NodeEdgeType',
+        limit: int = 50,
+        before: 'datetime | None' = None,
+    ) -> 'list[InstanceModelLogEntryType]':
+        from nodes.graphql.types.change_history import fetch_entity_history
+        from nodes.models import NodeEdge
+
+        edge = NodeEdge.objects.filter(uuid=root.uuid).first()
+        if edge is None:
+            return []
+        return fetch_entity_history(NodeEdge, edge.pk, limit=limit, before=before)
 
 
 @sb.type
@@ -168,10 +192,11 @@ class DatasetMetricRefType:
 
 
 @pydantic_type(DatasetPortBindingDef)
-class DatasetPortType:
+class DatasetPortType(EditableEntity):
     """Binding of an external dataset metric to one node input port."""
 
     id: sb.ID = sb.field(description='Globally unique identifier of this dataset-port binding.')
+    uuid: UUID
     node_ref: NodePortRef = sb.field(description='Reference to the node that owns the bound input port.')
     metric: DatasetMetricRefType | None = sb.field(description='Dataset metric object bound to this port.')
     external_dataset_id: str | None = sb.field(
@@ -223,6 +248,7 @@ class DatasetPortType:
 
         port = DatasetPortType(
             id=sb.ID(str(binding.id)),
+            uuid=binding.id if isinstance(binding.id, UUID) else UUID(str(binding.id)),
             node_ref=NodePortRef(node_id=sb.ID(str(binding.node_ref.node_id)), port_id=binding.node_ref.port_id),
             metric=DatasetMetricRefType.from_binding(binding),
             external_dataset_id=binding.external_dataset_id,
@@ -234,6 +260,24 @@ class DatasetPortType:
         port._dataset = dataset_type
         port._node = node
         return port
+
+    @sb.field(
+        graphql_type=list[Annotated['InstanceModelLogEntryType', sb.lazy('nodes.graphql.types.change_history')]],
+        description='Row-level change history for this dataset-port binding, newest first.',
+    )
+    @staticmethod
+    def change_history(
+        root: 'DatasetPortType',
+        limit: int = 50,
+        before: datetime | None = None,
+    ) -> 'list[InstanceModelLogEntryType]':
+        from nodes.graphql.types.change_history import fetch_entity_history
+        from nodes.models import DatasetPort
+
+        dp = DatasetPort.objects.filter(uuid=root.uuid).first()
+        if dp is None:
+            return []
+        return fetch_entity_history(DatasetPort, dp.pk, limit=limit, before=before)
 
 
 InputPortBinding = Annotated[NodeEdgeType | DatasetPortType, sb.union('InputPortBindingUnion')]

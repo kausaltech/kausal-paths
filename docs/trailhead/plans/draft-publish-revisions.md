@@ -13,6 +13,118 @@ This plan is intentionally opinionated about which Wagtail machinery to reuse
 and which to bypass. Load-bearing design decisions are stated up front;
 subsequent sections detail the implementation.
 
+## Current status (as of April 19, 2026)
+
+**Landed:** phases 1, 2, 2.5 + significant parts of phase 3 + the
+read-side of phase 5's history surface.
+
+| Phase | Status | Notes |
+|---|---|---|
+| 1 — Snapshot schema | ✅ Landed | `InstanceSnapshot`, `InstanceExport { instance, datasets }`, `*Snapshot` Pydantic types with `from_model`, `build_instance_snapshot`, hydrate-from-revision branch on `_create_from_config(source='published')`. Commit `6f5e8915`. |
+| 2 — Change tracking | ✅ Landed | `InstanceChangeOperation` + `InstanceModelLogEntry` models, `change_operation()` / `record_change()` / ContextVar carrier, `EditableInstanceChild` superclass applied to `NodeConfig` / `NodeEdge` / `DatasetPort`, `RevisionMixin` added to `Dataset` (kausal_common). Commits `6f5e8915` (+ superclass refactor). |
+| 2.5 — PoC on node.create/update/delete | ✅ Landed | All three node mutations wired; cascade delete groups correctly. Commit `6f5e8915`. |
+| 3 — Mutation layer refactor | 🟡 Partial | See [Phase 3 status notes](#phase-3-status-notes) below. Done: most edit mutations wired through `change_operation` (edges, dimensions, datapoints, port-level). Open: version-token directive, `@preview` directive, stale-check enforcement, uniform `MutationPayload`. |
+| 4 — Resolver split & compute invalidation | ⚪ Not started | — |
+| 5 — Publish / revert / undo / named drafts | 🟡 Read-side only | History GraphQL surface landed (`InstanceEditor.changeHistory`, `EditableEntity.changeHistory`). Mutations (publish / revert / undo / save_draft) not yet implemented. |
+| 6 — Permissions & migration | ⚪ Not started | — |
+
+### Deltas from the original plan
+
+**`InstanceModelLogEntry` is standalone, not a `ModelLogEntry` subclass.**
+The plan described subclassing Wagtail's `ModelLogEntry` via multi-table
+inheritance. We dropped that to avoid the extra table-per-insert cost
+and the ``LogActionRegistry`` indirection. IMLE mirrors the shape
+(content_type + object_id GFK, `action`, `data` JSONField) but is a
+freestanding model.
+
+**Change tracking extended to the demo-flow mutations during the smoke
+work** (not scheduled in Phase 3's original scope but needed to validate
+the chain against `aarhus-c4c`): `edge.create` / `edge.delete` /
+`dimension.update` / `dimension.categories.create|update` /
+`dimension.category.delete` / `dataset.datapoint.create|update|delete`
+are all wired. Commit `9ce1fefa` added them along with the demo smoke
+script.
+
+**Port-level mutations landed outside the Phase 3 table:**
+`addNodeInputPort` / `addNodeOutputPort` (emits
+`node.input_ports.create` / `node.output_ports.create` entries).
+`_resolve_or_create_target_port` provides auto-create of matching input
+ports on `createEdge` when `toPort` is null — grouped under the
+`edge.create` operation so a single undo reverses both the port
+addition and the edge.
+
+**Typed `EdgeTransformationInput`** (one-of: `selectCategories` /
+`assignCategory` / `flatten`) replaced the opaque `JSON` field on
+`CreateEdgeInput`. Mirrors `EdgeTransformationType` on the query side.
+
+**GQL never exposes DB pks** — formalized as a feedback memory
+([feedback_gql_identity.md](../../../../../home/jey/.claude/projects/-home-jey-sync-devel-kausal-paths/memory/feedback_gql_identity.md)).
+All entity-lookup mutation arguments accept UUID or human-readable
+identifier; subscription `InstanceChange.id` uses uuid.
+
+**`import_instance` now syncs `primary_language` / `other_languages`
+from the imported spec onto the InstanceConfig row.** Without this,
+cloning `aarhus-c4c` (primary=`da`) into a new instance created with
+default `en` left ActionGroup TranslatedStrings tagged `da` while the
+InstanceConfig claimed `en` — hydrate filtered them all out. Surfaced
+by the demo smoke run against the live DB.
+
+**`Dataset.serializable_data` bridged via `paths/dataset_pydantic.py`.**
+Dataset gained `RevisionMixin`; the Pydantic snapshot shape is
+project-specific so the bridge gates on `IS_PATHS` — Watch doesn't
+revision datasets and doesn't need the type.
+
+**`DatasetSnapshot` absorbed `DatasetExport`**, now with full
+TranslatedString fields + `data` payload (DataPoints in JSON Table
+Schema format). Revisioning the dataset captures its datapoints too,
+not just the schema.
+
+**EditableEntity interface (read-side history):** the `target` field
+on `InstanceModelLogEntryType` resolves to an interface rather than a
+union. `NodeType` / `ActionNodeType` / `NodeEdgeType` /
+`DatasetPortType` all implement it and carry `uuid` + `changeHistory`.
+The UI can fetch per-entity history without type-narrowing.
+`InstanceEditor.changeHistory` returns operations; per-entity
+`changeHistory` returns entries.
+
+**Demo smoke command:** `python manage.py trailhead_demo_smoke` walks
+the full register-user → create-instance(cads/aarhus-c4c) → add
+category → add datapoints → create action node → add input ports →
+create transformed edges flow and dumps the resulting change log.
+Used to validate the chain end-to-end against a live DB.
+
+### Phase 3 status notes
+
+| Sub-item | Status |
+|---|---|
+| Change-operation wrapper on mutations | ✅ All edit mutations routed |
+| Action-id naming convention (`node.create`, `edge.update`, etc.) | ✅ |
+| Entity lookup by UUID / identifier, never pk | ✅ |
+| Closed mutation set & inverses enumerated | ✅ Enumerated in plan, inverses not yet implemented (Phase 5 dependency) |
+| Typed `EdgeTransformationInput` | ✅ |
+| Port mutations (`addNodeInputPort` / `addNodeOutputPort`) | ✅ |
+| `draft_head_token` property on `InstanceConfig` | ⚪ Not started |
+| `@instance(version: UUID, preview: String)` directive extension | ⚪ Not started |
+| Stale-version check with `SELECT FOR UPDATE` | ⚪ Not started |
+| Uniform `MutationPayload { ok, ...entity, newHeadToken, invalidatedNodeIds }` | ⚪ Not started (invalidation depends on Phase 4) |
+| `apply_snapshot` / `from_serializable_data` classmethod impl | ⚪ Stub only |
+
+### Known open items
+
+- **Perm gating on `EditableEntity.changeHistory`** — currently
+  anyone who can see the entity can read its history. The interface is
+  the clean place to slot the `change`-perm check against the hosting
+  InstanceConfig.
+- **`_fetch_entity_history` has no upper bound guard** beyond the
+  caller's `limit` argument — fine for now, flag for retention policy
+  work later.
+- **`dataset.save_revision()` not yet wired into the dataset editor
+  mutations** — `DatasetPort.dataset_revision` will only advance when
+  the dataset editor begins calling it. Tracking this under the
+  `dataset.datapoints.edit` wiring in Phase 3.
+
+---
+
 ## Load-bearing decisions
 
 These are settled — later sections assume them.

@@ -1,5 +1,7 @@
 import re
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Optional  # pyright: ignore[reportDeprecated]
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 import strawberry as sb
 from graphql.error import GraphQLError
@@ -25,6 +27,7 @@ from nodes.defs import SimpleConfig
 from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeKind, NodeSpec, PipelineConfig
 from nodes.graph_layout import NodeGraphLayoutMeta
 from nodes.graphql.types import DatasetPortType
+from nodes.graphql.types.change_history import EditableEntity
 from nodes.graphql.types.impact import get_impact_metric
 from nodes.quantities import get_registry as get_quantity_registry
 from nodes.scenario import Scenario, ScenarioKind
@@ -43,6 +46,7 @@ from .spec import InputPortType, OutputPortType
 if TYPE_CHECKING:
     from nodes.context import Context
     from nodes.defs.instance_defs import ActionGroup
+    from nodes.graphql.types.change_history import InstanceModelLogEntryType
     from nodes.metric import DimensionalFlow, DimensionalMetric, Metric
     from nodes.models import NodeConfig
     from nodes.node import Node
@@ -228,6 +232,13 @@ class NodeEditorFields:
         return list(root._node.output_dimensions.keys())
 
 
+def _get_node_uuid_with_fallback(root: 'Node') -> UUID:  # noqa: UP037
+    nc = root.db_obj
+    if nc is None:
+        return uuid5(NAMESPACE_URL, f'kausal-paths:{root.context.instance.id}:node:{root.id}')
+    return nc.uuid
+
+
 @sb.interface
 class NodeInterface:
     id: sb.ID
@@ -236,8 +247,38 @@ class NodeInterface:
     unit: UnitType | None
     quantity: str | None
 
+    uuid: UUID = sb.field(resolver=_get_node_uuid_with_fallback)
+
     input_nodes: list['NodeInterface']
     output_nodes: list['NodeInterface']
+
+    @sb.field(
+        graphql_type=UUID | None,
+        description='Stable UUID, populated for DB-backed nodes. Null for unsynced YAML nodes.',
+    )
+    @staticmethod
+    def resolve_uuid(root: 'Node') -> UUID | None:
+        nc = root.db_obj
+        return nc.uuid if nc is not None else None
+
+    @sb.field(
+        graphql_type=list[Annotated['InstanceModelLogEntryType', sb.lazy('nodes.graphql.types.change_history')]],
+        description='Row-level change history for this node, newest first.',
+    )
+    @staticmethod
+    def change_history(
+        root: 'Node',
+        info: gql.Info,
+        limit: int = 50,
+        before: datetime | None = None,
+    ) -> list[Any]:
+        from nodes.graphql.types.change_history import fetch_entity_history
+        from nodes.models import NodeConfig
+
+        nc = root.db_obj
+        if nc is None:
+            return []
+        return fetch_entity_history(NodeConfig, nc.pk, limit=limit, before=before)
 
     @sb.field
     @staticmethod
@@ -302,14 +343,6 @@ class NodeInterface:
                     root.color = parent.color
                     return root.color
         return None
-
-    @sb.field
-    @staticmethod
-    def uuid(root: 'Node') -> str | None:
-        nc = root.db_obj
-        if nc is None:
-            return None
-        return str(nc.uuid)
 
     @sb.field(deprecation_reason='Replaced by "goals".')
     @staticmethod
@@ -573,7 +606,7 @@ class NodeInterface:
 
 @register_strawberry_type
 @sb.type(name='Node')
-class NodeType(NodeInterface):
+class NodeType(NodeInterface, EditableEntity):  # type: ignore[override]
     is_outcome: bool
 
     @classmethod
@@ -606,7 +639,7 @@ class NodeType(NodeInterface):
 
 @register_strawberry_type
 @sb.type(name='ActionNode')
-class ActionNodeType(NodeInterface):
+class ActionNodeType(NodeInterface, EditableEntity):  # type: ignore[override]
     decision_level: DecisionLevel | None
 
     @classmethod

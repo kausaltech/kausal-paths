@@ -222,6 +222,7 @@ class DatasetType:
         for dp in ports:
             port = DatasetPortType(
                 id=sb.ID(str(dp.uuid)),
+                uuid=dp.uuid,
                 node_ref=NodePortRef(node_id=sb.ID(str(dp.node.identifier)), port_id=dp.port_id),
                 metric=None,
                 external_dataset_id=None,
