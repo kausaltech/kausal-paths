@@ -89,6 +89,30 @@ def test_instance_snapshot_json_round_trip():
     assert reloaded.schema_version == SNAPSHOT_SCHEMA_VERSION
 
 
+def test_i18n_spec_assignment_stays_dict_serializable():
+    """Post-validation i18n field assignment must not reintroduce compact strings."""
+    from kausal_common.i18n.pydantic import TranslatedString, set_i18n_context
+
+    from nodes.defs.node_defs import NodeSpec
+
+    with set_i18n_context('en', []):
+        spec = NodeSpec(name='Original')
+        spec.name = 'Renamed'
+        copied = spec.model_copy(update={'name': 'Copied'})
+
+    snap = NodeSnapshot(
+        identifier='n1',
+        name=TranslatedString(en='Renamed'),
+        color='#abc',
+        is_visible=True,
+        spec=spec,
+    )
+
+    dumped = snap.model_dump(mode='json')
+    assert dumped['spec']['name'] == {'en': 'Renamed'}
+    assert copied.model_dump(mode='json')['name'] == {'en': 'Copied'}
+
+
 def test_instance_snapshot_schema_version_default():
     """New snapshots carry the current schema version."""
     spec = InstanceSpec(primary_language='en', years=YearsSpec(target=2030))
