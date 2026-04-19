@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Self, TypedDict, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypedDict, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -76,6 +76,11 @@ from paths.utils import (
 from nodes.defs import DatasetPortBindingDef, EdgeBindingDef, InstanceSpec, NodeSpec
 from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.node_defs import NodeKind
+from nodes.instance_serialization import (
+    DatasetPortSnapshot,
+    EdgeSnapshot,
+    NodeSnapshot,
+)
 from orgs.models import Organization
 from pages.blocks import CardListBlock
 
@@ -100,6 +105,9 @@ if TYPE_CHECKING:
 
     from frameworks.models import FrameworkConfig
     from nodes.dimensions import Dimension as NodeDimension
+    from nodes.instance_serialization import (
+        ModelSnapshot,
+    )
     from nodes.node import Node
     from pages.config import OutcomePage as OutcomePageConfig
     from pages.models import ActionListPage, InstanceSiteContent
@@ -523,8 +531,18 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         data = super().serializable_data()
         if self.config_source == 'database':
             from .instance_from_db import serialize_instance_to_dict
+            from .instance_serialization import SNAPSHOT_SCHEMA_VERSION, build_instance_snapshot
 
-            data['model_snapshot'] = serialize_instance_to_dict(self)
+            # The structured snapshot is the canonical record of model state.
+            # The YAML-equivalent dict is stored alongside so InstanceLoader
+            # can hydrate directly without a structured→dict converter. Both
+            # fields are kept in sync and can collapse to one once hydrate
+            # from structured lands.
+            data['model_snapshot'] = {
+                'schema_version': SNAPSHOT_SCHEMA_VERSION,
+                'structured': build_instance_snapshot(self).model_dump(mode='json'),
+                'hydrate_dict': serialize_instance_to_dict(self),
+            }
         return data
 
     def clear_model_editor_data(self) -> None:
@@ -544,10 +562,42 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         # TODO: Rewrite for spec-based storage
         raise NotImplementedError('revert_to_published needs rewriting for spec-based storage')
 
-    def _create_from_config(self, node_refs: bool = False) -> Instance:
+    def _create_from_published_revision(self, node_refs: bool = False) -> Instance | None:
+        """
+        Hydrate an Instance from the latest published revision, if any.
+
+        Returns ``None`` if the instance has never been published, so the
+        caller can fall back to the draft (tables) path.
+        """
+        from .instance_loader import InstanceLoader
+
+        rev = self.live_revision
+        if rev is None:
+            return None
+        content = rev.content or {}
+        snapshot = content.get('model_snapshot') or {}
+        hydrate_dict = snapshot.get('hydrate_dict')
+        if hydrate_dict is None:
+            # Revision predates the snapshot restructure; fall back to draft.
+            return None
+        instance = InstanceLoader(config=hydrate_dict).instance
+        self.update_instance_from_configs(instance, node_refs=True)
+        return instance
+
+    def _create_from_config(
+        self,
+        node_refs: bool = False,
+        source: Literal['draft', 'published'] = 'draft',
+    ) -> Instance:
         from .instance_loader import InstanceLoader
 
         if self.config_source == 'database':
+            if source == 'published':
+                instance = self._create_from_published_revision(node_refs=node_refs)
+                if instance is not None:
+                    return instance
+                # Fall through to the draft path if no published revision exists.
+
             from .instance_from_db import serialize_instance_to_dict
 
             config = serialize_instance_to_dict(self)
@@ -1070,7 +1120,56 @@ def make_empty_node_spec() -> NodeSpec:
     return NodeSpec(kind=NodeKind.FORMULA)
 
 
-class NodeConfig(PathsModel[InstanceConfig], RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedModel):
+class EditableInstanceChild(
+    UUIDIdentifiedModel,
+    UserModifiableModel,
+    RevisionMixin,
+    ClusterableModel,
+):
+    """
+    Abstract superclass for ORM rows that compose an editable InstanceConfig.
+
+    Bundles:
+      * ``UUIDIdentifiedModel`` — stable UUID for cross-system references
+      * ``UserModifiableModel`` — ``created_at`` / ``created_by`` /
+        ``last_modified_at`` / ``last_modified_by`` for ordering + future
+        ``is_creator(obj)``-style permission conditions
+      * ``RevisionMixin`` — per-row Wagtail revision history (redundant
+        with IMLE audit, but cheap and valued for recovery)
+      * ``ClusterableModel`` — Wagtail form/revision machinery
+
+    Subclasses declare ``snapshot_model``, a ``ModelSnapshot`` subtype that
+    mirrors the row's state. ``serializable_data()`` (overridden from
+    Wagtail's default) dumps through ``snapshot_model.from_model(self)`` so
+    the stored revision content is the snapshot-shaped dict.
+
+    ``apply_snapshot`` is the inverse — used by undo/revert to bring a row
+    (looked up by uuid) back to a prior snapshot. Signature differs from
+    Wagtail's ``from_serializable_data`` because we need the parent
+    ``InstanceConfig`` to bind FKs; subclasses implement it when the
+    upsert rules become relevant (Phase 5+).
+    """
+
+    snapshot_model: ClassVar[type[ModelSnapshot]]
+
+    class Meta:
+        abstract = True
+
+    def serializable_data(self) -> dict[str, Any]:
+        return self.snapshot_model.from_model(self).model_dump(mode='json')
+
+    @classmethod
+    def apply_snapshot(
+        cls,
+        data: dict[str, Any],
+        *,
+        instance_config: InstanceConfig,
+    ) -> Self:
+        msg = f'{cls.__name__}.apply_snapshot is not implemented yet'
+        raise NotImplementedError(msg)
+
+
+class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexed):
     instance: FK[InstanceConfig] = models.ForeignKey(
         InstanceConfig,
         on_delete=models.CASCADE,
@@ -1135,8 +1234,8 @@ class NodeConfig(PathsModel[InstanceConfig], RevisionMixin, ClusterableModel, in
 
     spec = SchemaField(schema=NodeSpec, null=True)
 
-    created_at = models.DateTimeField(default=timezone.now)
-    modified_at = models.DateTimeField(auto_now=True)
+    # Audit timestamps (``created_at`` / ``last_modified_at``) + user FKs
+    # come from ``UserModifiableModel`` via ``EditableInstanceChild``.
 
     i18n = TranslationField(
         fields=('name', 'short_description', 'description', 'goal'),
@@ -1159,6 +1258,8 @@ class NodeConfig(PathsModel[InstanceConfig], RevisionMixin, ClusterableModel, in
     wagtail_reference_index_ignore = True
 
     objects: ClassVar[NodeConfigManager] = NodeConfigManager()
+
+    snapshot_model: ClassVar[type[ModelSnapshot]] = NodeSnapshot
 
     _node: Node | None
     _annotated_port_edge_bindings: list[dict[str, Any]] | None
@@ -1345,8 +1446,10 @@ class NodeDataset(models.Model):
 # --- Model editor models ---
 
 
-class NodeEdge(UUIDIdentifiedModel, UserModifiableModel):
+class NodeEdge(EditableInstanceChild):
     """A directed edge in the computation graph."""
+
+    snapshot_model: ClassVar[type[ModelSnapshot]] = EdgeSnapshot
 
     instance: FK[InstanceConfig] = models.ForeignKey(
         InstanceConfig,
@@ -1394,8 +1497,10 @@ class NodeEdge(UUIDIdentifiedModel, UserModifiableModel):
         return f'{self.from_node_id} → {self.to_node_id}'
 
 
-class DatasetPort(UUIDIdentifiedModel, UserModifiableModel):
+class DatasetPort(EditableInstanceChild):
     """Connects a dataset metric to a node input port."""
+
+    snapshot_model: ClassVar[type[ModelSnapshot]] = DatasetPortSnapshot
 
     instance: FK[InstanceConfig] = models.ForeignKey(
         InstanceConfig,
@@ -1442,3 +1547,132 @@ class DatasetPort(UUIDIdentifiedModel, UserModifiableModel):
 
     def __str__(self) -> str:
         return f'{self.node_id}:{self.port_id} ← {self.dataset_id}'
+
+
+# --- Change tracking: InstanceChangeOperation + InstanceModelLogEntry ---
+#
+# Every user-facing edit to an InstanceConfig's model opens exactly one
+# InstanceChangeOperation. All resulting row-level writes emit
+# InstanceModelLogEntry rows linked to that operation. This is the audit +
+# undo substrate; actual mutations are wired through
+# ``nodes/change_ops.py::change_operation``.
+
+
+class InstanceChangeSource(models.TextChoices):
+    GRAPHQL = 'graphql', _('GraphQL')
+    REST = 'rest', _('REST')
+    ADMIN = 'admin', _('Wagtail admin')
+    CLI = 'cli', _('CLI')
+    MIGRATION = 'migration', _('Data migration')
+
+
+class InstanceChangeOperation(UUIDIdentifiedModel):
+    """
+    One row per user-facing edit (create / update / delete / cascade bundle).
+
+    Serves as:
+      * grouping anchor for ``InstanceModelLogEntry`` rows
+      * audit of who/when/where an edit came from
+      * unit of undo (undo targets the operation, not individual entries)
+      * undo trail via ``superseded_by``
+    """
+
+    instance_config: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='change_operations',
+    )
+    user: FK[User | None] = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+    action = models.CharField(
+        max_length=100,
+        help_text="Top-level action that triggered the operation, e.g. 'node.delete'.",
+    )
+    source = models.CharField(
+        max_length=20,
+        choices=InstanceChangeSource.choices,
+        default=InstanceChangeSource.GRAPHQL,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    superseded_by: FK[InstanceChangeOperation | None] = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='supersedes',
+        help_text='Set when this operation has been undone by another operation.',
+    )
+
+    objects: ClassVar[models.Manager[InstanceChangeOperation]] = models.Manager()
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['instance_config', '-created_at']),
+        ]
+        verbose_name = _('Instance change operation')
+        verbose_name_plural = _('Instance change operations')
+
+    def __str__(self) -> str:
+        return f'{self.action} @ {self.created_at:%Y-%m-%d %H:%M:%S} ({self.uuid})'
+
+
+class InstanceModelLogEntry(UUIDIdentifiedModel):
+    """
+    One row per row-level write within an ``InstanceChangeOperation``.
+
+    Deliberately standalone (not a subclass of Wagtail's ``ModelLogEntry``)
+    to avoid the multi-table-inheritance write overhead and the
+    ``LogActionRegistry`` indirection. Shape mirrors ``ModelLogEntry``
+    where it makes sense (``content_type`` / ``object_id`` as GFK;
+    ``action`` string; ``data`` JSON), but user/timestamp metadata lives
+    on the parent ``operation`` to avoid duplication.
+
+    ``data`` layout::
+
+        {
+            'target_uuid': str,         # survives row deletion
+            'before': dict | None,      # None for creates
+            'after':  dict | None,      # None for deletes
+        }
+    """
+
+    operation: FK[InstanceChangeOperation] = models.ForeignKey(
+        InstanceChangeOperation,
+        on_delete=models.CASCADE,
+        related_name='log_entries',
+    )
+    content_type: FK[ContentType | None] = models.ForeignKey(
+        ContentType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        help_text='Type of the affected row; GFK with object_id.',
+    )
+    object_id = models.CharField(max_length=255, null=True, blank=True)
+    action = models.CharField(
+        max_length=100,
+        help_text="Dotted action id, e.g. 'node.update'.",
+    )
+    data = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects: ClassVar[models.Manager[InstanceModelLogEntry]] = models.Manager()
+
+    class Meta:
+        ordering = ['-id']
+        indexes = [
+            models.Index(fields=['operation']),
+            models.Index(fields=['content_type', 'object_id']),
+        ]
+        verbose_name = _('Instance model log entry')
+        verbose_name_plural = _('Instance model log entries')
+
+    def __str__(self) -> str:
+        return f'{self.action} on {self.content_type}:{self.object_id}'

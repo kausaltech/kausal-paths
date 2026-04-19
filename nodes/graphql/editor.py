@@ -542,6 +542,8 @@ class InstanceEditorMutation:
     @gql.mutation(description='Create a new node in the model', graphql_type=AnyNodeType)
     @staticmethod
     def create_node(info: gql.Info, root: sb.Parent[Me], input: CreateNodeInput) -> Node:
+        from nodes.change_ops import change_operation, record_change
+
         ic = root.instance
         if not NodeConfig.gql_create_allowed(info, ic):
             raise PermissionDeniedError(info, 'Permission denied for create')
@@ -598,53 +600,108 @@ class InstanceEditorMutation:
         nc = ic.nodes.filter(identifier=input.identifier).first()
         if nc is not None:
             raise GraphQLValidationError(info, 'Node with identifier %s already exists' % input.identifier)
-        nc = ic.nodes.create(
-            identifier=input.identifier,
-            name=input.name or input.identifier,
-            color=input.color or '',
-            order=input.order,
-            is_visible=input.is_visible,
-            description=input.description,
-            node_type=NodeKindChoices(input.kind.value),
-            i18n=input.i18n or {},
-            spec=spec,
-        )
+
+        user = getattr(info.context, 'user', None)
+        with change_operation(ic, user=user, action='node.create'):
+            nc = ic.nodes.create(
+                identifier=input.identifier,
+                name=input.name or input.identifier,
+                color=input.color or '',
+                order=input.order,
+                is_visible=input.is_visible,
+                description=input.description,
+                node_type=NodeKindChoices(input.kind.value),
+                i18n=input.i18n or {},
+                spec=spec,
+            )
+            record_change(nc, action='node.create', before=None, after=nc.serializable_data())
 
         return _resolve_runtime_node(ic, nc.pk)
 
     @gql.mutation(description='Update an existing node', graphql_type=AnyNodeType)
     @staticmethod
     def update_node(info: gql.Info, root: sb.Parent[Me], node_id: sb.ID, input: UpdateNodeInput) -> Node:
+        from nodes.change_ops import change_operation, record_change
+
         ic = root.instance
         nc = get_or_error(info, ic.nodes.get_queryset(), id=node_id)
 
-        spec = nc.spec
-        updates: dict[str, object] = {}
-        assert spec is not None
-        if is_maybe_set(input.name):
-            spec.name = input.name.value
-            updates['name'] = input.name.value
-        if is_maybe_set(input.color):
-            spec.color = input.color.value
-            updates['color'] = input.color.value
-        if is_maybe_set(input.is_visible):
-            spec.is_visible = input.is_visible.value
-            updates['is_visible'] = input.is_visible.value
-        if is_maybe_set(input.is_outcome):
-            spec.is_outcome = input.is_outcome.value
-        nc.spec = spec
-        updates['spec'] = spec
-        NodeConfig.objects.filter(pk=nc.pk).update(**updates)
+        user = getattr(info.context, 'user', None)
+        with change_operation(ic, user=user, action='node.update'):
+            before = nc.serializable_data()
+
+            spec = nc.spec
+            updates: dict[str, object] = {}
+            assert spec is not None
+            if is_maybe_set(input.name):
+                spec.name = input.name.value
+                updates['name'] = input.name.value
+            if is_maybe_set(input.color):
+                spec.color = input.color.value
+                updates['color'] = input.color.value
+            if is_maybe_set(input.is_visible):
+                spec.is_visible = input.is_visible.value
+                updates['is_visible'] = input.is_visible.value
+            if is_maybe_set(input.is_outcome):
+                spec.is_outcome = input.is_outcome.value
+            nc.spec = spec
+            updates['spec'] = spec
+            NodeConfig.objects.filter(pk=nc.pk).update(**updates)
+            # QuerySet.update() bypasses the instance; refresh so snapshot_data()
+            # reflects the committed state.
+            nc.refresh_from_db()
+            record_change(nc, action='node.update', before=before, after=nc.serializable_data())
+
         return _resolve_runtime_node(nc.instance, nc.pk)
 
     @gql.mutation(description='Delete a node and its edges')
     @staticmethod
     def delete_node(root: sb.Parent[Me], info: gql.Info, node_id: sb.ID) -> None:
+        from django.db.models import Q
+
+        from nodes.change_ops import change_operation, record_change
+        from nodes.models import DatasetPort, NodeEdge
+
         ic = root.instance
         nc = get_or_error(info, ic.nodes.get_queryset(), id=node_id)
         if not nc.gql_action_allowed(info, 'delete'):
             raise PermissionDeniedError(info, 'Permission denied for delete')
-        nc.delete()
+
+        user = getattr(info.context, 'user', None)
+        with change_operation(ic, user=user, action='node.delete'):
+            # Log cascade-delete entries BEFORE the DB CASCADE wipes the rows,
+            # while pks are still valid. After the ``nc.delete()`` call below,
+            # only the IMLE rows carry the pre-state.
+            affected_edges = list(
+                NodeEdge.objects.filter(Q(from_node=nc) | Q(to_node=nc)).select_related('from_node', 'to_node'),
+            )
+            for edge in affected_edges:
+                record_change(
+                    edge,
+                    action='node.edges.delete',
+                    before=edge.serializable_data(),
+                    after=None,
+                )
+
+            affected_ports = list(
+                DatasetPort.objects.filter(node=nc).select_related('node', 'dataset', 'metric'),
+            )
+            for port in affected_ports:
+                record_change(
+                    port,
+                    action='node.dataset_ports.delete',
+                    before=port.serializable_data(),
+                    after=None,
+                )
+
+            record_change(
+                nc,
+                action='node.delete',
+                before=nc.serializable_data(),
+                after=None,
+            )
+
+            nc.delete()
 
     @sb.field(description='Edit a DB-backed dataset that belongs to this instance')
     @staticmethod
