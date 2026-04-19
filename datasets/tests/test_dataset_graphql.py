@@ -303,3 +303,35 @@ def test_dataset_editor_rejects_dataset_outside_instance(gql_client: PathsTestCl
         variables={'instanceId': str(db_instance_config.pk), 'datasetId': str(dataset.uuid), 'dataPointId': str(dataset.uuid)},
         assert_error_message='not found',
     )
+
+
+def test_create_data_point_emits_change_operation(gql_client: PathsTestClient, dataset_setup):
+    """Creating a datapoint opens an InstanceChangeOperation for the instance."""
+    from nodes.models import InstanceChangeOperation, InstanceModelLogEntry
+
+    instance_config, dataset, metric, category = dataset_setup
+
+    gql_client.query_data(
+        CREATE_DATA_POINT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': {
+                'date': '2024-01-01',
+                'value': 150.0,
+                'metricId': str(metric.uuid),
+                'dimensionCategoryIds': [str(category.uuid)],
+            },
+        },
+    )
+
+    op = InstanceChangeOperation.objects.filter(instance_config=instance_config, action='dataset.datapoint.create').first()
+    assert op is not None
+    entry = InstanceModelLogEntry.objects.filter(operation=op).first()
+    assert entry is not None
+    assert entry.action == 'dataset.datapoint.create'
+    assert entry.data['before'] is None
+    assert entry.data['after']['value'] == 150.0
+    assert entry.data['after']['dataset_uuid'] == str(dataset.uuid)
+    assert entry.data['after']['metric_uuid'] == str(metric.uuid)
+    assert entry.data['after']['dimension_category_uuids'] == [str(category.uuid)]

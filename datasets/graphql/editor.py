@@ -17,6 +17,7 @@ from kausal_common.users import user_or_bust
 
 from paths import gql
 
+from nodes.change_ops import change_operation, record_change
 from nodes.models import InstanceConfig
 
 from .types import DataPointType
@@ -98,6 +99,20 @@ class DatasetEditorMutation:
         root.dataset.save(update_fields=['last_modified_by'])
         root.dataset.clear_scope_instance_cache()
 
+    @staticmethod
+    def _data_point_snapshot(dp: DataPoint) -> dict[str, Any]:
+        """Lightweight snapshot for change tracking."""
+        # Decimal → float: JSONField can't serialize Decimal natively and
+        # DataPoint values don't need cents-grade precision.
+        return {
+            'uuid': str(dp.uuid),
+            'dataset_uuid': str(dp.dataset.uuid),
+            'date': dp.date.isoformat() if dp.date else None,
+            'value': float(dp.value) if dp.value is not None else None,
+            'metric_uuid': str(dp.metric.uuid) if dp.metric else None,
+            'dimension_category_uuids': [str(cat.uuid) for cat in dp.dimension_categories.all()],
+        }
+
     @gql.mutation(description='Create a data point', graphql_type=DataPointType)
     @staticmethod
     def create_data_point(info: gql.Info, root: sb.Parent[Me], input: CreateDataPointInput) -> DataPointType:
@@ -116,8 +131,15 @@ class DatasetEditorMutation:
             user = user_or_bust(info.context.user)
         except ValueError as exc:
             raise PermissionDenied('Permission denied') from exc
-        data_point = serializer.save(dataset=dataset, last_modified_by=user)
-        DatasetEditorMutation._save_dataset(root, info)
+        with change_operation(root.instance, user=user, action='dataset.datapoint.create'):
+            data_point = serializer.save(dataset=dataset, last_modified_by=user)
+            DatasetEditorMutation._save_dataset(root, info)
+            record_change(
+                data_point,
+                action='dataset.datapoint.create',
+                before=None,
+                after=DatasetEditorMutation._data_point_snapshot(data_point),
+            )
         return DataPointType.from_model(data_point)
 
     @gql.mutation(description='Update a data point', graphql_type=DataPointType)
@@ -143,14 +165,33 @@ class DatasetEditorMutation:
             user = user_or_bust(info.context.user)
         except ValueError as exc:
             raise PermissionDenied('Permission denied') from exc
-        updated = serializer.save(last_modified_by=user)
-        DatasetEditorMutation._save_dataset(root, info)
+        with change_operation(root.instance, user=user, action='dataset.datapoint.update'):
+            before = DatasetEditorMutation._data_point_snapshot(data_point)
+            updated = serializer.save(last_modified_by=user)
+            DatasetEditorMutation._save_dataset(root, info)
+            record_change(
+                updated,
+                action='dataset.datapoint.update',
+                before=before,
+                after=DatasetEditorMutation._data_point_snapshot(updated),
+            )
         return DataPointType.from_model(updated)
 
     @gql.mutation(description='Delete a data point', graphql_type=OperationInfo | None)
     @staticmethod
     def delete_data_point(root: sb.Parent[Me], info: gql.Info, data_point_id: sb.ID) -> OperationInfo | None:
         data_point = get_or_error(info, root.dataset.data_points.get_queryset(), uuid=str(data_point_id), for_action='delete')
-        DatasetEditorMutation._save_dataset(root, info)
-        data_point.delete()
+        try:
+            user = user_or_bust(info.context.user)
+        except ValueError as exc:
+            raise PermissionDenied('Permission denied') from exc
+        with change_operation(root.instance, user=user, action='dataset.datapoint.delete'):
+            record_change(
+                data_point,
+                action='dataset.datapoint.delete',
+                before=DatasetEditorMutation._data_point_snapshot(data_point),
+                after=None,
+            )
+            DatasetEditorMutation._save_dataset(root, info)
+            data_point.delete()
         return None

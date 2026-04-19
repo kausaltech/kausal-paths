@@ -724,10 +724,16 @@ def import_instance(ic: InstanceConfig, export: InstanceExport) -> None:
 
     ic_ct = ContentType.objects.get_for_model(ic)
 
-    # Store the spec
+    # Store the spec. Also copy the spec's language fields onto the
+    # InstanceConfig row so i18n-bearing data (ActionGroup names, etc.)
+    # stays loadable — the spec's TranslatedStrings are authored under
+    # the template's primary_language and would be filtered out if the
+    # InstanceConfig used a different language.
     ic.spec = export.instance.spec
+    ic.primary_language = export.instance.spec.primary_language
+    ic.other_languages = list(export.instance.spec.other_languages)
     ic.config_source = 'database'
-    ic.save(update_fields=['spec', 'config_source'])
+    ic.save(update_fields=['spec', 'primary_language', 'other_languages', 'config_source'])
 
     # Dimensions first — datasets and data points reference them
     dim_lookup = _import_dimensions(ic, export, ic_ct)

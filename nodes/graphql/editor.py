@@ -23,6 +23,11 @@ from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_i
 from paths import gql
 
 from nodes.defs import FormulaConfig, SimpleConfig
+from nodes.defs.edge_def import (
+    AssignCategoryTransformation,
+    FlattenTransformation,
+    SelectCategoriesTransformation,
+)
 from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, PipelineConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.models import InstanceConfig, NodeConfig, NodeKindChoices
@@ -35,12 +40,14 @@ from .types.graph import NodeEdgeType
 from .types.instance import InstanceType
 from .types.node import AnyNodeType, NodeInterface
 from .types.scenario import ScenarioType
+from .types.spec import InputPortType, OutputPortType
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import DimensionCategory as DimensionCategoryModel, DimensionScope
     from kausal_common.models.ordered import OrderedModel
 
     from datasets.graphql.editor import DatasetEditorMutation
+    from nodes.defs.edge_def import EdgeTransformation
 
 
 def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
@@ -99,20 +106,71 @@ def _get_input_port(nc: NodeConfig, port_id: UUID) -> InputPortDef | None:
     return None
 
 
-def _resolve_target_port(info: gql.Info, to_node: NodeConfig, to_port: str | None) -> UUID:
+def _resolve_or_create_target_port(
+    info: gql.Info,
+    to_node: NodeConfig,
+    to_port: str | None,
+    source_port: OutputPortDef,
+) -> UUID:
+    """
+    Resolve the target input port, auto-creating one on demand.
+
+    If ``to_port`` is null, reuse a matching unbound/multi port or append a
+    new input port that mirrors ``source_port``. The newly-appended port is
+    recorded as a ``node.update`` entry under the active change operation
+    so undo can strip it.
+    """
+    from uuid import uuid4
+
+    from nodes.defs.port_def import InputPortDef
+    from nodes.models import DatasetPort, NodeEdge
+
     if to_port is not None:
         port_id = _parse_port_id(info, to_port, field_name='toPort')
         if _get_input_port(to_node, port_id) is not None:
             return port_id
         raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
+
     assert to_node.spec is not None
     input_ports = to_node.spec.input_ports
+
+    # Preserve single-port convenience: if the target has exactly one input
+    # port and the quantity/unit aren't obviously incompatible, use it.
     if len(input_ports) == 1:
         return input_ports[0].id
-    raise GraphQLValidationError(
-        info,
-        f'Target node "{to_node.identifier}" has {len(input_ports)} input ports; toPort must be specified explicitly',
+
+    # Try an existing matching port with capacity (multi OR unbound).
+    for port in input_ports:
+        if source_port.quantity is not None and port.quantity is not None and port.quantity != source_port.quantity:
+            continue
+        if source_port.unit is not None and port.unit is not None and source_port.unit.dimensionality != port.unit.dimensionality:
+            continue
+        if port.multi:
+            return port.id
+        has_edge = NodeEdge.objects.filter(to_node=to_node, to_port=port.id).exists()
+        has_dataset = DatasetPort.objects.filter(node=to_node, port_id=port.id).exists()
+        if not has_edge and not has_dataset:
+            return port.id
+
+    # Auto-create a new input port mirroring the source port. The target
+    # node can now accept this edge alongside its existing bindings.
+    from nodes.change_ops import record_change
+
+    before = to_node.serializable_data()
+    new_port = InputPortDef(
+        id=uuid4(),
+        label=source_port.label,
+        quantity=source_port.quantity,
+        unit=source_port.unit,
+        multi=False,
+        required_dimensions=list(source_port.dimensions),
+        supported_dimensions=list(source_port.dimensions),
     )
+    to_node.spec.input_ports = [*input_ports, new_port]
+    NodeConfig.objects.filter(pk=to_node.pk).update(spec=to_node.spec)
+    to_node.refresh_from_db()
+    record_change(to_node, action='node.update', before=before, after=to_node.serializable_data())
+    return new_port.id
 
 
 def _resolve_source_port(info: gql.Info, from_node: NodeConfig, from_port: str) -> UUID:
@@ -127,6 +185,39 @@ def _resolve_source_port(info: gql.Info, from_node: NodeConfig, from_port: str) 
         info,
         f'Output port "{from_port}" does not exist on node "{from_node.identifier}"',
     )
+
+
+def _resolve_edge_transformations(
+    info: gql.Info,
+    raw: list[EdgeTransformationInput] | None,
+) -> list[EdgeTransformation]:
+    """
+    Convert the one-of EdgeTransformationInput list into pydantic objects.
+
+    Mirrors ``EdgeTransformationType`` on the query side; exactly one of
+    ``selectCategories`` / ``assignCategory`` / ``flatten`` must be set per
+    list entry.
+    """
+    if not raw:
+        return []
+    out: list[EdgeTransformation] = []
+    for idx, entry in enumerate(raw):
+        sc = entry.select_categories if is_maybe_set(entry.select_categories) else None
+        ac = entry.assign_category if is_maybe_set(entry.assign_category) else None
+        fl = entry.flatten if is_maybe_set(entry.flatten) else None
+        if sum(v is not None for v in (sc, ac, fl)) != 1:
+            raise GraphQLValidationError(
+                info,
+                f'transformations[{idx}]: exactly one of selectCategories / assignCategory / flatten must be set',
+            )
+        if sc is not None:
+            out.append(sc.value.to_pydantic())
+        elif ac is not None:
+            out.append(ac.value.to_pydantic())
+        else:
+            assert fl is not None
+            out.append(fl.value.to_pydantic())
+    return out
 
 
 def _validate_edge_ports(info: gql.Info, from_node: NodeConfig, from_port: UUID, to_node: NodeConfig, to_port: UUID) -> None:
@@ -295,6 +386,39 @@ class UpdateNodeInput:
     is_outcome: Maybe[bool]
 
 
+@pydantic_input(model=SelectCategoriesTransformation)
+class SelectCategoriesTransformationInput(StrawberryPydanticType[SelectCategoriesTransformation]):
+    dimension: auto
+    categories: auto
+    flatten: auto
+    exclude: auto
+
+
+@pydantic_input(model=AssignCategoryTransformation)
+class AssignCategoryTransformationInput(StrawberryPydanticType[AssignCategoryTransformation]):
+    dimension: auto
+    category: auto
+
+
+@pydantic_input(model=FlattenTransformation)
+class FlattenTransformationInput(StrawberryPydanticType[FlattenTransformation]):
+    dimension: auto
+
+
+@sb.input(one_of=True)
+class EdgeTransformationInput:
+    """
+    One-of input mirroring ``EdgeTransformationType`` on the query side.
+
+    Exactly one of ``selectCategories`` / ``assignCategory`` / ``flatten``
+    must be provided per list entry.
+    """
+
+    select_categories: Maybe[SelectCategoriesTransformationInput]
+    assign_category: Maybe[AssignCategoryTransformationInput]
+    flatten: Maybe[FlattenTransformationInput]
+
+
 @sb.input
 class CreateEdgeInput:
     instance_id: sb.ID
@@ -302,7 +426,7 @@ class CreateEdgeInput:
     to_node_id: str
     from_port: str = 'output'
     to_port: str | None = None
-    transformations: sb.scalars.JSON | None = None
+    transformations: list[EdgeTransformationInput] | None = None
 
 
 @sb.input
@@ -624,7 +748,7 @@ class InstanceEditorMutation:
         from nodes.change_ops import change_operation, record_change
 
         ic = root.instance
-        nc = get_or_error(info, ic.nodes.get_queryset(), id=node_id)
+        nc = InstanceEditorMutation._lookup_node(info, ic, node_id)
 
         user = getattr(info.context, 'user', None)
         with change_operation(ic, user=user, action='node.update'):
@@ -663,7 +787,7 @@ class InstanceEditorMutation:
         from nodes.models import DatasetPort, NodeEdge
 
         ic = root.instance
-        nc = get_or_error(info, ic.nodes.get_queryset(), id=node_id)
+        nc = InstanceEditorMutation._lookup_node(info, ic, node_id)
         if not nc.gql_action_allowed(info, 'delete'):
             raise PermissionDeniedError(info, 'Permission denied for delete')
 
@@ -727,6 +851,7 @@ class InstanceEditorMutation:
     @gql.mutation(description='Create a new edge between nodes')
     @staticmethod
     def create_edge(info: gql.Info, input: CreateEdgeInput) -> NodeEdgeType:
+        from nodes.change_ops import change_operation, record_change
         from nodes.models import NodeConfig, NodeEdge
 
         ic = _get_instance_config(info, input.instance_id)
@@ -740,37 +865,138 @@ class InstanceEditorMutation:
             raise GraphQLError('Source or target node not found') from None
 
         from_port = _resolve_source_port(info, from_node, input.from_port)
-        to_port = _resolve_target_port(info, to_node, input.to_port)
-        _validate_edge_ports(info, from_node, from_port, to_node, to_port)
+        source_port = _get_output_port(from_node, from_port)
+        assert source_port is not None  # _resolve_source_port validated it
 
-        with transaction.atomic():
+        user = getattr(info.context, 'user', None)
+        with change_operation(ic, user=user, action='edge.create'):
+            # Target-port resolution may append a new input port to
+            # ``to_node`` when ``to_port`` is null; that write must happen
+            # inside the change_operation so the resulting ``node.update``
+            # entry groups with this edge.create operation.
+            to_port = _resolve_or_create_target_port(info, to_node, input.to_port, source_port)
+            _validate_edge_ports(info, from_node, from_port, to_node, to_port)
+            transformations = _resolve_edge_transformations(info, input.transformations)
             edge = NodeEdge.objects.create(
                 instance=ic,
                 from_node=from_node,
                 from_port=from_port,
                 to_node=to_node,
                 to_port=to_port,
-                transformations=input.transformations or [],
+                transformations=transformations,
             )
+            record_change(edge, action='edge.create', before=None, after=edge.serializable_data())
 
         return NodeEdgeType.from_node_edge(edge)
 
     @gql.mutation(description='Delete an edge')
     @staticmethod
     def delete_edge(root: sb.Parent[Me], info: gql.Info, edge_id: sb.ID) -> None:
+        from nodes.change_ops import change_operation, record_change
         from nodes.models import NodeEdge
 
         ic = root.instance
         try:
-            edge = NodeEdge.objects.get(instance=ic, pk=edge_id)
-        except NodeEdge.DoesNotExist:
+            edge = NodeEdge.objects.get(instance=ic, uuid=edge_id)
+        except NodeEdge.DoesNotExist, ValueError:
             raise GraphQLError('Edge not found') from None
 
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
-        with transaction.atomic():
+        user = getattr(info.context, 'user', None)
+        with change_operation(ic, user=user, action='edge.delete'):
+            record_change(edge, action='edge.delete', before=edge.serializable_data(), after=None)
             edge.delete()
+
+    # -- Port mutations -------------------------------------------------------
+
+    @staticmethod
+    def _lookup_node(info: gql.Info, ic: InstanceConfig, node_id: str, *, with_spec: bool = False) -> NodeConfig:
+        """
+        Resolve a node from a GQL ``nodeId`` (UUID or human-readable identifier).
+
+        pk lookup is intentionally not supported — GQL surfaces must not expose
+        DB primary keys.
+        """
+        from kausal_common.models.uuid import is_uuid
+
+        qs = ic.nodes.get_queryset()
+        if with_spec:
+            qs = qs.with_spec()
+        raw = str(node_id)
+        nc = qs.filter(uuid=raw).first() if is_uuid(raw) else qs.filter(identifier=raw).first()
+        if nc is None:
+            raise NotFoundError(info, f'Node "{node_id}" not found in instance "{ic.identifier}"')
+        return nc
+
+    @gql.mutation(description='Append a new input port to a node', graphql_type=InputPortType)
+    @staticmethod
+    def add_node_input_port(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        node_id: sb.ID,
+        input: InputPortInput,
+    ) -> InputPortDef:
+        from uuid import uuid4
+
+        from nodes.change_ops import change_operation, record_change
+
+        ic = root.instance
+        if ic.config_source != 'database':
+            raise GraphQLError('Cannot edit YAML-sourced instances')
+
+        nc = InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True)
+        if nc.spec is None:
+            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
+
+        new_port = _input_port_to_def(nc.identifier, len(nc.spec.input_ports), input)
+        if input.id is None:
+            new_port = new_port.model_copy(update={'id': uuid4()})
+
+        user = getattr(info.context, 'user', None)
+        with change_operation(ic, user=user, action='node.input_ports.create'):
+            before = nc.serializable_data()
+            nc.spec.input_ports = [*nc.spec.input_ports, new_port]
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
+            nc.refresh_from_db()
+            record_change(nc, action='node.input_ports.create', before=before, after=nc.serializable_data())
+
+        return new_port
+
+    @gql.mutation(description='Append a new output port to a node', graphql_type=OutputPortType)
+    @staticmethod
+    def add_node_output_port(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        node_id: sb.ID,
+        input: OutputPortInput,
+    ) -> OutputPortDef:
+        from uuid import uuid4
+
+        from nodes.change_ops import change_operation, record_change
+
+        ic = root.instance
+        if ic.config_source != 'database':
+            raise GraphQLError('Cannot edit YAML-sourced instances')
+
+        nc = InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True)
+        if nc.spec is None:
+            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
+
+        new_port = _output_port_to_def(nc.identifier, len(nc.spec.output_ports), input)
+        if input.id is None:
+            new_port = new_port.model_copy(update={'id': uuid4()})
+
+        user = getattr(info.context, 'user', None)
+        with change_operation(ic, user=user, action='node.output_ports.create'):
+            before = nc.serializable_data()
+            nc.spec.output_ports = [*nc.spec.output_ports, new_port]
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
+            nc.refresh_from_db()
+            record_change(nc, action='node.output_ports.create', before=before, after=nc.serializable_data())
+
+        return new_port
 
     # -- Dimension mutations --------------------------------------------------
 
@@ -800,8 +1026,31 @@ class InstanceEditorMutation:
         if nxt is not None:
             target.next_sibling = UUID(nxt.value)
 
+    @staticmethod
+    def _dimension_snapshot(dim: Any) -> dict[str, Any]:
+        """Lightweight snapshot of a shared Dimension (not an EditableInstanceChild)."""
+        return {
+            'uuid': str(dim.uuid),
+            'name': dim.name,
+            'i18n': dict(dim.i18n or {}),
+        }
+
+    @staticmethod
+    def _dimension_category_snapshot(cat: Any) -> dict[str, Any]:
+        """Lightweight snapshot of a DimensionCategory."""
+        return {
+            'uuid': str(cat.uuid),
+            'dimension_uuid': str(cat.dimension.uuid),
+            'identifier': cat.identifier,
+            'label': cat.label,
+            'i18n': dict(cat.i18n or {}),
+            'order': cat.order,
+        }
+
     @gql.mutation(description='Update a dimension (e.g. rename)')
     def update_dimension(self, info: gql.Info, root: sb.Parent[Me], input: UpdateDimensionInput) -> DimensionType:
+        from nodes.change_ops import change_operation, record_change
+
         ic = root.instance
         scope = self._get_dimension_scope(info, ic, input.dimension_id)
         dim = scope.dimension
@@ -809,9 +1058,20 @@ class InstanceEditorMutation:
         updates: dict[str, object] = {}
         if is_maybe_set(input.name):
             updates['name'] = input.name.value
-        if updates:
+        if not updates:
+            return DimensionType.from_scope(scope)
+
+        user = getattr(info.context, 'user', None)
+        with change_operation(ic, user=user, action='dimension.update'):
+            before = self._dimension_snapshot(dim)
             type(dim).objects.filter(pk=dim.pk).update(**updates)
             dim.refresh_from_db()
+            record_change(
+                dim,
+                action='dimension.update',
+                before=before,
+                after=self._dimension_snapshot(dim),
+            )
         return DimensionType.from_scope(scope)
 
     @gql.mutation(description='Add categories to a dimension')
@@ -819,6 +1079,8 @@ class InstanceEditorMutation:
         self, info: gql.Info, root: sb.Parent[Me], input: list[CreateDimensionCategoryInput]
     ) -> DimensionType:
         from kausal_common.datasets.models import DimensionCategory
+
+        from nodes.change_ops import change_operation, record_change
 
         if not input:
             raise GraphQLValidationError(info, 'At least one category input is required')
@@ -833,7 +1095,8 @@ class InstanceEditorMutation:
         dim = scope.dimension
 
         created: list[DimensionCategory] = []
-        with transaction.atomic():
+        user = getattr(info.context, 'user', None)
+        with change_operation(ic, user=user, action='dimension.categories.create'):
             for item in input:
                 cat_uuid = item.id.value if is_maybe_set(item.id) else uuid4()
                 identifier = item.identifier.value if is_maybe_set(item.identifier) else None
@@ -858,6 +1121,17 @@ class InstanceEditorMutation:
                 DimensionCategory.finalize_sibling_order(dim.categories.all(), hinted=created)
             except ValueError as e:
                 raise GraphQLValidationError(info, str(e)) from e
+
+            # Record after sibling ordering has been finalized so the
+            # snapshot captures the resolved `order` values.
+            for cat in created:
+                cat.refresh_from_db()
+                record_change(
+                    cat,
+                    action='dimension.categories.create',
+                    before=None,
+                    after=self._dimension_category_snapshot(cat),
+                )
 
         return DimensionType.from_scope(scope)
 
@@ -885,32 +1159,50 @@ class InstanceEditorMutation:
     ) -> DimensionType:
         from kausal_common.datasets.models import DimensionCategory, DimensionScope
 
+        from nodes.change_ops import change_operation, record_change
+
         if not input:
             raise GraphQLValidationError(info, 'At least one category input is required')
 
         ic = root.instance
         dim = None
-        updated: list[DimensionCategory] = []
+        updated: list[tuple[DimensionCategory, dict[str, Any]]] = []
 
-        for item in input:
-            cat = self._apply_category_update(info, item)
+        user = getattr(info.context, 'user', None)
+        with change_operation(ic, user=user, action='dimension.categories.update'):
+            for item in input:
+                # Snapshot before the update; _apply_category_update issues
+                # the UPDATE and returns the (stale) in-memory instance.
+                pre = DimensionCategory.objects.filter(uuid=item.category_id).select_related('dimension').first()
+                before = self._dimension_category_snapshot(pre) if pre is not None else None
 
-            if dim is None:
-                dim = cat.dimension
-                scope = DimensionScope.objects.for_instance_config(ic).filter(dimension=dim).first()
-                if scope is None:
-                    raise NotFoundError(info, 'Category does not belong to this instance')
-            elif cat.dimension_id != dim.pk:
-                raise GraphQLValidationError(info, 'All categories in a batch must belong to the same dimension')
+                cat = self._apply_category_update(info, item)
 
-            self._set_sibling_hints(info, cat, item)
-            updated.append(cat)
+                if dim is None:
+                    dim = cat.dimension
+                    scope = DimensionScope.objects.for_instance_config(ic).filter(dimension=dim).first()
+                    if scope is None:
+                        raise NotFoundError(info, 'Category does not belong to this instance')
+                elif cat.dimension_id != dim.pk:
+                    raise GraphQLValidationError(info, 'All categories in a batch must belong to the same dimension')
 
-        assert dim is not None
-        try:
-            DimensionCategory.finalize_sibling_order(dim.categories.all(), hinted=updated)
-        except ValueError as e:
-            raise GraphQLValidationError(info, str(e)) from e
+                self._set_sibling_hints(info, cat, item)
+                updated.append((cat, before or {}))
+
+            assert dim is not None
+            try:
+                DimensionCategory.finalize_sibling_order(dim.categories.all(), hinted=[c for c, _ in updated])
+            except ValueError as e:
+                raise GraphQLValidationError(info, str(e)) from e
+
+            for cat, before in updated:
+                cat.refresh_from_db()
+                record_change(
+                    cat,
+                    action='dimension.categories.update',
+                    before=before,
+                    after=self._dimension_category_snapshot(cat),
+                )
 
         scope = self._get_dimension_scope(info, ic, dim.uuid)
         return DimensionType.from_scope(scope)
@@ -918,6 +1210,8 @@ class InstanceEditorMutation:
     @gql.mutation(description='Delete a dimension category')
     def delete_dimension_category(self, info: gql.Info, root: sb.Parent[Me], category_id: UUID) -> None:
         from kausal_common.datasets.models import DimensionCategory, DimensionScope
+
+        from nodes.change_ops import change_operation, record_change
 
         cat = DimensionCategory.objects.filter(uuid=category_id).select_related('dimension').first()
         if cat is None:
@@ -928,7 +1222,15 @@ class InstanceEditorMutation:
         if scope is None:
             raise GraphQLError('Category does not belong to this instance')
 
-        cat.delete()
+        user = getattr(info.context, 'user', None)
+        with change_operation(ic, user=user, action='dimension.category.delete'):
+            record_change(
+                cat,
+                action='dimension.category.delete',
+                before=self._dimension_category_snapshot(cat),
+                after=None,
+            )
+            cat.delete()
 
     @gql.mutation(description='Create a new scenario')
     @staticmethod

@@ -391,7 +391,7 @@ def test_poc_update_node_emits_before_and_after(gql_client, empty_db_instance: I
         UPDATE_NODE_PoC,
         variables={
             'instanceId': str(empty_db_instance.pk),
-            'nodeId': str(nc.pk),
+            'nodeId': str(nc.uuid),
             'input': {'name': 'Renamed', 'color': '#00ff00'},
         },
     )
@@ -461,7 +461,7 @@ def test_poc_delete_node_cascades_under_single_operation(
 
     gql_client.query_data(
         DELETE_NODE_PoC,
-        variables={'instanceId': str(empty_db_instance.pk), 'nodeId': str(src_pk)},
+        variables={'instanceId': str(empty_db_instance.pk), 'nodeId': str(nc_a.uuid)},
     )
 
     # One operation, multiple entries under it (node.delete + cascaded edge).
@@ -546,3 +546,274 @@ def test_dataset_port_snapshot_pins_dataset_revision(empty_db_instance: Instance
     # serializable_data pins the dataset's current revision
     data = port.serializable_data()
     assert data['dataset_revision'] == pinned_rev
+
+
+# ---------------------------------------------------------------------------
+# Demo-flow mutations (edges, dimension categories, datapoints)
+#
+# Exercise the mutations involved in the Tuesday demo's "copy an action"
+# walkthrough to verify change tracking fires for each step.
+# ---------------------------------------------------------------------------
+
+
+CREATE_EDGE = """
+mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        createEdge(input: $input) {
+            __typename
+            ... on NodeEdgeType { fromRef { nodeId portId } toRef { nodeId portId } }
+            ... on OperationInfo { messages { kind message } }
+        }
+    }
+}
+"""
+
+DELETE_EDGE = """
+mutation DeleteEdge($instanceId: ID!, $edgeId: ID!) {
+    instanceEditor(instanceId: $instanceId) {
+        deleteEdge(edgeId: $edgeId) { messages { kind message } }
+    }
+}
+"""
+
+CREATE_DIMENSION_CATEGORIES = """
+mutation CreateCats($instanceId: ID!, $input: [CreateDimensionCategoryInput!]!) {
+    instanceEditor(instanceId: $instanceId) {
+        createDimensionCategories(input: $input) {
+            ... on InstanceDimension { id categories { id identifier label } }
+        }
+    }
+}
+"""
+
+
+def _build_edge_endpoints(db_instance: InstanceConfig):
+    """Create two formula nodes with compatible single-port outputs; return (src, dst)."""
+    from nodes.defs.node_defs import NodeKind, NodeSpec as NodeSpecDef
+    from nodes.defs.port_def import InputPortDef, OutputPortDef
+    from nodes.models import NodeConfig
+    from nodes.tests.test_model_editor import _port_uuid as _pu
+    from nodes.units import unit_registry
+
+    unit = unit_registry.parse_units('kt/a')
+    src = NodeConfig.objects.create(
+        instance=db_instance,
+        identifier='edge_src',
+        name='Src',
+        spec=NodeSpecDef(
+            kind=NodeKind.FORMULA,
+            output_ports=[
+                OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions'),
+            ],
+        ),
+    )
+    dst = NodeConfig.objects.create(
+        instance=db_instance,
+        identifier='edge_dst',
+        name='Dst',
+        spec=NodeSpecDef(
+            kind=NodeKind.FORMULA,
+            input_ports=[InputPortDef(id=_pu('input'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+        ),
+    )
+    return src, dst
+
+
+def test_poc_create_edge_emits_change_operation(gql_client, empty_db_instance: InstanceConfig):
+    from nodes.models import InstanceChangeOperation, InstanceModelLogEntry, NodeEdge
+
+    src, dst = _build_edge_endpoints(empty_db_instance)
+
+    data = gql_client.query_data(
+        CREATE_EDGE,
+        variables={
+            'instanceId': str(empty_db_instance.pk),
+            'input': {
+                'instanceId': str(empty_db_instance.pk),
+                'fromNodeId': src.identifier,
+                'toNodeId': dst.identifier,
+            },
+        },
+    )
+    assert data['instanceEditor']['createEdge']['__typename'] == 'NodeEdgeType'
+
+    op = InstanceChangeOperation.objects.filter(instance_config=empty_db_instance, action='edge.create').first()
+    assert op is not None
+    entries = list(InstanceModelLogEntry.objects.filter(operation=op))
+    assert len(entries) == 1
+    assert entries[0].action == 'edge.create'
+    assert entries[0].data['before'] is None
+    assert entries[0].data['after']['from_node'] == src.identifier
+    assert NodeEdge.objects.filter(instance=empty_db_instance).count() == 1
+
+
+def test_poc_delete_edge_emits_change_operation(gql_client, empty_db_instance: InstanceConfig):
+    from nodes.models import InstanceChangeOperation, InstanceModelLogEntry, NodeEdge
+    from nodes.tests.test_model_editor import _port_uuid as _pu
+
+    src, dst = _build_edge_endpoints(empty_db_instance)
+    edge = NodeEdge.objects.create(
+        instance=empty_db_instance,
+        from_node=src,
+        to_node=dst,
+        from_port=_pu('default'),
+        to_port=_pu('input'),
+    )
+
+    gql_client.query_data(
+        DELETE_EDGE,
+        variables={'instanceId': str(empty_db_instance.pk), 'edgeId': str(edge.uuid)},
+    )
+
+    op = InstanceChangeOperation.objects.filter(instance_config=empty_db_instance, action='edge.delete').first()
+    assert op is not None
+    entry = InstanceModelLogEntry.objects.filter(operation=op).first()
+    assert entry is not None
+    assert entry.action == 'edge.delete'
+    assert entry.data['before']['from_node'] == src.identifier
+    assert entry.data['after'] is None
+
+
+def test_create_edge_auto_creates_matching_target_port(
+    gql_client,
+    empty_db_instance: InstanceConfig,
+):
+    """When toPort is null on a multi-port target, a new input port is created."""
+    from nodes.defs.node_defs import NodeKind, NodeSpec as NodeSpecDef
+    from nodes.defs.port_def import InputPortDef, OutputPortDef
+    from nodes.models import (
+        InstanceChangeOperation,
+        InstanceModelLogEntry,
+        NodeConfig,
+        NodeEdge,
+    )
+    from nodes.tests.test_model_editor import _port_uuid as _pu
+    from nodes.units import unit_registry
+
+    unit = unit_registry.parse_units('kt/a')
+
+    def _make_node(ident: str, spec: NodeSpecDef) -> NodeConfig:
+        # Direct NodeConfig.objects.create loses spec via ClusterableModel.save;
+        # use queryset.update after, as _import_nodes does.
+        nc = NodeConfig.objects.create(instance=empty_db_instance, identifier=ident, name=ident.title())
+        NodeConfig.objects.filter(pk=nc.pk).update(spec=spec)
+        nc.refresh_from_db()
+        return nc
+
+    src = _make_node(
+        'auto_src',
+        NodeSpecDef(
+            kind=NodeKind.FORMULA,
+            output_ports=[
+                OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions'),
+            ],
+        ),
+    )
+    # Target already has two *bound* input ports — new edge must add a third.
+    existing_port_a = InputPortDef(id=_pu('existing_a'), unit=unit, quantity='emissions')
+    existing_port_b = InputPortDef(id=_pu('existing_b'), unit=unit, quantity='emissions')
+    dst = _make_node(
+        'auto_dst',
+        NodeSpecDef(
+            kind=NodeKind.FORMULA,
+            input_ports=[existing_port_a, existing_port_b],
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+        ),
+    )
+    # Pre-bind both existing ports so the resolver can't reuse them.
+    other = _make_node(
+        'auto_other',
+        NodeSpecDef(
+            kind=NodeKind.FORMULA,
+            output_ports=[
+                OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions'),
+            ],
+        ),
+    )
+    NodeEdge.objects.create(
+        instance=empty_db_instance,
+        from_node=other,
+        to_node=dst,
+        from_port=_pu('default'),
+        to_port=_pu('existing_a'),
+    )
+    NodeEdge.objects.create(
+        instance=empty_db_instance,
+        from_node=other,
+        to_node=dst,
+        from_port=_pu('default'),
+        to_port=_pu('existing_b'),
+    )
+
+    gql_client.query_data(
+        CREATE_EDGE,
+        variables={
+            'instanceId': str(empty_db_instance.pk),
+            'input': {
+                'instanceId': str(empty_db_instance.pk),
+                'fromNodeId': src.identifier,
+                'toNodeId': dst.identifier,
+                # toPort omitted — auto-create is expected
+            },
+        },
+    )
+
+    # Target now has 3 input ports (two existing + one fresh).
+    # Default manager defers `spec` — refetch explicitly via with_spec().
+    dst_with_spec = NodeConfig.objects.with_spec().get(pk=dst.pk)
+    assert dst_with_spec.spec is not None
+    assert len(dst_with_spec.spec.input_ports) == 3
+
+    # The new edge wires to the freshly-added port.
+    new_edge = NodeEdge.objects.filter(instance=empty_db_instance, from_node=src, to_node=dst).first()
+    assert new_edge is not None
+    assert new_edge.to_port == dst_with_spec.spec.input_ports[-1].id
+
+    # One change operation with two entries: node.update + edge.create.
+    op = InstanceChangeOperation.objects.filter(instance_config=empty_db_instance, action='edge.create').first()
+    assert op is not None
+    entries = list(InstanceModelLogEntry.objects.filter(operation=op).order_by('id'))
+    actions = [e.action for e in entries]
+    assert actions == ['node.update', 'edge.create']
+    # The node.update entry pins the before/after input-port counts.
+    node_update = entries[0]
+    assert len(node_update.data['before']['spec']['input_ports']) == 2
+    assert len(node_update.data['after']['spec']['input_ports']) == 3
+
+
+def test_poc_create_dimension_category_emits_change_operation(
+    gql_client,
+    empty_db_instance: InstanceConfig,
+):
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import DimensionScope
+    from kausal_common.datasets.tests.factories import DimensionFactory
+
+    from nodes.models import InstanceChangeOperation, InstanceModelLogEntry
+
+    dim = DimensionFactory.create(name='Sector')
+    DimensionScope.objects.create(
+        dimension=dim,
+        scope_content_type=ContentType.objects.get_for_model(empty_db_instance),
+        scope_id=empty_db_instance.pk,
+        identifier='sector',
+    )
+
+    gql_client.query_data(
+        CREATE_DIMENSION_CATEGORIES,
+        variables={
+            'instanceId': str(empty_db_instance.pk),
+            'input': [{'dimensionId': str(dim.uuid), 'identifier': 'energy', 'label': 'Energy'}],
+        },
+    )
+
+    op = InstanceChangeOperation.objects.filter(instance_config=empty_db_instance, action='dimension.categories.create').first()
+    assert op is not None
+    entries = list(InstanceModelLogEntry.objects.filter(operation=op))
+    assert len(entries) == 1
+    assert entries[0].action == 'dimension.categories.create'
+    assert entries[0].data['before'] is None
+    assert entries[0].data['after']['identifier'] == 'energy'
+    assert entries[0].data['after']['dimension_uuid'] == str(dim.uuid)

@@ -159,7 +159,7 @@ class Subscription:
                 ic = await InstanceConfig.objects.qs.filter(pk=msg['pk']).viewable_by(user).afirst()
                 if ic is None:
                     continue
-                yield InstanceChange(id=sb.ID(str(ic.pk)), identifier=ic.identifier, modified_at=ic.modified_at)
+                yield InstanceChange(id=sb.ID(str(ic.uuid)), identifier=ic.identifier, modified_at=ic.modified_at)
 
 
 @sb.type

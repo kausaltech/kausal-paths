@@ -354,7 +354,7 @@ def test_update_node_direct_fields(gql_client: PathsTestClient, db_instance_conf
         UPDATE_NODE,
         variables={
             'instanceId': str(db_instance_config.pk),
-            'nodeId': str(nc.pk),
+            'nodeId': str(nc.uuid),
             'input': {
                 'name': 'Updated',
                 'color': '#00ff00',
@@ -560,7 +560,7 @@ def test_delete_node(gql_client: PathsTestClient, db_instance_config: InstanceCo
 
     gql_client.query_data(
         DELETE_NODE,
-        variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(node_pk)},
+        variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid)},
     )
     # query_data asserts no errors; just verify the node is gone
     assert not NodeConfig.objects.filter(pk=node_pk).exists()
@@ -656,7 +656,7 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     edge_obj = NodeEdge.objects.get(instance=db_instance_config, from_node=nc_a, to_node=nc_b)
     data = gql_client.query_data(
         DELETE_EDGE,
-        variables={'instanceId': str(db_instance_config.pk), 'edgeId': str(edge_obj.pk)},
+        variables={'instanceId': str(db_instance_config.pk), 'edgeId': str(edge_obj.uuid)},
     )
     assert data['instanceEditor']['deleteEdge'] is None
     assert not NodeEdge.objects.filter(pk=edge_obj.pk).exists()
@@ -703,7 +703,7 @@ def test_delete_edge_cannot_cross_instance_boundary(client, db_instance_config: 
     gql_client.set_instance(allowed_instance)
     gql_client.query_errors(
         DELETE_EDGE,
-        variables={'instanceId': str(allowed_instance.pk), 'edgeId': str(edge.pk)},
+        variables={'instanceId': str(allowed_instance.pk), 'edgeId': str(edge.uuid)},
         assert_error_message='Edge not found',
     )
 
@@ -1035,7 +1035,7 @@ def test_update_node_roundtrip(gql_client: PathsTestClient, db_instance_config: 
         UPDATE_NODE,
         variables={
             'instanceId': str(db_instance_config.pk),
-            'nodeId': str(nc.pk),
+            'nodeId': str(nc.uuid),
             'input': {
                 'name': 'After',
                 'color': '#abcdef',
@@ -1226,7 +1226,7 @@ def test_delete_node_roundtrip(gql_client: PathsTestClient, db_instance_config: 
 
     gql_client.query_data(
         DELETE_NODE,
-        variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.pk)},
+        variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid)},
     )
 
     ctx = _rebuild_from_db(db_instance_config)
