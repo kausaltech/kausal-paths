@@ -707,6 +707,8 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         if self.has_framework_config():
             fwc = self.framework_config
             instance = fwc.create_model_instance(self)
+            with sentry_sdk.start_span(name='update-instance-from-configs: %s' % self.identifier, op='function'):
+                self.update_instance_from_configs(instance, node_refs=node_refs)
         else:
             config_fn = Path(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
             self.log.debug('Creating instance from YAML file: %s' % config_fn)
