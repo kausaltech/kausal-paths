@@ -964,3 +964,179 @@ def test_null_version_skips_check(gql_client, empty_db_instance: InstanceConfig)
         },
     )
     assert empty_db_instance.nodes.filter(identifier='null_version_still_ok').exists()
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 (#1): resolver split — PreferredInstanceSource plumbing
+# ---------------------------------------------------------------------------
+
+
+def test_preferred_instance_source_enum_values():
+    """Enum members serialize to the exact literals _create_from_config expects."""
+    from nodes.models import PreferredInstanceSource
+
+    assert PreferredInstanceSource.DRAFT.value == 'draft'
+    assert PreferredInstanceSource.PUBLISHED.value == 'published'
+    # StrEnum equality with raw strings — callers can pass either form.
+    assert PreferredInstanceSource.DRAFT == 'draft'
+    assert PreferredInstanceSource.PUBLISHED == 'published'
+
+
+def test_published_source_falls_back_when_no_revision(empty_db_instance: InstanceConfig):
+    """
+    PUBLISHED on an instance that's never been published falls through to draft.
+
+    Prevents 500s on freshly-created instances where the editor UI might
+    pre-emptively request the published view.
+    """
+    from nodes.models import PreferredInstanceSource
+
+    instance = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    assert instance is not None
+    assert instance.id == empty_db_instance.identifier
+
+
+def test_published_source_uses_snapshot_after_publish(empty_db_instance: InstanceConfig):
+    """
+    After publish, draft edits are invisible to PUBLISHED readers.
+
+    This is the observable shape of the draft/publish split: the snapshot
+    captures state at publish time; subsequent draft writes don't leak to
+    the published surface.
+    """
+    from nodes.defs.node_defs import NodeKind, NodeSpec as NodeSpecDef
+    from nodes.defs.port_def import OutputPortDef
+    from nodes.models import NodeConfig, PreferredInstanceSource
+    from nodes.tests.test_model_editor import _port_uuid as _pu
+    from nodes.units import unit_registry
+
+    unit = unit_registry.parse_units('kt/a')
+    NodeConfig.objects.create(
+        instance=empty_db_instance,
+        identifier='pub_baseline',
+        name='Pub baseline',
+        spec=NodeSpecDef(
+            kind=NodeKind.FORMULA,
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+        ),
+    )
+    revision = empty_db_instance.save_revision(clean=False)
+    empty_db_instance.publish(revision)
+    empty_db_instance.refresh_from_db()
+
+    NodeConfig.objects.create(
+        instance=empty_db_instance,
+        identifier='draft_only',
+        name='Draft only',
+        spec=NodeSpecDef(
+            kind=NodeKind.FORMULA,
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+        ),
+    )
+
+    published = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    draft = empty_db_instance._create_from_config(source=PreferredInstanceSource.DRAFT)
+
+    assert 'pub_baseline' in published.context.nodes
+    assert 'draft_only' not in published.context.nodes
+    assert 'pub_baseline' in draft.context.nodes
+    assert 'draft_only' in draft.context.nodes
+
+
+def test_default_source_serves_draft_tables(empty_db_instance: InstanceConfig):
+    """Backwards compat: no-arg _create_from_config keeps today's draft behavior."""
+    from nodes.defs.node_defs import NodeKind, NodeSpec as NodeSpecDef
+    from nodes.defs.port_def import OutputPortDef
+    from nodes.models import NodeConfig
+    from nodes.tests.test_model_editor import _port_uuid as _pu
+    from nodes.units import unit_registry
+
+    unit = unit_registry.parse_units('kt/a')
+    NodeConfig.objects.create(
+        instance=empty_db_instance,
+        identifier='default_node',
+        name='Default',
+        spec=NodeSpecDef(
+            kind=NodeKind.FORMULA,
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+        ),
+    )
+
+    instance = empty_db_instance._create_from_config()  # default source=DRAFT
+    assert 'default_node' in instance.context.nodes
+
+
+def test_directive_draft_preview_anon_rejected(client, empty_db_instance: InstanceConfig):
+    """`@instance(preview: DRAFT)` from an anon caller fails with permission_denied."""
+    from paths.tests.graphql import PathsTestClient
+
+    tc = PathsTestClient(client)
+    # No login — anonymous
+
+    query = f"""
+    query Q @instance(identifier: "{empty_db_instance.identifier}", preview: DRAFT) {{
+        instance {{ id }}
+    }}
+    """
+    errors = tc.query_errors(query)
+    assert len(errors) >= 1
+    codes = {(e.get('extensions') or {}).get('code') for e in errors}
+    assert 'permission_denied' in codes
+
+
+def test_resolve_preview_default_picks_published_when_revision_exists(empty_db_instance: InstanceConfig):
+    """Default (no directive arg) serves PUBLISHED if the DB instance has been published."""
+    from paths.schema_context import ActivateInstanceContextExtension
+
+    # Fresh instance, no revision → default should fall back to DRAFT.
+    ext = ActivateInstanceContextExtension.__new__(ActivateInstanceContextExtension)
+    ctx = _make_fake_ctx(preview_mode=None, user=None)
+    from nodes.models import PreferredInstanceSource
+
+    assert ext._resolve_preview_source(empty_db_instance, ctx) == PreferredInstanceSource.DRAFT
+
+    # Stamp a live revision (empty payload is fine; we're only testing the
+    # source-selection branch, not hydration).
+    revision = empty_db_instance.save_revision(clean=False)
+    empty_db_instance.publish(revision)
+    empty_db_instance.refresh_from_db()
+
+    assert empty_db_instance.live_revision_id is not None
+    assert ext._resolve_preview_source(empty_db_instance, ctx) == PreferredInstanceSource.PUBLISHED
+
+
+def test_resolve_preview_yaml_source_always_draft(empty_db_instance: InstanceConfig):
+    """Non-DB instances ignore the directive and always serve DRAFT without perm check."""
+    from paths.schema import PreviewMode
+    from paths.schema_context import ActivateInstanceContextExtension
+
+    from nodes.models import PreferredInstanceSource
+
+    empty_db_instance.config_source = 'yaml'
+    empty_db_instance.save()
+
+    ext = ActivateInstanceContextExtension.__new__(ActivateInstanceContextExtension)
+
+    # All three directive values collapse to DRAFT for YAML sources, including
+    # explicit DRAFT from an anonymous caller — no perm check fires.
+    for mode in (None, PreviewMode.DRAFT, PreviewMode.PUBLISHED):
+        ctx = _make_fake_ctx(preview_mode=mode, user=None)
+        assert ext._resolve_preview_source(empty_db_instance, ctx) == PreferredInstanceSource.DRAFT
+
+
+def _make_fake_ctx(*, preview_mode, user):
+    """Minimal stand-in for PathsGraphQLContext that _resolve_preview_source uses."""
+
+    class _FakeCtx:
+        def __init__(self):
+            self.preview_mode = preview_mode
+            self._user = user
+
+        def get_user(self):
+            if self._user is not None:
+                return self._user
+            from django.contrib.auth.models import AnonymousUser
+
+            return AnonymousUser()
+
+    return _FakeCtx()
