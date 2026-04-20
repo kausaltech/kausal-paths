@@ -5,6 +5,7 @@ import threading
 import uuid
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
+from enum import StrEnum
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypedDict, cast
@@ -312,6 +313,24 @@ instance_context: ContextVar[Instance | None] = ContextVar('instance_context', d
 """Global instance context for e.g. GraphQL queries."""
 
 
+class PreferredInstanceSource(StrEnum):
+    """
+    Which slice of a DB-sourced ``InstanceConfig`` to hydrate.
+
+    ``DRAFT`` reads the current editor tables (``NodeConfig`` / ``NodeEdge``
+    / ``DatasetPort`` + ``InstanceConfig.spec``). ``PUBLISHED`` reads the
+    latest live ``Revision``'s ``InstanceSnapshot`` payload, falling back
+    to ``DRAFT`` if no revision has been published yet.
+
+    The enum values are the exact strings accepted by
+    ``_create_from_config(source=...)`` so callers can pass either a
+    member or the underlying literal without conversion.
+    """
+
+    DRAFT = 'draft'
+    PUBLISHED = 'published'
+
+
 def make_empty_instance_spec() -> InstanceSpec:
     return InstanceSpec(primary_language='en')
 
@@ -420,8 +439,15 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
     change_operations: RevMany[InstanceChangeOperation]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
+    live_revision_id: int | None  # from DraftStateMixin; id-side of ``live_revision`` FK
     organization_id: int
     site_content: RevOne[InstanceConfig, InstanceSiteContent]
+
+    # Backing storage for the ``nodes_for_serialization`` property. ``None``
+    # means "not yet computed or explicitly invalidated, recompute on next
+    # read". ``_create_from_config`` clears it so hydrate calls that follow
+    # a post-publish edit see the current DB state.
+    _nodes_for_serialization: list[NodeConfig] | None
 
     search_fields = [
         index.SearchField('identifier'),
@@ -528,23 +554,76 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             self.other_languages = list(other_langs)
 
     def serializable_data(self) -> dict[str, Any]:
-        """Override Wagtail's serializable_data to include full model snapshot for DB-sourced instances."""
-        data = super().serializable_data()
-        if self.config_source == 'database':
-            from .instance_from_db import serialize_instance_to_dict
-            from .instance_serialization import SNAPSHOT_SCHEMA_VERSION, build_instance_snapshot
+        """
+        Revision payload for a DB-sourced InstanceConfig.
 
-            # The structured snapshot is the canonical record of model state.
-            # The YAML-equivalent dict is stored alongside so InstanceLoader
-            # can hydrate directly without a structured→dict converter. Both
-            # fields are kept in sync and can collapse to one once hydrate
-            # from structured lands.
+        Deliberately *not* a ``super()`` call: Wagtail's default dumps every
+        concrete field, which for this model includes both ``name`` and
+        the modeltrans-synthesized ``name_i18n``. Modeltrans rejects
+        round-tripping that duplication (``Attempted override of 'name'
+        with 'name_i18n'``). ``name_i18n`` is a view-time projection of
+        ``i18n`` under the active language anyway, so it doesn't belong
+        in persisted revision content.
+
+        Trailhead's restore path is ``_create_from_published_revision``,
+        which reads ``model_snapshot.hydrate_dict`` directly — so the only
+        load-bearing key below is ``model_snapshot``. The other fields
+        exist for admin-side revision diffs and for
+        ``from_serializable_data`` to look up the live row by pk.
+        """
+        from .instance_from_db import serialize_instance_to_dict
+        from .instance_serialization import SNAPSHOT_SCHEMA_VERSION, build_instance_snapshot
+
+        data: dict[str, Any] = {
+            'pk': self.pk,
+            'identifier': self.identifier,
+            'config_source': self.config_source,
+        }
+        if self.config_source == 'database':
             data['model_snapshot'] = {
                 'schema_version': SNAPSHOT_SCHEMA_VERSION,
                 'structured': build_instance_snapshot(self).model_dump(mode='json'),
                 'hydrate_dict': serialize_instance_to_dict(self),
             }
         return data
+
+    @classmethod
+    def from_serializable_data(
+        cls,
+        data: dict[str, Any],
+        check_fks: bool = True,  # noqa: ARG003
+        strict_fks: bool = False,  # noqa: ARG003
+    ) -> InstanceConfig:
+        """
+        Return the live DB row for ``pk`` / ``identifier`` in ``data``.
+
+        Wagtail's contract is "reconstruct the model's historical state
+        from the revision blob" (Option B in the design discussion). We
+        take a pragmatic shortcut: Trailhead's authoritative restore path
+        is ``_create_from_published_revision``, which rebuilds the
+        in-memory ``Instance`` from ``model_snapshot.hydrate_dict``. The
+        ``InstanceConfig`` row itself is never reverted — its metadata
+        (name, site, permissions) is the responsibility of the live row.
+        Nothing downstream currently reads the object returned here, so
+        returning the live row keeps ``with_content_json`` non-crashy
+        without inventing reconstruction logic we don't use.
+
+        If a future admin surface wants to preview historical revision
+        state, revisit this to rebuild from ``data['model_snapshot']``.
+        """
+        pk = data.get('pk')
+        if pk is not None:
+            row = cls.objects.filter(pk=pk).first()
+            if row is not None:
+                return row
+        identifier = data.get('identifier')
+        if identifier:
+            row = cls.objects.filter(identifier=identifier).first()
+            if row is not None:
+                return row
+        # No live row to return — construct a blank instance so callers
+        # don't crash. This branch is unexpected in practice.
+        return cls(pk=pk, identifier=identifier or '')
 
     def clear_model_editor_data(self) -> None:
         """Delete all model editor related objects (edges, dataset ports) and reset spec."""
@@ -601,12 +680,17 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
     def _create_from_config(
         self,
         node_refs: bool = False,
-        source: Literal['draft', 'published'] = 'draft',
+        source: PreferredInstanceSource | Literal['draft', 'published'] = PreferredInstanceSource.DRAFT,
     ) -> Instance:
         from .instance_loader import InstanceLoader
 
+        # Defensively invalidate the cached node list: a prior read might
+        # have warmed it before a post-publish edit, and we want to see
+        # current DB state here.
+        self._nodes_for_serialization = None
+
         if self.config_source == 'database':
-            if source == 'published':
+            if source == PreferredInstanceSource.PUBLISHED:
                 instance = self._create_from_published_revision(node_refs=node_refs)
                 if instance is not None:
                     return instance
@@ -634,11 +718,21 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
 
         return instance
 
-    def _initialize_instance(self, node_refs: bool = False) -> Instance:
-        self.log.info('Creating new instance from %s' % ('database' if self.config_source == 'database' else 'YAML config'))
+    def _initialize_instance(
+        self,
+        node_refs: bool = False,
+        source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+    ) -> Instance:
+        self.log.info(
+            'Creating new instance from %s (source=%s)'
+            % (
+                'database' if self.config_source == 'database' else 'YAML config',
+                source.value,
+            )
+        )
 
         with sentry_sdk.start_span(name='create-instance-from-config: %s' % self.identifier, op='function'):
-            instance = self._create_from_config(node_refs=node_refs)
+            instance = self._create_from_config(node_refs=node_refs, source=source)
 
         instance.modified_at = timezone.now()
         if settings.ENABLE_PERF_TRACING:
@@ -652,11 +746,14 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         scope.set_tag('instance_uuid', str(self.uuid))
 
     @contextmanager
-    def enter_instance_context(self):
+    def enter_instance_context(
+        self,
+        source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+    ):
         if self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
-            instance = self._initialize_instance(node_refs=True)
+            instance = self._initialize_instance(node_refs=True, source=source)
 
         token = instance_context.set(instance)
         try:
@@ -667,11 +764,14 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             instance_context.reset(token)
 
     @asynccontextmanager
-    async def enter_instance_context_async(self):
+    async def enter_instance_context_async(
+        self,
+        source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+    ):
         if self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
-            instance = await sync_to_async(self._initialize_instance)(node_refs=True)
+            instance = await sync_to_async(self._initialize_instance)(node_refs=True, source=source)
 
         token = instance_context.set(instance)
         try:
@@ -681,22 +781,33 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         finally:
             instance_context.reset(token)
 
-    def _get_instance(self, node_refs: bool = False) -> Instance:
+    def _get_instance(
+        self,
+        node_refs: bool = False,
+        source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+    ) -> Instance:
         if self.identifier in _pytest_instances:
             return _pytest_instances[self.identifier]
 
         current_instance = instance_context.get()
         if current_instance is not None and current_instance.id == self.identifier:
+            # Trust the ContextVar: whoever entered the request-scoped
+            # context already chose a source, and all in-request resolvers
+            # should see the same Instance.
             return current_instance
 
         with instance_cache_lock:
-            instance = self._initialize_instance(node_refs=node_refs)
+            instance = self._initialize_instance(node_refs=node_refs, source=source)
         return instance
 
-    def get_instance(self, node_refs: bool = False) -> Instance:
+    def get_instance(
+        self,
+        node_refs: bool = False,
+        source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+    ) -> Instance:
         # Unit tests will set the Instance to `_instance` so that we don't need
         # to read the YAML configs
-        instance = self._get_instance(node_refs=node_refs)
+        instance = self._get_instance(node_refs=node_refs, source=source)
         return instance
 
     def get_name(self) -> str:
@@ -971,9 +1082,24 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             },
         )
 
-    @cached_property
+    @property
     def nodes_for_serialization(self) -> list[NodeConfig]:
-        return list(self.nodes.get_queryset().for_serialization())
+        """
+        Node rows laid out for serialization, with a manual lazy cache.
+
+        Not a ``cached_property``: hydrate paths (``_create_from_config``)
+        clear ``_nodes_for_serialization`` at entry so the next read sees
+        any post-publish edits. In production each request gets a fresh
+        InstanceConfig row, but the same object is reused across
+        save_revision/publish/hydrate in tests and in any future code
+        that holds the row across a commit.
+        """
+        cached = getattr(self, '_nodes_for_serialization', None)
+        if cached is not None:
+            return cached
+        fresh = list(self.nodes.get_queryset().for_serialization())
+        self._nodes_for_serialization = fresh
+        return fresh
 
     @cached_property
     def log(self) -> Logger:
