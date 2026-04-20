@@ -23,7 +23,7 @@ read-side of phase 5's history surface.
 | 1 — Snapshot schema | ✅ Landed | `InstanceSnapshot`, `InstanceExport { instance, datasets }`, `*Snapshot` Pydantic types with `from_model`, `build_instance_snapshot`, hydrate-from-revision branch on `_create_from_config(source='published')`. Commit `6f5e8915`. |
 | 2 — Change tracking | ✅ Landed | `InstanceChangeOperation` + `InstanceModelLogEntry` models, `change_operation()` / `record_change()` / ContextVar carrier, `EditableInstanceChild` superclass applied to `NodeConfig` / `NodeEdge` / `DatasetPort`, `RevisionMixin` added to `Dataset` (kausal_common). Commits `6f5e8915` (+ superclass refactor). |
 | 2.5 — PoC on node.create/update/delete | ✅ Landed | All three node mutations wired; cascade delete groups correctly. Commit `6f5e8915`. |
-| 3 — Mutation layer refactor | 🟡 Partial | See [Phase 3 status notes](#phase-3-status-notes) below. Done: most edit mutations wired through `change_operation` (edges, dimensions, datapoints, port-level). Open: version-token directive, `@preview` directive, stale-check enforcement, uniform `MutationPayload`. |
+| 3 — Mutation layer refactor | 🟡 Mostly done | See [Phase 3 status notes](#phase-3-status-notes) below. Done: all edit mutations routed through `change_operation`; `draftHeadToken`, `@instance(version, preview)` directive args, `PreviewMode` enum, `StaleVersionError` optimistic-locking check. Open: uniform `MutationPayload` (Phase 4), `apply_snapshot` (Phase 5). |
 | 4 — Resolver split & compute invalidation | ⚪ Not started | — |
 | 5 — Publish / revert / undo / named drafts | 🟡 Read-side only | History GraphQL surface landed (`InstanceEditor.changeHistory`, `EditableEntity.changeHistory`). Mutations (publish / revert / undo / save_draft) not yet implemented. |
 | 6 — Permissions & migration | ⚪ Not started | — |
@@ -103,11 +103,13 @@ Used to validate the chain end-to-end against a live DB.
 | Closed mutation set & inverses enumerated | ✅ Enumerated in plan, inverses not yet implemented (Phase 5 dependency) |
 | Typed `EdgeTransformationInput` | ✅ |
 | Port mutations (`addNodeInputPort` / `addNodeOutputPort`) | ✅ |
-| `draft_head_token` property on `InstanceConfig` | ⚪ Not started |
-| `@instance(version: UUID, preview: String)` directive extension | ⚪ Not started |
-| Stale-version check with `SELECT FOR UPDATE` | ⚪ Not started |
-| Uniform `MutationPayload { ok, ...entity, newHeadToken, invalidatedNodeIds }` | ⚪ Not started (invalidation depends on Phase 4) |
-| `apply_snapshot` / `from_serializable_data` classmethod impl | ⚪ Stub only |
+| `draft_head_token` property on `InstanceConfig` | ✅ Exposed as `InstanceEditor.draftHeadToken` |
+| `@instance(version: UUID, preview: PreviewMode)` directive extension | ✅ `preview` is an enum (DRAFT/PUBLISHED), not a string |
+| `version` arg on `instanceEditor(instanceId, version)` root mutation | ✅ Additive; threaded through the editor entry point |
+| Stale-version check with `SELECT FOR UPDATE` | ✅ `change_operation(expected_version=...)` + `StaleVersionError` with `code: stale_version`, `expectedHeadToken`, `currentHeadToken`, `latestOperations` in extensions |
+| `gql_change_operation(info, ic, action)` convenience wrapper | ✅ Reads user + expected_version from info.context |
+| Uniform `MutationPayload { ok, ...entity, newHeadToken, invalidatedNodeIds }` | ⚪ Deferred to Phase 4 (invalidation depends on descendant walker) |
+| `apply_snapshot` / `from_serializable_data` classmethod impl | ⚪ Deferred to Phase 5 (lands with undo/revert callers) |
 
 ### Known open items
 
@@ -275,7 +277,14 @@ to override.
   **`@context`** directives (see [paths/schema.py:48-75](../../../paths/schema.py#L48-L75)),
   *not* as an HTTP header. GraphQL conventions reject transport-coupled
   metadata; a directive stays transport-neutral. The same directive also
-  carries `preview: "draft" | "published"` (see §4 below).
+  carries `preview: PreviewMode` (see §4 below) — a proper GraphQL enum
+  (DRAFT / PUBLISHED) rather than a free-form string, so invalid values
+  are rejected at schema-validation time.
+- The `instanceEditor(instanceId, version)` root mutation field carries
+  the same `version` arg for clients that don't use the `@instance`
+  directive on mutations (current frontend pattern); the resolver stashes
+  it on `info.context.expected_version` so nested child mutations go
+  through the same `gql_change_operation` wrapper path.
 
 ### Transport-neutral carrier for the active change operation
 

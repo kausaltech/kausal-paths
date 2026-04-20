@@ -417,6 +417,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
     datasets: RevMany[DatasetModel]
     edges: RevMany[NodeEdge]
     dataset_ports: RevMany[DatasetPort]
+    change_operations: RevMany[InstanceChangeOperation]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
     organization_id: int
@@ -551,6 +552,19 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         self.dataset_ports.all().delete()
         self.nodes.update(spec='{}')
         self.spec = InstanceSpec(primary_language=self.primary_language, other_languages=list(self.other_languages or []))
+
+    @property
+    def draft_head_token(self) -> UUID | None:
+        """
+        UUID of the most recent ``InstanceChangeOperation`` for this instance.
+
+        This is the optimistic-locking token: every editing mutation passes
+        the token it observed, and the server rejects the write if the
+        current head has advanced. ``None`` means no edits have ever been
+        recorded (fresh instance, or all operations deleted).
+        """
+        latest = self.change_operations.only('uuid').order_by('-created_at').first()
+        return latest.uuid if latest is not None else None
 
     def publish_instance(self, user: User | None = None) -> None:
         """Serialize the current model state and publish as a Wagtail revision."""
@@ -1589,6 +1603,7 @@ class InstanceChangeOperation(UUIDIdentifiedModel):
         blank=True,
         related_name='+',
     )
+    user_id: int | None
     action = models.CharField(
         max_length=100,
         help_text="Top-level action that triggered the operation, e.g. 'node.delete'.",

@@ -666,7 +666,7 @@ class InstanceEditorMutation:
     @gql.mutation(description='Create a new node in the model', graphql_type=AnyNodeType)
     @staticmethod
     def create_node(info: gql.Info, root: sb.Parent[Me], input: CreateNodeInput) -> Node:
-        from nodes.change_ops import change_operation, record_change
+        from nodes.change_ops import gql_change_operation, record_change
 
         ic = root.instance
         if not NodeConfig.gql_create_allowed(info, ic):
@@ -725,8 +725,7 @@ class InstanceEditorMutation:
         if nc is not None:
             raise GraphQLValidationError(info, 'Node with identifier %s already exists' % input.identifier)
 
-        user = getattr(info.context, 'user', None)
-        with change_operation(ic, user=user, action='node.create'):
+        with gql_change_operation(info, ic, action='node.create'):
             nc = ic.nodes.create(
                 identifier=input.identifier,
                 name=input.name or input.identifier,
@@ -745,13 +744,12 @@ class InstanceEditorMutation:
     @gql.mutation(description='Update an existing node', graphql_type=AnyNodeType)
     @staticmethod
     def update_node(info: gql.Info, root: sb.Parent[Me], node_id: sb.ID, input: UpdateNodeInput) -> Node:
-        from nodes.change_ops import change_operation, record_change
+        from nodes.change_ops import gql_change_operation, record_change
 
         ic = root.instance
         nc = InstanceEditorMutation._lookup_node(info, ic, node_id)
 
-        user = getattr(info.context, 'user', None)
-        with change_operation(ic, user=user, action='node.update'):
+        with gql_change_operation(info, ic, action='node.update'):
             before = nc.serializable_data()
 
             spec = nc.spec
@@ -783,7 +781,7 @@ class InstanceEditorMutation:
     def delete_node(root: sb.Parent[Me], info: gql.Info, node_id: sb.ID) -> None:
         from django.db.models import Q
 
-        from nodes.change_ops import change_operation, record_change
+        from nodes.change_ops import gql_change_operation, record_change
         from nodes.models import DatasetPort, NodeEdge
 
         ic = root.instance
@@ -791,8 +789,7 @@ class InstanceEditorMutation:
         if not nc.gql_action_allowed(info, 'delete'):
             raise PermissionDeniedError(info, 'Permission denied for delete')
 
-        user = getattr(info.context, 'user', None)
-        with change_operation(ic, user=user, action='node.delete'):
+        with gql_change_operation(info, ic, action='node.delete'):
             # Log cascade-delete entries BEFORE the DB CASCADE wipes the rows,
             # while pks are still valid. After the ``nc.delete()`` call below,
             # only the IMLE rows carry the pre-state.
@@ -851,7 +848,7 @@ class InstanceEditorMutation:
     @gql.mutation(description='Create a new edge between nodes')
     @staticmethod
     def create_edge(info: gql.Info, input: CreateEdgeInput) -> NodeEdgeType:
-        from nodes.change_ops import change_operation, record_change
+        from nodes.change_ops import gql_change_operation, record_change
         from nodes.models import NodeConfig, NodeEdge
 
         ic = _get_instance_config(info, input.instance_id)
@@ -868,8 +865,7 @@ class InstanceEditorMutation:
         source_port = _get_output_port(from_node, from_port)
         assert source_port is not None  # _resolve_source_port validated it
 
-        user = getattr(info.context, 'user', None)
-        with change_operation(ic, user=user, action='edge.create'):
+        with gql_change_operation(info, ic, action='edge.create'):
             # Target-port resolution may append a new input port to
             # ``to_node`` when ``to_port`` is null; that write must happen
             # inside the change_operation so the resulting ``node.update``
@@ -892,7 +888,7 @@ class InstanceEditorMutation:
     @gql.mutation(description='Delete an edge')
     @staticmethod
     def delete_edge(root: sb.Parent[Me], info: gql.Info, edge_id: sb.ID) -> None:
-        from nodes.change_ops import change_operation, record_change
+        from nodes.change_ops import gql_change_operation, record_change
         from nodes.models import NodeEdge
 
         ic = root.instance
@@ -904,8 +900,7 @@ class InstanceEditorMutation:
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
-        user = getattr(info.context, 'user', None)
-        with change_operation(ic, user=user, action='edge.delete'):
+        with gql_change_operation(info, ic, action='edge.delete'):
             record_change(edge, action='edge.delete', before=edge.serializable_data(), after=None)
             edge.delete()
 
@@ -940,7 +935,7 @@ class InstanceEditorMutation:
     ) -> InputPortDef:
         from uuid import uuid4
 
-        from nodes.change_ops import change_operation, record_change
+        from nodes.change_ops import gql_change_operation, record_change
 
         ic = root.instance
         if ic.config_source != 'database':
@@ -954,8 +949,7 @@ class InstanceEditorMutation:
         if input.id is None:
             new_port = new_port.model_copy(update={'id': uuid4()})
 
-        user = getattr(info.context, 'user', None)
-        with change_operation(ic, user=user, action='node.input_ports.create'):
+        with gql_change_operation(info, ic, action='node.input_ports.create'):
             before = nc.serializable_data()
             nc.spec.input_ports = [*nc.spec.input_ports, new_port]
             NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
@@ -974,7 +968,7 @@ class InstanceEditorMutation:
     ) -> OutputPortDef:
         from uuid import uuid4
 
-        from nodes.change_ops import change_operation, record_change
+        from nodes.change_ops import gql_change_operation, record_change
 
         ic = root.instance
         if ic.config_source != 'database':
@@ -988,8 +982,7 @@ class InstanceEditorMutation:
         if input.id is None:
             new_port = new_port.model_copy(update={'id': uuid4()})
 
-        user = getattr(info.context, 'user', None)
-        with change_operation(ic, user=user, action='node.output_ports.create'):
+        with gql_change_operation(info, ic, action='node.output_ports.create'):
             before = nc.serializable_data()
             nc.spec.output_ports = [*nc.spec.output_ports, new_port]
             NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
@@ -1049,7 +1042,7 @@ class InstanceEditorMutation:
 
     @gql.mutation(description='Update a dimension (e.g. rename)')
     def update_dimension(self, info: gql.Info, root: sb.Parent[Me], input: UpdateDimensionInput) -> DimensionType:
-        from nodes.change_ops import change_operation, record_change
+        from nodes.change_ops import gql_change_operation, record_change
 
         ic = root.instance
         scope = self._get_dimension_scope(info, ic, input.dimension_id)
@@ -1061,8 +1054,7 @@ class InstanceEditorMutation:
         if not updates:
             return DimensionType.from_scope(scope)
 
-        user = getattr(info.context, 'user', None)
-        with change_operation(ic, user=user, action='dimension.update'):
+        with gql_change_operation(info, ic, action='dimension.update'):
             before = self._dimension_snapshot(dim)
             type(dim).objects.filter(pk=dim.pk).update(**updates)
             dim.refresh_from_db()
@@ -1080,7 +1072,7 @@ class InstanceEditorMutation:
     ) -> DimensionType:
         from kausal_common.datasets.models import DimensionCategory
 
-        from nodes.change_ops import change_operation, record_change
+        from nodes.change_ops import gql_change_operation, record_change
 
         if not input:
             raise GraphQLValidationError(info, 'At least one category input is required')
@@ -1095,8 +1087,7 @@ class InstanceEditorMutation:
         dim = scope.dimension
 
         created: list[DimensionCategory] = []
-        user = getattr(info.context, 'user', None)
-        with change_operation(ic, user=user, action='dimension.categories.create'):
+        with gql_change_operation(info, ic, action='dimension.categories.create'):
             for item in input:
                 cat_uuid = item.id.value if is_maybe_set(item.id) else uuid4()
                 identifier = item.identifier.value if is_maybe_set(item.identifier) else None
@@ -1159,7 +1150,7 @@ class InstanceEditorMutation:
     ) -> DimensionType:
         from kausal_common.datasets.models import DimensionCategory, DimensionScope
 
-        from nodes.change_ops import change_operation, record_change
+        from nodes.change_ops import gql_change_operation, record_change
 
         if not input:
             raise GraphQLValidationError(info, 'At least one category input is required')
@@ -1168,8 +1159,7 @@ class InstanceEditorMutation:
         dim = None
         updated: list[tuple[DimensionCategory, dict[str, Any]]] = []
 
-        user = getattr(info.context, 'user', None)
-        with change_operation(ic, user=user, action='dimension.categories.update'):
+        with gql_change_operation(info, ic, action='dimension.categories.update'):
             for item in input:
                 # Snapshot before the update; _apply_category_update issues
                 # the UPDATE and returns the (stale) in-memory instance.
@@ -1211,7 +1201,7 @@ class InstanceEditorMutation:
     def delete_dimension_category(self, info: gql.Info, root: sb.Parent[Me], category_id: UUID) -> None:
         from kausal_common.datasets.models import DimensionCategory, DimensionScope
 
-        from nodes.change_ops import change_operation, record_change
+        from nodes.change_ops import gql_change_operation, record_change
 
         cat = DimensionCategory.objects.filter(uuid=category_id).select_related('dimension').first()
         if cat is None:
@@ -1222,8 +1212,7 @@ class InstanceEditorMutation:
         if scope is None:
             raise GraphQLError('Category does not belong to this instance')
 
-        user = getattr(info.context, 'user', None)
-        with change_operation(ic, user=user, action='dimension.category.delete'):
+        with gql_change_operation(info, ic, action='dimension.category.delete'):
             record_change(
                 cat,
                 action='dimension.category.delete',
@@ -1275,10 +1264,29 @@ class InstanceEditorMutation:
 class ModelEditorMutation:
     @sb.field(description='Edit the nodes and edges of an instance')
     @staticmethod
-    def instance_editor(info: gql.Info, instance_id: sb.ID) -> InstanceEditorMutation:
+    def instance_editor(
+        info: gql.Info,
+        instance_id: sb.ID,
+        version: Annotated[
+            UUID | None,
+            sb.argument(
+                description=(
+                    'Optimistic-locking token — the `draftHeadToken` observed at read time. '
+                    'Editing mutations rejected with a stale-version error if the head has advanced. '
+                    'Optional during rollout; will become required once clients migrate.'
+                ),
+            ),
+        ] = None,
+    ) -> InstanceEditorMutation:
         ic = _get_instance_config(info, instance_id)
         if not ic.gql_action_allowed(info, 'change'):
             raise PermissionDeniedError(info, 'Model editor access denied')
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
+        # Stash the expected version on the context so child mutations can
+        # read it through ``gql_change_operation``. Directive-level
+        # `@instance(version: ...)` callers set this too; last-writer-wins
+        # when both are present.
+        if version is not None:
+            info.context.expected_version = version
         return InstanceEditorMutation(instance=ic)

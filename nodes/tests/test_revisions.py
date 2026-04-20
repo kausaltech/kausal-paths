@@ -841,3 +841,126 @@ def test_poc_create_dimension_category_emits_change_operation(
     assert entries[0].data['before'] is None
     assert entries[0].data['after']['identifier'] == 'energy'
     assert entries[0].data['after']['dimension_uuid'] == str(dim.uuid)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: optimistic locking via draftHeadToken + @instance(version)
+# ---------------------------------------------------------------------------
+
+
+CREATE_NODE_WITH_VERSION = """
+mutation CreateNode($instanceId: ID!, $version: UUID, $input: CreateNodeInput!) {
+    instanceEditor(instanceId: $instanceId, version: $version) {
+        createNode(input: $input) {
+            ... on NodeInterface { identifier }
+            ... on OperationInfo { messages { kind message } }
+        }
+    }
+}
+"""
+
+
+def test_draft_head_token_advances_after_mutation(gql_client, empty_db_instance: InstanceConfig):
+    """Each successful mutation produces a new InstanceChangeOperation, moving the head."""
+    assert empty_db_instance.draft_head_token is None
+
+    gql_client.query_data(
+        CREATE_NODE_WITH_VERSION,
+        variables={
+            'instanceId': str(empty_db_instance.pk),
+            'version': None,
+            'input': _make_formula_node_input('token_advance_1'),
+        },
+    )
+    empty_db_instance.refresh_from_db()
+    first_token = empty_db_instance.draft_head_token
+    assert first_token is not None
+
+    gql_client.query_data(
+        CREATE_NODE_WITH_VERSION,
+        variables={
+            'instanceId': str(empty_db_instance.pk),
+            'version': str(first_token),
+            'input': _make_formula_node_input('token_advance_2'),
+        },
+    )
+    empty_db_instance.refresh_from_db()
+    second_token = empty_db_instance.draft_head_token
+    assert second_token is not None
+    assert second_token != first_token
+
+
+def test_stale_version_rejected_with_extensions(gql_client, empty_db_instance: InstanceConfig):
+    """A mutation carrying an out-of-date version is rejected with stale_version code."""
+    gql_client.query_data(
+        CREATE_NODE_WITH_VERSION,
+        variables={
+            'instanceId': str(empty_db_instance.pk),
+            'version': None,
+            'input': _make_formula_node_input('stale_baseline'),
+        },
+    )
+    empty_db_instance.refresh_from_db()
+    observed_token = empty_db_instance.draft_head_token
+    assert observed_token is not None
+
+    # Second client advances the head without re-reading
+    gql_client.query_data(
+        CREATE_NODE_WITH_VERSION,
+        variables={
+            'instanceId': str(empty_db_instance.pk),
+            'version': str(observed_token),
+            'input': _make_formula_node_input('stale_advance'),
+        },
+    )
+    empty_db_instance.refresh_from_db()
+    current_token = empty_db_instance.draft_head_token
+    assert current_token is not None
+    assert current_token != observed_token
+
+    # Third mutation uses the *old* token → rejected
+    errors = gql_client.query_errors(
+        CREATE_NODE_WITH_VERSION,
+        variables={
+            'instanceId': str(empty_db_instance.pk),
+            'version': str(observed_token),
+            'input': _make_formula_node_input('stale_rejected'),
+        },
+    )
+    assert len(errors) == 1
+    ext = errors[0].get('extensions') or {}
+    assert ext.get('code') == 'stale_version'
+    assert ext.get('expectedHeadToken') == str(observed_token)
+    assert ext.get('currentHeadToken') == str(current_token)
+    # latestOperations should carry at least one entry (the intervening advance).
+    latest = ext.get('latestOperations') or []
+    assert len(latest) >= 1
+    assert all('uuid' in op and 'action' in op for op in latest)
+
+    # Side-effect check: the rejected mutation did not create the node.
+    assert not empty_db_instance.nodes.filter(identifier='stale_rejected').exists()
+
+
+def test_null_version_skips_check(gql_client, empty_db_instance: InstanceConfig):
+    """During rollout, omitting the version token leaves the mutation unchecked."""
+    gql_client.query_data(
+        CREATE_NODE_WITH_VERSION,
+        variables={
+            'instanceId': str(empty_db_instance.pk),
+            'version': None,
+            'input': _make_formula_node_input('null_version_ok'),
+        },
+    )
+    # Now advance the head, then run another mutation with null version — succeeds.
+    empty_db_instance.refresh_from_db()
+    assert empty_db_instance.draft_head_token is not None
+
+    gql_client.query_data(
+        CREATE_NODE_WITH_VERSION,
+        variables={
+            'instanceId': str(empty_db_instance.pk),
+            'version': None,
+            'input': _make_formula_node_input('null_version_still_ok'),
+        },
+    )
+    assert empty_db_instance.nodes.filter(identifier='null_version_still_ok').exists()

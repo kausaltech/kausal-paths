@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from enum import Enum
 from typing import Annotated
+from uuid import UUID
 
 import strawberry as sb
 from django.core.exceptions import ValidationError
@@ -45,6 +47,19 @@ from users.schema import Query as UsersQuery
 CO2E = 'CO<sub>2</sub>e'
 
 
+@sb.enum(
+    name='PreviewMode',
+    description=(
+        'Which slice of an instance to resolve. `PUBLISHED` (default) serves '
+        "the latest published revision; `DRAFT` serves the editor's in-progress "
+        'state and requires edit permission on the instance.'
+    ),
+)
+class PreviewMode(Enum):
+    PUBLISHED = 'PUBLISHED'
+    DRAFT = 'DRAFT'
+
+
 @sb.directive(
     locations=[DirectiveLocation.QUERY, DirectiveLocation.MUTATION],
     name='instance',
@@ -55,6 +70,20 @@ def instance_directive(
     hostname: Annotated[str | None, sb.argument(description='Hostname')],
     identifier: Annotated[sb.ID | None, sb.argument(description='Instance identifier')],
     token: Annotated[str | None, sb.argument(description='Token for accessing the instance')],
+    preview: Annotated[
+        PreviewMode | None,
+        sb.argument(description='Resolve the draft or published slice; defaults to PUBLISHED.'),
+    ] = None,
+    version: Annotated[
+        UUID | None,
+        sb.argument(
+            description=(
+                'Optimistic-locking token — the `draftHeadToken` observed at read time. '
+                'Required on editing mutations; rejected with a stale-version error if '
+                "the instance's head has advanced."
+            ),
+        ),
+    ] = None,
 ):
     pass
 
@@ -64,6 +93,8 @@ class InstanceContextInput:
     hostname: str | None
     identifier: sb.ID | None
     locale: str | None
+    preview: PreviewMode | None = None
+    version: UUID | None = None
 
 
 @sb.directive(

@@ -17,7 +17,7 @@ from kausal_common.users import user_or_bust
 
 from paths import gql
 
-from nodes.change_ops import change_operation, record_change
+from nodes.change_ops import gql_change_operation, record_change
 from nodes.models import InstanceConfig
 
 from .types import DataPointType
@@ -131,7 +131,7 @@ class DatasetEditorMutation:
             user = user_or_bust(info.context.user)
         except ValueError as exc:
             raise PermissionDenied('Permission denied') from exc
-        with change_operation(root.instance, user=user, action='dataset.datapoint.create'):
+        with gql_change_operation(info, root.instance, action='dataset.datapoint.create'):
             data_point = serializer.save(dataset=dataset, last_modified_by=user)
             DatasetEditorMutation._save_dataset(root, info)
             record_change(
@@ -165,7 +165,7 @@ class DatasetEditorMutation:
             user = user_or_bust(info.context.user)
         except ValueError as exc:
             raise PermissionDenied('Permission denied') from exc
-        with change_operation(root.instance, user=user, action='dataset.datapoint.update'):
+        with gql_change_operation(info, root.instance, action='dataset.datapoint.update'):
             before = DatasetEditorMutation._data_point_snapshot(data_point)
             updated = serializer.save(last_modified_by=user)
             DatasetEditorMutation._save_dataset(root, info)
@@ -181,11 +181,7 @@ class DatasetEditorMutation:
     @staticmethod
     def delete_data_point(root: sb.Parent[Me], info: gql.Info, data_point_id: sb.ID) -> OperationInfo | None:
         data_point = get_or_error(info, root.dataset.data_points.get_queryset(), uuid=str(data_point_id), for_action='delete')
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
-        with change_operation(root.instance, user=user, action='dataset.datapoint.delete'):
+        with gql_change_operation(info, root.instance, action='dataset.datapoint.delete'):
             record_change(
                 data_point,
                 action='dataset.datapoint.delete',

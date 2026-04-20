@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.utils import translation
-from graphql import VariableNode, get_argument_values
+from graphql import get_argument_values
 from graphql.error import GraphQLError
 from strawberry.utils.operation import get_first_operation
 
@@ -23,8 +23,11 @@ from params.storage import SessionStorage
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from uuid import UUID
 
     from graphql.language import DirectiveNode, OperationDefinitionNode
+
+    from paths.schema import PreviewMode
 
     from nodes.instance import Instance
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
@@ -32,17 +35,18 @@ if TYPE_CHECKING:
 logger = logger.bind(markup=True)
 
 
-def _arg_value(arg, variable_vals) -> Any:
-    if isinstance(arg.value, VariableNode):
-        return variable_vals.get(arg.value.name.value)
-    return arg.value.value
-
-
 @dataclass
 class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](GraphQLContext):
     instance_config: InstanceConfig | None = None
     instance: InstanceType = field(init=False)
     cache: PathsObjectCache = field(init=False)
+
+    # Populated by DetermineInstanceContextExtension from @instance / @context
+    # directive arguments. Consumed by editing mutations for optimistic
+    # locking (`expected_version`) and by Phase 4's resolve_instance branch
+    # (`preview_mode`).
+    preview_mode: PreviewMode | None = None
+    expected_version: UUID | None = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -112,17 +116,24 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         return instance
 
     def process_instance_directive(self, directive: DirectiveNode) -> InstanceConfig:
+        from .schema import instance_directive as instance_directive_def
+
+        assert instance_directive_def.graphql_name is not None
         qs = self.get_ic_queryset()
         exec_ctx = self.execution_context
-        arguments = {arg.name.value: _arg_value(arg, exec_ctx.variables) for arg in directive.arguments}
+        directive_ast = exec_ctx.schema._schema.get_directive(instance_directive_def.graphql_name)
+        assert directive_ast is not None
+        arguments = get_argument_values(directive_ast, directive, exec_ctx.variables)
         identifier = arguments.get('identifier')
         hostname = arguments.get('hostname')
-        _token = arguments.get('token')
         if identifier:
-            return self.get_instance_by_identifier(qs, identifier, directive)
-        if hostname:
-            return self.get_instance_by_hostname(qs, hostname, directive)
-        raise GraphQLError('Invalid instance directive', directive)
+            ic = self.get_instance_by_identifier(qs, identifier, directive)
+        elif hostname:
+            ic = self.get_instance_by_hostname(qs, hostname, directive)
+        else:
+            raise GraphQLError('Invalid instance directive', directive)
+        self._apply_preview_and_version(arguments.get('preview'), arguments.get('version'))
+        return ic
 
     def process_context_directive(self, directive: DirectiveNode) -> tuple[InstanceConfig | None, str | None]:
         from .schema import context_directive
@@ -149,7 +160,25 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
             locale = ic.primary_language
         elif locale not in ic.supported_languages:
             raise GraphQLError('unsupported language: %s. Did you run --update-instance?' % locale, directive)
+        self._apply_preview_and_version(ctx.get('preview'), ctx.get('version'))
         return ic, locale
+
+    def _apply_preview_and_version(
+        self,
+        preview: Any,
+        version: Any,
+    ) -> None:
+        """
+        Stash the directive's ``preview`` / ``version`` args on the context.
+
+        ``preview`` reaches us as the ``PreviewMode`` enum instance (via
+        ``get_argument_values``) or ``None``. ``version`` is a ``UUID`` or
+        ``None``. Editing mutations later read ``expected_version`` to gate
+        the stale-check.
+        """
+        ctx = self.get_context()
+        ctx.preview_mode = preview
+        ctx.expected_version = version
 
     def process_instance_headers(self) -> InstanceConfig | None:
         headers = self.get_request_headers()

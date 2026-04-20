@@ -136,6 +136,18 @@ class InstanceEditorFields:
     def has_unpublished_changes(root: 'InstanceEditorFields') -> bool:
         return root._instance.config.has_unpublished_changes
 
+    @sb.field(
+        description=(
+            'Optimistic-locking token for draft edits. Editing mutations must pass '
+            'this value via `@instance(version: ...)` or `@context(input: { version: ... })`; '
+            'mismatched tokens are rejected with a stale-version error. `null` if no '
+            'edits have ever been recorded for this instance.'
+        ),
+    )
+    @staticmethod
+    def draft_head_token(root: 'InstanceEditorFields') -> UUID | None:
+        return root._instance.config.draft_head_token
+
     @sb.field
     @staticmethod
     def first_published_at(root: 'InstanceEditorFields') -> datetime | None:
