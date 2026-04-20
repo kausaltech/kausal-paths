@@ -176,3 +176,13 @@ class ImpactOverviewType:
     @staticmethod
     def effect_unit(root: 'ImpactOverview') -> 'Unit':
         return root.spec.effect_unit or root.spec.indicator_unit
+
+    @sb.field
+    @staticmethod
+    def outcome_dimension(root: 'ImpactOverview') -> str | None:
+        return root.spec.outcome_dimension_id
+
+    @sb.field
+    @staticmethod
+    def stakeholder_dimension(root: 'ImpactOverview') -> str | None:
+        return root.spec.stakeholder_dimension_id
