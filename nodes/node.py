@@ -3,6 +3,7 @@ import typing
 
 # import warnings
 from contextlib import nullcontext
+from dataclasses import dataclass
 from typing import Any, ClassVar, Literal, Self, overload
 
 from django.utils.translation import gettext_lazy as _
@@ -204,6 +205,14 @@ class NodeMetric:
         node_pt = pint_pandas.PintType(self.unit)
         s = s.astype(node_pt)
         return s
+
+
+@dataclass(frozen=True)
+class InputPortMultiplicityHint:
+    """Export-time hint for whether a runtime input can be represented as a multi port."""
+
+    multi: bool = False
+    group: str | None = None
 
 
 class Node:
@@ -1293,6 +1302,15 @@ class Node:
 
     def compute(self) -> pd.DataFrame | ppl.PathsDataFrame:
         raise Exception('Implement in subclass')
+
+    def input_port_multiplicity_hint(
+        self,
+        *,
+        edge: Edge | None = None,
+        metric: NodeMetric | None = None,
+        dataset: Dataset | None = None,
+    ) -> InputPortMultiplicityHint:
+        return InputPortMultiplicityHint()
 
     def is_compatible_unit(self, unit_a: str | Unit | None, unit_b: str | Unit | None):
         assert unit_a is not None, f'Unit is missing in node {self.id}. Is it multimetric?'

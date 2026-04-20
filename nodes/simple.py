@@ -16,7 +16,7 @@ from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .constants import FORECAST_COLUMN, MIX_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
 from .exceptions import NodeError
-from .node import Node, NodeMetric
+from .node import InputPortMultiplicityHint, Node, NodeMetric
 from .pipeline.compat import PipelineCompatibleNode
 
 if TYPE_CHECKING:
@@ -28,6 +28,8 @@ if TYPE_CHECKING:
 
     from paths.identifiers import NodePortIdentifier
 
+    from nodes.datasets import Dataset
+    from nodes.edges import Edge
     from nodes.pipeline.ir import PipelinePortBinding
     from nodes.pipeline.ops import AnyOperationSpec
     from params.base import Parameter
@@ -198,6 +200,8 @@ class SimpleNode(Node):
 class AdditiveNode(SimpleNode, PipelineCompatibleNode):
     explanation = _("""This is an Additive Node. It performs a simple addition of inputs.
 Missing values are assumed to be zero.""")
+    export_additive_input_ports_as_multi: ClassVar[bool] = False
+    additive_multi_input_excluded_tags: ClassVar[frozenset[str]] = frozenset({'non_additive'})
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
         BoolParameter(local_id='drop_nans', is_customizable=False),
@@ -213,6 +217,21 @@ Missing values are assumed to be zero.""")
             is_customizable=False,
         ),
     ]
+
+    def input_port_multiplicity_hint(
+        self,
+        *,
+        edge: Edge | None = None,
+        metric: NodeMetric | None = None,
+        dataset: Dataset | None = None,
+    ) -> InputPortMultiplicityHint:
+        if edge is None:
+            return InputPortMultiplicityHint()
+        if type(self) is not AdditiveNode and not self.export_additive_input_ports_as_multi:
+            return InputPortMultiplicityHint()
+        if any(tag in self.additive_multi_input_excluded_tags for tag in edge.tags):
+            return InputPortMultiplicityHint()
+        return InputPortMultiplicityHint(multi=True, group='additive')
 
     def lower_to_pipeline_ir(self):
         from nodes.pipeline import AddOperationSpec, IdentityOperationSpec, InputNodeBinding, PipelineNodeIR, PortInputRef
@@ -370,6 +389,7 @@ class SubtractiveNode(Node):  # FIXME Remove, when you clean Longmont.
 
 class SectorEmissions(AdditiveNode):
     explanation = _('This is a Sector Emissions Node. It is like Additive Node but for subsector emissions')
+    export_additive_input_ports_as_multi = True
     # FIXME Is this needed?
     quantity = 'emissions'
 

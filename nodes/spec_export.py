@@ -6,9 +6,12 @@ the live object graph and produce the Pydantic spec models that can be
 stored on InstanceConfig.spec and NodeConfig.spec.
 """
 
+from __future__ import annotations
+
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 from uuid import uuid3, uuid4
 
 from loguru import logger
@@ -47,7 +50,7 @@ if TYPE_CHECKING:
     from nodes.edges import Edge, EdgeDimension
     from nodes.instance import Instance
     from nodes.models import DatasetPort, InstanceConfig, NodeConfig
-    from nodes.node import Node
+    from nodes.node import Node, NodeMetric
     from nodes.scenario import Scenario
     from params import Parameter
 
@@ -205,9 +208,126 @@ def uuid_from_identifiers(instance: Instance, identifiers: Iterable[str]) -> UUI
     return uuid3(instance.config.uuid, ':'.join(identifiers))
 
 
+@dataclass
+class _InputPortMultiCandidate:
+    port: InputPortDef
+    old_port_id: UUID
+    edge: Edge
+    metric: NodeMetric
+    group: str
+
+
+def _effective_input_dimension_ids(node: Node, edge: Edge) -> tuple[str, ...]:
+    if edge.to_dimensions is not None:
+        return tuple(edge.to_dimensions.keys())
+    return tuple(node.input_dimensions.keys())
+
+
+def _is_multi_candidate_group_compatible(node: Node, candidates: list[_InputPortMultiCandidate]) -> bool:
+    if not candidates:
+        return False
+
+    first = candidates[0]
+    expected_dims = _effective_input_dimension_ids(node, first.edge)
+    expected_unit = first.metric.unit
+    expected_quantity = first.metric.quantity
+
+    if node.unit is not None and not node.is_compatible_unit(expected_unit, node.unit):
+        logger.warning(
+            'Not marking %s input group %s as multi: metric %s unit %s is incompatible with target unit %s',
+            node.id,
+            first.group,
+            first.metric.id,
+            expected_unit,
+            node.unit,
+        )
+        return False
+
+    for candidate in candidates[1:]:
+        dims = _effective_input_dimension_ids(node, candidate.edge)
+        if set(dims) != set(expected_dims):
+            logger.warning(
+                'Not marking %s input group %s as multi: edge dimensions differ (%s vs %s)',
+                node.id,
+                candidate.group,
+                sorted(dims),
+                sorted(expected_dims),
+            )
+            return False
+        if candidate.metric.quantity != expected_quantity:
+            logger.warning(
+                'Not marking %s input group %s as multi: metric quantities differ (%s vs %s)',
+                node.id,
+                candidate.group,
+                candidate.metric.quantity,
+                expected_quantity,
+            )
+            return False
+        if not node.is_compatible_unit(candidate.metric.unit, expected_unit):
+            logger.warning(
+                'Not marking %s input group %s as multi: metric units differ dimensionally (%s vs %s)',
+                node.id,
+                candidate.group,
+                candidate.metric.unit,
+                expected_unit,
+            )
+            return False
+        if node.unit is not None and not node.is_compatible_unit(candidate.metric.unit, node.unit):
+            logger.warning(
+                'Not marking %s input group %s as multi: metric %s unit %s is incompatible with target unit %s',
+                node.id,
+                candidate.group,
+                candidate.metric.id,
+                candidate.metric.unit,
+                node.unit,
+            )
+            return False
+
+    return True
+
+
+def _input_port_group_id(node: Node, group: str) -> UUID:
+    return uuid_from_identifiers(node.context.instance, [node.id, 'input-group', group])
+
+
+def _replace_edge_to_port_id(edge: Edge, old_port_id: UUID, new_port_id: UUID) -> None:
+    old_port_id_str = str(old_port_id)
+    for idx, to_port_id in enumerate(edge._to_port_ids):
+        if to_port_id == old_port_id_str:
+            edge._to_port_ids[idx] = str(new_port_id)
+            return
+    raise ValueError(f'Port {old_port_id} not found in exported edge {edge.input_node.id}:{edge.output_node.id}')
+
+
+def _apply_input_port_multi_hints(node: Node, ports: list[InputPortDef], candidates: list[_InputPortMultiCandidate]) -> None:
+    by_group: defaultdict[str, list[_InputPortMultiCandidate]] = defaultdict(list)
+    for candidate in candidates:
+        by_group[candidate.group].append(candidate)
+
+    for group_candidates in by_group.values():
+        if not _is_multi_candidate_group_compatible(node, group_candidates):
+            continue
+        first = group_candidates[0]
+        group_port_id = _input_port_group_id(node, first.group)
+        group_dimensions = list(_effective_input_dimension_ids(node, first.edge))
+
+        first.port.id = group_port_id
+        first.port.multi = True
+        first.port.quantity = first.metric.quantity
+        first.port.unit = node.unit or first.metric.unit
+        first.port.required_dimensions = group_dimensions
+        first.port.supported_dimensions = group_dimensions
+
+        ports_to_remove = {candidate.old_port_id for candidate in group_candidates[1:]}
+        for candidate in group_candidates:
+            _replace_edge_to_port_id(candidate.edge, candidate.old_port_id, group_port_id)
+        ports[:] = [port for port in ports if port.id not in ports_to_remove]
+
+
 def _export_input_ports(node: Node) -> list[InputPortDef]:
     """Build InputPortDefs from a node's incoming edges and input datasets."""
     ports: list[InputPortDef] = []
+    multi_candidates: list[_InputPortMultiCandidate] = []
 
     for idx, dataset in enumerate(node.input_dataset_instances):
         port_id = uuid_from_identifiers(node.context.instance, [node.id, 'dataset', str(idx)])
@@ -217,7 +337,6 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
         )
         ports.append(port)
 
-    node_counts: dict[str, int] = defaultdict(int)
     for edge in node.edges:
         if edge.output_node.id != node.id:
             continue
@@ -266,11 +385,22 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
                 # supported_dimensions=src.supported_dimensions,
                 # required_dimensions=src.required_dimensions,
             )
+            hint = node.input_port_multiplicity_hint(edge=edge, metric=from_metric)
+            if hint.multi:
+                group = hint.group or str(port_id)
+                multi_candidates.append(
+                    _InputPortMultiCandidate(
+                        port=port,
+                        old_port_id=port_id,
+                        edge=edge,
+                        metric=cast('NodeMetric', from_metric),
+                        group=group,
+                    )
+                )
             port._from_node = edge.input_node.id
             port._edge_metric_id = from_metric.id
             ports.append(port)
-        node_counts[edge.input_node.id] += 1
-
+    _apply_input_port_multi_hints(node, ports, multi_candidates)
     return ports
 
 
