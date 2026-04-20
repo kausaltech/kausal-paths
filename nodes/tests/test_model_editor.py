@@ -15,7 +15,7 @@ from nodes.actions.parent import ParentActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceSpec, NormalizationSpec, YearsSpec
-from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, SimpleConfig
+from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.models import NodeKindChoices
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
@@ -1118,6 +1118,59 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
     assert data['modelInstance']['editor']['datasetPorts'][0]['externalDatasetId'] == 'test_dataset'
     assert data['modelInstance']['editor']['datasetPorts'][0]['externalMetricId'] == 'test_metric'
     assert len(query_ctx) <= 20
+
+
+def test_dataset_port_sync_binds_multimetric_action_dataset(db_instance_config: InstanceConfig):
+    from nodes.models import DatasetPort
+    from nodes.spec_export import _export_input_ports, _update_dataset_ports
+
+    assert db_instance_config.spec is not None
+    db_instance_config.spec.features.use_datasets_from_db = True
+    db_instance_config.save(update_fields=['spec'])
+
+    dataset = DatasetFactory.create(identifier='multi_metric_actions', scope=db_instance_config)
+    DatasetMetricFactory.create(schema=dataset.schema, name='emissions', label='Emissions', unit='t/a')
+    DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='TJ/a')
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='multi_metric_action',
+        name='Multi metric action',
+        spec=NodeSpec(
+            kind=NodeKind.ACTION,
+            type_config=ActionConfig(
+                node_class=ACTION_NODE_CLASS,
+                decision_level=DecisionLevel.MUNICIPALITY,
+            ),
+            input_datasets=[InputDatasetDef(id='multi_metric_actions')],
+            output_ports=[
+                OutputPortDef(
+                    id=_port_uuid('emissions'),
+                    unit=unit_registry.parse_units('t/a'),
+                    quantity='emissions',
+                    column_id='emissions',
+                ),
+                OutputPortDef(
+                    id=_port_uuid('energy'),
+                    unit=unit_registry.parse_units('TJ/a'),
+                    quantity='energy',
+                    column_id='energy',
+                ),
+            ],
+        ),
+    )
+
+    ctx = _rebuild_from_db(db_instance_config)
+    node_configs = {node.identifier: node for node in db_instance_config.nodes.all()}
+    assert _update_dataset_ports(db_instance_config, ctx, node_configs) == 2
+
+    bindings = list(DatasetPort.objects.filter(node=nc).select_related('dataset', 'metric').order_by('metric__name'))
+    assert [(binding.dataset.identifier, binding.metric.name) for binding in bindings] == [
+        ('multi_metric_actions', 'emissions'),
+        ('multi_metric_actions', 'energy'),
+    ]
+    expected_port = _export_input_ports(ctx.nodes['multi_metric_action'])[0]
+    assert {binding.port_id for binding in bindings} == {expected_port.id}
 
 
 def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_instance_config: InstanceConfig):

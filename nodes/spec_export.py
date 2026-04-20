@@ -614,7 +614,29 @@ def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, Node
     return edge_count
 
 
-def _resolve_dataset_port(
+def _dataset_binding_columns_for_node(node: Node, ds_instance: DatasetWithFilters) -> list[str]:
+    """
+    Return dataset metric columns to expose as editor bindings.
+
+    Single-column dataset inputs carry ``column`` directly. Multi-metric
+    action datasets usually leave it unset and consume columns matching the
+    node's output metrics.
+    """
+    if ds_instance.column is not None:
+        return [ds_instance.column]
+    columns: list[str] = []
+    seen: set[str] = set()
+    for metric in node.output_metrics.values():
+        if metric.column_id is None:
+            continue
+        column = str(metric.column_id)
+        if column not in seen:
+            columns.append(column)
+            seen.add(column)
+    return columns
+
+
+def _resolve_dataset_ports(
     ic: InstanceConfig,
     nc: NodeConfig,
     node: Node,
@@ -622,7 +644,7 @@ def _resolve_dataset_port(
     ds_instance: DatasetWithFilters,
     placeholder_datasets: dict[str, DatasetModel],
     metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric],
-) -> DatasetPort:
+) -> list[DatasetPort]:
     from nodes.datasets import DBDataset
     from nodes.models import DatasetPort
 
@@ -641,24 +663,29 @@ def _resolve_dataset_port(
     if dataset_obj is None:
         raise ValueError(f'No dataset object for {ds_instance.id} on node {node.id}')
 
-    column = ds_instance.column
-    if column is None or dataset_obj.schema is None:
-        raise ValueError(
-            f'Cannot create dataset port: column={column}, schema={dataset_obj.schema} for {ds_instance.id} on node {node.id}'
+    if dataset_obj.schema is None:
+        raise ValueError(f'Cannot create dataset port: schema={dataset_obj.schema} for {ds_instance.id} on node {node.id}')
+
+    ports: list[DatasetPort] = []
+    for column in _dataset_binding_columns_for_node(node, ds_instance):
+        metric = metrics_by_schema_and_name.get((dataset_obj.schema.pk, column))
+        if metric is None:
+            if ds_instance.column is not None:
+                raise ValueError(f'No metric {column} in dataset {ds_instance.id} for node {node.id}')
+            logger.debug('No metric %s in dataset %s for node %s; skipping dataset-port binding', column, ds_instance.id, node.id)
+            continue
+
+        ports.append(
+            DatasetPort(
+                instance=ic,
+                node=nc,
+                port_id=port_id,
+                dataset=dataset_obj,
+                metric=metric,
+                forecast_from=ds_instance.forecast_from,
+            )
         )
-
-    metric = metrics_by_schema_and_name.get((dataset_obj.schema.pk, column))
-    if metric is None:
-        raise ValueError(f'No metric {column} in dataset {ds_instance.id} for node {node.id}')
-
-    return DatasetPort(
-        instance=ic,
-        node=nc,
-        port_id=port_id,
-        dataset=dataset_obj,
-        metric=metric,
-        forecast_from=ds_instance.forecast_from,
-    )
+    return ports
 
 
 def _get_placeholder_datasets(ic: InstanceConfig) -> dict[str, DatasetModel]:
@@ -719,7 +746,7 @@ def _dataset_metric_binding_key(metric: DatasetMetric) -> str:
 
 
 def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[str, NodeConfig]) -> int:
-    """Create DatasetPort objects linking placeholder datasets to node input ports."""
+    """Create DatasetPort objects linking datasets to node input ports."""
     from nodes.datasets import FixedDataset
     from nodes.models import DatasetPort
 
@@ -746,11 +773,8 @@ def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[s
                 continue
             if not isinstance(ds_instance, DatasetWithFilters):
                 continue
-            if ds_instance.column is None:
-                continue
-
-            port = _resolve_dataset_port(ic, nc, node, idx, ds_instance, placeholder_datasets, metrics_by_schema_and_name)
-            port_objs.append(port)
+            ports = _resolve_dataset_ports(ic, nc, node, idx, ds_instance, placeholder_datasets, metrics_by_schema_and_name)
+            port_objs.extend(ports)
 
     DatasetPort.objects.bulk_create(port_objs)
     return len(port_objs)
