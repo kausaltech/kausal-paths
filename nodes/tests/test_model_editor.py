@@ -17,6 +17,7 @@ from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceSpec, NormalizationSpec, YearsSpec
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.models import NodeKindChoices
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
 from nodes.units import unit_registry
 
@@ -330,14 +331,56 @@ UPDATE_NODE = gql("""
 mutation UpdateNode($instanceId: ID!, $nodeId: ID!, $input: UpdateNodeInput!) {
     instanceEditor(instanceId: $instanceId) {
         updateNode(nodeId: $nodeId, input: $input) {
-            ... on Node {
+            ... on NodeInterface {
                 identifier
                 name
+                shortName
+                description
                 color
                 kind
                 isVisible
                 editor {
                     nodeGroup
+                    spec {
+                        inputPorts {
+                            id
+                            quantity
+                            unit {
+                                standard
+                            }
+                        }
+                        outputPorts {
+                            id
+                            quantity
+                            dimensions
+                            unit {
+                                standard
+                            }
+                        }
+                        typeConfig {
+                            __typename
+                            ... on ActionConfigType {
+                                nodeClass
+                                group
+                                noEffectValue
+                            }
+                            ... on SimpleConfigType {
+                                nodeClass
+                            }
+                            ... on FormulaConfigType {
+                                formula
+                            }
+                        }
+                    }
+                }
+            }
+            ... on Node {
+                isOutcome
+            }
+            ... on ActionNode {
+                group {
+                    id
+                    name
                 }
             }
             ... on OperationInfo { messages { kind message } }
@@ -366,6 +409,116 @@ def test_update_node_direct_fields(gql_client: PathsTestClient, db_instance_conf
     assert node['name'] == 'Updated'
     assert node['color'] == '#00ff00'
     assert node['isVisible'] is False
+
+
+def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    assert db_instance_config.spec is not None
+    db_instance_config.spec.action_groups = [ActionGroup(id='energy', name='Energy')]
+    db_instance_config.spec.dimensions = [
+        {'id': dim_id, 'label': dim_id.replace('_', ' ').title(), 'categories': []}
+        for dim_id in ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
+    ]
+    db_instance_config.save(update_fields=['spec'])
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='editable_modeling',
+        name='Editable Modeling',
+        spec=_make_node_spec(),
+    )
+
+    data = gql_client.query_data(
+        UPDATE_NODE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {
+                'kind': 'ACTION',
+                'shortName': 'CCS',
+                'description': 'Carbon capture update',
+                'nodeGroup': 'transport',
+                'allowNulls': True,
+                'minimumYear': 2024,
+                'config': {
+                    'action': {
+                        'nodeClass': ACTION_NODE_CLASS,
+                        'group': 'energy',
+                        'noEffectValue': 0.0,
+                    },
+                },
+                'inputPorts': [{'unit': 't/a', 'quantity': 'emissions'}],
+                'inputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
+                'outputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
+                'inputDatasets': [
+                    {
+                        'id': 'aarhus/energy_actions',
+                        'forecast_from': 2024,
+                        'filters': [{'column': 'action', 'value': 'carbon_capture_and_storage'}],
+                    }
+                ],
+                'params': {'allow_null_categories': True},
+                'outputMetrics': [
+                    {'id': 'emissions', 'unit': 't/a', 'quantity': 'emissions'},
+                    {'id': 'energy', 'unit': 'TJ/a', 'quantity': 'energy'},
+                    {'id': 'currency', 'unit': 'DKK/a', 'quantity': 'currency'},
+                ],
+                'tags': ['trial'],
+            },
+        },
+    )
+
+    node = data['instanceEditor']['updateNode']
+    assert node['kind'] == 'ACTION'
+    assert node['shortName'] == 'CCS'
+    assert node['description'] == 'Carbon capture update'
+    assert node['editor']['nodeGroup'] == 'transport'
+    assert node['editor']['spec']['typeConfig']['nodeClass'] == ACTION_NODE_CLASS
+    assert node['editor']['spec']['typeConfig']['group'] == 'energy'
+    assert [port['quantity'] for port in node['editor']['spec']['outputPorts']] == ['emissions', 'energy', 'currency']
+
+    from nodes.models import NodeConfig
+
+    nc = NodeConfig.objects.get(pk=nc.pk)
+    assert nc.spec is not None
+    assert nc.node_type == NodeKindChoices.ACTION
+    assert nc.description == 'Carbon capture update'
+    assert nc.spec.kind == NodeKind.ACTION
+    assert isinstance(nc.spec.type_config, ActionConfig)
+    assert nc.spec.type_config.group == 'energy'
+    assert str(nc.spec.short_name) == 'CCS'
+    assert str(nc.spec.description) == 'Carbon capture update'
+    assert nc.spec.node_group == 'transport'
+    assert nc.spec.allow_nulls is True
+    assert nc.spec.minimum_year == 2024
+    assert nc.spec.input_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
+    assert nc.spec.output_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
+    assert nc.spec.input_ports[0].quantity == 'emissions'
+    assert nc.spec.input_datasets[0].id == 'aarhus/energy_actions'
+    assert nc.spec.input_datasets[0].forecast_from == 2024
+    assert [port.column_id for port in nc.spec.output_ports] == ['emissions', 'energy', 'currency']
+    assert nc.spec.extra.tags == ['trial']
+    allow_null_categories = next(param for param in nc.spec.params if param.local_id == 'allow_null_categories')
+    assert allow_null_categories.value is True
+
+
+def test_update_node_requires_config_when_changing_kind(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='needs_config',
+        name='Needs Config',
+        spec=_make_node_spec(),
+    )
+
+    errors = gql_client.query_errors(
+        UPDATE_NODE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {'kind': 'ACTION'},
+        },
+    )
+
+    assert 'config must be provided when changing node kind' in errors[0]['message']
 
 
 def test_runtime_rebuild_preserves_node_group_and_allow_nulls(db_instance_config: InstanceConfig):
