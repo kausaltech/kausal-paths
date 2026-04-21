@@ -710,7 +710,7 @@ def _import_dataset_ports(
             dataset=dataset,
             port_id=p.port_id,
             metric=metric,
-            spec=p.spec,
+            forecast_from=p.forecast_from,
         )
 
 
