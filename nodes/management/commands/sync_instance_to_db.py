@@ -30,7 +30,7 @@ class Command(BaseCommand):
         parser.add_argument('instance', nargs='*', type=str, help='Instance identifier(s)')
         parser.add_argument('--all', action='store_true', help='Sync all instances')
         parser.add_argument('--dry-run', action='store_true', help='Load and export but do not save to DB')
-        parser.add_argument('--start-from', type=str, help='Instance identifier to start from')
+        parser.add_argument('--start-after', type=str, help='Instance identifier to start after')
 
     def sync_one_instance(self, instance_id: str, dry_run: bool = False) -> None:
         from nodes.spec_export import sync_instance_to_db
@@ -57,12 +57,12 @@ class Command(BaseCommand):
             instance_ids = InstanceConfig.objects.filter(framework_config__isnull=True).values_list('identifier', flat=True)
         else:
             instance_ids = options['instance']
-        start_from = options['start_from']
+        start_after = options['start_after']
         for instance_id in instance_ids:
-            if start_from:
-                if instance_id != start_from:
-                    continue
-                start_from = None
+            if start_after:
+                if instance_id == start_after:
+                    start_after = None
+                continue
             self.sync_one_instance(instance_id, dry_run=dry_run)
         if dry_run:
             self.stdout.write(self.style.SUCCESS('Dry run complete — no changes made.'))

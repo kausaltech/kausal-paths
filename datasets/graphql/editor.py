@@ -5,9 +5,9 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NoReturn, TypeGuard, cast
 from uuid import UUID
 
-from django.utils import timezone
 import strawberry as sb
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.utils import timezone
 from strawberry import Maybe
 from strawberry_django.fields.types import OperationInfo
 

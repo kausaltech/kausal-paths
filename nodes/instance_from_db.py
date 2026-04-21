@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING, Any, cast
 from django.db.models import F
 from django.utils.functional import Promise
 
+from loguru import logger
+
 from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.constants import VALUE_COLUMN
@@ -64,8 +66,50 @@ def serialize_instance_to_dict(ic: InstanceConfig) -> dict[str, Any]:
     config['normalizations'] = [normalization.model_dump(exclude_none=True) for normalization in spec.normalizations]
 
     _add_nodes_and_edges(ic, config)
-    config['dimensions'] = spec.dimensions
+    config['dimensions'] = _resolve_dimensions(ic, spec)
     return config
+
+
+def _resolve_dimensions(ic: InstanceConfig, spec: InstanceSpec) -> list[dict[str, Any]]:
+    """
+    Build the dimensions config and check the ORM covers spec.dimensions.
+
+    Transitional: during the migration from `InstanceSpec.dimensions` to the
+    ORM Dimension/DimensionCategory tables (plus their `spec` JSONFields),
+    we keep both sources and verify the ORM is not missing anything the
+    runtime needs. The computation model fails when a dim or cat is missing;
+    extras or cosmetic diffs (labels, colors, aliases) only cause log noise.
+    """
+    orm_cats_by_dim = _orm_category_ids_by_dim(ic)
+    missing: list[str] = []
+    for dim_dict in spec.dimensions:
+        dim_id = dim_dict['id']
+        spec_cat_ids = {cat['id'] for cat in dim_dict.get('categories', [])}
+        orm_cat_ids = orm_cats_by_dim.get(dim_id)
+        if orm_cat_ids is None:
+            missing.append(f'dim {dim_id!r} not present in ORM')
+            continue
+        missing_cats = spec_cat_ids - orm_cat_ids
+        if missing_cats:
+            missing.append(f'dim {dim_id!r}: missing cats {sorted(missing_cats)}')
+
+    if missing:
+        for line in missing:
+            logger.error('Dimension ORM gap for {id}: {line}', id=ic.identifier, line=line)
+        raise AssertionError(f'Dimension ORM missing entries for instance {ic.identifier!r}: {missing}')
+
+    return spec.dimensions
+
+
+def _orm_category_ids_by_dim(ic: InstanceConfig) -> dict[str, set[str]]:
+    from kausal_common.datasets.models import DimensionScope
+
+    scopes = DimensionScope.objects.for_instance_config(ic).select_related('dimension').prefetch_related('dimension__categories')
+    result: dict[str, set[str]] = {}
+    for scope in scopes:
+        assert scope.identifier is not None
+        result[scope.identifier] = {cat.identifier for cat in scope.dimension.categories.all() if cat.identifier is not None}
+    return result
 
 
 def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceSpec) -> dict[str, Any]:

@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, Any, overload
 from uuid import uuid3, uuid4
 
 from loguru import logger
@@ -443,7 +443,7 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
                         port=port,
                         old_port_id=port_id,
                         edge=edge,
-                        metric=cast('NodeMetric', from_metric),
+                        metric=from_metric,
                         group=group,
                     )
                 )
@@ -822,6 +822,8 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
         ic.spec = instance_spec
         ic.config_source = 'database'
         ic.save()
+
+        ic.sync_dimensions(update_existing=True, instance=instance)
 
         # Update or create node configs
         node_qs = ic.nodes.all().defer('spec')
