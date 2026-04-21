@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from nodes.defs.edge_def import EdgeTransformation
     from nodes.defs.instance_defs import ActionGroup, InstanceSpec
     from nodes.defs.node_defs import NodeSpec
-    from nodes.models import InstanceConfig, NodeConfig, NodeEdge
+    from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge
     from nodes.scenario import Scenario
     from params.base import Parameter
 
@@ -98,10 +98,16 @@ def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceSpec) -> dict
 def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> list[NodeConfig]:
     node_configs = ic.nodes_for_serialization
     edges = list(ic.edges.annotate(from_node_identifier=F('from_node__identifier'), to_node_identifier=F('to_node__identifier')))
+    dataset_ports = list(
+        ic.dataset_ports.select_related('node', 'dataset', 'metric').order_by('node__identifier', 'port_id', 'metric__order')
+    )
 
     nodes_by_identifier: dict[str, NodeConfig] = {nc.identifier: nc for nc in node_configs}
 
     _output_edges, input_edges = _build_edge_maps(cast('list[EdgeWithNodeIdentifiers]', edges), nodes_by_identifier)
+    dataset_ports_by_node: defaultdict[str, list[DatasetPort]] = defaultdict(list)
+    for port in dataset_ports:
+        dataset_ports_by_node[port.node.identifier].append(port)
 
     nodes_list: list[dict[str, Any]] = []
     actions_list: list[dict[str, Any]] = []
@@ -109,6 +115,7 @@ def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> list[Nod
         node_dict = _serialize_node_config(
             nc,
             input_nodes=input_edges.get(nc.identifier, []),
+            dataset_ports=dataset_ports_by_node.get(nc.identifier, []),
         )
         spec = nc.spec
         assert spec is not None
@@ -126,6 +133,7 @@ def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> list[Nod
 def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     nc: NodeConfig,
     input_nodes: list[dict[str, Any]],
+    dataset_ports: list[DatasetPort],
 ) -> dict[str, Any]:
     assert nc.spec is not None
     spec: NodeSpec = nc.spec
@@ -224,9 +232,10 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
         if tc.no_effect_value is not None:
             node['no_effect_value'] = tc.no_effect_value
 
-    # Datasets and dimensions from spec
-    if spec.input_datasets:
-        node['input_datasets'] = [ds.model_dump(exclude_defaults=True) for ds in spec.input_datasets]
+    # Datasets from explicit port bindings; dimensions from spec.
+    input_datasets = _serialize_dataset_ports(dataset_ports)
+    if input_datasets:
+        node['input_datasets'] = input_datasets
     if spec.input_dimensions:
         node['input_dimensions'] = spec.input_dimensions
     if spec.output_dimensions:
@@ -253,6 +262,35 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
         node['input_nodes'] = input_nodes
 
     return node
+
+
+def _dataset_metric_binding_key(port: DatasetPort) -> str:
+    if port.metric.name:
+        return port.metric.name
+    if port.metric.label:
+        return port.metric.label
+    return str(port.metric.uuid)
+
+
+def _dataset_port_group_key(port: DatasetPort) -> tuple[str, str]:
+    dataset_id = port.dataset.identifier or str(port.dataset.uuid)
+    spec_json = port.spec.model_dump_json(exclude_defaults=True, exclude_none=True)
+    return (dataset_id, spec_json)
+
+
+def _serialize_dataset_ports(dataset_ports: list[DatasetPort]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str], list[DatasetPort]] = {}
+    for port in dataset_ports:
+        grouped.setdefault(_dataset_port_group_key(port), []).append(port)
+
+    input_datasets: list[dict[str, Any]] = []
+    for ports in grouped.values():
+        first = ports[0]
+        dataset_id = first.dataset.identifier or str(first.dataset.uuid)
+        column = _dataset_metric_binding_key(first) if len(ports) == 1 else None
+        ds_def = first.spec.to_input_dataset(id=dataset_id, column=column)
+        input_datasets.append(ds_def.model_dump(mode='json', exclude_defaults=True, exclude_none=True))
+    return input_datasets
 
 
 def _param_to_dict(p: Parameter) -> dict[str, Any]:

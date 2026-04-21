@@ -33,7 +33,7 @@ from kausal_common.i18n.pydantic import (
 
 from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.instance_defs import InstanceSpec
-from nodes.defs.node_defs import NodeSpec
+from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -277,7 +277,7 @@ class DatasetPortSnapshot(ModelSnapshot):
     dataset: str
     port_id: UUID
     metric: str
-    forecast_from: int | None = None
+    spec: DatasetPortSpec = Field(default_factory=DatasetPortSpec)
     # Populated once Dataset acquires RevisionMixin (see paths/dataset_pydantic.py
     # and kausal_common/datasets/models.py bridge).
     dataset_revision: int | None = None
@@ -297,7 +297,7 @@ class DatasetPortSnapshot(ModelSnapshot):
             dataset=obj.dataset.identifier or str(obj.dataset.uuid),
             port_id=obj.port_id,
             metric=obj.metric.name or str(obj.metric.uuid),
-            forecast_from=obj.forecast_from,
+            spec=obj.spec,
             dataset_revision=dataset_revision_id,
         )
 
@@ -750,6 +750,8 @@ def _rewire_dataset_ports(ic: InstanceConfig, datasets_by_id: dict[str, DatasetM
     rewired = 0
     ports = DatasetPort.objects.filter(instance=ic, dataset__identifier__in=datasets_by_id).select_related('dataset', 'metric')
     for port in ports:
+        if port.dataset.identifier is None:
+            continue
         dataset = datasets_by_id.get(port.dataset.identifier)
         if dataset is None or dataset.pk == port.dataset_id:
             continue
@@ -967,7 +969,7 @@ def _import_dataset_ports(
             dataset=dataset,
             port_id=p.port_id,
             metric=metric,
-            forecast_from=p.forecast_from,
+            spec=p.spec,
         )
 
 

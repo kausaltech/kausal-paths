@@ -210,6 +210,8 @@ class InstanceEditorFields:
                 external_metric_id=dp.metric.name,
             )
             port._dataset = DatasetType.from_model(dp.dataset)
+            if port._dataset is not None:
+                port._dataset._forecast_from = dp.spec.forecast_from
             result.append(port)
         return result
 

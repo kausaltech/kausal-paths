@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from nodes.defs.instance_defs import InstanceSpec, YearsSpec
+from nodes.defs.node_defs import DatasetPortSpec
 from nodes.instance_serialization import (
     SNAPSHOT_SCHEMA_VERSION,
     DatasetPortSnapshot,
@@ -75,7 +76,11 @@ def test_instance_snapshot_json_round_trip():
         ],
         dataset_ports=[
             DatasetPortSnapshot(
-                node='n1', dataset='ds', port_id=uuid.UUID('6c8b0551-7ccf-472b-94db-26f513d706dc'), metric='m', forecast_from=2025
+                node='n1',
+                dataset='ds',
+                port_id=uuid.UUID('6c8b0551-7ccf-472b-94db-26f513d706dc'),
+                metric='m',
+                spec=DatasetPortSpec(forecast_from=2025),
             )
         ],
     )
@@ -85,7 +90,7 @@ def test_instance_snapshot_json_round_trip():
     reloaded = InstanceSnapshot.model_validate(dumped)
     assert reloaded.nodes[0].identifier == 'n1'
     assert reloaded.edges[0].from_node == 'n1'
-    assert reloaded.dataset_ports[0].forecast_from == 2025
+    assert reloaded.dataset_ports[0].spec.forecast_from == 2025
     assert reloaded.schema_version == SNAPSHOT_SCHEMA_VERSION
 
 

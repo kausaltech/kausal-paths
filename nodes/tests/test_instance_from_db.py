@@ -14,7 +14,7 @@ def test_serialize_node_config_round_trips_node_spec_short_name():
     assert nc.spec is not None
     nc.spec.short_name = TranslatedString(en='Short label', fi='Lyhyt nimi')
 
-    config = _serialize_node_config(nc, input_nodes=[])
+    config = _serialize_node_config(nc, input_nodes=[], dataset_ports=[])
 
     assert config['short_name_en'] == 'Short label'
     assert config['short_name_fi'] == 'Lyhyt nimi'
