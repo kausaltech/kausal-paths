@@ -27,6 +27,8 @@ from pages.models import InstanceRootPage
 
 FRAMEWORK_IDENTIFIER = 'cads'
 FRAMEWORK_NAME = 'CADS'
+SOURCE_TEMPLATE_IDENTIFIER = 'aarhus-c4c'
+TEMPLATE_INSTANCE_IDENTIFIER = 'climaville-c4c'
 LANDING_INSTANCE_IDENTIFIER = 'cads-landing'
 LANDING_INSTANCE_NAME = 'CADS Landing'
 LANDING_ORG_NAME = 'CADS'
@@ -65,6 +67,50 @@ def get_or_create_framework() -> Framework:
         else:
             print(f'Framework already exists: {fw}')
     return fw
+
+
+def ensure_template_datasets() -> None:
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dataset
+
+    from nodes.instance_serialization import export_instance, import_instance_datasets
+
+    source = InstanceConfig.objects.get(identifier=SOURCE_TEMPLATE_IDENTIFIER)
+    target = InstanceConfig.objects.get(identifier=TEMPLATE_INSTANCE_IDENTIFIER)
+    source_export = export_instance(source)
+    source_datasets = [ds for ds in source_export.datasets if ds.identifier is not None and ds.data is not None]
+    source_dataset_ids = {ds.identifier for ds in source_datasets if ds.identifier is not None}
+    if not source_dataset_ids:
+        print(f'No real datasets found in source template: {source}')
+        return
+
+    ic_ct = ContentType.objects.get_for_model(target)
+    existing_dataset_ids = set(
+        Dataset.objects
+        .filter(
+            scope_content_type=ic_ct,
+            scope_id=target.pk,
+            identifier__in=source_dataset_ids,
+            is_external_placeholder=False,
+            data_points__isnull=False,
+        )
+        .distinct()
+        .values_list('identifier', flat=True)
+    )
+    missing_dataset_ids = source_dataset_ids - existing_dataset_ids
+    if not missing_dataset_ids:
+        print(f'Template datasets already copied: {target}')
+        return
+
+    copied = import_instance_datasets(
+        target,
+        [ds for ds in source_datasets if ds.identifier in missing_dataset_ids],
+        rewire_dataset_ports=True,
+        delete_superseded_placeholders=True,
+        create_missing_dimensions=True,
+    )
+    print(f'Copied {len(copied)} dataset(s) from {source.identifier} to {target.identifier}')
 
 
 def get_or_create_organization() -> Organization:
@@ -201,6 +247,7 @@ def setup_instance_groups(ic: InstanceConfig) -> None:
 
 def main() -> None:
     get_or_create_framework()
+    ensure_template_datasets()
     org = get_or_create_organization()
     with set_i18n_context(PRIMARY_LANGUAGE, []):
         ic = get_or_create_landing_instance(org)

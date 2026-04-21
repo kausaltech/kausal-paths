@@ -572,6 +572,195 @@ def test_dataset_port_snapshot_pins_dataset_revision(empty_db_instance: Instance
     assert data['dataset_revision'] == pinned_rev
 
 
+def test_export_instance_includes_schema_scoped_placeholder(empty_db_instance: InstanceConfig):
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import DatasetSchemaScope
+    from kausal_common.datasets.tests.factories import DatasetFactory, DatasetSchemaFactory
+
+    from nodes.instance_serialization import export_instance
+
+    schema = DatasetSchemaFactory.create(name='Placeholder schema')
+    DatasetSchemaScope.objects.create(
+        schema=schema,
+        scope_content_type=ContentType.objects.get_for_model(empty_db_instance),
+        scope_id=empty_db_instance.pk,
+    )
+    DatasetFactory.create(
+        schema=schema,
+        identifier='external/source',
+        is_external_placeholder=True,
+    )
+
+    export = export_instance(empty_db_instance)
+
+    assert [(ds.identifier, ds.is_external_placeholder) for ds in export.datasets] == [('external/source', True)]
+
+
+def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db_instance: InstanceConfig):
+    import datetime
+    from decimal import Decimal
+
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dataset, DatasetSchemaScope
+    from kausal_common.datasets.tests.factories import (
+        DataPointFactory,
+        DatasetFactory,
+        DatasetMetricFactory,
+        DatasetSchemaFactory,
+    )
+
+    from nodes.instance_serialization import export_instance, import_instance_datasets
+    from nodes.models import DatasetPort, NodeConfig
+
+    source = empty_db_instance
+    target_instance = InstanceFactory.create()
+    target = InstanceConfigFactory.create(
+        identifier=target_instance.id,
+        instance=target_instance,
+        config_source='database',
+        spec=InstanceSpec(
+            primary_language='en',
+            owner='Target',
+            years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
+        ),
+    )
+    ic_ct = ContentType.objects.get_for_model(source)
+
+    source_dataset = DatasetFactory.create(identifier='real/source', scope=source)
+    source_metric = DatasetMetricFactory.create(schema=source_dataset.schema, name='value', label='Value', unit='kt/a')
+    DataPointFactory.create(
+        dataset=source_dataset,
+        metric=source_metric,
+        date=datetime.date(2020, 1, 1),
+        value=Decimal('42.5'),
+    )
+
+    placeholder_schema = DatasetSchemaFactory.create(name='Placeholder schema')
+    DatasetSchemaScope.objects.create(
+        schema=placeholder_schema,
+        scope_content_type=ContentType.objects.get_for_model(target),
+        scope_id=target.pk,
+    )
+    placeholder = DatasetFactory.create(
+        schema=placeholder_schema,
+        identifier='real/source',
+        is_external_placeholder=True,
+    )
+    placeholder_metric = DatasetMetricFactory.create(schema=placeholder_schema, name='value', label='Value', unit='kt/a')
+    node = NodeConfig.objects.create(instance=target, identifier='receiver', name='Receiver')
+    port = DatasetPort.objects.create(
+        instance=target,
+        node=node,
+        port_id=uuid.uuid4(),
+        dataset=placeholder,
+        metric=placeholder_metric,
+    )
+
+    source_export = export_instance(source)
+    imported = import_instance_datasets(
+        target,
+        source_export.datasets,
+        rewire_dataset_ports=True,
+        delete_superseded_placeholders=True,
+    )
+
+    assert len(imported) == 1
+    copied_dataset = Dataset.objects.get(
+        scope_content_type=ic_ct,
+        scope_id=target.pk,
+        identifier='real/source',
+    )
+    assert copied_dataset.data_points.count() == 1
+    assert not Dataset.objects.filter(pk=placeholder.pk).exists()
+
+    port.refresh_from_db()
+    assert port.dataset == copied_dataset
+    assert port.metric.schema == copied_dataset.schema
+
+
+def test_import_instance_datasets_preserves_dimension_column_name(empty_db_instance: InstanceConfig):
+    import datetime
+    from decimal import Decimal
+
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dataset, DatasetSchemaDimension, DimensionScope
+    from kausal_common.datasets.tests.factories import (
+        DataPointFactory,
+        DatasetFactory,
+        DatasetMetricFactory,
+        DatasetSchemaDimensionFactory,
+        DimensionCategoryFactory,
+        DimensionFactory,
+    )
+
+    from nodes.datasets import DBDataset
+    from nodes.instance_serialization import export_instance, import_instance_datasets
+
+    source = empty_db_instance
+    target_instance = InstanceFactory.create()
+    target = InstanceConfigFactory.create(
+        identifier=target_instance.id,
+        instance=target_instance,
+        config_source='database',
+        spec=InstanceSpec(
+            primary_language='en',
+            owner='Target',
+            years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
+        ),
+    )
+    source_ct = ContentType.objects.get_for_model(source)
+
+    dimension = DimensionFactory.create(name='Green Mobility Action')
+    DimensionScope.objects.create(
+        dimension=dimension,
+        scope_content_type=source_ct,
+        scope_id=source.pk,
+        identifier='green_mobility_action',
+    )
+    category = DimensionCategoryFactory.create(
+        dimension=dimension,
+        identifier='school_roads',
+        label='School Roads',
+    )
+    dataset = DatasetFactory.create(identifier='actions/source', scope=source)
+    DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=dimension, column_name='action')
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='fraction', label='Fraction', unit='%')
+    DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        date=datetime.date(2020, 1, 1),
+        value=Decimal('12.5'),
+        dimension_categories=[category],
+    )
+
+    snapshot = next(ds for ds in export_instance(source).datasets if ds.identifier == 'actions/source')
+    assert snapshot.dimensions == ['green_mobility_action']
+    assert snapshot.dimension_columns == {'green_mobility_action': 'action'}
+    assert snapshot.data is not None
+    assert snapshot.data['schema']['primaryKey'] == ['Year', 'action']
+
+    imported = import_instance_datasets(target, [snapshot], create_missing_dimensions=True)
+    assert len(imported) == 1
+
+    copied_dataset = Dataset.objects.get(scope_content_type=source_ct, scope_id=target.pk, identifier='actions/source')
+    copied_schema_dim = DatasetSchemaDimension.objects.select_related('dimension').get(schema=copied_dataset.schema)
+    copied_scope = DimensionScope.objects.get(
+        dimension=copied_schema_dim.dimension,
+        scope_content_type=source_ct,
+        scope_id=target.pk,
+    )
+    assert copied_scope.identifier == 'green_mobility_action'
+    assert copied_schema_dim.column_name == 'action'
+    assert copied_dataset.data_points.count() == 1
+
+    copied_df = DBDataset.deserialize_df(copied_dataset)
+    assert copied_df.primary_keys == ['Year', 'action']
+    assert 'green_mobility_action' not in copied_df.columns
+
+
 # ---------------------------------------------------------------------------
 # Demo-flow mutations (edges, dimension categories, datapoints)
 #

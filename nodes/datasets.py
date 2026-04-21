@@ -1222,7 +1222,11 @@ class DBDataset(DatasetWithFilters):
             .filter(schema=ds_in.schema)
             .annotate(
                 dim_uuid=F('dimension__uuid'),
-                dim_id=Coalesce(F('dimension__scopes__identifier'), Cast('dimension__uuid', output_field=CharField())),
+                dim_id=Coalesce(
+                    F('column_name'),
+                    F('dimension__scopes__identifier'),
+                    Cast('dimension__uuid', output_field=CharField()),
+                ),
             )
             .order_by('id')
             .distinct('id')
