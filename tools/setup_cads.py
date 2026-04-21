@@ -30,18 +30,21 @@ FRAMEWORK_NAME = 'CADS'
 SOURCE_TEMPLATE_IDENTIFIER = 'aarhus-c4c'
 TEMPLATE_INSTANCE_IDENTIFIER = 'climaville-c4c'
 LANDING_INSTANCE_IDENTIFIER = 'cads-landing'
-LANDING_INSTANCE_NAME = 'CADS Landing'
+LANDING_INSTANCE_NAME = 'CADS'
 LANDING_ORG_NAME = 'CADS'
 PRIMARY_LANGUAGE = 'en'
 
 
 def get_or_create_framework() -> Framework:
+    template_instance = InstanceConfig.objects.get(identifier=TEMPLATE_INSTANCE_IDENTIFIER)
     fw, created = Framework.objects.get_or_create(
         identifier=FRAMEWORK_IDENTIFIER,
         defaults=dict(
             name=FRAMEWORK_NAME,
             allow_user_registration=True,
             allow_instance_creation=True,
+            template_instance=template_instance,
+            public_base_fqdn='cads.kausal.tech',
         ),
     )
     if created:
@@ -55,8 +58,8 @@ def get_or_create_framework() -> Framework:
         if not fw.allow_instance_creation:
             fw.allow_instance_creation = True
             updated = True
-        if fw.template_instance is None or fw.template_instance.identifier != 'climaville-c4c':
-            fw.template_instance = InstanceConfig.objects.get(identifier='climaville-c4c')
+        if fw.template_instance is None or fw.template_instance.identifier != TEMPLATE_INSTANCE_IDENTIFIER:
+            fw.template_instance = template_instance
             updated = True
         if fw.public_base_fqdn is None:
             fw.public_base_fqdn = 'cads.kausal.tech'
@@ -174,6 +177,8 @@ def ensure_template_dataset_ports(source: InstanceConfig, target: InstanceConfig
         if key in existing_port_keys:
             continue
         target_node = target_nodes.get(source_port.node.identifier)
+        if not source_port.dataset.identifier:
+            continue
         target_dataset = target_datasets.get(source_port.dataset.identifier)
         if target_node is None or target_dataset is None:
             continue
