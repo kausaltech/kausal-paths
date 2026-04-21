@@ -197,6 +197,16 @@ impact_overviews:
   indicator_unit: t
   label: Action impacts on total emissions during the time span
 
+- graph_type: wedge_diagram
+  label_en: Wedge diagram
+  effect_node: net_emissions
+  indicator_unit: Mt/a
+
+- graph_type: stacked_raw_impact
+  label_en: Budget timeline
+  effect_node: total_cost
+  indicator_unit: MEUR/a
+
 - graph_type: cost_benefit
   effect_node: discounted_cost
   indicator_unit: MEUR

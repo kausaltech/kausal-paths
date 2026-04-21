@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import typing
+from dataclasses import dataclass
 
 # from collections.abc import Callable
 from typing import ClassVar, cast
@@ -24,8 +25,9 @@ from nodes.constants import (
     YEAR_COLUMN,
     DecisionLevel,
 )
-from nodes.defs.action_def import ImpactOverviewSpec
+from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
 from nodes.exceptions import NodeError
+from nodes.metric import DimensionalMetric
 from nodes.node import Node
 from nodes.units import Quantity, unit_registry
 from params import BoolParameter, NumberParameter
@@ -147,11 +149,14 @@ class ActionNode(Node):
             df = ppl.from_pandas(df)
         return df
 
-    def compute_impact(self, target_node: Node) -> ppl.PathsDataFrame:
-        from_baseline: bool | None = cast(
-            'bool',
-            self.get_global_parameter_value('action_impact_from_baseline', required=False) or False,
-        )
+    def compute_impact(self, target_node: Node, force_from_baseline: bool | None = None) -> ppl.PathsDataFrame:  # noqa: PLR0915
+        if force_from_baseline is not None:
+            from_baseline = force_from_baseline
+        else:
+            from_baseline = cast(
+                'bool',
+                self.get_global_parameter_value('action_impact_from_baseline', required=False) or False,
+            )
 
         was_enabled = self.is_enabled()
         if from_baseline:
@@ -294,7 +299,7 @@ class ActionNode(Node):
         if io.spec.graph_type == 'value_of_information':
             effect_df = self._get_value_of_information(effect_df)
 
-        no_cost_io = ['cost_benefit', 'simple_effect']
+        no_cost_io = ['cost_benefit', 'simple_effect', 'stacked_raw_impact']
         if io.spec.graph_type in no_cost_io:
             df = self._get_cost_benefit(effect_df, io)
         else:
@@ -337,6 +342,20 @@ class ActionImpact(typing.NamedTuple):
     unit_adjustment_multiplier: float
 
 
+@dataclass
+class WedgeEntry:
+    id: str
+    label: str
+    is_scenario: bool
+    metric: DimensionalMetric
+
+
+TIMELINE_GRAPH_TYPES: frozenset[ImpactGraphType] = frozenset({
+    ImpactGraphType.WEDGE_DIAGRAM,
+    ImpactGraphType.STACKED_RAW_IMPACT,
+})
+
+
 class ImpactOverview:
     spec: ImpactOverviewSpec
     effect_node: Node
@@ -356,11 +375,12 @@ class ImpactOverview:
             raise Exception(f'Cost node {cost_node.id} quantity {cost_node.quantity} is not stackable.')
 
     def _adjust_graph_units(self, df: ppl.PathsDataFrame, is_same_unit: bool) -> ppl.PathsDataFrame:
-
+        is_timeline = self.spec.graph_type in TIMELINE_GRAPH_TYPES
         has_cost = 'Cost' in df.columns
-        if has_cost:
-            df = df.set_unit('Cost', df.get_unit('Cost') * unit_registry.a, force=True)
-        df = df.set_unit('Effect', df.get_unit('Effect') * unit_registry.a, force=True)
+        if not is_timeline:
+            if has_cost:
+                df = df.set_unit('Cost', df.get_unit('Cost') * unit_registry.a, force=True)
+            df = df.set_unit('Effect', df.get_unit('Effect') * unit_registry.a, force=True)
         cost_unit: Unit | None = None
         if is_same_unit:
             cost_unit = effect_unit = self.spec.indicator_unit
@@ -404,6 +424,7 @@ class ImpactOverview:
             'benefit_cost_ratio': {'is_same_unit': False, 'fn': _roi},
             'value_of_information': {'is_same_unit': True, 'fn': _unity},
             'simple_effect': {'is_same_unit': True, 'fn': _unity},
+            'stacked_raw_impact': {'is_same_unit': True, 'fn': _unity},
         }
 
         is_same_unit = unit_adjustments[self.spec.graph_type]['is_same_unit']
@@ -413,6 +434,8 @@ class ImpactOverview:
         return unit_adjustment_function, is_same_unit
 
     def calculate_iter(self, context: Context, actions: Iterable[ActionNode] | None = None) -> Iterator[ActionImpact]:
+        if self.spec.graph_type == ImpactGraphType.WEDGE_DIAGRAM:
+            return
 
         if actions is None:
             actions = list(context.get_actions())
@@ -444,21 +467,135 @@ class ImpactOverview:
         out = list(self.calculate_iter(context, actions))
         return out
 
+    def compute_wedge(self, context: Context) -> list[WedgeEntry]:  # noqa: C901
+        import logging
+
+        import polars as pl
+
+        log = logging.getLogger(__name__)
+        effect_node = self.effect_node
+
+        if effect_node.quantity not in STACKABLE_QUANTITIES:
+            log.warning(
+                'Wedge diagram: effect node %s quantity %s is not stackable; yet all dimensions will be summed',
+                effect_node.id,
+                effect_node.quantity,
+            )
+
+        m = effect_node.get_default_output_metric()
+        val_col = m.column_id
+        indicator_unit = self.spec.indicator_unit
+
+        def normalize(df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+            """Sum over all dimensions, convert to indicator_unit (rate, no time multiplication)."""
+            if df.dim_ids:
+                df = df.paths.sum_over_dims()
+            return df.ensure_unit(val_col, indicator_unit)
+
+        def to_series(df: ppl.PathsDataFrame) -> dict[int, float]:
+            return {int(row[YEAR_COLUMN]): float(row[val_col]) for row in df.sort(YEAR_COLUMN).to_dicts()}
+
+        def make_metric(
+            series: dict[int, float], years: list[int], entry_id: str, name: str, *, stackable: bool, forecast_from: int | None
+        ) -> DimensionalMetric:
+            return DimensionalMetric(
+                id=entry_id,
+                name=name,
+                dimensions=[],
+                values=[series.get(y, 0.0) for y in years],
+                years=years,
+                forecast_from=forecast_from,
+                stackable=stackable,
+                goals=[],
+                normalized_by=None,
+                unit=indicator_unit,
+            )
+
+        def get_forecast_from(df: ppl.PathsDataFrame) -> int | None:
+            fc = df.filter(pl.col(FORECAST_COLUMN))
+            return int(fc[YEAR_COLUMN].min()) if len(fc) else None  # type: ignore[arg-type]
+
+        # Current scenario output (x₀)
+        current_df = normalize(effect_node.get_output_pl())
+        forecast_from = get_forecast_from(current_df)
+        current_series = to_series(current_df)
+        years = sorted(current_series.keys())
+
+        # Collect enabled actions connected to effect_node
+        enabled_actions = [
+            action for action in context.get_actions() if action.is_connected_to(effect_node) and action.is_enabled()
+        ]
+
+        action_raw: list[tuple[ActionNode, dict[int, float]]] = []
+        baseline_series: dict[int, float] | None = None
+
+        for action in enabled_actions:
+            impact_df = action.compute_impact(effect_node, force_from_baseline=True)
+
+            # Baseline (x): identical for all actions when force_from_baseline=True
+            if baseline_series is None:
+                bdf = normalize(impact_df.filter(pl.col(IMPACT_COLUMN).eq(WITHOUT_ACTION_GROUP)).drop(IMPACT_COLUMN))
+                baseline_series = to_series(bdf)
+
+            idf = normalize(impact_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN))
+            action_raw.append((action, to_series(idf)))
+
+        def get_multiplier(year: int) -> float:
+            # m = (x - x0) / sum(raw_i), so that x0 + sum(raw_i * m) = x
+            x0 = current_series.get(year, 0.0)
+            x = baseline_series.get(year, 0.0) if baseline_series else x0
+            sum_raw = sum(raw.get(year, 0.0) for _, raw in action_raw)
+            if abs(sum_raw) < 1e-10:
+                return 0.0
+            return (x - x0) / sum_raw
+
+        result: list[WedgeEntry] = []
+
+        result.append(
+            WedgeEntry(
+                id='current_scenario',
+                label='Current scenario',
+                is_scenario=True,
+                metric=make_metric(
+                    current_series,
+                    years,
+                    'current_scenario',
+                    'Current scenario',
+                    stackable=False,
+                    forecast_from=forecast_from,
+                ),
+            )
+        )
+
+        if baseline_series is not None:
+            result.append(
+                WedgeEntry(
+                    id='baseline_scenario',
+                    label='Baseline scenario',
+                    is_scenario=True,
+                    metric=make_metric(
+                        baseline_series,
+                        years,
+                        'baseline_scenario',
+                        'Baseline scenario',
+                        stackable=False,
+                        forecast_from=forecast_from,
+                    ),
+                )
+            )
+
+        for action, raw_series in action_raw:
+            adjusted = {y: raw_series.get(y, 0.0) * get_multiplier(y) for y in years}
+            result.append(
+                WedgeEntry(
+                    id=action.id,
+                    label=str(action.name),
+                    is_scenario=False,
+                    metric=make_metric(adjusted, years, action.id, str(action.name), stackable=True, forecast_from=forecast_from),
+                )
+            )
+
+        return result
+
 
 ImpactOverviewSpec.model_rebuild()
-
-
-"""
-A discussion started with Claude.
-
-I have class ImpactOverView, which produces graphs from data. Depending on the graph_type,
-different attributes are needed. For example, benefit_cost type needs effect_node but not
-effect_unit, while cost_efficiency needs both. So far,
-I have defined the attributes in a static yaml file and tested for compliance in code.
-However, I want to develop a user interface for administrators based on Wagtail. There
-the admin user could create a new ImpactOverview, and, after selecting the graph_type,
-would only be asked about the attributes that are relevant. What is a good way to
-implement this?
-
-Claude recommended Wagtail StreamFields with different block types for different graph_types.
-"""
