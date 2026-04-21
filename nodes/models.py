@@ -499,6 +499,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         pp.admin_role.delete_instance_group(self)
         pp.viewer_role.delete_instance_group(self)
         pp.reviewer_role.delete_instance_group(self)
+        pp.super_admin_role.delete_instance_group(obj=self)
         self.nodes.all().delete()
         super().delete(**kwargs)
 

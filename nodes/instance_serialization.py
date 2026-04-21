@@ -44,6 +44,7 @@ if TYPE_CHECKING:
         DimensionCategory,
     )
 
+    from frameworks.models import FrameworkConfig
     from nodes.models import InstanceConfig, NodeConfig
 
 
@@ -709,11 +710,11 @@ def _import_dataset_ports(
             dataset=dataset,
             port_id=p.port_id,
             metric=metric,
-            forecast_from=p.forecast_from,
+            spec=p.spec,
         )
 
 
-def import_instance(ic: InstanceConfig, export: InstanceExport) -> None:
+def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config: FrameworkConfig | None = None) -> None:
     """
     Populate an InstanceConfig with computation model objects from an InstanceExport.
 
@@ -729,10 +730,12 @@ def import_instance(ic: InstanceConfig, export: InstanceExport) -> None:
     # stays loadable — the spec's TranslatedStrings are authored under
     # the template's primary_language and would be filtered out if the
     # InstanceConfig used a different language.
-    ic.spec = export.instance.spec
+    spec = ic.spec = export.instance.spec.model_copy()
     ic.primary_language = export.instance.spec.primary_language
     ic.other_languages = list(export.instance.spec.other_languages)
     ic.config_source = 'database'
+    if framework_config is not None:
+        spec.owner = framework_config.organization_name
     ic.save(update_fields=['spec', 'primary_language', 'other_languages', 'config_source'])
 
     # Dimensions first — datasets and data points reference them
