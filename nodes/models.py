@@ -888,25 +888,37 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         scope: DimensionScope,
         update_existing=False,
         delete_stale=False,
+        instance: Instance | None = None,
     ):
         found_cats = set()
-        instance = self.get_instance()
+        if instance is None:
+            instance = self.get_instance()
         default_lang = instance.default_language
         assert scope.identifier is not None
         dim = instance.context.dimensions[scope.identifier]
 
+        from datasets.defs import DimensionCategorySpec
+
         cats = {cat.identifier: cat for cat in dataset_dim.categories.all()}
-        for cat in dim.categories:
+        for order, cat in enumerate(dim.categories):
             cat_obj = cats.get(cat.id)
+            label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
+            cat_spec = DimensionCategorySpec.from_runtime(cat).to_json()
             if cat_obj is None:
-                label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
-                cat_obj = DimensionCategory.objects.create(dimension=dataset_dim, identifier=cat.id, label=label, i18n=i18n)
+                cat_obj = DimensionCategory.objects.create(
+                    dimension=dataset_dim,
+                    identifier=cat.id,
+                    label=label,
+                    i18n=i18n,
+                    spec=cat_spec,
+                    order=order,
+                )
                 print('Creating category %s' % cat.id)
             else:
                 found_cats.add(cat_obj.pk)
-                label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
-                if i18n != cat_obj.i18n or cat_obj.label != label:
-                    cat_obj.label, cat_obj.i18n = label, i18n
+                changed = i18n != cat_obj.i18n or cat_obj.label != label or cat_obj.spec != cat_spec or cat_obj.order != order
+                if changed:
+                    cat_obj.label, cat_obj.i18n, cat_obj.spec, cat_obj.order = label, i18n, cat_spec, order
                     print('Updating category %s' % cat.id)
                     cat_obj.save()
 
@@ -917,15 +929,24 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
                 print('Deleting stale category %s' % cat_obj)
                 cat_obj.delete()
 
-    def sync_dimension(self, dim: NodeDimension, update_existing=False, delete_stale=False) -> DatasetDimensionModel:
+    def sync_dimension(
+        self,
+        dim: NodeDimension,
+        update_existing=False,
+        delete_stale=False,
+        instance: Instance | None = None,
+    ) -> DatasetDimensionModel:
+        from datasets.defs import DimensionSpec
+
         scope = DimensionScope.objects.filter(
             scope_content_type=ContentType.objects.get_for_model(self),
             scope_id=self.pk,
             identifier=dim.id,
         ).first()
-        label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', self.primary_language)
+        label, i18n = get_modeltrans_attrs_from_str(dim.label, 'name', self.primary_language)
+        dim_spec = DimensionSpec.from_runtime(dim).to_json()
         if scope is None:
-            dim_obj = DatasetDimensionModel.objects.create(name=label, i18n=i18n)
+            dim_obj = DatasetDimensionModel.objects.create(name=label, i18n=i18n, spec=dim_spec)
             scope = DimensionScope.objects.create(
                 scope_content_type=ContentType.objects.get_for_model(self), scope_id=self.pk, identifier=dim.id, dimension=dim_obj
             )
@@ -933,21 +954,29 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         else:
             dim_obj = scope.dimension
 
-        if update_existing and (dim_obj.name != label or dim_obj.i18n != i18n):
+        if update_existing and (dim_obj.name != label or dim_obj.i18n != i18n or dim_obj.spec != dim_spec):
             if dim_obj.pk:
                 print('Updating dimension %s' % dim.id)
             dim_obj.name = label
             dim_obj.i18n = i18n
+            dim_obj.spec = dim_spec
             dim_obj.save()
 
-        self.sync_categories(dataset_dim=dim_obj, scope=scope, update_existing=update_existing, delete_stale=delete_stale)
+        self.sync_categories(
+            dataset_dim=dim_obj,
+            scope=scope,
+            update_existing=update_existing,
+            delete_stale=delete_stale,
+            instance=instance,
+        )
         return dim_obj
 
-    def sync_dimensions(self, update_existing=False, delete_stale=False) -> None:
-        instance = self.get_instance()
+    def sync_dimensions(self, update_existing=False, delete_stale=False, instance: Instance | None = None) -> None:
+        if instance is None:
+            instance = self.get_instance()
         found_dims = set()
         for dim in instance.context.dimensions.values():
-            obj = self.sync_dimension(dim, update_existing=update_existing, delete_stale=delete_stale)
+            obj = self.sync_dimension(dim, update_existing=update_existing, delete_stale=delete_stale, instance=instance)
             found_dims.add(obj)
 
         if delete_stale:
