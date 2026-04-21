@@ -92,10 +92,10 @@ GEOS_LIBRARY_PATH = env('GEOS_LIBRARY_PATH') or None
 for directory in env.list('MOUNTED_SECRET_PATHS'):
     set_secret_file_vars(env, directory)
 
-DEBUG = env('DEBUG')
-DEPLOYMENT_TYPE = env('DEPLOYMENT_TYPE')
+DEBUG = env.bool('DEBUG')
+DEPLOYMENT_TYPE = env.str('DEPLOYMENT_TYPE')
 SENTRY_DSN = env.str('SENTRY_DSN')
-ADMIN_BASE_URL = env('ADMIN_BASE_URL')
+ADMIN_BASE_URL = env.str('ADMIN_BASE_URL')
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
 INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))  # type: ignore
 DATABASES = {
@@ -575,7 +575,7 @@ if not locals().get('SECRET_KEY', ''):
 
         system_random = random.SystemRandom()
         try:
-            SECRET_KEY = ''.join([system_random.choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)') for i in range(64)])
+            SECRET_KEY = ''.join([system_random.choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)') for _ in range(64)])
             with secret_file.open('w') as f:
                 secret_file.chmod(0o0600)
                 f.write(SECRET_KEY)

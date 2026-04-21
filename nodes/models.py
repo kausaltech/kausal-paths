@@ -51,7 +51,7 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
+from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans, set_i18n_context
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
@@ -472,11 +472,12 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             self.uuid = uuid.uuid4()
 
         if (spec := self.spec) is not None:
-            spec.uuid = self.uuid
-            spec.identifier = self.identifier
-            spec.name = self.name
-            spec.primary_language = self.primary_language
-            spec.other_languages = list(self.other_languages or [])
+            with set_i18n_context(self.primary_language, self.other_languages):
+                spec.uuid = self.uuid
+                spec.identifier = self.identifier
+                spec.name = self.name
+                spec.primary_language = self.primary_language
+                spec.other_languages = list(self.other_languages or [])
 
         if self.site is not None:
             # TODO: Update Site and root page attributes
