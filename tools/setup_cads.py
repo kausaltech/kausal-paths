@@ -75,7 +75,7 @@ def get_or_create_landing_instance(org: Organization) -> InstanceConfig:
         name=LANDING_INSTANCE_NAME,
         owner=LANDING_ORG_NAME,
         primary_language=PRIMARY_LANGUAGE,
-        theme_identifier='default',
+        theme_identifier='eu-climate-4-cast',
         years=YearsSpec(reference=2020, min_historical=2018, max_historical=2024, target=2030),
     )
     try:
