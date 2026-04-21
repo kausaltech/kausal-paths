@@ -185,6 +185,7 @@ def change_operation(
             yield op
         finally:
             _current_op.reset(token)
+        ic.invalidate_cache()
 
 
 @contextmanager

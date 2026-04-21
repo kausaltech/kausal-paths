@@ -103,8 +103,11 @@ class FrameworkMutation:
                 config_source='database',
                 spec=make_empty_instance_spec(),
             )
+            if fw.public_base_fqdn:
+                ic.site_url = f'https://{input.identifier}.{fw.public_base_fqdn}'
+                ic.save(update_fields=['site_url'])
 
-            FrameworkConfig.objects.create(
+            fwc = FrameworkConfig.objects.create(
                 framework=fw,
                 instance_config=ic,
                 organization_name=input.organization_name,
@@ -112,15 +115,16 @@ class FrameworkMutation:
                 target_year=fw.defaults.target_year.default or fw.defaults.target_year.min,
             )
 
-            ic.create_or_update_instance_groups()
-
             pp = ic.permission_policy()
             pp.admin_role.assign_user(ic, user)
 
             if template_export is not None:
                 from nodes.instance_serialization import import_instance
 
-                import_instance(ic, template_export)
+                import_instance(ic, template_export, framework_config=fwc)
+
+            ic.refresh_from_db()
+            ic.create_default_content()
 
         return CreateInstanceResult(instance=ic)
 

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from kausal_common.development.django import init_django
 
+from kausal_common.i18n.pydantic import set_i18n_context
+
 init_django()
 
 import json
@@ -51,8 +53,14 @@ def get_or_create_framework() -> Framework:
         if not fw.allow_instance_creation:
             fw.allow_instance_creation = True
             updated = True
+        if fw.template_instance is None or fw.template_instance.identifier != 'climaville-c4c':
+            fw.template_instance = InstanceConfig.objects.get(identifier='climaville-c4c')
+            updated = True
+        if fw.public_base_fqdn is None:
+            fw.public_base_fqdn = 'cads.kausal.tech'
+            updated = True
         if updated:
-            fw.save(update_fields=['allow_user_registration', 'allow_instance_creation'])
+            fw.save(update_fields=['allow_user_registration', 'allow_instance_creation', 'template_instance', 'public_base_fqdn'])
             print(f'Updated framework flags: {fw}')
         else:
             print(f'Framework already exists: {fw}')
@@ -194,10 +202,11 @@ def setup_instance_groups(ic: InstanceConfig) -> None:
 def main() -> None:
     get_or_create_framework()
     org = get_or_create_organization()
-    ic = get_or_create_landing_instance(org)
-    root_page = create_landing_root_page(ic)
-    ensure_site(ic, root_page)
-    setup_instance_groups(ic)
+    with set_i18n_context(PRIMARY_LANGUAGE, []):
+        ic = get_or_create_landing_instance(org)
+        root_page = create_landing_root_page(ic)
+        ensure_site(ic, root_page)
+        setup_instance_groups(ic)
     print('CADS setup complete.')
 
 

@@ -162,6 +162,9 @@ class FrameworkConfigCache(ModelObjectCache[FrameworkConfig, FrameworkConfigQuer
     def model(self):
         return FrameworkConfig
 
+    def filter_by_parent(self, qs: FrameworkConfigQuerySet) -> FrameworkConfigQuerySet:
+        return qs.filter(framework=self.parent)
+
     def add_obj(self, obj: FrameworkConfig) -> None:
         obj.cache = FrameworkConfigCacheData(self.parent.cache, obj, self.user)
         super().add_obj(obj)
