@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NoReturn, TypeGuard, cast
 from uuid import UUID
 
+from django.utils import timezone
 import strawberry as sb
 from django.core.exceptions import PermissionDenied, ValidationError
 from strawberry import Maybe
@@ -96,7 +97,8 @@ class DatasetEditorMutation:
         except ValueError as exc:
             raise PermissionDenied('Permission denied') from exc
         root.dataset.last_modified_by = user
-        root.dataset.save(update_fields=['last_modified_by'])
+        root.dataset.last_modified_at = timezone.now()
+        root.dataset.save(update_fields=['last_modified_by', 'last_modified_at'])
         root.dataset.clear_scope_instance_cache()
 
     @staticmethod
