@@ -101,6 +101,7 @@ def ensure_template_datasets() -> None:
     missing_dataset_ids = source_dataset_ids - existing_dataset_ids
     if not missing_dataset_ids:
         print(f'Template datasets already copied: {target}')
+        ensure_template_dataset_ports(source, target, source_dataset_ids)
         return
 
     copied = import_instance_datasets(
@@ -111,6 +112,94 @@ def ensure_template_datasets() -> None:
         create_missing_dimensions=True,
     )
     print(f'Copied {len(copied)} dataset(s) from {source.identifier} to {target.identifier}')
+    ensure_template_dataset_ports(source, target, source_dataset_ids)
+
+
+def _dataset_port_key(port) -> tuple[str, str, str, str]:
+    return (
+        port.node.identifier,
+        port.dataset.identifier,
+        port.metric.name or str(port.metric.uuid),
+        port.spec.model_dump_json(exclude_defaults=True, exclude_none=True),
+    )
+
+
+def ensure_template_dataset_ports(source: InstanceConfig, target: InstanceConfig, dataset_ids: set[str]) -> None:
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dataset
+
+    from nodes.models import DatasetPort, NodeConfig
+
+    if not dataset_ids:
+        return
+
+    target_nodes = {
+        node.identifier: node
+        for node in NodeConfig.objects.filter(
+            instance=target,
+            identifier__in=DatasetPort.objects.filter(instance=source, dataset__identifier__in=dataset_ids).values_list(
+                'node__identifier',
+                flat=True,
+            ),
+        )
+    }
+    target_datasets = {
+        dataset.identifier: dataset
+        for dataset in Dataset.objects.filter(
+            scope_content_type=ContentType.objects.get_for_model(target),
+            scope_id=target.pk,
+            identifier__in=dataset_ids,
+            is_external_placeholder=False,
+        ).select_related('schema')
+        if dataset.identifier is not None
+    }
+    existing_port_keys = {
+        _dataset_port_key(port)
+        for port in DatasetPort.objects.filter(instance=target, dataset__identifier__in=dataset_ids).select_related(
+            'node',
+            'dataset',
+            'metric',
+        )
+    }
+    source_ports = DatasetPort.objects.filter(instance=source, dataset__identifier__in=dataset_ids).select_related(
+        'node',
+        'dataset',
+        'metric',
+    )
+
+    missing_ports: list[DatasetPort] = []
+    for source_port in source_ports:
+        key = _dataset_port_key(source_port)
+        if key in existing_port_keys:
+            continue
+        target_node = target_nodes.get(source_port.node.identifier)
+        target_dataset = target_datasets.get(source_port.dataset.identifier)
+        if target_node is None or target_dataset is None:
+            continue
+        assert target_dataset.schema is not None
+        target_metric = target_dataset.schema.metrics.filter(name=source_port.metric.name).first()
+        if target_metric is None:
+            raise ValueError(
+                f'Cannot copy dataset port for {source_port.dataset.identifier!r}; '
+                f'metric {source_port.metric.name!r} is missing in {target.identifier!r}'
+            )
+        missing_ports.append(
+            DatasetPort(
+                instance=target,
+                node=target_node,
+                port_id=source_port.port_id,
+                dataset=target_dataset,
+                metric=target_metric,
+                spec=source_port.spec,
+            )
+        )
+
+    if not missing_ports:
+        print(f'Template dataset ports already copied: {target}')
+        return
+    DatasetPort.objects.bulk_create(missing_ports)
+    print(f'Copied {len(missing_ports)} dataset port(s) from {source.identifier} to {target.identifier}')
 
 
 def get_or_create_organization() -> Organization:
