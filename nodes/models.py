@@ -74,7 +74,7 @@ from paths.utils import (
     get_supported_languages,
 )
 
-from nodes.defs import DatasetPortBindingDef, EdgeBindingDef, InstanceSpec, NodeSpec
+from nodes.defs import DatasetPortBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceSpec, NodeSpec
 from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.node_defs import NodeKind
 from nodes.instance_serialization import (
@@ -970,7 +970,23 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         pks = [node.database_id for node in root_nodes]
         return list(self.nodes.filter(pk__in=pks))
 
-    def _create_default_pages(self) -> Page:
+    def _create_instance_root_page(self) -> Page:
+        from pages.models import InstanceRootPage
+
+        root_node: Page = cast('Page', Page.get_first_root_node())
+        with override(self.primary_language):
+            locale, _ = Locale.objects.get_or_create(language_code=self.primary_language)
+            page = root_node.add_child(
+                instance=InstanceRootPage(
+                    locale=locale,
+                    title=self.get_name(),
+                    slug=self.identifier,
+                    url_path='',
+                )
+            )
+        return page
+
+    def _create_default_pages(self) -> Page:  # noqa: C901, PLR0912
         from pages.models import ActionListPage, OutcomePage
 
         root = cast('Page', Page.get_first_root_node())
@@ -986,11 +1002,22 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             if page.id == 'home':
                 home_page_conf = page
                 break
-        assert home_page_conf is not None
-        assert home_page_conf.outcome_node is not None
-        onode = outcome_nodes.get(home_page_conf.outcome_node)
+        if home_page_conf is None:
+            if not outcome_nodes:
+                hps = list(home_pages)
+                if hps:
+                    return hps[0]
+                return self._create_instance_root_page()
+
+            onode = outcome_nodes.get('net_emissions') or next(iter(outcome_nodes.values()))
+        else:
+            assert home_page_conf.outcome_node is not None
+            onode = outcome_nodes.get(home_page_conf.outcome_node)
+            if onode is None:
+                raise ValueError(f"Your node '{home_page_conf.outcome_node}' is not an outcome node.")
+
         if onode is None:
-            raise ValueError(f"Your node '{home_page_conf.outcome_node}' is not an outcome node.")
+            raise ValueError('No outcome node found for the instance.')
 
         root_node: Page = cast('Page', Page.get_first_root_node())
         with override(self.primary_language):
@@ -998,7 +1025,6 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             try:
                 home_page = home_pages.get(slug=self.identifier)
             except Page.DoesNotExist:
-                assert home_page_conf.outcome_node is not None
                 home_page = root_node.add_child(
                     instance=OutcomePage(
                         locale=locale,
@@ -1215,7 +1241,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                     dataset_external_ref=F('dataset__external_ref'),
                     external_dataset_id=F('dataset__identifier'),
                     external_metric_id=F('metric__name'),
-                    forecast_from=F('forecast_from'),
+                    forecast_from=F('spec__forecast_from'),
                 ),
             )
             .values('obj')
@@ -1669,11 +1695,7 @@ class DatasetPort(EditableInstanceChild):
         on_delete=models.PROTECT,
         related_name='node_ports',
     )
-    forecast_from = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text='The year from which the time series becomes a forecast.',
-    )
+    spec = SchemaField(schema=DatasetPortSpec, default=DatasetPortSpec, blank=True)
 
     # for type checkers
     node_id: int

@@ -201,6 +201,52 @@ class InputDatasetDef(I18nBaseModel):
         return DatasetTransformPipelineDef(operations=operations)
 
 
+class DatasetPortSpec(I18nBaseModel):
+    """Computation semantics for a dataset-to-input-port binding."""
+
+    model_config = ConfigDict(extra='forbid')
+
+    tags: list[str] = Field(default_factory=list)
+    input_dataset: str | None = None
+    """DVC dataset identifier override (when different from the bound dataset)."""
+    forecast_from: int | None = None
+    filters: list[InputDatasetFilterDef] = Field(default_factory=list)
+    dropna: bool | None = None
+    min_year: int | None = None
+    max_year: int | None = None
+    unit: Unit | None = None
+    output_dimensions: list[DimensionRef] | None = None
+
+    @classmethod
+    def from_input_dataset(cls, ds_def: InputDatasetDef) -> DatasetPortSpec:
+        return cls(
+            tags=ds_def.tags,
+            input_dataset=ds_def.input_dataset,
+            forecast_from=ds_def.forecast_from,
+            filters=ds_def.filters,
+            dropna=ds_def.dropna,
+            min_year=ds_def.min_year,
+            max_year=ds_def.max_year,
+            unit=ds_def.unit,
+            output_dimensions=ds_def.output_dimensions,
+        )
+
+    def to_input_dataset(self, *, id: DatasetIdentifier, column: MixedCaseIdentifier | None) -> InputDatasetDef:
+        return InputDatasetDef(
+            id=id,
+            tags=self.tags,
+            input_dataset=self.input_dataset,
+            column=column,
+            forecast_from=self.forecast_from,
+            filters=self.filters,
+            dropna=self.dropna,
+            min_year=self.min_year,
+            max_year=self.max_year,
+            unit=self.unit,
+            output_dimensions=self.output_dimensions,
+        )
+
+
 class OutputMetricDef(I18nBaseModel):
     """A single output metric produced by a node."""
 
@@ -309,8 +355,7 @@ class NodeSpec(I18nBaseModel):
     # Outputs
     output_ports: list[OutputPortDef] = Field(default_factory=list)
 
-    # Datasets and dimensions
-    input_datasets: list[InputDatasetDef] = Field(default_factory=list)
+    # Dimensions
     input_dimensions: list[str] = Field(default_factory=list)
     output_dimensions: list[str] = Field(default_factory=list)
 

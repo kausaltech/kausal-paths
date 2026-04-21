@@ -6,7 +6,16 @@ from .instance_defs import (
     InstanceSpec,
     YearsSpec,
 )
-from .node_defs import ActionConfig, FormulaConfig, InputDatasetDef, NodeSpec, OutputMetricDef, SimpleConfig, TypeConfig
+from .node_defs import (
+    ActionConfig,
+    DatasetPortSpec,
+    FormulaConfig,
+    InputDatasetDef,
+    NodeSpec,
+    OutputMetricDef,
+    SimpleConfig,
+    TypeConfig,
+)
 from .port_def import InputPortDef, OutputPortDef
 
 __all__ = [
@@ -14,6 +23,7 @@ __all__ = [
     'ActionGroup',
     'AssignCategoryTransformation',
     'DatasetPortBindingDef',
+    'DatasetPortSpec',
     'DatasetRepoSpec',
     'EdgeBindingDef',
     'EdgeTransformation',

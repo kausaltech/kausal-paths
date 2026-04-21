@@ -122,6 +122,11 @@ class FrameworkMutation:
                 from nodes.instance_serialization import import_instance
 
                 import_instance(ic, template_export, framework_config=fwc)
+            else:
+                spec = ic.spec
+                assert spec is not None
+                spec.owner = fwc.organization_name
+                ic.save(update_fields=['spec'])
 
             ic.refresh_from_db()
             ic.create_default_content()

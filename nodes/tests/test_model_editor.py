@@ -15,7 +15,7 @@ from nodes.actions.parent import ParentActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceSpec, NormalizationSpec, YearsSpec
-from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, SimpleConfig
+from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.models import NodeKindChoices
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
@@ -28,7 +28,9 @@ if TYPE_CHECKING:
 
     from nodes.actions.action import ActionNode
     from nodes.context import Context
+    from nodes.datasets import DatasetWithFilters
     from nodes.models import InstanceConfig
+    from nodes.node import Node
 
 
 # This way GraphQL LSPs recognize the query strings as GraphQL
@@ -263,13 +265,6 @@ def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient
                 },
                 'inputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
                 'outputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
-                'inputDatasets': [
-                    {
-                        'id': 'aarhus/energy_actions',
-                        'forecast_from': 2024,
-                        'filters': [{'column': 'action', 'value': 'carbon_capture_and_storage'}],
-                    }
-                ],
                 'params': {'allow_null_categories': True},
                 'outputMetrics': [
                     {'id': 'emissions', 'unit': 't/a', 'quantity': 'emissions'},
@@ -295,8 +290,6 @@ def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient
     assert nc.spec.type_config.group == 'energy'
     assert nc.spec.input_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
     assert nc.spec.output_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
-    assert nc.spec.input_datasets[0].id == 'aarhus/energy_actions'
-    assert nc.spec.input_datasets[0].forecast_from == 2024
     assert [port.column_id for port in nc.spec.output_ports] == ['emissions', 'energy', 'currency']
     allow_null_categories = next(param for param in nc.spec.params if param.local_id == 'allow_null_categories')
     assert allow_null_categories.value is True
@@ -449,13 +442,6 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
                 'inputPorts': [{'unit': 't/a', 'quantity': 'emissions'}],
                 'inputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
                 'outputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
-                'inputDatasets': [
-                    {
-                        'id': 'aarhus/energy_actions',
-                        'forecast_from': 2024,
-                        'filters': [{'column': 'action', 'value': 'carbon_capture_and_storage'}],
-                    }
-                ],
                 'params': {'allow_null_categories': True},
                 'outputMetrics': [
                     {'id': 'emissions', 'unit': 't/a', 'quantity': 'emissions'},
@@ -493,8 +479,6 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
     assert nc.spec.input_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
     assert nc.spec.output_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
     assert nc.spec.input_ports[0].quantity == 'emissions'
-    assert nc.spec.input_datasets[0].id == 'aarhus/energy_actions'
-    assert nc.spec.input_datasets[0].forecast_from == 2024
     assert [port.column_id for port in nc.spec.output_ports] == ['emissions', 'energy', 'currency']
     assert nc.spec.extra.tags == ['trial']
     allow_null_categories = next(param for param in nc.spec.params if param.local_id == 'allow_null_categories')
@@ -1120,17 +1104,21 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
     assert len(query_ctx) <= 20
 
 
-def test_dataset_port_sync_binds_multimetric_action_dataset(db_instance_config: InstanceConfig):
+def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: InstanceConfig):
+    from nodes.defs.node_defs import ColumnDatasetFilterDef, DatasetPortSpec
     from nodes.models import DatasetPort
-    from nodes.spec_export import _export_input_ports, _update_dataset_ports
 
     assert db_instance_config.spec is not None
     db_instance_config.spec.features.use_datasets_from_db = True
     db_instance_config.save(update_fields=['spec'])
 
     dataset = DatasetFactory.create(identifier='multi_metric_actions', scope=db_instance_config)
-    DatasetMetricFactory.create(schema=dataset.schema, name='emissions', label='Emissions', unit='t/a')
-    DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='TJ/a')
+    emissions_metric = DatasetMetricFactory.create(schema=dataset.schema, name='emissions', label='Emissions', unit='t/a')
+    energy_metric = DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='TJ/a')
+    binding_spec = DatasetPortSpec(
+        forecast_from=2024,
+        filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+    )
 
     nc = NodeConfigFactory.create(
         instance=db_instance_config,
@@ -1142,7 +1130,10 @@ def test_dataset_port_sync_binds_multimetric_action_dataset(db_instance_config: 
                 node_class=ACTION_NODE_CLASS,
                 decision_level=DecisionLevel.MUNICIPALITY,
             ),
-            input_datasets=[InputDatasetDef(id='multi_metric_actions')],
+            input_ports=[
+                _make_input_port(id='emissions', unit='t/a', quantity='emissions'),
+                _make_input_port(id='energy', unit='TJ/a', quantity='energy'),
+            ],
             output_ports=[
                 OutputPortDef(
                     id=_port_uuid('emissions'),
@@ -1159,18 +1150,97 @@ def test_dataset_port_sync_binds_multimetric_action_dataset(db_instance_config: 
             ],
         ),
     )
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=nc,
+        port_id=_port_uuid('emissions'),
+        dataset=dataset,
+        metric=emissions_metric,
+        spec=binding_spec,
+    )
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=nc,
+        port_id=_port_uuid('energy'),
+        dataset=dataset,
+        metric=energy_metric,
+        spec=binding_spec,
+    )
 
     ctx = _rebuild_from_db(db_instance_config)
-    node_configs = {node.identifier: node for node in db_instance_config.nodes.all()}
-    assert _update_dataset_ports(db_instance_config, ctx, node_configs) == 2
+    action = ctx.nodes['multi_metric_action']
+    assert len(action.input_dataset_instances) == 1
+    ds = cast('DatasetWithFilters', action.input_dataset_instances[0])
+    assert ds.id == 'multi_metric_actions'
+    assert ds.column is None
+    assert ds.forecast_from == 2024
+    assert ds.filters is not None
+    filter_def = ds.filters[0]
+    assert isinstance(filter_def, ColumnDatasetFilterDef)
+    assert filter_def.column == 'action'
+    assert filter_def.value == 'multi_metric_action'
 
-    bindings = list(DatasetPort.objects.filter(node=nc).select_related('dataset', 'metric').order_by('metric__name'))
-    assert [(binding.dataset.identifier, binding.metric.name) for binding in bindings] == [
-        ('multi_metric_actions', 'emissions'),
-        ('multi_metric_actions', 'energy'),
-    ]
-    expected_port = _export_input_ports(ctx.nodes['multi_metric_action'])[0]
-    assert {binding.port_id for binding in bindings} == {expected_port.id}
+
+def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: InstanceConfig):
+    from types import SimpleNamespace
+
+    from nodes.datasets import DBDataset
+    from nodes.defs.node_defs import ColumnDatasetFilterDef
+    from nodes.models import DatasetPort
+    from nodes.node import NodeMetric
+    from nodes.spec_export import _export_input_ports, _update_dataset_ports
+
+    dataset = DatasetFactory.create(identifier='sync_multi_metric_actions', scope=db_instance_config)
+    DatasetMetricFactory.create(schema=dataset.schema, name='emissions', label='Emissions', unit='t/a')
+    DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='TJ/a')
+
+    context = cast('Context', SimpleNamespace(instance=SimpleNamespace(config=db_instance_config)))
+    ds_instance = DBDataset(
+        id='sync_multi_metric_actions',
+        context=context,
+        db_dataset_obj=dataset,
+        filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+        forecast_from=2024,
+    )
+    node = cast(
+        'Node',
+        SimpleNamespace(
+            id='multi_metric_action',
+            context=context,
+            input_dataset_instances=[ds_instance],
+            output_metrics={
+                'emissions': NodeMetric(unit='t/a', quantity='emissions', id='emissions', column_id='emissions'),
+                'energy': NodeMetric(unit='TJ/a', quantity='energy', id='energy', column_id='energy'),
+            },
+            edges=[],
+            input_dimensions={},
+        ),
+    )
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='multi_metric_action',
+        spec=NodeSpec(
+            kind=NodeKind.ACTION,
+            type_config=ActionConfig(
+                node_class=ACTION_NODE_CLASS,
+                decision_level=DecisionLevel.MUNICIPALITY,
+            ),
+        ),
+    )
+
+    input_ports = _export_input_ports(node)
+    assert [port.quantity for port in input_ports] == ['emissions', 'energy']
+
+    ctx = cast('Context', SimpleNamespace(nodes={'multi_metric_action': node}))
+    assert _update_dataset_ports(db_instance_config, ctx, {'multi_metric_action': nc}) == 2
+    bindings = list(DatasetPort.objects.filter(node=nc).select_related('metric').order_by('metric__name'))
+    assert [binding.metric.name for binding in bindings] == ['emissions', 'energy']
+    assert {binding.port_id for binding in bindings} == {port.id for port in input_ports}
+    assert all(binding.spec.forecast_from == 2024 for binding in bindings)
+    for binding in bindings:
+        filter_def = binding.spec.filters[0]
+        assert isinstance(filter_def, ColumnDatasetFilterDef)
+        assert filter_def.column == 'action'
 
 
 def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_instance_config: InstanceConfig):

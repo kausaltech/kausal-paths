@@ -12,7 +12,6 @@ import strawberry as sb
 from django.db import transaction
 from django.utils.module_loading import import_string
 from graphql import GraphQLError
-from pydantic import TypeAdapter, ValidationError as PydanticValidationError
 from strawberry import Maybe, auto
 
 from kausal_common.strawberry.errors import GraphQLValidationError, NotFoundError, PermissionDeniedError
@@ -28,7 +27,7 @@ from nodes.defs.edge_def import (
     FlattenTransformation,
     SelectCategoriesTransformation,
 )
-from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, PipelineConfig
+from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.models import InstanceConfig, NodeConfig, NodeKindChoices
 from nodes.node import Node
@@ -372,7 +371,6 @@ class CreateNodeInput:
     output_metrics: list[OutputMetricInput] | None = None
     input_dimensions: list[str] | None = None
     output_dimensions: list[str] | None = None
-    input_datasets: sb.scalars.JSON | None = None
     params: sb.scalars.JSON | None = None
     tags: list[str] | None = None
     i18n: sb.scalars.JSON | None = None
@@ -398,7 +396,6 @@ class UpdateNodeInput:
     output_metrics: Maybe[list[OutputMetricInput]]
     input_dimensions: Maybe[list[str]]
     output_dimensions: Maybe[list[str]]
-    input_datasets: Maybe[sb.scalars.JSON]
     params: Maybe[sb.scalars.JSON]
     tags: Maybe[list[str]]
     i18n: Maybe[sb.scalars.JSON]
@@ -600,18 +597,6 @@ def _kind_from_config(info: gql.Info, config: NodeConfigInput) -> NodeKind:
     return provided[0]
 
 
-def _parse_input_datasets(info: gql.Info, raw: Any) -> list[InputDatasetDef]:
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise GraphQLValidationError(info, 'inputDatasets must be a list')
-    adapter = TypeAdapter(list[InputDatasetDef])
-    try:
-        return adapter.validate_python(raw)
-    except PydanticValidationError as exc:
-        raise GraphQLValidationError(info, f'Invalid inputDatasets: {exc}') from exc
-
-
 def _node_class_path(node_class: str, kind: NodeKind) -> str:
     if node_class.startswith('nodes.'):
         return node_class
@@ -791,8 +776,6 @@ def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, inp
 
 
 def _apply_node_data_updates(info: gql.Info, spec: NodeSpec, input: UpdateNodeInput) -> None:
-    if is_maybe_set(input.input_datasets):
-        spec.input_datasets = _parse_input_datasets(info, input.input_datasets.value)
     if is_maybe_set(input.params):
         spec.params = _parse_params(info, input.params.value, spec.type_config, spec.kind)
 
@@ -852,7 +835,6 @@ class InstanceEditorMutation:
             minimum_year=input.minimum_year,
             input_ports=input_ports,
             output_ports=output_ports,
-            input_datasets=_parse_input_datasets(info, input.input_datasets),
             input_dimensions=input_dimensions,
             output_dimensions=output_dimensions,
         )

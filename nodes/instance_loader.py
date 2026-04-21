@@ -1219,8 +1219,6 @@ class InstanceLoader:
             min_hist_year: int = self.config['minimum_historical_year']
             site_url = self.config.get('site_url')
             reference_year = self.config.get('reference_year')
-            if reference_year is None:
-                raise ValueError(self, 'Reference year must be given for the instance.')
         else:
             from frameworks.models import MeasureDataPoint
 
@@ -1251,7 +1249,7 @@ class InstanceLoader:
             maximum_historical_year=max_hist_year,
             minimum_historical_year=min_hist_year,
             site_url=site_url,
-            reference_year=reference_year,
+            reference_year=reference_year or 2020,  # FIXME
             supported_languages=cast(
                 'list[str]',
                 self.config.get('supported_languages') or [],
