@@ -36,6 +36,8 @@ from nodes.defs.instance_defs import InstanceSpec
 from nodes.defs.node_defs import NodeSpec
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from django.contrib.contenttypes.models import ContentType
 
     from kausal_common.datasets.models import (
@@ -137,19 +139,25 @@ class DatasetSnapshot(ModelSnapshot):
     external_ref: dict[str, Any] | None = None
     time_resolution: str = 'yearly'
     dimensions: list[str] = Field(default_factory=list)
+    dimension_columns: dict[str, str] = Field(default_factory=dict)
     metrics: list[DatasetMetricSnapshot] = Field(default_factory=list)
     data: dict[str, Any] | None = None
 
     @classmethod
     def from_model(cls, obj: Any) -> Self:
+        return cls.from_model_for_instance(obj, None)
+
+    @classmethod
+    def from_model_for_instance(cls, obj: Any, instance_config: InstanceConfig | None) -> Self:
         from kausal_common.datasets.models import DatasetSchemaDimension, DimensionScope
 
         schema = obj.schema
         metrics: list[DatasetMetricSnapshot] = []
         dimensions: list[str] = []
+        dimension_columns: dict[str, str] = {}
         name_ts: TranslatedString | None = None
         time_resolution = 'yearly'
-        primary_language = _primary_language_for_dataset(obj)
+        primary_language = instance_config.primary_language if instance_config is not None else _primary_language_for_dataset(obj)
 
         if schema is not None:
             time_resolution = schema.time_resolution
@@ -159,15 +167,25 @@ class DatasetSnapshot(ModelSnapshot):
                 DatasetMetricSnapshot.from_model_with_language(m, primary_language)
                 for m in schema.metrics.all().order_by('order')
             ]
-            if obj.scope_content_type is not None and obj.scope_id is not None:
+            if instance_config is not None:
+                from django.contrib.contenttypes.models import ContentType
+
+                scope_content_type = ContentType.objects.get_for_model(instance_config)
+                scope_id = instance_config.pk
+            else:
+                scope_content_type = obj.scope_content_type
+                scope_id = obj.scope_id
+            if scope_content_type is not None and scope_id is not None:
                 for dsd in DatasetSchemaDimension.objects.filter(schema=schema).select_related('dimension').order_by('order'):
                     scope = DimensionScope.objects.filter(
                         dimension=dsd.dimension,
-                        scope_content_type=obj.scope_content_type,
-                        scope_id=obj.scope_id,
+                        scope_content_type=scope_content_type,
+                        scope_id=scope_id,
                     ).first()
                     if scope and scope.identifier:
                         dimensions.append(scope.identifier)
+                        if dsd.column_name and dsd.column_name != scope.identifier:
+                            dimension_columns[scope.identifier] = dsd.column_name
 
         data: dict[str, Any] | None = None
         if not obj.is_external_placeholder:
@@ -180,6 +198,7 @@ class DatasetSnapshot(ModelSnapshot):
             external_ref=obj.external_ref,
             time_resolution=time_resolution,
             dimensions=dimensions,
+            dimension_columns=dimension_columns,
             metrics=metrics,
             data=data,
         )
@@ -193,6 +212,10 @@ def _primary_language_for_dataset(obj: Any) -> str:
         if lang:
             return lang
     return 'en'
+
+
+def _label_from_identifier(identifier: str) -> str:
+    return identifier.replace('_', ' ').replace('-', ' ').title()
 
 
 class NodeSnapshot(ModelSnapshot):
@@ -376,20 +399,52 @@ def _dataset_port_qs_for(ic: InstanceConfig) -> Any:
     return DatasetPort.objects.filter(instance=ic).select_related('node', 'dataset', 'metric')
 
 
+def _dataset_export_key(ds: DatasetModel) -> str:
+    return ds.identifier or str(ds.uuid)
+
+
+def _dataset_export_rank(ds: DatasetModel, ic_ct_id: int, ic_id: int) -> tuple[bool, bool, int]:
+    is_direct = ds.scope_content_type_id == ic_ct_id and ds.scope_id == ic_id
+    return (not is_direct, ds.is_external_placeholder, ds.pk)
+
+
+def _datasets_for_instance_export(ic: InstanceConfig, ic_ct: ContentType) -> list[DatasetModel]:
+    from django.db.models import Q
+
+    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetSchemaScope
+
+    schema_scope_ids = DatasetSchemaScope.objects.filter(
+        scope_content_type=ic_ct,
+        scope_id=ic.pk,
+    ).values('schema_id')
+    qs = (
+        DatasetModel.objects
+        .filter(Q(scope_content_type=ic_ct, scope_id=ic.pk) | Q(schema_id__in=schema_scope_ids))
+        .select_related('schema', 'scope_content_type')
+        .distinct()
+    )
+
+    # During CADS bootstrapping an instance may temporarily have both
+    # schema-scoped external placeholders and direct real datasets with the
+    # same identifier. Export the real direct dataset in that case so clones
+    # receive datapoints and their ports can be reconstructed.
+    datasets_by_key: dict[str, DatasetModel] = {}
+    for ds in qs:
+        key = _dataset_export_key(ds)
+        existing = datasets_by_key.get(key)
+        if existing is None or _dataset_export_rank(ds, ic_ct.pk, ic.pk) < _dataset_export_rank(existing, ic_ct.pk, ic.pk):
+            datasets_by_key[key] = ds
+    return sorted(datasets_by_key.values(), key=_dataset_export_key)
+
+
 def export_instance(ic: InstanceConfig) -> InstanceExport:
     """Serialize a DB-sourced InstanceConfig with dataset bodies included."""
     from django.contrib.contenttypes.models import ContentType
 
-    from kausal_common.datasets.models import Dataset as DatasetModel
-
     snapshot = build_instance_snapshot(ic)
 
     ic_ct = ContentType.objects.get_for_model(ic)
-    datasets_qs = DatasetModel.objects.filter(
-        scope_content_type=ic_ct,
-        scope_id=ic.pk,
-    ).select_related('schema')
-    datasets = [DatasetSnapshot.from_model(ds) for ds in datasets_qs]
+    datasets = [DatasetSnapshot.from_model_for_instance(ds, ic) for ds in _datasets_for_instance_export(ic, ic_ct)]
 
     return InstanceExport(instance=snapshot, datasets=datasets)
 
@@ -519,6 +574,7 @@ def _import_dataset(
                 schema=schema,
                 dimension=dim_scope.dimension,
                 order=idx,
+                column_name=ds_snapshot.dimension_columns.get(dim_id),
             )
 
     # Create dataset
@@ -549,6 +605,7 @@ def _import_data_points(
 
     assert ds_snapshot.data is not None
     dim_ids = ds_snapshot.dimensions
+    dim_columns = {dim_id: ds_snapshot.dimension_columns.get(dim_id, dim_id) for dim_id in dim_ids}
 
     data_points: list[DataPoint] = []
     # (data_point_index, category) pairs for bulk M2M creation
@@ -563,7 +620,7 @@ def _import_data_points(
         # Resolve dimension categories for this row
         row_cats: list[DimensionCategory] = []
         for dim_id in dim_ids:
-            cat_id = row.get(dim_id)
+            cat_id = row.get(dim_columns[dim_id])
             if cat_id:
                 cat = dim_lookup.get(f'{dim_id}/{cat_id}')
                 if cat:
@@ -597,6 +654,206 @@ def _import_data_points(
             for dp_idx, cat in dp_categories
         ]
         DataPointDimensionCategory.objects.bulk_create(m2m_objs)
+
+
+def _dimension_category_lookup_for_instance(ic: InstanceConfig, ic_ct: ContentType) -> dict[str, DimensionCategory]:
+    from kausal_common.datasets.models import DimensionScope
+
+    lookup: dict[str, DimensionCategory] = {}
+    scopes = (
+        DimensionScope.objects
+        .filter(scope_content_type=ic_ct, scope_id=ic.pk, identifier__isnull=False)
+        .select_related('dimension')
+        .prefetch_related('dimension__categories')
+    )
+    for scope in scopes:
+        assert scope.identifier is not None
+        for category in scope.dimension.categories.all():
+            if category.identifier is not None:
+                lookup[f'{scope.identifier}/{category.identifier}'] = category
+    return lookup
+
+
+def _ensure_dataset_dimensions(
+    ic: InstanceConfig,
+    ds_snapshot: DatasetSnapshot,
+    ic_ct: ContentType,
+    dim_lookup: dict[str, DimensionCategory],
+) -> None:
+    from kausal_common.datasets.models import Dimension, DimensionCategory as DimensionCategoryModel, DimensionScope
+
+    for dim_id in ds_snapshot.dimensions:
+        dim_scope = (
+            DimensionScope.objects
+            .filter(
+                identifier=dim_id,
+                scope_content_type=ic_ct,
+                scope_id=ic.pk,
+            )
+            .select_related('dimension')
+            .first()
+        )
+        if dim_scope is None:
+            dimension = Dimension.objects.create(name=_label_from_identifier(dim_id))
+            DimensionScope.objects.create(
+                dimension=dimension,
+                identifier=dim_id,
+                scope_content_type=ic_ct,
+                scope_id=ic.pk,
+            )
+        else:
+            dimension = dim_scope.dimension
+
+        existing_categories = set(dimension.categories.values_list('identifier', flat=True))
+        column_name = ds_snapshot.dimension_columns.get(dim_id, dim_id)
+        category_ids = sorted({
+            str(cat_id) for row in (ds_snapshot.data or {}).get('data', []) if (cat_id := row.get(column_name))
+        })
+        for cat_id in category_ids:
+            if cat_id in existing_categories:
+                continue
+            cat = DimensionCategoryModel.objects.create(
+                dimension=dimension,
+                identifier=cat_id,
+                label=_label_from_identifier(cat_id),
+            )
+            dim_lookup[f'{dim_id}/{cat_id}'] = cat
+            existing_categories.add(cat_id)
+
+
+def _validate_dataset_dimensions(
+    ic: InstanceConfig,
+    ds_snapshot: DatasetSnapshot,
+    dim_lookup: dict[str, DimensionCategory],
+) -> None:
+    if ds_snapshot.data is None:
+        return
+    missing = {
+        f'{dim_id}/{cat_id}'
+        for row in ds_snapshot.data.get('data', [])
+        for dim_id in ds_snapshot.dimensions
+        if (cat_id := row.get(ds_snapshot.dimension_columns.get(dim_id, dim_id))) and f'{dim_id}/{cat_id}' not in dim_lookup
+    }
+    if missing:
+        missing_str = ', '.join(sorted(missing)[:10])
+        if len(missing) > 10:
+            missing_str += ', ...'
+        raise ValueError(
+            f'Cannot import dataset {ds_snapshot.identifier!r} into {ic.identifier!r}; missing dimension categories: '
+            f'{missing_str}'
+        )
+
+
+def _rewire_dataset_ports(ic: InstanceConfig, datasets_by_id: dict[str, DatasetModel]) -> int:
+    from nodes.models import DatasetPort
+
+    rewired = 0
+    ports = DatasetPort.objects.filter(instance=ic, dataset__identifier__in=datasets_by_id).select_related('dataset', 'metric')
+    for port in ports:
+        dataset = datasets_by_id.get(port.dataset.identifier)
+        if dataset is None or dataset.pk == port.dataset_id:
+            continue
+        assert dataset.schema is not None
+        metric = dataset.schema.metrics.filter(name=port.metric.name).first()
+        if metric is None:
+            raise ValueError(
+                f'Cannot rewire dataset port {port.pk} to dataset {dataset.identifier!r}; metric {port.metric.name!r} is missing'
+            )
+        port.dataset = dataset
+        port.metric = metric
+        port.save(update_fields=['dataset', 'metric'])
+        rewired += 1
+    return rewired
+
+
+def _delete_superseded_placeholders(ic: InstanceConfig, dataset_ids: Iterable[str]) -> int:
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetSchemaScope
+
+    ids = set(dataset_ids)
+    if not ids:
+        return 0
+
+    ic_ct = ContentType.objects.get_for_model(ic)
+    schema_scope_ids = DatasetSchemaScope.objects.filter(
+        scope_content_type=ic_ct,
+        scope_id=ic.pk,
+    ).values('schema_id')
+    placeholders = list(
+        DatasetModel.objects
+        .filter(
+            schema_id__in=schema_scope_ids,
+            identifier__in=ids,
+            is_external_placeholder=True,
+        )
+        .exclude(scope_content_type=ic_ct, scope_id=ic.pk)
+        .select_related('schema')
+    )
+
+    deleted = 0
+    for placeholder in placeholders:
+        schema = placeholder.schema
+        placeholder.delete()
+        deleted += 1
+        if schema is not None and not schema.datasets.exists():
+            schema.delete()
+    return deleted
+
+
+def import_instance_datasets(
+    ic: InstanceConfig,
+    dataset_snapshots: Iterable[DatasetSnapshot],
+    *,
+    rewire_dataset_ports: bool = False,
+    delete_superseded_placeholders: bool = False,
+    create_missing_dimensions: bool = False,
+) -> list[DatasetModel]:
+    """
+    Import dataset bodies into an existing InstanceConfig without touching nodes.
+
+    This is used when a template instance already has its node graph and
+    dataset ports, but its datasets need to be promoted from external
+    placeholders to real DB datasets with datapoints.
+    """
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dataset as DatasetModel
+
+    ic_ct = ContentType.objects.get_for_model(ic)
+    dim_lookup = _dimension_category_lookup_for_instance(ic, ic_ct)
+    imported: list[DatasetModel] = []
+    datasets_by_id: dict[str, DatasetModel] = {}
+
+    for ds_snapshot in dataset_snapshots:
+        if ds_snapshot.identifier is not None:
+            existing = DatasetModel.objects.filter(
+                scope_content_type=ic_ct,
+                scope_id=ic.pk,
+                identifier=ds_snapshot.identifier,
+                is_external_placeholder=False,
+            ).first()
+            if existing is not None:
+                if ds_snapshot.data is None or existing.data_points.exists():
+                    imported.append(existing)
+                    datasets_by_id[ds_snapshot.identifier] = existing
+                    continue
+                raise ValueError(f'Dataset {ds_snapshot.identifier!r} already exists for {ic.identifier!r} but has no datapoints')
+
+        if create_missing_dimensions:
+            _ensure_dataset_dimensions(ic, ds_snapshot, ic_ct, dim_lookup)
+        _validate_dataset_dimensions(ic, ds_snapshot, dim_lookup)
+        dataset = _import_dataset(ic, ds_snapshot, ic_ct, dim_lookup)
+        imported.append(dataset)
+        if ds_snapshot.identifier is not None:
+            datasets_by_id[ds_snapshot.identifier] = dataset
+
+    if rewire_dataset_ports:
+        _rewire_dataset_ports(ic, datasets_by_id)
+    if delete_superseded_placeholders:
+        _delete_superseded_placeholders(ic, datasets_by_id.keys())
+
+    return imported
 
 
 def _apply_translated(
