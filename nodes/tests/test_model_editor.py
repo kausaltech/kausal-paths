@@ -110,6 +110,28 @@ def db_instance_config() -> InstanceConfig:
     )
 
 
+def _register_dimensions(ic: InstanceConfig, dim_ids: list[str]) -> None:
+    """
+    Populate both spec.dimensions and the ORM Dimension/DimensionScope rows.
+
+    The DB-sourced config loader validates that every dimension referenced
+    by InstanceSpec.dimensions exists in the ORM, so tests that assign
+    spec.dimensions must create the matching Dimension rows too.
+    """
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dimension, DimensionScope
+
+    assert ic.spec is not None
+    ic.spec.dimensions = [{'id': dim_id, 'label': dim_id.replace('_', ' ').title(), 'categories': []} for dim_id in dim_ids]
+    ic.save(update_fields=['spec'])
+
+    ct = ContentType.objects.get_for_model(ic)
+    for dim_id in dim_ids:
+        dim = Dimension.objects.create(name=dim_id.replace('_', ' ').title())
+        DimensionScope.objects.create(dimension=dim, scope_content_type=ct, scope_id=ic.pk, identifier=dim_id)
+
+
 @pytest.fixture
 def gql_client(client, db_instance_config: InstanceConfig) -> PathsTestClient:
     """Return a PathsTestClient wired to the db_instance_config, authenticated as superuser."""
@@ -242,11 +264,8 @@ def test_create_node_with_node_group_and_allow_nulls(gql_client: PathsTestClient
 def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     assert db_instance_config.spec is not None
     db_instance_config.spec.action_groups = [ActionGroup(id='energy', name='Energy')]
-    db_instance_config.spec.dimensions = [
-        {'id': dim_id, 'label': dim_id.replace('_', ' ').title(), 'categories': []}
-        for dim_id in ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
-    ]
     db_instance_config.save(update_fields=['spec'])
+    _register_dimensions(db_instance_config, ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'])
 
     data = gql_client.query_data(
         CREATE_NODE,
@@ -407,11 +426,8 @@ def test_update_node_direct_fields(gql_client: PathsTestClient, db_instance_conf
 def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     assert db_instance_config.spec is not None
     db_instance_config.spec.action_groups = [ActionGroup(id='energy', name='Energy')]
-    db_instance_config.spec.dimensions = [
-        {'id': dim_id, 'label': dim_id.replace('_', ' ').title(), 'categories': []}
-        for dim_id in ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
-    ]
     db_instance_config.save(update_fields=['spec'])
+    _register_dimensions(db_instance_config, ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'])
 
     nc = NodeConfigFactory.create(
         instance=db_instance_config,
