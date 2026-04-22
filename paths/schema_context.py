@@ -339,7 +339,7 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
                     'Draft preview requires authentication.',
                     extensions={'code': 'permission_denied'},
                 )
-            if not ic.permission_policy().user_has_perm(user, 'change', ic):
+            if not ic.permission_policy().user_can_preview_draft(user, ic):
                 raise GraphQLError(
                     'Draft preview requires editor permission on this instance.',
                     extensions={'code': 'permission_denied'},

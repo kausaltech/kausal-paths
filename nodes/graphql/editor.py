@@ -52,11 +52,13 @@ if TYPE_CHECKING:
 
 
 def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
-    qs = InstanceConfig.objects.qs.modifiable_by(info.context.user).by_all_identifiers(str(instance_id))
+    qs = InstanceConfig.objects.qs.by_all_identifiers(str(instance_id))
     try:
-        return qs.defer(None).get()
+        ic = qs.defer(None).get()
     except InstanceConfig.DoesNotExist:
         raise GraphQLError(f'Instance "{instance_id}" not found') from None
+    ic.ensure_gql_action_allowed(info, 'change')
+    return ic
 
 
 def _resolve_model_instance(ic: InstanceConfig) -> InstanceType:
@@ -1371,7 +1373,31 @@ class InstanceEditorMutation:
 
 
 @sb.type
+class SetInstanceLockedResult:
+    instance_id: sb.ID
+    is_locked: bool
+
+
+@sb.type
 class ModelEditorMutation:
+    @gql.mutation(description='Set whether an instance is locked for end-user mutations')
+    @staticmethod
+    def set_instance_locked(info: gql.Info, instance_id: sb.ID, is_locked: bool) -> SetInstanceLockedResult:
+        ic = InstanceConfig.objects.qs.by_all_identifiers(str(instance_id)).first()
+        if ic is None:
+            raise GraphQLError(f'Instance "{instance_id}" not found')
+
+        user = info.context.user
+        if user is None or not user.is_authenticated or not ic.permission_policy().user_can_set_lock(user, ic):
+            raise PermissionDeniedError(info, 'Permission denied for instance lock')
+
+        if ic.is_locked != is_locked:
+            ic.is_locked = is_locked
+            ic.save(update_fields=['is_locked'])
+            ic.notify_change()
+
+        return SetInstanceLockedResult(instance_id=sb.ID(str(ic.identifier)), is_locked=ic.is_locked)
+
     @sb.field(description='Edit the nodes and edges of an instance')
     @staticmethod
     def instance_editor(

@@ -194,6 +194,18 @@ mutation CreateNode($instanceId: ID!, $input: CreateNodeInput!) {
 }
 """
 
+SET_INSTANCE_LOCKED = """
+mutation SetInstanceLocked($instanceId: ID!, $isLocked: Boolean!) {
+    setInstanceLocked(instanceId: $instanceId, isLocked: $isLocked) {
+        ... on SetInstanceLockedResult {
+            instanceId
+            isLocked
+        }
+        ... on OperationInfo { messages { kind message } }
+    }
+}
+"""
+
 
 def test_create_node_formula(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     data = gql_client.query_data(
@@ -333,6 +345,44 @@ def test_create_node_rejects_yaml_instance(gql_client: PathsTestClient, db_insta
     )
     error = errors[0]
     assert 'message' in error
+
+
+def test_create_node_rejects_locked_instance(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    db_instance_config.is_locked = True
+    db_instance_config.save(update_fields=['is_locked'])
+
+    errors = gql_client.query_errors(
+        CREATE_NODE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'identifier': 'nope',
+                'name': 'Nope',
+                'config': {'simple': {'nodeClass': SIMPLE_NODE_CLASS}},
+            },
+        },
+        assert_error_message='Instance is locked',
+    )
+
+    assert (errors[0].get('extensions') or {}).get('code') == 'instance_locked'
+
+
+def test_set_instance_locked_can_unlock_locked_instance(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    data = gql_client.query_data(
+        SET_INSTANCE_LOCKED,
+        variables={'instanceId': str(db_instance_config.pk), 'isLocked': True},
+    )
+    assert data['setInstanceLocked']['isLocked'] is True
+    db_instance_config.refresh_from_db()
+    assert db_instance_config.is_locked is True
+
+    data = gql_client.query_data(
+        SET_INSTANCE_LOCKED,
+        variables={'instanceId': str(db_instance_config.pk), 'isLocked': False},
+    )
+    assert data['setInstanceLocked']['isLocked'] is False
+    db_instance_config.refresh_from_db()
+    assert db_instance_config.is_locked is False
 
 
 # ---------------------------------------------------------------------------

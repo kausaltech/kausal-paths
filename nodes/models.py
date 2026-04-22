@@ -56,6 +56,7 @@ from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
     ParentInheritedPolicy,
+    PermissionBlock,
 )
 from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.types import (
@@ -211,6 +212,16 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
             return False
         return user.has_instance_role(self.fw_viewer_role, obj.framework_config.framework)
 
+    def user_can_preview_draft(self, user: User, obj: InstanceConfig) -> bool:
+        if user.is_superuser:
+            return True
+        return self.is_admin(user, obj) or self.is_framework_admin(user, obj)
+
+    def user_can_set_lock(self, user: User, obj: InstanceConfig) -> bool:
+        if user.is_superuser:
+            return True
+        return user.has_instance_role(self.super_admin_role, obj) or self.is_framework_admin(user, obj)
+
     def construct_perm_q(self, user: User, action: ObjectSpecificAction, include_implicit_public: bool = True) -> models.Q | None:
         is_super_admin = self.super_admin_role.role_q(user)
         is_admin = self.admin_role.role_q(user)
@@ -220,10 +231,14 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
         is_fw_viewer = self.fw_viewer_role.role_q(user, prefix='framework_config__framework')
 
         q = is_super_admin | is_admin | is_fw_admin
+        if action in ('change', 'delete'):
+            q &= Q(is_locked=False)
         if action == 'view':
             q = is_viewer | is_reviewer | is_super_admin | is_admin | is_fw_admin | is_fw_viewer
             if include_implicit_public:
                 q |= Q(framework_config__isnull=True)
+        else:
+            return q
 
         # PersonGroupPermissions and PersonPermissions can assign permissions directly to datasetschemas and their associated
         # datasets. We want to count the instanceconfigs those schemas are scoped for as accessible for those users.
@@ -252,6 +267,11 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
             return Q(framework_config__isnull=True)
         return None
 
+    def construct_state_perm_q(self, action: ObjectSpecificAction) -> Q:
+        if action in ('change', 'delete'):
+            return Q(is_locked=False)
+        return Q()
+
     def adminable_instances(self, user: User) -> InstanceConfigQuerySet:
         """
         Return instances that the user has been explicitly granted access to.
@@ -265,6 +285,8 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
         return qs.filter(self.construct_perm_q(user, 'view', include_implicit_public=False))
 
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
+        if self.get_permission_block(action, obj=obj) is not None:
+            return False
         if user.is_superuser:
             return True
         if action == 'delete':
@@ -279,6 +301,17 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
             if self.is_framework_viewer(user, obj):
                 return True
         return self.is_admin(user, obj) or self.is_framework_admin(user, obj)
+
+    def get_permission_block(
+        self,
+        action: BaseObjectAction,
+        *,
+        obj: InstanceConfig | None = None,
+        context: None = None,
+    ) -> PermissionBlock | None:
+        if obj is not None and action in ('change', 'delete') and obj.is_locked:
+            return PermissionBlock('Instance is locked', code='instance_locked')
+        return None
 
     def anon_has_perm(self, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
         if action != 'view':
@@ -356,6 +389,10 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
 
     is_protected = models.BooleanField(default=False)
     protection_password = models.CharField(max_length=50, null=True, blank=True)
+    is_locked = models.BooleanField(
+        default=False,
+        help_text=_('Whether end-user mutation surfaces should treat this instance as read-only.'),
+    )
 
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
@@ -1117,10 +1154,10 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         pp = self.permission_policy()
         pp.admin_role.create_or_update_instance_group(self)
         pp.viewer_role.create_or_update_instance_group(self)
-        # For now, try not to proliferate the group count for NZC instances
+        # For now, try not to proliferate reviewer groups for NZC instances.
         if not self.has_framework_config() or self.framework_config.framework.identifier != 'nzc':
             pp.reviewer_role.create_or_update_instance_group(self)
-            pp.super_admin_role.create_or_update_instance_group(self)
+        pp.super_admin_role.create_or_update_instance_group(self)
 
     def invalidate_cache(self, save: bool = True):
         self.cache_invalidated_at = timezone.now()
