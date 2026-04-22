@@ -6,7 +6,7 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: d9e5892252e0f6e81d9f2975df1ac8d7e9539c51
   dvc_remote: kausal-s3
-name: Climaville Greenhouse Gas Inventory
+name_en: Climaville Greenhouse Gas Inventory
 owner: City of Climaville
 theme_identifier: eu-climate-4-cast
 target_year: 2030
@@ -31,24 +31,31 @@ impact_overviews:
   plot_limit_for_indicator: 10000
   label: Cost Efficiency
 
+- graph_type: cost_benefit
+  effect_node: net_costs
+  indicator_unit: MDKK
+  outcome_dimension: cost_type
+  label_da: Kost-nytte
+  label_en: Cost-benefit
+
 action_groups:
 - id: energy
-  name: Energy
+  name_en: Energy
   color: '#4E79A7'
 - id: transportation
-  name: Transportation
+  name_en: Transportation
   color: '#E15759'
 - id: transportation_green_mobility
-  name: Transportation (Green Mobility Plan)
+  name_en: Transportation (Green Mobility Plan)
   color: '#E15759'
 - id: waste
-  name: Waste
+  name_en: Waste
   color: '#59A14F'
 - id: ippu
-  name: Industrial Process & Product Use
+  name_en: Industrial Process & Product Use
   color: '#F28E2B'
 - id: afolu
-  name: Agriculture, Forestry & Other Land Use
+  name_en: Agriculture, Forestry & Other Land Use
   color: '#B07AA1'
 
 dimensions:
@@ -361,14 +368,14 @@ dimensions:
 
 emission_sectors:
 - id: net_emissions
-  name: Net Emissions
+  name_en: Net Emissions
   is_outcome: true
   target_year_goal: 0
 
 nodes:
 
 - id: energy_emission_factors
-  name: Energy Emission Factors
+  name_en: Energy Emission Factors
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/TJ
@@ -408,7 +415,7 @@ nodes:
 # ---------- I.1 Combined Heat & Power
 
 - id: chp_district_heat_energy_consumption
-  name: CHP District Heat Energy Consumption (Excluding Electricity)
+  name_en: CHP District Heat Energy Consumption (Excluding Electricity)
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
@@ -429,7 +436,7 @@ nodes:
     - column: ghg
 
 - id: chp_district_heat_electricity_consumption
-  name: CHP District Heat Electricity Consumption
+  name_en: CHP District Heat Electricity Consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
@@ -448,7 +455,7 @@ nodes:
     - column: ghg
 
 - id: chp_district_heat_emissions
-  name: CHP District Heat Emissions
+  name_en: CHP District Heat Emissions
   short_name: District Heat Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -466,7 +473,7 @@ nodes:
     - id: sector
 
 - id: chp_electricity_generation_energy_consumption
-  name: CHP Electricity Generation Energy Consumption
+  name_en: CHP Electricity Generation Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
@@ -483,7 +490,7 @@ nodes:
     - column: ghg
 
 - id: chp_electricity_generation_emissions
-  name: CHP Electricity Generation Emissions
+  name_en: CHP Electricity Generation Emissions
   short_name: Electricity Generation Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -501,7 +508,7 @@ nodes:
     - id: sector
 
 - id: chp_electricity_generation_energy_factors
-  name: CHP Electricity Generation Energy Factors
+  name_en: CHP Electricity Generation Energy Factors
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: TJ/TJ
@@ -518,7 +525,7 @@ nodes:
     - column: ghg
 
 - id: chp_electricity_generation_energy_production
-  name: CHP Electricity Generation Energy Production
+  name_en: CHP Electricity Generation Energy Production
   type: simple.MultiplicativeNode
   quantity: energy
   unit: TJ/a
@@ -533,7 +540,7 @@ nodes:
       flatten: true
 
 - id: chp_emissions
-  name: Combined Heat & Power (CHP) Emissions
+  name_en: Combined Heat & Power (CHP) Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -551,7 +558,7 @@ nodes:
 # ---------- I.2 Electricity
 
 - id: renewable_electricity_generation
-  name: Renewable Electricity Generation
+  name_en: Renewable Electricity Generation
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
@@ -567,7 +574,7 @@ nodes:
     - column: energy_usage
 
 - id: electricity_demand
-  name: Electricity Demand
+  name_en: Electricity Demand
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
@@ -582,7 +589,7 @@ nodes:
       value: i22
 
 - id: electricity_import
-  name: Electricity Import
+  name_en: Electricity Import
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
@@ -615,7 +622,7 @@ nodes:
       categories: [electricity]
 
 - id: electricity_emissions
-  name: Electricity Emissions
+  name_en: Electricity Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -634,7 +641,7 @@ nodes:
 # ---------- I.3 Manufacturing
 
 - id: manufacturing_energy_consumption
-  name: Manufacturing Energy Consumption
+  name_en: Manufacturing Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
@@ -650,7 +657,7 @@ nodes:
     - column: ghg
 
 - id: manufacturing_emissions
-  name: Manufacturing Emissions
+  name_en: Manufacturing Emissions
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -676,7 +683,7 @@ nodes:
 # ---------- I.4 Other Energy
 
 - id: other_energy_consumption
-  name: Other Energy Consumption
+  name_en: Other Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
@@ -688,7 +695,7 @@ nodes:
     forecast_from: 2024
 
 - id: other_energy_heating_emissions
-  name: Other Energy Heating Emissions
+  name_en: Other Energy Heating Emissions
   short_name: Heating Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -706,7 +713,7 @@ nodes:
     - id: energy_carrier
 
 - id: other_energy_consumption_emissions
-  name: Other Energy Consumption Emissions
+  name_en: Other Energy Consumption Emissions
   short_name: Consumption Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -724,7 +731,7 @@ nodes:
     - id: energy_carrier
 
 - id: other_energy_emissions
-  name: Other Energy Emissions
+  name_en: Other Energy Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -737,7 +744,7 @@ nodes:
 # ---------- I.5 Non-Road Energy
 
 - id: nonroad_energy_agriculture_emissions
-  name: Non-Road Energy Agriculture Emissions
+  name_en: Non-Road Energy Agriculture Emissions
   short_name: Agriculture Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -753,7 +760,7 @@ nodes:
       value: i51
 
 - id: nonroad_energy_forestry_emissions
-  name: Non-Road Energy Forestry Emissions
+  name_en: Non-Road Energy Forestry Emissions
   short_name: Forestry Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -769,7 +776,7 @@ nodes:
       value: i52
 
 - id: nonroad_energy_commercial_institutional_emissions
-  name: Non-Road Energy Commercial & Institutional Emissions
+  name_en: Non-Road Energy Commercial & Institutional Emissions
   short_name: Commercial & Institutional Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -785,7 +792,7 @@ nodes:
       value: i53
 
 - id: nonroad_energy_residential_emissions
-  name: Non-Road Energy Residential Emissions
+  name_en: Non-Road Energy Residential Emissions
   short_name: Residential Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -801,7 +808,7 @@ nodes:
       value: i54
 
 - id: nonroad_energy_construction_engineering_emissions
-  name: Non-Road Energy Construction & Civil Engineering Emissions
+  name_en: Non-Road Energy Construction & Civil Engineering Emissions
   short_name: Construction & Civil Engineering Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -817,7 +824,7 @@ nodes:
       value: i55
 
 - id: nonroad_energy_fishing_emissions
-  name: Non-Road Energy Fishing Emissions
+  name_en: Non-Road Energy Fishing Emissions
   short_name: Fishing Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -833,7 +840,7 @@ nodes:
       value: i56
 
 - id: nonroad_energy_emissions
-  name: Non-Road Energy Emissions
+  name_en: Non-Road Energy Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -850,7 +857,7 @@ nodes:
 # ----- II Transportation
 
 - id: transportation_energy_biogenic_shares
-  name: Transportation Energy Biogenic Shares
+  name_en: Transportation Energy Biogenic Shares
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -862,7 +869,7 @@ nodes:
     forecast_from: 2024
 
 - id: transportation_energy_emission_factors
-  name: Transportation Energy Emission Factors
+  name_en: Transportation Energy Emission Factors
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: t/TJ
@@ -877,7 +884,7 @@ nodes:
     - id: energy_carrier
 
 - id: transportation_mileage_emission_factors
-  name: Transportation Mileage Emission Factors
+  name_en: Transportation Mileage Emission Factors
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/km
@@ -893,7 +900,7 @@ nodes:
     - column: owner
 
 - id: gasoline_hybrid_shares
-  name: Transportation Energy Hybrid Shares
+  name_en: Transportation Energy Hybrid Shares
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -905,7 +912,7 @@ nodes:
     forecast_from: 2024
 
 - id: gasoline_hybrid_emission_factors
-  name: Gasoline Hybrid Emission Factors
+  name_en: Gasoline Hybrid Emission Factors
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: t/TJ
@@ -947,7 +954,7 @@ nodes:
 # ---------- II.1 On-Road Transportation
 
 - id: onroad_transport_emissions
-  name: On-Road Transport Emissions
+  name_en: On-Road Transport Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -966,7 +973,7 @@ nodes:
 # --------------- Buses
 
 - id: onroad_transport_bus_mileage
-  name: On-Road Transport Bus Mileage
+  name_en: On-Road Transport Bus Mileage
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/a
@@ -984,7 +991,7 @@ nodes:
       categories: [buses]
 
 - id: onroad_transport_bus_energy_factors
-  name: On-Road Transport Bus Energy Factors
+  name_en: On-Road Transport Bus Energy Factors
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: MJ/km
@@ -1002,7 +1009,7 @@ nodes:
       categories: [buses]
 
 - id: onroad_transport_bus_energy_consumption
-  name: On-Road Transport Bus Energy Consumption
+  name_en: On-Road Transport Bus Energy Consumption
   type: simple.MultiplicativeNode
   quantity: energy
   unit: TJ/a
@@ -1013,7 +1020,7 @@ nodes:
   - id: onroad_transport_bus_energy_factors
 
 - id: onroad_transport_bus_emissions
-  name: On-Road Transport Bus Emissions
+  name_en: On-Road Transport Bus Emissions
   short_name: Bus Emissions
   type: formula.FormulaNode
   quantity: emissions
@@ -1070,7 +1077,7 @@ nodes:
 # --------------- Other Vehicles
 
 - id: onroad_transport_vehicle_mileage
-  name: On-Road Transport Vehicle Mileage
+  name_en: On-Road Transport Vehicle Mileage
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/a
@@ -1089,7 +1096,7 @@ nodes:
       categories: [cycling, mopeds, motorcycles, passenger_cars, trucks, vans]
 
 - id: onroad_transport_vehicle_energy_factors
-  name: On-Road Transport Vehicle Energy Factors
+  name_en: On-Road Transport Vehicle Energy Factors
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: MJ/km
@@ -1108,7 +1115,7 @@ nodes:
       categories: [cycling, mopeds, motorcycles, passenger_cars, trucks, vans]
 
 - id: onroad_transport_vehicle_energy_consumption
-  name: On-Road Transport Vehicle Energy Consumption
+  name_en: On-Road Transport Vehicle Energy Consumption
   type: simple.MultiplicativeNode
   quantity: energy
   unit: TJ/a
@@ -1119,7 +1126,7 @@ nodes:
   - id: onroad_transport_vehicle_energy_factors
 
 - id: onroad_transport_passenger_car_emissions
-  name: On-Road Transport Passenger Car Emissions
+  name_en: On-Road Transport Passenger Car Emissions
   short_name: Passenger Car Emissions
   type: formula.FormulaNode
   quantity: emissions
@@ -1129,19 +1136,7 @@ nodes:
   params:
     formula: ((nonhybrid_emission_factors * energy_consumption) + 
       (hybrid_emission_factors * energy_consumption) + (ch4_n2o_emission_factors
-      * mileage) + reference) * complement(green_mobility_2a2) * 
-      complement(green_mobility_3b) * complement(green_mobility_4) * 
-      complement(green_mobility_5) * complement(green_mobility_7) * 
-      complement(green_mobility_8) * complement(green_mobility_9) * 
-      complement(green_mobility_10a) * complement(green_mobility_12a) * 
-      complement(green_mobility_14) * complement(green_mobility_15a) * 
-      complement(green_mobility_17) * complement(green_mobility_22a) * 
-      complement(green_mobility_23a) * complement(green_mobility_24a) * 
-      complement(green_mobility_26_vans) * complement(green_mobility_26_trucks) 
-      * complement(green_mobility_27a) * complement(green_mobility_28) * 
-      complement(green_mobility_29a) * complement(green_mobility_31) * 
-      complement(green_mobility_32) * complement(green_mobility_other_1) * 
-      complement(green_mobility_other_2) * complement(green_mobility_other_3)
+      * mileage) + reference) * complement(green_mobility_2a2)
   input_datasets:
   - id: climaville/onroad_transportation
     tags: [reference]
@@ -1199,7 +1194,7 @@ nodes:
       categories: [passenger_cars]
 
 - id: onroad_transport_truck_emissions
-  name: On-Road Transport Truck Emissions
+  name_en: On-Road Transport Truck Emissions
   short_name: Truck Emissions
   type: formula.FormulaNode
   quantity: emissions
@@ -1252,7 +1247,7 @@ nodes:
     tags: [ch4_n2o_emission_factors]
 
 - id: onroad_transport_van_emissions
-  name: On-Road Transport Van Emissions
+  name_en: On-Road Transport Van Emissions
   short_name: Van Emissions
   type: formula.FormulaNode
   quantity: emissions
@@ -1320,7 +1315,7 @@ nodes:
       categories: [vans]
 
 - id: onroad_transport_other_emissions
-  name: On-Road Transport Bicycle, Moped & Motorcycle Emissions
+  name_en: On-Road Transport Bicycle, Moped & Motorcycle Emissions
   short_name: Bicycle, Moped & Motorcycle Emissions
   type: formula.FormulaNode
   quantity: emissions
@@ -1373,7 +1368,7 @@ nodes:
 # ---------- II.2 Rail Transportation
 
 - id: rail_transport_mileage
-  name: Rail Transport Mileage
+  name_en: Rail Transport Mileage
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/a
@@ -1389,7 +1384,7 @@ nodes:
     - column: ghg
 
 - id: rail_transport_energy_factors
-  name: Rail Transport Energy Factors
+  name_en: Rail Transport Energy Factors
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: MJ/km
@@ -1405,7 +1400,7 @@ nodes:
     - column: ghg
 
 - id: rail_transport_energy_consumption
-  name: Rail Transport Energy Consumption
+  name_en: Rail Transport Energy Consumption
   type: simple.MultiplicativeNode
   quantity: energy
   unit: TJ/a
@@ -1416,7 +1411,7 @@ nodes:
   - id: rail_transport_energy_factors
 
 - id: rail_transport_regional_train_emissions
-  name: Rail Transport Regional Train Emissions
+  name_en: Rail Transport Regional Train Emissions
   short_name: Regional Train Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -1437,7 +1432,7 @@ nodes:
     - id: vehicle_type
 
 - id: rail_transport_inter_city_train_emissions
-  name: Rail Transport Inter-city Train Emissions
+  name_en: Rail Transport Inter-city Train Emissions
   short_name: Inter-city Train Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -1458,7 +1453,7 @@ nodes:
     - id: vehicle_type
 
 - id: rail_transport_high_speed_train_emissions
-  name: Rail Transport High-speed Train Emissions
+  name_en: Rail Transport High-speed Train Emissions
   short_name: High-speed Train Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -1479,7 +1474,7 @@ nodes:
     - id: vehicle_type
 
 - id: rail_transport_local_train_emissions
-  name: Rail Transport Local Train Emissions
+  name_en: Rail Transport Local Train Emissions
   short_name: Local Train Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -1500,7 +1495,7 @@ nodes:
     - id: vehicle_type
 
 - id: rail_transport_light_rail_emissions
-  name: Rail Transport Light Rail Emissions
+  name_en: Rail Transport Light Rail Emissions
   short_name: Light Rail Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -1521,7 +1516,7 @@ nodes:
     - id: vehicle_type
 
 - id: rail_transport_emissions
-  name: Rail Transport Emissions
+  name_en: Rail Transport Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1544,7 +1539,7 @@ nodes:
 # ---------- II.3 Waterborne Transportation
 
 - id: waterborne_transport_energy_consumption
-  name: Waterborne Transport Energy Consumption
+  name_en: Waterborne Transport Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
@@ -1560,7 +1555,7 @@ nodes:
     - column: ghg
 
 - id: waterborne_transport_emissions
-  name: Waterborne Transport Emissions
+  name_en: Waterborne Transport Emissions
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1593,7 +1588,7 @@ nodes:
 # ---------- II.4 Aviation
 
 - id: aviation_energy_consumption
-  name: Aviation Energy Consumption
+  name_en: Aviation Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
@@ -1609,7 +1604,7 @@ nodes:
     - column: ghg
 
 - id: aviation_emissions
-  name: Aviation Emissions
+  name_en: Aviation Emissions
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1654,7 +1649,7 @@ nodes:
       flatten: true
 
 - id: waste_emissions
-  name: Waste Emissions
+  name_en: Waste Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1669,7 +1664,7 @@ nodes:
   - id: waste_ippu_emissions
 
 - id: ippu_emissions
-  name: Industrial Process & Product Use Emissions
+  name_en: Industrial Process & Product Use Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1709,7 +1704,7 @@ nodes:
 # ---------- V.1 Land
 
 - id: land_emission_factors
-  name: Land Emission Factors
+  name_en: Land Emission Factors
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/ha/a
@@ -1722,7 +1717,7 @@ nodes:
     forecast_from: 2024
 
 - id: land_areas
-  name: Land Areas
+  name_en: Land Areas
   type: simple.AdditiveNode
   quantity: area
   unit: ha
@@ -1737,7 +1732,7 @@ nodes:
     - column: ghg
 
 - id: cultivation_emissions
-  name: Cultivation Emissions
+  name_en: Cultivation Emissions
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1765,7 +1760,7 @@ nodes:
     - id: sector
 
 - id: organic_soils_cultivation_emissions
-  name: Organic Soils Cultivation Emissions
+  name_en: Organic Soils Cultivation Emissions
   short_name: Cultivation Emissions
   type: formula.FormulaNode
   quantity: emissions
@@ -1793,7 +1788,7 @@ nodes:
     - id: sector
 
 - id: organic_soils_permanent_grass_emissions
-  name: Organic Soils Permanent Grass Emissions
+  name_en: Organic Soils Permanent Grass Emissions
   short_name: Permanent Grass Emissions
   type: formula.FormulaNode
   quantity: emissions
@@ -1821,7 +1816,7 @@ nodes:
     - id: sector
 
 - id: organic_soils_nature_emissions
-  name: Organic Soils Nature Emissions
+  name_en: Organic Soils Nature Emissions
   short_name: Nature Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -1838,7 +1833,7 @@ nodes:
     - id: sector
 
 - id: organic_soils_emissions
-  name: Organic Soils Emissions
+  name_en: Organic Soils Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1850,7 +1845,7 @@ nodes:
   - id: organic_soils_nature_emissions
 
 - id: forestry_emissions
-  name: Forestry Emissions
+  name_en: Forestry Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -1866,7 +1861,7 @@ nodes:
     - id: sector
 
 - id: land_emissions
-  name: Land Emissions
+  name_en: Land Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1880,7 +1875,7 @@ nodes:
 # ---------- V.2 Livestock
 
 - id: livestock_emission_factors
-  name: Livestock Emission Factors
+  name_en: Livestock Emission Factors
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/count/a
@@ -1893,7 +1888,7 @@ nodes:
     forecast_from: 2024
 
 - id: livestock_counts
-  name: Livestock Counts
+  name_en: Livestock Counts
   type: simple.AdditiveNode
   quantity: number
   unit: count
@@ -1909,7 +1904,7 @@ nodes:
     - column: ghg
 
 - id: livestock_emissions
-  name: Livestock Emissions
+  name_en: Livestock Emissions
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1933,7 +1928,7 @@ nodes:
 # ----- Costs
 
 - id: energy_costs
-  name: Energy Costs
+  name_en: Energy Costs
   color: '#4E79A7'
   type: simple.AdditiveNode
   quantity: currency
@@ -1944,7 +1939,7 @@ nodes:
   - id: net_costs
 
 - id: transportation_costs
-  name: Transportation Costs
+  name_en: Transportation Costs
   color: '#E15759'
   type: simple.AdditiveNode
   quantity: currency
@@ -1955,7 +1950,7 @@ nodes:
   - id: net_costs
 
 - id: waste_costs
-  name: Waste Costs
+  name_en: Waste Costs
   color: '#59A14F'
   type: simple.AdditiveNode
   quantity: currency
@@ -1966,7 +1961,7 @@ nodes:
   - id: net_costs
 
 - id: ippu_costs
-  name: Industrial Process & Product Use Costs
+  name_en: Industrial Process & Product Use Costs
   color: '#F28E2B'
   type: simple.AdditiveNode
   quantity: currency
@@ -1977,7 +1972,7 @@ nodes:
   - id: net_costs
 
 - id: afolu_costs
-  name: Agriculture, Forestry & Other Land Use Costs
+  name_en: Agriculture, Forestry & Other Land Use Costs
   color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: currency
@@ -1988,7 +1983,7 @@ nodes:
   - id: net_costs
 
 - id: net_costs
-  name: Net Costs
+  name_en: Net Costs
   type: simple.AdditiveNode
   quantity: currency
   unit: DKK/a
@@ -2478,780 +2473,6 @@ actions:
   - id: transportation_costs
     metrics: [currency]
 
-- id: green_mobility_4_transport_oriented_city_development
-  name_da: 4 Stationsnær og transportorienteret byudvikling
-  name_en: 4 Transport Oriented City Development
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    column: fraction
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 4_transport_oriented_city_development
-    - column: sector
-    - column: cost_type
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    tags: [green_mobility_4]
-    to_dimensions: []
-
-- id: green_mobility_5_super_bike_path
-  name_da: 5 Fuldt udbygget supercykelstinet
-  name_en: 5 Super Bike Path
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 5_super_bike_path
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_5]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_7_upgrade_of_main_bike_path
-  name_da: 7 Fuldt opgraderet og udbygget hovedcykelstinet
-  name_en: 7 Upgrade of Main Bike Path
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 7_upgrade_of_main_bike_path
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_7]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_8_upgrade_of_local_path_system
-  name_da: 8 Opgradering af lokale stinet
-  name_en: 8 Upgrade of Local Path System
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 8_upgrade_of_local_path_system
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_8]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_9_more_and_better_bike_parking
-  name_da: 9 Mere og bedre cykelparkering
-  name_en: 9 More and Better Bike Parking
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 9_more_and_better_bike_parking
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_9]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_10a_development_of_railway_station_district
-  name_da: 10.A Udvikling af Banegårdskvarteret
-  name_en: 10.A Development of Railway Station District
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 10a_development_of_railway_station_district
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_10a]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_12a_improvement_of_school_roads
-  name_da: 12.A Forbedrede skoleveje, trafiksikkerhed og hjertezoner for skoler 
-    i Climaville
-  name_en: 12.A Improvement of School Roads
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 12a_improvement_of_school_roads
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_12a]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_14_rental_of_electric_bikes
-  name_da: 14 Mere cyklisme for alle - udlån af elcykler
-  name_en: 14 Rental of Electric Bikes
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 14_rental_of_electric_bikes
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_14]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_15a_uncongested_bus_network
-  name_da: 15.A Fuldt udbygget og trængselsfrit busnet før 2030
-  name_en: 15.A Uncongested Bus Network
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 15a_uncongested_bus_network
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_15a]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_17_light_rail_stage_1
-  name_da: 17 Letbane etape 1 - udvidelse af frekvens og kapacitet
-  name_en: 17 Light Rail Stage 1
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 17_light_rail_stage_1
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_17]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_22a_road_structure_mobility_zones_speed_limits
-  name_da: 22.A Principper for vejstruktur, mobilitetszoner og hastighedsgrænser
-    i Climaville
-  name_en: 22.A Principles of Road Structure, Mobility Zones and Speed Limits
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 22a_road_structure_mobility_zones_speed_limits
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_22a]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_23a_new_traffic_structure_mobility_zone_in_center
-  name_da: 23.A Ny trafikstruktur og mobilitetszone for Midtbyen
-  name_en: 23.A New Traffic Structure and Mobility Zone in City Center
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 23a_new_traffic_structure_mobility_zone_in_center
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_23a]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_24a_new_traffic_structure_kongelunden_sydbyen
-  name_da: 24.A Ny trafikstruktur og mobilitetszone for Kongelunden og Sydbyen
-  name_en: 24.A New Traffic Structure and Mobility Zone in Kongelunden and 
-    Sydbyen
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 24a_new_traffic_structure_kongelunden_sydbyen
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_24a]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_26_faster_electrification_of_vans
-  name_da: '26 Hurtigere elektrificering af tung trafik og varelevering: Varebiler'
-  name_en: '26 Faster Electrification of Heavy Vehicles and Goods Transport: Vans'
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 26_faster_electrification_of_vans
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_26_vans]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_26_faster_electrification_of_trucks
-  name_da: '26 Hurtigere elektrificering af tung trafik og varelevering: Lastbiler'
-  name_en: '26 Faster Electrification of Heavy Vehicles and Goods Transport: Trucks'
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 26_faster_electrification_of_trucks
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_26_trucks]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_27a_increase_in_parking_regulation
-  name_da: 27.A Øget parkeringsregulering
-  name_en: 27.A Increase in Parking Regulation
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 27a_increase_in_parking_regulation
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_27a]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_28_new_and_green_parking_norms
-  name_da: 28 Nye grønne parkeringsnormer
-  name_en: 28 New and Green Parking Norms
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    column: fraction
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 28_new_and_green_parking_norms
-    - column: sector
-    - column: cost_type
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    tags: [green_mobility_28]
-    to_dimensions: []
-
-- id: green_mobility_29a_conversion_of_existing_parking_lots
-  name_da: 29.A Omdannelse af eksisterende parkeringspladser
-  name_en: 29.A Conversion of Existing Parking Lots
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 29a_conversion_of_existing_parking_lots
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_29a]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_31_facilitation_of_codriving
-  name_da: 31 Facilitering af samkørsel
-  name_en: 31 Facilitation of Co-driving
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 31_facilitation_of_codriving
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_31]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_32_expansion_of_charging_infrastructure
-  name_da: 32 Øget indsats for ladeinfrastruktur
-  name_en: 32 Expansion of Charging Infrastructure
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  input_dimensions: [sector, cost_type]
-  output_dimensions: [sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 32_expansion_of_charging_infrastructure
-  output_metrics:
-  - id: fraction
-    unit: '%'
-    quantity: fraction
-  - id: currency
-    unit: DKK/a
-    quantity: currency
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    metrics: [fraction]
-    tags: [green_mobility_32]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: transportation_costs
-    metrics: [currency]
-
-- id: green_mobility_3b_road_pricing
-  name_da: 3.B Grønne vejafgifter (roadpricing)
-  name_en: 3.B Road Pricing
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    column: fraction
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: 3b_road_pricing
-    - column: sector
-    - column: cost_type
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    tags: [green_mobility_3b]
-    to_dimensions: []
-
-- id: green_mobility_non_estimated_and_synergy_effects_1
-  name_en: Non-estimated and Synergy Effects (1)
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    column: fraction
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: non_estimated_and_synergy_effects_1
-    - column: sector
-    - column: cost_type
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    tags: [green_mobility_other_1]
-    to_dimensions: []
-
-- id: green_mobility_non_estimated_and_synergy_effects_2
-  name_en: Non-estimated and Synergy Effects (2)
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    column: fraction
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: non_estimated_and_synergy_effects_2
-    - column: sector
-    - column: cost_type
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    tags: [green_mobility_other_2]
-    to_dimensions: []
-
-- id: green_mobility_non_estimated_and_synergy_effects_3
-  name_en: Non-estimated and Synergy Effects (3)
-  group: transportation_green_mobility
-  type: simple.AdditiveAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
-  input_datasets:
-  - id: climaville/green_mobility_plan_actions
-    column: fraction
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: non_estimated_and_synergy_effects_3
-    - column: sector
-    - column: cost_type
-  output_nodes:
-  - id: onroad_transport_passenger_car_emissions
-    tags: [green_mobility_other_3]
-    to_dimensions: []
-
 # ----- Waste
 - id: biocover_on_landfills
   name_da: Biocover på deponier
@@ -3485,7 +2706,7 @@ actions:
 
 pages:
 - id: home
-  name: Climaville Greenhouse Gas Inventory
+  name_en: Climaville Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
@@ -3495,7 +2716,7 @@ pages:
 
 scenarios:
 - id: baseline
-  name: Baseline
+  name_en: Baseline
 
 - id: default
   default: true
