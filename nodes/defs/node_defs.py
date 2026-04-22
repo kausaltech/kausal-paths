@@ -209,6 +209,17 @@ class DatasetPortSpec(I18nBaseModel):
     tags: list[str] = Field(default_factory=list)
     input_dataset: str | None = None
     """DVC dataset identifier override (when different from the bound dataset)."""
+    column: str | None = None
+    """
+    Column the original binding requested, or None for column-less bindings
+    (e.g. multi-metric action datasets and legacy wide DVC datasets where the
+    node consumes the full frame). The bound ``DatasetMetric`` alone isn't
+    enough — it records which metric the port targets for editor purposes,
+    but round-trip serialization needs the original column intent. Kept as
+    an unconstrained ``str`` to mirror ``InputDatasetDef.column``; legacy
+    wide DVC datasets use human-readable column labels with spaces (e.g.
+    "Trucks and lorries").
+    """
     forecast_from: int | None = None
     filters: list[InputDatasetFilterDef] = Field(default_factory=list)
     dropna: bool | None = None
@@ -222,6 +233,7 @@ class DatasetPortSpec(I18nBaseModel):
         return cls(
             tags=ds_def.tags,
             input_dataset=ds_def.input_dataset,
+            column=ds_def.column,
             forecast_from=ds_def.forecast_from,
             filters=ds_def.filters,
             dropna=ds_def.dropna,
@@ -231,12 +243,12 @@ class DatasetPortSpec(I18nBaseModel):
             output_dimensions=ds_def.output_dimensions,
         )
 
-    def to_input_dataset(self, *, id: DatasetIdentifier, column: MixedCaseIdentifier | None) -> InputDatasetDef:
+    def to_input_dataset(self, *, id: DatasetIdentifier) -> InputDatasetDef:
         return InputDatasetDef(
             id=id,
             tags=self.tags,
             input_dataset=self.input_dataset,
-            column=column,
+            column=self.column,
             forecast_from=self.forecast_from,
             filters=self.filters,
             dropna=self.dropna,
