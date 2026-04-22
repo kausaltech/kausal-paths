@@ -9,7 +9,7 @@ from social_core.backends.azuread_tenant import AzureADTenantOAuth2
 from social_core.backends.email import EmailAuth
 from social_core.backends.oauth import BaseOAuth2
 
-from paths.const import INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE
+from paths.const import INSTANCE_ADMIN_ROLE, INSTANCE_SUPER_ADMIN_ROLE, INSTANCE_VIEWER_ROLE
 
 from frameworks.roles import FrameworkRoleDef
 
@@ -85,7 +85,7 @@ class NZCPortalOAuth2(BaseOAuth2):
     ]
 
     TYPE_TO_ROLE = {
-        'cityAdmin': INSTANCE_ADMIN_ROLE,
+        'cityAdmin': INSTANCE_SUPER_ADMIN_ROLE,
         'cityEditor': INSTANCE_ADMIN_ROLE,
         'consortiumUser': INSTANCE_ADMIN_ROLE,
         'otherUser': INSTANCE_ADMIN_ROLE,
