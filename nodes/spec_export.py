@@ -233,12 +233,14 @@ def _is_multi_candidate_group_compatible(node: Node, candidates: list[_InputPort
 
     if node.unit is not None and not node.is_compatible_unit(expected_unit, node.unit):
         logger.warning(
-            'Not marking %s input group %s as multi: metric %s unit %s is incompatible with target unit %s',
-            node.id,
-            first.group,
-            first.metric.id,
-            expected_unit,
-            node.unit,
+            'Not marking %s input group %s as multi: metric %s unit %s is incompatible with target unit %s'
+            % (
+                node.id,
+                first.group,
+                first.metric.id,
+                expected_unit,
+                node.unit,
+            )
         )
         return False
 
@@ -246,39 +248,47 @@ def _is_multi_candidate_group_compatible(node: Node, candidates: list[_InputPort
         dims = _effective_input_dimension_ids(node, candidate.edge)
         if set(dims) != set(expected_dims):
             logger.warning(
-                'Not marking %s input group %s as multi: edge dimensions differ (%s vs %s)',
-                node.id,
-                candidate.group,
-                sorted(dims),
-                sorted(expected_dims),
+                'Not marking %s input group %s as multi: edge dimensions differ (%s vs %s)'
+                % (
+                    node.id,
+                    candidate.group,
+                    sorted(dims),
+                    sorted(expected_dims),
+                )
             )
             return False
         if candidate.metric.quantity != expected_quantity:
             logger.warning(
-                'Not marking %s input group %s as multi: metric quantities differ (%s vs %s)',
-                node.id,
-                candidate.group,
-                candidate.metric.quantity,
-                expected_quantity,
+                'Not marking %s input group %s as multi: metric quantities differ (%s vs %s)'
+                % (
+                    node.id,
+                    candidate.group,
+                    candidate.metric.quantity,
+                    expected_quantity,
+                )
             )
             return False
         if not node.is_compatible_unit(candidate.metric.unit, expected_unit):
             logger.warning(
-                'Not marking %s input group %s as multi: metric units differ dimensionally (%s vs %s)',
-                node.id,
-                candidate.group,
-                candidate.metric.unit,
-                expected_unit,
+                'Not marking %s input group %s as multi: metric units differ dimensionally (%s vs %s)'
+                % (
+                    node.id,
+                    candidate.group,
+                    candidate.metric.unit,
+                    expected_unit,
+                )
             )
             return False
         if node.unit is not None and not node.is_compatible_unit(candidate.metric.unit, node.unit):
             logger.warning(
-                'Not marking %s input group %s as multi: metric %s unit %s is incompatible with target unit %s',
-                node.id,
-                candidate.group,
-                candidate.metric.id,
-                candidate.metric.unit,
-                node.unit,
+                'Not marking %s input group %s as multi: metric %s unit %s is incompatible with target unit %s'
+                % (
+                    node.id,
+                    candidate.group,
+                    candidate.metric.id,
+                    candidate.metric.unit,
+                    node.unit,
+                )
             )
             return False
 
@@ -678,7 +688,17 @@ def _resolve_dataset_ports(
 
     ports: list[DatasetPort] = []
     spec = DatasetPortSpec.from_input_dataset(_input_dataset_def_from_instance(ds_instance))
-    for column in _dataset_binding_columns_for_node(node, ds_instance):
+    metric_columns = _dataset_binding_columns_for_node(node, ds_instance)
+    if ds_instance.column is None:
+        # Column-less bindings: the node consumes the full frame. Bind to every
+        # metric the dataset actually exposes so ports stay accurate even when
+        # the node renames columns post-load (e.g. HsyNode translating Finnish
+        # metric labels). Falling back to the node's output_metric column_ids
+        # fails whenever the dataset schema uses different names.
+        schema_metrics = [name for (schema_pk, name) in metrics_by_schema_and_name if schema_pk == dataset_obj.schema.pk]
+        if schema_metrics:
+            metric_columns = schema_metrics
+    for column in metric_columns:
         metric = metrics_by_schema_and_name.get((dataset_obj.schema.pk, column))
         if metric is None:
             if ds_instance.column is not None:
@@ -694,6 +714,7 @@ def _resolve_dataset_ports(
                 dataset=dataset_obj,
                 metric=metric,
                 spec=spec,
+                dataset_index=idx,
             )
         )
     return ports

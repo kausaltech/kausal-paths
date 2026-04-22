@@ -916,9 +916,12 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
                 print('Creating category %s' % cat.id)
             else:
                 found_cats.add(cat_obj.pk)
-                changed = i18n != cat_obj.i18n or cat_obj.label != label or cat_obj.spec != cat_spec or cat_obj.order != order
+                # OrderableModel ordering starts from 1
+                changed = (
+                    i18n != cat_obj.i18n or cat_obj.label != label or cat_obj.spec != cat_spec or cat_obj.order != (order + 1)
+                )
                 if changed:
-                    cat_obj.label, cat_obj.i18n, cat_obj.spec, cat_obj.order = label, i18n, cat_spec, order
+                    cat_obj.label, cat_obj.i18n, cat_obj.spec, cat_obj.order = label, i18n, cat_spec, order + 1
                     print('Updating category %s' % cat.id)
                     cat_obj.save()
 
@@ -1726,6 +1729,14 @@ class DatasetPort(EditableInstanceChild):
         related_name='node_ports',
     )
     spec = SchemaField(schema=DatasetPortSpec, default=DatasetPortSpec, blank=True)
+    dataset_index = models.PositiveIntegerField(
+        default=0,
+        help_text=(
+            "Index of this binding in the owning node's input_dataset_instances list. "
+            'Multiple DatasetPort rows can share a dataset_index when a column-less '
+            'binding expands to one port per output metric.'
+        ),
+    )
 
     # for type checkers
     node_id: int
@@ -1736,7 +1747,7 @@ class DatasetPort(EditableInstanceChild):
     _default_manager: ClassVar[models.Manager[DatasetPort]]
 
     class Meta:
-        ordering = ['node', 'metric__order']
+        ordering = ['node', 'dataset_index', 'metric__order']
         verbose_name = _('Dataset port')
         verbose_name_plural = _('Dataset ports')
 

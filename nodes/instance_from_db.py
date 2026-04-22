@@ -143,7 +143,12 @@ def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> list[Nod
     node_configs = ic.nodes_for_serialization
     edges = list(ic.edges.annotate(from_node_identifier=F('from_node__identifier'), to_node_identifier=F('to_node__identifier')))
     dataset_ports = list(
-        ic.dataset_ports.select_related('node', 'dataset', 'metric').order_by('node__identifier', 'port_id', 'metric__order')
+        ic.dataset_ports.select_related('node', 'dataset', 'metric').order_by(
+            'node__identifier',
+            'dataset_index',
+            'metric__order',
+            'port_id',
+        )
     )
 
     nodes_by_identifier: dict[str, NodeConfig] = {nc.identifier: nc for nc in node_configs}
@@ -308,14 +313,6 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     return node
 
 
-def _dataset_metric_binding_key(port: DatasetPort) -> str:
-    if port.metric.name:
-        return port.metric.name
-    if port.metric.label:
-        return port.metric.label
-    return str(port.metric.uuid)
-
-
 def _dataset_port_group_key(port: DatasetPort) -> tuple[str, str]:
     dataset_id = port.dataset.identifier or str(port.dataset.uuid)
     spec_json = port.spec.model_dump_json(exclude_defaults=True, exclude_none=True)
@@ -331,8 +328,7 @@ def _serialize_dataset_ports(dataset_ports: list[DatasetPort]) -> list[dict[str,
     for ports in grouped.values():
         first = ports[0]
         dataset_id = first.dataset.identifier or str(first.dataset.uuid)
-        column = _dataset_metric_binding_key(first) if len(ports) == 1 else None
-        ds_def = first.spec.to_input_dataset(id=dataset_id, column=column)
+        ds_def = first.spec.to_input_dataset(id=dataset_id)
         input_datasets.append(ds_def.model_dump(mode='json', exclude_defaults=True, exclude_none=True))
     return input_datasets
 
@@ -430,6 +426,9 @@ def _build_edge_maps(  # noqa: C901, PLR0912
         edge_metrics[edge.from_node_identifier][edge.to_node_identifier].append((column_id, edge))
 
     for from_node_id, to_nodes in edge_metrics.items():
+        from_spec = nodes_by_identifier[from_node_id].spec
+        assert from_spec is not None
+        from_is_multi_metric = len(from_spec.output_ports) > 1
         for to_node_id, metric_tuples in to_nodes.items():
             from_entry: dict[str, Any] = {'id': from_node_id}
             to_entry: dict[str, Any] = {'id': to_node_id}
@@ -445,8 +444,15 @@ def _build_edge_maps(  # noqa: C901, PLR0912
                     assert tuple(edge.tags) == tuple(tags)
                 metrics_entry.append(metric_column_id)
 
-            for entry in (from_entry, to_entry):
-                entry['metrics'] = metrics_entry
+            # Only emit `metrics` when the source node has multiple output ports.
+            # For single-output nodes YAML leaves `metrics` implicit, and the
+            # runtime treats `metrics=[]` as pass-through. Emitting `['Value']`
+            # activates a different code path that drops null-metric rows,
+            # which breaks compute_impact when the action is disabled and the
+            # input df has nulls.
+            if from_is_multi_metric:
+                for entry in (from_entry, to_entry):
+                    entry['metrics'] = metrics_entry
 
             if tags:
                 for entry in (from_entry, to_entry):
