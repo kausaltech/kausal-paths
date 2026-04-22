@@ -9,17 +9,18 @@ from typing import TYPE_CHECKING, Any
 
 import django
 
-# import chardet
-import dvc_pandas
-import polars as pl
 from dotenv import load_dotenv
-from dvc_pandas import Dataset, DatasetMeta, Repository
 
 # Set the Django settings module
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 
-# Configure Django
+# Configure Django (must happen before polars is imported)
 django.setup()
+
+# import chardet
+import dvc_pandas  # noqa: E402
+import polars as pl  # noqa: E402
+from dvc_pandas import Dataset, DatasetMeta, Repository  # noqa: E402
 
 from kausal_common.i18n.pydantic import TranslatedString  # noqa: E402
 
