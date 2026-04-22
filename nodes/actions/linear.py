@@ -217,6 +217,9 @@ class DatasetReduceAction(ActionNode):
 
         meta = gdf.get_meta()
         gdf = gdf.filter(pl.col(YEAR_COLUMN) > max_hist_year)
+        # Node output vs dataset/parquet often disagree on Int32 vs Int64 for Year; diagonal concat requires one dtype.
+        df = df.with_columns(pl.col(YEAR_COLUMN).cast(pl.Int64))
+        gdf = gdf.with_columns(pl.col(YEAR_COLUMN).cast(pl.Int64))
         df = ppl.to_ppdf(pl.concat([df, gdf], how='diagonal'), meta=meta)
 
         df = df.drop([m for m in df.metric_cols if df[m].is_null().all()])
@@ -315,6 +318,8 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
         gdf = gdf.paths.to_wide()
 
         meta = bdf.get_meta()
+        bdf = bdf.with_columns(pl.col(YEAR_COLUMN).cast(pl.Int64))
+        gdf = gdf.with_columns(pl.col(YEAR_COLUMN).cast(pl.Int64))
         gdf = ppl.to_ppdf(pl.concat([bdf, gdf], how='diagonal'), meta=meta)
         gdf = gdf.paths.make_forecast_rows(end_year=self.get_end_year())
         gdf = gdf.with_columns([pl.col(m).interpolate() for m in gdf.metric_cols])
