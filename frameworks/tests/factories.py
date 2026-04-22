@@ -12,8 +12,8 @@ if TYPE_CHECKING:
 
 class FrameworkFactory(DjangoModelFactory[Framework]):
     identifier = Sequence(lambda i: f'framework{i}')
-    name: LazyAttribute[Framework, str] = LazyAttribute(lambda o: 'Framework %d' % o.identifier)
-    public_base_fqdn: LazyAttribute[Framework, str] = LazyAttribute(lambda o: 'fw%d.example.com' % o.identifier)
+    name: LazyAttribute[Framework, str] = LazyAttribute(lambda o: f'Framework {o.identifier}')
+    public_base_fqdn: LazyAttribute[Framework, str] = LazyAttribute(lambda o: f'{o.identifier}.example.com')
 
     class Meta:
         model = Framework
@@ -26,3 +26,7 @@ class FrameworkFactory(DjangoModelFactory[Framework]):
 class FrameworkConfigFactory(DjangoModelFactory[FrameworkConfig]):
     framework: SubFactory[FrameworkFactory, Framework] = SubFactory(FrameworkFactory)
     instance_config: SubFactory[InstanceConfigFactory, InstanceConfig] = SubFactory(InstanceConfigFactory)
+    baseline_year = 2020
+
+    class Meta:
+        model = FrameworkConfig

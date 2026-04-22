@@ -502,17 +502,23 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         name: str,
         baseline_year: int,
         uuid: str | UUID | None = None,
+        organization_name: str | None = None,
     ) -> CreateFrameworkConfigMutation:
         if uuid is not None and not isinstance(uuid, UUID):
             uuid = UUID(uuid)
-        config = FrameworkConfigInput(
-            framework_id=framework_id,
-            instance_identifier=instance_identifier,
-            name=name,
+        framework = CreateFrameworkConfigMutation._get_fw(info, str(framework_id))
+        pp = FrameworkConfig.permission_policy()
+        if not pp.gql_action_allowed(info, 'add', context=framework):
+            raise GraphQLError('Permission denied', nodes=info.field_nodes)
+        fc = CreateFrameworkConfigMutation._create_fwc(
+            info=info,
+            framework=framework,
+            instance_identifier=str(instance_identifier),
+            name=organization_name or name,
             baseline_year=baseline_year,
             uuid=uuid,
         )
-        return CreateFrameworkConfigMutation.create_framework_config(info, config)
+        return CreateFrameworkConfigMutation(ok=True, framework_config=fc)
 
 
 class UpdateFrameworkConfigMutation(graphene.Mutation):
