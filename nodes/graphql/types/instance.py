@@ -128,6 +128,11 @@ class InstanceEditorFields:
 
     @sb.field
     @staticmethod
+    def is_locked(root: 'InstanceEditorFields') -> bool:
+        return root._instance.config.is_locked
+
+    @sb.field
+    @staticmethod
     def live(root: 'InstanceEditorFields') -> bool:
         return root._instance.config.live
 
@@ -301,6 +306,11 @@ class InstanceType:
     @staticmethod
     def identifier(root: Instance) -> str:
         return root.id
+
+    @sb.field
+    @staticmethod
+    def is_locked(root: Instance) -> bool:
+        return root.config.is_locked
 
     @sb.field
     @staticmethod
