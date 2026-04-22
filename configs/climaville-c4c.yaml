@@ -1,10 +1,10 @@
 id: climaville-c4c
-default_language: da
-supported_languages: [en]
+default_language: en
+supported_languages: []
 site_url: https://climaville-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6a131ae009dfe6d5aef70fa15e38fca279ceceb0
+  commit: d9e5892252e0f6e81d9f2975df1ac8d7e9539c51
   dvc_remote: kausal-s3
 name: Climaville Greenhouse Gas Inventory
 owner: City of Climaville
@@ -19,7 +19,7 @@ emission_forecast_from: 2024
 emission_dimensions: [ghg]
 features:
   baseline_visible_in_graphs: true
-  use_datasets_from_db: true
+  use_datasets_from_db: false
 
 impact_overviews:
 - graph_type: cost_efficiency
@@ -375,7 +375,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: aarhus/emission_factors__energy
+  - id: climaville/emission_factors_energy # TODO Was climaville/emission_factors__energy
     column: emission_factor
     forecast_from: 2024
 
@@ -415,7 +415,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: aarhus/combined_heat_and_power
+  - id: climaville/combined_heat_and_power
     column: energy
     dropna: true
     forecast_from: 2024
@@ -436,7 +436,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: aarhus/combined_heat_and_power
+  - id: climaville/combined_heat_and_power
     column: energy
     dropna: true
     forecast_from: 2024
@@ -473,7 +473,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: aarhus/combined_heat_and_power
+  - id: climaville/combined_heat_and_power
     column: energy
     dropna: true
     forecast_from: 2024
@@ -508,7 +508,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: aarhus/combined_heat_and_power
+  - id: climaville/combined_heat_and_power
     column: energy_factor
     dropna: true
     forecast_from: 2024
@@ -540,7 +540,7 @@ nodes:
   input_dimensions: [sector, energy_carrier, ghg]
   output_dimensions: [sector, energy_carrier, ghg]
   input_datasets:
-  - id: aarhus/combined_heat_and_power
+  - id: climaville/combined_heat_and_power
     column: emissions
     dropna: true
     forecast_from: 2024
@@ -558,7 +558,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: aarhus/electricity
+  - id: climaville/electricity
     column: energy
     forecast_from: 2024
     filters:
@@ -574,7 +574,7 @@ nodes:
   input_dimensions: [energy_usage, energy_carrier]
   output_dimensions: [energy_usage, energy_carrier]
   input_datasets:
-  - id: aarhus/electricity
+  - id: climaville/electricity
     column: energy
     forecast_from: 2024
     filters:
@@ -641,7 +641,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: aarhus/manufacturing
+  - id: climaville/manufacturing
     column: energy
     dropna: true
     forecast_from: 2024
@@ -657,9 +657,10 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   params:
-    formula: (manufacturing_energy_consumption * energy_emission_factors) + reference
+    formula: (manufacturing_energy_consumption * energy_emission_factors) + 
+      reference
   input_datasets:
-  - id: aarhus/manufacturing
+  - id: climaville/manufacturing
     tags: [reference]
     column: emissions
     dropna: true
@@ -682,7 +683,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: aarhus/other_energy
+  - id: climaville/other_energy
     column: energy
     forecast_from: 2024
 
@@ -744,7 +745,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: aarhus/nonroad_energy
+  - id: climaville/nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -760,7 +761,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: aarhus/nonroad_energy
+  - id: climaville/nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -776,7 +777,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: aarhus/nonroad_energy
+  - id: climaville/nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -792,7 +793,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: aarhus/nonroad_energy
+  - id: climaville/nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -808,7 +809,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: aarhus/nonroad_energy
+  - id: climaville/nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -824,7 +825,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: aarhus/nonroad_energy
+  - id: climaville/nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -856,7 +857,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: aarhus/biogenic_shares
+  - id: climaville/biogenic_shares
     column: fraction
     forecast_from: 2024
 
@@ -883,7 +884,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_datasets:
-  - id: aarhus/emission_factors__transportation
+  - id: climaville/emission_factors_transportation # TODO Was climaville/emission_factors__transportation
     column: emission_factor
     forecast_from: 2024
     filters:
@@ -899,7 +900,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: aarhus/gasoline_hybrid_shares
+  - id: climaville/gasoline_hybrid_shares
     column: fraction
     forecast_from: 2024
 
@@ -972,7 +973,7 @@ nodes:
   input_dimensions: [energy_carrier, owner, vehicle_type]
   output_dimensions: [energy_carrier, owner, vehicle_type]
   input_datasets:
-  - id: aarhus/onroad_transportation
+  - id: climaville/onroad_transportation
     column: mileage
     dropna: true
     forecast_from: 2024
@@ -990,7 +991,7 @@ nodes:
   input_dimensions: [energy_carrier, owner, vehicle_type]
   output_dimensions: [energy_carrier, owner, vehicle_type]
   input_datasets:
-  - id: aarhus/onroad_transportation
+  - id: climaville/onroad_transportation
     column: energy_factor
     dropna: true
     forecast_from: 2024
@@ -1020,11 +1021,11 @@ nodes:
   input_dimensions: [energy_carrier, owner, vehicle_type, ghg]
   output_dimensions: [energy_carrier, owner, vehicle_type, ghg]
   params:
-    formula: (energy_consumption * nonhybrid_emission_factors) +
-             (mileage * ch4_n2o_emission_factors) + reference
+    formula: (energy_consumption * nonhybrid_emission_factors) + (mileage * 
+      ch4_n2o_emission_factors) + reference
   input_datasets:
   # ----- Reference
-  - id: aarhus/onroad_transportation
+  - id: climaville/onroad_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1034,7 +1035,7 @@ nodes:
     - dimension: vehicle_type
       categories: [buses]
   # ----- CH4 & N2O Emission Factors
-  - id: aarhus/emission_factors__transportation
+  - id: climaville/emission_factors_transportation # TODO Was climaville/emission_factors__transportation
     tags: [ch4_n2o_emission_factors]
     column: emission_factor
     forecast_from: 2024
@@ -1076,7 +1077,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: aarhus/onroad_transportation
+  - id: climaville/onroad_transportation
     column: mileage
     dropna: true
     forecast_from: 2024
@@ -1095,7 +1096,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: aarhus/onroad_transportation
+  - id: climaville/onroad_transportation
     column: energy_factor
     dropna: true
     forecast_from: 2024
@@ -1126,24 +1127,23 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
-    formula: ((nonhybrid_emission_factors * energy_consumption) +
-              (hybrid_emission_factors * energy_consumption) +
-              (ch4_n2o_emission_factors * mileage) + reference) *
-             complement(green_mobility_2a2) * complement(green_mobility_3b) *
-             complement(green_mobility_4) * complement(green_mobility_5) *
-             complement(green_mobility_7) * complement(green_mobility_8) *
-             complement(green_mobility_9) * complement(green_mobility_10a) *
-             complement(green_mobility_12a) * complement(green_mobility_14) *
-             complement(green_mobility_15a) * complement(green_mobility_17) *
-             complement(green_mobility_22a) * complement(green_mobility_23a) *
-             complement(green_mobility_24a) * complement(green_mobility_26_vans) *
-             complement(green_mobility_26_trucks) * complement(green_mobility_27a) *
-             complement(green_mobility_28) * complement(green_mobility_29a) *
-             complement(green_mobility_31) * complement(green_mobility_32) *
-             complement(green_mobility_other_1) * complement(green_mobility_other_2) *
-             complement(green_mobility_other_3)
+    formula: ((nonhybrid_emission_factors * energy_consumption) + 
+      (hybrid_emission_factors * energy_consumption) + (ch4_n2o_emission_factors
+      * mileage) + reference) * complement(green_mobility_2a2) * 
+      complement(green_mobility_3b) * complement(green_mobility_4) * 
+      complement(green_mobility_5) * complement(green_mobility_7) * 
+      complement(green_mobility_8) * complement(green_mobility_9) * 
+      complement(green_mobility_10a) * complement(green_mobility_12a) * 
+      complement(green_mobility_14) * complement(green_mobility_15a) * 
+      complement(green_mobility_17) * complement(green_mobility_22a) * 
+      complement(green_mobility_23a) * complement(green_mobility_24a) * 
+      complement(green_mobility_26_vans) * complement(green_mobility_26_trucks) 
+      * complement(green_mobility_27a) * complement(green_mobility_28) * 
+      complement(green_mobility_29a) * complement(green_mobility_31) * 
+      complement(green_mobility_32) * complement(green_mobility_other_1) * 
+      complement(green_mobility_other_2) * complement(green_mobility_other_3)
   input_datasets:
-  - id: aarhus/onroad_transportation
+  - id: climaville/onroad_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1207,10 +1207,10 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
-    formula: (energy_consumption * nonhybrid_emission_factors) +
-             (mileage * ch4_n2o_emission_factors) + reference
+    formula: (energy_consumption * nonhybrid_emission_factors) + (mileage * 
+      ch4_n2o_emission_factors) + reference
   input_datasets:
-  - id: aarhus/onroad_transportation
+  - id: climaville/onroad_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1260,11 +1260,11 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
-    formula: (nonhybrid_emission_factors * energy_consumption) +
-             (hybrid_emission_factors * energy_consumption) +
-             (ch4_n2o_emission_factors * mileage) + reference
+    formula: (nonhybrid_emission_factors * energy_consumption) + 
+      (hybrid_emission_factors * energy_consumption) + (ch4_n2o_emission_factors
+      * mileage) + reference
   input_datasets:
-  - id: aarhus/onroad_transportation
+  - id: climaville/onroad_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1328,10 +1328,10 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   params:
-    formula: (energy_consumption * nonhybrid_emission_factors) +
-             (mileage * ch4_n2o_emission_factors) + reference
+    formula: (energy_consumption * nonhybrid_emission_factors) + (mileage * 
+      ch4_n2o_emission_factors) + reference
   input_datasets:
-  - id: aarhus/onroad_transportation
+  - id: climaville/onroad_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1380,7 +1380,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: aarhus/rail_transportation
+  - id: climaville/rail_transportation
     column: mileage
     dropna: true
     forecast_from: 2024
@@ -1396,7 +1396,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: aarhus/rail_transportation
+  - id: climaville/rail_transportation
     column: energy_factor
     dropna: true
     forecast_from: 2024
@@ -1528,7 +1528,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_datasets:
-  - id: aarhus/rail_transportation
+  - id: climaville/rail_transportation
     column: emissions
     dropna: true
     forecast_from: 2024
@@ -1551,7 +1551,7 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
-  - id: aarhus/waterborne_transportation
+  - id: climaville/waterborne_transportation
     column: energy
     dropna: true
     forecast_from: 2024
@@ -1569,7 +1569,7 @@ nodes:
   params:
     formula: (energy_consumption * emission_factors) + reference
   input_datasets:
-  - id: aarhus/waterborne_transportation
+  - id: climaville/waterborne_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1600,7 +1600,7 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
-  - id: aarhus/aviation
+  - id: climaville/aviation
     column: energy
     dropna: true
     forecast_from: 2024
@@ -1616,9 +1616,10 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
-    formula: (aviation_energy_consumption * transportation_energy_emission_factors) + reference
+    formula: (aviation_energy_consumption * 
+      transportation_energy_emission_factors) + reference
   input_datasets:
-  - id: aarhus/aviation
+  - id: climaville/aviation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1660,7 +1661,7 @@ nodes:
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_datasets:
-  - id: aarhus/waste
+  - id: climaville/waste
     column: emissions
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
@@ -1675,7 +1676,7 @@ nodes:
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_datasets:
-  - id: aarhus/ippu
+  - id: climaville/ippu
     column: emissions
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
@@ -1715,7 +1716,7 @@ nodes:
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_datasets:
-  - id: aarhus/land
+  - id: climaville/land
     column: emission_factor
     dropna: true
     forecast_from: 2024
@@ -1728,7 +1729,7 @@ nodes:
   input_dimensions: [sector]
   output_dimensions: [sector]
   input_datasets:
-  - id: aarhus/land
+  - id: climaville/land
     column: area
     dropna: true
     forecast_from: 2024
@@ -1743,9 +1744,10 @@ nodes:
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   params:
-    formula: (land_areas * land_emission_factors) + reference + biogenic_energy_park + climate_supervision_and_action_plans
+    formula: (land_areas * land_emission_factors) + reference + 
+      biogenic_energy_park + climate_supervision_and_action_plans
   input_datasets:
-  - id: aarhus/land
+  - id: climaville/land
     tags: [reference]
     column: emissions
     dropna: true
@@ -1773,7 +1775,7 @@ nodes:
   params:
     formula: (land_areas * land_emission_factors) + reference
   input_datasets:
-  - id: aarhus/land
+  - id: climaville/land
     tags: [reference]
     column: emissions
     dropna: true
@@ -1801,7 +1803,7 @@ nodes:
   params:
     formula: (land_areas * land_emission_factors) + reference
   input_datasets:
-  - id: aarhus/land
+  - id: climaville/land
     tags: [reference]
     column: emissions
     dropna: true
@@ -1885,7 +1887,7 @@ nodes:
   input_dimensions: [sector, emission_source, ghg]
   output_dimensions: [sector, emission_source, ghg]
   input_datasets:
-  - id: aarhus/livestock
+  - id: climaville/livestock
     column: emission_factor
     dropna: true
     forecast_from: 2024
@@ -1898,7 +1900,7 @@ nodes:
   input_dimensions: [sector]
   output_dimensions: [sector]
   input_datasets:
-  - id: aarhus/livestock
+  - id: climaville/livestock
     column: number
     dropna: true
     forecast_from: 2024
@@ -1914,9 +1916,10 @@ nodes:
   input_dimensions: [sector, emission_source, ghg]
   output_dimensions: [sector, emission_source, ghg]
   params:
-    formula: (livestock_counts * livestock_emission_factors) + reference + biogenic_energy_park
+    formula: (livestock_counts * livestock_emission_factors) + reference + 
+      biogenic_energy_park
   input_datasets:
-  - id: aarhus/livestock
+  - id: climaville/livestock
     tags: [reference]
     column: emissions
     dropna: true
@@ -2004,7 +2007,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/energy_actions
+  - id: climaville/energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2056,7 +2059,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/energy_actions
+  - id: climaville/energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2105,7 +2108,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/energy_actions
+  - id: climaville/energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2173,7 +2176,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/energy_actions
+  - id: climaville/energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2221,7 +2224,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/energy_actions
+  - id: climaville/energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2266,7 +2269,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/energy_actions
+  - id: climaville/energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2305,7 +2308,7 @@ actions:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: aarhus/energy_actions
+  - id: climaville/energy_actions
     column: emissions
     forecast_from: 2024
     filters:
@@ -2328,7 +2331,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/transportation_actions
+  - id: climaville/transportation_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2366,7 +2369,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/transportation_actions
+  - id: climaville/transportation_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2411,7 +2414,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/transportation_actions
+  - id: climaville/transportation_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2441,7 +2444,7 @@ actions:
 
 # ----- Green Mobility Plan
 - id: green_mobility_2a2_zero_emission_zone
-  name_da: 2.A.2 Nulemissionszone i Aarhus
+  name_da: 2.A.2 Nulemissionszone i Climaville
   name_en: 2.A.2 Zero Emission Zone
   group: transportation_green_mobility
   type: simple.AdditiveAction
@@ -2450,7 +2453,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2485,7 +2488,7 @@ actions:
   input_dimensions: []
   output_dimensions: []
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     column: fraction
     dropna: true
     forecast_from: 2024
@@ -2509,7 +2512,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2544,7 +2547,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2579,7 +2582,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2614,7 +2617,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2649,7 +2652,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2675,7 +2678,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_12a_improvement_of_school_roads
-  name_da: 12.A Forbedrede skoleveje, trafiksikkerhed og hjertezoner for skoler i Aarhus
+  name_da: 12.A Forbedrede skoleveje, trafiksikkerhed og hjertezoner for skoler 
+    i Climaville
   name_en: 12.A Improvement of School Roads
   group: transportation_green_mobility
   type: simple.AdditiveAction
@@ -2684,7 +2688,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2719,7 +2723,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2754,7 +2758,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2789,7 +2793,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2815,7 +2819,8 @@ actions:
     metrics: [currency]
 
 - id: green_mobility_22a_road_structure_mobility_zones_speed_limits
-  name_da: 22.A Principper for vejstruktur, mobilitetszoner og hastighedsgrænser i Aarhus
+  name_da: 22.A Principper for vejstruktur, mobilitetszoner og hastighedsgrænser
+    i Climaville
   name_en: 22.A Principles of Road Structure, Mobility Zones and Speed Limits
   group: transportation_green_mobility
   type: simple.AdditiveAction
@@ -2824,7 +2829,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2859,7 +2864,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2886,7 +2891,8 @@ actions:
 
 - id: green_mobility_24a_new_traffic_structure_kongelunden_sydbyen
   name_da: 24.A Ny trafikstruktur og mobilitetszone for Kongelunden og Sydbyen
-  name_en: 24.A New Traffic Structure and Mobility Zone in Kongelunden and Sydbyen
+  name_en: 24.A New Traffic Structure and Mobility Zone in Kongelunden and 
+    Sydbyen
   group: transportation_green_mobility
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2894,7 +2900,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2929,7 +2935,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2964,7 +2970,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2999,7 +3005,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -3034,7 +3040,7 @@ actions:
   input_dimensions: []
   output_dimensions: []
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     column: fraction
     dropna: true
     forecast_from: 2024
@@ -3058,7 +3064,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -3093,7 +3099,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -3128,7 +3134,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -3163,7 +3169,7 @@ actions:
   input_dimensions: []
   output_dimensions: []
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     column: fraction
     dropna: true
     forecast_from: 2024
@@ -3178,7 +3184,7 @@ actions:
     to_dimensions: []
 
 - id: green_mobility_non_estimated_and_synergy_effects_1
-  name: Non-estimated and Synergy Effects (1)
+  name_en: Non-estimated and Synergy Effects (1)
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -3186,7 +3192,7 @@ actions:
   input_dimensions: []
   output_dimensions: []
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     column: fraction
     dropna: true
     forecast_from: 2024
@@ -3201,7 +3207,7 @@ actions:
     to_dimensions: []
 
 - id: green_mobility_non_estimated_and_synergy_effects_2
-  name: Non-estimated and Synergy Effects (2)
+  name_en: Non-estimated and Synergy Effects (2)
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -3209,7 +3215,7 @@ actions:
   input_dimensions: []
   output_dimensions: []
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     column: fraction
     dropna: true
     forecast_from: 2024
@@ -3224,7 +3230,7 @@ actions:
     to_dimensions: []
 
 - id: green_mobility_non_estimated_and_synergy_effects_3
-  name: Non-estimated and Synergy Effects (3)
+  name_en: Non-estimated and Synergy Effects (3)
   group: transportation_green_mobility
   type: simple.AdditiveAction
   quantity: fraction
@@ -3232,7 +3238,7 @@ actions:
   input_dimensions: []
   output_dimensions: []
   input_datasets:
-  - id: aarhus/green_mobility_plan_actions
+  - id: climaville/green_mobility_plan_actions
     column: fraction
     dropna: true
     forecast_from: 2024
@@ -3257,7 +3263,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/waste_actions
+  - id: climaville/waste_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -3292,7 +3298,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/ippu_actions
+  - id: climaville/ippu_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -3327,7 +3333,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/afolu_actions
+  - id: climaville/afolu_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -3386,7 +3392,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/afolu_actions
+  - id: climaville/afolu_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -3421,7 +3427,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/afolu_actions
+  - id: climaville/afolu_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -3454,7 +3460,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: aarhus/afolu_actions
+  - id: climaville/afolu_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -3484,7 +3490,8 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Climaville Climate-4-CAST Decision Support Tool
-  lead_paragraph: Greenhouse gas inventory (2018-2022) and forecast (2023-2035) for the City of Climaville.
+  lead_paragraph: Greenhouse gas inventory (2018-2022) and forecast (2023-2035) 
+    for the City of Climaville.
 
 scenarios:
 - id: baseline
