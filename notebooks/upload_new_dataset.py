@@ -9,17 +9,18 @@ from typing import TYPE_CHECKING, Any
 
 import django
 
-# import chardet
-import dvc_pandas
-import polars as pl
 from dotenv import load_dotenv
-from dvc_pandas import Dataset, DatasetMeta, Repository
 
 # Set the Django settings module
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 
-# Configure Django
+# Configure Django (must happen before polars is imported)
 django.setup()
+
+# import chardet
+import dvc_pandas  # noqa: E402
+import polars as pl  # noqa: E402
+from dvc_pandas import Dataset, DatasetMeta, Repository  # noqa: E402
 
 from kausal_common.i18n.pydantic import TranslatedString  # noqa: E402
 
@@ -501,7 +502,7 @@ def push_to_dvc(
     # Build metadata
     metadata: dict[str, Any] = {
         'name': {language: dataset_name},
-        'identifier': to_snake_case(dataset_name),
+        'identifier': output_path,
     }
     if description:
         metadata['description'] = {language: description}
@@ -605,7 +606,11 @@ def process_dataset(
 
     # 11. Push to DVC if requested
     if outdvcpath:
-        dataset_dvc_path = f'{outdvcpath}/{to_snake_case(dataset_name)}'
+        # Strip any source namespace prefix (e.g. 'aarhus/') and replace with
+        # outdvcpath.  Identifiers must NOT go through to_snake_case: it removes
+        # '/' separators and collapses intentional double-underscores.
+        identifier = dataset_name.split('/')[-1]
+        dataset_dvc_path = f'{outdvcpath}/{identifier}'
         push_to_dvc(df, dataset_dvc_path, dataset_name, description, metrics, language, units=units)
 
 
