@@ -277,6 +277,8 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     instance = graphene.Field('nodes.schema.InstanceType', required=False)
     organization_slug = graphene.String(required=False)
     organization_identifier = graphene.String(required=False)
+    is_locked = graphene.Boolean(required=True)
+    instance_identifier = graphene.String(required=True)
 
     class Meta(DjangoNodeMeta):
         model = FrameworkConfig
@@ -304,6 +306,22 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     def resolve_results_download_url(root: FrameworkConfig, info: GQLInfo) -> str:
         path = reverse('framework_config_results_download', kwargs=dict(fwc_id=root.pk, token=root.token))
         return info.context.build_absolute_uri(path)
+
+    @staticmethod
+    def resolve_is_locked(root: FrameworkConfig, info: GQLInfo) -> bool:
+        if hasattr(root, 'instance_is_locked'):
+            return getattr(root, 'instance_is_locked', False)
+        ic = root.cache.fw_cache.instance_configs.get(root.instance_config_id)
+        assert ic is not None
+        return ic.is_locked
+
+    @staticmethod
+    def resolve_instance_identifier(root: FrameworkConfig, info: GQLInfo) -> str:
+        if hasattr(root, 'instance_identifier'):
+            return getattr(root, 'instance_identifier', '')
+        ic = root.cache.fw_cache.instance_configs.get(root.instance_config_id)
+        assert ic is not None
+        return ic.identifier
 
     @staticmethod
     def resolve_instance(root: FrameworkConfig, info: GQLInfo) -> Instance:
