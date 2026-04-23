@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from django.db.models import F
+
 from kausal_common.models.object_cache import ModelObjectCache, ObjectCacheGroup
 
 from frameworks.models import (
@@ -24,6 +26,7 @@ from frameworks.models import (
 from nodes.models import InstanceConfig, InstanceConfigQuerySet
 
 if TYPE_CHECKING:
+    from kausal_common.models.permission_policy import ObjectSpecificAction
     from kausal_common.users import UserOrAnon
 
     from nodes.instance import Instance
@@ -161,6 +164,13 @@ class FrameworkConfigCache(ModelObjectCache[FrameworkConfig, FrameworkConfigQuer
     @property
     def model(self):
         return FrameworkConfig
+
+    def get_base_qs(
+        self, qs: FrameworkConfigQuerySet | None = None, action: ObjectSpecificAction = 'view'
+    ) -> FrameworkConfigQuerySet:
+        qs = super().get_base_qs(qs, action)
+        qs = qs.annotate(instance_is_locked=F('instance_config__is_locked'), instance_identifier=F('instance_config__identifier'))
+        return qs
 
     def filter_by_parent(self, qs: FrameworkConfigQuerySet) -> FrameworkConfigQuerySet:
         return qs.filter(framework=self.parent)
