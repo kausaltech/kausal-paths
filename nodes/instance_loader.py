@@ -459,7 +459,7 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    def _make_node_datasets(self, config: dict[str, Any], node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
+    def _make_node_datasets(self, config: dict[str, Any], node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.defs.node_defs import InputDatasetDef
         from nodes.generic import GenericNode
@@ -497,7 +497,12 @@ class InstanceLoader:
                 ds_obj = GenericDataset.from_def(ds_def, self.context)
 
             use_framework_ds = 'framework_measure_data' in ds_def.tags
-            if self.fw_config is not None:
+            use_obs_ds = 'observation_dataset' in ds_def.tags
+            if use_obs_ds:
+                from frameworks.datasets import ObservationDataset
+
+                ds_obj = ObservationDataset.from_def(ds_def, self.context)
+            elif self.fw_config is not None:
                 from nodes.gpc import DatasetNode
 
                 if issubclass(node_class, DatasetNode) or use_framework_ds:
@@ -744,7 +749,7 @@ class InstanceLoader:
             return self._node_classes[full_path]
 
         mod = importlib.import_module(mod_path)
-        klass = getattr(mod, class_name)
+        klass: type = getattr(mod, class_name)
         if allowed_classes and not issubclass(klass, tuple(allowed_classes)):
             raise Exception('%s is not a subclass of %s' % (klass, allowed_classes))
         if disallowed_classes:
