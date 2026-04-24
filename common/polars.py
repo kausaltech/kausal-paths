@@ -721,7 +721,11 @@ def from_dvc_dataset(ds: DVCDataset):
     if ds.units:
         for col, unit in ds.units.items():
             units[col] = unit_registry.parse_units(unit)
-    primary_keys = ds.index_columns or []
+    # ds.index_columns may contain dict-format range-index descriptors from old parquet
+    # pandas metadata (e.g. {"kind": "range", "name": "Year", ...}) rather than plain
+    # column name strings.  Filter to strings only so DataFrameMeta column matching works.
+    raw_keys = ds.index_columns or []
+    primary_keys = [k for k in raw_keys if isinstance(k, str)]
     pldf = PathsDataFrame._from_pydf(ds.df._df, meta=DataFrameMeta(units, primary_keys))
     return pldf
 
