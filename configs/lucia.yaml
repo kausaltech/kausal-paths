@@ -106,7 +106,7 @@ params:
   value: true
   is_visible: true
   is_customizable: true
-- id: measure_data_override
+- id: use_observations
   value: false
   is_visible: false
   is_customizable: false
@@ -1845,7 +1845,7 @@ scenarios:
     value: false
   - id: waste_recycling_trend.enabled
     value: true
-  - id: measure_data_override
+  - id: use_observations
     value: false
   - id: measure_data_baseline_year_only
     value: true
@@ -1856,7 +1856,7 @@ scenarios:
   name_fi: Hiilineutraali skenaario
   all_actions_enabled: true
   params:
-  - id: measure_data_override
+  - id: use_observations
     value: false
   - id: measure_data_baseline_year_only
     value: true
@@ -1867,7 +1867,7 @@ scenarios:
   all_actions_enabled: false
   is_selectable: true
   params:
-  - id: measure_data_override
+  - id: use_observations
     value: true
   - id: measure_data_baseline_year_only
     value: false
@@ -2548,20 +2548,20 @@ nodes:
 - id: emissions_from_other_sectors_observed
   name_en: Total emissions from other sectors
   name_fi: Kokonaispäästöt muilta sektoreilta
-  type: formula.FormulaNode
+  type: generic.ObservableNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [cost_type]
   output_dimensions: [cost_type]
   input_datasets:
-  - id: nzc/defaults
-    tags: [observed, prepare_gpc_dataset, framework_measure_data]
+  - id: nzc/other_sectors
+    column: emissions_from_other_sectors
     filters:
-    - column: Sector
-      value: Emissions from other sectors
+    - column: uuid
       drop_col: false
-    - column: Scope
-    - column: Ghg
+    - column: scope
+    - column: ghg
+    tags: [observation_dataset]
   input_nodes:
   - id: emissions_from_other_sectors
     tags: [modeled]
@@ -2570,13 +2570,6 @@ nodes:
       flatten: true
     - id: ghg
       flatten: true
-  - id: measure_data_override
-    tags: [use_obs]
-    to_dimensions: []
-  params:
-  - id: formula
-    value: observed_only_extend_all(observed) * use_obs + modeled * 
-      complement(use_obs)
 
 - id: emissions_from_other_sectors
   name_en: Emissions from other sectors
@@ -3259,39 +3252,22 @@ nodes:
 - id: passenger_kilometres_observed
   name_en: Passenger kilometres, observed
   name_fi: Henkilökilometrit, havaitut
-  type: formula.FormulaNode
+  type: generic.ObservableNode
   quantity: mileage
   unit: Mpkm/a
   color: '#ff69b4'
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets:
-  - id: nzc/defaults
-    tags: [observed, prepare_gpc_dataset, framework_measure_data]
+  - id: nzc/passenger_transport_need_fleet
+    column: transport_need
     filters:
-    - column: Sector
-      value: Transport need
+    - column: uuid
       drop_col: false
+    tags: [observation_dataset]
   input_nodes:
   - id: passenger_kilometres
     tags: [modeled]
-  - id: measure_data_override
-    tags: [use_obs]
-    to_dimensions: []
-  params:
-  - id: formula
-    value: observed_only_extend_all(observed) * use_obs + modeled * 
-      complement(use_obs)
-
-- id: measure_data_override
-  name_en: Measure data override
-  name_fi: Havaintoarvon korvaaminen
-  type: generic.ConstantNode
-  quantity: fraction
-  unit: dimensionless
-  params:
-  - id: condition
-    ref: measure_data_override
 
 - id: motorised_transport_index
   name_en: Motorised transport index
@@ -4336,27 +4312,22 @@ nodes:
 - id: freight_transport_need_observed
   name_en: Freight transport need observed
   name_fi: Havaittu rahtiliikenteen tarve
-  type: formula.FormulaNode
+  type: generic.ObservableNode
   quantity: freight_mileage
   unit: Mtkm/a
   color: '#ff69b4'
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets:
-  - id: nzc/defaults
-    tags: [observed, prepare_gpc_dataset, framework_measure_data]
+  - id: nzc/freight_transport
+    column: total_transportation_need_within_city_road_freight
     filters:
-    - column: Sector
-      value: Total transportation need within city - Road freight transport
+    - column: uuid
       drop_col: false
+    tags: [observation_dataset]
   input_nodes:
   - id: freight_transport_need_scaled
     tags: [modeled]
-  params:
-  - id: formula
-    value: select_port(condition, observed_only_extend_all(observed), modeled)
-  - id: condition
-    ref: measure_data_override
 
 - id: average_truck_utilisation_historical
   name_en: Average truck utilisation historical
@@ -5721,23 +5692,17 @@ nodes:
 - id: building_heat_energy_use_observed
   name_en: Building heat energy use observed
   name_fi: Havaittu rakennusten lämmitysenergia
-  type: formula.FormulaNode
+  type: generic.ObservableNode
   quantity: energy
   unit: GWh/a
   color: '#ff69B4'
   input_datasets:
-  - id: nzc/defaults
-    tags: [observed, prepare_gpc_dataset, framework_measure_data]
+  - id: nzc/buildings_heating_fuel_tech
+    column: total_heating_demand_space_heating_domestic_hot_w
     filters:
-    - column: Sector
-      value: Total heating demand (space heating + domestic hot water + heat for
-        cooking)
+    - column: uuid
       drop_col: false
-  params:
-  - id: formula
-    value: select_port(condition, observed_only_extend_all(observed), modeled)
-  - id: condition
-    ref: measure_data_override
+    tags: [observation_dataset]
   input_nodes:
   - id: building_heat_energy_use_before_obs
     tags: [modeled]
@@ -6818,30 +6783,25 @@ nodes:
 - id: total_electricity_consumption
   name_en: Total electricity consumption
   name_fi: Sähkön kokonaiskulutus
-  type: formula.FormulaNode
+  type: generic.ObservableNode
   quantity: energy
   unit: GWh/a
   color: '#ff69b4'
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: nzc/defaults
-    tags: [observed, prepare_gpc_dataset, framework_measure_data]
+  - id: nzc/electricity
+    column: total_electricity_demand_within_city_boundaries
     filters:
-    - column: Sector
-      value: Total electricity demand within city boundaries # Same as electricity_consumption_historical
+    - column: uuid
       drop_col: false
+    tags: [observation_dataset]
   input_nodes:
   - id: total_electricity_consumption_corr
     tags: [modeled]
     from_dimensions:
     - id: sector
       flatten: true
-  params:
-  - id: formula
-    value: select_port(condition, observed_only_extend_all(observed), modeled)
-  - id: condition
-    ref: measure_data_override
 
 - id: total_electricity_production
   name_en: Total electricity production by shares
