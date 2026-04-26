@@ -4,7 +4,7 @@ supported_languages: [fi]
 site_url: https://lucia.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e4b56b6a12d6b9e9ecb5b2745b5f0b1497f381b4
+  commit: 08ad401302c3742b407f089fb9e57aa16b7431b4
   dvc_remote: kausal-s3
 name: Lucia Greenhouse Gas Inventory
 owner: Kausal Ltd
@@ -1686,7 +1686,7 @@ actions:
 - id: a344_top_performance_improvement
   name: 3.4.4 Top performance standard improvement compared with the regular new
     buildings
-  name_fi: 3.4.4 Huippusuorituskyvyn parannus verrattuna tavallisiin uusiin
+  name_fi: 3.4.4 Huippusuorituskyvyn parannus verrattuna tavallisiin uusiin 
     rakennuksiin
   type: simple.GenericAction
   quantity: fraction

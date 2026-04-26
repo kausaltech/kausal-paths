@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from kausal_common.models.types import FK, M2M, QS, OneToOne, RevMany, RevManyQS
     from kausal_common.users import UserOrAnon
 
+    from frameworks.nzc import NZCDefaultDataPoint
     from frameworks.permissions import MeasureTemplatePermissionPolicy
     from nodes.gpc import DatasetNode
     from nodes.instance import Instance
@@ -783,7 +784,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         }
         year = self.baseline_year
         measure_data_points_qs = (
-            MeasureDataPoint.objects.get_queryset()
+            MeasureDataPoint.objects
+            .get_queryset()
             .filter(year=year, measure__in=measures_qs)
             .annotate(mt_uuid=F('measure__measure_template__uuid'))
         )
@@ -824,6 +826,48 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             MeasureDataPoint.objects.bulk_create(new_measure_data_points)
         if update_measure_data_points:
             MeasureDataPoint.objects.bulk_update(update_measure_data_points, fields=['default_value'])
+
+    def create_measure_defaults_yearly(self, yearly_defaults: dict[str, list[NZCDefaultDataPoint]]) -> None:
+        """
+        Upsert year-specific MeasureDataPoints with default_value, min_value, max_value.
+
+        ``yearly_defaults`` is ``{uuid_str: [NZCDefaultDataPoint, ...]}``.
+        Called after ``create_measure_defaults`` so Measure objects already exist.
+        """
+        measures_qs = self.measures.annotate(mt_uuid=F('measure_template__uuid'))
+        measure_by_uuid: dict[str, Measure] = {str(m.mt_uuid): m for m in measures_qs}  # type: ignore[attr-defined]
+
+        new_dps: list[MeasureDataPoint] = []
+        update_dps: list[MeasureDataPoint] = []
+
+        for uuid_str, data_points in yearly_defaults.items():
+            measure = measure_by_uuid.get(uuid_str)
+            if measure is None:
+                continue
+            existing: dict[int, MeasureDataPoint] = {dp.year: dp for dp in measure.data_points.all()}
+            for dp_data in data_points:
+                mdp = existing.get(dp_data.year)
+                if mdp is None:
+                    new_dps.append(
+                        MeasureDataPoint(
+                            measure=measure,
+                            year=dp_data.year,
+                            value=None,
+                            default_value=dp_data.value,
+                            min_value=dp_data.min_value,
+                            max_value=dp_data.max_value,
+                        )
+                    )
+                else:
+                    mdp.default_value = dp_data.value
+                    mdp.min_value = dp_data.min_value
+                    mdp.max_value = dp_data.max_value
+                    update_dps.append(mdp)
+
+        if new_dps:
+            MeasureDataPoint.objects.bulk_create(new_dps)
+        if update_dps:
+            MeasureDataPoint.objects.bulk_update(update_dps, fields=['default_value', 'min_value', 'max_value'])
 
     def create_model_instance(self, _ic: InstanceConfig) -> Instance:
         from nodes.instance_loader import InstanceLoader
@@ -1021,8 +1065,10 @@ class MeasureDataPoint(CacheablePathsModel[None], models.Model):
     year = models.IntegerField()
     value = models.FloatField(null=True)
     default_value = models.FloatField(null=True)
+    min_value = models.FloatField(null=True, blank=True)
+    max_value = models.FloatField(null=True, blank=True)
 
-    public_fields: ClassVar = ['id', 'year', 'value', 'default_value']
+    public_fields: ClassVar = ['id', 'year', 'value', 'default_value', 'min_value', 'max_value']
 
     objects: ClassVar[MeasureDataPointManager] = MeasureDataPointManager()
     _default_manager: ClassVar[MeasureDataPointManager]
