@@ -234,7 +234,12 @@ class GenericNode(SimpleNode):
         out = df if df is not None else dfs.pop()
         for d in dfs:
             out = out.select(d.columns)
-            out = out.paths.concat_vertical(d)
+            # Earlier datasets fill gaps only — drop rows whose index already exists in out
+            primary_keys = out.primary_keys
+            d_meta = d.get_meta()
+            dd = ppl.to_ppdf(d.join(out.select(primary_keys), on=primary_keys, how='anti'), meta=d_meta)
+            if not dd.is_empty():
+                out = out.paths.concat_vertical(dd)
         assert isinstance(out, PathsDataFrame)
         out = out.paths._add_missing_years(out, self.context)
         return out

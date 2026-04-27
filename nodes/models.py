@@ -337,6 +337,10 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
 
     is_protected = models.BooleanField(default=False)
     protection_password = models.CharField(max_length=50, null=True, blank=True)
+    is_locked = models.BooleanField(
+        default=False,
+        help_text=_('Whether end-user mutation surfaces should treat this instance as read-only.'),
+    )
 
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
