@@ -180,7 +180,7 @@ def extract_units_from_row(df: pl.DataFrame) -> tuple[dict[str, str], pl.DataFra
                 float(value)
                 has_numeric = True
                 break
-            except ValueError, TypeError:
+            except (ValueError, TypeError):
                 continue
     if has_numeric:
         return units, df
