@@ -211,6 +211,9 @@ dimensions:
   - id: grid_stability
     label_en: Storage, grid stability etc.
     label_de: Speicherung, Netzstabilität etc.
+  - id: rent
+    label_en: Rent
+    label_de: Miete
 
 - id: efficiency_programme
   label_en: Energy efficiency programme
