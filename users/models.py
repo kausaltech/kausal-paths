@@ -21,6 +21,7 @@ from .base import AbstractUser
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import Group
+    from wagtail.users.models import UserProfile as WagtailUserProfile
 
     from kausal_common.models.roles import InstanceSpecificRole, UserPermissionCache
     from kausal_common.models.types import FK, QS, RevOne
@@ -85,6 +86,7 @@ class User(AbstractUser):
     REQUIRED_FIELDS = []
 
     autocomplete_search_field = 'email'
+    wagtail_userprofile: RevOne[User, WagtailUserProfile]
 
     def natural_key(self) -> tuple[str]:
         # If we don't override this, it will use `get_username()`, which may not always return the email field. The
@@ -230,7 +232,7 @@ class User(AbstractUser):
             return False
         return self.get_adminable_instances().exists()
 
-    def deactivate(self, admin_user):
+    def deactivate(self, admin_user: User | None):
         self.is_active = False
         self.deactivated_by = admin_user
         self.deactivated_at = timezone.now()

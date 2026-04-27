@@ -1,11 +1,9 @@
-from __future__ import annotations
-
 import os
 import re
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias, Unpack, cast
+from typing import TYPE_CHECKING, Any, Never, NoReturn, Self, Unpack, cast, overload
 
 from pydantic_core import core_schema
 
@@ -23,7 +21,7 @@ from pint.delegates.formatter.plain import PrettyFormatter
 from pint.facets.plain import PlainQuantity, PlainUnit
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
 
     from django_stubs_ext import StrPromise
     from pydantic import GetCoreSchemaHandler
@@ -34,6 +32,7 @@ if TYPE_CHECKING:
         BabelKwds,
         SortFunc,
     )
+    from pint.facets.plain.objects import UnitsContainer
 
 
 # Unit = PlainUnit
@@ -78,17 +77,45 @@ class Unit(pint.registry.Unit):
 
     @staticmethod
     def _serialize(value: Unit) -> str:
-        return str(value)
+        s = str(value)
+        if not s:
+            return 'dimensionless'
+        return s
 
 
-class Quantity(pint.registry.Quantity):
-    pass
+type UnitLike = str | dict[str, float] | 'UnitsContainer' | Unit
 
 
-QuantityType: TypeAlias = Quantity | PlainQuantity[Any]  # noqa: UP040
-UnitType: TypeAlias = Unit | PlainUnit  # noqa: UP040
+class Quantity(pint.registry.Quantity[float]):
+    if TYPE_CHECKING:
 
-type PathsUnit = Unit
+        @overload
+        def __new__(cls, value: float, units: UnitLike | None = None) -> Self: ...
+
+        @overload
+        def __new__(cls, value: str, units: UnitLike | None = None) -> Self: ...
+
+        @overload
+        def __new__(cls, value: Sequence[float], units: UnitLike | None = None) -> Self: ...
+
+        @overload
+        def __new__(cls, value: Quantity, units: UnitLike | None = None) -> Self: ...
+
+        # Not a real constructor; only defined in type checking scope.
+        def __new__(cls, value, units=None) -> Self:
+            return cls(value, units)
+
+        @property
+        def units(self) -> Unit: ...
+
+        @property
+        def u(self) -> Unit: ...
+
+
+type QuantityType = Quantity | PlainQuantity[Any]
+type UnitType = Unit | PlainUnit
+
+PathsUnit = Unit
 
 
 @dataclass(frozen=True)
@@ -110,6 +137,9 @@ class CachingUnitRegistry(  # type: ignore[misc]
     Unit = Unit
     Quantity = Quantity
 
+    def __call__(self, *args: Never, **kwargs: Never) -> NoReturn:  # type: ignore[override]
+        raise Exception('This registry is not callable. Use parse_units or parse_expression instead.')
+
     def parse_units(self, input_string: str, as_delta: bool | None = None, case_sensitive: bool | None = None) -> PathsUnit:
         if self.unit_cache is None:
             self.unit_cache = dict()
@@ -117,6 +147,8 @@ class CachingUnitRegistry(  # type: ignore[misc]
         if cached_unit is not None:
             return cached_unit
         ret = super().parse_units(input_string, as_delta, case_sensitive)
+        if not isinstance(ret, PathsUnit):
+            raise TypeError(f'Parsed unit {input_string} is not a Unit: {type(ret)}')
         self.unit_cache[input_string] = ret
         return ret
 
@@ -140,11 +172,12 @@ def create_unit_registry():
     if cache_dir is None:
         cache_dir = platformdirs.user_cache_dir(appname='pint', appauthor=False)
 
+    def preprocess_unit(unit: str) -> str:
+        return unit.replace('%', ' percent ')
+
     def try_create(cache_path: Path) -> CachingUnitRegistry:
         return CachingUnitRegistry(
-            preprocessors=[
-                lambda s: s.replace('%', ' percent '),
-            ],
+            preprocessors=[preprocess_unit],
             on_redefinition='raise',
             cache_folder=str(cache_path),
         )
@@ -181,6 +214,9 @@ def prepare_units_for_babel(unit: Unit, html: bool = False):
 
 
 class PathsHTMLFormatter(HTMLFormatter):
+    def __init__(self, registry: CachingUnitRegistry | None = None):
+        super().__init__(registry=cast('UnitRegistry[Any]', registry))
+
     def format_unit(
         self,
         unit: PlainUnit | Iterable[tuple[str, Any]],
@@ -212,6 +248,9 @@ class PathsHTMLFormatter(HTMLFormatter):
 
 
 class PathsPrettyFormatter(PrettyFormatter):
+    def __init__(self, registry: CachingUnitRegistry | None = None):
+        super().__init__(registry=cast('UnitRegistry[Any]', registry))
+
     def format_unit(
         self,
         unit: PlainUnit | Iterable[tuple[str, Any]],
@@ -226,8 +265,8 @@ class PathsPrettyFormatter(PrettyFormatter):
         return super().format_unit(unit, uspec, sort_func, **babel_kwds)
 
 
-unit_registry.html_formatter = PathsHTMLFormatter(registry=cast('UnitRegistry', unit_registry))
-unit_registry.pretty_formatter = PathsPrettyFormatter(registry=cast('UnitRegistry', unit_registry))
+unit_registry.html_formatter = PathsHTMLFormatter(registry=unit_registry)
+unit_registry.pretty_formatter = PathsPrettyFormatter(registry=unit_registry)
 
 
 """
@@ -398,6 +437,7 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'megaCAD', 'long': _('million Canadian dollars'), 'short': 'M$'},
         {'unit': 'kiloSEK', 'long': _('thousand kronor'), 'short': 'kSEK'},
         {'unit': 'megaSEK', 'long': _('million kronor'), 'short': 'MSEK'},
+        {'unit': 'megaDKK', 'long': _('million kronor'), 'short': 'M DKK'},
         {'unit': 'terawatt_hour', 'long': _('terawatt hours'), 'short': 'TWh'},
         {'unit': 'gigawatt_hour', 'long': _('gigawatt hours'), 'short': 'GWh'},
         {'unit': 'megawatt_hour', 'long': _('megawatt hour'), 'short': _('MWh')},

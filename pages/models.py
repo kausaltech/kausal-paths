@@ -26,7 +26,7 @@ from kausal_common.models.types import PageModelManager
 
 from nodes.blocks import OutcomeBlock
 from nodes.models import InstanceConfig, NodeConfig
-from pages.blocks import DashboardCardBlock
+from pages.blocks import DashboardCardBlock, FrameworkLandingBlock
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -224,15 +224,21 @@ class InstanceRootPage(PathsPage):
     body = StreamField(
         [
             ('outcome', OutcomeBlock()),
+            ('framework_landing', FrameworkLandingBlock()),
         ],
         block_counts={
-            'outcome': {'min_num': 1, 'max_num': 1},
+            'outcome': {'max_num': 1},
+            'framework_landing': {'max_num': 1},
         },
     )
 
     content_panels = [
         *PathsPage.content_panels,
         FieldPanel('body'),
+    ]
+
+    graphql_fields = PathsPage.graphql_fields + [
+        GraphQLStreamfield('body'),
     ]
 
     parent_page_types: Sequence[type[Page] | str] = []

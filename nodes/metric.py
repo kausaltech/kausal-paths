@@ -11,12 +11,8 @@ import strawberry as sb
 from pydantic import BaseModel, Field
 
 import numpy as np
-import polars as pl
 import sentry_sdk
 
-from common import polars as ppl
-
-from .actions.shift import ShiftAction
 from .constants import (
     BASELINE_VALUE_COLUMN,
     FLOW_ID_COLUMN,
@@ -36,12 +32,21 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     import pint
+    import polars as pl
 
+    from common import polars as ppl
+    from nodes.context import Context
+    from nodes.datasets import Dataset as RuntimeDataset
+    from nodes.defs.port_def import OutputPortDef
+    from nodes.edges import Edge
     from nodes.scenario import Scenario
     from nodes.visualizations import VisualizationNodeOutput
 
     from .actions.action import ActionImpact, ActionNode, ImpactOverview
     from .node import Node, NodeMetric
+
+else:
+    pass
 
 
 @sb.type
@@ -72,6 +77,10 @@ class Metric:
 
     @staticmethod
     def from_node(node: Node, goal_id: str | None = None) -> None | Metric:  # noqa: C901, PLR0912
+        import polars as pl
+
+        from common import polars as ppl
+
         try:
             m = node.get_default_output_metric()
         except Exception:
@@ -131,6 +140,8 @@ class Metric:
         return Metric(id=node.id, name=str(node.name), unit=df.get_unit(VALUE_COLUMN), node=node, df=df)
 
     def split_df(self) -> SplitValues | None:
+        import polars as pl
+
         if self.split_values is not None:
             return self.split_values
 
@@ -202,7 +213,7 @@ class Metric:
         assert not isinstance(dim, complex)
         if dim is None or dim > -1:
             return None
-        year_unit = self.unit._REGISTRY('year').units
+        year_unit = self.unit._REGISTRY.parse_units('year')
         return self.unit * year_unit
 
 
@@ -349,6 +360,10 @@ class DimensionalMetric(BaseModel):
     measure_datapoint_years: list[int] = Field(default_factory=list)
 
     def to_df(self, drop_single_cat_dims: bool = False) -> ppl.PathsDataFrame:
+        import polars as pl
+
+        from common import polars as ppl
+
         idx_df = self.generate_index_df(self.dimensions, self.years)
         data = pl.DataFrame(self.values, schema=[VALUE_COLUMN])
         df = pl.concat([idx_df, data], how='horizontal')
@@ -366,6 +381,8 @@ class DimensionalMetric(BaseModel):
 
     @classmethod
     def generate_index_df(cls, dims: list[MetricDimension], years: list[int]) -> pl.DataFrame:
+        import polars as pl
+
         idx_names = [dim.original_id for dim in dims] + [YEAR_COLUMN]
         idx_dfs = [pl.LazyFrame(dim.get_original_cat_ids(), schema=[dim.original_id], orient='row') for dim in dims] + [
             pl.LazyFrame(years, schema=[YEAR_COLUMN]),
@@ -378,16 +395,77 @@ class DimensionalMetric(BaseModel):
         return idx_df
 
     @classmethod
+    def from_output_port(cls, node: Node, port: OutputPortDef) -> DimensionalMetric:
+        from .metric_gen import from_node_output_metric
+
+        for metric in node.output_metrics.values():
+            if metric.column_id == port.column_id:
+                break
+        else:
+            raise ValueError(f'Metric for column {port.column_id} not found')
+        return from_node_output_metric(node, metric, scenarios=(), include_input_nodes=False, port=port)
+
+    @classmethod
+    def from_input_dataset(
+        cls,
+        dataset: RuntimeDataset,
+        context: Context,
+    ) -> list[DimensionalMetric]:
+        """Build one DimensionalMetric per metric column in a node's input dataset."""
+        from .metric_gen import metric_from_dataframe
+
+        df = dataset.get_copy()
+        meta = df.get_meta()
+        return [
+            metric_from_dataframe(
+                df,
+                metric_col=col,
+                context=context,
+                metric_id=f'{dataset.id}:{col}',
+                metric_name=col,
+            )
+            for col in meta.metric_cols
+        ]
+
+    @classmethod
+    def from_edge_input(
+        cls,
+        source_node: Node,
+        edge: Edge,
+    ) -> DimensionalMetric | None:
+        """Build a DimensionalMetric from the upstream node's output as seen through an edge."""
+        from .metric_gen import metric_from_dataframe
+
+        try:
+            df = source_node.get_output_pl()
+        except Exception:
+            return None
+        df = source_node._get_output_for_node(df, edge)
+        meta = df.get_meta()
+        metric_cols = meta.metric_cols
+        if not metric_cols:
+            return None
+        col = metric_cols[0]
+        return metric_from_dataframe(
+            df,
+            metric_col=col,
+            context=source_node.context,
+            metric_id=f'{source_node.id}:{col}',
+            metric_name=str(source_node.name),
+        )
+
+    @classmethod
     def from_node(
         cls,
         node: Node,
         metric: NodeMetric | None = None,
+        include_input_nodes: bool = True,
         extra_scenarios: Sequence[Scenario] = (),
     ) -> DimensionalMetric | None:
         from .metric_gen import metric_from_node
 
         with sentry_sdk.start_span(name='Metric from node %s' % node.id, op='model.metric'):
-            return metric_from_node(node, metric, extra_scenarios)
+            return metric_from_node(node, metric, include_input_nodes=include_input_nodes, extra_scenarios=extra_scenarios)
 
     @classmethod
     def from_visualization(cls, node: Node, visualization: VisualizationNodeOutput) -> DimensionalMetric | None:
@@ -410,6 +488,7 @@ class DimensionalMetric(BaseModel):
 
     def plot(self, dim_id: str | None = None):
         import altair as alt
+        import polars as pl
 
         df = self.to_df(drop_single_cat_dims=True).with_columns(pl.col('Year').cast(pl.Utf8))
         x = alt.X(field='Year', type='temporal')
@@ -474,6 +553,10 @@ class DimensionalFlow:
 
     @classmethod
     def from_action_node(cls, node: ActionNode) -> None | DimensionalFlow:  # noqa: C901, PLR0915
+        import polars as pl
+
+        from .actions.shift import ShiftAction
+
         if not isinstance(node, ShiftAction):
             return None
 

@@ -10,10 +10,8 @@ from warnings import deprecated
 import polars as pl
 from polars._utils.parse import parse_into_list_of_expressions
 
-from kausal_common.models.types import copy_signature
-
 from nodes.constants import FORECAST_COLUMN, TIME_INTERVAL, VALUE_COLUMN, YEAR_COLUMN
-from nodes.units import Unit, unit_registry
+from nodes.units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
@@ -24,16 +22,28 @@ if typing.TYPE_CHECKING:
     from polars._plr import PyDataFrame, PyExpr
     from polars._typing import JoinStrategy, JoinValidation, MaintainOrderJoin
     from polars.type_aliases import ColumnNameOrSelector, IntoExpr, IntoExprColumn
+    from rich.repr import RichReprResult
+
+    from kausal_common.models.types import copy_signature
 
     from nodes.units import Quantity
 
     from .polars_ext import PathsExt
+else:
+
+    def copy_signature(_arg):
+        return lambda x: x
 
 
 @dataclass
 class DataFrameMeta:
     units: dict[str, Unit]
     primary_keys: list[str]
+
+    def __post_init__(self):
+        for col, unit in self.units.items():
+            if not isinstance(unit, Unit):
+                raise TypeError(f'Unit for column {col} is not a Unit: {type(unit)}')
 
     @classmethod
     def get_dim_ids(cls, pks: list[str]) -> list[str]:
@@ -69,6 +79,15 @@ class DataFrameMeta:
             else:
                 return False
         return True
+
+    def select(self, cols: list[str]) -> DataFrameMeta:
+        col_set = set(cols)
+        unit_cols = set(self.units.keys()) & col_set
+        primary_keys = set(self.primary_keys) & col_set
+        return DataFrameMeta(
+            units={key: self.units[key] for key in unit_cols},
+            primary_keys=list(primary_keys),
+        )
 
 
 class PathsDataFrame(pl.DataFrame):
@@ -312,7 +331,7 @@ class PathsDataFrame(pl.DataFrame):
         meta = self.get_meta()
         if isinstance(unit, str):
             unit = unit_registry.parse_units(unit)
-        meta.units[col] = unit  # type: ignore
+        meta.units[col] = unit
         return PathsDataFrame._from_pydf(self._df, meta=meta, source_df=self)
 
     def clear_unit(self, col: str) -> PathsDataFrame:
@@ -404,7 +423,7 @@ class PathsDataFrame(pl.DataFrame):
 
     def cumulate(self, col: str) -> PathsDataFrame:
         meta = self.get_meta()
-        unit = unit_registry(TIME_INTERVAL)
+        unit = unit_registry.parse_units(TIME_INTERVAL)
         meta.units[col] *= unit
 
         df = self.paths.to_wide()
@@ -420,7 +439,7 @@ class PathsDataFrame(pl.DataFrame):
 
     def cumprod(self, col: str, complement: bool = False) -> PathsDataFrame:
         meta = self.get_meta()
-        unit = unit_registry(TIME_INTERVAL)
+        unit = unit_registry.parse_units(TIME_INTERVAL)
         meta.units[col] *= unit
         df = to_ppdf(self, meta=meta)
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
@@ -439,8 +458,8 @@ class PathsDataFrame(pl.DataFrame):
 
     def diff(self, col: str, n: int = 1) -> PathsDataFrame:
         meta = self.get_meta()
-        unit = unit_registry(TIME_INTERVAL)
-        meta.units[col] = cast('Unit', meta.units[col] / unit)
+        time_unit = unit_registry.parse_units(TIME_INTERVAL)
+        meta.units[col] = cast('Unit', meta.units[col] / time_unit)
 
         df = self.paths.to_wide()
         for df_col in df.columns:
@@ -544,7 +563,7 @@ class PathsDataFrame(pl.DataFrame):
                 lines[idx] = cat
             new_col = '\n'.join(lines)
 
-            new_col = '[%s] %s' % (str(unit), new_col)
+            new_col = '<%s> %s' % (str(unit), new_col)
             renames[col] = new_col
 
         for col in meta.primary_keys:
@@ -562,10 +581,23 @@ class PathsDataFrame(pl.DataFrame):
         out += df._df.as_str()
         return out
 
+    def __rich_repr__(self) -> RichReprResult:
+        col_repr = []
+        for col in self.columns:
+            col_parts = [col]
+            if col in self._units:
+                col_parts.append(f'({self._units[col]})')
+            if col in self._primary_keys:
+                col_parts.append('<idx>')
+            col_repr.append(' '.join(col_parts))
+
+        yield 'columns', col_repr
+
     def print(self):
         from rich.console import Console
         from rich.table import Table
 
+        console = Console()
         table = Table()
         for col in self.columns:
             col_newlines = col.replace('@', '\n').replace(':', ':\n')
@@ -578,7 +610,6 @@ class PathsDataFrame(pl.DataFrame):
                 else:
                     vals.append(val)
             table.add_row(*vals)
-        console = Console()
         console.print(table)
 
     def select_category(
@@ -619,17 +650,21 @@ class PathsDataFrame(pl.DataFrame):
                 df = df.set_unit(VALUE_COLUMN, 'dimensionless')
             else:
                 unit = df.get_unit(VALUE_COLUMN)
-                baseline_year_level = cast('Quantity', baseline_year_level.to(unit))
+                baseline_year_level = baseline_year_level.to(unit)
                 df = df.with_columns(pl.col(VALUE_COLUMN) - pl.lit(baseline_year_level.m))
         return df
 
 
 def validate_ppdf(df: PathsDataFrame):
+    for key, val in df._units.items():
+        if not isinstance(val, Unit):
+            raise TypeError(f'Unit for column {key} is not a Unit: {type(val)}')
+
     units = list(df._units.keys())
     pks = list(df._primary_keys)
     for col in units + pks:
         if col not in df.columns:
-            raise Exception('Column %s in metadata not found in DF columns' % col)
+            raise KeyError(f'Column {col} in metadata not found in DF columns')
 
 
 def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
@@ -686,7 +721,11 @@ def from_dvc_dataset(ds: DVCDataset):
     if ds.units:
         for col, unit in ds.units.items():
             units[col] = unit_registry.parse_units(unit)
-    primary_keys = ds.index_columns or []
+    # ds.index_columns may contain dict-format range-index descriptors from old parquet
+    # pandas metadata (e.g. {"kind": "range", "name": "Year", ...}) rather than plain
+    # column name strings.  Filter to strings only so DataFrameMeta column matching works.
+    raw_keys = ds.index_columns or []
+    primary_keys = [k for k in raw_keys if isinstance(k, str)]
     pldf = PathsDataFrame._from_pydf(ds.df._df, meta=DataFrameMeta(units, primary_keys))
     return pldf
 
@@ -698,3 +737,5 @@ if not pl.using_string_cache():
 pl.Config.set_fmt_str_lengths(100)
 pl.Config.set_tbl_rows(100)
 pl.Config.set_tbl_cols(20)
+
+__ALL__ = ['pl', 'PathsDataFrame', 'DataFrameMeta', 'to_ppdf', 'from_pandas', 'from_dvc_dataset']

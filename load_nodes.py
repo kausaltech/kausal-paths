@@ -6,6 +6,8 @@ from contextlib import ExitStack
 
 from kausal_common.development.django import init_django
 
+from common.utils import install_node_error_handler
+
 init_django()
 
 import argparse
@@ -19,7 +21,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, overload
 
 import polars as pl
-import rich.traceback
 import sentry_sdk
 from dotenv import load_dotenv
 from rich import print
@@ -42,12 +43,6 @@ if TYPE_CHECKING:
 load_dotenv()
 
 console = Console()
-
-if True:
-    from kausal_common.logging.warnings import register_warning_handler
-
-    rich.traceback.install(max_frames=10)
-    register_warning_handler()
 
 parser = argparse.ArgumentParser(description='Execute the computational graph')
 parser.add_argument('-i', '--instance', type=str, help='instance identifier')
@@ -85,6 +80,7 @@ parser.add_argument('--profile', action='store_true', help='profile computation 
 parser.add_argument('--disable-ext-cache', action='store_true', help='disable external cache')
 parser.add_argument('--cache-benchmark', action='store_true', help='Perform cache benchmarks')
 parser.add_argument('--generate-result-excel', type=str, metavar='FILENAME', help='Create an Excel file from model outputs')
+parser.add_argument('-q', '--quiet', action='store_true', help='Sshhhh!')
 parser.add_argument(
     '--format',
     choices=['long', 'wide'],
@@ -130,6 +126,8 @@ def get_ic(instance_id: str, /, *, required: bool = False) -> InstanceConfig | N
     return ic
 
 
+install_node_error_handler()
+
 stack = ExitStack()
 root_span = stack.enter_context(start_transaction(name='load-nodes', op='function'))
 
@@ -163,8 +161,9 @@ def print_db_datasets():
             elif isinstance(ds, DVCDataset):
                 dvc_datasets.setdefault(ds.id, (ds, []))[1].append(node)
     print('Datasets in use:')
-    commit = context.dataset_repo.target_commit_id
-    print(f'Commit: {commit}')
+    if context.dataset_repo is not None:
+        commit = context.dataset_repo.target_commit_id
+        print(f'Commit: {commit}')
     table = Table()
     table.add_column('Source')
     table.add_column('Dataset ID')
@@ -193,7 +192,8 @@ def print_db_datasets():
     console.print(table)
 
 
-print_db_datasets()
+if not args.quiet:
+    print_db_datasets()
 
 if args.pull_datasets:
     with start_span(name='pull-datasets', op='init') as span:
@@ -489,7 +489,6 @@ if args.print_impact_overviews:
 
                 rows.append((action.id, None))
 
-            console = Console()
             rows = sorted(rows, key=lambda x: x[1].m if x[1] is not None else 1e100)
             for row in rows:
                 table.add_row(row[0], str(row[1]))

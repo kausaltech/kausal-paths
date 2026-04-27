@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import os
+from collections.abc import Generator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from functools import cached_property
@@ -11,19 +12,16 @@ import rich
 from rich.tree import Tree
 from sentry_sdk import start_span
 
+from kausal_common.debugging.helpers import hide_from_traceback
 from kausal_common.debugging.perf import PerfCounter
 from kausal_common.deployment import env_bool
-from kausal_common.perf.perf_context import PerfContext
+from kausal_common.perf.perf_context import PerfContext, PerfKind, estimate_size_bytes
 
 from paths.const import MODEL_CACHE_OP, MODEL_CALC_OP
 
-from common import (
-    base32_crockford,
-    polars as pl,  # noqa: F401  # pyright: ignore[reportUnusedImport]
-    polars_ext,  # noqa: F401  # pyright: ignore[reportUnusedImport]
-)
+from common import base32_crockford
 from common.cache import Cache
-from params.discover import discover_parameter_types
+from nodes.exceptions import ParameterError
 
 from .datasets import DVCDataset, FixedDataset
 from .units import unit_registry
@@ -36,7 +34,11 @@ if TYPE_CHECKING:
     import dvc_pandas
     import networkx  # noqa: ICN001
     from rich.repr import RichReprResult
+    from sentry_sdk.tracing import Span
 
+    from kausal_common.perf.perf_context import PerfAttrs, PerfRunContext, PerfSpanEntry
+
+    from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.explanations import NodeExplanationSystem
     from params import Parameter
     from params.storage import SettingStorage
@@ -44,6 +46,7 @@ if TYPE_CHECKING:
     from .actions.action import ActionNode, ImpactOverview
     from .datasets import Dataset
     from .dimensions import Dimension
+    from .graph_layout import NodeGraphClassifier, NodeGraphClusterer
     from .instance import Instance
     from .node import Node
     from .normalization import Normalization
@@ -108,10 +111,6 @@ class Context:
     model_end_year: int
     """The end year for the model. This is the last year for which data is computed."""
 
-    dataset_repo: dvc_pandas.Repository
-    """The dvc-pandas dataset repository for the computation model."""
-
-    dataset_repo_default_path: str | None
     sample_size: int
 
     unit_registry: CachingUnitRegistry
@@ -129,12 +128,6 @@ class Context:
     Will be `None` if no normalization is the default.
     """
 
-    supported_parameter_types: dict[str, type]
-    """All supported parameter types.
-
-    Dictionary values will be subclasses of `Parameter`.
-    """
-
     cache: Cache
     """Cache for computation results and datasets."""
 
@@ -143,6 +136,9 @@ class Context:
 
     check_mode: bool = False
     """If set, extra checks will be performed during computation runs."""
+
+    compare_pipeline_compatibility: bool = False
+    """If set, the pipeline-compatible nodes will be compared against their pipeline-originated output."""
 
     instance: Instance
     """The computation model instance."""
@@ -163,6 +159,9 @@ class Context:
     perf_context: PerfContext[Node]
     """Performance context for the context."""
 
+    perf_run: PerfRunContext[Node] | None = None
+    """Performance run context for the current execution run."""
+
     node_graph: networkx.DiGraph[str]
     """Directed NetworkX graph for the nodes and edges in the model."""
 
@@ -179,10 +178,9 @@ class Context:
     def __init__(
         self,
         instance: Instance,
-        dataset_repo: dvc_pandas.Repository,
+        dataset_repo_spec: DatasetRepoSpec | None,
         target_year: int,
         model_end_year: int | None = None,
-        dataset_repo_default_path: str | None = None,
         sample_size: int = 0,
     ):
         from nodes.actions.action import ActionNode
@@ -191,6 +189,8 @@ class Context:
         # Avoid circular import
         self.Action = ActionNode
         self.perf_context = PerfContext(supports_cache=True)
+        if env_bool('ENABLE_MODEL_PERF_TRACING', default=False):
+            self.perf_context.enabled = True
         self.nodes = {}
         self.datasets = {}
         self.dvc_datasets = {}
@@ -199,10 +199,8 @@ class Context:
         self.target_year = target_year
         self.model_end_year = model_end_year or target_year
         self.unit_registry = unit_registry
-        self.dataset_repo = dataset_repo
-        self.dataset_repo_default_path = dataset_repo_default_path
+        self.dataset_repo_spec = dataset_repo_spec
         self.sample_size = sample_size
-        self.supported_parameter_types = discover_parameter_types()
         # will be set later
         self.instance = None  # type: ignore
         self.active_scenario = None  # type: ignore
@@ -223,20 +221,45 @@ class Context:
         self.node_explanation_system = None
         if env_bool('DISABLE_PATHS_MODEL_CACHE', default=False):
             self.skip_cache = True
-        super().__init__()
 
     def __rich_repr__(self) -> RichReprResult:
         yield 'instance', self.instance.id
         yield 'obj_id', self.obj_id
 
+    def __str__(self) -> str:
+        instance_id = self.instance.id if self.instance is not None else None  # pyright: ignore[reportUnnecessaryComparison]
+        if instance_id is None:
+            instance_id = '<unknown>'
+        return f'Context(instance={instance_id}, obj_id={self.obj_id})'
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
     @contextmanager
-    def start_span(self, name: str, op: str | None = None, attributes: dict[str, Any] | None = None):
-        _rich_traceback_omit = True
+    def start_span(self, name: str, op: str | None = None, attributes: PerfAttrs | None = None) -> Generator[Span]:
+        hide_from_traceback()
         with start_span(name=name, op=op) as span:
             if attributes is not None:
                 for key, val in attributes.items():
                     span.set_data(key, val)
             yield span
+
+    @contextmanager
+    def start_perf_span(
+        self,
+        name: str,
+        *,
+        kind: str,
+        id: str,
+        op: str,
+        attributes: PerfAttrs | None = None,
+    ) -> Generator[tuple[Span, PerfSpanEntry[Node] | None]]:
+        hide_from_traceback()
+        with (
+            self.start_span(name=name, op=f'{kind}.{op}', attributes=attributes) as span,
+            self.perf_context.exec_named(kind=kind, id=id, op=op, attrs=attributes) as perf_span,
+        ):
+            yield span, perf_span
 
     def finalize_nodes(self):
         """
@@ -264,11 +287,40 @@ class Context:
             for excel_res in self.instance.result_excels:
                 excel_res.validate_for_instance(self.instance)
 
-    def get_parameter_type(self, parameter_id: str) -> type:
-        param_type = self.supported_parameter_types.get(parameter_id)
-        if param_type is None:
-            raise Exception('Unknown parameter: %s' % parameter_id)
-        return param_type
+    @cached_property
+    def node_graph_classifier(self) -> NodeGraphClassifier:
+        from .graph_layout import NodeGraphClassifier
+
+        return NodeGraphClassifier(self)
+
+    @cached_property
+    def node_graph_clusterer(self) -> NodeGraphClusterer:
+        from .graph_layout import NodeGraphClusterer
+
+        return NodeGraphClusterer(self)
+
+    @cached_property
+    def dataset_repo(self) -> dvc_pandas.Repository:
+        """The dvc-pandas dataset repository for the computation model."""
+        import dvc_pandas
+
+        if self.dataset_repo_spec is None:
+            raise RuntimeError('Dataset repository not set')
+
+        creds = dvc_pandas.RepositoryCredentials(
+            git_username=os.getenv('DVC_PANDAS_GIT_USERNAME'),
+            git_token=os.getenv('DVC_PANDAS_GIT_TOKEN'),
+            git_ssh_public_key_file=os.getenv('DVC_SSH_PUBLIC_KEY_FILE'),
+            git_ssh_private_key_file=os.getenv('DVC_SSH_PRIVATE_KEY_FILE'),
+        )
+        dataset_repo = dvc_pandas.Repository(
+            repo_url=self.dataset_repo_spec.url,
+            dvc_remote=self.dataset_repo_spec.dvc_remote,
+            repo_credentials=creds,
+            # cache_prefix=instance_id
+        )
+        dataset_repo.set_target_commit(self.dataset_repo_spec.commit)
+        return dataset_repo
 
     def load_dvc_dataset(self, ds_id: str) -> dvc_pandas.Dataset:
         """
@@ -280,15 +332,42 @@ class Context:
 
         ds = self.dvc_datasets.get(ds_id)
         if ds is not None:
+            with self.perf_context.exec_named(
+                kind=PerfKind.DATASET,
+                id=ds_id,
+                op='dvc.repo_cache_get',
+                attrs={
+                    'dataset.id': ds_id,
+                    'cache.hit': True,
+                    'cache.kind': 'context',
+                },
+            ) as event:
+                if event is not None:
+                    event.set_attr('dataset.in_memory.bytes', estimate_size_bytes(getattr(ds, 'df', None)))
             return ds
+
+        if self.dataset_repo_spec is None:
+            raise RuntimeError('Dataset repository not set')
 
         if not self.dataset_repo.has_dataset(ds_id):
             raise Exception('Dataset %s not found in DVC repo' % ds_id)
         if not self.dataset_repo.is_dataset_cached(ds_id):
             self.log.info("Dataset '%s' not found in DVC cache; loading all datasets" % ds_id)
             self.load_all_dvc_datasets()
-        with self.start_span('load dataset: %s' % ds_id, op='model.load'):
+        with self.start_perf_span(
+            'load dataset: %s' % ds_id,
+            kind=PerfKind.DATASET,
+            id=ds_id,
+            op='dvc.load',
+            attributes={
+                'dataset.id': ds_id,
+                'cache.hit': False,
+                'cache.kind': 'context',
+            },
+        ) as (_, event):
             ds = self.dataset_repo.load_dataset(ds_id)
+            if event is not None:
+                event.set_attr('dataset.in_memory.bytes', estimate_size_bytes(getattr(ds, 'df', None)))
         self.dvc_datasets[ds_id] = ds
         return ds
 
@@ -309,8 +388,16 @@ class Context:
         is generally faster.
         """
 
+        if self.dataset_repo_spec is None:
+            raise RuntimeError('Dataset repository not set')
+
         all_datasets = self.get_all_dvc_dataset_ids()
-        with self.start_span('load all datasets', op='model.load'):
+        with self.start_perf_span(
+            'load all datasets',
+            kind=PerfKind.DATASET_REPO,
+            id='dvc',
+            op='load_all',
+        ):
             try:
                 self.dataset_repo.load_datasets(list(all_datasets))
             except Exception:
@@ -332,8 +419,7 @@ class Context:
             if param_id not in self.global_parameters:
                 continue
             param = self.global_parameters[param_id]
-            assert node not in param.subscription_nodes
-            param.subscription_nodes.append(node)
+            param.subscribe_changes(node)
 
     def get_node(self, id: str) -> Node:
         """
@@ -370,12 +456,17 @@ class Context:
         """
         if parameter.local_id in self.global_parameters:
             msg = f'Global parameter {parameter.local_id} already defined'
-            raise Exception(msg)
+            raise ParameterError(parameter, msg)
+        assert parameter.node is None
+        if parameter.context is not None:
+            assert parameter.context == self
+        else:
+            parameter.set_context(self)
         self.global_parameters[parameter.local_id] = parameter
 
     def add_normalization(self, id: str, norm: Normalization):
         assert id not in self.normalizations
-        if norm.default:
+        if norm.spec.default:
             assert not self.default_normalization
             self.default_normalization = norm
         self.normalizations[id] = norm
@@ -447,6 +538,7 @@ class Context:
 
     def add_scenario(self, scenario: Scenario):
         assert scenario.id not in self.scenarios
+        scenario._context = self
         self.scenarios[scenario.id] = scenario
         for node in self.nodes.values():
             node.on_scenario_created(scenario)
@@ -577,6 +669,8 @@ class Context:
             str: The commit ID of the updated datasets.
 
         """
+        if self.dataset_repo_spec is None:
+            raise RuntimeError('Dataset repository not set for instance %s' % self.instance.id)
         self.dataset_repo.set_target_commit(None)
         self.dataset_repo.pull_datasets()
         commit_id = self.dataset_repo.commit_id
@@ -629,7 +723,7 @@ class Context:
                         ds_icon = '🐼'
                     else:
                         ds_icon = '❓'
-                    node_str += '\n  %s %s (%s)' % (ds_icon, ds.id, ', '.join(ds.get_copy(self).columns))
+                    node_str += '\n  %s %s (%s)' % (ds_icon, ds.id, ', '.join(ds.get_copy().columns))
             if tree is None:
                 branch = Tree(node_str)
             else:
@@ -711,13 +805,16 @@ class Context:
             )
             stack.enter_context(span_ctx)
             stack.enter_context(self.cache)
-            stack.enter_context(self.perf_context)
+            self.perf_run = stack.enter_context(self.perf_context)
             yield
+        self.perf_run = None
 
     def clean(self):
         for param in self.get_all_parameters():
-            param.context = None
-            param.node = None
+            param._context = None
+            param._node = None
+            param._subscription_nodes = []
+            param._subscription_params = []
         for node in self.nodes.values():
             node.context = None  # type: ignore
             node.edges = []
@@ -729,7 +826,7 @@ class Context:
         self.nodes = {}
         self.global_parameters = {}
         for scenario in self.scenarios.values():
-            scenario.context = None  # type: ignore
+            scenario._context = None
         self.custom_scenario = None  # type: ignore
         self.setting_storage = None
         self.active_scenario = None  # type: ignore

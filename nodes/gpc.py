@@ -25,42 +25,42 @@ class DatasetNode(AdditiveNode):
         *AdditiveNode.allowed_parameters,
         StringParameter(
             local_id='gpc_sector',
-            description='GPC sector',
+            description=_('GPC sector'),
             is_customizable=False,
         ),
         StringParameter(
             local_id='sector',
-            description='Sector',
+            description=_('Sector'),
             is_customizable=False,
         ),
         StringParameter(
             local_id='uuid',
-            description='UUID filter',
+            description=_('UUID filter'),
             is_customizable=False,
         ),
         StringParameter(
             local_id='rename_dimensions',
-            description='Rename dimensions per list of from:to pairs provided.',
+            description=_('Rename dimensions per list of from:to pairs provided.'),
             is_customizable=False,
         ),
         BoolParameter(
             local_id='crop_to_model_range',
-            description='Crop dataset from reference year to end year, inclusive.',
+            description=_('Crop dataset from reference year to end year, inclusive.'),
             is_customizable=False,
         ),
         StringParameter(
             local_id='variant_id',
-            description='Variant ID in dataset',
+            description=_('Variant ID in dataset'),
             is_customizable=False,
         ),
         NumberParameter(
             local_id='variant_number',
-            description='Variant index number',
+            description=_('Variant index number'),
             is_customizable=True,
         ),
         StringParameter(
             local_id='categories',
-            description='Dimension:category pairs to filter',
+            description=_('Dimension:category pairs to filter'),
             is_customizable=False,
         ),
     ]
@@ -161,9 +161,9 @@ class DatasetNode(AdditiveNode):
         dropcols = ['Sector', 'Quantity', 'UUID']
         if not measure_data_override:
             dropcols.extend(['FromMeasureDataPoint', 'ObservedDataPoint'])
-        for col in dropcols:
-            if col in df.columns:
-                df = df.drop(col)
+        dropcols = [col for col in dropcols if col in df.columns]
+        if dropcols:
+            df = df.drop(dropcols)
         return df
 
     # -----------------------------------------------------------------------------------
@@ -464,7 +464,7 @@ class DatasetNode(AdditiveNode):
         return df
 
 
-class DatasetPlusOneNode(DatasetNode):
+class DatasetPlusOneNode(DatasetNode):  # TODO Remove when nzc.yaml is using the new lucia.yaml structure.
     """Used for action goal setting when reference year + 1 data is needed."""
 
     def get_correct_baseline(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
@@ -484,7 +484,7 @@ class DatasetPlusOneNode(DatasetNode):
 class DetailedDatasetNode(DatasetNode):
     allowed_parameters = [
         *DatasetNode.allowed_parameters,
-        StringParameter('action', description='Detailed action module', is_customizable=False),
+        StringParameter(local_id='action', description=_('Detailed action module'), is_customizable=False),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -514,7 +514,7 @@ class DetailedDatasetNode(DatasetNode):
 class CorrectionNode(DatasetNode):  # FIXME Separate correction into another node?
     allowed_parameters = [
         *DatasetNode.allowed_parameters,
-        BoolParameter('do_correction', description='Should the values be corrected?'),
+        BoolParameter(local_id='do_correction', description=_('Should the values be corrected?')),
     ]
 
     def compute(self):
@@ -539,7 +539,7 @@ class CorrectionNode(DatasetNode):  # FIXME Separate correction into another nod
 class CorrectionNode2(AdditiveNode):
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
-        BoolParameter('do_correction', description='Should the values be corrected?'),
+        BoolParameter(local_id='do_correction', description=_('Should the values be corrected?')),
     ]
 
     def compute(self):

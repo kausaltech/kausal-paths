@@ -1,6 +1,5 @@
 """
 base32-crockford.
-================
 
 A Python module implementing the alternate base32 encoding as described
 by Douglas Crockford at: http://www.crockford.com/wrmg/base32.html.
@@ -21,7 +20,6 @@ are removed when decoding.
 
 A check symbol can be appended to a symbol string to detect errors
 within the string.
-
 """
 
 # lifted from https://raw.githubusercontent.com/jbittel/base32-crockford/master/base32_crockford.py
@@ -40,7 +38,7 @@ check_symbols = '*~$=U'
 
 encode_symbols = dict(enumerate(symbols + check_symbols))
 decode_symbols = {ch: i for (i, ch) in enumerate(symbols + check_symbols)}
-normalize_symbols = str.maketrans('IiLlOo', '111100')  # pyright: ignore
+normalize_symbols = str.maketrans('IiLlOo', '111100')
 valid_symbols = re.compile('^[%s]+[%s]?$' % (symbols, re.escape(check_symbols)))
 
 base = len(symbols)

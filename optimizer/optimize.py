@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import partial
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
@@ -19,15 +19,16 @@ from ruamel.yaml.comments import CommentedMap
 from scipy import optimize
 
 from common import polars as ppl
-from nodes.actions.shift import ShiftAction, ShiftParameterValue
+from nodes.actions.params import ShiftParameterValue
+from nodes.actions.shift import ShiftAction
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.simple import MixNode
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nodes.actions import ActionNode
-    from nodes.actions.shift import ShiftAmount
+    from nodes.actions.action import ActionNode
+    from nodes.actions.params import ShiftAmount
     from nodes.context import Context
     from nodes.instance import Instance
     from nodes.node import Node
@@ -43,8 +44,8 @@ class OptimizeParameterEntry:
     x0: float
     bounds: tuple[float, float]
     xstep: float
-    set_value: Callable
-    finalize: Callable | None
+    set_value: Callable[[float], None]
+    finalize: Callable[[], None] | None
 
 
 class OptimizeParameter:
@@ -148,7 +149,7 @@ class OptimizeParameter:
     def to_yaml_dict(self):
         out: list[dict] = self.value.model_dump(exclude_none=True, exclude_unset=True)  # pyright: ignore
 
-        def format_num(val: float, prec: int):
+        def format_num(val: float, prec: int) -> int | float:
             val = round(float(val), prec)
             n = float(int(val))
             if math.isclose(val, n):
@@ -156,18 +157,18 @@ class OptimizeParameter:
             return val
 
         for entry in out:
-            amounts = entry['amounts']  # pyright: ignore
+            amounts = entry['amounts']
             for idx, amt in enumerate(list(amounts)):
                 src = round(amt['source_amount'], 3)
                 amt['source_amount'] = format_num(src, prec=3)
-                dests = []
+                dests: list[int | float] = []
                 for x in amt['dest_amounts']:
                     if isinstance(x, int):
                         dests.append(x)
                         continue
                     if not isinstance(x, float):
                         print(out)
-                        raise Exception()
+                        raise TypeError()
                     dests.append(format_num(x, prec=1))
                 amt['dest_amounts'] = dests
                 m = CommentedMap(amt)
@@ -182,7 +183,7 @@ class OptimizeParameter:
         yaml.dump(self.to_yaml_dict(), string_stream)
         return string_stream.getvalue()
 
-    def save(self, param_cfg: dict):
+    def save(self, param_cfg: list[dict[str, Any]]):
         for pc in param_cfg:
             if pc['id'] == 'shift':
                 break
@@ -218,7 +219,7 @@ class OptimizeParameterSet:
         return (lower, upper)
 
     @property
-    def value_setters(self) -> tuple[Callable, ...]:
+    def value_setters(self) -> tuple[Callable[[float], None], ...]:
         return tuple(e.set_value for param in self.params for e in param.entries)
 
     @property
@@ -226,13 +227,13 @@ class OptimizeParameterSet:
         return tuple(e.xstep for param in self.params for e in param.entries)
 
     @property
-    def finalizers(self) -> tuple[Callable, ...]:
+    def finalizers(self) -> tuple[Callable[[], None], ...]:
         return tuple(e.finalize for param in self.params for e in param.entries if e.finalize is not None)
 
     def set_values(self, vals: np.ndarray):
-        for val, set_value in zip(vals, self.value_setters, strict=False):  # pyright: ignore
+        for val, set_value in zip(vals, self.value_setters, strict=False):
             set_value(float(val))
-        for finalize in self.finalizers:  # pyright: ignore
+        for finalize in self.finalizers:
             finalize()
 
     def print(self):
@@ -386,7 +387,7 @@ class Optimizer:
                 params.print_params()
                 #    pr.dump_stats('/tmp/opt.profile')
                 range_start_year = goal_year + 1
-        except:
+        except Exception:  # noqa: TRY203
             raise
         else:
             out_df = self.outcome_node.compute()

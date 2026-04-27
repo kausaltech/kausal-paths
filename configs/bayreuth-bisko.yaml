@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bayreuth-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 042ea36e00165e5960343bcbf5b7aa14cdc4f549
+  commit: baaa2bf4fded7223a33e6ddfbad1d4553757cb24
   dvc_remote: kausal-s3
 name_de: Bayreuth Klimadashboard
 name_en: Bayreuth Climate Dashboard
@@ -143,7 +143,9 @@ nodes:
   - id: industry_emissions
   params:
   - id: formula
-    value: sector_index * sum_dim(municipal_facilities_emissions + commerce_trade_services_emissions + transport_emissions + private_household_emissions + industry_emissions, sector)  # does the same as from_dimensions flatten:true
+    value: sector_index * sum_dim(municipal_facilities_emissions + 
+      commerce_trade_services_emissions + transport_emissions + 
+      private_household_emissions + industry_emissions, sector) # does the same as from_dimensions flatten:true
 
 - id: heating_emissions
   name_de: Wärme Emissionen
@@ -269,36 +271,20 @@ nodes:
 
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-# actions:
-# - id: zielpfad
-#   name_en: Target Path
-#   name_de: Zielpfad
-#   type: linear.DatasetReduceAction # linearly reduce, but define goal somewhere else
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_nodes: 
-#   - id: total_emissions
-#     tags: [historical] # tells the action that total emissions will be historical values
-#   input_datasets: 
-#   - id: bayreuth/zielpfad  # give it action node
-#     tags: [goal]  
-#   output_nodes:
-#   - id: heating_emissions
-#     from_dimensions:  # only the heating sector affects the heating emissions, so we need to filter out (the input node is larger than output node)
-#     - id: sector
-#       categories: [heating]
-#   - id: transport_emissions
-#     from_dimensions:
-#     - id: sector
-#       categories: [transport]
-#   - id: electricity_emissions
-#     from_dimensions:
-#     - id: sector
-#       categories: [electricity]
+actions:
 
-
+- id: historical_actions
+  name_en: Historical actions
+  name_de: Historische Aktionen
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: bayreuth/historical_actions
+    column: default
+    forecast_from: 2025
 
 
 #//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -311,7 +297,9 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Treibhausgasbilanz und -prognosen
-  lead_paragraph: Historische Treibhausgasemissionen der Stadt Bayreuth und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+  lead_paragraph: Historische Treibhausgasemissionen der Stadt Bayreuth und 
+    Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen 
+    erfolgreich umgesetzt".
 
 
 #//////  Scenarios  ///////////////////////////////////////////////////////////////////////////////////////////////////

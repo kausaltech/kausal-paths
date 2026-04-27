@@ -1,0 +1,262 @@
+"""
+Change-operation context manager for Paths model-changing mutations.
+
+A user-facing edit to an ``InstanceConfig`` opens exactly one
+``InstanceChangeOperation`` via ``change_operation(...)``. All row-level
+writes performed inside that block emit ``InstanceModelLogEntry`` rows
+attached to the operation.
+
+The active operation is carried in a module-level ``ContextVar``. This is
+transport-neutral — GraphQL, REST, Wagtail admin and CLI callers can all
+open an operation without any transport-specific plumbing. Higher-level
+transport wrappers may *additionally* attach the operation to their
+native carrier (``info.context.operation``, ``request.operation``) for
+typed-access convenience, but the ContextVar is the ground truth.
+
+Typical use::
+
+    with change_operation(ic, user=user, action='node.update',
+                          source=InstanceChangeSource.GRAPHQL):
+        old = node.snapshot_data()
+        node.name = new_name
+        node.save()
+        record_change(node, action='node.update',
+                      before=old, after=node.snapshot_data())
+"""
+
+from __future__ import annotations
+
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import TYPE_CHECKING, Any
+
+from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
+from graphql.error import GraphQLError
+
+from kausal_common.users import user_or_none
+
+from nodes.models import (
+    InstanceChangeOperation,
+    InstanceChangeSource,
+    InstanceConfig,
+    InstanceModelLogEntry,
+)
+
+if TYPE_CHECKING:
+    import uuid
+    from collections.abc import Iterator
+    from uuid import UUID
+
+    from django.db.models import Model
+    from strawberry.types.info import Info as StrawberryInfo
+
+    from kausal_common.users import UserOrAnon
+
+
+# The active operation for the current context (request, task, command).
+# ``None`` means no operation is open — attempts to ``record_change`` in
+# that state will raise.
+_current_op: ContextVar[InstanceChangeOperation | None] = ContextVar(
+    'instance_current_change_operation',
+    default=None,
+)
+
+
+class NoActiveChangeOperation(RuntimeError):  # noqa: N818
+    """Raised when record_change is called outside a change_operation block."""
+
+
+class StaleVersionError(GraphQLError):
+    """
+    Raised when a mutation's ``expected_version`` misses the current head.
+
+    Surfaces as a GraphQL error with ``code: 'stale_version'``, plus
+    ``currentHeadToken`` and ``latestOperations`` (up to 5 most-recent)
+    in the ``extensions`` payload so the client can show "someone else
+    edited this" UX without a round-trip.
+    """
+
+    def __init__(self, ic: InstanceConfig, expected: UUID, observed: UUID | None) -> None:
+        latest = list(
+            InstanceChangeOperation.objects.filter(instance_config=ic).select_related('user').order_by('-created_at')[:5]
+        )
+        latest_payload = [
+            {
+                'uuid': str(op.uuid),
+                'action': op.action,
+                'createdAt': op.created_at.isoformat(),
+                'userId': op.user_id,
+            }
+            for op in latest
+        ]
+        super().__init__(
+            'Stale version token — the instance has been modified since this request was prepared.',
+            extensions={
+                'code': 'stale_version',
+                'expectedHeadToken': str(expected),
+                'currentHeadToken': str(observed) if observed is not None else None,
+                'latestOperations': latest_payload,
+            },
+        )
+
+
+def get_current_operation() -> InstanceChangeOperation:
+    """Return the active ``InstanceChangeOperation`` or raise."""
+    op = _current_op.get()
+    if op is None:
+        msg = 'No active InstanceChangeOperation in context. Wrap the write in a change_operation(...) block.'
+        raise NoActiveChangeOperation(msg)
+    return op
+
+
+def current_operation_or_none() -> InstanceChangeOperation | None:
+    """Return the active operation or ``None``. Use for conditional recording."""
+    return _current_op.get()
+
+
+@contextmanager
+def change_operation(
+    ic: InstanceConfig,
+    *,
+    user: UserOrAnon | None,
+    action: str,
+    source: InstanceChangeSource | str = InstanceChangeSource.GRAPHQL,
+    expected_version: UUID | None = None,
+) -> Iterator[InstanceChangeOperation]:
+    """
+    Open an ``InstanceChangeOperation`` for the duration of the block.
+
+    Wraps everything in a ``transaction.atomic()`` with a ``SELECT FOR
+    UPDATE`` on the ``InstanceConfig`` row — this serializes concurrent
+    mutations against the same instance and makes the version-token
+    check race-free.
+
+    If ``expected_version`` is supplied, compare it against the instance's
+    current ``draft_head_token`` inside the locked section and raise
+    ``StaleVersionError`` on mismatch. GraphQL mutations thread this
+    through from the ``@instance(version: ...)`` directive; other
+    transports (CLI, migrations) typically pass ``None`` to skip the
+    check.
+
+    Nested ``change_operation`` calls for the same instance reuse the
+    outer operation (allows nested resolvers like the dataset editor to
+    participate in the parent operation without plumbing). A nested call
+    targeting a *different* ``InstanceConfig`` raises. The stale-check
+    is skipped on nested calls — the outer wrapper already enforced it.
+    """
+    existing = _current_op.get()
+    if existing is not None:
+        if existing.instance_config.pk != ic.pk:
+            msg = (
+                f'Nested change_operation targets a different InstanceConfig '
+                f'({ic.identifier}) than the active operation '
+                f'({existing.instance_config.identifier}).'
+            )
+            raise RuntimeError(msg)
+        # Reuse the outer operation; don't open a new transaction, the
+        # outer block already holds the lock.
+        yield existing
+        return
+
+    # Django's User type is not imported here; the FK on
+    # InstanceChangeOperation already validates.
+    user_obj = user_or_none(user)
+
+    src = source.value if isinstance(source, InstanceChangeSource) else source
+
+    with transaction.atomic():
+        # Serialize against concurrent mutations.
+        InstanceConfig.objects.select_for_update().filter(pk=ic.pk).first()
+
+        if expected_version is not None:
+            current = ic.draft_head_token
+            if current != expected_version:
+                raise StaleVersionError(ic, expected=expected_version, observed=current)
+
+        op = InstanceChangeOperation.objects.create(
+            instance_config=ic,
+            user=user_obj,
+            action=action,
+            source=src,
+        )
+        token = _current_op.set(op)
+        try:
+            yield op
+        finally:
+            _current_op.reset(token)
+
+
+@contextmanager
+def gql_change_operation(
+    info: StrawberryInfo[Any],
+    ic: InstanceConfig,
+    *,
+    action: str,
+) -> Iterator[InstanceChangeOperation]:
+    """
+    GraphQL-side ergonomic wrapper over ``change_operation``.
+
+    Reads ``user`` and ``expected_version`` from ``info.context`` — the
+    latter populated by the ``@instance(version: ...)`` /
+    ``@context(input: { version: ... })`` directive plumbing in
+    ``DetermineInstanceContextExtension``. Mutations that don't need
+    optimistic locking (rare) can still call ``change_operation``
+    directly.
+    """
+    ctx = info.context
+    user = getattr(ctx, 'user', None)
+    expected_version = getattr(ctx, 'expected_version', None)
+    with change_operation(
+        ic,
+        user=user,
+        action=action,
+        source=InstanceChangeSource.GRAPHQL,
+        expected_version=expected_version,
+    ) as op:
+        yield op
+
+
+def record_change(
+    obj: Model,
+    *,
+    action: str,
+    before: dict[str, Any] | None,
+    after: dict[str, Any] | None,
+    target_uuid: uuid.UUID | str | None = None,
+) -> InstanceModelLogEntry:
+    """
+    Emit one ``InstanceModelLogEntry`` under the active operation.
+
+    ``obj`` is the affected ORM row. Its ``pk`` and ``ContentType`` form
+    the GFK; ``target_uuid`` (defaulting to ``obj.uuid``) is recorded in
+    the payload to survive row deletion.
+
+    ``before`` / ``after`` are the snapshot dicts produced by
+    ``serializable_data()`` or ``snapshot_data()`` helpers:
+
+    * ``before=None``  → create  (payload's ``before`` is null)
+    * ``after=None``   → delete  (payload's ``after``  is null; GFK may
+                                  dangle after the deletion commits, but
+                                  ``target_uuid`` lets undo find the row)
+    * both present     → update
+    """
+    op = get_current_operation()
+
+    if target_uuid is None:
+        # UUIDIdentifiedModel.uuid is the canonical choice; fall back to pk
+        # so non-uuid targets (e.g. InstanceConfig itself, for spec edits)
+        # still produce readable entries.
+        target_uuid = getattr(obj, 'uuid', None) or obj.pk
+
+    return InstanceModelLogEntry.objects.create(
+        operation=op,
+        content_type=ContentType.objects.get_for_model(type(obj)),
+        object_id=str(obj.pk) if obj.pk is not None else None,
+        action=action,
+        data={
+            'target_uuid': str(target_uuid),
+            'before': before,
+            'after': after,
+        },
+    )

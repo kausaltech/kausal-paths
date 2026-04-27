@@ -6,6 +6,8 @@ import warnings
 from functools import wraps
 from typing import ClassVar, ParamSpec, TypedDict, TypeVar
 
+from django.utils.translation import gettext_lazy as _
+
 import pandas as pd
 import polars as pl
 
@@ -178,7 +180,7 @@ class SectorParseResult(TypedDict):
 
 class HsyNodeMixin:
     allowed_parameters: ClassVar[list[Parameter]] = [
-        StringParameter(local_id='sector', label='Sector path in HSY emission database', is_customizable=False),
+        StringParameter(local_id='sector', label=_('Sector path in HSY emission database'), is_customizable=False),
     ]
 
     def parse_dimension_names_from_sector_string(self, sector_name: str) -> SectorParseResult:

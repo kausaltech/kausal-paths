@@ -168,7 +168,7 @@ class DatasetSchemaEditView(PathsEditView[DatasetSchema]):
         return reverse(DatasetViewSet().get_url_name('list'))
 
 
-class DatasetSchemaViewSet(PathsViewSet):
+class DatasetSchemaViewSet(PathsViewSet[DatasetSchema]):
     model = DatasetSchema
     icon = 'table'
     add_to_admin_menu = dataset_config.SHOW_SCHEMAS_IN_MENU
@@ -182,13 +182,13 @@ class DatasetSchemaViewSet(PathsViewSet):
 
     def get_form_class(self, for_update=False):
         form_class = super().get_form_class(for_update)
-        form_meta = cast('type[ModelFormOptions[DatasetSchema]]', form_class.Meta)  # type: ignore[attr-defined]
+        FormMeta = cast('type[ModelFormOptions[DatasetSchema]]', form_class.Meta)  # type: ignore[attr-defined]
 
         class DatasetSchemaWithDimensionForm(form_class):  # type: ignore[valid-type, misc]
-            class Meta(form_meta):  # type: ignore[valid-type, misc]
+            class Meta(FormMeta):  # type: ignore[valid-type, misc]
                 model = DatasetSchema
-                fields = form_meta.fields
-                formsets = getattr(form_meta, 'formsets', {}).copy()
+                fields = FormMeta.fields
+                formsets = getattr(FormMeta, 'formsets', {}).copy()
                 formsets.update({
                     'dimensions': {
                         'formset': DatasetSchemaFormWithDimensionFormSet,

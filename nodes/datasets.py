@@ -7,10 +7,13 @@ import json
 import re
 import uuid
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from functools import cached_property
+from collections.abc import Callable
+from dataclasses import KW_ONLY, dataclass, field
+from functools import cache, cached_property, wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, Literal, Self, TypedDict, cast, override
+
+from pydantic import TypeAdapter
 
 import numpy as np
 import orjson
@@ -20,19 +23,76 @@ from numpy.random import default_rng  # TODO Could call Generator to give hints 
 from numpy.typing import NDArray
 
 from kausal_common.logging.errors import capture_error
+from kausal_common.perf.perf_context import PerfKind, estimate_size_bytes
 
 from common import polars as ppl
 from nodes.calc import extend_last_historical_value_pl
+from nodes.exceptions import DatasetError
 from nodes.units import Unit, unit_registry
 
 from .constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
 if TYPE_CHECKING:
+    import dvc_pandas
     from pandas import DataFrame as PandasDataFrame
+    from rich.repr import RichReprResult
 
     from kausal_common.datasets.models import Dataset as DBDatasetModel
+    from kausal_common.perf.perf_context import PerfAttrs, PerfSpanEntry
+
+    from nodes.defs.node_defs import (
+        ColumnDatasetFilterDef,
+        DimensionDatasetFilterDef,
+        InputDatasetDef,
+        InputDatasetFilterDef,
+        RenameColumnDatasetFilterDef,
+        RenameItemDatasetFilterDef,
+    )
 
     from .context import Context
+
+
+type DatasetMethod[DS: Dataset, **P, R] = Callable[Concatenate[DS, P], R]
+
+
+def measure_dataset_call[DS: Dataset, **P, R](
+    event_name: str,
+    *,
+    capture_df_result: bool = True,
+    capture_df_arg: bool = False,
+) -> Callable[[DatasetMethod[DS, P, R]], DatasetMethod[DS, P, R]]:
+    def decorator(fn: DatasetMethod[DS, P, R]) -> DatasetMethod[DS, P, R]:
+        @wraps(fn)
+        def wrapped(self: DS, *args: P.args, **kwargs: P.kwargs) -> R:
+            dataset = self
+            assert isinstance(dataset, Dataset)
+            context = dataset.context
+            attrs = dataset.get_span_attrs()
+            with context.perf_context.exec_named(
+                kind=PerfKind.DATASET,
+                id=dataset.id,
+                op=event_name.removeprefix('dataset.'),
+                attrs=attrs,
+            ) as event:
+                result = fn(self, *args, **kwargs)
+                if capture_df_result:
+                    assert isinstance(result, ppl.PathsDataFrame)
+                    dataset.set_dataframe_span_attrs(event, result, kind='result')
+                if capture_df_arg:
+                    df = args[0]
+                    assert isinstance(df, ppl.PathsDataFrame)
+                    dataset.set_dataframe_span_attrs(event, df, kind='arg')
+            return result
+
+        return wrapped
+
+    return decorator
+
+
+class DatasetKwargs(TypedDict):
+    tags: list[str]
+    output_dimensions: list[str] | None
+    interpolate: bool
 
 
 @dataclass
@@ -40,29 +100,50 @@ class Dataset(ABC):
     _class_hash: ClassVar[bytes | None] = None
 
     id: str
-    tags: list[str]
-    output_dimensions: list[dict[str, Any] | str] | None = field(default=None, kw_only=True)
-    interpolate: bool = field(init=False)
-    df: ppl.PathsDataFrame | None = field(init=False)
-    hash: bytes | None = field(init=False)
+    context: Context
+    _: KW_ONLY
+    tags: list[str] = field(default_factory=list)
+    output_dimensions: list[str] | None = field(default=None)
 
-    def __post_init__(self):
-        self.df = None
-        self.hash = None
-        self.interpolate = False
-        if getattr(self, 'unit', None) is None:
-            self.unit = None
+    interpolate: bool = False
+    df: ppl.PathsDataFrame | None = field(init=False, repr=False, default=None)
+    hash: bytes | None = field(init=False, repr=False, default=None)
+
+    def __rich_repr__(self) -> RichReprResult:
+        yield 'id', self.id
+        if self.df is None:
+            yield 'df', '<not loaded>'
+        else:
+            yield 'columns', len(self.df.columns)
+            yield 'rows', len(self.df)
+
+    def __post_init__(self):  # noqa: B027
+        pass
 
     def __init_subclass__(cls, **kwargs: Any):
         super().__init_subclass__(**kwargs)
         cls._class_hash = cls.get_class_hash()
 
+    @classmethod
+    def kwargs_from_def(cls, ds_def: InputDatasetDef) -> DatasetKwargs:
+        return DatasetKwargs(
+            tags=ds_def.tags,
+            output_dimensions=ds_def.output_dimensions,
+            interpolate=ds_def.interpolate,
+        )
+
     @abstractmethod
-    def load(self, context: Context) -> ppl.PathsDataFrame:
+    def load_internal(self) -> ppl.PathsDataFrame:
+        """
+        Load the dataset into a PathsDataFrame.
+
+        This method is only for subclassess to implement. Do not call this directly, call `.get_copy()` instead.
+        """
         raise NotImplementedError()
 
     @abstractmethod
-    def hash_data(self, context: Context) -> dict[str, Any]:
+    def hash_data(self) -> dict[str, Any]:
+        """Return subclass-specific data to include in the hash."""
         raise NotImplementedError()
 
     @classmethod
@@ -79,7 +160,7 @@ class Dataset(ABC):
             h.update(str(mod_mtime).encode('ascii'))
         return h.digest()
 
-    def calculate_hash(self, context: Context) -> bytes:
+    def calculate_hash(self) -> bytes:
         if self.hash is not None:
             return self.hash
         class_hash = type(self)._class_hash
@@ -87,19 +168,35 @@ class Dataset(ABC):
             class_hash = type(self).get_class_hash()
             type(self)._class_hash = class_hash
         d = {'id': self.id, 'interpolate': self.interpolate, 'class_hash': class_hash.hex()}
-        d.update(self.hash_data(context))
+        d.update(self.hash_data())
         h = hashlib.md5(orjson.dumps(d, option=orjson.OPT_SORT_KEYS), usedforsecurity=False).digest()
         self.hash = h
         return h
 
-    def get_cache_key(self, context: Context) -> str:
-        ds_hash = self.calculate_hash(context).hex()
+    def get_cache_key(self) -> str:
+        ds_hash = self.calculate_hash().hex()
         return 'ds:%s:%s' % (self.id, ds_hash)
 
+    def get_span_attrs(self) -> PerfAttrs:
+        return {
+            'dataset.id': self.id,
+        }
+
+    def set_dataframe_span_attrs(
+        self, event: PerfSpanEntry[Any] | None, df: ppl.PathsDataFrame, kind: Literal['arg', 'result'] | None = None
+    ) -> None:
+        if event is None:
+            return
+        midfix = f'{kind}.' if kind is not None else ''
+        event.set_attr(f'dataset.{midfix}rows', len(df))
+        event.set_attr(f'dataset.{midfix}columns', len(df.columns))
+        event.set_attr(f'dataset.{midfix}in_memory.bytes', estimate_size_bytes(df))
+
+    @measure_dataset_call('dataset.interpolate')
     def _linear_interpolate(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if YEAR_COLUMN not in df.columns:
-            raise ValueError(
-                f"'{YEAR_COLUMN}' does not exist in dataset '{self.id}'. Available columns: {', '.join(df.columns)}."
+            raise DatasetError(
+                self, f"'{YEAR_COLUMN}' does not exist in dataset '{self.id}'. Available columns: {', '.join(df.columns)}."
             )
         years = df[YEAR_COLUMN].unique().sort()
         min_year = years.min()
@@ -118,21 +215,309 @@ class Dataset(ABC):
         df = df.paths.to_narrow()
         return df
 
-    def post_process(self, context: Context | None, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # pyright: ignore[reportUnusedParameter]
+    def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if self.interpolate:
             df = self._linear_interpolate(df)
         return df
 
-    def get_copy(self, context: Context) -> ppl.PathsDataFrame:
-        df = self.load(context)
+    @measure_dataset_call('dataset.get')
+    def get_copy(self) -> ppl.PathsDataFrame:
+        df = self.load_internal()
         return df.copy()
-
-    def get_unit(self, context: Context) -> Unit:  # pyright: ignore[reportUnusedParameter]
-        raise NotImplementedError()
 
     @cached_property
     def sampler(self) -> DatasetSampler:
         return DatasetSampler()
+
+    @measure_dataset_call('dataset.sample')
+    def _sample(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        return self.sampler.interpret(self, df)
+
+
+@cache
+def get_input_dataset_filter_adapter() -> TypeAdapter[InputDatasetFilterDef]:
+    from nodes.defs.node_defs import InputDatasetFilterDef
+
+    return TypeAdapter(InputDatasetFilterDef)
+
+
+class FilterDatasetKwargs(DatasetKwargs):
+    column: str | None
+    filters: list[InputDatasetFilterDef] | None
+    dropna: bool | None
+    min_year: int | None
+    max_year: int | None
+    unit: Unit | None
+    forecast_from: int | None
+
+
+@dataclass
+class DatasetWithFilters(Dataset, ABC):
+    column: str | None = None
+    filters: list[InputDatasetFilterDef] | None = None
+    dropna: bool | None = None
+    min_year: int | None = None
+    max_year: int | None = None
+    unit: Unit | None = None
+
+    # The year from which the time series becomes a forecast
+    forecast_from: int | None = None
+
+    @classmethod
+    def kwargs_from_def(cls, ds_def: InputDatasetDef) -> FilterDatasetKwargs:
+        return FilterDatasetKwargs(
+            **super().kwargs_from_def(ds_def),
+            column=ds_def.column,
+            filters=ds_def.filters,
+            dropna=ds_def.dropna,
+            min_year=ds_def.min_year,
+            max_year=ds_def.max_year,
+            unit=ds_def.unit,
+            forecast_from=ds_def.forecast_from,
+        )
+
+    def __rich_repr__(self) -> RichReprResult:
+        yield from super().__rich_repr__()
+        if self.column is not None:
+            yield 'column', self.column
+        if self.filters is not None:
+            yield 'filters', len(self.filters)
+
+    def _process_output(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        if self.max_year:
+            df = df.filter(pl.col(YEAR_COLUMN) <= self.max_year)
+        if self.min_year:
+            df = df.filter(pl.col(YEAR_COLUMN) >= self.min_year)
+        if self.dropna:
+            df = df.drop_nulls()
+
+        # If units are given as a constructor argument, ensure the dataset units match.
+        if self.unit is not None:
+            for col in df.columns:
+                if col in [FORECAST_COLUMN, YEAR_COLUMN, *df.dim_ids]:
+                    continue
+                if col in df.metric_cols:
+                    df = df.ensure_unit(col, self.unit)
+                else:
+                    df = df.set_unit(col, self.unit)
+
+        return df
+
+    def _filter_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        from nodes.defs.node_defs import (
+            ColumnDatasetFilterDef,
+            DimensionDatasetFilterDef,
+            RenameColumnDatasetFilterDef,
+            RenameItemDatasetFilterDef,
+        )
+
+        if not self.filters:
+            return df
+
+        df_orig = df
+        for filter_def in self.filters:
+            if isinstance(filter_def, ColumnDatasetFilterDef):
+                df = self._column_filter(df, filter_def)
+            elif isinstance(filter_def, DimensionDatasetFilterDef):
+                df = self._dimension_filter(df, filter_def)
+            elif isinstance(filter_def, RenameColumnDatasetFilterDef):
+                continue
+            else:
+                assert isinstance(filter_def, RenameItemDatasetFilterDef)
+                df = self._rename_item_filter(df, filter_def)
+
+            if len(df) == 0:
+                print(df_orig)
+                print(self.filters)
+                raise DatasetError(self, 'Nothing left after filtering. See original dataset above.')
+
+        return df
+
+    def _column_filter(self, df: ppl.PathsDataFrame, d: ColumnDatasetFilterDef) -> ppl.PathsDataFrame:
+        context = self.context
+        col = d.column
+        val = d.value
+        vals = d.values
+        ref = d.ref
+        drop = d.drop_col
+        exclude = d.exclude
+        flatten = d.flatten
+        mask = None
+        if vals:
+            mask = pl.col(col).is_in(vals)
+        if val:
+            mask = pl.col(col) == val
+        if ref:
+            pval = context.get_parameter_value(ref, required=True)
+            if isinstance(pval, float):
+                pval = int(pval)
+            val = str(pval)
+            mask = pl.col(col) == val
+        if mask is not None:
+            if exclude:
+                mask = ~mask
+            df = df.filter(mask)
+
+        if flatten:
+            if VALUE_COLUMN in df.columns:
+                df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
+            df = df.paths.sum_over_dims(col)
+
+        elif drop:
+            df = df.drop(col)
+        return df
+
+    def _dimension_filter(self, df: ppl.PathsDataFrame, d: DimensionDatasetFilterDef) -> ppl.PathsDataFrame:
+        context = self.context
+        dim_id = d.dimension
+        if d.groups:
+            dim = context.dimensions[dim_id]
+            grp_ids = d.groups
+            grp_s = dim.ids_to_groups(dim.series_to_ids_pl(df[dim_id]))
+            df = df.filter(grp_s.is_in(grp_ids))
+        elif d.categories:
+            cat_ids = d.categories
+            df = df.filter(pl.col(dim_id).is_in(cat_ids))
+        elif d.assign_category is not None:
+            cat_id = d.assign_category
+            if dim_id in context.dimensions:
+                dim = context.dimensions[dim_id]
+                assert dim_id not in df.dim_ids
+                assert cat_id in dim.cat_map
+            df = df.with_columns(pl.lit(cat_id).alias(dim_id)).add_to_index(dim_id)
+        flatten = d.flatten
+        if flatten:
+            if VALUE_COLUMN in df.columns:
+                df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
+            df = df.paths.sum_over_dims(dim_id)
+        return df
+
+    def _rename_col_filter(self, df: ppl.PathsDataFrame, d: RenameColumnDatasetFilterDef) -> ppl.PathsDataFrame:
+        col = d.rename_col
+        val = d.value
+        if col not in df.columns:
+            raise DatasetError(self, f'Column {col} not found. Available columns are {df.columns}')
+        if val:
+            df = df.rename({col: val})
+        return df
+
+    def _rename_item_filter(self, df: ppl.PathsDataFrame, d: RenameItemDatasetFilterDef) -> ppl.PathsDataFrame:
+        old = d.rename_item.split('|')
+        if len(old) != 2:
+            raise DatasetError(self, f"Rename item must have format 'col|item', now it is '{d.rename_item}'.")
+        col = old[0]
+        item = old[1]
+        new_item = d.value
+        if new_item == '':
+            raise DatasetError(self, 'rename_item must have value.')
+        # str.replace_all requires Utf8; cast if column is not string (e.g. Categorical)
+        series = pl.col(col)
+        if df.schema[col] != pl.Utf8:
+            series = series.cast(pl.Utf8)
+        df = df.with_columns(series.str.replace_all(re.escape(item), new_item))
+        return df
+
+    # Similar to Node._process_edge_output
+    def _operate_tags(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        context = self.context
+
+        # FIXME Don't let DatasetNodes get double preparation of gpc. Remove when you gte rid of DatasetNodes
+        from nodes.gpc import DatasetNode
+
+        tags = self.tags.copy()
+        for n in context.nodes.values():
+            if any(ds is self for ds in n.input_dataset_instances) and isinstance(n, DatasetNode):
+                tags = [tag for tag in tags if tag != 'prepare_gpc_dataset']
+
+        for tag in tags:
+            if tag == 'ignore_content':
+                logger.warning(f"Dataset {self.id} has tag 'ignore_content', which is not supported.")
+            elif df.paths.has_operation(tag):
+                df = df.paths.get_operation(tag)(df, context)
+        return df
+
+    @measure_dataset_call('dataset.filter', capture_df_result=True, capture_df_arg=True)
+    def _filter_and_process_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901
+        from nodes.defs.node_defs import RenameColumnDatasetFilterDef
+
+        if self.filters is not None:
+            for filter_def in self.filters:
+                assert hasattr(filter_def, 'model_dump')
+                if isinstance(filter_def, RenameColumnDatasetFilterDef):
+                    df = self._rename_col_filter(df, filter_def)
+
+        cols = list(df.columns)
+
+        if self.column:
+            if self.column not in cols:
+                available = ', '.join(cols)
+                raise DatasetError(
+                    self,
+                    "Column '%s' not found in dataset '%s'. Available columns: %s"
+                    % (
+                        self.column,
+                        self.id,
+                        available,
+                    ),
+                )
+            df = df.with_columns(pl.col(self.column).alias(VALUE_COLUMN))
+            cols = [YEAR_COLUMN, VALUE_COLUMN, *df.dim_ids]
+
+        if YEAR_COLUMN in cols and YEAR_COLUMN not in df.primary_keys:
+            df = df.add_to_index(YEAR_COLUMN)
+
+        ldf = df.lazy()
+        if YEAR_COLUMN in cols and not ldf.filter((pl.col(YEAR_COLUMN) < 200).first()).collect().is_empty():
+            baseline_year = self.context.instance.reference_year
+            if baseline_year is None:
+                raise DatasetError(
+                    self,
+                    'The reference_year from instance is not given. '
+                    + 'It is needed by dataset %s to define the baseline for relative data.' % self.id,
+                )
+            ldf = ldf.with_columns(
+                pl
+                .when(pl.col(YEAR_COLUMN) < 90)
+                .then(pl.col(YEAR_COLUMN) + pl.lit(baseline_year))
+                .otherwise(pl.col(YEAR_COLUMN))
+                .alias(YEAR_COLUMN),
+            )
+            target_year = self.context.instance.target_year
+            ldf = ldf.with_columns(
+                pl
+                .when((pl.col(YEAR_COLUMN) >= 90) & (pl.col(YEAR_COLUMN) < 200))
+                .then(pl.col(YEAR_COLUMN) + pl.lit(target_year) - pl.lit(100))
+                .otherwise(pl.col(YEAR_COLUMN))
+                .alias(YEAR_COLUMN),
+            )
+            ldf = ldf.with_columns(pl.col(YEAR_COLUMN).cast(int).alias(YEAR_COLUMN))
+
+            # FIXME Duplicates may occur when baseline year overlaps with existing data points.
+            ldf = ldf.unique(subset=df.get_meta().primary_keys, keep='last', maintain_order=True)
+
+        if FORECAST_COLUMN in df.columns:
+            cols.append(FORECAST_COLUMN)
+        elif self.forecast_from is not None:
+            ldf = ldf.with_columns(
+                pl
+                .when(pl.col(YEAR_COLUMN) >= self.forecast_from)
+                .then(pl.lit(value=True))
+                .otherwise(pl.lit(value=False))
+                .alias(FORECAST_COLUMN),
+            )
+            cols.append(FORECAST_COLUMN)
+
+        ldf = ldf.select(cols)
+        cdf = ldf.collect()
+
+        df = ppl.to_ppdf(cdf, meta=df.get_meta().select(cols))
+        df = self._filter_df(df)
+        df = self._operate_tags(df)
+        ppl.validate_ppdf(df)
+
+        df = self._process_output(df)
+
+        return df
 
 
 type SampleRet = NDArray[np.float64]
@@ -229,10 +614,11 @@ class DatasetSampler:
                 break
         else:
             raise LookupError(self, f"String '{dist_string}' does not match any distribution.")
-        return functions[key](match, size)
+        s = functions[key](match, size)
+        return s
 
-    def interpret(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
-        size = context.sample_size
+    def interpret(self, dataset: Dataset, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        size = dataset.context.sample_size
         cols = []
         for col in df.columns:
             # FIXME Invent a generic way to ignore sampling when content is not probabilities
@@ -275,236 +661,6 @@ class DatasetSampler:
 
 
 @dataclass
-class DatasetWithFilters(Dataset):
-    column: str | None = None
-    filters: list | None = None
-    dropna: bool | None = None
-    min_year: int | None = None
-    max_year: int | None = None
-
-    # The year from which the time series becomes a forecast
-    forecast_from: int | None = None
-
-    def _process_output(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        if self.max_year:
-            df = df.filter(pl.col(YEAR_COLUMN) <= self.max_year)
-        if self.min_year:
-            df = df.filter(pl.col(YEAR_COLUMN) >= self.min_year)
-        if self.dropna:
-            df = df.drop_nulls()
-
-        # If units are given as a constructor argument, ensure the dataset units match.
-        if self.unit is not None:
-            for col in df.columns:
-                if col in [FORECAST_COLUMN, YEAR_COLUMN, *df.dim_ids]:
-                    continue
-                if col in df.metric_cols:
-                    df = df.ensure_unit(col, self.unit)
-                else:
-                    df = df.set_unit(col, self.unit)
-
-        return df
-
-    def _filter_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        if not self.filters:
-            return df
-
-        df_orig = df
-        for d in self.filters:
-            if 'column' in d:
-                df = self._column_filter(df, d, context)
-            elif 'dimension' in d:
-                df = self._dimension_filter(df, d, context)
-            # elif 'rename_col' in d:
-            #     df = self._rename_col_filter(df, d)
-            elif 'rename_item' in d:
-                df = self._rename_item_filter(df, d)
-
-            if len(df) == 0:
-                print(df_orig)
-                print(self.filters)
-                raise ValueError('Nothing left after filtering. See original dataset above.')
-
-        return df
-
-    def _column_filter(self, df: ppl.PathsDataFrame, d: dict, context: Context) -> ppl.PathsDataFrame:
-        col = d['column']
-        val = d.get('value')
-        vals = d.get('values', [])
-        ref = d.get('ref')
-        drop = d.get('drop_col', True)
-        exclude = d.get('exclude', False)
-        flatten = d.get('flatten', False)
-        mask = None
-        if vals:
-            mask = pl.col(col).is_in(vals)
-        if val:
-            mask = pl.col(col) == val
-        if ref:
-            pval = context.get_parameter_value(ref, required=True)
-            if isinstance(pval, float):
-                pval = int(pval)
-            val = str(pval)
-            mask = pl.col(col) == val
-        if mask is not None:
-            if exclude:
-                mask = ~mask
-            df = df.filter(mask)
-
-        if flatten:
-            if VALUE_COLUMN in df.columns:
-                df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
-            df = df.paths.sum_over_dims(col)
-
-        elif drop:
-            df = df.drop(col)
-        return df
-
-    def _dimension_filter(self, df: ppl.PathsDataFrame, d: dict, context: Context) -> ppl.PathsDataFrame:
-        dim_id = d['dimension']
-        if 'groups' in d:
-            dim = context.dimensions[dim_id]
-            grp_ids = d['groups']
-            grp_s = dim.ids_to_groups(dim.series_to_ids_pl(df[dim_id]))
-            df = df.filter(grp_s.is_in(grp_ids))
-        elif 'categories' in d:
-            cat_ids = d['categories']
-            df = df.filter(pl.col(dim_id).is_in(cat_ids))
-        elif 'assign_category' in d:
-            cat_id = d['assign_category']
-            if dim_id in context.dimensions:
-                dim = context.dimensions[dim_id]
-                assert dim_id not in df.dim_ids
-                assert cat_id in dim.cat_map
-            df = df.with_columns(pl.lit(cat_id).alias(dim_id)).add_to_index(dim_id)
-        flatten = d.get('flatten', False)
-        if flatten:
-            if VALUE_COLUMN in df.columns:
-                df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
-            df = df.paths.sum_over_dims(dim_id)
-        return df
-
-    def _rename_col_filter(self, df: ppl.PathsDataFrame, d: dict) -> ppl.PathsDataFrame:
-        col = d['rename_col']
-        val = d.get('value')
-        if col not in df.columns:
-            raise NameError(self, f'Column {col} not found. Available columns are {df.columns}')
-        if val:
-            df = df.rename({col: val})
-        return df
-
-    def _rename_item_filter(self, df: ppl.PathsDataFrame, d: dict) -> ppl.PathsDataFrame:
-        old = d['rename_item'].split('|')
-        if len(old) != 2:
-            raise ValueError(self, f"Rename item must have format 'col|item', now it is '{d['rename_item']}'.")
-        col = old[0]
-        item = old[1]
-        new_item = d.get('value', '')
-        if new_item == '':
-            raise ValueError(self, 'rename_item must have value.')
-        # str.replace_all requires Utf8; cast if column is not string (e.g. Categorical)
-        series = pl.col(col)
-        if df.schema[col] != pl.Utf8:
-            series = series.cast(pl.Utf8)
-        df = df.with_columns(series.str.replace_all(re.escape(item), new_item))
-        return df
-
-    # Similar to Node._process_edge_output
-    def _operate_tags(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
-        operations = df.paths.OPERATIONS
-
-        # FIXME Don't let DatasetNodes get double preparation of gpc. Remove when you gte rid of DatasetNodes
-        from nodes.gpc import DatasetNode
-
-        tags = self.tags.copy()
-        for n in context.nodes.values():
-            if any(ds is self for ds in n.input_dataset_instances) and isinstance(n, DatasetNode):
-                tags = [tag for tag in tags if tag != 'prepare_gpc_dataset']
-
-        for tag in tags:
-            if tag == 'ignore_content':
-                logger.warning(f"Dataset {self.id} has tag 'ignore_content', which is not supported.")
-            else:
-                op = operations.get(tag)
-                if op:
-                    df = op(df, context)
-        return df
-
-    def _filter_and_process_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901
-        if self.filters is not None:
-            for d in self.filters:
-                if 'rename_col' in d:
-                    df = self._rename_col_filter(df, d)
-
-        cols = df.columns
-
-        if self.column:
-            if self.column not in cols:
-                available = ', '.join(cols)
-                raise Exception(
-                    "Column '%s' not found in dataset '%s'. Available columns: %s"
-                    % (
-                        self.column,
-                        self.id,
-                        available,
-                    ),
-                )
-            df = df.with_columns(pl.col(self.column).alias(VALUE_COLUMN))
-            cols = [YEAR_COLUMN, VALUE_COLUMN, *df.dim_ids]
-
-        if YEAR_COLUMN in cols:
-            if YEAR_COLUMN not in df.primary_keys:
-                df = df.add_to_index(YEAR_COLUMN)
-            if len(df.filter(pl.col(YEAR_COLUMN) < 200)) > 0:
-                baseline_year = context.instance.reference_year
-                if baseline_year is None:
-                    raise Exception(
-                        'The reference_year from instance is not given. '
-                        + 'It is needed by dataset %s to define the baseline for relative data.' % self.id,
-                    )
-                df = df.with_columns(
-                    pl
-                    .when(pl.col(YEAR_COLUMN) < 90)
-                    .then(pl.col(YEAR_COLUMN) + pl.lit(baseline_year))
-                    .otherwise(pl.col(YEAR_COLUMN))
-                    .alias(YEAR_COLUMN),
-                )
-                target_year = context.instance.target_year
-                df = df.with_columns(
-                    pl
-                    .when((pl.col(YEAR_COLUMN) >= 90) & (pl.col(YEAR_COLUMN) < 200))
-                    .then(pl.col(YEAR_COLUMN) + pl.lit(target_year) - pl.lit(100))
-                    .otherwise(pl.col(YEAR_COLUMN))
-                    .alias(YEAR_COLUMN),
-                )
-                df = df.with_columns(pl.col(YEAR_COLUMN).cast(int).alias(YEAR_COLUMN))
-
-                # FIXME Duplicates may occur when baseline year overlaps with existing data points.
-                meta = df.get_meta()
-                df = ppl.to_ppdf(df.unique(subset=meta.primary_keys, keep='last', maintain_order=True), meta=meta)
-
-        if FORECAST_COLUMN in df.columns:
-            cols.append(FORECAST_COLUMN)
-        elif self.forecast_from is not None:
-            df = df.with_columns(
-                pl
-                .when(pl.col(YEAR_COLUMN) >= self.forecast_from)
-                .then(pl.lit(value=True))
-                .otherwise(pl.lit(value=False))
-                .alias(FORECAST_COLUMN),
-            )
-            cols.append(FORECAST_COLUMN)
-
-        df = df.select(cols)
-        df = self._filter_df(context, df)
-        df = self._operate_tags(df, context)
-        ppl.validate_ppdf(df)
-
-        df = self._process_output(df)
-        return df
-
-
-@dataclass
 class DVCDataset(DatasetWithFilters):
     """Dataset that is loaded by dvc-pandas."""
 
@@ -519,53 +675,106 @@ class DVCDataset(DatasetWithFilters):
         if self.unit is not None:
             assert isinstance(self.unit, Unit)
 
-    def load(self, context: Context) -> ppl.PathsDataFrame:
-        obj = None
-        cache_key: str | None
-        if not context.skip_cache:
-            cache_key = self.get_cache_key(context)
-            res = context.cache.get(cache_key)
-            if res.is_hit:
-                obj = res.obj
-        else:
-            cache_key = None
+    @classmethod
+    def from_def(cls, ds_def: InputDatasetDef, context: Context) -> Self:
+        return cls(
+            id=ds_def.id,
+            context=context,
+            **super().kwargs_from_def(ds_def),
+            input_dataset=ds_def.input_dataset,
+        )
 
+    def __rich_repr__(self) -> RichReprResult:
+        yield from super().__rich_repr__()
+        if self.input_dataset is not None and self.input_dataset != self.id:
+            yield 'input_dataset', self.input_dataset
+
+    def get_span_attrs(self) -> PerfAttrs:
+        attrs = super().get_span_attrs()
+        attrs['dataset.input.id'] = self.input_dataset or self.id
+        return attrs
+
+    @cached_property
+    def cache_key(self) -> str | None:
+        return self.get_cache_key()
+
+    def cache_get(self) -> ppl.PathsDataFrame | None:
+        if self.context.skip_cache:
+            return None
+        attrs = self.get_span_attrs()
+        if self.cache_key is None:
+            return None
+        with self.context.perf_context.exec_named(
+            kind=PerfKind.DATASET,
+            id=self.id,
+            op='cache_get',
+            attrs=attrs,
+        ) as event:
+            res = self.context.cache.get(self.cache_key)
+            if event is not None:
+                event.set_attr('cache.hit', res.is_hit)
+                event.set_attr('cache.kind', res.kind.name.lower())
+                if res.obj is not None:
+                    event.set_attr('dataset.in_memory.bytes', estimate_size_bytes(res.obj))
+
+        if res.is_hit:
+            if not isinstance(res.obj, ppl.PathsDataFrame):
+                capture_error('Cached dataset %s (key: %s) is not a PathsDataFrame' % (self.id, self.cache_key))
+                return None
+            return res.obj
+        return None
+
+    def cache_set(self, df: ppl.PathsDataFrame) -> None:
+        if self.cache_key is None:
+            return
+        attrs = self.get_span_attrs()
+        with self.context.perf_context.exec_named(
+            kind=PerfKind.DATASET,
+            id=self.id,
+            op='cache_set',
+            attrs=attrs,
+        ):
+            self.context.cache.set(self.cache_key, df, expiry=0)
+
+    @measure_dataset_call('dataset.dvc.convert')
+    def _convert_dvc_dataset(self, dvc_ds: dvc_pandas.Dataset) -> ppl.PathsDataFrame:
+        return ppl.from_dvc_dataset(dvc_ds)
+
+    @override
+    def load_internal(self) -> ppl.PathsDataFrame:
+        obj = self.cache_get()
         if obj is not None:
-            if isinstance(obj, ppl.PathsDataFrame):
-                self.df = obj
-                return obj
-            capture_error('Cached dataset %s (key: %s) is not a PathsDataFrame' % (self.id, cache_key))
+            return obj
 
         if self.input_dataset:
             ds_id = self.input_dataset
         else:
             ds_id = self.id
 
-        dvc_ds = context.load_dvc_dataset(ds_id)
+        dvc_ds = self.context.load_dvc_dataset(ds_id)
         assert dvc_ds.df is not None
-        df = ppl.from_dvc_dataset(dvc_ds)
-
-        df = self._filter_and_process_df(context, df)
-        df = self.post_process(context, df)
-        if context.sample_size > 0:
-            df = self.sampler.interpret(df, context)
-        if cache_key:
-            context.cache.set(cache_key, df, expiry=0)
+        df = self._convert_dvc_dataset(dvc_ds)
+        df = self._filter_and_process_df(df)
+        df = self.post_process(df)
+        if self.context.sample_size > 0:
+            df = self.sampler.interpret(self, df)
+        if self.cache_key:
+            self.cache_set(df)
 
         return df
 
-    def get_unit(self, context: Context) -> Unit:
+    def get_unit(self) -> Unit:
         if self.unit:
             return self.unit
-        df = self.load(context)
+        df = self.load_internal()
         if VALUE_COLUMN in df.columns:
             meta = df.get_meta()
             if VALUE_COLUMN not in meta.units:
-                raise Exception('Dataset %s does not have a unit' % self.id)
+                raise DatasetError(self, 'Dataset %s does not have a unit' % self.id)
             return meta.units[VALUE_COLUMN]
-        raise Exception('Dataset %s does not have the value column' % self.id)
+        raise DatasetError(self, 'Dataset %s does not have the value column' % self.id)
 
-    def hash_data(self, context: Context) -> dict[str, Any]:
+    def hash_data(self) -> dict[str, Any]:
         extra_fields = [
             'input_dataset',
             'column',
@@ -578,9 +787,13 @@ class DVCDataset(DatasetWithFilters):
         ]
         d = {}
         for f in extra_fields:
-            d[f] = getattr(self, f)
+            value = getattr(self, f)
+            if f == 'filters' and value is not None:
+                value = [item.model_dump() if hasattr(item, 'model_dump') else item for item in value]
+            d[f] = value
 
-        d['commit_id'] = context.dataset_repo.commit_id
+        if self.context.dataset_repo_spec is not None:
+            d['commit_id'] = self.context.dataset_repo_spec.commit
         d['dvc_id'] = self.input_dataset or self.id
         return d
 
@@ -679,7 +892,8 @@ class GenericDataset(DVCDataset):
         return ppl.to_ppdf(result, meta=new_meta)
 
     # -----------------------------------------------------------------------------------
-    def convert_names_to_ids(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+    def convert_names_to_ids(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        context = self.context
         exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Unit', 'UUID'}
         exset |= {col for col in df.columns if col.startswith(f'{VALUE_COLUMN}_')}
         exset |= set(df.metric_cols)
@@ -722,42 +936,43 @@ class GenericDataset(DVCDataset):
 
     # -----------------------------------------------------------------------------------
 
-    def load(self, context: Context) -> ppl.PathsDataFrame:
+    @measure_dataset_call('dataset.transform')
+    def _transform_data(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = self.drop_unnecessary_levels(df, droplist=['Description', 'Quantity'])
+        df = self.implement_unit_col(df)
+        return self.convert_names_to_ids(df)
+
+    @measure_dataset_call('dataset.index')
+    def _index_data(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        new_dims = [col for col, dtype in zip(df.columns, df.dtypes, strict=True) if dtype in [pl.Utf8(), pl.Categorical()]]
+        return extend_last_historical_value_pl(
+            df.add_to_index([dim for dim in new_dims if dim not in df.dim_ids]),
+            end_year=self.context.instance.model_end_year,
+        )
+
+    @override
+    def load_internal(self) -> ppl.PathsDataFrame:
         # Don't call DVCDataset.load directly since it does post_process too early
         # Instead, replicate the parts we need but with different ordering
 
-        obj = None
-        cache_key: str | None
-        if not context.skip_cache:
-            cache_key = self.get_cache_key(context)
-            res = context.cache.get(cache_key)
-            if res.is_hit:
-                obj = res.obj
-        else:
-            cache_key = None
-
-        if obj is not None:
-            if isinstance(obj, ppl.PathsDataFrame):
-                self.df = obj
-                return obj
-            capture_error('Cached dataset %s (key: %s) is not a PathsDataFrame' % (self.id, cache_key))
+        cached_df = self.cache_get()
+        if cached_df is not None:
+            return cached_df
 
         if self.input_dataset:
             ds_id = self.input_dataset
         else:
             ds_id = self.id
 
-        dvc_ds = context.load_dvc_dataset(ds_id)
+        dvc_ds = self.context.load_dvc_dataset(ds_id)
         assert dvc_ds.df is not None
-        df = ppl.from_dvc_dataset(dvc_ds)
+        df = self._convert_dvc_dataset(dvc_ds)
 
         # First process data as DVCDataset would, but WITHOUT calling post_process
-        df = self._filter_and_process_df(context, df)
+        df = self._filter_and_process_df(df)
 
         # Now do GenericDataset specific processing
-        df = self.drop_unnecessary_levels(df, droplist=['Description', 'Quantity'])
-        df = self.implement_unit_col(df)
-        df = self.convert_names_to_ids(df, context)
+        df = self._transform_data(df)
 
         # Only AFTER metric columns exist, handle interpolation
         if FORECAST_COLUMN not in df.columns:
@@ -767,15 +982,12 @@ class GenericDataset(DVCDataset):
         if self.interpolate:
             df = self._linear_interpolate(df)
 
-        new_dims = [col for col, dtype in zip(df.columns, df.dtypes, strict=False) if dtype in [pl.Utf8(), pl.Categorical()]]
-        df = df.add_to_index([dim for dim in new_dims if dim not in df.dim_ids])
-        df = extend_last_historical_value_pl(df, end_year=context.instance.model_end_year)
+        df = self._index_data(df)
 
         # Finalize processing
-        if context.sample_size > 0:
-            df = self.sampler.interpret(df, context)
-        if cache_key:
-            context.cache.set(cache_key, df, expiry=0)
+        if self.context.sample_size > 0:
+            df = self._sample(df)
+        self.cache_set(df)
 
         return df
 
@@ -835,43 +1047,25 @@ class FixedDataset(Dataset):
         pdf = ppl.to_ppdf(df)
         pdf = pdf.set_unit(VALUE_COLUMN, self.unit)
         pdf = pdf.add_to_index(YEAR_COLUMN)
-        pdf = self.post_process(None, pdf)
+        pdf = self.post_process(pdf)
 
         self.df = pdf
 
-    def load(self, context: Context) -> ppl.PathsDataFrame:
-        # FIXME Cache does not work properly now but does not cause error.
-        obj = None
-        cache_key: str | None
-        if not context.skip_cache:
-            cache_key = self.get_cache_key(context)
-            res = context.cache.get(cache_key)
-            if res.is_hit:
-                obj = res.obj
-        else:
-            cache_key = None
-
-        if obj is not None:
-            if isinstance(obj, ppl.PathsDataFrame):
-                self.df = obj
-                return obj
-            capture_error('Cached dataset %s (key: %s) is not a PathsDataFrame' % (self.id, cache_key))
-
+    @override
+    def load_internal(self) -> ppl.PathsDataFrame:
         df = self.df
         assert df is not None
-        if context.sample_size > 0:
-            df = self.sampler.interpret(df, context)
+        if self.context.sample_size > 0:
+            df = self._sample(df)
         self.df = df
-        if cache_key:
-            context.cache.set(cache_key, df, expiry=0)
         return self.df
 
-    def hash_data(self, context: Context) -> dict[str, Any]:
+    def hash_data(self) -> dict[str, Any]:
         assert self.df is not None
         df = self.df.to_pandas()
-        return dict(hash=int(self.pd.util.hash_pandas_object(df).sum()), sample_size=context.sample_size)
+        return dict(hash=int(self.pd.util.hash_pandas_object(df).sum()), sample_size=self.context.sample_size)
 
-    def get_unit(self, context: Context) -> Unit:
+    def get_unit(self) -> Unit:
         assert self.unit is not None
         return self.unit
 
@@ -889,17 +1083,18 @@ class JSONDataset(Dataset):
         if len(meta.units) == 1:
             self.unit = next(iter(meta.units.values()))
 
-    def load(self, context: Context) -> ppl.PathsDataFrame:
+    @override
+    def load_internal(self) -> ppl.PathsDataFrame:
         assert self.df is not None
-        return self.post_process(context, self.df)
+        return self.post_process(self.df)
 
-    def hash_data(self, context: Context) -> dict[str, Any]:
+    def hash_data(self) -> dict[str, Any]:
         import pandas as pd
 
         df = self.df.to_pandas()
         return dict(hash=int(pd.util.hash_pandas_object(df).sum()))
 
-    def get_unit(self, context: Context) -> Unit:
+    def get_unit(self) -> Unit:
         return cast('Unit', self.unit)
 
     @classmethod
@@ -959,12 +1154,23 @@ class DBDataset(DatasetWithFilters):
 
     def __post_init__(self):
         super().__post_init__()
-        if self.db_dataset_id is not None:
+        if self.db_dataset_obj is None:
             from kausal_common.datasets.models import Dataset as DBDatasetModel
 
+            assert self.db_dataset_id is not None
             self.db_dataset_obj = DBDatasetModel.objects.get(uuid=self.db_dataset_id)
 
-    def load(self, context: Context) -> ppl.PathsDataFrame:
+    @classmethod
+    def from_def(cls, ds_def: InputDatasetDef, context: Context, db_dataset_obj: DBDatasetModel) -> Self:
+        return cls(
+            id=ds_def.id,
+            context=context,
+            **super().kwargs_from_def(ds_def),
+            db_dataset_obj=db_dataset_obj,
+        )
+
+    @override
+    def load_internal(self) -> ppl.PathsDataFrame:
         if self.df is not None:
             return self.df
 
@@ -972,18 +1178,18 @@ class DBDataset(DatasetWithFilters):
         if ds_obj is None:
             raise Exception('Admin dataset not loaded')
         df = self.deserialize_df(ds_obj)
-        df = self._filter_and_process_df(context, df)
-        df = self.post_process(context, df)
+        df = self._filter_and_process_df(df)
+        df = self.post_process(df)
         self.df = df
         return df
 
-    def hash_data(self, context: Context) -> dict[str, Any]:
+    def hash_data(self) -> dict[str, Any]:
         obj = self.db_dataset_obj
         assert obj is not None
         return dict(obj_pk=obj.pk, updated_at=str(obj.last_modified_at))
 
-    def get_unit(self, context: Context) -> Unit:
-        df = self.load(context)
+    def get_unit(self) -> Unit:
+        df = self.load_internal()
         meta = df.get_meta()
         if len(meta.units) == 1:
             return next(iter(meta.units.values()))
@@ -1055,7 +1261,6 @@ class DBDataset(DatasetWithFilters):
                 unit=F('unit'),
             )
         )
-
         ds = DBDatasetModel.objects.filter(id=ds_in.pk).annotate(dps=ArraySubquery(dps), metrics=ArraySubquery(metrics)).first()
         assert ds is not None
         dp_list = cast('list[dict[str, Any]]', ds.dps)  # type: ignore
@@ -1076,11 +1281,24 @@ class DBDataset(DatasetWithFilters):
         if include_data_point_primary_keys:
             id_map = df.select([YEAR_COLUMN, *dim_ids, 'metric_name', 'id'])
 
-        df = df.with_columns(pl.col('metric_name').alias('metric')).drop('metric_name', 'id')
+        index_cols = [YEAR_COLUMN, *dim_ids]
+        uniq_cols = [*index_cols, 'metric']
+        df = df.with_columns(pl.col('metric_name').alias('metric')).drop('metric_name', 'id').sort(uniq_cols)
+
+        dupes = df.group_by(uniq_cols).agg(pl.count().alias('_count')).filter(pl.col('_count') > 1)
+        if len(dupes) > 0:
+            extra = dupes.head().to_dicts()
+            capture_error(
+                'Dataset %s (pk %d) has %s duplicate rows' % (ds_in.identifier, ds_in.pk, len(dupes)),
+                extras={'example_rows': extra},
+            )
+            # Filter out duplicate rows, keeping the first one
+            df = df.group_by(uniq_cols).first()
+
         df = df.pivot(on='metric', index=[YEAR_COLUMN, *dim_ids], values='value')  # noqa: PD010
 
         if include_data_point_primary_keys and id_map is not None:
-            id_pivoted = id_map.pivot(on='metric_name', index=[YEAR_COLUMN, *dim_ids], values='id')  # noqa: PD010
+            id_pivoted = id_map.pivot(on='metric_name', on_columns=[YEAR_COLUMN, *dim_ids], values='id')  # noqa: PD010
             id_pivoted = id_pivoted.rename({
                 col: f'_dp_pk_{col}' for col in id_pivoted.columns if col not in [YEAR_COLUMN, *dim_ids]
             })

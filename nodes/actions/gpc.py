@@ -8,7 +8,7 @@ import numpy as np
 import polars as pl
 
 from common import polars as ppl
-from nodes.actions import ActionNode
+from nodes.actions.action import ActionNode
 from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
@@ -48,9 +48,9 @@ class DatasetAction2(DatasetAction):
 
 class DatasetActionMFM(DatasetAction):
     allowed_parameters = [
-        StringParameter('action', description='Action name in GPC dataset', is_customizable=False),
-        NumberParameter('target_value', description='Target action impact value', is_customizable=True),
-        StringParameter('target_metric', description='Target action metric id', is_customizable=False),
+        StringParameter(local_id='action', description='Action name in GPC dataset', is_customizable=False),
+        NumberParameter(local_id='target_value', description='Target action impact value', is_customizable=True),
+        StringParameter(local_id='target_metric', description='Target action metric id', is_customizable=False),
     ]
     allow_null_categories = True
     no_effect_value = 0.0
@@ -143,10 +143,10 @@ class DatasetActionMFM(DatasetAction):
 
 class StockReplacementAction(DatasetAction):
     allowed_parameters = [
-        StringParameter('sector', description='GPC sector', is_customizable=False),
-        StringParameter('action', description='Detailed action module', is_customizable=False),
-        NumberParameter('investment_value', description='Maximum annual investment', is_customizable=True),
-        StringParameter('investment_units', description='Investment units', is_customizable=False),
+        StringParameter(local_id='sector', description='GPC sector', is_customizable=False),
+        StringParameter(local_id='action', description='Detailed action module', is_customizable=False),
+        NumberParameter(local_id='investment_value', description='Maximum annual investment', is_customizable=True),
+        StringParameter(local_id='investment_units', description='Investment units', is_customizable=False),
     ]
     allow_null_categories = True
 
@@ -403,14 +403,14 @@ class StockReplacementAction(DatasetAction):
         base = self.sync_dimensions(base, p['investment'])
 
         p['investment'] = self.sync_dimensions(p['investment'], base)
-        p['investment']._units[VALUE_COLUMN] = unit_registry(p['investment']['Unit'].to_list()[0]).units
+        p['investment']._units[VALUE_COLUMN] = unit_registry.parse_units(p['investment']['Unit'].to_list()[0])
         p['investment'] = p['investment'].drop('Unit').rename({VALUE_COLUMN: '%s_currency' % sector})
 
         base = base.paths.join_over_index(p['investment'], how='outer')
         return base
 
 
-class SCurveAction(DatasetAction):
+class SCurveAction(DatasetAction):  # TODO Remove after nzc.yaml is using the new lucia.yaml structure.
     explanation = _(
         """
         This is S Curve Action. It calculates non-linear effect with two parameters,

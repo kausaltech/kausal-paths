@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -21,19 +22,21 @@ if TYPE_CHECKING:
 GQL_URL = '/v1/graphql/'
 
 
-def compare_func(x: Any, y: Any, level: DiffLevel | None = None):
+def compare_func(x: Any, y: Any, level: DiffLevel | None):
     if not isinstance(x, dict) or not isinstance(y, dict):
         raise CannotCompare
 
-    if '__typename' in x and '__typename' in y and x['__typename'] == y['__typename']:  # noqa: SIM102
-        # if level:
-        #    print(level.path())
-        #    print(x['__typename'])
+    if level and 'metricDim' in level.path(output_format='list'):
+        raise CannotCompare
+
+    if '__typename' in x and '__typename' in y and x['__typename'] == y['__typename']:
         if x['__typename'] == 'ActionImpact':
             try:
                 return x['action']['id'] == y['action']['id']
             except Exception:
                 raise CannotCompare() from None
+        elif x['__typename'] == 'YearlyValue':
+            return x['year'] == y['year']
     try:
         return x['id'] == y['id']
     except Exception:
@@ -72,7 +75,9 @@ class Command(BaseCommand):
     dir: Path
     maxfail: int
     failures: int = 0
+    check_perf: bool = False
     redis: Redis | None = None
+    keep_cache: bool = False
 
     def add_arguments(self, parser: CommandParser):
         parser.add_argument('files', metavar='FILE', type=str, nargs='*')
@@ -89,6 +94,31 @@ class Command(BaseCommand):
         parser.add_argument('--maxfail', metavar='NUM', type=int, action='store', default=1)
         parser.add_argument('--start-from', metavar='NUM', type=int, action='store', default=0)
         parser.add_argument('--limit', metavar='NUM', type=int, action='store', default=0)
+        parser.add_argument(
+            '--check-perf', action='store_true', default=False, help='Check query execution times for performance regressions'
+        )
+        parser.add_argument(
+            '--keep-cache', action='store_true', default=False, help='Do not flush the external cache before running'
+        )
+
+    def fail(self) -> None:
+        self.failures += 1
+        if self.failures >= self.maxfail:
+            print('Maximum number of failures reached, stopping')
+            exit(1)
+
+    def evaluate_perf(self, start_time: float, end_time: float, data: dict[str, Any], fn: Path) -> None:
+        if not self.check_perf:
+            return
+        exec_time = (end_time - start_time) * 1000
+        reference_exec_time = data['execution_time']
+        time_diff = exec_time - reference_exec_time
+        if exec_time > reference_exec_time * 1.1 and time_diff > 500:
+            print(
+                f'Execution time {exec_time:.0f}ms is more than 10% longer than '
+                + f'reference {reference_exec_time:.0f}ms for query {fn}'
+            )
+            self.fail()
 
     # ------------------------------------------------------------------
     # In-process mode (default)
@@ -121,7 +151,9 @@ class Command(BaseCommand):
                 kwargs['HTTP_' + key.upper().replace('-', '_')] = val
 
             body = json.dumps({'query': query, 'variables': variables, 'operationName': data.get('operation_name')})
+            start_time = time.time()
             resp = client.post(GQL_URL, body, content_type='application/json', **kwargs)
+            end_time = time.time()
             out = json.loads(resp.content)
             if 'errors' in out:
                 print('Errors in response:')
@@ -130,17 +162,17 @@ class Command(BaseCommand):
                 exit(1)
 
             if _diff_responses(fn, data, out):
-                self.failures += 1
                 print(f'Differences in response for query {fn}')
-                if self.failures >= self.maxfail:
-                    exit(1)
+                self.fail()
+
+            self.evaluate_perf(start_time, end_time, data, fn)
 
             count += 1
             if self.limit and count >= self.limit:
                 break
 
     def flush_external_cache(self) -> None:
-        if not self.redis:
+        if not self.redis or self.keep_cache:
             return
         self.redis.flushdb()
 
@@ -152,7 +184,6 @@ class Command(BaseCommand):
         query = data['query']
         variables = data['variables']
         headers = {hdr: val for hdr, val in data['headers'].items() if val}
-        self.flush_external_cache()
         async with session.post(
             GQL_URL,
             json=dict(query=query, variables=variables, operationName=data['operation_name']),
@@ -209,11 +240,14 @@ class Command(BaseCommand):
         self.maxfail = options['maxfail']
         self.start_from = options['start_from']
         self.limit = options['limit']
+        self.check_perf = options['check_perf']
+        self.keep_cache = options['keep_cache']
 
         os.environ['DISABLE_GRAPHQL_CACHE'] = '1'
 
         if redis_url := os.getenv('REDIS_URL'):
             self.redis = Redis.from_url(redis_url)
+            self.flush_external_cache()
         else:
             self.redis = None
         if self.url:

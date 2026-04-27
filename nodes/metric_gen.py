@@ -28,6 +28,8 @@ from .simple import AdditiveNode, RelativeNode
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from nodes.context import Context
+    from nodes.defs.port_def import OutputPortDef
     from nodes.dimensions import Dimension
     from nodes.scenario import Scenario
     from nodes.visualizations import VisualizationNodeOutput
@@ -36,8 +38,6 @@ if TYPE_CHECKING:
     from .goals import NodeGoalsEntry
     from .node import Node, NodeMetric
 
-
-from typing import TYPE_CHECKING
 
 from .metric import (
     DimensionalMetric,
@@ -111,7 +111,7 @@ def _create_scenario_dim(node: Node, scenarios: Sequence[Scenario]) -> MetricDim
 
 
 def _get_df(
-    node: Node, scenarios: Sequence[Scenario], input_nodes: list[Node] | None = None
+    node: Node, scenarios: Sequence[Scenario], input_nodes: list[Node] | None = None, metric: NodeMetric | None = None
 ) -> tuple[ppl.PathsDataFrame, list[MetricDimension]]:
     new_dims = []
     scenario_dim = _create_scenario_dim(node, scenarios)
@@ -121,7 +121,7 @@ def _get_df(
     if input_nodes is None:
 
         def get_output_without_input_nodes() -> ppl.PathsDataFrame:
-            return node.get_output_pl()
+            return node.get_output_pl(metric=metric.column_id if metric else None)
 
         get_output_func = get_output_without_input_nodes
     else:
@@ -157,6 +157,7 @@ def _compute_values(
     node: Node,
     scenarios: Sequence[Scenario] = (),
     include_input_nodes: bool = True,
+    port: OutputPortDef | None = None,
 ) -> tuple[ppl.PathsDataFrame, list[MetricDimension]]:
     def include_as_input(node: Node) -> bool:
         if isinstance(node, ActionNode):
@@ -314,7 +315,8 @@ def _make_data_dimension(
             )
         )
 
-    assert len(df_cats) == len(ordered_cats)
+    if len(df_cats) != len(ordered_cats):
+        raise ValueError(f'Dimension {dim.id} has {len(df_cats)} categories but {len(ordered_cats)} ordered categories')
 
     mdim = MetricDimension(
         id=make_id('dim', dim.id),
@@ -367,14 +369,12 @@ def _generate_output_data(
     )
 
 
-def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) -> DimensionalMetric:
-
-    def make_id(*args: str) -> str:
-        return _make_id(node, *args)
-
+def from_node_output_metric(
+    node: Node, m: NodeMetric, scenarios: Sequence[Scenario], include_input_nodes: bool = True, port: OutputPortDef | None = None
+) -> DimensionalMetric:
     dims: list[MetricDimension] = []
     with node.context.start_span('Compute metric values', op=MODEL_CALC_OP):
-        df, dims = _compute_values(node, scenarios)
+        df, dims = _compute_values(node, scenarios, include_input_nodes=include_input_nodes, port=port)
 
     if UNCERTAINTY_COLUMN in df.columns and not df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median').is_empty():
         df = df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median')
@@ -401,9 +401,12 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
     else:
         nnode = None
 
+    metric_id = port.id if port else node.id
+    name = port.label if port else str(node.name)
+
     dm = DimensionalMetric(
-        id=node.id,
-        name=str(node.name),
+        id=str(metric_id),
+        name=str(name),
         dimensions=dims,
         values=data.values,
         years=data.years,
@@ -436,6 +439,7 @@ def _join_scenario_dfs(scenario_dfs: list[ppl.PathsDataFrame]) -> ppl.PathsDataF
 def metric_from_node(
     node: Node,
     metric: NodeMetric | None = None,
+    include_input_nodes: bool = True,
     extra_scenarios: Sequence[Scenario] = (),
 ) -> DimensionalMetric | None:
     from nodes.actions.linear import ReduceAction
@@ -466,7 +470,7 @@ def metric_from_node(
                 extra_scenarios=[s.id for s in extra_scenarios],
             ),
         )
-        return _from_node_metric(node, m, extra_scenarios)
+        return from_node_output_metric(node, m, extra_scenarios, include_input_nodes=include_input_nodes)
 
 
 def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput) -> DimensionalMetric | None:
@@ -550,7 +554,7 @@ def from_action_impact(
     if col not in df.columns:
         return None
 
-    dim_id_potential = [root.outcome_dimension, root.stakeholder_dimension]
+    dim_id_potential = [root.spec.outcome_dimension_id, root.spec.stakeholder_dimension_id]
     dim_potential = root.effect_node.output_dimensions.items()
     dimensions = [(dim_id, dim) for dim_id, dim in dim_potential if dim_id in dim_id_potential]
 
@@ -617,3 +621,163 @@ def from_action_impact(
         unit=df.get_unit(col),
     )
     return dm
+
+
+def _make_dimension_from_raw(
+    dim_id: str,
+    df: ppl.PathsDataFrame,
+    id_prefix: str,
+) -> MetricDimension:
+    """Synthesise a MetricDimension from raw category values in the DataFrame."""
+    df_cats = sorted(df[dim_id].unique().drop_nulls().cast(pl.Utf8).to_list())
+    cats = [
+        MetricCategory(id=f'{id_prefix}:{dim_id}:cat:{cat_id}', original_id=cat_id, label=cat_id, color=None, order=idx)
+        for idx, cat_id in enumerate(df_cats)
+    ]
+    return MetricDimension(
+        id=f'{id_prefix}:dim:{dim_id}',
+        label=dim_id,
+        categories=cats,
+        original_id=dim_id,
+    )
+
+
+def _make_dimensions_from_context(
+    context: Context,
+    df: ppl.PathsDataFrame,
+    id_prefix: str,
+) -> list[MetricDimension]:
+    """Build MetricDimension objects for every dimension column in *df*, using context dimensions for labels."""
+    dims: list[MetricDimension] = []
+    for dim_id in df.dim_ids:
+        dim = context.dimensions.get(dim_id)
+        if dim is None:
+            dims.append(_make_dimension_from_raw(dim_id, df, id_prefix))
+        else:
+            df_cats_set = set(df[dim_id].unique().drop_nulls().cast(pl.Utf8).to_list())
+            cats = [
+                MetricCategory(
+                    id=f'{id_prefix}:{dim.id}:cat:{cat.id}',
+                    original_id=cat.id,
+                    label=str(cat.label),
+                    color=cat.color,
+                    order=cat.order,
+                    group=cat.group,
+                )
+                for cat in dim.categories
+                if cat.id in df_cats_set
+            ]
+            dims.append(
+                MetricDimension(
+                    id=f'{id_prefix}:dim:{dim.id}',
+                    label=str(dim.label),
+                    help_text=str(dim.help_text) if dim.help_text else None,
+                    categories=cats,
+                    original_id=dim.id,
+                )
+            )
+    return dims
+
+
+def _make_dimensions_from_df(
+    df: ppl.PathsDataFrame,
+    id_prefix: str,
+) -> list[MetricDimension]:
+    """Build MetricDimension objects from raw DataFrame columns (no context needed)."""
+    return [_make_dimension_from_raw(dim_id, df, id_prefix) for dim_id in df.dim_ids]
+
+
+def metric_from_dataframe(
+    df: ppl.PathsDataFrame,
+    metric_col: str,
+    context: Context,
+    *,
+    metric_id: str,
+    metric_name: str,
+) -> DimensionalMetric:
+    """
+    Build a DimensionalMetric from an arbitrary PathsDataFrame and one of its metric columns.
+
+    Used to expose dataset and edge input data via the GraphQL API without
+    requiring a full node computation cycle.
+    """
+    unit = df.get_unit(metric_col)
+
+    # Ensure the value column is named VALUE_COLUMN for _generate_output_data
+    if metric_col != VALUE_COLUMN:
+        df = df.rename({metric_col: VALUE_COLUMN})
+
+    # Ensure Forecast column exists (datasets may lack it)
+    if FORECAST_COLUMN not in df.columns:
+        df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+
+    dims = _make_dimensions_from_context(context, df, id_prefix=metric_id)
+
+    years = df[YEAR_COLUMN].unique().sort().to_list()
+    idx_df = DimensionalMetric.generate_index_df(dims, years)
+
+    idx_exprs = [pl.col(n).cast(pl.Utf8) if n != YEAR_COLUMN else pl.col(n) for n in idx_df.columns]
+    val_df = df.select([*idx_exprs, VALUE_COLUMN, FORECAST_COLUMN]).sort(by=idx_exprs)
+    jdf = idx_df.join(val_df, how='left', on=idx_exprs, validate='1:1')
+    vals: list[float] = jdf[VALUE_COLUMN].fill_null(0).to_list()
+
+    forecast_from = df.filter(pl.col(FORECAST_COLUMN))[YEAR_COLUMN].min()
+    if forecast_from is not None:
+        assert isinstance(forecast_from, int)
+
+    return DimensionalMetric(
+        id=metric_id,
+        name=metric_name,
+        dimensions=dims,
+        values=vals,
+        years=years,
+        forecast_from=forecast_from,
+        stackable=False,
+        goals=[],
+        normalized_by=None,
+        unit=unit,
+    )
+
+
+def metric_from_dataframe_standalone(
+    df: ppl.PathsDataFrame,
+    metric_col: str,
+    *,
+    metric_id: str,
+    metric_name: str,
+) -> DimensionalMetric:
+    """Build a DimensionalMetric without a Context (uses raw DataFrame column values for dimensions)."""
+    unit = df.get_unit(metric_col)
+
+    if metric_col != VALUE_COLUMN:
+        df = df.rename({metric_col: VALUE_COLUMN})
+
+    if FORECAST_COLUMN not in df.columns:
+        df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+
+    dims = _make_dimensions_from_df(df, id_prefix=metric_id)
+
+    years = df[YEAR_COLUMN].unique().sort().to_list()
+    idx_df = DimensionalMetric.generate_index_df(dims, years)
+
+    idx_exprs = [pl.col(n).cast(pl.Utf8) if n != YEAR_COLUMN else pl.col(n) for n in idx_df.columns]
+    val_df = df.select([*idx_exprs, VALUE_COLUMN, FORECAST_COLUMN]).sort(by=idx_exprs)
+    jdf = idx_df.join(val_df, how='left', on=idx_exprs, validate='1:1')
+    vals: list[float] = jdf[VALUE_COLUMN].fill_null(0).to_list()
+
+    forecast_from = df.filter(pl.col(FORECAST_COLUMN))[YEAR_COLUMN].min()
+    if forecast_from is not None:
+        assert isinstance(forecast_from, int)
+
+    return DimensionalMetric(
+        id=metric_id,
+        name=metric_name,
+        dimensions=dims,
+        values=vals,
+        years=years,
+        forecast_from=forecast_from,
+        stackable=False,
+        goals=[],
+        normalized_by=None,
+        unit=unit,
+    )

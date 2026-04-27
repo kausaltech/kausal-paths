@@ -13,7 +13,6 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from graphql import GraphQLError
 
-import polars as pl
 import sentry_sdk
 
 from kausal_common.graphene import DjangoNode, DjangoNodeMeta
@@ -247,6 +246,8 @@ class MeasureType(DjangoNode[Measure]):
 
     @staticmethod
     def resolve_placeholder_data_points(root: Measure, info: GQLInfo) -> list[PlaceHolderDataPoint]:
+        import polars as pl
+
         node, node_dimension_selection = MeasureType._find_corresponding_node(root)
         if node is None or node_dimension_selection is None:
             return []
@@ -818,6 +819,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         instance = fwc.instance_config.get_instance()
         dvc_repo = instance.context.dataset_repo
         data = cast('dict[str, Any]', nzc_data)
+        assert dvc_repo is not None
         defaults = get_nzc_default_values(
             dvc_repo,
             NZCPlaceholderInput(

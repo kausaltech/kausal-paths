@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from enum import Enum
+from typing import Annotated
+from uuid import UUID
 
-import graphene
 import strawberry as sb
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
@@ -13,7 +14,7 @@ from strawberry.tools import merge_types
 
 from grapple.registry import registry as grapple_registry
 
-from kausal_common import graphql_gis  # noqa: F401
+from kausal_common import graphql_gis  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from kausal_common.deployment import test_mode_enabled
 from kausal_common.graphene.version_query import Query as ServerVersionQuery
 from kausal_common.models.types import copy_signature
@@ -27,27 +28,36 @@ from paths.graphql_types import UnitType
 from paths.schema_context import PathsGraphQLContext
 from paths.utils import validate_unit
 
+from frameworks.mutations import FrameworkMutation
 from frameworks.schema import Mutations as FrameworksMutations, Query as FrameworksQuery
 from nodes.models import InstanceConfig
 from nodes.schema import (
     Mutation as NodesMutation,
-    Query as NodesQuery,
     SBQuery as SBNodesQuery,
     Subscription as NodesSubscription,
 )
+from nodes.schema_model_editor import ModelEditorMutation, ModelEditorQuery
+from nodes.units import Unit
 from orgs.models import Organization
 from orgs.schema import OrganizationNode, Query as OrgsQuery
 from pages.schema import Query as PagesQuery
-from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
+from params.schema import SBMutation as SBParamsMutation, SBQuery as SBParamsQuery, types as params_types
 from users.schema import Query as UsersQuery
 
-if TYPE_CHECKING:
-    from kausal_common.graphene import GQLInfo
-
-    from nodes.units import Unit
-
-
 CO2E = 'CO<sub>2</sub>e'
+
+
+@sb.enum(
+    name='PreviewMode',
+    description=(
+        'Which slice of an instance to resolve. `PUBLISHED` (default) serves '
+        "the latest published revision; `DRAFT` serves the editor's in-progress "
+        'state and requires edit permission on the instance.'
+    ),
+)
+class PreviewMode(Enum):
+    PUBLISHED = 'PUBLISHED'
+    DRAFT = 'DRAFT'
 
 
 @sb.directive(
@@ -60,45 +70,21 @@ def instance_directive(
     hostname: Annotated[str | None, sb.argument(description='Hostname')],
     identifier: Annotated[sb.ID | None, sb.argument(description='Instance identifier')],
     token: Annotated[str | None, sb.argument(description='Token for accessing the instance')],
+    preview: Annotated[
+        PreviewMode | None,
+        sb.argument(description='Resolve the draft or published slice; defaults to PUBLISHED.'),
+    ] = None,
+    version: Annotated[
+        UUID | None,
+        sb.argument(
+            description=(
+                'Optimistic-locking token — the `draftHeadToken` observed at read time. '
+                'Required on editing mutations; rejected with a stale-version error if '
+                "the instance's head has advanced."
+            ),
+        ),
+    ] = None,
 ):
-    pass
-
-
-class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery, OrgsQuery):
-    unit = graphene.Field(UnitType, value=graphene.String(required=True))
-
-    instance_organizations = graphene.List(
-        graphene.NonNull(OrganizationNode),
-        instance=graphene.ID(),
-        with_ancestors=graphene.Boolean(default_value=False),
-    )
-
-    class Meta:
-        name = 'Query'
-
-    @staticmethod
-    def resolve_unit(root: GrapheneQuery, info: GQLInfo, value: str) -> Unit:
-        try:
-            unit = validate_unit(value)
-        except ValidationError:
-            raise GraphQLError(_('Invalid unit'), info.field_nodes) from None
-        return unit
-
-    @staticmethod
-    def resolve_instance_organizations(
-        root: GrapheneQuery,
-        info: GQLInfo,
-        instance: str | None,
-        with_ancestors: bool,
-    ) -> list[Organization]:
-        if not instance:
-            instance_obj = realm_context.get().realm
-        else:
-            instance_obj = InstanceConfig.objects.get(identifier=instance)
-        return list(Organization.objects.qs.available_for_instance(instance_obj))
-
-
-class GrapheneMutations(ParamsMutations, FrameworksMutations):
     pass
 
 
@@ -107,6 +93,8 @@ class InstanceContextInput:
     hostname: str | None
     identifier: sb.ID | None
     locale: str | None
+    preview: PreviewMode | None = None
+    version: UUID | None = None
 
 
 @sb.directive(
@@ -118,7 +106,39 @@ def context_directive(info: gql.Info, input: InstanceContextInput):
     return
 
 
-SBQuery = merge_types('Query', (SBNodesQuery,))
+@sb.type
+class CommonQuery:
+    @sb.field(graphql_type=UnitType)
+    def unit(self, info: gql.Info, value: str) -> Unit:
+        try:
+            unit = validate_unit(value)
+        except ValidationError:
+            raise GraphQLError(_('Invalid unit'), info.field_nodes) from None
+        return unit
+
+    @sb.field(graphql_type=list[OrganizationNode])
+    @staticmethod
+    def instance_organizations(
+        instance: sb.ID | None = None,
+        with_ancestors: bool = False,
+    ) -> list[Organization]:
+        if not instance:
+            instance_obj = realm_context.get().realm
+        else:
+            instance_obj = InstanceConfig.objects.get(identifier=instance)
+        return list(Organization.objects.qs.available_for_instance(instance_obj))
+
+
+class GrapheneQuery(PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery, OrgsQuery):
+    class Meta:
+        name = 'Query'
+
+
+class GrapheneMutations(FrameworksMutations):
+    pass
+
+
+SBQuery = merge_types('Query', (SBNodesQuery, ModelEditorQuery, SBParamsQuery, CommonQuery))
 
 
 @sb.type
@@ -128,6 +148,9 @@ class Query(GrapheneQuery, SBQuery):  # type: ignore[valid-type, misc]
 
 SB_MUTATION_TYPES: list[type] = [
     NodesMutation,
+    ModelEditorMutation,
+    SBParamsMutation,
+    FrameworkMutation,
 ]
 if test_mode_enabled():
     SB_MUTATION_TYPES.append(TestModeMutations)

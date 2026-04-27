@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import graphene
 from django.forms import ValidationError
@@ -9,7 +9,6 @@ from django.utils.translation import gettext_lazy as _
 from wagtail import blocks
 from wagtail.images.blocks import ImageChooserBlock
 
-import polars as pl
 from grapple.helpers import register_streamfield_block
 from grapple.models import GraphQLField, GraphQLFloat, GraphQLImage, GraphQLStreamfield, GraphQLString
 from wagtail_color_panel.blocks import NativeColorBlock
@@ -23,6 +22,7 @@ if TYPE_CHECKING:
 
     from paths.types import GQLInstanceInfo
 
+    from frameworks.models import Framework
     from nodes.actions.action import ActionNode
     from nodes.metric import MetricYearlyGoal
     from nodes.node import Node
@@ -38,6 +38,37 @@ if TYPE_CHECKING:
         ScenarioValue,
     )
     from nodes.units import Unit
+
+
+@register_streamfield_block
+class FrameworkLandingBlock(blocks.StructBlock):
+    heading = blocks.CharBlock(label=_('Heading'))
+    body = blocks.RichTextBlock(label=_('Body'), required=False)
+    cta_label = blocks.CharBlock(label=_('Call-to-action button label'), required=False)
+    cta_url = blocks.CharBlock(label=_('Call-to-action button URL'), required=False)
+    framework_identifier = blocks.CharBlock(
+        label=_('Framework identifier'),
+        help_text=_('Identifier of the framework to display on the landing page.'),
+    )
+
+    graphql_fields = [
+        GraphQLString('heading', required=True),
+        GraphQLString('body', required=False),
+        GraphQLString('cta_label', required=False),
+        GraphQLString('cta_url', required=False),
+        GraphQLField('framework', 'frameworks.schema.FrameworkType', required=False),
+    ]
+
+    def framework(self, info: GQLInstanceInfo, values: dict[str, Any]) -> Framework | None:
+        from frameworks.models import Framework
+
+        identifier = values.get('framework_identifier')
+        if not identifier:
+            return None
+        fw = Framework.objects.filter(identifier=identifier).first()
+        if fw is None:
+            return None
+        return info.context.cache.for_framework(fw)
 
 
 class CardListCardBlock(blocks.StructBlock):
@@ -313,6 +344,8 @@ class DashboardCardBlock(blocks.StructBlock):
 
         Returns None if there is no historical data.
         """
+        import polars as pl
+
         from nodes.schema import MetricDimensionCategoryValue
 
         node = self.node(info, values)
@@ -384,6 +417,8 @@ class DashboardCardBlock(blocks.StructBlock):
             return None
 
     def _value_for_year(self, node: Node, year: int, scenario: Scenario | None = None) -> float | None:
+        import polars as pl
+
         dm = self._dimensional_metric(node, scenario)
         df = dm.to_df()
         df = df.filter(pl.col(YEAR_COLUMN) == year)
@@ -409,6 +444,8 @@ class DashboardCardBlock(blocks.StructBlock):
                 return None
 
     def _impact_for_action(self, action: ActionNode, node: Node, year: int) -> ActionImpactType:
+        import polars as pl
+
         from nodes.schema import ActionImpactType
 
         df = action.compute_impact(node)

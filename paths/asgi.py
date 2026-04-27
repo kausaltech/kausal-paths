@@ -23,6 +23,8 @@ if TYPE_CHECKING:
 
     from django.urls import URLPattern, URLResolver
 
+    from channels.routing import _ExtendedURLPattern
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 
 django_asgi_app = get_asgi_application()
@@ -49,21 +51,23 @@ class AuthGraphQLProtocolTypeRouter(ProtocolTypeRouter):
             http_urls.append(re_path_any(gql_url_pattern, graphql_asgi_app))
 
         http_urls.append(re_path_any(r'^', django_asgi_app))
-
+        http_routes = cast('list[_ExtendedURLPattern | URLRouter]', http_urls)
+        ws_routes = cast(
+            'list[_ExtendedURLPattern | URLRouter]',
+            [
+                re_path_any(
+                    gql_url_pattern,
+                    PathsGraphQLWSConsumer.as_asgi(schema=schema),
+                ),
+            ],
+        )
         super().__init__(
             {
                 'http': URLRouter(
-                    http_urls,
+                    http_routes,
                 ),
                 'websocket': WebSocketMiddleware(
-                    URLRouter(
-                        [
-                            re_path_any(
-                                gql_url_pattern,
-                                PathsGraphQLWSConsumer.as_asgi(schema=schema),
-                            ),
-                        ],
-                    ),
+                    URLRouter(ws_routes),
                 ),
             },
         )

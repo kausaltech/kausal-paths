@@ -62,7 +62,9 @@ class AdminInstanceMixin:
         return realm_context.get().realm
 
 
-def user_has_permission(permission_policy: BasePermissionPolicy, user: UserOrAnon, permission: str, obj: Model) -> bool:
+def user_has_permission(
+    permission_policy: BasePermissionPolicy[Any, Any, Any], user: UserOrAnon, permission: str, obj: Model
+) -> bool:
     assert isinstance(permission_policy, ModelPermissionPolicy)
     if isinstance(user, AnonymousUser):
         return False
@@ -196,7 +198,7 @@ class PathsChooserViewSet[M: Model](SnippetChooserViewSet):
         super().__init__(*args, **kwargs)
 
 
-class PathsViewSet[M: Model, QS: QuerySet[Any, Any], FormT: BaseModelForm[Any] = WagtailAdminModelForm[Any]](
+class PathsViewSet[M: Model, QS: QuerySet[Any, Any] = QuerySet[M], FormT: BaseModelForm[Any] = WagtailAdminModelForm[Any]](
     SnippetViewSet[M, FormT]
 ):
     index_view_class: ClassVar = PathsIndexView

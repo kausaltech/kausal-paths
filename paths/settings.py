@@ -22,8 +22,6 @@ from kausal_common.sentry.init import init_sentry
 from .const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER
 
 if TYPE_CHECKING:
-    from threading import ExceptHookArgs
-
     from kausal_common.logging.init import LogFormat
 
 PROJECT_NAME = 'paths'
@@ -587,34 +585,6 @@ if not locals().get('SECRET_KEY', ''):
             ) from None
 
 
-if DEBUG:
-    from rich import traceback
-    from rich.console import Console
-
-    traceback.install(show_locals=True)
-
-    traceback_console = Console(stderr=True)
-
-    def excepthook(args: ExceptHookArgs):
-        assert args.exc_value is not None
-        traceback_console.print(
-            traceback.Traceback.from_exception(
-                args.exc_type,
-                args.exc_value,
-                args.exc_traceback,
-                show_locals=True,
-            )
-        )
-
-    import threading
-
-    threading.excepthook = excepthook
-
-    from paths.watchfiles_reloader import replace_reloader
-
-    replace_reloader()
-
-
 LOG_GRAPHQL_QUERIES = DEBUG and env.bool('LOG_GRAPHQL_QUERIES')
 LOG_SQL_QUERIES = DEBUG and env.bool('LOG_SQL_QUERIES')
 ENABLE_DEBUG_TOOLBAR = DEBUG and env.bool('ENABLE_DEBUG_TOOLBAR')
@@ -625,16 +595,19 @@ if ENABLE_DEBUG_TOOLBAR:
     MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 
 if env('CONFIGURE_LOGGING'):
-    from kausal_common.logging.init import UserLoggingOptions, init_logging_django
+    from kausal_common.logging.init import UserLoggingOptions, autodetect_log_format, init_logging_django
 
     is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False)
     log_format: LogFormat | None
     if not is_kube and DEBUG:
         # If logfmt hasn't been explicitly selected and DEBUG is on, fall back to autodetection.
-        log_format = None
+        log_format = autodetect_log_format()
     else:
         log_format = 'logfmt'
     LOGGING = init_logging_django(log_format, options=UserLoggingOptions(sql_queries=LOG_SQL_QUERIES))
+else:
+    log_format = None
+
 
 REQUEST_LOG_MAX_DAYS = env('REQUEST_LOG_MAX_DAYS')
 REQUEST_LOG_METHODS = env('REQUEST_LOG_METHODS')
@@ -649,3 +622,9 @@ if True:
 HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')
 
 GOOGLE_MAPS_V3_APIKEY = env('GOOGLE_MAPS_V3_APIKEY')
+
+
+if DEBUG:
+    from paths.watchfiles_reloader import replace_reloader
+
+    replace_reloader()

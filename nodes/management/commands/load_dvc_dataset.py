@@ -26,6 +26,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
+from nodes.dataset_placeholders import make_external_dataset_ref, sync_dataset_placeholder
 from nodes.datasets import JSONDataset
 from nodes.models import InstanceConfig
 
@@ -63,13 +64,29 @@ class Command(BaseCommand):
         parser.add_argument('datasets', metavar='DATASET_ID', type=str, nargs='*')
         parser.add_argument('--all', action='store_true', help='Sync all datasets')
         parser.add_argument(
+            '--metadata-only',
+            action='store_true',
+            help='Create placeholder dataset, schema and metric objects without importing datapoints',
+        )
+        parser.add_argument(
             '--ignore-prefix',
             action='append',
             help='Ignore datasets with IDs starting with the specified prefix. Can be used multiple times.',
         )
         parser.add_argument('--force', action='store_true')
 
-    def sync_dataset(self, instance_config: InstanceConfig, ctx: Context, ds_id: str, force: bool = False):
+    def sync_dataset(
+        self,
+        instance_config: InstanceConfig,
+        ctx: Context,
+        ds_id: str,
+        force: bool = False,
+        metadata_only: bool = False,
+    ):
+        if metadata_only:
+            sync_dataset_placeholder(instance_config, ctx, ds_id, force=force, reporter=print)
+            return
+
         dvc_ds = ctx.load_dvc_dataset(ds_id)
         df = ppl.from_dvc_dataset(dvc_ds)
         self.rename_value_columns(df)
@@ -98,9 +115,7 @@ class Command(BaseCommand):
                 print(f"Deleting dataset schema '{schema}'")
                 schema.delete()
             else:
-                print(
-                    f"Dataset '{dataset}' with identifier '{identifier}' exists for instance '{instance_config}'. Aborting."
-                )
+                print(f"Dataset '{dataset}' with identifier '{identifier}' exists for instance '{instance_config}'. Aborting.")
                 return
 
         schema = self.create_dataset_schema(
@@ -111,15 +126,14 @@ class Command(BaseCommand):
         create_kwargs = dict(
             **get_kwargs,
             schema=schema,
+            external_ref=make_external_dataset_ref(ctx, ds_id),
         )
         dataset = Dataset.objects.create(**create_kwargs)
         print(f"Created dataset '{dataset}'")
 
         # Match DB metric columns (DVC units keys) to meta: column_id is the physical column name; id is optional slug.
         metrics_meta = {
-            (m.get('column_id') or m.get('id')): m
-            for m in dvc_metadata.get('metrics') or []
-            if m.get('column_id') or m.get('id')
+            (m.get('column_id') or m.get('id')): m for m in dvc_metadata.get('metrics') or [] if m.get('column_id') or m.get('id')
         }
         # Map metric identifiers (column names) to Metric instances
         metrics = {
@@ -226,7 +240,7 @@ class Command(BaseCommand):
     def create_metric(
         self, col: str, unit: Unit, schema: DatasetSchema, default_language: str, label_i18n: dict[str, str] | None
     ) -> DatasetMetric:
-        metric = DatasetMetric(schema=schema, name=col, unit=str(unit))
+        metric = DatasetMetric(schema=schema, name=col, label=col, unit=str(unit))
         if label_i18n is not None:
             label = TranslatedString(default_language=default_language, **label_i18n)
             label.set_modeltrans_field(metric, 'label', default_language)
@@ -247,7 +261,7 @@ class Command(BaseCommand):
             return self.create_dimension(schema, instance_config, default_language, spec)
         print(
             f"There is already a dimension with identifier '{spec.id}' for '{instance_config}'; "
-            + "skipping creation of Dimension, DimensionCategory and DimensionScope instances and "
+            + 'skipping creation of Dimension, DimensionCategory and DimensionScope instances and '
             + f"linking the existing dimension to the schema '{schema}'"
         )
         DatasetSchemaDimension.objects.create(schema=schema, dimension=existing_scope.dimension)
@@ -328,4 +342,10 @@ class Command(BaseCommand):
 
         for ds_id in ds_ids:
             with transaction.atomic():
-                self.sync_dataset(ic, ctx, ds_id, force=options['force'])
+                self.sync_dataset(
+                    ic,
+                    ctx,
+                    ds_id,
+                    force=options['force'],
+                    metadata_only=options['metadata_only'],
+                )

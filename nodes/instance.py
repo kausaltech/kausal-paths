@@ -6,13 +6,10 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import TYPE_CHECKING, overload
 
-from pydantic import BaseModel, ConfigDict
-
 from loguru import logger
 
-from kausal_common.i18n.pydantic import I18nBaseModel, TranslatedString
-
 from common import base32_crockford
+from nodes.defs.instance_defs import InstanceFeatures, InstanceTerms
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -20,64 +17,15 @@ if TYPE_CHECKING:
 
     from loguru import Logger
 
-    from nodes.actions.action import ActionGroup
+    from kausal_common.i18n.pydantic import TranslatedString
+
     from nodes.context import Context
+    from nodes.defs.instance_defs import ActionGroup
     from nodes.goals import NodeGoalsEntry
     from pages.config import OutcomePage
 
     from .excel_results import InstanceResultExcel
     from .models import InstanceConfig
-
-
-class InstanceTerms(I18nBaseModel):
-    """
-    The specific terms to be used for different concepts in the UI (e.g. "action").
-
-    If a term is not set, the default term for the concept will be used.
-    """
-
-    action: TranslatedString | None = None
-    enabled_label: TranslatedString | None = None
-
-
-class InstanceFeatures(BaseModel):
-    """
-    Features available for the instance.
-
-    Used mostly by the UI to customize the display of the results.
-    """
-
-    baseline_visible_in_graphs: bool = True
-    """Whether to display the baseline data in graphs and visualizations."""
-
-    show_accumulated_effects: bool = True
-    """Whether to display accumulated effects over time in the UI."""
-
-    show_significant_digits: int | None = 3
-    """Number of significant digits to display in numerical results. None means no limit."""
-
-    maximum_fraction_digits: int | None = None
-    """Maximum number of decimal places to display after the decimal point. None means no limit."""
-
-    hide_node_details: bool = False
-    """Whether to hide detailed node information in the UI."""
-
-    show_refresh_prompt: bool = False
-    """Whether to show a prompt to refresh data when it might be outdated."""
-
-    requires_authentication: bool = False
-    """Whether authentication is required to access this instance."""
-
-    use_datasets_from_db: bool = False
-    """Whether to use datasets from the database instead of the .parquet files."""
-
-    show_explanations: bool = False
-    """Whether to show node explanation in the slot for description (under the graph)."""
-
-    show_category_warnings: bool = False
-    """Whether to show category warnings in the node explanation."""
-
-    model_config = ConfigDict(use_attribute_docstrings=True)
 
 
 @dataclass

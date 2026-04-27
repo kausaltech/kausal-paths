@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from users.models import User
 
 
-def assign_roles(
+def assign_roles(  # noqa: C901, PLR0912
     *,
     backend: type[BaseAuth],
     user: User | None,

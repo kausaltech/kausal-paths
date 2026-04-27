@@ -74,7 +74,6 @@ class FrameworkConfigPermissionPolicy(
         return isinstance(context, fw_pp.model)
 
     def __init__(self):
-        from nodes.models import InstanceConfig
         from nodes.roles import (
             instance_admin_role,
             instance_reviewer_role,
@@ -89,7 +88,6 @@ class FrameworkConfigPermissionPolicy(
         self.realm_admin_role = instance_admin_role
         self.realm_viewer_role = instance_viewer_role
         self.realm_reviewer_role = instance_reviewer_role
-        self.ic_pp = InstanceConfig.permission_policy()
         self.fw_pp = Framework.permission_policy()
         super().__init__(FrameworkConfig)
 

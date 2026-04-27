@@ -98,6 +98,7 @@ dependencies = [
   "wagtailgeowidget>=8.2.1",
   "watchfiles",
   "willow>=1.9",
+  "wrapt>=1.17.3",
   "xxhash",
 ]
 optional-dependencies.kausal = [ "kausal-paths-extensions>=0.6.50" ]
@@ -179,7 +180,7 @@ environments = [
 
 [tool.ruff]
 extend = "./kausal_common/configs/ruff.toml"
-extend-exclude = [ "*.ipynb" ]
+extend-exclude = [ "*.ipynb", "notebooks/*" ]
 
 [tool.mypy]
 plugins = [

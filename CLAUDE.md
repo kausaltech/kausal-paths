@@ -57,8 +57,8 @@ python manage.py collectstatic
 # Run specific test file
 python -m pytest --reuse-db path/to/test_file.py
 
-# Run mypy type checking (filter out known baseline errors)
-mypy . | mypy-baseline filter
+# Run mypy type checking
+mypy .
 
 # Run ruff linting
 ruff check .
@@ -69,6 +69,25 @@ ruff format .
 # Auto-fix import ordering & other safe fixes
 ruff check --fix file.py
 ```
+
+### Interactive Debugger (`/debugging-code` skill)
+
+When a bug involves **control flow through code you didn't write** — library
+internals, metaclass machinery, framework callbacks — use the `debugging-code`
+skill instead of writing throwaway Python snippets. The skill uses `dap`, a
+CLI DAP debugger.
+
+**When to reach for it:**
+- You need the **call stack** across library boundaries ("who called this?",
+  "how did execution reach here?")
+- You need to **inspect locals in upper frames** (e.g. what did the caller
+  pass? what does the framework's internal state look like at this point?)
+- You've written 3+ exploratory snippets without converging — a single
+  conditional breakpoint in the right place will likely answer it faster
+
+**When snippets are better:** testing a hypothesis about a single value or
+return type, quick attribute checks, anything where the question is about
+*what* not *how we got here*.
 
 ### GraphQL API
 - GraphQL endpoint: `http://127.0.0.1:8000/v1/graphql/`
@@ -106,6 +125,20 @@ pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema
 3. **Calculations**: Node graph executes calculations with real-time updates
 4. **API**: GraphQL provides unified access to results and configurations
 
+#### Internationalization (i18n)
+Three co-existing translation mechanisms (django-modeltrans, Wagtail locales,
+`TranslatedString`), each with its own language code format. See
+[`docs/architecture/i18n.md`](docs/architecture/i18n.md) for the full picture.
+
+#### Permission Policies
+Every model requiring access control inherits from `PermissionedModel` and
+implements `permission_policy()`. Policies extend `ModelPermissionPolicy` and
+express access rules as ORM Q objects (for list filtering) and per-instance
+booleans (for object-level checks). See
+[`docs/architecture/permissions.md`](docs/architecture/permissions.md) for
+the full architecture, usage patterns across GraphQL/DRF/admin, and how to
+implement a new policy.
+
 ### Important Patterns
 
 #### Multi-Instance Architecture
@@ -123,6 +156,22 @@ pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema
 - Async calculation engine with live progress updates
 - Caching system for performance optimization
 
+### Design Principles
+
+See [`docs/architecture/principles.md`](docs/architecture/principles.md) for
+full rationale. In brief:
+
+1. **Design for where things are going.** Every fix reshapes the codebase.
+   Move toward the long-term shape, not just past the immediate breakage.
+2. **Root-cause before fix.** Understand *why* before deciding *what*. A
+   workaround that suppresses the symptom is debt with interest.
+3. **Type system carries the contract.** Required fields stay required.
+   Abstract classes use `@abstractmethod`. Prefer construction-time errors.
+4. **Don't confabulate mechanisms.** Distinguish known from inferred from
+   guessed. "I don't know yet" beats a plausible-sounding wrong answer.
+5. **Migration paths: explicit and contained.** Backward compat goes behind
+   explicit entry points (e.g. `from_yaml_config`), not in the common path.
+
 ### Code Conventions
 
 #### Python
@@ -131,10 +180,25 @@ pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema
 - Follow Django model patterns with proper managers and querysets
 - Use Pydantic for data validation where appropriate
 
+#### Ruff & TYPE_CHECKING imports
+- Ruff config lives in `kausal_common/configs/ruff.toml`
+- When a base class or decorator causes ruff's `TC004` rule to incorrectly
+  demand moving imports out of `TYPE_CHECKING` (which would cause circular
+  imports), add the decorator/base class to `runtime-evaluated-decorators`
+  or `runtime-evaluated-base-classes` in the `[lint.flake8-type-checking]`
+  section of that file. This tells ruff that the listed classes/decorators
+  evaluate type annotations at runtime (via Pydantic), so imports used only
+  in annotations of those classes are allowed to stay behind `TYPE_CHECKING`.
+
 #### Models
 - All models inherit from appropriate base classes (`UUIDIdentifiedModel`, `PathsModel`)
 - Use proper type annotations for fields and relationships
 - Implement permission policies for access control
+- **Reverse FK managers must be explicitly annotated** on the model class using
+  the helpers in `kausal_common/models/types.py` (e.g. `RevMany[ChildModel]`).
+  Django auto-generates these managers at runtime, but the type checker cannot
+  see them. Never use `getattr()` or `# type: ignore` to work around missing
+  reverse managers — add the annotation instead.
 
 #### GraphQL
 - Uses both Graphene and Strawberry (migration in progress; see `docs/graphene-to-strawberry-migration.md`)
@@ -173,6 +237,12 @@ pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema
 #### Testing
 - Use pytest with Django plugin
 - Factory Boy for test data generation
+- **Always call `Factory.create()`** (not bare `Factory()`), so the return type
+  is the model class, not the factory class. This matters for mypy and attribute access.
+- Use `PathsTestClient` from `paths/tests/graphql.py` for new GraphQL tests
+  (replaces the old `graphql_client_query_data` fixture). Key methods:
+  `query_data()` (asserts no errors, returns `dict`), `query_errors()` (asserts
+  errors present, returns the error list).
 - Test files should be in respective app directories
 
 #### Performance
@@ -188,3 +258,7 @@ pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema
 # Compute & show model outputs for a node
 python load_nodes.py -i <instance-id> --node <node-id>
 ```
+
+### Trailhead Migration
+
+@docs/trailhead/tools.md

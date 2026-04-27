@@ -8,18 +8,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import django
-
-# import chardet
-import dvc_pandas
-import polars as pl
 from dotenv import load_dotenv
-from dvc_pandas import Dataset, DatasetMeta, Repository
 
 # Set the Django settings module
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 
-# Configure Django
+# Configure Django (must happen before polars is imported via dvc_pandas)
 django.setup()
+
+# import chardet
+import dvc_pandas  # noqa: E402
+import polars as pl  # noqa: E402
+from dvc_pandas import Dataset, DatasetMeta, Repository  # noqa: E402
 
 from kausal_common.i18n.pydantic import TranslatedString  # noqa: E402
 
@@ -508,8 +508,18 @@ def push_to_dvc(
     if metrics:
         metadata['metrics'] = [node_metric_to_metadata_dict(m) for m in metrics]
 
-    # Create dataset metadata
-    meta = DatasetMeta(identifier=output_path, index_columns=index_columns, units=units, metadata=metadata)
+    # Persist index_columns in the .dvc file metadata so the round-trip is lossless.
+    # dvc_pandas.Dataset.dvc_metadata does NOT include index_columns, so without this
+    # the reading path falls back to parquet pandas-metadata detection, which fails when
+    # Year values [0, 1] are stored as a virtual pandas RangeIndex (no physical column).
+    metadata['index_columns'] = index_columns
+
+    # Create dataset metadata with index_columns=None so to_parquet() skips set_index().
+    # When set_index(['Year']) is called on Year=[0, 1] (or any 0-based consecutive range),
+    # pandas stores the index as a virtual RangeIndex — no physical Year column is written
+    # to the parquet, making the dataset unusable.  Keeping all columns physical and
+    # relying on index_columns in the .dvc metadata (above) is the correct approach.
+    meta = DatasetMeta(identifier=output_path, index_columns=None, units=units, metadata=metadata)
 
     # dvc_pandas.Dataset.to_parquet() calls df.to_pandas() then df.set_index(index_columns).
     # PathsDataFrame.to_pandas() already moves primary_keys into the index, so the columns

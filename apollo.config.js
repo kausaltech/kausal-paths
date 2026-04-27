@@ -17,7 +17,7 @@ const service = {
 export default {
   client: {
     service,
-    includes: ["**/*.gql"],
+    includes: ["**/*.gql", "**/tests/*.py"],
     excludes: [".*"],
   },
 };

@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.utils.translation import gettext_lazy as _
-from pydantic import BaseModel, Field, RootModel, validator
 
-import pandas as pd
 import polars as pl
 
 from common import polars as ppl
+from nodes.actions.params import ReduceParameter, ReduceParameterValue
 from nodes.constants import (
     FLOW_ID_COLUMN,
     FLOW_ROLE_COLUMN,
@@ -20,95 +18,14 @@ from nodes.constants import (
     YEAR_COLUMN,
 )
 from nodes.exceptions import NodeError
-from params import Parameter, ParameterWithUnit
-from params.param import BoolParameter, NumberParameter, ValidationError
+from params.param import BoolParameter, NumberParameter
 
 from .action import ActionNode
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
-    from nodes.node import Node
+    from nodes.actions.params import ReduceFlow, ReduceTarget
     from nodes.units import Unit
-
-
-class ReduceAmount(BaseModel):
-    year: int
-    amount: float
-
-
-class ReduceTarget(BaseModel):
-    node: str | int | None = None
-    # dimension_id -> category_id
-    categories: dict[str, str] = Field(default_factory=dict)
-
-
-class ReduceFlow(BaseModel):
-    target: ReduceTarget
-    amounts: list[ReduceAmount]
-
-    @validator('amounts')
-    def enough_years(cls, v):  # noqa: N805
-        if len(v) < 2:
-            raise ValueError('Must supply values for at least two years')
-        return v
-
-    def make_index(
-        self,
-        output_nodes: list[Node],
-        extra_level: str | None = None,
-        extra_level_values: Iterable[str] | None = None,
-    ) -> pd.MultiIndex:
-        dims: dict[str, set[str]] = {dim: set() for dim in list(self.target.categories.keys())}
-        nodes: set[str] = set()
-
-        def get_node_id(node: str | int | None) -> str:
-            if isinstance(node, str):
-                return node
-            if node is None:
-                nr = 0
-            else:
-                nr = node
-            return output_nodes[nr].id
-
-        nodes.add(get_node_id(self.target.node))
-        for dim, cat in self.target.categories.items():
-            dims[dim].add(cat)
-
-        level_list = list(dims.keys())
-        cat_list: list[set[str]] = [dims[dim] for dim in level_list]
-        level_list.insert(0, 'node')
-        cat_list.insert(0, nodes)
-        if extra_level:
-            level_list.append(extra_level)
-            assert extra_level_values is not None
-            cat_list.append(set(extra_level_values))
-        index = pd.MultiIndex(cat_list, names=level_list)  # type: ignore[arg-type]
-        return index
-
-
-class ReduceParameterValue(RootModel[list[ReduceFlow]]):
-    root: list[ReduceFlow]
-
-
-@dataclass
-class ReduceParameter(ParameterWithUnit, Parameter[ReduceParameterValue]):
-    value: ReduceParameterValue | None = None
-
-    unit_str: InitVar[str | None] = None
-
-    def __post_init__(self, unit_str: str | None):
-        self._init_unit(unit_str)
-        super().__post_init__()
-
-    def serialize_value(self) -> Any:
-        return super().serialize_value()
-
-    def clean(self, value: Any) -> ReduceParameterValue:
-        if not isinstance(value, list):
-            raise ValidationError(self, 'Input must be a list')
-
-        return ReduceParameterValue.validate(value)
+    from params import Parameter
 
 
 class ReduceAction(ActionNode):
@@ -235,7 +152,7 @@ class DatasetReduceAction(ActionNode):
     a multiplier.
     """)
 
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
         BoolParameter(local_id='relative_goal'),
     ]
 
@@ -300,6 +217,9 @@ class DatasetReduceAction(ActionNode):
 
         meta = gdf.get_meta()
         gdf = gdf.filter(pl.col(YEAR_COLUMN) > max_hist_year)
+        # Node output vs dataset/parquet often disagree on Int32 vs Int64 for Year; diagonal concat requires one dtype.
+        df = df.with_columns(pl.col(YEAR_COLUMN).cast(pl.Int64))
+        gdf = gdf.with_columns(pl.col(YEAR_COLUMN).cast(pl.Int64))
         df = ppl.to_ppdf(pl.concat([df, gdf], how='diagonal'), meta=meta)
 
         df = df.drop([m for m in df.metric_cols if df[m].is_null().all()])
@@ -398,6 +318,8 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
         gdf = gdf.paths.to_wide()
 
         meta = bdf.get_meta()
+        bdf = bdf.with_columns(pl.col(YEAR_COLUMN).cast(pl.Int64))
+        gdf = gdf.with_columns(pl.col(YEAR_COLUMN).cast(pl.Int64))
         gdf = ppl.to_ppdf(pl.concat([bdf, gdf], how='diagonal'), meta=meta)
         gdf = gdf.paths.make_forecast_rows(end_year=self.get_end_year())
         gdf = gdf.with_columns([pl.col(m).interpolate() for m in gdf.metric_cols])

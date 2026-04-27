@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, cast
 
+from django.utils.translation import gettext_lazy as _
+
 import polars as pl
 
 from common import polars as ppl
@@ -22,6 +24,8 @@ from nodes.simple import AdditiveNode, MixNode, MultiplicativeNode, SimpleNode
 from params.param import BoolParameter
 
 if TYPE_CHECKING:
+    from polars.expr.expr import Expr
+
     from nodes.units import Unit
 
 
@@ -409,7 +413,7 @@ class GasGridMixin(Node):
         zdf = df.select(YEAR_COLUMN).join(mdf, on=YEAR_COLUMN, how='left').join(sdf, on=YEAR_COLUMN, how='left')
         zdf = zdf.with_columns(pl.col('GridShare').fill_null(0.0))
 
-        def fc_only(col: str):
+        def fc_only(col: str) -> Expr:
             own_supply = (1 - zdf['GridShare']) * pl.col(col)
             grid_supply = zdf['GridShare'] * zdf[col] * pl.col('all_gas')
             return pl.when(pl.col(FORECAST_COLUMN)).then(own_supply + grid_supply).otherwise(pl.col(col)).fill_nan(0.0).alias(col)
@@ -432,7 +436,10 @@ class GasGridMixin(Node):
 
 
 class DistrictHeatProductionMix(MixNode, GasGridMixin):
-    allowed_parameters = [*MixNode.allowed_parameters, BoolParameter('use_gas_network', label='District heat uses gas grid mix')]
+    allowed_parameters = [
+        *MixNode.allowed_parameters,
+        BoolParameter(local_id='use_gas_network', label=_('District heat uses gas grid mix')),
+    ]
 
     def compute(self) -> ppl.PathsDataFrame:
         mix_df = self.get_input_dataset_pl()
@@ -594,7 +601,7 @@ class EmissionFactorActivity(Node):
         fdf = fn.get_output_pl(self)
         fdf = fdf.rename({VALUE_COLUMN: 'EF'})
         df = edf.paths.join_over_index(fdf, index_from='union')
-        if df['EF'].has_validity():
+        if df['EF'].has_nulls():
             self.print(df.filter(pl.col('EF').is_null()))
             raise NodeError(self, 'Emission factor not found for some categories')
 
@@ -704,7 +711,7 @@ class VehicleMileageHistorical(Node):
         m = self.get_default_output_metric()
         unit = df.get_unit('mileage')
         if '[vehicle]' not in unit.dimensionality:
-            unit = unit * self.context.unit_registry('vehicle')
+            unit = unit * self.context.unit_registry.parse_units('vehicle')
             df = df.set_unit('mileage', unit, force=True)
         df = df.rename({'mileage': m.column_id}).ensure_unit(m.column_id, m.unit)
         df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))

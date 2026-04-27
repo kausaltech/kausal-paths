@@ -2,41 +2,37 @@ from __future__ import annotations
 
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.utils import translation
-from graphql import VariableNode, get_argument_values
+from graphql import get_argument_values
 from graphql.error import GraphQLError
 from strawberry.utils.operation import get_first_operation
 
 import sentry_sdk
 from loguru import logger
 
+from kausal_common.i18n.pydantic import is_query_with_instance_context, set_i18n_context
 from kausal_common.strawberry.context import GraphQLContext
 from kausal_common.strawberry.extensions import AuthenticationExtension, ExecutionCacheExtension, GraphQLPerfNode, SchemaExtension
 
 from paths.context import PathsObjectCache
 
-from nodes.models import InstanceConfig
 from params.storage import SessionStorage
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from contextlib import AbstractContextManager
+    from uuid import UUID
 
     from graphql.language import DirectiveNode, OperationDefinitionNode
 
+    from paths.schema import PreviewMode
+
     from nodes.instance import Instance
-    from nodes.models import InstanceConfigQuerySet
+    from nodes.models import InstanceConfig, InstanceConfigQuerySet
 
 logger = logger.bind(markup=True)
-
-
-def _arg_value(arg, variable_vals) -> Any:
-    if isinstance(arg.value, VariableNode):
-        return variable_vals.get(arg.value.name.value)
-    return arg.value.value
 
 
 @dataclass
@@ -44,6 +40,13 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
     instance_config: InstanceConfig | None = None
     instance: InstanceType = field(init=False)
     cache: PathsObjectCache = field(init=False)
+
+    # Populated by DetermineInstanceContextExtension from @instance / @context
+    # directive arguments. Consumed by editing mutations for optimistic
+    # locking (`expected_version`) and by Phase 4's resolve_instance branch
+    # (`preview_mode`).
+    preview_mode: PreviewMode | None = None
+    expected_version: UUID | None = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -73,6 +76,8 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         return lang
 
     def get_ic_queryset(self) -> InstanceConfigQuerySet:
+        from nodes.models import InstanceConfig
+
         return (
             InstanceConfig.objects.get_queryset().select_related('framework_config').select_related('framework_config__framework')
         )
@@ -83,6 +88,8 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         identifier: str,
         directive: DirectiveNode | None = None,
     ) -> InstanceConfig:
+        from nodes.models import InstanceConfig
+
         try:
             if identifier.isnumeric():
                 instance = queryset.get(id=identifier)
@@ -98,6 +105,8 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         hostname: str,
         directive: DirectiveNode | None = None,
     ) -> InstanceConfig:
+        from nodes.models import InstanceConfig
+
         ctx = self.get_context()
         try:
             instance = queryset.for_hostname(hostname, wildcard_domains=ctx.wildcard_domains).get()
@@ -107,17 +116,24 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         return instance
 
     def process_instance_directive(self, directive: DirectiveNode) -> InstanceConfig:
+        from .schema import instance_directive as instance_directive_def
+
+        assert instance_directive_def.graphql_name is not None
         qs = self.get_ic_queryset()
         exec_ctx = self.execution_context
-        arguments = {arg.name.value: _arg_value(arg, exec_ctx.variables) for arg in directive.arguments}
+        directive_ast = exec_ctx.schema._schema.get_directive(instance_directive_def.graphql_name)
+        assert directive_ast is not None
+        arguments = get_argument_values(directive_ast, directive, exec_ctx.variables)
         identifier = arguments.get('identifier')
         hostname = arguments.get('hostname')
-        _token = arguments.get('token')
         if identifier:
-            return self.get_instance_by_identifier(qs, identifier, directive)
-        if hostname:
-            return self.get_instance_by_hostname(qs, hostname, directive)
-        raise GraphQLError('Invalid instance directive', directive)
+            ic = self.get_instance_by_identifier(qs, identifier, directive)
+        elif hostname:
+            ic = self.get_instance_by_hostname(qs, hostname, directive)
+        else:
+            raise GraphQLError('Invalid instance directive', directive)
+        self._apply_preview_and_version(arguments.get('preview'), arguments.get('version'))
+        return ic
 
     def process_context_directive(self, directive: DirectiveNode) -> tuple[InstanceConfig | None, str | None]:
         from .schema import context_directive
@@ -144,7 +160,25 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
             locale = ic.primary_language
         elif locale not in ic.supported_languages:
             raise GraphQLError('unsupported language: %s. Did you run --update-instance?' % locale, directive)
+        self._apply_preview_and_version(ctx.get('preview'), ctx.get('version'))
         return ic, locale
+
+    def _apply_preview_and_version(
+        self,
+        preview: Any,
+        version: Any,
+    ) -> None:
+        """
+        Stash the directive's ``preview`` / ``version`` args on the context.
+
+        ``preview`` reaches us as the ``PreviewMode`` enum instance (via
+        ``get_argument_values``) or ``None``. ``version`` is a ``UUID`` or
+        ``None``. Editing mutations later read ``expected_version`` to gate
+        the stale-check.
+        """
+        ctx = self.get_context()
+        ctx.preview_mode = preview
+        ctx.expected_version = version
 
     def process_instance_headers(self) -> InstanceConfig | None:
         headers = self.get_request_headers()
@@ -212,8 +246,10 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
 
 
 class ActivateInstanceContextExtension(PathsSchemaExtension):
+    @contextmanager
     def activate_language(self, lang: str):
-        return cast('AbstractContextManager[None, None]', translation.override(lang))
+        with translation.override(lang), set_i18n_context(lang, other_languages=[]):
+            yield
 
     def set_instance_scope(self) -> None:
         scope = sentry_sdk.get_current_scope()
@@ -254,7 +290,7 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
             context.set_option('normalizer', val)
         else:
             for n in context.normalizations.values():
-                if n.default:
+                if n.spec.default:
                     context.active_normalization = n
                     break
             else:
@@ -273,7 +309,10 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
         with ExitStack() as stack:
             with perf.exec_node(GraphQLPerfNode('prepare instance "%s"' % ic.identifier)):
                 stack.enter_context(self.activate_language(ctx.graphql_query_language))
-                with perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)):
+                with (
+                    perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)),
+                    is_query_with_instance_context.set(True),
+                ):
                     instance = stack.enter_context(ic.enter_instance_context())
                     ctx.instance = instance
                 context = instance.context

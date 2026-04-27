@@ -4,7 +4,7 @@ supported_languages: [fi]
 site_url: https://lucia.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d787c06e3ef94d33b02fb11a8523907eeb6976ae
+  commit: e4b56b6a12d6b9e9ecb5b2745b5f0b1497f381b4
   dvc_remote: kausal-s3
 name: Lucia Greenhouse Gas Inventory
 owner: Kausal Ltd
@@ -1292,14 +1292,15 @@ actions:
 - id: a11_reduce_all_motorised_transport
   name: 1.1 Reduce all motorised transport
   name_fi: 1.1 Vähennä kaikkea moottoroitua liikennettä
-  type: gpc.DatasetAction2  # TODO Allow historical values in LinearCumulativeAdditiveAction.
+  type: simple.GenericAction  # TODO Allow historical values in LinearCumulativeAdditiveAction.
   quantity: fraction
   unit: '%'
   group: transport
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Transportation need reduction by 2030 from urban planning, digital 
-      meetings and other transport-reducing initiatives
+  input_datasets:
+  - id: nzc/transport_actions
+    column: transportation_need_reduction_by_2030_from_urban_pla
+    filters:
+    - column: uuid
   output_nodes:
   - id: motorised_transport_change
     to_dimensions: []
@@ -1308,13 +1309,15 @@ actions:
 - id: a12_modal_switch_from_cars_to_other_modes
   name: 1.2 Modal switch from cars to other modes
   name_fi: 1.2 Kulkumuotosiirtymä autoista muihin kulkumuotoihin
-  type: gpc.DatasetAction2
+  type: simple.GenericAction
   quantity: fraction
   unit: '%'
   group: transport
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Reduced Pkm cars + motorcycles by 2030
+  input_datasets:
+  - id: nzc/transport_actions
+    column: reduced_pkm_cars_motorcycles_by_2030
+    filters:
+    - column: uuid
   output_nodes:
   - id: passenger_kilometres_switched
     to_dimensions: []
@@ -1324,33 +1327,36 @@ actions:
   name_fi: 1.3 Henkilöautojen matkustajamäärän lisääminen
   description: How many % increase there is in the average number of people in a
     car.
-  type: gpc.DatasetAction2
+  type: simple.GenericAction
   quantity: fraction
   unit: '%'
   group: transport
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
+  input_datasets:
+  - id: nzc/transport_actions
+    column: 13_car_pooling
+    filters:
+    - column: uuid
   output_nodes:
   - id: relative_transport_efficiency
     to_dimensions:
     - id: transport_mode
-  params:
-    sector: 1.3 Car pooling
 
 - id: a141_electrification_of_passenger_cars
   name: 1.4.1 Electrification of passenger cars
   name_fi: 1.4.1 Henkilöautojen sähköistäminen
-  type: gpc.SCurveAction
+  type: simple.SCurveAction
   quantity: fraction
   unit: '%'
   group: transport
   input_dimensions: [energy_carrier, transport_mode]
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Electrification of transport fleet
+  - id: nzc/transport_actions
+    column: electrification_of_transport_fleet
+    filters:
+    - column: uuid
   input_nodes:
   - id: fully_electric_vehicle_share_historical
     from_dimensions:
@@ -1363,17 +1369,18 @@ actions:
   name: 1.4.2 Electrification of buses
   name_fi: 1.4.2 Linja-autojen sähköistäminen
   description: Fraction of buses that is replaced with electric buses each year.
-  type: gpc.DatasetAction2
+  type: simple.GenericAction
   quantity: fraction
   unit: '%/a'
   group: transport
   input_dimensions: [energy_carrier, transport_mode]
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
-  - id: nzc/defaults
+  - id: nzc/transport_actions
+    column: expected_procurement_schedule_for_buses
     forecast_from: 2020
-  params:
-    sector: Expected procurement schedule for buses
+    filters:
+    - column: uuid
   output_nodes:
   - id: fully_electric_bus_share
     tags: [cumulative]
@@ -1409,37 +1416,35 @@ actions:
 - id: a212_route_optimisation
   name: 2.1.2 Route optimisation
   name_fi: 2.1.2 Reittioptimointi
-  type: gpc.DatasetAction2
+  type: simple.GenericAction
   quantity: fraction
   unit: '%'
   group: freight_transport
   parent: a21_optimised_logistics
   input_datasets:
-  - id: nzc/defaults
+  - id: nzc/transport_actions
+    column: reduction_of_total_distance_travelled_through_route_
+    filters:
+    - column: uuid
   output_nodes:
   - id: freight_transport_vehicle_kilometres
     tags: [complement, non_additive]
     to_dimensions: []
-  params:
-    sector: Reduction of total distance travelled through route optimisation
 
 - id: a22_truck_fleet_electrification
   name: 2.2 Truck fleet electrification
   name_fi: 2.2 Kuorma-autokannan sähköistäminen
-  type: gpc.SCurveAction
+  type: simple.SCurveAction
   quantity: fraction
   unit: '%'
   group: freight_transport
   input_dimensions: [energy_carrier, transport_mode]
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
-  - id: nzc/defaults
+  - id: nzc/transport_actions
+    column: electrification_of_transport_fleet
     filters:
-    - column: Transport mode
-      values: [light_trucks, heavy_trucks]
-      drop_col: false
-  params:
-    sector: Electrification of transport fleet
+    - column: uuid
   input_nodes:
   - id: fully_electric_truck_share_historical
   output_nodes:
@@ -1678,21 +1683,19 @@ actions:
   output_nodes:
   - id: heating_waste_fossil_share
 
-- id: a344_top_performance_improvement # FIXME New dataset is broken: thinks that Year is data.
-  # FIXME See load_dvc_dataset.py line 183.
+- id: a344_top_performance_improvement
   name: 3.4.4 Top performance standard improvement compared with the regular new
     buildings
-  name_fi: 3.4.4 Huippusuorituskyvyn parannus verrattuna tavallisiin uusiin 
+  name_fi: 3.4.4 Huippusuorituskyvyn parannus verrattuna tavallisiin uusiin
     rakennuksiin
-  type: gpc.DatasetAction2
+  type: simple.GenericAction
   quantity: fraction
   unit: '%'
   group: buildings
   parent: a34_decarbonising_heat_generation
-  input_datasets: [nzc/defaults]
-  params:
-    sector: 3.4.4 Top performance standard improvement compared with the regular
-      new buildings
+  input_datasets:
+  - id: nzc/building_actions
+    column: 344_top_performance_standard_improvement_compared_
   output_nodes:
   - id: energy_use_intensity_change_new
     to_dimensions:
@@ -1764,7 +1767,7 @@ actions:
 - id: a61_reduced_co2_emissions_in_other_sectors
   name: 6.1 Reduced CO2 emissions in other sectors
   name_fi: 6.1 Vähennetyt CO2-päästöt muilla sektoreilla
-  type: gpc.DatasetAction2
+  type: simple.GenericAction
   quantity: fraction
   unit: '%'
   group: scope_3
@@ -1773,11 +1776,11 @@ actions:
     tags: [non_additive, complement]
     to_dimensions: []
   input_datasets:
-  - id: nzc/defaults
+  - id: nzc/other_actions
+    column: reduced_co2e_emissions_committed_by_industry_agricu
     forecast_from: 2025
-  params:
-    sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in 
-      Other sector
+    filters:
+    - column: uuid
 
 # --------------- Scope 3 ---------------
 
@@ -5232,15 +5235,16 @@ nodes:
 - id: renovation_intensity_shares_goal
   name_en: Renovation intensity shares goal
   name_fi: Peruskorjausten intensiteetin osuuksien tavoite
-  type: gpc.DatasetPlusOneNode
+  type: generic.DatasetPlusOneNode
   quantity: fraction
   unit: '%'
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Assumed share of type of renovation in lever
+  - id: nzc/buildings_stock_renovation
+    column: assumed_share_of_type_of_renovation_in_lever
+    filters:
+    - column: uuid
 
 - id: renovation_intensity_shares
   name_en: Renovation intensity shares
@@ -5376,15 +5380,16 @@ nodes:
 - id: energy_use_intensity_change_new
   name_en: Energy use intensity change for new buildings
   name_fi: Energiankäytön intensiteetin muutos uudisrakennuksille
-  type: gpc.DatasetPlusOneNode
+  type: generic.DatasetPlusOneNode
   quantity: fraction
   unit: '%'
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
   input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Improvement in energy efficiency relative to minimum requirement
+  - id: nzc/buildings_stock_renovation
+    column: improvement_in_energy_efficiency_relative_to_minimum
+    filters:
+    - column: uuid
 
 - id: energy_use_intensity_new
   name_en: Energy use intensity for heating of new buildings
@@ -5882,10 +5887,10 @@ nodes:
 - id: heating_emission_factor
   name_en: Heating emission factor
   name_fi: Lämmityksen päästökerroin
-  description_en: Emission factor for building heating. This applies only to
+  description_en: Emission factor for building heating. This applies only to 
     fossil fuel types, as non-fossil fuels are assumed to have zero emissions.
-  description_fi: Rakennusten lämmityksen päästökerroin. Tämä koskee vain
-    fossiilisia polttoainetyyppejä, sillä ei-fossiilisten polttoaineiden
+  description_fi: Rakennusten lämmityksen päästökerroin. Tämä koskee vain 
+    fossiilisia polttoainetyyppejä, sillä ei-fossiilisten polttoaineiden 
     päästöjen oletetaan olevan nolla.
   type: generic.GenericNode
   quantity: emission_factor
@@ -6053,15 +6058,16 @@ nodes:
 - id: efficient_appliances_renovation_rate_goal
   name_en: Lighting & appliances renovation rate goal
   name_fi: Valaistuksen ja laitteiden peruskorjausasteen tavoite
-  type: gpc.DatasetPlusOneNode
+  type: generic.DatasetPlusOneNode
   quantity: fraction
   unit: '%/a'
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: 3.3 Efficient lighting & appliances
+  - id: nzc/buildings_stock_renovation
+    column: 33_efficient_lighting_appliances
+    filters:
+    - column: uuid
 
 - id: efficient_appliances_rate
   name_en: Lighting & appliances renovation rate
@@ -6174,7 +6180,7 @@ nodes:
 - id: electricity_non_renovated_old_buildings
   name_en: Electricity-non-renovated old buildings
   name_fi: Sähköperuskorjaamattomat vanhat rakennukset
-  description_en: Old buildings that have not (yet) gone through electricity
+  description_en: Old buildings that have not (yet) gone through electricity 
     renovation
   description_fi: Vanhat rakennukset, joita ei ole (vielä) sähköremontoitu
   type: generic.GenericNode

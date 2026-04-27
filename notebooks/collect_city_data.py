@@ -15,7 +15,6 @@ import django
 from django.conf import settings  # pyright: ignore[reportUnusedImport]
 
 # import altair as alt
-import polars as pl
 import yaml
 
 # from great_tables import GT
@@ -28,6 +27,8 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 
 # Configure Django
 django.setup()
+
+import polars as pl
 
 from common import polars as ppl  # noqa: E402
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
@@ -132,7 +133,7 @@ class DataCollection:
 
     def convert_to_target_units(self) -> DataCollection:
         multipliers: dict[str, Quantity] = {
-            'kt_co2e/a': unit_registry('1 * kt/kt_co2e'),
+            'kt_co2e/a': unit_registry.parse_expression('1 * kt/kt_co2e'),
         }
         for instance in self.instances:
             for node in instance.nodes:

@@ -136,13 +136,13 @@ def _unit_dimensionless(_unit: Unit | None) -> Unit:
 def _unit_mul_time(unit: Unit | None) -> Unit | None:
     if unit is None:
         return None
-    return cast('Unit', unit * unit_registry(TIME_INTERVAL))
+    return cast('Unit', unit * unit_registry.parse_units(TIME_INTERVAL))
 
 
 def _unit_div_time(unit: Unit | None) -> Unit | None:
     if unit is None:
         return None
-    return cast('Unit', unit / unit_registry(TIME_INTERVAL))
+    return cast('Unit', unit / unit_registry.parse_units(TIME_INTERVAL))
 
 
 def _unit_geometric_inverse(unit: Unit | None) -> Unit | None:
@@ -716,8 +716,8 @@ class NodeExplanationSystem:
                     if node_unit is None or input_unit is None:
                         basket = 'unknown'
                     else:
-                        n_dim = unit_registry(node_unit).dimensionality
-                        i_dim = unit_registry(input_unit).dimensionality
+                        n_dim = unit_registry.parse_units(node_unit).dimensionality
+                        i_dim = unit_registry.parse_units(input_unit).dimensionality
                         basket = 'add' if n_dim == i_dim else 'multiply'
 
                 if basket not in baskets[node_id]:
@@ -1021,7 +1021,10 @@ class DatasetRule(ValidationRule):
             vals.append(v)
         if ref:
             param = context.global_parameters[ref]
-            vals.append(_('global parameter %(label)s') % {'label': param.label})
+            label = param.label
+            if isinstance(label, dict):
+                label = next(iter(label.values()), '')
+            vals.append(_('global parameter %(label)s') % {'label': str(label)})
         drop: bool = d.get('drop_col', True)
         exclude: bool = d.get('exclude', False)
         if ''.join(vals):

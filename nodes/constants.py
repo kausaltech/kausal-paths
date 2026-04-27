@@ -168,6 +168,15 @@ class DecisionLevel(Enum):
     NATION = 2
     EU = 3
 
+    def as_str(self) -> str:
+        match self:
+            case DecisionLevel.MUNICIPALITY:
+                return 'municipality'
+            case DecisionLevel.NATION:
+                return 'nation'
+            case DecisionLevel.EU:
+                return 'eu'
+
 
 QUANTITY_ICONS = {
     EMISSION_QUANTITY: '💨',

@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import functools
 import re
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict, overload
 
 from django.utils.translation import gettext_lazy as _
 
 import numpy as np
 import polars as pl
 
+from kausal_common.debugging.helpers import hide_from_traceback
+from kausal_common.perf.perf_context import PerfKind, estimate_size_bytes
+
 from common import polars as ppl
 from common.polars import PathsDataFrame
-from nodes.actions import ActionNode
+from nodes.actions.action import ActionNode
 from nodes.calc import extend_last_historical_value_pl
 from nodes.node import NodeMetric
 from nodes.units import Quantity, Unit, unit_registry
@@ -36,6 +40,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any
 
+    from kausal_common.perf.perf_context import PerfAttrs, PerfSpanEntry
+
+    from nodes.context import Context
     from nodes.node import Node
     from params import Parameter
 
@@ -56,11 +63,11 @@ class GenericNode(SimpleNode):
 
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
-        StringParameter(local_id='operations', label='Comma-separated list of operations to execute in order'),
-        StringParameter(local_id='categories', label='Dimension and categories to select'),
-        NumberParameter(local_id='selected_number', label='Number of the selected category'),
-        BoolParameter(local_id='do_correction', label='Correct values with a correction factor?'),
-        NumberParameter(local_id='no_correction_value', label='Value to use for no correction'),
+        StringParameter(local_id='operations', label=_('Comma-separated list of operations to execute in order')),
+        StringParameter(local_id='categories', label=_('Dimension and categories to select')),
+        NumberParameter(local_id='selected_number', label=_('Number of the selected category')),
+        BoolParameter(local_id='do_correction', label=_('Correct values with a correction factor?')),
+        NumberParameter(local_id='no_correction_value', label=_('Value to use for no correction')),
     ]
     # Class-level default operations
     DEFAULT_OPERATIONS = 'get_single_dataset,multiply,add,other,apply_multiplier'  # FIXME
@@ -176,14 +183,11 @@ class GenericNode(SimpleNode):
             if edge_or_node_tags.intersection(TAG_TO_BASKET.keys()):
                 continue
             # Untagged: assign by unit compatibility
-            try:
-                out_df = node.get_output_pl(target_node=self)
-                df_unit = out_df.get_unit(VALUE_COLUMN)
-                if self.is_compatible_unit(self.unit, df_unit):
-                    add_nodes.append(node)
-                else:
-                    multiply_nodes.append(node)
-            except Exception:
+            out_df = node.get_output_pl(target_node=self)
+            df_unit = out_df.get_unit(VALUE_COLUMN)
+            if self.is_compatible_unit(self.unit, df_unit):
+                add_nodes.append(node)
+            else:
                 multiply_nodes.append(node)
         return add_nodes, multiply_nodes
 
@@ -375,6 +379,88 @@ class GenericNode(SimpleNode):
     def add_missing_years(self, df: PathsDataFrame) -> PathsDataFrame:
         return df.paths._add_missing_years(df, self.context)
 
+    def get_operation_span_attrs(
+        self,
+        op_name: str,
+        df: PathsDataFrame | None,
+        *,
+        source: Literal['node', 'dataframe'],
+    ) -> PerfAttrs:
+        attrs: PerfAttrs = {
+            'node.id': self.id,
+            'node.class': type(self).__name__,
+            'generic.op.name': op_name,
+            'generic.op.source': source,
+        }
+        if df is not None:
+            attrs['generic.op.input.rows'] = len(df)
+            attrs['generic.op.input.columns'] = len(df.columns)
+            attrs['generic.op.input.in_memory.bytes'] = estimate_size_bytes(df)
+        return attrs
+
+    def set_operation_result_attrs(self, event: PerfSpanEntry[Any] | None, df: PathsDataFrame | None) -> None:
+        if event is None:
+            return
+        if df is None:
+            event.set_attr('generic.op.output.none', value=True)
+            return
+        event.set_attr('generic.op.output.rows', len(df))
+        event.set_attr('generic.op.output.columns', len(df.columns))
+        event.set_attr('generic.op.output.in_memory.bytes', estimate_size_bytes(df))
+
+    @overload
+    def _measured_op(
+        self,
+        func: Callable[[PathsDataFrame, Context], OperationReturn],
+        op_name: str,
+        *,
+        source: Literal['dataframe'],
+    ) -> Callable[[PathsDataFrame, Context], OperationReturn]: ...
+
+    @overload
+    def _measured_op(
+        self,
+        func: Callable[[PathsDataFrame | None], OperationReturn],
+        op_name: str,
+        *,
+        source: Literal['node'],
+    ) -> Callable[[PathsDataFrame | None], OperationReturn]: ...
+
+    def _measured_op(
+        self,
+        func: Callable[..., OperationReturn],
+        op_name: str,
+        *,
+        source: Literal['node', 'dataframe'],
+    ) -> Callable[..., OperationReturn]:
+        @functools.wraps(func)
+        def wrapped(df: PathsDataFrame | None, context: Context | None = None) -> OperationReturn:
+            hide_from_traceback()
+            attrs = self.get_operation_span_attrs(op_name, df, source=source)
+            span_name = f'{self.id}: {source} op {op_name}'
+
+            if source == 'dataframe':
+                assert df is not None
+                assert context is not None
+            else:
+                assert source == 'node'
+                assert context is None
+            with self.context.start_perf_span(
+                span_name,
+                kind=PerfKind.NODE,
+                id=self.id,
+                op=f'generic.{op_name}',
+                attributes=attrs,
+            ) as (_, event):
+                if context is None:
+                    result = func(df)
+                else:
+                    result = func(df, context)
+                self.set_operation_result_attrs(event, result)
+            return result
+
+        return wrapped
+
     # -----------------------------------------------------------------------------------
     def _operation_select_variant(self, df: PathsDataFrame) -> OperationReturn:
         filt = self.get_parameter_value_str('categories', required=False)
@@ -447,14 +533,22 @@ class GenericNode(SimpleNode):
 
         df = None
         for op_name in operations:
-            if df is not None and op_name in df.paths.OPERATIONS:
-                op = df.paths.OPERATIONS[op_name]
+            if df is not None and df.paths.has_operation(op_name):
+                op = self._measured_op(
+                    df.paths.get_operation(op_name),
+                    op_name,
+                    source='dataframe',
+                )
                 df = op(df, self.context)
             else:
                 if op_name not in self.OPERATIONS:
                     raise NodeError(self, f'Unknown operation: {op_name}')
-                operation_func = self.OPERATIONS[op_name]
-                df = operation_func(df)
+                op = self._measured_op(
+                    self.OPERATIONS[op_name],
+                    op_name,
+                    source='node',
+                )
+                df = op(df)
         if not isinstance(df, PathsDataFrame):
             raise NodeError(self, 'The output is not a PathsDataFrame.')
 
@@ -661,19 +755,31 @@ class WeightedSumNode(GenericNode):
         """Process a single node with its weights and return the weighted output."""
         # Get node output
         node_output = node.get_output_pl(target_node=self)
+        node_output_unit = node_output.get_unit(VALUE_COLUMN)
 
-        # Find the metric column that has non-null values for this node
+        # Prefer the metric whose unit makes the weighted result compatible with this node's output unit.
         valid_metric = None
         metrics = node_weights.metric_cols.copy()
         for col in metrics:
-            if col in node_weights.columns and node_weights[col].null_count() < len(node_weights):
+            if col not in node_weights.columns or node_weights[col].null_count() == len(node_weights):
+                continue
+            weighted_unit = node_output_unit * node_weights.get_unit(col)
+            if self.is_compatible_unit(self.unit, weighted_unit):
                 valid_metric = col
-                metrics.remove(col)
                 break
 
-        node_weights = node_weights.drop(metrics)
+        if valid_metric is None:
+            for col in metrics:
+                if col in node_weights.columns and node_weights[col].null_count() < len(node_weights):
+                    valid_metric = col
+                    break
+
         if not valid_metric:
             raise NodeError(self, f'No valid metric column found for weight dataset for node {node.id}')
+
+        drop_metrics = [col for col in metrics if col != valid_metric]
+        if drop_metrics:
+            node_weights = node_weights.drop(drop_metrics)
 
         # Create a version with this metric renamed to VALUE_COLUMN
         if valid_metric != VALUE_COLUMN:
@@ -800,7 +906,7 @@ class DimensionalSectorNode(GenericNode):
     quantity = EMISSION_QUANTITY
     allowed_parameters = [
         *GenericNode.allowed_parameters,
-        StringParameter(local_id='sector', label='Sector path in HSY emission database', is_customizable=False),
+        StringParameter(local_id='sector', label=_('Sector path in HSY emission database'), is_customizable=False),
     ]
 
     def parse_dimension_names_from_sector_string(self, sector_name: str) -> SectorParseResult:
@@ -992,7 +1098,7 @@ class IterativeNode(GenericNode):
             df_out = base_df.paths.join_over_index(df, how='left', index_from='left')
             df_out = df_out.rename({VALUE_COLUMN + '_right': 'changes'})
             # Adjust units for changes
-            df_out = df_out.set_unit('changes', df_out.get_unit('changes') * unit_registry('a'), force=True)
+            df_out = df_out.set_unit('changes', df_out.get_unit('changes') * unit_registry.parse_units('a'), force=True)
             df_out = df_out.ensure_unit('changes', df_out.get_unit(VALUE_COLUMN))
 
         # Fill missing changes with zero and join rates
@@ -1570,10 +1676,10 @@ class GenerationCapacityNode(GenericNode):
     }
     allowed_parameters = [
         *GenericNode.allowed_parameters,
-        NumberParameter('lifetime', label=_('Lifetime of the installation in full years')),
-        NumberParameter('efficiency', label=_('Intrinsic production efficiency')),
-        NumberParameter('performance_ratio', label=_('Performance without losses')),
-        NumberParameter('ef_upstream_production', label=_('Scope 3 emissions from upstream of installation')),
+        NumberParameter(local_id='lifetime', label=_('Lifetime of the installation in full years')),
+        NumberParameter(local_id='efficiency', label=_('Intrinsic production efficiency')),
+        NumberParameter(local_id='performance_ratio', label=_('Performance without losses')),
+        NumberParameter(local_id='ef_upstream_production', label=_('Scope 3 emissions from upstream of installation')),
     ]
     DEFAULT_OPERATIONS = 'add,generation_capacity'
 
@@ -1616,12 +1722,12 @@ class GenerationCapacityNode(GenericNode):
 class ChpNode(GenericNode):
     allowed_parameters = [
         *GenericNode.allowed_parameters,
-        StringParameter('method', label=_('Emission splitting method')),
-        NumberParameter('electricity_fraction', label=_('Fraction of electricity in the output energy')),
-        NumberParameter('t_supply', label=_('Temperature (in K) of district heating supply slow')),
-        NumberParameter('t_return', label=_('Temperature (in K) of district heating return flow')),
-        NumberParameter('electricity_reference_efficiency', label=_('Efficiency of producing electricity separately')),
-        NumberParameter('heat_reference_efficiency', label=_('Efficiency of producing heat separately')),
+        StringParameter(local_id='method', label=_('Emission splitting method')),
+        NumberParameter(local_id='electricity_fraction', label=_('Fraction of electricity in the output energy')),
+        NumberParameter(local_id='t_supply', label=_('Temperature (in K) of district heating supply slow')),
+        NumberParameter(local_id='t_return', label=_('Temperature (in K) of district heating return flow')),
+        NumberParameter(local_id='electricity_reference_efficiency', label=_('Efficiency of producing electricity separately')),
+        NumberParameter(local_id='heat_reference_efficiency', label=_('Efficiency of producing heat separately')),
     ]
     DEFAULT_OPERATIONS = 'add,chp_ef_split'
 
@@ -1715,8 +1821,8 @@ class ChpNode(GenericNode):
 class ConstantNode(GenericNode):
     allowed_parameters = [
         *GenericNode.allowed_parameters,
-        NumberParameter('constant', label=_('Constant value')),
-        BoolParameter('condition', label=_('Boolean parameter to convert to float')),
+        NumberParameter(local_id='constant', label=_('Constant value')),
+        BoolParameter(local_id='condition', label=_('Boolean parameter to convert to float')),
     ]
     DEFAULT_OPERATIONS = 'constant,add'
 
@@ -1747,3 +1853,53 @@ class ConstantNode(GenericNode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.OPERATIONS['constant'] = self._operation_constant
+
+
+class DatasetPlusOneNode(GenericNode):
+    """
+    Goal-setting node that includes reference_year+1 data alongside the regular dataset.
+
+    When the global parameter 'measure_data_baseline_year_only' is True, the normal
+    GenericNode pipeline would otherwise discard all years except those needed for
+    inventory. This subclass inserts a 'baseline_plus_one' operation right after
+    'get_single_dataset' to additionally keep reference_year+1, which some downstream
+    action nodes require for interpolation.
+
+    Operation order: get_single_dataset → baseline_plus_one → multiply → add → other → apply_multiplier
+    """
+
+    explanation = _(
+        'GenericNode for goal-setting: keeps reference_year+1 rows in addition to the '
+        + 'standard baseline filtering when measure_data_baseline_year_only is enabled.'
+    )
+    DEFAULT_OPERATIONS = 'get_single_dataset,baseline_plus_one,multiply,add,other,apply_multiplier'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.OPERATIONS['baseline_plus_one'] = self._operation_baseline_plus_one
+
+    def _operation_baseline_plus_one(self, df: PathsDataFrame | None) -> OperationReturn:
+        """
+        Filter data based on the following rules.
+
+        When measure_data_baseline_year_only is True, filter data to:
+          - reference_year
+          - reference_year + 1  (needed by downstream action interpolation)
+          - years beyond maximum_historical_year
+          - any row already marked as forecast
+        """
+        if df is None:
+            return None
+        if not self.get_global_parameter_value('measure_data_baseline_year_only', required=False):
+            return df
+
+        ref_year = self.context.instance.reference_year
+        max_hist_year = self.context.instance.maximum_historical_year
+
+        filt = (pl.col(YEAR_COLUMN) == ref_year) | (pl.col(YEAR_COLUMN) > max_hist_year)
+        if isinstance(ref_year, int):
+            filt = filt | (pl.col(YEAR_COLUMN) == ref_year + 1)
+        if FORECAST_COLUMN in df.columns:
+            filt = filt | pl.col(FORECAST_COLUMN)
+
+        return df.filter(filt)
