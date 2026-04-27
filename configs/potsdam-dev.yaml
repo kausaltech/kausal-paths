@@ -5,7 +5,7 @@ supported_languages: [en]
 site_url: https://potsdam-dev.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 84228c0284ca88912e48d695a4e3e4068c91c578
+  commit: 508c60da55f4ae36597a79ddee7f9c739756e10a
   dvc_remote: kausal-s3
 name: Klima-Monitor-Potsdam Haushalte
 owner: Stadt Potsdam
@@ -21,11 +21,36 @@ emission_dimensions: [energy_carrier, sector]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
-  show_explanations: false
+  show_explanations: true
 
 include:
 - file: frameworks/standard_dims.yaml
   allow_override: true
+
+impact_overviews:
+
+- graph_type: simple_effect
+  effect_node: pro_potsdam_emissions
+  indicator_unit: kt
+  label_de: Pro Potsdam CO₂-Emissionen (Fernwärme)
+  label_en: Pro Potsdam CO₂ Emissions (District Heating)
+
+- graph_type: cost_efficiency
+  effect_node: net_emissions
+  effect_unit: kt
+  cost_node: pro_potsdam_cold_rent
+  cost_unit: MEUR
+  indicator_unit: EUR/t
+  label_de: Pro Potsdam Kaltmiete gesamt pro t CO₂-Emissionen
+  label_en: Pro Potsdam Total Cold Rent per t CO₂-Emission
+
+- graph_type: cost_benefit
+  effect_node: total_costs
+  indicator_unit: MEUR
+  outcome_dimension: cost_type
+  stakeholder_dimension: stakeholder
+  label_de: Gesamtkosten und -nutzen
+  label_en: Total costs and benefits
 
 params:
 - id: weather_correction
@@ -608,9 +633,82 @@ nodes:
   quantity: currency
   unit: MEUR/a
   is_outcome: true
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_nodes:
   - id: pro_potsdam_total_floor_area
   - id: pro_potsdam_cold_rent_per_m2
+    to_dimensions:
+    - id: cost_type
+      categories: [rent]
+    - id: stakeholder
+      categories: [tenant]
+
+# placeholder: 0.15 EUR/kWh = 150 EUR/MWh; replace with EWP/Gasag data
+- id: pro_potsdam_average_energy_price
+  name: Pro Potsdam Ø Wärmepreis
+  name_en: Pro Potsdam Avg. Heat Energy Price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/MWh
+  historical_values: [[2023, 150]]
+  forecast_values: [[2024, 150], [2050, 150]]
+
+- id: pro_potsdam_energy_costs
+  name: Pro Potsdam Energiekosten Wärme
+  name_en: Pro Potsdam Heat Energy Costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: pro_potsdam_heat_demand
+  - id: pro_potsdam_average_energy_price
+    to_dimensions:
+    - id: cost_type
+      categories: [energy_costs]
+    - id: stakeholder
+      categories: [tenant]
+
+- id: pro_potsdam_total_costs
+  name: Pro Potsdam Gesamtkosten (Miete + Energie)
+  name_en: Pro Potsdam Total Costs (Rent + Energy)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  is_outcome: true
+  input_nodes:
+  - id: pro_potsdam_cold_rent
+  - id: pro_potsdam_energy_costs
+
+# energy_carrier × sector from corrected_energy; to be replaced with Pro Potsdam-specific data
+- id: corrected_energy_costs
+  name: Energiekosten gesamt (alle Sektoren, vorläufig)
+  name_en: Total energy costs (all sectors, placeholder)
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: pro_potsdam_average_energy_price
+  - id: corrected_energy
+
+- id: total_costs
+  name: Gesamtkosten
+  name_en: Total costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  is_outcome: true
+  input_nodes:
+  - id: pro_potsdam_cold_rent
+  - id: pro_potsdam_energy_costs
 
 # SUMMARY IMPACTS
 
@@ -1017,28 +1115,52 @@ actions:
   name: Pro Potsdam Sanierung EH 55
   name_en: Pro Potsdam Renovation EH 55
   type: simple.AdditiveAction
-  quantity: energy
-  unit: MWh/a
   group: heat_consumption
-  historical_values: [[2023, 0]]
-  forecast_values: [[2024, 0], [2030, -4200], [2040, -12600], [2050, -16800]]
-  input_dataset_processors: [LinearInterpolation]
+  output_metrics:
+  - id: energy_reduction
+    unit: kWh/m**2/a
+    quantity: energy
+  - id: additional_cost
+    unit: EUR/m**2/month
+    quantity: unit_price
+  input_datasets:
+  - id: potsdam/pro_potsdam_renovation
+    forecast_from: 2025
+    interpolate: true
+    filters:
+    - column: action
+      value: eh55
   output_nodes:
-  - id: pro_potsdam_heat_demand
+  - id: pro_potsdam_heat_demand_per_m2
+    metrics: [energy_reduction]
+  - id: pro_potsdam_cold_rent_per_m2
+    metrics: [additional_cost]
 
 - id: pro_potsdam_renovation_eh40
   name: Pro Potsdam Sanierung EH 40 (zusätzlich zu EH 55)
   name_en: Pro Potsdam Renovation EH 40 (additional to EH 55)
   # Note: only meaningful when pro_potsdam_renovation_eh55 is also enabled
   type: simple.AdditiveAction
-  quantity: energy
-  unit: MWh/a
   group: heat_consumption
-  historical_values: [[2023, 0]]
-  forecast_values: [[2024, 0], [2030, -4200], [2040, -12600], [2050, -16800]]
-  input_dataset_processors: [LinearInterpolation]
+  output_metrics:
+  - id: energy_reduction
+    unit: kWh/m**2/a
+    quantity: energy
+  - id: additional_cost
+    unit: EUR/m**2/month
+    quantity: unit_price
+  input_datasets:
+  - id: potsdam/pro_potsdam_renovation
+    forecast_from: 2025
+    interpolate: true
+    filters:
+    - column: action
+      value: eh40
   output_nodes:
-  - id: pro_potsdam_heat_demand
+  - id: pro_potsdam_heat_demand_per_m2
+    metrics: [energy_reduction]
+  - id: pro_potsdam_cold_rent_per_m2
+    metrics: [additional_cost]
 
 - id: pro_potsdam_rent_subsidy
   name: Pro Potsdam Mietsubvention
@@ -1052,6 +1174,11 @@ actions:
   forecast_values: [[2024, 0], [2050, 0]]
   output_nodes:
   - id: pro_potsdam_cold_rent
+    to_dimensions:
+    - id: cost_type
+      categories: [rent]
+    - id: stakeholder
+      categories: [tenant]
 
 - id: individual_heating_transition
   name: Umstieg Einzelversorgung auf Wärmepumpen

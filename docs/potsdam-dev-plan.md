@@ -74,199 +74,212 @@ Das Modell wird voraussichtlich bestätigen, was die Vorbesprechung am 9. April 
 
 | Aktion | Zuständig | Zeitpunkt |
 |--------|-----------|-----------|
-| Gebäude- und Energiedaten Pro Potsdam (Excel) übermitteln | Sebastian Möller / Pro Potsdam | baldmöglichst |
-| Aktuellen Brennstoffmix EWP Fernwärme bestätigen | Cordine Lippert / EWP | baldmöglichst |
+| Gebäude- und Energiedaten Pro Potsdam (Excel) übermitteln | S.M. / Pro Potsdam | baldmöglichst |
+| Aktuellen Brennstoffmix EWP Fernwärme bestätigen | C.L. / EWP | baldmöglichst |
 | Energiepreise für Fernwärme und Erdgas (EUR/MWh) | EWP / Stadtwerke | baldmöglichst |
-| Modellentwicklung und Integration | Kausal (Sonja-Maria / Jouni) | laufend nach Datenverfügbarkeit |
+| Modellentwicklung und Integration | Kausal (S-M.I. / J.T.) | laufend nach Datenverfügbarkeit |
 
 ---
 
 ---
 
-## Part B — Technical Implementation Plan
+## Part B — Technical Implementation Log and Remaining Work
 
 ### Context
 
 This document describes the `potsdam-dev` model instance: a development fork of `potsdam-gpc` extended to analyse the EH 55 vs. EH 40 building standard question and the interaction between building renovation and energy supply decarbonisation. The instance is explicitly designed to model Pro Potsdam Wohnen as a standalone sub-system.
 
----
-
-### 0. Prerequisites
-
-**Migration issue (must fix before any development)**
-
-Migrations `0042–0044` were applied to the local DB from `feat/trailhead` but the source files do not exist on `main`. Run these three commands in the terminal:
-
-```bash
-git show feat/trailhead:nodes/migrations/0042_dataset_port_spec.py \
-  > nodes/migrations/0042_dataset_port_spec.py
-
-git show feat/trailhead:nodes/migrations/0043_alter_datasetport_options_datasetport_dataset_index.py \
-  > nodes/migrations/0043_alter_datasetport_options_datasetport_dataset_index.py
-
-git show feat/trailhead:nodes/migrations/0044_instanceconfig_is_locked.py \
-  > nodes/migrations/0044_instanceconfig_is_locked.py
-```
-
-Then add the `is_locked` model field to `InstanceConfig` in `nodes/models.py` (copy from `feat/trailhead` around line 392). After this, `python manage.py migrate` should confirm all migrations as already applied.
+Branch: `feature/lucia`. Primary config: `configs/potsdam-dev.yaml`.
 
 ---
 
-### 1. Instance file
+### Status overview
 
-- Source: `configs/potsdam-gpc.yaml` → copy to `configs/potsdam-dev.yaml`
-- Change `id: potsdam-gpc` to `id: potsdam-dev`
-- Change `site_url` to a dev URL (e.g. `https://potsdam-dev.paths.staging.kausal.tech`)
-- Keep all existing nodes, actions, and scenarios intact — add new content only
+| Step | Description | Status |
+|------|-------------|--------|
+| 0 | Create `potsdam-dev.yaml`, fix migrations | ✅ Done |
+| 1 | Fix dataset priority (city-specific data over generic framework data) | ✅ Done |
+| 2a | Add `stakeholder` dimension (local override) | ✅ Done |
+| 2b | Add `rent` category to `cost_type` in `standard_dims.yaml` | ✅ Done |
+| 3 | Fix `heat_generation_individual` categories | ✅ Done |
+| 4 | Pro Potsdam building-stock sub-model | ✅ Done (placeholder values) |
+| 5 | Cost nodes: cold rent, energy price, total costs | ✅ Done (placeholder values) |
+| 6 | New actions: eh55, eh40 (multi-metric DVC), rent_subsidy, individual_heating | ✅ Done (placeholder data) |
+| 7 | Scenarios: `pro_potsdam_eh55_only`, `pro_potsdam_eh40_only` | ✅ Done |
+| — | Replace placeholder data with Pro Potsdam Excel | ⏳ Waiting on data |
+| — | Replace 150 EUR/MWh placeholder with EWP actual energy prices | ⏳ Waiting on data |
+| — | EWP fuel mix (district heating emission factor) | ⏳ Waiting on data |
+| — | `pro_potsdam_renovation_capex` node | ⏳ Waiting on data |
+| — | `pro_potsdam_rent_subsidy` action (stakeholder cost split slider) | ⏳ Deferred |
+| — | `renovation_without_transition` and `transition_without_renovation` scenarios | ⏳ Deferred |
 
 ---
 
-### 2. New dimensions
+### What was built
 
-#### 2a. `stakeholder` (define locally in potsdam-dev.yaml)
+#### 0. Instance setup
 
-Not in `frameworks/standard_dims.yaml`. Define in the config:
+- Copied `configs/potsdam-gpc.yaml` → `configs/potsdam-dev.yaml`, changed `id` to `potsdam-dev`.
+- Fixed missing migration files (0042–0044) that had been applied to the DB from `feat/trailhead` but were absent from `main`.
+
+#### 1. Dataset priority fix
+
+City-specific datasets (e.g. `potsdam/...`) must take priority over generic GPC framework datasets when both supply data to the same node. The fix uses a coalesce / anti-join pattern in `frameworks/datasets.py`: city-specific rows are kept; generic rows are only used for years not present in the city dataset.
+
+#### 2. Dimensions
+
+**`stakeholder`** defined locally in `potsdam-dev.yaml` (not in `standard_dims.yaml` because it is Potsdam-specific):
+- `tenant`, `pro_potsdam`, `city`, `society`
+
+**`rent` category** added to `cost_type` in `configs/frameworks/standard_dims.yaml`.
+
+#### 3. Node fix
+
+`heat_generation_individual` previously excluded `[district_heating, solar_thermal, biogas, biomass]`, which also blocked heat pumps (`environmental_heat`). Changed to exclude only `[district_heating]` so that natural gas → heat pump transitions can flow through.
+
+#### 4. Pro Potsdam sub-model
+
+Standalone parallel calculation tree (does NOT feed into `net_emissions` to avoid double-counting with city-wide aggregates):
+
+| Node id | Unit | Value |
+|---------|------|-------|
+| `pro_potsdam_apartments` | – | 18,000 (placeholder) |
+| `pro_potsdam_floor_area_per_apt` | m² | 70 (placeholder) |
+| `pro_potsdam_total_floor_area` | m² | apartments × floor_area_per_apt |
+| `pro_potsdam_heat_demand_per_m2` | kWh/m²/a | 95 (placeholder) |
+| `pro_potsdam_heat_demand` | MWh/a | total_floor_area × heat_demand_per_m2 |
+| `pro_potsdam_emissions` | kt/a | heat_demand × corrected_emission_factor[district_heating, heating] |
+
+`pro_potsdam_emissions` shares the `corrected_emission_factor` from the main model, so it automatically reflects the EWP decarbonisation trajectory from the existing district heating actions.
+
+#### 5. Cost nodes
+
+| Node id | Unit | Notes |
+|---------|------|-------|
+| `pro_potsdam_cold_rent_per_m2` | EUR/m²/month | 18 placeholder; modified by eh55/eh40 actions |
+| `pro_potsdam_cold_rent` | MEUR/a | cold_rent_per_m2 × total_floor_area; `cost_type=rent`, `stakeholder=tenant` |
+| `pro_potsdam_average_energy_price` | EUR/MWh | 150 placeholder (replace with EWP data) |
+| `pro_potsdam_energy_costs` | MEUR/a | heat_demand × energy_price; `cost_type=energy_costs`, `stakeholder=tenant` |
+| `total_costs` | MEUR/a | cold_rent + energy_costs; `output_dimensions: [cost_type, stakeholder]`; `is_outcome: true` |
+
+**Note on dimensions:** `total_costs` requires `input_dimensions` and `output_dimensions: [cost_type, stakeholder]` to be explicitly listed. The upstream nodes (`pro_potsdam_cold_rent`, `pro_potsdam_energy_costs`) assign `cost_type` and `stakeholder` via edge `to_dimensions`. The `pro_potsdam_emissions` node carries extra dimensions (`energy_carrier`, `sector`) which are flattened out using `from_dimensions: flatten: true` before reaching cost nodes.
+
+#### 6. New actions
+
+**`pro_potsdam_renovation_eh55`** and **`pro_potsdam_renovation_eh40`** are two-metric `simple.AdditiveAction` nodes backed by a DVC dataset (`potsdam/pro_potsdam_renovation`, commit `508c60da55f4ae36597a79ddee7f9c739756e10a`):
 
 ```yaml
-- id: stakeholder
-  label_en: Stakeholder
-  label_de: Akteur
-  categories:
-  - id: tenant
-    label_en: Tenant
-    label_de: Mieterin / Mieter
-  - id: pro_potsdam
-    label_en: Pro Potsdam
-    label_de: Pro Potsdam
-  - id: city
-    label_en: City of Potsdam
-    label_de: Stadt Potsdam
-  - id: society
-    label_en: Society / Climate
-    label_de: Gesellschaft / Klima
+output_metrics:
+- id: energy_reduction
+  unit: kWh/m**2/a
+  quantity: energy
+- id: additional_cost
+  unit: EUR/m**2/month
+  quantity: unit_price
+input_datasets:
+- id: potsdam/pro_potsdam_renovation
+  forecast_from: 2025
+  interpolate: true
+  filters:
+  - column: action
+    value: eh55
+output_nodes:
+- id: pro_potsdam_heat_demand_per_m2
+  metrics: [energy_reduction]
+- id: pro_potsdam_cold_rent_per_m2
+  metrics: [additional_cost]
 ```
 
-#### 2b. `cost_type` — already in `frameworks/standard_dims.yaml`
+The dataset was created by `data/potsdam/create_renovation_csv.py` (placeholder values) and uploaded with `notebooks/upload_new_dataset.py`.
 
-Existing categories cover `capex`, `opex`, `energy_costs`. One addition needed: `rent` (cold rent pass-through component). Either add it to `standard_dims.yaml` or define locally.
+**`individual_heating_transition`**: `simple.LinearCumulativeAdditiveAction`, targets `heat_generation_individual`. Currently uses a placeholder. Needs the individual heating fuel split data from Kommunale Wärmeplanung.
+
+**`pro_potsdam_rent_subsidy`**: Deferred. Will be a parameter action (slider 0–100 %) redistributing rent cost between `tenant` and `city` stakeholder categories.
+
+#### 7. Scenarios
+
+- `pro_potsdam_eh55_only`: EH 55 + EWP district heating actions ON, EH 40 OFF
+- `pro_potsdam_eh40_only`: EH 55 + EH 40 + EWP district heating actions ON
+
+Remaining scenarios (`renovation_without_transition`, `transition_without_renovation`) deferred until data is available.
 
 ---
 
-### 3. Fix to existing node (one line)
+### Bug fixes discovered during development
 
-`heat_generation_individual` at line 543 of `potsdam-gpc.yaml` excludes heat pumps from the individual supply transition. This must be fixed for the `individual_heating_transition` action to work:
+#### `interpolate: true` in `input_datasets` was silently ignored
 
-**Current:**
-```yaml
-      categories: [district_heating, solar_thermal, biogas, biomass]
-      exclude: true
+**File:** `nodes/instance_loader.py`, line 518.
+
+```python
+# Before (always overwrote the YAML-defined flag):
+ds_obj.interpolate = ds_interpolate
+
+# After (preserves the YAML flag):
+ds_obj.interpolate = ds_interpolate or ds_def.interpolate
 ```
 
-**Change to:**
-```yaml
-      categories: [district_heating]
-      exclude: true
+Without this fix, sparse datasets with only a few key years (e.g. 2024, 2030, 2040, 2050) would show zero effect in all intermediate years even when `interpolate: true` was set in the YAML config.
+
+#### Python 2 `except` syntax in `notebooks/upload_new_dataset.py`
+
+```python
+# Before:
+except ValueError, TypeError:
+
+# After:
+except (ValueError, TypeError):
 ```
 
-This allows `natural_gas → environmental_heat` (heat pump) transitions to flow through `heat_generation_individual` → `emission_change_due_to_ef`.
+This caused a `SyntaxError` at import time.
+
+#### Edge `to_dimensions` does not support `assign_category`
+
+When routing values to a target node that needs a new categorical dimension, `to_dimensions` in the edge definition requires `categories: [cat_id]` syntax — not `assign_category: cat_id`. The `assign_category` field only works in dataset filter context (`DimensionDatasetFilterDef`). Using it in an edge silently produced no dimension assignment and caused "Dimensions do not match" errors.
 
 ---
 
-### 4. Pro Potsdam sub-model (standalone parallel track)
+### Remaining work (data-dependent)
 
-**Design decision:** Pro Potsdam nodes do NOT feed into `corrected_emissions` or `net_emissions`. They form a parallel calculation tree that shares the district heating emission factor from the main model but uses Pro Potsdam's own energy data. This avoids double-counting with the city-wide aggregate data and allows development independent of the main model restructuring.
+#### After Pro Potsdam Excel data arrives
 
-Merge into the main model (making `pro_potsdam` a sub-sector of `heating`) is deferred until the Pro Potsdam data is validated and the city-wide data split is confirmed.
+Replace placeholder `historical_values`/`forecast_values` on:
+- `pro_potsdam_apartments` (18,000)
+- `pro_potsdam_floor_area_per_apt` (70 m²)
+- `pro_potsdam_heat_demand_per_m2` (95 kWh/m²/a)
 
-#### Building stock nodes
+Replace placeholder renovation dataset (`data/potsdam/create_renovation_csv.py`) with actual values for:
+- `energy_reduction` per m² (kWh/m²/a) for EH 55 and EH 40 over time
+- `additional_cost` per m² (EUR/m²/month) for EH 55 and EH 40 over time
+- Annual renovation ramp-up rate (total floor area renovated per year)
 
-| Node id | Type | Quantity | Unit | Value / Source |
-|---------|------|----------|------|---------------|
-| `pro_potsdam_apartments` | `simple.FixedMultiplierNode` or constant dataset | number | dimensionless | 18,000 (meeting notes) |
-| `pro_potsdam_floor_area_per_apt` | constant | area | m²/apartment | ~70 m² (to be confirmed by Pro Potsdam data) |
-| `pro_potsdam_total_floor_area` | `simple.MultiplicativeNode` | area | m² | apartments × area_per_apt ≈ 1,260,000 m² |
-| `pro_potsdam_heat_demand_per_m2` | constant / dataset | energy | kWh/m²a | ~95 kWh/m²a (= 120,000 MWh / 1,260,000 m²) |
-| `pro_potsdam_heat_demand` | `simple.MultiplicativeNode` | energy | MWh/a | total_floor_area × heat_demand_per_m2 |
-| `pro_potsdam_emissions` | `simple.MultiplicativeNode` | emissions | kt/a | heat_demand × district_heating_emission_factor (shared from main model) |
+After updating the dataset, re-upload with `notebooks/upload_new_dataset.py` and update `dataset_repo.commit` in `potsdam-dev.yaml`.
 
-**Key interaction:** `pro_potsdam_emissions` reads the `corrected_emission_factor` node (district_heating, heating sector) from the main model. This means Pro Potsdam's emissions automatically reflect EWP's decarbonisation trajectory as modelled by the existing `district_heating_until_2030` / `..._2030_2040` / `..._2040_2045` actions.
+#### After EWP energy price and fuel mix data arrives
 
----
+Replace `pro_potsdam_average_energy_price` (currently 150 EUR/MWh constant) with a dataset-backed node. The district heating emission factor (fed to `pro_potsdam_emissions`) may also need to be updated with the real EWP fuel mix.
 
-### 5. Energy price and cost nodes
+#### Remaining nodes to add
 
-The stub at lines 476–509 of `potsdam-gpc.yaml` can be uncommented and extended.
+| Node id | Blocked on |
+|---------|-----------|
+| `pro_potsdam_renovation_capex` | Investment cost data (EH 40 over EH 55 per m²) |
+| `pro_potsdam_energy_cost_per_apt` | Pro Potsdam apartment count confirmed |
+| `pro_potsdam_co2_cost` | Agreement on CO₂ shadow price |
 
-| Node id | Quantity | Unit | Dims | Notes |
-|---------|----------|------|------|-------|
-| `energy_prices` | unit_price | EUR/MWh | [energy_carrier] | Data needed: Fernwärme and Erdgas prices, with forecast |
-| `pro_potsdam_energy_cost` | currency | EUR/a | — | pro_potsdam_heat_demand × energy_prices[district_heating] |
-| `pro_potsdam_energy_cost_per_apt` | currency | EUR/apartment/a | — | energy_cost / apartments |
-| `renovation_cost_per_m2` | unit_price | EUR/m²/month | — | EH 55 = 18, EH 40 = 21 (cold rent, from meeting notes) |
-| `pro_potsdam_cold_rent` | currency | EUR/a | [stakeholder] | rent_per_m2 × total_floor_area, split by stakeholder via subsidy action |
-| `pro_potsdam_renovation_capex` | currency | EUR | — | Additional investment cost of EH 40 over EH 55 (data gap) |
-| `pro_potsdam_costs_by_stakeholder` | currency | EUR/a | [stakeholder, cost_type] | Aggregates energy_cost + rent + annualised capex |
-| `pro_potsdam_co2_cost` | currency | EUR/a | — | pro_potsdam_emissions × CO₂ shadow price; stakeholder = society |
+#### Remaining actions
 
----
+| Action id | What is needed |
+|-----------|----------------|
+| `pro_potsdam_rent_subsidy` | Design: how to implement stakeholder cost redistribution in YAML |
+| `individual_heating_transition` | Fuel split for non-DH heating (Kommunale Wärmeplanung) |
 
-### 6. New actions
+#### Remaining scenarios
 
-#### a. `pro_potsdam_renovation_eh55`
-
-- **Group:** `heat_consumption`
-- **Mechanism:** Reduces `pro_potsdam_heat_demand_per_m2` for the renovated/newly-built fraction of the portfolio. Uses a ramp-up dataset (renovation rate × floor area per year).
-- **Target node:** `pro_potsdam_heat_demand`
-- **Data needed:** Annual renovation rate (units/year or m²/year) from Pro Potsdam Excel; assumed ~14–15 % demand reduction vs. unimproved baseline.
-
-#### b. `pro_potsdam_renovation_eh40`
-
-- **Group:** `heat_consumption`
-- **Mechanism:** Additional demand reduction on top of EH 55, same renovation rate assumption, ~14–15 % further reduction (i.e. ~28–30 % total vs. baseline).
-- **Target node:** `pro_potsdam_heat_demand`
-- **Note:** In the UI, this action should only be visible/meaningful when EH 55 is also enabled. Document this dependency clearly.
-
-#### c. `pro_potsdam_rent_subsidy`
-
-- **Type:** Parameter action (slider 0–100 %)
-- **Mechanism:** Redistributes the rent cost component between `tenant` and `city` stakeholder categories in `pro_potsdam_cold_rent`. At 0 % the full cost passes to the tenant; at 100 % the city absorbs the EH-40-driven rent increase.
-- **Target node:** `pro_potsdam_cold_rent` (stakeholder dimension)
-
-#### d. `individual_heating_transition`
-
-- **Group:** `heat_generation_individual`
-- **Mechanism:** Models the replacement of natural gas boilers in non-district-heating buildings with heat pumps (`natural_gas → environmental_heat`). Feeds into the existing `heat_generation_individual` summary node → `emission_change_due_to_ef`.
-- **Data needed:** Share of Potsdam heating outside district heating network that is currently natural gas; annual replacement rate assumption.
-- **Prerequisite:** Fix to `heat_generation_individual` node (Section 3 above) must be in place.
-
-#### e. District heating transition (existing)
-
-The actions `district_heating_until_2030`, `district_heating_2030_2040`, `district_heating_2040_2045` already model EWP's trajectory. No new action needed. These feed `pro_potsdam_emissions` automatically via the shared emission factor.
-
----
-
-### 7. Data gaps — what is needed before the model can be parameterised
-
-| Data item | Source | Impact if missing |
-|-----------|--------|-------------------|
-| Pro Potsdam: floor area per apartment, units by building type/age, actual energy consumption breakdown | Sebastian Möller, Pro Potsdam (Excel promised) | Cannot set `pro_potsdam_heat_demand_per_m2` or renovation ramp-up accurately |
-| EWP current fuel mix in district heating (% natural gas, % other) | EWP / Cordine Lippert | Cannot set baseline emission factor for district heating; currently modelled as single carrier |
-| Energy prices: Fernwärme and Erdgas EUR/MWh (historic + forecast) | EWP / Stadtwerke Potsdam | Cannot populate `energy_prices` node |
-| Individual heating outside DH network: fuel split (natural gas fraction) | Kommunale Wärmeplanung data | Cannot parameterise `individual_heating_transition` action |
-| Additional investment cost: EH 40 over EH 55 per m² (construction, not just rent) | Engineering study (Gregor Heilmann to commission) | Cannot populate `pro_potsdam_renovation_capex` |
-
----
-
-### 8. Scenarios to add
-
-| Scenario id | Description | Actions enabled |
-|-------------|-------------|-----------------|
-| `pro_potsdam_eh55_only` | EH 55 standard + full EWP transition | EH 55 renovation ON, EWP actions ON, EH 40 OFF |
-| `pro_potsdam_eh40_only` | EH 40 standard + full EWP transition | EH 55 + EH 40 renovation ON, EWP actions ON |
-| `renovation_without_transition` | EH 40 but no EWP decarbonisation | Both renovation actions ON, EWP actions OFF |
-| `transition_without_renovation` | EWP full transition, no renovation | EWP actions ON, both renovation actions OFF |
-
-Comparing `pro_potsdam_eh55_only` vs. `pro_potsdam_eh40_only` directly answers the EH 55/40 climate question. Comparing the last two scenarios shows which lever dominates.
+| Scenario id | Description |
+|-------------|-------------|
+| `renovation_without_transition` | EH 40 but no EWP decarbonisation |
+| `transition_without_renovation` | EWP full transition, no renovation |
 
 ---
 
@@ -284,4 +297,4 @@ Comparing `pro_potsdam_eh55_only` vs. `pro_potsdam_eh40_only` directly answers t
 | Demand reduction: efficiency alone | 14–15% | Meeting notes |
 | EWP target: 30% RE | 2030 | Heat Planning Act |
 | EWP target: 100% RE | 2045 | Heat Planning Act |
-| Pro Potsdam CO₂ emissions (approx.) | ~25,000 t/year | Meeting notes (likely kt, not t) |
+| Pro Potsdam CO₂ emissions (approx.) | ~25 kt/year | Meeting notes |
