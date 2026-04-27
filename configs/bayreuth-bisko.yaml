@@ -307,7 +307,7 @@ pages:
 scenarios:
 
 - id: baseline
-  name_de: Status Quo
+  name_de: Business as Usual
   name_en: Business as Usual
 
 - id: default
