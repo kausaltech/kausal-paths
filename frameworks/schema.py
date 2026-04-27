@@ -807,7 +807,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         config_input: FrameworkConfigInput,
         nzc_data: NZCCityEssentialData,
     ) -> CreateFrameworkConfigMutation:
-        from .nzc import NZCPlaceholderInput, get_nzc_default_values
+        from .nzc import NZCPlaceholderInput, get_nzc_default_values, get_nzc_default_values_yearly
 
         def lowhigh_to_str(val: int) -> Literal['high', 'low']:
             if val == LowHigh.HIGH:
@@ -820,15 +820,16 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         dvc_repo = instance.context.dataset_repo
         data = cast('dict[str, Any]', nzc_data)
         assert dvc_repo is not None
-        defaults = get_nzc_default_values(
-            dvc_repo,
-            NZCPlaceholderInput(
-                population=data['population'],
-                renewmix=lowhigh_to_str(data['renewable_mix']),
-                temperature=lowhigh_to_str(data['temperature']),
-            ),
+        placeholder_input = NZCPlaceholderInput(
+            population=data['population'],
+            renewmix=lowhigh_to_str(data['renewable_mix']),
+            temperature=lowhigh_to_str(data['temperature']),
         )
+        defaults = get_nzc_default_values(dvc_repo, placeholder_input)
         fwc.create_measure_defaults(defaults)
+        yearly_defaults = get_nzc_default_values_yearly(dvc_repo, placeholder_input)
+        if yearly_defaults is not None:
+            fwc.create_measure_defaults_yearly(yearly_defaults)
         return ret
 
 

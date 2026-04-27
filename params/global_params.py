@@ -270,6 +270,11 @@ class MeasureDataOverride(BoolGlobalParameter):
     id = 'measure_data_override'
 
 
+class UseObservations(BoolGlobalParameter):
+    name = _('Use user observations for all historical years (progress tracking)')
+    id = 'use_observations'
+
+
 class MeasureDataBaselineYearOnly(BoolGlobalParameter):
     name = _('Use only baseline year from measure data')
     id = 'measure_data_baseline_year_only'
