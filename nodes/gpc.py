@@ -464,7 +464,7 @@ class DatasetNode(AdditiveNode):
         return df
 
 
-class DatasetPlusOneNode(DatasetNode):
+class DatasetPlusOneNode(DatasetNode):  # TODO Remove when nzc.yaml is using the new lucia.yaml structure.
     """Used for action goal setting when reference year + 1 data is needed."""
 
     def get_correct_baseline(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:

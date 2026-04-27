@@ -104,7 +104,7 @@ class MinMaxDefaultInt(BaseModel):
 
 class FrameworkDefaults(BaseModel):
     target_year: MinMaxDefaultInt = MinMaxDefaultInt(min=2030, default=2030, max=2050)
-    baseline_year: MinMaxDefaultInt = MinMaxDefaultInt(min=2018, default=None, max=2023)
+    baseline_year: MinMaxDefaultInt = MinMaxDefaultInt(min=2018, default=None, max=2025)
 
 
 class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedModel):
@@ -783,8 +783,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         }
         year = self.baseline_year
         measure_data_points_qs = (
-            MeasureDataPoint.objects
-            .get_queryset()
+            MeasureDataPoint.objects.get_queryset()
             .filter(year=year, measure__in=measures_qs)
             .annotate(mt_uuid=F('measure__measure_template__uuid'))
         )

@@ -1853,3 +1853,53 @@ class ConstantNode(GenericNode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.OPERATIONS['constant'] = self._operation_constant
+
+
+class DatasetPlusOneNode(GenericNode):
+    """
+    Goal-setting node that includes reference_year+1 data alongside the regular dataset.
+
+    When the global parameter 'measure_data_baseline_year_only' is True, the normal
+    GenericNode pipeline would otherwise discard all years except those needed for
+    inventory. This subclass inserts a 'baseline_plus_one' operation right after
+    'get_single_dataset' to additionally keep reference_year+1, which some downstream
+    action nodes require for interpolation.
+
+    Operation order: get_single_dataset → baseline_plus_one → multiply → add → other → apply_multiplier
+    """
+
+    explanation = _(
+        'GenericNode for goal-setting: keeps reference_year+1 rows in addition to the '
+        + 'standard baseline filtering when measure_data_baseline_year_only is enabled.'
+    )
+    DEFAULT_OPERATIONS = 'get_single_dataset,baseline_plus_one,multiply,add,other,apply_multiplier'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.OPERATIONS['baseline_plus_one'] = self._operation_baseline_plus_one
+
+    def _operation_baseline_plus_one(self, df: PathsDataFrame | None) -> OperationReturn:
+        """
+        Filter data based on the following rules.
+
+        When measure_data_baseline_year_only is True, filter data to:
+          - reference_year
+          - reference_year + 1  (needed by downstream action interpolation)
+          - years beyond maximum_historical_year
+          - any row already marked as forecast
+        """
+        if df is None:
+            return None
+        if not self.get_global_parameter_value('measure_data_baseline_year_only', required=False):
+            return df
+
+        ref_year = self.context.instance.reference_year
+        max_hist_year = self.context.instance.maximum_historical_year
+
+        filt = (pl.col(YEAR_COLUMN) == ref_year) | (pl.col(YEAR_COLUMN) > max_hist_year)
+        if isinstance(ref_year, int):
+            filt = filt | (pl.col(YEAR_COLUMN) == ref_year + 1)
+        if FORECAST_COLUMN in df.columns:
+            filt = filt | pl.col(FORECAST_COLUMN)
+
+        return df.filter(filt)

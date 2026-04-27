@@ -410,7 +410,7 @@ class StockReplacementAction(DatasetAction):
         return base
 
 
-class SCurveAction(DatasetAction):
+class SCurveAction(DatasetAction):  # TODO Remove after nzc.yaml is using the new lucia.yaml structure.
     explanation = _(
         """
         This is S Curve Action. It calculates non-linear effect with two parameters,

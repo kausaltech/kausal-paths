@@ -105,7 +105,7 @@ nodes:
 # sum up Industry + Commercial
 - id: industry_commerce_emissions
   name_en: Industry & Commerce
-  name_de: Industrie & Gewerbe
+  name_de: Gewerbe/Handel/Dienstleistungen & Industrie
   type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
@@ -155,7 +155,7 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Düsseldorf Treibhausgasinventar
-  lead_paragraph: Historische Treibhausgasemissionen der Stadt Düsseldorf und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+  lead_paragraph: Historische Treibhausgasemissionen der Stadt Düsseldorf und Asenkpfade für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
 
 
 #//////  Scenarios  ///////////////////////////////////////////////////////////////////////////////////////////////////
