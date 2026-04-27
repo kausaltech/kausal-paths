@@ -32,8 +32,8 @@ impact_overviews:
 - graph_type: simple_effect
   effect_node: pro_potsdam_emissions
   indicator_unit: kt
-  label_de: Pro Potsdam CO₂-Emissionen (Fernwärme)
-  label_en: Pro Potsdam CO₂ Emissions (District Heating)
+  label_de: ProPotsdam CO₂-Emissionen (Fernwärme)
+  label_en: ProPotsdam CO₂ Emissions (District Heating)
 
 - graph_type: cost_efficiency
   effect_node: net_emissions
@@ -41,8 +41,8 @@ impact_overviews:
   cost_node: pro_potsdam_cold_rent
   cost_unit: MEUR
   indicator_unit: EUR/t
-  label_de: Pro Potsdam Kaltmiete gesamt pro t CO₂-Emissionen
-  label_en: Pro Potsdam Total Cold Rent per t CO₂-Emission
+  label_de: ProPotsdam Kaltmiete gesamt pro t CO₂-Emissionen
+  label_en: ProPotsdam Total Cold Rent per t CO₂-Emission
 
 - graph_type: cost_benefit
   effect_node: total_costs
@@ -209,8 +209,8 @@ dimensions:
     label_en: Tenant
     label_de: Mieterin / Mieter
   - id: pro_potsdam
-    label_en: Pro Potsdam
-    label_de: Pro Potsdam
+    label_en: ProPotsdam
+    label_de: ProPotsdam
   - id: city
     label_en: City of Potsdam
     label_de: Stadt Potsdam
@@ -537,12 +537,12 @@ nodes:
 #       flatten: true
 
 ##### PRO POTSDAM SUB-MODEL
-# Placeholder values — will be updated from Pro Potsdam Excel (Sebastian Möller).
+# Placeholder values — will be updated from ProPotsdam Excel (Sebastian Möller).
 # ~18,000 units × 70 m²/apt × 95 kWh/m²a ≈ 120,000 MWh/a; 90% on district heating.
 
 - id: pro_potsdam_apartments
-  name: Pro Potsdam Wohneinheiten
-  name_en: Pro Potsdam Apartments
+  name: ProPotsdam Wohneinheiten
+  name_en: ProPotsdam Apartments
   type: simple.AdditiveNode
   quantity: number
   unit: dimensionless
@@ -550,8 +550,8 @@ nodes:
   forecast_values: [[2024, 18000], [2050, 18000]]
 
 - id: pro_potsdam_floor_area_per_apt
-  name: Pro Potsdam Wohnfläche je Wohnung
-  name_en: Pro Potsdam Floor Area per Apartment
+  name: ProPotsdam Wohnfläche je Wohnung
+  name_en: ProPotsdam Floor Area per Apartment
   type: simple.AdditiveNode
   quantity: floor_area
   unit: m**2
@@ -559,8 +559,8 @@ nodes:
   forecast_values: [[2024, 70], [2050, 70]]
 
 - id: pro_potsdam_total_floor_area
-  name: Pro Potsdam Gesamtwohnfläche
-  name_en: Pro Potsdam Total Floor Area
+  name: ProPotsdam Gesamtwohnfläche
+  name_en: ProPotsdam Total Floor Area
   type: simple.MultiplicativeNode
   quantity: floor_area
   unit: m**2
@@ -570,8 +570,8 @@ nodes:
     tags: [non_additive]
 
 - id: pro_potsdam_heat_demand_per_m2
-  name: Pro Potsdam Wärmebedarf je m²
-  name_en: Pro Potsdam Heat Demand per m²
+  name: ProPotsdam Wärmebedarf je m²
+  name_en: ProPotsdam Heat Demand per m²
   type: simple.AdditiveNode
   quantity: energy
   unit: kWh/m**2/a
@@ -579,8 +579,8 @@ nodes:
   forecast_values: [[2024, 95], [2050, 95]]
 
 - id: pro_potsdam_heat_demand
-  name: Pro Potsdam Wärmebedarf gesamt
-  name_en: Pro Potsdam Total Heat Demand
+  name: ProPotsdam Wärmebedarf gesamt
+  name_en: ProPotsdam Total Heat Demand
   type: simple.MultiplicativeNode
   quantity: energy
   unit: MWh/a
@@ -589,8 +589,8 @@ nodes:
   - id: pro_potsdam_heat_demand_per_m2
 
 - id: pro_potsdam_emissions
-  name: Pro Potsdam CO₂-Emissionen (Fernwärme)
-  name_en: Pro Potsdam CO₂ Emissions (District Heating)
+  name: ProPotsdam CO₂-Emissionen (Fernwärme)
+  name_en: ProPotsdam CO₂ Emissions (District Heating)
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -617,8 +617,8 @@ nodes:
 # Energy price node deferred — awaiting EWP data.
 
 - id: pro_potsdam_cold_rent_per_m2
-  name: Pro Potsdam Kaltmiete je m²
-  name_en: Pro Potsdam Cold Rent per m²
+  name: ProPotsdam Kaltmiete je m²
+  name_en: ProPotsdam Cold Rent per m²
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/m**2/a
@@ -627,8 +627,8 @@ nodes:
   forecast_values: [[2024, 216], [2050, 216]]
 
 - id: pro_potsdam_cold_rent
-  name: Pro Potsdam Kaltmiete gesamt
-  name_en: Pro Potsdam Total Cold Rent
+  name: ProPotsdam Kaltmiete gesamt
+  name_en: ProPotsdam Total Cold Rent
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -646,8 +646,8 @@ nodes:
 
 # placeholder: 0.15 EUR/kWh = 150 EUR/MWh; replace with EWP/Gasag data
 - id: pro_potsdam_average_energy_price
-  name: Pro Potsdam Ø Wärmepreis
-  name_en: Pro Potsdam Avg. Heat Energy Price
+  name: ProPotsdam Ø Wärmepreis
+  name_en: ProPotsdam Avg. Heat Energy Price
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/MWh
@@ -655,8 +655,8 @@ nodes:
   forecast_values: [[2024, 150], [2050, 150]]
 
 - id: pro_potsdam_energy_costs
-  name: Pro Potsdam Energiekosten Wärme
-  name_en: Pro Potsdam Heat Energy Costs
+  name: ProPotsdam Energiekosten Wärme
+  name_en: ProPotsdam Heat Energy Costs
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -672,8 +672,8 @@ nodes:
       categories: [tenant]
 
 - id: pro_potsdam_total_costs
-  name: Pro Potsdam Gesamtkosten (Miete + Energie)
-  name_en: Pro Potsdam Total Costs (Rent + Energy)
+  name: ProPotsdam Gesamtkosten (Miete + Energie)
+  name_en: ProPotsdam Total Costs (Rent + Energy)
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -684,7 +684,7 @@ nodes:
   - id: pro_potsdam_cold_rent
   - id: pro_potsdam_energy_costs
 
-# energy_carrier × sector from corrected_energy; to be replaced with Pro Potsdam-specific data
+# energy_carrier × sector from corrected_energy; to be replaced with ProPotsdam-specific data
 - id: corrected_energy_costs
   name: Energiekosten gesamt (alle Sektoren, vorläufig)
   name_en: Total energy costs (all sectors, placeholder)
@@ -1108,12 +1108,12 @@ actions:
 
 ##### PRO POTSDAM ACTIONS
 # EH55 / EH40 renovation effects on heat demand are placeholder values.
-# Will be replaced with data from Pro Potsdam Excel (Sebastian Möller).
+# Will be replaced with data from ProPotsdam Excel (Sebastian Möller).
 # 14% of 120,000 MWh/a ≈ 16,800 MWh/a; ramp: 0 → full effect by 2050.
 
 - id: pro_potsdam_renovation_eh55
-  name: Pro Potsdam Sanierung EH 55
-  name_en: Pro Potsdam Renovation EH 55
+  name: ProPotsdam Sanierung EH 55
+  name_en: ProPotsdam Renovation EH 55
   type: simple.AdditiveAction
   group: heat_consumption
   output_metrics:
@@ -1137,8 +1137,8 @@ actions:
     metrics: [additional_cost]
 
 - id: pro_potsdam_renovation_eh40
-  name: Pro Potsdam Sanierung EH 40 (zusätzlich zu EH 55)
-  name_en: Pro Potsdam Renovation EH 40 (additional to EH 55)
+  name: ProPotsdam Sanierung EH 40 (zusätzlich zu EH 55)
+  name_en: ProPotsdam Renovation EH 40 (additional to EH 55)
   # Note: only meaningful when pro_potsdam_renovation_eh55 is also enabled
   type: simple.AdditiveAction
   group: heat_consumption
@@ -1163,8 +1163,8 @@ actions:
     metrics: [additional_cost]
 
 - id: pro_potsdam_rent_subsidy
-  name: Pro Potsdam Mietsubvention
-  name_en: Pro Potsdam Rent Subsidy
+  name: ProPotsdam Mietsubvention
+  name_en: ProPotsdam Rent Subsidy
   type: simple.AdditiveAction
   quantity: currency
   unit: MEUR/a
@@ -1308,8 +1308,8 @@ scenarios:
     value: true
 
 - id: pro_potsdam_eh55_only
-  name: Pro Potsdam EH 55 + EWP-Wende
-  name_en: Pro Potsdam EH 55 + EWP Transition
+  name: ProPotsdam EH 55 + EWP-Wende
+  name_en: ProPotsdam EH 55 + EWP Transition
   all_actions_enabled: false
   params:
   - id: pro_potsdam_renovation_eh55.enabled
@@ -1322,8 +1322,8 @@ scenarios:
     value: true
 
 - id: pro_potsdam_eh40_only
-  name: Pro Potsdam EH 40 + EWP-Wende
-  name_en: Pro Potsdam EH 40 + EWP Transition
+  name: ProPotsdam EH 40 + EWP-Wende
+  name_en: ProPotsdam EH 40 + EWP Transition
   all_actions_enabled: false
   params:
   - id: pro_potsdam_renovation_eh55.enabled

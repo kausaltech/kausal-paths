@@ -6,7 +6,7 @@
 
 ### Ausgangslage
 
-Die Stadt Potsdam steht vor einer konkreten Frage: Soll die bisherige Anforderung für Neubauten – Effizienzhaus 40 (EH 40) – beibehalten werden, oder reicht Effizienzhaus 55 (EH 55) aus? Pro Potsdam Wohnen, das kommunale Wohnungsunternehmen mit rund 18.000 Wohneinheiten (ca. 20 % des Potsdamer Wohnbestands), argumentiert, dass EH 40 angesichts seiner Mehrkosten keinen ausreichenden Klimaschutznutzen bringt – insbesondere dann, wenn die Energieversorgung selbst konsequent dekarbonisiert wird.
+Die Stadt Potsdam steht vor einer konkreten Frage: Soll die bisherige Anforderung für Neubauten – Effizienzhaus 40 (EH 40) – beibehalten werden, oder reicht Effizienzhaus 55 (EH 55) aus? ProPotsdam Wohnen, das kommunale Wohnungsunternehmen mit rund 18.000 Wohneinheiten (ca. 20 % des Potsdamer Wohnbestands), argumentiert, dass EH 40 angesichts seiner Mehrkosten keinen ausreichenden Klimaschutznutzen bringt – insbesondere dann, wenn die Energieversorgung selbst konsequent dekarbonisiert wird.
 
 Das Herzstück dieser Debatte ist ein Zielkonflikt:
 
@@ -35,7 +35,7 @@ Das Modell rechnet nicht nur CO₂-Emissionen, sondern auch wirtschaftliche Effe
 | Perspektive | Relevante Fragen |
 |-------------|------------------|
 | **Mieterinnen und Mieter** | Wie hoch ist die Kaltmiete pro m² bei EH 55 vs. EH 40? Was kostet das pro Wohnung und Monat? |
-| **Pro Potsdam** | Welche Investitionskosten entstehen durch EH 40 gegenüber EH 55? Welche Rendite ergibt sich? |
+| **ProPotsdam** | Welche Investitionskosten entstehen durch EH 40 gegenüber EH 55? Welche Rendite ergibt sich? |
 | **Stadt Potsdam** | Welcher Anteil der Mehrkosten muss über Mietsubventionen oder Sozialwohnungsförderung getragen werden? |
 | **Klima / Gesellschaft** | Wie groß ist die CO₂-Einsparung tatsächlich – und wie entwickelt sie sich bis 2045? |
 
@@ -48,9 +48,9 @@ Das Modell unterscheidet explizit zwischen:
 
 Beide Stränge können einzeln oder gemeinsam eingeschaltet werden. Das Modell zeigt, wie sich die Klimawirkung beider Maßnahmen gegenseitig beeinflusst: wer zuerst liefert, macht den anderen weniger dringend.
 
-#### 4. Pro Potsdam als expliziter Akteur
+#### 4. ProPotsdam als expliziter Akteur
 
-Erstmals wird Pro Potsdam als eigenständiger Teilbestand im Modell abgebildet – mit:
+Erstmals wird ProPotsdam als eigenständiger Teilbestand im Modell abgebildet – mit:
 - Anzahl Wohneinheiten und Wohnfläche
 - Wärmeverbrauch pro Wohnung und insgesamt
 - Renovierungsrate und Effizienzstandard (EH 55 oder EH 40)
@@ -60,7 +60,7 @@ Damit ist es möglich, konkrete Beispielrechnungen zu erstellen: „Was kostet E
 
 #### 5. Mietsubvention als Schieberegler
 
-Ein steuerbarer Parameter im Modell ermöglicht es, den Anteil der Mehrkosten zwischen Mieterin, Pro Potsdam und Stadt Potsdam zu verschieben. Damit lassen sich Förderpolitiken direkt durchrechnen.
+Ein steuerbarer Parameter im Modell ermöglicht es, den Anteil der Mehrkosten zwischen Mieterin, ProPotsdam und Stadt Potsdam zu verschieben. Damit lassen sich Förderpolitiken direkt durchrechnen.
 
 ---
 
@@ -74,7 +74,7 @@ Das Modell wird voraussichtlich bestätigen, was die Vorbesprechung am 9. April 
 
 | Aktion | Zuständig | Zeitpunkt |
 |--------|-----------|-----------|
-| Gebäude- und Energiedaten Pro Potsdam (Excel) übermitteln | S.M. / Pro Potsdam | baldmöglichst |
+| Gebäude- und Energiedaten ProPotsdam (Excel) übermitteln | S.M. / ProPotsdam | baldmöglichst |
 | Aktuellen Brennstoffmix EWP Fernwärme bestätigen | C.L. / EWP | baldmöglichst |
 | Energiepreise für Fernwärme und Erdgas (EUR/MWh) | EWP / Stadtwerke | baldmöglichst |
 | Modellentwicklung und Integration | Kausal (S-M.I. / J.T.) | laufend nach Datenverfügbarkeit |
@@ -87,7 +87,7 @@ Das Modell wird voraussichtlich bestätigen, was die Vorbesprechung am 9. April 
 
 ### Context
 
-This document describes the `potsdam-dev` model instance: a development fork of `potsdam-gpc` extended to analyse the EH 55 vs. EH 40 building standard question and the interaction between building renovation and energy supply decarbonisation. The instance is explicitly designed to model Pro Potsdam Wohnen as a standalone sub-system.
+This document describes the `potsdam-dev` model instance: a development fork of `potsdam-gpc` extended to analyse the EH 55 vs. EH 40 building standard question and the interaction between building renovation and energy supply decarbonisation. The instance is explicitly designed to model ProPotsdam Wohnen as a standalone sub-system.
 
 Branch: `feature/lucia`. Primary config: `configs/potsdam-dev.yaml`.
 
@@ -102,11 +102,11 @@ Branch: `feature/lucia`. Primary config: `configs/potsdam-dev.yaml`.
 | 2a | Add `stakeholder` dimension (local override) | ✅ Done |
 | 2b | Add `rent` category to `cost_type` in `standard_dims.yaml` | ✅ Done |
 | 3 | Fix `heat_generation_individual` categories | ✅ Done |
-| 4 | Pro Potsdam building-stock sub-model | ✅ Done (placeholder values) |
+| 4 | ProPotsdam building-stock sub-model | ✅ Done (placeholder values) |
 | 5 | Cost nodes: cold rent, energy price, total costs | ✅ Done (placeholder values) |
 | 6 | New actions: eh55, eh40 (multi-metric DVC), rent_subsidy, individual_heating | ✅ Done (placeholder data) |
 | 7 | Scenarios: `pro_potsdam_eh55_only`, `pro_potsdam_eh40_only` | ✅ Done |
-| — | Replace placeholder data with Pro Potsdam Excel | ⏳ Waiting on data |
+| — | Replace placeholder data with ProPotsdam Excel | ⏳ Waiting on data |
 | — | Replace 150 EUR/MWh placeholder with EWP actual energy prices | ⏳ Waiting on data |
 | — | EWP fuel mix (district heating emission factor) | ⏳ Waiting on data |
 | — | `pro_potsdam_renovation_capex` node | ⏳ Waiting on data |
@@ -137,7 +137,7 @@ City-specific datasets (e.g. `potsdam/...`) must take priority over generic GPC 
 
 `heat_generation_individual` previously excluded `[district_heating, solar_thermal, biogas, biomass]`, which also blocked heat pumps (`environmental_heat`). Changed to exclude only `[district_heating]` so that natural gas → heat pump transitions can flow through.
 
-#### 4. Pro Potsdam sub-model
+#### 4. ProPotsdam sub-model
 
 Standalone parallel calculation tree (does NOT feed into `net_emissions` to avoid double-counting with city-wide aggregates):
 
@@ -241,7 +241,7 @@ When routing values to a target node that needs a new categorical dimension, `to
 
 ### Remaining work (data-dependent)
 
-#### After Pro Potsdam Excel data arrives
+#### After ProPotsdam Excel data arrives
 
 Replace placeholder `historical_values`/`forecast_values` on:
 - `pro_potsdam_apartments` (18,000)
@@ -264,7 +264,7 @@ Replace `pro_potsdam_average_energy_price` (currently 150 EUR/MWh constant) with
 | Node id | Blocked on |
 |---------|-----------|
 | `pro_potsdam_renovation_capex` | Investment cost data (EH 40 over EH 55 per m²) |
-| `pro_potsdam_energy_cost_per_apt` | Pro Potsdam apartment count confirmed |
+| `pro_potsdam_energy_cost_per_apt` | ProPotsdam apartment count confirmed |
 | `pro_potsdam_co2_cost` | Agreement on CO₂ shadow price |
 
 #### Remaining actions
@@ -287,7 +287,7 @@ Replace `pro_potsdam_average_energy_price` (currently 150 EUR/MWh constant) with
 
 | Figure | Value | Source |
 |--------|-------|--------|
-| Pro Potsdam portfolio | 18,000 units, ~20% of Potsdam housing stock | Meeting notes |
+| ProPotsdam portfolio | 18,000 units, ~20% of Potsdam housing stock | Meeting notes |
 | Share on district heating | 90% | Meeting notes |
 | Baseline energy demand | ~120,000 MWh/year | Meeting notes |
 | Implied heat demand per m² (assuming ~70 m²/apt) | ~95 kWh/m²a | Derived |
@@ -297,4 +297,4 @@ Replace `pro_potsdam_average_energy_price` (currently 150 EUR/MWh constant) with
 | Demand reduction: efficiency alone | 14–15% | Meeting notes |
 | EWP target: 30% RE | 2030 | Heat Planning Act |
 | EWP target: 100% RE | 2045 | Heat Planning Act |
-| Pro Potsdam CO₂ emissions (approx.) | ~25 kt/year | Meeting notes |
+| ProPotsdam CO₂ emissions (approx.) | ~25 kt/year | Meeting notes |
