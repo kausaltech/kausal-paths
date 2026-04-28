@@ -19,6 +19,8 @@ class ImpactGraphType(StrEnum):
     BENEFIT_COST_RATIO = 'benefit_cost_ratio'
     VALUE_OF_INFORMATION = 'value_of_information'
     SIMPLE_EFFECT = 'simple_effect'
+    STACKED_RAW_IMPACT = 'stacked_raw_impact'
+    WEDGE_DIAGRAM = 'wedge_diagram'
 
 
 class ImpactOverviewSpec(I18nBaseModel):
@@ -61,6 +63,14 @@ class ImpactOverviewSpec(I18nBaseModel):
                 'forbidden': [*ff, 'cost_node_id'],
             },
             ImpactGraphType.SIMPLE_EFFECT: {
+                'required': ['effect_node_id', 'indicator_unit'],
+                'forbidden': [*ff, 'cost_node_id'],
+            },
+            ImpactGraphType.STACKED_RAW_IMPACT: {
+                'required': ['effect_node_id', 'indicator_unit'],
+                'forbidden': [*ff, 'cost_node_id'],
+            },
+            ImpactGraphType.WEDGE_DIAGRAM: {
                 'required': ['effect_node_id', 'indicator_unit'],
                 'forbidden': [*ff, 'cost_node_id'],
             },

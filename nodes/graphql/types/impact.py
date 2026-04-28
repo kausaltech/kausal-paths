@@ -64,6 +64,14 @@ class ActionImpact:
 
 
 @sb.type
+class WedgeEntryType:
+    id: sb.ID
+    label: str
+    is_scenario: bool
+    metric: DimensionalMetric = sb.field(graphql_type=DimensionalMetricType)
+
+
+@sb.type
 class ImpactOverviewType:
     cost_node: Annotated['NodeType', sb.lazy('nodes.schema')] | None
     effect_node: Annotated['NodeType', sb.lazy('nodes.schema')]
@@ -186,3 +194,22 @@ class ImpactOverviewType:
     @staticmethod
     def stakeholder_dimension(root: 'ImpactOverview') -> str | None:
         return root.spec.stakeholder_dimension_id
+
+    @sb.field
+    @pass_context
+    @staticmethod
+    def wedge(root: 'ImpactOverview', context: 'Context') -> 'list[WedgeEntryType] | None':
+        from nodes.defs.action_def import ImpactGraphType
+
+        if root.spec.graph_type != ImpactGraphType.WEDGE_DIAGRAM:
+            return None
+        entries = root.compute_wedge(context)
+        return [
+            WedgeEntryType(
+                id=sb.ID(e.id),
+                label=e.label,
+                is_scenario=e.is_scenario,
+                metric=e.metric,
+            )
+            for e in entries
+        ]
