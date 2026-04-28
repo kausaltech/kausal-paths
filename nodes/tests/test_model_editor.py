@@ -17,6 +17,7 @@ from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceSpec, NormalizationSpec, YearsSpec
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.models import NodeKindChoices
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
 from nodes.units import unit_registry
 
@@ -27,7 +28,9 @@ if TYPE_CHECKING:
 
     from nodes.actions.action import ActionNode
     from nodes.context import Context
+    from nodes.datasets import DatasetWithFilters
     from nodes.models import InstanceConfig
+    from nodes.node import Node
 
 
 # This way GraphQL LSPs recognize the query strings as GraphQL
@@ -107,6 +110,28 @@ def db_instance_config() -> InstanceConfig:
     )
 
 
+def _register_dimensions(ic: InstanceConfig, dim_ids: list[str]) -> None:
+    """
+    Populate both spec.dimensions and the ORM Dimension/DimensionScope rows.
+
+    The DB-sourced config loader validates that every dimension referenced
+    by InstanceSpec.dimensions exists in the ORM, so tests that assign
+    spec.dimensions must create the matching Dimension rows too.
+    """
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dimension, DimensionScope
+
+    assert ic.spec is not None
+    ic.spec.dimensions = [{'id': dim_id, 'label': dim_id.replace('_', ' ').title(), 'categories': []} for dim_id in dim_ids]
+    ic.save(update_fields=['spec'])
+
+    ct = ContentType.objects.get_for_model(ic)
+    for dim_id in dim_ids:
+        dim = Dimension.objects.create(name=dim_id.replace('_', ' ').title())
+        DimensionScope.objects.create(dimension=dim, scope_content_type=ct, scope_id=ic.pk, identifier=dim_id)
+
+
 @pytest.fixture
 def gql_client(client, db_instance_config: InstanceConfig) -> PathsTestClient:
     """Return a PathsTestClient wired to the db_instance_config, authenticated as superuser."""
@@ -165,6 +190,18 @@ mutation CreateNode($instanceId: ID!, $input: CreateNodeInput!) {
             }
             ... on OperationInfo { messages { kind message } }
         }
+    }
+}
+"""
+
+SET_INSTANCE_LOCKED = """
+mutation SetInstanceLocked($instanceId: ID!, $isLocked: Boolean!) {
+    setInstanceLocked(instanceId: $instanceId, isLocked: $isLocked) {
+        ... on SetInstanceLockedResult {
+            instanceId
+            isLocked
+        }
+        ... on OperationInfo { messages { kind message } }
     }
 }
 """
@@ -239,11 +276,8 @@ def test_create_node_with_node_group_and_allow_nulls(gql_client: PathsTestClient
 def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     assert db_instance_config.spec is not None
     db_instance_config.spec.action_groups = [ActionGroup(id='energy', name='Energy')]
-    db_instance_config.spec.dimensions = [
-        {'id': dim_id, 'label': dim_id.replace('_', ' ').title(), 'categories': []}
-        for dim_id in ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
-    ]
     db_instance_config.save(update_fields=['spec'])
+    _register_dimensions(db_instance_config, ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'])
 
     data = gql_client.query_data(
         CREATE_NODE,
@@ -262,13 +296,6 @@ def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient
                 },
                 'inputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
                 'outputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
-                'inputDatasets': [
-                    {
-                        'id': 'aarhus/energy_actions',
-                        'forecast_from': 2024,
-                        'filters': [{'column': 'action', 'value': 'carbon_capture_and_storage'}],
-                    }
-                ],
                 'params': {'allow_null_categories': True},
                 'outputMetrics': [
                     {'id': 'emissions', 'unit': 't/a', 'quantity': 'emissions'},
@@ -294,8 +321,6 @@ def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient
     assert nc.spec.type_config.group == 'energy'
     assert nc.spec.input_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
     assert nc.spec.output_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
-    assert nc.spec.input_datasets[0].id == 'aarhus/energy_actions'
-    assert nc.spec.input_datasets[0].forecast_from == 2024
     assert [port.column_id for port in nc.spec.output_ports] == ['emissions', 'energy', 'currency']
     allow_null_categories = next(param for param in nc.spec.params if param.local_id == 'allow_null_categories')
     assert allow_null_categories.value is True
@@ -322,6 +347,44 @@ def test_create_node_rejects_yaml_instance(gql_client: PathsTestClient, db_insta
     assert 'message' in error
 
 
+def test_create_node_rejects_locked_instance(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    db_instance_config.is_locked = True
+    db_instance_config.save(update_fields=['is_locked'])
+
+    errors = gql_client.query_errors(
+        CREATE_NODE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'identifier': 'nope',
+                'name': 'Nope',
+                'config': {'simple': {'nodeClass': SIMPLE_NODE_CLASS}},
+            },
+        },
+        assert_error_message='Instance is locked',
+    )
+
+    assert (errors[0].get('extensions') or {}).get('code') == 'instance_locked'
+
+
+def test_set_instance_locked_can_unlock_locked_instance(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    data = gql_client.query_data(
+        SET_INSTANCE_LOCKED,
+        variables={'instanceId': str(db_instance_config.pk), 'isLocked': True},
+    )
+    assert data['setInstanceLocked']['isLocked'] is True
+    db_instance_config.refresh_from_db()
+    assert db_instance_config.is_locked is True
+
+    data = gql_client.query_data(
+        SET_INSTANCE_LOCKED,
+        variables={'instanceId': str(db_instance_config.pk), 'isLocked': False},
+    )
+    assert data['setInstanceLocked']['isLocked'] is False
+    db_instance_config.refresh_from_db()
+    assert db_instance_config.is_locked is False
+
+
 # ---------------------------------------------------------------------------
 # update_node
 # ---------------------------------------------------------------------------
@@ -330,14 +393,56 @@ UPDATE_NODE = gql("""
 mutation UpdateNode($instanceId: ID!, $nodeId: ID!, $input: UpdateNodeInput!) {
     instanceEditor(instanceId: $instanceId) {
         updateNode(nodeId: $nodeId, input: $input) {
-            ... on Node {
+            ... on NodeInterface {
                 identifier
                 name
+                shortName
+                description
                 color
                 kind
                 isVisible
                 editor {
                     nodeGroup
+                    spec {
+                        inputPorts {
+                            id
+                            quantity
+                            unit {
+                                standard
+                            }
+                        }
+                        outputPorts {
+                            id
+                            quantity
+                            dimensions
+                            unit {
+                                standard
+                            }
+                        }
+                        typeConfig {
+                            __typename
+                            ... on ActionConfigType {
+                                nodeClass
+                                group
+                                noEffectValue
+                            }
+                            ... on SimpleConfigType {
+                                nodeClass
+                            }
+                            ... on FormulaConfigType {
+                                formula
+                            }
+                        }
+                    }
+                }
+            }
+            ... on Node {
+                isOutcome
+            }
+            ... on ActionNode {
+                group {
+                    id
+                    name
                 }
             }
             ... on OperationInfo { messages { kind message } }
@@ -366,6 +471,104 @@ def test_update_node_direct_fields(gql_client: PathsTestClient, db_instance_conf
     assert node['name'] == 'Updated'
     assert node['color'] == '#00ff00'
     assert node['isVisible'] is False
+
+
+def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    assert db_instance_config.spec is not None
+    db_instance_config.spec.action_groups = [ActionGroup(id='energy', name='Energy')]
+    db_instance_config.save(update_fields=['spec'])
+    _register_dimensions(db_instance_config, ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'])
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='editable_modeling',
+        name='Editable Modeling',
+        spec=_make_node_spec(),
+    )
+
+    data = gql_client.query_data(
+        UPDATE_NODE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {
+                'kind': 'ACTION',
+                'shortName': 'CCS',
+                'description': 'Carbon capture update',
+                'nodeGroup': 'transport',
+                'allowNulls': True,
+                'minimumYear': 2024,
+                'config': {
+                    'action': {
+                        'nodeClass': ACTION_NODE_CLASS,
+                        'group': 'energy',
+                        'noEffectValue': 0.0,
+                    },
+                },
+                'inputPorts': [{'unit': 't/a', 'quantity': 'emissions'}],
+                'inputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
+                'outputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
+                'params': {'allow_null_categories': True},
+                'outputMetrics': [
+                    {'id': 'emissions', 'unit': 't/a', 'quantity': 'emissions'},
+                    {'id': 'energy', 'unit': 'TJ/a', 'quantity': 'energy'},
+                    {'id': 'currency', 'unit': 'DKK/a', 'quantity': 'currency'},
+                ],
+                'tags': ['trial'],
+            },
+        },
+    )
+
+    node = data['instanceEditor']['updateNode']
+    assert node['kind'] == 'ACTION'
+    assert node['shortName'] == 'CCS'
+    assert node['description'] == 'Carbon capture update'
+    assert node['editor']['nodeGroup'] == 'transport'
+    assert node['editor']['spec']['typeConfig']['nodeClass'] == ACTION_NODE_CLASS
+    assert node['editor']['spec']['typeConfig']['group'] == 'energy'
+    assert [port['quantity'] for port in node['editor']['spec']['outputPorts']] == ['emissions', 'energy', 'currency']
+
+    from nodes.models import NodeConfig
+
+    nc = NodeConfig.objects.get(pk=nc.pk)
+    assert nc.spec is not None
+    assert nc.node_type == NodeKindChoices.ACTION
+    assert nc.description == 'Carbon capture update'
+    assert nc.spec.kind == NodeKind.ACTION
+    assert isinstance(nc.spec.type_config, ActionConfig)
+    assert nc.spec.type_config.group == 'energy'
+    assert str(nc.spec.short_name) == 'CCS'
+    assert str(nc.spec.description) == 'Carbon capture update'
+    assert nc.spec.node_group == 'transport'
+    assert nc.spec.allow_nulls is True
+    assert nc.spec.minimum_year == 2024
+    assert nc.spec.input_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
+    assert nc.spec.output_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
+    assert nc.spec.input_ports[0].quantity == 'emissions'
+    assert [port.column_id for port in nc.spec.output_ports] == ['emissions', 'energy', 'currency']
+    assert nc.spec.extra.tags == ['trial']
+    allow_null_categories = next(param for param in nc.spec.params if param.local_id == 'allow_null_categories')
+    assert allow_null_categories.value is True
+
+
+def test_update_node_requires_config_when_changing_kind(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='needs_config',
+        name='Needs Config',
+        spec=_make_node_spec(),
+    )
+
+    errors = gql_client.query_errors(
+        UPDATE_NODE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {'kind': 'ACTION'},
+        },
+    )
+
+    assert 'config must be provided when changing node kind' in errors[0]['message']
 
 
 def test_runtime_rebuild_preserves_node_group_and_allow_nulls(db_instance_config: InstanceConfig):
@@ -965,6 +1168,145 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
     assert data['modelInstance']['editor']['datasetPorts'][0]['externalDatasetId'] == 'test_dataset'
     assert data['modelInstance']['editor']['datasetPorts'][0]['externalMetricId'] == 'test_metric'
     assert len(query_ctx) <= 20
+
+
+def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: InstanceConfig):
+    from nodes.defs.node_defs import ColumnDatasetFilterDef, DatasetPortSpec
+    from nodes.models import DatasetPort
+
+    assert db_instance_config.spec is not None
+    db_instance_config.spec.features.use_datasets_from_db = True
+    db_instance_config.save(update_fields=['spec'])
+
+    dataset = DatasetFactory.create(identifier='multi_metric_actions', scope=db_instance_config)
+    emissions_metric = DatasetMetricFactory.create(schema=dataset.schema, name='emissions', label='Emissions', unit='t/a')
+    energy_metric = DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='TJ/a')
+    binding_spec = DatasetPortSpec(
+        forecast_from=2024,
+        filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+    )
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='multi_metric_action',
+        name='Multi metric action',
+        spec=NodeSpec(
+            kind=NodeKind.ACTION,
+            type_config=ActionConfig(
+                node_class=ACTION_NODE_CLASS,
+                decision_level=DecisionLevel.MUNICIPALITY,
+            ),
+            input_ports=[
+                _make_input_port(id='emissions', unit='t/a', quantity='emissions'),
+                _make_input_port(id='energy', unit='TJ/a', quantity='energy'),
+            ],
+            output_ports=[
+                OutputPortDef(
+                    id=_port_uuid('emissions'),
+                    unit=unit_registry.parse_units('t/a'),
+                    quantity='emissions',
+                    column_id='emissions',
+                ),
+                OutputPortDef(
+                    id=_port_uuid('energy'),
+                    unit=unit_registry.parse_units('TJ/a'),
+                    quantity='energy',
+                    column_id='energy',
+                ),
+            ],
+        ),
+    )
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=nc,
+        port_id=_port_uuid('emissions'),
+        dataset=dataset,
+        metric=emissions_metric,
+        spec=binding_spec,
+    )
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=nc,
+        port_id=_port_uuid('energy'),
+        dataset=dataset,
+        metric=energy_metric,
+        spec=binding_spec,
+    )
+
+    ctx = _rebuild_from_db(db_instance_config)
+    action = ctx.nodes['multi_metric_action']
+    assert len(action.input_dataset_instances) == 1
+    ds = cast('DatasetWithFilters', action.input_dataset_instances[0])
+    assert ds.id == 'multi_metric_actions'
+    assert ds.column is None
+    assert ds.forecast_from == 2024
+    assert ds.filters is not None
+    filter_def = ds.filters[0]
+    assert isinstance(filter_def, ColumnDatasetFilterDef)
+    assert filter_def.column == 'action'
+    assert filter_def.value == 'multi_metric_action'
+
+
+def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: InstanceConfig):
+    from types import SimpleNamespace
+
+    from nodes.datasets import DBDataset
+    from nodes.defs.node_defs import ColumnDatasetFilterDef
+    from nodes.models import DatasetPort
+    from nodes.node import NodeMetric
+    from nodes.spec_export import _export_input_ports, _update_dataset_ports
+
+    dataset = DatasetFactory.create(identifier='sync_multi_metric_actions', scope=db_instance_config)
+    DatasetMetricFactory.create(schema=dataset.schema, name='emissions', label='Emissions', unit='t/a')
+    DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='TJ/a')
+
+    context = cast('Context', SimpleNamespace(instance=SimpleNamespace(config=db_instance_config)))
+    ds_instance = DBDataset(
+        id='sync_multi_metric_actions',
+        context=context,
+        db_dataset_obj=dataset,
+        filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+        forecast_from=2024,
+    )
+    node = cast(
+        'Node',
+        SimpleNamespace(
+            id='multi_metric_action',
+            context=context,
+            input_dataset_instances=[ds_instance],
+            output_metrics={
+                'emissions': NodeMetric(unit='t/a', quantity='emissions', id='emissions', column_id='emissions'),
+                'energy': NodeMetric(unit='TJ/a', quantity='energy', id='energy', column_id='energy'),
+            },
+            edges=[],
+            input_dimensions={},
+        ),
+    )
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='multi_metric_action',
+        spec=NodeSpec(
+            kind=NodeKind.ACTION,
+            type_config=ActionConfig(
+                node_class=ACTION_NODE_CLASS,
+                decision_level=DecisionLevel.MUNICIPALITY,
+            ),
+        ),
+    )
+
+    input_ports = _export_input_ports(node)
+    assert [port.quantity for port in input_ports] == ['emissions', 'energy']
+
+    ctx = cast('Context', SimpleNamespace(nodes={'multi_metric_action': node}))
+    assert _update_dataset_ports(db_instance_config, ctx, {'multi_metric_action': nc}) == 2
+    bindings = list(DatasetPort.objects.filter(node=nc).select_related('metric').order_by('metric__name'))
+    assert [binding.metric.name for binding in bindings] == ['emissions', 'energy']
+    assert {binding.port_id for binding in bindings} == {port.id for port in input_ports}
+    assert all(binding.spec.forecast_from == 2024 for binding in bindings)
+    for binding in bindings:
+        filter_def = binding.spec.filters[0]
+        assert isinstance(filter_def, ColumnDatasetFilterDef)
+        assert filter_def.column == 'action'
 
 
 def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_instance_config: InstanceConfig):

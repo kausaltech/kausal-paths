@@ -22,8 +22,10 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from nodes.context import Context
+    from nodes.datasets import DVCDataset
     from nodes.dimensions import Dimension as DimensionSpec, DimensionCategory as DimensionCategorySpec
     from nodes.models import InstanceConfig
+    from nodes.node import Node
     from nodes.units import Unit
 
 
@@ -59,6 +61,13 @@ def _collect_placeholder_metric_units_from_node_bindings(
     per column, even when the DVC dataset itself does not carry metric metadata. Until those
     datasets are migrated away, use the runtime node bindings as the fallback source of truth
     for placeholder metric creation.
+
+    Column-less bindings (typical for legacy GPC-style datasets that share a single ``Value``
+    column across many heterogeneous rows) are handled by deriving the effective column+unit
+    from each referencing node's output metrics. When multiple nodes disagree on the unit for
+    the same column — which is expected and not a bug for these wide datasets — we keep the
+    first unit seen. ``DatasetMetric.unit`` doesn't drive runtime interpretation for legacy
+    DVC datasets; nodes carry their own ``output_metric.unit``.
     """
     from nodes.datasets import DVCDataset
 
@@ -68,24 +77,44 @@ def _collect_placeholder_metric_units_from_node_bindings(
         for ds in node.input_dataset_instances:
             if not isinstance(ds, DVCDataset):
                 continue
-            if ds.id != ds_id or ds.column is None:
+            if ds.id != ds_id:
                 continue
-            if ds.unit is None:
-                raise ValueError(f"Missing unit for placeholder '{ds_id}' on node {node.id}")
-            existing_unit = metric_units.get(ds.column)
-            if existing_unit is None:
-                metric_units[ds.column] = ds.unit
-                continue
-            if ds.unit != existing_unit:
-                raise ValueError(
-                    f"Conflicting units for placeholder '{ds_id}' column '{ds.column}': {existing_unit} vs {ds.unit}"
-                )
+            bindings = _node_binding_column_units(node, ds)
+            for column, unit in bindings.items():
+                existing_unit = metric_units.get(column)
+                if existing_unit is None:
+                    metric_units[column] = unit
+                    continue
+                if ds.column is not None and unit != existing_unit:
+                    raise ValueError(f"Conflicting units for placeholder '{ds_id}' column '{column}': {existing_unit} vs {unit}")
 
     if not metric_units:
         return {}
 
     _report(reporter, f"Falling back to node dataset references for placeholder '{ds_id}' metrics.")
     return metric_units
+
+
+def _node_binding_column_units(node: Node, ds: DVCDataset) -> dict[str, Unit]:
+    """
+    Return (column -> unit) pairs implied by ``node``'s binding to ``ds``.
+
+    - Explicit ``ds.column`` bindings contribute one entry with ``ds.unit``.
+    - Column-less bindings fall back to the node's output metrics: each metric
+      with a non-null ``column_id`` contributes ``(column_id, metric.unit)``.
+    """
+    if ds.column is not None:
+        if ds.unit is None:
+            raise ValueError(f"Missing unit for placeholder '{ds.id}' on node {node.id}")
+        return {ds.column: ds.unit}
+    result: dict[str, Unit] = {}
+    for metric in node.output_metrics.values():
+        if metric.column_id is None:
+            continue
+        column = str(metric.column_id)
+        if column not in result:
+            result[column] = metric.unit
+    return result
 
 
 def make_external_dataset_ref(ctx: Context, ds_id: str) -> dict[str, str | None] | None:

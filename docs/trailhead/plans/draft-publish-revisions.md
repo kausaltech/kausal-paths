@@ -24,7 +24,7 @@ read-side of phase 5's history surface.
 | 2 — Change tracking | ✅ Landed | `InstanceChangeOperation` + `InstanceModelLogEntry` models, `change_operation()` / `record_change()` / ContextVar carrier, `EditableInstanceChild` superclass applied to `NodeConfig` / `NodeEdge` / `DatasetPort`, `RevisionMixin` added to `Dataset` (kausal_common). Commits `6f5e8915` (+ superclass refactor). |
 | 2.5 — PoC on node.create/update/delete | ✅ Landed | All three node mutations wired; cascade delete groups correctly. Commit `6f5e8915`. |
 | 3 — Mutation layer refactor | 🟡 Mostly done | See [Phase 3 status notes](#phase-3-status-notes) below. Done: all edit mutations routed through `change_operation`; `draftHeadToken`, `@instance(version, preview)` directive args, `PreviewMode` enum, `StaleVersionError` optimistic-locking check. Open: uniform `MutationPayload` (Phase 4), `apply_snapshot` (Phase 5). |
-| 4 — Resolver split & compute invalidation | ⚪ Not started | — |
+| 4 — Resolver split & compute invalidation | 🟡 #1 landed | `PreferredInstanceSource` enum; `source` threaded through `_create_from_config` / `_initialize_instance` / `_get_instance` / `enter_instance_context`; `@instance(preview: DRAFT)` perm-gated on `change`. (2)-(4) pending (contentHash, invalidation walker, MutationPayload). |
 | 5 — Publish / revert / undo / named drafts | 🟡 Read-side only | History GraphQL surface landed (`InstanceEditor.changeHistory`, `EditableEntity.changeHistory`). Mutations (publish / revert / undo / save_draft) not yet implemented. |
 | 6 — Permissions & migration | ⚪ Not started | — |
 

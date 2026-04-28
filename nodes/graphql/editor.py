@@ -12,8 +12,7 @@ import strawberry as sb
 from django.db import transaction
 from django.utils.module_loading import import_string
 from graphql import GraphQLError
-from pydantic import TypeAdapter, ValidationError as PydanticValidationError
-from strawberry import Maybe, Some, auto
+from strawberry import Maybe, auto
 
 from kausal_common.strawberry.errors import GraphQLValidationError, NotFoundError, PermissionDeniedError
 from kausal_common.strawberry.helpers import get_or_error
@@ -28,7 +27,7 @@ from nodes.defs.edge_def import (
     FlattenTransformation,
     SelectCategoriesTransformation,
 )
-from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, PipelineConfig
+from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.models import InstanceConfig, NodeConfig, NodeKindChoices
 from nodes.node import Node
@@ -43,6 +42,8 @@ from .types.scenario import ScenarioType
 from .types.spec import InputPortType, OutputPortType
 
 if TYPE_CHECKING:
+    from strawberry import Some
+
     from kausal_common.datasets.models import DimensionCategory as DimensionCategoryModel, DimensionScope
     from kausal_common.models.ordered import OrderedModel
 
@@ -51,11 +52,13 @@ if TYPE_CHECKING:
 
 
 def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
-    qs = InstanceConfig.objects.qs.modifiable_by(info.context.user).by_all_identifiers(str(instance_id))
+    qs = InstanceConfig.objects.qs.by_all_identifiers(str(instance_id))
     try:
-        return qs.defer(None).get()
+        ic = qs.defer(None).get()
     except InstanceConfig.DoesNotExist:
         raise GraphQLError(f'Instance "{instance_id}" not found') from None
+    ic.ensure_gql_action_allowed(info, 'change')
+    return ic
 
 
 def _resolve_model_instance(ic: InstanceConfig) -> InstanceType:
@@ -348,7 +351,7 @@ class NodeConfigInput:
     pipeline: Maybe[PipelineConfigInput]
 
 
-type AnyTypeConfig = Some[FormulaConfigInput] | Some[SimpleConfigInput] | Some[ActionConfigInput] | Some[PipelineConfigInput]
+type AnyTypeConfig = FormulaConfigInput | SimpleConfigInput | ActionConfigInput | PipelineConfigInput
 
 
 @sb.input(name='CreateNodeInput')
@@ -370,7 +373,6 @@ class CreateNodeInput:
     output_metrics: list[OutputMetricInput] | None = None
     input_dimensions: list[str] | None = None
     output_dimensions: list[str] | None = None
-    input_datasets: sb.scalars.JSON | None = None
     params: sb.scalars.JSON | None = None
     tags: list[str] | None = None
     i18n: sb.scalars.JSON | None = None
@@ -381,9 +383,25 @@ class CreateNodeInput:
 @sb.input
 class UpdateNodeInput:
     name: Maybe[str]
+    kind: Maybe[NodeKind]
     color: Maybe[str]
+    order: Maybe[int]
     is_visible: Maybe[bool]
     is_outcome: Maybe[bool]
+    short_name: Maybe[str]
+    description: Maybe[str]
+    node_group: Maybe[sb.ID]
+    allow_nulls: Maybe[bool]
+    minimum_year: Maybe[int]
+    input_ports: Maybe[list[InputPortInput]]
+    output_ports: Maybe[list[OutputPortInput]]
+    output_metrics: Maybe[list[OutputMetricInput]]
+    input_dimensions: Maybe[list[str]]
+    output_dimensions: Maybe[list[str]]
+    params: Maybe[sb.scalars.JSON]
+    tags: Maybe[list[str]]
+    i18n: Maybe[sb.scalars.JSON]
+    config: Maybe[NodeConfigInput]
 
 
 @pydantic_input(model=SelectCategoriesTransformation)
@@ -547,16 +565,38 @@ def _output_metric_to_port_def(node_identifier: str, metric: OutputMetricInput, 
     )
 
 
-def _parse_input_datasets(info: gql.Info, raw: Any) -> list[InputDatasetDef]:
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise GraphQLValidationError(info, 'inputDatasets must be a list')
-    adapter = TypeAdapter(list[InputDatasetDef])
-    try:
-        return adapter.validate_python(raw)
-    except PydanticValidationError as exc:
-        raise GraphQLValidationError(info, f'Invalid inputDatasets: {exc}') from exc
+def _type_config_for_kind(info: gql.Info, kind: NodeKind, config: NodeConfigInput) -> AnyTypeConfig:
+    if kind == NodeKind.FORMULA:
+        maybe_type_config = config.formula
+    elif kind == NodeKind.SIMPLE:
+        maybe_type_config = config.simple
+    elif kind == NodeKind.ACTION:
+        maybe_type_config = config.action
+    elif kind == NodeKind.PIPELINE:
+        maybe_type_config = config.pipeline
+    else:
+        raise GraphQLError(f'Invalid node kind: {kind}')
+
+    if maybe_type_config is None or maybe_type_config is sb.UNSET:
+        raise GraphQLValidationError(info, 'Invalid node type config')
+
+    return maybe_type_config.value
+
+
+def _kind_from_config(info: gql.Info, config: NodeConfigInput) -> NodeKind:
+    provided = [
+        kind
+        for kind, maybe_type_config in (
+            (NodeKind.FORMULA, config.formula),
+            (NodeKind.SIMPLE, config.simple),
+            (NodeKind.ACTION, config.action),
+            (NodeKind.PIPELINE, config.pipeline),
+        )
+        if maybe_type_config is not None and maybe_type_config is not sb.UNSET
+    ]
+    if len(provided) != 1:
+        raise GraphQLValidationError(info, 'Exactly one node type config must be provided')
+    return provided[0]
 
 
 def _node_class_path(node_class: str, kind: NodeKind) -> str:
@@ -658,6 +698,104 @@ def _parse_params(info: gql.Info, raw: Any, type_config: Any, kind: NodeKind) ->
     return params
 
 
+def _apply_node_db_field_updates(spec: NodeSpec, input: UpdateNodeInput, updates: dict[str, object]) -> None:
+    if is_maybe_set(input.name):
+        spec.name = input.name.value
+        updates['name'] = input.name.value
+    if is_maybe_set(input.color):
+        spec.color = input.color.value
+        updates['color'] = input.color.value
+    if is_maybe_set(input.order):
+        spec.order = input.order.value
+        updates['order'] = input.order.value
+    if is_maybe_set(input.is_visible):
+        spec.is_visible = input.is_visible.value
+        updates['is_visible'] = input.is_visible.value
+    if is_maybe_set(input.description):
+        spec.description = input.description.value
+        updates['description'] = input.description.value
+    if is_maybe_set(input.i18n):
+        updates['i18n'] = input.i18n.value or {}
+
+
+def _apply_node_spec_field_updates(spec: NodeSpec, input: UpdateNodeInput) -> None:
+    if is_maybe_set(input.is_outcome):
+        spec.is_outcome = input.is_outcome.value
+    if is_maybe_set(input.short_name):
+        spec.short_name = input.short_name.value
+    if is_maybe_set(input.node_group):
+        spec.node_group = input.node_group.value
+    if is_maybe_set(input.allow_nulls):
+        spec.allow_nulls = input.allow_nulls.value
+    if is_maybe_set(input.minimum_year):
+        spec.minimum_year = input.minimum_year.value
+    if is_maybe_set(input.input_dimensions):
+        spec.input_dimensions = input.input_dimensions.value or []
+    if is_maybe_set(input.output_dimensions):
+        spec.output_dimensions = input.output_dimensions.value or []
+    if is_maybe_set(input.tags):
+        spec.extra.tags = input.tags.value or []
+
+
+def _apply_node_type_update(
+    info: gql.Info,
+    spec: NodeSpec,
+    input: UpdateNodeInput,
+    updates: dict[str, object],
+) -> None:
+    if is_maybe_set(input.kind):
+        if input.kind.value != spec.kind and not is_maybe_set(input.config):
+            raise GraphQLValidationError(info, 'config must be provided when changing node kind')
+        spec.kind = input.kind.value
+        updates['node_type'] = NodeKindChoices(spec.kind.value)
+
+    if is_maybe_set(input.config):
+        kind = _kind_from_config(info, input.config.value) if not is_maybe_set(input.kind) else input.kind.value
+        spec.kind = kind
+        spec.type_config = _type_config_for_kind(info, kind, input.config.value).to_pydantic()
+        updates['node_type'] = NodeKindChoices(kind.value)
+
+
+def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, input: UpdateNodeInput) -> None:
+    if is_maybe_set(input.input_ports):
+        spec.input_ports = [
+            _input_port_to_def(nc.identifier, index, port) for index, port in enumerate(input.input_ports.value or [])
+        ]
+    if not is_maybe_set(input.output_ports) and not is_maybe_set(input.output_metrics):
+        return
+
+    output_ports = [
+        _output_port_to_def(nc.identifier, index, port)
+        for index, port in enumerate(input.output_ports.value if is_maybe_set(input.output_ports) else [])
+    ]
+    output_ports.extend(
+        _output_metric_to_port_def(nc.identifier, metric, spec.output_dimensions)
+        for metric in (input.output_metrics.value if is_maybe_set(input.output_metrics) else [])
+    )
+    if not output_ports:
+        raise GraphQLValidationError(info, 'At least one outputPort or outputMetric must be provided')
+    spec.output_ports = output_ports
+
+
+def _apply_node_data_updates(info: gql.Info, spec: NodeSpec, input: UpdateNodeInput) -> None:
+    if is_maybe_set(input.params):
+        spec.params = _parse_params(info, input.params.value, spec.type_config, spec.kind)
+
+
+def _apply_update_node_input(
+    info: gql.Info,
+    nc: NodeConfig,
+    spec: NodeSpec,
+    input: UpdateNodeInput,
+    updates: dict[str, object],
+) -> None:
+    _apply_node_db_field_updates(spec, input, updates)
+    _apply_node_spec_field_updates(spec, input)
+    _apply_node_type_update(info, spec, input, updates)
+    _apply_node_port_updates(info, nc, spec, input)
+    _apply_node_data_updates(info, spec, input)
+
+
 @sb.type
 class InstanceEditorMutation:
     instance: sb.Private[InstanceConfig]
@@ -672,22 +810,7 @@ class InstanceEditorMutation:
         if not NodeConfig.gql_create_allowed(info, ic):
             raise PermissionDeniedError(info, 'Permission denied for create')
 
-        maybe_type_config: AnyTypeConfig | None
-        if input.kind == NodeKind.FORMULA:
-            maybe_type_config = input.config.formula
-        elif input.kind == NodeKind.SIMPLE:
-            maybe_type_config = input.config.simple
-        elif input.kind == NodeKind.ACTION:
-            maybe_type_config = input.config.action
-        elif input.kind == NodeKind.PIPELINE:
-            maybe_type_config = input.config.pipeline
-        else:
-            raise GraphQLError(f'Invalid node kind: {input.kind}')
-
-        if maybe_type_config is None:
-            raise GraphQLValidationError(info, 'Invalid node type config')
-
-        type_config = maybe_type_config.value
+        type_config = _type_config_for_kind(info, input.kind, input.config)
 
         input_dimensions = input.input_dimensions or []
         output_dimensions = input.output_dimensions or []
@@ -714,7 +837,6 @@ class InstanceEditorMutation:
             minimum_year=input.minimum_year,
             input_ports=input_ports,
             output_ports=output_ports,
-            input_datasets=_parse_input_datasets(info, input.input_datasets),
             input_dimensions=input_dimensions,
             output_dimensions=output_dimensions,
         )
@@ -755,17 +877,7 @@ class InstanceEditorMutation:
             spec = nc.spec
             updates: dict[str, object] = {}
             assert spec is not None
-            if is_maybe_set(input.name):
-                spec.name = input.name.value
-                updates['name'] = input.name.value
-            if is_maybe_set(input.color):
-                spec.color = input.color.value
-                updates['color'] = input.color.value
-            if is_maybe_set(input.is_visible):
-                spec.is_visible = input.is_visible.value
-                updates['is_visible'] = input.is_visible.value
-            if is_maybe_set(input.is_outcome):
-                spec.is_outcome = input.is_outcome.value
+            _apply_update_node_input(info, nc, spec, input, updates)
             nc.spec = spec
             updates['spec'] = spec
             NodeConfig.objects.filter(pk=nc.pk).update(**updates)
@@ -1261,7 +1373,31 @@ class InstanceEditorMutation:
 
 
 @sb.type
+class SetInstanceLockedResult:
+    instance_id: sb.ID
+    is_locked: bool
+
+
+@sb.type
 class ModelEditorMutation:
+    @gql.mutation(description='Set whether an instance is locked for end-user mutations')
+    @staticmethod
+    def set_instance_locked(info: gql.Info, instance_id: sb.ID, is_locked: bool) -> SetInstanceLockedResult:
+        ic = InstanceConfig.objects.qs.by_all_identifiers(str(instance_id)).first()
+        if ic is None:
+            raise GraphQLError(f'Instance "{instance_id}" not found')
+
+        user = info.context.user
+        if user is None or not user.is_authenticated or not ic.permission_policy().user_can_set_lock(user, ic):
+            raise PermissionDeniedError(info, 'Permission denied for instance lock')
+
+        if ic.is_locked != is_locked:
+            ic.is_locked = is_locked
+            ic.save(update_fields=['is_locked'])
+            ic.notify_change()
+
+        return SetInstanceLockedResult(instance_id=sb.ID(str(ic.identifier)), is_locked=ic.is_locked)
+
     @sb.field(description='Edit the nodes and edges of an instance')
     @staticmethod
     def instance_editor(

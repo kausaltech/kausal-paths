@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from paths.schema import PreviewMode
 
     from nodes.instance import Instance
-    from nodes.models import InstanceConfig, InstanceConfigQuerySet
+    from nodes.models import InstanceConfig, InstanceConfigQuerySet, PreferredInstanceSource
 
 logger = logger.bind(markup=True)
 
@@ -298,6 +298,62 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
 
         context.activate_scenario(scenario)
 
+    def _resolve_preview_source(
+        self,
+        ic: InstanceConfig,
+        ctx: PathsGraphQLContext[Any],
+    ) -> PreferredInstanceSource:
+        """
+        Translate ``ctx.preview_mode`` into a ``PreferredInstanceSource``.
+
+        Rules:
+
+        * Non-DB (YAML / framework) instances always serve DRAFT, ignoring
+          the directive. They have no live revision and the ORM-overlay on
+          YAML configs *is* the editable state — preserves pre-Phase-4
+          behavior for non-migrated instances end-to-end.
+        * Explicit ``DRAFT`` on a DB-sourced instance requires ``change``
+          permission.
+        * Explicit ``PUBLISHED`` serves the live revision; if none exists,
+          ``_create_from_config`` silently falls back to DRAFT.
+        * Default (no ``preview`` arg): if a live revision exists, serve
+          PUBLISHED; otherwise DRAFT (bootstrap path for brand-new DB
+          instances that haven't been published yet). No perm check on
+          the default path — anonymous public reads land here.
+        """
+        from paths.schema import PreviewMode
+
+        from nodes.models import PreferredInstanceSource
+
+        # Non-DB sources: directive is advisory, DRAFT wins.
+        if ic.config_source != 'database':
+            return PreferredInstanceSource.DRAFT
+
+        mode = ctx.preview_mode
+        if mode == PreviewMode.DRAFT:
+            from users.models import User
+
+            user = ctx.get_user()
+            if not isinstance(user, User) or user.is_anonymous:
+                raise GraphQLError(
+                    'Draft preview requires authentication.',
+                    extensions={'code': 'permission_denied'},
+                )
+            if not ic.permission_policy().user_can_preview_draft(user, ic):
+                raise GraphQLError(
+                    'Draft preview requires editor permission on this instance.',
+                    extensions={'code': 'permission_denied'},
+                )
+            return PreferredInstanceSource.DRAFT
+        if mode == PreviewMode.PUBLISHED:
+            return PreferredInstanceSource.PUBLISHED
+        # Default: publish-first. Bootstrap to DRAFT for instances that
+        # have never been published; once a revision lands, the default
+        # serves that.
+        if ic.live_revision_id is not None:
+            return PreferredInstanceSource.PUBLISHED
+        return PreferredInstanceSource.DRAFT
+
     @contextmanager
     def instance_context(self, _operation: OperationDefinitionNode):
         context = None
@@ -306,6 +362,7 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
         ic = ctx.instance_config
         assert ic is not None
         assert ctx.graphql_query_language is not None
+        source = self._resolve_preview_source(ic, ctx)
         with ExitStack() as stack:
             with perf.exec_node(GraphQLPerfNode('prepare instance "%s"' % ic.identifier)):
                 stack.enter_context(self.activate_language(ctx.graphql_query_language))
@@ -313,7 +370,7 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
                     perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)),
                     is_query_with_instance_context.set(True),
                 ):
-                    instance = stack.enter_context(ic.enter_instance_context())
+                    instance = stack.enter_context(ic.enter_instance_context(source=source))
                     ctx.instance = instance
                 context = instance.context
                 stack.enter_context(instance.lock)

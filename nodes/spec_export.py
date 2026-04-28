@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, Any, overload
 from uuid import uuid3, uuid4
 
 from loguru import logger
@@ -23,6 +23,7 @@ from nodes.actions.action import ActionNode
 from nodes.datasets import DatasetWithFilters, DVCDataset
 from nodes.defs import (
     ActionConfig,
+    DatasetPortSpec,
     InputDatasetDef,
     InstanceSpec,
     NodeSpec,
@@ -118,9 +119,8 @@ def export_node_spec(node: Node, nc: NodeConfig) -> NodeSpec:
     output_ports = _export_output_ports(node)
     params = _export_node_params(node)
 
-    # Capture dataset configs and dimension IDs.
+    # Capture dimension IDs.
     # Skip internal dimensions — they're created dynamically by node classes at runtime.
-    input_datasets = _export_input_datasets(node)
     extra = _export_node_extra(node)
     input_dim_ids = [d for d, dim in node.input_dimensions.items() if not dim.is_internal] if node.input_dimensions else []
     output_dim_ids = [d for d, dim in node.output_dimensions.items() if not dim.is_internal] if node.output_dimensions else []
@@ -144,7 +144,6 @@ def export_node_spec(node: Node, nc: NodeConfig) -> NodeSpec:
         type_config=type_config,
         input_ports=input_ports,
         output_ports=output_ports,
-        input_datasets=input_datasets,
         input_dimensions=input_dim_ids,
         output_dimensions=output_dim_ids,
         params=params,
@@ -234,12 +233,14 @@ def _is_multi_candidate_group_compatible(node: Node, candidates: list[_InputPort
 
     if node.unit is not None and not node.is_compatible_unit(expected_unit, node.unit):
         logger.warning(
-            'Not marking %s input group %s as multi: metric %s unit %s is incompatible with target unit %s',
-            node.id,
-            first.group,
-            first.metric.id,
-            expected_unit,
-            node.unit,
+            'Not marking %s input group %s as multi: metric %s unit %s is incompatible with target unit %s'
+            % (
+                node.id,
+                first.group,
+                first.metric.id,
+                expected_unit,
+                node.unit,
+            )
         )
         return False
 
@@ -247,39 +248,47 @@ def _is_multi_candidate_group_compatible(node: Node, candidates: list[_InputPort
         dims = _effective_input_dimension_ids(node, candidate.edge)
         if set(dims) != set(expected_dims):
             logger.warning(
-                'Not marking %s input group %s as multi: edge dimensions differ (%s vs %s)',
-                node.id,
-                candidate.group,
-                sorted(dims),
-                sorted(expected_dims),
+                'Not marking %s input group %s as multi: edge dimensions differ (%s vs %s)'
+                % (
+                    node.id,
+                    candidate.group,
+                    sorted(dims),
+                    sorted(expected_dims),
+                )
             )
             return False
         if candidate.metric.quantity != expected_quantity:
             logger.warning(
-                'Not marking %s input group %s as multi: metric quantities differ (%s vs %s)',
-                node.id,
-                candidate.group,
-                candidate.metric.quantity,
-                expected_quantity,
+                'Not marking %s input group %s as multi: metric quantities differ (%s vs %s)'
+                % (
+                    node.id,
+                    candidate.group,
+                    candidate.metric.quantity,
+                    expected_quantity,
+                )
             )
             return False
         if not node.is_compatible_unit(candidate.metric.unit, expected_unit):
             logger.warning(
-                'Not marking %s input group %s as multi: metric units differ dimensionally (%s vs %s)',
-                node.id,
-                candidate.group,
-                candidate.metric.unit,
-                expected_unit,
+                'Not marking %s input group %s as multi: metric units differ dimensionally (%s vs %s)'
+                % (
+                    node.id,
+                    candidate.group,
+                    candidate.metric.unit,
+                    expected_unit,
+                )
             )
             return False
         if node.unit is not None and not node.is_compatible_unit(candidate.metric.unit, node.unit):
             logger.warning(
-                'Not marking %s input group %s as multi: metric %s unit %s is incompatible with target unit %s',
-                node.id,
-                candidate.group,
-                candidate.metric.id,
-                candidate.metric.unit,
-                node.unit,
+                'Not marking %s input group %s as multi: metric %s unit %s is incompatible with target unit %s'
+                % (
+                    node.id,
+                    candidate.group,
+                    candidate.metric.id,
+                    candidate.metric.unit,
+                    node.unit,
+                )
             )
             return False
 
@@ -324,18 +333,69 @@ def _apply_input_port_multi_hints(node: Node, ports: list[InputPortDef], candida
         ports[:] = [port for port in ports if port.id not in ports_to_remove]
 
 
+def _dataset_binding_columns_for_node(node: Node, ds_instance: DatasetWithFilters) -> list[str]:
+    """
+    Return dataset metric columns to expose as editor bindings.
+
+    Single-column dataset inputs carry ``column`` directly. Multi-metric
+    action datasets usually leave it unset and consume columns matching the
+    node's output metrics.
+    """
+    if ds_instance.column is not None:
+        return [ds_instance.column]
+    columns: list[str] = []
+    seen: set[str] = set()
+    for metric in node.output_metrics.values():
+        if metric.column_id is None:
+            continue
+        column = str(metric.column_id)
+        if column not in seen:
+            columns.append(column)
+            seen.add(column)
+    return columns
+
+
+def _dataset_port_id(node: Node, dataset_index: int, column: str) -> UUID:
+    return uuid_from_identifiers(node.context.instance, [node.id, 'dataset', str(dataset_index), column])
+
+
+def _metric_for_column(node: Node, column: str) -> NodeMetric | None:
+    for metric in node.output_metrics.values():
+        if str(metric.column_id) == column:
+            return metric
+    return None
+
+
+def _dataset_input_port_for_column(
+    node: Node,
+    dataset_index: int,
+    dataset: DatasetWithFilters,
+    column: str,
+) -> InputPortDef:
+    metric = _metric_for_column(node, column)
+    return InputPortDef(
+        id=_dataset_port_id(node, dataset_index, column),
+        unit=metric.unit if metric is not None else getattr(dataset, 'unit', None),
+        quantity=metric.quantity if metric is not None else None,
+    )
+
+
+def _export_dataset_input_ports(node: Node) -> list[InputPortDef]:
+    ports: list[InputPortDef] = []
+    for idx, dataset in enumerate(node.input_dataset_instances):
+        if not isinstance(dataset, DatasetWithFilters):
+            continue
+        ports.extend(
+            _dataset_input_port_for_column(node, idx, dataset, column)
+            for column in _dataset_binding_columns_for_node(node, dataset)
+        )
+    return ports
+
+
 def _export_input_ports(node: Node) -> list[InputPortDef]:
     """Build InputPortDefs from a node's incoming edges and input datasets."""
-    ports: list[InputPortDef] = []
+    ports = _export_dataset_input_ports(node)
     multi_candidates: list[_InputPortMultiCandidate] = []
-
-    for idx, dataset in enumerate(node.input_dataset_instances):
-        port_id = uuid_from_identifiers(node.context.instance, [node.id, 'dataset', str(idx)])
-        port = InputPortDef(
-            id=port_id,
-            unit=getattr(dataset, 'unit', None),
-        )
-        ports.append(port)
 
     for edge in node.edges:
         if edge.output_node.id != node.id:
@@ -393,7 +453,7 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
                         port=port,
                         old_port_id=port_id,
                         edge=edge,
-                        metric=cast('NodeMetric', from_metric),
+                        metric=from_metric,
                         group=group,
                     )
                 )
@@ -429,34 +489,19 @@ def _export_output_ports(node: Node) -> list[OutputPortDef]:
     return ports
 
 
-def _export_input_datasets(node: Node) -> list[InputDatasetDef]:
-    """
-    Export node input datasets as InputDatasetDef models.
-
-    FixedDatasets are skipped — they are created from historical_values/forecast_values
-    at the node config level, not from input_datasets.
-    """
-    from nodes.datasets import DatasetWithFilters, FixedDataset
-
-    result: list[InputDatasetDef] = []
-    for ds in node.input_dataset_instances:
-        if isinstance(ds, FixedDataset):
-            continue
-        assert isinstance(ds, DatasetWithFilters)
-        ds_def = InputDatasetDef(
-            id=ds.id,
-            tags=ds.tags or [],
-            input_dataset=ds.input_dataset if isinstance(ds, DVCDataset) else None,
-            column=ds.column,
-            forecast_from=ds.forecast_from,
-            filters=ds.filters or [],
-            dropna=ds.dropna,
-            min_year=ds.min_year,
-            max_year=ds.max_year,
-            unit=ds.unit,
-        )
-        result.append(ds_def)
-    return result
+def _input_dataset_def_from_instance(ds: DatasetWithFilters) -> InputDatasetDef:
+    return InputDatasetDef(
+        id=ds.id,
+        tags=ds.tags or [],
+        input_dataset=ds.input_dataset if isinstance(ds, DVCDataset) else None,
+        column=ds.column,
+        forecast_from=ds.forecast_from,
+        filters=ds.filters or [],
+        dropna=ds.dropna,
+        min_year=ds.min_year,
+        max_year=ds.max_year,
+        unit=ds.unit,
+    )
 
 
 def _export_node_extra(node: Node) -> NodeSpecExtra:
@@ -614,7 +659,7 @@ def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, Node
     return edge_count
 
 
-def _resolve_dataset_port(
+def _resolve_dataset_ports(
     ic: InstanceConfig,
     nc: NodeConfig,
     node: Node,
@@ -622,12 +667,9 @@ def _resolve_dataset_port(
     ds_instance: DatasetWithFilters,
     placeholder_datasets: dict[str, DatasetModel],
     metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric],
-) -> DatasetPort:
+) -> list[DatasetPort]:
     from nodes.datasets import DBDataset
     from nodes.models import DatasetPort
-
-    # The port_id must match the one generated in _export_input_ports
-    port_id = uuid_from_identifiers(node.context.instance, [node.id, 'dataset', str(idx)])
 
     # Resolve the Dataset model object depending on the dataset type.
     if isinstance(ds_instance, DBDataset):
@@ -641,24 +683,41 @@ def _resolve_dataset_port(
     if dataset_obj is None:
         raise ValueError(f'No dataset object for {ds_instance.id} on node {node.id}')
 
-    column = ds_instance.column
-    if column is None or dataset_obj.schema is None:
-        raise ValueError(
-            f'Cannot create dataset port: column={column}, schema={dataset_obj.schema} for {ds_instance.id} on node {node.id}'
+    if dataset_obj.schema is None:
+        raise ValueError(f'Cannot create dataset port: schema={dataset_obj.schema} for {ds_instance.id} on node {node.id}')
+
+    ports: list[DatasetPort] = []
+    spec = DatasetPortSpec.from_input_dataset(_input_dataset_def_from_instance(ds_instance))
+    metric_columns = _dataset_binding_columns_for_node(node, ds_instance)
+    if ds_instance.column is None:
+        # Column-less bindings: the node consumes the full frame. Bind to every
+        # metric the dataset actually exposes so ports stay accurate even when
+        # the node renames columns post-load (e.g. HsyNode translating Finnish
+        # metric labels). Falling back to the node's output_metric column_ids
+        # fails whenever the dataset schema uses different names.
+        schema_metrics = [name for (schema_pk, name) in metrics_by_schema_and_name if schema_pk == dataset_obj.schema.pk]
+        if schema_metrics:
+            metric_columns = schema_metrics
+    for column in metric_columns:
+        metric = metrics_by_schema_and_name.get((dataset_obj.schema.pk, column))
+        if metric is None:
+            if ds_instance.column is not None:
+                raise ValueError(f'No metric {column} in dataset {ds_instance.id} for node {node.id}')
+            logger.debug('No metric %s in dataset %s for node %s; skipping dataset-port binding', column, ds_instance.id, node.id)
+            continue
+
+        ports.append(
+            DatasetPort(
+                instance=ic,
+                node=nc,
+                port_id=_dataset_port_id(node, idx, column),
+                dataset=dataset_obj,
+                metric=metric,
+                spec=spec,
+                dataset_index=idx,
+            )
         )
-
-    metric = metrics_by_schema_and_name.get((dataset_obj.schema.pk, column))
-    if metric is None:
-        raise ValueError(f'No metric {column} in dataset {ds_instance.id} for node {node.id}')
-
-    return DatasetPort(
-        instance=ic,
-        node=nc,
-        port_id=port_id,
-        dataset=dataset_obj,
-        metric=metric,
-        forecast_from=ds_instance.forecast_from,
-    )
+    return ports
 
 
 def _get_placeholder_datasets(ic: InstanceConfig) -> dict[str, DatasetModel]:
@@ -719,7 +778,7 @@ def _dataset_metric_binding_key(metric: DatasetMetric) -> str:
 
 
 def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[str, NodeConfig]) -> int:
-    """Create DatasetPort objects linking placeholder datasets to node input ports."""
+    """Create DatasetPort objects linking datasets to node input ports."""
     from nodes.datasets import FixedDataset
     from nodes.models import DatasetPort
 
@@ -746,11 +805,8 @@ def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[s
                 continue
             if not isinstance(ds_instance, DatasetWithFilters):
                 continue
-            if ds_instance.column is None:
-                continue
-
-            port = _resolve_dataset_port(ic, nc, node, idx, ds_instance, placeholder_datasets, metrics_by_schema_and_name)
-            port_objs.append(port)
+            ports = _resolve_dataset_ports(ic, nc, node, idx, ds_instance, placeholder_datasets, metrics_by_schema_and_name)
+            port_objs.extend(ports)
 
     DatasetPort.objects.bulk_create(port_objs)
     return len(port_objs)
@@ -787,6 +843,8 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
         ic.spec = instance_spec
         ic.config_source = 'database'
         ic.save()
+
+        ic.sync_dimensions(update_existing=True, instance=instance)
 
         # Update or create node configs
         node_qs = ic.nodes.all().defer('spec')

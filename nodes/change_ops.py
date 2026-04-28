@@ -101,6 +101,19 @@ class StaleVersionError(GraphQLError):
         )
 
 
+class InstanceLockedError(GraphQLError):
+    """Raised when a mutating operation targets a locked instance."""
+
+    def __init__(self, ic: InstanceConfig) -> None:
+        super().__init__(
+            'Instance is locked',
+            extensions={
+                'code': 'instance_locked',
+                'instanceId': ic.identifier,
+            },
+        )
+
+
 def get_current_operation() -> InstanceChangeOperation:
     """Return the active ``InstanceChangeOperation`` or raise."""
     op = _current_op.get()
@@ -167,12 +180,16 @@ def change_operation(
 
     with transaction.atomic():
         # Serialize against concurrent mutations.
-        InstanceConfig.objects.select_for_update().filter(pk=ic.pk).first()
+        locked_ic = InstanceConfig.objects.select_for_update().filter(pk=ic.pk).first()
+        if locked_ic is None:
+            raise InstanceConfig.DoesNotExist(f'InstanceConfig {ic.pk!r} not found')
+        if locked_ic.is_locked:
+            raise InstanceLockedError(locked_ic)
 
         if expected_version is not None:
-            current = ic.draft_head_token
+            current = locked_ic.draft_head_token
             if current != expected_version:
-                raise StaleVersionError(ic, expected=expected_version, observed=current)
+                raise StaleVersionError(locked_ic, expected=expected_version, observed=current)
 
         op = InstanceChangeOperation.objects.create(
             instance_config=ic,
@@ -185,6 +202,7 @@ def change_operation(
             yield op
         finally:
             _current_op.reset(token)
+        ic.invalidate_cache()
 
 
 @contextmanager

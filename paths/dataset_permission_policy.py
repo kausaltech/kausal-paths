@@ -20,6 +20,7 @@ from kausal_common.datasets.models import (
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
     ParentInheritedPolicy,
+    PermissionBlock,
 )
 from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.roles import role_registry
@@ -85,6 +86,8 @@ class InstanceConfigScopedPermissionPolicy[
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: M) -> bool:
+        if self.get_permission_block(action, obj=obj) is not None:
+            return False
         if user.is_superuser:
             return True
         try:
@@ -113,6 +116,39 @@ class InstanceConfigScopedPermissionPolicy[
                     user.has_instance_role_with_id('instance-reviewer', instance),
                 ))
         return False
+
+    def get_permission_block(
+        self,
+        action: BaseObjectAction,
+        *,
+        obj: M | None = None,
+        context: CreateCtx | None = None,
+    ) -> PermissionBlock | None:
+        if action == 'add':
+            try:
+                active_instance = realm_context.get().realm
+            except LookupError:
+                return None
+            if active_instance.is_locked:
+                return PermissionBlock('Instance is locked', code='instance_locked')
+            return None
+
+        if obj is None or action not in ('change', 'delete'):
+            return None
+        instance_ids = self.get_instance_configs_for_obj(obj)
+        if not instance_ids:
+            return None
+        try:
+            active_instance = realm_context.get().realm
+        except LookupError:
+            active_instance = None
+        if active_instance is not None:
+            is_locked = active_instance.pk in instance_ids and active_instance.is_locked
+        else:
+            is_locked = InstanceConfig.objects.filter(pk__in=instance_ids, is_locked=True).exists()
+        if is_locked:
+            return PermissionBlock('Instance is locked', code='instance_locked')
+        return None
 
     @override
     def anon_has_perm(self, action: BaseObjectAction, obj: M) -> bool:
@@ -184,7 +220,6 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
                 scopes__scope_id__in=self.get_role('instance-reviewer').get_instances_for_user(user),
             )
             q |= viewer_q | reviewer_q
-
         if getattr(user, 'person', None) is None:
             return q
 
@@ -202,12 +237,21 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
         q |= Q(pk__in=group_object_ids) | Q(pk__in=individual_object_ids)
         return q
 
+    def construct_state_perm_q(self, action: ObjectSpecificAction) -> Q:
+        if action not in ('change', 'delete'):
+            return Q()
+        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
+        unlocked_instances = InstanceConfig.objects.filter(is_locked=False).values_list('pk', flat=True)
+        return Q(scopes__scope_content_type=ic_content_type, scopes__scope_id__in=unlocked_instances)
+
     @override
     def user_can_create(self, user: User, context: None) -> bool:
         return super().user_can_create(user, context)
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DatasetSchema) -> bool:
+        if self.get_permission_block(action, obj=obj) is not None:
+            return False
         if hasattr(user, 'person'):
             # Check dataset schema's person / group permissions first
             privileged_roles = ObjectRole.get_roles_for_action(action)
@@ -260,6 +304,17 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: Dataset) -> bool:
         parent_obj = self.get_parent_obj(obj)
         return self.parent_policy.user_has_perm(user, action, parent_obj)
+
+    def construct_state_perm_q(self, action: ObjectSpecificAction) -> Q:
+        if action not in ('change', 'delete'):
+            return Q()
+        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
+        unlocked_instances = InstanceConfig.objects.filter(is_locked=False).values_list('pk', flat=True)
+        return (
+            Q(scope_content_type__isnull=True)
+            | ~Q(scope_content_type=ic_content_type)
+            | Q(scope_content_type=ic_content_type, scope_id__in=unlocked_instances)
+        )
 
     @override
     def anon_has_perm(self, action: BaseObjectAction, obj: Dataset) -> bool:
@@ -337,6 +392,7 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
 
     @override
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
+        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
         admin_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-admin')
         super_admin_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-super-admin')
         viewer_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-viewer')
@@ -354,11 +410,17 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
             instance_ids = InstanceConfig.objects.filter(subsector_q).values_list('pk', flat=True)
             if not instance_ids:
                 return q
-            ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
             schema_perm_q = Q(scope_content_type=ic_content_type, scope_id__in=instance_ids)
             q |= schema_perm_q
 
         return q
+
+    def construct_state_perm_q(self, action: ObjectSpecificAction) -> Q:
+        if action not in ('change', 'delete'):
+            return Q()
+        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
+        unlocked_instances = InstanceConfig.objects.filter(is_locked=False).values_list('pk', flat=True)
+        return Q(scope_content_type=ic_content_type, scope_id__in=unlocked_instances)
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DataSource) -> bool:

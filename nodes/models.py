@@ -5,6 +5,7 @@ import threading
 import uuid
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
+from enum import StrEnum
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypedDict, cast
@@ -50,11 +51,12 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
+from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans, set_i18n_context
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
     ParentInheritedPolicy,
+    PermissionBlock,
 )
 from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.types import (
@@ -73,7 +75,7 @@ from paths.utils import (
     get_supported_languages,
 )
 
-from nodes.defs import DatasetPortBindingDef, EdgeBindingDef, InstanceSpec, NodeSpec
+from nodes.defs import DatasetPortBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceSpec, NodeSpec
 from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.node_defs import NodeKind
 from nodes.instance_serialization import (
@@ -210,6 +212,16 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
             return False
         return user.has_instance_role(self.fw_viewer_role, obj.framework_config.framework)
 
+    def user_can_preview_draft(self, user: User, obj: InstanceConfig) -> bool:
+        if user.is_superuser:
+            return True
+        return self.is_admin(user, obj) or self.is_framework_admin(user, obj)
+
+    def user_can_set_lock(self, user: User, obj: InstanceConfig) -> bool:
+        if user.is_superuser:
+            return True
+        return user.has_instance_role(self.super_admin_role, obj) or self.is_framework_admin(user, obj)
+
     def construct_perm_q(self, user: User, action: ObjectSpecificAction, include_implicit_public: bool = True) -> models.Q | None:
         is_super_admin = self.super_admin_role.role_q(user)
         is_admin = self.admin_role.role_q(user)
@@ -219,10 +231,14 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
         is_fw_viewer = self.fw_viewer_role.role_q(user, prefix='framework_config__framework')
 
         q = is_super_admin | is_admin | is_fw_admin
+        if action in ('change', 'delete'):
+            q &= Q(is_locked=False)
         if action == 'view':
             q = is_viewer | is_reviewer | is_super_admin | is_admin | is_fw_admin | is_fw_viewer
             if include_implicit_public:
                 q |= Q(framework_config__isnull=True)
+        else:
+            return q
 
         # PersonGroupPermissions and PersonPermissions can assign permissions directly to datasetschemas and their associated
         # datasets. We want to count the instanceconfigs those schemas are scoped for as accessible for those users.
@@ -251,6 +267,11 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
             return Q(framework_config__isnull=True)
         return None
 
+    def construct_state_perm_q(self, action: ObjectSpecificAction) -> Q:
+        if action in ('change', 'delete'):
+            return Q(is_locked=False)
+        return Q()
+
     def adminable_instances(self, user: User) -> InstanceConfigQuerySet:
         """
         Return instances that the user has been explicitly granted access to.
@@ -264,6 +285,8 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
         return qs.filter(self.construct_perm_q(user, 'view', include_implicit_public=False))
 
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
+        if self.get_permission_block(action, obj=obj) is not None:
+            return False
         if user.is_superuser:
             return True
         if action == 'delete':
@@ -278,6 +301,17 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
             if self.is_framework_viewer(user, obj):
                 return True
         return self.is_admin(user, obj) or self.is_framework_admin(user, obj)
+
+    def get_permission_block(
+        self,
+        action: BaseObjectAction,
+        *,
+        obj: InstanceConfig | None = None,
+        context: None = None,
+    ) -> PermissionBlock | None:
+        if obj is not None and action in ('change', 'delete') and obj.is_locked:
+            return PermissionBlock('Instance is locked', code='instance_locked')
+        return None
 
     def anon_has_perm(self, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
         if action != 'view':
@@ -312,6 +346,24 @@ instance_context: ContextVar[Instance | None] = ContextVar('instance_context', d
 """Global instance context for e.g. GraphQL queries."""
 
 
+class PreferredInstanceSource(StrEnum):
+    """
+    Which slice of a DB-sourced ``InstanceConfig`` to hydrate.
+
+    ``DRAFT`` reads the current editor tables (``NodeConfig`` / ``NodeEdge``
+    / ``DatasetPort`` + ``InstanceConfig.spec``). ``PUBLISHED`` reads the
+    latest live ``Revision``'s ``InstanceSnapshot`` payload, falling back
+    to ``DRAFT`` if no revision has been published yet.
+
+    The enum values are the exact strings accepted by
+    ``_create_from_config(source=...)`` so callers can pass either a
+    member or the underlying literal without conversion.
+    """
+
+    DRAFT = 'draft'
+    PUBLISHED = 'published'
+
+
 def make_empty_instance_spec() -> InstanceSpec:
     return InstanceSpec(primary_language='en')
 
@@ -337,6 +389,10 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
 
     is_protected = models.BooleanField(default=False)
     protection_password = models.CharField(max_length=50, null=True, blank=True)
+    is_locked = models.BooleanField(
+        default=False,
+        help_text=_('Whether end-user mutation surfaces should treat this instance as read-only.'),
+    )
 
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
@@ -420,8 +476,15 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
     change_operations: RevMany[InstanceChangeOperation]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
+    live_revision_id: int | None  # from DraftStateMixin; id-side of ``live_revision`` FK
     organization_id: int
     site_content: RevOne[InstanceConfig, InstanceSiteContent]
+
+    # Backing storage for the ``nodes_for_serialization`` property. ``None``
+    # means "not yet computed or explicitly invalidated, recompute on next
+    # read". ``_create_from_config`` clears it so hydrate calls that follow
+    # a post-publish edit see the current DB state.
+    _nodes_for_serialization: list[NodeConfig] | None
 
     search_fields = [
         index.SearchField('identifier'),
@@ -446,11 +509,12 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             self.uuid = uuid.uuid4()
 
         if (spec := self.spec) is not None:
-            spec.uuid = self.uuid
-            spec.identifier = self.identifier
-            spec.name = self.name
-            spec.primary_language = self.primary_language
-            spec.other_languages = list(self.other_languages or [])
+            with set_i18n_context(self.primary_language, self.other_languages):
+                spec.uuid = self.uuid
+                spec.identifier = self.identifier
+                spec.name = self.name
+                spec.primary_language = self.primary_language
+                spec.other_languages = list(self.other_languages or [])
 
         if self.site is not None:
             # TODO: Update Site and root page attributes
@@ -473,6 +537,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         pp.admin_role.delete_instance_group(self)
         pp.viewer_role.delete_instance_group(self)
         pp.reviewer_role.delete_instance_group(self)
+        pp.super_admin_role.delete_instance_group(obj=self)
         self.nodes.all().delete()
         super().delete(**kwargs)
 
@@ -528,23 +593,76 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             self.other_languages = list(other_langs)
 
     def serializable_data(self) -> dict[str, Any]:
-        """Override Wagtail's serializable_data to include full model snapshot for DB-sourced instances."""
-        data = super().serializable_data()
-        if self.config_source == 'database':
-            from .instance_from_db import serialize_instance_to_dict
-            from .instance_serialization import SNAPSHOT_SCHEMA_VERSION, build_instance_snapshot
+        """
+        Revision payload for a DB-sourced InstanceConfig.
 
-            # The structured snapshot is the canonical record of model state.
-            # The YAML-equivalent dict is stored alongside so InstanceLoader
-            # can hydrate directly without a structured→dict converter. Both
-            # fields are kept in sync and can collapse to one once hydrate
-            # from structured lands.
+        Deliberately *not* a ``super()`` call: Wagtail's default dumps every
+        concrete field, which for this model includes both ``name`` and
+        the modeltrans-synthesized ``name_i18n``. Modeltrans rejects
+        round-tripping that duplication (``Attempted override of 'name'
+        with 'name_i18n'``). ``name_i18n`` is a view-time projection of
+        ``i18n`` under the active language anyway, so it doesn't belong
+        in persisted revision content.
+
+        Trailhead's restore path is ``_create_from_published_revision``,
+        which reads ``model_snapshot.hydrate_dict`` directly — so the only
+        load-bearing key below is ``model_snapshot``. The other fields
+        exist for admin-side revision diffs and for
+        ``from_serializable_data`` to look up the live row by pk.
+        """
+        from .instance_from_db import serialize_instance_to_dict
+        from .instance_serialization import SNAPSHOT_SCHEMA_VERSION, build_instance_snapshot
+
+        data: dict[str, Any] = {
+            'pk': self.pk,
+            'identifier': self.identifier,
+            'config_source': self.config_source,
+        }
+        if self.config_source == 'database':
             data['model_snapshot'] = {
                 'schema_version': SNAPSHOT_SCHEMA_VERSION,
                 'structured': build_instance_snapshot(self).model_dump(mode='json'),
                 'hydrate_dict': serialize_instance_to_dict(self),
             }
         return data
+
+    @classmethod
+    def from_serializable_data(
+        cls,
+        data: dict[str, Any],
+        check_fks: bool = True,  # noqa: ARG003
+        strict_fks: bool = False,  # noqa: ARG003
+    ) -> InstanceConfig:
+        """
+        Return the live DB row for ``pk`` / ``identifier`` in ``data``.
+
+        Wagtail's contract is "reconstruct the model's historical state
+        from the revision blob" (Option B in the design discussion). We
+        take a pragmatic shortcut: Trailhead's authoritative restore path
+        is ``_create_from_published_revision``, which rebuilds the
+        in-memory ``Instance`` from ``model_snapshot.hydrate_dict``. The
+        ``InstanceConfig`` row itself is never reverted — its metadata
+        (name, site, permissions) is the responsibility of the live row.
+        Nothing downstream currently reads the object returned here, so
+        returning the live row keeps ``with_content_json`` non-crashy
+        without inventing reconstruction logic we don't use.
+
+        If a future admin surface wants to preview historical revision
+        state, revisit this to rebuild from ``data['model_snapshot']``.
+        """
+        pk = data.get('pk')
+        if pk is not None:
+            row = cls.objects.filter(pk=pk).first()
+            if row is not None:
+                return row
+        identifier = data.get('identifier')
+        if identifier:
+            row = cls.objects.filter(identifier=identifier).first()
+            if row is not None:
+                return row
+        # No live row to return — construct a blank instance so callers
+        # don't crash. This branch is unexpected in practice.
+        return cls(pk=pk, identifier=identifier or '')
 
     def clear_model_editor_data(self) -> None:
         """Delete all model editor related objects (edges, dataset ports) and reset spec."""
@@ -601,12 +719,17 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
     def _create_from_config(
         self,
         node_refs: bool = False,
-        source: Literal['draft', 'published'] = 'draft',
+        source: PreferredInstanceSource | Literal['draft', 'published'] = PreferredInstanceSource.DRAFT,
     ) -> Instance:
         from .instance_loader import InstanceLoader
 
+        # Defensively invalidate the cached node list: a prior read might
+        # have warmed it before a post-publish edit, and we want to see
+        # current DB state here.
+        self._nodes_for_serialization = None
+
         if self.config_source == 'database':
-            if source == 'published':
+            if source == PreferredInstanceSource.PUBLISHED:
                 instance = self._create_from_published_revision(node_refs=node_refs)
                 if instance is not None:
                     return instance
@@ -623,6 +746,8 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         if self.has_framework_config():
             fwc = self.framework_config
             instance = fwc.create_model_instance(self)
+            with sentry_sdk.start_span(name='update-instance-from-configs: %s' % self.identifier, op='function'):
+                self.update_instance_from_configs(instance, node_refs=node_refs)
         else:
             config_fn = Path(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
             self.log.debug('Creating instance from YAML file: %s' % config_fn)
@@ -634,11 +759,21 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
 
         return instance
 
-    def _initialize_instance(self, node_refs: bool = False) -> Instance:
-        self.log.info('Creating new instance from %s' % ('database' if self.config_source == 'database' else 'YAML config'))
+    def _initialize_instance(
+        self,
+        node_refs: bool = False,
+        source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+    ) -> Instance:
+        self.log.info(
+            'Creating new instance from %s (source=%s)'
+            % (
+                'database' if self.config_source == 'database' else 'YAML config',
+                source.value,
+            )
+        )
 
         with sentry_sdk.start_span(name='create-instance-from-config: %s' % self.identifier, op='function'):
-            instance = self._create_from_config(node_refs=node_refs)
+            instance = self._create_from_config(node_refs=node_refs, source=source)
 
         instance.modified_at = timezone.now()
         if settings.ENABLE_PERF_TRACING:
@@ -652,11 +787,14 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         scope.set_tag('instance_uuid', str(self.uuid))
 
     @contextmanager
-    def enter_instance_context(self):
+    def enter_instance_context(
+        self,
+        source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+    ):
         if self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
-            instance = self._initialize_instance(node_refs=True)
+            instance = self._initialize_instance(node_refs=True, source=source)
 
         token = instance_context.set(instance)
         try:
@@ -667,11 +805,14 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             instance_context.reset(token)
 
     @asynccontextmanager
-    async def enter_instance_context_async(self):
+    async def enter_instance_context_async(
+        self,
+        source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+    ):
         if self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
-            instance = await sync_to_async(self._initialize_instance)(node_refs=True)
+            instance = await sync_to_async(self._initialize_instance)(node_refs=True, source=source)
 
         token = instance_context.set(instance)
         try:
@@ -681,22 +822,33 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         finally:
             instance_context.reset(token)
 
-    def _get_instance(self, node_refs: bool = False) -> Instance:
+    def _get_instance(
+        self,
+        node_refs: bool = False,
+        source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+    ) -> Instance:
         if self.identifier in _pytest_instances:
             return _pytest_instances[self.identifier]
 
         current_instance = instance_context.get()
         if current_instance is not None and current_instance.id == self.identifier:
+            # Trust the ContextVar: whoever entered the request-scoped
+            # context already chose a source, and all in-request resolvers
+            # should see the same Instance.
             return current_instance
 
         with instance_cache_lock:
-            instance = self._initialize_instance(node_refs=node_refs)
+            instance = self._initialize_instance(node_refs=node_refs, source=source)
         return instance
 
-    def get_instance(self, node_refs: bool = False) -> Instance:
+    def get_instance(
+        self,
+        node_refs: bool = False,
+        source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+    ) -> Instance:
         # Unit tests will set the Instance to `_instance` so that we don't need
         # to read the YAML configs
-        instance = self._get_instance(node_refs=node_refs)
+        instance = self._get_instance(node_refs=node_refs, source=source)
         return instance
 
     def get_name(self) -> str:
@@ -773,25 +925,40 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         scope: DimensionScope,
         update_existing=False,
         delete_stale=False,
+        instance: Instance | None = None,
     ):
         found_cats = set()
-        instance = self.get_instance()
+        if instance is None:
+            instance = self.get_instance()
         default_lang = instance.default_language
         assert scope.identifier is not None
         dim = instance.context.dimensions[scope.identifier]
 
+        from datasets.defs import DimensionCategorySpec
+
         cats = {cat.identifier: cat for cat in dataset_dim.categories.all()}
-        for cat in dim.categories:
+        for order, cat in enumerate(dim.categories):
             cat_obj = cats.get(cat.id)
+            label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
+            cat_spec = DimensionCategorySpec.from_runtime(cat).to_json()
             if cat_obj is None:
-                label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
-                cat_obj = DimensionCategory.objects.create(dimension=dataset_dim, identifier=cat.id, label=label, i18n=i18n)
+                cat_obj = DimensionCategory.objects.create(
+                    dimension=dataset_dim,
+                    identifier=cat.id,
+                    label=label,
+                    i18n=i18n,
+                    spec=cat_spec,
+                    order=order,
+                )
                 print('Creating category %s' % cat.id)
             else:
                 found_cats.add(cat_obj.pk)
-                label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
-                if i18n != cat_obj.i18n or cat_obj.label != label:
-                    cat_obj.label, cat_obj.i18n = label, i18n
+                # OrderableModel ordering starts from 1
+                changed = (
+                    i18n != cat_obj.i18n or cat_obj.label != label or cat_obj.spec != cat_spec or cat_obj.order != (order + 1)
+                )
+                if changed:
+                    cat_obj.label, cat_obj.i18n, cat_obj.spec, cat_obj.order = label, i18n, cat_spec, order + 1
                     print('Updating category %s' % cat.id)
                     cat_obj.save()
 
@@ -802,15 +969,24 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
                 print('Deleting stale category %s' % cat_obj)
                 cat_obj.delete()
 
-    def sync_dimension(self, dim: NodeDimension, update_existing=False, delete_stale=False) -> DatasetDimensionModel:
+    def sync_dimension(
+        self,
+        dim: NodeDimension,
+        update_existing=False,
+        delete_stale=False,
+        instance: Instance | None = None,
+    ) -> DatasetDimensionModel:
+        from datasets.defs import DimensionSpec
+
         scope = DimensionScope.objects.filter(
             scope_content_type=ContentType.objects.get_for_model(self),
             scope_id=self.pk,
             identifier=dim.id,
         ).first()
-        label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', self.primary_language)
+        label, i18n = get_modeltrans_attrs_from_str(dim.label, 'name', self.primary_language)
+        dim_spec = DimensionSpec.from_runtime(dim).to_json()
         if scope is None:
-            dim_obj = DatasetDimensionModel.objects.create(name=label, i18n=i18n)
+            dim_obj = DatasetDimensionModel.objects.create(name=label, i18n=i18n, spec=dim_spec)
             scope = DimensionScope.objects.create(
                 scope_content_type=ContentType.objects.get_for_model(self), scope_id=self.pk, identifier=dim.id, dimension=dim_obj
             )
@@ -818,21 +994,29 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         else:
             dim_obj = scope.dimension
 
-        if update_existing and (dim_obj.name != label or dim_obj.i18n != i18n):
+        if update_existing and (dim_obj.name != label or dim_obj.i18n != i18n or dim_obj.spec != dim_spec):
             if dim_obj.pk:
                 print('Updating dimension %s' % dim.id)
             dim_obj.name = label
             dim_obj.i18n = i18n
+            dim_obj.spec = dim_spec
             dim_obj.save()
 
-        self.sync_categories(dataset_dim=dim_obj, scope=scope, update_existing=update_existing, delete_stale=delete_stale)
+        self.sync_categories(
+            dataset_dim=dim_obj,
+            scope=scope,
+            update_existing=update_existing,
+            delete_stale=delete_stale,
+            instance=instance,
+        )
         return dim_obj
 
-    def sync_dimensions(self, update_existing=False, delete_stale=False) -> None:
-        instance = self.get_instance()
+    def sync_dimensions(self, update_existing=False, delete_stale=False, instance: Instance | None = None) -> None:
+        if instance is None:
+            instance = self.get_instance()
         found_dims = set()
         for dim in instance.context.dimensions.values():
-            obj = self.sync_dimension(dim, update_existing=update_existing, delete_stale=delete_stale)
+            obj = self.sync_dimension(dim, update_existing=update_existing, delete_stale=delete_stale, instance=instance)
             found_dims.add(obj)
 
         if delete_stale:
@@ -856,7 +1040,23 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         pks = [node.database_id for node in root_nodes]
         return list(self.nodes.filter(pk__in=pks))
 
-    def _create_default_pages(self) -> Page:
+    def _create_instance_root_page(self) -> Page:
+        from pages.models import InstanceRootPage
+
+        root_node: Page = cast('Page', Page.get_first_root_node())
+        with override(self.primary_language):
+            locale, _ = Locale.objects.get_or_create(language_code=self.primary_language)
+            page = root_node.add_child(
+                instance=InstanceRootPage(
+                    locale=locale,
+                    title=self.get_name(),
+                    slug=self.identifier,
+                    url_path='',
+                )
+            )
+        return page
+
+    def _create_default_pages(self) -> Page:  # noqa: C901, PLR0912
         from pages.models import ActionListPage, OutcomePage
 
         root = cast('Page', Page.get_first_root_node())
@@ -872,11 +1072,22 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             if page.id == 'home':
                 home_page_conf = page
                 break
-        assert home_page_conf is not None
-        assert home_page_conf.outcome_node is not None
-        onode = outcome_nodes.get(home_page_conf.outcome_node)
+        if home_page_conf is None:
+            if not outcome_nodes:
+                hps = list(home_pages)
+                if hps:
+                    return hps[0]
+                return self._create_instance_root_page()
+
+            onode = outcome_nodes.get('net_emissions') or next(iter(outcome_nodes.values()))
+        else:
+            assert home_page_conf.outcome_node is not None
+            onode = outcome_nodes.get(home_page_conf.outcome_node)
+            if onode is None:
+                raise ValueError(f"Your node '{home_page_conf.outcome_node}' is not an outcome node.")
+
         if onode is None:
-            raise ValueError(f"Your node '{home_page_conf.outcome_node}' is not an outcome node.")
+            raise ValueError('No outcome node found for the instance.')
 
         root_node: Page = cast('Page', Page.get_first_root_node())
         with override(self.primary_language):
@@ -884,7 +1095,6 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             try:
                 home_page = home_pages.get(slug=self.identifier)
             except Page.DoesNotExist:
-                assert home_page_conf.outcome_node is not None
                 home_page = root_node.add_child(
                     instance=OutcomePage(
                         locale=locale,
@@ -944,10 +1154,10 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         pp = self.permission_policy()
         pp.admin_role.create_or_update_instance_group(self)
         pp.viewer_role.create_or_update_instance_group(self)
-        # For now, try not to proliferate the group count for NZC instances
+        # For now, try not to proliferate reviewer groups for NZC instances.
         if not self.has_framework_config() or self.framework_config.framework.identifier != 'nzc':
             pp.reviewer_role.create_or_update_instance_group(self)
-            pp.super_admin_role.create_or_update_instance_group(self)
+        pp.super_admin_role.create_or_update_instance_group(self)
 
     def invalidate_cache(self, save: bool = True):
         self.cache_invalidated_at = timezone.now()
@@ -971,9 +1181,24 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             },
         )
 
-    @cached_property
+    @property
     def nodes_for_serialization(self) -> list[NodeConfig]:
-        return list(self.nodes.get_queryset().for_serialization())
+        """
+        Node rows laid out for serialization, with a manual lazy cache.
+
+        Not a ``cached_property``: hydrate paths (``_create_from_config``)
+        clear ``_nodes_for_serialization`` at entry so the next read sees
+        any post-publish edits. In production each request gets a fresh
+        InstanceConfig row, but the same object is reused across
+        save_revision/publish/hydrate in tests and in any future code
+        that holds the row across a commit.
+        """
+        cached = getattr(self, '_nodes_for_serialization', None)
+        if cached is not None:
+            return cached
+        fresh = list(self.nodes.get_queryset().for_serialization())
+        self._nodes_for_serialization = fresh
+        return fresh
 
     @cached_property
     def log(self) -> Logger:
@@ -1086,7 +1311,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                     dataset_external_ref=F('dataset__external_ref'),
                     external_dataset_id=F('dataset__identifier'),
                     external_metric_id=F('metric__name'),
-                    forecast_from=F('forecast_from'),
+                    forecast_from=F('spec__forecast_from'),
                 ),
             )
             .values('obj')
@@ -1540,10 +1765,14 @@ class DatasetPort(EditableInstanceChild):
         on_delete=models.PROTECT,
         related_name='node_ports',
     )
-    forecast_from = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text='The year from which the time series becomes a forecast.',
+    spec = SchemaField(schema=DatasetPortSpec, default=DatasetPortSpec, blank=True)
+    dataset_index = models.PositiveIntegerField(
+        default=0,
+        help_text=(
+            "Index of this binding in the owning node's input_dataset_instances list. "
+            'Multiple DatasetPort rows can share a dataset_index when a column-less '
+            'binding expands to one port per output metric.'
+        ),
     )
 
     # for type checkers
@@ -1555,7 +1784,7 @@ class DatasetPort(EditableInstanceChild):
     _default_manager: ClassVar[models.Manager[DatasetPort]]
 
     class Meta:
-        ordering = ['node', 'metric__order']
+        ordering = ['node', 'dataset_index', 'metric__order']
         verbose_name = _('Dataset port')
         verbose_name_plural = _('Dataset ports')
 

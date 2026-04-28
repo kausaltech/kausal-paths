@@ -128,6 +128,11 @@ class InstanceEditorFields:
 
     @sb.field
     @staticmethod
+    def is_locked(root: 'InstanceEditorFields') -> bool:
+        return root._instance.config.is_locked
+
+    @sb.field
+    @staticmethod
     def live(root: 'InstanceEditorFields') -> bool:
         return root._instance.config.live
 
@@ -210,6 +215,8 @@ class InstanceEditorFields:
                 external_metric_id=dp.metric.name,
             )
             port._dataset = DatasetType.from_model(dp.dataset)
+            if port._dataset is not None:
+                port._dataset._forecast_from = dp.spec.forecast_from
             result.append(port)
         return result
 
@@ -299,6 +306,11 @@ class InstanceType:
     @staticmethod
     def identifier(root: Instance) -> str:
         return root.id
+
+    @sb.field
+    @staticmethod
+    def is_locked(root: Instance) -> bool:
+        return root.config.is_locked
 
     @sb.field
     @staticmethod
