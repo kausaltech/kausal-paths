@@ -137,63 +137,92 @@ dimensions:
   label: Energy Carrier
   categories:
   - id: ambient_industrial_waste_heat_geothermal_energy
-    label: Ambient & Industrial Waste Heat, Geothermal Energy
+    label_da: Omgivelsesvarme, industrispildvarme og geotermi
+    label_en: Ambient & Industrial Waste Heat, Geothermal Energy
   - id: bio_oil
-    label: Bio Oil
+    label_da: Bio-olie
+    label_en: Bio Oil
   - id: bio_natural_gas
-    label: Bio-natural Gas
+    label_da: Bionaturgas
+    label_en: Bio-natural Gas
   - id: biodegradable_waste
-    label: Biodegradable Waste
+    label_da: Bionedbrydeligt affald
+    label_en: Biodegradable Waste
   - id: biodiesel
-    label: Biodiesel
+    label_da: Biodiesel
+    label_en: Biodiesel
   - id: biogas
-    label: Biogas
+    label_da: Biogas
+    label_en: Biogas
   - id: coal
-    label: Coal
+    label_da: Kul
+    label_en: Coal
   - id: diesel
-    label: Diesel
+    label_da: Diesel
+    label_en: Diesel
   - id: electricity
-    label: Electricity
+    label_da: El
+    label_en: Electricity
   - id: fuel_oil
-    label: Fuel Oil
+    label_da: Fuelolie
+    label_en: Fuel Oil
   - id: gasoline
-    label: Gasoline
+    label_da: Benzin
+    label_en: Gasoline
   - id: gasoline_hybrid
-    label: Gasoline Hybrid
+    label_da: Benzinhybrid
+    label_en: Gasoline Hybrid
   - id: jp_1_jp_4
-    label: JP-1 & JP-4
+    label_da: JP-1 og JP-4
+    label_en: JP-1 & JP-4
   - id: liquefied_petroleum_gas
-    label: Liquefied Petroleum Gas (LPG)
+    label_da: Flaskegas (LPG)
+    label_en: Liquefied Petroleum Gas (LPG)
   - id: natural_gas
-    label: Natural Gas
+    label_da: Naturgas
+    label_en: Natural Gas
   - id: non_biodegradable_waste
-    label: Non-biodegradable Waste
+    label_da: Ikke-bionedbrydeligt affald
+    label_en: Non-biodegradable Waste
   - id: other_renewable_energy
-    label: Other Renewable Energy
+    label_da: Øvrig vedvarende energi
+    label_en: Other Renewable Energy
   - id: other_wood
-    label: Other Wood
+    label_da: Andet træ
+    label_en: Other Wood
   - id: refinery_gas
-    label: Refinery Gas
+    label_da: Raffinaderigas
+    label_en: Refinery Gas
   - id: solar_power
-    label: Solar Power
+    label_da: Solenergi
+    label_en: Solar Power
   - id: straw
-    label: Straw
+    label_da: Halm
+    label_en: Straw
   - id: unclassified_biomass
-    label: Unclassified Biomass
+    label_da: Ikke-kategoriseret biomasse
+    label_en: Unclassified Biomass
   - id: waste_oil
-    label: Waste Oil
+    label_da: Spildolie
+    label_en: Waste Oil
   - id: wind_power
-    label: Wind Power
+    label_da: Vindenergi
+    label_en: Wind Power
   - id: wood_biomass_waste
-    label: Wood & Biomass Waste
+    label_da: Træ- og biomasse affald
+    label_en: Wood & Biomass Waste
   - id: wood_chips
-    label: Wood Chips
+    label_da: Træflis
+    label_en: Wood Chips
   - id: wood_pellets
-    label: Wood Pellets
+    label_da: Træpiller
+    label_en: Wood Pellets
   - id: import_electricity
-    label: Import Electricity
+    label_da: Importel
+    label_en: Import Electricity
   - id: biogenic_fuels
-    label: Biogenic Fuels
+    label_da: Biogene brændsler
+    label_en: Biogenic Fuels
 
 - id: cost_type
   label: Cost Type
