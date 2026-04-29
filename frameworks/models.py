@@ -766,7 +766,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             for alp in site.root_page.get_descendants().type(ActionListPage).specific():
                 assert isinstance(alp, ActionListPage)
                 alp.show_in_footer = False
-                alp.show_in_menus = False
                 alp.save()
 
         return fc
@@ -783,7 +782,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         }
         year = self.baseline_year
         measure_data_points_qs = (
-            MeasureDataPoint.objects.get_queryset()
+            MeasureDataPoint.objects
+            .get_queryset()
             .filter(year=year, measure__in=measures_qs)
             .annotate(mt_uuid=F('measure__measure_template__uuid'))
         )
