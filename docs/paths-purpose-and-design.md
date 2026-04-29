@@ -189,6 +189,47 @@ Datasets are organized hierarchically (e.g. `transportation/dataset_id`). Format
 
 **Edge definition uniqueness:** Edges must be defined in exactly one place—either in the source node's `output_nodes` section OR in the target node's `input_nodes` section, but never both. If you define an edge in both places, you'll get a "Duplicate edge definition" error.
 
+**Category assignment in edge `to_dimensions` — use `categories:`, not `assign_category:`:** When an edge needs to assign a fixed category to a dimension (e.g. routing a value with `cost_type = rent`), use `categories: [rent]` inside the `to_dimensions` entry. The `assign_category:` field only works in dataset filter context (`DimensionDatasetFilterDef`); in edge definitions it is silently ignored, causing "Dimensions do not match" errors at runtime.
+
+```yaml
+# Correct — use categories:
+to_dimensions:
+- id: cost_type
+  categories: [rent]
+- id: stakeholder
+  categories: [tenant]
+
+# Wrong — assign_category is silently ignored in edge context
+to_dimensions:
+- id: cost_type
+  assign_category: rent   # does nothing here
+```
+
+**Multi-metric actions backed by DVC datasets:** A single action can output two or more metrics with different quantities and units. Declare the metrics under `output_metrics:` and route each to a different downstream node via `metrics: [metric_id]` on the `output_nodes` entry. Back the action with a DVC dataset that has one row per metric per dimension combination (wide year columns). Set `interpolate: true` on the `input_datasets` entry if the dataset only contains sparse key years.
+
+```yaml
+- id: my_action
+  type: simple.AdditiveAction
+  output_metrics:
+  - id: energy_reduction
+    unit: kWh/m**2/a
+    quantity: energy
+  - id: additional_cost
+    unit: EUR/m**2/month
+    quantity: unit_price
+  input_datasets:
+  - id: my_namespace/my_dataset
+    forecast_from: 2025
+    interpolate: true
+  output_nodes:
+  - id: heat_demand_node
+    metrics: [energy_reduction]
+  - id: cost_node
+    metrics: [additional_cost]
+```
+
+**`interpolate: true` in `input_datasets` must be set explicitly:** Datasets with only a few key years (e.g. 2024, 2030, 2040, 2050) will show zero effect in all intermediate years unless `interpolate: true` is set on the `input_datasets` entry. This triggers linear interpolation across all model years. It is not inferred from the data sparsity — you must set it deliberately.
+
 **Preserving dimensions through chains:** When removing dimension flattening to preserve dimensions through a chain of nodes: (1) Remove `flatten: true` from edges where dimensions were being flattened, (2) Add the dimensions to all intermediate nodes' `input_dimensions` and `output_dimensions`, (3) Ensure edge mappings (`to_dimensions`) properly pass through all dimensions at each step, (4) Remember the completeness rule—if you specify any `to_dimensions`, specify all of them.
 
 **Formula clarity:** Use descriptive tags (e.g. `[baseline]`, `[reduction]`, not `[x]`, `[y]`). Break complex calculations into multiple nodes. Document units in node names when ambiguous.
