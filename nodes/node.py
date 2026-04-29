@@ -1750,13 +1750,15 @@ class Node:
         Runtime explanations are collected during node computation.
         Both are merged when this method is called.
         """
+        from .explanations import explanation_to_html
+
         parts = []
         nes = self.context.node_explanation_system
         if nes is not None:
             # Get static explanations (from node config)
-            static_explanations = nes.explanations.get(self.id, [])
-            if static_explanations:
-                parts.extend(static_explanations)
+            static_exp = nes.explanations.get(self.id)
+            if static_exp:
+                parts.extend(explanation_to_html(static_exp))
 
         # Get runtime explanations (from DataFrame operations during computation)
         warnings = self.context.instance.features.show_category_warnings

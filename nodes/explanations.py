@@ -75,18 +75,26 @@ BASKET_OPERATION_LABEL = {
 }
 
 TAG_DESCRIPTIONS = {
+    'action_with_history': _('Action node evaluating also its historical impact, not only future impacts.'),
     'add_datasets': _('Get and prepare each dataset, then add them together.'),
+    'add_from_incoming_dims': _('Add input values, introducing new dimensions from the input into the result.'),
+    'add_to_existing_dims': _('Add input values into the existing dimensions of the result without expanding them.'),
     'additive': _("Add input node values (even if the units don't match with the node units)."),
     'and': _('Logical AND: min(a, b). Warns if inputs deviate from 0 or 1 (see node explanation).'),
     'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
+    'base': _('Use this input as the base value to start from.'),
     'bring_to_maximum_historical_year': _('Makes all years up to maximum historical year non-forecasts.'),
+    'coalesce': _('Use the first non-null value among the inputs (priority order).'),
     'complement': _('Take the complement of the unitless values (1-x).'),
     'complement_cumulative_product': _('Take the cumulative product of the dimensionless complement values over time.'),
     'concat_datasets': _('Get and concatenate datasets vertically, only then prepare the output.'),
     'cumulative': _('Take the cumulative sum over time.'),
     'cumulative_product': _('Take the cumulative product of the dimensionless values over time.'),
     'difference': _('Take the difference over time (i.e. annual changes)'),
+    'drop_infs': _('Drop long-format rows with infinite values.'),
+    'drop_nans': _('Drop long-format rows with NaN/null values.'),
     'empty_to_zero': _('Convert NaNs and Nulls to zeros in wide format.'),
+    'existing': _('This is used as the baseline.'),
     'expectation': _('Take the expected value over the uncertainty dimension.'),
     'extend_all': _('Extend the values to all the remaining missing years.'),
     'extend_both_ways': _('Extend the values beyond the first and last values, but do not interpolate.'),
@@ -98,9 +106,8 @@ TAG_DESCRIPTIONS = {
     'goal': _('The node is used as the goal for the action.'),
     'goal_gap': _("Compute gap = actual - goal from the single input node's output and goals."),
     'historical': _('The node is used as the historical starting point.'),
-    'existing': _('This is used as the baseline.'),
-    'incoming': _('This is used for the incoming stock.'),
     'ignore_content': _('Show edge on graphs but ignore upstream content.'),
+    'incoming': _('This is used for the incoming stock.'),
     'inserting': _('This is the rate of new stock coming in.'),
     'inventory_only': _('Truncate the forecast values.'),
     'make_nonnegative': _('Negative result values are replaced with 0.'),
@@ -110,8 +117,10 @@ TAG_DESCRIPTIONS = {
     'non_additive': _('Input node values are not added but operated despite matching units.'),
     'observed_only_extend_all': _('Extend the observed data only based on the observed data points.'),
     'or': _('Logical OR: max(a, b). Warns if inputs deviate from 0 or 1 (see node explanation).'),
+    'other_node': _('Auxiliary input used in a non-standard role not covered by other tags.'),
     'prepare_gpc_dataset': _('Prepare a GPC-style dataset for use.'),
     'primary': _('Use data as primary values even if a secondary value exists.'),
+    'rate': _('This input is a rate (per-unit or fractional value) applied to another quantity.'),
     'ratio_to_last_historical_value': _('Take the ratio of the values compared with the last historical value.'),
     'ratio_to_max_hist_year': _(
         'Take the ratio of the forecasted values compared with the maximum historical' + ' year (historical values = 1).'
@@ -119,13 +128,15 @@ TAG_DESCRIPTIONS = {
     'removing': _('This is the rate of stock removal.'),
     'round_to_five': _('Round values to 5 significant digits rather than 5 decimal places.'),
     'scenario_impact': _('Calculate the total impact of all actions in the current scenario.'),
-    'action_with_history': _(
-        'Action node evaluated under historical_actions (implemented) and active scenario (user) for ActionWithHistoryNode.'
-    ),
     'secondary': _('Use data only if a primary value does not exist.'),
     'select_port': _('If condition is True, select the first option, otherwise the second.'),
+    'skip_dim_test': _('Add input values while skipping the dimension compatibility check.'),
+    'split_by_existing_shares': _('Distribute the total across categories according to existing shares in the result.'),
+    'split_evenly_to_cats': _('Distribute the total evenly across all categories of a dimension.'),
     'truncate_before_start': _('Truncate values before the reference year. There may be some from data'),
     'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
+    'use_as_shares': _('Treat this input as fractional shares (dimensionless) to scale another quantity.'),
+    'use_as_totals': _('Treat this input as a total to be distributed across categories.'),
 }
 
 
@@ -542,6 +553,100 @@ class ValidationResult:
     message: str
 
 
+@dataclass
+class TermInfo:
+    label: str
+    kind: str  # 'node', 'dataset', 'constant'
+    name: str
+    unit: str | None = None
+    value: Any = None
+    output_dimensions: list[str] | None = None
+    details: list[str] = field(default_factory=list)  # HTML fragment items for nested detail
+
+
+@dataclass
+class NodeExplanation:
+    """Structured explanation for a node, converted to HTML only as a final step."""
+
+    node_id: str = ''
+    node_type: str = ''
+    description: str = ''
+    operations: str | None = None
+    params: list[tuple[str, str]] = field(default_factory=list)
+    formula: str | None = None
+    terms: list[TermInfo] = field(default_factory=list)
+    functions: list[str] = field(default_factory=list)  # HTML <li> items
+    leftover_html: list[str] = field(default_factory=list)  # catch-all for rules not yet restructured
+
+    def __bool__(self) -> bool:
+        return bool(self.node_id or self.formula or self.terms or self.functions or self.leftover_html)
+
+
+def explanation_to_html(exp: NodeExplanation) -> list[str]:  # noqa: C901, PLR0912
+    """Convert a structured NodeExplanation to a flat list of HTML fragments."""
+    html: list[str] = []
+    if exp.node_id:
+        html.append(f'{exp.node_id} ({exp.node_type})<br>')
+    if exp.description:
+        html.append(f'{exp.description}<ul>')
+    if exp.operations:
+        html.append(f'<li>{_("The order of operations is %s.") % exp.operations}</li>')
+    for param_id, param_val in exp.params:
+        text = _('Has parameter <i>%(parameter)s</i> with value %(value)s.') % {
+            'parameter': param_id,
+            'value': param_val,
+        }
+        html.append(f'<li>{text}</li>')
+    if exp.description:
+        html.append('</ul>')
+    if exp.formula:
+        html.append(f'<p>{_("Formula:")} <b>{exp.formula}</b>,</p>')
+    if exp.terms:
+        html.append(_('Terms:') + '<ul>')
+        for term in exp.terms:
+            suffix_parts: list[str] = []
+            if term.kind == 'constant' and term.value is not None:
+                suffix_parts.append(str(term.value))
+            if term.unit:
+                suffix_parts.append(str(term.unit))
+            if term.output_dimensions:
+                suffix_parts.append(_('dims: %(dims)s') % {'dims': ', '.join(term.output_dimensions)})
+            suffix = f' ({"; ".join(suffix_parts)})' if suffix_parts else ''
+            if term.details:
+                html.append(f'<li><b>{term.label}</b> ({term.kind}): {term.name}{suffix}<ul>')
+                html.extend(term.details)
+                html.append('</ul></li>')
+            else:
+                html.append(f'<li><b>{term.label}</b>: {term.name}{suffix}</li>')
+        html.append('</ul>')
+    if exp.functions:
+        html.append(_('Functions:') + '<ul>')
+        html.extend(exp.functions)
+        html.append('</ul>')
+    html.extend(exp.leftover_html)
+    return html
+
+
+def _merge_node_explanations(parts: list[NodeExplanation]) -> NodeExplanation:
+    merged = NodeExplanation()
+    for part in parts:
+        if part.node_id and not merged.node_id:
+            merged.node_id = part.node_id
+        if part.node_type and not merged.node_type:
+            merged.node_type = part.node_type
+        if part.description and not merged.description:
+            merged.description = part.description
+        if part.operations is not None and merged.operations is None:
+            merged.operations = part.operations
+        merged.params.extend(part.params)
+        if part.formula is not None and merged.formula is None:
+            merged.formula = part.formula
+        merged.terms.extend(part.terms)
+        merged.functions.extend(part.functions)
+        merged.leftover_html.extend(part.leftover_html)
+    return merged
+
+
 class GraphBuilder:
     @staticmethod
     def build_graph(all_node_configs: list[dict[str, Any]]) -> GraphRepresentation:
@@ -605,7 +710,7 @@ class NodeExplanationSystem:
 
     all_node_configs: InitVar[list[dict[str, Any]]]
 
-    explanations: dict[str, list[str]] = field(default_factory=dict)
+    explanations: dict[str, NodeExplanation] = field(default_factory=dict)
     """Static explanations generated from node configurations."""
 
     validations: dict[str, list[ValidationResult]] = field(default_factory=dict)
@@ -662,23 +767,16 @@ class NodeExplanationSystem:
         self.validations = all_results
         return all_results
 
-    def generate_explanations(self) -> dict[str, list[str]]:  # FIXME output_nodes.from_dimension does not show up in explanations
-        """Generate explanations for all nodes."""
+    def generate_explanations(self) -> dict[str, NodeExplanation]:
+        """Generate structured explanations for all nodes."""
+        all_results: dict[str, NodeExplanation] = {}
 
-        all_results = {}
-        all_node_configs = self.graph.nodes
-
-        for node_id, node_config in all_node_configs.items():
-            # node_id = node_config['id'] if isinstance(node_config, dict) else node_config
-
-            # Run all explanation rules
-            node_results = []
-            for rule in self.rules:
-                if isinstance(node_config, dict):
-                    results = rule.explain(node_config, self.context)
-                    node_results.extend(results)
-
-            all_results[node_id] = node_results
+        for node_id, node_config in self.graph.nodes.items():
+            if not isinstance(node_config, dict):
+                all_results[node_id] = NodeExplanation()
+                continue
+            parts = [rule.explain(node_config, self.context) for rule in self.rules]
+            all_results[node_id] = _merge_node_explanations(parts)
 
         self.explanations = all_results
         return all_results
@@ -836,8 +934,8 @@ class ValidationRule(ABC):
     """Base class for validation rules that also generate explanations."""
 
     @abstractmethod
-    def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
-        """Generate explanation text from node config."""
+    def explain(self, node_config: dict[str, Any], context: Context) -> NodeExplanation:
+        """Generate structured explanation from node config."""
         pass
 
     @abstractmethod
@@ -886,24 +984,23 @@ class ValidationRule(ABC):
 
 
 class NodeClassRule(ValidationRule):
-    def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
+    def explain(self, node_config: dict[str, Any], context: Context) -> NodeExplanation:
         typ: str = node_config.get('type') or ''
         typ = typ.rsplit('.', maxsplit=1)[-1]
-        html: list[str] = [f'{node_config["id"]} ({typ})<br>']
         desc = NODE_CLASS_DESCRIPTIONS.get(typ) or NODE_CLASS_DESCRIPTIONS['Unknown']
-        html.append(f'{desc.description}<ul>')
-        operations = self.get_param(node_config, 'operations')
+        operations = self.get_param(node_config, 'operations') or None
         other = self.get_all_params(node_config, drop=['operations', 'formula'])
-        if operations:
-            html.append(f'<li>{_("The order of operations is %s.") % operations}</li>')
-        if other:
-            for p in other:
-                assert p is not None
-                text = _('Has parameter <i>%(parameter)s</i> with value %(value)s.') % {'parameter': p[0], 'value': p[1]}
-                html.append(f'<li>{text}</li>')
-
-        html.append('</ul>')
-        return html
+        params: list[tuple[str, str]] = []
+        for p in other:
+            assert p is not None
+            params.append((str(p[0]), str(p[1])))
+        return NodeExplanation(
+            node_id=node_config['id'],
+            node_type=typ,
+            description=str(desc.description),
+            operations=operations,
+            params=params,
+        )
 
     def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
@@ -936,28 +1033,9 @@ class NodeClassRule(ValidationRule):
 
 
 class DatasetRule(ValidationRule):
-    def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
-        dataset_html: list[str] = []
-
+    def explain(self, node_config: dict[str, Any], context: Context) -> NodeExplanation:
         # Terms (including datasets) are handled by BasketRule to keep inputs in one place.
-        return dataset_html
-
-        input_datasets: list[dict[str, Any]] = node_config.get('input_datasets', [])
-
-        if not input_datasets:
-            return dataset_html
-
-        dataset_html.append(f'{_("Datasets")}:<ul>')
-
-        for dataset_config in input_datasets:
-            if isinstance(dataset_config, dict):
-                dataset_html.extend(self._explain_single_dataset(dataset_config, context))
-            else:
-                dataset_html.append(dataset_config)
-
-        dataset_html.append('</ul>')
-
-        return dataset_html
+        return NodeExplanation()
 
     def _explain_single_dataset(self, dataset_config: dict[str, Any], context: Context) -> list[str]:
         """Explain a single dataset configuration."""
@@ -1069,7 +1147,7 @@ class DatasetRule(ValidationRule):
         else:
             items = []
         if items:
-            text = _('Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>.') % {
+            text = _('Filter dimension <i>%(dim_label)s</i> by categories <i>%(cat_labels)s</i>.') % {
                 'dim_label': dim.label,
                 'cat_labels': ', '.join(items),
             }
@@ -1148,9 +1226,9 @@ class DatasetRule(ValidationRule):
 
 
 class EdgeRule(ValidationRule):
-    def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
+    def explain(self, node_config: dict[str, Any], context: Context) -> NodeExplanation:
         # Terms are handled by BasketRule to keep inputs in one place.
-        return []
+        return NodeExplanation()
 
     def get_explanation_for_tag(
         self,
@@ -1177,7 +1255,7 @@ class EdgeRule(ValidationRule):
 
         for dim in node.get('from_dimensions', []):
             if 'id' not in dim:
-                return edge_html
+                continue
             dimlabel = str(context.dimensions[dim['id']].label)
             cats = dim.get('categories', [])
 
@@ -1228,71 +1306,57 @@ class EdgeRule(ValidationRule):
 
 
 class BasketRule(ValidationRule):
-    def explain(self, node_config: dict[str, Any] | str, context: Context) -> list[str]:  # noqa: C901, PLR0912, PLR0915
+    def explain(self, node_config: dict[str, Any] | str, context: Context) -> NodeExplanation:
         assert isinstance(node_config, dict)
         node_id = node_config['id']
 
         nes = context.node_explanation_system
         assert nes is not None
         baskets = nes.baskets[node_id]
-        html: list[str] = []
         operation_list = self.get_param(nes.graph.nodes[node_id], 'operations')
         if not operation_list:
             operation_list = context.nodes[node_id].DEFAULT_OPERATIONS
         operations = [o.strip() for o in operation_list.split(',')]
-        terms = self._collect_terms(node_config, context, node_id)
-        formula = self._build_formula_from_config(node_config, operations, baskets, terms)
-        if not formula and not terms:
-            return html
-        if formula:
-            html.append(f'<p>{_("Formula:")} <b>{formula}</b>,</p>')
-        if terms:
-            html.append(_('Terms:') + '<ul>')
-            for term in terms:
-                label = term['label']
-                kind = term['kind']
-                name = term['name']
-                details = term['details']
-                suffix_parts: list[str] = []
-                if kind == 'constant':
-                    value = term.get('value')
-                    if value is not None:
-                        suffix_parts.append(str(value))
-                unit = term.get('unit')
-                if unit:
-                    suffix_parts.append(str(unit))
-                dims = term.get('output_dimensions') or []
-                if dims:
-                    suffix_parts.append(_('dims: %(dims)s') % {'dims': ', '.join(dims)})
-                suffix = f' ({"; ".join(suffix_parts)})' if suffix_parts else ''
-                if details:
-                    html.append(f'<li><b>{label}</b> ({kind}): {name}{suffix}<ul>')
-                    html.extend(details)
-                    html.append('</ul></li>')
-                else:
-                    html.append(f'<li><b>{label}</b>: {name}{suffix}</li>')
-            html.append('</ul>')
+        raw_terms = self._collect_terms(node_config, context, node_id)
+        formula = self._build_formula_from_config(node_config, operations, baskets, raw_terms)
+        if not formula and not raw_terms:
+            return NodeExplanation()
 
-        has_dataset_terms = any(term['kind'] == 'dataset' for term in terms)
+        term_infos = [
+            TermInfo(
+                label=str(t['label']),
+                kind=t['kind'],
+                name=str(t['name']),
+                unit=t.get('unit'),
+                value=t.get('value'),
+                output_dimensions=t.get('output_dimensions'),
+                details=t.get('details', []),
+            )
+            for t in raw_terms
+        ]
+
+        has_dataset_terms = any(t['kind'] == 'dataset' for t in raw_terms)
         filtered_ops = [op for op in operations if not (op == 'get_single_dataset' and not has_dataset_terms)]
-        functions = self._collect_functions(filtered_ops, terms, node_config)
-        if functions:
-            html.append(_('Functions:') + '<ul>')
-            html.extend(functions)
-            html.append('</ul>')
+        functions = self._collect_functions(filtered_ops, raw_terms, node_config)
 
-        remaining_baskets = [basket for basket in baskets.keys() if basket not in operations and basket != 'skip']
+        remaining_baskets = [b for b in baskets if b not in operations and b != 'skip']
+        leftover: list[str] = []
         if remaining_baskets:
-            html.append(_('These groups are left over without an operation:') + '<ol>')
+            leftover.append(_('These groups are left over without an operation:') + '<ol>')
             for basket in remaining_baskets:
                 input_nodes = baskets.get(basket, [])
                 basket_display = BASKET_DISPLAY_NAMES.get(basket, basket)
                 nodes_str = '</li><li>'.join(input_nodes)
-                html.append(f'<li>{_("Group %(basket)s with nodes:") % {"basket": basket_display}}<ul>')
-                html.append(f'<li>{nodes_str}</li></ul></li>')
-            html.append('</ol>')
+                leftover.append(f'<li>{_("Group %(basket)s with nodes:") % {"basket": basket_display}}<ul>')
+                leftover.append(f'<li>{nodes_str}</li></ul></li>')
+            leftover.append('</ol>')
 
-        return html
+        return NodeExplanation(
+            formula=formula or None,
+            terms=term_infos,
+            functions=functions,
+            leftover_html=leftover,
+        )
 
     def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
         return [
@@ -1472,16 +1536,6 @@ class BasketRule(ValidationRule):
                 term['label'] = f't{counter}'
                 counter += 1
 
-        formula_param = self.get_param(node_config, 'formula')
-        if formula_param:
-            formula_param = self._apply_term_functions(formula_param, terms)
-            used_names = self._extract_formula_identifiers(formula_param)
-            for term in terms:
-                if term['kind'] != 'node':
-                    continue
-                if term['key'] in used_names and str(term['label']).startswith('t'):
-                    term['label'] = term['key']
-
         return terms
 
     def _collect_functions(  # noqa: C901
@@ -1553,7 +1607,7 @@ class BasketRule(ValidationRule):
                     wrapped = f'{func}({var})'
                     if wrapped in updated:
                         continue
-                    updated = re.sub(rf'\\b{re.escape(var)}\\b', wrapped, updated)
+                    updated = re.sub(rf'\b{re.escape(var)}\b', wrapped, updated)
         return updated
 
     def _term_var_names(self, input_spec: dict[str, Any] | str, input_id: str) -> list[str]:
@@ -1580,20 +1634,27 @@ class BasketRule(ValidationRule):
         formula_param = self.get_param(node_config, 'formula')
         label_by_id: dict[str, str] = {}
         for term in terms:
-            label = make_identifier(term['key'])
+            label = str(term['label'])
             for func in term.get('functions', []):
                 label = f'{func}({label})'
             label_by_id[term['key']] = label
         if formula_param:
+            import re as _re
+
             formula_param = self._apply_term_functions(formula_param, terms)
-            used_names = self._extract_formula_identifiers(formula_param)
-            unused_labels = []
+            # Replace each term's identifiers with its display label (t1, t2, or explicit tag)
             for term in terms:
-                if term['kind'] != 'node':
-                    continue
-                var_names = set(term.get('var_names', []))
-                if not var_names or var_names.isdisjoint(used_names):
-                    unused_labels.append(label_by_id[term['key']])
+                label = str(term['label'])
+                vars_to_sub: set[str] = set()
+                for var in term.get('var_names') or []:
+                    vars_to_sub.add(var)
+                    vars_to_sub.add(make_identifier(var))
+                for var in sorted(vars_to_sub, key=len, reverse=True):
+                    formula_param = _re.sub(rf'\b{_re.escape(var)}\b', label, formula_param)
+            used_names = self._extract_formula_identifiers(formula_param)
+            unused_labels = [
+                str(term['label']) for term in terms if term['kind'] == 'node' and str(term['label']) not in used_names
+            ]
             if unused_labels:
                 return f'({formula_param} + {" + ".join(unused_labels)})'
             return formula_param
@@ -1663,60 +1724,6 @@ class BasketRule(ValidationRule):
             expr = fallback_term
         return expr
 
-    def _build_formula_from_operations_for_validation(  # noqa: C901
-        self,
-        operations: list[str],
-        baskets: dict[str, list[str]],
-        label_by_id: dict[str, str],
-        terms: list[dict[str, Any]],
-        has_dataset_terms: bool,
-    ) -> str:
-        def _render_operation(operation: str, op_terms: list[str]) -> str:
-            op_label = BASKET_OPERATION_LABEL.get(operation, ' + ')
-            if operation in ['add', 'multiply']:
-                return f'({op_label.join(op_terms)})'
-            return f'{operation}({op_label.join(op_terms)})'
-
-        expr = ''
-        fallback_term = next(
-            (term['label'] for term in terms if term['kind'] == 'dataset'),
-            '',
-        )
-        if not fallback_term:
-            fallback_term = next(
-                (term['label'] for term in terms if term['kind'] != 'constant'),
-                '',
-            )
-        multiplier = label_by_id.get('multiplier')
-        for operation in operations:
-            input_nodes = baskets.get(operation, [])
-            if input_nodes:
-                seen: set[str] = set()
-                deduped = []
-                for n in input_nodes:
-                    if n in seen:
-                        continue
-                    seen.add(n)
-                    deduped.append(n)
-                input_nodes = deduped
-            if input_nodes:
-                op_terms = [label_by_id[n] for n in input_nodes if n in label_by_id]
-                if not op_terms:
-                    continue
-                if expr and expr not in op_terms:
-                    op_terms = [expr, *op_terms]
-                expr = _render_operation(operation, op_terms)
-                continue
-
-            if operation == 'get_single_dataset' and has_dataset_terms and not expr and fallback_term:
-                expr = fallback_term
-            elif operation == 'apply_multiplier' and expr and multiplier:
-                expr = _render_operation('multiply', [expr, multiplier])
-
-        if not expr and fallback_term:
-            expr = fallback_term
-        return expr
-
     def _render_operation(self, operation: str, terms: list[str]) -> str:
         op_label = BASKET_OPERATION_LABEL.get(operation, ' + ')
         no_name = ['add', 'multiply']
@@ -1770,8 +1777,8 @@ class BasketRule(ValidationRule):
 
 
 class FormulaValidationMixin(ValidationRule, ABC):
-    def explain(self, _node_config: dict[str, Any], _context: Context) -> list[str]:
-        return []
+    def explain(self, _node_config: dict[str, Any], _context: Context) -> NodeExplanation:
+        return NodeExplanation()
 
     def _ensure_baskets(self, context: Context) -> GraphRepresentation:
         nes = context.node_explanation_system
@@ -1850,7 +1857,7 @@ class FormulaValidationMixin(ValidationRule, ABC):
             elif not operations:
                 expression = ''
             else:
-                expression = basket_rule._build_formula_from_operations_for_validation(
+                expression = basket_rule._build_formula_from_operations(
                     operations,
                     baskets,
                     label_by_id,
