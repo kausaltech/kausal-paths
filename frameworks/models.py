@@ -448,6 +448,10 @@ class MeasurePriority(models.TextChoices):
     LOW = 'low', _('Low')
 
 
+class DefaultValueScaling(models.TextChoices):
+    POPULATION = 'population', _('Population')
+
+
 class MeasureTemplateQuerySet(PathsQuerySet['MeasureTemplate']):
     pass
 
@@ -487,6 +491,12 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
     hidden = models.BooleanField(default=False)
     help_text = models.TextField(blank=True, default='')
     include_in_progress_tracker = models.BooleanField(default=False)
+    default_value_scaling = models.CharField(
+        max_length=50,
+        choices=DefaultValueScaling.choices,
+        null=True,
+        blank=True,
+    )
 
     default_value_source = models.TextField(blank=True)
 
@@ -513,6 +523,7 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
         'hidden',
         'help_text',
         'include_in_progress_tracker',
+        'default_value_scaling',
     ]
 
     objects: ClassVar[MeasureTemplateManager] = MeasureTemplateManager()
@@ -554,6 +565,7 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
             'max_value': self.max_value,
             'time_series_max': self.time_series_max,
             'default_value_source': self.default_value_source,
+            'default_value_scaling': self.default_value_scaling,
             'default_data_points': [dict(year=dp.year, value=dp.value) for dp in self.default_data_points.all()],
         }
         if include_section:
@@ -608,8 +620,10 @@ class MeasureTemplateDefaultDataPoint(CacheablePathsModel['MeasureTemplateDefaul
     categories: M2M[FrameworkDimensionCategory, Any] = models.ManyToManyField(FrameworkDimensionCategory)
     year = models.IntegerField()
     value = models.FloatField()
+    probable_lower_bound = models.FloatField(null=True, blank=True)
+    probable_upper_bound = models.FloatField(null=True, blank=True)
 
-    public_fields: ClassVar = ['year', 'value']
+    public_fields: ClassVar = ['year', 'value', 'probable_lower_bound', 'probable_upper_bound']
 
     objects: ClassVar[MeasureTemplateDefaultDataPointManager] = MeasureTemplateDefaultDataPointManager()
 
@@ -677,6 +691,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     baseline_year = models.IntegerField()
     target_year = models.IntegerField(null=True)
     categories: M2M[FrameworkDimensionCategory, Any] = models.ManyToManyField(FrameworkDimensionCategory)
+    extra = models.JSONField(default=dict, blank=True)
     token = models.CharField(max_length=50, default=create_random_token)
 
     objects: ClassVar[FrameworkConfigManager] = FrameworkConfigManager()
@@ -685,7 +700,15 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     framework_id: int
     measures: RevMany[Measure]
 
-    public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'target_year', 'uuid', 'instance_config']
+    public_fields: ClassVar = [
+        'framework',
+        'organization_name',
+        'baseline_year',
+        'target_year',
+        'uuid',
+        'instance_config',
+        'extra',
+    ]
 
     class Meta:
         ordering = ['framework', 'instance_config']
@@ -783,7 +806,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         }
         year = self.baseline_year
         measure_data_points_qs = (
-            MeasureDataPoint.objects.get_queryset()
+            MeasureDataPoint.objects
+            .get_queryset()
             .filter(year=year, measure__in=measures_qs)
             .annotate(mt_uuid=F('measure__measure_template__uuid'))
         )
@@ -824,6 +848,137 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             MeasureDataPoint.objects.bulk_create(new_measure_data_points)
         if update_measure_data_points:
             MeasureDataPoint.objects.bulk_update(update_measure_data_points, fields=['default_value'])
+
+    def _get_default_value_multiplier(self, measure_template: MeasureTemplate) -> float:
+        if measure_template.default_value_scaling is None:
+            return 1.0
+        if measure_template.default_value_scaling == DefaultValueScaling.POPULATION:
+            create_context = (self.extra or {}).get('create_context') or {}
+            population = create_context.get('population')
+            if population is None:
+                msg = f'Population is required for default value scaling on {measure_template.uuid}'
+                raise ValueError(msg)
+            return float(population)
+        msg = f'Unsupported default value scaling: {measure_template.default_value_scaling}'
+        raise ValueError(msg)
+
+    def _select_default_data_points(
+        self,
+    ) -> tuple[
+        dict[tuple[int, int], tuple[MeasureTemplateDefaultDataPoint, int]],
+        set[int],
+        dict[int, MeasureTemplate],
+    ]:
+        category_ids = set(self.categories.values_list('pk', flat=True))
+        default_data_points = (
+            MeasureTemplateDefaultDataPoint.objects
+            .filter(template__section__framework=self.framework)
+            .select_related('template')
+            .prefetch_related('categories')
+            .order_by('template_id', 'year')
+        )
+
+        selected_defaults: dict[tuple[int, int], tuple[MeasureTemplateDefaultDataPoint, int]] = {}
+        affected_template_ids: set[int] = set()
+        templates_by_id: dict[int, MeasureTemplate] = {}
+
+        for default_data_point in default_data_points:
+            measure_template = default_data_point.template
+            templates_by_id[measure_template.pk] = measure_template
+            affected_template_ids.add(measure_template.pk)
+            default_category_ids = {cat.pk for cat in default_data_point.categories.all()}
+            if not default_category_ids.issubset(category_ids):
+                continue
+
+            key = (measure_template.pk, default_data_point.year)
+            specificity = len(default_category_ids)
+            previous = selected_defaults.get(key)
+            if previous is not None and previous[1] >= specificity:
+                if previous[1] == specificity:
+                    logger.warning(
+                        'Duplicate equally specific default datapoint for template '
+                        f'{measure_template.uuid} year {default_data_point.year} in framework {self.framework.identifier}',
+                    )
+                continue
+            selected_defaults[key] = (default_data_point, specificity)
+
+        return selected_defaults, affected_template_ids, templates_by_id
+
+    def _ensure_measures_for_templates(self, affected_template_ids: set[int]) -> dict[int, Measure]:
+        measures_qs = self.measures.filter(measure_template_id__in=affected_template_ids)
+        measure_by_template_id = {m.measure_template_id: m for m in measures_qs}
+        new_measures = [
+            Measure(framework_config=self, measure_template_id=template_id)
+            for template_id in affected_template_ids
+            if template_id not in measure_by_template_id
+        ]
+        if new_measures:
+            Measure.objects.bulk_create(new_measures)
+            measure_by_template_id = {
+                m.measure_template_id: m for m in self.measures.filter(measure_template_id__in=affected_template_ids)
+            }
+        return measure_by_template_id
+
+    def _get_measure_default_data_points(self, affected_template_ids: set[int]) -> dict[tuple[int, int], MeasureDataPoint]:
+        return {
+            (dp.measure.measure_template_id, dp.year): dp
+            for dp in (
+                MeasureDataPoint.objects.filter(
+                    measure__framework_config=self, measure__measure_template_id__in=affected_template_ids
+                ).select_related('measure')
+            )
+        }
+
+    @staticmethod
+    def _reset_default_values(existing_dps: dict[tuple[int, int], MeasureDataPoint]) -> list[MeasureDataPoint]:
+        update_dps: list[MeasureDataPoint] = []
+        for dp in existing_dps.values():
+            if dp.default_value is None and dp.probable_lower_bound is None and dp.probable_upper_bound is None:
+                continue
+            dp.default_value = None
+            dp.probable_lower_bound = None
+            dp.probable_upper_bound = None
+            update_dps.append(dp)
+        return update_dps
+
+    @transaction.atomic
+    def populate_measure_defaults_from_default_data_points(self) -> int:
+        selected_defaults, affected_template_ids, templates_by_id = self._select_default_data_points()
+
+        if not affected_template_ids:
+            return 0
+
+        measure_by_template_id = self._ensure_measures_for_templates(affected_template_ids)
+        existing_dps = self._get_measure_default_data_points(affected_template_ids)
+        update_dps = self._reset_default_values(existing_dps)
+
+        new_dps: list[MeasureDataPoint] = []
+        for (template_id, year), (default_data_point, _specificity) in selected_defaults.items():
+            measure_template = templates_by_id[template_id]
+            multiplier = self._get_default_value_multiplier(measure_template)
+            dp = existing_dps.get((template_id, year))
+            if dp is None:
+                dp = MeasureDataPoint(measure=measure_by_template_id[template_id], year=year)
+                new_dps.append(dp)
+            elif dp not in update_dps:
+                update_dps.append(dp)
+
+            dp.default_value = default_data_point.value * multiplier
+            dp.probable_lower_bound = (
+                None if default_data_point.probable_lower_bound is None else default_data_point.probable_lower_bound * multiplier
+            )
+            dp.probable_upper_bound = (
+                None if default_data_point.probable_upper_bound is None else default_data_point.probable_upper_bound * multiplier
+            )
+
+        if new_dps:
+            MeasureDataPoint.objects.bulk_create(new_dps)
+        if update_dps:
+            MeasureDataPoint.objects.bulk_update(
+                update_dps,
+                fields=['default_value', 'probable_lower_bound', 'probable_upper_bound'],
+            )
+        return len(selected_defaults)
 
     def create_model_instance(self, _ic: InstanceConfig) -> Instance:
         from nodes.instance_loader import InstanceLoader
@@ -1021,8 +1176,17 @@ class MeasureDataPoint(CacheablePathsModel[None], models.Model):
     year = models.IntegerField()
     value = models.FloatField(null=True)
     default_value = models.FloatField(null=True)
+    probable_lower_bound = models.FloatField(null=True, blank=True)
+    probable_upper_bound = models.FloatField(null=True, blank=True)
 
-    public_fields: ClassVar = ['id', 'year', 'value', 'default_value']
+    public_fields: ClassVar = [
+        'id',
+        'year',
+        'value',
+        'default_value',
+        'probable_lower_bound',
+        'probable_upper_bound',
+    ]
 
     objects: ClassVar[MeasureDataPointManager] = MeasureDataPointManager()
     _default_manager: ClassVar[MeasureDataPointManager]

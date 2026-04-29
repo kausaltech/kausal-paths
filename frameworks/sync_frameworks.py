@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypedDict, cast
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
 from uuid import uuid4
 
 from django.contrib.postgres.expressions import ArraySubquery
@@ -142,6 +142,7 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
         'include_in_progress_tracker',
         'time_series_max',
         'default_value_source',
+        'default_value_scaling',
         'default_data_points',
         'year_bound',
         'section',
@@ -152,6 +153,8 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
     class DefaultDataPoint(TypedDict):
         year: int
         value: float
+        probable_lower_bound: NotRequired[float | None]
+        probable_upper_bound: NotRequired[float | None]
 
     section: UUID
     default_data_points: list[DefaultDataPoint] = Field(default_factory=list)
@@ -169,6 +172,8 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
                 data=JSONObject(
                     year=F('year'),
                     value=F('value'),
+                    probable_lower_bound=F('probable_lower_bound'),
+                    probable_upper_bound=F('probable_upper_bound'),
                 ),
             )
             .values_list('data')

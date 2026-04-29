@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime  # noqa: TC003
-from typing import TYPE_CHECKING, Any, TypedDict, cast
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
 from uuid import UUID, uuid4
 
 from django.contrib.postgres.expressions import ArraySubquery
@@ -35,7 +35,7 @@ class MeasureDataPointModel(DjangoDiffModel[MeasureDataPoint]):
     _model = MeasureDataPoint
     _modelname = 'measure_datapoint'
     _identifiers = ('measure', 'year')
-    _attributes = ('value', 'default_value')
+    _attributes = ('value', 'default_value', 'probable_lower_bound', 'probable_upper_bound')
     _parent_key = 'measure'
     _parent_type = 'measure'
 
@@ -69,6 +69,8 @@ class MeasureModel(DjangoDiffModel[Measure]):
         year: int
         value: float | None
         default_value: float | None
+        probable_lower_bound: NotRequired[float | None]
+        probable_upper_bound: NotRequired[float | None]
 
     measure_template: UUID
     framework_config: UUID
@@ -91,6 +93,8 @@ class MeasureModel(DjangoDiffModel[Measure]):
                     year=F('year'),
                     value=F('value'),
                     default_value=F('default_value'),
+                    probable_lower_bound=F('probable_lower_bound'),
+                    probable_upper_bound=F('probable_upper_bound'),
                 )
             )
             .values_list('data')
@@ -153,6 +157,7 @@ class FrameworkConfigModel(DjangoDiffModel[FrameworkConfig]):
         'organization_slug',
         'baseline_year',
         'created_at',
+        'extra',
         'instance_identifier',
     )
     _children = {'measure': 'measures'}
