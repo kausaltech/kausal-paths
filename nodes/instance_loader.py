@@ -515,7 +515,7 @@ class InstanceLoader:
 
             if ds_obj is None:
                 ds_obj = DVCDataset.from_def(ds_def, self.context)
-            ds_obj.interpolate = ds_interpolate
+            ds_obj.interpolate = ds_interpolate or ds_def.interpolate
             datasets.append(ds_obj)
 
         if 'historical_values' in config or 'forecast_values' in config:

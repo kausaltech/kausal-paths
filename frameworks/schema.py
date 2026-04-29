@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
     from paths.types import PathsGQLInfo as GQLInfo
 
-    from frameworks.models import NodeDimensionSelection
+    from frameworks.models import FrameworkDimensionCategory, NodeDimensionSelection
     from nodes.context import Context
     from nodes.instance import Instance
     from nodes.node import Node
@@ -831,28 +831,42 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         config_input: FrameworkConfigInput,
         nzc_data: NZCCityEssentialData,
     ) -> CreateFrameworkConfigMutation:
-        from .nzc import NZCPlaceholderInput, get_nzc_default_values
-
         def lowhigh_to_str(val: int) -> Literal['high', 'low']:
             if val == LowHigh.HIGH:
                 return 'high'
             return 'low'
 
+        def get_category(identifier: str, value: Literal['high', 'low']) -> FrameworkDimensionCategory:
+            dimension = fwc.framework.dimensions.filter(identifier=identifier).first()
+            if dimension is None:
+                raise GraphQLError(f"Framework dimension '{identifier}' not found", nodes=info.field_nodes)
+            category = dimension.categories.filter(name__iexact=value).first()
+            if category is None:
+                raise GraphQLError(
+                    f"Framework dimension category '{identifier}={value}' not found",
+                    nodes=info.field_nodes,
+                )
+            return category
+
         ret = CreateFrameworkConfigMutation.create_framework_config(info, config_input)
         fwc = cast('FrameworkConfig', ret.framework_config)
-        instance = fwc.instance_config.get_instance()
-        dvc_repo = instance.context.dataset_repo
         data = cast('dict[str, Any]', nzc_data)
-        assert dvc_repo is not None
-        defaults = get_nzc_default_values(
-            dvc_repo,
-            NZCPlaceholderInput(
-                population=data['population'],
-                renewmix=lowhigh_to_str(data['renewable_mix']),
-                temperature=lowhigh_to_str(data['temperature']),
-            ),
+        renewable_mix = lowhigh_to_str(data['renewable_mix'])
+        temperature = lowhigh_to_str(data['temperature'])
+        fwc.extra = {
+            **(fwc.extra or {}),
+            'create_context': {
+                'population': data['population'],
+                'renewable_mix': renewable_mix,
+                'temperature': temperature,
+            },
+        }
+        fwc.save(update_fields=['extra'])
+        fwc.categories.add(
+            get_category('renewable_mix', renewable_mix),
+            get_category('temperature', temperature),
         )
-        fwc.create_measure_defaults(defaults)
+        fwc.populate_measure_defaults_from_default_data_points()
         return ret
 
 

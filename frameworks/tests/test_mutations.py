@@ -6,7 +6,16 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from frameworks.models import FrameworkConfig, MeasureDataPoint, MeasureTemplate, Section
+from frameworks.models import (
+    DefaultValueScaling,
+    FrameworkConfig,
+    FrameworkDimension,
+    FrameworkDimensionCategory,
+    MeasureDataPoint,
+    MeasureTemplate,
+    MeasureTemplateDefaultDataPoint,
+    Section,
+)
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
 from nodes.models import InstanceConfig
 from users.models import User
@@ -17,7 +26,6 @@ if TYPE_CHECKING:
     from paths.tests.graphql import PathsTestClient
 
     from frameworks.models import Framework
-    from frameworks.nzc import NZCPlaceholderInput
 
 
 gql = str
@@ -91,6 +99,69 @@ def _create_measure_template(framework: Framework) -> MeasureTemplate:
     root = framework.create_root_section()
     section = root.add_child(instance=Section(framework=framework, name='Measures'))
     return MeasureTemplate.objects.create(section=section, name='Test measure', unit='kt/a')
+
+
+def _create_nzc_default_dimensions(framework: Framework) -> dict[tuple[str, str], FrameworkDimensionCategory]:
+    renewable_mix = FrameworkDimension.objects.create(framework=framework, identifier='renewable_mix', name='Renewable mix')
+    temperature = FrameworkDimension.objects.create(framework=framework, identifier='temperature', name='Temperature')
+    categories = {
+        ('renewable_mix', 'low'): FrameworkDimensionCategory.objects.create(dimension=renewable_mix, name='Low'),
+        ('renewable_mix', 'high'): FrameworkDimensionCategory.objects.create(dimension=renewable_mix, name='High'),
+        ('temperature', 'low'): FrameworkDimensionCategory.objects.create(dimension=temperature, name='Low'),
+        ('temperature', 'high'): FrameworkDimensionCategory.objects.create(dimension=temperature, name='High'),
+    }
+    return categories
+
+
+def test_framework_config_populates_defaults_from_categorized_default_data_points(framework: Framework) -> None:
+    categories = _create_nzc_default_dimensions(framework)
+    measure_template = _create_measure_template(framework)
+    measure_template.default_value_scaling = DefaultValueScaling.POPULATION
+    measure_template.save(update_fields=['default_value_scaling'])
+    matching_default = MeasureTemplateDefaultDataPoint.objects.create(
+        template=measure_template,
+        year=2020,
+        value=2.0,
+        probable_lower_bound=1.5,
+        probable_upper_bound=2.5,
+    )
+    matching_default.categories.set([categories[('renewable_mix', 'high')], categories[('temperature', 'low')]])
+    other_default = MeasureTemplateDefaultDataPoint.objects.create(
+        template=measure_template,
+        year=2020,
+        value=99.0,
+        probable_lower_bound=98.0,
+        probable_upper_bound=100.0,
+    )
+    other_default.categories.set([categories[('renewable_mix', 'low')], categories[('temperature', 'low')]])
+
+    fwc = FrameworkConfigFactory.create(
+        framework=framework,
+        extra={'create_context': {'population': 10}},
+    )
+    fwc.categories.set([categories[('renewable_mix', 'high')], categories[('temperature', 'low')]])
+
+    assert fwc.populate_measure_defaults_from_default_data_points() == 1
+
+    data_point = MeasureDataPoint.objects.get(measure__framework_config=fwc, measure__measure_template=measure_template)
+    assert data_point.year == 2020
+    assert data_point.value is None
+    assert data_point.default_value == 20.0
+    assert data_point.probable_lower_bound == 15.0
+    assert data_point.probable_upper_bound == 25.0
+
+    data_point.value = 123.0
+    data_point.default_value = -1.0
+    data_point.probable_lower_bound = -2.0
+    data_point.probable_upper_bound = -3.0
+    data_point.save()
+
+    assert fwc.populate_measure_defaults_from_default_data_points() == 1
+    data_point.refresh_from_db()
+    assert data_point.value == 123.0
+    assert data_point.default_value == 20.0
+    assert data_point.probable_lower_bound == 15.0
+    assert data_point.probable_upper_bound == 25.0
 
 
 # ---------------------------------------------------------------------------
@@ -380,40 +451,15 @@ def test_create_nzc_framework_config_mutation_creates_instance_and_defaults(
         name='NetZeroCities',
         public_base_fqdn=None,
     )
+    categories = _create_nzc_default_dimensions(framework)
     gql_client = _framework_admin_gql_client(client, framework)
-    dataset_repo = object()
-    captured_defaults: list[tuple[str, dict[str, float] | None]] = []
-    captured_placeholder_input: dict[str, object] = {}
+    populated_framework_configs: list[str] = []
 
-    class FakeContext:
-        def __init__(self, dataset_repo: object) -> None:
-            self.dataset_repo = dataset_repo
+    def fake_populate_measure_defaults(self: FrameworkConfig) -> int:
+        populated_framework_configs.append(self.instance_config.identifier)
+        return 0
 
-    class FakeInstance:
-        def __init__(self, context: FakeContext) -> None:
-            self.context = context
-
-    fake_context = FakeContext(dataset_repo)
-    fake_instance = FakeInstance(fake_context)
-
-    def fake_get_instance(self: InstanceConfig, *args: object, **kwargs: object) -> FakeInstance:
-        return fake_instance
-
-    def fake_get_nzc_default_values(repo: object, placeholder_input: NZCPlaceholderInput) -> dict[str, float]:
-        assert repo is dataset_repo
-        captured_placeholder_input.update(
-            population=placeholder_input.population,
-            renewmix=placeholder_input.renewmix,
-            temperature=placeholder_input.temperature,
-        )
-        return {'template-uuid': 12.5}
-
-    def fake_create_measure_defaults(self: FrameworkConfig, defaults: dict[str, float] | None = None) -> None:
-        captured_defaults.append((self.instance_config.identifier, defaults))
-
-    monkeypatch.setattr(InstanceConfig, 'get_instance', fake_get_instance)
-    monkeypatch.setattr('frameworks.nzc.get_nzc_default_values', fake_get_nzc_default_values)
-    monkeypatch.setattr(FrameworkConfig, 'create_measure_defaults', fake_create_measure_defaults)
+    monkeypatch.setattr(FrameworkConfig, 'populate_measure_defaults_from_default_data_points', fake_populate_measure_defaults)
 
     data = gql_client.query_data(
         CREATE_NZC_FRAMEWORK_CONFIG,
@@ -443,12 +489,16 @@ def test_create_nzc_framework_config_mutation_creates_instance_and_defaults(
     ic = InstanceConfig.objects.get(identifier='nzc-created-city')
     assert ic.has_framework_config()
     assert ic.framework_config.framework == framework
-    assert captured_placeholder_input == {
+    assert ic.framework_config.extra['create_context'] == {
         'population': 123456,
-        'renewmix': 'high',
+        'renewable_mix': 'high',
         'temperature': 'low',
     }
-    assert captured_defaults == [('nzc-created-city', {'template-uuid': 12.5})]
+    assert set(ic.framework_config.categories.all()) == {
+        categories[('renewable_mix', 'high')],
+        categories[('temperature', 'low')],
+    }
+    assert populated_framework_configs == ['nzc-created-city']
 
 
 # ---------------------------------------------------------------------------
