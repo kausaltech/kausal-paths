@@ -241,6 +241,107 @@ a JSON shape with `dataCollection` and `futureAssumptions`. It is useful for
 understanding the original metadata structure, but the sync JSON path is the
 more explicit current mechanism.
 
+## New Observation System (lucia model)
+
+The legacy measure data injection described above works but has several
+drawbacks (see "Current Legacy Pieces" below). A cleaner alternative has been
+implemented and is currently live in `configs/lucia.yaml`. It will eventually
+replace the legacy approach in `nzc.yaml` as well.
+
+### ObservationDataset
+
+`ObservationDataset` in [frameworks/datasets.py](../../frameworks/datasets.py)
+is a `DVCDataset` subclass that overlays DB-sourced values onto a DVC parquet
+dataset. Instead of the wide GPC-style `nzc/defaults`, each observable metric
+has its own narrow DVC dataset with `uuid` kept as a real dimension
+(`drop_col: false`).
+
+The overlay adds boolean flag columns to the dataset:
+
+- `observed` — a city user entered a value (`MeasureDataPoint.value`)
+- `placeholder` — only a comparable-city default exists (`MeasureDataPoint.default_value`)
+
+Both value and flag columns are added in a single pass. Unit conversion is
+handled automatically if the measure template unit differs from the dataset
+unit. If no `FrameworkConfig` exists for the instance, the dataset is returned
+unchanged (the DVC values pass through as-is).
+
+The dataset is tagged `observation_dataset` in the YAML input_datasets list,
+which signals `ObservableNode` to treat it specially.
+
+### ObservableNode
+
+`ObservableNode` in [nodes/generic.py](../../nodes/generic.py) extends
+`GenericNode` with an `apply_observations` operation. It consumes an
+`ObservationDataset` and an optional `modeled` input node.
+
+The `apply_observations` operation blends observations with modelled values
+depending on the global boolean parameter `use_observations`:
+
+- **`use_observations=false`** (default / decarbonisation scenario): the
+  modelled output is used for all years, except the reference year, which is
+  overridden by the observation value if one is present.
+- **`use_observations=true`** (progress_tracking scenario): all observed values
+  are extended across all historical and future years. If no observed values
+  exist, falls back to the same ref-year-only behaviour as the default
+  scenario.
+
+The modelled input node is connected with `tags: [modeled]`. This tag causes
+`ObservableNode._get_add_multiply_nodes` to exclude it from the normal
+add/multiply pipeline; it is consumed by `apply_observations` instead.
+
+### YAML pattern
+
+```yaml
+- id: passenger_kilometres_observed
+  type: generic.ObservableNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_datasets:
+  - id: nzc/passenger_transport_need_fleet
+    column: passenger_kilometres
+    filters:
+    - column: uuid
+      drop_col: false      # keep uuid as a dimension for DB lookup
+    - column: energy_carrier
+    tags: [observation_dataset]
+  input_nodes:
+  - id: passenger_kilometres
+    tags: [modeled]        # excluded from add/multiply; consumed by apply_observations
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+```
+
+### Scenarios
+
+The `use_observations` parameter replaces the old `measure_data_override`
+ConstantNode:
+
+```yaml
+scenarios:
+- id: default
+  params:
+  - id: use_observations
+    value: false
+- id: progress_tracking
+  params:
+  - id: use_observations
+    value: true
+```
+
+### Observable nodes in lucia.yaml
+
+Five key outputs are currently implemented as ObservableNodes:
+
+- `emissions_from_other_sectors_observed` — dataset `nzc/other_sectors`
+- `passenger_kilometres_observed` — dataset `nzc/passenger_transport_need_fleet`
+- `freight_transport_need_observed` — dataset `nzc/freight_transport`
+- `building_heat_energy_use_observed` — dataset `nzc/buildings_heating_fuel_tech`
+- `total_electricity_consumption` — dataset `nzc/electricity`
+
+---
+
 ## Current Legacy Pieces
 
 The following pieces are part of the current implementation but should not be
