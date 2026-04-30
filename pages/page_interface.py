@@ -39,7 +39,12 @@ class PageInterface(BasePageInterface):
     next_siblings = graphene.List(graphene.NonNull(get_page_interface), required=True)
     previous_siblings = graphene.List(graphene.NonNull(get_page_interface), required=True)
     ancestors = graphene.List(graphene.NonNull(get_page_interface), required=True)
+    menu_label = graphene.String()
     content_type = None
+
+    @staticmethod
+    def resolve_menu_label(root: Page, info: GQLInfo) -> str | None:
+        return getattr(root.specific, 'menu_label', None) or None
 
     @staticmethod
     def resolve_parent(root: Page, info: GQLInfo) -> Page | None:
