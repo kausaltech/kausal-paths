@@ -816,6 +816,9 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             ic.create_default_content()
             root_page = ic.root_page
             assert root_page is not None
+            root_page.show_in_menus = True
+            root_page.menu_label = 'Home'
+            root_page.save()
             for alp in root_page.get_descendants().type(ActionListPage).specific():
                 assert isinstance(alp, ActionListPage)
                 alp.show_in_footer = False
