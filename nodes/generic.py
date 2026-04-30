@@ -1908,3 +1908,198 @@ class DatasetPlusOneNode(GenericNode):
             filt = filt | pl.col(FORECAST_COLUMN)
 
         return df.filter(filt)
+
+
+class ObservableNode(GenericNode):
+    """
+    GenericNode that blends modelled values with user observations.
+
+    The dataset must be loaded as an ``ObservationDataset`` (tag
+    ``observation_dataset`` in the YAML) so that it carries ``observed`` and
+    ``placeholder`` boolean columns after loading.
+
+    Operation ``apply_observations`` is inserted right after
+    ``get_single_dataset``.  It reads the global parameter
+    ``use_observations`` (bool) and the context reference year, then:
+
+    * **Always** (all scenarios): overrides the reference-year value with the
+      observation/placeholder value if one is available.  This anchors the
+      model to real-world data at the start of the forecast.
+    * **When** ``use_observations = True`` (progress-tracking scenario): uses
+      *all* available historical observations, extended to cover the full model
+      time range (equivalent to the old ``observed_only_extend_all`` formula).
+    * **Otherwise** (default scenario): uses the modelled output for all years
+      except reference year.
+
+    The uuid dimension (if present) is dropped before returning so downstream
+    nodes only see the semantic category dimensions.
+    """
+
+    explanation = _('GenericNode that blends modelled values with user observations from the database.')
+    DEFAULT_OPERATIONS = 'get_single_dataset,apply_observations,multiply,add,other,apply_multiplier'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.OPERATIONS['apply_observations'] = self._operation_apply_observations
+
+    def _get_add_multiply_nodes(self) -> tuple[list[Node], list[Node]]:
+        """Exclude `modeled`-tagged inputs from add/multiply: they are consumed by apply_observations."""
+        add_nodes, multiply_nodes = super()._get_add_multiply_nodes()
+        modeled_ids = {edge.input_node.id for edge in self.edges if edge.output_node == self and 'modeled' in edge.tags}
+        add_nodes = [n for n in add_nodes if n.id not in modeled_ids]
+        multiply_nodes = [n for n in multiply_nodes if n.id not in modeled_ids]
+        return add_nodes, multiply_nodes
+
+    # ------------------------------------------------------------------
+    # Dataset loading (sparse — do NOT extend to all years)
+    # ------------------------------------------------------------------
+
+    def _operation_get_single_dataset(self, df: PathsDataFrame | None) -> OperationReturn:
+        """
+        Load observation dataset as-is, without extending to all model years.
+
+        The parent class ``get_cleaned_dataset`` would call ``_extend_values``
+        which forward-fills ``observed`` / ``placeholder`` flags to model_end_year,
+        making every future year look "observed".  We intentionally skip that step
+        so ``apply_observations`` receives a sparse DataFrame that only covers the
+        years actually present in the DVC data and user DB entries.
+        """
+        raw_df = self.get_input_dataset_pl(required=False)
+        if raw_df is None:
+            return df
+        if len(raw_df.metric_cols) == 1:
+            raw_df = raw_df.rename({raw_df.metric_cols[0]: VALUE_COLUMN})
+        raw_df = raw_df.paths._drop_unnecessary_levels(raw_df, self.context)
+        if df is None:
+            return raw_df
+        return df.paths.add_with_dims(raw_df)
+
+    def _select_and_extend_observations(
+        self,
+        df: PathsDataFrame,
+        *,
+        use_obs: bool,
+        ref_year: int,
+    ) -> PathsDataFrame:
+        """
+        Pick the best available source per category and extend to all model years.
+
+        - If *use_obs* is True:  user obs > placeholder > DVC default, all years.
+        - If *use_obs* is False: only the reference-year row (obs/placeholder).
+
+        Returns an empty DataFrame (len 0) if no suitable observations are available.
+        """
+        has_obs = pl.col('observed')
+        has_any = pl.col('observed') | pl.col('placeholder')
+
+        if use_obs:
+            dim_ids = df.dim_ids
+            if dim_ids:
+                df = df.with_columns([
+                    pl.col('observed').any().over(dim_ids).alias('_has_obs'),
+                    has_any.any().over(dim_ids).alias('_has_any'),
+                ])
+            else:
+                df = df.with_columns([
+                    pl.col('observed').any().alias('_has_obs'),
+                    has_any.any().alias('_has_any'),
+                ])
+            df = df.filter(
+                pl.when(pl.col('_has_obs')).then(has_obs).when(pl.col('_has_any')).then(has_any).otherwise(pl.lit(True))  # noqa: FBT003
+            ).drop(['_has_obs', '_has_any'])
+        else:
+            # Default scenario: only keep ref_year row if there is an obs/placeholder
+            ref_with_data = df.filter((pl.col(YEAR_COLUMN) == ref_year) & has_any)
+            if len(ref_with_data) == 0:
+                # Signal "no observation at reference year"
+                return df.filter(pl.lit(False))  # noqa: FBT003
+            df = ref_with_data
+
+        drop_cols = [c for c in ['observed', 'placeholder'] if c in df.columns]
+        if drop_cols:
+            df = df.drop(drop_cols)
+        df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))  # noqa: FBT003
+
+        # Extend to cover the full model time range
+        from nodes.calc import extend_last_forecast_value_pl, extend_to_history_pl
+
+        end_year = self.context.instance.model_end_year
+        df = extend_last_forecast_value_pl(df, end_year)
+        start_year = self.context.instance.minimum_historical_year
+        if start_year is not None:
+            df = extend_to_history_pl(df, start_year)
+        return df
+
+    # ------------------------------------------------------------------
+    # Operation
+    # ------------------------------------------------------------------
+
+    def _operation_apply_observations(self, df: PathsDataFrame | None) -> OperationReturn:
+        """Blend observation data (from ObservationDataset) with modelled input."""
+        if df is None:
+            return None
+        if 'observed' not in df.columns or 'placeholder' not in df.columns:
+            # Dataset did not provide observation flags - no-op
+            return df
+
+        # Drop uuid dimension: it was only for DB lookup, not semantic
+        df = df.drop('uuid', strict=False)
+
+        use_obs: bool = bool(self.get_global_parameter_value('use_observations', required=False) or False)
+        ref_year: int = self.context.instance.reference_year
+
+        modeled_node = self.get_input_node(tag='modeled', required=False)
+        modeled_df: PathsDataFrame | None = modeled_node.get_output_pl(target_node=self) if modeled_node is not None else None
+
+        if use_obs:
+            # progress_tracking: extend observations to all years
+            result = self._select_and_extend_observations(df, use_obs=True, ref_year=ref_year)
+            if len(result) == 0 and modeled_df is not None:
+                return modeled_df
+            return result
+
+        # default scenario -------------------------------------------------------
+        # Start with modelled output (all years), then override reference year.
+        obs_at_ref = self._select_and_extend_observations(df, use_obs=False, ref_year=ref_year)
+
+        if len(obs_at_ref) == 0:
+            # No reference-year observation available: return modelled unchanged
+            if modeled_df is not None:
+                return modeled_df
+            # No modelled input either: just return the dataset without flags
+            return df.drop([c for c in ['observed', 'placeholder'] if c in df.columns])
+
+        # We have a ref_year observation. Overlay it onto the modelled output.
+        if modeled_df is None:
+            # No modelled input: use extended obs directly
+            return obs_at_ref
+
+        # Join obs ref-year value onto modelled_df at reference year
+        # obs_at_ref: all years (extended from ref_year observation)
+        # We only want to inject the ref_year value into modelled_df
+        ref_obs_row = obs_at_ref.filter(pl.col(YEAR_COLUMN) == ref_year)
+
+        # Identify the shared dimension keys (Year + common dim_ids)
+        shared_dims = [d for d in ref_obs_row.dim_ids if d in modeled_df.dim_ids]
+        join_keys = [YEAR_COLUMN] + shared_dims
+
+        ref_obs_join = ppl.to_ppdf(
+            ref_obs_row.select(join_keys + [pl.col(VALUE_COLUMN).alias('_obs_val')]),
+            meta=ppl.DataFrameMeta(primary_keys=join_keys, units={'_obs_val': ref_obs_row.get_unit(VALUE_COLUMN)}),
+        )
+
+        merged = ppl.to_ppdf(
+            modeled_df.join(ref_obs_join, on=join_keys, how='left'),
+            meta=modeled_df.get_meta(),
+        )
+        result = ppl.to_ppdf(
+            merged.with_columns(
+                pl
+                .when(pl.col(YEAR_COLUMN) == ref_year)
+                .then(pl.coalesce(['_obs_val', VALUE_COLUMN]))
+                .otherwise(pl.col(VALUE_COLUMN))
+                .alias(VALUE_COLUMN)
+            ).drop('_obs_val'),
+            meta=modeled_df.get_meta(),
+        )
+        return result

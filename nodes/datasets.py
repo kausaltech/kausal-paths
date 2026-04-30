@@ -461,6 +461,7 @@ class DatasetWithFilters(Dataset, ABC):
                     ),
                 )
             df = df.with_columns(pl.col(self.column).alias(VALUE_COLUMN))
+            df = df.filter(pl.col(VALUE_COLUMN).is_not_null())
             cols = [YEAR_COLUMN, VALUE_COLUMN, *df.dim_ids]
 
         if YEAR_COLUMN in cols and YEAR_COLUMN not in df.primary_keys:
@@ -1276,6 +1277,15 @@ class DBDataset(DatasetWithFilters):
             **{str(dim[1]): pl.Utf8 for dim in dims},
         }
         df = pl.DataFrame(dp_list, schema=df_schema, orient='row')
+        # load_dvc_dataset.py stores relative NZC years (DVC year <= 100) as date year+1 to
+        # avoid year=0 being invalid in Python's date type. Undo that offset here so that
+        # relative years match the DVC convention: year=0 == reference year, year=100 ==
+        # target year, etc. DVC years > 100 are stored as absolute calendar years (unaffected).
+        # Stored range [1, 101] corresponds to DVC relative years [0, 100]; calendar years
+        # start at 2020+, well above the 101 threshold.
+        df = df.with_columns(
+            pl.when(pl.col(YEAR_COLUMN) <= 101).then(pl.col(YEAR_COLUMN) - 1).otherwise(pl.col(YEAR_COLUMN)).alias(YEAR_COLUMN)
+        )
         mdf = pl.DataFrame(ds.metrics)  # type: ignore
         df = df.join(mdf.select(pl.col('uuid').alias('metric'), pl.col('name').alias('metric_name')), on='metric', how='left')
 

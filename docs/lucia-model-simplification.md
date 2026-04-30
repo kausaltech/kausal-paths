@@ -105,6 +105,58 @@ filtering (`Sector == "Assumed share of type of renovation in lever"`), name-to-
 conversion, unit handling, and optional baseline-year-only filtering. None of this can be
 replicated by a raw `input_datasets` entry.
 
+## Observation System Migration (April 2026)
+
+A second phase of work migrated the observation injection mechanism from the
+legacy NZC approach to a cleaner system based on `ObservableNode` and
+`ObservationDataset`. This is now live in `configs/lucia.yaml` and merged to
+main.
+
+### Old system (nzc.yaml)
+
+- One large flat dataset `nzc/defaults` with a `UUID` column and a `Sector`
+  filter.
+- `FrameworkMeasureDVCDataset` queries DB for `MeasureDataPoint` records and
+  replaces dataset values with user-entered values, identified by UUID.
+- A `measure_data_override` ConstantNode (bool parameter) controlled whether
+  DB values were used.
+- Scenarios toggled `measure_data_override: true` (progress_tracking) or
+  `measure_data_override: false` (default).
+- Columns `ObservedDataPoint` and `FromMeasureDataPoint` tracked which rows
+  came from DB vs. the DVC file.
+- `_observed_only_extend_all` extended observed values across all years when in
+  progress_tracking mode.
+
+### New system (lucia.yaml)
+
+Each observable metric has its own narrow DVC dataset with `uuid` kept as a
+real dimension. The dataset is tagged `observation_dataset` and consumed by an
+`ObservableNode`, which has an `apply_observations` operation that blends DB
+observations with modelled values. The modelled input node is connected with
+`tags: [modeled]`.
+
+The `use_observations` global bool parameter (in `params/global_params.py`)
+replaces `measure_data_override`. Scenarios set only `use_observations`:
+
+- `use_observations=false`: modelled output for all years; reference year
+  overridden by observation if one is present.
+- `use_observations=true`: all observed values are extended across all years.
+
+Five nodes in `lucia.yaml` were migrated to this pattern:
+
+| Observable node | Dataset |
+|---|---|
+| `emissions_from_other_sectors_observed` | `nzc/other_sectors` |
+| `passenger_kilometres_observed` | `nzc/passenger_transport_need_fleet` |
+| `freight_transport_need_observed` | `nzc/freight_transport` |
+| `building_heat_energy_use_observed` | `nzc/buildings_heating_fuel_tech` |
+| `total_electricity_consumption` | `nzc/electricity` |
+
+See `docs/architecture/nzc-framework.md` for the full pattern including YAML
+examples and the `ObservationDataset` / `ObservableNode` design.
+
+---
+
 ## Next Steps
 
 ### Near-term (low risk)

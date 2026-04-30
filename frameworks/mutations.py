@@ -126,6 +126,11 @@ class FrameworkMutation:
                 spec = ic.spec
                 assert spec is not None
                 spec.owner = fwc.organization_name
+                spec.years.reference = fwc.baseline_year
+                spec.years.min_historical = fwc.baseline_year
+                spec.years.max_historical = fwc.baseline_year
+                if fwc.target_year is not None:
+                    spec.years.target = fwc.target_year
                 ic.save(update_fields=['spec'])
 
             ic.refresh_from_db()
