@@ -738,8 +738,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             from .instance_from_db import serialize_instance_to_dict
 
             config = serialize_instance_to_dict(self)
-            fw_config = self.framework_config if self.has_framework_config() else None
-            loader = InstanceLoader(config=config, fw_config=fw_config)
+            loader = InstanceLoader(config=config)
             instance = loader.instance
             self.update_instance_from_configs(instance, node_refs=True)
             return instance
