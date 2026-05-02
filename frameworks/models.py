@@ -789,7 +789,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             for alp in site.root_page.get_descendants().type(ActionListPage).specific():
                 assert isinstance(alp, ActionListPage)
                 alp.show_in_footer = False
-                alp.show_in_menus = False
                 alp.save()
 
         return fc
