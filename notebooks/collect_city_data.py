@@ -28,7 +28,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 # Configure Django
 django.setup()
 
-import polars as pl
+import polars as pl  # noqa: E402
 
 from common import polars as ppl  # noqa: E402
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN  # noqa: E402

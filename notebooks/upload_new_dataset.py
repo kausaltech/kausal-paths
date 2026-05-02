@@ -501,7 +501,7 @@ def push_to_dvc(
     # Build metadata
     metadata: dict[str, Any] = {
         'name': {language: dataset_name},
-        'identifier': to_snake_case(dataset_name),
+        'identifier': output_path,
     }
     if description:
         metadata['description'] = {language: description}
@@ -615,7 +615,11 @@ def process_dataset(
 
     # 11. Push to DVC if requested
     if outdvcpath:
-        dataset_dvc_path = f'{outdvcpath}/{to_snake_case(dataset_name)}'
+        # Strip any source namespace prefix (e.g. 'aarhus/') and replace with
+        # outdvcpath.  Identifiers must NOT go through to_snake_case: it removes
+        # '/' separators and collapses intentional double-underscores.
+        identifier = dataset_name.split('/')[-1]
+        dataset_dvc_path = f'{outdvcpath}/{identifier}'
         push_to_dvc(df, dataset_dvc_path, dataset_name, description, metrics, language, units=units)
 
 
