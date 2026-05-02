@@ -117,7 +117,7 @@ class Command(BaseCommand):
     def _dataset_to_rows(
         dataset: Any,
         schema_dims: list[Any],
-        schema_name: str,
+        dataset_id: str,
     ) -> tuple[list[dict[str, str]], set[int]]:
         """Return (rows, years) for one Dataset, iterating all its metrics."""
         from collections import defaultdict
@@ -147,7 +147,7 @@ class Command(BaseCommand):
                     'Metric': metric_label,
                     'Unit': metric.unit or '',
                     'Quantity': '',
-                    'Dataset': schema_name,
+                    'Dataset': dataset_id,
                     **dict(dim_key),
                     **{str(yr): val for yr, val in year_values.items()},
                 }
@@ -159,8 +159,9 @@ class Command(BaseCommand):
         import csv
 
         from django.contrib.contenttypes.models import ContentType
+        from django.db.models import Q
 
-        from kausal_common.datasets.models import Dataset
+        from kausal_common.datasets.models import Dataset, DatasetSchema
 
         try:
             ic = InstanceConfig.objects.get(identifier=instance_identifier)
@@ -169,9 +170,11 @@ class Command(BaseCommand):
             return
 
         ct = ContentType.objects.get_for_model(ic)
+        schema_qs = DatasetSchema.objects.get_queryset().for_scope(ic)
         datasets = (
             Dataset.objects
-            .filter(scope_content_type=ct, scope_id=ic.pk)
+            .filter(Q(scope_content_type=ct, scope_id=ic.pk) | Q(schema__in=schema_qs))
+            .distinct()
             .select_related('schema')
             .prefetch_related('schema__metrics', 'schema__dimensions__dimension')
         )
@@ -183,13 +186,13 @@ class Command(BaseCommand):
         for dataset in datasets:
             if dataset.schema is None:
                 continue
-            schema_name = dataset.schema.name_i18n or dataset.schema.name or str(dataset.schema.uuid)
+            dataset_id = dataset.identifier or str(dataset.uuid)
             schema_dims = [sd.dimension for sd in dataset.schema.dimensions.order_by('order')]
             for d in schema_dims:
                 col = d.name_i18n or d.name
                 if col not in dim_col_order:
                     dim_col_order.append(col)
-            rows, years = self._dataset_to_rows(dataset, schema_dims, schema_name)
+            rows, years = self._dataset_to_rows(dataset, schema_dims, dataset_id)
             all_rows.extend(rows)
             all_years.update(years)
 
