@@ -53,6 +53,7 @@ class NodeError(Exception):
 
     def __rich_repr__(self) -> rich.repr.Result:
         yield 'code', self.error_code, None
+        yield 'msg', super().__str__()
         if self.__cause__:
             yield 'cause', str(self.__cause__)
         yield 'event_chain', self.event_chain
