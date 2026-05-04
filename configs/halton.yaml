@@ -31,6 +31,9 @@ action_groups:
 - id: renewable_energy_production
   name: Renewable Energy Production
   color: '#F28E2B'
+- id: pathway_assumptions
+  name: Pathway Assumptions
+  color: '#4E79A7'
 
 dimensions:
 - id: emission_source
@@ -88,6 +91,8 @@ dimensions:
     label: Halton Community Housing Corporation (HCHC)
   - id: halton_regional_police_service_hrps
     label: Halton Regional Police Service (HRPS)
+  - id: offset_credits
+    label: Offset Credits
 
 - id: asset_class
   label: Asset Class
@@ -1228,8 +1233,17 @@ nodes:
   output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: cs_stationary_combustion_emissions
+    from_dimensions:
+    - id: asset_class
+      flatten: true
   - id: hchc_stationary_combustion_emissions
+    from_dimensions:
+    - id: property
+      flatten: true
   - id: pw_stationary_combustion_emissions
+    from_dimensions:
+    - id: asset_class
+      flatten: true
   - id: ems_stationary_combustion_emissions
   output_nodes:
   - id: corporate_emissions
@@ -1322,8 +1336,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, asset_class, department, scope]
+  output_dimensions: [asset, energy_carrier, asset_class, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1332,7 +1346,6 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [childcare_centre]
-      flatten: true
 
 - id: corporate_office_stationary_combustion_emissions
   name: Corporate Office Stationary Combustion Emissions
@@ -1340,8 +1353,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, asset_class, department, scope]
+  output_dimensions: [asset, energy_carrier, asset_class, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1350,7 +1363,6 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [corporate_office]
-      flatten: true
 
 - id: ltc_stationary_combustion_emissions
   name: LTC Stationary Combustion Emissions
@@ -1358,8 +1370,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, asset_class, department, scope]
+  output_dimensions: [asset, energy_carrier, asset_class, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1368,7 +1380,6 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [long_term_care_ltc]
-      flatten: true
 
 - id: operations_centre_stationary_combustion_emissions
   name: Operations Centre Stationary Combustion Emissions
@@ -1376,8 +1387,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, asset_class, department, scope]
+  output_dimensions: [asset, energy_carrier, asset_class, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1386,7 +1397,6 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [operations_centre]
-      flatten: true
 
 - id: other_cs_stationary_combustion_emissions
   name: Other CS Stationary Combustion Emissions
@@ -1394,8 +1404,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, asset_class, department, scope]
+  output_dimensions: [asset, energy_carrier, asset_class, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1404,23 +1414,39 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [other]
-      flatten: true
 
 - id: cs_stationary_combustion_emissions
   name: Corporate Services Stationary Combustion Emissions
   short_name: Corporate Services Emissions
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  params:
+    formula: (childcare_centre + corporate_office + ltc + operations_centre + other + propane) * reduction
   input_nodes:
   - id: childcare_centre_stationary_combustion_emissions
+    tags: [childcare_centre]
   - id: corporate_office_stationary_combustion_emissions
+    tags: [corporate_office]
   - id: ltc_stationary_combustion_emissions
+    tags: [ltc]
   - id: operations_centre_stationary_combustion_emissions
+    tags: [operations_centre]
   - id: other_cs_stationary_combustion_emissions
+    tags: [other]
   - id: propane_stationary_combustion_emissions
+    tags: [propane]
+    to_dimensions:
+    - id: asset_class
+      categories: [propane_combustion]
+    - id: asset
+    - id: energy_carrier
+    - id: department
+    - id: scope
+  - id: pathway_assumption_3
+    tags: [reduction, absolute, complement]
 
 - id: cs_stationary_propane_combustion
   name: Corporate Services Stationary Propane Combustion
@@ -1477,8 +1503,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, asset_class, department, scope]
+  output_dimensions: [asset, energy_carrier, asset_class, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1487,7 +1513,6 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [wastewater_treatment_plant_wwtp]
-      flatten: true
 
 - id: wtp_stationary_combustion_emissions
   name: WTP Stationary Combustion Emissions
@@ -1495,8 +1520,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, asset_class, department, scope]
+  output_dimensions: [asset, energy_carrier, asset_class, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1505,7 +1530,6 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [water_treatment_plant_wtp]
-      flatten: true
 
 - id: ps_stationary_combustion_emissions
   name: Pumping Station Stationary Combustion Emissions
@@ -1513,8 +1537,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, asset_class, department, scope]
+  output_dimensions: [asset, energy_carrier, asset_class, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1523,7 +1547,6 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [pumping_station]
-      flatten: true
 
 - id: reservoir_stationary_combustion_emissions
   name: Reservoir Stationary Combustion Emissions
@@ -1531,8 +1554,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, asset_class, department, scope]
+  output_dimensions: [asset, energy_carrier, asset_class, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1541,7 +1564,6 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [reservoir]
-      flatten: true
 
 - id: equipment_stationary_combustion_emissions
   name: Equipment Stationary Combustion Emissions
@@ -1549,8 +1571,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, asset_class, department, scope]
+  output_dimensions: [asset, energy_carrier, asset_class, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1559,7 +1581,6 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [equipment]
-      flatten: true
 
 - id: other_pw_stationary_combustion_emissions
   name: Other PW Stationary Combustion Emissions
@@ -1567,8 +1588,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, asset_class, department, scope]
+  output_dimensions: [asset, energy_carrier, asset_class, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1577,23 +1598,32 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [other]
-      flatten: true
 
 - id: pw_stationary_combustion_emissions
   name: Public Works Stationary Combustion Emissions
   short_name: Public Works Emissions
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  params:
+    formula: (wwtp + wtp + ps + reservoir + equipment + other) * reduction
   input_nodes:
   - id: wwtp_stationary_combustion_emissions
+    tags: [wwtp]
   - id: wtp_stationary_combustion_emissions
+    tags: [wtp]
   - id: ps_stationary_combustion_emissions
+    tags: [ps]
   - id: reservoir_stationary_combustion_emissions
+    tags: [reservoir]
   - id: equipment_stationary_combustion_emissions
+    tags: [equipment]
   - id: other_pw_stationary_combustion_emissions
+    tags: [other]
+  - id: pathway_assumption_1
+    tags: [reduction, absolute, complement]
 
 - id: biogas_stationary_combustion_emissions
   name: Biogas Stationary Combustion Emissions (Scope 1)
@@ -1773,8 +1803,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, property, department, scope]
+  output_dimensions: [asset, energy_carrier, property, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1783,7 +1813,6 @@ nodes:
     from_dimensions:
     - id: property
       categories: [brant_ct]
-      flatten: true
 
 - id: maurice_drive_stationary_combustion_emissions
   name: Maurice Drive Stationary Combustion Emissions
@@ -1791,8 +1820,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, property, department, scope]
+  output_dimensions: [asset, energy_carrier, property, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1801,7 +1830,6 @@ nodes:
     from_dimensions:
     - id: property
       categories: [maurice_dr]
-      flatten: true
 
 - id: other_hchc_stationary_combustion_emissions
   name: Other HCHC Stationary Combustion Emissions
@@ -1809,8 +1837,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, property, department, scope]
+  output_dimensions: [asset, energy_carrier, property, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1819,7 +1847,6 @@ nodes:
     from_dimensions:
     - id: property
       categories: [other]
-      flatten: true
 
 - id: walkers_landing_stationary_combustion_emissions
   name: Walkers Landing Stationary Combustion Emissions
@@ -1827,8 +1854,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, property, department, scope]
+  output_dimensions: [asset, energy_carrier, property, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1837,7 +1864,6 @@ nodes:
     from_dimensions:
     - id: property
       categories: [walkers_landing]
-      flatten: true
 
 - id: woodside_drive_stationary_combustion_emissions
   name: Rotary Gardens Stationary Combustion Emissions
@@ -1845,8 +1871,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [asset, energy_carrier, property, department, scope]
+  output_dimensions: [asset, energy_carrier, property, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1855,22 +1881,30 @@ nodes:
     from_dimensions:
     - id: property
       categories: [woodside_dr]
-      flatten: true
 
 - id: hchc_stationary_combustion_emissions
   name: HCHC Stationary Combustion Emissions
   short_name: HCHC Emissions
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
+  input_dimensions: [property, asset, energy_carrier, department, scope]
+  output_dimensions: [property, asset, energy_carrier, department, scope]
+  params:
+    formula: (brant_court + maurice_drive + other + walkers_landing + woodside_drive) * reduction
   input_nodes:
   - id: brant_court_stationary_combustion_emissions
+    tags: [brant_court]
   - id: maurice_drive_stationary_combustion_emissions
+    tags: [maurice_drive]
   - id: other_hchc_stationary_combustion_emissions
+    tags: [other]
   - id: walkers_landing_stationary_combustion_emissions
+    tags: [walkers_landing]
   - id: woodside_drive_stationary_combustion_emissions
+    tags: [woodside_drive]
+  - id: pathway_assumption_3
+    tags: [reduction, absolute, complement]
 
 # ----- Mobile Combustion
 
@@ -3136,6 +3170,30 @@ nodes:
 - id: corporate_waste_emissions
   name: Corporate Waste Emissions (Scope 1)
   color: '#499894'
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [department, asset, scope]
+  output_dimensions: [department, asset, scope]
+  params:
+    formula: cs + pw + ems + reduction
+  input_nodes:
+  - id: cs_waste_emissions
+    tags: [cs]
+  - id: pw_waste_emissions
+    tags: [pw]
+  - id: ems_waste_emissions
+    tags: [ems]
+  - id: corporate_waste_emissions_reduction
+    tags: [reduction]
+  output_nodes:
+  - id: corporate_emissions
+    from_dimensions:
+    - id: asset
+      flatten: true
+
+- id: corporate_waste_emissions_total
+  name: Corporate Waste Emissions (Total)
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -3145,11 +3203,30 @@ nodes:
   - id: cs_waste_emissions
   - id: pw_waste_emissions
   - id: ems_waste_emissions
-  output_nodes:
-  - id: corporate_emissions
-    from_dimensions:
-    - id: asset
-      flatten: true
+
+- id: corporate_waste_emissions_mix
+  name: Corporate Waste Emissions (Mix)
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
+  input_nodes:
+  - id: corporate_waste_emissions_total
+    tags: [activity]
+
+- id: corporate_waste_emissions_reduction
+  name: Corporate Waste Emissions (Reduction)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
+  input_nodes:
+  - id: corporate_waste_emissions_mix
+  - id: pathway_assumption_4
+    tags: [non_additive]
+    to_dimensions: []
 
 # ---------- Corporate Services
 
@@ -3746,6 +3823,26 @@ nodes:
     - id: asset
       flatten: true
 
+# ----- Offset Credits
+
+- id: offset_credits
+  name: Offset Credits
+  color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [department, scope]
+  output_dimensions: [department, scope]
+  input_nodes:
+  - id: pathway_assumption_5
+    to_dimensions:
+    - id: department
+      categories: [offset_credits]
+    - id: scope
+      categories: [scope1]
+  output_nodes:
+  - id: corporate_emissions
+
 actions:
 - id: ems_green_fleet_strategy
   name: EMS Green Fleet Strategy
@@ -4135,6 +4232,48 @@ actions:
   - id: default_value
     value: 0
     unit: GWh/a
+
+- id: pathway_assumption_1
+  name: 'Pathway Assumption 1: Efficiency Measures for Public Works Stationary Combustion'
+  type: simple.AdditiveAction
+  group: pathway_assumptions
+  unit: '%'
+  quantity: fraction
+  input_dimensions: []
+  output_dimensions: []
+  historical_values: [[2023, 0.00], [2024, 0.00]]
+  forecast_values: [[2025, 0.00000000], [2026, 4.85000000], [2027, 9.46477500], [2028, 13.85573341], [2029, 18.03373034], [2030, 22.00909442], [2031, 25.79165334], [2032, 29.39075815], [2033, 32.81530638], [2034, 36.07376402], [2035, 39.17418647], [2036, 42.12423843], [2037, 44.93121286], [2038, 47.60204904], [2039, 50.14334966], [2040, 52.56139720], [2041, 54.86216944], [2042, 57.05135422], [2043, 59.13436354], [2044, 61.11634691], [2045, 63.00220408]]
+
+- id: pathway_assumption_3
+  name: 'Pathway Assumption 3: Building Envelopes & Other Building Efficiencies'
+  type: simple.AdditiveAction
+  group: pathway_assumptions
+  unit: '%'
+  quantity: fraction
+  input_dimensions: []
+  output_dimensions: []
+  historical_values: [[2023, 0.00], [2024, 0.00]]
+  forecast_values: [[2025, 0.00000000], [2026, 4.85000000], [2027, 9.46477500], [2028, 13.85573341], [2029, 18.03373034], [2030, 22.00909442], [2031, 25.79165334], [2032, 29.39075815], [2033, 32.81530638], [2034, 36.07376402], [2035, 39.17418647], [2036, 42.12423843], [2037, 44.93121286], [2038, 47.60204904], [2039, 50.14334966], [2040, 52.56139720], [2041, 54.86216944], [2042, 57.05135422], [2043, 59.13436354], [2044, 61.11634691], [2045, 63.00220408]]
+
+- id: pathway_assumption_4
+  name: 'Pathway Assumption 4: Corporate Waste Initiatives'
+  type: simple.AdditiveAction
+  group: pathway_assumptions
+  unit: t_co2e/a
+  quantity: emissions
+  input_dimensions: []
+  output_dimensions: []
+  forecast_values: [[2026, -33.34368593], [2027, -66.68737186], [2028, -100.03105779], [2029, -133.37474372], [2030, -166.71842965], [2031, -200.06211558], [2032, -233.40580151], [2033, -266.74948745], [2034, -300.09317338], [2035, -333.43685931], [2036, -366.78054524], [2037, -400.12423117], [2038, -433.46791710], [2039, -466.81160303], [2040, -500.15528896], [2041, -544.15528896], [2042, -588.15528896], [2043, -632.15528896], [2044, -676.15528896], [2045, -720.15528896]]
+
+- id: pathway_assumption_5
+  name: 'Pathway Assumption 5: Offset Credits'
+  type: simple.AdditiveAction
+  group: pathway_assumptions
+  unit: t_co2e/a
+  quantity: emissions
+  input_dimensions: []
+  output_dimensions: []
+  forecast_values: [[2045, -2000]]
 
 pages:
 - id: home
