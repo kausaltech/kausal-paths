@@ -1191,18 +1191,29 @@ nodes:
   output_dimensions: [ghg]
   goals:
   - label: GHG Budget (Paris Agreement)
-    values: [{'year': 2019, 'value': 165.0033694},
-             {'year': 2020, 'value': 155.8607025},
-             {'year': 2021, 'value': 146.7180356},
-             {'year': 2022, 'value': 137.5753687},
-             {'year': 2023, 'value': 128.4327018},
-             {'year': 2024, 'value': 119.2900349},
-             {'year': 2025, 'value': 110.1473679},
-             {'year': 2026, 'value': 101.0047010},
-             {'year': 2027, 'value': 91.8620341},
-             {'year': 2028, 'value': 82.7193672},
-             {'year': 2029, 'value': 73.5767003},
-             {'year': 2030, 'value': 64.4340334}]
+    values: [{'year': 2018, 'value': 184.000},
+             {'year': 2019, 'value': 167.440},
+             {'year': 2020, 'value': 152.370},
+             {'year': 2021, 'value': 138.657},
+             {'year': 2022, 'value': 126.178},
+             {'year': 2023, 'value': 114.822},
+             {'year': 2024, 'value': 104.488},
+             {'year': 2025, 'value': 95.084},
+             {'year': 2026, 'value': 86.526},
+             {'year': 2027, 'value': 78.739},
+             {'year': 2028, 'value': 71.653},
+             {'year': 2029, 'value': 65.204},
+             {'year': 2030, 'value': 59.335},
+             {'year': 2031, 'value': 53.995},
+             {'year': 2032, 'value': 49.136},
+             {'year': 2033, 'value': 44.714},
+             {'year': 2034, 'value': 40.689},
+             {'year': 2035, 'value': 37.027},
+             {'year': 2036, 'value': 33.695},
+             {'year': 2037, 'value': 30.662},
+             {'year': 2038, 'value': 27.903},
+             {'year': 2039, 'value': 25.391},
+             {'year': 2040, 'value': 23.106}]
     default: true
     is_main_goal: true
   output_nodes:
