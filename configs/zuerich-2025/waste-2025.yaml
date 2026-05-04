@@ -1,0 +1,448 @@
+dimensions:
+- id: waste_incineration_plants
+  label_en: Waste incineration plants
+  label_de: Kehrichtverwertungsanlage
+  categories:
+  - id: hagenholz
+    label: Hagenholz
+    label_en: Hagenholz
+  - id: josefstrasse
+    label: Josefstrasse
+    label_en: Josefstrasse
+
+nodes:
+- id: waste_treatment_emissions
+  name_en: Waste disposal emissions
+  name_de: Treibhausgasemissionen Entsorgung
+  short_name_de: Entsorgung
+  short_name_en: Waste disposal
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [net_emissions]
+  type: simple.SectorEmissions
+  color: '#960055'
+  order: 3
+
+# ----- Solid Waste Incineration -----
+
+- id: solid_waste_incineration_amount
+  name_de: Verbrannte Abfallmenge
+  name_en: Mass of solid waste incinerated
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [waste_incineration_plants]
+  output_dimensions: [waste_incineration_plants]
+  input_datasets:
+  - id: zuerich/waste_incineration
+    column: amount_of_waste
+    forecast_from: 2025
+
+- id: solid_waste_incineration_ccs_share
+  name_de: Share of CO2 emissions from solid waste incineration subject to CCS
+  name_en: Share of CO2 emissions from solid waste incineration subject to CCS
+  type: simple.AdditiveNode
+  input_datasets:
+  - id: zuerich/waste_incineration
+    column: share_of_ccs
+    forecast_from: 2025
+    filters:
+    - column: waste_incineration_plants
+      value: hagenholz
+  unit: '%'
+  quantity: fraction
+
+- id: solid_waste_incineration_emission_shares
+  name_de: Share of each GHG released in solid waste incineration
+  name_en: Share of each GHG released in solid waste incineration
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [greenhouse_gases]
+  input_datasets:
+  - id: zuerich/solid_waste_fossil_emissions_share
+    forecast_from: 2025
+
+- id: solid_waste_incineration_emission_factors
+  name_de: Solid waste incineration emission factors
+  name_en: Solid waste incineration emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [greenhouse_gases]
+  input_datasets:
+  - id: zuerich/waste_incineration_emission_factors
+
+- id: solid_waste_incineration_emissions_pre_ccs
+  name_de: Treibhausgasemissionen Kehrichtverwertungsanlage ohne CCS
+  name_en: Solid waste incineration emissions pre-CCS
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [greenhouse_gases, waste_incineration_plants]
+  output_dimensions: [greenhouse_gases, waste_incineration_plants]
+  params:
+    formula: amount * emission_factors * shares
+  input_nodes:
+  - id: solid_waste_incineration_amount
+    tags: [amount]
+    to_dimensions:
+    - id: waste_incineration_plants
+  - id: solid_waste_incineration_emission_shares
+    tags: [shares]
+    to_dimensions:
+    - id: greenhouse_gases
+  - id: solid_waste_incineration_emission_factors
+    tags: [emission_factors]
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: solid_waste_incineration_indirect_emissions
+  name_de: Solid waste incineration indirect emissions
+  name_en: Solid waste incineration indirect emissions
+  short_name_de: Betriebsmittel und Deponiegut
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  input_datasets:
+  - id: zuerich/solid_waste_indirect_emissions
+    forecast_from: 2025
+  output_nodes:
+  - id: solid_waste_treatment_emissions_waste
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+
+- id: solid_waste_treatment_emissions
+  name_en: Solid waste incineration emissions
+  name_de: Treibhausgasemissionen Kehrichtverwertungsanlage
+  short_name_de: Kehrichtverwertungsanlage
+  short_name_en: Solid waste incineration
+  type: buildings.CCSNode
+  unit: t/a
+  quantity: emissions
+  input_dimensions: [waste_incineration_plants]
+  output_dimensions: [waste_incineration_plants, emission_scope]
+  input_nodes:
+  - id: solid_waste_incineration_emissions_pre_ccs
+    tags: [emissions]
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: waste_incineration_plants
+  - id: solid_waste_incineration_ccs_share
+    tags: [ccs_share]
+    to_dimensions:
+    - id: waste_incineration_plants
+      categories: [hagenholz]
+  output_nodes:
+  - id: solid_waste_treatment_emissions_waste
+    from_dimensions:
+    - id: waste_incineration_plants
+      flatten: true
+    - id: emission_scope
+      groups: [direct, indirect]
+  - id: solid_waste_treatment_emissions_negative
+    from_dimensions:
+    - id: emission_scope
+      groups: [negative]
+  params:
+    capture_efficiency: 90
+    storage_efficiency: 94.4
+
+- id: solid_waste_treatment_emissions_waste
+  name_en: Solid waste incineration emissions
+  name_de: Treibhausgasemissionen Kehrichtverwertungsanlage
+  short_name_de: Kehrichtverwertungsanlage
+  short_name_en: Solid waste incineration
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes:
+  - id: waste_treatment_emissions
+  type: simple.SectorEmissions
+
+- id: solid_waste_treatment_emissions_negative
+  name_en: Solid waste incineration emissions
+  name_de: Treibhausgasemissionen Kehrichtverwertungsanlage
+  short_name_de: Kehrichtverwertungsanlage
+  short_name_en: Solid waste incineration
+  unit: kt/a
+  input_dimensions: [waste_incineration_plants, emission_scope]
+  output_dimensions: [waste_incineration_plants, emission_scope]
+  output_nodes:
+  - id: negative_emissions
+    from_dimensions:
+    - id: waste_incineration_plants
+      flatten: true
+  type: simple.SectorEmissions
+
+# ----- Sewage Sludge Processing -----
+
+- id: sewage_sludge_processing_amount
+  name_de: Dry Mass of Sewage Sludge Incinerated
+  name_en: Dry Mass of Sewage Sludge Incinerated
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: zuerich/sewage_sludge_processing
+    column: mass
+    dropna: true
+    forecast_from: 2025
+    filters:
+    - column: greenhouse_gases
+
+- id: sewage_sludge_processing_emission_factors
+  name_de: Sewage Sludge Processing Emission Factors
+  name_en: Sewage Sludge Processing Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [greenhouse_gases]
+  input_datasets:
+  - id: zuerich/sewage_sludge_processing
+    column: emission_factor
+    dropna: true
+    forecast_from: 2025
+
+- id: sewage_sludge_processing_ccs_share
+  name_de: Anteil abgeschiedenes CO2 bei der Klärschlammverwertungsanlage
+  name_en: Share of CO2 captured with CCS in sewage sludge processing
+  type: simple.AdditiveNode
+  historical_values: [[2015, 0], [2024, 0]]
+  input_dataset_processors: [LinearInterpolation]
+  unit: '%'
+  quantity: fraction
+
+- id: sewage_sludge_processing_emissions_pre_ccs
+  name_de: Treibhausgasemissionen Klärschlammverwertungsanlage ohne CCS
+  name_en: Sewage sludge processing emissions pre-CCS
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [greenhouse_gases]
+  input_nodes:
+  - id: sewage_sludge_processing_amount
+    tags: [non_additive]
+    to_dimensions: []
+  - id: sewage_sludge_processing_emission_factors
+
+- id: sewage_sludge_processing_emissions
+  name_de: Treibhausgasemissionen Klärschlammverwertungsanlage
+  name_en: Sewage sludge processing emissions
+  short_name_de: Klärschlammverwertungsanlage
+  short_name_en: Sewage sludge processing
+  type: buildings.CCSNode
+  unit: t/a
+  quantity: emissions
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [emission_scope]
+  input_nodes:
+  - id: sewage_sludge_processing_emissions_pre_ccs
+    tags: [emissions]
+  - id: sewage_sludge_processing_ccs_share
+    to_dimensions: []
+    tags: [ccs_share]
+  output_nodes:
+  - id: sewage_sludge_processing_emissions_waste
+    from_dimensions:
+    - id: emission_scope
+      groups: [direct, indirect]
+  - id: sewage_sludge_processing_emissions_negative
+    from_dimensions:
+    - id: emission_scope
+      groups: [negative]
+  params:
+    capture_efficiency: 90.924
+    storage_efficiency: 94
+
+- id: sewage_sludge_processing_emissions_waste
+  name_de: Treibhausgasemissionen Klärschlammverwertungsanlage
+  name_en: Sewage sludge processing emissions
+  short_name_de: Klärschlammverwertungsanlage
+  short_name_en: Sewage sludge processing
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [waste_treatment_emissions]
+  type: simple.SectorEmissions
+
+- id: sewage_sludge_processing_emissions_negative
+  name_de: Treibhausgasemissionen Klärschlammverwertungsanlage
+  name_en: Sewage sludge processing emissions
+  short_name_de: Klärschlammverwertungsanlage
+  short_name_en: Sewage sludge processing
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [negative_emissions]
+  type: simple.SectorEmissions
+
+# ----- Wastewater Treatment -----
+
+- id: wastewater_catchment_population
+  name_de: Bevölkerung im Einzugsgebiet
+  name_en: Population in catchment area
+  type: simple.FixedMultiplierNode
+  quantity: population
+  unit: cap
+  params:
+  - id: multiplier
+    value: 1.08546
+  input_nodes:
+  - id: population
+
+- id: wastewater_treatment_emission_factors
+  name_de: Wastewater treatment emission factors
+  name_en: Wastewater treatment emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/cap/a
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [greenhouse_gases]
+  input_datasets:
+  - id: zuerich/wastewater_treatment_emission_factors
+    forecast_from: 2025
+
+- id: wastewater_treatment_indirect_emissions
+  name_de: Wastewater treatment indirect emissions
+  name_en: Wastewater treatment indirect emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  input_datasets:
+  - id: zuerich/wastewater_treatment_indirect_emissions
+    forecast_from: 2025
+
+- id: wastewater_treatment_emissions
+  name_en: Wastewater treatment emissions
+  short_name_en: Wastewater treatment
+  name_de: Treibhausgasemissionen Abwasserreinigungsanlage
+  short_name_de: Abwasserreinigungsanlage
+  unit: kt/a
+  quantity: emissions
+  input_dimensions: [greenhouse_gases, emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [waste_treatment_emissions]
+  type: formula.FormulaNode
+  params:
+    formula: convert_gwp(population * emission_factors) + indirect
+  input_nodes:
+  - id: wastewater_catchment_population
+    tags: [population]
+    to_dimensions: []
+  - id: wastewater_treatment_emission_factors
+    tags: [emission_factors]
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: emission_scope
+      categories: [scope1]
+  - id: wastewater_treatment_indirect_emissions
+    tags: [indirect]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+
+# ----- Biogas Processing -----
+
+- id: biogas_processing_emissions_pre_ccs
+  name_en: Biogas processing emissions pre-CCS
+  name_de: Treibhausgasemissionen Biogasaufbereitungsanlage ohne CCS
+  unit: t/a
+  type: simple.AdditiveNode
+  quantity: emissions
+  output_dimensions: [greenhouse_gases]
+  input_dimensions: [greenhouse_gases]
+  input_datasets:
+  - id: zuerich/biogas_processing_emissions
+    forecast_from: 2025
+
+- id: biogas_processing_ccs_share
+  name_de: Anteil abgeschiedenes CO2 bei der Biogasaufbereitungsanlage
+  name_en: Share of CO2 captured with CCS in biogas processing
+  type: simple.AdditiveNode
+  input_dataset_processors: [LinearInterpolation]
+  unit: '%'
+  quantity: fraction
+  historical_values: [[2010, 0], [2024, 0]]
+
+- id: biogas_processing_indirect_emissions
+  name_de: Biogas processing indirect emissions
+  name_en: Biogas processing indirect emissions
+  short_name_de: Biogasaufbereitungsanlage
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_datasets:
+  - id: zuerich/biogas_processing_indirect_emissions
+    forecast_from: 2025
+  output_nodes:
+  - id: biogas_processing_emissions_waste
+
+- id: biogas_processing_emissions
+  name_en: Biogas processing emissions
+  name_de: Treibhausgasemissionen Biogasaufbereitungsanlage
+  short_name_de: Biogasaufbereitungsanlage
+  short_name_en: Biogas processing
+  unit: t/a
+  type: buildings.CCSNode
+  quantity: emissions
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [emission_scope]
+  input_nodes:
+  - id: biogas_processing_emissions_pre_ccs
+    tags: [emissions]
+  - id: biogas_processing_ccs_share
+    tags: [ccs_share]
+    to_dimensions: []
+  output_nodes:
+  - id: biogas_processing_emissions_waste
+    from_dimensions:
+    - id: emission_scope
+      groups: [direct, indirect]
+  - id: biogas_processing_emissions_negative
+    from_dimensions:
+    - id: emission_scope
+      groups: [negative]
+  params:
+    capture_efficiency: 90
+    storage_efficiency: 94
+
+- id: biogas_processing_emissions_waste
+  name_en: Biogas processing emissions
+  name_de: Treibhausgasemissionen Biogasaufbereitungsanlage
+  short_name_de: Biogasaufbereitungsanlage
+  short_name_en: Biogas processing
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes:
+  - id: waste_treatment_emissions
+  type: simple.SectorEmissions
+
+- id: biogas_processing_emissions_negative
+  name_en: Biogas processing emissions
+  name_de: Treibhausgasemissionen Biogasaufbereitungsanlage
+  short_name_de: Biogasaufbereitungsanlage
+  short_name_en: Biogas processing
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes:
+  - id: negative_emissions
+  type: simple.SectorEmissions
