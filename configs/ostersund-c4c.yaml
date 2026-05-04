@@ -2173,26 +2173,26 @@ actions:
     - id: scope
 
 # Zeros II.5.3 diesel emissions from 2025.
-# - id: procure_renewable_energy_in_direct_machine_services
-#   name: Procure 100% Renewable Energy in Direct Machine Services
-#   type: simple.AdditiveAction
-#   group: transportation
-#   unit: l/a
-#   quantity: fuel_consumption
-#   input_dimensions: [scope, energy_carrier, owner]
-#   output_dimensions: [scope, energy_carrier, owner]
-#   input_datasets:
-#   - id: ostersund/organizational_other_transportation_actions
-#     column: fuel_consumption
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - column: action
-#       value: procure_renewable_energy_in_machine_services
-#     - column: business_travel_type
-#     - column: ghg
-#   output_nodes:
-#   - id: ii53_offroad_transport_indirect_combustion
+- id: procure_renewable_energy_in_direct_machine_services
+  name: Procure 100% Renewable Energy in Direct Machine Services
+  type: simple.AdditiveAction
+  group: transportation
+  unit: l/a
+  quantity: fuel_consumption
+  input_dimensions: [scope, energy_carrier, owner]
+  output_dimensions: [scope, energy_carrier, owner]
+  input_datasets:
+  - id: ostersund/organizational_other_transportation_actions
+    column: fuel_consumption
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: procure_renewable_energy_in_machine_services
+    - column: business_travel_type
+    - column: ghg
+  output_nodes:
+  - id: ii53_offroad_transport_indirect_combustion
 
 # Zeros II.1.3 emissions from 2025.
 - id: procure_renewable_energy_in_direct_transport_services
