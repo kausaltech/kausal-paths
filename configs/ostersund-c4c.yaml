@@ -72,12 +72,12 @@ impact_overviews:
 
 params:
 - id: electrification_scenario
-  label: 'Territorial Transportation Electrification Scenario (1: Low, 2: Medium, 3: High) '
+  label: 'Territorial Transportation Electrification Scenario (0: Low, 1: Medium, 2: High)'
   is_customizable: true
   is_visible: true
-  value: 2
-  min_value: 1
-  max_value: 3
+  value: 1
+  min_value: 0
+  max_value: 2
   step: 1
 
 dimensions:
@@ -1411,31 +1411,31 @@ nodes:
 
 - id: ii1_onroad_transport_mileage_territorial
   name: II.1 On-Road Transport Mileage
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: mileage
   unit: km/a
   input_dimensions: [energy_carrier, vehicle_type, scope, owner, v_electrification_scenario]
   output_dimensions: [energy_carrier, vehicle_type, scope, owner, v_electrification_scenario]
   params:
-  - id: gpc_sector
-    value: II.1.1
-  - id: variant_id
-    value: electrification_scenario
-  - id: variant_number
+  - id: operations
+    value: add_datasets,select_variant
+  - id: categories
+    value: v_electrification_scenario:1,2,3
+  - id: selected_number
     ref: electrification_scenario
   input_datasets:
-  - id: gpc/ostersund_territorial
+  - id: ostersund/territorial_onroad_transportation
+    column: mileage
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: ghg
+    - column: sector
   output_nodes:
   - id: ii1_onroad_transport_mileage_emissions_territorial
     from_dimensions:
     - id: v_electrification_scenario
       flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: vehicle_type
-    - id: scope
-    - id: owner
   - id: ii1_onroad_transport_mileage_mix_territorial
     tags: [activity]
     from_dimensions:
@@ -2173,26 +2173,26 @@ actions:
     - id: scope
 
 # Zeros II.5.3 diesel emissions from 2025.
-- id: procure_renewable_energy_in_direct_machine_services
-  name: Procure 100% Renewable Energy in Direct Machine Services
-  type: simple.AdditiveAction
-  group: transportation
-  unit: l/a
-  quantity: fuel_consumption
-  input_dimensions: [scope, energy_carrier, owner]
-  output_dimensions: [scope, energy_carrier, owner]
-  input_datasets:
-  - id: ostersund/organizational_other_transportation_actions
-    column: fuel_consumption
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - column: action
-      value: procure_renewable_energy_in_machine_services
-    - column: business_travel_type
-    - column: ghg
-  output_nodes:
-  - id: ii53_offroad_transport_indirect_combustion
+# - id: procure_renewable_energy_in_direct_machine_services
+#   name: Procure 100% Renewable Energy in Direct Machine Services
+#   type: simple.AdditiveAction
+#   group: transportation
+#   unit: l/a
+#   quantity: fuel_consumption
+#   input_dimensions: [scope, energy_carrier, owner]
+#   output_dimensions: [scope, energy_carrier, owner]
+#   input_datasets:
+#   - id: ostersund/organizational_other_transportation_actions
+#     column: fuel_consumption
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - column: action
+#       value: procure_renewable_energy_in_machine_services
+#     - column: business_travel_type
+#     - column: ghg
+#   output_nodes:
+#   - id: ii53_offroad_transport_indirect_combustion
 
 # Zeros II.1.3 emissions from 2025.
 - id: procure_renewable_energy_in_direct_transport_services
