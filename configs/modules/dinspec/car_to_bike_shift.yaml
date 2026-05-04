@@ -413,7 +413,7 @@ nodes:
       categories: [activity_shift]
 
 - id: fairness
-  name_de: Gereichtigkeit
+  name_de: Gerechtigkeit
   name_en: Fairness
   type: generic.WeightedSumNode
   quantity: emissions # TODO Use ratio after fixing colors
