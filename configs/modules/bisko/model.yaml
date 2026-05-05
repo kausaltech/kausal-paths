@@ -405,36 +405,8 @@ dimensions:
 #   Diesel = Diesel (for non-electrified rail and ships)
 #   Kerosin = Kerosene/Jet fuel (for aircraft)
 
-
-
 #//////  Nodes  ////////////////////////////////////////////////////////////////////////////////////////////////////
 nodes:
-
-# - id: difference
-#   name_de: Differenz
-#   name_en: Difference between KSP data and model results
-#   type: formula.FormulaNode
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   input_dimensions: [energy_carrier, sector]
-#   output_dimensions: [energy_carrier, sector]
-#   input_nodes:
-#   - id: historical_emissions
-#     tags: [statistics]
-#     from_dimensions:
-#     - id: sector
-#       categories: [transport]
-#   - id: transport_emissions
-#     tags: [model]
-#     from_dimensions:
-#     - id: vehicle_type
-#       flatten: true
-#     to_dimensions:
-#     - id: sector
-#       categories: [transport]
-#     - id: energy_carrier
-#   params:
-#     formula: statistics + arithmetic_inverse(model)
 
 - id: net_emissions
   name_de: Netto-Emissionen
@@ -456,8 +428,10 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: final_private_household_energy_use
-  - id: end_energy_emission_factors
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [private_households]
   output_nodes:
   - id: net_emissions
 
@@ -471,8 +445,10 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: final_municipal_facilities_energy_use
-  - id: end_energy_emission_factors
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
   output_nodes:
   - id: net_emissions
 
@@ -486,8 +462,10 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: final_industry_energy_use
-  - id: end_energy_emission_factors
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [industry]
   output_nodes:
   - id: net_emissions
 
@@ -501,8 +479,10 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: final_commerce_trade_services_energy_use
-  - id: end_energy_emission_factors
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
   output_nodes:
   - id: net_emissions
 
@@ -512,21 +492,15 @@ nodes:
   type: generic.GenericNode
   quantity: ratio
   unit: dimensionless
-  # input_dimensions: [sector]
-  # output_dimensions: [sector]
+  input_dimensions: [sector]
+  output_dimensions: [sector]
   input_datasets:
   - id: bisko/weather_correction  # comes from Potsdam --> change to city/... as soon as you got data.csv
-    filters:
-    - column: sector
-      value: heating
   params:
   - id: operations
     value: get_single_dataset,do_correction
   - id: do_correction
     ref: weather_correction
-  output_nodes:
-  - id: final_private_household_energy_use
-  - id: final_municipal_facilities_energy_use
 
 - id: final_energy_use
   name_de: Endenergie
@@ -538,12 +512,15 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: bisko/final_energy
+    tags: [non_additive]
     column: Value
     filters:
     - column: energy_carrier
       value: not_defined
       exclude: true
       drop_col: false
+  input_nodes:
+  - id: weather_correction
 
 - id: final_energy_use_data_quality
   name_de: Endenergie Datenqualität
@@ -557,39 +534,39 @@ nodes:
   - id: bisko/final_energy  # is automatically created by upload_new_dataset.py when uploading to DVC
     column: quality
 
-- id: final_private_household_energy_use
-  name_de: Endenergie Private Haushalte
-  name_en: Final private household energy use
-  type: formula.FormulaNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: final_energy_use
-    from_dimensions:
-    - id: sector
-      categories: [private_households]
-    tags: [energy]
-  params:
-    formula: energy * weather_correction
+# - id: final_private_household_energy_use
+#   name_de: Endenergie Private Haushalte
+#   name_en: Final private household energy use
+#   type: formula.FormulaNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_nodes:
+#   - id: final_energy_use
+#     from_dimensions:
+#     - id: sector
+#       categories: [private_households]
+#     tags: [energy]
+#   params:
+#     formula: energy * weather_correction
 
-- id: final_municipal_facilities_energy_use
-  name_de: Endenergie Kommunale Einrichtungen
-  name_en: Final municipal facilities energy use
-  type: formula.FormulaNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: final_energy_use
-    from_dimensions:
-    - id: sector
-      categories: [municipal_facilities]
-    tags: [energy]
-  params:
-    formula: energy * weather_correction
+# - id: final_municipal_facilities_energy_use
+#   name_de: Endenergie Kommunale Einrichtungen
+#   name_en: Final municipal facilities energy use
+#   type: formula.FormulaNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_nodes:
+#   - id: final_energy_use
+#     from_dimensions:
+#     - id: sector
+#       categories: [municipal_facilities]
+#     tags: [energy]
+#   params:
+#     formula: energy * weather_correction
 
 # - id: final_municipal_facilities_energy_use_by_type
 #   name_de: Endenergie Kommunale Einrichtungen nach Einrichtungsart
@@ -625,33 +602,33 @@ nodes:
 #   # Add input_datasets with bisko/municipal_fleet_energy when KSP Daten
 #   # kommunaler Fuhrpark data is available
 
-- id: final_industry_energy_use
-  name_de: Endenergie Industrie
-  name_en: Final industry energy use
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: final_energy_use
-    from_dimensions:
-    - id: sector
-      categories: [industry]
+# - id: final_industry_energy_use
+#   name_de: Endenergie Industrie
+#   name_en: Final industry energy use
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_nodes:
+#   - id: final_energy_use
+#     from_dimensions:
+#     - id: sector
+#       categories: [industry]
 
-- id: final_commerce_trade_services_energy_use
-  name_de: Endenergie Gewerbe, Handel, Dienstleistungen
-  name_en: Final commerce, trade, services energy use
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: final_energy_use
-    from_dimensions:
-    - id: sector
-      categories: [commerce_trade_services]
+# - id: final_commerce_trade_services_energy_use
+#   name_de: Endenergie Gewerbe, Handel, Dienstleistungen
+#   name_en: Final commerce, trade, services energy use
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_nodes:
+#   - id: final_energy_use
+#     from_dimensions:
+#     - id: sector
+#       categories: [commerce_trade_services]
 
 - id: historical_emissions
   name_de: Historische Emissionen
@@ -724,6 +701,82 @@ nodes:
 #   params:
 #     formula: extend_all(drop_nans(emissions / energy))
 
+- id: district_heating_energy_use
+  name_de: Fernwärmeenergieverbrauch
+  name_en: District heating energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/district_heating_energy_use
+    forecast_from: 2024
+    filters:
+    - column: upstream_included
+      value: 'yes'
+
+- id: district_heating_fuel_emission_factors
+  name_de: Fernwärme Brennstoffemissionfaktoren
+  name_en: District heating fuel emission factors
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/endenergie_emissionsfaktoren
+    filters:
+    - column: upstream_included
+  input_nodes:
+  - id: combined_heat_and_power_chp_fraction
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+      flatten: true
+  - id: emission_factors_without_fuel_data
+    from_dimensions:
+    - id: per_what_energy
+      categories: [heat_output]
+
+- id: district_heating_emissions
+  name_de: Fernwärmeemissionen
+  name_en: District heating emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_nodes:
+  - id: district_heating_energy_use
+    tags: [bring_to_maximum_historical_year]
+  - id: district_heating_fuel_emission_factors
+
+- id: stationary_emissions
+  name_de: Stationäre Emissionen
+  name_en: Stationary emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: final_energy_use
+  - id: end_energy_emission_factors
+  - id: district_heating_emissions
+    tags: [add_to_existing_dims]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: per_what_energy
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+  params:
+  - id: operations
+    value: multiply,add_to_existing_dims
+
 - id: end_energy_emission_factors
   name_de: Endenergie Emissionsfaktoren
   name_en: End energy emission factors
@@ -747,6 +800,39 @@ nodes:
     beiden über das Panel „Szenario bearbeiten“ mit dem national-vs.-lokal-Schalter wechseln.<br/> Ursprünglich sind
     die Datensätze gleich, aber die Stadt-Admin-Benutzer können die lokalen Werte über die
     Admin-Benutzeroberfläche anpassen.
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: bisko/endenergie_emissionsfaktoren  # standard ifeu dataset
+    tags: [national]
+    filters:
+    - column: per_what_energy
+    - column: upstream_included
+  - id: bisko/end_energy_emission_factors
+    tags: [local]
+  params:
+  - id: formula
+    value: extend_all(select_port(condition, national, local))
+  - id: condition
+    ref: use_national_values
+
+- id: end_energy_emission_factors_local
+  name_de: Endenergie Emissionsfaktoren lokal
+  name_en: End energy emission factors local
+  description_en: |
+    The emission factors are given per final energy use. They are relevant for all sectors and
+    the whole of Germany. They include upstream emissions of energy used for production. Upstream products (gray
+    emissions) are not included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the
+    values are CO<sub>2</sub> equivalents for 100-year global warming potential.
+  description_de: |
+    Die Emissionsfaktoren sind pro Endenergieverbrauch angegeben. Sie sind für alle Sektoren und
+    für ganz Deutschland relevant. Sie enthalten Vorkettenemissionen der für die
+    Produktion verwendeten Brennstoffe. Die berücksichtigten Gase sind CO<sub>2</sub>, CH<sub>4</sub> und
+    N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
+    Treibhauspotenzial (GWP).
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -810,12 +896,12 @@ nodes:
     ref: use_national_values
 
 - id: emission_factors_without_fuel_data
-  name_de: Emissionsfaktoren ohne Brennstoffinputinformationen
-  name_en: Emission factors for electricity and heat without known shares
+  name_de: Emissionsfaktoren ohne Brennstoffiniputinformationen
+  name_en: Emission factors for electricity and heat without known fuel fractions
   description_en: |
     The emissions factors are product-specific and calculated per electricity or heat produced.
-    This is useful in a situation where you don't know the shares of electricity and heat produced, but you know
-    the amount of electricity of heat used.
+    This is useful in a situation where you don't know the fractions of other fuels used in the CHP nor
+    the fractions of electricity and heat produced, but you know the amount of electricity or heat used.
     Therefore, you cannot sum up the emission factors of an energy carrier to get the total emission factor.
     Instead, you need to calculate the emissions for each product separately and then sum them up.
     The emission factors are relevant for the processes of electricity and heat production anywhere in
@@ -1050,6 +1136,24 @@ nodes:
       ref: municipality_name
   params:
     formula: extend_all(energy)
+
+# - id: other_transport_energy # Extensively heavy dataset with municipality dimension.
+#   name_en: Other transport energy
+#   name_de: Andere Transportenergie
+#   type: formula.FormulaNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [vehicle_type, energy_carrier]
+#   output_dimensions: [vehicle_type, energy_carrier]
+#   input_datasets:
+#   - id: 
+#       bisko/other_transportation_energy
+#     tags: [energy]
+#     filters:
+#     - column: municipality
+#       ref: ags_number
+#   params:
+#     formula: extend_all(energy)
 
 - id: transport_energy
   name_de: Transportenergie

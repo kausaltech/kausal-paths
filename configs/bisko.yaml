@@ -1,10 +1,10 @@
 id: bisko
 default_language: de
 supported_languages: [en]
-site_url: https://bisko.paths.staging.kausal.tech
+site_url: https://bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 042ea36e00165e5960343bcbf5b7aa14cdc4f549
+  commit: 6cd39a2a972163f8fe422540075a72ac66a26375
   dvc_remote: kausal-s3
 name: Klima-Monitor-BISKO
 owner: Kausal Ltd
@@ -47,8 +47,8 @@ params:
   label_en: Municipality name
   label_de: Gemeindename
   value: Düsseldorf
-  is_customizable: true
-  is_visible: true
+  is_customizable: false
+  is_visible: false
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
@@ -100,7 +100,41 @@ result_excels:
   - vehicle_kilometers_ifeu
   - other_transport_energy
 
+action_groups:
+
+- id: combined_heat_and_power
+  name_en: Combined heat and power
+  name_de: Kombination aus Wärme und Strom
+  color: '#007C78'
+
+actions:
+
+- id: combined_heat_and_power_chp_fraction
+  name_en: Combined heat and power CHP fraction
+  name_de: Kombination aus Wärme und Strom CHP Anteil
+  type: simple.ChpAction
+  quantity: fraction
+  unit: '%'
+  group: combined_heat_and_power
+  output_dimensions: [energy_carrier]
+  params:
+  - id: method
+    value: bisko
+  - id: electricity_fraction
+    value: 0.3
+    min_value: 0.0
+    max_value: 1.0
+  - id: t_supply
+    value: 373
+    min_value: 303
+    max_value: 393
+  - id: enabled
+    value: true
+    is_visible: true
+    is_customizable: false
+
 pages:
+
 - id: home
   name: Klima-Monitor-BISKO Treibhausgasinventar
   name_en: Climate Protection Monitor BISKO Greenhouse Gas Inventory
@@ -115,6 +149,10 @@ scenarios:
 - id: baseline
   name: Business as Usual
   # name_en: Business as Usual
+  all_actions_enabled: false
+  params:
+  - id: combined_heat_and_power_chp_fraction.enabled
+    value: true
 
 - id: default
   default: true
