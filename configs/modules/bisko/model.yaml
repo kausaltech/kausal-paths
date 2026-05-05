@@ -519,8 +519,8 @@ nodes:
       value: not_defined
       exclude: true
       drop_col: false
-  input_nodes:
-  - id: weather_correction
+  # input_nodes:
+  # - id: weather_correction
 
 - id: final_energy_use_data_quality
   name_de: Endenergie Datenqualität
@@ -755,7 +755,7 @@ nodes:
 - id: stationary_emissions
   name_de: Stationäre Emissionen
   name_en: Stationary emissions
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [energy_carrier, sector]
@@ -764,7 +764,7 @@ nodes:
   - id: final_energy_use
   - id: end_energy_emission_factors
   - id: district_heating_emissions
-    tags: [add_to_existing_dims]
+    # tags: [split_by_existing_shares]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -773,9 +773,11 @@ nodes:
     to_dimensions:
     - id: energy_carrier
       categories: [district_heating]
+    - id: sector
+      categories: [private_households]
   params:
-  - id: operations
-    value: multiply,add_to_existing_dims
+  - id: formula
+    value: final_energy_use * end_energy_emission_factors + district_heating_emissions
 
 - id: end_energy_emission_factors
   name_de: Endenergie Emissionsfaktoren
