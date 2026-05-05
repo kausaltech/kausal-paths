@@ -20,6 +20,7 @@ from .action import ActionNode
 
 if TYPE_CHECKING:
     from common.polars import PathsDataFrame
+    from nodes.generic import OperationReturn
     from params.base import Parameter
 
 
@@ -471,3 +472,110 @@ class ParameterAction(ActionNode):
         df = ppl.to_ppdf(df, meta=meta)
 
         return df
+
+
+class ChpAction(GenericAction):
+    """
+    Produces CHP emission-factor allocation fractions as a standalone action.
+
+    Outputs a PathsDataFrame with an energy_carrier dimension (electricity /
+    district_heating) where VALUE is the allocation fraction for each carrier.
+    Wire the output into a multiply node together with the average CHP fuel
+    emission factor to obtain carrier-specific emission factors without routing
+    df through ChpNode.
+
+    All method parameters are customizable so they are visible and adjustable
+    in the public UI, unlike the YAML-only params on ChpNode.
+    """
+
+    allowed_parameters = [
+        *GenericAction.allowed_parameters,
+        StringParameter(local_id='method', label=_('Emission splitting method'), is_customizable=True),
+        NumberParameter(
+            local_id='electricity_fraction',
+            label=_('Fraction of electricity in the output energy'),
+            is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='t_supply',
+            label=_('Temperature (K) of district heating supply'),
+            is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='t_return',
+            label=_('Temperature (K) of district heating return flow'),
+            is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='electricity_reference_efficiency',
+            label=_('Efficiency of producing electricity separately'),
+            is_customizable=True,
+        ),
+        NumberParameter(
+            local_id='heat_reference_efficiency',
+            label=_('Efficiency of producing heat separately'),
+            is_customizable=True,
+        ),
+    ]
+
+    DEFAULT_OPERATIONS = 'chp_fractions'
+
+    def _compute_allocation_fractions(self) -> tuple[float, float]:
+        method = self.get_parameter_value_str('method', required=True)
+        f_el = self.get_parameter_value_float('electricity_fraction', required=True)
+
+        if method == 'energy_content':
+            z_el, z_heat = 1.0, 1.0
+        elif method == 'work_potential':
+            t_supply = self.get_parameter_value_float('t_supply', required=True)
+            t_return = self.get_parameter_value_float('t_return', required=True)
+            z_el, z_heat = 1.0, 1.0 - t_return / t_supply
+        elif method == 'bisko':
+            t_supply = self.get_parameter_value_float('t_supply', required=True)
+            z_el, z_heat = 1.0, 1.0 - 283.0 / t_supply
+        elif method == 'efficiency':
+            n_el = self.get_parameter_value_float('electricity_reference_efficiency', required=True)
+            n_heat = self.get_parameter_value_float('heat_reference_efficiency', required=True)
+            z_el, z_heat = 1.0 / n_el, 1.0 / n_heat
+        else:
+            raise NodeError(
+                self,
+                f"Parameter 'method' got value {method!r}; must be one of: "
+                + 'energy_content, work_potential, bisko, efficiency.',
+            )
+
+        a_el = z_el * f_el / (z_el * f_el + z_heat * (1.0 - f_el))
+        return a_el, 1.0 - a_el
+
+    def _operation_chp_fractions(self, df: PathsDataFrame | None) -> OperationReturn:
+        if df is not None:
+            raise NodeError(self, "Operation 'chp_fractions' must be the only operation.")
+
+        a_el, a_heat = self._compute_allocation_fractions()
+
+        instance = self.context.instance
+        start_year = instance.reference_year
+        end_year = instance.model_end_year
+        last_hist = instance.maximum_historical_year or start_year
+        years = list(range(start_year, end_year + 1))
+        n = len(years)
+
+        out = ppl.PathsDataFrame({
+            YEAR_COLUMN: years * 2,
+            'energy_carrier': ['electricity'] * n + ['district_heating'] * n,
+        })
+        out._units = {}
+        out._primary_keys = [YEAR_COLUMN, 'energy_carrier']
+        out = out.with_columns([
+            pl.Series(VALUE_COLUMN, [a_el] * n + [a_heat] * n),
+            (pl.col(YEAR_COLUMN) > pl.lit(last_hist)).alias(FORECAST_COLUMN),
+        ]).set_unit(VALUE_COLUMN, 'dimensionless')
+        return out
+
+    def compute_effect(self) -> PathsDataFrame:
+        # Fractions are always physically meaningful; bypass GenericAction's no_effect_value override.
+        return GenericNode.compute(self)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.OPERATIONS['chp_fractions'] = self._operation_chp_fractions
