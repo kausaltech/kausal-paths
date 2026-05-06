@@ -361,6 +361,9 @@ dimensions:
     label_en: Motorcycles
     label_de: Motorisierte Zweiräder
     aliases: [MZR, VL_MRZ]
+  - id: cars_and_motorcycles
+    label_en: Cars and motorcycles
+    label_de: Personenkraftwagen und Motorisierte Zweiräder
   - id: bicycles
     label_en: Bicycles
     label_de: Fahrräder
