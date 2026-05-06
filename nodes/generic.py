@@ -93,6 +93,7 @@ class GenericNode(SimpleNode):
             'select_variant': self._operation_select_variant,
             'skip_dim_test': self._operation_skip_dim_test,
             'split_by_existing_shares': self._operation_split_by_existing_shares,
+            'split_dims': self._operation_split_dims,
             'split_evenly_to_cats': self._operation_split_evenly_to_cats,
             'use_as_totals': self._operation_use_as_totals,
             'use_as_shares': self._operation_use_as_shares,
@@ -261,7 +262,7 @@ class GenericNode(SimpleNode):
         n = self.get_input_node(tag=operation, required=True)
         return n.get_output_pl(target_node=self, skip_dim_test=True)
 
-    def _operation_split_dims(self, df: PathsDataFrame, operation: OperationType) -> OperationReturn:
+    def _dispatch_split_dims(self, df: PathsDataFrame, operation: OperationType) -> OperationReturn:
         """
         Split operations with different strategies.
 
@@ -341,26 +342,67 @@ class GenericNode(SimpleNode):
 
         return df
 
-    # Splitting functions
+    def _operation_split_dims(self, df: PathsDataFrame | None) -> OperationReturn:
+        """
+        Redistribute values across new dimension categories using a tagged input node.
+
+        Tag the input node as 'splitter' to use it as the distribution source (df is splittee),
+        or 'splittee' to use it as the values to redistribute (df is the splitter).
+        Splitter rows with no matching category in the splittee pass through unchanged.
+        In contrast, splittee rows with no matching category in the splitter cannot be scaled and are dropped.
+        """
+        if df is None:
+            raise NodeError(self, 'Cannot operate: no PathsDataFrame available.')
+        if self.quantity not in STACKABLE_QUANTITIES:
+            raise NodeError(self, f'split_dims requires a stackable quantity, not {self.quantity}.')
+
+        splitter_node = self.get_input_node(tag='splitter', required=False)
+        splittee_node = self.get_input_node(tag='splittee', required=False)
+
+        if splitter_node is not None and splittee_node is None:
+            df_splitter = splitter_node.get_output_pl(target_node=self, skip_dim_test=True)
+            df_splittee = df
+        elif splittee_node is not None and splitter_node is None:
+            df_splittee = splittee_node.get_output_pl(target_node=self, skip_dim_test=True)
+            df_splitter = df
+        else:
+            raise NodeError(self, "Exactly one input node must be tagged 'splitter' or 'splittee'.")
+
+        new_dims = [d for d in df_splitter.dim_ids if d not in df_splittee.dim_ids]
+        if not new_dims:
+            raise NodeError(self, 'split_dims: splitter must have at least one dimension not present in splittee.')
+
+        df_summed = df_splitter.paths.sum_over_dims(new_dims)
+
+        df_ratio = df_splitter.paths.divide_with_dims(df_summed)
+        df_ratio = df_ratio.with_columns(
+            pl.when(pl.col(VALUE_COLUMN).is_nan()).then(pl.lit(0.0)).otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)
+        )
+
+        df_scaled = df_splittee.paths.multiply_with_dims(df_ratio)
+
+        return df_splitter.paths.add_with_dims(df_scaled)
+
+    # Legacy splitting functions (use_as_* and split_*); prefer split_dims for new models
     def _operation_use_as_totals(self, df: PathsDataFrame) -> OperationReturn:
-        return self._operation_split_dims(df, 'use_as_totals')
+        return self._dispatch_split_dims(df, 'use_as_totals')
 
     def _operation_use_as_shares(self, df: PathsDataFrame) -> OperationReturn:
-        return self._operation_split_dims(df, 'use_as_shares')
+        return self._dispatch_split_dims(df, 'use_as_shares')
 
     def _operation_split_by_existing_shares(self, df: PathsDataFrame) -> OperationReturn:
-        return self._operation_split_dims(df, 'split_by_existing_shares')
+        return self._dispatch_split_dims(df, 'split_by_existing_shares')
 
     def _operation_split_evenly_to_cats(self, df: PathsDataFrame) -> OperationReturn:
-        return self._operation_split_dims(df, 'split_evenly_to_cats')
+        return self._dispatch_split_dims(df, 'split_evenly_to_cats')
 
     def _operation_add_to_existing_dims(self, df: PathsDataFrame) -> OperationReturn:
-        return self._operation_split_dims(df, 'add_to_existing_dims')
+        return self._dispatch_split_dims(df, 'add_to_existing_dims')
 
     def _operation_add_from_incoming_dims(self, df: PathsDataFrame) -> OperationReturn:
         if self.quantity in STACKABLE_QUANTITIES:
             raise NodeError(self, f'Node cannot have stackable quantity but has {self.quantity}.')
-        return self._operation_split_dims(df, 'add_from_incoming_dims')
+        return self._dispatch_split_dims(df, 'add_from_incoming_dims')
 
     def drop_unnecessary_levels(self, df: PathsDataFrame, droplist: list[str]) -> PathsDataFrame:
         # Drop filter levels and empty dimension levels.
