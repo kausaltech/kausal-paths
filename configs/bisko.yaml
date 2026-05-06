@@ -6,7 +6,7 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 6cd39a2a972163f8fe422540075a72ac66a26375
   dvc_remote: kausal-s3
-name: Klima-Monitor-BISKO
+name: Klima-Monitor Treibhausgasinventar
 owner: Kausal Ltd
 theme_identifier: default
 target_year: 2025
@@ -136,13 +136,13 @@ actions:
 pages:
 
 - id: home
-  name: Klima-Monitor-BISKO Treibhausgasinventar
-  name_en: Climate Protection Monitor BISKO Greenhouse Gas Inventory
+  name: Klima-Monitor Treibhausgasinventar
+  name_en: Climate Protection Monitor Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Klima-Monitor Treibhausgasinventar BISKO
-  lead_paragraph: Die Treibhausgasemissionen BISKO.
+  lead_title: Klima-Monitor Treibhausgasinventar
+  lead_paragraph: Die Treibhausgasemissionen.
 
 scenarios:
 
