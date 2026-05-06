@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://augsburg-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 042ea36e00165e5960343bcbf5b7aa14cdc4f549
+  commit: 6cd39a2a972163f8fe422540075a72ac66a26375
   dvc_remote: kausal-s3
 name_de: Augsburg Klimadashboard
 name_en: Augsburg Climate Dashboard
@@ -100,6 +100,13 @@ result_excels:
   - emission_factors_for_district_heating_by_generic_fuel
   - vehicle_kilometers_ifeu
   - other_transport_energy
+
+action_groups:
+
+- id: combined_heat_and_power
+  name_en: Combined heat and power
+  name_de: Kombination aus Wärme und Strom
+  color: '#007C78'
 
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
