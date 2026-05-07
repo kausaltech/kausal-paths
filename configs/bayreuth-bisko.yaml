@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bayreuth-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6cd39a2a972163f8fe422540075a72ac66a26375
+  commit: 4c2fa94e6955e7d42f3a8ad654f5e558143319ec
   dvc_remote: kausal-s3
 name_de: Bayreuth Klimadashboard
 name_en: Bayreuth Climate Dashboard
@@ -118,6 +118,22 @@ nodes:
   - id: potsdam/sector_index
     column: sector_index
 
+- id: sinks
+  name_de: Senken
+  name_en: Sinks
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: bayreuth/sinks
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+      categories: [not_defined]
 
 # - id: total_emissions
 #   name_de: Gesamtemissionen

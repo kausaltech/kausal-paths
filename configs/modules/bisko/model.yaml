@@ -161,7 +161,7 @@ dimensions:
   - id: solid_biomass
     label_en: Solid biomass
     label_de: feste Biomasse
-  - id: geothermatl
+  - id: geothermatl # FIXME typo
     label_en: Geothermal
     label_de: Geothermie
   - id: liquid_biomass
@@ -179,6 +179,27 @@ dimensions:
   - id: waste
     label_en: Waste
     label_de: Abfall
+
+- id: municipal_facility_type
+  label_en: Municipal facility type
+  label_de: Art der kommunalen Einrichtung
+  help_text: Sub-categories of municipal facilities as in KSP Datenerfassung 
+    (Daten kommunale Einrichtungen).
+  categories:
+  - id: street_lighting
+    label_en: Street lighting
+    label_de: Straßenbeleuchtung
+  - id: administrative_buildings
+    label_en: Municipal administrative buildings
+    label_de: Kommunale Verwaltungsgebäude
+    aliases: [kommunale_verwaltungsgebaude]
+  - id: schools_kitas
+    label_en: Schools and day-care centres
+    label_de: Schulen und Kindertagesstätten
+    aliases: [schulen_kitas]
+  - id: other_infrastructure
+    label_en: Other municipal buildings and infrastructure
+    label_de: Sonstige kommunale Gebäude und Infrastruktur
 
 - id: per_what_energy
   label_en: Per what energy
@@ -292,6 +313,10 @@ dimensions:
     label_en: Heating
     label_de: Wärme
     aliases: [warme, Warme]
+  - id: sinks
+    label_en: Sinks
+    label_de: Senken
+    color: '#89d163'
 
 - id: upstream_included
   label_en: Upstream included
@@ -300,27 +325,6 @@ dimensions:
   - id: yes
     label_en: Yes
     label_de: Ja
-
-- id: municipal_facility_type
-  label_en: Municipal facility type
-  label_de: Art der kommunalen Einrichtung
-  help_text: Sub-categories of municipal facilities as in KSP Datenerfassung 
-    (Daten kommunale Einrichtungen).
-  categories:
-  - id: street_lighting
-    label_en: Street lighting
-    label_de: Straßenbeleuchtung
-  - id: administrative_buildings
-    label_en: Municipal administrative buildings
-    label_de: Kommunale Verwaltungsgebäude
-    aliases: [kommunale_verwaltungsgebaude]
-  - id: schools_kitas
-    label_en: Schools and day-care centres
-    label_de: Schulen und Kindertagesstätten
-    aliases: [schulen_kitas]
-  - id: other_infrastructure
-    label_en: Other municipal buildings and infrastructure
-    label_de: Sonstige kommunale Gebäude und Infrastruktur
 
 - id: vehicle_type
   label_en: Vehicle type
