@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bayreuth-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 4c2fa94e6955e7d42f3a8ad654f5e558143319ec
+  commit: e45ce8209e0bf69d1499917e556d5e954155c479
   dvc_remote: kausal-s3
 name_de: Bayreuth Klimadashboard
 name_en: Bayreuth Climate Dashboard
@@ -13,7 +13,7 @@ theme_identifier: de-bayreuth
 target_year: 2040
 model_end_year: 2050
 reference_year: 1990
-minimum_historical_year: 1990
+minimum_historical_year: 1995
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
@@ -106,6 +106,29 @@ result_excels:
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 nodes:
+
+- id: net_emissions
+  name_de: Netto-Emissionen
+  name_en: Net emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  is_outcome: true
+  goals: # Node copied here to make goals possible.
+  - label_de: Ursprünglicher Zielpfad 2022
+    label_en: Original path 2
+    default: true
+    linear_interpolation: true
+    values:
+    - year: 2019
+      value: 696.41147
+    - year: 2021
+      value: 664.732782
+    - year: 2040
+      value: 0
+
 - id: sector_index   # Translates BISKO categories to Wärme/Strom/Verkehr sectors. TRUE for any allowed combi of sector and energy carrier
   name_de: Sektor Index
   name_en: Sector index
@@ -115,8 +138,32 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: potsdam/sector_index
-    column: sector_index
+  - id: bisko/sector_index
+    forecast_from: 2025
+    tags: [extend_all]
+
+- id: final_energy_use
+  name_de: Endenergie
+  name_en: Final energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: bisko/final_energy
+    tags: [non_additive]
+    column: Value
+    filters:
+    - column: energy_carrier
+      value: not_defined
+      exclude: true
+      drop_col: false
+    - dimension: sector
+      flatten: true
+  input_nodes:
+  - id: sector_index
+  - id: weather_correction
 
 - id: sinks
   name_de: Senken
@@ -135,155 +182,148 @@ nodes:
     - id: energy_carrier
       categories: [not_defined]
 
-# - id: total_emissions
-#   name_de: Gesamtemissionen
-#   name_en: Total Emissions
-#   type: formula.FormulaNode
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_nodes:
-#   - id: sector_index
-#   - id: municipal_facilities_emissions
-#   - id: commerce_trade_services_emissions
-#   - id: transport_emissions
-#     from_dimensions:
-#     - id: vehicle_type
-#       flatten: true    # sums up all vehicle types
-#     to_dimensions:
-#     - id: sector
-#       categories: [transport]
-#     - id: energy_carrier
-#   - id: private_household_emissions
-#   - id: industry_emissions
-#   params:
-#   - id: formula
-#     value: sector_index * sum_dim(municipal_facilities_emissions + 
-#       commerce_trade_services_emissions + transport_emissions + 
-#       private_household_emissions + industry_emissions, sector) # does the same as from_dimensions flatten:true
+- id: heating_emissions
+  name_de: Wärme Emissionen
+  name_en: Heating Emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  color: '#9C2B54'
+  input_dimensions: [energy_carrier, sector]  # switched around dimensions, because in Outcome page it shows the first listed dimension when "drilling down" 
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [heating]
+  output_nodes:
+  - id: net_emissions
+  goals:
+  - label_de: Ursprünglicher Zielpfad 2022
+    label_en: Original path 2
+    default: true
+    linear_interpolation: true
+    values:
+    - year: 2019
+      value: 327.3133909
+    - year: 2021
+      value: 329.3667852
+    - year: 2030
+      value: 198.8110272
+    - year: 2040
+      value: 0
 
-# - id: heating_emissions
-#   name_de: Wärme Emissionen
-#   name_en: Heating Emissions
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   color: '#9C2B54'
-#   input_dimensions: [energy_carrier, sector]  # switched around dimensions, because in Outcome page it shows the first listed dimension when "drilling down" 
-#   output_dimensions: [energy_carrier, sector]
-#   input_nodes:
-#   - id: total_emissions
-#     from_dimensions:
-#     - id: sector
-#       categories: [heating]
-#   output_nodes:
-#   - id: net_emissions
+- id: electricity_emissions
+  name_de: Strom Emissionen
+  name_en: Electricity Emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  color: '#2B729C'
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [electricity]
+  output_nodes:
+  - id: net_emissions
+  goals:
+  - label_de: Ursprünglicher Zielpfad 2022
+    label_en: Original path 2
+    default: true
+    linear_interpolation: true
+    values:
+    - year: 2019
+      value: 215.8875557
+    - year: 2021
+      value: 186.7211469
+    - year: 2030
+      value: 59.47332172
+    - year: 2039
+      value: 0
 
-# - id: transport_emissions2
-#   name_de: Verkehr Emissionen
-#   name_en: Transport Emissions
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   color: '#299575'
-#   input_dimensions: [energy_carrier, sector]
-#   output_dimensions: [energy_carrier, sector]
-#   input_nodes:
-#   - id: total_emissions
-#     from_dimensions:
-#     - id: sector
-#       categories: [transport]
-#   output_nodes:
-#   - id: net_emissions
+- id: transport_emissions
+  name_en: Transport emissions
+  name_de: Transportemissionen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transport_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
+  goals: # Node copied here to make goals possible.
+  - label_de: Ursprünglicher Zielpfad 2022
+    label_en: Original path 2
+    default: true
+    linear_interpolation: true
+    values:
+    - year: 2019
+      value: 153.2105234
+    - year: 2021
+      value: 148.6448498
+    - year: 2030
+      value: 91.57501005
+    - year: 2038
+      value: 0
 
-# - id: electricity_emissions
-#   name_de: Strom Emissionen
-#   name_en: Electricity Emissions
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   color: '#2B729C'
-#   input_dimensions: [energy_carrier, sector]
-#   output_dimensions: [energy_carrier, sector]
-#   input_nodes:
-#   - id: total_emissions
-#     from_dimensions:
-#     - id: sector
-#       categories: [electricity]
-#   output_nodes:
-#   - id: net_emissions
+- id: private_household_emissions
+  name_de: Private Haushalte Emissionen
+  name_en: Private household emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#009ebe'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
 
-# - id: private_household_emissions
-#   name_de: Private Haushalte Emissionen
-#   name_en: Private household emissions
-#   color: '#009ebe'
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_nodes:
-#   - id: final_private_household_energy_use
-#   - id: end_energy_emission_factors
+- id: municipal_facilities_emissions
+  name_de: Kommunale Einrichtungen Emissionen
+  name_en: Municipal facilities emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#009ebe'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
 
-# - id: municipal_facilities_emissions
-#   name_de: Kommunale Einrichtungen Emissionen
-#   name_en: Municipal facilities emissions
-#   color: '#6bc248'
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_nodes:
-#   - id: final_municipal_facilities_energy_use
-#   - id: end_energy_emission_factors
+- id: industry_emissions
+  name_de: Industrie Emissionen
+  name_en: Industry emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#009ebe'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
 
-# - id: industry_emissions
-#   name_de: Industrie Emissionen
-#   name_en: Industry emissions
-#   color: '#737373'
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_nodes:
-#   - id: final_industry_energy_use
-#   - id: end_energy_emission_factors
-
-# - id: commerce_trade_services_emissions
-#   name_de: Gewerbe, Handel, Dienstleistungen Emissionen
-#   name_en: Commerce, trade, services emissions
-#   color: '#fe8035'
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_nodes:
-#   - id: final_commerce_trade_services_energy_use
-#   - id: end_energy_emission_factors
-
-# - id: transport_emissions
-#   name_en: Transport emissions
-#   name_de: Transportemissionen
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
-#   input_dimensions: [vehicle_type, energy_carrier]
-#   output_dimensions: [vehicle_type, energy_carrier]
-#   input_nodes:
-#   - id: transport_energy
-#     to_dimensions:
-#     - id: vehicle_type
-#     - id: energy_carrier
-#   - id: transport_emission_factors
-#     to_dimensions:
-#     - id: energy_carrier
-
+- id: commerce_trade_services_emissions
+  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_en: Commerce, trade, services emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#009ebe'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
 
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -309,6 +349,29 @@ actions:
     column: default
     forecast_from: 2025
 
+- id: emission_reduction_action
+  name_en: Emission reduction action
+  name_de: Emissionreduktionsmaßnahme
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: bayreuth/emission_reduction_action
+    forecast_from: 2025
+    column: fraction
+  output_nodes:
+  - id: stationary_emissions
+    tags: [complement]
+  - id: transport_emissions
+    tags: [complement]
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+      flatten: true
+    to_dimensions: []
 
 #//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
 

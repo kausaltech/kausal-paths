@@ -11,7 +11,7 @@ owner: Stadt Düsseldorf
 theme_identifier: de-dusseldorf
 target_year: 2035
 model_end_year: 2035
-reference_year: 1990
+reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
@@ -134,6 +134,7 @@ actions:
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 nodes:
+
 # sum up Industry + Commercial
 - id: industry_commerce_emissions
   name_en: Industry & Commerce
