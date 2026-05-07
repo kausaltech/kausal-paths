@@ -330,6 +330,9 @@ dimensions:
   label_en: Vehicle type
   label_de: Fahrzeugtyp
   categories:
+  - id: total
+    label_en: Total
+    label_de: Gesamt
   - id: passenger_cars
     label_en: Passenger cars
     label_de: Personenkraftwagen (PKW)
