@@ -375,9 +375,9 @@ dimensions:
   - id: default
     label_en: Default
     label_de: Standard
-  - id: trend
-    label_en: Trend
-    label_de: Trend
+  - id: baseline
+    label_en: Baseline
+    label_de: Baseline
 
 - id: sector
   label_en: Sector
