@@ -1,10 +1,40 @@
 dimensions:
 
+  # ┌────────────────────────┬───────┬───────────────────────────────────────┬───────────────────────────────────┐
+  # │         Group          │ Order │              Color tone               │             Rationale             │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Coal                   │ 1-2   │ Near-black → dark brown               │ Darkest fossil                    │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Liquid fossil          │ 3-9   │ #7B1A00 → #BF4500 (dark red-orange)   │ Oil products                      │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Fossil gas             │ 10-13 │ #1A5276 → #0B2F50 (dark navy)         │ Gas = blue in energy charts       │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Bio transport          │ 14-16 │ #4A7C1F → #2D5C12 (olive-green)       │ Bio counterparts of liquid fossil │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Biomass                │ 17-21 │ #5E6B1A → #0D4F13 (green spectrum)    │ Solid/liquid bio heating          │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Biogas                 │ 22-24 │ #0D6B4D → #07452E (teal-green)        │ Gas-phase bio                     │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Waste & waste heat     │ 25-29 │ Dark brown / gray / teal-gray         │ Mixed renewable/conventional      │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Renewable thermal      │ 30-33 │ #BF5C00 amber, #006D6D/#005757 teal   │ Solar heat + geo/env heat         │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ District/local heating │ 34-36 │ #922B00 → #7D2500 (dark orange-brown) │ Heat networks                     │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Electricity carriers   │ 37-39 │ Dark blue / purple / navy             │ Grid, heating, driving            │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Electricity generation │ 40-42 │ Amber / steel-blue / cyan             │ PV, hydro, wind                   │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Hydrogen               │ 43    │ #007A8A dark cyan                     │ Clean fuel, near renewables       │
+  # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤
+  # │ Aggregates/other       │ 44-50 │ Dark greens / browns / grays          │ Catch-all categories              │
+  # └────────────────────────┴───────┴───────────────────────────────────────┴───────────────────────────────────┘
+
 - id: energy_carrier
   label_en: Energy carrier
   label_de: Energieträger
   categories:
-  # --- Coal (order 1–2): darkest fossil, brown-to-black ---
+  # --- Coal (order 1-2): darkest fossil, brown-to-black ---
   - id: hard_coal
     label_en: Hard coal
     label_de: Steinkohle
@@ -17,7 +47,7 @@ dimensions:
     aliases: [braunkohle]
     color: '#5D3A1A'
     order: 2
-  # --- Liquid fossil fuels (order 3–9): red-to-orange spectrum ---
+  # --- Liquid fossil fuels (order 3-9): red-to-orange spectrum ---
   - id: heating_oil
     label_en: Heating oil
     label_de: Heizöl
@@ -59,7 +89,7 @@ dimensions:
     aliases: [kraftstoffe, kraftstoff, Kraftstoff, Kraftstoffe]
     color: '#880000'
     order: 9
-  # --- Fossil gas (order 10–13): dark blue spectrum ---
+  # --- Fossil gas (order 10-13): dark blue spectrum ---
   - id: natural_gas
     label_en: Natural gas
     label_de: Erdgas
@@ -82,7 +112,7 @@ dimensions:
     label_de: Erdgas BHKW
     color: '#0D3B5A'
     order: 13
-  # --- Bio transport fuels (order 14–16): olive-green ---
+  # --- Bio transport fuels (order 14-16): olive-green ---
   - id: bio_petrol
     label_en: Bio petrol
     label_de: Biobenzin
@@ -101,7 +131,7 @@ dimensions:
     aliases: [CNG_bio, CNGbio]
     color: '#2D5C12'
     order: 16
-  # --- Biomass (order 17–21): green spectrum ---
+  # --- Biomass (order 17-21): green spectrum ---
   - id: liquid_biomass
     label_en: Liquid biomass
     label_de: flüssige Biomasse
@@ -128,7 +158,7 @@ dimensions:
     label_de: Biomasse KWK
     color: '#0D4F13'
     order: 21
-  # --- Biogas (order 22–24): teal-green ---
+  # --- Biogas (order 22-24): teal-green ---
   - id: biogas
     label_en: Biogas
     label_de: Biogas
@@ -145,7 +175,7 @@ dimensions:
     label_de: Klär- Deponie- Grubengas
     color: '#07452E'
     order: 24
-  # --- Waste & waste heat (order 25–29) ---
+  # --- Waste & waste heat (order 25-29) ---
   - id: waste
     label_en: Waste
     label_de: Abfall
@@ -171,7 +201,7 @@ dimensions:
     label_de: Erneuerbarer Abwärme <90 C
     color: '#4A6B66'
     order: 29
-  # --- Renewable thermal (order 30–33): amber and teal ---
+  # --- Renewable thermal (order 30-33): amber and teal ---
   - id: solar_thermal
     label_en: Solar thermal
     label_de: Solarthermie
@@ -194,7 +224,7 @@ dimensions:
     label_de: Geothermie
     color: '#005757'
     order: 33
-  # --- District / local heating networks (order 34–36): dark orange-brown ---
+  # --- District / local heating networks (order 34-36): dark orange-brown ---
   - id: district_heating
     label_en: District heating
     label_de: Fernwärme
@@ -213,7 +243,7 @@ dimensions:
     aliases: [fern_und_nahwarme]
     color: '#7D2500'
     order: 36
-  # --- Electricity carriers (order 37–39): blue / purple ---
+  # --- Electricity carriers (order 37-39): blue / purple ---
   - id: electricity
     label_en: Electricity
     label_de: Strom
@@ -232,7 +262,7 @@ dimensions:
     aliases: [fahrstrom, strom_fahrstrom, St]
     color: '#0D3A80'
     order: 39
-  # --- Electricity generation (order 40–42): amber / blue-teal ---
+  # --- Electricity generation (order 40-42): amber / blue-teal ---
   - id: photovoltaic
     label_en: Photovoltaic
     label_de: Fotovoltaik
@@ -255,7 +285,7 @@ dimensions:
     aliases: [wasserstoff, Wasserstoff]
     color: '#007A8A'
     order: 43
-  # --- Aggregate / other (order 44–50) ---
+  # --- Aggregate / other (order 44-50) ---
   - id: other_renewables
     label_en: Other renewables
     label_de: Sonstige Erneuerbare
