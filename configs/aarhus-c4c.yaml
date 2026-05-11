@@ -3538,3 +3538,5 @@ scenarios:
   params:
   - id: carbon_capture_and_storage.enabled
     value: false
+  - id: green_mobility_3b_road_pricing.enabled
+    value: false
