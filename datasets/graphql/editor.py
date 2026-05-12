@@ -7,12 +7,18 @@ from uuid import UUID
 
 import strawberry as sb
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.utils import timezone
 from strawberry import Maybe
 from strawberry_django.fields.types import OperationInfo
 
 from kausal_common.datasets.api import DataPointSerializer
-from kausal_common.datasets.models import DataPoint, Dataset
+from kausal_common.datasets.models import (
+    DataPoint,
+    DataPointComment,
+    DataPointCommentReviewState,
+    Dataset,
+)
 from kausal_common.strawberry.helpers import get_or_error
 from kausal_common.users import user_or_bust
 
@@ -21,10 +27,26 @@ from paths import gql
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.models import InstanceConfig
 
-from .types import DataPointType
+from .types import DataPointCommentType, DataPointType
 
 if TYPE_CHECKING:
     from strawberry import Some
+
+
+@sb.input
+class CreateDataPointCommentInput:
+    text: str
+    is_sticky: bool = False
+    is_review: bool = False
+    review_state: DataPointCommentReviewState | None = None
+
+
+@sb.input
+class UpdateDataPointCommentInput:
+    text: Maybe[str]
+    is_sticky: Maybe[bool]
+    is_review: Maybe[bool]
+    review_state: Maybe[DataPointCommentReviewState | None]
 
 
 @sb.input
@@ -193,3 +215,202 @@ class DatasetEditorMutation:
             DatasetEditorMutation._save_dataset(root, info)
             data_point.delete()
         return None
+
+    # ------------------------------------------------------------------
+    # Data point comments
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _data_point_comment_snapshot(comment: DataPointComment) -> dict[str, Any]:
+        return {
+            'uuid': str(comment.uuid),
+            'data_point_uuid': str(comment.data_point.uuid) if comment.data_point else None,
+            'text': comment.text,
+            'is_sticky': comment.is_sticky,
+            'is_review': comment.is_review,
+            'review_state': comment.review_state or None,
+            'is_soft_deleted': comment.is_soft_deleted,
+            'resolved_at': comment.resolved_at.isoformat() if comment.resolved_at else None,
+            'resolved_by_uuid': str(comment.resolved_by.uuid) if comment.resolved_by else None,
+        }
+
+    @staticmethod
+    def _get_data_point(info: gql.Info, root: Me, data_point_id: sb.ID) -> DataPoint:
+        return get_or_error(
+            info,
+            root.dataset.data_points.get_queryset(),
+            uuid=str(data_point_id),
+            for_action='change',
+        )
+
+    @staticmethod
+    def _get_comment(info: gql.Info, root: Me, comment_id: sb.ID, for_action: Any = 'change') -> DataPointComment:
+        return get_or_error(
+            info,
+            DataPointComment.objects.filter(data_point__dataset=root.dataset),
+            uuid=str(comment_id),
+            for_action=for_action,
+        )
+
+    @gql.mutation(description='Create a comment on a data point', graphql_type=DataPointCommentType)
+    @staticmethod
+    def create_data_point_comment(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        data_point_id: sb.ID,
+        input: CreateDataPointCommentInput,
+    ) -> DataPointCommentType:
+        data_point = DatasetEditorMutation._get_data_point(info, root, data_point_id)
+        if not DataPointComment.gql_create_allowed(info, cast('Any', data_point)):
+            raise PermissionDenied('Permission denied for create')
+
+        try:
+            user = user_or_bust(info.context.user)
+        except ValueError as exc:
+            raise PermissionDenied('Permission denied') from exc
+
+        with gql_change_operation(info, root.instance, action='dataset.datapoint.comment.create'):
+            comment = DataPointComment.objects.create(
+                data_point=data_point,
+                text=input.text,
+                is_sticky=input.is_sticky,
+                is_review=input.is_review,
+                review_state=input.review_state,
+                created_by=user,
+                last_modified_by=user,
+            )
+            record_change(
+                comment,
+                action='dataset.datapoint.comment.create',
+                before=None,
+                after=DatasetEditorMutation._data_point_comment_snapshot(comment),
+            )
+        return cast('DataPointCommentType', comment)
+
+    @gql.mutation(description='Update a comment on a data point', graphql_type=DataPointCommentType)
+    @staticmethod
+    def update_data_point_comment(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        comment_id: sb.ID,
+        input: UpdateDataPointCommentInput,
+    ) -> DataPointCommentType:
+        comment = DatasetEditorMutation._get_comment(info, root, comment_id, for_action='change')
+
+        try:
+            user = user_or_bust(info.context.user)
+        except ValueError as exc:
+            raise PermissionDenied('Permission denied') from exc
+
+        with gql_change_operation(info, root.instance, action='dataset.datapoint.comment.update'):
+            before = DatasetEditorMutation._data_point_comment_snapshot(comment)
+            update_fields: list[str] = []
+            if _is_maybe_set(input.text):
+                comment.text = input.text.value
+                update_fields.append('text')
+            if _is_maybe_set(input.is_sticky):
+                comment.is_sticky = input.is_sticky.value
+                update_fields.append('is_sticky')
+            if _is_maybe_set(input.is_review):
+                comment.is_review = input.is_review.value
+                update_fields.append('is_review')
+            if _is_maybe_set(input.review_state):
+                comment.review_state = input.review_state.value
+                update_fields.append('review_state')
+            comment.last_modified_by = user
+            update_fields.append('last_modified_by')
+            update_fields.append('last_modified_at')
+            comment.save(update_fields=update_fields)
+            record_change(
+                comment,
+                action='dataset.datapoint.comment.update',
+                before=before,
+                after=DatasetEditorMutation._data_point_comment_snapshot(comment),
+            )
+        return cast('DataPointCommentType', comment)
+
+    @gql.mutation(description='Soft-delete a comment on a data point', graphql_type=OperationInfo | None)
+    @staticmethod
+    def delete_data_point_comment(
+        root: sb.Parent[Me],
+        info: gql.Info,
+        comment_id: sb.ID,
+    ) -> OperationInfo | None:
+        comment = DatasetEditorMutation._get_comment(info, root, comment_id, for_action='delete')
+
+        try:
+            user = user_or_bust(info.context.user)
+        except ValueError as exc:
+            raise PermissionDenied('Permission denied') from exc
+
+        with gql_change_operation(info, root.instance, action='dataset.datapoint.comment.delete'):
+            record_change(
+                comment,
+                action='dataset.datapoint.comment.delete',
+                before=DatasetEditorMutation._data_point_comment_snapshot(comment),
+                after=None,
+            )
+            comment.soft_delete(user)
+        return None
+
+    @gql.mutation(description='Mark a review comment as resolved', graphql_type=DataPointCommentType)
+    @staticmethod
+    def resolve_data_point_comment(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        comment_id: sb.ID,
+    ) -> DataPointCommentType:
+        comment = DatasetEditorMutation._get_comment(info, root, comment_id, for_action='change')
+
+        try:
+            user = user_or_bust(info.context.user)
+        except ValueError as exc:
+            raise PermissionDenied('Permission denied') from exc
+
+        with gql_change_operation(info, root.instance, action='dataset.datapoint.comment.resolve'):
+            before = DatasetEditorMutation._data_point_comment_snapshot(comment)
+            comment.review_state = DataPointComment.ReviewState.RESOLVED
+            comment.resolved_at = timezone.now()
+            comment.resolved_by = user
+            comment.last_modified_by = user
+            comment.save(
+                update_fields=['review_state', 'resolved_at', 'resolved_by', 'last_modified_by', 'last_modified_at'],
+            )
+            record_change(
+                comment,
+                action='dataset.datapoint.comment.resolve',
+                before=before,
+                after=DatasetEditorMutation._data_point_comment_snapshot(comment),
+            )
+        return cast('DataPointCommentType', comment)
+
+    @gql.mutation(description='Mark a review comment as unresolved', graphql_type=DataPointCommentType)
+    @staticmethod
+    def unresolve_data_point_comment(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        comment_id: sb.ID,
+    ) -> DataPointCommentType:
+        comment = DatasetEditorMutation._get_comment(info, root, comment_id, for_action='change')
+
+        try:
+            user = user_or_bust(info.context.user)
+        except ValueError as exc:
+            raise PermissionDenied('Permission denied') from exc
+
+        with gql_change_operation(info, root.instance, action='dataset.datapoint.comment.unresolve'):
+            before = DatasetEditorMutation._data_point_comment_snapshot(comment)
+            comment.review_state = DataPointComment.ReviewState.UNRESOLVED
+            comment.resolved_at = None
+            comment.resolved_by = None
+            comment.last_modified_by = user
+            comment.save(
+                update_fields=['review_state', 'resolved_at', 'resolved_by', 'last_modified_by', 'last_modified_at'],
+            )
+            record_change(
+                comment,
+                action='dataset.datapoint.comment.unresolve',
+                before=before,
+                after=DatasetEditorMutation._data_point_comment_snapshot(comment),
+            )
+        return cast('DataPointCommentType', comment)

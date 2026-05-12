@@ -1,16 +1,19 @@
 """Strawberry GraphQL types for DB-backed datasets."""
 
 from datetime import date
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
 import strawberry as sb
+import strawberry_django
+from strawberry import auto
 
-from kausal_common.datasets.models import Dataset as DatasetModel
+from kausal_common.datasets.models import (
+    DataPointComment as DataPointCommentModel,
+    Dataset as DatasetModel,
+)
 from kausal_common.strawberry.ordering import with_sibling_ids
 from kausal_common.strawberry.registry import register_strawberry_type
-
-from nodes.defs.binding_def import DatasetPortBindingDef  # noqa: TC001  # used in runtime annotation
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import (
@@ -21,8 +24,10 @@ if TYPE_CHECKING:
         DimensionCategory as DimensionCategoryModel,
     )
 
+    from nodes.defs.binding_def import DatasetPortBindingDef
     from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
+    from users.schema import UserType  # used in lazy strawberry annotations
 
 
 @sb.type(name='DatasetDimensionCategory')
@@ -91,6 +96,46 @@ class DatasetMetricType:
 
 
 @register_strawberry_type
+@strawberry_django.type(DataPointCommentModel, name='DataPointComment')
+class DataPointCommentType:
+    """A user comment attached to a single data point."""
+
+    text: auto
+    is_sticky: auto
+    is_review: auto
+    review_state: auto
+    resolved_at: auto
+    resolved_by: Annotated['UserType', sb.lazy('users.schema')] | None
+    created_at: auto
+    created_by: Annotated['UserType', sb.lazy('users.schema')] | None
+    last_modified_at: auto
+    last_modified_by: Annotated['UserType', sb.lazy('users.schema')] | None
+
+    @strawberry_django.field
+    @staticmethod
+    def id(root: sb.Parent[DataPointCommentModel]) -> sb.ID:
+        return sb.ID(str(root.uuid))
+
+
+def _comments_queryset_for_data_point(data_point: DataPointModel) -> Any:
+    return (
+        DataPointCommentModel.objects
+        .filter(data_point=data_point)
+        .select_related('created_by', 'last_modified_by', 'resolved_by')
+        .order_by('-created_at')
+    )
+
+
+def _comments_queryset_for_dataset(dataset: DatasetModel) -> Any:
+    return (
+        DataPointCommentModel.objects
+        .filter(data_point__dataset=dataset)
+        .select_related('data_point', 'created_by', 'last_modified_by', 'resolved_by')
+        .order_by('-created_at')
+    )
+
+
+@register_strawberry_type
 @sb.type(name='DataPoint')
 class DataPointType:
     """A stored dataset data point."""
@@ -101,9 +146,18 @@ class DataPointType:
     metric: DatasetMetricType
     dimension_categories: list[DatasetDimensionCategoryType]
 
+    _model: sb.Private['DataPointModel | None'] = None
+
+    @sb.field(description='Comments attached to this data point, newest first.')
+    @staticmethod
+    def comments(root: 'DataPointType') -> list[DataPointCommentType]:
+        if root._model is None:
+            return []
+        return cast('list[DataPointCommentType]', list(_comments_queryset_for_data_point(root._model)))
+
     @classmethod
     def from_model(cls, data_point: DataPointModel) -> DataPointType:
-        return cls(
+        obj = cls(
             id=sb.ID(str(data_point.uuid)),
             date=data_point.date,
             value=float(data_point.value) if data_point.value is not None else None,
@@ -112,6 +166,8 @@ class DataPointType:
                 DatasetDimensionCategoryType.from_model(category) for category in data_point.dimension_categories.all()
             ],
         )
+        obj._model = data_point
+        return obj
 
 
 @register_strawberry_type
@@ -166,6 +222,13 @@ class DatasetType:
             return []
         data_points = root._model.data_points.select_related('metric').prefetch_related('dimension_categories__dimension')
         return [DataPointType.from_model(data_point) for data_point in data_points]
+
+    @sb.field(description='All data point comments in this dataset, newest first.')
+    @staticmethod
+    def data_point_comments(root: 'DatasetType') -> list[DataPointCommentType]:
+        if root._model is None:
+            return []
+        return cast('list[DataPointCommentType]', list(_comments_queryset_for_dataset(root._model)))
 
     @sb.field(graphql_type=list[Annotated['DimensionalMetricType', sb.lazy('nodes.graphql.types.metric')]])
     @staticmethod
