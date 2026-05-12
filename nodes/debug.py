@@ -57,7 +57,7 @@ def _get_output_with_baseline(node: Node, filters: list[str] | None) -> ppl.Path
 
     if df.dim_ids:
         df = df.paths.to_wide()
-        if node.quantity in STACKABLE_QUANTITIES:
+        if node.quantity in STACKABLE_QUANTITIES and df.metric_cols:
             df = df.with_columns(pl.sum_horizontal(df.metric_cols).alias('Total'))
         return df
 
