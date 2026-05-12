@@ -11,6 +11,7 @@ import polars as pl
 from dvc_pandas.repository import Repository as DVCRepository
 
 PLACEHOLDER_DATASET_IDENTIFIER = 'nzc/placeholders'
+PLACEHOLDER_YEARLY_DATASET_IDENTIFIER = 'nzc/placeholders_yearly'
 
 
 @dataclass
@@ -39,13 +40,49 @@ def _calculate_placeholders(
     return df.select(['Value', 'UUID'])
 
 
+def _calculate_yearly_placeholders(df: pl.DataFrame, data: NZCPlaceholderInput) -> pl.DataFrame:
+    clookup = {'low-low': 0, 'low-high': 1, 'high-low': 2, 'high-high': 3}
+    c = str(clookup['%s-%s' % (data.renewmix, data.temperature)])
+
+    def scale(col: str) -> pl.Expr:
+        return pl.when(pl.col('PerCapita').eq(other=True)).then(pl.col(col) * data.population).otherwise(pl.col(col))
+
+    return df.select([
+        pl.col('UUID'),
+        pl.col('Year'),
+        scale(f'{c}_ccv').alias('Value'),
+        scale(f'{c}_min').alias('LowerBound'),
+        scale(f'{c}_max').alias('UpperBound'),
+    ])
+
+
+def get_nzc_yearly_default_values(
+    repo: DVCRepository,
+    data: NZCPlaceholderInput,
+) -> dict[str, dict[int, tuple[float, float | None, float | None]]]:
+    """
+    Return per-year default values with confidence bounds for one city cluster.
+
+    Returns ``{uuid: {year: (value, lower_bound, upper_bound)}}``.
+    """
+    ds_id = PLACEHOLDER_YEARLY_DATASET_IDENTIFIER
+    if not repo.has_dataset(ds_id):
+        return {}
+    df = repo.load_dataframe(ds_id)
+    df = _calculate_yearly_placeholders(df, data)
+    result: dict[str, dict[int, tuple[float, float | None, float | None]]] = {}
+    for uuid_str, year, value, lower, upper in df.iter_rows():
+        result.setdefault(uuid_str, {})[year] = (value, lower, upper)
+    return result
+
+
 def get_nzc_default_values(repo: DVCRepository, data: NZCPlaceholderInput) -> dict[str, float]:
     ds_id = PLACEHOLDER_DATASET_IDENTIFIER
     if not repo.has_dataset(ds_id):
         raise Exception("Dataset '%s' not found in DVC repository" % ds_id)
     df = repo.load_dataframe(PLACEHOLDER_DATASET_IDENTIFIER)
     df = _calculate_placeholders(df, data)
-    return {row[0]: row[1] for row in df.select(['UUID', 'Value']).iter_rows()}
+    return dict(df.select(['UUID', 'Value']).iter_rows())
 
 
 if __name__ == '__main__':

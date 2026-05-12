@@ -40,6 +40,7 @@ from paths.utils import IdentifierField, UnitField
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from dvc_pandas.repository import Repository as DVCRepository
     from rich.repr import RichReprResult
 
     from kausal_common.models.permission_policy import ModelPermissionPolicy
@@ -978,6 +979,77 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
                 fields=['default_value', 'probable_lower_bound', 'probable_upper_bound'],
             )
         return len(selected_defaults)
+
+    @transaction.atomic
+    def populate_measure_defaults_from_nzc_yearly(self, repo: object) -> int:
+        """
+        Populate MeasureDataPoint defaults from the nzc/placeholders_yearly DVC dataset.
+
+        Uses the city cluster stored in ``extra['create_context']`` (population,
+        renewable_mix, temperature).  Returns the number of data points written.
+        """
+        from frameworks.nzc import NZCPlaceholderInput, get_nzc_yearly_default_values
+
+        create_context = (self.extra or {}).get('create_context') or {}
+        population = create_context.get('population')
+        renewable_mix = create_context.get('renewable_mix')
+        temperature = create_context.get('temperature')
+        if not (population and renewable_mix and temperature):
+            return 0
+
+        nzc_data = NZCPlaceholderInput(
+            population=int(population),
+            renewmix=renewable_mix,
+            temperature=temperature,
+        )
+        yearly_defaults = get_nzc_yearly_default_values(cast('DVCRepository', repo), nzc_data)
+        if not yearly_defaults:
+            return 0
+
+        measure_by_uuid: dict[str, Measure] = {
+            str(m.measure_template.uuid): m for m in self.measures.select_related('measure_template').all()
+        }
+        affected_uuids = [uuid.UUID(u) for u in yearly_defaults if u in measure_by_uuid]
+        existing_dps: dict[tuple[int, int], MeasureDataPoint] = {
+            (dp.measure_id, dp.year): dp
+            for dp in MeasureDataPoint.objects.filter(
+                measure__framework_config=self,
+                measure__measure_template__uuid__in=affected_uuids,
+            )
+        }
+
+        new_dps: list[MeasureDataPoint] = []
+        update_dps: list[MeasureDataPoint] = []
+        for uuid_str, year_values in yearly_defaults.items():
+            measure = measure_by_uuid.get(uuid_str)
+            if measure is None:
+                continue
+            for year, (value, lower, upper) in year_values.items():
+                key = (measure.pk, year)
+                dp = existing_dps.get(key)
+                if dp is None:
+                    dp = MeasureDataPoint(
+                        measure=measure,
+                        year=year,
+                        default_value=value,
+                        probable_lower_bound=lower,
+                        probable_upper_bound=upper,
+                    )
+                    new_dps.append(dp)
+                else:
+                    dp.default_value = value
+                    dp.probable_lower_bound = lower
+                    dp.probable_upper_bound = upper
+                    update_dps.append(dp)
+
+        if new_dps:
+            MeasureDataPoint.objects.bulk_create(new_dps)
+        if update_dps:
+            MeasureDataPoint.objects.bulk_update(
+                update_dps,
+                fields=['default_value', 'probable_lower_bound', 'probable_upper_bound'],
+            )
+        return len(new_dps) + len(update_dps)
 
     def create_model_instance(self, _ic: InstanceConfig) -> Instance:
         from nodes.instance_loader import InstanceLoader
