@@ -20,6 +20,8 @@ emission_dimensions: [department, scope]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
+  show_significant_digits: 3
+  maximum_fraction_digits: 3
 
 action_groups:
 - id: green_fleet_strategy
@@ -4078,7 +4080,7 @@ actions:
   input_dimensions: []
   output_dimensions: []
   historical_values: [[2023, 0.0], [2024, 0.0]]
-  forecast_values: [[2025, 0.0], [2026, 5.0], [2027, 10.0], [2028, 15.0], [2029, 20.0], [2030, 25.0], [2031, 30.0], [2032, 35.0], [2033, 40.0], [2034, 45.0], [2035, 50.0], [2036, 55.0], [2037, 60.0], [2038, 65.0], [2039, 70.0], [2040, 75.0], [2041, 80.0], [2042, 85.0], [2043, 90.0], [2044, 95.0], [2045, 100.0]]
+  forecast_values: [[2025, 0.0], [2026, 5.0], [2027, 10.0], [2028, 15.0], [2029, 20.0], [2030, 25.0], [2031, 30.0], [2032, 35.0], [2033, 40.0], [2034, 45.0], [2035, 50.0], [2036, 55.0], [2037, 60.0], [2038, 65.0], [2039, 70.0], [2040, 75.0], [2041, 80.0], [2042, 85.0], [2043, 90.0], [2044, 95.0], [2045, 99.999999]]
 
 - id: pathway_assumption_3
   name: 'Pathway Assumption 3: Building Envelopes & Other Building Efficiencies'
