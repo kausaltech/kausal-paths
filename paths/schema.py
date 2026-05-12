@@ -42,7 +42,7 @@ from orgs.models import Organization
 from orgs.schema import OrganizationNode, Query as OrgsQuery
 from pages.schema import Query as PagesQuery
 from params.schema import SBMutation as SBParamsMutation, SBQuery as SBParamsQuery, types as params_types
-from users.schema import Query as UsersQuery
+from users.schema import UsersQuery
 
 CO2E = 'CO<sub>2</sub>e'
 
@@ -129,7 +129,7 @@ class CommonQuery:
         return list(Organization.objects.qs.available_for_instance(instance_obj))
 
 
-class GrapheneQuery(PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery, OrgsQuery):
+class GrapheneQuery(PagesQuery, FrameworksQuery, ServerVersionQuery, OrgsQuery):
     class Meta:
         name = 'Query'
 
@@ -138,7 +138,7 @@ class GrapheneMutations(FrameworksMutations):
     pass
 
 
-SBQuery = merge_types('Query', (SBNodesQuery, ModelEditorQuery, SBParamsQuery, CommonQuery))
+SBQuery = merge_types('Query', (SBNodesQuery, ModelEditorQuery, SBParamsQuery, CommonQuery, UsersQuery))
 
 
 @sb.type

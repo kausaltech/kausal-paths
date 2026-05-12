@@ -1,48 +1,48 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-import graphene
-from graphene_django import DjangoObjectType
+import strawberry as sb
+import strawberry_django
+from strawberry import auto
 
 from kausal_common.users import user_or_none
 
+from paths import gql
+
+from frameworks.roles import FrameworkRoleDef
+
 from .models import User
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
-    from kausal_common.graphene import GQLInfo
-
-    from frameworks.roles import FrameworkRoleDef
-
-
-class UserFrameworkRole(graphene.ObjectType):
-    framework_id = graphene.ID(required=True)
-    role_id = graphene.String(required=False)
-    org_slug = graphene.String(required=False)
-    org_id = graphene.String(required=False)
+@sb.type(name='UserFrameworkRole')
+class UserFrameworkRoleType:
+    framework_id: sb.ID
+    role_id: str | None
+    org_slug: str | None
+    org_id: str | None
 
 
-class UserType(DjangoObjectType):
-    framework_roles = graphene.List(graphene.NonNull(UserFrameworkRole))
+@strawberry_django.type(User, name='User')
+class UserType:
+    email: auto
+    first_name: auto
+    last_name: auto
 
-    class Meta:
-        model = User
-        fields = ('id', 'email', 'first_name', 'last_name')
-
+    @strawberry_django.field
     @staticmethod
-    def resolve_id(root: User, info: GQLInfo) -> str:
-        return str(root.uuid)
+    def id(root: sb.Parent[User]) -> sb.ID:
+        return sb.ID(str(root.uuid))
 
+    @strawberry_django.field(graphql_type=list[UserFrameworkRoleType])
     @staticmethod
-    def resolve_framework_roles(root: User, info: GQLInfo) -> Sequence[FrameworkRoleDef]:
-        return root.extra.framework_roles
+    def framework_roles(root: sb.Parent[User]) -> list[FrameworkRoleDef]:
+        # FrameworkRoleDef shares the same field names as UserFrameworkRoleType,
+        # so Strawberry serializes the pydantic instances directly by attribute.
+        return list(root.extra.framework_roles)
 
 
-class Query(graphene.ObjectType):
-    me = graphene.Field(UserType)
-
-    def resolve_me(self, info: GQLInfo) -> User | None:
-        user = info.context.get_user()
-        return user_or_none(user)
+@sb.type
+class UsersQuery:
+    @sb.field(graphql_type=UserType | None)
+    @staticmethod
+    def me(info: gql.Info) -> User | None:
+        return user_or_none(info.context.user)
