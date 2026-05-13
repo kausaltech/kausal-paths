@@ -24,7 +24,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             data['framework_config_updated'] = str(self.context.framework_config_data.last_modified_at)
         return data
 
-    def _override_with_measure_datapoints(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    def _override_with_measure_datapoints(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: PLR0915
         from django.db.models import TextField
         from django.db.models.functions import Cast
 
@@ -81,8 +81,37 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         # know it's not just the baseline year.
         unique_years_by_sector = df.group_by('Sector').agg(pl.col('Year').unique().len().alias('NrSectorYears'))
 
+        print(df.select('UUID', 'Year', 'Unit', 'Value', 'Sector'))
+        print(dpdf.filter(pl.col('UUID') == 'ef124e9e-51a3-4cf1-99f2-7f925ab253e0'))
+        print(unique_years_by_sector.filter(pl.col('Sector') == 'Expected annual population growth (up until 2030)'))
         jdf = df.join(dpdf, on='UUID', how='outer')
         jdf = jdf.join(unique_years_by_sector, on='Sector', how='left')
+
+        # If any UUID has multiple MeasureDataPoints (one per year from yearly defaults),
+        # a plain outer join on UUID would create a cartesian product.  Split by whether
+        # the UUID has more than one DP: single-DP UUIDs get the original outer join;
+        # multi-DP UUIDs get a year-keyed left join that matches exactly one DP per row.
+        uuid_dp_counts = dpdf.group_by('UUID').agg(pl.len().alias('DpCount'))
+        multi_dp_uuids = set(uuid_dp_counts.filter(pl.col('DpCount') > 1)['UUID'].to_list())
+
+        if not multi_dp_uuids:
+            jdf = df.join(dpdf, on='UUID', how='outer')
+            jdf = jdf.join(unique_years_by_sector, on='Sector', how='left')
+        else:
+            df_single = df.filter(~pl.col('UUID').is_in(list(multi_dp_uuids)))
+            df_multi = df.filter(pl.col('UUID').is_in(list(multi_dp_uuids)))
+            dpdf_single = dpdf.filter(~pl.col('UUID').is_in(list(multi_dp_uuids)))
+            dpdf_multi = dpdf.filter(pl.col('UUID').is_in(list(multi_dp_uuids))).rename({'MeasureYear': YEAR_COLUMN})
+            parts: list[pl.DataFrame] = []
+            if len(df_single) > 0:
+                jdf_s = df_single.join(dpdf_single, on='UUID', how='outer')
+                jdf_s = jdf_s.join(unique_years_by_sector, on='Sector', how='left')
+                parts.append(jdf_s)
+            jdf_m = df_multi.join(dpdf_multi, on=['UUID', YEAR_COLUMN], how='left')
+            jdf_m = jdf_m.with_columns(pl.col(YEAR_COLUMN).alias('MeasureYear'))
+            jdf_m = jdf_m.join(unique_years_by_sector, on='Sector', how='left')
+            parts.append(jdf_m)
+            jdf = pl.concat(parts, how='diagonal')
 
         # Convert units
         diff_unit = jdf.filter(pl.col('MeasureUnit') != pl.col('Unit')).select(['MeasureUnit', 'Unit']).unique()
