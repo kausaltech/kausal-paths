@@ -1,6 +1,7 @@
 """Strawberry GraphQL types for DB-backed datasets."""
 
 from datetime import date
+from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
@@ -11,6 +12,8 @@ from strawberry import auto
 from kausal_common.datasets.models import (
     DataPointComment as DataPointCommentModel,
     Dataset as DatasetModel,
+    DatasetSourceReference as DatasetSourceReferenceModel,
+    DataSource as DataSourceModel,
 )
 from kausal_common.strawberry.ordering import with_sibling_ids
 from kausal_common.strawberry.registry import register_strawberry_type
@@ -117,6 +120,83 @@ class DataPointCommentType:
         return sb.ID(str(root.uuid))
 
 
+@sb.enum
+class DatasetSourceReferenceTarget(Enum):
+    """
+    Filter for `DatasetSourceReference` queries scoped to a dataset.
+
+    `DATASET` returns refs bound to the dataset itself; `DATA_POINT` returns
+    refs bound to one of its data points; `ALL` returns both.
+    """
+
+    DATASET = 'dataset'
+    DATA_POINT = 'data_point'
+    ALL = 'all'
+
+
+@register_strawberry_type
+@strawberry_django.type(DataSourceModel, name='DataSource')
+class DataSourceType:
+    """A published data source (study, dataset, report, …) usable as a reference."""
+
+    name: auto
+    edition: auto
+    authority: auto
+    description: auto
+    url: auto
+    created_at: auto
+    created_by: Annotated['UserType', sb.lazy('users.schema')] | None
+    last_modified_at: auto
+    last_modified_by: Annotated['UserType', sb.lazy('users.schema')] | None
+
+    @strawberry_django.field
+    @staticmethod
+    def id(root: sb.Parent[DataSourceModel]) -> sb.ID:
+        return sb.ID(str(root.uuid))
+
+    @strawberry_django.field(description='Single-line human-readable label (name, authority, edition).')
+    @staticmethod
+    def label(root: sb.Parent[DataSourceModel]) -> str:
+        return root.get_label()
+
+
+def _source_references_queryset_for_data_point(data_point: DataPointModel) -> Any:
+    return (
+        DatasetSourceReferenceModel.objects
+        .filter(data_point=data_point)
+        .select_related('data_source', 'created_by', 'last_modified_by')
+        .order_by('-created_at')
+    )
+
+
+def _source_references_queryset_for_dataset(
+    dataset: DatasetModel,
+    target: DatasetSourceReferenceTarget,
+) -> Any:
+    from django.db.models import Q
+
+    qs = DatasetSourceReferenceModel.objects.select_related(
+        'data_source', 'data_point', 'dataset', 'created_by', 'last_modified_by'
+    ).order_by('-created_at')
+    if target == DatasetSourceReferenceTarget.DATASET:
+        return qs.filter(dataset=dataset)
+    if target == DatasetSourceReferenceTarget.DATA_POINT:
+        return qs.filter(data_point__dataset=dataset)
+    return qs.filter(Q(dataset=dataset) | Q(data_point__dataset=dataset))
+
+
+def _data_sources_queryset_for_dataset(dataset: DatasetModel) -> Any:
+    """DataSources referenced from inside this dataset (via refs on it or its data points)."""
+    from django.db.models import Q
+
+    return (
+        DataSourceModel.objects
+        .filter(Q(references__dataset=dataset) | Q(references__data_point__dataset=dataset))
+        .distinct()
+        .order_by('name')
+    )
+
+
 def _comments_queryset_for_data_point(data_point: DataPointModel) -> Any:
     return (
         DataPointCommentModel.objects
@@ -154,6 +234,16 @@ class DataPointType:
         if root._model is None:
             return []
         return cast('list[DataPointCommentType]', list(_comments_queryset_for_data_point(root._model)))
+
+    @sb.field(description='Source references attached directly to this data point, newest first.')
+    @staticmethod
+    def source_references(root: 'DataPointType') -> "list['DatasetSourceReferenceType']":
+        if root._model is None:
+            return []
+        return cast(
+            'list[DatasetSourceReferenceType]',
+            list(_source_references_queryset_for_data_point(root._model)),
+        )
 
     @classmethod
     def from_model(cls, data_point: DataPointModel) -> DataPointType:
@@ -229,6 +319,31 @@ class DatasetType:
         if root._model is None:
             return []
         return cast('list[DataPointCommentType]', list(_comments_queryset_for_dataset(root._model)))
+
+    @sb.field(
+        description=(
+            'Source references inside this dataset. `target` selects refs attached '
+            'directly to the dataset, refs attached to its data points, or both.'
+        ),
+    )
+    @staticmethod
+    def source_references(
+        root: 'DatasetType',
+        target: DatasetSourceReferenceTarget = DatasetSourceReferenceTarget.DATASET,
+    ) -> "list['DatasetSourceReferenceType']":
+        if root._model is None:
+            return []
+        return cast(
+            'list[DatasetSourceReferenceType]',
+            list(_source_references_queryset_for_dataset(root._model, target)),
+        )
+
+    @sb.field(description='DataSources referenced from this dataset (via refs on it or its data points).')
+    @staticmethod
+    def data_sources(root: 'DatasetType') -> list[DataSourceType]:
+        if root._model is None:
+            return []
+        return cast('list[DataSourceType]', list(_data_sources_queryset_for_dataset(root._model)))
 
     @sb.field(graphql_type=list[Annotated['DimensionalMetricType', sb.lazy('nodes.graphql.types.metric')]])
     @staticmethod
@@ -324,3 +439,35 @@ class DatasetType:
             is_external_placeholder=binding.dataset_is_external_placeholder,
             external_ref=_dataset_external_ref_to_gql(binding.dataset_external_ref),
         )
+
+
+# DatasetSourceReferenceType is defined after DataPointType and DatasetType
+# because its `data_point` and `dataset` resolvers return those types — a
+# circular reference that's awkward to forward-declare in the same module.
+@register_strawberry_type
+@strawberry_django.type(DatasetSourceReferenceModel, name='DatasetSourceReference')
+class DatasetSourceReferenceType:
+    """Link from a data point or a dataset to a `DataSource`."""
+
+    data_source: DataSourceType
+    created_at: auto
+    created_by: Annotated['UserType', sb.lazy('users.schema')] | None
+    last_modified_at: auto
+    last_modified_by: Annotated['UserType', sb.lazy('users.schema')] | None
+
+    @strawberry_django.field
+    @staticmethod
+    def id(root: sb.Parent[DatasetSourceReferenceModel]) -> sb.ID:
+        return sb.ID(str(root.uuid))
+
+    @strawberry_django.field(description='The data point this reference is attached to, if any.')
+    @staticmethod
+    def data_point(root: sb.Parent[DatasetSourceReferenceModel]) -> DataPointType | None:
+        dp = root.data_point
+        return DataPointType.from_model(dp) if dp is not None else None
+
+    @strawberry_django.field(description='The dataset this reference is attached to directly, if any.')
+    @staticmethod
+    def dataset(root: sb.Parent[DatasetSourceReferenceModel]) -> DatasetType | None:
+        ds = root.dataset
+        return DatasetType.from_model(ds) if ds is not None else None

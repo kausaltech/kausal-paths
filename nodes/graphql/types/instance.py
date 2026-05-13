@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Protocol
+from typing import TYPE_CHECKING, Annotated, Any, Protocol
 from uuid import UUID
 
 import strawberry as sb
@@ -41,6 +41,7 @@ from .graph import (
 from .spec import InstanceSpecType, YearsDefType
 
 if TYPE_CHECKING:
+    from datasets.graphql.types import DataSourceType  # used in lazy strawberry annotation
     from nodes.context import Context
     from nodes.graphql.types.change_history import InstanceChangeOperationType
     from nodes.graphql.types.node import NodeInterface, NodeType
@@ -229,6 +230,25 @@ class InstanceEditorFields:
         ic = root._instance.config
         qs = DatasetModel.objects.get_queryset().for_instance_config(ic).select_related('schema')
         return [DatasetType.from_model(ds) for ds in qs]
+
+    @sb.field(
+        graphql_type=list[Annotated['DataSourceType', sb.lazy('datasets.graphql.types')]],
+        description='The library of DataSources scoped to this instance.',
+    )
+    @staticmethod
+    def data_sources(root: 'InstanceEditorFields') -> list[Any]:
+        from django.contrib.contenttypes.models import ContentType
+
+        from kausal_common.datasets.models import DataSource
+
+        ic = root._instance.config
+        ct = ContentType.objects.get_for_model(type(ic))
+        return list(
+            DataSource.objects
+            .filter(scope_content_type=ct, scope_id=ic.pk)
+            .select_related('created_by', 'last_modified_by')
+            .order_by('name'),
+        )
 
     @sb.field(graphql_type=list[DimensionType])
     @staticmethod

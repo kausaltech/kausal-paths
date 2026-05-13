@@ -45,10 +45,15 @@ from .types.spec import InputPortType, OutputPortType
 if TYPE_CHECKING:
     from strawberry import Some
 
-    from kausal_common.datasets.models import DimensionCategory as DimensionCategoryModel, DimensionScope
+    from kausal_common.datasets.models import (
+        DataSource,
+        DimensionCategory as DimensionCategoryModel,
+        DimensionScope,
+    )
     from kausal_common.models.ordered import OrderedModel
 
     from datasets.graphql.editor import DatasetEditorMutation
+    from datasets.graphql.types import DataSourceType  # used in lazy strawberry annotations
     from nodes.defs.edge_def import EdgeTransformation
 
 
@@ -486,6 +491,24 @@ class UpdateDimensionCategoryInput(SiblingPositionInputMixin):
 class UpdateDimensionInput:
     dimension_id: UUID
     name: Maybe[str]
+
+
+@sb.input
+class CreateDataSourceInput:
+    name: str
+    edition: str | None = None
+    authority: str | None = None
+    description: str | None = None
+    url: str | None = None
+
+
+@sb.input
+class UpdateDataSourceInput:
+    name: Maybe[str]
+    edition: Maybe[str | None]
+    authority: Maybe[str | None]
+    description: Maybe[str | None]
+    url: Maybe[str | None]
 
 
 @sb.type(name='ModelNodePayload')
@@ -1371,6 +1394,164 @@ class InstanceEditorMutation:
         with transaction.atomic():
             ic.revert_to_published()
         return _resolve_model_instance(ic)
+
+    # ------------------------------------------------------------------
+    # Data sources
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _data_source_snapshot(ds: DataSource) -> dict[str, Any]:
+        return {
+            'uuid': str(ds.uuid),
+            'name': ds.name,
+            'edition': ds.edition,
+            'authority': ds.authority,
+            'description': ds.description,
+            'url': ds.url,
+        }
+
+    @staticmethod
+    def _get_data_source(info: gql.Info, ic: InstanceConfig, data_source_id: sb.ID) -> DataSource:
+        from django.contrib.contenttypes.models import ContentType
+
+        from kausal_common.datasets.models import DataSource
+
+        ct = ContentType.objects.get_for_model(type(ic))
+        return get_or_error(
+            info,
+            DataSource.objects.filter(scope_content_type=ct, scope_id=ic.pk),
+            uuid=str(data_source_id),
+            for_action='change',
+        )
+
+    @gql.mutation(
+        description='Create a new DataSource in this instance.',
+        graphql_type=Annotated['DataSourceType', sb.lazy('datasets.graphql.types')],
+    )
+    @staticmethod
+    def create_data_source(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: 'CreateDataSourceInput',
+    ) -> Any:
+        from django.contrib.contenttypes.models import ContentType
+
+        from kausal_common.datasets.models import DataSource
+        from kausal_common.users import user_or_bust
+
+        from nodes.change_ops import gql_change_operation, record_change
+
+        ic = root.instance
+        if not DataSource.gql_create_allowed(info, None):
+            raise PermissionDeniedError(info, 'Permission denied for create')
+
+        try:
+            user = user_or_bust(info.context.user)
+        except ValueError as exc:
+            raise PermissionDeniedError(info, 'Permission denied') from exc
+
+        ct = ContentType.objects.get_for_model(type(ic))
+        with gql_change_operation(info, ic, action='dataset.data_source.create'):
+            data_source = DataSource.objects.create(
+                scope_content_type=ct,
+                scope_id=ic.pk,
+                name=input.name,
+                edition=input.edition,
+                authority=input.authority,
+                description=input.description,
+                url=input.url,
+                created_by=user,
+                last_modified_by=user,
+            )
+            record_change(
+                data_source,
+                action='dataset.data_source.create',
+                before=None,
+                after=InstanceEditorMutation._data_source_snapshot(data_source),
+            )
+        return data_source
+
+    @gql.mutation(
+        description='Update an existing DataSource in this instance.',
+        graphql_type=Annotated['DataSourceType', sb.lazy('datasets.graphql.types')],
+    )
+    @staticmethod
+    def update_data_source(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        data_source_id: sb.ID,
+        input: 'UpdateDataSourceInput',
+    ) -> Any:
+        from kausal_common.users import user_or_bust
+
+        from nodes.change_ops import gql_change_operation, record_change
+
+        ic = root.instance
+        data_source = InstanceEditorMutation._get_data_source(info, ic, data_source_id)
+        try:
+            user = user_or_bust(info.context.user)
+        except ValueError as exc:
+            raise PermissionDeniedError(info, 'Permission denied') from exc
+
+        with gql_change_operation(info, ic, action='dataset.data_source.update'):
+            before = InstanceEditorMutation._data_source_snapshot(data_source)
+            update_fields: list[str] = []
+            if is_maybe_set(input.name):
+                data_source.name = input.name.value
+                update_fields.append('name')
+            if is_maybe_set(input.edition):
+                data_source.edition = input.edition.value
+                update_fields.append('edition')
+            if is_maybe_set(input.authority):
+                data_source.authority = input.authority.value
+                update_fields.append('authority')
+            if is_maybe_set(input.description):
+                data_source.description = input.description.value
+                update_fields.append('description')
+            if is_maybe_set(input.url):
+                data_source.url = input.url.value
+                update_fields.append('url')
+            data_source.last_modified_by = user
+            update_fields.extend(['last_modified_by', 'last_modified_at'])
+            data_source.save(update_fields=update_fields)
+            record_change(
+                data_source,
+                action='dataset.data_source.update',
+                before=before,
+                after=InstanceEditorMutation._data_source_snapshot(data_source),
+            )
+        return data_source
+
+    @gql.mutation(description='Delete a DataSource. Fails if still referenced.')
+    @staticmethod
+    def delete_data_source(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        data_source_id: sb.ID,
+    ) -> DeletePayload:
+        from django.core.exceptions import ValidationError
+        from django.db.models import ProtectedError
+
+        from nodes.change_ops import gql_change_operation, record_change
+
+        ic = root.instance
+        data_source = InstanceEditorMutation._get_data_source(info, ic, data_source_id)
+        data_source.ensure_gql_action_allowed(info, 'delete')
+
+        with gql_change_operation(info, ic, action='dataset.data_source.delete'):
+            record_change(
+                data_source,
+                action='dataset.data_source.delete',
+                before=InstanceEditorMutation._data_source_snapshot(data_source),
+                after=None,
+            )
+            try:
+                data_source.delete()
+            except ProtectedError as exc:
+                raise ValidationError(
+                    'Cannot delete a DataSource that is still referenced. Remove the references first.',
+                ) from exc
+        return DeletePayload(ok=True)
 
 
 @sb.type

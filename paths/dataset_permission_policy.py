@@ -439,7 +439,7 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
 
     @override
     def is_create_context_valid(self, context: Any) -> TypeGuard[None]:
-        return False
+        return context is None
 
 
 class DataPointCommentPermissionPolicy(

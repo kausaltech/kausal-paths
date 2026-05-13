@@ -8,6 +8,7 @@ from uuid import UUID
 import strawberry as sb
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from strawberry import Maybe
 from strawberry_django.fields.types import OperationInfo
@@ -18,6 +19,8 @@ from kausal_common.datasets.models import (
     DataPointComment,
     DataPointCommentReviewState,
     Dataset,
+    DatasetSourceReference,
+    DataSource,
 )
 from kausal_common.strawberry.helpers import get_or_error
 from kausal_common.users import user_or_bust
@@ -27,10 +30,19 @@ from paths import gql
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.models import InstanceConfig
 
-from .types import DataPointCommentType, DataPointType
+from .types import DataPointCommentType, DataPointType, DatasetSourceReferenceType
 
 if TYPE_CHECKING:
     from strawberry import Some
+
+
+@sb.input
+class CreateDatasetSourceReferenceInput:
+    """Create a source reference. Exactly one of data_point_id or to_dataset must be set."""
+
+    data_source_id: UUID
+    data_point_id: UUID | None = None
+    to_dataset: bool = False
 
 
 @sb.input
@@ -418,3 +430,95 @@ class DatasetEditorMutation:
                 after=DatasetEditorMutation._data_point_comment_snapshot(comment),
             )
         return cast('DataPointCommentType', comment)
+
+    # ------------------------------------------------------------------
+    # DatasetSourceReference
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _source_reference_snapshot(ref: DatasetSourceReference) -> dict[str, Any]:
+        return {
+            'uuid': str(ref.uuid),
+            'data_source_uuid': str(ref.data_source.uuid),
+            'data_point_uuid': str(ref.data_point.uuid) if ref.data_point else None,
+            'dataset_uuid': str(ref.dataset.uuid) if ref.dataset else None,
+        }
+
+    @gql.mutation(
+        description='Attach a DataSource to either a data point or this dataset.',
+        graphql_type=DatasetSourceReferenceType,
+    )
+    @staticmethod
+    def create_source_reference(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: CreateDatasetSourceReferenceInput,
+    ) -> DatasetSourceReferenceType:
+        dataset = root.dataset
+
+        if (input.data_point_id is None) == (not input.to_dataset):
+            raise ValidationError('Exactly one of data_point_id or to_dataset must be set.')
+
+        data_point: DataPoint | None = None
+        if input.data_point_id is not None:
+            data_point = get_or_error(
+                info,
+                dataset.data_points.get_queryset(),
+                uuid=str(input.data_point_id),
+                for_action='change',
+            )
+
+        data_source = get_or_error(
+            info,
+            DataSource.objects.filter(scope_id=root.instance.pk),
+            uuid=str(input.data_source_id),
+        )
+
+        if not DatasetSourceReference.gql_create_allowed(info, cast('Any', dataset)):
+            raise PermissionDenied('Permission denied for create')
+
+        try:
+            user = user_or_bust(info.context.user)
+        except ValueError as exc:
+            raise PermissionDenied('Permission denied') from exc
+
+        with gql_change_operation(info, root.instance, action='dataset.source_reference.create'):
+            ref = DatasetSourceReference.objects.create(
+                data_source=data_source,
+                data_point=data_point,
+                dataset=dataset if input.to_dataset else None,
+                created_by=user,
+                last_modified_by=user,
+            )
+            record_change(
+                ref,
+                action='dataset.source_reference.create',
+                before=None,
+                after=DatasetEditorMutation._source_reference_snapshot(ref),
+            )
+        return cast('DatasetSourceReferenceType', ref)
+
+    @gql.mutation(description='Remove a source reference.', graphql_type=OperationInfo | None)
+    @staticmethod
+    def delete_source_reference(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        reference_id: sb.ID,
+    ) -> OperationInfo | None:
+        ref = get_or_error(
+            info,
+            DatasetSourceReference.objects.filter(
+                Q(dataset=root.dataset) | Q(data_point__dataset=root.dataset),
+            ),
+            uuid=str(reference_id),
+            for_action='delete',
+        )
+        with gql_change_operation(info, root.instance, action='dataset.source_reference.delete'):
+            record_change(
+                ref,
+                action='dataset.source_reference.delete',
+                before=DatasetEditorMutation._source_reference_snapshot(ref),
+                after=None,
+            )
+            ref.delete()
+        return None

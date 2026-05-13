@@ -6,7 +6,12 @@ from uuid import uuid4
 
 import pytest
 
-from kausal_common.datasets.models import DataPoint, DataPointComment
+from kausal_common.datasets.models import (
+    DataPoint,
+    DataPointComment,
+    DatasetSourceReference,
+    DataSource,
+)
 from kausal_common.datasets.tests.factories import (
     DataPointFactory,
     DatasetFactory,
@@ -664,3 +669,346 @@ def test_comment_mutation_emits_change_operation(gql_client: PathsTestClient, da
     assert entry is not None
     assert entry.data['before'] is None
     assert entry.data['after']['text'] == 'Tracked'
+
+
+# ----------------------------------------------------------------------
+# DataSource + DatasetSourceReference
+# ----------------------------------------------------------------------
+
+
+CREATE_DATA_SOURCE = """
+mutation CreateDataSource($instanceId: ID!, $input: CreateDataSourceInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        createDataSource(input: $input) {
+            __typename
+            ... on DataSource {
+                id
+                name
+                authority
+                edition
+                description
+                url
+                label
+            }
+            ... on OperationInfo { messages { kind message } }
+        }
+    }
+}
+"""
+
+
+UPDATE_DATA_SOURCE = """
+mutation UpdateDataSource($instanceId: ID!, $dataSourceId: ID!, $input: UpdateDataSourceInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        updateDataSource(dataSourceId: $dataSourceId, input: $input) {
+            __typename
+            ... on DataSource { id name edition authority }
+            ... on OperationInfo { messages { kind message } }
+        }
+    }
+}
+"""
+
+
+DELETE_DATA_SOURCE = """
+mutation DeleteDataSource($instanceId: ID!, $dataSourceId: ID!) {
+    instanceEditor(instanceId: $instanceId) {
+        deleteDataSource(dataSourceId: $dataSourceId) {
+            __typename
+            ... on ModelDeletePayload { ok }
+            ... on OperationInfo { messages { kind message } }
+        }
+    }
+}
+"""
+
+
+CREATE_SOURCE_REFERENCE = """
+mutation CreateRef($instanceId: ID!, $datasetId: ID!, $input: CreateDatasetSourceReferenceInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        datasetEditor(datasetId: $datasetId) {
+            createSourceReference(input: $input) {
+                __typename
+                ... on DatasetSourceReference {
+                    id
+                    dataSource { id name }
+                    dataPoint { id }
+                    dataset { id }
+                }
+                ... on OperationInfo { messages { kind message } }
+            }
+        }
+    }
+}
+"""
+
+
+DELETE_SOURCE_REFERENCE = """
+mutation DeleteRef($instanceId: ID!, $datasetId: ID!, $referenceId: ID!) {
+    instanceEditor(instanceId: $instanceId) {
+        datasetEditor(datasetId: $datasetId) {
+            deleteSourceReference(referenceId: $referenceId) {
+                messages { kind message }
+            }
+        }
+    }
+}
+"""
+
+
+INSTANCE_DATA_SOURCES = """
+query InstanceDataSources($instanceId: ID!) {
+    modelInstance(instanceId: $instanceId) {
+        editor {
+            dataSources { id name }
+        }
+    }
+}
+"""
+
+
+DATASET_SOURCE_REFERENCES = """
+query DatasetSources($instanceId: ID!, $target: DatasetSourceReferenceTarget!) {
+    modelInstance(instanceId: $instanceId) {
+        editor {
+            datasets {
+                id
+                sourceReferences(target: $target) {
+                    id
+                    dataPoint { id }
+                    dataset { id }
+                    dataSource { id }
+                }
+                dataSources { id name }
+                dataPoints { id sourceReferences { id dataSource { id } } }
+            }
+        }
+    }
+}
+"""
+
+
+def _make_data_source(instance_config, **kwargs) -> DataSource:
+    from django.contrib.contenttypes.models import ContentType
+
+    ct = ContentType.objects.get_for_model(type(instance_config))
+    defaults = {
+        'name': 'Test Source',
+        'authority': 'Test Authority',
+    }
+    defaults.update(kwargs)
+    return DataSource.objects.create(scope_content_type=ct, scope_id=instance_config.pk, **defaults)
+
+
+def test_create_data_source(gql_client: PathsTestClient, db_instance_config):
+    data = gql_client.query_data(
+        CREATE_DATA_SOURCE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'name': 'IPCC AR6',
+                'authority': 'IPCC',
+                'edition': '2021',
+                'description': 'Sixth Assessment Report',
+                'url': 'https://example.org/ar6',
+            },
+        },
+    )
+    result = data['instanceEditor']['createDataSource']
+    assert result['__typename'] == 'DataSource'
+    assert result['name'] == 'IPCC AR6'
+    assert result['authority'] == 'IPCC'
+    assert result['edition'] == '2021'
+    assert result['label']
+    assert DataSource.objects.filter(uuid=result['id']).exists()
+
+
+def test_update_data_source(gql_client: PathsTestClient, db_instance_config):
+    ds = _make_data_source(db_instance_config, name='Old', authority='Old Auth')
+
+    data = gql_client.query_data(
+        UPDATE_DATA_SOURCE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'dataSourceId': str(ds.uuid),
+            'input': {'name': 'New', 'edition': 'rev2'},
+        },
+    )
+    result = data['instanceEditor']['updateDataSource']
+    assert result['__typename'] == 'DataSource'
+    assert result['name'] == 'New'
+    assert result['edition'] == 'rev2'
+    assert result['authority'] == 'Old Auth'  # untouched
+    ds.refresh_from_db()
+    assert ds.name == 'New'
+    assert ds.edition == 'rev2'
+
+
+def test_delete_unreferenced_data_source(gql_client: PathsTestClient, db_instance_config):
+    ds = _make_data_source(db_instance_config)
+
+    data = gql_client.query_data(
+        DELETE_DATA_SOURCE,
+        variables={'instanceId': str(db_instance_config.pk), 'dataSourceId': str(ds.uuid)},
+    )
+    payload = data['instanceEditor']['deleteDataSource']
+    assert payload['__typename'] == 'ModelDeletePayload'
+    assert payload['ok'] is True
+    assert not DataSource.objects.filter(pk=ds.pk).exists()
+
+
+def test_delete_referenced_data_source_fails(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, _metric, _category = dataset_setup
+    ds = _make_data_source(instance_config)
+    DatasetSourceReference.objects.create(data_source=ds, dataset=dataset)
+
+    data = gql_client.query_data(
+        DELETE_DATA_SOURCE,
+        variables={'instanceId': str(instance_config.pk), 'dataSourceId': str(ds.uuid)},
+    )
+    result = data['instanceEditor']['deleteDataSource']
+    assert result['__typename'] == 'OperationInfo'
+    assert 'still referenced' in result['messages'][0]['message']
+    assert DataSource.objects.filter(pk=ds.pk).exists()
+
+
+def test_create_source_reference_to_dataset(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, _metric, _category = dataset_setup
+    ds = _make_data_source(instance_config)
+
+    data = gql_client.query_data(
+        CREATE_SOURCE_REFERENCE,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': {'dataSourceId': str(ds.uuid), 'toDataset': True},
+        },
+    )
+    result = data['instanceEditor']['datasetEditor']['createSourceReference']
+    assert result['__typename'] == 'DatasetSourceReference'
+    assert result['dataSource']['id'] == str(ds.uuid)
+    assert result['dataset']['id'] == str(dataset.uuid)
+    assert result['dataPoint'] is None
+    assert DatasetSourceReference.objects.filter(uuid=result['id'], dataset=dataset).exists()
+
+
+def test_create_source_reference_to_data_point(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    data_point = DataPointFactory.create(dataset=dataset, metric=metric, dimension_categories=[category])
+    ds = _make_data_source(instance_config)
+
+    data = gql_client.query_data(
+        CREATE_SOURCE_REFERENCE,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': {'dataSourceId': str(ds.uuid), 'dataPointId': str(data_point.uuid)},
+        },
+    )
+    result = data['instanceEditor']['datasetEditor']['createSourceReference']
+    assert result['__typename'] == 'DatasetSourceReference'
+    assert result['dataPoint']['id'] == str(data_point.uuid)
+    assert result['dataset'] is None
+    assert DatasetSourceReference.objects.filter(uuid=result['id'], data_point=data_point).exists()
+
+
+def test_create_source_reference_rejects_both_targets(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    data_point = DataPointFactory.create(dataset=dataset, metric=metric, dimension_categories=[category])
+    ds = _make_data_source(instance_config)
+
+    data = gql_client.query_data(
+        CREATE_SOURCE_REFERENCE,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': {
+                'dataSourceId': str(ds.uuid),
+                'toDataset': True,
+                'dataPointId': str(data_point.uuid),
+            },
+        },
+    )
+    result = data['instanceEditor']['datasetEditor']['createSourceReference']
+    assert result['__typename'] == 'OperationInfo'
+    assert any('Exactly one of' in m['message'] for m in result['messages'])
+
+
+def test_delete_source_reference(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, _metric, _category = dataset_setup
+    ds = _make_data_source(instance_config)
+    ref = DatasetSourceReference.objects.create(data_source=ds, dataset=dataset)
+
+    data = gql_client.query_data(
+        DELETE_SOURCE_REFERENCE,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'referenceId': str(ref.uuid),
+        },
+    )
+    assert data['instanceEditor']['datasetEditor']['deleteSourceReference'] is None
+    assert not DatasetSourceReference.objects.filter(pk=ref.pk).exists()
+
+
+def test_instance_data_sources_query(gql_client: PathsTestClient, db_instance_config):
+    s1 = _make_data_source(db_instance_config, name='Alpha')
+    s2 = _make_data_source(db_instance_config, name='Beta')
+
+    data = gql_client.query_data(
+        INSTANCE_DATA_SOURCES,
+        variables={'instanceId': str(db_instance_config.pk)},
+    )
+    ids = {s['id'] for s in data['modelInstance']['editor']['dataSources']}
+    assert {str(s1.uuid), str(s2.uuid)} <= ids
+
+
+def test_dataset_source_references_filtering(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    data_point = DataPointFactory.create(dataset=dataset, metric=metric, dimension_categories=[category])
+    ds = _make_data_source(instance_config)
+
+    ref_on_dataset = DatasetSourceReference.objects.create(data_source=ds, dataset=dataset)
+    ref_on_dp = DatasetSourceReference.objects.create(data_source=ds, data_point=data_point)
+
+    def query(target: str) -> list[str]:
+        data = gql_client.query_data(
+            DATASET_SOURCE_REFERENCES,
+            variables={'instanceId': str(instance_config.pk), 'target': target},
+        )
+        ds_node = next(d for d in data['modelInstance']['editor']['datasets'] if d['id'] == str(dataset.uuid))
+        return [r['id'] for r in ds_node['sourceReferences']]
+
+    assert query('DATASET') == [str(ref_on_dataset.uuid)]
+    assert query('DATA_POINT') == [str(ref_on_dp.uuid)]
+    assert set(query('ALL')) == {str(ref_on_dataset.uuid), str(ref_on_dp.uuid)}
+
+    data = gql_client.query_data(
+        DATASET_SOURCE_REFERENCES,
+        variables={'instanceId': str(instance_config.pk), 'target': 'ALL'},
+    )
+    ds_node = next(d for d in data['modelInstance']['editor']['datasets'] if d['id'] == str(dataset.uuid))
+    assert [s['id'] for s in ds_node['dataSources']] == [str(ds.uuid)]
+    dp_node = next(p for p in ds_node['dataPoints'] if p['id'] == str(data_point.uuid))
+    assert [r['id'] for r in dp_node['sourceReferences']] == [str(ref_on_dp.uuid)]
+
+
+def test_data_source_mutation_emits_change_operation(gql_client: PathsTestClient, db_instance_config):
+    from nodes.models import InstanceChangeOperation, InstanceModelLogEntry
+
+    gql_client.query_data(
+        CREATE_DATA_SOURCE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {'name': 'Tracked source'},
+        },
+    )
+    op = InstanceChangeOperation.objects.filter(
+        instance_config=db_instance_config,
+        action='dataset.data_source.create',
+    ).first()
+    assert op is not None
+    entry = InstanceModelLogEntry.objects.filter(operation=op).first()
+    assert entry is not None
+    assert entry.data['before'] is None
+    assert entry.data['after']['name'] == 'Tracked source'
