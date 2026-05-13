@@ -1930,12 +1930,12 @@ def test_data_point_bulk_update(api_client, dataset_test_data, user_key, data_po
     put_data = [
         {
             'uuid': str(dp.uuid),
-            'date': '2025-01-01',
+            'date': f'{2025 + index}-01-01',
             'value': 888.88,
             'metric': str(metric.uuid),
             'dimension_categories': [str(dc.uuid) for dc in dimension_categories],
         }
-        for dp in data_points
+        for index, dp in enumerate(data_points)
     ]
     with AssertIdenticalUUIDs(DataPoint.objects):
         response = api_client.put(f'/v1/datasets/{dataset.uuid}/data_points/', put_data, format='json')
@@ -1944,4 +1944,4 @@ def test_data_point_bulk_update(api_client, dataset_test_data, user_key, data_po
         data = response.json()
         assert len(data) == len(data_points)
         assert all(d['value'] == 888.88 for d in data)
-        assert all(d['date'] == '2025-01-01' for d in data)
+        assert [d['date'] for d in data] == [item['date'] for item in put_data]

@@ -113,15 +113,16 @@ class DatasetEditorMutation:
         return data
 
     @staticmethod
-    def _save_dataset(root: Me, info: gql.Info) -> None:
+    def _save_dataset(root: Me, info: gql.Info, dataset: Dataset | None = None) -> None:
         try:
             user = user_or_bust(info.context.user)
         except ValueError as exc:
             raise PermissionDenied('Permission denied') from exc
-        root.dataset.last_modified_by = user
-        root.dataset.last_modified_at = timezone.now()
-        root.dataset.save(update_fields=['last_modified_by', 'last_modified_at'])
-        root.dataset.clear_scope_instance_cache()
+        dataset = dataset or root.dataset
+        dataset.last_modified_by = user
+        dataset.last_modified_at = timezone.now()
+        dataset.save(update_fields=['last_modified_by', 'last_modified_at'])
+        dataset.clear_scope_instance_cache()
 
     @staticmethod
     def _data_point_snapshot(dp: DataPoint) -> dict[str, Any]:
@@ -144,26 +145,28 @@ class DatasetEditorMutation:
         if not DataPoint.gql_create_allowed(info, cast('Any', dataset)):
             raise PermissionDenied('Permission denied for create')
 
-        serializer = DataPointSerializer(
-            data=DatasetEditorMutation._serialize_input(input),
-            context=DatasetEditorMutation._serializer_context(root),
-        )
-        if not serializer.is_valid():
-            _raise_serializer_errors(serializer)
-
         try:
             user = user_or_bust(info.context.user)
         except ValueError as exc:
             raise PermissionDenied('Permission denied') from exc
-        with gql_change_operation(info, root.instance, action='dataset.datapoint.create'):
-            data_point = serializer.save(dataset=dataset, last_modified_by=user)
-            DatasetEditorMutation._save_dataset(root, info)
-            record_change(
-                data_point,
-                action='dataset.datapoint.create',
-                before=None,
-                after=DatasetEditorMutation._data_point_snapshot(data_point),
+        with transaction.atomic():
+            dataset = Dataset.objects.select_for_update().get(pk=dataset.pk)
+            serializer = DataPointSerializer(
+                data=DatasetEditorMutation._serialize_input(input),
+                context=DatasetEditorMutation._serializer_context(root),
             )
+            if not serializer.is_valid():
+                _raise_serializer_errors(serializer)
+
+            with gql_change_operation(info, root.instance, action='dataset.datapoint.create'):
+                data_point = serializer.save(dataset=dataset, last_modified_by=user)
+                DatasetEditorMutation._save_dataset(root, info, dataset=dataset)
+                record_change(
+                    data_point,
+                    action='dataset.datapoint.create',
+                    before=None,
+                    after=DatasetEditorMutation._data_point_snapshot(data_point),
+                )
         return DataPointType.from_model(data_point)
 
     @gql.mutation(description='Update a data point', graphql_type=DataPointType)
@@ -174,31 +177,32 @@ class DatasetEditorMutation:
         data_point_id: sb.ID,
         input: UpdateDataPointInput,
     ) -> DataPointType:
-        data_point = get_or_error(info, root.dataset.data_points.get_queryset(), uuid=str(data_point_id), for_action='change')
-
-        serializer = DataPointSerializer(
-            data_point,
-            data=DatasetEditorMutation._serialize_input(input),
-            partial=True,
-            context=DatasetEditorMutation._serializer_context(root),
-        )
-        if not serializer.is_valid():
-            _raise_serializer_errors(serializer)
-
         try:
             user = user_or_bust(info.context.user)
         except ValueError as exc:
             raise PermissionDenied('Permission denied') from exc
-        with gql_change_operation(info, root.instance, action='dataset.datapoint.update'):
-            before = DatasetEditorMutation._data_point_snapshot(data_point)
-            updated = serializer.save(last_modified_by=user)
-            DatasetEditorMutation._save_dataset(root, info)
-            record_change(
-                updated,
-                action='dataset.datapoint.update',
-                before=before,
-                after=DatasetEditorMutation._data_point_snapshot(updated),
+        with transaction.atomic():
+            dataset = Dataset.objects.select_for_update().get(pk=root.dataset.pk)
+            data_point = get_or_error(info, dataset.data_points.get_queryset(), uuid=str(data_point_id), for_action='change')
+            serializer = DataPointSerializer(
+                data_point,
+                data=DatasetEditorMutation._serialize_input(input),
+                partial=True,
+                context=DatasetEditorMutation._serializer_context(root),
             )
+            if not serializer.is_valid():
+                _raise_serializer_errors(serializer)
+
+            with gql_change_operation(info, root.instance, action='dataset.datapoint.update'):
+                before = DatasetEditorMutation._data_point_snapshot(data_point)
+                updated = serializer.save(last_modified_by=user)
+                DatasetEditorMutation._save_dataset(root, info, dataset=dataset)
+                record_change(
+                    updated,
+                    action='dataset.datapoint.update',
+                    before=before,
+                    after=DatasetEditorMutation._data_point_snapshot(updated),
+                )
         return DataPointType.from_model(updated)
 
     @gql.mutation(description='Delete a data point', graphql_type=OperationInfo | None)

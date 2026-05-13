@@ -173,6 +173,34 @@ def test_create_data_point(gql_client: PathsTestClient, dataset_setup):
     assert DataPoint.objects.filter(uuid=data_point['id'], dataset=dataset).exists()
 
 
+def test_create_data_point_rejects_duplicate_with_no_dimension_categories(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, _category = dataset_setup
+    DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        date=date(2024, 1, 1),
+        value=Decimal('100.0'),
+    )
+
+    data = gql_client.query_data(
+        CREATE_DATA_POINT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': {
+                'date': '2024-01-01',
+                'value': 150.0,
+                'metricId': str(metric.uuid),
+                'dimensionCategoryIds': [],
+            },
+        },
+    )
+
+    result = data['instanceEditor']['datasetEditor']['createDataPoint']
+    assert result['__typename'] == 'OperationInfo'
+    assert result['messages'][0]['kind'] == 'VALIDATION'
+
+
 def test_update_data_point(gql_client: PathsTestClient, dataset_setup):
     instance_config, dataset, metric, category = dataset_setup
     data_point = DataPointFactory.create(
@@ -201,6 +229,41 @@ def test_update_data_point(gql_client: PathsTestClient, dataset_setup):
     data_point.refresh_from_db()
     assert data_point.date == date(2025, 1, 1)
     assert data_point.value is None
+
+
+def test_update_data_point_rejects_duplicate_coordinates(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    existing = DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        date=date(2024, 1, 1),
+        value=Decimal('100.0'),
+        dimension_categories=[category],
+    )
+    data_point = DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        date=date(2025, 1, 1),
+        value=Decimal('200.0'),
+    )
+
+    data = gql_client.query_data(
+        UPDATE_DATA_POINT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'dataPointId': str(data_point.uuid),
+            'input': {'date': '2024-01-01', 'dimensionCategoryIds': [str(category.uuid)]},
+        },
+    )
+
+    result = data['instanceEditor']['datasetEditor']['updateDataPoint']
+    assert result['__typename'] == 'OperationInfo'
+    assert result['messages'][0]['kind'] == 'VALIDATION'
+    data_point.refresh_from_db()
+    assert data_point.date == date(2025, 1, 1)
+    assert list(data_point.dimension_categories.all()) == []
+    assert DataPoint.objects.filter(pk=existing.pk).exists()
 
 
 def test_delete_data_point(gql_client: PathsTestClient, dataset_setup):

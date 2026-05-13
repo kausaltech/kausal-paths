@@ -18,6 +18,7 @@ from kausal_common.strawberry.errors import GraphQLValidationError, NotFoundErro
 from kausal_common.strawberry.helpers import get_or_error
 from kausal_common.strawberry.ordering import SiblingPositionInputMixin
 from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_input
+from kausal_common.users import user_or_none
 
 from paths import gql
 
@@ -1387,8 +1388,8 @@ class ModelEditorMutation:
         if ic is None:
             raise GraphQLError(f'Instance "{instance_id}" not found')
 
-        user = info.context.user
-        if user is None or not user.is_authenticated or not ic.permission_policy().user_can_set_lock(user, ic):
+        user = user_or_none(info.context.user)
+        if user is None or not ic.permission_policy().user_can_set_lock(user, ic):
             raise PermissionDeniedError(info, 'Permission denied for instance lock')
 
         if ic.is_locked != is_locked:
