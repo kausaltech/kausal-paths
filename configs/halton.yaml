@@ -20,6 +20,8 @@ emission_dimensions: [department, scope]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
+  show_significant_digits: 3
+  maximum_fraction_digits: 3
 
 action_groups:
 - id: green_fleet_strategy
@@ -2106,17 +2108,6 @@ nodes:
     - id: system_retrofit
       flatten: true
 
-- id: cs_purchased_electricity_mix
-  name: Corporate Services Purchased Electricity (Mix)
-  type: simple.MixNode
-  quantity: mix
-  unit: '%'
-  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
-  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
-  input_nodes:
-  - id: cs_purchased_electricity_retrofitted
-    tags: [activity]
-
 - id: cs_purchased_electricity_renewables_reduction
   name: Corporate Services Purchased Electricity (Renewables Reduction)
   type: simple.MultiplicativeNode
@@ -2125,9 +2116,11 @@ nodes:
   input_dimensions: [asset_class, asset, energy_carrier, department, scope]
   output_dimensions: [asset_class, asset, energy_carrier, department, scope]
   input_nodes:
-  - id: cs_purchased_electricity_mix
-  - id: cs_renewable_energy_production
-    tags: [arithmetic_inverse, non_additive]
+  - id: cs_purchased_electricity_retrofitted
+    tags: [non_additive]
+  - id: pathway_assumption_2
+    tags: [arithmetic_inverse]
+    to_dimensions: []
 
 - id: cs_purchased_electricity
   name: Corporate Services Purchased Electricity
@@ -2267,17 +2260,6 @@ nodes:
       categories: [public_works]
     - column: property
 
-- id: pw_purchased_electricity_mix
-  name: Public Works Purchased Electricity (Mix)
-  type: simple.MixNode
-  quantity: mix
-  unit: '%'
-  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
-  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
-  input_nodes:
-  - id: pw_purchased_electricity_inventory
-    tags: [activity]
-
 - id: pw_purchased_electricity_reduction
   name: Public Works Purchased Electricity (Reduction)
   type: simple.MultiplicativeNode
@@ -2286,9 +2268,11 @@ nodes:
   input_dimensions: [asset_class, asset, energy_carrier, department, scope]
   output_dimensions: [asset_class, asset, energy_carrier, department, scope]
   input_nodes:
-  - id: pw_purchased_electricity_mix
-  - id: pw_renewable_energy_production
-    tags: [arithmetic_inverse, non_additive]
+  - id: pw_purchased_electricity_inventory
+    tags: [non_additive]
+  - id: pathway_assumption_2
+    tags: [arithmetic_inverse]
+    to_dimensions: []
 
 - id: pw_purchased_electricity
   name: Public Works Purchased Electricity
@@ -2669,17 +2653,6 @@ nodes:
     - id: action
       flatten: true
 
-- id: ems_purchased_electricity_mix
-  name: EMS Purchased Electricity (Mix)
-  type: simple.MixNode
-  quantity: mix
-  unit: '%'
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
-  input_nodes:
-  - id: ems_purchased_electricity_retrofitted
-    tags: [activity]
-
 - id: ems_purchased_electricity_renewables_reduction
   name: EMS Purchased Electricity (Renewables Reduction)
   type: simple.MultiplicativeNode
@@ -2688,9 +2661,11 @@ nodes:
   input_dimensions: [asset, energy_carrier, department, scope]
   output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
-  - id: ems_purchased_electricity_mix
-  - id: ems_renewable_energy_production
-    tags: [arithmetic_inverse, non_additive]
+  - id: ems_purchased_electricity_retrofitted
+    tags: [non_additive]
+  - id: pathway_assumption_2
+    tags: [arithmetic_inverse]
+    to_dimensions: []
 
 - id: ems_purchased_electricity
   name: EMS Purchased Electricity
@@ -2825,17 +2800,6 @@ nodes:
     - id: action
       flatten: true
 
-- id: hchc_purchased_electricity_mix
-  name: HCHC Purchased Electricity (Mix)
-  type: simple.MixNode
-  quantity: mix
-  unit: '%'
-  input_dimensions: [property, asset, energy_carrier, department, scope]
-  output_dimensions: [property, asset, energy_carrier, department, scope]
-  input_nodes:
-  - id: hchc_purchased_electricity_retrofitted
-    tags: [activity]
-
 - id: hchc_purchased_electricity_renewables_reduction
   name: HCHC Purchased Electricity (Renewables Reduction)
   type: simple.MultiplicativeNode
@@ -2844,9 +2808,11 @@ nodes:
   input_dimensions: [property, asset, energy_carrier, department, scope]
   output_dimensions: [property, asset, energy_carrier, department, scope]
   input_nodes:
-  - id: hchc_purchased_electricity_mix
-  - id: hchc_renewable_energy_production
-    tags: [arithmetic_inverse, non_additive]
+  - id: hchc_purchased_electricity_retrofitted
+    tags: [non_additive]
+  - id: pathway_assumption_2
+    tags: [arithmetic_inverse]
+    to_dimensions: []
 
 - id: hchc_purchased_electricity
   name: HCHC Purchased Electricity
@@ -3617,17 +3583,6 @@ nodes:
     - column: asset_class
     - column: property
 
-- id: hrps_purchased_electricity_mix
-  name: HRPS Purchased Electricity (Mix)
-  type: simple.MixNode
-  quantity: mix
-  unit: '%'
-  input_dimensions: [asset, energy_carrier, department, scope]
-  output_dimensions: [asset, energy_carrier, department, scope]
-  input_nodes:
-  - id: hrps_purchased_electricity_inventory
-    tags: [activity]
-
 - id: hrps_purchased_electricity_renewables_reduction
   name: HRPS Purchased Electricity (Renewables Reduction)
   type: simple.MultiplicativeNode
@@ -3636,9 +3591,11 @@ nodes:
   input_dimensions: [asset, energy_carrier, department, scope]
   output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
-  - id: hrps_purchased_electricity_mix
-  - id: hrps_renewable_energy_production
-    tags: [arithmetic_inverse, non_additive]
+  - id: hrps_purchased_electricity_inventory
+    tags: [non_additive]
+  - id: pathway_assumption_2
+    tags: [arithmetic_inverse]
+    to_dimensions: []
 
 - id: hrps_purchased_electricity
   name: HRPS Purchased Electricity
@@ -4103,136 +4060,6 @@ actions:
     - dimension: action
       categories: [hchc_system_3]
 
-- id: cs_renewable_energy_production
-  name: Corporate Services Renewable Energy Production
-  type: simple.ParameterAction
-  group: renewable_energy_production
-  unit: GWh/a
-  quantity: energy
-  input_dimensions: []
-  output_dimensions: []
-  params:
-  - id: from_value
-    value: 7.5
-    min_value: 0
-    max_value: 15
-    step: 0.1
-    unit: GWh/a
-    description: Renewable Energy Production
-  - id: from_year
-    value: 2035
-    min_value: 2025
-    max_value: 2045
-    step: 1.0
-    description: Implementation Year
-  - id: default_value
-    value: 0
-    unit: GWh/a
-
-- id: pw_renewable_energy_production
-  name: Public Works Renewable Energy Production
-  type: simple.ParameterAction
-  group: renewable_energy_production
-  unit: GWh/a
-  quantity: energy
-  input_dimensions: []
-  output_dimensions: []
-  params:
-  - id: from_value
-    value: 62.5
-    min_value: 0
-    max_value: 125
-    step: 0.1
-    unit: GWh/a
-    description: Renewable Energy Production
-  - id: from_year
-    value: 2035
-    min_value: 2025
-    max_value: 2045
-    step: 1.0
-    description: Implementation Year
-  - id: default_value
-    value: 0
-    unit: GWh/a
-
-- id: ems_renewable_energy_production
-  name: EMS Renewable Energy Production
-  type: simple.ParameterAction
-  group: renewable_energy_production
-  unit: GWh/a
-  quantity: energy
-  input_dimensions: []
-  output_dimensions: []
-  params:
-  - id: from_value
-    value: 0.25
-    min_value: 0
-    max_value: 0.5
-    step: 0.05
-    unit: GWh/a
-    description: Renewable Energy Production
-  - id: from_year
-    value: 2035
-    min_value: 2025
-    max_value: 2045
-    step: 1.0
-    description: Implementation Year
-  - id: default_value
-    value: 0
-    unit: GWh/a
-
-- id: hchc_renewable_energy_production
-  name: HCHC Renewable Energy Production
-  type: simple.ParameterAction
-  group: renewable_energy_production
-  unit: GWh/a
-  quantity: energy
-  input_dimensions: []
-  output_dimensions: []
-  params:
-  - id: from_value
-    value: 7.5
-    min_value: 0
-    max_value: 15
-    step: 0.1
-    unit: GWh/a
-    description: Renewable Energy Production
-  - id: from_year
-    value: 2035
-    min_value: 2025
-    max_value: 2045
-    step: 1.0
-    description: Implementation Year
-  - id: default_value
-    value: 0
-    unit: GWh/a
-
-- id: hrps_renewable_energy_production
-  name: HRPS Renewable Energy Production
-  type: simple.ParameterAction
-  group: renewable_energy_production
-  unit: GWh/a
-  quantity: energy
-  input_dimensions: []
-  output_dimensions: []
-  params:
-  - id: from_value
-    value: 3.5
-    min_value: 0
-    max_value: 7
-    step: 0.1
-    unit: GWh/a
-    description: Renewable Energy Production
-  - id: from_year
-    value: 2035
-    min_value: 2025
-    max_value: 2045
-    step: 1.0
-    description: Implementation Year
-  - id: default_value
-    value: 0
-    unit: GWh/a
-
 - id: pathway_assumption_1
   name: 'Pathway Assumption 1: Efficiency Measures for Public Works Stationary Combustion'
   type: simple.AdditiveAction
@@ -4243,6 +4070,17 @@ actions:
   output_dimensions: []
   historical_values: [[2023, 0.00], [2024, 0.00]]
   forecast_values: [[2025, 0.00000000], [2026, 4.85000000], [2027, 9.46477500], [2028, 13.85573341], [2029, 18.03373034], [2030, 22.00909442], [2031, 25.79165334], [2032, 29.39075815], [2033, 32.81530638], [2034, 36.07376402], [2035, 39.17418647], [2036, 42.12423843], [2037, 44.93121286], [2038, 47.60204904], [2039, 50.14334966], [2040, 52.56139720], [2041, 54.86216944], [2042, 57.05135422], [2043, 59.13436354], [2044, 61.11634691], [2045, 63.00220408]]
+
+- id: pathway_assumption_2
+  name: 'Pathway Assumption 2: Renewable Energy Generation'
+  type: simple.AdditiveAction
+  group: pathway_assumptions
+  unit: '%'
+  quantity: fraction
+  input_dimensions: []
+  output_dimensions: []
+  historical_values: [[2023, 0.0], [2024, 0.0]]
+  forecast_values: [[2025, 0.0], [2026, 5.0], [2027, 10.0], [2028, 15.0], [2029, 20.0], [2030, 25.0], [2031, 30.0], [2032, 35.0], [2033, 40.0], [2034, 45.0], [2035, 50.0], [2036, 55.0], [2037, 60.0], [2038, 65.0], [2039, 70.0], [2040, 75.0], [2041, 80.0], [2042, 85.0], [2043, 90.0], [2044, 95.0], [2045, 99.999999]]
 
 - id: pathway_assumption_3
   name: 'Pathway Assumption 3: Building Envelopes & Other Building Efficiencies'
@@ -4274,7 +4112,7 @@ actions:
   input_dimensions: []
   output_dimensions: []
   historical_values: [[2023, 0.0], [2024, 0.0]]
-  forecast_values: [[2025, 0.0], [2026, 0.0], [2027, 0.0], [2028, 0.0], [2029, 0.0], [2030, 0.0], [2031, 0.0], [2032, 0.0], [2033, 0.0], [2034, 0.0], [2035, 0.0], [2036, 0.0], [2037, 0.0], [2038, 0.0], [2039, 0.0], [2040, 0.0], [2041, 0.0], [2042, 0.0], [2043, 0.0], [2044, 0.0], [2045, -2000.0]]
+  forecast_values: [[2025, 0.0], [2026, 0.0], [2027, 0.0], [2028, 0.0], [2029, 0.0], [2030, 0.0], [2031, 0.0], [2032, 0.0], [2033, 0.0], [2034, 0.0], [2035, 0.0], [2036, 0.0], [2037, 0.0], [2038, 0.0], [2039, 0.0], [2040, 0.0], [2041, 0.0], [2042, 0.0], [2043, 0.0], [2044, 0.0], [2045, -3000.0]]
 
 pages:
 - id: home

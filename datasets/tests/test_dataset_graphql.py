@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from kausal_common.datasets.models import DataPoint
+from kausal_common.datasets.models import DataPoint, DataPointComment
 from kausal_common.datasets.tests.factories import (
     DataPointFactory,
     DatasetFactory,
@@ -173,6 +173,34 @@ def test_create_data_point(gql_client: PathsTestClient, dataset_setup):
     assert DataPoint.objects.filter(uuid=data_point['id'], dataset=dataset).exists()
 
 
+def test_create_data_point_rejects_duplicate_with_no_dimension_categories(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, _category = dataset_setup
+    DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        date=date(2024, 1, 1),
+        value=Decimal('100.0'),
+    )
+
+    data = gql_client.query_data(
+        CREATE_DATA_POINT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': {
+                'date': '2024-01-01',
+                'value': 150.0,
+                'metricId': str(metric.uuid),
+                'dimensionCategoryIds': [],
+            },
+        },
+    )
+
+    result = data['instanceEditor']['datasetEditor']['createDataPoint']
+    assert result['__typename'] == 'OperationInfo'
+    assert result['messages'][0]['kind'] == 'VALIDATION'
+
+
 def test_update_data_point(gql_client: PathsTestClient, dataset_setup):
     instance_config, dataset, metric, category = dataset_setup
     data_point = DataPointFactory.create(
@@ -201,6 +229,41 @@ def test_update_data_point(gql_client: PathsTestClient, dataset_setup):
     data_point.refresh_from_db()
     assert data_point.date == date(2025, 1, 1)
     assert data_point.value is None
+
+
+def test_update_data_point_rejects_duplicate_coordinates(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    existing = DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        date=date(2024, 1, 1),
+        value=Decimal('100.0'),
+        dimension_categories=[category],
+    )
+    data_point = DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        date=date(2025, 1, 1),
+        value=Decimal('200.0'),
+    )
+
+    data = gql_client.query_data(
+        UPDATE_DATA_POINT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'dataPointId': str(data_point.uuid),
+            'input': {'date': '2024-01-01', 'dimensionCategoryIds': [str(category.uuid)]},
+        },
+    )
+
+    result = data['instanceEditor']['datasetEditor']['updateDataPoint']
+    assert result['__typename'] == 'OperationInfo'
+    assert result['messages'][0]['kind'] == 'VALIDATION'
+    data_point.refresh_from_db()
+    assert data_point.date == date(2025, 1, 1)
+    assert list(data_point.dimension_categories.all()) == []
+    assert DataPoint.objects.filter(pk=existing.pk).exists()
 
 
 def test_delete_data_point(gql_client: PathsTestClient, dataset_setup):
@@ -335,3 +398,269 @@ def test_create_data_point_emits_change_operation(gql_client: PathsTestClient, d
     assert entry.data['after']['dataset_uuid'] == str(dataset.uuid)
     assert entry.data['after']['metric_uuid'] == str(metric.uuid)
     assert entry.data['after']['dimension_category_uuids'] == [str(category.uuid)]
+
+
+# ----------------------------------------------------------------------
+# DataPointComment
+# ----------------------------------------------------------------------
+
+
+CREATE_DATA_POINT_COMMENT = """
+mutation CreateComment($instanceId: ID!, $datasetId: ID!, $dataPointId: ID!, $input: CreateDataPointCommentInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        datasetEditor(datasetId: $datasetId) {
+            createDataPointComment(dataPointId: $dataPointId, input: $input) {
+                __typename
+                ... on DataPointComment {
+                    id
+                    text
+                    isSticky
+                    isReview
+                    reviewState
+                    createdBy { email }
+                    lastModifiedBy { email }
+                }
+                ... on OperationInfo {
+                    messages { kind message field code }
+                }
+            }
+        }
+    }
+}
+"""
+
+
+UPDATE_DATA_POINT_COMMENT = """
+mutation UpdateComment($instanceId: ID!, $datasetId: ID!, $commentId: ID!, $input: UpdateDataPointCommentInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        datasetEditor(datasetId: $datasetId) {
+            updateDataPointComment(commentId: $commentId, input: $input) {
+                __typename
+                ... on DataPointComment {
+                    id
+                    text
+                    isSticky
+                    reviewState
+                }
+            }
+        }
+    }
+}
+"""
+
+
+DELETE_DATA_POINT_COMMENT = """
+mutation DeleteComment($instanceId: ID!, $datasetId: ID!, $commentId: ID!) {
+    instanceEditor(instanceId: $instanceId) {
+        datasetEditor(datasetId: $datasetId) {
+            deleteDataPointComment(commentId: $commentId) {
+                messages { kind message field code }
+            }
+        }
+    }
+}
+"""
+
+
+RESOLVE_DATA_POINT_COMMENT = """
+mutation ResolveComment($instanceId: ID!, $datasetId: ID!, $commentId: ID!) {
+    instanceEditor(instanceId: $instanceId) {
+        datasetEditor(datasetId: $datasetId) {
+            resolveDataPointComment(commentId: $commentId) {
+                __typename
+                ... on DataPointComment {
+                    id
+                    reviewState
+                    resolvedAt
+                    resolvedBy { email }
+                }
+            }
+        }
+    }
+}
+"""
+
+
+UNRESOLVE_DATA_POINT_COMMENT = """
+mutation UnresolveComment($instanceId: ID!, $datasetId: ID!, $commentId: ID!) {
+    instanceEditor(instanceId: $instanceId) {
+        datasetEditor(datasetId: $datasetId) {
+            unresolveDataPointComment(commentId: $commentId) {
+                __typename
+                ... on DataPointComment {
+                    id
+                    reviewState
+                    resolvedAt
+                    resolvedBy { email }
+                }
+            }
+        }
+    }
+}
+"""
+
+
+DATA_POINT_COMMENTS_QUERY = """
+query DatasetWithComments($instanceId: ID!) {
+    modelInstance(instanceId: $instanceId) {
+        editor {
+            datasets {
+                id
+                dataPointComments {
+                    id
+                    text
+                    reviewState
+                }
+                dataPoints {
+                    id
+                    comments {
+                        id
+                        text
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+
+def test_create_data_point_comment(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    data_point = DataPointFactory.create(dataset=dataset, metric=metric, dimension_categories=[category])
+
+    data = gql_client.query_data(
+        CREATE_DATA_POINT_COMMENT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'dataPointId': str(data_point.uuid),
+            'input': {'text': 'Looks suspicious', 'isReview': True, 'reviewState': 'UNRESOLVED'},
+        },
+    )
+    result = data['instanceEditor']['datasetEditor']['createDataPointComment']
+    assert result['__typename'] == 'DataPointComment'
+    assert result['text'] == 'Looks suspicious'
+    assert result['isReview'] is True
+    assert result['reviewState'] == 'UNRESOLVED'
+    assert result['createdBy']['email']
+    assert DataPointComment.objects.filter(uuid=result['id']).exists()
+
+
+def test_update_data_point_comment(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    data_point = DataPointFactory.create(dataset=dataset, metric=metric, dimension_categories=[category])
+    comment = DataPointComment.objects.create(data_point=data_point, text='Original')
+
+    data = gql_client.query_data(
+        UPDATE_DATA_POINT_COMMENT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'commentId': str(comment.uuid),
+            'input': {'text': 'Edited', 'isSticky': True},
+        },
+    )
+    result = data['instanceEditor']['datasetEditor']['updateDataPointComment']
+    assert result['text'] == 'Edited'
+    assert result['isSticky'] is True
+    comment.refresh_from_db()
+    assert comment.text == 'Edited'
+    assert comment.is_sticky is True
+
+
+def test_delete_data_point_comment_soft_deletes(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    data_point = DataPointFactory.create(dataset=dataset, metric=metric, dimension_categories=[category])
+    comment = DataPointComment.objects.create(data_point=data_point, text='Bye')
+
+    data = gql_client.query_data(
+        DELETE_DATA_POINT_COMMENT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'commentId': str(comment.uuid),
+        },
+    )
+    assert data['instanceEditor']['datasetEditor']['deleteDataPointComment'] is None
+    comment.refresh_from_db()
+    assert comment.is_soft_deleted is True
+    assert not DataPointComment.objects.filter(pk=comment.pk).exists()
+    assert DataPointComment.objects_including_soft_deleted.filter(pk=comment.pk).exists()
+
+
+def test_resolve_then_unresolve_data_point_comment(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    data_point = DataPointFactory.create(dataset=dataset, metric=metric, dimension_categories=[category])
+    comment = DataPointComment.objects.create(
+        data_point=data_point,
+        text='Review please',
+        is_review=True,
+        review_state=DataPointComment.ReviewState.UNRESOLVED,
+    )
+
+    resolved = gql_client.query_data(
+        RESOLVE_DATA_POINT_COMMENT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'commentId': str(comment.uuid),
+        },
+    )['instanceEditor']['datasetEditor']['resolveDataPointComment']
+    assert resolved['reviewState'] == 'RESOLVED'
+    assert resolved['resolvedAt'] is not None
+    assert resolved['resolvedBy']['email']
+
+    unresolved = gql_client.query_data(
+        UNRESOLVE_DATA_POINT_COMMENT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'commentId': str(comment.uuid),
+        },
+    )['instanceEditor']['datasetEditor']['unresolveDataPointComment']
+    assert unresolved['reviewState'] == 'UNRESOLVED'
+    assert unresolved['resolvedAt'] is None
+    assert unresolved['resolvedBy'] is None
+
+
+def test_data_point_comments_query(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    data_point = DataPointFactory.create(dataset=dataset, metric=metric, dimension_categories=[category])
+    comment = DataPointComment.objects.create(data_point=data_point, text='Hello')
+    DataPointComment.objects.create(data_point=data_point, text='Deleted one', is_soft_deleted=True)
+
+    data = gql_client.query_data(
+        DATA_POINT_COMMENTS_QUERY,
+        variables={'instanceId': str(instance_config.pk)},
+    )
+    ds = next(d for d in data['modelInstance']['editor']['datasets'] if d['id'] == str(dataset.uuid))
+    assert [c['id'] for c in ds['dataPointComments']] == [str(comment.uuid)]
+    dp = next(d for d in ds['dataPoints'] if d['id'] == str(data_point.uuid))
+    assert [c['id'] for c in dp['comments']] == [str(comment.uuid)]
+
+
+def test_comment_mutation_emits_change_operation(gql_client: PathsTestClient, dataset_setup):
+    from nodes.models import InstanceChangeOperation, InstanceModelLogEntry
+
+    instance_config, dataset, metric, category = dataset_setup
+    data_point = DataPointFactory.create(dataset=dataset, metric=metric, dimension_categories=[category])
+
+    gql_client.query_data(
+        CREATE_DATA_POINT_COMMENT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'dataPointId': str(data_point.uuid),
+            'input': {'text': 'Tracked'},
+        },
+    )
+    op = InstanceChangeOperation.objects.filter(
+        instance_config=instance_config,
+        action='dataset.datapoint.comment.create',
+    ).first()
+    assert op is not None
+    entry = InstanceModelLogEntry.objects.filter(operation=op).first()
+    assert entry is not None
+    assert entry.data['before'] is None
+    assert entry.data['after']['text'] == 'Tracked'
