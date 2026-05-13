@@ -77,34 +77,35 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         # Duplicates may occur when baseline year overlaps with existing data points.
         df = ppl.to_ppdf(df.unique(subset=meta.primary_keys, keep='last', maintain_order=True), meta=meta)
 
-        # Check if there are multiple years for the same UUID. If so, we
-        # know it's not just the baseline year.
-        unique_years_by_sector = df.group_by('Sector').agg(pl.col('Year').unique().len().alias('NrSectorYears'))
+        # Determine which UUIDs have multiple DVC years (true time-series per UUID).
+        # Single-year UUIDs need an outer join so DP years expand the data to all DP
+        # years.  Multi-year UUIDs use a year-keyed left join to avoid a cartesian
+        # product when many MeasureDataPoints (one per year) exist per UUID.
+        # NOTE: classifying at the UUID level (not sector level) is important because
+        # a sector may contain several single-year UUIDs that happen to sit at different
+        # reference years, making NrSectorYears > 1 even though no UUID is multi-year.
+        unique_years_per_uuid = df.group_by('UUID').agg(pl.col('Year').unique().len().alias('NrUUIDYears'))
+        multi_year_uuids = set(unique_years_per_uuid.filter(pl.col('NrUUIDYears') > 1)['UUID'].to_list())
 
-        # Split by whether the sector has multiple DVC years.  Single-year sectors
-        # need an outer join so DP years expand the time series.  Multi-year sectors
-        # must use a year-keyed left join to avoid a cartesian product when many
-        # MeasureDataPoints (one per year from yearly defaults) exist per UUID.
-        multi_year_sectors = set(unique_years_by_sector.filter(pl.col('NrSectorYears') > 1)['Sector'].to_list())
-
-        if not multi_year_sectors:
+        if not multi_year_uuids:
             jdf = df.join(dpdf, on='UUID', how='outer')
-            jdf = jdf.join(unique_years_by_sector, on='Sector', how='left')
+            jdf = jdf.with_columns(pl.lit(value=False).alias('IsMultiYearUUID'))
         else:
-            df_single = df.filter(~pl.col('Sector').is_in(list(multi_year_sectors)))
-            df_multi = df.filter(pl.col('Sector').is_in(list(multi_year_sectors)))
-            multi_year_uuids = set(df_multi['UUID'].to_list())
+            df_single = df.filter(~pl.col('UUID').is_in(list(multi_year_uuids)))
+            df_multi = df.filter(pl.col('UUID').is_in(list(multi_year_uuids)))
             dpdf_single = dpdf.filter(~pl.col('UUID').is_in(list(multi_year_uuids)))
             dpdf_multi = dpdf.filter(pl.col('UUID').is_in(list(multi_year_uuids))).rename({'MeasureYear': YEAR_COLUMN})
             parts: list[pl.DataFrame] = []
             if len(df_single) > 0:
                 jdf_s = df_single.join(dpdf_single, on='UUID', how='outer')
-                jdf_s = jdf_s.join(unique_years_by_sector, on='Sector', how='left')
+                jdf_s = jdf_s.with_columns(pl.lit(value=False).alias('IsMultiYearUUID'))
                 parts.append(jdf_s)
             if len(df_multi) > 0:
                 jdf_m = df_multi.join(dpdf_multi, on=['UUID', YEAR_COLUMN], how='left')
-                jdf_m = jdf_m.with_columns(pl.col(YEAR_COLUMN).alias('MeasureYear'))
-                jdf_m = jdf_m.join(unique_years_by_sector, on='Sector', how='left')
+                jdf_m = jdf_m.with_columns(
+                    pl.col(YEAR_COLUMN).alias('MeasureYear'),
+                    pl.lit(value=True).alias('IsMultiYearUUID'),
+                )
                 parts.append(jdf_m)
             jdf = pl.concat(parts, how='diagonal')
 
@@ -132,7 +133,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 
         jdf = jdf.with_columns([
             pl
-            .when(pl.col('NrSectorYears') == 1)
+            .when(~pl.col('IsMultiYearUUID'))
             .then(
                 pl.coalesce(['MeasureYear', YEAR_COLUMN]),
             )
