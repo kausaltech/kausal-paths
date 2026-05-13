@@ -8,6 +8,8 @@ Usage:
 
 from __future__ import annotations
 
+import os
+
 from kausal_common.development.django import init_django
 
 from kausal_common.i18n.pydantic import set_i18n_context
@@ -19,9 +21,9 @@ import json
 from django.utils.translation import override as translation_override
 from wagtail.models import Locale, Page
 
-from frameworks.models import Framework
+from frameworks.models import Framework, FrameworkConfig
 from nodes.defs.instance_defs import InstanceSpec, YearsSpec
-from nodes.models import InstanceConfig
+from nodes.models import InstanceConfig, InstanceHostname
 from orgs.models import Organization
 from pages.models import InstanceRootPage
 
@@ -33,6 +35,8 @@ LANDING_INSTANCE_IDENTIFIER = 'cads-landing'
 LANDING_INSTANCE_NAME = 'CADS'
 LANDING_ORG_NAME = 'CADS'
 PRIMARY_LANGUAGE = 'en'
+
+BASE_FQDN = 'cads.kausal.tech' if os.getenv('DEPLOYMENT_TYPE') == 'production' else 'cads.kausal.dev'
 
 
 def get_or_create_framework() -> Framework:
@@ -64,12 +68,18 @@ def get_or_create_framework() -> Framework:
         if fw.template_instance is None or fw.template_instance.identifier != TEMPLATE_INSTANCE_IDENTIFIER:
             fw.template_instance = template_instance
             updated_fields.append('template_instance')
-        if fw.public_base_fqdn is None:
-            fw.public_base_fqdn = 'cads.kausal.tech'
+        if fw.public_base_fqdn != BASE_FQDN:
+            fw.public_base_fqdn = BASE_FQDN
             updated_fields.append('public_base_fqdn')
+        accept_invitation_url = 'https://{base_fqdn}/auth/register?framework=cads&invitation_code={code}'.format(
+            base_fqdn=BASE_FQDN, code='{code}'
+        )
+        if fw.accept_invitation_url != accept_invitation_url:
+            fw.accept_invitation_url = accept_invitation_url
+            updated_fields.append('accept_invitation_url')
         if updated_fields:
             fw.save(update_fields=updated_fields)
-            print(f'Updated framework flags ({", ".join(updated_fields)}): {fw}')
+            print(f'Updated framework fields ({", ".join(updated_fields)}): {fw}')
         else:
             print(f'Framework already exists: {fw}')
     return fw
@@ -92,6 +102,15 @@ def enable_user_management_on_cads_instances() -> None:
         print(f'Enabled user_management on {flipped} CADS instance(s)')
     else:
         print('All CADS instances already have user_management enabled')
+
+
+def set_instance_hostnames(fw: Framework):
+    for ic in InstanceConfig.objects.filter(framework_config__framework=fw):
+        ich = ic.hostnames.filter(hostname=BASE_FQDN).first()
+        if ich is None:
+            assert fw.public_base_fqdn is not None
+            ich = InstanceHostname.objects.create(instance=ic, hostname=fw.public_base_fqdn, base_path='/' + str(ic.uuid))
+            print(f'Created instance hostname: {ich}')
 
 
 def ensure_template_datasets() -> None:
@@ -361,16 +380,39 @@ def setup_instance_groups(ic: InstanceConfig) -> None:
     print('Created instance groups')
 
 
+def create_landing_fwc(ic: InstanceConfig) -> FrameworkConfig:
+    ich = ic.hostnames.filter(hostname=BASE_FQDN).first()
+    if ich is None:
+        ich = InstanceHostname.objects.create(instance=ic, hostname=BASE_FQDN)
+        print(f'Created instance hostname: {ich}')
+
+    fwc = FrameworkConfig.objects.filter(instance_config=ic).first()
+    if fwc is not None:
+        print(f'Framework config already exists: {fwc}')
+        return fwc
+    fw = Framework.objects.get(identifier=FRAMEWORK_IDENTIFIER)
+    fwc = FrameworkConfig.objects.create(
+        framework=fw,
+        instance_config=ic,
+        organization_name=LANDING_ORG_NAME,
+        baseline_year=2020,
+        target_year=2030,
+    )
+    return fwc
+
+
 def main() -> None:
-    get_or_create_framework()
-    ensure_template_datasets()
+    fw = get_or_create_framework()
+    # ensure_template_datasets()
     org = get_or_create_organization()
     with set_i18n_context(PRIMARY_LANGUAGE, []):
         ic = get_or_create_landing_instance(org)
         root_page = create_landing_root_page(ic)
         ensure_site(ic, root_page)
+        create_landing_fwc(ic)
         setup_instance_groups(ic)
     enable_user_management_on_cads_instances()
+    set_instance_hostnames(fw)
     print('CADS setup complete.')
 
 
