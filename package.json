@@ -19,7 +19,7 @@
   },
   "homepage": "https://github.com/kausaltech/kausal-paths#readme",
   "dependencies": {
-    "mjml": "^5.0.0-alpha.6"
+    "mjml": "^5.2.1"
   },
-  "packageManager": "pnpm@11.0.0-beta.6+sha512.64c8246507d7e841c301c79ad3cc0af15407db238b851dd66cc895b63e5c138e2b739e68535b9152ba830e0b407dbb2457726167d0fd617f949dcec922f1a1a7"
+  "packageManager": "pnpm@11.1.1"
 }

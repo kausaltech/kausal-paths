@@ -1,0 +1,38 @@
+<mjml>
+    <mj-head>
+        <mj-title>{{ subject }}</mj-title>
+        <mj-attributes>
+            <mj-all font-family="Helvetica, Arial, sans-serif" />
+            <mj-text font-size="14px" line-height="1.5" color="#222" />
+            <mj-section background-color="#ffffff" />
+        </mj-attributes>
+    </mj-head>
+    <mj-body background-color="#f5f5f5">
+        <mj-section padding="24px 0">
+            <mj-column>
+                <mj-text font-size="20px" font-weight="bold">
+                    {{ instance_name }}
+                </mj-text>
+            </mj-column>
+        </mj-section>
+        <mj-section padding="0 0 24px 0">
+            <mj-column>
+                <mj-text>
+                    {% if inviter_name %}
+                    <p>{{ inviter_name }} has invited you to manage the scenario model <strong>{{ instance_name }}</strong>.</p>
+                    {% else %}
+                    <p>You have been invited to manage the scenario model <strong>{{ instance_name }}</strong>.</p>
+                    {% endif %}
+                    <p>Click the button below to create an account and accept the invitation. The link is valid until {{ expires_at | format_date:"DATETIME_FORMAT" }}.</p>
+                </mj-text>
+                <mj-button href="{{ accept_url }}" background-color="#0050b0" color="#ffffff" border-radius="4px">
+                    Accept invitation
+                </mj-button>
+                <mj-text font-size="12px" color="#666">
+                    <p>If the button doesn't work, copy this link into your browser:</p>
+                    <p><a href="{{ accept_url }}">{{ accept_url }}</a></p>
+                </mj-text>
+            </mj-column>
+        </mj-section>
+    </mj-body>
+</mjml>

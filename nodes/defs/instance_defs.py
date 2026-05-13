@@ -109,6 +109,9 @@ class InstanceFeatures(BaseModel):
     requires_authentication: bool = False
     """Whether authentication is required to access this instance."""
 
+    enable_user_management: bool = False
+    """Whether the Trailhead user-management UI (add/invite/remove users) is exposed for this instance."""
+
     use_datasets_from_db: bool = False
     """Whether to use datasets from the database instead of the .parquet files."""
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import re
+import secrets
 import threading
 import uuid
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
+from datetime import timedelta
 from enum import StrEnum
 from functools import cached_property
 from pathlib import Path
@@ -58,7 +60,7 @@ from kausal_common.models.permission_policy import (
     ParentInheritedPolicy,
     PermissionBlock,
 )
-from kausal_common.models.permissions import PermissionedQuerySet
+from kausal_common.models.permissions import PermissionedManager, PermissionedModel, PermissionedQuerySet
 from kausal_common.models.types import (
     MLModelManager,
     copy_signature,
@@ -87,6 +89,8 @@ from orgs.models import Organization
 from pages.blocks import CardListBlock
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from django.db.models import CharField
     from django.http import HttpRequest
 
@@ -447,6 +451,17 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         null=True,
     )
     super_admin_group_id: int | None
+
+    owned_by: FK[User | None] = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='owned_instances',
+        verbose_name=_('Owner'),
+        help_text=_('The user who owns this instance and has full control over it (e.g. user management).'),
+    )
+    owned_by_id: int | None
 
     """
     model_cache = JSONField[InstanceModelCache | None, InstanceModelCache | None](
@@ -1920,3 +1935,120 @@ class InstanceModelLogEntry(UUIDIdentifiedModel):
 
     def __str__(self) -> str:
         return f'{self.action} on {self.content_type}:{self.object_id}'
+
+
+INVITATION_TTL_DAYS = 30
+
+
+def _generate_invitation_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def _default_invitation_expiry() -> datetime:
+    return timezone.now() + timedelta(days=INVITATION_TTL_DAYS)
+
+
+class InstanceInvitationPermissionPolicy(
+    ParentInheritedPolicy['InstanceInvitation', InstanceConfig, 'InstanceInvitationQuerySet']
+):
+    def __init__(self):
+        super().__init__(InstanceInvitation, InstanceConfig, 'instance_config')
+
+
+class InstanceInvitationQuerySet(PermissionedQuerySet['InstanceInvitation']):
+    def active(self) -> Self:
+        return self.filter(is_soft_deleted=False, accepted_at__isnull=True, expires_at__gt=timezone.now())
+
+
+class InstanceInvitationManager(PermissionedManager['InstanceInvitation']):
+    """Default manager hides soft-deleted invitations."""
+
+    def get_queryset(self) -> InstanceInvitationQuerySet:
+        return InstanceInvitationQuerySet(self.model, using=self._db).exclude(is_soft_deleted=True)
+
+
+class InstanceInvitationManagerIncludingDeleted(PermissionedManager['InstanceInvitation']):
+    def get_queryset(self) -> InstanceInvitationQuerySet:
+        return InstanceInvitationQuerySet(self.model, using=self._db)
+
+
+class InstanceInvitation(UserModifiableModel, PermissionedModel):
+    """
+    An invitation extended to an email address to join an :class:`InstanceConfig`.
+
+    On acceptance via the ``registerUser`` mutation, the invited email is
+    promoted to a real ``User`` and granted the instance admin role.
+    Soft-deletion is used for revocation so the audit trail survives.
+    """
+
+    instance_config: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='invitations',
+    )
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    email = models.EmailField()
+    token = models.CharField(max_length=64, unique=True, default=_generate_invitation_token, editable=False)
+    expires_at = models.DateTimeField(default=_default_invitation_expiry)
+    accepted_at = models.DateTimeField(null=True, blank=True, editable=False)
+    accepted_by: FK[User | None] = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='accepted_invitations',
+        editable=False,
+    )
+
+    is_soft_deleted = models.BooleanField(default=False)
+    soft_deleted_at = models.DateTimeField(null=True, blank=True, editable=False)
+    soft_deleted_by: FK[User | None] = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='soft_deleted_invitations',
+        editable=False,
+    )
+
+    objects: ClassVar[InstanceInvitationManager] = InstanceInvitationManager()
+    objects_including_soft_deleted: ClassVar[InstanceInvitationManagerIncludingDeleted] = (
+        InstanceInvitationManagerIncludingDeleted()
+    )
+
+    class Meta:
+        verbose_name = _('Instance invitation')
+        verbose_name_plural = _('Instance invitations')
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['instance_config', 'email'],
+                condition=Q(is_soft_deleted=False, accepted_at__isnull=True),
+                name='unique_active_invitation_per_instance_email',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f'Invitation for {self.email} to {self.instance_config.identifier}'
+
+    def save(self, *args, **kwargs):
+        self.email = self.email.lower()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def permission_policy(cls) -> InstanceInvitationPermissionPolicy:
+        return InstanceInvitationPermissionPolicy()
+
+    def is_valid(self) -> bool:
+        return not self.is_soft_deleted and self.accepted_at is None and self.expires_at > timezone.now()
+
+    def soft_delete(self, user: User | None) -> None:
+        self.is_soft_deleted = True
+        self.soft_deleted_at = timezone.now()
+        self.soft_deleted_by = user
+        self.save(update_fields=['is_soft_deleted', 'soft_deleted_at', 'soft_deleted_by', 'last_modified_at', 'last_modified_by'])
+
+    def mark_accepted(self, user: User) -> None:
+        self.accepted_at = timezone.now()
+        self.accepted_by = user
+        self.save(update_fields=['accepted_at', 'accepted_by', 'last_modified_at', 'last_modified_by'])

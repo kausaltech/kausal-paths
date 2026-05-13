@@ -42,6 +42,7 @@ from orgs.models import Organization
 from orgs.schema import OrganizationNode, Query as OrgsQuery
 from pages.schema import Query as PagesQuery
 from params.schema import SBMutation as SBParamsMutation, SBQuery as SBParamsQuery, types as params_types
+from users.graphql.mutations import UsersMutation
 from users.schema import UsersQuery
 
 CO2E = 'CO<sub>2</sub>e'
@@ -151,6 +152,7 @@ SB_MUTATION_TYPES: list[type] = [
     ModelEditorMutation,
     SBParamsMutation,
     FrameworkMutation,
+    UsersMutation,
 ]
 if test_mode_enabled():
     SB_MUTATION_TYPES.append(TestModeMutations)

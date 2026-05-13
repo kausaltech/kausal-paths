@@ -43,6 +43,7 @@ def get_or_create_framework() -> Framework:
             name=FRAMEWORK_NAME,
             allow_user_registration=True,
             allow_instance_creation=True,
+            enable_user_management=True,
             template_instance=template_instance,
             public_base_fqdn='cads.kausal.tech',
         ),
@@ -50,26 +51,47 @@ def get_or_create_framework() -> Framework:
     if created:
         print(f'Created framework: {fw}')
     else:
-        # Ensure flags are up to date
-        updated = False
+        updated_fields: list[str] = []
         if not fw.allow_user_registration:
             fw.allow_user_registration = True
-            updated = True
+            updated_fields.append('allow_user_registration')
         if not fw.allow_instance_creation:
             fw.allow_instance_creation = True
-            updated = True
+            updated_fields.append('allow_instance_creation')
+        if not fw.enable_user_management:
+            fw.enable_user_management = True
+            updated_fields.append('enable_user_management')
         if fw.template_instance is None or fw.template_instance.identifier != TEMPLATE_INSTANCE_IDENTIFIER:
             fw.template_instance = template_instance
-            updated = True
+            updated_fields.append('template_instance')
         if fw.public_base_fqdn is None:
             fw.public_base_fqdn = 'cads.kausal.tech'
-            updated = True
-        if updated:
-            fw.save(update_fields=['allow_user_registration', 'allow_instance_creation', 'template_instance', 'public_base_fqdn'])
-            print(f'Updated framework flags: {fw}')
+            updated_fields.append('public_base_fqdn')
+        if updated_fields:
+            fw.save(update_fields=updated_fields)
+            print(f'Updated framework flags ({", ".join(updated_fields)}): {fw}')
         else:
             print(f'Framework already exists: {fw}')
     return fw
+
+
+def enable_user_management_on_cads_instances() -> None:
+    fw = Framework.objects.get(identifier=FRAMEWORK_IDENTIFIER)
+    instances = InstanceConfig.objects.filter(framework_config__framework=fw, spec__isnull=False)
+    flipped = 0
+    for ic in instances:
+        spec = ic.spec
+        assert spec is not None
+        if spec.features.enable_user_management:
+            continue
+        spec.features.enable_user_management = True
+        ic.spec = spec
+        ic.save(update_fields=['spec'])
+        flipped += 1
+    if flipped:
+        print(f'Enabled user_management on {flipped} CADS instance(s)')
+    else:
+        print('All CADS instances already have user_management enabled')
 
 
 def ensure_template_datasets() -> None:
@@ -348,6 +370,7 @@ def main() -> None:
         root_page = create_landing_root_page(ic)
         ensure_site(ic, root_page)
         setup_instance_groups(ic)
+    enable_user_management_on_cads_instances()
     print('CADS setup complete.')
 
 

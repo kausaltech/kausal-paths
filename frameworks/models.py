@@ -167,6 +167,11 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
         verbose_name=_('Allow instance creation'),
         help_text=_('Whether authenticated users can create new model instances under this framework.'),
     )
+    enable_user_management = models.BooleanField(
+        default=False,
+        verbose_name=_('Enable user management'),
+        help_text=_('Whether instance admins under this framework can manage users (add, invite, remove).'),
+    )
 
     defaults = SchemaField(schema=FrameworkDefaults, default=FrameworkDefaults)
 

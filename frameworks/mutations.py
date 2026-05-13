@@ -21,21 +21,6 @@ class CreateInstanceInput:
     organization_name: str
 
 
-@sb.input
-class RegisterUserInput:
-    framework_id: str
-    email: str
-    password: str
-    first_name: str | None = None
-    last_name: str | None = None
-
-
-@sb.type
-class RegisterUserResult:
-    user_id: sb.ID
-    email: str
-
-
 @sb.type
 class CreateInstanceResult:
     instance: sb.Private[InstanceConfig]
@@ -115,6 +100,9 @@ class FrameworkMutation:
                 target_year=fw.defaults.target_year.default or fw.defaults.target_year.min,
             )
 
+            ic.owned_by = user
+            ic.save(update_fields=['owned_by'])
+
             pp = ic.permission_policy()
             pp.admin_role.assign_user(ic, user)
 
@@ -137,39 +125,3 @@ class FrameworkMutation:
             ic.create_default_content()
 
         return CreateInstanceResult(instance=ic)
-
-    @gql.mutation(description='Register a new user with email and password')
-    @staticmethod
-    def register_user(info: gql.Info, input: RegisterUserInput) -> RegisterUserResult:
-        fw = _get_framework(input.framework_id)
-
-        if not fw.allow_user_registration:
-            raise GraphQLError(f'User registration is not allowed for framework "{fw.identifier}"')
-
-        if User.objects.filter(email__iexact=input.email).exists():
-            raise GraphQLError('A user with this email already exists')
-
-        from django.contrib.auth.password_validation import validate_password
-        from django.core.exceptions import ValidationError
-
-        try:
-            validate_password(input.password)
-        except ValidationError as e:
-            raise GraphQLError(f'Invalid password: {"; ".join(e.messages)}') from None
-
-        from uuid import uuid4
-
-        from users.base import uuid_to_username
-
-        user_uuid = uuid4()
-        user = User.objects.create_user(
-            username=uuid_to_username(user_uuid),
-            email=input.email,
-            password=input.password,
-            first_name=input.first_name or '',
-            last_name=input.last_name or '',
-            uuid=user_uuid,
-            is_staff=False,
-            is_active=True,
-        )
-        return RegisterUserResult(user_id=sb.ID(str(user.uuid)), email=user.email)

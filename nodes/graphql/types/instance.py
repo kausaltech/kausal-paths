@@ -1,9 +1,11 @@
+import enum
 from collections.abc import Iterable
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Protocol
 from uuid import UUID
 
 import strawberry as sb
+from django.utils import timezone
 from strawberry import auto
 from wagtail.blocks.stream_block import StreamValue
 
@@ -28,6 +30,7 @@ from nodes.node import Node
 from nodes.normalization import Normalization
 from nodes.units import Unit
 from pages.models import ActionListPage
+from users.models import User
 
 from .graph import (
     ActionGroupType,
@@ -42,9 +45,13 @@ from .spec import InstanceSpecType, YearsDefType
 
 if TYPE_CHECKING:
     from datasets.graphql.types import DataSourceType  # used in lazy strawberry annotation
+    from frameworks.schema import FrameworkConfigType  # used in lazy strawberry annotation
     from nodes.context import Context
     from nodes.graphql.types.change_history import InstanceChangeOperationType
     from nodes.graphql.types.node import NodeInterface, NodeType
+    from nodes.models import InstanceInvitation
+    from users.graphql.mutations import InstanceInvitationType  # used in lazy strawberry annotation
+    from users.schema import UserType  # used in lazy strawberry annotation
 
 
 @sb.experimental.pydantic.type(
@@ -111,11 +118,74 @@ def _instance_editor_allowed(root: Instance, info: gql.Info) -> bool:
     return root.config.gql_action_allowed(info, 'change', raise_on_denied=False)
 
 
+def _instance_admin_allowed(root: Instance, info: gql.Info) -> bool:
+    from kausal_common.users import user_or_none
+
+    user = user_or_none(info.context.user)
+    if user is None:
+        return False
+    if user.is_superuser:
+        return True
+    ic = root.config
+    if ic.owned_by_id == user.pk:
+        return True
+    return ic.permission_policy().is_admin(user, ic)
+
+
 def _node_is_publicly_visible(node: Node) -> bool:
     nc = node.db_obj
     if nc is not None:
         return nc.is_visible
     return node.is_visible
+
+
+@sb.enum(name='InstanceMemberRole')
+class InstanceMemberRole(enum.Enum):
+    SUPER_ADMIN = 'super_admin'
+    ADMIN = 'admin'
+    REVIEWER = 'reviewer'
+    VIEWER = 'viewer'
+
+
+@sb.type(name='InstanceMember', description='A user with a role on this instance.')
+class InstanceMemberType:
+    user: User = sb.field(graphql_type=Annotated['UserType', sb.lazy('users.schema')])
+    role: InstanceMemberRole
+    is_owner: bool
+
+
+def _collect_instance_members(ic: InstanceConfig) -> list[InstanceMemberType]:
+    from users.models import User as _User
+
+    pp = ic.permission_policy()
+    role_priority: list[tuple[InstanceMemberRole, Any]] = [
+        (InstanceMemberRole.SUPER_ADMIN, pp.super_admin_role.get_existing_instance_group(ic)),
+        (InstanceMemberRole.ADMIN, pp.admin_role.get_existing_instance_group(ic)),
+        (InstanceMemberRole.REVIEWER, pp.reviewer_role.get_existing_instance_group(ic)),
+        (InstanceMemberRole.VIEWER, pp.viewer_role.get_existing_instance_group(ic)),
+    ]
+    role_by_user_pk: dict[int, InstanceMemberRole] = {}
+    for role, group in role_priority:
+        if group is None:
+            continue
+        for user_pk in group.user_set.values_list('pk', flat=True):
+            role_by_user_pk.setdefault(user_pk, role)
+
+    owner_pk = ic.owned_by_id
+    if owner_pk is not None:
+        role_by_user_pk.setdefault(owner_pk, InstanceMemberRole.ADMIN)
+
+    if not role_by_user_pk:
+        return []
+    users = _User.objects.filter(pk__in=list(role_by_user_pk.keys()))
+    return [
+        InstanceMemberType(
+            user=u,
+            role=role_by_user_pk[u.pk],
+            is_owner=(u.pk == owner_pk),
+        )
+        for u in users
+    ]
 
 
 @sb.type(name='InstanceEditor')
@@ -331,6 +401,43 @@ class InstanceType:
     @staticmethod
     def is_locked(root: Instance) -> bool:
         return root.config.is_locked
+
+    @sb.field
+    @staticmethod
+    def framework_config(
+        root: Instance,
+    ) -> Annotated['FrameworkConfigType', sb.lazy('frameworks.schema')] | None:
+        from frameworks.models import FrameworkConfig as _FrameworkConfig
+
+        try:
+            return root.config.framework_config  # type: ignore[return-value]
+        except _FrameworkConfig.DoesNotExist:
+            return None
+
+    @sb.field(description='Active members of this instance. Only visible to instance admins.')
+    @staticmethod
+    def users(root: Instance, info: gql.Info) -> list[InstanceMemberType]:
+        if not _instance_admin_allowed(root, info):
+            return []
+        return _collect_instance_members(root.config)
+
+    @sb.field(
+        graphql_type=list[Annotated['InstanceInvitationType', sb.lazy('users.graphql.mutations')]],
+        description='Active (not accepted, not expired, not revoked) invitations for this instance.',
+    )
+    @staticmethod
+    def invitations(root: Instance, info: gql.Info) -> list['InstanceInvitation']:
+        from nodes.models import InstanceInvitation as _InstanceInvitation
+
+        if not _instance_admin_allowed(root, info):
+            return []
+        return list(
+            _InstanceInvitation.objects.filter(
+                instance_config=root.config,
+                accepted_at__isnull=True,
+                expires_at__gt=timezone.now(),
+            )
+        )
 
     @sb.field
     @staticmethod
