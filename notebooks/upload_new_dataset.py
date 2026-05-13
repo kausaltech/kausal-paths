@@ -638,6 +638,12 @@ def process_datasets(
             print('Uploading the csv file as is, but checking for units.')
             units, full_df = extract_units_from_row(full_df)
             push_to_dvc(full_df, outdvcpath, '', None, [], language, units=units)
+        elif dataset_name == 'plain_csv_wide':
+            print('Uploading csv with year columns pivoted to Year column.')
+            units, full_df = extract_units_from_row(full_df)
+            full_df = convert_to_standard_format(full_df)
+            full_df = full_df.with_columns(pl.col('Value').cast(pl.Float64))
+            push_to_dvc(full_df, outdvcpath, '', None, [], language, units=units)
         else:
             d = 'Dataset'
             if d in full_df.columns:

@@ -24,7 +24,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             data['framework_config_updated'] = str(self.context.framework_config_data.last_modified_at)
         return data
 
-    def _override_with_measure_datapoints(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: PLR0915
+    def _override_with_measure_datapoints(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901, PLR0915
         from django.db.models import TextField
         from django.db.models.functions import Cast
 
@@ -77,36 +77,59 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         # Duplicates may occur when baseline year overlaps with existing data points.
         df = ppl.to_ppdf(df.unique(subset=meta.primary_keys, keep='last', maintain_order=True), meta=meta)
 
-        # Determine which UUIDs have multiple DVC years (true time-series per UUID).
-        # Single-year UUIDs need an outer join so DP years expand the data to all DP
-        # years.  Multi-year UUIDs use a year-keyed left join to avoid a cartesian
-        # product when many MeasureDataPoints (one per year) exist per UUID.
-        # NOTE: classifying at the UUID level (not sector level) is important because
-        # a sector may contain several single-year UUIDs that happen to sit at different
-        # reference years, making NrSectorYears > 1 even though no UUID is multi-year.
+        # Classify UUIDs into two join strategies:
+        #
+        # LEFT JOIN on (UUID, Year): used for
+        #   (a) multi-year UUIDs — UUID appears at multiple DVC years, so a cartesian
+        #       outer join would explode row count.
+        #   (b) "overlay" single-year UUIDs — multiple UUIDs share the same non-Year
+        #       primary-key dimensions but sit at *different* years (e.g. one UUID per
+        #       procurement-schedule year in a142_electrification_of_buses).  An outer
+        #       join would pair each such UUID with every DP year, producing duplicate
+        #       primary keys across UUIDs.
+        #
+        # OUTER JOIN on UUID: used for remaining single-year UUIDs where no other UUID
+        # occupies the same (non-Year) dimension combination.  The outer join expands a
+        # single reference-year DVC row to one row per DP year (desired for time-series
+        # nodes like population_growth).
         unique_years_per_uuid = df.group_by('UUID').agg(pl.col('Year').unique().len().alias('NrUUIDYears'))
         multi_year_uuids = set(unique_years_per_uuid.filter(pl.col('NrUUIDYears') > 1)['UUID'].to_list())
 
-        if not multi_year_uuids:
+        # Among single-year non-null UUIDs, detect "overlay" groups: multiple UUIDs
+        # sharing all non-Year primary-key dimensions but sitting at different Years.
+        non_year_pk_cols = [pk for pk in meta.primary_keys if pk != YEAR_COLUMN]
+        df_single_nonull = df.filter(~pl.col('UUID').is_in(list(multi_year_uuids)) & pl.col('UUID').is_not_null())
+        if non_year_pk_cols and len(df_single_nonull) > 0:
+            dims_year_count = df_single_nonull.group_by(non_year_pk_cols).agg(pl.col(YEAR_COLUMN).n_unique().alias('NrDimsYears'))
+            df_single_tagged = df_single_nonull.join(dims_year_count, on=non_year_pk_cols, how='left')
+            overlay_uuids: set[str] = set(df_single_tagged.filter(pl.col('NrDimsYears') > 1)['UUID'].unique().to_list())
+        else:
+            overlay_uuids = set()
+
+        left_join_uuids = multi_year_uuids | overlay_uuids
+
+        if not left_join_uuids:
             jdf = df.join(dpdf, on='UUID', how='outer')
             jdf = jdf.with_columns(pl.lit(value=False).alias('IsMultiYearUUID'))
         else:
-            df_single = df.filter(~pl.col('UUID').is_in(list(multi_year_uuids)))
-            df_multi = df.filter(pl.col('UUID').is_in(list(multi_year_uuids)))
-            dpdf_single = dpdf.filter(~pl.col('UUID').is_in(list(multi_year_uuids)))
-            dpdf_multi = dpdf.filter(pl.col('UUID').is_in(list(multi_year_uuids))).rename({'MeasureYear': YEAR_COLUMN})
+            # Null UUIDs must go to df_outer; is_in() returns null for null values so we
+            # need the explicit is_null() guard to avoid silently dropping those rows.
+            df_outer = df.filter(pl.col('UUID').is_null() | ~pl.col('UUID').is_in(list(left_join_uuids)))
+            df_left = df.filter(pl.col('UUID').is_not_null() & pl.col('UUID').is_in(list(left_join_uuids)))
+            dpdf_outer = dpdf.filter(~pl.col('UUID').is_in(list(left_join_uuids)))
+            dpdf_left = dpdf.filter(pl.col('UUID').is_in(list(left_join_uuids))).rename({'MeasureYear': YEAR_COLUMN})
             parts: list[pl.DataFrame] = []
-            if len(df_single) > 0:
-                jdf_s = df_single.join(dpdf_single, on='UUID', how='outer')
-                jdf_s = jdf_s.with_columns(pl.lit(value=False).alias('IsMultiYearUUID'))
-                parts.append(jdf_s)
-            if len(df_multi) > 0:
-                jdf_m = df_multi.join(dpdf_multi, on=['UUID', YEAR_COLUMN], how='left')
-                jdf_m = jdf_m.with_columns(
+            if len(df_outer) > 0:
+                jdf_o = df_outer.join(dpdf_outer, on='UUID', how='outer')
+                jdf_o = jdf_o.with_columns(pl.lit(value=False).alias('IsMultiYearUUID'))
+                parts.append(jdf_o)
+            if len(df_left) > 0:
+                jdf_l = df_left.join(dpdf_left, on=['UUID', YEAR_COLUMN], how='left')
+                jdf_l = jdf_l.with_columns(
                     pl.col(YEAR_COLUMN).alias('MeasureYear'),
                     pl.lit(value=True).alias('IsMultiYearUUID'),
                 )
-                parts.append(jdf_m)
+                parts.append(jdf_l)
             jdf = pl.concat(parts, how='diagonal')
 
         # Convert units
