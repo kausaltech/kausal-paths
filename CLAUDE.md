@@ -176,7 +176,12 @@ full rationale. In brief:
 
 #### Python
 - Type hints required (mypy checking enabled)
-- Use `from __future__ import annotations` for forward references
+- **Do not add `from __future__ import annotations`** to new files. Python
+  3.14 evaluates annotations lazily by default (PEP 649), so the future
+  import is redundant — and it actively breaks Strawberry types that rely
+  on runtime annotation evaluation (`sb.Private[...]`, lazy refs). Forward
+  references should be quoted on the spot (`x: 'SomeType'`) only where
+  needed.
 - Follow Django model patterns with proper managers and querysets
 - Use Pydantic for data validation where appropriate
 
@@ -202,6 +207,13 @@ full rationale. In brief:
 
 #### GraphQL
 - Uses both Graphene and Strawberry (migration in progress; see `docs/graphene-to-strawberry-migration.md`)
+- When adding new Strawberry types, follow
+  [`kausal_common/docs/graphql-types.md`](kausal_common/docs/graphql-types.md):
+  prefer `@strawberry_django.type` for ORM-backed types, use `auto` + lazy
+  `Annotated[..., sb.lazy(...)]` for FK fields, never expose Django pks
+  (resolve `id` from `uuid`), and consider migrating `CharField(choices=)`
+  to `TextChoicesField` rather than hand-rolling enum mapping resolvers
+- See also `docs/architecture/graphql-mutations.md` for mutation patterns
 - Maintain schema consistency across different apps
 - Include proper error handling and validation
 
@@ -229,7 +241,7 @@ full rationale. In brief:
 - Atomic transactions enabled by default
 
 #### Dependencies
-- Python 3.13+ required
+- Python 3.14+ required
 - Heavy use of scientific computing libraries (Polars, Pandas, NumPy)
 - Wagtail CMS for content management
 - Django Channels for WebSocket support
