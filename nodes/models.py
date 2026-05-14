@@ -4,8 +4,10 @@ import re
 import secrets
 import threading
 import uuid
+from collections.abc import Mapping
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import timedelta
 from enum import StrEnum
 from functools import cached_property
@@ -77,8 +79,9 @@ from paths.utils import (
     get_supported_languages,
 )
 
-from nodes.defs import DatasetPortBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceSpec, NodeSpec
+from nodes.defs import DatasetPortBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceSpec, NodeSpec, YearsSpec
 from nodes.defs.edge_def import EdgeTransformation
+from nodes.defs.instance_defs import InstanceFeatures
 from nodes.defs.node_defs import NodeKind
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
@@ -372,6 +375,55 @@ def make_empty_instance_spec() -> InstanceSpec:
     return InstanceSpec(primary_language='en')
 
 
+def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> InstanceSpec:
+    if isinstance(instance, Mapping):
+        features = InstanceFeatures.model_validate(instance.get('features') or {})
+        return InstanceSpec(
+            identifier=instance.get('id', ''),
+            name=instance.get('name', ''),
+            owner=instance.get('owner'),
+            primary_language=instance['default_language'],
+            other_languages=list(instance.get('supported_languages') or []),
+            years=YearsSpec(
+                reference=instance.get('reference_year'),
+                min_historical=instance.get('minimum_historical_year'),
+                max_historical=instance.get('maximum_historical_year'),
+                target=instance.get('target_year'),
+                model_end=instance.get('model_end_year'),
+            ),
+            features=features,
+            theme_identifier=instance.get('theme_identifier'),
+        )
+
+    context = instance.context
+    features = instance.features
+    if not isinstance(features, InstanceFeatures):
+        features = InstanceFeatures.model_validate(features or {})
+    other_languages = [lang for lang in instance.supported_languages if lang != instance.default_language]
+    return InstanceSpec(
+        identifier=instance.id,
+        name=instance.name,
+        owner=instance.owner,
+        primary_language=instance.default_language,
+        other_languages=other_languages,
+        years=YearsSpec(
+            reference=instance.reference_year,
+            min_historical=instance.minimum_historical_year,
+            max_historical=instance.maximum_historical_year,
+            target=context.target_year,
+            model_end=context.model_end_year,
+        ),
+        features=features,
+        theme_identifier=instance.theme_identifier,
+    )
+
+
+@dataclass
+class InstanceGraphQLContext:
+    requested_hostname: str
+    matched_hostname: InstanceHostname | None = None
+
+
 class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], UUIDIdentifiedModel, models.Model):
     """Metadata for one Paths computational model instance."""
 
@@ -401,6 +453,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
     cache_invalidated_at = models.DateTimeField(default=timezone.now)
+    yaml_mtime_hash = models.CharField(max_length=32, null=True, blank=True, editable=False)
 
     primary_language = models.CharField[str, str](
         max_length=8,
@@ -500,6 +553,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
     # read". ``_create_from_config`` clears it so hydrate calls that follow
     # a post-publish edit see the current DB state.
     _nodes_for_serialization: list[NodeConfig] | None
+    graphql_context: InstanceGraphQLContext | None = None
 
     search_fields = [
         index.SearchField('identifier'),
@@ -568,7 +622,17 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         assert not cls.objects.filter(identifier=instance.id).exists()
 
         org = Organization.objects.get(name='Kausal')  # TODO: Define the organization better when we have a better idea?
-        return cls.objects.create(identifier=instance.id, site_url=instance.site_url, organization=org, **kwargs)
+        fields = {
+            'identifier': instance.id,
+            'site_url': instance.site_url,
+            'organization': org,
+            'primary_language': instance.default_language,
+            'other_languages': [lang for lang in instance.supported_languages if lang != instance.default_language],
+            'spec': make_minimal_instance_spec(instance),
+            'yaml_mtime_hash': instance.config_mtime_hash,
+            **kwargs,
+        }
+        return cls.objects.create(**fields)
 
     def has_framework_config(self) -> bool:
         try:
@@ -606,6 +670,9 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         if set(self.other_languages or []) != other_langs:
             self.log.info('Updating instance.other_languages to [%s]' % ', '.join(other_langs))
             self.other_languages = list(other_langs)
+        if self.config_source == 'yaml':
+            self.spec = make_minimal_instance_spec(instance)
+            self.yaml_mtime_hash = instance.config_mtime_hash
 
     def serializable_data(self) -> dict[str, Any]:
         """
@@ -872,6 +939,33 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         instance = self.get_instance()
         return str(instance.name)
 
+    def ensure_spec(self) -> InstanceSpec:
+        if self.spec is not None:
+            return self.spec
+
+        if self.config_source == 'yaml':
+            from .instance_loader import InstanceYAMLConfig
+
+            config_fn = Path(settings.BASE_DIR, 'configs', f'{self.identifier}.yaml').resolve()
+            yaml_conf = InstanceYAMLConfig.load_for_entrypoint(config_fn)
+            data = yaml_conf.data
+            assert data is not None
+            self.spec = make_minimal_instance_spec(data)
+            self.yaml_mtime_hash = yaml_conf.meta.mtime_hash or yaml_conf.meta.calculate_mtime_hash()
+            self.primary_language = self.spec.primary_language
+            self.other_languages = list(self.spec.other_languages)
+            self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash'])
+            return self.spec
+
+        self.spec = InstanceSpec(
+            identifier=self.identifier,
+            name=self.name,
+            primary_language=self.primary_language,
+            other_languages=list(self.other_languages or []),
+        )
+        self.save(update_fields=['spec'])
+        return self.spec
+
     @property
     def default_language(self) -> str:
         return self.primary_language
@@ -879,6 +973,13 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
     @property
     def supported_languages(self) -> list[str]:
         return [self.primary_language, *self.other_languages]
+
+    @property
+    def theme_identifier(self) -> str:
+        spec = self.ensure_spec()
+        if spec.theme_identifier is not None:
+            return spec.theme_identifier
+        return 'default'
 
     @cached_property
     def root_page(self) -> Page:

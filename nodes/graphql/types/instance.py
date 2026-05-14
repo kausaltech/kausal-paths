@@ -513,35 +513,40 @@ class InstanceType:
 @sb.type
 class InstanceBasicConfiguration:
     default_language: str
-    theme_identifier: str
     supported_languages: list[str]
 
     @sb.field
     @staticmethod
-    def identifier(root: Instance) -> str:
-        return root.id
+    def identifier(root: InstanceConfig) -> str:
+        return root.identifier
 
     @sb.field
     @staticmethod
-    def is_protected(root: Instance) -> bool:
-        ic: InstanceConfig = root._config  # type: ignore[attr-defined]
-        return ic.is_protected
+    def is_protected(root: InstanceConfig) -> bool:
+        return root.is_protected
 
     @sb.field
     @staticmethod
-    def requires_authentication(root: Instance) -> bool:
-        ic: InstanceConfig = root._config  # type: ignore[attr-defined]
-        return ic.get_instance().features.requires_authentication
+    def requires_authentication(root: InstanceConfig) -> bool:
+        return root.ensure_spec().features.requires_authentication
 
     @sb.field
     @staticmethod
-    def hostname(root: Instance) -> InstanceHostname:
-        ic: InstanceConfig = root._config  # type: ignore[attr-defined]
-        hostname: str = root._hostname  # type: ignore[attr-defined]
-        hn_obj = ic.hostnames.filter(hostname=hostname.lower()).first()
-        if not hn_obj:
+    def theme_identifier(root: InstanceConfig) -> str:
+        spec = root.ensure_spec()
+        return spec.theme_identifier or 'default'
+
+    @sb.field
+    @staticmethod
+    def hostname(root: InstanceConfig) -> InstanceHostname:
+        gql_context = root.graphql_context
+        if gql_context is None or gql_context.matched_hostname is None:
+            hostname = gql_context.requested_hostname if gql_context is not None else ''
             return InstanceHostname(hostname=hostname, base_path='')
-        return InstanceHostname(hostname=hn_obj.hostname, base_path=hn_obj.base_path)
+        return InstanceHostname(
+            hostname=gql_context.matched_hostname.hostname,
+            base_path=gql_context.matched_hostname.base_path,
+        )
 
 
 @sb.type

@@ -295,7 +295,7 @@ class InstanceYAMLConfig:
         return cache_path
 
     @classmethod
-    def load_from_cache(cls, entrypoint_path: Path) -> InstanceYAMLConfig | None:
+    def load_from_cache(cls, entrypoint_path: Path) -> Self | None:
         cache_path = cls._get_cache_fn(entrypoint_path)
         cache_meta_path = cache_path.with_suffix('.json')
         if not cache_path.exists() or not cache_meta_path.exists():
@@ -321,6 +321,32 @@ class InstanceYAMLConfig:
         conf.data = cast('dict[str, Any]', data)
 
         return conf
+
+    @classmethod
+    def load_for_entrypoint(cls, entrypoint: Path) -> Self:
+        entrypoint = entrypoint.resolve()
+        try:
+            relative_fn = entrypoint.relative_to(Path(__file__).parent.parent.resolve())
+        except ValueError:
+            relative_fn = entrypoint
+
+        with start_span(name='load-from-cache: %s' % relative_fn, op='function') as span:
+            yaml_conf = cls.load_from_cache(entrypoint)
+            span.set_data('cache_hit', yaml_conf is not None)
+
+        if yaml_conf is not None:
+            return yaml_conf
+
+        logger.info('Cached instance not found or stale for %s, loading from YAML' % relative_fn)
+        yaml_conf = cls.from_entrypoint(entrypoint)
+        with start_span(name='load-from-yaml: %s' % relative_fn, op='function'):
+            yaml_conf.load()
+        yaml_conf.meta.mtime_hash = yaml_conf.meta.calculate_mtime_hash()
+        try:
+            yaml_conf.save_to_cache()
+        except Exception:
+            logger.exception('Unable to save instance configuration to cache')
+        return yaml_conf
 
     @classmethod
     def from_entrypoint(cls, entrypoint: Path) -> Self:
@@ -1127,20 +1153,7 @@ class InstanceLoader:
     @classmethod
     def from_yaml(cls, filename: Path, fw_config: FrameworkConfig | None = None) -> Self:
         yaml_fn = filename.resolve()
-        relative_fn = Path(filename).relative_to(Path(__file__).parent.parent.resolve())
-        with start_span(name='load-from-cache: %s' % relative_fn, op='function') as span:
-            yaml_conf = InstanceYAMLConfig.load_from_cache(yaml_fn)
-            span.set_data('cache_hit', yaml_conf is not None)
-
-        if yaml_conf is None:
-            logger.info('Cached instance not found or stale for %s, loading from YAML' % relative_fn)
-            yaml_conf = InstanceYAMLConfig.from_entrypoint(yaml_fn)
-            with start_span(name='load-from-yaml: %s' % relative_fn, op='function') as span:
-                yaml_conf.load()
-            try:
-                yaml_conf.save_to_cache()
-            except Exception:
-                logger.exception('Unable to save instance configuration to cache')
+        yaml_conf = InstanceYAMLConfig.load_for_entrypoint(yaml_fn)
 
         data = yaml_conf.data
         assert data is not None
@@ -1252,6 +1265,7 @@ class InstanceLoader:
             owner=owner,
             default_language=self.config['default_language'],
             action_groups=agcs,
+            config_mtime_hash=self.config_mtime_hash,
             features=self.config.get('features', {}),
             terms=self.config.get('terms', {}),
             result_excels=[InstanceResultExcel.from_yaml_config(r) for r in self.config.get('result_excels', [])],

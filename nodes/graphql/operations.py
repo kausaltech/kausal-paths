@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import strawberry as sb
+from django.db.models import Prefetch
 from graphql.error import GraphQLError
 
 from loguru import logger
@@ -14,7 +15,7 @@ from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
 from paths.graphql_helpers import ensure_instance, get_instance_context, pass_context
 
 from nodes.instance import Instance
-from nodes.models import InstanceConfig
+from nodes.models import InstanceConfig, InstanceGraphQLContext
 from nodes.normalization import Normalization
 from nodes.scenario import Scenario
 
@@ -128,14 +129,31 @@ class SBQuery(Query):
 
     @sb.field(graphql_type=list[InstanceBasicConfiguration])
     @staticmethod
-    def available_instances(info: gql.Info, hostname: str) -> list[Instance]:
-        qs = InstanceConfig.objects.get_queryset().for_hostname(hostname, wildcard_domains=info.context.wildcard_domains)
-        instances: list[Instance] = []
+    def available_instances(info: gql.Info, hostname: str) -> list[InstanceConfig]:
+        from nodes.models import InstanceHostname
+
+        normalized_hostname = hostname.lower()
+        matched_hostnames_attr = '_available_instances_matched_hostnames'
+        qs = (
+            InstanceConfig.objects
+            .get_queryset()
+            .for_hostname(normalized_hostname, wildcard_domains=info.context.wildcard_domains)
+            .prefetch_related(
+                Prefetch(
+                    'hostnames',
+                    queryset=InstanceHostname.objects.filter(hostname=normalized_hostname),
+                    to_attr=matched_hostnames_attr,
+                )
+            )
+        )
+        instances: list[InstanceConfig] = []
         for config in qs:
-            instance = config.get_instance()
-            instance._config = config  # type: ignore[attr-defined]
-            instance._hostname = hostname  # type: ignore[attr-defined]
-            instances.append(instance)
+            matched_hostnames: list[InstanceHostname] = getattr(config, matched_hostnames_attr)
+            config.graphql_context = InstanceGraphQLContext(
+                requested_hostname=normalized_hostname,
+                matched_hostname=matched_hostnames[0] if matched_hostnames else None,
+            )
+            instances.append(config)
         return instances
 
 
