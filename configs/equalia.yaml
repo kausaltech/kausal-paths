@@ -4,7 +4,7 @@ supported_languages: [de, fi]
 site_url: https://equalia.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 55c4007aa260540039bbd4a1a1c36699b896e5fe
+  commit: ef98e3122ff78516297c2c6f3f3369ef8614dcbe
   dvc_remote: kausal-s3
 name: Equalia Climate Action Plan
 owner: Kausal Ltd
@@ -37,6 +37,18 @@ params:
   value: Equalia
   is_customizable: true
   is_visible: true
+- id: inequality_aversion
+  value: 2.0
+  unit: dimensionless
+  is_customizable: true
+  is_visible: true
+  label: Inequality aversion (epsilon)
+- id: floor_threshold
+  value: 0.25
+  is_customizable: true
+  is_visible: true
+  unit: dimensionless
+  label: Floor threshold (f)
 
 action_groups:
 - id: transportation
@@ -53,6 +65,76 @@ action_groups:
   color: '#9B59B6'
 
 dimensions:
+
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: energy_costs
+    label: Energy Costs
+  - id: investment_costs
+    label: Investment Costs
+  - id: capex
+    label: CAPEX (capital expenditure)
+  - id: capex_levelised
+    label: CAPEX (levelised)
+  - id: opex
+    label: OPEX (operational expenditure)
+    aliases: [operation_cost, Operation Cost]
+  - id: maintenance_costs
+    label: Maintenance Costs
+    aliases: [maintenance]
+  - id: sales
+    label: Sales income
+  - id: air_pollution
+    label: Air pollution
+    aliases: [air_quality]
+  - id: noise
+    label: Noise
+  - id: accidents
+    label: Accidents
+  - id: health
+    label: Health
+  - id: co2_cost
+    label: CO2 Cost
+  - id: aesthetics
+    label: Aesthetics and amenity
+  - id: shading
+    label: Shading
+  - id: water_regulation
+    label: Water regulation
+    aliases: [water_regulations]
+  - id: forest_management
+    label: Forest management
+  - id: bus_costs
+    label: Bus costs
+  - id: homecharging_infrastructure
+    label: Home-charging infrastructure
+  - id: public_and_workplace_infrastructure
+    label: Public & workplace infrastructure
+  - id: charging_infrastructure_costs
+    label: Charging infrastructure costs
+  - id: vehicle_costs
+    label: Vehicle costs
+  - id: infrastructure_costs
+    label: Infrastructure costs
+  - id: network
+    label: Network
+  - id: fuel
+    label: Fuel costs
+  - id: tires
+    label: Tire costs
+  - id: depreciation
+    label: Depreciation costs
+  - id: labour_costs
+    label: Labour costs
+  - id: industry_ippu
+    label: Industry (IPPU)
+  - id: agriculture_afolu
+    label: Agriculture (AFOLU)
+  - id: other_sources
+    label: Other sources
+  - id: grid_stability
+    label: Storage, grid stability etc.
 
 - id: hypotheses
   label_en: Hypotheses
@@ -83,20 +165,6 @@ dimensions:
     label_en: Moderate
     label_de: Mittel
     label_fi: Keskiverto
-
-- id: time_of_day
-  label_en: Time of day
-  label_de: Zeit des Tages
-  label_fi: Aika päivänä
-  categories:
-  - id: peak_hours
-    label_en: Peak hours
-    label_de: Spitzenstunden
-    label_fi: Pikkupisteet
-  - id: non_peak_hours
-    label_en: Non-peak hours
-    label_de: Nicht-Spitzenstunden
-    label_fi: Epäpikkupisteet
 
 - id: stakeholder
   label_en: Stakeholder
@@ -232,6 +300,20 @@ dimensions:
     label_de: Wohlhabend
     label_fi: Varakkaat
 
+- id: time_of_day
+  label_en: Time of day
+  label_de: Zeit des Tages
+  label_fi: Aika päivänä
+  categories:
+  - id: peak_hours
+    label_en: Peak hours
+    label_de: Spitzenstunden
+    label_fi: Pikkupisteet
+  - id: non_peak_hours
+    label_en: Non-peak hours
+    label_de: Nicht-Spitzenstunden
+    label_fi: Epäpikkupisteet
+
 nodes:
 
 - id: net_emissions
@@ -262,6 +344,7 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: bisko/historical_emissions
+    column: Value
 
 - id: total_emissions
   name: Total emissions
@@ -466,6 +549,382 @@ nodes:
   params:
     formula: others_cooperating >= (our_threshold * index)
 
+
+# ===== MORAL IMPACT ASSESSMENT: SOCIAL WELFARE FUNCTIONS =====
+# Mathematical framework from docs/architecture/value_profiles.md.
+# Implements the veil-of-ignorance moral principles (Frohlich & Oppenheimer 1992).
+# Index i = stakeholder groups (stakeholder dimension); index k = cost_type outcome dimensions.
+
+- id: moral_welfare_input
+  name: Welfare by stakeholder and cost type
+  description: |
+    <p>Raw welfare <code>d_ik</code> of each stakeholder group i on each outcome dimension k.
+    This is a placeholder <code>ConstantNode</code>; replace with a <code>generic.GenericNode</code>
+    that reads the actual welfare dataset (e.g. <code>equalia/welfare_by_stakeholder_cost_type</code>).
+    See <code>data/equalia_welfare_by_stakeholder_cost_type.csv</code> for an example dataset
+    covering seven representative stakeholder groups and five cost-type dimensions.</p>
+    <p>The <strong>stakeholder</strong> dimension corresponds to index i (groups) and
+    <strong>cost_type</strong> to index k (outcomes). Multi-dimensional welfare is
+    <code>u_i = sum_k w_k * d_ik</code>; equal weights (w_k = 1) are assumed here.
+    Apply upstream weighting to the input node to use unequal w_k.</p>
+  type: generic.GenericNode
+  quantity: number
+  unit: dimensionless
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets:
+  - id: transportation/welfare_outcomes
+
+- id: moral_welfare_normalized
+  name: Normalized welfare per stakeholder (Section 1.2)
+  description: |
+    <p>Normalization of multi-dimensional welfare per Section 1.2 of the
+    <em>Moral Impact Assessment Tool</em> mathematical framework. Applies two steps in sequence:</p>
+    <ol>
+    <li><strong>Dimensional aggregation (Section 1.1):</strong> sums over the cost_type dimension
+    to produce per-stakeholder welfare <code>u_i = sum_k d_ik</code> (equal weights assumed;
+    apply upstream weighting for unequal w_k before this node).</li>
+    <li><strong>Shift correction:</strong> adds delta to ensure strict positivity required by
+    the Atkinson SWF: <code>u'_i = u_i + delta</code>.</li>
+    </ol>
+    <p>Alternative normalization options to apply upstream if needed:</p>
+    <ul>
+    <li>Range normalization: <code>û_i = (u_i - u_min) / (u_max - u_min)</code> ∈ [0, 1]</li>
+    <li>Scenario-change: <code>Δu_i = u_i(scenario) - u_i(baseline)</code></li>
+    </ul>
+    <p><strong>Requirement for Atkinson node:</strong> <code>u'_i &gt; 0</code> for all groups.</p>
+  type: formula.FormulaNode
+  quantity: number
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder]
+  input_nodes:
+  - id: moral_welfare_input
+    tags: [welfare]
+  params:
+  - id: formula
+    value: sum_dim(welfare, cost_type) + constant
+  - id: constant
+    value: 0.01
+    unit: dimensionless
+    label: Shift correction delta to ensure positivity
+
+- id: moral_n_recip
+  name: Reciprocal of stakeholder count (1/n)
+  description: |
+    <p>Scaling factor <code>1/n</code> used to compute per-capita means in social welfare
+    functions. Set to 1 divided by the number of stakeholder groups carrying welfare data.
+    Update whenever the set of welfare-bearing stakeholders changes.</p>
+  type: generic.ConstantNode
+  quantity: number
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 1.0
+    unit: dimensionless
+    label: Reciprocal of stakeholder count (1/n)
+
+- id: moral_welfare_utilitarian
+  name: Utilitarian social welfare (W_U)
+  description: |
+    <p>Utilitarian average welfare: <code>W_U = (1/n) * sum_i u_i</code></p>
+    <p>The utilitarian principle holds that the morally best outcome maximises total or average
+    welfare across all groups, treating each person's welfare equally and being indifferent to
+    distribution. Empirically, efficiency preferences of this type frequently dominate
+    inequality concerns when trade-offs are made explicit, particularly when gains to average
+    welfare are large. This node serves as the baseline reference against which all
+    inequality-sensitive measures are compared. Higher values indicate higher average welfare.</p>
+    <p><strong>References:</strong></p>
+    <ul>
+    <li><a href="https://doi.org/10.1257/0002828042002741">Engelmann &amp; Strobel (2004). Inequality Aversion, Efficiency, and Maximin Preferences in Simple Distribution Experiments. <em>American Economic Review</em> 94(4).</a></li>
+    <li><a href="https://doi.org/10.1162/003355302760193904">Charness &amp; Rabin (2002). Understanding Social Preferences with Simple Tests. <em>Quarterly Journal of Economics</em> 117(3).</a></li>
+    </ul>
+  type: formula.FormulaNode
+  quantity: number
+  unit: dimensionless
+  input_dimensions: [stakeholder]
+  input_nodes:
+  - id: moral_welfare_normalized
+    tags: [welfare]
+  - id: moral_n_recip
+    tags: [n_recip]
+  params:
+    formula: sum_dim(welfare, stakeholder) * n_recip
+
+- id: moral_welfare_rawlsian
+  name: Maximin/Rawlsian social welfare (W_R)
+  description: |
+    <p>Maximin welfare: <code>W_R = min_i(u_i)</code></p>
+    <p>The maximin principle holds that a just outcome maximises the welfare of the worst-off
+    group regardless of what happens to others. Rawls (1971) argued that rational agents behind
+    the veil of ignorance would choose this principle. Pure maximin is rarely chosen in
+    deliberative experiments but provides a useful limiting case: it answers which scenario is
+    best for the worst-off group. Use as a lower-bound sensitivity check alongside other nodes.</p>
+    <p><strong>Implementation:</strong> approximated using the Atkinson SWF with high inequality
+    aversion (ε = 10), which concentrates weight on the worst-off group and converges to the
+    true minimum as ε → ∞. For exact maximin, compute <code>min(u_i)</code> directly over the
+    stakeholder dimension.</p>
+    <p><strong>References:</strong></p>
+    <ul>
+    <li><a href="https://www.hup.harvard.edu/books/9780674000780">Rawls (1971). <em>A Theory of Justice</em>. Harvard University Press.</a></li>
+    <li><a href="https://www.ucpress.edu/book/9780520073098">Frohlich &amp; Oppenheimer (1992). <em>Choosing Justice</em>. University of California Press.</a></li>
+    </ul>
+  type: formula.FormulaNode
+  quantity: number
+  unit: dimensionless
+  input_dimensions: [stakeholder]
+  input_nodes:
+  - id: moral_welfare_normalized
+    tags: [welfare]
+  - id: moral_n_recip
+    tags: [n_recip]
+  params:
+    formula: (sum_dim(welfare ** (1 - 10.0), stakeholder) * n_recip) ** (1 / (1 - 10.0))
+
+- id: moral_welfare_atkinson
+  name: Atkinson social welfare function (W_A)
+  description: |
+    <p>Atkinson SWF parameterised by inequality aversion ε:</p>
+    <ul>
+    <li>ε ≠ 1: <code>W_A(ε) = [(1/n) * sum_i u_i^(1-ε)]^(1/(1-ε))</code></li>
+    <li>ε = 1 (geometric mean): <code>W_A(1) = exp((1/n) * sum_i ln(u_i))</code> — not implemented here; use ε = 0.9999</li>
+    </ul>
+    <p>The Atkinson function parameterises continuously from pure utilitarianism (ε = 0) to pure
+    maximin (ε → ∞), making moral assumptions explicit and testable. The inequality index
+    <code>A(ε) = 1 - W_A(ε) / W_U</code> measures the welfare fraction lost to inequality.
+    Prioritarianism (intermediate ε) is most consistently supported in empirical studies.</p>
+    <p><strong>Interpretation of ε:</strong></p>
+    <ul>
+    <li>ε = 0: no inequality concern (reduces to utilitarian mean)</li>
+    <li>ε = 0.5: mild prioritarianism</li>
+    <li>ε = 1: moderate inequality aversion (geometric mean — formula is undefined; use ε = 0.9999)</li>
+    <li>ε = 2: strong inequality aversion (default)</li>
+    <li>ε → ∞: only worst-off matters (maximin)</li>
+    </ul>
+    <p>Global parameter: <code>inequality_aversion</code> (ε), default 2.0.
+    Requirement: <code>u'_i &gt; 0</code> for all i (ensured by <code>moral_welfare_normalized</code>).</p>
+    <p><strong>References:</strong></p>
+    <ul>
+    <li><a href="https://doi.org/10.1016/0022-0531(70)90039-6">Atkinson (1970). On the Measurement of Inequality. <em>Journal of Economic Theory</em> 2(3).</a></li>
+    <li><a href="https://doi.org/10.1162/003355399556151">Fehr &amp; Schmidt (1999). A Theory of Fairness, Competition, and Cooperation. <em>Quarterly Journal of Economics</em> 114(3).</a></li>
+    </ul>
+  type: formula.FormulaNode
+  quantity: number
+  unit: dimensionless
+  input_dimensions: [stakeholder]
+  input_nodes:
+  - id: moral_welfare_normalized
+    tags: [welfare]
+  - id: moral_n_recip
+    tags: [n_recip]
+  params:
+  - id: formula
+    value: (sum_dim(welfare ** (1 - constant), stakeholder) * n_recip) ** (1 / (1 - constant))
+  - id: constant
+    ref: inequality_aversion
+
+- id: moral_floor_penalty_factor
+  name: Floor penalty factor (lambda/n)
+  description: |
+    <p>Combined floor penalty weight λ divided by stakeholder count n: <code>λ/n</code>.
+    Used in <code>moral_welfare_floor_constrained</code> (W_FC) to scale per-stakeholder
+    shortfall below the floor threshold. Set λ &gt; 1 to make the floor genuinely binding
+    relative to average gains; λ = 2 is the recommended default. Default value assumes
+    λ = 2 and n = 24 stakeholder groups: 2/24 ≈ 0.0833.</p>
+  type: generic.ConstantNode
+  quantity: number
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0.0833
+    unit: dimensionless
+    label: Floor penalty factor (lambda/n)
+
+- id: moral_welfare_floor_constrained
+  name: Floor-constrained average welfare (W_FC)
+  description: |
+    <p>Floor-constrained average welfare, soft penalty version:</p>
+    <p><code>W_FC(f, λ) = ū - (λ/n) * sum_i max(0, f - u_i)</code></p>
+    <p>Where:</p>
+    <ul>
+    <li><code>ū</code> = W_U = arithmetic mean welfare (<code>moral_welfare_utilitarian</code>)</li>
+    <li><code>f</code> = floor threshold (global parameter <code>floor_threshold</code>, default 0.25)</li>
+    <li><code>λ/n</code> = penalty factor per stakeholder (<code>moral_floor_penalty_factor</code>)</li>
+    <li><code>max(0, f - u_i)</code> = welfare shortfall of group i below the floor</li>
+    </ul>
+    <p>This is the most robustly supported principle in empirical veil-of-ignorance studies.
+    Deliberating groups consistently chose to maximise average welfare subject to a guaranteed
+    minimum, replicated across US, Canada, Poland, and Australia. The structure — not the
+    specific threshold — showed strong cross-cultural replication.</p>
+    <p><strong>Setting the floor threshold f:</strong></p>
+    <ul>
+    <li><em>Absolute:</em> fixed subsistence threshold in model units</li>
+    <li><em>Relative:</em> <code>f = α * ū_baseline</code> (e.g. α = 0.5 → 50% of baseline mean)</li>
+    <li><em>Need-based:</em> derived from <code>moral_welfare_need_satisfaction</code> thresholds</li>
+    </ul>
+    <p>Hard constraint version: any scenario with <code>min_i(u_i) &lt; f</code> is inadmissible;
+    use <code>moral_welfare_rawlsian</code> (W_R) to check before ranking scenarios.</p>
+    <p>Global parameter: <code>floor_threshold</code> (f), default 0.25.</p>
+    <p><strong>References:</strong></p>
+    <ul>
+    <li><a href="https://doi.org/10.2307/2111285">Frohlich, Oppenheimer &amp; Eavey (1987). Choices of Principles of Distributive Justice in Experimental Groups. <em>American Journal of Political Science</em> 31(3).</a></li>
+    <li><a href="https://www.ucpress.edu/book/9780520073098">Frohlich &amp; Oppenheimer (1992). <em>Choosing Justice</em>. University of California Press.</a></li>
+    </ul>
+  type: formula.FormulaNode
+  quantity: number
+  unit: dimensionless
+  input_dimensions: [stakeholder]
+  input_nodes:
+  - id: moral_welfare_normalized
+    tags: [welfare]
+  - id: moral_welfare_utilitarian
+    tags: [mean_welfare]
+  - id: moral_floor_penalty_factor
+    tags: [penalty]
+  params:
+  - id: formula
+    value: mean_welfare - penalty * sum_dim(max(0, constant - welfare), stakeholder)
+  - id: constant
+    ref: floor_threshold
+
+- id: moral_welfare_sen_gini
+  name: Sen-Gini social welfare function (W_Sen)
+  description: |
+    <p>Sen-Gini social welfare function: <code>W_Sen = ū * (1 - G)</code></p>
+    <p>Where the Gini coefficient is:
+    <code>G = sum_i sum_j |u_i - u_j| / (2 * n² * ū)</code></p>
+    <p><strong>Interpretation:</strong></p>
+    <ul>
+    <li>G = 0 (perfect equality): W_Sen = W_U</li>
+    <li>G = 1 (maximum inequality): W_Sen → 0</li>
+    <li>The gap W_U - W_Sen is the welfare cost of inequality under the scenario</li>
+    </ul>
+    <p>The Gini captures pairwise differences between all groups and complements the Atkinson
+    function with a measure more familiar to policy audiences. The gap between W_U and W_Sen
+    is directly interpretable as the welfare cost of inequality.</p>
+    <p><strong>Implementation note:</strong> exact Gini computation requires double summation over
+    the stakeholder dimension, not available in the formula engine. The Gini coefficient is
+    approximated here as a fixed constant (default 0 → W_Sen = W_U, no inequality assumed).
+    Override with an empirically estimated Gini for the specific welfare data.</p>
+    <p><strong>References:</strong></p>
+    <ul>
+    <li><a href="https://doi.org/10.1016/0047-2727(74)90006-1">Sen (1974). Informational Bases of Alternative Welfare Approaches. <em>Journal of Public Economics</em> 3(4).</a></li>
+    </ul>
+  type: formula.FormulaNode
+  quantity: number
+  unit: dimensionless
+  input_nodes:
+  - id: moral_welfare_utilitarian
+    tags: [mean_welfare]
+  params:
+  - id: formula
+    value: mean_welfare * (1 - constant)
+  - id: constant
+    value: 0.0
+    unit: dimensionless
+    label: Gini coefficient estimate (0 = perfect equality assumed)
+
+- id: moral_welfare_need_satisfaction
+  name: Need satisfaction welfare (W_N)
+  description: |
+    <p>Need satisfaction score, continuous Alkire-Foster formulation:</p>
+    <ul>
+    <li><code>NS_i = (1/K) * sum_k min(1, u_ik / n_k)</code> ∈ [0, 1]</li>
+    <li><code>W_N = (1/n) * sum_i NS_i</code> ∈ [0, 1]</li>
+    </ul>
+    <p>Where K = number of need dimensions, n_k = threshold for dimension k, u_ik = welfare of
+    group i on dimension k. W_N = 1 means all groups meet all thresholds on all dimensions.
+    Report dimension-level scores separately to identify which dimensions drive shortfalls.</p>
+    <p>The need principle addresses specific substantive dimensions required for basic functioning
+    (nutrition, shelter, health, safety) regardless of overall welfare level, and is empirically
+    distinct from the floor constraint. This follows the Alkire-Foster counting approach
+    underlying the UN Multidimensional Poverty Index.</p>
+    <p><strong>Implementation:</strong> applies a single uniform threshold (constant parameter)
+    to dimension-aggregated welfare u_i. For dimension-specific thresholds n_k, weight the
+    <code>moral_welfare_input</code> node upstream before connecting here.</p>
+    <p><strong>References:</strong></p>
+    <ul>
+    <li><a href="https://doi.org/10.1257/002205103771800013">Konow (2003). Which Is the Fairest One of All? A Positive Analysis of Justice Theories. <em>Journal of Economic Literature</em> 41(4).</a></li>
+    <li><a href="https://doi.org/10.1016/j.jpubeco.2010.11.006">Alkire &amp; Foster (2011). Counting and Multidimensional Poverty Measurement. <em>Journal of Public Economics</em> 95(7-8).</a></li>
+    </ul>
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder]
+  input_nodes:
+  - id: moral_welfare_normalized
+    tags: [welfare]
+  - id: moral_n_recip
+    tags: [n_recip]
+  params:
+  - id: formula
+    value: sum_dim(min(1, welfare / constant), stakeholder) * n_recip
+  - id: constant
+    value: 0.5
+    unit: dimensionless
+    label: Need threshold (n_k) — minimum acceptable welfare level
+
+- id: moral_circumstance_welfare
+  name: Circumstance-predicted welfare per stakeholder (placeholder)
+  description: |
+    <p>Circumstance-predicted welfare <code>û_i(C)</code>: the welfare level that would obtain
+    if group i's welfare were determined solely by unchosen circumstances — birth conditions,
+    structural position, disability, geography — rather than discretionary choices.</p>
+    <p>Used by <code>moral_welfare_accountability</code> (W_Acc) to separate circumstance-driven
+    inequality (morally arbitrary, to be penalised) from choice-driven inequality (acceptable).
+    In practice, estimate by regressing u_i on circumstance variables only.</p>
+    <p><strong>Placeholder:</strong> uniform value 0.5 makes all groups equally
+    circumstance-disadvantaged, reducing W_Acc to a uniformly weighted average equal to W_U.
+    Replace with a node carrying <code>[stakeholder]</code> output dimensions when causal
+    pathways distinguishing circumstances from choices are encoded in the model.</p>
+  type: generic.ConstantNode
+  quantity: number
+  unit: dimensionless
+  # output_dimensions: [stakeholder]
+  params:
+  - id: constant
+    value: 0.5
+    unit: dimensionless
+    label: Circumstance-predicted welfare (placeholder; override per stakeholder)
+
+- id: moral_welfare_accountability
+  name: Accountability-adjusted welfare (W_Acc)
+  description: |
+    <p>Accountability-adjusted welfare, simplified inverse-weighting version:</p>
+    <ul>
+    <li><code>w_i = (1 / û_i(C)) / sum_j(1 / û_j(C))</code></li>
+    <li><code>W_Acc = sum_i w_i * u_i</code></li>
+    </ul>
+    <p>Groups with lower circumstance-predicted welfare receive higher weight, compensating for
+    unchosen disadvantage while leaving effort-driven inequality unpenalised. When all û_i(C)
+    are equal, W_Acc reduces to W_U.</p>
+    <p>The accountability principle reflects the empirically robust judgment that individuals
+    should be compensated for disadvantages from unchosen circumstances but not from freely made
+    choices. Identified by Konow (2003) as one of three robust distributive principles alongside
+    efficiency and need. This is the empirical counterpart of luck egalitarianism.</p>
+    <p><strong>Full implementation (Steps 1-3):</strong> decompose u_i = f(C_i, E_i), estimate
+    û_i(C) = E[u | C_i] via regression, then apply the Atkinson SWF to û_i(C) only.
+    See <code>moral_circumstance_welfare</code> for the placeholder.</p>
+    <p><strong>References:</strong></p>
+    <ul>
+    <li><a href="https://doi.org/10.1257/aer.90.4.1072">Konow (2000). Fair Shares: Accountability and Cognitive Dissonance in Allocation Decisions. <em>American Economic Review</em> 90(4).</a></li>
+    <li><a href="https://doi.org/10.1257/002205103771800013">Konow (2003). Which Is the Fairest One of All? <em>Journal of Economic Literature</em> 41(4).</a></li>
+    <li><a href="https://www.hup.harvard.edu/books/9780674004221">Roemer (1998). <em>Equality of Opportunity</em>. Harvard University Press.</a></li>
+    <li><a href="https://doi.org/10.1111/j.1475-4991.2007.00247.x">Bourguignon, Ferreira &amp; Menéndez (2007). Inequality of Opportunity in Brazil. <em>Journal of Economic Inequality</em> 5(2).</a></li>
+    </ul>
+  type: formula.FormulaNode
+  quantity: number
+  unit: dimensionless
+  input_dimensions: [stakeholder]
+  input_nodes:
+  - id: moral_welfare_normalized
+    tags: [welfare]
+  - id: moral_circumstance_welfare
+    tags: [circumstance]
+    to_dimensions:
+    - id: stakeholder
+      categories: [citizens]
+  params:
+    formula: sum_dim(arithmetic_inverse(circumstance) / sum_dim(arithmetic_inverse(circumstance), stakeholder) * welfare, stakeholder)
 
 pages:
 - id: home

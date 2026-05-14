@@ -670,3 +670,82 @@ choices embedded in each run.
 | W_N | Need satisfaction | $\frac{1}{n}\sum_i \frac{1}{K}\sum_k \min(1, u_{ik}/n_k)$ | $n_k$ per dimension | Konow (2003), Alkire & Foster (2011) |
 | W_Acc | Accountability-adjusted | $W_A(\varepsilon)$ on $\hat{u}_i(C)$ | $\varepsilon$, $C_i$ definition | Roemer (1998), Konow (2000) |
 | W_Eq | Equality reference | $-\frac{1}{n}\sum(u_i - \bar{u})^2$ | None | Engelmann & Strobel (2004) |
+
+## References
+
+### Books
+
+Frohlich, N., & Oppenheimer, J. (1992). *Choosing Justice: An Experimental
+Approach to Ethical Theory*. University of California Press.
+ISBN: 978-0520073098.
+https://www.ucpress.edu/book/9780520073098
+
+Nussbaum, M. C. (2000). *Women and Human Development: The Capabilities
+Approach*. Cambridge University Press.
+ISBN: 978-0521003858.
+https://www.cambridge.org/9780521003858
+
+Rawls, J. (1971). *A Theory of Justice*. Harvard University Press.
+ISBN: 978-0674000780.
+https://www.hup.harvard.edu/books/9780674000780
+
+Roemer, J. E. (1998). *Equality of Opportunity*. Harvard University Press.
+ISBN: 978-0674004221.
+https://www.hup.harvard.edu/books/9780674004221
+
+---
+
+### Journal Articles
+
+Alkire, S., & Foster, J. (2011). Counting and multidimensional poverty
+measurement. *Journal of Public Economics*, 95(7-8), 476-487.
+https://doi.org/10.1016/j.jpubeco.2010.11.006
+
+Atkinson, A. B. (1970). On the measurement of inequality. *Journal of
+Economic Theory*, 2(3), 244-263.
+https://doi.org/10.1016/0022-0531(70)90039-6
+
+Bourguignon, F., Ferreira, F. H. G., & Menéndez, M. (2007). Inequality
+of opportunity in Brazil. *Journal of Economic Inequality*, 5(2), 167-190.
+https://doi.org/10.1111/j.1475-4991.2007.00247.x
+
+Charness, G., & Rabin, M. (2002). Understanding social preferences with
+simple tests. *Quarterly Journal of Economics*, 117(3), 817-869.
+https://doi.org/10.1162/003355302760193904
+
+Deutsch, M. (1975). Equity, equality, and need: What determines which
+value will be used as the basis of distributive justice? *Journal of
+Social Issues*, 31(3), 137-149.
+https://doi.org/10.1111/j.1540-4560.1975.tb01000.x
+
+Engelmann, D., & Strobel, M. (2004). Inequality aversion, efficiency,
+and maximin preferences in simple distribution experiments. *American
+Economic Review*, 94(4), 857-869.
+https://doi.org/10.1257/0002828042002741
+
+Fehr, E., & Schmidt, K. M. (1999). A theory of fairness, competition,
+and cooperation. *Quarterly Journal of Economics*, 114(3), 817-868.
+https://doi.org/10.1162/003355399556151
+
+Frohlich, N., Oppenheimer, J., & Eavey, C. (1987). Choices of principles
+of distributive justice in experimental groups. *American Journal of
+Political Science*, 31(3), 606-636.
+https://doi.org/10.2307/2111285
+
+Güth, W., Schmittberger, R., & Schwarze, B. (1982). An experimental
+analysis of ultimatum bargaining. *Journal of Economic Behavior and
+Organization*, 3(4), 367-388.
+https://doi.org/10.1016/0167-2681(82)90011-7
+
+Konow, J. (2000). Fair shares: Accountability and cognitive dissonance
+in allocation decisions. *American Economic Review*, 90(4), 1072-1091.
+https://doi.org/10.1257/aer.90.4.1072
+
+Konow, J. (2003). Which is the fairest one of all? A positive analysis
+of justice theories. *Journal of Economic Literature*, 41(4), 1188-1239.
+https://doi.org/10.1257/002205103771800013
+
+Sen, A. (1974). Informational bases of alternative welfare approaches:
+Aggregation and income distribution. *Journal of Public Economics*,
+3(4), 387-403.
+https://doi.org/10.1016/0047-2727(74)90006-1
