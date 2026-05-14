@@ -524,12 +524,10 @@ class FormulaNode(Node):
                     datasets[tag] = df
 
         # Collect parameters that have units (for use in formulas)
-        from params.base import ParameterWithUnit
-
         parameters: dict[str, QuantityType | bool] = {}
         for param_id, param in self.parameters.items():
             val: Any
-            if isinstance(param, ParameterWithUnit) and param.unit is not None:
+            if param.has_unit():
                 val = self.get_parameter_value(param_id, required=False, units=True)
                 if val is not None:
                     assert isinstance(val, Quantity)
@@ -538,6 +536,8 @@ class FormulaNode(Node):
                 val = self.get_parameter_value(param_id, required=False)
                 if isinstance(val, bool):
                     parameters[param_id] = val
+                elif isinstance(val, (int, float)):
+                    raise NodeError(self, 'Parameter must have a unit in this context.')
 
         return EvalVars(nodes, datasets, parameters)
 

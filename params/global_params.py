@@ -303,3 +303,13 @@ class AGSNumber(StringGlobalParameter):
 class Flatline(BoolGlobalParameter):
     name = _('Use flatline rather than forecast')
     id = 'flatline'
+
+
+class InequalityAversion(NumberGlobalParameter):
+    name = _('Inequality aversion parameter (epsilon) for Atkinson social welfare function')
+    id = 'inequality_aversion'
+
+
+class FloorThreshold(NumberGlobalParameter):
+    name = _('Floor threshold (f) for floor-constrained average social welfare')
+    id = 'floor_threshold'
