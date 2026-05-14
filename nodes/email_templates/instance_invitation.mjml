@@ -23,7 +23,7 @@
                     {% else %}
                     <p>You have been invited to manage the scenario model <strong>{{ instance_name }}</strong>.</p>
                     {% endif %}
-                    <p>Click the button below to create an account and accept the invitation. The link is valid until {{ expires_at | format_date:"DATETIME_FORMAT" }}.</p>
+                    <p>Click the button below to create an account and accept the invitation. The link is valid until {{ expires_at | format_date }}.</p>
                 </mj-text>
                 <mj-button href="{{ accept_url }}" background-color="#0050b0" color="#ffffff" border-radius="4px">
                     Accept invitation
