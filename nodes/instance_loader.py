@@ -1231,7 +1231,14 @@ class InstanceLoader:
 
             owner = self.simple_trans_string(fwc.organization_name or '')
             name = self.simple_trans_string(fwc.instance_config.get_name())
-            mdp_data = MeasureDataPoint.objects.filter(measure__framework_config=fwc).aggregate(
+            # Only count user-entered observations (value__isnull=False) for historical
+            # year range. Default data points (default_value only) are future projections
+            # and must not expand maximum_historical_year to the target year, which would
+            # cause get_correct_baseline to filter out valid mid-range forecast years.
+            mdp_data = MeasureDataPoint.objects.filter(
+                measure__framework_config=fwc,
+                value__isnull=False,
+            ).aggregate(
                 min_year=Min('year'),
                 max_year=Max('year'),
             )
