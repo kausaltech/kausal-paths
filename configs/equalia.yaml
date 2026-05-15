@@ -39,12 +39,18 @@ params:
   is_visible: true
 - id: inequality_aversion
   value: 2.0
+  min_value: 0.0
+  max_value: 10.0
+  step: 0.25
   unit: dimensionless
   is_customizable: true
   is_visible: true
   label: Inequality aversion (epsilon)
 - id: floor_threshold
   value: 0.25
+  min_value: 0.0
+  max_value: 1.0
+  step: 0.05
   is_customizable: true
   is_visible: true
   unit: dimensionless
@@ -575,7 +581,7 @@ nodes:
   - id: transportation/welfare_outcomes
 
 - id: moral_welfare_normalized
-  name: Normalized welfare per stakeholder (Section 1.2)
+  name: Normalized welfare per stakeholder
   description: |
     <p>Normalization of multi-dimensional welfare per Section 1.2 of the
     <em>Moral Impact Assessment Tool</em> mathematical framework. Applies two steps in sequence:</p>
@@ -602,11 +608,7 @@ nodes:
     tags: [welfare]
   params:
   - id: formula
-    value: sum_dim(welfare, cost_type) + constant
-  - id: constant
-    value: 0.01
-    unit: dimensionless
-    label: Shift correction delta to ensure positivity
+    value: sum_dim(welfare, cost_type)
 
 - id: moral_n_recip
   name: Reciprocal of stakeholder count (1/n)
@@ -645,10 +647,8 @@ nodes:
   input_nodes:
   - id: moral_welfare_normalized
     tags: [welfare]
-  - id: moral_n_recip
-    tags: [n_recip]
   params:
-    formula: sum_dim(welfare, stakeholder) * n_recip
+    formula: mean_dim(welfare, stakeholder)
 
 - id: moral_welfare_rawlsian
   name: Maximin/Rawlsian social welfare (W_R)
@@ -675,10 +675,8 @@ nodes:
   input_nodes:
   - id: moral_welfare_normalized
     tags: [welfare]
-  - id: moral_n_recip
-    tags: [n_recip]
   params:
-    formula: (sum_dim(welfare ** (1 - 10.0), stakeholder) * n_recip) ** (1 / (1 - 10.0))
+    formula: min_dim(welfare, stakeholder)
 
 - id: moral_welfare_atkinson
   name: Atkinson social welfare function (W_A)
@@ -686,7 +684,7 @@ nodes:
     <p>Atkinson SWF parameterised by inequality aversion ε:</p>
     <ul>
     <li>ε ≠ 1: <code>W_A(ε) = [(1/n) * sum_i u_i^(1-ε)]^(1/(1-ε))</code></li>
-    <li>ε = 1 (geometric mean): <code>W_A(1) = exp((1/n) * sum_i ln(u_i))</code> — not implemented here; use ε = 0.9999</li>
+    <li>ε = 1 (geometric mean): <code>W_A(1) = exp((1/n) * sum_i ln(u_i))</code> — not implemented here; approximated by adding 0.0001 to ε.</li>
     </ul>
     <p>The Atkinson function parameterises continuously from pure utilitarianism (ε = 0) to pure
     maximin (ε → ∞), making moral assumptions explicit and testable. The inequality index
@@ -696,12 +694,12 @@ nodes:
     <ul>
     <li>ε = 0: no inequality concern (reduces to utilitarian mean)</li>
     <li>ε = 0.5: mild prioritarianism</li>
-    <li>ε = 1: moderate inequality aversion (geometric mean — formula is undefined; use ε = 0.9999)</li>
+    <li>ε = 1: moderate inequality aversion (geometric mean)</li>
     <li>ε = 2: strong inequality aversion (default)</li>
     <li>ε → ∞: only worst-off matters (maximin)</li>
     </ul>
     <p>Global parameter: <code>inequality_aversion</code> (ε), default 2.0.
-    Requirement: <code>u'_i &gt; 0</code> for all i (ensured by <code>moral_welfare_normalized</code>).</p>
+    Requirement: <code>u'_i &gt; 0</code> for all i (ensured by <code>moral_welfare_normalized</code>). Note that the current implementation does not have safeguards against negative values. Strict positivity has to be ensured in the structure of the model.</p>
     <p><strong>References:</strong></p>
     <ul>
     <li><a href="https://doi.org/10.1016/0022-0531(70)90039-6">Atkinson (1970). On the Measurement of Inequality. <em>Journal of Economic Theory</em> 2(3).</a></li>
@@ -714,11 +712,9 @@ nodes:
   input_nodes:
   - id: moral_welfare_normalized
     tags: [welfare]
-  - id: moral_n_recip
-    tags: [n_recip]
   params:
-  - id: formula
-    value: (sum_dim(welfare ** (1 - constant), stakeholder) * n_recip) ** (1 / (1 - constant))
+  - id: formula # FIXME Should not give very large values
+    value: mean_dim(welfare ** (1 - (constant + 0.0001)), stakeholder) ** (1 / (1 - (constant + 0.0001)))
   - id: constant
     ref: inequality_aversion
 
