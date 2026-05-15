@@ -312,6 +312,9 @@ class FormulaNode(Node):
         'sum_dim': '_custom_sum_dim',
         'sum_into_cat': '_custom_sum_into_cat',
         'prod_dim': '_custom_prod_dim',
+        'mean_dim': '_custom_mean_dim',
+        'min_dim': '_custom_min_dim',
+        'max_dim': '_custom_max_dim',
         'zero_fill': '_custom_zero_fill',
         'select_port': '_custom_select_port',
         'float': '_custom_float',
@@ -348,6 +351,30 @@ class FormulaNode(Node):
         assert isinstance(dim_arg, ast.Name)
         assert isinstance(dim_arg.id, str)
         return df.paths.prod_over_dims(dim_arg.id)
+
+    def _custom_mean_dim(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        assert len(node.args) == 2
+        assert isinstance(df, PDF)
+        dim_arg = node.args[1]
+        assert isinstance(dim_arg, ast.Name)
+        assert isinstance(dim_arg.id, str)
+        return df.paths.mean_over_dims(dim_arg.id)
+
+    def _custom_min_dim(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        assert len(node.args) == 2
+        assert isinstance(df, PDF)
+        dim_arg = node.args[1]
+        assert isinstance(dim_arg, ast.Name)
+        assert isinstance(dim_arg.id, str)
+        return df.paths.min_over_dims(dim_arg.id)
+
+    def _custom_max_dim(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        assert len(node.args) == 2
+        assert isinstance(df, PDF)
+        dim_arg = node.args[1]
+        assert isinstance(dim_arg, ast.Name)
+        assert isinstance(dim_arg.id, str)
+        return df.paths.max_over_dims(dim_arg.id)
 
     def _ast_category_label(self, node: ast.expr) -> str:
         """Parse a dimension category id (quoted string or bare identifier, like ``dim``)."""
@@ -765,7 +792,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 if isinstance(override_unit, str):
                     return unit_registry.parse_units(override_unit)
                 return override_unit
-            if func_name in ('sum_dim', 'sum_into_cat'):
+            if func_name in ('sum_dim', 'sum_into_cat', 'mean_dim', 'min_dim', 'max_dim'):
                 return first
             if func_name == 'coalesce':
                 unit = first
@@ -874,9 +901,9 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 analysis.warnings.append(f"Function '{func_name}' has no arguments.")
                 return None
             first = _eval(node.args[0])
-            if func_name == 'sum_dim':
+            if func_name in ('sum_dim', 'mean_dim', 'min_dim', 'max_dim'):
                 if len(node.args) != 2:
-                    analysis.errors.append('sum_dim requires exactly two arguments.')
+                    analysis.errors.append(f'{func_name} requires exactly two arguments.')
                     return first
                 dim_arg = node.args[1]
                 if isinstance(dim_arg, ast.Name):
@@ -884,7 +911,7 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                     if first is None:
                         return None
                     return set(d for d in first if d != dim)
-                analysis.errors.append('sum_dim expects a dimension name as second argument.')
+                analysis.errors.append(f'{func_name} expects a dimension name as second argument.')
                 return first
             if func_name == 'sum_into_cat':
                 return first
