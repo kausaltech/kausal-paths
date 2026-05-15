@@ -839,15 +839,29 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         ret = CreateFrameworkConfigMutation.create_framework_config(info, config_input)
         fwc = cast('FrameworkConfig', ret.framework_config)
         data = cast('dict[str, Any]', nzc_data)
+        renewable_mix = lowhigh_to_str(data['renewable_mix'])
+        temperature = lowhigh_to_str(data['temperature'])
         fwc.extra = {
             **(fwc.extra or {}),
             'create_context': {
                 'population': data['population'],
-                'renewable_mix': lowhigh_to_str(data['renewable_mix']),
-                'temperature': lowhigh_to_str(data['temperature']),
+                'renewable_mix': renewable_mix,
+                'temperature': temperature,
             },
         }
         fwc.save(update_fields=['extra'])
+        # Add dimension categories if the framework has renewable_mix/temperature dimensions.
+        # These are optional — not all NZC deployments define them as FrameworkDimension objects.
+        cats_to_add = []
+        for identifier, value in (('renewable_mix', renewable_mix), ('temperature', temperature)):
+            dimension = fwc.framework.dimensions.filter(identifier=identifier).first()
+            if dimension is None:
+                continue
+            category = dimension.categories.filter(name__iexact=value).first()
+            if category is not None:
+                cats_to_add.append(category)
+        if cats_to_add:
+            fwc.categories.add(*cats_to_add)
         fwc.populate_measure_defaults_from_default_data_points()
         return ret
 
