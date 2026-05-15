@@ -11,6 +11,7 @@ from wagtail.blocks.stream_block import StreamValue
 
 from grapple.types.streamfield import StreamFieldInterface
 
+from kausal_common.models.uuid import query_pk_or_uuid_or_identifier
 from kausal_common.strawberry.grapple import grapple_field
 from kausal_common.strawberry.pydantic import StrawberryPydanticType
 
@@ -293,13 +294,32 @@ class InstanceEditorFields:
 
     @sb.field(graphql_type=list[DatasetType])
     @staticmethod
-    def datasets(root: 'InstanceEditorFields') -> list[DatasetType]:
+    def datasets(root: 'InstanceEditorFields', info: gql.Info) -> list[DatasetType]:
         """All DB-backed datasets scoped to this instance."""
         from kausal_common.datasets.models import Dataset as DatasetModel
 
         ic = root._instance.config
-        qs = DatasetModel.objects.get_queryset().for_instance_config(ic).select_related('schema')
+        qs = DatasetModel.objects.get_queryset().for_instance_config(ic).viewable_by(info.context.user).select_related('schema')
         return [DatasetType.from_model(ds) for ds in qs]
+
+    @sb.field(graphql_type=DatasetType | None)
+    @staticmethod
+    def dataset(
+        root: 'InstanceEditorFields', info: gql.Info, id: Annotated[sb.ID, sb.argument(description='Dataset pk/uuid/identifier)')]
+    ) -> DatasetType | None:
+        """One instance-scoped dataset by id."""
+        from kausal_common.datasets.models import Dataset as DatasetModel
+
+        if not id.strip():
+            return None
+        ic = root._instance.config
+        qs = DatasetModel.objects.get_queryset().for_instance_config(ic).viewable_by(info.context.user).select_related('schema')
+        qs = qs.filter(query_pk_or_uuid_or_identifier(id))
+        try:
+            ds = qs.get()
+        except DatasetModel.DoesNotExist:
+            return None
+        return DatasetType.from_model(ds)
 
     @sb.field(
         graphql_type=list[Annotated['DataSourceType', sb.lazy('datasets.graphql.types')]],
