@@ -59,20 +59,16 @@ The NZC creation mutation is defined in
 The mutation does the following:
 
 1. Creates a `FrameworkConfig` and a matching `InstanceConfig`.
-2. Loads the model instance for that framework config.
-3. Reads the instance dataset repository from `instance.context.dataset_repo`.
-4. Calls `get_nzc_default_values()` in [frameworks/nzc.py](../../frameworks/nzc.py).
-5. Stores the returned defaults as baseline-year `MeasureDataPoint.default_value`
-   values through `FrameworkConfig.create_measure_defaults()`.
+2. Stores the city creation context in `FrameworkConfig.extra`: population,
+   renewable mix, and temperature.
+3. Adds the matching renewable-mix and temperature dimension categories to the
+   framework config.
+4. Populates baseline-year `MeasureDataPoint.default_value` values from
+   matching `MeasureTemplateDefaultDataPoint` rows.
 
-`get_nzc_default_values()` reads the DVC dataset `nzc/placeholders`. The
-placeholder dataset chooses one of four scenario columns from:
-
-- renewable mix: `low` or `high`
-- temperature: `low` or `high`
-
-Rows marked `PerCapita` are multiplied by the city population. The output is a
-mapping from measure-template UUID to numeric default value.
+Default datapoints are selected by framework, creation categories, and baseline
+year. If a template default uses population scaling, the stored city population
+is applied before writing the `MeasureDataPoint.default_value`.
 
 ## Runtime Model Loading
 
@@ -176,9 +172,10 @@ by columns such as:
 - converts label-style dimension names and category labels to model ids
 - moves the `Unit` column into Paths dataframe unit metadata
 
-`nzc/placeholders` is used only during NZC framework-config creation. It is not
-the full model input dataset. It maps city essential data to default values for
-measure-template UUIDs.
+`nzc/defaults` is not the full source of city-specific values: framework
+`MeasureDataPoint` rows can override it by measure-template UUID, and template
+default datapoints provide baseline-year default values when no city-entered
+value exists.
 
 The intended direction is to replace these broad DVC-backed inputs with smaller
 database-backed datasets that contain only the data each part of the model

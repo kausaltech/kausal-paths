@@ -866,7 +866,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
             get_category('renewable_mix', renewable_mix),
             get_category('temperature', temperature),
         )
-        fwc.populate_measure_defaults_from_default_data_points()
+        fwc.populate_measure_defaults(only_year=fwc.baseline_year)
         return ret
 
 
