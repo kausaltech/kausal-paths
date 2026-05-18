@@ -25,7 +25,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import median
-from typing import Any
+from typing import Any, TypedDict
 
 from django.db import transaction
 
@@ -37,7 +37,7 @@ GROUPS = {
     '3': {'renewable_mix': 'high', 'temperature': 'high'},
 }
 
-DIMENSIONS = {
+DIMENSIONS: dict[str, dict[str, Any]] = {
     'renewable_mix': {
         'name': 'Renewable mix',
         'categories': {
@@ -55,6 +55,16 @@ DIMENSIONS = {
 }
 
 POPULATION_MEASURE_TEMPLATE_UUID = '3779efa4-9eb0-4f4b-b5d5-eb510461bed8'
+
+
+class MeasureInfo(TypedDict):
+    source_measure: str
+    measure_template_uuid: str
+    default_value_scaling: str | None
+    source_per_capita: bool
+    source_uuid_variants: list[str]
+
+
 PLACEHOLDER_YEARLY_DATASET_IDENTIFIER = 'nzc/placeholders_yearly'
 
 
@@ -145,7 +155,7 @@ def load_rows_from_dvc(framework_identifier: str) -> list[dict[str, str]]:
 
 
 def convert(rows: list[dict[str, str]], source_label: str = '') -> dict[str, Any]:
-    measures: OrderedDict[str, dict[str, Any]] = OrderedDict()
+    measures: OrderedDict[str, MeasureInfo] = OrderedDict()
     default_data_points: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     warnings: list[str] = []
@@ -161,13 +171,13 @@ def convert(rows: list[dict[str, str]], source_label: str = '') -> dict[str, Any
         measure_info = measures.get(measure)
         if measure_info is None:
             scaling = get_source_default_value_scaling(uuid, per_capita)
-            measure_info = {
-                'source_measure': measure,
-                'measure_template_uuid': uuid,
-                'default_value_scaling': scaling,
-                'source_per_capita': per_capita,
-                'source_uuid_variants': [uuid],
-            }
+            measure_info = MeasureInfo(
+                source_measure=measure,
+                measure_template_uuid=uuid,
+                default_value_scaling=scaling,
+                source_per_capita=per_capita,
+                source_uuid_variants=[uuid],
+            )
             measures[measure] = measure_info
         else:
             scaling = get_source_default_value_scaling(measure_info['measure_template_uuid'], per_capita)
@@ -381,6 +391,7 @@ def backfill_framework_config_context(
                 year=config.baseline_year,
                 default_value__isnull=False,
             ).values_list('measure__measure_template__uuid', 'default_value')
+            if default_value is not None
         ]
         scores = {group_id: score_group(datapoints, old_lookup, group_id, per_capita=False) for group_id in GROUP_ORDER}
         viable_scores = {group_id: score for group_id, score in scores.items() if score[0] >= 3}
