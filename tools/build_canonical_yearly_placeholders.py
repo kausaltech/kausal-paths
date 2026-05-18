@@ -15,7 +15,7 @@ Output column order:
 
 Usage:
     cd /path/to/kausal-paths
-    python data/nzc/lucia/build_canonical_yearly_placeholders.py [--output PATH]
+    python tools/build_canonical_yearly_placeholders.py [--output PATH]
 """  # noqa: EXE001
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import argparse
 import csv
 from pathlib import Path
 
-DATA_NZC = Path(__file__).resolve().parents[3] / 'data' / 'nzc'
+DATA_NZC = Path(__file__).resolve().parents[1] / 'data' / 'nzc'
 
 PLACEHOLDERS_CSV = DATA_NZC / 'placeholders.csv'
 CITIES_CSV = DATA_NZC / '42_cities_input_9_clusters.csv'
@@ -33,6 +33,14 @@ VALENCIA_CSV = DATA_NZC / 'Draft Matias_ Dataset of 010824 Template Economic Cas
 YEARLY_SOURCE_CSV = DATA_NZC / 'placeholders_30042026_11_34_PM.csv'
 
 DEFAULT_OUTPUT = DATA_NZC / 'placeholders_yearly_canonical.csv'
+
+# UUIDs where PerCapita in the yearly dataset differs from the static placeholders.csv.
+# Population (015): static stores 1.0*PerCapita=True so _calculate_placeholders can
+# recover the city population; yearly stores actual city population counts, so PerCapita
+# must be False to avoid multiplying those counts by population a second time.
+PERCAPITA_OVERRIDES: dict[str, bool] = {
+    '3779efa4-9eb0-4f4b-b5d5-eb510461bed8': False,  # 015 Population
+}
 
 DATA_COLS = [
     '0_ccv',
@@ -68,10 +76,12 @@ def load_uuid_authority(path: Path) -> dict[str, dict]:
     with path.open(encoding='utf-8') as f:
         for row in csv.DictReader(f):
             mid = row['Measure'].strip()
-            result[mid] = {
-                'uuid': row['UUID'].strip(),
-                'per_capita': row['PerCapita'].strip().lower() == 'true',
-            }
+            uuid = row['UUID'].strip()
+            per_capita = row['PerCapita'].strip().lower() == 'true'
+            # Apply per-dataset overrides before storing
+            if uuid in PERCAPITA_OVERRIDES:
+                per_capita = PERCAPITA_OVERRIDES[uuid]
+            result[mid] = {'uuid': uuid, 'per_capita': per_capita}
     return result
 
 
@@ -114,7 +124,7 @@ def load_unit_metric(updated_path: Path, valencia_path: Path) -> dict[str, dict]
     return result
 
 
-def main() -> None:  # noqa: C901
+def main() -> None:  # noqa: C901, PLR0912, PLR0915
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=DEFAULT_OUTPUT, help='Output CSV path')
     args = parser.parse_args()
@@ -201,7 +211,12 @@ def main() -> None:  # noqa: C901
     auth_true = {mid for mid, a in authority.items() if a['per_capita']}
     corrected = source_true - auth_true
     if corrected:
-        print(f'\nPerCapita corrections (source had TRUE, authority says FALSE): {sorted(corrected)}')
+        print(f'\nPerCapita corrections (source had TRUE, canonical is FALSE): {sorted(corrected)}')
+
+    # Report PERCAPITA_OVERRIDES that were applied
+    for mid, a in authority.items():
+        if a['uuid'] in PERCAPITA_OVERRIDES:
+            print(f'PerCapita override applied: measure {mid} ({a["uuid"]}) → {PERCAPITA_OVERRIDES[a["uuid"]]}')
 
 
 if __name__ == '__main__':

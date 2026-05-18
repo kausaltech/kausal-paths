@@ -8,13 +8,27 @@ two datasets stored in DVC:
 - **`nzc/placeholders`** — single cluster-averaged values (one row per measure),
   built from the 42-city input dataset by `notebooks/NZC-CCV-Dataset-Processor.py`
 - **`nzc/placeholders_yearly`** — yearly time-series values (2018–2024) with
-  confidence bounds, built by `data/nzc/lucia/nzc_process_yearly_placeholders.py`
-  from the source file `data/nzc/placeholders_30042026_11_34_PM.csv`
+  confidence bounds, built from `data/nzc/placeholders_yearly_canonical.csv`
+  by `data/nzc/lucia/nzc_process_yearly_placeholders.py`
 
-There is also a parallel import path written independently by a colleague:
-`data/nzc/convert_nzc_yearly_placeholders.py`, which reads from a CSV and
-writes directly to `MeasureTemplateDefaultDataPoint` DB records and
-`MeasureTemplate.default_value_scaling`.
+### How defaults reach city instances
+
+The pipeline has two stages:
+
+**Stage 1 — framework-level import** (`tools/import_nzc_yearly_placeholders.py`):
+Reads `nzc/placeholders_yearly` from DVC (or a CSV file if given explicitly) and
+writes `MeasureTemplateDefaultDataPoint` records — one row per
+(template, year, cluster group). Also sets `MeasureTemplate.default_value_scaling`
+to `'population'` for population-dependent measures, or `None` for others.
+These records live at the framework level, independent of any city instance.
+
+**Stage 2 — instance-level propagation**:
+When `populate_measure_defaults_from_default_data_points()` is called (either
+at instance creation or via `python manage.py populate_nzc_defaults`), it
+selects the best-matching `MeasureTemplateDefaultDataPoint` for each measure
+(choosing the city's cluster group by `FrameworkConfig.categories`), applies
+population scaling where `default_value_scaling == 'population'`, and writes
+the result into `MeasureDataPoint.default_value` for `year == baseline_year` only.
 
 ---
 
@@ -57,50 +71,35 @@ UUID `f0479ebd-e0b9-43ee-ad71-67f958529c54`) and two emission factor measures
 (F171, F172) were being multiplied by population when populating defaults,
 producing nonsensical values.
 
-**Root cause — two interacting paths:**
+**Root cause:** `data/nzc/placeholders_30042026_11_34_PM.csv` has
+`PerCapita=TRUE` for measures 047, F171, and F172.  These are intensive
+quantities (a dimensionless fraction and g/kWh emission factors) — not
+population-dependent flows.  The authoritative source is the static
+`placeholders.csv` produced by `NZC-CCV-Dataset-Processor.py`, which derives
+`PerCapita` from its explicit `pop_measures` list and does **not** include 047,
+F171, or F172.
 
-**Path A (DVC / `populate_nzc_yearly_defaults`):**
-`data/nzc/placeholders_30042026_11_34_PM.csv` has `PerCapita=TRUE` for
-measures 047, F171, and F172.  `nzc_process_yearly_placeholders.py` copies
-this flag verbatim into the DVC parquet.  `frameworks/nzc.py`
-`_calculate_yearly_placeholders()` then multiplies values by population
-wherever `PerCapita=True`.
-
-**Path B (direct DB import / `convert_nzc_yearly_placeholders.py`):**
-The colleague's script reads the same source CSV and sets
-`MeasureTemplate.default_value_scaling = 'population'` for every measure
-where `PerCapita=TRUE`.  This is a persistent DB change that affects all
-future calls to `populate_measure_defaults_from_default_data_points()`,
-including at instance-creation time, regardless of the DVC dataset.
-
-**Why 047 is wrong:** The authoritative source is the static `placeholders.csv`
-produced by `NZC-CCV-Dataset-Processor.py`.  That script derives `PerCapita`
-from its explicit `pop_measures` list, which does **not** include 047
-(a dimensionless fraction: share of fleet), F171, or F172 (g/kWh emission
-factors).  These are intensive quantities — not population-dependent flows.
-The source CSV introduced the error; both downstream pipelines inherited it.
-
-**Fix:** See the canonical CSV section below.
+**Fix:** The canonical CSV builder (`tools/build_canonical_yearly_placeholders.py`)
+uses `placeholders.csv` as the authority for `PerCapita`, overriding the source
+CSV.  It reports any corrections automatically.  On the current source CSV it
+corrects measures **047, F171, F172** from TRUE to FALSE.
 
 ---
 
 ### 3. Malformed UUIDs in the source CSV
 
 **Symptom:** Several measure rows had UUIDs that were either 35 characters
-(missing the last character) or 37 characters (Excel auto-increment artefacts,
-e.g. `0ae5fb06-...-ccfa4e8f44a10`).
+(missing the last character) or 37 characters (Excel auto-increment artefacts).
 
 **What was fixed:**
-- `nzc_process_yearly_placeholders.py` resolves UUIDs from `placeholders.csv`
-  by joining on Measure ID, so UUID errors in the source CSV do not reach DVC.
-- `convert_nzc_yearly_placeholders.py` hardcodes a fix for one specific
-  truncated UUID (`00924063-1dd8-43b1-a118-f3e29edbecf` → `...ecf7`) but
-  does not handle the multi-character sequence UUIDs.
+The canonical CSV builder (`tools/build_canonical_yearly_placeholders.py`)
+resolves all UUIDs from `placeholders.csv` by joining on Measure ID, so UUID
+errors in the source CSV never reach the DVC dataset or the DB import.
 
-**Measures affected by unresolved UUID errors in the colleague's script:**
-`0ae5fb06-...`, `3779efa4-...-bed10` through `bed14`, `e2f0c38d-...-a10/11`.
-These rows will silently fail to match any `MeasureTemplate` in the DB when
-the colleague's script is run against the original source CSV.
+The import script (`tools/import_nzc_yearly_placeholders.py`) retains a
+one-off fixup for UUID `00924063-1dd8-43b1-a118-f3e29edbecf` for the case
+where an old CSV is passed as explicit input; this fixup is irrelevant when
+loading from DVC.
 
 ---
 
@@ -108,12 +107,28 @@ the colleague's script is run against the original source CSV.
 
 Measures 104, 105, 117, 118 (cost of renovation; new building costs) appear
 in `placeholders_30042026_11_34_PM.csv` but have no entry in `placeholders.csv`
-and therefore no canonical UUID.  They are silently skipped by both the lucia
-script and the new canonical CSV builder.
+and therefore no canonical UUID.  They are silently skipped by the canonical
+CSV builder.
 
 ---
 
-### 5. Test failure after fixing issue 1
+### 5. Multi-year bug in `_select_default_data_points`
+
+**Symptom:** After the Stage 1 import writes `MeasureTemplateDefaultDataPoint`
+records for years 2018–2024, Stage 2 propagation was writing `default_value`
+into `MeasureDataPoint` rows for all seven years instead of only the city's
+`baseline_year`.
+
+**Fix** (`frameworks/models.py`):
+`_select_default_data_points` now filters to `year=self.baseline_year` before
+selecting the best-matching cluster record.  `populate_measure_defaults_from_default_data_points`
+also runs a stale-record cleanup that clears `default_value`/bounds on non-baseline-year
+`MeasureDataPoint` rows (those with `value__isnull=True`) for affected templates,
+removing any remnants left by previous runs.
+
+---
+
+### 6. Test failure after fixing issue 1
 
 **Symptom:** `test_create_nzc_framework_config_mutation_creates_instance_and_defaults`
 failed with `assert set() == {<FrameworkDimensionCategory: Temperature - Low>}`.
@@ -130,15 +145,9 @@ dimension or category is not found.
 
 ## What Was Done
 
-### New management command parameter
-
-`populate_nzc_yearly_defaults` gained an `--instance <IDENTIFIER>` option so
-users can target a specific city by its `InstanceConfig.identifier` rather
-than having to look up the `FrameworkConfig` primary key.
-
 ### Canonical yearly placeholders CSV
 
-`data/nzc/lucia/build_canonical_yearly_placeholders.py` produces
+`tools/build_canonical_yearly_placeholders.py` produces
 `data/nzc/placeholders_yearly_canonical.csv` by joining five sources:
 
 | Source file | Purpose |
@@ -155,9 +164,86 @@ Output column order:
 Running the script reports any PerCapita corrections automatically.  On the
 current source CSV it corrects measures **047, F171, F172** from TRUE to FALSE.
 
+A separate override mechanism (`PERCAPITA_OVERRIDES` dict in the script) handles
+the **population measure (015, UUID `3779efa4...`)**:
+
+- In the static `nzc/placeholders` dataset the value is stored as `1.0` with
+  `PerCapita=True`, so `_calculate_placeholders` recovers the city population
+  by computing `1.0 × population`.
+- In the yearly dataset the values are actual comparable-city population counts
+  (e.g. 433 340 for 2018), so `PerCapita` must be `False` — multiplying those
+  counts by population again would produce nonsense.
+
+### DVC upload script simplified
+
+`data/nzc/lucia/nzc_process_yearly_placeholders.py` was rewritten to simply
+read `data/nzc/placeholders_yearly_canonical.csv` and push it to DVC as
+`nzc/placeholders_yearly`.  All complex parsing (UUID resolution, EU decimal
+format, PerCapita correction) was already handled by
+`build_canonical_yearly_placeholders.py`; this script just sets correct polars
+types and pushes.
+
+### Stage 1 import script moved and improved
+
+`data/nzc/convert_nzc_yearly_placeholders.py` was moved to
+`tools/convert_nzc_yearly_placeholders.py`.
+
+Key improvements:
+- **Default input is now the DVC dataset** `nzc/placeholders_yearly` instead of
+  a local CSV file.  Pass an explicit path argument to use a CSV instead.
+- The `convert()` function was refactored to accept a pre-loaded row list,
+  decoupling input loading from parsing.
+- A `load_rows_from_dvc()` function loads the DVC dataset via the framework's
+  first FrameworkConfig instance and converts the typed polars DataFrame to the
+  string-dict format expected by `convert()`.
+
+### Old DVC-based pipeline retired
+
+`populate_nzc_yearly_defaults` management command and the underlying
+`FrameworkConfig.populate_measure_defaults_from_nzc_yearly()` method have been
+deleted.  They implemented a parallel approach that read DVC directly, applied
+population scaling inline, and wrote per-instance `MeasureDataPoint.default_value`
+records — overlapping with Stage 2 of the current pipeline.
+
+### New management command
+
+`python manage.py populate_nzc_defaults` replaces `populate_nzc_yearly_defaults`.
+It calls `fc.populate_measure_defaults_from_default_data_points()` with no DVC
+dependency.  Arguments: `--framework-config PK`, `--instance IDENTIFIER`, or
+no arguments to target all NZC FrameworkConfigs.
+
+### New management command parameter (earlier)
+
+`populate_nzc_yearly_defaults` had gained an `--instance <IDENTIFIER>` option
+before it was retired.  The new `populate_nzc_defaults` command carries the same
+interface.
+
 ---
 
-## Remaining Questions
+## Re-running the pipeline after any data fix
+
+When values or PerCapita flags in the source data need to be corrected:
+
+1. **Rebuild canonical CSV:**
+   ```
+   python tools/build_canonical_yearly_placeholders.py
+   ```
+2. **Push to DVC:**
+   ```
+   python data/nzc/lucia/nzc_process_yearly_placeholders.py
+   ```
+3. **Write framework-level default data points:**
+   ```
+   python tools/import_nzc_yearly_placeholders.py
+   ```
+4. **Propagate to all city instances:**
+   ```
+   python manage.py populate_nzc_defaults
+   ```
+
+---
+
+## Remaining Open Questions
 
 ### A. Should measures 104, 105, 117, 118 be in the yearly dataset?
 
@@ -180,31 +266,3 @@ yearly source CSV.  Most are clearly correct omissions (action lever parameters
 | 236–239 | Emission factors from waste incineration (CO₂, NOₓ, PM2.5, PM10) |
 
 All of these could plausibly have yearly time-series data.
-
-### C. Colleague's script UUID fixes are incomplete
-
-`convert_nzc_yearly_placeholders.py` only fixes the `00924063...` UUID.
-If the script is ever re-run against the original source CSV
-(`placeholders_30042026_11_34_PM.csv`), rows with multi-digit sequence UUIDs
-will silently produce no DB update.  The script should either be updated to
-use the canonical CSV as input, or have its UUID fix list extended to cover
-all known malformed UUIDs.
-
-### D. The two import pipelines need a shared source of truth
-
-The lucia DVC pipeline and the colleague's direct-DB import pipeline currently
-both derive `PerCapita` from the source CSV independently.  Now that a
-canonical CSV exists, both scripts should be updated to use it as input so
-that PerCapita, UUID, and other metadata are never duplicated or drift apart.
-
-### E. Re-running both pipelines after any data fix
-
-When PerCapita or values in the canonical CSV are corrected, the fix must
-propagate through **both** pipelines:
-
-1. Re-run `build_canonical_yearly_placeholders.py` to regenerate the canonical CSV (done)
-2. Re-run `nzc_process_yearly_placeholders.py` (or equivalent) and push to DVC (pushed on 2026-05-17)
-3. Re-run `python manage.py populate_nzc_yearly_defaults` on all affected instances
-4. Re-run `convert_nzc_yearly_placeholders.py` on the test/production server
-   to reset any `MeasureTemplate.default_value_scaling` values that were set
-   incorrectly
