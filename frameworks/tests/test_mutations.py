@@ -340,6 +340,52 @@ def test_update_framework_config_mutation_updates_fields(client: Client, framewo
     assert fwc.target_year == 2040
 
 
+UPDATE_FRAMEWORK_CONFIG_REPOPULATE_DEFAULTS = gql("""
+mutation UpdateFrameworkConfigRepopulateDefaults($id: ID!) {
+    updateFrameworkConfig(id: $id, repopulateDefaults: true) {
+        ok
+        frameworkConfig {
+            baselineYear
+        }
+    }
+}
+""")
+
+
+def test_update_framework_config_mutation_repopulates_measure_defaults(client: Client, framework: Framework) -> None:
+    measure_template = _create_measure_template(framework)
+    MeasureTemplateDefaultDataPoint.objects.create(
+        template=measure_template,
+        year=2020,
+        value=2.0,
+    )
+    MeasureTemplateDefaultDataPoint.objects.create(
+        template=measure_template,
+        year=2021,
+        value=3.0,
+    )
+
+    fwc = FrameworkConfigFactory.create(framework=framework, baseline_year=2020)
+    measure = fwc.measures.create(measure_template=measure_template)
+    MeasureDataPoint.objects.create(measure=measure, year=2021, default_value=3.0, value=None)
+    MeasureDataPoint.objects.create(measure=measure, year=2022, default_value=5.0, value=42.0)
+    gql_client = _framework_admin_gql_client(client, framework)
+
+    data = gql_client.query_data(
+        UPDATE_FRAMEWORK_CONFIG_REPOPULATE_DEFAULTS,
+        variables={'id': str(fwc.pk)},
+    )
+
+    assert data['updateFrameworkConfig']['ok'] is True
+    assert data['updateFrameworkConfig']['frameworkConfig']['baselineYear'] == 2020
+    data_points_by_year = {dp.year: dp for dp in MeasureDataPoint.objects.filter(measure=measure).order_by('year')}
+    assert set(data_points_by_year) == {2020, 2022}
+    assert data_points_by_year[2020].default_value == 2.0
+    assert data_points_by_year[2020].value is None
+    assert data_points_by_year[2022].default_value == 5.0
+    assert data_points_by_year[2022].value == 42.0
+
+
 DELETE_FRAMEWORK_CONFIG = gql("""
 mutation DeleteFrameworkConfig($id: ID!) {
     deleteFrameworkConfig(id: $id) {
