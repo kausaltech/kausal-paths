@@ -78,7 +78,11 @@ def load_data(file_path: str, separator: str, encoding: str) -> pl.DataFrame:
 
     try:
         print(f'trying {encoding}')
-        return pl.read_csv(file_path, separator=separator, infer_schema_length=1000, encoding=encoding)
+        # infer_schema_length=0 reads every column as String, preventing polars from
+        # coercing zero-padded codes (AGS, district) to integers and stripping their
+        # leading zeros. Explicit casts downstream (Year → Int64, Value → Float64) handle
+        # all required type conversions.
+        return pl.read_csv(file_path, separator=separator, infer_schema_length=0, encoding=encoding)
     except pl.exceptions.ComputeError as e:
         print(f'encooding {encoding} failed.')
         print(e)
@@ -129,19 +133,17 @@ def create_metric_col(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
 
 def split_by_dataset(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
     """Split the dataframe into separate dataframes by Dataset."""
-    datasets = {}
     d = 'Dataset'
-
-    if d in df.columns:
-        unique_datasets = df.select(d).unique().to_series(0).to_list()
-    else:
+    if d not in df.columns:
         raise ValueError(f"Argument 'dataset' must be defined unless you use dataset names from column '{d}'.")
 
-    for dataset_name in unique_datasets:
-        if dataset_name is not None:
-            dataset_df = df.filter(pl.col(d) == dataset_name).drop(d)
-            datasets[dataset_name] = dataset_df
-            print(f'Created dataset for dataset: {dataset_name} with {len(dataset_df)} rows')
+    datasets = {}
+    for part_df in df.partition_by(d, maintain_order=True):
+        name = part_df[d][0]
+        if name is not None:
+            part_df = part_df.drop(d)
+            datasets[name] = part_df
+            print(f'Created dataset for dataset: {name} with {len(part_df)} rows')
 
     return datasets
 
@@ -278,64 +280,34 @@ def clean_dataframe(df: pl.DataFrame) -> pl.DataFrame:
     """Remove metadata columns and empty columns."""
     # 1. Drop metadata columns that are now in metadata but keep CompoundID
     metadata_columns = ['Unit', 'Description', 'Metric']
-    for col in metadata_columns:
-        if col in df.columns:
-            df = df.drop(col)
+    df = df.drop([c for c in metadata_columns if c in df.columns])
 
-    # 2. Drop any columns that only contain null values
-    for col in df.columns:
-        if df.select(col).unique().to_series(0).to_list() == [None]:
-            df = df.drop(col)
+    # 2. Drop any columns that are entirely null — single pass over all columns
+    all_null = df.select(pl.all().is_null().all()).row(0)
+    df = df.drop([col for col, is_null in zip(df.columns, all_null) if is_null])
 
     return df
 
 
 def convert_to_standard_format(df: pl.DataFrame) -> pl.DataFrame:
     """Convert dataframe to standard format with Year column if needed."""
-    # Check if already in standard format
     if 'Year' in df.columns:
         return df
 
-    # Identify year columns (columns with numeric names)
     year_columns = [col for col in df.columns if col.isdigit()]
-
     if not year_columns:
         raise ValueError('No year columns found and no Year column exists')
 
-    # Get non-year columns
     context_columns = [col for col in df.columns if not col.isdigit()]
 
-    # Initialize result dataframe
-    result_df = (
-        df
-        .head(1)
-        .select(context_columns)
-        .with_columns([(pl.lit(0).alias('Year').cast(pl.Int64)), (pl.lit('0.0').alias('Value').cast(pl.String))])
-        .clear()
+    return (
+        df.unpivot(on=year_columns, index=context_columns, variable_name='Year', value_name='Value')
+        # Cast to string regardless of source dtype (numeric columns are inferred as Float64
+        # by load_data; downstream pivot_by_compound_id casts back to Float64).
+        .with_columns(pl.col('Value').cast(pl.Utf8, strict=False))
+        .filter(pl.col('Value').is_not_null() & ~pl.col('Value').is_in(['.', '-']))
+        .with_columns(pl.col('Year').cast(pl.Int64))
     )
-
-    # For each row and year, create a new row in the result
-    df = df.with_row_index(name='__row_idx')
-
-    for i in range(len(df)):
-        row = df.filter(pl.col('__row_idx') == i)
-
-        for year in year_columns:
-            value = row.select(year)[0, 0]
-
-            # Skip empty values
-            if value is None or value in ['.', '-']:
-                continue
-
-            # Create new row with context values and year/value
-            new_row = row.select(context_columns).with_columns([
-                pl.lit(int(year)).cast(pl.Int64).alias('Year'),
-                pl.lit(str(value)).alias('Value'),
-            ])
-
-            result_df = pl.concat([result_df, new_row], rechunk=False)
-
-    return result_df.drop('__row_idx') if '__row_idx' in result_df.columns else result_df
 
 
 def pivot_by_compound_id(df: pl.DataFrame) -> pl.DataFrame:
@@ -401,7 +373,7 @@ def check_for_duplicates(
     if not key_columns:
         return
     dup = df.select(key_columns).is_duplicated()
-    if any(dup):
+    if dup.any():
         dups = df.filter(dup)
         print(dups.sort(key_columns))
         dims = [col for col in key_columns if col != YEAR_COLUMN]
