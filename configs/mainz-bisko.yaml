@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://mainz-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6cd39a2a972163f8fe422540075a72ac66a26375
+  commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
@@ -53,7 +53,7 @@ params:
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
-  value: '7315000' # Leading zero has dropped from the dataset.
+  value: '07315000'
   is_customizable: false
   is_visible: false
 - id: use_national_values
