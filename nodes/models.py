@@ -642,6 +642,19 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         else:
             return True
 
+    def get_yaml_config_entrypoint(self) -> Path | None:
+        config_base_dir = Path(settings.BASE_DIR, 'configs')
+        if self.has_framework_config():
+            fw = self.framework_config.framework
+            fw_yaml_path = config_base_dir / f'{fw.identifier}.yaml'
+            if fw_yaml_path.exists():
+                return fw_yaml_path
+            return None
+        instance_yaml_path = config_base_dir / f'{self.identifier}.yaml'
+        if instance_yaml_path.exists():
+            return instance_yaml_path
+        return None
+
     def update_instance_from_configs(self, instance: Instance, node_refs: bool = False):
         for node_config in self.nodes_for_serialization:
             node = instance.context.nodes.get(node_config.identifier)
@@ -831,7 +844,9 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
             with sentry_sdk.start_span(name='update-instance-from-configs: %s' % self.identifier, op='function'):
                 self.update_instance_from_configs(instance, node_refs=node_refs)
         else:
-            config_fn = Path(settings.BASE_DIR, 'configs', '%s.yaml' % self.identifier)
+            config_fn = self.get_yaml_config_entrypoint()
+            if config_fn is None:
+                raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
             self.log.debug('Creating instance from YAML file: %s' % config_fn)
             loader = InstanceLoader.from_yaml(config_fn)
             instance = loader.instance
@@ -946,7 +961,9 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         if self.config_source == 'yaml':
             from .instance_loader import InstanceYAMLConfig
 
-            config_fn = Path(settings.BASE_DIR, 'configs', f'{self.identifier}.yaml').resolve()
+            config_fn = self.get_yaml_config_entrypoint()
+            if config_fn is None:
+                raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
             yaml_conf = InstanceYAMLConfig.load_for_entrypoint(config_fn)
             data = yaml_conf.data
             assert data is not None

@@ -4,11 +4,9 @@ import re
 import uuid
 from dataclasses import dataclass
 from functools import cached_property
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 from uuid import uuid4
 
-from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
@@ -953,11 +951,13 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             )
         return len(selected_defaults)
 
-    def create_model_instance(self, _ic: InstanceConfig) -> Instance:
+    def create_model_instance(self, ic: InstanceConfig) -> Instance:
         from nodes.instance_loader import InstanceLoader
 
         fw = self.framework
-        config_fn = Path(settings.BASE_DIR, 'configs', '%s.yaml' % fw.identifier)
+        config_fn = ic.get_yaml_config_entrypoint()
+        if config_fn is None:
+            raise ValueError(f'No YAML config entrypoint found for framework {fw.identifier}')
         loader = InstanceLoader.from_yaml(config_fn, fw_config=self)
         return loader.instance
 
