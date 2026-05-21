@@ -108,6 +108,8 @@ dimensions:
     label: Alkylate Gasoline
   - id: aviation_gasoline
     label: Aviation Gasoline
+  - id: aviation_gasoline_compensation
+    label: Aviation Gasoline (Compensation)
   - id: biodiesel_fame
     label: Biodiesel (FAME)
   - id: biodiesel_hvo
