@@ -2418,6 +2418,8 @@ actions:
   - id: waterborne_transport_energy_consumption
     metrics: [energy]
     from_dimensions:
+    - id: vehicle_type
+      categories: [ferry]
     - id: cost_type
       flatten: true
     - id: sector
@@ -2425,6 +2427,8 @@ actions:
   - id: aviation_energy_consumption
     metrics: [energy]
     from_dimensions:
+    - id: vehicle_type
+      categories: [aviation]
     - id: cost_type
       flatten: true
     - id: sector
@@ -3533,4 +3537,6 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: carbon_capture_and_storage.enabled
+    value: false
+  - id: green_mobility_3b_road_pricing.enabled
     value: false

@@ -556,9 +556,27 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
             required=False,
             description='New target year for model.',
         )
+        repopulate_defaults = graphene.Boolean(
+            required=False,
+            description='Repopulate measure default values from measure template defaults for the baseline year.',
+        )
 
     ok = graphene.Boolean()
     framework_config = graphene.Field(FrameworkConfigType)
+
+    @staticmethod
+    def _update_baseline_year_data_points(fwc: FrameworkConfig, baseline_year: int) -> None:
+        old_baseline_year = fwc.baseline_year
+        fwc.baseline_year = baseline_year
+
+        # Update datapoint years for measures with a single datapoint.
+        measures = fwc.measures.all()
+        for measure in measures:
+            datapoints = list(measure.data_points.all())
+            if len(datapoints) == 1 and datapoints[0].year == old_baseline_year:
+                datapoint = datapoints[0]
+                datapoint.year = baseline_year
+                datapoint.save()
 
     @staticmethod
     @transaction.atomic
@@ -571,6 +589,7 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
         organization_identifier: str | None = None,
         baseline_year: int | None = None,
         target_year: int | None = 0,
+        repopulate_defaults: bool = False,
     ) -> UpdateFrameworkConfigMutation:
         fwc = get_fwc(info, id)
         fwc.ensure_gql_action_allowed(info, 'change')
@@ -588,23 +607,16 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
                 fwc.organization_identifier = organization_identifier
 
         if baseline_year is not None:
-            old_baseline_year = fwc.baseline_year
-            fwc.baseline_year = baseline_year
-
-            # Update datapoint years for measures with a single datapoint
-            measures = fwc.measures.all()
-            for measure in measures:
-                datapoints = list(measure.data_points.all())
-                if len(datapoints) == 1 and datapoints[0].year == old_baseline_year:
-                    datapoint = datapoints[0]
-                    datapoint.year = baseline_year
-                    datapoint.save()
+            UpdateFrameworkConfigMutation._update_baseline_year_data_points(fwc, baseline_year)
 
         # We use 0 to indicate that the target year was not supplied. `None` will
         # be interpreted as clearing the target year and using the default for the
         # framework.
         if target_year != 0:
             fwc.target_year = target_year
+
+        if repopulate_defaults:
+            fwc.populate_measure_defaults(only_year=fwc.baseline_year)
 
         fwc.notify_change(user=user)
         fwc.save()
@@ -866,7 +878,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
             get_category('renewable_mix', renewable_mix),
             get_category('temperature', temperature),
         )
-        fwc.populate_measure_defaults_from_default_data_points()
+        fwc.populate_measure_defaults(only_year=fwc.baseline_year)
         return ret
 
 

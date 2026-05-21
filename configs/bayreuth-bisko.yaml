@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bayreuth-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5a0420679473eb892941897d560b366f386282af
+  commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
   dvc_remote: kausal-s3
 name_de: Bayreuth Klimadashboard
 name_en: Bayreuth Climate Dashboard
@@ -53,7 +53,7 @@ params:
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
-  value: '9462000' # Leading zero has dropped from the dataset.
+  value: '09462000'
   is_customizable: false
   is_visible: false
 - id: use_national_values

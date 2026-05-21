@@ -14,7 +14,7 @@ from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
 from django.db import models, transaction
 from django.db.models import Case, OuterRef, QuerySet
-from django.db.models.expressions import F, Subquery, When
+from django.db.models.expressions import Subquery, When
 from django.db.models.functions import Length, Substr
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -793,61 +793,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
 
         return fc
 
-    def create_measure_defaults(self, defaults: dict[str, float] | None = None):
-        if not defaults:
-            defaults = {}
-        framework = self.framework
-        measure_templates_qs = framework.measure_templates()
-        measures_qs = self.measures.filter(measure_template__in=measure_templates_qs)
-        measure_by_uuid: dict[uuid.UUID, Measure] = {
-            m.mt_uuid: m  # type: ignore[attr-defined]
-            for m in measures_qs.annotate(mt_uuid=F('measure_template__uuid'))
-        }
-        year = self.baseline_year
-        measure_data_points_qs = (
-            MeasureDataPoint.objects
-            .get_queryset()
-            .filter(year=year, measure__in=measures_qs)
-            .annotate(mt_uuid=F('measure__measure_template__uuid'))
-        )
-        measure_data_point_by_uuid: dict[uuid.UUID, MeasureDataPoint] = {
-            mdp.mt_uuid: mdp  # type: ignore[attr-defined]
-            for mdp in measure_data_points_qs
-        }
-        new_measures: list[Measure] = []
-        for measure_template in measure_templates_qs:
-            measure = measure_by_uuid.get(measure_template.uuid)
-            if measure is None:
-                measure = Measure(framework_config=self, measure_template=measure_template)
-                measure_by_uuid[measure_template.uuid] = measure
-                new_measures.append(measure)
-
-        if new_measures:
-            Measure.objects.bulk_create(new_measures)
-
-        new_measure_data_points: list[MeasureDataPoint] = []
-        update_measure_data_points: list[MeasureDataPoint] = []
-
-        for measure_template in measure_templates_qs:
-            measure_data_point = measure_data_point_by_uuid.get(measure_template.uuid)
-            measure = measure_by_uuid[measure_template.uuid]
-            default_value = defaults.get(str(measure_template.uuid))
-            if measure_data_point is None:
-                measure_data_point = MeasureDataPoint(
-                    measure=measure,
-                    year=year,
-                    default_value=default_value,
-                    value=None,
-                )
-                new_measure_data_points.append(measure_data_point)
-            else:
-                measure_data_point.default_value = default_value
-                update_measure_data_points.append(measure_data_point)
-        if new_measure_data_points:
-            MeasureDataPoint.objects.bulk_create(new_measure_data_points)
-        if update_measure_data_points:
-            MeasureDataPoint.objects.bulk_update(update_measure_data_points, fields=['default_value'])
-
     def _get_default_value_multiplier(self, measure_template: MeasureTemplate) -> float:
         if measure_template.default_value_scaling is None:
             return 1.0
@@ -863,6 +808,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
 
     def _select_default_data_points(
         self,
+        *,
+        only_year: int | None = None,
     ) -> tuple[
         dict[tuple[int, int], tuple[MeasureTemplateDefaultDataPoint, int]],
         set[int],
@@ -887,6 +834,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             affected_template_ids.add(measure_template.pk)
             default_category_ids = {cat.pk for cat in default_data_point.categories.all()}
             if not default_category_ids.issubset(category_ids):
+                continue
+            if only_year is not None and default_data_point.year != only_year:
                 continue
 
             key = (measure_template.pk, default_data_point.year)
@@ -918,15 +867,32 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             }
         return measure_by_template_id
 
-    def _get_measure_default_data_points(self, affected_template_ids: set[int]) -> dict[tuple[int, int], MeasureDataPoint]:
-        return {
-            (dp.measure.measure_template_id, dp.year): dp
-            for dp in (
-                MeasureDataPoint.objects.filter(
-                    measure__framework_config=self, measure__measure_template_id__in=affected_template_ids
-                ).select_related('measure')
+    def _delete_non_matching_default_data_points(self, only_year: int) -> int:
+        deleted_count, _ = (
+            MeasureDataPoint.objects
+            .filter(
+                measure__framework_config=self,
+                default_value__isnull=False,
+                value__isnull=True,
             )
-        }
+            .exclude(year=only_year)
+            .delete()
+        )
+        return deleted_count
+
+    def _get_measure_default_data_points(
+        self,
+        affected_template_ids: set[int],
+        *,
+        only_year: int | None = None,
+    ) -> dict[tuple[int, int], MeasureDataPoint]:
+        qs = MeasureDataPoint.objects.filter(
+            measure__framework_config=self,
+            measure__measure_template_id__in=affected_template_ids,
+        )
+        if only_year is not None:
+            qs = qs.filter(year=only_year)
+        return {(dp.measure.measure_template_id, dp.year): dp for dp in qs.select_related('measure')}
 
     @staticmethod
     def _reset_default_values(existing_dps: dict[tuple[int, int], MeasureDataPoint]) -> list[MeasureDataPoint]:
@@ -941,14 +907,17 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         return update_dps
 
     @transaction.atomic
-    def populate_measure_defaults_from_default_data_points(self) -> int:
-        selected_defaults, affected_template_ids, templates_by_id = self._select_default_data_points()
+    def populate_measure_defaults(self, *, only_year: int | None = None) -> int:
+        selected_defaults, affected_template_ids, templates_by_id = self._select_default_data_points(only_year=only_year)
+
+        if only_year is not None:
+            self._delete_non_matching_default_data_points(only_year)
 
         if not affected_template_ids:
             return 0
 
         measure_by_template_id = self._ensure_measures_for_templates(affected_template_ids)
-        existing_dps = self._get_measure_default_data_points(affected_template_ids)
+        existing_dps = self._get_measure_default_data_points(affected_template_ids, only_year=only_year)
         update_dps = self._reset_default_values(existing_dps)
 
         new_dps: list[MeasureDataPoint] = []

@@ -141,7 +141,7 @@ def test_framework_config_populates_defaults_from_categorized_default_data_point
     )
     fwc.categories.set([categories[('renewable_mix', 'high')], categories[('temperature', 'low')]])
 
-    assert fwc.populate_measure_defaults_from_default_data_points() == 1
+    assert fwc.populate_measure_defaults() == 1
 
     data_point = MeasureDataPoint.objects.get(measure__framework_config=fwc, measure__measure_template=measure_template)
     assert data_point.year == 2020
@@ -156,12 +156,48 @@ def test_framework_config_populates_defaults_from_categorized_default_data_point
     data_point.probable_upper_bound = -3.0
     data_point.save()
 
-    assert fwc.populate_measure_defaults_from_default_data_points() == 1
+    assert fwc.populate_measure_defaults() == 1
     data_point.refresh_from_db()
     assert data_point.value == 123.0
     assert data_point.default_value == 20.0
     assert data_point.probable_lower_bound == 15.0
     assert data_point.probable_upper_bound == 25.0
+
+
+def test_framework_config_populates_defaults_for_only_year_and_removes_stale_default_points(framework: Framework) -> None:
+    categories = _create_nzc_default_dimensions(framework)
+    measure_template = _create_measure_template(framework)
+    for year, value in [(2020, 2.0), (2021, 3.0)]:
+        default = MeasureTemplateDefaultDataPoint.objects.create(
+            template=measure_template,
+            year=year,
+            value=value,
+        )
+        default.categories.set([categories[('renewable_mix', 'high')], categories[('temperature', 'low')]])
+
+    fwc = FrameworkConfigFactory.create(framework=framework, baseline_year=2020)
+    fwc.categories.set([categories[('renewable_mix', 'high')], categories[('temperature', 'low')]])
+
+    assert fwc.populate_measure_defaults() == 2
+    measure = fwc.measures.get(measure_template=measure_template)
+    MeasureDataPoint.objects.create(measure=measure, year=2022, default_value=5.0, value=42.0)
+    other_measure_template = MeasureTemplate.objects.create(
+        section=measure_template.section,
+        name='Other test measure',
+        unit='kt/a',
+    )
+    other_measure = fwc.measures.create(measure_template=other_measure_template)
+    MeasureDataPoint.objects.create(measure=other_measure, year=2021, default_value=6.0, value=None)
+
+    assert fwc.populate_measure_defaults(only_year=fwc.baseline_year) == 1
+
+    data_points_by_year = {dp.year: dp for dp in measure.data_points.all()}
+    assert set(data_points_by_year) == {2020, 2022}
+    assert data_points_by_year[2020].default_value == 2.0
+    assert data_points_by_year[2020].value is None
+    assert data_points_by_year[2022].default_value == 5.0
+    assert data_points_by_year[2022].value == 42.0
+    assert not other_measure.data_points.exists()
 
 
 # ---------------------------------------------------------------------------
@@ -302,6 +338,52 @@ def test_update_framework_config_mutation_updates_fields(client: Client, framewo
     assert fwc.organization_name == 'Updated City'
     assert fwc.baseline_year == 2021
     assert fwc.target_year == 2040
+
+
+UPDATE_FRAMEWORK_CONFIG_REPOPULATE_DEFAULTS = gql("""
+mutation UpdateFrameworkConfigRepopulateDefaults($id: ID!) {
+    updateFrameworkConfig(id: $id, repopulateDefaults: true) {
+        ok
+        frameworkConfig {
+            baselineYear
+        }
+    }
+}
+""")
+
+
+def test_update_framework_config_mutation_repopulates_measure_defaults(client: Client, framework: Framework) -> None:
+    measure_template = _create_measure_template(framework)
+    MeasureTemplateDefaultDataPoint.objects.create(
+        template=measure_template,
+        year=2020,
+        value=2.0,
+    )
+    MeasureTemplateDefaultDataPoint.objects.create(
+        template=measure_template,
+        year=2021,
+        value=3.0,
+    )
+
+    fwc = FrameworkConfigFactory.create(framework=framework, baseline_year=2020)
+    measure = fwc.measures.create(measure_template=measure_template)
+    MeasureDataPoint.objects.create(measure=measure, year=2021, default_value=3.0, value=None)
+    MeasureDataPoint.objects.create(measure=measure, year=2022, default_value=5.0, value=42.0)
+    gql_client = _framework_admin_gql_client(client, framework)
+
+    data = gql_client.query_data(
+        UPDATE_FRAMEWORK_CONFIG_REPOPULATE_DEFAULTS,
+        variables={'id': str(fwc.pk)},
+    )
+
+    assert data['updateFrameworkConfig']['ok'] is True
+    assert data['updateFrameworkConfig']['frameworkConfig']['baselineYear'] == 2020
+    data_points_by_year = {dp.year: dp for dp in MeasureDataPoint.objects.filter(measure=measure).order_by('year')}
+    assert set(data_points_by_year) == {2020, 2022}
+    assert data_points_by_year[2020].default_value == 2.0
+    assert data_points_by_year[2020].value is None
+    assert data_points_by_year[2022].default_value == 5.0
+    assert data_points_by_year[2022].value == 42.0
 
 
 DELETE_FRAMEWORK_CONFIG = gql("""
@@ -453,13 +535,13 @@ def test_create_nzc_framework_config_mutation_creates_instance_and_defaults(
     )
     categories = _create_nzc_default_dimensions(framework)
     gql_client = _framework_admin_gql_client(client, framework)
-    populated_framework_configs: list[str] = []
+    populated_framework_configs: list[tuple[str, int | None]] = []
 
-    def fake_populate_measure_defaults(self: FrameworkConfig) -> int:
-        populated_framework_configs.append(self.instance_config.identifier)
+    def fake_populate_measure_defaults(self: FrameworkConfig, *, only_year: int | None = None) -> int:
+        populated_framework_configs.append((self.instance_config.identifier, only_year))
         return 0
 
-    monkeypatch.setattr(FrameworkConfig, 'populate_measure_defaults_from_default_data_points', fake_populate_measure_defaults)
+    monkeypatch.setattr(FrameworkConfig, 'populate_measure_defaults', fake_populate_measure_defaults)
 
     data = gql_client.query_data(
         CREATE_NZC_FRAMEWORK_CONFIG,
@@ -498,7 +580,7 @@ def test_create_nzc_framework_config_mutation_creates_instance_and_defaults(
         categories[('renewable_mix', 'high')],
         categories[('temperature', 'low')],
     }
-    assert populated_framework_configs == ['nzc-created-city']
+    assert populated_framework_configs == [('nzc-created-city', 2020)]
 
 
 # ---------------------------------------------------------------------------

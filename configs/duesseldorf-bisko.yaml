@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://duesseldorf-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 28cbb7555b8f260c1431408f4426d522787817b3
+  commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
   dvc_remote: kausal-s3
 name: Düsseldorf Klima-Monitor
 owner: Stadt Düsseldorf
@@ -52,7 +52,7 @@ params:
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
-  value: '5111000' # Leading zero has dropped from the dataset.
+  value: '05111000'
   is_customizable: false
   is_visible: false
 - id: use_national_values
