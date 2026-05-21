@@ -38,6 +38,7 @@ from nodes.goals import NodeGoals
 from .datasets import JSONDataset
 from .edges import Edge
 from .exceptions import NodeComputationError, NodeError, NodeMissingDefaultUnitError
+from .explanations import explanation_to_html
 from .units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
@@ -1754,9 +1755,9 @@ class Node:
         nes = self.context.node_explanation_system
         if nes is not None:
             # Get static explanations (from node config)
-            static_explanations = nes.explanations.get(self.id, [])
-            if static_explanations:
-                parts.extend(static_explanations)
+            static_exp = nes.explanations.get(self.id)
+            if static_exp:
+                parts.extend(explanation_to_html(static_exp))
 
         # Get runtime explanations (from DataFrame operations during computation)
         warnings = self.context.instance.features.show_category_warnings

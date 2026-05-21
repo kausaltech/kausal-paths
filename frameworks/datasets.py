@@ -235,6 +235,10 @@ class ObservationDataset(DVCDataset):
                 '_obs_unit': [r[4] for r in raw_dps],
             },
         )
+        # DVC datasets often encode uuid as Categorical; cast to match so joins don't fail.
+        uuid_dtype = df['uuid'].dtype
+        if obs_raw['uuid'].dtype != uuid_dtype:
+            obs_raw = obs_raw.with_columns(pl.col('uuid').cast(uuid_dtype))
 
         # --- 4. Unit conversion -------------------------------------------------------
         ds_unit_str = str(df.get_unit(VALUE_COLUMN))
