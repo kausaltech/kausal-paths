@@ -561,6 +561,13 @@ nodes:
 # Implements the veil-of-ignorance moral principles (Frohlich & Oppenheimer 1992).
 # Index i = stakeholder groups (stakeholder dimension); index k = cost_type outcome dimensions.
 
+- id: decision_rules
+  name: Decision rules
+  type: simple.AdditiveNode
+  quantity: number
+  unit: dimensionless
+  is_outcome: true
+
 - id: moral_welfare_input
   name: Welfare by stakeholder and cost type
   description: |
@@ -647,6 +654,8 @@ nodes:
   input_nodes:
   - id: moral_welfare_normalized
     tags: [welfare]
+  output_nodes:
+  - id: decision_rules
   params:
     formula: mean_dim(welfare, stakeholder)
 
@@ -675,6 +684,8 @@ nodes:
   input_nodes:
   - id: moral_welfare_normalized
     tags: [welfare]
+  output_nodes:
+  - id: decision_rules
   params:
     formula: min_dim(welfare, stakeholder)
 
@@ -712,6 +723,8 @@ nodes:
   input_nodes:
   - id: moral_welfare_normalized
     tags: [welfare]
+  output_nodes:
+  - id: decision_rules
   params:
   - id: formula # FIXME Should not give very large values
     value: mean_dim(welfare ** (1 - (constant + 0.0001)), stakeholder) ** (1 / (1 - (constant + 0.0001)))
@@ -776,6 +789,8 @@ nodes:
     tags: [mean_welfare]
   - id: moral_floor_penalty_factor
     tags: [penalty]
+  output_nodes:
+  - id: decision_rules
   params:
   - id: formula
     value: mean_welfare - penalty * sum_dim(max(0, constant - welfare), stakeholder)
@@ -811,6 +826,8 @@ nodes:
   input_nodes:
   - id: moral_welfare_utilitarian
     tags: [mean_welfare]
+  output_nodes:
+  - id: decision_rules
   params:
   - id: formula
     value: mean_welfare * (1 - constant)
@@ -851,6 +868,8 @@ nodes:
     tags: [welfare]
   - id: moral_n_recip
     tags: [n_recip]
+  output_nodes:
+  - id: decision_rules
   params:
   - id: formula
     value: sum_dim(min(1, welfare / constant), stakeholder) * n_recip
@@ -919,6 +938,8 @@ nodes:
     to_dimensions:
     - id: stakeholder
       categories: [citizens]
+  output_nodes:
+  - id: decision_rules
   params:
     formula: sum_dim(arithmetic_inverse(circumstance) / sum_dim(arithmetic_inverse(circumstance), stakeholder) * welfare, stakeholder)
 
