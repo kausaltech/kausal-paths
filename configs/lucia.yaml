@@ -53,7 +53,8 @@ result_excels:
   - new_building_shares
   - efficient_appliances_rate
   - building_heating_type_share
-  - heating_fuel_share
+  - heating_fuel_share_local # FIXME Result excel G149:H155.
+  - heating_fuel_share_district
   - electricity_shares
   - waste_recycling_shares
   action_ids:
@@ -67,15 +68,11 @@ result_excels:
   - a212_route_optimisation
   - a22_truck_fleet_electrification
   - a31_renovation_improvements
-  - a311_renovation_rate_improvement
-  - a312_renovation_shares_improvement
   - a32_new_building_improvements
   - a33_do_efficient_appliances
-  - a332_increase_aggressive_renovations
   - a34_decarbonising_heat_generation
   - a341_heating_technology_improvement
-  - a342a_heating_energy_improvement_local
-  - a342b_heating_energy_improvement_district
+  - a342_heating_energy_improvement
   - a343_change_heating_fossil_share
   - a344_top_performance_improvement
   - a41_replace_fossil_electricity
@@ -1462,58 +1459,51 @@ actions:
 - id: a31_renovation_improvements
   name: 3.1 Improve old building renovations
   name_fi: 3.1 Paranna vanhojen rakennusten korjauksia
-  type: parent.ParentActionNode
-  quantity: fraction
-  unit: m**3
-  group: buildings
-
-- id: a311_renovation_rate_improvement
-  name: 3.1.1 Renovation rate improvement
-  name_fi: 3.1.1 Peruskorjausasteen parantaminen
   type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%/a'
   group: buildings
-  parent: a31_renovation_improvements
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
-  input_nodes:
-  - id: old_building_renovation_rate_historical
-    tags: [historical]
-    to_dimensions:
-    - id: building_energy_class
-  - id: old_building_renovation_rate_goal
-    tags: [goal]
-    to_dimensions:
-    - id: building_energy_class
+  output_metrics:
+  - id: renovation_rate
+    unit: '%/a'
+    quantity: fraction
+  - id: renovation_shares
+    unit: '%'
+    quantity: fraction
+  input_datasets:
+  - id: nzc/buildings_stock_renovation
+    column: share_of_building_stock_renovated_each_year
+    filters:
+    - column: uuid
+    - column: energy_carrier
+    tags: [historical, renovation_rate]
+  - id: nzc/buildings_stock_renovation
+    column: renovation_rate_decarbonisation_scenario
+    filters:
+    - column: uuid
+    - column: energy_carrier
+    tags: [goal, renovation_rate]
+  - id: nzc/buildings_stock_renovation
+    column: renovations_actual_share_of_market_in_baseline_scenario
+    filters:
+    - column: uuid
+    - column: energy_carrier
+    tags: [historical, renovation_shares]
+  - id: nzc/buildings_stock_renovation
+    column: assumed_share_of_type_of_renovation_in_lever
+    filters:
+    - column: uuid
+    - column: energy_carrier
+    tags: [goal, renovation_shares]
   output_nodes:
   - id: old_building_renovation_rate_observed
-
-- id: a312_renovation_shares_improvement
-  name: 3.1.2 Renovation shares improvement
-  name_fi: 3.1.2 Korjausosuuksien parantaminen
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: a31_renovation_improvements
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_nodes:
-  - id: renovation_intensity_shares_historical
-    tags: [historical, inventory_only]
-    to_dimensions:
-    - id: building_energy_class
-  - id: renovation_intensity_shares_goal
-    tags: [goal]
-    to_dimensions:
-    - id: building_energy_class
-  output_nodes:
+    metrics: [renovation_rate]
   - id: renovation_intensity_shares
+    metrics: [renovation_shares]
 
 - id: a32_new_building_improvements
   name: 3.2 New building shares improvement
-  name_fi: 3.2 Energiatehokkaiden rakennusten osuuden lisääminen 
+  name_fi: 3.2 Energiatehokkaiden rakennusten osuuden lisääminen
     uudisrakentamisessa
   type: linear.DatasetReduceAction
   quantity: fraction
@@ -1521,10 +1511,17 @@ actions:
   group: buildings
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
-  input_nodes:
-  - id: new_building_shares_historical
+  input_datasets:
+  - id: nzc/buildings_stock_renovation
+    column: share_of_new_buildings_built
+    filters:
+    - column: uuid
     tags: [historical]
-  - id: new_building_shares_goal
+  - id: nzc/buildings_stock_renovation
+    column: share_of_new_buildings_built_with_high_energy_effici
+    filters:
+    - column: uuid
+    - column: energy_carrier
     tags: [goal]
   output_nodes:
   - id: new_building_shares
@@ -1532,54 +1529,62 @@ actions:
 - id: a33_do_efficient_appliances
   name: 3.3 Do efficient lighting & appliances renovation
   name_fi: 3.3 Tee tehokas valaistus- ja laitekorjaus
-  type: parent.ParentActionNode
-  quantity: fraction
-  unit: m**3
-  group: buildings
-
-- id: a331_increase_appliance_renovation
-  name: 3.3.1 Increase appliance renovation
-  name_fi: 3.3.1 Lisää laitteiden uusimista
   type: linear.DatasetReduceAction
-  quantity: rate
-  unit: '%/a'
   group: buildings
-  parent: a33_do_efficient_appliances
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier, efficiency_programme]
+  output_dimensions: [energy_carrier, efficiency_programme]
+  output_metrics:
+  - id: renovation_rate
+    unit: '%/a'
+    quantity: rate
+  - id: efficiency_shares
+    unit: '%'
+    quantity: fraction
   input_nodes:
   - id: efficient_appliances_renovation_rate_historical
-    tags: [historical]
+    tags: [historical, renovation_rate]
     from_dimensions:
     - id: building_energy_class
       flatten: true
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
-  - id: efficient_appliances_renovation_rate_goal
-    tags: [goal]
+  input_datasets:
+  - id: nzc/buildings_stock_renovation
+    column: 33_efficient_lighting_appliances
+    filters:
+    - column: uuid
+    - column: building_energy_class
+    tags: [goal, renovation_rate]
+  - id: nzc/buildings_materials_costs
+    column: current_share_of_type_of_efficiency_programme
+    filters:
+    - column: uuid
+    - column: cost_type
+    - column: material
+    - column: stakeholder
+    - column: building_energy_class
+    tags: [historical, efficiency_shares]
+  - id: nzc/buildings_materials_costs
+    column: assumed_share_of_type_of_efficiency_programme_for_lever
+    filters:
+    - column: uuid
+    - column: cost_type
+    - column: material
+    - column: stakeholder
+    - column: building_energy_class
+    tags: [goal, efficiency_shares]
   output_nodes:
   - id: efficient_appliances_rate
+    metrics: [renovation_rate]
+    from_dimensions:
+    - id: efficiency_programme
+      categories: [aggressive_improvements]
+      flatten: true
     to_dimensions:
     - id: energy_carrier
-
-- id: a332_increase_aggressive_renovations
-  name: 3.3.2 Increase aggressive appliance renovation
-  name_fi: 3.3.2 Lisää aggressiivisia laitekorjauksia
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: a33_do_efficient_appliances
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_nodes:
-  - id: efficiency_programme_shares_historical
-    tags: [historical]
-  - id: efficiency_programme_shares_goal
-    tags: [goal]
-  output_nodes:
   - id: efficiency_programme_shares
+    metrics: [efficiency_shares]
 
 - id: a34_decarbonising_heat_generation
   name: 3.4 Decarbonising heating generation
@@ -1602,22 +1607,30 @@ actions:
   parent: a34_decarbonising_heat_generation
   input_dimensions: [heating_type]
   output_dimensions: [heating_type]
-  input_nodes:
-  - id: building_heating_type_share_historical
-    tags: [historical, inventory_only]
-  - id: building_heating_type_share_goal
+  input_datasets:
+  - id: nzc/buildings_heating_fuel_tech
+    column: heating_technologies
+    filters:
+    - column: uuid
+    - column: energy_carrier
+    - column: fuel_type
+    tags: [historical]
+  - id: nzc/buildings_heating_fuel_tech
+    column: heating_technologies_in_2030
+    filters:
+    - column: uuid
+    - column: energy_carrier
+    - column: fuel_type
     tags: [goal]
-    to_dimensions:
-    - id: heating_type
   output_nodes:
   - id: building_heating_type_share
     to_dimensions:
     - id: heating_type
 
-- id: a342a_heating_energy_improvement_local
-  name: 3.4.2a Increase low-emission local heating
-  name_fi: 3.4.2a Lisää vähäpäästöistä paikallislämmitystä
-  description: Improve the fuel shares of local heating.
+- id: a342_heating_energy_improvement
+  name: 3.4.2 Increase low-emission heating
+  name_fi: 3.4.2 Lisää vähäpäästöistä lämmitystä
+  description: Improve the fuel shares of local and district heating.
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -1625,41 +1638,26 @@ actions:
   parent: a34_decarbonising_heat_generation
   input_dimensions: [energy_carrier, heating_type, fuel_type]
   output_dimensions: [energy_carrier, heating_type, fuel_type]
-  input_nodes:
-  - id: heating_fuel_share_historical
+  input_datasets:
+  - id: nzc/buildings_heating_fuel_tech
+    column: share_of_heating_fuel
+    filters:
+    - column: uuid
     tags: [historical]
-    from_dimensions:
-    - id: heating_type
-      categories: [local_heating]
-  - id: heating_fuel_share_goal
+  - id: nzc/buildings_heating_fuel_tech
+    column: share_of_heating_in_2030
+    filters:
+    - column: uuid
     tags: [goal]
-    from_dimensions:
-    - id: heating_type
-      categories: [local_heating]
   output_nodes:
   - id: heating_fuel_share_local
-
-- id: a342b_heating_energy_improvement_district
-  name: 3.4.2b Increase low-emission district heating
-  name_fi: 3.4.2b Lisää vähäpäästöistä kaukolämmitystä
-  description: Improve the fuel shares of district heating.
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: a34_decarbonising_heat_generation
-  input_dimensions: [energy_carrier, heating_type, fuel_type]
-  output_dimensions: [energy_carrier, heating_type, fuel_type]
-  input_nodes:
-  - id: heating_fuel_share_district_historical
-    tags: [historical]
-  - id: heating_fuel_share_goal
-    tags: [goal]
+    from_dimensions:
+    - id: heating_type
+      categories: [local_heating]
+  - id: heating_fuel_share_district
     from_dimensions:
     - id: heating_type
       categories: [district_heating]
-  output_nodes:
-  - id: heating_fuel_share_district
 
 - id: a343_change_heating_fossil_share
   name: 3.4.3 Reduce fossil waste in heating  # Example city has 0 % waste, so there is no impact
@@ -1671,15 +1669,17 @@ actions:
   parent: a34_decarbonising_heat_generation
   input_dimensions: [energy_carrier, fuel_type, heating_type]
   output_dimensions: [energy_carrier, fuel_type, heating_type]
-  input_nodes:
-  - id: heating_fossil_share_historical
+  input_datasets:
+  - id: nzc/buildings_heating_fuel_tech
+    column: share_of_waste_used_in_district_heating_that_is_foss
+    filters:
+    - column: uuid
     tags: [historical]
-  - id: heating_fossil_share_goal
+  - id: nzc/buildings_heating_fuel_tech
+    column: share_of_waste_in_2030_used_in_district_heating_that
+    filters:
+    - column: uuid
     tags: [goal]
-    to_dimensions:
-    - id: fuel_type
-    - id: energy_carrier
-    - id: heating_type
   output_nodes:
   - id: heating_waste_fossil_share
 
@@ -5011,36 +5011,6 @@ nodes:
     tags: [ratio_to_last_historical_value]
     to_dimensions: []
 
-- id: new_building_shares_historical
-  name_en: New building shares historical
-  name_fi: Uudisrakentamisen osuudet historiallisesti
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_datasets:
-  - id: nzc/buildings_stock_renovation
-    column: share_of_new_buildings_built
-    filters:
-    - column: uuid
-  params:
-    operations: get_single_dataset,inventory_only
-
-- id: new_building_shares_goal
-  name_en: New building shares goal
-  name_fi: Uudisrakentamisen osuuksien tavoite
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_datasets:
-  - id: nzc/buildings_stock_renovation
-    column: share_of_new_buildings_built_with_high_energy_effici
-    filters:
-    - column: uuid
-
 - id: new_building_shares
   name_en: New building shares
   name_fi: Uudisrakentamisen osuudet
@@ -5139,34 +5109,6 @@ nodes:
     to_dimensions:
     - id: building_energy_class
 
-- id: old_building_renovation_rate_historical
-  name_en: Old building renovation rate historical
-  name_fi: Vanhojen rakennusten peruskorjausaste historiallisesti
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%/a'
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_datasets:
-  - id: nzc/buildings_stock_renovation
-    column: share_of_building_stock_renovated_each_year
-    filters:
-    - column: uuid
-
-- id: old_building_renovation_rate_goal
-  name_en: Old building renovation rate goal
-  name_fi: Vanhojen rakennusten peruskorjausasteen tavoite
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%/a'
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_datasets:
-  - id: nzc/buildings_stock_renovation
-    column: renovation_rate_decarbonisation_scenario
-    filters:
-    - column: uuid
-
 - id: old_building_renovation_rate_observed
   name_en: Old building renovation rate
   name_fi: Vanhojen rakennusten peruskorjausaste
@@ -5189,9 +5131,9 @@ nodes:
     filters:
     - column: uuid
 
-- id: renovation_intensity_shares_historical
-  name_en: Renovation intensity shares historical
-  name_fi: Peruskorjausten intensiteetin osuudet historiallisesti
+- id: renovation_intensity_shares
+  name_en: Renovation intensity shares
+  name_fi: Peruskorjausten intensiteetin osuudet
   type: generic.GenericNode
   quantity: fraction
   unit: '%'
@@ -5202,31 +5144,6 @@ nodes:
     column: renovations_actual_share_of_market_in_baseline_scenario
     filters:
     - column: uuid
-
-- id: renovation_intensity_shares_goal
-  name_en: Renovation intensity shares goal
-  name_fi: Peruskorjausten intensiteetin osuuksien tavoite
-  type: generic.DatasetPlusOneNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_datasets:
-  - id: nzc/buildings_stock_renovation
-    column: assumed_share_of_type_of_renovation_in_lever
-    filters:
-    - column: uuid
-
-- id: renovation_intensity_shares
-  name_en: Renovation intensity shares
-  name_fi: Peruskorjausten intensiteetin osuudet
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_nodes:
-  - id: renovation_intensity_shares_historical
 
 - id: renovated_building_stock
   name_en: Renovated building stock
@@ -5365,16 +5282,16 @@ nodes:
 - id: energy_use_intensity_new
   name_en: Energy use intensity for heating of new buildings
   name_fi: Energiankäytön intensiteetti uudisrakennusten lämmitykselle
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: energy_factor
   unit: kWh/m**2/a
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
+  params:
+    formula: energy_use_intensity_data * (1 - energy_use_intensity_change_new)
   input_nodes:
   - id: energy_use_intensity_data
-    tags: [non_additive]
   - id: energy_use_intensity_change_new
-    tags: [complement]
 
 - id: energy_use_intensity
   name_en: Energy use intensity excluding electricity
@@ -5401,35 +5318,6 @@ nodes:
 #   params:
 #     sector: Share of heating electricity
 
-- id: building_heating_type_share_historical
-  name_en: Building heating type share historical
-  name_fi: Rakennusten lämmitystyyppien osuudet historiallisesti
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [heating_type]
-  output_dimensions: [heating_type]
-  input_datasets:
-  - id: nzc/buildings_heating_fuel_tech
-    column: heating_technologies
-    filters:
-    - column: uuid
-
-- id: building_heating_type_share_goal
-  name_en: District heating share goal
-  name_fi: Kaukolämmön osuuden tavoite
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  input_dimensions: [heating_type]
-  output_dimensions: [heating_type]
-  input_datasets:
-  - id: nzc/buildings_heating_fuel_tech
-    column: heating_technologies_in_2030
-    filters:
-    - column: uuid
-
 - id: building_heating_type_share
   name_en: Building heating type shares of local vs. district
   name_fi: Rakennusten lämmitystyyppien osuudet paikallisesta vs. kaukolämmöstä
@@ -5443,48 +5331,6 @@ nodes:
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
     column: heating_technologies
-    filters:
-    - column: uuid
-
-- id: heating_fuel_share_historical
-  name_en: Heating fuel share historical
-  name_fi: Lämmityspolttoaineiden osuudet historiallisesti
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [energy_carrier, heating_type, fuel_type]
-  output_dimensions: [energy_carrier, heating_type, fuel_type]
-  input_datasets:
-  - id: nzc/buildings_heating_fuel_tech
-    column: share_of_heating_fuel
-    filters:
-    - column: uuid
-
-- id: heating_fuel_share_district_historical
-  name_en: District heating fuel share historical
-  name_fi: Kaukolämmityspolttoaineiden osuudet historiallisesti
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [energy_carrier, heating_type, fuel_type]
-  output_dimensions: [energy_carrier, heating_type, fuel_type]
-  input_datasets:
-  - id: nzc/buildings_heating_fuel_tech
-    column: share_of_heating_fuel
-    filters:
-    - column: uuid
-
-- id: heating_fuel_share_goal
-  name_en: Heating fuel share goal
-  name_fi: Lämmityspolttoaineiden osuuksien tavoite
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [heating_type, fuel_type, energy_carrier]
-  output_dimensions: [heating_type, fuel_type, energy_carrier]
-  input_datasets:
-  - id: nzc/buildings_heating_fuel_tech
-    column: share_of_heating_in_2030
     filters:
     - column: uuid
 
@@ -5524,46 +5370,6 @@ nodes:
       value: district_heating
       drop_col: false
 
-- id: heating_fuel_share
-  name: Technical intermediate node
-  name_fi: Tekninen välisolmu
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [energy_carrier, heating_type, fuel_type]
-  output_dimensions: [energy_carrier, heating_type, fuel_type]
-  input_nodes:
-  - id: heating_fuel_share_local
-  - id: heating_fuel_share_district
-
-- id: heating_fossil_share_historical
-  name_en: Heating fossil shares historical
-  name_fi: Lämmityksen fossiilisten osuudet historiallisesti
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [fuel_type, heating_type, energy_carrier]
-  output_dimensions: [fuel_type, heating_type, energy_carrier]
-  input_datasets:
-  - id: nzc/buildings_heating_fuel_tech
-    column: share_of_waste_used_in_district_heating_that_is_foss
-    filters:
-    - column: uuid
-
-- id: heating_fossil_share_goal
-  name_en: Heating fossil shares goal
-  name_fi: Lämmityksen fossiilisten osuuksien tavoite
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [fuel_type, heating_type, energy_carrier]
-  output_dimensions: [fuel_type, heating_type, energy_carrier]
-  input_datasets:
-  - id: nzc/buildings_heating_fuel_tech
-    column: share_of_waste_in_2030_used_in_district_heating_that
-    filters:
-    - column: uuid
-
 - id: heating_waste_fossil_share
   name_en: Heating fossil shares
   name_fi: Lämmityksen fossiiliset osuudet
@@ -5576,28 +5382,26 @@ nodes:
   unit: '%'
   input_dimensions: [fuel_type, heating_type, energy_carrier]
   output_dimensions: [fuel_type, heating_type, energy_carrier]
-  input_nodes:
-  - id: heating_fossil_share_historical
+  input_datasets:
+  - id: nzc/buildings_heating_fuel_tech
+    column: share_of_waste_used_in_district_heating_that_is_foss
+    filters:
+    - column: uuid
 
 - id: building_heating_shares_pre
   name_en: Building heating shares unadjusted
   name_fi: Rakennusten lämmityksen osuudet korjaamattomina
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: fraction
   unit: '%'
   input_dimensions: [heating_type, energy_carrier, fuel_type]
   output_dimensions: [heating_type, energy_carrier, fuel_type]
+  params:
+    formula: building_heating_type_share * (heating_fuel_share_local + heating_fuel_share_district)
   input_nodes:
   - id: building_heating_type_share
-    tags: [non_additive]
-    to_dimensions:
-    - id: heating_type
-  - id: heating_fuel_share
-    tags: [non_additive]
-    to_dimensions:
-    - id: heating_type
-    - id: energy_carrier
-    - id: fuel_type
+  - id: heating_fuel_share_local
+  - id: heating_fuel_share_district
 
 - id: waste_energy_fraction
   name_en: Waste energy fraction of total building energy
@@ -6020,20 +5824,6 @@ nodes:
     filters:
     - column: uuid
 
-- id: efficient_appliances_renovation_rate_goal
-  name_en: Lighting & appliances renovation rate goal
-  name_fi: Valaistuksen ja laitteiden peruskorjausasteen tavoite
-  type: generic.DatasetPlusOneNode
-  quantity: fraction
-  unit: '%/a'
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_datasets:
-  - id: nzc/buildings_stock_renovation
-    column: 33_efficient_lighting_appliances
-    filters:
-    - column: uuid
-
 - id: efficient_appliances_rate
   name_en: Lighting & appliances renovation rate
   name_fi: Valaistuksen ja laitteiden peruskorjausaste
@@ -6065,10 +5855,10 @@ nodes:
     filters:
     - column: uuid
 
-- id: efficiency_programme_shares_historical
-  name_en: Efficiency programme shares historical
-  name_fi: Tehokkuusohjelmien osuudet historiallisesti
-  type: generic.GenericNode
+- id: efficiency_programme_shares
+  name_en: Electricity efficiency programme intensity shares
+  name_fi: Sähkön tehokkuusohjelmien intensiteetin osuudet
+  type: simple.FillNewCategoryNode
   quantity: fraction
   unit: '%'
   input_dimensions: [efficiency_programme, energy_carrier]
@@ -6078,31 +5868,6 @@ nodes:
     column: current_share_of_type_of_efficiency_programme
     filters:
     - column: uuid
-
-- id: efficiency_programme_shares_goal
-  name_en: Efficiency programme shares goal
-  name_fi: Tehokkuusohjelmien osuuksien tavoite
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_datasets:
-  - id: nzc/buildings_materials_costs
-    column: assumed_share_of_type_of_efficiency_programme_for_lever
-    filters:
-    - column: uuid
-
-- id: efficiency_programme_shares
-  name_en: Electricity efficiency programme intensity shares
-  name_fi: Sähkön tehokkuusohjelmien intensiteetin osuudet
-  type: simple.FillNewCategoryNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_nodes:
-  - id: efficiency_programme_shares_historical
   params:
     new_category: efficiency_programme:no_improvements
 
