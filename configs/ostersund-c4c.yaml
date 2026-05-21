@@ -1728,6 +1728,30 @@ nodes:
   unit: kt/a
   input_dimensions: [ghg]
   output_dimensions: [ghg]
+  goals:
+  - values: [{'year': 2018, 'value': 28.155},
+             {'year': 2019, 'value': 25.621},
+             {'year': 2020, 'value': 23.315},
+             {'year': 2021, 'value': 21.217},
+             {'year': 2022, 'value': 19.307},
+             {'year': 2023, 'value': 17.570},
+             {'year': 2024, 'value': 15.988},
+             {'year': 2025, 'value': 14.549},
+             {'year': 2026, 'value': 13.240},
+             {'year': 2027, 'value': 12.048},
+             {'year': 2028, 'value': 10.964},
+             {'year': 2029, 'value': 9.977},
+             {'year': 2030, 'value': 9.079},
+             {'year': 2031, 'value': 8.262},
+             {'year': 2032, 'value': 7.519},
+             {'year': 2033, 'value': 6.842},
+             {'year': 2034, 'value': 6.226},
+             {'year': 2035, 'value': 5.666},
+             {'year': 2036, 'value': 5.156},
+             {'year': 2037, 'value': 4.692},
+             {'year': 2038, 'value': 4.270},
+             {'year': 2039, 'value': 3.885},
+             {'year': 2040, 'value': 3.536}]
   output_nodes:
   - id: net_emissions_territorial
 
@@ -1773,6 +1797,30 @@ nodes:
   unit: kt/a
   input_dimensions: [ghg]
   output_dimensions: [ghg]
+  goals:
+  - values: [{'year': 2018, 'value': 113.000},
+             {'year': 2019, 'value': 102.830},
+             {'year': 2020, 'value': 93.575},
+             {'year': 2021, 'value': 85.154},
+             {'year': 2022, 'value': 77.490},
+             {'year': 2023, 'value': 70.516},
+             {'year': 2024, 'value': 64.169},
+             {'year': 2025, 'value': 58.394},
+             {'year': 2026, 'value': 53.139},
+             {'year': 2027, 'value': 48.356},
+             {'year': 2028, 'value': 44.004},
+             {'year': 2029, 'value': 40.044},
+             {'year': 2030, 'value': 36.440},
+             {'year': 2031, 'value': 33.160},
+             {'year': 2032, 'value': 30.176},
+             {'year': 2033, 'value': 27.460},
+             {'year': 2034, 'value': 24.989},
+             {'year': 2035, 'value': 22.740},
+             {'year': 2036, 'value': 20.693},
+             {'year': 2037, 'value': 18.831},
+             {'year': 2038, 'value': 17.136},
+             {'year': 2039, 'value': 15.594},
+             {'year': 2040, 'value': 14.190}]
   output_nodes:
   - id: net_emissions_territorial
 
@@ -1814,6 +1862,30 @@ nodes:
   unit: kt/a
   input_dimensions: [scope, ghg]
   output_dimensions: [scope, ghg]
+  goals:
+  - values: [{'year': 2018, 'value': 12.631},
+             {'year': 2019, 'value': 11.494},
+             {'year': 2020, 'value': 10.460},
+             {'year': 2021, 'value': 9.518},
+             {'year': 2022, 'value': 8.662},
+             {'year': 2023, 'value': 7.882},
+             {'year': 2024, 'value': 7.173},
+             {'year': 2025, 'value': 6.527},
+             {'year': 2026, 'value': 5.940},
+             {'year': 2027, 'value': 5.405},
+             {'year': 2028, 'value': 4.919},
+             {'year': 2029, 'value': 4.476},
+             {'year': 2030, 'value': 4.073},
+             {'year': 2031, 'value': 3.707},
+             {'year': 2032, 'value': 3.373},
+             {'year': 2033, 'value': 3.069},
+             {'year': 2034, 'value': 2.793},
+             {'year': 2035, 'value': 2.542},
+             {'year': 2036, 'value': 2.313},
+             {'year': 2037, 'value': 2.105},
+             {'year': 2038, 'value': 1.915},
+             {'year': 2039, 'value': 1.743},
+             {'year': 2040, 'value': 1.586}]
   output_nodes:
   - id: net_emissions_territorial
     from_dimensions:
@@ -1830,6 +1902,30 @@ nodes:
   unit: kt/a
   input_dimensions: [scope, product_type, ghg]
   output_dimensions: [scope, product_type, ghg]
+  goals:
+  - values: [{'year': 2018, 'value': 8.787},
+             {'year': 2019, 'value': 7.996},
+             {'year': 2020, 'value': 7.276},
+             {'year': 2021, 'value': 6.621},
+             {'year': 2022, 'value': 6.026},
+             {'year': 2023, 'value': 5.483},
+             {'year': 2024, 'value': 4.990},
+             {'year': 2025, 'value': 4.541},
+             {'year': 2026, 'value': 4.132},
+             {'year': 2027, 'value': 3.760},
+             {'year': 2028, 'value': 3.422},
+             {'year': 2029, 'value': 3.114},
+             {'year': 2030, 'value': 2.834},
+             {'year': 2031, 'value': 2.579},
+             {'year': 2032, 'value': 2.346},
+             {'year': 2033, 'value': 2.135},
+             {'year': 2034, 'value': 1.943},
+             {'year': 2035, 'value': 1.768},
+             {'year': 2036, 'value': 1.609},
+             {'year': 2037, 'value': 1.464},
+             {'year': 2038, 'value': 1.332},
+             {'year': 2039, 'value': 1.213},
+             {'year': 2040, 'value': 1.103}]
   output_nodes:
   - id: net_emissions_territorial
     from_dimensions:
@@ -1848,6 +1944,30 @@ nodes:
   unit: kt/a
   input_dimensions: [scope, ghg]
   output_dimensions: [scope, ghg]
+  goals:
+  - values: [{'year': 2018, 'value': 21.168},
+             {'year': 2019, 'value': 19.263},
+             {'year': 2020, 'value': 17.529},
+             {'year': 2021, 'value': 15.952},
+             {'year': 2022, 'value': 14.516},
+             {'year': 2023, 'value': 13.210},
+             {'year': 2024, 'value': 12.021},
+             {'year': 2025, 'value': 10.939},
+             {'year': 2026, 'value': 9.954},
+             {'year': 2027, 'value': 9.058},
+             {'year': 2028, 'value': 8.243},
+             {'year': 2029, 'value': 7.501},
+             {'year': 2030, 'value': 6.826},
+             {'year': 2031, 'value': 6.212},
+             {'year': 2032, 'value': 5.653},
+             {'year': 2033, 'value': 5.144},
+             {'year': 2034, 'value': 4.681},
+             {'year': 2035, 'value': 4.260},
+             {'year': 2036, 'value': 3.876},
+             {'year': 2037, 'value': 3.528},
+             {'year': 2038, 'value': 3.210},
+             {'year': 2039, 'value': 2.921},
+             {'year': 2040, 'value': 2.658}]
   output_nodes:
   - id: net_emissions_territorial
     from_dimensions:
