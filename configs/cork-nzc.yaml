@@ -3,7 +3,7 @@ default_language: en
 site_url: https://cork-nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 04df0b901ac3eb2b30566c4b6d4d385123acae03
+  commit: 1cf9ce6104e72f88cb7615d1dd4ef968dc9ca063
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -27,12 +27,12 @@ features:
 
 include:
 
-# - file: modules/health.yaml
-#   node_group: Health
-#   allow_override: true
-#   dataset_replacements:
-#   - from: nzc/defaults
-#     to: cork/defaults
+- file: modules/health.yaml
+  node_group: Health
+  allow_override: true
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 - file: nzc/transport.yaml
   node_group: Transport
   allow_override: true
@@ -56,31 +56,31 @@ include:
   allow_override: true
   dataset_replacements:
   - from: nzc/defaults
-    to: lappeenranta/defaults # FIXME fully_electric_light_truck_share gives error with cork.
+    to: cork/defaults
 - file: nzc/buildings.yaml
   node_group: Buildings
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 - file: nzc/electricity.yaml
   node_group: Electricity
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults # FIXME scope_of_energy_carriers gives error with cork
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 - file: nzc/waste.yaml
   node_group: Waste
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults # FIXME scope_of_energy_carriers gives error with cork
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 - file: nzc/other.yaml
   node_group: Other
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults # FIXME emissions_from_other_sectors gives error with cork
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 
 result_excels:
 - base_excel_url: 
@@ -641,6 +641,7 @@ dimensions:
   - id: pm1025
     label_fi: PM10-PM2.5
     label_en: PM10-PM2.5
+    aliases: [PM10-2.5]
   - id: so2
     label_fi: SO2
     label_en: SO2
@@ -660,6 +661,23 @@ emission_sectors:
   is_outcome: true
 
 nodes:
+
+- id: intake_fraction
+  name_fi: Ilmansaasteiden saantiosuus
+  name_en: Intake fraction of air pollution
+  description_fi: 'Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi. Tiedot on saatu artikkelista Sebastien Humbert, Julian D. Marshall, Shanna Shaked, Joseph V. Spadaro, Yurika Nishioka, Philipp Preiss, Thomas E. McKone, Arpad Horvath, and Olivier Jolliet. Intake Fraction for Particulate Matter: Recommendations for Life Cycle Impact Assessment (2011). Environmental Science and Technology, 45, 4808-4816.'
+  description_en: The fraction of air pollution emissions that is eventually inhaled by someone.
+  type: generic.GenericNode
+  quantity: fraction
+  unit: ppm
+  input_dimensions: [pollutant, emission_height]
+  output_dimensions: [pollutant, emission_height]
+  input_datasets:
+  - id: hia/intake_fraction/air_pollution_if
+    column: Intake fraction
+    filters:
+    - column: population_density
+      value: average
 
 - id: technical_root_node
   name: Technical root node
@@ -1453,71 +1471,71 @@ nodes:
 
 # ------------ Cork-specific nodes -----------
 
-# - id: road_transport_emissions_intermediate
-#   name_fi: Tieliikenteen CO2-päästöt
-#   name_en: CO2 emissions from road transport
-#   description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa 
-#     summataan pois terveysmallissa tarpeettomat ulottuvuudet.
-#   description_en: Intermediate node between the main model and the health 
-#     module. Unnecessary dimensions are summed up here.
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_nodes:
-#   - id: transport_emissions
-#     from_dimensions:
-#     - id: scope
-#       flatten: true
-#     - id: energy_carrier
-#       categories: [petrol_diesel]
-#       flatten: true
-#     - id: transport_mode
-#       flatten: true
-#     - id: ghg
-#       flatten: true
-#   - id: freight_transport_emissions
-#     from_dimensions:
-#     - id: transport_mode
-#       categories: [light_trucks]
-#       flatten: true
-#     - id: pollutant
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#   historical_values: [[2020, 0]]
-#   output_nodes:
-#   - id: transport_air_pollution_emissions2
-#     tags: [non_additive]
-#     to_dimensions: []
+- id: road_transport_emissions_intermediate
+  name_fi: Tieliikenteen CO2-päästöt
+  name_en: CO2 emissions from road transport
+  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa 
+    summataan pois terveysmallissa tarpeettomat ulottuvuudet.
+  description_en: Intermediate node between the main model and the health 
+    module. Unnecessary dimensions are summed up here.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: energy_carrier
+      categories: [petrol_diesel]
+      flatten: true
+    - id: transport_mode
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: freight_transport_emissions
+    from_dimensions:
+    - id: transport_mode
+      categories: [light_trucks]
+      flatten: true
+    - id: pollutant
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  historical_values: [[2020, 0]]
+  output_nodes:
+  - id: transport_air_pollution_emissions2
+    tags: [non_additive]
+    to_dimensions: []
 
-# - id: district_heating_emissions_intermediate
-#   name_fi: Kaukolämmön CO2-päästöt
-#   name_en: CO2 emissions from district heating
-#   description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa 
-#     summataan pois terveysmallissa tarpeettomat ulottuvuudet.
-#   description_en: Intermediate node between the main model and the health 
-#     module. Unnecessary dimensions are summed up here.
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_nodes:
-#   - id: building_heating_emissions
-#     from_dimensions:
-#     - id: heating_type
-#       categories: [district_heating]
-#       flatten: true
-#     - id: fuel_type
-#       flatten: true
-#     - id: pollutant
-#       categories: [co2]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#   historical_values: [[2020, 0]]
-#   output_nodes:
-#   - id: fossil_plant_air_pollution_emissions
-#     tags: [non_additive]
-#     to_dimensions: []
+- id: district_heating_emissions_intermediate
+  name_fi: Kaukolämmön CO2-päästöt
+  name_en: CO2 emissions from district heating
+  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa 
+    summataan pois terveysmallissa tarpeettomat ulottuvuudet.
+  description_en: Intermediate node between the main model and the health 
+    module. Unnecessary dimensions are summed up here.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: building_heating_emissions
+    from_dimensions:
+    - id: heating_type
+      categories: [district_heating]
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    - id: scope
+      flatten: true
+  historical_values: [[2020, 0]]
+  output_nodes:
+  - id: fossil_plant_air_pollution_emissions
+    tags: [non_additive]
+    to_dimensions: []
 
 - id: active_mobility_conversion  # TODO Should passenger and inhabitant be in the same dimension?
   name: Aktiivisen liikkumisen muunnos
@@ -1662,8 +1680,8 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes: [active_mobility_combined]
-  # output_nodes:
-  # - id: active_mobility_distance
+  output_nodes:
+  - id: active_mobility_distance
   params:
   - id: multiplier
     value: 0.5
