@@ -693,7 +693,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: population
   unit: cap
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   input_nodes:
   - id: population_growth
     tags: [arithmetic_inverse, complement_cumulative_product, non_additive]
@@ -705,7 +705,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: rate
   unit: '%/a'
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: Expected annual population growth (up until 2030)
 
@@ -878,7 +878,7 @@ nodes:
   unit: EUR/t
   input_dimensions: [cost_type, ghg]
   output_dimensions: [cost_type, ghg]
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: Value of CO2 reduction
 
@@ -926,7 +926,7 @@ nodes:
   unit: dimensionless
   input_dimensions: [cost_type, aggregated_cost_type]
   output_dimensions: [cost_type, aggregated_cost_type]
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: Aggregated cost types
 
@@ -1462,7 +1462,7 @@ nodes:
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
     filters:
     - column: Parameter
       value: Max year
@@ -1844,7 +1844,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: transport
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: Transportation need reduction by 2030 from urban planning, digital 
       meetings and other transport-reducing initiatives
@@ -1859,7 +1859,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: transport
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: Reduced Pkm cars + motorcycles by 2030
   output_nodes:
@@ -1876,7 +1876,7 @@ actions:
   group: transport
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   output_nodes:
   - id: relative_transport_efficiency
     to_dimensions:
@@ -1893,7 +1893,7 @@ actions:
   input_dimensions: [energy_carrier, transport_mode]
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
   params:
     sector: Electrification of transport fleet
   input_nodes:
@@ -1914,7 +1914,7 @@ actions:
   input_dimensions: [energy_carrier, transport_mode]
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
     forecast_from: 2020
   params:
     sector: Expected procurement schedule for buses
@@ -1956,7 +1956,7 @@ actions:
   group: freight_transport
   parent: a21_optimised_logistics
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
   output_nodes:
   - id: freight_transport_vehicle_kilometres
     tags: [complement, non_additive]
@@ -1973,7 +1973,7 @@ actions:
   input_dimensions: [energy_carrier, transport_mode]
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
     filters:
     - column: Transport mode
       values: [light_trucks, heavy_trucks]
@@ -2213,7 +2213,7 @@ actions:
   unit: '%'
   group: buildings
   parent: a34_decarbonising_heat_generation
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: 3.4.4 Top performance standard improvement compared with the regular
       new buildings
@@ -2293,7 +2293,7 @@ actions:
     tags: [non_additive, complement]
     to_dimensions: []
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
     forecast_from: 2025
   params:
     sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in 
