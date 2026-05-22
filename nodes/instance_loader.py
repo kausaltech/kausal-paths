@@ -1047,8 +1047,8 @@ class InstanceLoader:
         from nodes.actions.action import ImpactOverview
         from nodes.defs.action_def import ImpactOverviewSpec
 
-        # TODO add an ID so that there can be several impact overviews for different decision makers.
         conf = self.config.get('impact_overviews', [])
+        seen_ids: set[str] = set()
         for aepc in conf:
             spec_config = dict(aepc)
             rename_map = {
@@ -1061,6 +1061,10 @@ class InstanceLoader:
                 if old_name in spec_config and new_name not in spec_config:
                     spec_config[new_name] = spec_config.pop(old_name)
             spec = ImpactOverviewSpec.from_yaml_config(spec_config)
+            assert spec.id is not None
+            if spec.id in seen_ids:
+                raise ValueError(f"Duplicate impact overview id '{spec.id}'. Set an explicit 'id' field to disambiguate.")
+            seen_ids.add(spec.id)
             aep = ImpactOverview(spec, self.context)
             self.context.impact_overviews.append(aep)
 
