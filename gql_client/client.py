@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from gql import Client, gql
@@ -15,7 +14,7 @@ def get_client(base_url: str | None = None):
 
 
 def load_gql_query(query_name: str):
-    p = Path(os.path.dirname(__file__)) / 'queries' / f"{query_name}.gql"
+    p = Path(__file__).parent / 'queries' / f'{query_name}.gql'
     data = p.read_text()
     q = gql(data)
     return q

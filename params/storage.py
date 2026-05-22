@@ -1,4 +1,3 @@
-# ruff: noqa: A002, ANN401
 from __future__ import annotations
 
 import hashlib
@@ -48,6 +47,7 @@ class SettingStorage:
     def get_active_scenario(self) -> str | None:
         """Return the scenario currently marked as active."""
         raise NotImplementedError()
+
 
 class InstanceData(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)

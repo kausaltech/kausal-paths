@@ -16,19 +16,19 @@ class PathsAdminModelForm[M: Model](LanguageAwareAdminModelForm[M]):
 
     @override
     def get_primary_realm_language(self) -> str:
-         if self.admin_instance is None:
-             raise ValueError('Cannot get instance languages without instance.')
-         return convert_language_code(self.admin_instance.primary_language, 'django')
+        if self.admin_instance is None:
+            raise ValueError('Cannot get instance languages without instance.')
+        return convert_language_code(self.admin_instance.primary_language, 'django')
 
     @override
     def get_all_realm_languages(self) -> set[str]:
-         if self.admin_instance is None:
-             raise ValueError('Cannot get instance languages without instance.')
-         result = set(self.admin_instance.other_languages).union({ self.admin_instance.primary_language })
-         return {convert_language_code(lang, 'django') for lang in result}
+        if self.admin_instance is None:
+            raise ValueError('Cannot get instance languages without instance.')
+        result = set(self.admin_instance.other_languages).union({self.admin_instance.primary_language})
+        return {convert_language_code(lang, 'django') for lang in result}
 
     def __init__(self, *args, **kwargs):
-        self.admin_instance = kwargs.pop("admin_instance", None)
+        self.admin_instance = kwargs.pop('admin_instance', None)
         if self.admin_instance:
             self.realm_initialized = True
         super().__init__(*args, **kwargs)

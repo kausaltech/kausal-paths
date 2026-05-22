@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, cast
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import graphene
 import strawberry as sb
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import CharField, Q
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from graphql import GraphQLError
 
-import polars as pl
 import sentry_sdk
 
 from kausal_common.graphene import DjangoNode, DjangoNodeMeta
@@ -43,9 +42,11 @@ from .models import (
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from django.db.models import CharField
+
     from paths.types import PathsGQLInfo as GQLInfo
 
-    from frameworks.models import NodeDimensionSelection
+    from frameworks.models import FrameworkDimensionCategory, NodeDimensionSelection
     from nodes.context import Context
     from nodes.instance import Instance
     from nodes.node import Node
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
 
 
 strawberry = sb
+
 
 class MeasureTemplateDefaultDataPointType(DjangoNode[MeasureTemplateDefaultDataPoint]):
     class Meta(DjangoNodeMeta):
@@ -81,7 +83,7 @@ class MeasureTemplateType(DjangoNode[MeasureTemplate]):
         try:
             fwc_id = int(framework_config_id)
         except Exception:
-            raise GraphQLError("Invalid ID", nodes=info.field_nodes) from None
+            raise GraphQLError('Invalid ID', nodes=info.field_nodes) from None
         fwc = root.cache.framework_configs.get(fwc_id)
         if fwc is None:
             return None
@@ -114,6 +116,7 @@ class SectionType(DjangoNode[Section]):
     def resolve_children(root: Section, info: GQLInfo) -> Iterable[Section]:
         def is_child(obj: Section) -> bool:
             return obj.cache.parent_id == root.pk
+
         objs = root.cache.fw_cache.sections.get_list(is_child)
         objs = sorted(objs, key=lambda s: s.path)
         return objs
@@ -128,6 +131,7 @@ class SectionType(DjangoNode[Section]):
             if obj.depth < root.depth:
                 return False
             return True
+
         objs = root.cache.fw_cache.sections.get_list(is_descendant)
         objs = sorted(objs, key=lambda s: s.path)
         return objs
@@ -242,6 +246,8 @@ class MeasureType(DjangoNode[Measure]):
 
     @staticmethod
     def resolve_placeholder_data_points(root: Measure, info: GQLInfo) -> list[PlaceHolderDataPoint]:
+        import polars as pl
+
         node, node_dimension_selection = MeasureType._find_corresponding_node(root)
         if node is None or node_dimension_selection is None:
             return []
@@ -263,13 +269,16 @@ class MeasureType(DjangoNode[Measure]):
             result.append(PlaceHolderDataPoint(year=year, value=value))
         return result
 
+
 class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     measures = graphene.List(graphene.NonNull(MeasureType), required=True)
-    view_url = graphene.String(description=_("Public URL for instance dashboard"), required=False)
-    results_download_url = graphene.String(description=_("URL for downloading a results file"))
+    view_url = graphene.String(description=_('Public URL for instance dashboard'), required=False)
+    results_download_url = graphene.String(description=_('URL for downloading a results file'))
     instance = graphene.Field('nodes.schema.InstanceType', required=False)
     organization_slug = graphene.String(required=False)
     organization_identifier = graphene.String(required=False)
+    is_locked = graphene.Boolean(required=True)
+    instance_identifier = graphene.String(required=True)
 
     class Meta(DjangoNodeMeta):
         model = FrameworkConfig
@@ -297,6 +306,22 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     def resolve_results_download_url(root: FrameworkConfig, info: GQLInfo) -> str:
         path = reverse('framework_config_results_download', kwargs=dict(fwc_id=root.pk, token=root.token))
         return info.context.build_absolute_uri(path)
+
+    @staticmethod
+    def resolve_is_locked(root: FrameworkConfig, info: GQLInfo) -> bool:
+        if hasattr(root, 'instance_is_locked'):
+            return getattr(root, 'instance_is_locked', False)
+        ic = root.cache.fw_cache.instance_configs.get(root.instance_config_id)
+        assert ic is not None
+        return ic.is_locked
+
+    @staticmethod
+    def resolve_instance_identifier(root: FrameworkConfig, info: GQLInfo) -> str:
+        if hasattr(root, 'instance_identifier'):
+            return getattr(root, 'instance_identifier', '')
+        ic = root.cache.fw_cache.instance_configs.get(root.instance_config_id)
+        assert ic is not None
+        return ic.identifier
 
     @staticmethod
     def resolve_instance(root: FrameworkConfig, info: GQLInfo) -> Instance:
@@ -366,10 +391,9 @@ class Query(graphene.ObjectType[Any]):
         return info.context.cache.for_framework(fw)
 
 
-
 class FrameworkConfigInput(graphene.InputObjectType):
     framework_id = graphene.ID(required=True)
-    instance_identifier = graphene.ID(required=True, description=_("Identifier for the model instance. Needs to be unique."))
+    instance_identifier = graphene.ID(required=True, description=_('Identifier for the model instance. Needs to be unique.'))
     name = graphene.String(
         required=True,
         description=_('Name for the framework configuration instance. Typically the name of the organization.'),
@@ -377,10 +401,11 @@ class FrameworkConfigInput(graphene.InputObjectType):
     baseline_year = graphene.Int(required=True)
     target_year = graphene.Int(
         required=False,
-        description="Target year for model.",
+        description='Target year for model.',
     )
     uuid = graphene.UUID(
-        required=False, description=_('UUID for the new framework config. If not set, will be generated automatically.'),
+        required=False,
+        description=_('UUID for the new framework config. If not set, will be generated automatically.'),
         default_value=None,
     )
     organization_name = graphene.String(
@@ -395,14 +420,15 @@ class FrameworkConfigInput(graphene.InputObjectType):
 class CreateFrameworkConfigMutation(graphene.Mutation):
     class Arguments:
         framework_id = graphene.ID(required=True)
-        instance_identifier = graphene.ID(required=True, description=_("Identifier for the model instance. Needs to be unique."))
+        instance_identifier = graphene.ID(required=True, description=_('Identifier for the model instance. Needs to be unique.'))
         name = graphene.String(
             required=True,
             description=_('Name for the framework configuration instance. Typically the name of the organization.'),
         )
         baseline_year = graphene.Int(required=True)
         uuid = graphene.UUID(
-            required=False, description=_('UUID for the new framework config. If not set, will be generated automatically.'),
+            required=False,
+            description=_('UUID for the new framework config. If not set, will be generated automatically.'),
             default_value=None,
         )
         organization_name = graphene.String(
@@ -414,7 +440,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         )
 
     ok = graphene.Boolean(required=True)
-    framework_config = graphene.Field(FrameworkConfigType, description=_("The created framework config instance"))
+    framework_config = graphene.Field(FrameworkConfigType, description=_('The created framework config instance'))
 
     @classmethod
     def _get_fw(cls, info: GQLInfo, framework_id: str) -> Framework:
@@ -436,22 +462,19 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         name: str,
         baseline_year: int,
         target_year: int | None = None,
-        uuid: str | None = None,
+        uuid: UUID | None = None,
     ) -> FrameworkConfig:
         id_field = cast('CharField[str, str]', InstanceConfig._meta.get_field('identifier'))
         try:
             id_field.run_validators(instance_identifier)
         except ValidationError:
-            raise GraphQLError("Invalid instance identifier", nodes=info.field_nodes) from None
+            raise GraphQLError('Invalid instance identifier', nodes=info.field_nodes) from None
 
         if InstanceConfig.objects.filter(identifier=instance_identifier).exists():
             raise GraphQLError("Instance with identifier '%s' already exists" % instance_identifier, nodes=info.field_nodes)
 
         if framework.configs.filter(organization_name__iexact=name).exists():
             raise GraphQLError("Framework config with organization name '%s' already exists" % name, nodes=info.field_nodes)
-
-        if not uuid:
-            uuid = str(uuid4())
 
         user = info.context.get_user()
         fc = FrameworkConfig.create_instance(
@@ -472,7 +495,11 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         framework = cls._get_fw(info, str(config_input.framework_id))
         pp = FrameworkConfig.permission_policy()
         if not pp.gql_action_allowed(info, 'add', context=framework):
-            raise GraphQLError("Permission denied", nodes=info.field_nodes)
+            raise GraphQLError('Permission denied', nodes=info.field_nodes)
+        uuid = cast('UUID | str | None', config_input.uuid)
+        if uuid and isinstance(uuid, str):
+            uuid = UUID(uuid)
+        uuid = cast('UUID | None', config_input.uuid)
         fc = cls._create_fwc(
             info=info,
             framework=framework,
@@ -480,22 +507,37 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
             name=cast('str', config_input.name),
             baseline_year=cast('int', config_input.baseline_year),
             target_year=cast('int | None', config_input.target_year),
-            uuid=cast('str | None', config_input.uuid),
+            uuid=uuid,
         )
         return CreateFrameworkConfigMutation(ok=True, framework_config=fc)
 
     @staticmethod
     def mutate(
-        root, info: GQLInfo, framework_id: str, instance_identifier: str, name: str, baseline_year: int, uuid: str | None = None,
+        root,
+        info: GQLInfo,
+        framework_id: str,
+        instance_identifier: str,
+        name: str,
+        baseline_year: int,
+        uuid: str | UUID | None = None,
+        organization_name: str | None = None,
     ) -> CreateFrameworkConfigMutation:
-        config = FrameworkConfigInput(
-            framework_id=framework_id,
-            instance_identifier=instance_identifier,
-            name=name,
+        if uuid is not None and not isinstance(uuid, UUID):
+            uuid = UUID(uuid)
+        framework = CreateFrameworkConfigMutation._get_fw(info, str(framework_id))
+        pp = FrameworkConfig.permission_policy()
+        if not pp.gql_action_allowed(info, 'add', context=framework):
+            raise GraphQLError('Permission denied', nodes=info.field_nodes)
+        fc = CreateFrameworkConfigMutation._create_fwc(
+            info=info,
+            framework=framework,
+            instance_identifier=str(instance_identifier),
+            name=organization_name or name,
             baseline_year=baseline_year,
             uuid=uuid,
         )
-        return CreateFrameworkConfigMutation.create_framework_config(info, config)
+        return CreateFrameworkConfigMutation(ok=True, framework_config=fc)
+
 
 class UpdateFrameworkConfigMutation(graphene.Mutation):
     class Arguments:
@@ -506,23 +548,48 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
         baseline_year = graphene.Int(
             required=False,
             description=(
-                "New baseline year. Data point years will also be updated for measures that "
-                "have exactly one data point which points to the previous baseline year."
+                'New baseline year. Data point years will also be updated for measures that '
+                'have exactly one data point which points to the previous baseline year.'
             ),
         )
         target_year = graphene.Int(
             required=False,
-            description="New target year for model.",
+            description='New target year for model.',
+        )
+        repopulate_defaults = graphene.Boolean(
+            required=False,
+            description='Repopulate measure default values from measure template defaults for the baseline year.',
         )
 
     ok = graphene.Boolean()
     framework_config = graphene.Field(FrameworkConfigType)
 
     @staticmethod
+    def _update_baseline_year_data_points(fwc: FrameworkConfig, baseline_year: int) -> None:
+        old_baseline_year = fwc.baseline_year
+        fwc.baseline_year = baseline_year
+
+        # Update datapoint years for measures with a single datapoint.
+        measures = fwc.measures.all()
+        for measure in measures:
+            datapoints = list(measure.data_points.all())
+            if len(datapoints) == 1 and datapoints[0].year == old_baseline_year:
+                datapoint = datapoints[0]
+                datapoint.year = baseline_year
+                datapoint.save()
+
+    @staticmethod
     @transaction.atomic
     def mutate(
-        root, info: GQLInfo, id: str, organization_name: str | None = None, organization_slug: str | None = None,
-        organization_identifier: str | None = None, baseline_year: int | None = None, target_year: int | None = 0,
+        root,
+        info: GQLInfo,
+        id: str,
+        organization_name: str | None = None,
+        organization_slug: str | None = None,
+        organization_identifier: str | None = None,
+        baseline_year: int | None = None,
+        target_year: int | None = 0,
+        repopulate_defaults: bool = False,
     ) -> UpdateFrameworkConfigMutation:
         fwc = get_fwc(info, id)
         fwc.ensure_gql_action_allowed(info, 'change')
@@ -533,30 +600,23 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
         user = info.context.get_user()
         if organization_slug is not None or organization_identifier is not None:
             if not user.is_superuser:
-                raise GraphQLError("Only superusers can set organization slug or identifier", nodes=info.field_nodes)
+                raise GraphQLError('Only superusers can set organization slug or identifier', nodes=info.field_nodes)
             if organization_slug is not None:
                 fwc.organization_slug = organization_slug
             if organization_identifier is not None:
                 fwc.organization_identifier = organization_identifier
 
         if baseline_year is not None:
-            old_baseline_year = fwc.baseline_year
-            fwc.baseline_year = baseline_year
-
-            # Update datapoint years for measures with a single datapoint
-            measures = fwc.measures.all()
-            for measure in measures:
-                datapoints = list(measure.data_points.all())
-                if len(datapoints) == 1 and datapoints[0].year == old_baseline_year:
-                    datapoint = datapoints[0]
-                    datapoint.year = baseline_year
-                    datapoint.save()
+            UpdateFrameworkConfigMutation._update_baseline_year_data_points(fwc, baseline_year)
 
         # We use 0 to indicate that the target year was not supplied. `None` will
         # be interpreted as clearing the target year and using the default for the
         # framework.
         if target_year != 0:
             fwc.target_year = target_year
+
+        if repopulate_defaults:
+            fwc.populate_measure_defaults(only_year=fwc.baseline_year)
 
         fwc.notify_change(user=user)
         fwc.save()
@@ -566,7 +626,7 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
 
 class DeleteFrameworkConfigMutation(graphene.Mutation):
     class Arguments:
-        id = graphene.ID(required=True, description="ID (or UUID) of the framework config to be deleted")
+        id = graphene.ID(required=True, description='ID (or UUID) of the framework config to be deleted')
 
     ok = graphene.Boolean()
 
@@ -581,16 +641,14 @@ class DeleteFrameworkConfigMutation(graphene.Mutation):
 
 class UpdateMeasureDataPoint(graphene.Mutation):
     class Arguments:
-        framework_instance_id = graphene.ID(required=True, description=_("ID of the organization-specific framework instance"))
-        measure_template_id = graphene.ID(required=True, description=_("ID of the measure template within a framework"))
-        value = graphene.Float(required=False, description=_("Value for the data point (set to null to remove)"))
+        framework_instance_id = graphene.ID(required=True, description=_('ID of the organization-specific framework instance'))
+        measure_template_id = graphene.ID(required=True, description=_('ID of the measure template within a framework'))
+        value = graphene.Float(required=False, description=_('Value for the data point (set to null to remove)'))
         year = graphene.Int(
-            description=_(
-                "Year of the data point. If not given, defaults to the baseline year for the framework instance."
-            ),
+            description=_('Year of the data point. If not given, defaults to the baseline year for the framework instance.'),
             required=False,
         )
-        internal_notes = graphene.String(description=_("Internal notes for the measure instance"), required=False)
+        internal_notes = graphene.String(description=_('Internal notes for the measure instance'), required=False)
 
     ok = graphene.Boolean()
     measure_data_point = graphene.Field(MeasureDataPointType, required=False)
@@ -611,13 +669,14 @@ class UpdateMeasureDataPoint(graphene.Mutation):
         fw = fwc.framework
         measure_template = fw.measure_templates().filter(query_pk_or_uuid(measure_template_id)).first()
         if measure_template is None:
-            raise GraphQLError("Measure template not found", nodes=info.field_nodes)
+            raise GraphQLError('Measure template not found', nodes=info.field_nodes)
 
         if year is None:
             year = fwc.baseline_year
 
         measure = Measure.objects.filter(
-            framework_config=fwc, measure_template=measure_template,
+            framework_config=fwc,
+            measure_template=measure_template,
         ).first()
 
         if measure is None:
@@ -639,16 +698,16 @@ class UpdateMeasureDataPoint(graphene.Mutation):
 
 
 class MeasureDataPointInput(graphene.InputObjectType):
-    value = graphene.Float(required=False, description=_("Value for the data point (set to null to remove)"))
+    value = graphene.Float(required=False, description=_('Value for the data point (set to null to remove)'))
     year = graphene.Int(
-        description=_("Year of the data point. If not given, defaults to the baseline year for the framework instance."),
+        description=_('Year of the data point. If not given, defaults to the baseline year for the framework instance.'),
         required=False,
     )
 
 
 class MeasureInput(graphene.InputObjectType):
-    measure_template_id = graphene.ID(required=True, description=_("ID (or UUID) of the measure template within a framework"))
-    internal_notes = graphene.String(description=_("Internal notes for the measure instance"), required=False)
+    measure_template_id = graphene.ID(required=True, description=_('ID (or UUID) of the measure template within a framework'))
+    internal_notes = graphene.String(description=_('Internal notes for the measure instance'), required=False)
     data_points = graphene.List(graphene.NonNull(MeasureDataPointInput), required=False)
 
 
@@ -665,7 +724,10 @@ class UpdateMeasureDataPoints(graphene.Mutation):
     @staticmethod
     @transaction.atomic
     def mutate(  # noqa: C901, PLR0912, PLR0915
-        root, info: GQLInfo, framework_config_id: str, measures: list[dict[str, Any]],
+        root,
+        info: GQLInfo,
+        framework_config_id: str,
+        measures: list[dict[str, Any]],
     ) -> UpdateMeasureDataPoints:
         fwc = get_fwc(info, framework_config_id)
         fwc.ensure_gql_action_allowed(info, 'change')
@@ -680,7 +742,7 @@ class UpdateMeasureDataPoints(graphene.Mutation):
             elif UUID_PATTERN.match(mt_id):
                 mt_uuids.add(mt_id)
             else:
-                raise GraphQLError("Invalid ID: %s" % mt_id, nodes=info.field_nodes)
+                raise GraphQLError('Invalid ID: %s' % mt_id, nodes=info.field_nodes)
 
         # Fetch all referenced measure templates in a single query
         mt_qs = MeasureTemplate.objects.filter(Q(id__in=mt_ids) | Q(uuid__in=mt_uuids))
@@ -690,11 +752,11 @@ class UpdateMeasureDataPoints(graphene.Mutation):
         # Check if all referenced measure templates were found
         missing_ids = mt_ids - set(mt_by_id.keys())
         if missing_ids:
-            msg = f"Measure templates not found: {', '.join(missing_ids)}"
+            msg = f'Measure templates not found: {", ".join(missing_ids)}'
             raise GraphQLError(msg)
         missing_uuids = mt_uuids - set(mt_by_uuid.keys())
         if missing_uuids:
-            msg = f"Measure templates not found: {', '.join(missing_uuids)}"
+            msg = f'Measure templates not found: {", ".join(missing_uuids)}'
             raise GraphQLError(msg)
 
         # Fetch all existing measures for this framework config and measure templates
@@ -726,7 +788,7 @@ class UpdateMeasureDataPoints(graphene.Mutation):
                 measure.internal_notes = m_in.get('internal_notes', '')
                 measure.save()
 
-            dps_in: list[dict] = m_in.get('data_points', [])
+            dps_in: list[dict[str, Any]] = m_in.get('data_points', [])
             if not dps_in:
                 continue
             for dp_input in dps_in:
@@ -761,9 +823,9 @@ class LowHigh(graphene.Enum):
 
 
 class NZCCityEssentialData(graphene.InputObjectType):
-    population = graphene.Int(required=True, description="Population of the city")
-    temperature = LowHigh(required=True, description="Average yearly temperature (low or high)")
-    renewable_mix = LowHigh(required=True, description="Share of renewables in energy production (low or high)")
+    population = graphene.Int(required=True, description='Population of the city')
+    temperature = LowHigh(required=True, description='Average yearly temperature (low or high)')
+    renewable_mix = LowHigh(required=True, description='Share of renewables in energy production (low or high)')
 
 
 class CreateNZCFrameworkConfigMutation(graphene.Mutation):
@@ -772,7 +834,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         nzc_data = NZCCityEssentialData(required=True)
 
     ok = graphene.Boolean(required=True)
-    framework_config = graphene.Field(FrameworkConfigType, description=_("The created framework config instance"))
+    framework_config = graphene.Field(FrameworkConfigType, description=_('The created framework config instance'))
 
     @staticmethod
     def mutate(
@@ -781,28 +843,46 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         config_input: FrameworkConfigInput,
         nzc_data: NZCCityEssentialData,
     ) -> CreateFrameworkConfigMutation:
-        from .nzc import NZCPlaceholderInput, get_nzc_default_values
-
         def lowhigh_to_str(val: int) -> Literal['high', 'low']:
             if val == LowHigh.HIGH:
                 return 'high'
             return 'low'
 
+        def get_category(identifier: str, value: Literal['high', 'low']) -> FrameworkDimensionCategory:
+            dimension = fwc.framework.dimensions.filter(identifier=identifier).first()
+            if dimension is None:
+                raise GraphQLError(f"Framework dimension '{identifier}' not found", nodes=info.field_nodes)
+            category = dimension.categories.filter(name__iexact=value).first()
+            if category is None:
+                raise GraphQLError(
+                    f"Framework dimension category '{identifier}={value}' not found",
+                    nodes=info.field_nodes,
+                )
+            return category
+
         ret = CreateFrameworkConfigMutation.create_framework_config(info, config_input)
         fwc = cast('FrameworkConfig', ret.framework_config)
-        instance = fwc.instance_config.get_instance()
-        dvc_repo = instance.context.dataset_repo
-        data = cast('dict', nzc_data)
-        defaults = get_nzc_default_values(dvc_repo, NZCPlaceholderInput(
-            population=data['population'],
-            renewmix=lowhigh_to_str(data['renewable_mix']),
-            temperature=lowhigh_to_str(data['temperature']),
-        ))
-        fwc.create_measure_defaults(defaults)
+        data = cast('dict[str, Any]', nzc_data)
+        renewable_mix = lowhigh_to_str(data['renewable_mix'])
+        temperature = lowhigh_to_str(data['temperature'])
+        fwc.extra = {
+            **(fwc.extra or {}),
+            'create_context': {
+                'population': data['population'],
+                'renewable_mix': renewable_mix,
+                'temperature': temperature,
+            },
+        }
+        fwc.save(update_fields=['extra'])
+        fwc.categories.add(
+            get_category('renewable_mix', renewable_mix),
+            get_category('temperature', temperature),
+        )
+        fwc.populate_measure_defaults(only_year=fwc.baseline_year)
         return ret
 
 
-class Mutations(graphene.ObjectType):
+class Mutations(graphene.ObjectType[Any]):
     create_framework_config = CreateFrameworkConfigMutation.Field()
     create_nzc_framework_config = CreateNZCFrameworkConfigMutation.Field()
     update_framework_config = UpdateFrameworkConfigMutation.Field()

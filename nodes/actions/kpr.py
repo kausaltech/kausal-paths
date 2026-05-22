@@ -1,33 +1,32 @@
-from params.param import NumberParameter
+from typing import cast
+
 import pandas as pd
-from nodes.context import Context
-from . import ActionNode as BaseActionNode
+
+from kausal_common.i18n.pydantic import TranslatedString
+
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from params import StringParameter
-from common.i18n import TranslatedString
+from params.param import NumberParameter
+
+from .action import ActionNode as BaseActionNode
 
 
 class ActionNode(BaseActionNode):
-    unit = 'kt'
+    default_unit = 'kt'
     quantity = 'emissions'
     input_datasets = ['kpr/indicator_results']
 
     allowed_parameters = [
-        StringParameter(
-            local_id='panorama_id',
-            label=TranslatedString(en="Node ID in Panorama"),
-            is_customizable=False
-        ),
+        StringParameter(local_id='panorama_id', label=TranslatedString(en='Node ID in Panorama'), is_customizable=False),
         NumberParameter(
-            local_id='panorama_reduction_mton',
-            label=TranslatedString(en="Panorama reduction potential"),
-            is_customizable=False
-        )
+            local_id='panorama_reduction_mton', label=TranslatedString(en='Panorama reduction potential'), is_customizable=False
+        ),
     ]
 
-    def compute_effect(self, context: Context) -> pd.DataFrame:
-        df = self.get_input_dataset(context)
-        sec_id = self.get_parameter_value('panorama_id')
+    def compute_effect(self) -> pd.DataFrame:
+        context = self.context
+        df = self.get_input_dataset()
+        sec_id = cast('str', self.get_parameter_value('panorama_id'))
         df = df.set_index(['NyckelID', 'År'])
         if sec_id not in df.index:
             print('WARNING: Node %s not found in KPR input data (%s)' % (self.id, sec_id))
@@ -54,7 +53,7 @@ class ActionNode(BaseActionNode):
         df[VALUE_COLUMN] = df[VALUE_COLUMN].interpolate()
         if not self.is_enabled():
             df.loc[df.index >= 2020, VALUE_COLUMN] = 0
-        df *= self.get_parameter_value('panorama_reduction_mton') * 1000
+        df *= cast('float', self.get_parameter_value('panorama_reduction_mton')) * 1000
         df[FORECAST_COLUMN] = True
         df.loc[df.index < 2020, FORECAST_COLUMN] = False
 

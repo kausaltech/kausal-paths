@@ -26,22 +26,22 @@ class NodeViewSet(PathsViewSet[NodeConfig, NodeConfigQuerySet]):
     menu_order = 10
 
     basic_panels = [
-        FieldPanel("identifier", read_only=True),
-        TranslatedFieldRowPanel("name"),
-        NativeColorPanel("color"),
-        FieldPanel("is_visible"),
-        FieldPanel("indicator_node"),
-        TranslatedFieldRowPanel("goal"),
-        TranslatedFieldRowPanel("short_description"),
+        FieldPanel('identifier', read_only=True),
+        TranslatedFieldRowPanel('name'),
+        NativeColorPanel('color'),
+        FieldPanel('is_visible'),
+        FieldPanel('indicator_node'),
+        TranslatedFieldRowPanel('goal'),
+        TranslatedFieldRowPanel('short_description'),
     ]
     description_panels = [
-        TranslatedFieldPanel("description"),
+        TranslatedFieldPanel('description'),
     ]
     extra_panels = [
-        FieldPanel("body"),
+        FieldPanel('body'),
     ]
 
-    #def get_queryset(self, request: HttpRequest) -> NodeConfigQuerySet:
+    # def get_queryset(self, request: HttpRequest) -> NodeConfigQuerySet:
     #    qs = super().get_queryset(request)
     #    qs = qs.filter(instance=self.admin_instance)
     #    return qs
@@ -63,5 +63,6 @@ def register_icons(icons: list[str]):
     return icons + [
         'wagtailfontawesomesvg/solid/circle-nodes.svg',
     ]
+
 
 hooks.register('register_icons', register_icons)

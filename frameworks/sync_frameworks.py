@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypedDict, cast
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
+from uuid import uuid4
 
 from django.contrib.postgres.expressions import ArraySubquery
 from django.db.models.expressions import F, OuterRef
@@ -24,6 +24,7 @@ from frameworks.models import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from uuid import UUID
 
     from django.db.models import QuerySet
 
@@ -35,8 +36,16 @@ class SectionModel(DjangoDiffModel[Section]):
     _modelname = 'section'
     _identifiers = ('uuid',)
     _attributes = (
-        'parent', 'identifier', 'name', 'description', 'available_years', 'framework', 'min_total', 'max_total',
-        'help_text', 'influencing_measure_templates',
+        'parent',
+        'identifier',
+        'name',
+        'description',
+        'available_years',
+        'framework',
+        'min_total',
+        'max_total',
+        'help_text',
+        'influencing_measure_templates',
     )
     _parent_key = 'parent'
     _children = {
@@ -59,14 +68,19 @@ class SectionModel(DjangoDiffModel[Section]):
         plain_fields = list(cls._django_fields.plain_fields.keys())
         plain_fields.remove('framework')
         plain_fields.remove('influencing_measure_templates')
-        influencing_mts = (
-            MeasureTemplate.objects.filter(
-                influenced_sections=OuterRef('pk'),
-            ).values_list('uuid', flat=True)
+        influencing_mts = MeasureTemplate.objects.filter(
+            influenced_sections=OuterRef('pk'),
+        ).values_list('uuid', flat=True)
+        sections = (
+            qs_base
+            .annotate_parent_field('parent', 'uuid', min_depth=2)
+            .values(
+                *plain_fields,
+                'parent',
+                _instance_pk=F('pk'),
+            )
+            .annotate(influencing_measure_templates=ArraySubquery(influencing_mts))
         )
-        sections = qs_base.annotate_parent_field('parent', 'uuid', min_depth=2).values(
-            *plain_fields, 'parent', _instance_pk=F('pk'),
-        ).annotate(influencing_measure_templates=ArraySubquery(influencing_mts))
         return sections
 
     @classmethod
@@ -83,9 +97,7 @@ class SectionModel(DjangoDiffModel[Section]):
             assert mt_model._instance_pk
             mt_ids.append(mt_model._instance_pk)
 
-        instance.influencing_measure_templates.set(
-            MeasureTemplate.objects.filter(pk__in=mt_ids)
-        )
+        instance.influencing_measure_templates.set(MeasureTemplate.objects.filter(pk__in=mt_ids))
 
     def update_related(self, obj: Section, attrs: dict) -> None:
         influencing_measure_templates = attrs.get('influencing_measure_templates')
@@ -130,6 +142,7 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
         'include_in_progress_tracker',
         'time_series_max',
         'default_value_source',
+        'default_value_scaling',
         'default_data_points',
         'year_bound',
         'section',
@@ -140,6 +153,8 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
     class DefaultDataPoint(TypedDict):
         year: int
         value: float
+        probable_lower_bound: NotRequired[float | None]
+        probable_upper_bound: NotRequired[float | None]
 
     section: UUID
     default_data_points: list[DefaultDataPoint] = Field(default_factory=list)
@@ -149,19 +164,23 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
     def get_queryset(cls, fw: Framework) -> QuerySet[MeasureTemplate, dict[str, Any]]:
         mt_fields = cls._django_fields.field_names - {'section'}
         ddps = (
-            MeasureTemplateDefaultDataPoint.objects.filter(
+            MeasureTemplateDefaultDataPoint.objects
+            .filter(
                 template_id=OuterRef('pk'),
             )
             .annotate(
                 data=JSONObject(
                     year=F('year'),
                     value=F('value'),
+                    probable_lower_bound=F('probable_lower_bound'),
+                    probable_upper_bound=F('probable_upper_bound'),
                 ),
             )
             .values_list('data')
         )
         mt_objs = (
-            MeasureTemplate.objects.filter(section__framework=fw)
+            MeasureTemplate.objects
+            .filter(section__framework=fw)
             .values(*mt_fields)
             .annotate(_instance_pk=F('pk'))
             .annotate(section=F('section__uuid'))
@@ -281,7 +300,7 @@ class FrameworkDjangoAdapter(DjangoAdapter, FrameworkAdapter):
                 if src_fw is None:
                     continue
                 if str(fw.uuid) != str(src_fw.uuid):
-                    logger.warning("Changing Framework %s UUID from %s to %s" % (fw.identifier, fw.uuid, src_fw.uuid))
+                    logger.warning('Changing Framework %s UUID from %s to %s' % (fw.identifier, fw.uuid, src_fw.uuid))
                     self._change_fw_uuid(fw, src_fw.uuid)
         return super().diff_from(source, diff_class, flags, callback)
 

@@ -11,6 +11,7 @@ class PeopleConfig(AppConfig):
     def ready(self):
         # Register feature detection library
         from willow.registry import registry
+
         try:
             import rustface.willow
         except ImportError:

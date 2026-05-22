@@ -9,7 +9,7 @@ from social_core.backends.azuread_tenant import AzureADTenantOAuth2
 from social_core.backends.email import EmailAuth
 from social_core.backends.oauth import BaseOAuth2
 
-from paths.const import INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE
+from paths.const import INSTANCE_ADMIN_ROLE, INSTANCE_SUPER_ADMIN_ROLE, INSTANCE_VIEWER_ROLE
 
 from frameworks.roles import FrameworkRoleDef
 
@@ -27,7 +27,7 @@ class AzureADAuth(AzureADTenantOAuth2):
         super().__init__(*args, **kwargs)
         strategy = cast('DjangoStrategy', self.strategy)
         if strategy.request is not None:
-            #self.client = Client.objects.for_request(self.strategy.request).first()
+            # self.client = Client.objects.for_request(self.strategy.request).first()
             pass
         self.client = None
 
@@ -85,7 +85,7 @@ class NZCPortalOAuth2(BaseOAuth2):
     ]
 
     TYPE_TO_ROLE = {
-        'cityAdmin': INSTANCE_ADMIN_ROLE,
+        'cityAdmin': INSTANCE_SUPER_ADMIN_ROLE,
         'cityEditor': INSTANCE_ADMIN_ROLE,
         'consortiumUser': INSTANCE_ADMIN_ROLE,
         'otherUser': INSTANCE_ADMIN_ROLE,
@@ -98,7 +98,7 @@ class NZCPortalOAuth2(BaseOAuth2):
 
     def _get_user_details(self, response: dict[str, Any]) -> dict[str, Any]:
         # FIXME: Remove later
-        logger.debug("User details: %s" % response)
+        logger.debug('User details: %s' % response)
 
         user_type = response.get('userType')
         org_slug = response.get('userCity')
@@ -113,7 +113,7 @@ class NZCPortalOAuth2(BaseOAuth2):
             org_slug=org_slug,
             org_id=org_id,
         )
-        logger.debug("Determined role: %s" % repr(role))
+        logger.debug('Determined role: %s' % repr(role))
         return {
             'email': self.canonize_email(response['Mail']),
             'first_name': response.get('FirstName'),

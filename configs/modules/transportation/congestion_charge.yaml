@@ -496,42 +496,6 @@ nodes:
   params:
     formula: revenue
 
-- id: driver_costs
-  name: Driver costs from charge
-  description: Direct costs imposed on drivers by the congestion charge
-  type: formula.FormulaNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: [time_of_day, hypotheses]
-  output_dimensions: [time_of_day, hypotheses]
-  input_nodes:
-  - id: charge_revenue
-    to_dimensions:
-    - id: time_of_day
-    - id: hypotheses
-    tags: [costs]
-  params:
-    formula: costs
-
-- id: total_driver_costs
-  name: Total annual driver costs
-  description: Total annual costs to drivers from congestion charging
-  type: formula.FormulaNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: [hypotheses]
-  output_dimensions: [hypotheses]
-  input_nodes:
-  - id: driver_costs
-    to_dimensions:
-    - id: hypotheses
-    from_dimensions:
-    - id: time_of_day
-      flatten: true
-    tags: [costs]
-  params:
-    formula: costs
-
 # ===== STAKEHOLDER-SPECIFIC ANALYSIS =====
 
 - id: income_trip_share
@@ -587,8 +551,8 @@ nodes:
   params:
     formula: costs
 
-- id: income_group_size
-  name: Income group population
+- id: population
+  name: City population
   description: Number of people in each income group in the affected area
   type: generic.GenericNode
   quantity: population
@@ -597,6 +561,10 @@ nodes:
   output_dimensions: [stakeholder]
   input_datasets:
   - id: transportation/income_group_population
+  params:
+  - id: multiplier
+    value: 0.25
+    unit: dimensionless
 
 - id: per_capita_cost_by_income
   name: Per capita cost by income group
@@ -612,7 +580,7 @@ nodes:
     - id: hypotheses
     - id: stakeholder
     tags: [total_costs]
-  - id: income_group_size
+  - id: population
     to_dimensions:
     - id: stakeholder
     tags: [population]

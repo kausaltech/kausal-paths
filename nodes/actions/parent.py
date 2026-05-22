@@ -10,13 +10,13 @@ from nodes.exceptions import NodeError
 from .action import ActionNode
 
 if TYPE_CHECKING:
+    import networkx as nx
+
     from common import polars as ppl
     from params import Parameter
 
-    from ..node import Node
 
-
-def first_common_descendant(G, sources, target):
+def first_common_descendant(G: nx.DiGraph[str], sources: list[str], target: str) -> str | None:  # noqa: N803
     # Thank you, ChatGPT
     import networkx as nx
 
@@ -59,9 +59,6 @@ class ParentActionNode(ActionNode):
         assert action not in self.subactions
         self.subactions.append(action)
 
-    def find_first_common_descendant(self, target_node: Node):
-        pass
-
     def notify_parameter_change(self, param: Parameter):
         if param == self.enabled_param:
             for action in self.subactions:
@@ -69,18 +66,17 @@ class ParentActionNode(ActionNode):
         return super().notify_parameter_change(param)
 
     def compute_effect(self) -> ppl.PathsDataFrame:
+        if self.unit is None:
+            raise NodeError(self, 'ParentActionNode requires a unit for compute_effect')
         for root_node in self.context.get_root_nodes():
             if isinstance(root_node, ParentActionNode):
                 continue
-            rnu = root_node.unit.is_compatible_with(self.unit)
+            rnu = root_node.single_metric_unit.is_compatible_with(self.single_metric_unit)
             if rnu and (root_node.id != self.id):  # FIXME Quickfix done. But this can produce unintended results
                 break
         else:
-            raise NodeError(self, "Unable to find unit-compatible root node")
+            raise NodeError(self, 'Unable to find unit-compatible root node')
         # g = self.context.node_graph
         # acts = list(filter(lambda x: root_node.id in nx.descendants(g, x.id), self.subactions))
-        df = (
-            self.compute_impact(root_node)
-                .filter(pl.col(IMPACT_COLUMN) == IMPACT_GROUP).drop(IMPACT_COLUMN)
-        )
+        df = self.compute_impact(root_node).filter(pl.col(IMPACT_COLUMN) == IMPACT_GROUP).drop(IMPACT_COLUMN)
         return df

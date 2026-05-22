@@ -13,9 +13,8 @@ from wagtail.admin.forms.pages import WagtailAdminPageForm
 from wagtail.admin.panels import (
     FieldPanel,
     MultiFieldPanel,
-    Panel,
 )
-from wagtail.fields import RichTextField, StreamField
+from wagtail.fields import RichTextField, StreamField, StreamValue
 from wagtail.models import Page, Site
 from wagtail.query import PageQuerySet
 
@@ -27,14 +26,20 @@ from kausal_common.models.types import PageModelManager
 
 from nodes.blocks import OutcomeBlock
 from nodes.models import InstanceConfig, NodeConfig
-from pages.blocks import DashboardCardBlock
+from pages.blocks import DashboardCardBlock, FrameworkLandingBlock
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from django.db.models.expressions import Combinable
     from django.db.models.fields import AutoField
+    from django.forms import ModelChoiceField
     from modelcluster.fields import PK
+    from wagtail.admin.panels import (
+        Panel,
+    )
+
+    from paths.context import InstanceSpecificCache
 
 
 class PathsAdminPageForm(WagtailAdminPageForm):
@@ -57,7 +62,7 @@ class PathsAdminPageForm(WagtailAdminPageForm):
             if site is not None:
                 break
         else:
-            raise Exception("No sites found for page: %s" % self.instance)
+            raise Exception('No sites found for page: %s' % self.instance)
 
         return cast('InstanceConfig', site.instance)  # pyright: ignore
 
@@ -96,7 +101,7 @@ class PathsPage(Page):
     )
 
     content_panels: Sequence[Panel] = [
-        FieldPanel('title', classname="full title"),
+        FieldPanel('title', classname='full title'),
     ]
     common_settings_panels = [
         FieldPanel('seo_title'),
@@ -106,10 +111,13 @@ class PathsPage(Page):
         FieldPanel('search_description'),
     ]
     settings_panels = [
-        MultiFieldPanel([
-            FieldPanel('slug'),
-            *common_settings_panels,
-        ], _('Common page configuration')),
+        MultiFieldPanel(
+            [
+                FieldPanel('slug'),
+                *common_settings_panels,
+            ],
+            _('Common page configuration'),
+        ),
     ]
     promote_panels: Sequence[Panel] = []
 
@@ -153,27 +161,98 @@ class PathsPage(Page):
             page = page.get_parent()
         return key
 
+    def get_visible_parent(self, cache: InstanceSpecificCache) -> PathsPage | None:
+        depth = int(len(self.path) / self.steplen)
+        if cache.translated_root_page is None:
+            return None
+        if depth <= cache.translated_root_page.depth:
+            return None
+
+        parent_path = self._get_basepath(self.path, depth=depth - 1)
+        for page in cache.visible_pages:
+            if page.path == parent_path:
+                return page
+        return None
+
+    def get_visible_descendants(self, cache: InstanceSpecificCache, in_menu: bool = False, max_depth: int | None = None):
+        descendants: list[PathsPage] = []
+        for page in cache.visible_pages:
+            if page.depth <= self.depth:
+                continue
+            if not page.path.startswith(self.path):
+                continue
+            if in_menu and not page.show_in_menus:
+                continue
+            if max_depth is not None and page.depth > self.depth + max_depth:
+                continue
+            descendants.append(page)
+        return descendants
+
+    def get_visible_children(self, cache: InstanceSpecificCache, in_menu: bool = False):
+        return self.get_visible_descendants(cache, in_menu, max_depth=1)
+
+    def get_visible_ancestors(self, cache: InstanceSpecificCache):
+        ancestors: list[PathsPage] = []
+        for page in cache.visible_pages:
+            if page.depth >= self.depth:
+                continue
+            if not self.path.startswith(page.path):
+                continue
+            ancestors.append(page)
+        return ancestors
+
+    @cached_property
+    def instance_config(self):
+        root: PathsPage | None = None
+        if self.depth == 2:
+            root = cast('PathsPage', self)
+        else:
+            root = cast('PathsPage | None', self.get_ancestors(inclusive=False).filter(depth=2).specific().first())
+            assert root is not None
+        site = Site.objects.filter(root_page__translation_key=root.translation_key).first()
+        assert site is not None
+        return getattr(site, 'instance')  # noqa: B009
+
+    def __rich_repr__(self):
+        yield self.title
+        yield 'id', self.pk
+        yield 'instance', self.instance_config.identifier
+        yield 'path', self.path
+
 
 class InstanceRootPage(PathsPage):
-    body = StreamField([
-        ('outcome', OutcomeBlock()),
-    ], block_counts={
-        'outcome': {'min_num': 1, 'max_num': 1},
-    })
+    body = StreamField(
+        [
+            ('outcome', OutcomeBlock()),
+            ('framework_landing', FrameworkLandingBlock()),
+        ],
+        block_counts={
+            'outcome': {'max_num': 1},
+            'framework_landing': {'max_num': 1},
+        },
+    )
 
     content_panels = [
         *PathsPage.content_panels,
         FieldPanel('body'),
     ]
 
+    graphql_fields = PathsPage.graphql_fields + [
+        GraphQLStreamfield('body'),
+    ]
+
     parent_page_types: Sequence[type[Page] | str] = []
 
 
 class StaticPage(PathsPage):
-    body = StreamField([
-        ('paragraph', blocks.RichTextBlock(label=_('Paragraph'))),
-        ('outcome', OutcomeBlock()),
-    ], blank=True, null=True)
+    body = StreamField[StreamValue | None](
+        [
+            ('paragraph', blocks.RichTextBlock(label=_('Paragraph'))),
+            ('outcome', OutcomeBlock()),
+        ],
+        blank=True,
+        null=True,
+    )
 
     content_panels = [
         *PathsPage.content_panels,
@@ -187,6 +266,7 @@ class StaticPage(PathsPage):
 
 class OutcomePageQuerySet(PageQuerySet['OutcomePage']):
     pass
+
 
 class OutcomePageManager(PathsPageManager['OutcomePage']):
     pass
@@ -208,7 +288,7 @@ class OutcomePage(PathsPage):
     ]
 
     graphql_fields = PathsPage.graphql_fields + [
-        GraphQLField('outcome_node', 'nodes.schema.NodeType', required=True),  #type: ignore
+        GraphQLField('outcome_node', 'nodes.schema.NodeType', required=True),
         GraphQLString('lead_title'),
         GraphQLString('lead_paragraph'),
     ]
@@ -219,16 +299,17 @@ class OutcomePage(PathsPage):
 
     @classmethod
     def process_form(cls, form: PathsAdminPageForm) -> None:
-        f = form.fields.get('outcome_node')
+        f = cast('ModelChoiceField[NodeConfig] | None', form.fields.get('outcome_node'))
         if f is not None:
-            f.queryset = f.queryset.filter(instance=form.admin_instance)
+            qs = cast('models.QuerySet[NodeConfig]', f.queryset)
+            f.queryset = qs.filter(instance=form.admin_instance)
 
 
 class ActionListPage(PathsPage):
     class ActionSortOrder(models.TextChoices):
-        STANDARD = "standard", _("Standard")
-        IMPACT = "impact", _("Impact")
-        CUM_IMPACT = "cum_impact", _("Cumulative impact")
+        STANDARD = 'standard', _('Standard')
+        IMPACT = 'impact', _('Impact')
+        CUM_IMPACT = 'cum_impact', _('Cumulative impact')
 
     lead_title = models.CharField[str, str](verbose_name=_('Lead title'), blank=True, max_length=100)
     lead_paragraph = RichTextField(blank=True, verbose_name=_('Lead paragraph'))
@@ -301,7 +382,7 @@ class InstanceSiteContentManager(models.Manager['InstanceSiteContent']):
 
 
 class InstanceSiteContent(models.Model):
-    instance = models.OneToOneField(InstanceConfig, on_delete=models.CASCADE, related_name="site_content")
+    instance = models.OneToOneField(InstanceConfig, on_delete=models.CASCADE, related_name='site_content')
 
     intro_content = StreamField(
         block_types=[
@@ -309,7 +390,8 @@ class InstanceSiteContent(models.Model):
             (
                 'paragraph',
                 blocks.RichTextBlock(
-                    label=_('Introductory content to show in the UI'), features=['h2', 'h3', 'h4', 'bold', 'italic', 'embed'],
+                    label=_('Introductory content to show in the UI'),
+                    features=['h2', 'h3', 'h4', 'bold', 'italic', 'embed'],
                 ),
             ),
         ],
@@ -325,9 +407,10 @@ class InstanceSiteContent(models.Model):
     class Meta:
         verbose_name = _('Site content')
         verbose_name_plural = _('Site contents')
+        ordering = ['instance', 'id']
 
     def __str__(self) -> str:
-        return "Site contents for %s" % self.instance.name
+        return 'Site contents for %s' % self.instance.name
 
     def natural_key(self):
         return self.instance.natural_key()

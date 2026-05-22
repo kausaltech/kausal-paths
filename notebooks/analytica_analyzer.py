@@ -9,7 +9,7 @@ import polars as pl
 try:
     from defusedxml import ElementTree as ET  # noqa: N817
 except ImportError:
-    print("Installing defusedxml is recommended: pip install defusedxml")
+    print('Installing defusedxml is recommended: pip install defusedxml')
     import xml.etree.ElementTree as ET
 
 
@@ -36,7 +36,7 @@ class AnalyzerXMLParser:
         try:
             self.tree = ET.parse(xml_file)  # noqa: S314
             self.root = self.tree.getroot()
-        except (FileNotFoundError, TypeError, ET.ParseError, OSError):
+        except FileNotFoundError, TypeError, ET.ParseError, OSError:
             # If it's a string or parsing fails, try parsing as XML string
             self.root = ET.fromstring(xml_file)  # noqa: S314
         assert self.root is not None
@@ -67,7 +67,7 @@ class AnalyzerXMLParser:
                 # Remove brackets and split
                 content = definition_text[1:-1]
                 # Handle both numeric and text values
-                values = [v.strip().strip("'\"") for v in content.split(',')]
+                values = [v.strip().strip('\'"') for v in content.split(',')]
 
             # Handle sequence format: sequence(start,end,step)
             else:
@@ -75,7 +75,7 @@ class AnalyzerXMLParser:
                 if seq_match:
                     params = [float(x.strip()) for x in seq_match.group(1).split(',')]
                     start, end, step = params[0], params[1], params[2]
-                    values = [str(v) for v in np.arange(start, end + step/2, step)]
+                    values = [str(v) for v in np.arange(start, end + step / 2, step)]
 
             if values:
                 result = AnalyticaDimension(
@@ -87,7 +87,6 @@ class AnalyzerXMLParser:
 
         return None
 
-
     def find_all_dimensions(self):
         """Find all dimension definitions and store them."""
         dimensions = {}
@@ -98,9 +97,7 @@ class AnalyzerXMLParser:
                 if dim:
                     dimensions[name] = dim
         dimensions['Zone'] = AnalyticaDimension(
-            name='Zone',
-            definition=['Downtown','Centre','Suburb'],
-            description='Urban zones'
+            name='Zone', definition=['Downtown', 'Centre', 'Suburb'], description='Urban zones'
         )
         return dimensions
 
@@ -114,7 +111,7 @@ class AnalyzerXMLParser:
             return float(v[:-1]) * 1000.0
         if v.endswith('M'):
             return float(v[:-1]) * 1000000.0
-        if v.upper() in ["NAN", "'NAN'"]:
+        if v.upper() in ['NAN', "'NAN'"]:
             return np.nan
         return float(v)
 
@@ -160,13 +157,12 @@ class AnalyzerXMLParser:
                 dimensions=table_dimensions,
                 dimension_sizes=dim_sizes,
                 data_flat=data_values,
-                data_length=len(data_values)
+                data_length=len(data_values),
             )
 
             return result
 
         return None
-
 
     def table_to_polars(self, table_name):
         """
@@ -177,7 +173,7 @@ class AnalyzerXMLParser:
         table_data = self.extract_table_data(table_name)
 
         if not table_data:
-            print(f"Could not extract table data for {table_name}")
+            print(f'Could not extract table data for {table_name}')
             return None
 
         # Reshape using C-order (rightmost varies fastest)
@@ -185,12 +181,13 @@ class AnalyzerXMLParser:
         try:
             data_array = np.array(table_data.data_flat, dtype=float).reshape(shape, order='C')
         except Exception as e:
-            print(f"Error reshaping: {e}")
-            print(f"Expected elements: {np.prod(shape)}, Got: {len(table_data.data_flat)}")
+            print(f'Error reshaping: {e}')
+            print(f'Expected elements: {np.prod(shape)}, Got: {len(table_data.data_flat)}')
             return None
 
         # Generate all index combinations (C-order: rightmost varies fastest)
         import itertools
+
         indices_lists = [dim.definition for dim in table_data.dimensions]
         combinations = list(itertools.product(*indices_lists))
 
@@ -206,7 +203,7 @@ class AnalyzerXMLParser:
         return df
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # Collect important data from an Analytica XML file
     file = '../../Downloads/12889_2005_278_MOESM1_ESM(1).xml'
 
@@ -215,26 +212,26 @@ if __name__ == "__main__":
     table_name = 'Scen1_0'
 
     # Extract Scen1_0 table
-    print(f"Extracting {table_name} table data...")
-    print("=" * 70)
+    print(f'Extracting {table_name} table data...')
+    print('=' * 70)
 
     # Get table info
     table_data = parser.extract_table_data(table_name)
 
     if table_data:
-        print(f"Table: {table_data.name}")
-        print(f"Dimensions: {table_data.dimensions}")
-        print(f"Dimension sizes: {table_data.dimension_sizes}")
-        print(f"Total data points: {table_data.data_length}")
-        print(f"Expected points: {np.prod([s for s in table_data.dimension_sizes if s])}")
+        print(f'Table: {table_data.name}')
+        print(f'Dimensions: {table_data.dimensions}')
+        print(f'Dimension sizes: {table_data.dimension_sizes}')
+        print(f'Total data points: {table_data.data_length}')
+        print(f'Expected points: {np.prod([s for s in table_data.dimension_sizes if s])}')
 
     # Convert to polars DataFrame
-    print("\n\nConverting to Polars DataFrame...")
+    print('\n\nConverting to Polars DataFrame...')
 
     df = parser.table_to_polars(table_name)
 
     if df is not None:
-        print(f"\nDataFrame shape: {df.shape}")
+        print(f'\nDataFrame shape: {df.shape}')
 
         out = f'./model-outputs/{table_name}_data.csv'
         df.write_csv(out)

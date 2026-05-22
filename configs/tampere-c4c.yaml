@@ -34,19 +34,23 @@ impact_overviews:
   cost_unit: EUR
   effect_unit: t_co2e
   plot_limit_for_indicator: 50000
-  label: Kustannusvaikuttavuus
+  label_fi: Kustannusvaikuttavuus
+  label_en: Cost-efficiency
 
 - graph_type: cost_benefit
-  effect_node: cost_benefit_analysis
+  effect_node: cost_benefit
   indicator_unit: kEUR
-  outcome_dimension: cost_benefit
-  label: Cost-benefit
+  outcome_dimension: cost_type
+  stakeholder_dimension: owner
+  label_fi: Kustannus-hyöty
+  label_en: Cost-benefit
 
 - graph_type: return_on_investment
   cost_node: aggregate_total_costs
   effect_node: aggregate_total_benefits
   indicator_unit: '%'
-  label: Return on investment
+  label_fi: Tuotto-odotus
+  label_en: Return on investment
 
 action_groups:
 - id: transportation

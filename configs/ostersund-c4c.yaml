@@ -9,8 +9,8 @@ dataset_repo:
 name: Östersund Greenhouse Gas Inventory
 owner: City of Östersund
 theme_identifier: eu-climate-4-cast
-target_year: 2030
-model_end_year: 2030
+target_year: 2040
+model_end_year: 2040
 reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2023
@@ -72,12 +72,12 @@ impact_overviews:
 
 params:
 - id: electrification_scenario
-  label: 'Territorial Transportation Electrification Scenario (1: Low, 2: Medium, 3: High) '
+  label: 'Territorial Transportation Electrification Scenario (0: Low, 1: Medium, 2: High)'
   is_customizable: true
   is_visible: true
-  value: 2
-  min_value: 1
-  max_value: 3
+  value: 1
+  min_value: 0
+  max_value: 2
   step: 1
 
 dimensions:
@@ -108,6 +108,12 @@ dimensions:
     label: Alkylate Gasoline
   - id: aviation_gasoline
     label: Aviation Gasoline
+  - id: aviation_gasoline_compensation
+    label: Aviation Gasoline (Compensation)
+  - id: biodiesel_fame
+    label: Biodiesel (FAME)
+  - id: biodiesel_hvo
+    label: Biodiesel (HVO)
   - id: biogas
     label: Biogas
   - id: diesel
@@ -140,6 +146,8 @@ dimensions:
     label: Municipal
   - id: private
     label: Private
+  - id: societal
+    label: Societal
 
 - id: business_travel_type
   label: Business Travel Type
@@ -911,6 +919,61 @@ nodes:
   output_nodes:
   - id: ii53_offroad_transport_indirect_combustion_emissions
 
+- id: iii3_waste_incineration_emission_factor
+  name: III.3 Waste Incineration Emission Factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: [ghg, owner, scope]
+  output_dimensions: [ghg, owner, scope]
+  input_datasets:
+  - id: ostersund/organizational_waste
+    column: emission_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: iii32
+    - column: product_type
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: iii3_waste_incineration_emissions
+
+- id: iii3_waste_incineration_emissions
+  name: III.3 Waste Incineration Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [owner, ghg, scope]
+  output_dimensions: [owner, ghg, scope]
+  output_nodes:
+  - id: iii_waste_total_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+
+- id: iii3_waste_incineration_mass
+  name: III.3 Waste Incineration Mass
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
+  input_datasets:
+  - id: ostersund/organizational_waste
+    column: mass
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: iii32
+    - column: ghg
+    - column: product_type
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: iii3_waste_incineration_emissions
+    tags: [non_additive]
+
 - id: ii_transportation_emissions
   name: II Transportation Emissions
   type: simple.AdditiveNode
@@ -1048,6 +1111,17 @@ nodes:
   output_nodes:
   - id: net_emissions_organizational
 
+- id: iii_waste_total_emissions
+  name: III Waste Total Emissions
+  type: simple.AdditiveNode
+  color: '#59A14F'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [owner, ghg]
+  output_dimensions: [owner, ghg]
+  output_nodes:
+  - id: net_emissions_organizational
+
 - id: i_stationary_total_costs
   name: I Stationary Total Costs
   type: simple.AdditiveNode
@@ -1121,18 +1195,29 @@ nodes:
   output_dimensions: [ghg]
   goals:
   - label: GHG Budget (Paris Agreement)
-    values: [{'year': 2019, 'value': 165.0033694},
-             {'year': 2020, 'value': 155.8607025},
-             {'year': 2021, 'value': 146.7180356},
-             {'year': 2022, 'value': 137.5753687},
-             {'year': 2023, 'value': 128.4327018},
-             {'year': 2024, 'value': 119.2900349},
-             {'year': 2025, 'value': 110.1473679},
-             {'year': 2026, 'value': 101.0047010},
-             {'year': 2027, 'value': 91.8620341},
-             {'year': 2028, 'value': 82.7193672},
-             {'year': 2029, 'value': 73.5767003},
-             {'year': 2030, 'value': 64.4340334}]
+    values: [{'year': 2018, 'value': 184.000},
+             {'year': 2019, 'value': 167.440},
+             {'year': 2020, 'value': 152.370},
+             {'year': 2021, 'value': 138.657},
+             {'year': 2022, 'value': 126.178},
+             {'year': 2023, 'value': 114.822},
+             {'year': 2024, 'value': 104.488},
+             {'year': 2025, 'value': 95.084},
+             {'year': 2026, 'value': 86.526},
+             {'year': 2027, 'value': 78.739},
+             {'year': 2028, 'value': 71.653},
+             {'year': 2029, 'value': 65.204},
+             {'year': 2030, 'value': 59.335},
+             {'year': 2031, 'value': 53.995},
+             {'year': 2032, 'value': 49.136},
+             {'year': 2033, 'value': 44.714},
+             {'year': 2034, 'value': 40.689},
+             {'year': 2035, 'value': 37.027},
+             {'year': 2036, 'value': 33.695},
+             {'year': 2037, 'value': 30.662},
+             {'year': 2038, 'value': 27.903},
+             {'year': 2039, 'value': 25.391},
+             {'year': 2040, 'value': 23.106}]
     default: true
     is_main_goal: true
   output_nodes:
@@ -1330,31 +1415,31 @@ nodes:
 
 - id: ii1_onroad_transport_mileage_territorial
   name: II.1 On-Road Transport Mileage
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: mileage
   unit: km/a
   input_dimensions: [energy_carrier, vehicle_type, scope, owner, v_electrification_scenario]
   output_dimensions: [energy_carrier, vehicle_type, scope, owner, v_electrification_scenario]
   params:
-  - id: gpc_sector
-    value: II.1.1
-  - id: variant_id
-    value: electrification_scenario
-  - id: variant_number
+  - id: operations
+    value: add_datasets,select_variant
+  - id: categories
+    value: v_electrification_scenario:1,2,3
+  - id: selected_number
     ref: electrification_scenario
   input_datasets:
-  - id: gpc/ostersund_territorial
+  - id: ostersund/territorial_onroad_transportation
+    column: mileage
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: ghg
+    - column: sector
   output_nodes:
   - id: ii1_onroad_transport_mileage_emissions_territorial
     from_dimensions:
     - id: v_electrification_scenario
       flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: vehicle_type
-    - id: scope
-    - id: owner
   - id: ii1_onroad_transport_mileage_mix_territorial
     tags: [activity]
     from_dimensions:
@@ -1647,6 +1732,30 @@ nodes:
   unit: kt/a
   input_dimensions: [ghg]
   output_dimensions: [ghg]
+  goals:
+  - values: [{'year': 2018, 'value': 28.155},
+             {'year': 2019, 'value': 25.621},
+             {'year': 2020, 'value': 23.315},
+             {'year': 2021, 'value': 21.217},
+             {'year': 2022, 'value': 19.307},
+             {'year': 2023, 'value': 17.570},
+             {'year': 2024, 'value': 15.988},
+             {'year': 2025, 'value': 14.549},
+             {'year': 2026, 'value': 13.240},
+             {'year': 2027, 'value': 12.048},
+             {'year': 2028, 'value': 10.964},
+             {'year': 2029, 'value': 9.977},
+             {'year': 2030, 'value': 9.079},
+             {'year': 2031, 'value': 8.262},
+             {'year': 2032, 'value': 7.519},
+             {'year': 2033, 'value': 6.842},
+             {'year': 2034, 'value': 6.226},
+             {'year': 2035, 'value': 5.666},
+             {'year': 2036, 'value': 5.156},
+             {'year': 2037, 'value': 4.692},
+             {'year': 2038, 'value': 4.270},
+             {'year': 2039, 'value': 3.885},
+             {'year': 2040, 'value': 3.536}]
   output_nodes:
   - id: net_emissions_territorial
 
@@ -1692,6 +1801,30 @@ nodes:
   unit: kt/a
   input_dimensions: [ghg]
   output_dimensions: [ghg]
+  goals:
+  - values: [{'year': 2018, 'value': 113.000},
+             {'year': 2019, 'value': 102.830},
+             {'year': 2020, 'value': 93.575},
+             {'year': 2021, 'value': 85.154},
+             {'year': 2022, 'value': 77.490},
+             {'year': 2023, 'value': 70.516},
+             {'year': 2024, 'value': 64.169},
+             {'year': 2025, 'value': 58.394},
+             {'year': 2026, 'value': 53.139},
+             {'year': 2027, 'value': 48.356},
+             {'year': 2028, 'value': 44.004},
+             {'year': 2029, 'value': 40.044},
+             {'year': 2030, 'value': 36.440},
+             {'year': 2031, 'value': 33.160},
+             {'year': 2032, 'value': 30.176},
+             {'year': 2033, 'value': 27.460},
+             {'year': 2034, 'value': 24.989},
+             {'year': 2035, 'value': 22.740},
+             {'year': 2036, 'value': 20.693},
+             {'year': 2037, 'value': 18.831},
+             {'year': 2038, 'value': 17.136},
+             {'year': 2039, 'value': 15.594},
+             {'year': 2040, 'value': 14.190}]
   output_nodes:
   - id: net_emissions_territorial
 
@@ -1733,6 +1866,30 @@ nodes:
   unit: kt/a
   input_dimensions: [scope, ghg]
   output_dimensions: [scope, ghg]
+  goals:
+  - values: [{'year': 2018, 'value': 12.631},
+             {'year': 2019, 'value': 11.494},
+             {'year': 2020, 'value': 10.460},
+             {'year': 2021, 'value': 9.518},
+             {'year': 2022, 'value': 8.662},
+             {'year': 2023, 'value': 7.882},
+             {'year': 2024, 'value': 7.173},
+             {'year': 2025, 'value': 6.527},
+             {'year': 2026, 'value': 5.940},
+             {'year': 2027, 'value': 5.405},
+             {'year': 2028, 'value': 4.919},
+             {'year': 2029, 'value': 4.476},
+             {'year': 2030, 'value': 4.073},
+             {'year': 2031, 'value': 3.707},
+             {'year': 2032, 'value': 3.373},
+             {'year': 2033, 'value': 3.069},
+             {'year': 2034, 'value': 2.793},
+             {'year': 2035, 'value': 2.542},
+             {'year': 2036, 'value': 2.313},
+             {'year': 2037, 'value': 2.105},
+             {'year': 2038, 'value': 1.915},
+             {'year': 2039, 'value': 1.743},
+             {'year': 2040, 'value': 1.586}]
   output_nodes:
   - id: net_emissions_territorial
     from_dimensions:
@@ -1749,6 +1906,30 @@ nodes:
   unit: kt/a
   input_dimensions: [scope, product_type, ghg]
   output_dimensions: [scope, product_type, ghg]
+  goals:
+  - values: [{'year': 2018, 'value': 8.787},
+             {'year': 2019, 'value': 7.996},
+             {'year': 2020, 'value': 7.276},
+             {'year': 2021, 'value': 6.621},
+             {'year': 2022, 'value': 6.026},
+             {'year': 2023, 'value': 5.483},
+             {'year': 2024, 'value': 4.990},
+             {'year': 2025, 'value': 4.541},
+             {'year': 2026, 'value': 4.132},
+             {'year': 2027, 'value': 3.760},
+             {'year': 2028, 'value': 3.422},
+             {'year': 2029, 'value': 3.114},
+             {'year': 2030, 'value': 2.834},
+             {'year': 2031, 'value': 2.579},
+             {'year': 2032, 'value': 2.346},
+             {'year': 2033, 'value': 2.135},
+             {'year': 2034, 'value': 1.943},
+             {'year': 2035, 'value': 1.768},
+             {'year': 2036, 'value': 1.609},
+             {'year': 2037, 'value': 1.464},
+             {'year': 2038, 'value': 1.332},
+             {'year': 2039, 'value': 1.213},
+             {'year': 2040, 'value': 1.103}]
   output_nodes:
   - id: net_emissions_territorial
     from_dimensions:
@@ -1767,6 +1948,30 @@ nodes:
   unit: kt/a
   input_dimensions: [scope, ghg]
   output_dimensions: [scope, ghg]
+  goals:
+  - values: [{'year': 2018, 'value': 21.168},
+             {'year': 2019, 'value': 19.263},
+             {'year': 2020, 'value': 17.529},
+             {'year': 2021, 'value': 15.952},
+             {'year': 2022, 'value': 14.516},
+             {'year': 2023, 'value': 13.210},
+             {'year': 2024, 'value': 12.021},
+             {'year': 2025, 'value': 10.939},
+             {'year': 2026, 'value': 9.954},
+             {'year': 2027, 'value': 9.058},
+             {'year': 2028, 'value': 8.243},
+             {'year': 2029, 'value': 7.501},
+             {'year': 2030, 'value': 6.826},
+             {'year': 2031, 'value': 6.212},
+             {'year': 2032, 'value': 5.653},
+             {'year': 2033, 'value': 5.144},
+             {'year': 2034, 'value': 4.681},
+             {'year': 2035, 'value': 4.260},
+             {'year': 2036, 'value': 3.876},
+             {'year': 2037, 'value': 3.528},
+             {'year': 2038, 'value': 3.210},
+             {'year': 2039, 'value': 2.921},
+             {'year': 2040, 'value': 2.658}]
   output_nodes:
   - id: net_emissions_territorial
     from_dimensions:
@@ -2096,21 +2301,22 @@ actions:
   name: Procure 100% Renewable Energy in Direct Machine Services
   type: simple.AdditiveAction
   group: transportation
-  unit: kt/a
-  quantity: emissions
-  input_dimensions: [scope, energy_carrier, ghg, owner]
-  output_dimensions: [scope, energy_carrier, ghg, owner]
+  unit: l/a
+  quantity: fuel_consumption
+  input_dimensions: [scope, energy_carrier, owner]
+  output_dimensions: [scope, energy_carrier, owner]
   input_datasets:
   - id: ostersund/organizational_other_transportation_actions
-    column: emissions
+    column: fuel_consumption
     forecast_from: 2024
     filters:
     - column: sector
     - column: action
       value: procure_renewable_energy_in_machine_services
     - column: business_travel_type
+    - column: ghg
   output_nodes:
-  - id: ii53_offroad_transport_indirect_combustion_emissions
+  - id: ii53_offroad_transport_indirect_combustion
 
 # Zeros II.1.3 emissions from 2025.
 - id: procure_renewable_energy_in_direct_transport_services

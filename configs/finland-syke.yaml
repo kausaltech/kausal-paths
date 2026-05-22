@@ -36,6 +36,13 @@ impact_overviews:
   indicator_unit: Mt
 
 - graph_type: cost_benefit
+  label: Kustannus-hyöty
+  label_en: Cost-benefit
+  effect_node: total_costs
+  stakeholder_dimension: stakeholder
+  indicator_unit: MEUR
+
+- graph_type: cost_benefit
   label: Kustannus-hyöty yhteiskunnan näkökulmasta
   label_en: Cost-benefit from society's point of view
   effect_node: societal_costs

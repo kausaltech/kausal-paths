@@ -17,6 +17,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -33,8 +34,8 @@ from wagtail.documents import urls as wagtaildocs_urls  # type: ignore[attr-defi
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from social_django import urls as social_urls
 
-#from strawberry.django.views import GraphQLView
-from kausal_common.deployment.health_check_view import health_view
+# from strawberry.django.views import GraphQLView
+from kausal_common.deployment.health_check_view import diagnostics_view, liveness_view, readiness_view
 
 from admin_site import urls as admin_urls
 from datasets.api import nested_routers as datasets_api_nested_routers, router as datasets_api_root_router
@@ -48,12 +49,13 @@ from .graphql_views import PathsGraphQLView
 if TYPE_CHECKING:
     from types import ModuleType
 
-
 kpe_urls: ModuleType | None
 try:
-    from kausal_paths_extensions import urls as kpe_urls
+    from kausal_paths_extensions import urls as _kpe_urls  # type: ignore[import-not-found]
 except ImportError:
     kpe_urls = None
+else:
+    kpe_urls = _kpe_urls
 
 for prefix, viewset, basename in datasets_api_root_router.registry:
     api_router.register(prefix, viewset, basename=basename)
@@ -76,28 +78,33 @@ urlpatterns = [
     # For anything not caught by a more specific rule above, hand over to
     # Wagtail's serving mechanism
     path('pages/', include(wagtail_urls)),
-
-    path('v1/graphql/docs/', TemplateView.as_view(
-        template_name='graphql-voyager.html',
-    ), name='graphql-voyager'),
-
+    path(
+        'v1/graphql/docs/',
+        TemplateView.as_view(
+            template_name='graphql-voyager.html',
+        ),
+        name='graphql-voyager',
+    ),
     path('v1/graphql/', csrf_exempt(PathsGraphQLView.as_view()), name='graphql'),
     path('v1/', include(api_urls)),
     path('v1/schema/', SpectacularAPIView.as_view(urlconf=api_urls), name='schema'),
     path('v1/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('auth/', include(social_urls, namespace='social')),
-    path('healthz/', csrf_exempt(health_view), name='healthcheck'),
+    path('livez/', liveness_view, name='liveness'),
+    path('readyz/', csrf_exempt(readiness_view), name='readiness'),
+    path('healthz/', csrf_exempt(readiness_view), name='healthcheck'),
+    path('diagnostics/', csrf_exempt(diagnostics_view), name='diagnostics'),
     path('', include(framework_urls)),
 ]
 
 if settings.DEBUG:
-    #from kausal_common.debugging.memory import memory_trace
+    # from kausal_common.debugging.memory import memory_trace
 
-    #from debugging.views import memory_tracker
+    # from debugging.views import memory_tracker
 
-    #urlpatterns.append(path('debug/memory/', csrf_exempt(memory_trace)))
-    #urlpatterns.append(path('debug/memory-tracker/', csrf_exempt(memory_tracker)))
+    # urlpatterns.append(path('debug/memory/', csrf_exempt(memory_trace)))
+    # urlpatterns.append(path('debug/memory-tracker/', csrf_exempt(memory_tracker)))
     pass
 
 if kpe_urls is not None:

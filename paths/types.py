@@ -7,11 +7,13 @@ from django.db.models import ForeignKey
 
 from kausal_common.models.object_cache import CacheableModel
 from kausal_common.models.permissions import PermissionedModel, PermissionedQuerySet
+from kausal_common.models.types import AbstractModel
 
 if TYPE_CHECKING:
     from collections import OrderedDict
     from typing import type_check_only
 
+    from django.db.models import Manager
     from graphql import GraphQLResolveInfo
     from rest_framework.request import Request as APIRequest
     from wagtail.models import Site
@@ -23,7 +25,7 @@ if TYPE_CHECKING:
 
     from paths.context import PathsObjectCache
     from paths.graphql_helpers import GraphQLPerfNode
-    from paths.graphql_types import PathsGraphQLContext
+    from paths.schema_context import PathsGraphQLContext
 
     from common.cache import CacheResult
     from nodes.instance import Instance
@@ -32,32 +34,36 @@ if TYPE_CHECKING:
 
 
 if TYPE_CHECKING:
+
     class PathsRequest(LoggedHttpRequest):
-        user: UserOrAnon  # type: ignore[override, assignment]
+        user: UserOrAnon
         cache: PathsObjectCache
 
-
     class PathsAuthenticatedRequest(PathsRequest):
-        user: User  # type: ignore[override]
-
+        user: User
 
     class PathsAdminRequest(PathsAuthenticatedRequest):
         _wagtail_site: Site | None
-
 
     class PathsAPIRequest(APIRequest):
         wildcard_domains: list[str] | None
 
 
-class PathsModel(PermissionedModel):
+class PathsModel[CreateContext: Any = None](PermissionedModel[CreateContext], AbstractModel):  # pyright: ignore[reportImplicitAbstractClass]
     if TYPE_CHECKING:
         Meta: Any
     else:
+
         class Meta:
             abstract = True
 
 
 class PathsQuerySet[M: PathsModel](PermissionedQuerySet[M]):
+    if TYPE_CHECKING:
+
+        @classmethod
+        def as_manager(cls) -> Manager[M]: ...
+
     def within_realm(self, realm: InstanceConfig) -> Self:
         from nodes.models import InstanceConfig
 
@@ -73,17 +79,18 @@ class PathsQuerySet[M: PathsModel](PermissionedQuerySet[M]):
 
 
 if TYPE_CHECKING:
+
     @type_check_only
     class PathsGQLContext(CommonGQLContext):  # pyright: ignore[reportGeneralTypeIssues]
         graphql_operation_name: str | None
-        graphql_perf: PerfContext[GraphQLPerfNode, CacheResult]
+        graphql_perf: PerfContext[GraphQLPerfNode, CacheResult[Any]]
         oauth2_error: OrderedDict[str, str]
         cache: PathsObjectCache
         _referer: str | None
 
     @type_check_only
     class PathsGQLInfo(CommonGQLInfo):  # pyright: ignore[reportGeneralTypeIssues]
-        context: PathsGraphQLContext  # pyright: ignore
+        context: PathsGraphQLContext
 
     @type_check_only
     class GQLInstanceContext(PathsGQLContext):  # pyright: ignore
@@ -92,9 +99,9 @@ if TYPE_CHECKING:
 
     @type_check_only
     class GQLInstanceInfo(GraphQLResolveInfo):
-        context: PathsGraphQLContext[Instance]  # pyright: ignore
+        context: PathsGraphQLContext[Instance]
 
 
-class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel):
+class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel):  # pyright: ignore[reportImplicitAbstractClass]
     class Meta:
         abstract = True

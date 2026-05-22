@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 from rest_framework import exceptions
 
 from kausal_common.api.bulk import BulkModelViewSet
-from kausal_common.api.utils import RegisteredAPIView, register_view
+from kausal_common.api.utils import register_view
 from kausal_common.model_images import ModelWithImageViewMixin
 from kausal_common.people.api import PersonSerializer as BasePersonSerializer
 from kausal_common.users import user_or_none
@@ -13,12 +13,17 @@ from kausal_common.users import user_or_none
 from paths import permissions
 
 from nodes.models import InstanceConfig
-from people.models import Person, PersonQuerySet
+from people.models import Person
 
 if TYPE_CHECKING:
     from rest_framework.permissions import BasePermission
 
+    from kausal_common.api.utils import RegisteredAPIView
+
+    from people.models import PersonQuerySet
+
 all_views: list[RegisteredAPIView] = []
+
 
 class PersonSerializer(BasePersonSerializer):
     def __init__(self, *args, **kwargs):
@@ -64,7 +69,7 @@ class PersonViewSet(ModelWithImageViewMixin, BulkModelViewSet):
         try:
             return InstanceConfig.objects.get(identifier=instance_identifier)
         except InstanceConfig.DoesNotExist as e:
-            raise exceptions.NotFound(detail="InstanceConfig not found") from e
+            raise exceptions.NotFound(detail='InstanceConfig not found') from e
 
     def user_is_authorized_for_instance(self, instance):
         user = user_or_none(self.request.user)
@@ -91,5 +96,5 @@ class PersonViewSet(ModelWithImageViewMixin, BulkModelViewSet):
         if instance is None:
             return queryset
         if not self.user_is_authorized_for_instance(instance):
-            raise exceptions.PermissionDenied(detail="Not authorized")
+            raise exceptions.PermissionDenied(detail='Not authorized')
         return queryset.available_for_instance(instance)

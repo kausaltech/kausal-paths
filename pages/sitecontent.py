@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING
 
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -14,10 +14,14 @@ from paths.context import realm_context
 from admin_site.viewsets import PathsEditView, PathsViewSet
 from pages.models import InstanceSiteContent
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 class SiteContentPermissionPolicy(ParentInheritedPolicy):
     def __init__(self):
         from nodes.models import InstanceConfig
+
         super().__init__(model=InstanceSiteContent, parent_model=InstanceConfig, parent_field='instance')
 
     def user_has_permission(self, user, action):
@@ -28,13 +32,12 @@ class SiteContentPermissionPolicy(ParentInheritedPolicy):
 
 
 class InstanceSiteContentModelMenuItem(MenuItem):
-
     def __init__(self, view_set, order):
         self.view_set = view_set
 
         super().__init__(
             label=view_set.menu_label,
-            url="",  # This is set in render_component
+            url='',  # This is set in render_component
             name=view_set.menu_name,
             icon_name=view_set.icon,
             order=order,
@@ -63,6 +66,7 @@ class InstanceSiteContentModelMenuItem(MenuItem):
 # TODO: Could be moved to kausal-common, this is used as-is in kausal-watch as well
 class SuccessUrlEditPageMixin:
     """After editing a model instance, redirect to the edit page again instead of the index page."""
+
     get_edit_url: Callable
 
     def get_success_url(self) -> str:

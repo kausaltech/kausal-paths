@@ -12,17 +12,18 @@ from nodes.models import InstanceConfig
 from nodes.schema import NodeType
 from pages.page_interface import PageInterface
 
-from .models import OutcomePage, Page, PathsPage
+from .models import OutcomePage, PathsPage
 from .perms import PagePermissionPolicy
 
 if TYPE_CHECKING:
-    from wagtail.query import PageQuerySet
-
     from paths.graphql_helpers import GQLInstanceInfo
 
     from nodes.node import Node
 
+    from .models import Page
+
 policy = PagePermissionPolicy()
+
 
 class PathsPageType(GrapplePageType):
     show_in_footer = graphene.Boolean()
@@ -95,13 +96,15 @@ class Query:
                 return page
         return None
 
+
 def monkeypatch_grapple():
     from grapple.registry import registry
+
     # Monkeypatch resolvers to ensure we don't traverse outside
     # of site pages.
     # Replace Grapple-generated PageTypes with our own
     registry.pages[OutcomePage] = OutcomePageType
-    #registry.pages[ActionListPage] = ActionListPageType
+    # registry.pages[ActionListPage] = ActionListPageType
 
 
 monkeypatch_grapple()

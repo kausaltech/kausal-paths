@@ -49,6 +49,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('nodes', '0034_add_instanceconfig_organization'),
+        ('frameworks', '0001_initial'),
     ]
 
     operations = [

@@ -1,17 +1,17 @@
 id: duesseldorf-bisko
 default_language: de
-supported_languages: [en]
+supported_languages: []
 site_url: https://duesseldorf-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 614342be8a596caca5b5d7025443550d3be1615d
+  commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
   dvc_remote: kausal-s3
 name: Düsseldorf Klima-Monitor
 owner: Stadt Düsseldorf
 theme_identifier: de-dusseldorf
 target_year: 2035
 model_end_year: 2035
-reference_year: 1990
+reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
@@ -23,7 +23,7 @@ features:
 
 include:
 - file: modules/bisko/model.yaml
-  allow_override: false
+  allow_override: true
   dataset_replacements:
   - from: bisko/final_energy
     to: duesseldorf/final_energy
@@ -41,8 +41,8 @@ params:
   label_de: Wetterkorrektur durchführen?
   label_en: Perform weather correction?
   value: false
-  is_customizable: true
-  is_visible: true
+  is_customizable: false
+  is_visible: false
 - id: municipality_name
   label_en: Municipality name
   label_de: Gemeindename
@@ -52,7 +52,7 @@ params:
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
-  value: '5111000' # Leading zero has dropped from the dataset.
+  value: '05111000'
   is_customizable: false
   is_visible: false
 - id: use_national_values
@@ -100,7 +100,120 @@ result_excels:
   - vehicle_kilometers_ifeu
   - other_transport_energy
 
+action_groups:
 
+- id: combined_heat_and_power
+  name_en: Combined heat and power
+  name_de: Kombination aus Wärme und Strom
+  color: '#007C78'
+
+actions:
+
+- id: emission_reduction_action
+  name_en: Emission reduction action
+  name_de: Emission reduction action
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: duesseldorf/emission_reduction_action
+    column: ratio
+    forecast_from: 2024
+  output_nodes:
+  - id: stationary_emissions
+    tags: [complement]
+  - id: transport_emissions
+    tags: [complement]
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+      flatten: true
+    to_dimensions: []
+
+#//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
+nodes:
+
+# sum up Industry + Commercial
+- id: industry_commerce_emissions
+  name_en: Industry & Commerce
+  name_de: Gewerbe/Handel/Dienstleistungen & Industrie
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_nodes: [industry_emissions, commerce_trade_services_emissions]
+  params:
+  - id: formula
+    value: sum_into_cat(industry_emissions + commerce_trade_services_emissions, 
+      sector, [industry, commerce_trade_services], industry_commerce)
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  output_nodes: [net_emissions]
+
+# copy them from bisko standard and remove output node net_emissions - don't forget to put allow_override=true
+- id: industry_emissions
+  name_de: Industrie Emissionen
+  name_en: Industry emissions
+  color: '#737373'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [industry]
+
+- id: commerce_trade_services_emissions
+  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_en: Commerce, trade, services emissions
+  color: '#fe8035'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+
+- id: transport_energy
+  name_de: Transportenergie
+  name_en: Transport energy
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy_own
+    tags: [own]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: other_transport_energy
+    tags: [other_bisko]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: road_transport_energy_bisko
+    tags: [road_bisko]
+    from_dimensions:
+    - id: road_type
+      flatten: true
+  params:
+  - id: formula
+    value: sum_into_cat(select_port(condition, (other_bisko + road_bisko), own),
+      vehicle_type, [passenger_cars, motorcycles], cars_and_motorcycles)
+  - id: condition
+    ref: use_mileage
+
+#//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
 pages:
 - id: home
   name: Düsseldorf Treibhausgasinventar
@@ -109,8 +222,12 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Düsseldorf Treibhausgasinventar
-  lead_paragraph: Historische Treibhausgasemissionen der Stadt Düsseldorf und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+  lead_paragraph: Historische Treibhausgasemissionen der Stadt Düsseldorf und 
+    Asenkpfade für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen 
+    erfolgreich umgesetzt".
 
+
+#//////  Scenarios  ///////////////////////////////////////////////////////////////////////////////////////////////////
 scenarios:
 
 - id: baseline

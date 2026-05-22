@@ -37,20 +37,22 @@ class SubsectorAdminRole(Role):
 
     model_perms = [
         ('wagtailadmin', 'admin', ('access',)),
-        ('datasets', (
-            'datasetschema',
-            'dataset',
-            'datapoint',
-            'datasetsourcereference',
-            'datapointcomment',
-            'datasetmetric',
-        ), ALL_MODEL_PERMS),
-        ('datasets', (
-            'datasource',
-        ), (
-            'view',
-            'add'
+        (
+            'datasets',
+            (
+                'datasetschema',
+                'dataset',
+                'datapoint',
+                'datasetsourcereference',
+                'datapointcomment',
+                'datasetmetric',
+            ),
+            ALL_MODEL_PERMS,
         ),
+        (
+            'datasets',
+            ('datasource',),
+            ('view', 'add'),
         ),
     ]
 
@@ -58,6 +60,7 @@ class SubsectorAdminRole(Role):
 class InstanceGroupMembershipRole(InstanceFieldGroupRole['InstanceConfig'], metaclass=ABCMeta):
     def __init__(self):
         from .models import InstanceConfig
+
         super().__init__(InstanceConfig)
 
     def get_instance_group_name(self, obj: InstanceConfig) -> str:
@@ -70,37 +73,45 @@ class InstanceGroupMembershipRole(InstanceFieldGroupRole['InstanceConfig'], meta
 
 class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']):
     id = INSTANCE_SUPER_ADMIN_ROLE
-    name = _("Super Admin")
-    description = _(
-        'Full administrative access to the instance, also for managing people and organizations'
-    )
-    group_name = "Super Admins"
+    name = _('Super Admin')
+    description = _('Full administrative access to the instance, also for managing people and organizations')
+    group_name = 'Super Admins'
     instance_group_field_name = 'super_admin_group'
 
     model_perms = AdminRole.model_perms + [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
-        ('datasets', (
-            'datasetschema',
-            'dataset',
-            'datapoint',
-            'datasource',
-            'datasetsourcereference',
-            'datapointcomment',
-            'datasetmetric',
-        ), ALL_MODEL_PERMS),
-        ('frameworks', (
-            'framework',
-        ), ('view',)),
-        ('frameworks', (
-            'frameworkconfig', 'measure', 'measuredatapoint',
-        ), ALL_MODEL_PERMS),
-        ('people', (
-            'person',
-            'persongroup',
-        ), ALL_MODEL_PERMS),
-        ('orgs', (
-            'organization',
-        ), ALL_MODEL_PERMS),
+        (
+            'datasets',
+            (
+                'datasetschema',
+                'dataset',
+                'datapoint',
+                'datasource',
+                'datasetsourcereference',
+                'datapointcomment',
+                'datasetmetric',
+            ),
+            ALL_MODEL_PERMS,
+        ),
+        ('frameworks', ('framework',), ('view',)),
+        (
+            'frameworks',
+            (
+                'frameworkconfig',
+                'measure',
+                'measuredatapoint',
+            ),
+            ALL_MODEL_PERMS,
+        ),
+        (
+            'people',
+            (
+                'person',
+                'persongroup',
+            ),
+            ALL_MODEL_PERMS,
+        ),
+        ('orgs', ('organization',), ALL_MODEL_PERMS),
     ]
 
     def get_existing_instance_group(self, obj: InstanceConfig) -> Group | None:
@@ -113,30 +124,36 @@ class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceCon
 
 class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']):
     id = INSTANCE_ADMIN_ROLE
-    name = _("Admin")
-    description = _(
-        'Administrative access to the instance without permissions to manage people and organizations'
-    )
-    group_name = "Admins"
+    name = _('Admin')
+    description = _('Administrative access to the instance without permissions to manage people and organizations')
+    group_name = 'Admins'
     instance_group_field_name = 'admin_group'
 
     model_perms = AdminRole.model_perms + [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
-        ('datasets', (
-            'datasetschema',
-            'dataset',
-            'datapoint',
-            'datasource',
-            'datasetsourcereference',
-            'datapointcomment',
-            'datasetmetric',
-        ), ALL_MODEL_PERMS),
-        ('frameworks', (
-            'framework',
-        ), ('view',)),
-        ('frameworks', (
-            'frameworkconfig', 'measure', 'measuredatapoint',
-        ), ALL_MODEL_PERMS),
+        (
+            'datasets',
+            (
+                'datasetschema',
+                'dataset',
+                'datapoint',
+                'datasource',
+                'datasetsourcereference',
+                'datapointcomment',
+                'datasetmetric',
+            ),
+            ALL_MODEL_PERMS,
+        ),
+        ('frameworks', ('framework',), ('view',)),
+        (
+            'frameworks',
+            (
+                'frameworkconfig',
+                'measure',
+                'measuredatapoint',
+            ),
+            ALL_MODEL_PERMS,
+        ),
     ]
 
     def get_existing_instance_group(self, obj: InstanceConfig) -> Group | None:
@@ -150,27 +167,36 @@ class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']
 class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['InstanceConfig']):
     id = INSTANCE_VIEWER_ROLE
     name = _('Viewer')
-    description = _(
-        'Read-only access to instance data'
-    )
-    group_name = "Viewers"
+    description = _('Read-only access to instance data')
+    group_name = 'Viewers'
     instance_group_field_name = 'viewer_group'
 
     model_perms = [
         ('wagtailadmin', 'admin', ('access',)),
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
-        ('datasets', (
-            'datasetschema',
-            'dataset',
-            'datapoint',
-            'datasource',
-            'datasetsourcereference',
-            'datapointcomment',
-            'datasetmetric',
-        ), ('view',)),
-        ('frameworks', (
-            'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
-        ), ('view',)),
+        (
+            'datasets',
+            (
+                'datasetschema',
+                'dataset',
+                'datapoint',
+                'datasource',
+                'datasetsourcereference',
+                'datapointcomment',
+                'datasetmetric',
+            ),
+            ('view',),
+        ),
+        (
+            'frameworks',
+            (
+                'framework',
+                'frameworkconfig',
+                'measure',
+                'measuredatapoint',
+            ),
+            ('view',),
+        ),
     ]
 
     def get_existing_instance_group(self, obj: InstanceConfig) -> Group | None:
@@ -185,25 +211,36 @@ class InstanceReviewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['In
     id = INSTANCE_REVIEWER_ROLE
     name = _('Reviewer')
     description = _('Ability to write review comments and read-only access to instance data')
-    group_name = "Reviewers"
+    group_name = 'Reviewers'
     instance_group_field_name = 'reviewer_group'
 
     model_perms = [
         ('wagtailadmin', 'admin', ('access',)),
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
         ('datasets', ('datapointcomment'), ('add',)),
-        ('datasets', (
-            'datasetschema',
-            'dataset',
-            'datapoint',
-            'datasource',
-            'datasetsourcereference',
-            'datapointcomment',
-            'datasetmetric',
-        ), ('view',)),
-        ('frameworks', (
-            'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
-        ), ('view',)),
+        (
+            'datasets',
+            (
+                'datasetschema',
+                'dataset',
+                'datapoint',
+                'datasource',
+                'datasetsourcereference',
+                'datapointcomment',
+                'datasetmetric',
+            ),
+            ('view',),
+        ),
+        (
+            'frameworks',
+            (
+                'framework',
+                'frameworkconfig',
+                'measure',
+                'measuredatapoint',
+            ),
+            ('view',),
+        ),
     ]
 
     def get_existing_instance_group(self, obj: InstanceConfig) -> Group | None:

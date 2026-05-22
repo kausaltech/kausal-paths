@@ -1,0 +1,162 @@
+dimensions:
+- id: flight_type
+  label: Flugtyp
+  label_en: Flight type
+  categories:
+  - id: europe
+    label: Europa
+    label_en: Europe
+  - id: intercontinental
+    label: Interkontinental
+    label_en: Intercontinental
+
+- id: flight_effect
+  label: Effekte
+  label_en: Effect
+  categories:
+  - id: co2_effect
+    label: CO2-Effekte
+    label_en: CO2 effect
+  - id: non_co2_effect
+    label: Nicht-CO2-Effekte
+    label_en: Non-CO2 effect
+
+nodes:
+- id: aviation_mileage_per_inhabitant
+  name_de: Aviation mileage per inhabitant
+  name_en: Aviation mileage per inhabitant
+  type: simple.AdditiveNode
+  quantity: passenger_mileage
+  unit: pkm/cap/a
+  input_dimensions: [flight_type]
+  output_dimensions: [flight_type]
+  input_datasets:
+  - id: zuerich/aviation_mileage
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_mileage
+  name_de: Aviation mileage
+  name_en: Aviation mileage
+  type: simple.MultiplicativeNode
+  quantity: passenger_mileage
+  input_dimensions: [flight_type]
+  output_dimensions: [flight_type]
+  unit: pkm/a
+  input_nodes:
+  - id: population
+    tags: [non_additive]
+    to_dimensions: []
+  - id: aviation_mileage_per_inhabitant
+    tags: [non_additive]
+
+- id: aviation_emission_factors
+  name_de: Aviation emission factors
+  name_en: Aviation emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/pkm
+  input_dimensions: [flight_effect, flight_type]
+  output_dimensions: [flight_effect, flight_type]
+  input_datasets:
+  - id: zuerich/aviation_emission_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_emissions
+  name_de: Treibhausgasemissionen Flugzeug
+  name_en: Aviation emissions
+  short_name_de: Flugzeug
+  short_name_en: Aviation
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  input_dimensions: [flight_effect, flight_type, vehicle_type, greenhouse_gases, emission_scope]
+  output_dimensions: [flight_effect, flight_type, vehicle_type, greenhouse_gases, emission_scope]
+  unit: kt/a
+  input_nodes:
+  - id: aviation_mileage
+    tags: [non_additive]
+    to_dimensions:
+    - id: flight_type
+    - id: vehicle_type
+      categories: [aviation]
+  - id: aviation_emission_factors
+    tags: [non_additive]
+    to_dimensions:
+    - id: flight_effect
+    - id: flight_type
+    - id: vehicle_type
+      categories: [aviation]
+    - id: greenhouse_gases
+      categories: [co2_eq]
+    - id: emission_scope
+      categories: [scope3]
+  output_nodes:
+  - id: transportation_emissions_outside_city
+    from_dimensions:
+    - id: flight_effect
+      flatten: true
+    - id: flight_type
+      flatten: true
+
+- id: aviation_end_energy_factors
+  name_de: Aviation end energy factors
+  name_en: Aviation end energy factors
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: MJ/pkm
+  input_dimensions: [flight_type]
+  output_dimensions: [flight_type]
+  input_datasets:
+  - id: zuerich/aviation_end_energy_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_primary_energy_factors
+  name_de: Aviation primary energy factors
+  name_en: Aviation primary energy factors
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: MJ/pkm
+  input_dimensions: [flight_type]
+  output_dimensions: [flight_type]
+  input_datasets:
+  - id: zuerich/aviation_primary_energy_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_end_energy_consumption
+  name_de: Aviation end energy consumption
+  name_en: Aviation end energy consumption
+  short_name_de: Flugverkehr
+  short_name_en: Aviation
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [flight_type]
+  output_dimensions: [flight_type]
+  unit: GWh/a
+  input_nodes:
+  - id: aviation_mileage
+  - id: aviation_end_energy_factors
+
+- id: aviation_primary_energy_consumption
+  name_de: Aviation primary energy consumption
+  name_en: Aviation primary energy consumption
+  short_name_de: Flugverkehr
+  short_name_en: Aviation
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [flight_type]
+  output_dimensions: [flight_type]
+  unit: GWh/a
+  input_nodes:
+  - id: aviation_mileage
+  - id: aviation_primary_energy_factors
+  output_nodes:
+  - id: transport_primary_energy_demand
+    from_dimensions:
+    - id: flight_type
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+      categories: [aviation]
+    - id: renewable_energy
+      categories: [nonrenewable]
+    - id: energy_carrier
+      categories: [kerosene]

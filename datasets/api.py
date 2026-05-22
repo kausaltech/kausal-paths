@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, override
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import ObjectDoesNotExist
 from rest_framework import exceptions, serializers
-from rest_framework.routers import DefaultRouter, SimpleRouter
+from rest_framework.routers import DefaultRouter
 
 from rest_framework_nested.routers import NestedSimpleRouter
 
@@ -36,6 +36,7 @@ from kausal_common.datasets.models import (
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
+    from rest_framework.routers import SimpleRouter
     from rest_framework.views import APIView
 
 
@@ -108,6 +109,7 @@ class DataPointPermission(NestedResourcePermissionPolicyDRFPermission[DataPoint,
     def get_create_context_from_api_view(self, view: APIView) -> Dataset:
         return Dataset.objects.get(uuid=view.kwargs['dataset_uuid'])
 
+
 class DataPointViewSet(BaseDataPointViewSet):
     @override
     def get_permissions(self):
@@ -120,7 +122,7 @@ class DatasetMetricPermission(NestedResourcePermissionPolicyDRFPermission[Datase
         view_kwargs_parent_key = 'datasetschema_uuid'
         nested_parent_model = DatasetSchema
         nested_parent_key_field = 'uuid'
-        allowed_actions = { 'view' }
+        allowed_actions = {'view'}
 
     def get_create_context_from_api_view(self, view: APIView) -> None:
         return None
@@ -188,7 +190,7 @@ class DatasetCommentPermission(NestedResourcePermissionPolicyDRFPermission[DataP
 class DatasetCommentsViewSet(BaseDatasetCommentsViewSet):
     @override
     def get_permissions(self):
-        return[DatasetCommentPermission()]
+        return [DatasetCommentPermission()]
 
 
 class DataSourcePermission(PermissionPolicyDRFPermission[DataSource, InstanceConfig]):
@@ -201,11 +203,8 @@ class DataSourcePermission(PermissionPolicyDRFPermission[DataSource, InstanceCon
         object_id = view.request.data.get('object_id', None)
 
         try:
-            content_type = ContentType.objects.get(
-                app_label=content_type_app,
-                model=content_type_model
-            )
-        except ContentType.DoesNotExist as e :
+            content_type = ContentType.objects.get(app_label=content_type_app, model=content_type_model)
+        except ContentType.DoesNotExist as e:
             raise serializers.ValidationError('Scope object not found') from e
         model = content_type.model_class()
         assert isinstance(model, type(InstanceConfig))
@@ -252,7 +251,7 @@ datapoint_router = NestedSimpleRouter(dataset_router, r'data_points', lookup='da
 datapoint_router.register(r'comments', DataPointCommentViewSet, basename='datapointcomment')
 datapoint_router.register(r'sources', DataPointSourceReferenceViewSet, basename='datapointsource')
 
-nested_routers: list[SimpleRouter]  = []
+nested_routers: list[SimpleRouter] = []
 nested_routers.append(dataset_router)
 nested_routers.append(dimension_router)
 nested_routers.append(datasetschema_router)

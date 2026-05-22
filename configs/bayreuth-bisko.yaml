@@ -4,16 +4,16 @@ supported_languages: [en]
 site_url: https://bayreuth-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 614342be8a596caca5b5d7025443550d3be1615d
+  commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
   dvc_remote: kausal-s3
-name_de: Bayreuth Klima-Monitor-BISKO
-name_en: Bayreuth Climate Monitor BISKO
+name_de: Bayreuth Klimadashboard
+name_en: Bayreuth Climate Dashboard
 owner: Bayreuth Stadt
 theme_identifier: de-bayreuth
-target_year: 2035
+target_year: 2040
 model_end_year: 2050
 reference_year: 1990
-minimum_historical_year: 1990
+minimum_historical_year: 1995
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
@@ -24,7 +24,7 @@ features:
 
 include:
 - file: modules/bisko/model.yaml
-  allow_override: false
+  allow_override: true
   dataset_replacements:
   - from: bisko/final_energy
     to: bayreuth/final_energy
@@ -53,7 +53,7 @@ params:
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
-  value: '9462000' # Leading zero has dropped from the dataset.
+  value: '09462000'
   is_customizable: false
   is_visible: false
 - id: use_national_values
@@ -79,7 +79,12 @@ params:
   value: true
   is_visible: true
   is_customizable: true
-
+- id: scenario_name
+  label_en: Scenario
+  label_de: Szenario
+  value: default
+  is_customizable: false
+  is_visible: false
 
 #//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
 result_excels:
@@ -101,6 +106,287 @@ result_excels:
   - vehicle_kilometers_ifeu
   - other_transport_energy
 
+
+
+#//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+nodes:
+
+- id: net_emissions
+  name_de: Netto-Emissionen
+  name_en: Net emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  is_outcome: true
+  goals: # Node copied here to make goals possible.
+  - label_de: Ursprünglicher Zielpfad 2022
+    label_en: Original path 2
+    default: true
+    linear_interpolation: true
+    values:
+    - year: 2019
+      value: 696.41147
+    - year: 2021
+      value: 664.732782
+    - year: 2040
+      value: 0
+
+- id: sector_index   # Translates BISKO categories to Wärme/Strom/Verkehr sectors. TRUE for any allowed combi of sector and energy carrier
+  name_de: Sektor Index
+  name_en: Sector index
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: bisko/sector_index
+    forecast_from: 2025
+    tags: [extend_all]
+
+- id: final_energy_use
+  name_de: Endenergie
+  name_en: Final energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: bisko/final_energy
+    tags: [non_additive]
+    column: Value
+    filters:
+    - column: energy_carrier
+      value: not_defined
+      exclude: true
+      drop_col: false
+    - dimension: sector
+      flatten: true
+  input_nodes:
+  - id: sector_index
+  - id: weather_correction
+
+- id: sinks
+  name_de: Senken
+  name_en: Sinks
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: bayreuth/sinks
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+      categories: [not_defined]
+
+- id: heating_emissions
+  name_de: Wärme Emissionen
+  name_en: Heating Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  color: '#9C2B54'
+  input_dimensions: [energy_carrier, sector]  # switched around dimensions, because in Outcome page it shows the first listed dimension when "drilling down" 
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: stationary_emissions
+    tags: [emissions]
+    from_dimensions:
+    - id: sector
+      categories: [heating]
+  output_nodes:
+  - id: net_emissions
+  params:
+    formula: sum_into_cat(emissions, energy_carrier, [district_heating,
+      local_heating], district_and_local_heating)
+  goals:
+  - label_de: Ursprünglicher Zielpfad 2022
+    label_en: Original path 2
+    default: true
+    linear_interpolation: true
+    values:
+    - year: 2019
+      value: 327.3133909
+    - year: 2021
+      value: 329.3667852
+    - year: 2030
+      value: 198.8110272
+    - year: 2040
+      value: 0
+
+- id: electricity_emissions
+  name_de: Strom Emissionen
+  name_en: Electricity Emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  color: '#2B729C'
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [electricity]
+  output_nodes:
+  - id: net_emissions
+  goals:
+  - label_de: Ursprünglicher Zielpfad 2022
+    label_en: Original path 2
+    default: true
+    linear_interpolation: true
+    values:
+    - year: 2019
+      value: 215.8875557
+    - year: 2021
+      value: 186.7211469
+    - year: 2030
+      value: 59.47332172
+    - year: 2039
+      value: 0
+
+- id: transport_emissions
+  name_en: Transport emissions
+  name_de: Transportemissionen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transport_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
+  goals: # Node copied here to make goals possible.
+  - label_de: Ursprünglicher Zielpfad 2022
+    label_en: Original path 2
+    default: true
+    linear_interpolation: true
+    values:
+    - year: 2019
+      value: 153.2105234
+    - year: 2021
+      value: 148.6448498
+    - year: 2030
+      value: 91.57501005
+    - year: 2038
+      value: 0
+
+- id: private_household_emissions
+  name_de: Private Haushalte Emissionen
+  name_en: Private household emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#009ebe'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
+
+- id: municipal_facilities_emissions
+  name_de: Kommunale Einrichtungen Emissionen
+  name_en: Municipal facilities emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#009ebe'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
+
+- id: industry_emissions
+  name_de: Industrie Emissionen
+  name_en: Industry emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#009ebe'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
+
+- id: commerce_trade_services_emissions
+  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_en: Commerce, trade, services emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#009ebe'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
+
+#//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+action_groups:
+
+- id: combined_heat_and_power
+  name_en: Combined heat and power
+  name_de: Kombination aus Wärme und Strom
+  color: '#007C78'
+
+actions:
+
+- id: historical_actions
+  name_en: Historical actions
+  name_de: Historische Aktionen
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: bayreuth/historical_actions
+    column: default
+    forecast_from: 2025
+
+- id: emission_reduction_action
+  name_en: Emission reduction action
+  name_de: Emissionreduktionsmaßnahme
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: bayreuth/emission_reduction_action
+    forecast_from: 2024
+    column: fraction
+    filters:
+    - column: scenario
+      ref: scenario_name
+  output_nodes:
+  - id: stationary_emissions
+    tags: [complement, bring_to_maximum_historical_year]
+  - id: transport_emissions
+    tags: [complement, bring_to_maximum_historical_year]
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+      flatten: true
+    to_dimensions: []
+
+#//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 pages:
 - id: home
   name_de: Bayreuth Treibhausgasbilanz
@@ -109,16 +395,31 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Treibhausgasbilanz und -prognosen
-  lead_paragraph: Historische Treibhausgasemissionen der Stadt Bayreuth und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+  lead_paragraph: Historische Treibhausgasemissionen der Stadt Bayreuth und 
+    Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen 
+    erfolgreich umgesetzt".
+
+
+#//////  Scenarios  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 scenarios:
 
 - id: baseline
   name_de: Business as Usual
   name_en: Business as Usual
+  params:
+  - id: scenario_name
+    value: baseline
+  - id: emission_reduction_action.enabled
+    value: true
 
 - id: default
   default: true
   all_actions_enabled: true
   name_de: Integriertes Klimaschutzkonzept
   name_en: Integrated Climate Protection Concept
+  params:
+  - id: scenario_name
+    value: default
+
+

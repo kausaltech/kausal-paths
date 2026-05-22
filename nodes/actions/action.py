@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import typing
+from dataclasses import dataclass
 
 # from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Callable, ClassVar, cast
+from typing import ClassVar, cast
 
 import pandas as pd
 import pint
 import polars as pl
 
+from kausal_common.i18n.pydantic import gettext_lazy as _
+
 from common import polars as ppl
-from common.i18n import TranslatedString, gettext_lazy as _
 from nodes.constants import (
     FORECAST_COLUMN,
     IMPACT_COLUMN,
@@ -24,15 +25,20 @@ from nodes.constants import (
     YEAR_COLUMN,
     DecisionLevel,
 )
-from nodes.node import Node, NodeError
-from nodes.units import Quantity, Unit, unit_registry
+from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
+from nodes.exceptions import NodeError
+from nodes.metric import DimensionalMetric
+from nodes.node import Node
+from nodes.units import Quantity, unit_registry
 from params import BoolParameter, NumberParameter
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Sequence
+    from collections.abc import Callable, Iterable, Iterator, Sequence
 
     from nodes.context import Context
-    from params.param import Parameter
+    from nodes.defs.instance_defs import ActionGroup
+    from nodes.units import Unit
+    from params import Parameter
 
     from .parent import ParentActionNode
 
@@ -40,22 +46,14 @@ if typing.TYPE_CHECKING:
 ENABLED_PARAM_ID = 'enabled'
 
 
-@dataclass
-class ActionGroup:
-    id: str
-    name: TranslatedString | str
-    color: str | None
-
-
 class EnabledParam(BoolParameter):
     def set_node(self, node: Node):
-        if self.context is not None:
-            # If the Instance defines a custom label for the 'enabled' parameter,
-            # replace the default with it.
-            instance = self.context.instance
-            if instance.terms.enabled_label:
-                self.label = instance.terms.enabled_label
-        return super().set_node(node)
+        super().set_node(node)
+        assert self._context is not None
+        # If the Instance defines a custom label for the 'enabled' parameter,
+        # replace the default with it.
+        if self.instance.terms.enabled_label:
+            self.label = self.instance.terms.enabled_label
 
 
 ENABLED_PARAM = EnabledParam(
@@ -79,8 +77,8 @@ class ActionNode(Node):
     enabled_param: BoolParameter
     allowed_parameters: ClassVar[Sequence[Parameter]] = [
         ENABLED_PARAM,
-        NumberParameter(local_id='multiplier', label='Multiplies the output', is_customizable=True),
-        BoolParameter(local_id='allow_null_categories', description='Allow null dimension categories', is_customizable=False),
+        NumberParameter(local_id='multiplier', label=_('Multiplies the output'), is_customizable=True),
+        BoolParameter(local_id='allow_null_categories', description=_('Allow null dimension categories'), is_customizable=False),
     ]
 
     def __init_subclass__(cls) -> None:
@@ -109,10 +107,11 @@ class ActionNode(Node):
             else:
                 raise NodeError(self, "'enabled' is missing from allowed parameters")
             param = param.copy()
-            param.context = self.context
+            assert param.context is None
+            assert param.node is None
             self.add_parameter(param)
         assert isinstance(param, BoolParameter)
-        assert param.node == self
+        assert param._node == self
         if param.value is None:
             param.set(False, notify=False)
         self.enabled_param = param
@@ -150,10 +149,14 @@ class ActionNode(Node):
             df = ppl.from_pandas(df)
         return df
 
-    def compute_impact(self, target_node: Node) -> ppl.PathsDataFrame:
-        from_baseline: bool | None = cast(
-            'bool', self.get_global_parameter_value('action_impact_from_baseline', required=False) or False,
-        )
+    def compute_impact(self, target_node: Node, force_from_baseline: bool | None = None) -> ppl.PathsDataFrame:  # noqa: PLR0915
+        if force_from_baseline is not None:
+            from_baseline = force_from_baseline
+        else:
+            from_baseline = cast(
+                'bool',
+                self.get_global_parameter_value('action_impact_from_baseline', required=False) or False,
+            )
 
         was_enabled = self.is_enabled()
         if from_baseline:
@@ -244,95 +247,90 @@ class ActionNode(Node):
 
     def _get_value_of_information(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if UNCERTAINTY_COLUMN not in df.columns:
-            return ppl.PathsDataFrame() # FIXME Return zero dataframe
-        meta = df.get_meta() # TODO Function not tested yet
+            return ppl.PathsDataFrame()  # FIXME Return zero dataframe
+        meta = df.get_meta()  # TODO Function not tested yet
         df = df.filter(pl.col(UNCERTAINTY_COLUMN).ne('median'))
         last_forecast_year = df.filter(pl.col(FORECAST_COLUMN)).select(YEAR_COLUMN).max()
         col = 'Effect'
         dfp = df.group_by(pl.col(UNCERTAINTY_COLUMN)).agg(pl.sum(col))
 
-        dfp = dfp.with_columns([
-            pl.when(pl.col(col) > 0.0).then(pl.col(col))
-            .otherwise(pl.lit(0.0)).alias('under_knowledge')
-        ])
+        dfp = dfp.with_columns([pl.when(pl.col(col) > 0.0).then(pl.col(col)).otherwise(pl.lit(0.0)).alias('under_knowledge')])
 
         dfp = dfp.select(pl.all().mean())
         dfp = pl.concat([dfp, last_forecast_year], how='horizontal')
         dfp = dfp.with_columns([
             (pl.col('under_knowledge') - pl.col(col)).alias(col),
             pl.lit(value=True).alias(FORECAST_COLUMN),
-            pl.lit('expectation').alias(UNCERTAINTY_COLUMN)
+            pl.lit('expectation').alias(UNCERTAINTY_COLUMN),
         ])
-        dfp = dfp.select([YEAR_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Cost', 'Effect']) # TODO Do we need this?
+        dfp = dfp.select([YEAR_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Cost', 'Effect'])  # TODO Do we need this?
         df = ppl.to_ppdf(df=dfp, meta=meta)
 
         return df
 
     def _get_cost_benefit(self, df: ppl.PathsDataFrame, io: ImpactOverview) -> ppl.PathsDataFrame:
-            od = io.outcome_dimension
-            sd = io.stakeholder_dimension
-            if od is not None:
-                assert od in df.dim_ids
-            if sd is not None:
-                assert sd in df.dim_ids
-            return df
+        od = io.spec.outcome_dimension_id
+        sd = io.spec.stakeholder_dimension_id
+        if od is not None and od not in df.dim_ids:
+            raise ValueError(f'Outcome dimension {od} not found in dataframe dimensions: {df.dim_ids}')
+        if sd is not None and sd not in df.dim_ids:
+            raise ValueError(f'Stakeholder dimension {sd} not found in dataframe dimensions: {df.dim_ids}')
+        return df
 
-    def compute_node_impact(self, node: Node, colname: str | None,
-                            keepcols: list[str | None]) -> ppl.PathsDataFrame:
+    def compute_node_impact(self, node: Node, colname: str | None, keepcols: list[str | None]) -> ppl.PathsDataFrame:
         df = self.compute_impact(node)
         m = node.get_default_output_metric()
-        df = (
-            df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
-        )
+        df = df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
         df = df.select([*df.primary_keys, FORECAST_COLUMN, pl.col(m.column_id)])
         if colname is not None:
             df = df.rename({m.column_id: colname})
         if keepcols is not None:
             dropcols = [col for col in df.dim_ids if col not in keepcols]
-            df = df.paths.sum_over_dims(dropcols) # FIXME Dims used later but they are summed over.
+            df = df.paths.sum_over_dims(dropcols)  # FIXME Dims used later but they are summed over.
 
         return df
 
     def compute_indicator(self, io: ImpactOverview) -> ppl.PathsDataFrame:
 
-        dims = [io.outcome_dimension, io.stakeholder_dimension]
+        dims = [io.spec.outcome_dimension_id, io.spec.stakeholder_dimension_id]
 
         effect_df = self.compute_node_impact(io.effect_node, 'Effect', dims)
 
-        if io.graph_type == 'value_of_information':
+        if io.spec.graph_type == 'value_of_information':
             effect_df = self._get_value_of_information(effect_df)
 
-        no_cost_io = ['cost_benefit', 'simple_effect']
-        if io.graph_type in no_cost_io:
+        no_cost_io = ['cost_benefit', 'simple_effect', 'stacked_raw_impact']
+        if io.spec.graph_type in no_cost_io:
             df = self._get_cost_benefit(effect_df, io)
         else:
             assert io.cost_node is not None
             cost_df = self.compute_node_impact(io.cost_node, 'Cost', dims)
             df = cost_df.paths.join_over_index(effect_df, how='outer', index_from='union')
+            df = df.with_columns([pl.col('Cost').fill_null(0.0), pl.col('Effect').fill_null(0.0)])
             df = df.with_columns([
-                pl.col('Cost').fill_null(0.0),
-                pl.col('Effect').fill_null(0.0)
-            ])
-            df = df.with_columns([
-                (pl.when(pl.col('Effect').abs() < pl.lit(1e-9)) # TODO Do we still need this?
-                .then(pl.lit(0.0))
-                .otherwise(pl.col('Effect'))).alias('Effect')
+                (
+                    pl
+                    .when(pl.col('Effect').abs() < pl.lit(1e-9))  # TODO Do we still need this?
+                    .then(pl.lit(0.0))
+                    .otherwise(pl.col('Effect'))
+                ).alias('Effect')
             ])
 
-            if io.invert_cost:
+            if io.spec.invert_cost:
                 df = df.with_columns((pl.col('Cost') * pl.lit(-1.0)).alias('Cost'))
 
-        if io.invert_effect:
+        if io.spec.invert_effect:
             df = df.with_columns((pl.col('Effect') * pl.lit(-1.0)).alias('Effect'))
 
-        if io.graph_type in [ # Flip sign for benefit
+        if io.spec.graph_type in [  # Flip sign for benefit
             'cost_efficiency',
             'return_on_investment',
             'return_on_investment_gross',
-            'benefit_cost_ratio']:
+            'benefit_cost_ratio',
+        ]:
             df = df.with_columns((pl.col('Effect') * pl.lit(-1.0)).alias('Effect'))
 
-        if io.graph_type == 'return_on_investment_gross':
+        if io.spec.graph_type == 'return_on_investment_gross':
             df = df.with_columns((pl.col('Effect') - pl.col('Cost')).alias('Effect'))
 
         return df
@@ -345,147 +343,51 @@ class ActionImpact(typing.NamedTuple):
 
 
 @dataclass
+class WedgeEntry:
+    id: str
+    label: str
+    is_scenario: bool
+    metric: DimensionalMetric
+
+
+TIMELINE_GRAPH_TYPES: frozenset[ImpactGraphType] = frozenset({
+    ImpactGraphType.WEDGE_DIAGRAM,
+    ImpactGraphType.STACKED_RAW_IMPACT,
+})
+
+
 class ImpactOverview:
-    graph_type: str
+    spec: ImpactOverviewSpec
     effect_node: Node
-    indicator_unit: Unit
-    cost_node: Node | None = None
-    cost_unit: Unit | None = None
-    effect_unit: Unit | None = None
-    plot_limit_for_indicator: float | None = None
-    invert_cost: bool = False
-    invert_effect: bool = False
-    indicator_cutpoint: float | None = None
-    cost_cutpoint: float | None = None
-    stakeholder_dimension: str | None = None
-    outcome_dimension: str | None = None
-    label: TranslatedString | str | None = None
-    cost_category_label: TranslatedString | str | None = None
-    effect_category_label: TranslatedString | str | None = None
-    cost_label: TranslatedString | str | None = None
-    effect_label: TranslatedString | str | None = None
-    indicator_label: TranslatedString | str | None = None
-    description: TranslatedString | str | None = None
+    cost_node: Node | None
 
-    @classmethod
-    def from_config(  # noqa: PLR0913
-        cls,
-        context: Context,
-        graph_type: str,
-        effect_node_id: str,
-        invert_cost: bool,
-        invert_effect: bool,
-        cost_node_id: str | None,
-        effect_unit: str | None,
-        cost_unit: str | None,
-        indicator_unit: str,
-        plot_limit_for_indicator: float | None,
-        indicator_cutpoint: float | None,
-        cost_cutpoint: float | None,
-        stakeholder_dimension: str | None,
-        outcome_dimension: str | None,
-        label: TranslatedString | str | None,
-        cost_category_label: TranslatedString | str | None,
-        effect_category_label: TranslatedString | str | None,
-        cost_label: TranslatedString | str | None,
-        effect_label: TranslatedString | str | None,
-        indicator_label: TranslatedString | str | None,
-        description: TranslatedString | str | None,
-    ) -> ImpactOverview:
-        if cost_node_id is not None:
-            cost_node = context.get_node(cost_node_id)
-        else:
-            cost_node = None
-        effect_node = context.get_node(effect_node_id)
-        indicator_unit_obj = context.unit_registry.parse_units(indicator_unit)
-        if cost_unit is not None:
-            cost_unit_obj = context.unit_registry.parse_units(cost_unit)
-        else:
-            cost_unit_obj = None
-        if effect_unit is not None:
-            effect_unit_obj = context.unit_registry.parse_units(effect_unit)
-        else:
-            effect_unit_obj = None
-        aep = ImpactOverview(
-            graph_type=graph_type,
-            cost_node=cost_node,
-            effect_node=effect_node,
-            cost_unit=cost_unit_obj,
-            effect_unit=effect_unit_obj,
-            indicator_unit=indicator_unit_obj,
-            plot_limit_for_indicator=plot_limit_for_indicator,
-            invert_cost=invert_cost,
-            invert_effect=invert_effect,
-            indicator_cutpoint=indicator_cutpoint,
-            cost_cutpoint=cost_cutpoint,
-            stakeholder_dimension=stakeholder_dimension,
-            outcome_dimension=outcome_dimension,
-            label=label,
-            cost_category_label=cost_category_label,
-            effect_category_label=effect_category_label,
-            cost_label=cost_label,
-            effect_label=effect_label,
-            indicator_label=indicator_label,
-            description=description,
-        )
-        aep.validate()
-        return aep
+    def __init__(self, spec: ImpactOverviewSpec, context: Context):
+        self.spec = spec
+        self.effect_node = context.get_node(spec.effect_node_id)
+        self.cost_node = context.get_node(spec.cost_node_id) if spec.cost_node_id is not None else None
 
-    def validate(self):
+        effect_node = self.effect_node
+        cost_node = self.cost_node
 
-        if self.effect_node.quantity not in STACKABLE_QUANTITIES:
-            raise Exception(f"Effect node {self.effect_node.id} quantity {self.effect_node.quantity} is not stackable.")
-        if self.cost_node is not None and self.cost_node.quantity not in STACKABLE_QUANTITIES:
-                raise Exception(f"Cost node {self.cost_node.id} quantity {self.cost_node.quantity} is not stackable.")
+        if effect_node.quantity not in STACKABLE_QUANTITIES:
+            raise Exception(f'Effect node {effect_node.id} quantity {effect_node.quantity} is not stackable.')
+        if cost_node is not None and cost_node.quantity not in STACKABLE_QUANTITIES:
+            raise Exception(f'Cost node {cost_node.id} quantity {cost_node.quantity} is not stackable.')
 
-        rf = ['effect_node', 'cost_node', 'indicator_unit']
-        ff = ['outcome_dimension', 'stakeholder_dimension', 'cost_unit', 'effect_unit']
-        field_lists = {
-            'cost_benefit':
-                {'required': ['effect_node', 'indicator_unit'],
-                 'forbidden': ['cost_node', 'cost_unit', 'effect_unit']},
-            'cost_efficiency':
-                {'required': rf,
-                 'forbidden': ['outcome_dimension', 'stakeholder_dimension']},
-            'return_on_investment':
-                {'required': rf,
-                 'forbidden': ff},
-            'return_on_investment_gross':
-                {'required': rf,
-                 'forbidden': ff},
-            'benefit_cost_ratio':
-                {'required': rf,
-                 'forbidden': ff},
-            'value_of_information':
-                {'required': ['effect_node', 'indicator_unit'],
-                 'forbidden': [*ff, 'cost_node']},
-            'simple_effect':
-                {'required': ['effect_node', 'indicator_unit'],
-                 'forbidden': [*ff, 'cost_node']},
-        }
-        required_fields = field_lists[self.graph_type]['required']
-        forbidden_fields = field_lists[self.graph_type]['forbidden']
-
-        for field_name, field_value in self.__dict__.items():
-            if field_value is not None and field_name in forbidden_fields:
-                print(f"Field '{field_name}' must not be used for graph type '{self.graph_type}'") # TODO raise ValueError
-
-            if field_value is None and field_name in required_fields:
-                print(f"Field '{field_name}' must be given for graph type '{self.graph_type}'") # TODO raise ValueError
-
-    def _adjust_graph_units(self, df: ppl.PathsDataFrame,
-                            is_same_unit: bool) -> ppl.PathsDataFrame:
-
+    def _adjust_graph_units(self, df: ppl.PathsDataFrame, is_same_unit: bool) -> ppl.PathsDataFrame:
+        is_timeline = self.spec.graph_type in TIMELINE_GRAPH_TYPES
         has_cost = 'Cost' in df.columns
-        if has_cost:
-            df = df.set_unit('Cost', df.get_unit('Cost') * unit_registry.a, force=True)
-        df = df.set_unit('Effect', df.get_unit('Effect') * unit_registry.a, force=True)
+        if not is_timeline:
+            if has_cost:
+                df = df.set_unit('Cost', df.get_unit('Cost') * unit_registry.a, force=True)
+            df = df.set_unit('Effect', df.get_unit('Effect') * unit_registry.a, force=True)
+        cost_unit: Unit | None = None
         if is_same_unit:
-            cost_unit = effect_unit = self.indicator_unit
+            cost_unit = effect_unit = self.spec.indicator_unit
         else:
             if has_cost:
-                cost_unit = self.cost_unit or df.get_unit('Cost')
-            effect_unit = self.effect_unit or df.get_unit('Effect')
+                cost_unit = self.spec.cost_unit or df.get_unit('Cost')
+            effect_unit = self.spec.effect_unit or df.get_unit('Effect')
 
         if has_cost:
             df = df.ensure_unit('Cost', cost_unit)
@@ -496,26 +398,22 @@ class ImpactOverview:
     def _get_unit_adjustment_function(self) -> tuple[Callable[[ppl.PathsDataFrame], float], bool]:
 
         def _cea(df: ppl.PathsDataFrame) -> float:
-            uam = 1 * df.get_unit('Cost') / df.get_unit('Effect') / self.indicator_unit
+            uam = 1 * df.get_unit('Cost') / df.get_unit('Effect') / self.spec.indicator_unit
             assert isinstance(uam, Quantity)
             try:
                 return uam.to('dimensionless').m
             except pint.DimensionalityError as e:
-                raise Exception(
-                    f"Indicator unit {self.indicator_unit} is not compatible with Cost / Effect."
-                ) from e
+                raise Exception(f'Indicator unit {self.spec.indicator_unit} is not compatible with Cost / Effect.') from e
 
         def _roi(df: ppl.PathsDataFrame) -> float:
-            uam = 1 * df.get_unit('Effect') / df.get_unit('Cost') / self.indicator_unit
+            uam = 1 * df.get_unit('Effect') / df.get_unit('Cost') / self.spec.indicator_unit
             assert isinstance(uam, Quantity)
             try:
                 return uam.to('dimensionless').m
             except pint.DimensionalityError as e:
-                raise Exception(
-                    f"Indicator unit {self.indicator_unit} is not compatible with Effect / Cost."
-                ) from e
+                raise Exception(f'Indicator unit {self.spec.indicator_unit} is not compatible with Effect / Cost.') from e
 
-        def _unity(df: ppl.PathsDataFrame) -> float:
+        def _unity(_df: ppl.PathsDataFrame) -> float:
             return 1.0
 
         unit_adjustments = {
@@ -526,16 +424,18 @@ class ImpactOverview:
             'benefit_cost_ratio': {'is_same_unit': False, 'fn': _roi},
             'value_of_information': {'is_same_unit': True, 'fn': _unity},
             'simple_effect': {'is_same_unit': True, 'fn': _unity},
+            'stacked_raw_impact': {'is_same_unit': True, 'fn': _unity},
         }
 
-        is_same_unit = unit_adjustments[self.graph_type]['is_same_unit']
+        is_same_unit = unit_adjustments[self.spec.graph_type]['is_same_unit']
         assert isinstance(is_same_unit, bool)
-        unit_adjustment_function = cast('Callable[[ppl.PathsDataFrame], float]',
-                              unit_adjustments[self.graph_type]['fn'])
+        unit_adjustment_function = cast('Callable[[ppl.PathsDataFrame], float]', unit_adjustments[self.spec.graph_type]['fn'])
 
         return unit_adjustment_function, is_same_unit
 
     def calculate_iter(self, context: Context, actions: Iterable[ActionNode] | None = None) -> Iterator[ActionImpact]:
+        if self.spec.graph_type == ImpactGraphType.WEDGE_DIAGRAM:
+            return
 
         if actions is None:
             actions = list(context.get_actions())
@@ -545,7 +445,7 @@ class ImpactOverview:
         for action in actions:
             if not action.is_connected_to(self.effect_node):
                 continue
-            if not action.is_enabled(): # Inactive actions would give false zeros
+            if not action.is_enabled():  # Inactive actions would give false zeros
                 continue
 
             df = action.compute_indicator(self)
@@ -567,17 +467,135 @@ class ImpactOverview:
         out = list(self.calculate_iter(context, actions))
         return out
 
-"""
-A discussion started with Claude.
+    def compute_wedge(self, context: Context) -> list[WedgeEntry]:  # noqa: C901
+        import logging
 
-I have class ImpactOverView, which produces graphs from data. Depending on the graph_type,
-different attributes are needed. For example, benefit_cost type needs effect_node but not
-effect_unit, while cost_efficiency needs both. So far,
-I have defined the attributes in a static yaml file and tested for compliance in code.
-However, I want to develop a user interface for administrators based on Wagtail. There
-the admin user could create a new ImpactOverview, and, after selecting the graph_type,
-would only be asked about the attributes that are relevant. What is a good way to
-implement this?
+        import polars as pl
 
-Claude recommended Wagtail StreamFields with different block types for different graph_types.
-"""
+        log = logging.getLogger(__name__)
+        effect_node = self.effect_node
+
+        if effect_node.quantity not in STACKABLE_QUANTITIES:
+            log.warning(
+                'Wedge diagram: effect node %s quantity %s is not stackable; yet all dimensions will be summed',
+                effect_node.id,
+                effect_node.quantity,
+            )
+
+        m = effect_node.get_default_output_metric()
+        val_col = m.column_id
+        indicator_unit = self.spec.indicator_unit
+
+        def normalize(df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+            """Sum over all dimensions, convert to indicator_unit (rate, no time multiplication)."""
+            if df.dim_ids:
+                df = df.paths.sum_over_dims()
+            return df.ensure_unit(val_col, indicator_unit)
+
+        def to_series(df: ppl.PathsDataFrame) -> dict[int, float]:
+            return {int(row[YEAR_COLUMN]): float(row[val_col]) for row in df.sort(YEAR_COLUMN).to_dicts()}
+
+        def make_metric(
+            series: dict[int, float], years: list[int], entry_id: str, name: str, *, stackable: bool, forecast_from: int | None
+        ) -> DimensionalMetric:
+            return DimensionalMetric(
+                id=entry_id,
+                name=name,
+                dimensions=[],
+                values=[series.get(y, 0.0) for y in years],
+                years=years,
+                forecast_from=forecast_from,
+                stackable=stackable,
+                goals=[],
+                normalized_by=None,
+                unit=indicator_unit,
+            )
+
+        def get_forecast_from(df: ppl.PathsDataFrame) -> int | None:
+            fc = df.filter(pl.col(FORECAST_COLUMN))
+            return int(fc[YEAR_COLUMN].min()) if len(fc) else None  # type: ignore[arg-type]
+
+        # Current scenario output (x₀)
+        current_df = normalize(effect_node.get_output_pl())
+        forecast_from = get_forecast_from(current_df)
+        current_series = to_series(current_df)
+        years = sorted(current_series.keys())
+
+        # Collect enabled actions connected to effect_node
+        enabled_actions = [
+            action for action in context.get_actions() if action.is_connected_to(effect_node) and action.is_enabled()
+        ]
+
+        action_raw: list[tuple[ActionNode, dict[int, float]]] = []
+        baseline_series: dict[int, float] | None = None
+
+        for action in enabled_actions:
+            impact_df = action.compute_impact(effect_node, force_from_baseline=True)
+
+            # Baseline (x): identical for all actions when force_from_baseline=True
+            if baseline_series is None:
+                bdf = normalize(impact_df.filter(pl.col(IMPACT_COLUMN).eq(WITHOUT_ACTION_GROUP)).drop(IMPACT_COLUMN))
+                baseline_series = to_series(bdf)
+
+            idf = normalize(impact_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN))
+            action_raw.append((action, to_series(idf)))
+
+        def get_multiplier(year: int) -> float:
+            # m = (x - x0) / sum(raw_i), so that x0 + sum(raw_i * m) = x
+            x0 = current_series.get(year, 0.0)
+            x = baseline_series.get(year, 0.0) if baseline_series else x0
+            sum_raw = sum(raw.get(year, 0.0) for _, raw in action_raw)
+            if abs(sum_raw) < 1e-10:
+                return 0.0
+            return (x - x0) / sum_raw
+
+        result: list[WedgeEntry] = []
+
+        result.append(
+            WedgeEntry(
+                id='current_scenario',
+                label='Current scenario',
+                is_scenario=True,
+                metric=make_metric(
+                    current_series,
+                    years,
+                    'current_scenario',
+                    'Current scenario',
+                    stackable=False,
+                    forecast_from=forecast_from,
+                ),
+            )
+        )
+
+        if baseline_series is not None:
+            result.append(
+                WedgeEntry(
+                    id='baseline_scenario',
+                    label='Baseline scenario',
+                    is_scenario=True,
+                    metric=make_metric(
+                        baseline_series,
+                        years,
+                        'baseline_scenario',
+                        'Baseline scenario',
+                        stackable=False,
+                        forecast_from=forecast_from,
+                    ),
+                )
+            )
+
+        for action, raw_series in action_raw:
+            adjusted = {y: raw_series.get(y, 0.0) * get_multiplier(y) for y in years}
+            result.append(
+                WedgeEntry(
+                    id=action.id,
+                    label=str(action.name),
+                    is_scenario=False,
+                    metric=make_metric(adjusted, years, action.id, str(action.name), stackable=True, forecast_from=forecast_from),
+                )
+            )
+
+        return result
+
+
+ImpactOverviewSpec.model_rebuild()

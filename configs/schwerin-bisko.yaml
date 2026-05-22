@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://schwerin-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 614342be8a596caca5b5d7025443550d3be1615d
+  commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
   dvc_remote: kausal-s3
 name_de: Schwerin Klima-Monitor-BISKO
 name_en: Schwerin Climate Monitor BISKO
@@ -12,8 +12,8 @@ owner: Schwerin Stadt
 theme_identifier: de-schwerin
 target_year: 2035
 model_end_year: 2050
-reference_year: 1990
-minimum_historical_year: 1990
+reference_year: 1995
+minimum_historical_year: 1995
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
@@ -100,6 +100,13 @@ result_excels:
   - emission_factors_for_district_heating_by_generic_fuel
   - vehicle_kilometers_ifeu
   - other_transport_energy
+
+action_groups:
+
+- id: combined_heat_and_power
+  name_en: Combined heat and power
+  name_de: Kombination aus Wärme und Strom
+  color: '#007C78'
 
 pages:
 - id: home

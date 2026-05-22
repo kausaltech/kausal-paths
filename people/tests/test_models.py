@@ -24,6 +24,7 @@ def test_person_query_set_available_for_instance_instance_organization_descendan
     person = PersonFactory.create(organization=org)
     assert person in Person.objects.qs.available_for_instance(instance_config)
 
+
 # TODO: Add this if we implement related_organizations
 # def test_person_query_set_available_for_instance_related_organization(instance_config):
 #     org = OrganizationFactory()
@@ -75,10 +76,11 @@ def test_person_change_email_changes_user_email():
     assert person.email == email
     assert user.email == email
 
+
 def test_person_change_email_resets_password():
     old_email = 'old@example.com'
     new_email = 'new@example.com'
-    password = 'foo' # noqa: S105
+    password = 'foo'  # noqa: S105
     person = PersonFactory.create(email=old_email)
     user = person.user
     assert user is not None

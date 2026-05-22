@@ -58,21 +58,17 @@ class AdminInstanceMixin:
     @property
     def admin_instance(self) -> InstanceConfig:
         from paths.context import realm_context
+
         return realm_context.get().realm
 
 
 def user_has_permission(
-    permission_policy: BasePermissionPolicy,
-    user: UserOrAnon,
-    permission: str,
-    obj: Model
+    permission_policy: BasePermissionPolicy[Any, Any, Any], user: UserOrAnon, permission: str, obj: Model
 ) -> bool:
     assert isinstance(permission_policy, ModelPermissionPolicy)
     if isinstance(user, AnonymousUser):
         return False
-    return permission_policy.user_has_permission_for_instance(
-        user, permission, obj
-    )
+    return permission_policy.user_has_permission_for_instance(user, permission, obj)
 
 
 class PathsEditView[M: Model, FormT: BaseModelForm[Any] = WagtailAdminModelForm[Any]](
@@ -82,12 +78,7 @@ class PathsEditView[M: Model, FormT: BaseModelForm[Any] = WagtailAdminModelForm[
         user = user_or_none(self.request.user)
         if user is None:
             return False
-        return user_has_permission(
-            self.permission_policy,
-            user,
-            permission,
-            self.object
-        )
+        return user_has_permission(self.permission_policy, user, permission, self.object)
 
     def get_editing_sessions(self):
         return None
@@ -104,12 +95,7 @@ class PathsDeleteView[M: Model, FormT: BaseModelForm[Any] = WagtailAdminModelFor
         user = user_or_none(self.request.user)
         if user is None:
             return False
-        return user_has_permission(
-            self.permission_policy,
-            user,
-            permission,
-            self.object
-        )
+        return user_has_permission(self.permission_policy, user, permission, self.object)
 
 
 class PathsCreateView[M: Model, FormT: BaseModelForm[Any] = WagtailAdminModelForm[Any]](
@@ -153,9 +139,9 @@ class PathsIndexView[M: Model, QS: QuerySet[Any, Any]](HideSnippetsFromBreadcrum
             inspect_button = Button.from_menu_item(menu_item)
         else:
             inspect_button = menu_item
-        inspect_button.label = _("View")
+        inspect_button.label = _('View')
         if 'aria-label' in inspect_button.attrs:
-            inspect_button.attrs['aria-label'] = _("View '%(title)s'") % {"title": str(instance)}
+            inspect_button.attrs['aria-label'] = _("View '%(title)s'") % {'title': str(instance)}
         inspect_button.priority = 5
         buttons.remove(menu_item)
         buttons.append(inspect_button)
@@ -176,7 +162,7 @@ class PathsCopyView[M: Model](HideSnippetsFromBreadcrumbsMixin, CopyView[M]):
 
 
 class PathsInspectView[M: Model](HideSnippetsFromBreadcrumbsMixin, InspectView[M]):
-    page_title = _("View")
+    page_title = _('View')
 
 
 class PathsChooseViewMixin[M: Model](AdminInstanceMixin):
@@ -212,7 +198,7 @@ class PathsChooserViewSet[M: Model](SnippetChooserViewSet):
         super().__init__(*args, **kwargs)
 
 
-class PathsViewSet[M: Model, QS: QuerySet[Any, Any], FormT: BaseModelForm[Any] = WagtailAdminModelForm[Any]](
+class PathsViewSet[M: Model, QS: QuerySet[Any, Any] = QuerySet[M], FormT: BaseModelForm[Any] = WagtailAdminModelForm[Any]](
     SnippetViewSet[M, FormT]
 ):
     index_view_class: ClassVar = PathsIndexView
@@ -230,15 +216,16 @@ class PathsViewSet[M: Model, QS: QuerySet[Any, Any], FormT: BaseModelForm[Any] =
     @property
     def admin_instance(self) -> InstanceConfig:
         from paths.context import realm_context
+
         return realm_context.get().realm
 
     @cached_property[str]
     def url_prefix(self) -> str:
-        return f"{self.app_label}/{self.model_name}"
+        return f'{self.app_label}/{self.model_name}'
 
     @cached_property[str]
     def url_namespace(self) -> str:
-        return f"{self.app_label}_{self.model_name}"
+        return f'{self.app_label}_{self.model_name}'
 
     @property
     def permission_policy(self):

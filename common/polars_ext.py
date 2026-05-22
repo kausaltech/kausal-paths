@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, cast
+import inspect
+from typing import TYPE_CHECKING, ClassVar, Literal, cast
 
 import numpy as np
 import polars as pl
 from loguru import logger
+
+from kausal_common.deployment import env_bool
 
 import common.polars as ppl
 from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
@@ -27,65 +30,120 @@ type Metrics = dict[str, 'NodeMetric']
 
 type DF = ppl.PathsDataFrame | pl.DataFrame
 
+ENABLE_DF_HOTPATH_VALIDATION = env_bool('ENABLE_DF_HOTPATH_VALIDATION', default=False)
+
 
 @pl.api.register_dataframe_namespace('paths')
 class PathsExt:
     _df: ppl.PathsDataFrame
+    _OPERATION_METHODS: ClassVar[dict[str, str]] = {
+        'abs': '_absolute',
+        'absolute': '_absolute',
+        'add_missing_years': '_add_missing_years',
+        'arithmetic_inverse': '_arithmetic_inverse',
+        'bring_to_maximum_historical_year': '_bring_to_maximum_historical_year',
+        'complement': '_complement',
+        'complement_cumulative_product': '_complement_cumulative_product',
+        'cumulative': '_cumulative',
+        'cumulative_product': '_cumulative_product',
+        'difference': '_difference',
+        'drop_infs': '_drop_infs',
+        'drop_nans': '_drop_nans',
+        'drop_unnecessary_levels': '_drop_unnecessary_levels',
+        'drop_zeros': '_drop_zeros',
+        'empty_to_zero': '_empty_to_zero',
+        'exp': '_exponential',
+        'expectation': '_expectation',
+        'extend_all': '_extend_all',
+        'extend_both_ways': '_extend_both_ways',
+        'extend_forecast_values': '_extend_forecast_values',
+        'extend_to_history': '_extend_to_history',
+        'extend_values': '_extend_values',
+        'extrapolate': '_extrapolate',
+        'fill_metrics_nan_null_zero': '_fill_metrics_nan_null_zero',
+        'forecast_only': '_forecast_only',
+        'geometric_inverse': '_geometric_inverse',
+        'ignore_content': '_ignore_content',
+        'indifferent_history_ratio': '_indifferent_history_ratio',
+        'inventory_only': '_inventory_only',
+        'linear_interpolate': '_linear_interpolate',
+        'log': '_logarithmic',
+        'make_nonnegative': '_make_nonnegative',
+        'make_nonpositive': '_make_nonpositive',
+        'minus': '_arithmetic_inverse',
+        'observed_only_extend_all': '_observed_only_extend_all',
+        'prepare_gpc_dataset': '_prepare_gpc_dataset',
+        'ratio_to_last_historical_value': '_ratio_to_last_historical_value',
+        'ratio_to_max_hist_year': '_ratio_to_max_hist_year',
+        'round_to_five': '_round_to_five_significant_digits',
+        'scale_by_reference_year': '_scale_by_reference_year',
+        'truncate_before_start': '_truncate_before_start',
+        'truncate_beyond_end': '_truncate_beyond_end',
+        'use_observations': '_observed_only_extend_all',
+        'year': '_year_to_value',
+    }
 
     def __init__(self, df: DF) -> None:
         if not isinstance(df, ppl.PathsDataFrame):
             df = ppl.to_ppdf(df)
         self._df = df
 
-        self.OPERATIONS: dict[str, Callable[..., ppl.PathsDataFrame]] = {
-            'abs': self._absolute,
-            'absolute': self._absolute,
-            'add_missing_years': self._add_missing_years,
-            'arithmetic_inverse': self._arithmetic_inverse,
-            'bring_to_maximum_historical_year': self._bring_to_maximum_historical_year,
-            'complement': self._complement,
-            'complement_cumulative_product': self._complement_cumulative_product,
-            'cumulative': self._cumulative,
-            'cumulative_product': self._cumulative_product,
-            'difference': self._difference,
-            'drop_infs': self._drop_infs,
-            'drop_nans': self._drop_nans,
-            'drop_unnecessary_levels': self._drop_unnecessary_levels,
-            'drop_zeros': self._drop_zeros,
-            'empty_to_zero': self._empty_to_zero,
-            'exp': self._exponential,
-            'expectation': self._expectation,
-            'extend_all': self._extend_all,
-            'extend_both_ways': self._extend_both_ways,
-            'extend_forecast_values': self._extend_forecast_values,
-            'extend_to_history': self._extend_to_history,
-            'extend_values': self._extend_values,
-            'extrapolate': self._extrapolate,
-            'forecast_only': self._forecast_only,
-            'geometric_inverse': self._geometric_inverse,
-            'ignore_content': self._ignore_content,
-            'indifferent_history_ratio': self._indifferent_history_ratio,
-            'inventory_only': self._inventory_only,
-            'linear_interpolate': self._linear_interpolate,
-            'log': self._logarithmic,
-            'make_nonnegative': self._make_nonnegative,
-            'make_nonpositive': self._make_nonpositive,
-            'minus': self._arithmetic_inverse,
-            'observed_only_extend_all': self._observed_only_extend_all,
-            'prepare_gpc_dataset': self._prepare_gpc_dataset,
-            'ratio_to_last_historical_value': self._ratio_to_last_historical_value,
-            'round_to_five': self._round_to_five_significant_digits,
-            'scale_by_reference_year': self._scale_by_reference_year,
-            'truncate_before_start': self._truncate_before_start,
-            'truncate_beyond_end': self._truncate_beyond_end,
-            'use_observations': self._observed_only_extend_all, # TODO Preferred over observed_only_extend_all?
-            'year': self._year_to_value,
-        }
+    def has_operation(self, op_name: str) -> bool:
+        return op_name in self._OPERATION_METHODS
+
+    def get_operation(self, op_name: str) -> Callable[..., ppl.PathsDataFrame]:
+        return cast('Callable[..., ppl.PathsDataFrame]', getattr(self, self._OPERATION_METHODS[op_name]))
 
     def to_pandas(self, meta: ppl.DataFrameMeta | None = None) -> pd.DataFrame:
         return self._df.to_pandas(meta=meta)
 
-    def to_wide(self, meta: ppl.DataFrameMeta | None = None, only_category_names: bool = False) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912, PLR0915
+    def _wide_col_expr(
+        self,
+        dim_ids: list[str],
+        *,
+        metric_expr: pl.Expr | None = None,
+        only_category_names: bool = False,
+    ) -> pl.Expr:
+        if only_category_names:
+            return pl.col(dim_ids[0])
+
+        dim_expr = pl.concat_list([pl.format('{}:{}', pl.lit(dim_id), pl.col(dim_id)) for dim_id in dim_ids]).list.join('/')
+        if metric_expr is None:
+            return dim_expr
+        return pl.concat_str([metric_expr, pl.lit('@'), dim_expr])
+
+    def _parse_wide_column(
+        self,
+        col: str,
+        *,
+        assign_dimension: str | None = None,
+        assign_metric: str | None = None,
+    ) -> tuple[str, list[tuple[str, str]]] | None:
+        target_col = col
+        if assign_dimension:
+            target_col = '%s:%s' % (assign_dimension, target_col)
+        if assign_metric:
+            target_col = '%s@%s' % (assign_metric, target_col)
+        if '@' not in target_col:
+            return None
+
+        metric, dims_spec = target_col.split('@', 1)
+        dims: list[tuple[str, str]] = []
+        for dim_part in dims_spec.split('/'):
+            dim_id, cat_id = dim_part.split(':', 1)
+            dims.append((dim_id, cat_id))
+        return metric, dims
+
+    @staticmethod
+    def _metric_col_for_wide_col(metric_cols: list[str], wide_col: str) -> str:
+        for metric_col in sorted(metric_cols, key=len, reverse=True):
+            if wide_col == metric_col or wide_col.startswith(f'{metric_col}@'):
+                return metric_col
+        raise KeyError(wide_col)
+
+    def to_wide(  # noqa: C901, PLR0912, PLR0915
+        self, meta: ppl.DataFrameMeta | None = None, only_category_names: bool = False, sort: bool = False
+    ) -> ppl.PathsDataFrame:
         """Project the DataFrame wide (dimension categories become columns) and group by year."""
 
         df = self._df
@@ -95,88 +153,85 @@ class PathsExt:
         dim_ids = sorted(meta.dim_ids)
         metric_cols = list(meta.units.keys())
         if not metric_cols:
-            raise Exception("No metric columns in DF")
+            raise Exception('No metric columns in DF')
 
         if only_category_names and len(metric_cols) > 1:
-            raise Exception("When only_category_names=True, only one metric supported")
+            raise Exception('When only_category_names=True, only one metric supported')
 
         if only_category_names and len(dim_ids) != 1:
-            raise Exception("When only_category_names=True, must have exactly one dimension")
+            raise Exception('When only_category_names=True, must have exactly one dimension')
 
         dim_casts = []
         for col in dim_ids + metric_cols:
             if col not in df.columns:
-                raise Exception("Column %s from metadata is not present in DF" % col)
+                raise Exception('Column %s from metadata is not present in DF' % col)
             if col in dim_ids and df.schema[col] == pl.Categorical:
                 dim_casts.append(pl.col(col).cast(pl.Utf8))
-        if dim_casts:
-            df = df.with_columns(dim_casts)
 
-        # Create a column '_dims' with all the categories included
         if not dim_ids:
             return df
 
-        if YEAR_COLUMN in df.columns:
-            dim_cols = [*dim_ids, YEAR_COLUMN]
-        else:
-            dim_cols = dim_ids
-        dup = df.select(dim_cols).is_duplicated()
-        if any(dup):
-            dups = df.filter(dup)
-            print(dups)
-            print(dups.select(dim_ids).unique())
-            raise ValueError("Dataframe has duplicate rows.")
-
-        def format_col(dim: str) -> pl.Expr:
-            if only_category_names:
-                return pl.col(dim)
-            return pl.format('{}:{}', pl.lit(dim), pl.col(dim))
-
-        def format_metric(metric_col: str, col: str) -> str:
-            if only_category_names:
-                return '%s' % col
-            return '%s@%s' % (metric_col, col)
-
-        df = df.with_columns([
-            pl.concat_list([
-                format_col(dim) for dim in dim_ids
-            ]).list.join('/').alias('_dims'),
-        ])
-        mdf = None
-        units = {}
         index_cols = [YEAR_COLUMN]
         if FORECAST_COLUMN in df.columns:
             index_cols.append(FORECAST_COLUMN)
-        for metric_col in metric_cols:
-            tdf = df.pivot(on='_dims', index=index_cols, values=metric_col)  # noqa: PD010
-            cols = [col for col in tdf.columns if col not in index_cols]
-            metric_unit = meta.units.get(metric_col)
-            if metric_unit is not None:
-                for col in cols:
-                    units[format_metric(metric_col, col)] = metric_unit
-            tdf = ppl.to_ppdf(
-                df=tdf.rename({col: format_metric(metric_col, col) for col in cols}),
-                meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units=units),
-            )
-            if tdf.paths.index_has_duplicates():
-                tdf = tdf.paths.sum_over_dims()
 
-            if mdf is None:
-                mdf = tdf
-            else:
-                if FORECAST_COLUMN in index_cols:
-                    tdf = tdf.drop(FORECAST_COLUMN)
-                joined = mdf.join(tdf, on=YEAR_COLUMN)
-                mdf = ppl.to_ppdf(joined, meta=mdf.get_meta())
-        assert mdf is not None
-        mdf = mdf.sort(YEAR_COLUMN)
-        meta2 = ppl.DataFrameMeta(
-            units=units,
-            primary_keys=[YEAR_COLUMN],
+        if ENABLE_DF_HOTPATH_VALIDATION:
+            dim_cols = [*dim_ids, YEAR_COLUMN] if YEAR_COLUMN in df.columns else dim_ids
+            dup = df.select(dim_cols).is_duplicated()
+            if any(dup):
+                dups = df.filter(dup)
+                print(dups.sort(dups.primary_keys))
+                print(dups.select(dim_ids).unique())
+                raise ValueError('Dataframe has duplicate rows.')
+
+        ldf = df.lazy()
+        if dim_casts:
+            ldf = ldf.with_columns(dim_casts)
+        if len(metric_cols) == 1:
+            metric_col = metric_cols[0]
+            # `pivot` is the available API on our pinned Polars version.
+            ldf = ldf.with_columns([
+                self._wide_col_expr(
+                    dim_ids,
+                    metric_expr=None if only_category_names else pl.lit(metric_col),
+                    only_category_names=only_category_names,
+                ).alias('_wide_col'),
+            ])
+            metric_vals = ldf.select('_wide_col').unique().collect()['_wide_col']
+            wide_df = ldf.pivot('_wide_col', on_columns=metric_vals, index=index_cols, values=metric_col)  # noqa: PD010
+        else:
+            # `pivot` is the available API on our pinned Polars version.
+            ldf = ldf.unpivot(
+                index=[*index_cols, *dim_ids], on=metric_cols, variable_name='_metric', value_name='_value'
+            ).with_columns([
+                self._wide_col_expr(
+                    dim_ids,
+                    metric_expr=pl.col('_metric'),
+                    only_category_names=only_category_names,
+                ).alias('_wide_col'),
+            ])
+            metric_vals = ldf.select('_wide_col').unique().collect()['_wide_col']
+            wide_df = ldf.pivot('_wide_col', on_columns=metric_vals, index=index_cols, values='_value')  # noqa: PD010
+
+        wide_cols = [col for col in wide_df.collect_schema().keys() if col not in index_cols]
+        if only_category_names:
+            units = dict.fromkeys(wide_cols, meta.units[metric_cols[0]])
+        else:
+            units = {col: meta.units[self._metric_col_for_wide_col(metric_cols, col)] for col in wide_cols}
+
+        wide_df = wide_df.select([*index_cols, *wide_cols])
+        mdf = ppl.to_ppdf(
+            df=wide_df.collect(),
+            meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units=units),
         )
+        if mdf[YEAR_COLUMN].n_unique() != len(mdf):
+            mdf = mdf.paths.sum_over_dims()
+        if True:
+            mdf = mdf.sort(YEAR_COLUMN)
+
         return ppl.PathsDataFrame._from_pydf(
             mdf._df,
-            meta=meta2,
+            meta=ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN]),
         )
 
     def to_narrow(self, assign_dimension: str | None = None, assign_metric: str | None = None) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
@@ -186,60 +241,70 @@ class PathsExt:
         if FORECAST_COLUMN in df.columns:
             id_cols.append(FORECAST_COLUMN)
 
-        widened_cols = []
-        renames = {}
+        parsed_cols: list[tuple[str, str, list[tuple[str, str]]]] = []
         for col in df.columns:
             if col in id_cols:
                 continue
-            new_col = col
-            if assign_dimension:
-                new_col = '%s:%s' % (assign_dimension, new_col)
-            if assign_metric:
-                new_col = '%s@%s' % (assign_metric, new_col)
-            if '@' in new_col:
-                widened_cols.append(new_col)
-            if col != new_col:
-                renames[col] = new_col
+            parsed = self._parse_wide_column(col, assign_dimension=assign_dimension, assign_metric=assign_metric)
+            if parsed is None:
+                continue
+            metric, dims = parsed
+            parsed_cols.append((col, metric, dims))
 
-        if not len(widened_cols):  # noqa: PLC1802
+        if not parsed_cols:
             return df
 
-        if renames:
-            df = df.copy().rename(renames)
-
-        meta = df.get_meta()
+        meta = df.get_meta().copy()
         units: dict[str, Unit] = {}
         primary_keys = [YEAR_COLUMN]
-        for col in widened_cols:
-            metric, dims = col.split('@')
-            unit = meta.units[col]
+        dim_ids: list[str] = []
+        for source_col, metric, dims in parsed_cols:
+            unit = meta.units[source_col]
             if metric in units:
                 if units[metric] != unit:
                     raise Exception('Unit mismatch in metric %s' % metric)
             else:
                 units[metric] = unit
-            for dim_parts in dims.split('/'):
-                dim_id, _cat_id = dim_parts.split(':')
+            for dim_id, _cat_id in dims:
                 if dim_id not in primary_keys:
                     primary_keys.append(dim_id)
+                    dim_ids.append(dim_id)
 
         meta.units = units
         meta.primary_keys = primary_keys
 
-        tdf = df.unpivot(index=id_cols).with_columns([
-            pl.col('variable').str.split('@').alias('_tmp'),
-        ]).with_columns([
-            pl.col('_tmp').list.first().alias('Metric'),
-            pl.col('_tmp').list.last().str.split('/').alias('_dims'),
-        ])
-        df = ppl.to_ppdf(tdf)
-        first = df['_dims'][0]
-        dim_ids = [x.split(':')[0] for x in first]
-        dim_cols = [pl.col('_dims').list.get(idx).str.split(':').list.get(1).alias(col) for idx, col in enumerate(dim_ids)]
-        df = df.with_columns(dim_cols)
-        df = df.pivot(on='Metric', values='value', index=[*id_cols, *dim_ids])  # noqa: PD010
-        df = df.with_columns([pl.col(dim).cast(pl.Categorical) for dim in dim_ids])
-        return ppl.to_ppdf(df, meta=meta)
+        mapping_rows: list[dict[str, str | None]] = []
+        metric_order: list[str] = []
+        for source_col, metric, dims in parsed_cols:
+            row: dict[str, str | None] = {'_wide_col': source_col, '_metric': metric}
+            if metric not in metric_order:
+                metric_order.append(metric)
+            dim_map = dict(dims)
+            for dim_id in dim_ids:
+                row[dim_id] = dim_map.get(dim_id)
+            mapping_rows.append(row)
+
+        mapping_df = pl.DataFrame(mapping_rows)
+        narrow_df = (
+            df
+            .unpivot(
+                index=id_cols,
+                on=[source_col for source_col, _metric, _dims in parsed_cols],
+                variable_name='_wide_col',
+                value_name='_value',
+            )
+            .join(mapping_df, on='_wide_col', how='left')
+            .drop('_wide_col')
+        )
+
+        if len(metric_order) == 1:
+            narrow_df = narrow_df.drop('_metric').rename({'_value': metric_order[0]})
+        else:
+            narrow_df = narrow_df.pivot(on='_metric', values='_value', index=[*id_cols, *dim_ids])  # noqa: PD010
+
+        if dim_ids:
+            narrow_df = narrow_df.with_columns([pl.col(dim).cast(pl.Categorical) for dim in dim_ids])
+        return ppl.to_ppdf(narrow_df, meta=meta)
 
     def make_forecast_rows(self, end_year: int) -> ppl.PathsDataFrame:
         pdf = self._df
@@ -251,7 +316,7 @@ class PathsExt:
             df = pdf
         y = df[YEAR_COLUMN]
         if y.n_unique() != len(y):
-            raise Exception("DataFrame has duplicated years")
+            raise Exception('DataFrame has duplicated years')
 
         if FORECAST_COLUMN not in df.columns:
             last_hist_year = y.max()
@@ -266,8 +331,11 @@ class PathsExt:
         if len(years):
             df = df.join(years, on=YEAR_COLUMN, how='outer', coalesce=True).sort(YEAR_COLUMN)
             df = df.with_columns([
-                pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(pl.lit(value=True))\
-                    .otherwise(pl.col(FORECAST_COLUMN)).alias(FORECAST_COLUMN),
+                pl
+                .when(pl.col(YEAR_COLUMN) > last_hist_year)
+                .then(pl.lit(value=True))
+                .otherwise(pl.col(FORECAST_COLUMN))
+                .alias(FORECAST_COLUMN),
             ])
         return ppl.to_ppdf(df, meta=meta)
 
@@ -281,7 +349,7 @@ class PathsExt:
         df = self._df
         y = df[YEAR_COLUMN]
         if y.n_unique() != len(y):
-            raise Exception("DataFrame has duplicated years")
+            raise Exception('DataFrame has duplicated years')
 
         meta = df.get_meta()
         zdf = df.fill_null(strategy='forward')
@@ -298,7 +366,7 @@ class PathsExt:
         if dims is None:
             dims = meta.dim_ids
         elif isinstance(dims, str):
-            dims =  [dims]
+            dims = [dims]
         remaining_keys = list(meta.primary_keys)
         for dim in dims:
             remaining_keys.remove(dim)
@@ -311,10 +379,79 @@ class PathsExt:
             if dt.is_numeric():
                 sum_cols.append(col)
 
-        zdf = df.group_by(remaining_keys).agg([
+        zdf = (
+            df
+            .lazy()
+            .group_by(remaining_keys)
+            .agg([
+                *[pl.sum(col).alias(col) for col in sum_cols],
+                *fc,
+            ])
+            .sort(remaining_keys)
+            .collect()
+        )
+        return ppl.to_ppdf(zdf, meta=meta)
+
+    def sum_into_cat(
+        self,
+        dim: str,
+        source_categories: list[str],
+        target: str,
+    ) -> ppl.PathsDataFrame:
+        """
+        Sum selected categories of one dimension into a single target category.
+
+        Rows where ``dim`` is in ``source_categories`` or already equals ``target`` are aggregated
+        (same numeric columns and forecast rule as :meth:`sum_over_dims`), and the result is
+        written with ``dim`` set to ``target``. All other categories are left unchanged. If the
+        target category already had rows, their values are included in the same sum as the sources.
+        """
+        df = self._df
+        meta = df.get_meta()
+        if dim not in meta.dim_ids:
+            raise ValueError('sum_into_cat: dim %r is not a dimension column (dim_ids=%s)' % (dim, meta.dim_ids))
+
+        fold_categories = list(frozenset(source_categories) | {target})
+
+        if FORECAST_COLUMN in df.columns:
+            fc = [pl.any(FORECAST_COLUMN)]
+        else:
+            fc = []
+
+        known_cols = set(meta.primary_keys) | set(meta.metric_cols) | {FORECAST_COLUMN, YEAR_COLUMN}
+        sum_cols = list(meta.metric_cols)
+        for col, dt in df.schema.items():
+            if col in known_cols:
+                continue
+            if dt.is_numeric():
+                sum_cols.append(col)
+
+        group_keys = [k for k in meta.primary_keys if k != dim]
+        dim_dtype = df.schema[dim]
+        target_dim = pl.lit(target).cast(dim_dtype)
+
+        df_keep = df.filter(~pl.col(dim).is_in(fold_categories))
+        df_fold = df.filter(pl.col(dim).is_in(fold_categories))
+
+        z_fold = df_fold.group_by(group_keys).agg([
             *[pl.sum(col).alias(col) for col in sum_cols],
             *fc,
-        ]).sort(remaining_keys)
+            target_dim.alias(dim),
+        ])
+
+        missing_cols = [c for c in df.columns if c not in z_fold.columns]
+        if missing_cols:
+            z_fold = z_fold.with_columns([pl.lit(None).cast(df.schema[c]).alias(c) for c in missing_cols])
+        z_fold = z_fold.select(df.columns)
+
+        if len(df_keep) == 0:
+            zdf = z_fold
+        elif len(z_fold) == 0:
+            zdf = df_keep
+        else:
+            zdf = pl.concat([df_keep, z_fold], how='vertical')
+
+        zdf = zdf.sort(meta.primary_keys)
         return ppl.to_ppdf(zdf, meta=meta)
 
     # TODO Maybe merge with sum_over_dims into a generic function?
@@ -329,7 +466,7 @@ class PathsExt:
         if dims is None:
             dims = meta.dim_ids
         elif isinstance(dims, str):
-            dims =  [dims]
+            dims = [dims]
         remaining_keys = list(meta.primary_keys)
         for dim in dims:
             remaining_keys.remove(dim)
@@ -342,17 +479,133 @@ class PathsExt:
             if dt.is_numeric():
                 prod_cols.append(col)
 
-        zdf = df.group_by(remaining_keys).agg([
-            *[pl.col(col).product().alias(col) for col in prod_cols],
-            *fc,
-        ]).sort(remaining_keys)
+        zdf = (
+            df
+            .group_by(remaining_keys)
+            .agg([
+                *[pl.col(col).product().alias(col) for col in prod_cols],
+                *fc,
+            ])
+            .sort(remaining_keys)
+        )
+        return ppl.to_ppdf(zdf, meta=meta)
+
+    def mean_over_dims(self, dims: str | list[str] | None = None) -> ppl.PathsDataFrame:
+        df = self._df
+        meta = df.get_meta()
+        if FORECAST_COLUMN in df.columns:
+            fc = [pl.any(FORECAST_COLUMN)]
+        else:
+            fc = []
+
+        if dims is None:
+            dims = meta.dim_ids
+        elif isinstance(dims, str):
+            dims = [dims]
+        remaining_keys = list(meta.primary_keys)
+        for dim in dims:
+            remaining_keys.remove(dim)
+
+        known_cols = set(meta.primary_keys) | set(meta.metric_cols) | {FORECAST_COLUMN, YEAR_COLUMN}
+        agg_cols = list(meta.metric_cols)
+        for col, dt in df.schema.items():
+            if col in known_cols:
+                continue
+            if dt.is_numeric():
+                agg_cols.append(col)
+
+        zdf = (
+            df
+            .lazy()
+            .group_by(remaining_keys)
+            .agg([
+                *[pl.mean(col).alias(col) for col in agg_cols],
+                *fc,
+            ])
+            .sort(remaining_keys)
+            .collect()
+        )
+        return ppl.to_ppdf(zdf, meta=meta)
+
+    def min_over_dims(self, dims: str | list[str] | None = None) -> ppl.PathsDataFrame:
+        df = self._df
+        meta = df.get_meta()
+        if FORECAST_COLUMN in df.columns:
+            fc = [pl.any(FORECAST_COLUMN)]
+        else:
+            fc = []
+
+        if dims is None:
+            dims = meta.dim_ids
+        elif isinstance(dims, str):
+            dims = [dims]
+        remaining_keys = list(meta.primary_keys)
+        for dim in dims:
+            remaining_keys.remove(dim)
+
+        known_cols = set(meta.primary_keys) | set(meta.metric_cols) | {FORECAST_COLUMN, YEAR_COLUMN}
+        agg_cols = list(meta.metric_cols)
+        for col, dt in df.schema.items():
+            if col in known_cols:
+                continue
+            if dt.is_numeric():
+                agg_cols.append(col)
+
+        zdf = (
+            df
+            .lazy()
+            .group_by(remaining_keys)
+            .agg([
+                *[pl.min(col).alias(col) for col in agg_cols],
+                *fc,
+            ])
+            .sort(remaining_keys)
+            .collect()
+        )
+        return ppl.to_ppdf(zdf, meta=meta)
+
+    def max_over_dims(self, dims: str | list[str] | None = None) -> ppl.PathsDataFrame:
+        df = self._df
+        meta = df.get_meta()
+        if FORECAST_COLUMN in df.columns:
+            fc = [pl.any(FORECAST_COLUMN)]
+        else:
+            fc = []
+
+        if dims is None:
+            dims = meta.dim_ids
+        elif isinstance(dims, str):
+            dims = [dims]
+        remaining_keys = list(meta.primary_keys)
+        for dim in dims:
+            remaining_keys.remove(dim)
+
+        known_cols = set(meta.primary_keys) | set(meta.metric_cols) | {FORECAST_COLUMN, YEAR_COLUMN}
+        agg_cols = list(meta.metric_cols)
+        for col, dt in df.schema.items():
+            if col in known_cols:
+                continue
+            if dt.is_numeric():
+                agg_cols.append(col)
+
+        zdf = (
+            df
+            .lazy()
+            .group_by(remaining_keys)
+            .agg([
+                *[pl.max(col).alias(col) for col in agg_cols],
+                *fc,
+            ])
+            .sort(remaining_keys)
+            .collect()
+        )
         return ppl.to_ppdf(zdf, meta=meta)
 
     def get_category_mismatch(  # noqa: C901, PLR0912
         self,
         other: ppl.PathsDataFrame,
         output: ppl.PathsDataFrame,
-    ) -> str: # dict[str, dict[str, list[str]]]:
+    ) -> str:  # dict[str, dict[str, list[str]]]:
         """
         Get categories that were dropped or added during a join operation.
 
@@ -409,7 +662,7 @@ class PathsExt:
                 mism['added_from_right'] = added_from_right
             if added_from_left:
                 mism['added_from_left'] = added_from_left
-            if mism: # Only include dimension if there are any mismatches
+            if mism:  # Only include dimension if there are any mismatches
                 mismatch[dim_id] = mism
 
         if mismatch:
@@ -430,7 +683,7 @@ class PathsExt:
             mismatch_str = ''
         return mismatch_str
 
-    def join_over_index(  # noqa: C901, PLR0912
+    def join_over_index(  # noqa: C901, PLR0912, PLR0915
         self,
         other: ppl.PathsDataFrame,
         how: Literal['left', 'outer', 'inner'] = 'left',
@@ -439,34 +692,54 @@ class PathsExt:
         sdf = self._df
         sm = sdf.get_meta()
         om = other.get_meta()
-        # Join on subset of keys
-        join_on = list(set(sm.primary_keys) & set(om.primary_keys))
+        # Join on subset of keys; preserve left key order for deterministic joins and metadata.
+        join_on = [col for col in sm.primary_keys if col in om.primary_keys]
         if not len(join_on):  # noqa: PLC1802
             if len(other) == 1:  # A single value copied to all rows
-                #df = sdf.with_columns(other).paths._df
-                raise Exception("invalid access")
-            raise ValueError("No shared primary keys between joined DFs")
+                # df = sdf.with_columns(other).paths._df
+                raise Exception('invalid access')
+            raise ValueError('No shared primary keys between joined DFs')
 
+        other_schema = other.schema
+        sdf_lazy = sdf.lazy()
+        oldf = other.lazy()
+
+        def is_string_like(dtype: pl.DataType) -> bool:
+            return dtype in (pl.Utf8, pl.String, pl.Utf8(), pl.String())
+
+        cast_exprs: list[pl.Expr] = []
+        left_cast_exprs: list[pl.Expr] = []
         for col in join_on:
             sdt = sdf[col].dtype
-            if sdt != other[col].dtype:
-                other = other.with_columns([pl.col(col).cast(sdt)])
+            odt = other_schema[col]
+            target_dtype = sdt
+            if sdt != odt:
+                if (sdt == pl.Categorical and is_string_like(odt)) or (odt == pl.Categorical and is_string_like(sdt)):
+                    target_dtype = pl.Categorical
+                    if sdt != target_dtype:
+                        left_cast_exprs.append(pl.col(col).cast(target_dtype))
+                cast_exprs.append(pl.col(col).cast(target_dtype))
+        if left_cast_exprs:
+            sdf_lazy = sdf_lazy.with_columns(left_cast_exprs)
+        if cast_exprs:
+            oldf = oldf.with_columns(cast_exprs)
         pl_how: pl_types.JoinStrategy = how
         if how == 'outer':
             pl_how = 'outer_coalesce'
-        df = sdf.join(other, on=join_on, how=pl_how)
+        ldf = sdf_lazy.join(oldf, on=join_on, how=pl_how)
         fc_right = '%s_right' % FORECAST_COLUMN
         meta = sm.copy()
-        if FORECAST_COLUMN in df.columns and fc_right in df.columns:
-            df = df.with_columns([
+        ldf_cols = set(ldf.collect_schema().keys())
+        if FORECAST_COLUMN in ldf_cols and fc_right in ldf_cols:
+            ldf = ldf.with_columns([
                 pl.col(FORECAST_COLUMN).fill_null(value=False) | pl.col(fc_right).fill_null(value=False),
             ])
-            df = df.drop(fc_right)
+            ldf = ldf.drop(fc_right)
         for col in om.metric_cols:
             col_right = '%s_right' % col
-            if col_right in df.columns:
+            if col_right in ldf_cols:
                 meta.units[col_right] = om.units[col]
-            elif col in df.columns:
+            elif col in ldf_cols:
                 meta.units[col] = om.units[col]
 
         if index_from == 'left':
@@ -478,26 +751,22 @@ class PathsExt:
         else:
             raise ValueError("Invalid value for 'index_from'")
 
-        out = ppl.to_ppdf(df, meta=meta)
+        out = ppl.to_ppdf(ldf.collect(), meta=meta)
 
-        cat_mismatch = self.get_category_mismatch(other, out)
-        if cat_mismatch:
-            out._explanation.append(cat_mismatch)
-        if out.paths.index_has_duplicates():
+        if ENABLE_DF_HOTPATH_VALIDATION:
+            cat_mismatch = self.get_category_mismatch(other, out)
+            if cat_mismatch:
+                out._explanation.append(cat_mismatch)
+        if ENABLE_DF_HOTPATH_VALIDATION and out.paths.index_has_duplicates():
             print(out)
-            raise ValueError("Resulting DF has duplicated rows")
+            raise ValueError('Resulting DF has duplicated rows')
         return out
 
     def duplicated_index_rows(self) -> pl.DataFrame:
         df = self._df
         assert df._primary_keys
         ldf = df.lazy()
-        dupes = (
-            ldf.group_by(df._primary_keys)
-            .agg(pl.count())
-            .filter(pl.col('count') > 1)
-            .collect()
-        )
+        dupes = ldf.group_by(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1).collect()
         return dupes
 
     def index_has_duplicates(self) -> bool:
@@ -518,60 +787,39 @@ class PathsExt:
             df = df.with_columns(cast_exprs)
         return df
 
-    def add_with_dims(
-            self,
-            odf: ppl.PathsDataFrame,
-            how: Literal['left', 'inner', 'outer'] = 'outer'
-        ) -> ppl.PathsDataFrame:
+    def add_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'inner', 'outer'] = 'outer') -> ppl.PathsDataFrame:
         """Add two PathsDataFrames with dimension awareness."""
         df = self._df
         if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
-            raise Exception("Currently adding only one metric column is supported.")
+            raise Exception('Currently adding only one metric column is supported.')
         val_col = df.metric_cols[0]
 
         if set(df.dim_ids) != set(odf.dim_ids):
-            raise ValueError(f"Dimensions must match for addition: {df.dim_ids} vs {odf.dim_ids}.")
+            raise ValueError(f'Dimensions must match for addition: {df.dim_ids} vs {odf.dim_ids}.')
 
         # Ensure same unit for addition
         output_unit = df.get_unit(val_col)
         odf = odf.ensure_unit(val_col, output_unit)
 
         # For addition: how='outer', index_from='left' because we want all rows but not new dimensions
-        jdf = df.paths.join_over_index(
-            odf,
-            how=how,
-            index_from='left'
-        )
+        jdf = df.paths.join_over_index(odf, how=how, index_from='left')
 
-        jdf = jdf.with_columns([
-            (pl.col(val_col).fill_null(0.0) + pl.col(f"{val_col}_right").fill_null(0.0)).alias(val_col)
-        ])
+        jdf = jdf.with_columns([(pl.col(val_col).fill_null(0.0) + pl.col(f'{val_col}_right').fill_null(0.0)).alias(val_col)])
 
         cols = [YEAR_COLUMN, FORECAST_COLUMN, val_col] + df.dim_ids
         jdf = jdf.select([col for col in cols if col in jdf.columns])
-        mismatch = df.paths.get_category_mismatch(odf, jdf)
-        if mismatch:
-            jdf._explanation.append(mismatch)
         return jdf
 
-    def subtract_with_dims(
-            self,
-            odf: ppl.PathsDataFrame,
-            how: Literal['left', 'inner', 'outer'] = 'outer'
-        ) -> ppl.PathsDataFrame:
+    def subtract_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'inner', 'outer'] = 'outer') -> ppl.PathsDataFrame:
         """Subtract two PathsDataFrames with dimension awareness."""
-        odf_neg = odf.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
+        odf_neg = odf.multiply_quantity(VALUE_COLUMN, unit_registry.parse_expression('-1 * dimensionless'))
         return self._df.paths.add_with_dims(odf_neg, how=how)
 
-    def multiply_with_dims(
-            self,
-            odf: ppl.PathsDataFrame,
-            how: Literal['left', 'inner', 'outer'] = 'inner'
-        ) -> ppl.PathsDataFrame:
+    def multiply_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'inner', 'outer'] = 'inner') -> ppl.PathsDataFrame:
         """Multiply two PathsDataFrames, handling dimensions and units properly."""
         df = self._df
         if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
-            raise Exception("Currently multiplying only one metric column is supported.")
+            raise Exception('Currently multiplying only one metric column is supported.')
         val_col = df.metric_cols[0]
 
         left_unit = df.get_unit(val_col)
@@ -581,14 +829,10 @@ class PathsExt:
         all_dims = list(set(df.dim_ids) | set(odf.dim_ids)) + [YEAR_COLUMN]
 
         # For multiplication: how='inner', index_from='union' to ensure both factors and include all dimensions
-        jdf = df.paths.join_over_index(
-            odf,
-            how=how,
-            index_from='union'
-        )
+        jdf = df.paths.join_over_index(odf, how=how, index_from='union')
 
         jdf = jdf.with_columns([
-            (pl.col(val_col) * pl.col(f"{val_col}_right")).alias(val_col) # null factor must give null
+            (pl.col(val_col) * pl.col(f'{val_col}_right')).alias(val_col)  # null factor must give null
         ])
 
         new_units = meta.units.copy()
@@ -600,37 +844,24 @@ class PathsExt:
         new_meta = ppl.DataFrameMeta(primary_keys=all_dims, units=new_units)
         out = ppl.to_ppdf(jdf, meta=new_meta)
 
-        cat_mismatch = df.paths.get_category_mismatch(odf, out)
-        if cat_mismatch:
-            out._explanation.append(cat_mismatch)
         return out
 
-    def divide_with_dims(
-            self,
-            odf: ppl.PathsDataFrame,
-            how: Literal['left', 'inner', 'outer'] = 'inner'
-        ) -> ppl.PathsDataFrame:
+    def divide_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'inner', 'outer'] = 'inner') -> ppl.PathsDataFrame:
         """Divide two PathsDataFrames, handling dimensions and units properly."""
         df = self._df
         if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
-            raise Exception("Currently dividing only one metric column is supported.")
+            raise Exception('Currently dividing only one metric column is supported.')
         val_col = df.metric_cols[0]
 
         left_unit = df.get_unit(val_col)
         right_unit = odf.get_unit(val_col)
-        output_unit = cast("Unit", left_unit / right_unit)
+        output_unit = cast('Unit', left_unit / right_unit)
         meta = df.get_meta()
         all_dims = list(set(df.dim_ids) | set(odf.dim_ids)) + [YEAR_COLUMN]
 
-        jdf = df.paths.join_over_index(
-            odf,
-            how=how,
-            index_from='union'
-        )
+        jdf = df.paths.join_over_index(odf, how=how, index_from='union')
 
-        jdf = jdf.with_columns([
-            (pl.col(val_col) / pl.col(f"{val_col}_right")).alias(val_col)
-        ])
+        jdf = jdf.with_columns([(pl.col(val_col) / pl.col(f'{val_col}_right')).alias(val_col)])
 
         new_units = meta.units.copy()
         new_units[val_col] = output_unit
@@ -641,15 +872,12 @@ class PathsExt:
         new_meta = ppl.DataFrameMeta(primary_keys=all_dims, units=new_units)
         out = ppl.to_ppdf(jdf, meta=new_meta)
 
-        cat_mismatch = df.paths.get_category_mismatch(odf, out)
-        if cat_mismatch:
-            out._explanation.append(cat_mismatch)
         return out
 
     def add_df(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left') -> ppl.PathsDataFrame:
         df = self._df
         if len(self._df.metric_cols) != 1 or len(odf.metric_cols) != 1:
-            raise Exception("Currently adding only one metric column is supported")
+            raise Exception('Currently adding only one metric column is supported')
         out_col = df.metric_cols[0]
         input_col = odf.metric_cols[0]
         odf = odf.ensure_unit(input_col, df.get_unit(out_col)).rename({input_col: '_Right'})
@@ -660,15 +888,11 @@ class PathsExt:
 
     # TODO Streamline add_with_dims, multiply_with_dims, add_df, and coalesce_df
     def coalesce_df(
-        self,
-        odf: ppl.PathsDataFrame,
-        how: Literal['left', 'outer'] = 'outer',
-        debug: bool = False,
-        id: str = ''
+        self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'outer', debug: bool = False, id: str = ''
     ) -> ppl.PathsDataFrame:
         df = self._df
         if len(self._df.metric_cols) != 1 or len(odf.metric_cols) != 1:
-            raise Exception("Currently coalescing only one metric column is supported")
+            raise Exception('Currently coalescing only one metric column is supported')
         out_col = df.metric_cols[0]
         input_col = odf.metric_cols[0]
         odf = odf.ensure_unit(input_col, df.get_unit(out_col)).rename({input_col: '_Right'})
@@ -680,32 +904,28 @@ class PathsExt:
         df = df.with_columns(expr).drop('_Right')
         return df
 
-    def compare_df( # Based on add_with_dims
-            self,
-            odf: ppl.PathsDataFrame,
-            how: Literal['left', 'inner', 'outer'] = 'outer', # TODO Should this rather be inner?
-            op: Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le'] = 'eq'
-        ) -> ppl.PathsDataFrame:
+    def compare_df(  # Based on add_with_dims
+        self,
+        odf: ppl.PathsDataFrame,
+        how: Literal['left', 'inner', 'outer'] = 'outer',  # TODO Should this rather be inner?
+        op: Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le'] = 'eq',
+    ) -> ppl.PathsDataFrame:
         """Add two PathsDataFrames with dimension awareness."""
         df = self._df
         if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
-            raise Exception("Currently adding only one metric column is supported.")
+            raise Exception('Currently adding only one metric column is supported.')
         val_col = df.metric_cols[0]
 
         if set(df.dim_ids) != set(odf.dim_ids):
-            raise ValueError(f"Dimensions must match for comparison: {df.dim_ids} vs {odf.dim_ids}.")
+            raise ValueError(f'Dimensions must match for comparison: {df.dim_ids} vs {odf.dim_ids}.')
 
         # Ensure same unit for comparison
         output_unit = df.get_unit(val_col)
         odf = odf.ensure_unit(val_col, output_unit)
 
         # For comparison: how='outer', index_from='left' because we want all rows but not new dimensions
-        jdf = df.paths.join_over_index(
-            odf,
-            how=how,
-            index_from='left'
-        )
-        right_col = pl.col(f"{val_col}_right")
+        jdf = df.paths.join_over_index(odf, how=how, index_from='left')
+        right_col = pl.col(f'{val_col}_right')
         opfunc = {
             'eq': pl.col(val_col).eq(right_col),
             'ne': pl.col(val_col).ne(right_col),
@@ -715,7 +935,7 @@ class PathsExt:
             'le': pl.col(val_col).le(right_col),
         }
         if op not in opfunc:
-            raise ValueError(f"Invalid operation: {op}")
+            raise ValueError(f'Invalid operation: {op}')
         expr = opfunc[op]
         jdf = jdf.with_columns(expr.cast(pl.Float64).alias(val_col))
 
@@ -732,7 +952,7 @@ class PathsExt:
         df_cols = set(df.columns)
         other_cols = set(other.columns)
         if df_cols != other_cols:
-            raise Exception("Mismatching columns: %s vs. %s" % (df_cols, other_cols))
+            raise Exception('Mismatching columns: %s vs. %s' % (df_cols, other_cols))
         cast_exprs = []
         for col in df_cols:
             if df.schema[col] != other.schema[col]:
@@ -751,7 +971,7 @@ class PathsExt:
         df = ppl.to_ppdf(zdf, meta=meta)
 
         if df.paths.index_has_duplicates():
-            raise Exception("Concatenation resulted in duplicated index rows")
+            raise Exception('Concatenation resulted in duplicated index rows')
 
         return df
 
@@ -785,7 +1005,7 @@ class PathsExt:
         assert isinstance(max_year, int)
         return max_year
 
-# ----------------- Standard PathsDataFrame unary operations with only node parameter
+    # ----------------- Standard PathsDataFrame unary operations with only node parameter
 
     def _absolute(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.with_columns(pl.col(VALUE_COLUMN).abs().alias(VALUE_COLUMN))
@@ -817,7 +1037,7 @@ class PathsExt:
         return df
 
     def _arithmetic_inverse(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
-        return df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
+        return df.multiply_quantity(VALUE_COLUMN, unit_registry.parse_expression('-1 * dimensionless'))
 
     def _bring_to_maximum_historical_year(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         max_year = context.instance.maximum_historical_year
@@ -825,7 +1045,8 @@ class PathsExt:
             return df
         is_forecast = False
         df = df.with_columns(
-            pl.when(pl.col(YEAR_COLUMN) <= max_year)
+            pl
+            .when(pl.col(YEAR_COLUMN) <= max_year)
             .then(pl.lit(is_forecast))
             .otherwise(pl.col(FORECAST_COLUMN))
             .alias(FORECAST_COLUMN)
@@ -835,9 +1056,7 @@ class PathsExt:
     def _complement(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         u = df.get_unit(VALUE_COLUMN)
         if not u.is_compatible_with('dimensionless'):
-            raise ValueError(
-                f"The unit is {u} but it must be compatible with dimensionless for taking complement."
-            )
+            raise ValueError(f'The unit is {u} but it must be compatible with dimensionless for taking complement.')
         # if node.quantity not in ['fraction', 'probability']:
         #     logger.warning(
         #         f"The quantity for taking complement should be fraction or probability. Are you operating with node {node.id}?"
@@ -888,12 +1107,21 @@ class PathsExt:
         return df.filter(pl.col(VALUE_COLUMN) != 0.0)
 
     def _empty_to_zero(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
-        return df.with_columns(
-            pl.when(pl.col(VALUE_COLUMN).is_nan())
-            .then(pl.lit(0.0))
-            .otherwise(pl.col(VALUE_COLUMN))
-            .alias(VALUE_COLUMN),
-        )
+        """
+        Replace missing values in every metric column with zero (float NaN and null).
+
+        With dimensions, sparse gaps only appear in wide form: round-trip via
+        :meth:`to_wide` → fill → :meth:`to_narrow` so implicit wide nulls become explicit
+        zeros in long format.
+        """
+        assert isinstance(df, ppl.PathsDataFrame)
+        if not df.metric_cols:
+            return df
+        if df.dim_ids:
+            wide = df.paths.to_wide()
+            filled = wide.paths._fill_metrics_nan_null_zero()
+            return filled.paths.to_narrow()
+        return df.paths._fill_metrics_nan_null_zero()
 
     def _exponential(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
@@ -905,7 +1133,7 @@ class PathsExt:
             cols = [col for col in df.primary_keys if col != UNCERTAINTY_COLUMN]
             dfp = df.group_by(cols, maintain_order=True).agg([
                 pl.col(VALUE_COLUMN).mean().alias(VALUE_COLUMN),
-                pl.col(FORECAST_COLUMN).any().alias(FORECAST_COLUMN)
+                pl.col(FORECAST_COLUMN).any().alias(FORECAST_COLUMN),
             ])
             dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
             df = ppl.to_ppdf(dfp, meta)
@@ -924,16 +1152,19 @@ class PathsExt:
 
     def _extend_forecast_values(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         from nodes.calc import extend_last_forecast_value_pl
+
         end_year = context.instance.model_end_year
         return extend_last_forecast_value_pl(df, end_year)
 
     def _extend_to_history(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         from nodes.calc import extend_to_history_pl
+
         start_year = context.instance.minimum_historical_year
         return extend_to_history_pl(df, start_year)
 
     def _extend_values(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         from nodes.calc import extend_last_historical_value_pl
+
         end_year = context.instance.model_end_year
         return extend_last_historical_value_pl(df, end_year)
 
@@ -941,27 +1172,41 @@ class PathsExt:
         """Replace NaNs and Nulls by extrapolating from existing values in wide format."""
         df = df.paths.to_wide()
         df = df.with_columns([
-            pl.col(col)
+            pl
+            .col(col)
             .map_elements(lambda x: None if (x is not None and np.isnan(x)) else x, return_dtype=pl.Float64)
             .interpolate(method='linear')
             .forward_fill()
             .backward_fill()
             .alias(col)
-            for col in df.columns if col in df.metric_cols
+            for col in df.columns
+            if col in df.metric_cols
         ])
-        df = df.select([
-            col for col in df.columns
-            if df.select(pl.col(col).is_not_null().any()).item()
-        ])
+        df = df.select([col for col in df.columns if df.select(pl.col(col).is_not_null().any()).item()])
         df = df.paths.to_narrow()
 
         return df
+
+    def _fill_metrics_nan_null_zero(self) -> ppl.PathsDataFrame:
+        """Fill NaN/null with 0 on all metric columns (long or wide shape)."""
+        df = self._df
+        assert isinstance(df, ppl.PathsDataFrame)
+        if not df.metric_cols:
+            return df
+        cols: list[pl.Expr] = []
+        for m in df.metric_cols:
+            c = pl.col(m)
+            if df.schema[m].is_float():
+                cols.append(c.fill_nan(0.0).fill_null(0.0).alias(m))
+            else:
+                cols.append(c.fill_null(0.0).alias(m))
+        return df.with_columns(cols)
 
     def _forecast_only(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.filter(pl.col(FORECAST_COLUMN))
 
     def _geometric_inverse(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
-        return df.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
+        return df.divide_quantity(VALUE_COLUMN, unit_registry.parse_expression('1 * dimensionless'))
 
     # FIXME Current version requires output metric of the target node. Use baskets instead.
     def _ignore_content(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
@@ -972,14 +1217,13 @@ class PathsExt:
 
     def _indifferent_history_ratio(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.with_columns(
-            pl.when(pl.col(FORECAST_COLUMN))
-            .then(pl.col(VALUE_COLUMN))
-            .otherwise(pl.lit(1.0)).alias(VALUE_COLUMN)
+            pl.when(pl.col(FORECAST_COLUMN)).then(pl.col(VALUE_COLUMN)).otherwise(pl.lit(1.0)).alias(VALUE_COLUMN)
         )
 
     def _inventory_only(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         df = df.with_columns(  # TODO A non-elegant way to ensure there is at least one historical row.
-            pl.when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
+            pl
+            .when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
             .then(pl.lit(value=False))
             .otherwise(pl.col(FORECAST_COLUMN))
             .alias(FORECAST_COLUMN),
@@ -989,9 +1233,7 @@ class PathsExt:
     # Copied from nodes.datasets.py
     def _linear_interpolate(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         if YEAR_COLUMN not in df.columns:
-            raise ValueError(
-                f"'{YEAR_COLUMN}' does not exist in this dataset. Available columns: {', '.join(df.columns)}."
-            )
+            raise ValueError(f"'{YEAR_COLUMN}' does not exist in this dataset. Available columns: {', '.join(df.columns)}.")
         years = df[YEAR_COLUMN].unique().sort()
         min_year = years.min()
         assert isinstance(min_year, int)
@@ -1021,15 +1263,11 @@ class PathsExt:
 
     def max_with_scalar(self, scalar: float) -> ppl.PathsDataFrame:
         """Element-wise maximum of value column and a scalar. For 0/1 values this is logical OR."""
-        return self._df.with_columns(
-            pl.max_horizontal(pl.col(VALUE_COLUMN), pl.lit(scalar)).alias(VALUE_COLUMN)
-        )
+        return self._df.with_columns(pl.max_horizontal(pl.col(VALUE_COLUMN), pl.lit(scalar)).alias(VALUE_COLUMN))
 
     def min_with_scalar(self, scalar: float) -> ppl.PathsDataFrame:
         """Element-wise minimum of value column and a scalar. For 0/1 values this is logical AND."""
-        return self._df.with_columns(
-            pl.min_horizontal(pl.col(VALUE_COLUMN), pl.lit(scalar)).alias(VALUE_COLUMN)
-        )
+        return self._df.with_columns(pl.min_horizontal(pl.col(VALUE_COLUMN), pl.lit(scalar)).alias(VALUE_COLUMN))
 
     def max_with(self, other: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         """Element-wise maximum of two PathsDataFrames (joined on index). For 0/1 values this is logical OR."""
@@ -1039,9 +1277,7 @@ class PathsExt:
         """Element-wise minimum of two PathsDataFrames (joined on index). For 0/1 values this is logical AND."""
         return self._element_wise_max_min(other, op='min')
 
-    def _element_wise_max_min(
-        self, other: ppl.PathsDataFrame, op: Literal['max', 'min']
-    ) -> ppl.PathsDataFrame:
+    def _element_wise_max_min(self, other: ppl.PathsDataFrame, op: Literal['max', 'min']) -> ppl.PathsDataFrame:
         joined = self._df.paths.join_over_index(other, how='outer')
         v_right = VALUE_COLUMN + '_right'
         if v_right not in joined.columns:
@@ -1065,39 +1301,29 @@ class PathsExt:
         Keeps only rows from the chosen source per category, then extends to full time span (no grouping by year).
         """
         if 'ObservedDataPoint' not in df.columns:
-            logger.warning("ObservedDataPoint column not found. Are you sure you want to use tag observed_only_extend_all?")
+            logger.warning('ObservedDataPoint column not found. Are you sure you want to use tag observed_only_extend_all?')
             return df
 
         is_forecast = False
         model_default = True
         # dim_ids excludes Year (see DataFrameMeta.get_dim_ids); we need "has any obs/measure in this category".
         if df.dim_ids:
-            df = (
-                df
-                .with_columns([
-                    pl.col("ObservedDataPoint").any().over(df.dim_ids).alias("_has_obs"),
-                    pl.col("FromMeasureDataPoint").any().over(df.dim_ids).alias("_has_measure")
-                ])
-            )
+            df = df.with_columns([
+                pl.col('ObservedDataPoint').any().over(df.dim_ids).alias('_has_obs'),
+                pl.col('FromMeasureDataPoint').any().over(df.dim_ids).alias('_has_measure'),
+            ])
         else:
             # No category dims (only Year in primary_keys): "has any obs/measure" is table-level
-            df = (
-                df.with_columns([
-                    pl.col("ObservedDataPoint").any().alias("_has_obs"),
-                    pl.col("FromMeasureDataPoint").any().alias("_has_measure"),
-                ])
-            )
-        df = (
-            df
-            .filter(
-                pl.when(pl.col("_has_obs"))
-                .then(pl.col("ObservedDataPoint"))
-                .otherwise(pl.when(pl.col('_has_measure'))
-                .then(pl.col("FromMeasureDataPoint"))
-                .otherwise(pl.lit(model_default))
-            ))
-            .with_columns(pl.lit(is_forecast).alias(FORECAST_COLUMN))
-        )
+            df = df.with_columns([
+                pl.col('ObservedDataPoint').any().alias('_has_obs'),
+                pl.col('FromMeasureDataPoint').any().alias('_has_measure'),
+            ])
+        df = df.filter(
+            pl
+            .when(pl.col('_has_obs'))
+            .then(pl.col('ObservedDataPoint'))
+            .otherwise(pl.when(pl.col('_has_measure')).then(pl.col('FromMeasureDataPoint')).otherwise(pl.lit(model_default)))
+        ).with_columns(pl.lit(is_forecast).alias(FORECAST_COLUMN))
         drop_cols = ['FromMeasureDataPoint', 'ObservedDataPoint', '_has_obs', '_has_measure']
         drop_cols = [col for col in drop_cols if col in df.columns]
         df = df.drop(drop_cols)
@@ -1169,9 +1395,31 @@ class PathsExt:
                 df = df.with_columns(context.dimensions[col].series_to_ids_pl(df[col]))
         return df
 
+    # TODO Depreciated version. May give surprises at node level.
     def _ratio_to_last_historical_value(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
         return self._scale_by_reference_year(df, year)
+
+    def _ratio_to_max_hist_year(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        year = context.instance.maximum_historical_year
+        if year is None:
+            year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
+            logger.warning(f'Maximum historical year is not set. Using last historical year: {year}')
+        dfy = df.filter(pl.col(YEAR_COLUMN) == year).drop(YEAR_COLUMN)
+
+        if not dfy.primary_keys and len(dfy) == 1:
+            df = df.with_columns(pl.lit(dfy[VALUE_COLUMN][0]).alias(VALUE_COLUMN + '_right'))
+        else:
+            df = df.paths.join_over_index(dfy, how='inner')
+        df = df.with_columns(
+            pl
+            .when(pl.col(YEAR_COLUMN) <= year)
+            .then(pl.lit(1.0))
+            .otherwise(pl.col(VALUE_COLUMN) / pl.col(VALUE_COLUMN + '_right'))
+            .alias(VALUE_COLUMN)
+        ).drop(VALUE_COLUMN + '_right')
+        df = df.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
+        return df
 
     def _round_to_five_significant_digits(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         """Round values to 5 significant digits rather than 5 decimal places. Zero and NaN have special handling."""
@@ -1182,9 +1430,7 @@ class PathsExt:
         multiplier = pl.lit(10.0) ** power
 
         rounded = (
-            pl.when((val_col == 0.0) | val_col.is_nan())
-            .then(val_col)
-            .otherwise((val_col * multiplier).round() / multiplier)
+            pl.when((val_col == 0.0) | val_col.is_nan()).then(val_col).otherwise((val_col * multiplier).round() / multiplier)
         )
 
         return df.with_columns(rounded.alias(VALUE_COLUMN))
@@ -1219,9 +1465,19 @@ class PathsExt:
     def _year_to_value(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         """Replace VALUE_COLUMN with YEAR_COLUMN content (cast to float), unit dimensionless."""
         if YEAR_COLUMN not in df.columns:
-            raise ValueError(
-                f"year(df) requires '{YEAR_COLUMN}' in the DataFrame. Columns: {list(df.columns)}."
-            )
+            raise ValueError(f"year(df) requires '{YEAR_COLUMN}' in the DataFrame. Columns: {list(df.columns)}.")
         df = df.with_columns(pl.col(YEAR_COLUMN).cast(pl.Float64).alias(VALUE_COLUMN))
         return df.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
 
+
+if env_bool('ENABLE_DF_PERF_TRACING', default=False):
+    import os
+
+    from line_profiler import profile
+
+    os.environ['LINE_PROFILE'] = '1'
+    # walk through all methods of `PathsExt` and wrap them with a line profiler decorator
+    # profiled_method = profile(method)
+    for method_name, method in inspect.getmembers(PathsExt):
+        if inspect.isfunction(method):
+            setattr(PathsExt, method_name, profile(method))

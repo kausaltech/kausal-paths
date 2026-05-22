@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from frameworks.models import Framework
 from frameworks.sync_configs import FrameworkConfigDjangoAdapter, FrameworkConfigJSONAdapter
 from frameworks.sync_frameworks import FrameworkDjangoAdapter, FrameworkJSONAdapter, FrameworkModel
+
+if TYPE_CHECKING:
+    from django.core.management.base import CommandParser
 
 
 class Command(BaseCommand):
@@ -18,7 +22,10 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: CommandParser):
         parser.add_argument(
-            'action', type=str, choices=['import', 'export', 'import_configs', 'export_configs'], help='Action to perform',
+            'action',
+            type=str,
+            choices=['import', 'export', 'import_configs', 'export_configs'],
+            help='Action to perform',
         )
         parser.add_argument('file', type=Path, help='JSON file to read from or write to')
         parser.add_argument('--dry-run', '-N', action='store_true', help='Only show the changes that would be made')
@@ -61,7 +68,7 @@ class Command(BaseCommand):
             dj.load(framework_id=fw.identifier)
             dj.sync_from(js)
             if self.dry_run:
-                self.stderr.write(self.style.WARNING("Dry run requested; no changes done."))
+                self.stderr.write(self.style.WARNING('Dry run requested; no changes done.'))
                 dj.rollback()
 
     def export_data(self, file_path: Path, framework_identifier: str):
@@ -76,11 +83,11 @@ class Command(BaseCommand):
             dj.load(framework_id=framework.identifier)
 
         if self.dry_run:
-            self.stderr.write(self.style.WARNING("Dry run requested; no changes done."))
+            self.stderr.write(self.style.WARNING('Dry run requested; no changes done.'))
             exit(0)
 
         dj.save_json(file_path)
-        self.stdout.write(self.style.SUCCESS(f"Successfully exported framework data to {file_path}"))
+        self.stdout.write(self.style.SUCCESS(f'Successfully exported framework data to {file_path}'))
 
     def export_configs(self, file_path: Path, framework_identifier: str):
         try:
@@ -94,12 +101,12 @@ class Command(BaseCommand):
             dj.load()
 
         if self.dry_run:
-            self.stderr.write(self.style.WARNING("Dry run requested; no changes done."))
+            self.stderr.write(self.style.WARNING('Dry run requested; no changes done.'))
             exit(0)
 
         dj.save_json(file_path)
 
-        self.stdout.write(self.style.SUCCESS(f"Successfully exported framework data to {file_path}"))
+        self.stdout.write(self.style.SUCCESS(f'Successfully exported framework data to {file_path}'))
 
     def import_configs(self, file_path: Path, framework_identifier: str):
         try:
@@ -117,5 +124,5 @@ class Command(BaseCommand):
             dj.load()
             dj.sync_from(js)
             if self.dry_run:
-                self.stderr.write(self.style.WARNING("Dry run requested; no changes done."))
+                self.stderr.write(self.style.WARNING('Dry run requested; no changes done.'))
                 dj.rollback()

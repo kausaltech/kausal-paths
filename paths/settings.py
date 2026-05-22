@@ -6,8 +6,7 @@ import sys
 import warnings
 from importlib.util import find_spec
 from pathlib import Path
-from threading import ExceptHookArgs
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
@@ -21,6 +20,9 @@ from kausal_common.deployment.http import get_allowed_cors_headers
 from kausal_common.sentry.init import init_sentry
 
 from .const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER
+
+if TYPE_CHECKING:
+    from kausal_common.logging.init import LogFormat
 
 PROJECT_NAME = 'paths'
 
@@ -82,19 +84,19 @@ else:
     if dotenv_path.exists():
         environ.Env.read_env(dotenv_path)
 
-GDAL_LIBRARY_PATH=env('GDAL_LIBRARY_PATH') or None
-GEOS_LIBRARY_PATH=env('GEOS_LIBRARY_PATH') or None
+GDAL_LIBRARY_PATH = env('GDAL_LIBRARY_PATH') or None
+GEOS_LIBRARY_PATH = env('GEOS_LIBRARY_PATH') or None
 
 # Read all files in the directories given in MOUNTED_SECRET_PATHS whose names look like environment variables and use
 # the contents of the files for the corresponding variables
-for directory in env('MOUNTED_SECRET_PATHS'):
+for directory in env.list('MOUNTED_SECRET_PATHS'):
     set_secret_file_vars(env, directory)
 
-DEBUG = env('DEBUG')
-DEPLOYMENT_TYPE = env('DEPLOYMENT_TYPE')
-SENTRY_DSN = env('SENTRY_DSN')
-ADMIN_BASE_URL = env('ADMIN_BASE_URL')
-ALLOWED_HOSTS = env('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
+DEBUG = env.bool('DEBUG')
+DEPLOYMENT_TYPE = env.str('DEPLOYMENT_TYPE')
+SENTRY_DSN = env.str('SENTRY_DSN')
+ADMIN_BASE_URL = env.str('ADMIN_BASE_URL')
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
 INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))  # type: ignore
 DATABASES = {
     'default': env.db_url(engine='kausal_common.database'),
@@ -138,7 +140,7 @@ INSTALLED_APPS = [
     'admin_site',  # must be before wagtail.admin
     'users',  # must be before wagtail.users
     # 'wagtail.users',  # this should be removed in favour of the custom app config
-    "paths.apps.CustomUsersAppConfig",  # a custom app config for the wagtail.users app
+    'paths.apps.CustomUsersAppConfig',  # a custom app config for the wagtail.users app
     'wagtail.snippets',
     'wagtail.documents',
     'wagtail.images',
@@ -155,6 +157,7 @@ INSTALLED_APPS = [
     'modelcluster',
     'grapple',
     'graphene_django',
+    'strawberry_django',
     'people.apps.PeopleConfig',
     'orgs.apps.OrganizationsConfig',
     'social_django',
@@ -195,7 +198,7 @@ MIDDLEWARE = [
     'paths.middleware.RequestMiddleware',
     'admin_site.middleware.AuthExceptionMiddleware',
     'paths.middleware.AdminMiddleware',
-    'kausal_common.logging.request_log.middleware.LogUnsafeRequestMiddleware', # use middleware from kausal_common, no additions
+    'kausal_common.logging.request_log.middleware.LogUnsafeRequestMiddleware',  # use middleware from kausal_common, no additions
 ]
 
 ROOT_URLCONF = f'{PROJECT_NAME}.urls'
@@ -302,18 +305,27 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^https://([a-z0-9-_]+\.)*kausal\.tech$',
     r'^https://([a-z0-9-_]+\.)*kausal\.dev$',
 ]
-CORS_ALLOW_HEADERS = list(default_cors_headers) + get_allowed_cors_headers() + [
-    INSTANCE_IDENTIFIER_HEADER,
-    INSTANCE_HOSTNAME_HEADER,
-]
+CORS_ALLOW_HEADERS = (
+    list(default_cors_headers)
+    + get_allowed_cors_headers()
+    + [
+        INSTANCE_IDENTIFIER_HEADER,
+        INSTANCE_HOSTNAME_HEADER,
+    ]
+)
 CORS_ALLOW_CREDENTIALS = True
 CORS_PREFLIGHT_MAX_AGE = 3600
 CORS_ALLOW_ALL_ORIGINS = True
 
-CSRF_COOKIE_AGE = 24 * 3600  # one day
-
 SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_NAME = '%s-sessionid' % env.str('COOKIE_PREFIX')
+
+CSRF_COOKIE_NAME = '%s-csrftoken' % env.str('COOKIE_PREFIX')
+CSRF_COOKIE_AGE = 24 * 3600  # one day
+
+LANGUAGE_COOKIE_NAME = '%s-language' % env.str('COOKIE_PREFIX')
+
 
 GRAPHENE = {
     'SCHEMA': f'{PROJECT_NAME}.schema.schema',
@@ -362,24 +374,25 @@ CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_RESULT_EXPIRES = 60 * 60  # one hour
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = False
 
+
 def _get_channel_layer_config() -> dict[str, Any]:
     if REDIS_URL:
         return {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [REDIS_URL],
-                "prefix": "paths-%s-asgi" % DEPLOYMENT_TYPE,
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+                'prefix': 'paths-%s-asgi' % DEPLOYMENT_TYPE,
             },
         }
     if not DEBUG:
-        warnings.warn("Using in-memory channel layer in non-DEBUG mode. This is not recommended for production.", stacklevel=1)
+        warnings.warn('Using in-memory channel layer in non-DEBUG mode. This is not recommended for production.', stacklevel=1)
     return {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
     }
 
 
 CHANNEL_LAYERS = {
-    "default": _get_channel_layer_config(),
+    'default': _get_channel_layer_config(),
 }
 
 
@@ -535,7 +548,7 @@ if find_spec('daphne') is not None:
 
 if find_spec('kausal_paths_extensions') is not None:
     INSTALLED_APPS.append('kausal_paths_extensions')
-    from kausal_paths_extensions import register_settings
+    from kausal_paths_extensions import register_settings  # type: ignore[import-not-found]
 
     register_settings(locals())
 
@@ -546,7 +559,7 @@ local_settings = Path(BASE_DIR) / Path('local_settings.py')
 if local_settings.exists():
     import types
 
-    module_name = '%s.local_settings' % ROOT_URLCONF.split('.')[0]
+    module_name = '%s.local_settings' % ROOT_URLCONF.split('.', maxsplit=1)[0]
     module = types.ModuleType(module_name)
     module.__file__ = str(local_settings)
     sys.modules[module_name] = module
@@ -562,7 +575,7 @@ if not locals().get('SECRET_KEY', ''):
 
         system_random = random.SystemRandom()
         try:
-            SECRET_KEY = ''.join([system_random.choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)') for i in range(64)])
+            SECRET_KEY = ''.join([system_random.choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)') for _ in range(64)])
             with secret_file.open('w') as f:
                 secret_file.chmod(0o0600)
                 f.write(SECRET_KEY)
@@ -572,54 +585,29 @@ if not locals().get('SECRET_KEY', ''):
             ) from None
 
 
-if DEBUG:
-    from rich import traceback
-    from rich.console import Console
-
-    traceback.install(show_locals=True)
-
-    traceback_console = Console(stderr=True)
-
-    def excepthook(args: ExceptHookArgs):
-        assert args.exc_value is not None
-        traceback_console.print(
-            traceback.Traceback.from_exception(
-                args.exc_type,
-                args.exc_value,
-                args.exc_traceback,
-                show_locals=True,
-            )
-        )
-
-    import threading
-
-    threading.excepthook = excepthook
-
-    from paths.watchfiles_reloader import replace_reloader
-
-    replace_reloader()
-
-
-LOG_GRAPHQL_QUERIES = DEBUG and env('LOG_GRAPHQL_QUERIES')
-LOG_SQL_QUERIES = DEBUG and env('LOG_SQL_QUERIES')
-ENABLE_DEBUG_TOOLBAR = DEBUG and env('ENABLE_DEBUG_TOOLBAR')
-ENABLE_PERF_TRACING: bool = env('ENABLE_PERF_TRACING')
+LOG_GRAPHQL_QUERIES = DEBUG and env.bool('LOG_GRAPHQL_QUERIES')
+LOG_SQL_QUERIES = DEBUG and env.bool('LOG_SQL_QUERIES')
+ENABLE_DEBUG_TOOLBAR = DEBUG and env.bool('ENABLE_DEBUG_TOOLBAR')
+ENABLE_PERF_TRACING: bool = env.bool('ENABLE_PERF_TRACING')
 
 if ENABLE_DEBUG_TOOLBAR:
-    INSTALLED_APPS += ['debug_toolbar']
+    INSTALLED_APPS.append('debug_toolbar')
     MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 
 if env('CONFIGURE_LOGGING'):
-    from kausal_common.logging.init import LogFormat, UserLoggingOptions, init_logging_django
+    from kausal_common.logging.init import UserLoggingOptions, autodetect_log_format, init_logging_django
 
-    is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False)  # type: ignore
+    is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False)
     log_format: LogFormat | None
     if not is_kube and DEBUG:
         # If logfmt hasn't been explicitly selected and DEBUG is on, fall back to autodetection.
-        log_format = None
+        log_format = autodetect_log_format()
     else:
         log_format = 'logfmt'
     LOGGING = init_logging_django(log_format, options=UserLoggingOptions(sql_queries=LOG_SQL_QUERIES))
+else:
+    log_format = None
+
 
 REQUEST_LOG_MAX_DAYS = env('REQUEST_LOG_MAX_DAYS')
 REQUEST_LOG_METHODS = env('REQUEST_LOG_METHODS')
@@ -634,3 +622,9 @@ if True:
 HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')
 
 GOOGLE_MAPS_V3_APIKEY = env('GOOGLE_MAPS_V3_APIKEY')
+
+
+if DEBUG:
+    from paths.watchfiles_reloader import replace_reloader
+
+    replace_reloader()

@@ -290,7 +290,7 @@ emission_sectors:
   minimum_year: 2010
   goals:
   - normalized_by: population
-    label_de: Direkte + negative Emissionen
+    label: Direkte + negative Emissionen
     label_en: Net direct emissions
     default: true
     dimensions:
@@ -304,7 +304,7 @@ emission_sectors:
       value: 0
     is_main_goal: true
   - normalized_by: population
-    label_de: Direkte Emissionen
+    label: Direkte Emissionen
     label_en: Direct emissions
     dimensions:
       emission_scope:
@@ -317,7 +317,7 @@ emission_sectors:
       value: 0.5
     is_main_goal: false
   - normalized_by: population
-    label_de: Indirekte Emissionen
+    label: Indirekte Emissionen
     label_en: Indirect emissions
     dimensions:
       emission_scope:

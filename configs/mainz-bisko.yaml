@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://mainz-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 614342be8a596caca5b5d7025443550d3be1615d
+  commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
@@ -53,7 +53,7 @@ params:
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
-  value: '7315000' # Leading zero has dropped from the dataset.
+  value: '07315000'
   is_customizable: false
   is_visible: false
 - id: use_national_values
@@ -101,6 +101,12 @@ result_excels:
   - vehicle_kilometers_ifeu
   - other_transport_energy
 
+action_groups:
+
+- id: combined_heat_and_power
+  name_en: Combined heat and power
+  name_de: Kombination aus Wärme und Strom
+  color: '#007C78'
 
 pages:
 - id: home

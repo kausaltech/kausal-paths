@@ -1,11 +1,15 @@
 [build-system]
-requires = ["setuptools>=61.2"]
 build-backend = "setuptools.build_meta"
+requires = [ "setuptools>=61.2" ]
 
 [project]
 name = "kausal-paths"
-requires-python = ">= 3.14"
 version = "1.0.0"
+requires-python = ">=3.14"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+]
 dependencies = [
   "asgi-cors",
   "babel",
@@ -14,12 +18,14 @@ dependencies = [
   "channels-redis",
   "colored",
   "colormath",
-  "dal-admin-filters>=1.1.0",
+  "dal-admin-filters>=1.1",
+  "deepdiff>=8.6.1",
   "diffsync",
   "django",
   "django-anymail[mailgun,mailjet,sendgrid]",
   "django-autocomplete-light>=3.12.1",
   "django-celery-results",
+  "django-choices-field>=4",
   "django-cors-headers",
   "django-environ",
   "django-extensions",
@@ -42,12 +48,10 @@ dependencies = [
   "graphql-core",
   "graphql-relay",
   "ipython",
-  "llvmlite",
   "logfmter",
   "loguru",
   "modelsearch<1.2",
-  "nanoid==2.0.0",
-  "numba",
+  "nanoid==2",
   "openpyxl",
   "opentelemetry-exporter-otlp-proto-http",
   "opentelemetry-exporter-prometheus>=0.55b1",
@@ -61,7 +65,7 @@ dependencies = [
   "pint",
   "pint-pandas",
   "polars",
-  "psycopg[pool,binary]",
+  "psycopg[binary,pool]",
   "pycryptodome",
   "pydantic",
   "pydantic-extra-types",
@@ -72,14 +76,13 @@ dependencies = [
   "pytest-factoryboy",
   "pytest-html",
   "python-dotenv",
-  "recursive-diff",
   "redis",
   "rich",
   "ruamel-yaml",
   "s3cmd",
   "sentry-sdk[django,opentelemetry]",
   "social-auth-app-django",
-  "starlette>=0.51.0",
+  "starlette>=0.51",
   "strawberry-graphql",
   "strawberry-graphql-django",
   "tzdata",
@@ -91,175 +94,14 @@ dependencies = [
   "wagtail-generic-chooser",
   "wagtail-grapple",
   "wagtail-localize",
-  "wagtail-modeladmin>=2.2.0",
+  "wagtail-modeladmin>=2.2",
   "wagtailgeowidget>=8.2.1",
   "watchfiles",
-  "willow>=1.9.0",
+  "willow>=1.9",
+  "wrapt>=1.17.3",
   "xxhash",
 ]
-
-[project.optional-dependencies]
-kausal = ["kausal-paths-extensions>=0.6.50"]
-
-[tool.pip-tools]
-
-[tool.pep8]
-max-line-length = "120"
-ignore = "E309"
-
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "paths.tests.settings"
-norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
-filterwarnings = ["ignore::DeprecationWarning:graphene"]
-
-[[tool.uv.index]]
-url = "https://pypi.org/simple"
-
-[[tool.uv.index]]
-name = "kausal"
-url = "https://pypi.kausal.tech/"
-authenticate = "always"
-
-[tool.ruff]
-extend = './kausal_common/configs/ruff.toml'
-
-[tool.mypy]
-plugins = [
-  "mypy_django_plugin.main",
-  "pydantic.mypy",
-  "strawberry.ext.mypy_plugin",
-]
-mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings"
-exclude = [
-  '^Attic/',
-  '/migrations/',
-  '^notebooks/',
-  '^local_settings\.py',
-  '^\.*env*',
-  '^kausal_common/typings/django-stubs',
-]
-check_untyped_defs = true
-cache_fine_grained = true
-explicit_package_bases = true
-strict_optional = true
-fixed_format_cache = true
-always_true = ['IS_PATHS']
-always_false = ['IS_WATCH']
-
-
-[[tool.mypy.overrides]]
-module = [
-  "anymail.*",
-  "appdirs.*",
-  "channels.*",
-  "colored.*",
-  "dal.*",
-  "dal_select2.*",
-  "diffsync.*",
-  "dvc_pandas.*",
-  "dvc.*",
-  "environ.*",
-  "environ.*",
-  "factory.*",
-  "generic_chooser.*",
-  "graphene_django.*",
-  "grapple.*",
-  "gunicorn.*",
-  "gunicorn.*",
-  "ipdb.*",
-  "laces.*",
-  "modelcluster.*",
-  "modeltrans.*",
-  "modelsearch.*",
-  "nanoid.*",
-  "networkx.*",
-  "numba.*",
-  "oauth2_provider.*",
-  "pdbr.*",
-  "permissionedforms.*",
-  "pint_pandas.*",
-  "pint.*",
-  "plotext.*",
-  "plotly.*",
-  "polars.polars.*",
-  "psutil.*",
-  "rest_framework_nested.*",
-  "rustface.*",
-  "social_core.*",
-  "social_django.*",
-  "storages.*",
-  "taggit.*",
-  "uwsgi.*",
-  "uwsgidecorators.*",
-  "wagtail_color_panel.*",
-  "wagtail_localize.*",
-  "wagtail.*",
-  "willow.*",
-  "wagtailgeowidget.*",
-]
-ignore_missing_imports = true
-
-[tool.mypy-baseline]
-baseline_path = ".mypy-baseline.txt"
-preserve_position = false
-
-[tool.pydantic-mypy]
-init_typed = true
-
-[tool.pyright]
-stubPath = "./kausal_common/typings"
-exclude = [
-  'Attic/',
-  '**/__pycache__',
-  'local_settings.py',
-  '**/migrations',
-  '**/node_modules',
-  '.*',
-]
-defineConstant = { 'IS_PATHS' = true, 'IS_WATCH' = false }
-deprecateTypingAliases = true
-enableTypeIgnoreComments = true
-reportAny = false
-reportAttributeAccessIssue = "error"
-reportExplicitAny = false
-reportIgnoreCommentWithoutRule = false
-reportImplicitOverride = false
-reportImportCycles = false
-reportIncompatibleMethodOverride = false
-reportIncompatibleVariableOverride = false
-reportInvalidCast = false
-reportMissingParameterType = false
-reportMissingTypeStubs = "information"
-reportPrivateImportUsage = false
-reportPrivateUsage = false
-reportUnannotatedClassAttribute = false
-reportUninitializedInstanceVariable = false
-reportUnknownArgumentType = false
-reportUnknownMemberType = false
-reportUnknownParameterType = false
-reportUnknownVariableType = false
-reportUnnecessaryComparison = "information"
-reportUnnecessaryIsInstance = false
-reportUnreachable = false
-reportUnsafeMultipleInheritance = "information"
-reportUnusedCallResult = false
-
-[tool.django-stubs]
-django_settings_module = "paths.settings"
-
-[tool.setuptools]
-include-package-data = false
-py-modules = []
-
-[tool.uv]
-environments = [
-  "python_full_version >= '3.14' and sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "python_full_version >= '3.14' and sys_platform == 'darwin' and platform_machine == 'arm64'",
-]
-
-[tool.uv.sources]
-django-modeltrans = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
-kausal-paths-extensions = { index = "kausal"}
+optional-dependencies.kausal = [ "kausal-paths-extensions>=0.6.50" ]
 
 [dependency-groups]
 dev = [
@@ -280,15 +122,15 @@ dev = [
   "uv",
   "virtualenvwrapper>=6.1.1",
   "viztracer",
-  {include-group = "lint"},
+  { include-group = "lint" },
 ]
 lint = [
+  "altair>=6",
   "celery-types",
   "django-stubs",
   "djangorestframework-stubs",
   "graphene-stubs",
   "mypy",
-  "mypy-baseline",
   "pandas-stubs",
   "pyarrow-stubs",
   "ruff",
@@ -316,6 +158,165 @@ notebook = [
 ]
 prod = [
   "gunicorn[gthread]",
-  "rustface>=0.1.0; sys_platform == 'linux'",
+  "rustface>=0.1; sys_platform=='linux'",
   "uvicorn-worker",
 ]
+
+[tool.setuptools]
+include-package-data = false
+py-modules = []
+
+[tool.uv]
+sources.django-modeltrans = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
+sources.kausal-paths-extensions = { index = "kausal" }
+index = [
+  { url = "https://pypi.org/simple" },
+  { name = "kausal", url = "https://pypi.kausal.tech/", authenticate = "always" },
+]
+environments = [
+  "python_full_version >= '3.14' and sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "python_full_version >= '3.14' and sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+
+[tool.ruff]
+extend = "./kausal_common/configs/ruff.toml"
+extend-exclude = [ "*.ipynb", "notebooks/*" ]
+
+[tool.mypy]
+plugins = [
+  "mypy_django_plugin.main",
+  "pydantic.mypy",
+  "strawberry.ext.mypy_plugin",
+]
+mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings"
+exclude = [
+  "^Attic/",
+  "/migrations/",
+  "^notebooks/",
+  "^local_settings\\.py",
+  "^\\.*env*",
+  "^kausal_common/typings/django-stubs",
+]
+check_untyped_defs = true
+cache_fine_grained = true
+explicit_package_bases = true
+strict_optional = true
+fixed_format_cache = true
+always_true = [ "IS_PATHS", "IS_MYPY", "HAS_BABEL" ]
+always_false = [ "IS_WATCH" ]
+local_partial_types = true
+allow_redefinition_new = true
+
+[[tool.mypy.overrides]]
+module = [
+  "anymail.*",
+  "appdirs.*",
+  "channels.*",
+  "colored.*",
+  "dal.*",
+  "dal_select2.*",
+  "diffsync.*",
+  "dvc_pandas.*",
+  "dvc.*",
+  "environ.*",
+  "environ.*",
+  "factory.*",
+  "generic_chooser.*",
+  "graphene_django.*",
+  "grapple.*",
+  "gunicorn.*",
+  "gunicorn_prometheus_exporter.*",
+  "ipdb.*",
+  "laces.*",
+  "modelcluster.*",
+  "modeltrans.*",
+  "modelsearch.*",
+  "nanoid.*",
+  "networkx.*",
+  "oauth2_provider.*",
+  "pdbr.*",
+  "permissionedforms.*",
+  "pint_pandas.*",
+  "pint.*",
+  "plotext.*",
+  "plotly.*",
+  "polars.polars.*",
+  "psutil.*",
+  "rest_framework_nested.*",
+  "rustface.*",
+  "social_core.*",
+  "social_django.*",
+  "storages.*",
+  "taggit.*",
+  "uwsgi.*",
+  "uwsgidecorators.*",
+  "wagtail_color_panel.*",
+  "wagtail_localize.*",
+  "wagtail.*",
+  "willow.*",
+  "wagtailgeowidget.*",
+]
+ignore_missing_imports = true
+
+[tool.pyright]
+defineConstant = { IS_PATHS = true, IS_WATCH = false, IS_MYPY = false, HAS_BABEL = true }
+# So Pyright resolves packages installed in .venv (Django, etc.).
+venvPath = "."
+venv = ".venv"
+stubPath = "./kausal_common/typings"
+exclude = [
+  "Attic/",
+  "**/__pycache__",
+  "local_settings.py",
+  "**/migrations",
+  "**/node_modules",
+  ".*",
+]
+deprecateTypingAliases = true
+enableTypeIgnoreComments = true
+reportAny = false
+reportAttributeAccessIssue = "error"
+reportConstantRedefinition = false
+reportExplicitAny = false
+reportIgnoreCommentWithoutRule = false
+reportImplicitOverride = false
+reportImportCycles = false
+reportIncompatibleMethodOverride = false
+reportIncompatibleVariableOverride = false
+reportInvalidCast = false
+reportMissingParameterType = false
+reportMissingTypeStubs = "information"
+reportPrivateImportUsage = false
+reportPrivateUsage = false
+reportUnannotatedClassAttribute = false
+reportUninitializedInstanceVariable = false
+reportUnknownArgumentType = false
+reportUnknownMemberType = false
+reportUnknownParameterType = false
+reportUnknownVariableType = false
+reportUnnecessaryComparison = "information"
+reportUnnecessaryIsInstance = false
+reportUnreachable = false
+reportUnsafeMultipleInheritance = "information"
+reportUnusedCallResult = false
+
+[tool.ty]
+environment.extra-paths = [ "./kausal_common/typings" ]
+
+[tool.django-stubs]
+django_settings_module = "paths.settings"
+
+[tool.pytest]
+DJANGO_SETTINGS_MODULE = "paths.settings"
+norecursedirs = [ "node_modules", "data", ".git", "venv", "Attic" ]
+filterwarnings = [
+  "ignore::DeprecationWarning:graphene",
+  "ignore:.*iscoroutinefunction:DeprecationWarning",
+]
+
+[tool.pep8]
+max-line-length = "120"
+ignore = "E309"
+
+[tool.pydantic-mypy]
+init_typed = true

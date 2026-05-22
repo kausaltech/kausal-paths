@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+from typing import cast
+
+from django.utils.translation import gettext_lazy as _
+
 import numpy as np
 import pandas as pd
+
+from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.calc import extend_last_historical_value
 from nodes.constants import (
@@ -24,7 +30,7 @@ class AlasNode(Node):
     ]
     global_parameters = ['municipality_name', 'selected_framework']
     allowed_parameters = [
-        StringParameter(local_id='region', label='Region to be included', is_customizable=False),
+        StringParameter(local_id='region', label=_('Region to be included'), is_customizable=False),
     ]
     output_metrics = {
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
@@ -32,10 +38,10 @@ class AlasNode(Node):
         EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY),
     }
     output_dimensions = {
-        'Sector': Dimension(id='syke_sector', label=dict(en='SYKE emission sector'), is_internal=True),
+        'Sector': Dimension(id='syke_sector', label=TranslatedString(en='SYKE emission sector'), is_internal=True),
     }
 
-    def compute(self) -> pd.DataFrame:
+    def compute(self) -> pd.DataFrame:  # noqa: C901, PLR0912
         df = self.get_input_dataset()
         if isinstance(df.index, pd.MultiIndex):
             df = df.reset_index()
@@ -78,11 +84,13 @@ class AlasNode(Node):
                 print('vain päästökauppa')
                 df = df[df['päästökauppa']]
 
-        df = df.rename(columns={
-            'vuosi': YEAR_COLUMN,
-            emission_field: EMISSION_QUANTITY,
-            'energiankulutus': ENERGY_QUANTITY,
-        })
+        df = df.rename(
+            columns={
+                'vuosi': YEAR_COLUMN,
+                emission_field: EMISSION_QUANTITY,
+                'energiankulutus': ENERGY_QUANTITY,
+            }
+        )
         df[EMISSION_FACTOR_QUANTITY] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
 
         df['Sector'] = ''
@@ -96,7 +104,7 @@ class AlasNode(Node):
         df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, EMISSION_FACTOR_QUANTITY, 'Sector']]
         df = df.set_index([YEAR_COLUMN, 'Sector']).sort_index()
         if len(df) == 0:
-            raise NodeError(self, "Municipality %s not found in data" % muni_name)
+            raise NodeError(self, 'Municipality %s not found in data' % muni_name)
         for metric_id, metric in self.output_metrics.items():
             if hasattr(df[metric_id], 'pint'):
                 df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
@@ -112,7 +120,7 @@ class AlasNode(Node):
 
 
 class AlasEmissions(Node):
-    unit = 'kt/a'
+    default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
     allowed_input_classes = [
         AlasNode,
@@ -136,7 +144,7 @@ class AlasEmissions(Node):
         sector = self.get_parameter_value('sector')
         required = self.get_parameter_value('required', required=False)
         try:
-            df = df.xs(sector, level='Sector')
+            df = cast('pd.DataFrame', df.xs(sector, level='Sector'))
         except KeyError:
             if not required:
                 years = df.index.get_level_values(YEAR_COLUMN).unique()
@@ -146,12 +154,12 @@ class AlasEmissions(Node):
             else:
                 raise
         df = df[[EMISSION_QUANTITY]]
-        if df[EMISSION_QUANTITY].isnull().all():
+        if df[EMISSION_QUANTITY].isna().all():
             df = df.fillna(0.0)
         df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
         df[FORECAST_COLUMN] = False
 
         if self.get_global_parameter_value('extend_historical_values', required=False):
-            df.index = df.index.astype(dtype='int64') # TODO Could update this function to polars
+            df.index = df.index.astype(dtype='int64')  # TODO Could update this function to polars
             df = extend_last_historical_value(df, self.get_end_year())
         return df

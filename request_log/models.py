@@ -7,4 +7,5 @@ class LoggedRequest(BaseLoggedRequest):
     class Meta(BaseLoggedRequest.Meta):
         abstract = False
         app_label = 'request_log'
+
     pass

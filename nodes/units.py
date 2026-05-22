@@ -1,22 +1,18 @@
-from __future__ import annotations
-
 import os
 import re
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias, Unpack, cast
+from typing import TYPE_CHECKING, Any, Never, NoReturn, Self, Unpack, cast, overload
 
 from pydantic_core import core_schema
 
 import pint
 import platformdirs
 from loguru import logger
-from pint import UnitRegistry, facets
+from pint import facets
 from pint.babel_names import _babel_units
 from pint.delegates.formatter._compound_unit_helpers import (
-    BabelKwds,
-    SortFunc,
     prepare_compount_unit,
 )
 from pint.delegates.formatter._format_helpers import formatter
@@ -25,15 +21,23 @@ from pint.delegates.formatter.plain import PrettyFormatter
 from pint.facets.plain import PlainQuantity, PlainUnit
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
 
     from django_stubs_ext import StrPromise
     from pydantic import GetCoreSchemaHandler
     from pydantic_core import CoreSchema
 
+    from pint import UnitRegistry
+    from pint.delegates.formatter._compound_unit_helpers import (
+        BabelKwds,
+        SortFunc,
+    )
+    from pint.facets.plain.objects import UnitsContainer
 
-#Unit = PlainUnit
-#Quantity = PlainQuantity
+
+# Unit = PlainUnit
+# Quantity = PlainQuantity
+
 
 def split_specifier(name: str) -> tuple[str, str | None]:
     m = re.match(r'(.+)\[(\w+)\]', name)
@@ -47,10 +51,10 @@ def split_specifier(name: str) -> tuple[str, str | None]:
 
 
 class Unit(pint.registry.Unit):
+    _paths_hash: bytes
+
     @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source: type[Any], handler: GetCoreSchemaHandler
-    ) -> CoreSchema:
+    def __get_pydantic_core_schema__(cls, source: type[Any], handler: GetCoreSchemaHandler) -> CoreSchema:
         assert source is Unit
         return core_schema.no_info_after_validator_function(
             cls._validate,
@@ -73,17 +77,46 @@ class Unit(pint.registry.Unit):
 
     @staticmethod
     def _serialize(value: Unit) -> str:
-        return str(value)
+        s = str(value)
+        if not s:
+            return 'dimensionless'
+        return s
 
 
-class Quantity(pint.registry.Quantity):
-    pass
+type UnitLike = str | dict[str, float] | 'UnitsContainer' | Unit
 
 
-QuantityType: TypeAlias = Quantity | PlainQuantity[Any]  # noqa: UP040
-UnitType: TypeAlias = Unit | PlainUnit  # noqa: UP040
+class Quantity(pint.registry.Quantity[float]):
+    if TYPE_CHECKING:
 
-type PathsUnit = Unit
+        @overload
+        def __new__(cls, value: float, units: UnitLike | None = None) -> Self: ...
+
+        @overload
+        def __new__(cls, value: str, units: UnitLike | None = None) -> Self: ...
+
+        @overload
+        def __new__(cls, value: Sequence[float], units: UnitLike | None = None) -> Self: ...
+
+        @overload
+        def __new__(cls, value: Quantity, units: UnitLike | None = None) -> Self: ...
+
+        # Not a real constructor; only defined in type checking scope.
+        def __new__(cls, value, units=None) -> Self:
+            return cls(value, units)
+
+        @property
+        def units(self) -> Unit: ...
+
+        @property
+        def u(self) -> Unit: ...
+
+
+type QuantityType = Quantity | PlainQuantity[Any]
+type UnitType = Unit | PlainUnit
+
+PathsUnit = Unit
+
 
 @dataclass(frozen=True)
 class SpecifierUnitDefinition(facets.plain.UnitDefinition):
@@ -104,6 +137,9 @@ class CachingUnitRegistry(  # type: ignore[misc]
     Unit = Unit
     Quantity = Quantity
 
+    def __call__(self, *args: Never, **kwargs: Never) -> NoReturn:  # type: ignore[override]
+        raise Exception('This registry is not callable. Use parse_units or parse_expression instead.')
+
     def parse_units(self, input_string: str, as_delta: bool | None = None, case_sensitive: bool | None = None) -> PathsUnit:
         if self.unit_cache is None:
             self.unit_cache = dict()
@@ -111,6 +147,8 @@ class CachingUnitRegistry(  # type: ignore[misc]
         if cached_unit is not None:
             return cached_unit
         ret = super().parse_units(input_string, as_delta, case_sensitive)
+        if not isinstance(ret, PathsUnit):
+            raise TypeError(f'Parsed unit {input_string} is not a Unit: {type(ret)}')
         self.unit_cache[input_string] = ret
         return ret
 
@@ -132,13 +170,14 @@ class CachingUnitRegistry(  # type: ignore[misc]
 def create_unit_registry():
     cache_dir = os.getenv('PINT_CACHE_DIR', None)
     if cache_dir is None:
-        cache_dir = platformdirs.user_cache_dir(appname="pint", appauthor=False)
+        cache_dir = platformdirs.user_cache_dir(appname='pint', appauthor=False)
+
+    def preprocess_unit(unit: str) -> str:
+        return unit.replace('%', ' percent ')
 
     def try_create(cache_path: Path) -> CachingUnitRegistry:
         return CachingUnitRegistry(
-            preprocessors=[
-                lambda s: s.replace('%', ' percent '),
-            ],
+            preprocessors=[preprocess_unit],
             on_redefinition='raise',
             cache_folder=str(cache_path),
         )
@@ -147,7 +186,7 @@ def create_unit_registry():
     try:
         reg = try_create(cache_path)
     except FileNotFoundError:
-        logger.exception("Unit registry creation failed; removing pint cache and trying again")
+        logger.exception('Unit registry creation failed; removing pint cache and trying again')
         # This can sometimes happen with stale cache
         for fn in list(cache_path.glob('*.json')) + list(cache_path.glob('*.pickle')):
             fn.unlink()
@@ -175,10 +214,13 @@ def prepare_units_for_babel(unit: Unit, html: bool = False):
 
 
 class PathsHTMLFormatter(HTMLFormatter):
+    def __init__(self, registry: CachingUnitRegistry | None = None):
+        super().__init__(registry=cast('UnitRegistry[Any]', registry))
+
     def format_unit(
         self,
         unit: PlainUnit | Iterable[tuple[str, Any]],
-        uspec: str = "",
+        uspec: str = '',
         sort_func: SortFunc | None = None,
         **babel_kwds: Unpack[BabelKwds],
     ) -> str:
@@ -198,18 +240,21 @@ class PathsHTMLFormatter(HTMLFormatter):
             denominator,
             as_ratio=True,
             single_denominator=True,
-            product_fmt=r"·",
-            division_fmt=r"{}∕{}",  # noqa: RUF001
-            power_fmt=r"{}<sup>{}</sup>",
-            parentheses_fmt=r"({})",
+            product_fmt=r'·',
+            division_fmt=r'{}∕{}',  # noqa: RUF001
+            power_fmt=r'{}<sup>{}</sup>',
+            parentheses_fmt=r'({})',
         )
 
 
 class PathsPrettyFormatter(PrettyFormatter):
+    def __init__(self, registry: CachingUnitRegistry | None = None):
+        super().__init__(registry=cast('UnitRegistry[Any]', registry))
+
     def format_unit(
         self,
         unit: PlainUnit | Iterable[tuple[str, Any]],
-        uspec: str = "",
+        uspec: str = '',
         sort_func: SortFunc | None = None,
         **babel_kwds: Unpack[BabelKwds],
     ) -> str:
@@ -220,8 +265,8 @@ class PathsPrettyFormatter(PrettyFormatter):
         return super().format_unit(unit, uspec, sort_func, **babel_kwds)
 
 
-unit_registry.html_formatter = PathsHTMLFormatter(registry=cast('UnitRegistry', unit_registry))
-unit_registry.pretty_formatter = PathsPrettyFormatter(registry=cast('UnitRegistry', unit_registry))
+unit_registry.html_formatter = PathsHTMLFormatter(registry=unit_registry)
+unit_registry.pretty_formatter = PathsPrettyFormatter(registry=unit_registry)
 
 
 """
@@ -248,6 +293,7 @@ def format_paths_long(unit, registry, **options):
 def format_paths_short(unit, registry, **options):
     return _format_paths_html(unit, registry, short=True, **options)
 """  # noqa: RUF001
+
 
 def define_custom_units(unit_registry: CachingUnitRegistry):
     # By default, kt is knots, but here kilotonne is the most common
@@ -325,6 +371,7 @@ app_registry._registry = unit_registry  # pyright: ignore
 
 _translations_added = False
 
+
 def add_unit_translations():  # noqa: C901
     """
     Add translations for some commonly used units.
@@ -338,6 +385,7 @@ def add_unit_translations():  # noqa: C901
 
     from babel import Locale as Loc
     from pint.babel_names import _babel_units
+
     try:
         from django.conf import settings
     except Exception:
@@ -351,7 +399,7 @@ def add_unit_translations():  # noqa: C901
     class UnitDefinition(TypedDict):
         unit: str
         long: str | _  # type: ignore
-        short: str | _ | None # type: ignore
+        short: str | _ | None  # type: ignore
 
     def set_one(u: str, long: str | StrPromise, short: str | StrPromise | None = None) -> None:
         bu = 'kausal-%s' % u
@@ -389,6 +437,7 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'megaCAD', 'long': _('million Canadian dollars'), 'short': 'M$'},
         {'unit': 'kiloSEK', 'long': _('thousand kronor'), 'short': 'kSEK'},
         {'unit': 'megaSEK', 'long': _('million kronor'), 'short': 'MSEK'},
+        {'unit': 'megaDKK', 'long': _('million kronor'), 'short': 'M DKK'},
         {'unit': 'terawatt_hour', 'long': _('terawatt hours'), 'short': 'TWh'},
         {'unit': 'gigawatt_hour', 'long': _('gigawatt hours'), 'short': 'GWh'},
         {'unit': 'megawatt_hour', 'long': _('megawatt hour'), 'short': _('MWh')},
@@ -411,11 +460,11 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'megavkm', 'long': _('Million vehicle-km'), 'short': _('M vkm')},
         {'unit': 'disability_adjusted_lifeyear', 'long': _('Disability-adjusted lifeyear'), 'short': _('DALY')},
     ]
-    #set_one('cap', pgettext_lazy('capita short', 'cap'))
+    # set_one('cap', pgettext_lazy('capita short', 'cap'))
 
-    #set_one('a', pgettext_lazy('year short', 'yr.'))
-    #set_one('percent', pgettext_lazy('percent', 'percent'))
-    #set_one('%', '%')
+    # set_one('a', pgettext_lazy('year short', 'yr.'))
+    # set_one('percent', pgettext_lazy('percent', 'percent'))
+    # set_one('%', '%')
 
     # Special handling for kilowatt_hour and other units in babel
     del_units = ['kilowatt_hour', 'metric_ton']
@@ -425,11 +474,7 @@ def add_unit_translations():  # noqa: C901
 
     # Apply all unit definitions with explicit casting
     for definition in unit_definitions:
-        set_one(
-            str(definition['unit']),
-            definition['long'],
-            definition.get('short')
-        )
+        set_one(str(definition['unit']), definition['long'], definition.get('short'))
 
     # Special locale-specific customizations
     loc = Loc('de')

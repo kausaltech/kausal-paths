@@ -54,9 +54,7 @@ class PermissionAwareDeleteBulkAction(DeleteBulkAction):
             if usage.is_protected:
                 refs = [str(source_obj) for source_obj, _ in usage]
                 if refs:
-                    protection_reasons[item.pk] = _('Referenced by: %(refs)s') % {
-                        'refs': ', '.join(refs)
-                    }
+                    protection_reasons[item.pk] = _('Referenced by: %(refs)s') % {'refs': ', '.join(refs)}
 
         context['protection_reasons'] = protection_reasons
         return context

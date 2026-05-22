@@ -9,6 +9,7 @@ from paths.const import (
     FRAMEWORK_VIEWER_ROLE,
     INSTANCE_ADMIN_ROLE,
     INSTANCE_REVIEWER_ROLE,
+    INSTANCE_SUPER_ADMIN_ROLE,
     INSTANCE_VIEWER_ROLE,
 )
 
@@ -21,14 +22,19 @@ if TYPE_CHECKING:
     from users.models import User
 
 
-def assign_roles(
-    *, backend: type[BaseAuth], user: User | None, details: dict[str, Any], **kwargs,
+def assign_roles(  # noqa: C901, PLR0912
+    *,
+    backend: type[BaseAuth],
+    user: User | None,
+    details: dict[str, Any],
+    **kwargs,
 ) -> None:
     from frameworks.models import Framework
     from frameworks.roles import framework_admin_role, framework_viewer_role
     from nodes.roles import (
         instance_admin_role,
         instance_reviewer_role,
+        instance_super_admin_role,
         instance_viewer_role,
     )
 
@@ -52,14 +58,17 @@ def assign_roles(
             framework_admin_role.assign_user(framework_object, user)
         elif role.role_id == FRAMEWORK_VIEWER_ROLE:
             framework_viewer_role.assign_user(framework_object, user)
-        elif role.role_id in (INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE, INSTANCE_REVIEWER_ROLE):
+        elif role.role_id in (INSTANCE_SUPER_ADMIN_ROLE, INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE, INSTANCE_REVIEWER_ROLE):
             framework_configs = FrameworkConfig.objects.filter(
                 framework=framework_object, organization_identifier=role.org_id
             ).exclude(organization_identifier__isnull=True)
 
             for framework_config in framework_configs:
                 instance_config = framework_config.instance_config
-                if role.role_id == INSTANCE_ADMIN_ROLE:
+                instance_config.create_or_update_instance_groups()
+                if role.role_id == INSTANCE_SUPER_ADMIN_ROLE:
+                    instance_super_admin_role.assign_user(instance_config, user)
+                elif role.role_id == INSTANCE_ADMIN_ROLE:
                     instance_admin_role.assign_user(instance_config, user)
                 elif role.role_id == INSTANCE_VIEWER_ROLE:
                     instance_viewer_role.assign_user(instance_config, user)

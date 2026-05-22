@@ -1,12 +1,12 @@
 id: bisko
 default_language: de
 supported_languages: [en]
-site_url: https://bisko.paths.staging.kausal.tech
+site_url: https://bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ac85a97ae197b18baeccf6b9567e767c9cb0b18c
+  commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
   dvc_remote: kausal-s3
-name: Klima-Monitor-BISKO
+name: Klima-Monitor Treibhausgasinventar
 owner: Kausal Ltd
 theme_identifier: default
 target_year: 2025
@@ -47,12 +47,12 @@ params:
   label_en: Municipality name
   label_de: Gemeindename
   value: Düsseldorf
-  is_customizable: true
-  is_visible: true
+  is_customizable: false
+  is_visible: false
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
-  value: '5111000' # Leading zero has dropped from the dataset.
+  value: '05111000'
   is_customizable: false
   is_visible: false
 - id: use_national_values
@@ -99,21 +99,34 @@ result_excels:
   - emission_factors_for_district_heating_by_generic_fuel
   - vehicle_kilometers_ifeu
   - other_transport_energy
+
+action_groups:
+
+- id: combined_heat_and_power
+  name_en: Combined heat and power
+  name_de: Kombination aus Wärme und Strom
+  color: '#007C78'
+
 pages:
+
 - id: home
-  name: Klima-Monitor-BISKO Treibhausgasinventar
-  name_en: Climate Protection Monitor BISKO Greenhouse Gas Inventory
+  name: Klima-Monitor Treibhausgasinventar
+  name_en: Climate Protection Monitor Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Klima-Monitor Treibhausgasinventar BISKO
-  lead_paragraph: Die Treibhausgasemissionen BISKO.
+  lead_title: Klima-Monitor Treibhausgasinventar
+  lead_paragraph: Die Treibhausgasemissionen.
 
 scenarios:
 
 - id: baseline
   name: Business as Usual
   # name_en: Business as Usual
+  all_actions_enabled: false
+  params:
+  - id: combined_heat_and_power_chp_fraction.enabled
+    value: true
 
 - id: default
   default: true

@@ -3,11 +3,10 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
-import os
 import pickle
 import re
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, Literal, Self, TypedDict, cast, overload
@@ -18,23 +17,28 @@ from pydantic import BaseModel, Field, field_validator
 import platformdirs
 from loguru import logger
 from rich import print
-from ruamel.yaml import YAML as RuamelYAML, CommentedMap  # noqa: N811
+from ruamel.yaml import YAML as RuamelYAML  # noqa: N811
 from sentry_sdk import start_span
 
-from common.i18n import TranslatedString, gettext_lazy as _, set_default_language
-from nodes.actions import ActionNode
+from kausal_common.i18n.pydantic import TranslatedString, get_i18n_context, gettext_lazy as _, set_i18n_context
+
+from nodes.actions.action import ActionNode
 from nodes.constants import DecisionLevel
+from nodes.defs.instance_defs import DatasetRepoSpec
 from nodes.exceptions import NodeError
 from nodes.explanations import NodeExplanationSystem
-from nodes.normalization import Normalization
 from pages.config import pages_from_config
+from params.discover import discover_global_parameters
 
 from .excel_results import InstanceResultExcel
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from ruamel.yaml import CommentedMap
     from ruamel.yaml.comments import LineCol
+
+    from kausal_common.datasets.models import Dataset as DBDatasetModel
 
     from frameworks.models import FrameworkConfig
     from nodes.context import Context
@@ -114,7 +118,7 @@ class InstanceYAMLMeta(BaseModel):
 @dataclass
 class InstanceYAMLConfig:
     meta: InstanceYAMLMeta
-    data: dict | None = None
+    data: dict[str, Any] | None = None
 
     def _merge_framework_config(
         self, confs: list[CommentedMap], fw_confs: list[CommentedMap], entity_type: str, config_path: Path | None
@@ -149,8 +153,12 @@ class InstanceYAMLConfig:
                         nc['input_datasets'][i]['id'] = dataset_map.get(ds_id, ds_id)
 
         self._merge_config(
-            existing, newconf, entity_type=entity_type, apply_group=apply_group,
-            config_path=config_path, allow_override=allow_override
+            existing,
+            newconf,
+            entity_type=entity_type,
+            apply_group=apply_group,
+            config_path=config_path,
+            allow_override=allow_override,
         )
 
     def _merge_config(
@@ -185,7 +193,11 @@ class InstanceYAMLConfig:
         entrypoint = meta.entrypoint
         yaml = RuamelYAML()
         with entrypoint.path.open('r', encoding='utf8') as f:
-            data: dict = yaml.load(f)
+            loaded = yaml.load(f)
+        if not isinstance(loaded, dict):
+            msg = 'Expected mapping at YAML root, got %s' % type(loaded).__name__
+            raise TypeError(msg)
+        data: dict[str, Any] = loaded
         if 'instance' in data:
             data = data['instance']
 
@@ -229,16 +241,30 @@ class InstanceYAMLConfig:
                 idata = yaml.load(f)
             meta.add_dependency(ifn)
             self._merge_include_config(
-                nodes, idata.get('nodes', []), 'Node', apply_group=apply_group, config_path=ifn,
-                allow_override=allow_override, dataset_replacements=dataset_replacements
+                nodes,
+                idata.get('nodes', []),
+                'Node',
+                apply_group=apply_group,
+                config_path=ifn,
+                allow_override=allow_override,
+                dataset_replacements=dataset_replacements,
             )
             self._merge_include_config(
-                dimensions, idata.get('dimensions', []), 'Dimension', apply_group=apply_group,
-                config_path=None, allow_override=allow_override
+                dimensions,
+                idata.get('dimensions', []),
+                'Dimension',
+                apply_group=apply_group,
+                config_path=None,
+                allow_override=allow_override,
             )
             self._merge_include_config(
-                actions, idata.get('actions', []), 'Action', apply_group=apply_group,
-                config_path=None, allow_override=allow_override, dataset_replacements=dataset_replacements
+                actions,
+                idata.get('actions', []),
+                'Action',
+                apply_group=apply_group,
+                config_path=None,
+                allow_override=allow_override,
+                dataset_replacements=dataset_replacements,
             )
 
         # Make sure that assignment works even if they are originally empty.
@@ -292,7 +318,7 @@ class InstanceYAMLConfig:
             logger.exception("Unable to load cached instance for '%s' from '%s'" % (entrypoint_path, cache_path))
             return None
         assert isinstance(data, dict)
-        conf.data = data
+        conf.data = cast('dict[str, Any]', data)
 
         return conf
 
@@ -325,21 +351,91 @@ class InstanceYAMLConfig:
 type InstanceLoaderFuncT[**P, R, SC: InstanceLoader] = Callable[Concatenate[SC, P], R]
 
 
+@overload
+def make_trans_string(
+    config: dict[str, Any],
+    attr: str,
+    pop: bool = False,
+    required: Literal[True] = True,
+    default_language=None,
+) -> TranslatedString: ...
+
+
+@overload
+def make_trans_string(
+    config: dict[str, Any],
+    attr: str,
+    pop: bool = False,
+    required: Literal[False] = False,
+    default_language=None,
+) -> TranslatedString | None: ...
+
+
+def make_trans_string(  # noqa: C901, PLR0912
+    config: dict[str, Any],
+    attr: str,
+    pop: bool = False,
+    required: bool = False,
+    default_language=None,
+) -> None | TranslatedString:
+    ctx = get_i18n_context()
+    assert ctx is not None
+    default_language = default_language or ctx.default_language
+
+    default = config.get(attr)
+    if pop and default is not None:
+        del config[attr]
+    # If default is already a TranslatedString or a multi-language dict, use it directly
+    if isinstance(default, TranslatedString):
+        return default
+    if isinstance(default, dict):
+        return TranslatedString(default_language=default_language, **default)
+    langs = {}
+    if default is not None:
+        langs[default_language] = default
+    for key in list(config.keys()):
+        m = re.match(r'%s_(([a-z]{2})(-[A-Z]{2})?)$' % attr, key)
+        if m is None:
+            continue
+        full, lang, _region = m.groups()
+        if full not in ctx.all_languages:
+            matches = [x for x in ctx.all_languages if x.startswith('%s-' % lang)]
+            if len(matches) > 1:
+                raise Exception('Too many languages match %s' % full)
+            if len(matches) == 1:
+                full = matches[0]
+            else:
+                # FIXME: Re-enable later when configs have been cleaned up
+                # self.logger.warning("Ignoring '%s' due to unsupported language" % key)
+                continue
+
+        langs[full] = config[key]
+        if pop:
+            del config[key]
+
+    if not langs:
+        if required:
+            raise Exception('Value for field %s missing' % attr)
+        return None
+    return TranslatedString(**langs, default_language=default_language)
+
+
 class InstanceLoader:
     instance: Instance
     context: Context
     default_language: str
     yaml_file_path: Path | None = None
-    config: CommentedMap | dict
+    config: CommentedMap | dict[str, Any]
     fw_config: FrameworkConfig | None = None
     config_mtime_hash: str | None = None
+    db_datasets: dict[str, DBDatasetModel] = {}
 
     _node_classes: dict[str, type[Node]]
-    _input_nodes: dict[str, list[dict | str]]
-    _output_nodes: dict[str, list[dict | str]]
+    _input_nodes: dict[str, list[dict[str, Any] | str]]
+    _output_nodes: dict[str, list[dict[str, Any] | str]]
     _subactions: dict[str, list[str]]
     _scenario_values: dict[str, list[tuple[Parameter, Any]]]
-    _node_visualizations: dict[str, list[dict]]
+    _node_visualizations: dict[str, list[dict[str, Any]]]
 
     @staticmethod
     def wrap_with_span[**P, R, SC: InstanceLoader](
@@ -357,80 +453,17 @@ class InstanceLoader:
 
         return wrap_with_span_outer
 
-    @overload
-    def make_trans_string(
-        self,
-        config: dict,
-        attr: str,
-        pop: bool = False,
-        required: Literal[True] = True,
-        default_language=None,
-    ) -> TranslatedString: ...
-
-    @overload
-    def make_trans_string(
-        self,
-        config: dict,
-        attr: str,
-        pop: bool = False,
-        required: Literal[False] = False,
-        default_language=None,
-    ) -> TranslatedString | None: ...
-
-    def make_trans_string(  # noqa: C901
-        self,
-        config: dict,
-        attr: str,
-        pop: bool = False,
-        required: bool = False,
-        default_language=None,
-    ) -> None | TranslatedString:
-        default_language = default_language or self.config['default_language']
-        all_langs = {self.config['default_language']}
-        all_langs.update(set(self.config.get('supported_languages', [])))
-
-        default = config.get(attr)
-        if pop and default is not None:
-            del config[attr]
-        langs = {}
-        if default is not None:
-            langs[self.config['default_language']] = default
-        for key in list(config.keys()):
-            m = re.match(r'%s_(([a-z]{2})(-[A-Z]{2})?)$' % attr, key)
-            if m is None:
-                continue
-            full, lang, _region = m.groups()
-            if full not in all_langs:
-                matches = [x for x in all_langs if x.startswith('%s-' % lang)]
-                if len(matches) > 1:
-                    raise Exception('Too many languages match %s' % full)
-                if len(matches) == 1:
-                    full = matches[0]
-                else:
-                    # FIXME: Re-enable later when configs have been cleaned up
-                    # self.logger.warning("Ignoring '%s' due to unsupported language" % key)
-                    continue
-
-            langs[full] = config[key]
-            if pop:
-                del config[key]
-        if not langs:
-            if required:
-                raise Exception('Value for field %s missing' % attr)
-            return None
-        return TranslatedString(**langs, default_language=default_language or self.default_language)
-
     def simple_trans_string(self, s: str) -> TranslatedString:
         langs = {
             self.default_language: s,
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
+    def _make_node_datasets(self, config: dict[str, Any], node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
+        from nodes.defs.node_defs import InputDatasetDef
         from nodes.generic import GenericNode
         from nodes.simple import AdditiveNode
-        from nodes.units import Unit
 
         ds_config = config.get('input_datasets')
         datasets: list[Dataset] = []
@@ -441,6 +474,7 @@ class InstanceLoader:
             ds_config = getattr(node_class, 'input_datasets', [])
         elif isinstance(ds_config, list):
             import copy
+
             ds_config = copy.deepcopy(ds_config)
 
         ds_interpolate = False
@@ -454,49 +488,45 @@ class InstanceLoader:
             ds_interpolate = True
         for ds in ds_config:
             if isinstance(ds, str):
-                ds_id = ds
-                dc = {}
+                ds_def = InputDatasetDef(id=ds, interpolate=ds_interpolate)
             else:
-                ds_id = ds.pop('id')
-                dc = ds
-            ds_unit_conf = dc.pop('unit', None)
-            if isinstance(ds_unit_conf, Unit):
-                ds_unit = ds_unit_conf
-            elif ds_unit_conf is not None:
-                ds_unit = self.context.unit_registry.parse_units(ds_unit_conf)
-            else:
-                ds_unit = None
-            tags = dc.pop('tags', [])
+                ds_def = InputDatasetDef.model_validate(ds)
 
             ds_obj: DVCDataset | DBDataset | None = None
             if issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode):
-                ds_obj = GenericDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+                ds_obj = GenericDataset.from_def(ds_def, self.context)
 
-            use_framework_ds = 'framework_measure_data' in tags
-            if self.fw_config is not None:
+            use_framework_ds = 'framework_measure_data' in ds_def.tags
+            use_obs_ds = 'observation_dataset' in ds_def.tags
+            if use_obs_ds:
+                from frameworks.datasets import ObservationDataset
+
+                ds_obj = ObservationDataset.from_def(ds_def, self.context)
+            elif self.fw_config is not None:
                 from nodes.gpc import DatasetNode
 
                 if issubclass(node_class, DatasetNode) or use_framework_ds:
                     from frameworks.datasets import FrameworkMeasureDVCDataset
 
-                    ds_obj = FrameworkMeasureDVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+                    ds_obj = FrameworkMeasureDVCDataset.from_def(ds_def, self.context)
             elif use_framework_ds:
                 from frameworks.datasets import FrameworkMeasureDVCDataset
 
-                ds_obj = FrameworkMeasureDVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+                ds_obj = FrameworkMeasureDVCDataset.from_def(ds_def, self.context)
             elif self.instance.features.use_datasets_from_db:
-                ds_db_obj = self.db_datasets.get(ds_id)
+                ds_db_obj = self.db_datasets.get(ds_def.id)
                 if ds_db_obj is not None:
-                    ds_obj = DBDataset(id=ds_id, unit=ds_unit, tags=tags, **dc, db_dataset_id=str(ds_db_obj.uuid))
+                    ds_obj = DBDataset.from_def(ds_def, self.context, db_dataset_obj=ds_db_obj)
 
             if ds_obj is None:
-                ds_obj = DVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
-            ds_obj.interpolate = ds_interpolate
+                ds_obj = DVCDataset.from_def(ds_def, self.context)
+            ds_obj.interpolate = ds_interpolate or ds_def.interpolate
             datasets.append(ds_obj)
 
         if 'historical_values' in config or 'forecast_values' in config:
             fds = FixedDataset(
-                id=config['id'],
+                config['id'],
+                self.context,
                 unit=unit,  # type: ignore
                 tags=config.get('tags', []),
                 historical=config.get('historical_values'),
@@ -506,8 +536,9 @@ class InstanceLoader:
             datasets.append(fds)
         return datasets
 
-    def _make_node_params(self, config: dict, node: Node) -> None:  # noqa: C901, PLR0912
-        from params.param import Parameter, ReferenceParameter
+    def _make_node_params(self, config: dict[str, Any], node: Node) -> None:  # noqa: C901, PLR0912
+        from params.base import Parameter
+        from params.param import ReferenceParameter
 
         params = config.get('params', [])
         if not params:
@@ -516,7 +547,7 @@ class InstanceLoader:
             params = [dict(id=param_id, value=value) for param_id, value in params.items()]
         # Ensure that the node class allows these parameters
         node_class = type(node)
-        class_allowed_params = {p.local_id: p for p in getattr(node_class, 'allowed_parameters', [])}
+        class_allowed_params: dict[str, Parameter] = {p.local_id: p for p in getattr(node_class, 'allowed_parameters', [])}
         for pc in params:
             param_id = pc.pop('id')
 
@@ -525,9 +556,9 @@ class InstanceLoader:
                 raise NodeError(node, 'Parameter %s not allowed by node class' % param_id)
             param_class = type(param_obj)
 
-            label = self.make_trans_string(pc, 'label', pop=True) or param_obj.label
+            label = make_trans_string(pc, 'label', pop=True, required=False) or param_obj.label
             ref = pc.pop('ref', None)
-            description = self.make_trans_string(pc, 'description', pop=True) or param_obj.description
+            description = make_trans_string(pc, 'description', pop=True, required=False) or param_obj.description
             is_customizable = pc.pop('is_customizable', None)
 
             scenario_values = pc.pop('values', {})
@@ -547,17 +578,16 @@ class InstanceLoader:
                             type(target),
                         ),
                     )
-                param = ReferenceParameter(
+                ref_param = ReferenceParameter(
                     local_id=param_obj.local_id,
                     label=param_obj.label,
-                    target=target,
-                    context=self.context,
+                    target_id=target.global_id,
                 )
-                node.add_parameter(param)
+                node.add_parameter(ref_param)
                 continue
 
             # Merge parameter values
-            fields = asdict(param_obj)
+            fields = param_obj.model_dump()
             fields.update(pc)
             if description is not None:
                 fields['description'] = description
@@ -565,7 +595,6 @@ class InstanceLoader:
                 fields['label'] = label
             if is_customizable is not None:
                 fields['is_customizable'] = is_customizable
-            fields['context'] = self.context
 
             unit = fields.get('unit', None)
             if unit is not None and isinstance(unit, str):
@@ -578,7 +607,7 @@ class InstanceLoader:
 
             try:
                 if value is not None:
-                    param.set(value)
+                    param.value = param.clean(value)
             except:
                 self.instance.log.error('Error setting parameter %s for node %s' % (param.local_id, node.id))
                 raise
@@ -587,7 +616,7 @@ class InstanceLoader:
                 sv = self._scenario_values.setdefault(scenario_id, list())
                 sv.append((param, param.clean(value)))
 
-    def _make_node_visualizations(self, node: Node, config: list[dict]) -> None:
+    def _make_node_visualizations(self, node: Node, config: list[dict[str, Any]]) -> None:
         from nodes.visualizations import NodeVisualizations
 
         ctx = NodeVisualizations.ValidationContext(context=self.context, node=None, root_node=node)
@@ -596,7 +625,9 @@ class InstanceLoader:
         except Exception as e:
             raise NodeError(node, 'Error validating visualizations') from e
 
-    def make_node(self, node_class: type[Node], config: dict, yaml_lc: LineCol | None = None) -> Node:  # noqa: C901, PLR0912
+    def make_node(  # noqa: C901, PLR0912, PLR0915
+        self, node_class: type[Node], config: dict[str, Any], _yaml_lc: LineCol | None = None
+    ) -> Node:
         from nodes.node import NodeMetric
         from nodes.units import Unit
 
@@ -604,6 +635,18 @@ class InstanceLoader:
         metrics: dict[str, NodeMetric] | None
         if metrics_conf is not None:
             metrics = {m['id']: NodeMetric.from_config(m) for m in metrics_conf}
+            # If the class defines output_metrics, remap config keys to match
+            # class keys (e.g. class uses 'default' but config has 'Value').
+            # The config key is the port's column_id; match it against the
+            # class metric's column_id to find the canonical dict key.
+            class_metrics_def: dict[str, NodeMetric] | None = getattr(node_class, 'output_metrics', None)
+            if class_metrics_def:
+                col_to_class_key = {m.column_id: k for k, m in class_metrics_def.items()}
+                remapped: dict[str, NodeMetric] = {}
+                for config_key, metric in metrics.items():
+                    class_key = col_to_class_key.get(config_key, config_key)
+                    remapped[class_key] = metric
+                metrics = remapped
             class_metrics = None
         else:
             metrics = None
@@ -627,18 +670,19 @@ class InstanceLoader:
 
         datasets = self._make_node_datasets(config, node_class, unit)
 
-        loc_conf = config.get('config_location')
-        config_location = ConfigLocation(**loc_conf) if loc_conf else None  # type: ignore
+        loc_conf: ConfigLocation | None = config.get('config_location')
+        config_location = ConfigLocation(**loc_conf) if loc_conf else None
 
+        description = make_trans_string(config, 'description')
         node: Node = node_class(
             id=config['id'],
             context=self.context,
-            name=self.make_trans_string(config, 'name'),
-            short_name=self.make_trans_string(config, 'short_name'),
+            name=make_trans_string(config, 'name'),
+            short_name=make_trans_string(config, 'short_name'),
             quantity=quantity,
             unit=unit,
             node_group=config.get('node_group'),
-            description=self.make_trans_string(config, 'description'),
+            description=description,
             color=config.get('color'),
             order=config.get('order'),
             is_visible=config.get('is_visible', True),
@@ -676,7 +720,7 @@ class InstanceLoader:
             self._node_visualizations[node.id] = viz_config
 
         no_effect_value = config.get('no_effect_value')
-        if no_effect_value:
+        if no_effect_value is not None:
             assert isinstance(node, ActionNode)
             node.no_effect_value = no_effect_value
 
@@ -705,7 +749,7 @@ class InstanceLoader:
             return self._node_classes[full_path]
 
         mod = importlib.import_module(mod_path)
-        klass = getattr(mod, class_name)
+        klass: type = getattr(mod, class_name)
         if allowed_classes and not issubclass(klass, tuple(allowed_classes)):
             raise Exception('%s is not a subclass of %s' % (klass, allowed_classes))
         if disallowed_classes:
@@ -720,7 +764,8 @@ class InstanceLoader:
 
         for dc in self.config.get('dimensions', []):
             try:
-                dim = Dimension(**dc, mtime_hash=self.config_mtime_hash)
+                dc['mtime_hash'] = self.config_mtime_hash
+                dim = Dimension.from_yaml_config(dc)
             except Exception:
                 print(dc)
                 raise
@@ -733,10 +778,14 @@ class InstanceLoader:
         from nodes.node import Node
 
         for nc in self.config.get('nodes', []):
+            if nc['type'].startswith('nodes.'):
+                prefix = None
+            else:
+                prefix = 'nodes'
             try:
                 node_class = self.import_class(
                     nc['type'],
-                    'nodes',
+                    prefix,
                     allowed_classes=[Node],
                     disallowed_classes=[ActionNode],
                     node_id=nc['id'],
@@ -744,11 +793,14 @@ class InstanceLoader:
             except ImportError:
                 self.logger.error('Unable to import node class for %s' % nc.get('id'))
                 raise
-            node = self.make_node(node_class, nc, yaml_lc=getattr(nc, 'lc', None))
+            node = self.make_node(node_class, nc, _yaml_lc=getattr(nc, 'lc', None))
             self.context.add_node(node)
 
     def generate_nodes_from_emission_sectors(self):
         from nodes.simple import SectorEmissions
+
+        if not self.config.get('emission_sectors'):
+            return
 
         node_class = self.import_class(
             'SectorEmissions',
@@ -789,7 +841,7 @@ class InstanceLoader:
                 params=dict(category=data_category) if data_category else [],
                 **ec,
             )
-            node = self.make_node(node_class, nc, yaml_lc=getattr(ec, 'lc', None))
+            node = self.make_node(node_class, nc, _yaml_lc=getattr(ec, 'lc', None))
             self.context.add_node(node)
 
     @wrap_with_span('setup-actions', 'function')
@@ -797,9 +849,13 @@ class InstanceLoader:
         from nodes.actions.action import ActionNode
 
         for nc in self.config.get('actions', []):
+            if nc['type'].startswith('nodes.'):
+                prefix = None
+            else:
+                prefix = 'nodes.actions'
             node_class = self.import_class(
                 nc['type'],
-                'nodes.actions',
+                prefix,
                 allowed_classes=[ActionNode],
                 node_id=nc['id'],
             )
@@ -894,13 +950,23 @@ class InstanceLoader:
         )
         pt_scenario.actual_historical_years = list(years)
 
-    def setup_scenarios(self):  # noqa: C901
+    def setup_scenarios(self):  # noqa: C901, PLR0912
         from nodes.scenario import CustomScenario, Scenario, ScenarioKind
 
         default_scenario = None
 
-        for sc in self.config['scenarios']:
-            name = self.make_trans_string(sc, 'name', pop=True)
+        scenario_confs: list[dict[str, Any]] = self.config.get('scenarios', [])
+        if not scenario_confs:
+            scenario_confs = [
+                {
+                    'id': 'default',
+                    'name': TranslatedString(_('Default')),
+                    'default': True,
+                }
+            ]
+
+        for sc in scenario_confs:
+            name = make_trans_string(sc, 'name', pop=True)
             params_config = sc.pop('params', [])
             actual_historical_years = sc.pop('actual_historical_years', None)
             default = sc.pop('default', False)
@@ -912,9 +978,8 @@ class InstanceLoader:
                 kind = ScenarioKind.PROGRESS_TRACKING
             elif scenario_id == 'baseline':
                 kind = ScenarioKind.BASELINE
-            scenario = Scenario(
-                context=self.context, id=scenario_id, name=name, actual_historical_years=actual_historical_years, kind=kind, **sc
-            )
+            scenario = Scenario(id=scenario_id, name=name, actual_historical_years=actual_historical_years, kind=kind, **sc)
+            scenario._context = self.context
 
             for pc in params_config:
                 param = self.context.get_parameter(pc['id'])
@@ -938,19 +1003,20 @@ class InstanceLoader:
                 continue
             default_scenario.add_parameter(param, param.value)
 
-        self.context.set_custom_scenario(
-            CustomScenario(
-                context=self.context,
-                id='custom',
-                name=_('Custom'),
-                base_scenario=default_scenario,
-            ),
+        custom_scenario = CustomScenario(
+            id='custom',
+            name=_('Custom'),
+            base_scenario=default_scenario,
         )
+
+        self.context.set_custom_scenario(custom_scenario)
 
         if self.fw_config is not None:
             self.setup_progress_tracking_scenario()
 
     def setup_global_parameters(self):
+        global_params = discover_global_parameters()
+
         context = self.context
         for pc in self.config.get('params', []):
             param_id = pc.pop('id')
@@ -959,73 +1025,72 @@ class InstanceLoader:
             if unit_str is not None:
                 unit = context.unit_registry.parse_units(unit_str)
                 pc['unit'] = unit
-            param_type = context.get_parameter_type(param_id)
+            param = global_params.get(param_id)
+            if param is None:
+                raise Exception('Unknown global parameter: %s' % param_id)
             param_val = pc.pop('value', None)
             if 'is_customizable' not in pc:
                 pc['is_customizable'] = False
-            pc['label'] = self.make_trans_string(pc, 'label', pop=True)
-            pc['description'] = self.make_trans_string(pc, 'description', pop=True)
+            pc['label'] = make_trans_string(pc, 'label', pop=True)
+            pc['description'] = make_trans_string(pc, 'description', pop=True)
+
+            param_type = type(param)
             param = param_type(**pc)
-            sub_node_ids = pc.get('subscription_nodes', None)
-            if sub_node_ids is not None:
-                sub_nodes = []
-                for node_id in sub_node_ids:
-                    sub_nodes += [context.get_node(node_id)]
-                param.subscription_nodes = sub_nodes
+            param.set_context(context)
             param.set(param_val)
+
+            assert 'subscription_nodes' not in pc  # check for legacy
+
             context.add_global_parameter(param)
 
     def setup_impact_overviews(self):
         from nodes.actions.action import ImpactOverview
+        from nodes.defs.action_def import ImpactOverviewSpec
 
-        # TODO add an ID so that there can be several impact overviews for different decision makers.
         conf = self.config.get('impact_overviews', [])
+        seen_ids: set[str] = set()
         for aepc in conf:
-            label = self.make_trans_string(aepc, 'label', pop=False)
-            cost_category_label = self.make_trans_string(aepc, 'cost_category_label', pop=False)
-            effect_category_label = self.make_trans_string(aepc, 'effect_category_label', pop=False)
-            cost_label = self.make_trans_string(aepc, 'cost_label', pop=False)
-            effect_label = self.make_trans_string(aepc, 'effect_label', pop=False)
-            indicator_label = self.make_trans_string(aepc, 'indicator_label', pop=False)
-            description = self.make_trans_string(aepc, 'description', pop=False)
-            aep = ImpactOverview.from_config(
-                context=self.context,
-                graph_type=aepc['graph_type'],
-                cost_node_id=aepc.get('cost_node', None),
-                effect_node_id=aepc['effect_node'],
-                cost_unit=aepc.get('cost_unit', None),
-                effect_unit=aepc.get('effect_unit', None),
-                indicator_unit=aepc['indicator_unit'],
-                plot_limit_for_indicator=aepc.get('plot_limit_for_indicator', None),
-                invert_cost=aepc.get('invert_cost', False),
-                invert_effect=aepc.get('invert_effect', False),
-                indicator_cutpoint=aepc.get('indicator_cutpoint', None),
-                cost_cutpoint=aepc.get('cost_cutpoint', None),  # TODO Make these parameters.
-                stakeholder_dimension=aepc.get('stakeholder_dimension', None),
-                outcome_dimension=aepc.get('outcome_dimension', None),
-                label=label,
-                cost_category_label=cost_category_label,
-                effect_category_label=effect_category_label,
-                cost_label=cost_label,
-                effect_label=effect_label,
-                indicator_label=indicator_label,
-                description=description,
-            )
+            spec_config = dict(aepc)
+            rename_map = {
+                'effect_node': 'effect_node_id',
+                'cost_node': 'cost_node_id',
+                'stakeholder_dimension': 'stakeholder_dimension_id',
+                'outcome_dimension': 'outcome_dimension_id',
+            }
+            for old_name, new_name in rename_map.items():
+                if old_name in spec_config and new_name not in spec_config:
+                    spec_config[new_name] = spec_config.pop(old_name)
+            spec = ImpactOverviewSpec.from_yaml_config(spec_config)
+            assert spec.id is not None
+            if spec.id in seen_ids:
+                raise ValueError(f"Duplicate impact overview id '{spec.id}'. Set an explicit 'id' field to disambiguate.")
+            seen_ids.add(spec.id)
+            aep = ImpactOverview(spec, self.context)
             self.context.impact_overviews.append(aep)
 
     def setup_normalizations(self):
+        from paths.refs import ValidationContext
+
+        from nodes.defs.instance_defs import NormalizationSpec
+        from nodes.normalization import Normalization
+
         ncs = self.config.get('normalizations', [])
         for nc in ncs:
-            n = Normalization.from_config(self.context, nc)
-            n_id = n.normalizer_node.id
-            self.context.add_normalization(n_id, n)
+            spec_config = dict(nc)
+            if 'normalizer_node' in spec_config and 'normalizer_node_id' not in spec_config:
+                spec_config['normalizer_node_id'] = spec_config.pop('normalizer_node')
+            normalization = Normalization(
+                NormalizationSpec.model_validate(spec_config, context=ValidationContext(context=self.context)),
+                self.context,
+            )
+            self.context.add_normalization(normalization.normalizer_node.id, normalization)
 
     def setup_validation_graph(self):
         config = self.config
         nodes = config.get('nodes')
         assert isinstance(nodes, list)
 
-        all_nodes = [] # FIXME Or collect from context?
+        all_nodes = []  # FIXME Or collect from context?
         all_nodes.extend(nodes)
         all_actions = config.get('actions')
         if all_actions is not None:
@@ -1051,7 +1116,7 @@ class InstanceLoader:
         nes.generate_explanations()
 
     @classmethod
-    def from_dict_config(cls, config: dict, fw_config: FrameworkConfig | None = None) -> Self:
+    def from_dict_config(cls, config: dict[str, Any], fw_config: FrameworkConfig | None = None) -> Self:
         yaml_path = config.get('yaml_file_path')
         return cls(
             config=config,
@@ -1083,7 +1148,7 @@ class InstanceLoader:
 
     def __init__(
         self,
-        config: dict,
+        config: dict[str, Any],
         yaml_file_path: Path | None = None,
         fw_config: FrameworkConfig | None = None,
         config_mtime_hash: str | None = None,
@@ -1095,10 +1160,11 @@ class InstanceLoader:
         self.config = config
         self.fw_config = fw_config
         self.default_language = config['default_language']
+        self.other_languages = config.get('supported_languages', [])
         self.config_mtime_hash = config_mtime_hash
         self.logger = logger.bind(instance=config['id'])
         self._node_classes = {}
-        with set_default_language(self.default_language):
+        with set_i18n_context(self.default_language, self.other_languages):
             self._init_instance()
 
     def setup_node_visualizations(self):
@@ -1110,19 +1176,23 @@ class InstanceLoader:
         from kausal_common.datasets.models import Dataset as DBDatasetModel
 
         from nodes.models import InstanceConfig
+
         try:
             ic = self.instance.config
         except InstanceConfig.DoesNotExist:
             self.db_datasets = {}
             return
-        ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at') # type: ignore
-        self.db_datasets = {ds.identifier: ds for ds in ds_objs}
+        ds_objs = (
+            DBDatasetModel.objects.qs
+            .for_instance_config(ic)
+            .filter(is_external_placeholder=False, identifier__isnull=False)
+            .only('uuid', 'identifier', 'last_modified_at')
+        )
+        self.db_datasets = {cast('str', ds.identifier): ds for ds in ds_objs}
 
-    def _init_instance(self) -> None:  # noqa: C901, PLR0915
-        import dvc_pandas
-
-        from nodes.actions.action import ActionGroup
+    def _init_instance(self) -> None:  # noqa: PLR0915
         from nodes.context import Context
+        from nodes.defs.instance_defs import ActionGroup
 
         from .instance import Instance
 
@@ -1131,52 +1201,35 @@ class InstanceLoader:
         fwc = self.fw_config
         if fwc is not None:
             instance_id = fwc.instance_config.identifier
-        dataset_repo_default_path = None
 
-        dataset_repo_config = self.config['dataset_repo']
-        repo_url = dataset_repo_config['url']
-        commit = dataset_repo_config.get('commit')
-        creds = dvc_pandas.RepositoryCredentials(
-            git_username=os.getenv('DVC_PANDAS_GIT_USERNAME'),
-            git_token=os.getenv('DVC_PANDAS_GIT_TOKEN'),
-            git_ssh_public_key_file=os.getenv('DVC_SSH_PUBLIC_KEY_FILE'),
-            git_ssh_private_key_file=os.getenv('DVC_SSH_PRIVATE_KEY_FILE'),
-        )
-        dataset_repo = dvc_pandas.Repository(
-            repo_url=repo_url,
-            dvc_remote=dataset_repo_config.get('dvc_remote'),
-            repo_credentials=creds,
-            # cache_prefix=instance_id
-        )
-        dataset_repo.set_target_commit(commit)
-        dataset_repo_default_path = dataset_repo_config.get('default_path')
+        dataset_repo_config = config.get('dataset_repo')
+        if dataset_repo_config is not None:
+            dataset_repo_spec = DatasetRepoSpec.model_validate(dataset_repo_config)
+        else:
+            dataset_repo_spec = None
 
         agc_all = self.config.get('action_groups', [])
-        agcs = []
-        for agc in agc_all:
+        agcs: list[ActionGroup] = []
+        for idx, agc in enumerate(agc_all):
             ag = ActionGroup(
-                agc['id'],
-                self.make_trans_string(agc, 'name', required=True),
-                agc.get('color'),
+                id=agc['id'],
+                name=make_trans_string(agc, 'name', required=True),
+                color=agc.get('color'),
+                order=idx,
             )
             agcs.append(ag)
-
-        instance_attrs = [
-            'supported_languages',
-            'theme_identifier',
-        ]
 
         target_year = self.config['target_year']
 
         if fwc is None:
-            owner = self.make_trans_string(self.config, 'owner', required=True)
-            name = self.make_trans_string(self.config, 'name', required=True)
+            owner = make_trans_string(self.config, 'owner', required=True)
+            name = make_trans_string(self.config, 'name', required=True)
             max_hist_year: int | None = self.config.get('maximum_historical_year')
             min_hist_year: int = self.config['minimum_historical_year']
             site_url = self.config.get('site_url')
             reference_year = self.config.get('reference_year')
             if reference_year is None:
-                raise ValueError(self, "Reference year must be given for the instance.")
+                raise ValueError(self, 'Reference year must be given for the instance.')
         else:
             from frameworks.models import MeasureDataPoint
 
@@ -1201,17 +1254,21 @@ class InstanceLoader:
             action_groups=agcs,
             features=self.config.get('features', {}),
             terms=self.config.get('terms', {}),
-            result_excels=[InstanceResultExcel.model_validate(r) for r in self.config.get('result_excels', [])],
+            result_excels=[InstanceResultExcel.from_yaml_config(r) for r in self.config.get('result_excels', [])],
             yaml_file_path=self.yaml_file_path,
             pages=pages_from_config(self.config.get('pages', [])),
             maximum_historical_year=max_hist_year,
             minimum_historical_year=min_hist_year,
             site_url=site_url,
             reference_year=reference_year,
-            **{attr: self.config.get(attr) for attr in instance_attrs},  # type: ignore
+            supported_languages=cast(
+                'list[str]',
+                self.config.get('supported_languages') or [],
+            ),
+            theme_identifier=cast('str | None', self.config.get('theme_identifier')),
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
             # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
-            **self._build_instance_args_from_home_page(),  # type: ignore[arg-type]
+            **self._build_instance_args_from_home_page(),
         )
 
         model_end_year = self.config.get('model_end_year', target_year)
@@ -1219,10 +1276,9 @@ class InstanceLoader:
         with start_span(name='create-context', op='function'):
             self.context = Context(
                 instance=self.instance,
-                dataset_repo=dataset_repo,
+                dataset_repo_spec=dataset_repo_spec,
                 target_year=target_year,
                 model_end_year=model_end_year,
-                dataset_repo_default_path=dataset_repo_default_path,
                 sample_size=sample_size,
             )
         self.instance.set_context(self.context)
@@ -1239,9 +1295,9 @@ class InstanceLoader:
         self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()
         self.load_db_datasets()
-        self.setup_nodes()  # type: ignore[misc]
-        self.setup_actions()  # type: ignore[misc]
-        self.setup_edges()  # type: ignore[misc]
+        self.setup_nodes()
+        self.setup_actions()
+        self.setup_edges()
         self.setup_impact_overviews()
         self.setup_scenarios()
         self.setup_normalizations()
@@ -1265,6 +1321,6 @@ class InstanceLoader:
             return {}
         default_language = self.config['default_language']
         return {
-            'lead_title': self.make_trans_string(page, 'lead_title', default_language=default_language),
-            'lead_paragraph': self.make_trans_string(page, 'lead_paragraph', default_language=default_language),
+            'lead_title': make_trans_string(page, 'lead_title', default_language=default_language),
+            'lead_paragraph': make_trans_string(page, 'lead_paragraph', default_language=default_language),
         }

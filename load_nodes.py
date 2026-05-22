@@ -6,6 +6,8 @@ from contextlib import ExitStack
 
 from kausal_common.development.django import init_django
 
+from common.utils import install_node_error_handler
+
 init_django()
 
 import argparse
@@ -19,7 +21,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, overload
 
 import polars as pl
-import rich.traceback
 import sentry_sdk
 from dotenv import load_dotenv
 from rich import print
@@ -43,12 +44,6 @@ load_dotenv()
 
 console = Console()
 
-if True:
-    from kausal_common.logging.warnings import register_warning_handler
-
-    rich.traceback.install(max_frames=10)
-    register_warning_handler()
-
 parser = argparse.ArgumentParser(description='Execute the computational graph')
 parser.add_argument('-i', '--instance', type=str, help='instance identifier')
 parser.add_argument('-c', '--config', type=str, help='config yaml file')
@@ -70,22 +65,31 @@ parser.add_argument('--overwrite', action='store_true', help='Overwrite contents
 parser.add_argument('--skip-descriptions', action='store_true', help='skip description updates in the database')
 parser.add_argument('--delete-stale-nodes', action='store_true', help='delete NodeConfig instances that no longer exist')
 parser.add_argument('--validate', action='store_true', help='print validation results and exit')
-parser.add_argument('--validation-level', choices=['error', 'warning', 'info'], default='warning',
-                    help='minimum severity to show in validation output')
-parser.add_argument('--validation-valid-also', action='store_true',
-                    help='include validations that pass without errors')
-parser.add_argument('--print-impact-overviews', action='store_true',
-                    help='calculate and print impact overviews (previously action efficiencies)')
+parser.add_argument(
+    '--validation-level',
+    choices=['error', 'warning', 'info'],
+    default='warning',
+    help='minimum severity to show in validation output',
+)
+parser.add_argument('--validation-valid-also', action='store_true', help='include validations that pass without errors')
+parser.add_argument(
+    '--print-impact-overviews', action='store_true', help='calculate and print impact overviews (previously action efficiencies)'
+)
 parser.add_argument('--show-perf', action='store_true', help='show performance info')
 parser.add_argument('--profile', action='store_true', help='profile computation performance')
 parser.add_argument('--disable-ext-cache', action='store_true', help='disable external cache')
 parser.add_argument('--cache-benchmark', action='store_true', help='Perform cache benchmarks')
 parser.add_argument('--generate-result-excel', type=str, metavar='FILENAME', help='Create an Excel file from model outputs')
-parser.add_argument('--format', choices=['long', 'wide'], default='long',
-                   help="""
+parser.add_argument('-q', '--quiet', action='store_true', help='Sshhhh!')
+parser.add_argument(
+    '--format',
+    choices=['long', 'wide'],
+    default='long',
+    help="""
                    Excel output format (default: long). Originally, long was used for climate city contracts,
                    wide for GPC datasets.
-                   """)
+                   """,
+)
 
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
@@ -122,6 +126,8 @@ def get_ic(instance_id: str, /, *, required: bool = False) -> InstanceConfig | N
     return ic
 
 
+install_node_error_handler()
+
 stack = ExitStack()
 root_span = stack.enter_context(start_transaction(name='load-nodes', op='function'))
 
@@ -139,6 +145,7 @@ else:
         context = loader.context
         instance = loader.instance
 
+
 def print_db_datasets():
     from nodes.datasets import DBDataset, DVCDataset
 
@@ -154,8 +161,9 @@ def print_db_datasets():
             elif isinstance(ds, DVCDataset):
                 dvc_datasets.setdefault(ds.id, (ds, []))[1].append(node)
     print('Datasets in use:')
-    commit = context.dataset_repo.target_commit_id
-    print(f"Commit: {commit}")
+    if context.dataset_repo is not None:
+        commit = context.dataset_repo.target_commit_id
+        print(f'Commit: {commit}')
     table = Table()
     table.add_column('Source')
     table.add_column('Dataset ID')
@@ -184,7 +192,8 @@ def print_db_datasets():
     console.print(table)
 
 
-print_db_datasets()
+if not args.quiet:
+    print_db_datasets()
 
 if args.pull_datasets:
     with start_span(name='pull-datasets', op='init') as span:
@@ -297,7 +306,7 @@ if args.scenario:
 if args.list_params:
     context.print_all_parameters()
 
-#with root_span.start_child(name='load-dvc-datasets', op='function'):
+# with root_span.start_child(name='load-dvc-datasets', op='function'):
 #    context.load_all_dvc_datasets()
 
 for node_id in args.debug_nodes or []:
@@ -338,7 +347,7 @@ def update_instance():
             update_existing=args.update_nodes,
             delete_stale=args.delete_stale_nodes,
             overwrite=args.overwrite,
-            skip_descriptions=args.skip_descriptions
+            skip_descriptions=args.skip_descriptions,
         )
         instance_obj.sync_dimensions(update_existing=True, delete_stale=args.delete_stale_nodes)
         instance_obj.refresh_from_db()
@@ -396,10 +405,7 @@ def generate_result_excel():
             if ic is None:
                 raise Exception("Instance '%s' not found" % instance.id)
             out = InstanceResultExcel.create_for_instance(
-                ic=instance_obj,
-                existing_wb=existing_wb,
-                context=context,
-                format=args.format
+                ic=instance_obj, existing_wb=existing_wb, context=context, format=args.format
             )
         else:
             excel_res = instance.result_excels[0]
@@ -419,7 +425,7 @@ for node_id in args.node or []:
             node = context.get_node(node_id)
         with start_span(name='run-node', op='function'), context.run(), start_span(name='print-output', op='function'):
             node.print_output(filters=all_filters or None)
-                # node.plot_output(filters=all_filters or None)
+            # node.plot_output(filters=all_filters or None)
 
     if isinstance(node, ActionNode):
         output_nodes = node.output_nodes
@@ -456,7 +462,7 @@ def round_quantity(e: Quantity):
 
 if args.print_impact_overviews:
 
-    def print_impact_overviews(): # FIXME Adjust to be functional sith different types of impact overviews
+    def print_impact_overviews():  # FIXME Adjust to be functional sith different types of impact overviews
         pc = PerfCounter('Impact overviews')
         for aep in context.impact_overviews:
             cn = aep.cost_node
@@ -483,7 +489,6 @@ if args.print_impact_overviews:
 
                 rows.append((action.id, None))
 
-            console = Console()
             rows = sorted(rows, key=lambda x: x[1].m if x[1] is not None else 1e100)
             for row in rows:
                 table.add_row(row[0], str(row[1]))

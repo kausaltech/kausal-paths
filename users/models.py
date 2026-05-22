@@ -15,21 +15,25 @@ from django_pydantic_field import SchemaField
 
 from kausal_common.models.roles import role_registry
 
-from paths.const import NONE_ROLE, PathsRoleIdentifier
+from paths.const import NONE_ROLE
 
-from .base import AbstractUser, UserManager
+from .base import AbstractUser
 
 if TYPE_CHECKING:
-
     from django.contrib.auth.models import Group
+    from wagtail.users.models import UserProfile as WagtailUserProfile
 
     from kausal_common.models.roles import InstanceSpecificRole, UserPermissionCache
     from kausal_common.models.types import FK, QS, RevOne
 
-    from frameworks.roles import FrameworkRoleDef
+    from paths.const import PathsRoleIdentifier
+
+    from frameworks.roles import FrameworkRoleDef  # noqa: TC004
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
     from orgs.models import Organization
     from people.models import Person
+
+    from .base import UserManager
 
 
 class UserFrameworkRole(BaseModel):
@@ -41,22 +45,28 @@ class UserExtra(BaseModel):
     framework_roles: Sequence[FrameworkRoleDef] = Field(default_factory=list)
 
     def set_framework_role(self, role: FrameworkRoleDef):
-        self.framework_roles = list(filter(
-            lambda role: role.framework_id != role.framework_id,
-            self.framework_roles,
-        ))
+        self.framework_roles = list(
+            filter(
+                lambda role: role.framework_id != role.framework_id,
+                self.framework_roles,
+            )
+        )
         self.framework_roles.append(role)
 
     @classmethod
     def get_default(cls) -> Self:
-        from frameworks.roles import FrameworkRoleDef  # noqa: F401
+        from frameworks.roles import FrameworkRoleDef  # noqa: F401  # pyright: ignore[reportUnusedImport]
+
         cls.model_rebuild()
         return cls()
 
 
 class User(AbstractUser):
     selected_instance: FK[InstanceConfig | None] = models.ForeignKey(
-        'nodes.InstanceConfig', null=True, blank=True, on_delete=models.SET_NULL,
+        'nodes.InstanceConfig',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
     )
     email = models.EmailField(_('email address'), unique=True)
     extra = SchemaField(schema=UserExtra, default=UserExtra.get_default)
@@ -76,6 +86,7 @@ class User(AbstractUser):
     REQUIRED_FIELDS = []
 
     autocomplete_search_field = 'email'
+    wagtail_userprofile: RevOne[User, WagtailUserProfile]
 
     def natural_key(self) -> tuple[str]:
         # If we don't override this, it will use `get_username()`, which may not always return the email field. The
@@ -86,6 +97,7 @@ class User(AbstractUser):
 
     def get_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
+
         if self.is_superuser:
             return InstanceConfig.objects.qs
         return self.get_cached_adminable_instances()
@@ -102,6 +114,7 @@ class User(AbstractUser):
 
     def get_cached_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
+
         return InstanceConfig.objects.qs.filter(pk__in=self.get_cached_adminable_instance_pks())
 
     def user_is_admin_for_instance(self, instance_config: InstanceConfig) -> bool:
@@ -110,7 +123,7 @@ class User(AbstractUser):
         return instance_config.pk in self.get_cached_adminable_instance_pks()
 
     def get_cached_adminable_instance_pks(self) -> Iterable[int]:
-        if getattr(self, 'cached_adminable_instances', None)  is not None:
+        if getattr(self, 'cached_adminable_instances', None) is not None:
             value = self.cached_adminable_instances
         else:
             value = self.refresh_adminable_instances(save=True)
@@ -120,14 +133,14 @@ class User(AbstractUser):
 
     def refresh_adminable_instances(self, save: bool = True) -> str | None:
         from nodes.models import InstanceConfig
+
         if self.is_superuser:
             # No sense in storing all of the instances; the get_adminable_instances and user_is_admin_for_instance
             # methods handle superusers as a special case
             self.cached_adminable_instances = ''
             return ''
         cached_value = self.set_cached_adminable_instances(
-            InstanceConfig.permission_policy().adminable_instances(self),
-            save=save
+            InstanceConfig.permission_policy().adminable_instances(self), save=save
         )
         return cached_value
 
@@ -160,6 +173,7 @@ class User(AbstractUser):
     @cached_property
     def perms(self) -> UserPermissionCache:
         from kausal_common.models.roles import UserPermissionCache
+
         return UserPermissionCache(self)
 
     @overload
@@ -218,7 +232,7 @@ class User(AbstractUser):
             return False
         return self.get_adminable_instances().exists()
 
-    def deactivate(self, admin_user):
+    def deactivate(self, admin_user: User | None):
         self.is_active = False
         self.deactivated_by = admin_user
         self.deactivated_at = timezone.now()
@@ -233,8 +247,7 @@ class User(AbstractUser):
     def can_delete_organization(self, organization: Organization) -> bool:
         return self.is_superuser
 
-    def can_edit_or_delete_person_within_instance(
-            self, person: Person, instance_config: InstanceConfig) -> bool:
+    def can_edit_or_delete_person_within_instance(self, person: Person, instance_config: InstanceConfig) -> bool:
         return self.is_superuser
 
     def can_create_person(self) -> bool:

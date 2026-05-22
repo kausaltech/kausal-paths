@@ -3,17 +3,17 @@ default_language: en
 site_url: https://cork-nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ec67de0372912e3178e560d28fcb1255f1029431
+  commit: 1cf9ce6104e72f88cb7615d1dd4ef968dc9ca063
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
-theme_identifier: default
+theme_identifier: ie-cork
 target_year: 2030
 model_end_year: 2060
 reference_year: 2018
 minimum_historical_year: 2018
 maximum_historical_year: 2020
-emission_unit: t/a
+emission_unit: kt/a
 emission_forecast_from: 2021
 emission_dimensions: [scope, ghg, sector]
 features:
@@ -30,57 +30,57 @@ include:
 - file: modules/health.yaml
   node_group: Health
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 - file: nzc/transport.yaml
   node_group: Transport
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 - file: nzc/transport_cost.yaml
   node_group: Transport cost
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 - file: nzc/transport_health_cost.yaml
   node_group: Transport health
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 - file: nzc/freight_transport.yaml
   node_group: Freight transport
   allow_override: true
   dataset_replacements:
   - from: nzc/defaults
-    to: lappeenranta/defaults
+    to: cork/defaults
 - file: nzc/buildings.yaml
   node_group: Buildings
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 - file: nzc/electricity.yaml
   node_group: Electricity
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 - file: nzc/waste.yaml
   node_group: Waste
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 - file: nzc/other.yaml
   node_group: Other
   allow_override: true
-  # dataset_replacements:
-  # - from: nzc/defaults
-  #   to: cork/defaults
+  dataset_replacements:
+  - from: nzc/defaults
+    to: cork/defaults
 
 result_excels:
 - base_excel_url: 
@@ -196,6 +196,16 @@ impact_overviews:
   effect_node: net_emissions
   indicator_unit: t
   label: Action impacts on total emissions during the time span
+
+- graph_type: wedge_diagram
+  label_en: Wedge diagram
+  effect_node: net_emissions
+  indicator_unit: Mt/a
+
+- graph_type: stacked_raw_impact
+  label_en: Budget timeline
+  effect_node: total_cost
+  indicator_unit: MEUR/a
 
 - graph_type: cost_benefit
   effect_node: discounted_cost
@@ -598,12 +608,76 @@ dimensions:
   - id: average
     label: Average
 
+- id: pollutant
+  label_fi: Saaste
+  label_en: Pollutant
+  categories:
+  - id: co2
+    label_fi: CO2
+    label_en: CO2
+    aliases: [co2e]
+  - id: pm25
+    label_fi: PM2.5
+    label_en: PM2.5
+    aliases: [pm2_5]
+  - id: pm25_combustion
+    label_en: PM2.5 combustion
+    label_fi: Polttoperäinen PM2.5
+  - id: nox
+    label_fi: NOx
+    label_en: NOx
+  - id: pm10
+    label_fi: PM10
+    label_en: PM10
+  - id: pm10_combustion
+    label_en: PM10 combustion
+    label_fi: Polttoperäinen PM10
+  - id: walking
+    label_fi: Kävely
+    label_en: Walking
+  - id: cycling
+    label_fi: Pyöräily
+    label_en: Cycling
+  - id: pm1025
+    label_fi: PM10-PM2.5
+    label_en: PM10-PM2.5
+    aliases: [PM10-2.5]
+  - id: so2
+    label_fi: SO2
+    label_en: SO2
+  - id: nh3
+    label_fi: NH3
+    label_en: NH3
+  - id: pm25_wear_tear
+    label_en: PM2.5 wear & tear
+    label_fi: Kulumis- ja pölyperäinen PM2.5
+  - id: pm10_wear_tear
+    label_en: PM10 wear & tear
+    label_fi: Kulumis- ja pölyperäinen PM10
+
 emission_sectors:
 - id: net_emissions
   name: Net emissions
   is_outcome: true
 
 nodes:
+
+- id: intake_fraction
+  name_fi: Ilmansaasteiden saantiosuus
+  name_en: Intake fraction of air pollution
+  description_fi: 'Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi. Tiedot on saatu artikkelista Sebastien Humbert, Julian D. Marshall, Shanna Shaked, Joseph V. Spadaro, Yurika Nishioka, Philipp Preiss, Thomas E. McKone, Arpad Horvath, and Olivier Jolliet. Intake Fraction for Particulate Matter: Recommendations for Life Cycle Impact Assessment (2011). Environmental Science and Technology, 45, 4808-4816.'
+  description_en: The fraction of air pollution emissions that is eventually inhaled by someone.
+  type: generic.GenericNode
+  quantity: fraction
+  unit: ppm
+  input_dimensions: [pollutant, emission_height]
+  output_dimensions: [pollutant, emission_height]
+  input_datasets:
+  - id: hia/intake_fraction/air_pollution_if
+    column: Intake fraction
+    filters:
+    - column: population_density
+      value: average
 
 - id: technical_root_node
   name: Technical root node
@@ -619,7 +693,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: population
   unit: cap
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   input_nodes:
   - id: population_growth
     tags: [arithmetic_inverse, complement_cumulative_product, non_additive]
@@ -631,7 +705,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: rate
   unit: '%/a'
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: Expected annual population growth (up until 2030)
 
@@ -804,7 +878,7 @@ nodes:
   unit: EUR/t
   input_dimensions: [cost_type, ghg]
   output_dimensions: [cost_type, ghg]
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: Value of CO2 reduction
 
@@ -852,7 +926,7 @@ nodes:
   unit: dimensionless
   input_dimensions: [cost_type, aggregated_cost_type]
   output_dimensions: [cost_type, aggregated_cost_type]
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: Aggregated cost types
 
@@ -1388,7 +1462,7 @@ nodes:
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
     filters:
     - column: Parameter
       value: Max year
@@ -1648,17 +1722,17 @@ nodes:
     from_dimensions:
     - id: stakeholder
       flatten: true
-  output_nodes:
-  - id: health_costs_attributed_to_exposure
-    from_dimensions:
-    - id: transport_mode
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-    - id: response
-      categories: [nzp_response]
-    - id: iteration
-      categories: [nzp]
+  # output_nodes:
+  # - id: health_costs_attributed_to_exposure
+  #   from_dimensions:
+  #   - id: transport_mode
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: cost_type
+  #   - id: response
+  #     categories: [nzp_response]
+  #   - id: iteration
+  #     categories: [nzp]
 
 actions:
 
@@ -1770,7 +1844,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: transport
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: Transportation need reduction by 2030 from urban planning, digital 
       meetings and other transport-reducing initiatives
@@ -1785,7 +1859,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: transport
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: Reduced Pkm cars + motorcycles by 2030
   output_nodes:
@@ -1802,7 +1876,7 @@ actions:
   group: transport
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   output_nodes:
   - id: relative_transport_efficiency
     to_dimensions:
@@ -1819,7 +1893,7 @@ actions:
   input_dimensions: [energy_carrier, transport_mode]
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
   params:
     sector: Electrification of transport fleet
   input_nodes:
@@ -1840,7 +1914,7 @@ actions:
   input_dimensions: [energy_carrier, transport_mode]
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
     forecast_from: 2020
   params:
     sector: Expected procurement schedule for buses
@@ -1882,7 +1956,7 @@ actions:
   group: freight_transport
   parent: a21_optimised_logistics
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
   output_nodes:
   - id: freight_transport_vehicle_kilometres
     tags: [complement, non_additive]
@@ -1899,7 +1973,7 @@ actions:
   input_dimensions: [energy_carrier, transport_mode]
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
     filters:
     - column: Transport mode
       values: [light_trucks, heavy_trucks]
@@ -2139,7 +2213,7 @@ actions:
   unit: '%'
   group: buildings
   parent: a34_decarbonising_heat_generation
-  input_datasets: [nzc/defaults]
+  input_datasets: [cork/defaults]
   params:
     sector: 3.4.4 Top performance standard improvement compared with the regular
       new buildings
@@ -2219,7 +2293,7 @@ actions:
     tags: [non_additive, complement]
     to_dimensions: []
   input_datasets:
-  - id: nzc/defaults
+  - id: cork/defaults
     forecast_from: 2025
   params:
     sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in 

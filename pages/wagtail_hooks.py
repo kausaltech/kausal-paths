@@ -18,9 +18,7 @@ if TYPE_CHECKING:
 
 
 @hooks.register('construct_explorer_page_queryset')
-def filter_pages_to_admin_instance(
-    parent_page: Any, pages: PageQuerySet[Page], request: PathsAdminRequest
-) -> PageQuerySet[Page]:
+def filter_pages_to_admin_instance(parent_page: Any, pages: PageQuerySet[Page], request: PathsAdminRequest) -> PageQuerySet[Page]:
     ic = realm_context.get().realm
     assert ic.site is not None
 

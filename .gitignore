@@ -45,5 +45,10 @@ celerybeat-schedule
 /.tags
 /reset-db.sh
 /*.dump
-CLAUDE.md
-.claude/**
+/.mise/
+.claude/*.local.json
+.claude/projects/
+/schema*.graphql
+/.devstate
+/__generated__
+mise.local.toml

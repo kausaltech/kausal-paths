@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import Field
 
-from common.i18n import I18nBaseModel, I18nStringInstance
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 
 
 class Page(I18nBaseModel):
@@ -19,9 +21,5 @@ class OutcomePage(Page):
     lead_paragraph: I18nStringInstance | None = None
 
 
-def pages_from_config(conf: list[dict]):
-    pages = []
-    for pc in conf:
-        page = OutcomePage.model_validate(pc)
-        pages.append(page)
-    return pages
+def pages_from_config(conf: list[dict[str, Any]]) -> list[OutcomePage]:
+    return [OutcomePage.from_yaml_config(pc) for pc in conf]

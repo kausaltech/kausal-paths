@@ -6,23 +6,23 @@ import inspect
 import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from functools import wraps
 from pathlib import Path
 from pprint import pprint
 from time import time_ns
-from typing import TYPE_CHECKING, Any, Concatenate, cast
+from typing import TYPE_CHECKING, Concatenate, cast
 
 import sentry_sdk
 import xxhash
 
 from kausal_common.deployment import get_deployment_build_id
+from kausal_common.logging.errors import capture_error
 
+from common.polars import PathsDataFrame
 from nodes.datasets import DVCDataset
-from nodes.exceptions import NodeHashingError
+from nodes.exceptions import NodeError, NodeHashingError
 
 if TYPE_CHECKING:
     from common.cache import CacheResult
-    from common.polars import PathsDataFrame
     from nodes.context import Context
 
     from .node import Node
@@ -32,6 +32,7 @@ DEBUG_CACHE_MISSES: bool = os.environ.get('DEBUG_CACHE_MISSES', '0') == '1'
 
 
 class_fname_cache: dict[type, str] = {}
+
 
 @dataclass(slots=True)
 class HashingState:
@@ -61,6 +62,7 @@ class HashingState:
     Tracks which datasets each node uses so that cache prefetching can be
     optimized and dataset changes can trigger appropriate cache invalidation.
     """
+
 
 type NodeHasherFuncT[**P, R] = Callable[Concatenate[NodeHasher, P], R]
 
@@ -100,31 +102,6 @@ class NodeHasher:
 
     metrics_hash: bytes | None = field(init=False, default=None)
     """Cached hash of the node's output metrics."""
-
-    @staticmethod
-    def _wrap_hashing_error[**P, R](func: NodeHasherFuncT[P, R]) -> NodeHasherFuncT[P, R]:
-        """
-        Provide better error reporting for hashing functions.
-
-        Args:
-            func: The function to wrap
-
-        Returns:
-            The wrapped function that catches exceptions and converts them to NodeHashingError
-
-        """
-        @wraps(func)
-        def report_error(*args, **kwargs) -> Any:
-            _rich_traceback_omit = True
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                node = args[0]
-                if isinstance(e, NodeHashingError):
-                    e.add_node(node)
-                    raise
-                raise NodeHashingError(args[0], "Unable to hash node") from e
-        return cast('NodeHasherFuncT[P, R]', report_error)
 
     def _get_cached_hash(self) -> bytes | None:
         """
@@ -202,10 +179,10 @@ class NodeHasher:
             ret = self._calculate_hash(state)
             state.upstream_node_keys[self.node.id] = self._get_cache_key(self.node, ret)
         except Exception as e:
-            if isinstance(e, NodeHashingError):
-                e.add_node(self.node)
+            if isinstance(e, NodeError):
+                e.add_node_event(self.node, event='calculate hash')
                 raise
-            raise NodeHashingError(self.node, "Unable to hash node") from e
+            raise NodeHashingError(self.node, 'Unable to hash node', event='calculate hash') from e
         return ret
 
     def is_run_cached(self) -> bool:
@@ -295,7 +272,7 @@ class NodeHasher:
                 else:
                     cache_parts.append((typ, part, base64.b64encode(val).decode('ascii')))
             except Exception:
-                self.node.logger.error("Unable to hash node: %s %s (value %r)" % (typ, part, val))
+                self.node.logger.error('Unable to hash node: %s %s (value %r)' % (typ, part, val))
                 raise
             h.update(val)
 
@@ -338,8 +315,8 @@ class NodeHasher:
 
         for ds in self.node.input_dataset_instances:
             if isinstance(ds, DVCDataset):
-                state.upstream_dataset_keys.setdefault(self.node.id, set()).add(ds.get_cache_key(self.node.context))
-            hash_part('dataset', ds.id, ds.calculate_hash(self.node.context))
+                state.upstream_dataset_keys.setdefault(self.node.id, set()).add(ds.get_cache_key())
+            hash_part('dataset', ds.id, ds.calculate_hash())
 
         if self.mtime_hash is None:
             self.mtime_hash = self.get_class_hash(type(self), state=state)
@@ -427,7 +404,6 @@ class NodeHasher:
             all_dataset_keys.update(dataset_keys)
         cache.prefetch_keys(keys=all_dataset_keys)
 
-
     def get_cached_output(self) -> CacheResult[PathsDataFrame]:
         """
         Retrieve cached output for this node if available.
@@ -449,9 +425,12 @@ class NodeHasher:
         if not cache_res.is_hit:
             self._prefetch_from_state(context=self.node.context, state=state)
             if DEBUG_CACHE_MISSES:
-                self.node.logger.debug("Cache miss for node %s" % self.node.id)
+                self.node.logger.debug('Cache miss for node %s' % self.node.id)
 
         out = cache_res.obj
+        if out is not None and not isinstance(out, PathsDataFrame):
+            capture_error('Cached output for node %s (key: %s) is not a PathsDataFrame' % (self.node.id, cache_key))
+            cache_res.obj = None
 
         if DEBUG_CACHE_MISSES and out is None and self.prev_hash_parts:
             # ruff: noqa: T203
@@ -467,9 +446,9 @@ class NodeHasher:
                     continue
                 if old != new:
                     pprint('\told: %s\n\tnew: %s' % (old, new))
-        return cache_res
+        return cast('CacheResult[PathsDataFrame]', cache_res)
 
-    def cache_output(self, res: CacheResult, df: PathsDataFrame):
+    def cache_output(self, res: CacheResult[PathsDataFrame], df: PathsDataFrame):
         """
         Store the computed output in the cache.
 

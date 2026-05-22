@@ -8,4 +8,3 @@ class PathsPagePermissionPolicy(PagePermissionPolicy):
 
 class PathsPagePermissionTester(PagePermissionTester):
     pass
-

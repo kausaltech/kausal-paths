@@ -1,0 +1,600 @@
+# Quantity kinds define the semantic meaning of a numeric value.
+#
+# Each entry has:
+#   label:        Translations keyed by language code (en required)
+#   icon:         Optional emoji for UI display
+#   qudt:         QUDT quantityKind IRI (where a reasonable match exists)
+#   is_stackable: Values can be summed across child nodes (default false)
+#   is_activity:  Represents a physical activity or flow (default false)
+#   is_factor:    A rate or conversion factor (default false)
+#   is_unit_price: A monetary cost per unit of something (default false)
+
+# ---------------------------------------------------------------------------
+# Activities (stackable)
+# ---------------------------------------------------------------------------
+
+emissions:
+  label:
+    en: Emissions
+    fi: Päästöt
+    de: Emissionen
+    sv: Utsläpp
+  icon: "💨"
+  qudt: quantitykind:MassPerTime
+  is_stackable: true
+  is_activity: true
+
+energy:
+  label:
+    en: Energy
+    fi: Energia
+    de: Energie
+    sv: Energi
+  icon: "⚡"
+  qudt: quantitykind:Energy
+  is_stackable: true
+  is_activity: true
+
+mileage:
+  label:
+    en: Mileage
+    fi: Ajokilometrit
+    de: Fahrleistung
+    sv: Körsträcka
+  icon: "🚗"
+  is_stackable: true
+  is_activity: true
+
+vehicle_mileage:
+  label:
+    en: Vehicle mileage
+    fi: Ajoneuvokilometrit
+    de: Fahrzeugfahrleistung
+    sv: Fordonskörsträcka
+  icon: "🚗"
+  is_stackable: true
+  is_activity: true
+
+passenger_mileage:
+  label:
+    en: Passenger mileage
+    fi: Henkilökilometrit
+    de: Personenkilometer
+    sv: Personkilometer
+  icon: "🚌"
+  is_stackable: true
+  is_activity: true
+
+freight_mileage:
+  label:
+    en: Freight mileage
+    fi: Tonnikilometrit
+    de: Tonnenkilometer
+    sv: Tonkilometer
+  icon: "🚛"
+  is_stackable: true
+  is_activity: true
+
+utility:
+  label:
+    en: Utility
+    fi: Hyöty
+    de: Nutzen
+    sv: Nytta
+  icon: "🤍"
+  is_stackable: true
+  is_activity: true
+
+fuel_consumption:
+  label:
+    en: Fuel consumption
+    fi: Polttoaineen kulutus
+    de: Kraftstoffverbrauch
+    sv: Bränsleförbrukning
+  icon: "⛽"
+  is_stackable: true
+  is_activity: true
+
+consumption:
+  label:
+    en: Consumption
+    fi: Kulutus
+    de: Verbrauch
+    sv: Förbrukning
+  icon: "📉"
+  is_stackable: true
+  is_activity: true
+
+mass:
+  label:
+    en: Mass
+    fi: Massa
+    de: Masse
+    sv: Massa
+  icon: "⚖"
+  qudt: quantitykind:Mass
+  is_stackable: true
+  is_activity: true
+
+volume:
+  label:
+    en: Volume
+    fi: Tilavuus
+    de: Volumen
+    sv: Volym
+  icon: "🧊"
+  qudt: quantitykind:Volume
+  is_stackable: true
+  is_activity: true
+
+area:
+  label:
+    en: Area
+    fi: Pinta-ala
+    de: Fläche
+    sv: Yta
+  icon: "📐"
+  qudt: quantitykind:Area
+  is_stackable: true
+  is_activity: true
+
+employment:
+  label:
+    en: Employment
+    fi: Työllisyys
+    de: Beschäftigung
+    sv: Sysselsättning
+  icon: "👷"
+  is_stackable: true
+  is_activity: true
+
+activity:
+  label:
+    en: Activity
+    fi: Toiminta
+    de: Aktivität
+    sv: Aktivitet
+  icon: "📊"
+  qudt: quantitykind:Activity
+  is_stackable: true
+  is_activity: true
+
+traffic_volume:
+  label:
+    en: Traffic volume
+    fi: Liikennemäärä
+    de: Verkehrsaufkommen
+    sv: Trafikvolym
+  icon: "🚦"
+  qudt: quantitykind:TrafficIntensity
+  is_stackable: true
+  is_activity: true
+
+# ---------------------------------------------------------------------------
+# Other stackable quantities
+# ---------------------------------------------------------------------------
+
+currency:
+  label:
+    en: Currency
+    fi: Valuutta
+    de: Währung
+    sv: Valuta
+  icon: "💰"
+  qudt: quantitykind:Currency
+  is_stackable: true
+
+population:
+  label:
+    en: Population
+    fi: Väestö
+    de: Bevölkerung
+    sv: Befolkning
+  icon: "👪"
+  qudt: quantitykind:Population
+  is_stackable: true
+
+floor_area:
+  label:
+    en: Floor area
+    fi: Kerrosala
+    de: Geschossfläche
+    sv: Våningsyta
+  icon: "🏢"
+  qudt: quantitykind:Area
+  is_stackable: true
+
+number:
+  label:
+    en: Number
+    fi: Lukumäärä
+    de: Anzahl
+    sv: Antal
+  icon: "🔢"
+  is_stackable: true
+
+mix:
+  label:
+    en: Mix
+    fi: Jakauma
+    de: Mix
+    sv: Mix
+  icon: "💯"
+  qudt: quantitykind:DimensionlessRatio
+  is_stackable: true
+
+grouped_mix:
+  label:
+    en: Grouped mix
+    fi: Ryhmitelty jakauma
+    de: Gruppierter Mix
+    sv: Grupperad mix
+  icon: "💯"
+  qudt: quantitykind:DimensionlessRatio
+  is_stackable: true
+
+disease_burden:
+  label:
+    en: Disease burden
+    fi: Tautitaakka
+    de: Krankheitslast
+    sv: Sjukdomsbörda
+  icon: "🏥"
+  is_stackable: true
+
+health_effect:
+  label:
+    en: Health effect
+    fi: Terveysvaikutus
+    de: Gesundheitseffekt
+    sv: Hälsoeffekt
+  icon: "🩺"
+  is_stackable: true
+
+length:
+  label:
+    en: Length
+    fi: Pituus
+    de: Länge
+    sv: Längd
+  icon: "📏"
+  qudt: quantitykind:Length
+  is_stackable: true
+
+value_weight:
+  label:
+    en: Value weight
+    fi: Arvopaino
+    de: Wertgewicht
+    sv: Värdevikt
+  icon: "⚓"
+  is_stackable: true
+
+# ---------------------------------------------------------------------------
+# Factors
+# ---------------------------------------------------------------------------
+
+emission_factor:
+  label:
+    en: Emission factor
+    fi: Päästökerroin
+    de: Emissionsfaktor
+    sv: Utsläppsfaktor
+  icon: "✖"
+  qudt: quantitykind:MassPerEnergy
+  is_factor: true
+
+energy_factor:
+  label:
+    en: Energy factor
+    fi: Energiakerroin
+    de: Energiefaktor
+    sv: Energifaktor
+  icon: "✖"
+  is_factor: true
+
+consumption_factor:
+  label:
+    en: Consumption factor
+    fi: Kulutuskerroin
+    de: Verbrauchsfaktor
+    sv: Förbrukningsfaktor
+  icon: "✖"
+  is_factor: true
+
+energy_per_area:
+  label:
+    en: Energy per area
+    fi: Energia per pinta-ala
+    de: Energie pro Fläche
+    sv: Energi per yta
+  icon: "📐"
+  qudt: quantitykind:EnergyPerArea
+  is_factor: true
+
+occupancy_factor:
+  label:
+    en: Occupancy factor
+    fi: Käyttöastekerroin
+    de: Auslastungsfaktor
+    sv: Beläggningsfaktor
+  icon: "🪑"
+  is_factor: true
+
+fuel_factor:
+  label:
+    en: Fuel factor
+    fi: Polttoainekerroin
+    de: Kraftstofffaktor
+    sv: Bränslefaktor
+  icon: "⛽"
+  is_factor: true
+
+demand_factor:
+  label:
+    en: Demand factor
+    fi: Kysyntäkerroin
+    de: Bedarfsfaktor
+    sv: Efterfrågefaktor
+  icon: "📈"
+  is_factor: true
+
+time_factor:
+  label:
+    en: Time factor
+    fi: Aikakerroin
+    de: Zeitfaktor
+    sv: Tidsfaktor
+  icon: "⏱"
+  is_factor: true
+
+factor:
+  label:
+    en: Factor
+    fi: Kerroin
+    de: Faktor
+    sv: Faktor
+  icon: "✖"
+  is_factor: true
+
+# ---------------------------------------------------------------------------
+# Unit prices
+# ---------------------------------------------------------------------------
+
+unit_price:
+  label:
+    en: Unit price
+    fi: Yksikköhinta
+    de: Stückpreis
+    sv: Enhetspris
+  icon: "💲"
+  is_unit_price: true
+
+energy_unit_price:
+  label:
+    en: Energy unit price
+    fi: Energian yksikköhinta
+    de: Energiestückpreis
+    sv: Energienhetspris
+  icon: "💲"
+  is_unit_price: true
+
+floor_area_unit_price:
+  label:
+    en: Floor area unit price
+    fi: Kerrosalan yksikköhinta
+    de: Geschossflächenstückpreis
+    sv: Våningsytans enhetspris
+  icon: "💲"
+  is_unit_price: true
+
+fuel_unit_price:
+  label:
+    en: Fuel unit price
+    fi: Polttoaineen yksikköhinta
+    de: Kraftstoffstückpreis
+    sv: Bränsleenhetspris
+  icon: "💲"
+  is_unit_price: true
+
+mileage_unit_price:
+  label:
+    en: Mileage unit price
+    fi: Ajokilometrien yksikköhinta
+    de: Fahrleistungsstückpreis
+    sv: Körsträckans enhetspris
+  icon: "💲"
+  is_unit_price: true
+
+price:
+  label:
+    en: Price
+    fi: Hinta
+    de: Preis
+    sv: Pris
+  icon: "💲"
+  is_unit_price: true
+
+# ---------------------------------------------------------------------------
+# Dimensionless / ratios
+# ---------------------------------------------------------------------------
+
+fraction:
+  label:
+    en: Fraction
+    fi: Osuus
+    de: Anteil
+    sv: Andel
+  icon: "➗"
+  qudt: quantitykind:DimensionlessRatio
+
+ratio:
+  label:
+    en: Ratio
+    fi: Suhde
+    de: Verhältnis
+    sv: Förhållande
+  icon: "🔄"
+  qudt: quantitykind:DimensionlessRatio
+
+probability:
+  label:
+    en: Probability
+    fi: Todennäköisyys
+    de: Wahrscheinlichkeit
+    sv: Sannolikhet
+  icon: "🎲"
+  qudt: quantitykind:DimensionlessRatio
+
+elasticity:
+  label:
+    en: Elasticity
+    fi: Joustavuus
+    de: Elastizität
+    sv: Elasticitet
+  icon: "🔀"
+  qudt: quantitykind:ModulusOfElasticity
+
+per_capita:
+  label:
+    en: Per capita
+    fi: Asukasta kohden
+    de: Pro Kopf
+    sv: Per capita
+  icon: "👤"
+
+# ---------------------------------------------------------------------------
+# Health and exposure
+# ---------------------------------------------------------------------------
+
+exposure:
+  label:
+    en: Exposure
+    fi: Altistuminen
+    de: Exposition
+    sv: Exponering
+  icon: "☣"
+  qudt: quantitykind:Exposure
+
+exposure_response:
+  label:
+    en: Exposure response
+    fi: Altistumisvaste
+    de: Expositions-Wirkungs-Beziehung
+    sv: Exponeringsrespons
+  icon: "📉"
+
+case_burden:
+  label:
+    en: Case burden
+    fi: Tapaustaakka
+    de: Falllast
+    sv: Fallbörda
+  icon: "📋"
+
+mass_concentration:
+  label:
+    en: Mass concentration
+    fi: Massapitoisuus
+    de: Massenkonzentration
+    sv: Masskoncentration
+  icon: "🔬"
+  qudt: quantitykind:MassConcentration
+
+concentration:
+  label:
+    en: Concentration
+    fi: Pitoisuus
+    de: Konzentration
+    sv: Koncentration
+  icon: "🧪"
+  qudt: quantitykind:Concentration
+
+body_weight:
+  label:
+    en: Body weight
+    fi: Ruumiinpaino
+    de: Körpergewicht
+    sv: Kroppsvikt
+  icon: "⚖"
+  qudt: quantitykind:Mass
+
+incidence:
+  label:
+    en: Incidence
+    fi: Ilmaantuvuus
+    de: Inzidenz
+    sv: Incidens
+  icon: "📈"
+  qudt: quantitykind:Incidence
+
+ingestion:
+  label:
+    en: Ingestion
+    fi: Saanti
+    de: Aufnahme
+    sv: Intag
+  icon: "🍽"
+
+effect:
+  label:
+    en: Effect
+    fi: Vaikutus
+    de: Wirkung
+    sv: Effekt
+  icon: "⚙"
+
+# ---------------------------------------------------------------------------
+# Physical / general
+# ---------------------------------------------------------------------------
+
+rate:
+  label:
+    en: Rate
+    fi: Nopeus
+    de: Rate
+    sv: Takt
+  icon: "⏩"
+
+speed:
+  label:
+    en: Speed
+    fi: Nopeus
+    de: Geschwindigkeit
+    sv: Hastighet
+  icon: "🏎"
+  qudt: quantitykind:Speed
+
+duration:
+  label:
+    en: Duration
+    fi: Kesto
+    de: Dauer
+    sv: Varaktighet
+  icon: "⏳"
+  qudt: quantitykind:Time
+
+distance:
+  label:
+    en: Distance
+    fi: Etäisyys
+    de: Entfernung
+    sv: Avstånd
+  icon: "📍"
+  qudt: quantitykind:Distance
+
+argument:
+  label:
+    en: Argument
+    fi: Argumentti
+    de: Argument
+    sv: Argument
+  icon: "🔣"
+
+quality_of_data:
+  label:
+    en: Quality of data
+    fi: Tiedon laatu
+    de: Datenqualität
+    sv: Datakvalitet
+  icon: "📊"

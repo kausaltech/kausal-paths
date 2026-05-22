@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 user_permissions_changed = Signal()
 
+
 @receiver(user_permissions_changed)
 def invalidate_user_cache(sender, user: User, **kwargs):
     """Invalidate the cached adminable instances when user permissions change."""
@@ -18,6 +19,7 @@ def invalidate_user_cache(sender, user: User, **kwargs):
 
     from nodes.roles import SubsectorAdminRole
     from people.models import DatasetSchemaGroupPermission, DatasetSchemaPersonPermission
+
     if (
         kwargs.get('add_permission_group')
         or DatasetSchemaPersonPermission.objects.filter(person=user.get_corresponding_person()).exists()

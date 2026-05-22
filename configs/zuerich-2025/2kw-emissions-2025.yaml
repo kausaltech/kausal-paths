@@ -1,0 +1,209 @@
+nodes:
+
+- id: net_emissions_2kw
+  name_de: Treibhausgasemissionen (2000-Watt)
+  name_en: Greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  is_outcome: true
+  input_nodes:
+  - id: building_general_electricity_emissions
+
+# ----- Building 2kW Emissions -----
+
+- id: building_emissions_2kw
+  name_de: Treibhausgasemissionen Gebäude Heizung & Ubrige
+  name_en: Building heat & other greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  short_name_de: Gebäude Heizung & Ubrige
+  short_name_en: Building Heat & Other
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  input_nodes:
+  - id: building_other_emissions
+    from_dimensions:
+    - id: building_other_emission_sources
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope1]
+    - id: energy_carrier
+  - id: building_heat_emissions
+  output_nodes:
+  - id: net_emissions_2kw
+
+# ----- Transportation 2kW Emissions -----
+
+- id: transport_emission_factor_2kw
+  name_de: Verkehr Emissionsfaktor (2000-Watt)
+  name_en: Transport emission factors (2000-Watt)
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: zuerich/transport_emission_factors_2kw
+
+- id: miv_emissions_2kw
+  name_de: Treibhausgasemissionen Motorisierter Individualverkehr (MIV) (2000-Watt)
+  name_en: Individual motor transport emissions (2000-Watt)
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: miv_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: public_transport_emissions_2kw
+  name_de: Treibhausgasemissionen Öffentlicher Verkehr (ÖV) (2000-Watt)
+  name_en: Public transportation emissions (2000-Watt)
+  short_name_de: Öffentlicher Verkehr (ÖV)
+  short_name_en: Public transportation
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: public_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: goods_transport_emissions_2kw
+  name_de: Treibhausgasemissionen Güterverkehr (2000-Watt)
+  name_en: Goods transport emissions (2000-Watt)
+  short_name_de: Güterverkehr
+  short_name_en: Goods transport
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: goods_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: other_transport_emissions_2kw
+  name_de: Treibhausgasemissionen übriger Verkehr (2000-Watt)
+  name_en: Other transportation emissions (2000-Watt)
+  short_name_de: Übriger Verkehr
+  short_name_en: Other transportation
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  output_dimensions: [emission_scope, energy_carrier, vehicle_type]
+  input_nodes:
+  - id: other_transport_emissions
+    tags: [emissions]
+  - id: transport_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: non_road_machinery_emissions_2kw
+  name_de: Treibhausgasemissionen Baumaschinen und Spezialfahrzeuge (2000-Watt)
+  name_en: Building machine and special vehicle emissions (2000-Watt)
+  short_name_de: Non-Road Maschinen
+  short_name_en: Non-road machinery
+  type: ch.zuerich.TransportEmissions2kW
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_scope, energy_carrier, non_road_machinery]
+  output_dimensions: [emission_scope, energy_carrier, non_road_machinery]
+  input_nodes:
+  - id: non_road_machinery_emissions
+    tags: [emissions]
+  - id: non_road_machinery_end_energy_consumption
+    tags: [consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: non_road_machinery
+  - id: transport_emission_factor_2kw
+    tags: [emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: transportation_emissions_2kw
+  name_de: Treibhausgasemissionen Verkehr (2000-Watt)
+  name_en: Transportation greenhouse gas emissions (2000-watt)
+  type: simple.SectorEmissions
+  short_name_de: Verkehr
+  short_name_en: Transportation
+  unit: kt/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  output_nodes: [net_emissions_2kw]
+  input_nodes:
+  - id: miv_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: public_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: goods_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: other_transport_emissions_2kw
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: non_road_machinery_emissions_2kw
+    from_dimensions:
+    - id: non_road_machinery
+      flatten: true
+  - id: aviation_emissions
+    from_dimensions:
+    - id: flight_effect
+      flatten: true
+    - id: flight_type
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [kerosene]
+    - id: emission_scope

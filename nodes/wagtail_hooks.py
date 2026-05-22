@@ -40,7 +40,6 @@ class NodeDatasetAdminURLFinder(AdminURLFinder):
 
     def get_edit_url(self, instance):
         if isinstance(instance, NodeDataset):
-
             # Return the edit URL for the Node instead
             return reverse(node_admin.NodeViewSet().get_url_name('edit'), args=[instance.node.pk])
         return None

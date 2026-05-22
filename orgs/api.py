@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from rest_framework import exceptions, serializers
 
 from kausal_common.api.bulk import BulkListSerializer, BulkModelViewSet
 from kausal_common.api.exceptions import HandleProtectedErrorMixin
 from kausal_common.api.tree import TreebeardModelSerializerMixin
-from kausal_common.api.utils import RegisteredAPIView, register_view
+from kausal_common.api.utils import register_view
 from kausal_common.models.general import public_fields
 
 from paths import permissions
+from paths.context import realm_context
 
 from nodes.models import InstanceConfig
 from orgs.models import Organization
@@ -18,24 +19,33 @@ from orgs.models import Organization
 if TYPE_CHECKING:
     from rest_framework.permissions import BasePermission
 
+    from kausal_common.api.utils import RegisteredAPIView
+
 all_views: list[RegisteredAPIView] = []
+
 
 class OrganizationSerializer(TreebeardModelSerializerMixin[Organization], serializers.ModelSerializer[Organization]):  # type: ignore[misc]
     uuid = serializers.UUIDField(required=False)
 
-    class Meta:  # type: ignore[override]
+    class Meta:
         model = Organization
         list_serializer_class = BulkListSerializer
         fields = public_fields(Organization)
+        extra_kwargs: ClassVar = {
+            # Allow omitting primary_language since it
+            # can then be taken from the plan
+            'primary_language': {'required': False},
+        }
 
     def create(self, validated_data):
-        # from paths.context import realm_context
+        ic = realm_context.get().realm
+        if 'primary_language' not in validated_data:
+            validated_data['primary_language'] = ic.primary_language
         instance = super().create(validated_data)
-        # # Add instance to active instance's related organizations
-        # request: PathsAdminRequest = self.context.get('request')
-        # ic = realm_context.get().realm
+        # TODO: Add instance to active instance's related organizations
         # ic.related_organizations.add(instance)
         return instance
+
 
 @register_view
 class OrganizationViewSet(HandleProtectedErrorMixin, BulkModelViewSet):
@@ -69,6 +79,6 @@ class OrganizationViewSet(HandleProtectedErrorMixin, BulkModelViewSet):
         try:
             instance = InstanceConfig.objects.get(identifier=instance_identifier)
         except InstanceConfig.DoesNotExist as e:
-            raise exceptions.NotFound(detail="Instance not found") from e
+            raise exceptions.NotFound(detail='Instance not found') from e
         available_organizations = Organization.objects.qs.available_for_instance(instance)
         return available_organizations

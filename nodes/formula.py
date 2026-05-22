@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import ast
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Literal, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar, cast
 
 from django.utils.translation import gettext_lazy as _
 
@@ -49,7 +50,7 @@ class FormulaNode(Node):
         StringParameter(local_id='formula'),
         BoolParameter(local_id='extend_last_historical_value'),
         BoolParameter(local_id='condition'),
-        NumberParameter(local_id='constant', label='Constant value to add to the formula', is_customizable=True)
+        NumberParameter(local_id='constant', label=_('Constant value to add to the formula'), is_customizable=True),
     ]
 
     # Use varss instead of vars for variables to avoid shadowing.
@@ -57,8 +58,13 @@ class FormulaNode(Node):
         return self.eval_tree(expr.body, varss)
 
     def eval_constant(self, node: ast.Constant, _varss: EvalVars) -> Quantity:
-        q = Quantity(node.value)
-        return q  # pyright: ignore[reportReturnType]
+        """AST numeric literals are explicit dimensionless quantities (matches ``analyze_formula_units``)."""
+        v = node.value
+        if isinstance(v, bool):
+            return Quantity(float(v), 'dimensionless')
+        if isinstance(v, (int, float)):
+            return Quantity(v, 'dimensionless')
+        raise NodeError(self, _('Unsupported constant in formula: %(type)s') % {'type': type(v).__name__})
 
     def eval_name(self, name: ast.Name, varss: EvalVars) -> EvalOutput:
         if name.id in varss.nodes:
@@ -74,8 +80,13 @@ class FormulaNode(Node):
         return varss.parameters[name.id]
 
     def apply_binom(
-        self, left: EvalOutput, right: EvalOutput, both_df: BinomBothDF, left_df: BinomLeftDF,
-        right_df: BinomRightDF, both_quantity: BinomBothQuantity
+        self,
+        left: EvalOutput,
+        right: EvalOutput,
+        both_df: BinomBothDF,
+        left_df: BinomLeftDF,
+        right_df: BinomRightDF,
+        both_quantity: BinomBothQuantity,
     ) -> EvalOutput:
         if isinstance(left, PDF) and isinstance(right, PDF):
             return both_df(left, right)
@@ -93,56 +104,70 @@ class FormulaNode(Node):
         return both_quantity(right, left)
 
     def apply_binom_commutative(
-            self, left: EvalOutput, right: EvalOutput, both_df: BinomBothDF, one_df: BinomLeftDF,
-            both_quantity: BinomBothQuantity
+        self, left: EvalOutput, right: EvalOutput, both_df: BinomBothDF, one_df: BinomLeftDF, both_quantity: BinomBothQuantity
     ) -> EvalOutput:
         def right_df(val: Quantity, df: PDF) -> PDF:
             return one_df(df, val)
+
         return self.apply_binom(left, right, both_df, one_df, right_df, both_quantity)
 
     def apply_add(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         """Add two values using add_with_dims for DataFrames, which handles dimensions properly."""
+
         def both_df(df1: PDF, df2: PDF) -> PDF:
             # add_with_dims requires matching dimensions and handles unit conversion
             return df1.paths.add_with_dims(df2, how='outer')
+
         def one_df(df: PDF, val: QuantityType) -> PDF:
-            val = val.to(df.get_unit(VALUE_COLUMN))
-            df = df.with_columns(pl.col(VALUE_COLUMN) + val)
-            return df
+            col = VALUE_COLUMN
+            # Convert scalar to the series unit with pint, then add the magnitude only. Polars does not
+            # apply pint rules if you pass a Quantity into ``col + val`` — it can use the wrong .m.
+            adj = val.to(df.get_unit(col))
+            m = float(adj.m)
+            return df.with_columns((pl.col(col) + pl.lit(m)).alias(col))
+
         def both_quantity(val1: Quantity, val2: Quantity) -> Quantity:
             out = val1 + val2
             assert isinstance(out, Quantity)
             return out
+
         return self.apply_binom_commutative(left, right, both_df, one_df, both_quantity)
 
     def apply_mul(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         def both_df(df1: PDF, df2: PDF) -> PDF:
             return df1.paths.multiply_with_dims(df2, how='inner')
+
         def one_df(df: PDF, val: Quantity) -> PDF:
             return df.multiply_quantity(VALUE_COLUMN, val)
+
         def both_quantity(val1: Quantity, val2: Quantity) -> Quantity:
             out = val1 * val2
             assert isinstance(out, Quantity)
             return out
+
         return self.apply_binom_commutative(left, right, both_df, one_df, both_quantity)
 
     def apply_div(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         def both_df(df1: PDF, df2: PDF) -> PDF:
             return df1.paths.divide_with_dims(df2, how='inner')
+
         def left_df(df: PDF, val: QuantityType) -> PDF:
             assert isinstance(val, Quantity)
             return df.divide_by_quantity(VALUE_COLUMN, val)
+
         def right_df(val: QuantityType, df: PDF) -> PDF:
             assert isinstance(val, Quantity)
             return df.divide_quantity(VALUE_COLUMN, val)
+
         def both_quantity(val1: Quantity, val2: Quantity) -> Quantity:
             out = val1 / val2
             assert isinstance(out, Quantity)
             return out
+
         return self.apply_binom(left, right, both_df, left_df, right_df, both_quantity)
 
     def apply_sub(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
-        neg_one = cast("Quantity", Quantity(-1))
+        neg_one = Quantity(-1, 'dimensionless')
         if isinstance(right, PDF):
             right = right.multiply_quantity(VALUE_COLUMN, neg_one)
         elif isinstance(right, Quantity):
@@ -151,24 +176,24 @@ class FormulaNode(Node):
 
     def apply_pow(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         if isinstance(right, PDF):
-            raise NotImplementedError("Power with dataframe exponent is not supported.")
+            raise NotImplementedError('Power with dataframe exponent is not supported.')
         assert isinstance(right, Quantity)
         try:
             right = right.to('dimensionless')
         except Exception as exc:
-            raise NodeError(self, "Power exponent must be dimensionless.") from exc
+            raise NodeError(self, 'Power exponent must be dimensionless.') from exc
         exponent = right.m
         if isinstance(left, PDF):
             val_col = VALUE_COLUMN
             df = left.with_columns((pl.col(val_col) ** pl.lit(exponent)).alias(val_col))
             df = df.set_unit(
                 val_col,
-                cast("Unit", left.get_unit(val_col) ** exponent),
+                cast('Unit', left.get_unit(val_col) ** exponent),
                 force=True,
             )
             return df
         assert isinstance(left, Quantity)
-        out = left ** exponent
+        out = left**exponent
         assert isinstance(out, Quantity)
         return out
 
@@ -187,9 +212,7 @@ class FormulaNode(Node):
         df = df.with_columns(op_map[op].cast(pl.Float64).alias(VALUE_COLUMN))
         return df.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
 
-    def _apply_compare(
-        self, left: EvalOutput, right: EvalOutput, op: Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le']
-    ) -> EvalOutput:
+    def _apply_compare(self, left: EvalOutput, right: EvalOutput, op: Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le']) -> EvalOutput:
         """Apply comparison operation, handling PDF vs PDF, PDF vs Quantity, and Quantity vs PDF."""
         # Map for reversing operations when Quantity is on the left
         reverse_op_map: dict[Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le'], Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le']] = {
@@ -207,7 +230,7 @@ class FormulaNode(Node):
             return self._compare_pdf_quantity(left, right, op)
         if isinstance(left, Quantity) and isinstance(right, PDF):
             return self._compare_pdf_quantity(right, left, reverse_op_map[op])
-        raise NotImplementedError("Comparisons require at least one PathsDataFrame")
+        raise NotImplementedError('Comparisons require at least one PathsDataFrame')
 
     def apply_eq(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         """Equal comparison (==)."""
@@ -259,9 +282,9 @@ class FormulaNode(Node):
 
         # For now, handle single comparisons (not chained like a < b < c)
         if len(node.ops) != 1:
-            raise NotImplementedError("Chained comparisons are not yet supported")
+            raise NotImplementedError('Chained comparisons are not yet supported')
         if len(node.comparators) != 1:
-            raise NotImplementedError("Multiple comparators are not yet supported")
+            raise NotImplementedError('Multiple comparators are not yet supported')
 
         left_value = self.eval_tree(node.left, varss)
         right_value = self.eval_tree(node.comparators[0], varss)
@@ -274,13 +297,12 @@ class FormulaNode(Node):
         func = func_name.id
 
         # Evaluate first argument
-        assert len(node.args) >= 1, f"Function {func} requires at least one argument"
+        assert len(node.args) >= 1, f'Function {func} requires at least one argument'
         df = self.eval_tree(node.args[0], varss)  # Get the first result
 
         # Try PathsExt operations first
-        if isinstance(df, PDF) and func in df.paths.OPERATIONS:
-            operation = df.paths.OPERATIONS[func]
-            return operation(df, self.context)
+        if isinstance(df, PDF) and df.paths.has_operation(func):
+            return df.paths.get_operation(func)(df, self.context)
 
         # Handle non-PathsExt functions
         return self._handle_custom_function(func, node, varss, df)
@@ -288,7 +310,11 @@ class FormulaNode(Node):
     _CUSTOM_FUNC_HANDLERS: dict[str, str] = {
         'convert_gwp': '_custom_convert_gwp',
         'sum_dim': '_custom_sum_dim',
+        'sum_into_cat': '_custom_sum_into_cat',
         'prod_dim': '_custom_prod_dim',
+        'mean_dim': '_custom_mean_dim',
+        'min_dim': '_custom_min_dim',
+        'max_dim': '_custom_max_dim',
         'zero_fill': '_custom_zero_fill',
         'select_port': '_custom_select_port',
         'float': '_custom_float',
@@ -299,24 +325,18 @@ class FormulaNode(Node):
         'or': '_custom_and_or',
     }
 
-    def _handle_custom_function(
-        self, func: str, node: ast.Call, varss: EvalVars, df: EvalOutput
-    ) -> EvalOutput:
+    def _handle_custom_function(self, func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
         """Handle custom functions not in PathsExt.OPERATIONS."""
         method_name = self._CUSTOM_FUNC_HANDLERS.get(func)
         if method_name is None:
-            raise NotImplementedError(f"Unknown function: {func}")
+            raise NotImplementedError(f'Unknown function: {func}')
         return getattr(self, method_name)(func, node, varss, df)
 
-    def _custom_convert_gwp(
-        self, _func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput
-    ) -> EvalOutput:
+    def _custom_convert_gwp(self, _func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert isinstance(df, PDF)
         return convert_to_co2e(df, 'greenhouse_gases')
 
-    def _custom_sum_dim(
-        self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput
-    ) -> EvalOutput:
+    def _custom_sum_dim(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert len(node.args) == 2
         assert isinstance(df, PDF)
         dim_arg = node.args[1]
@@ -324,9 +344,7 @@ class FormulaNode(Node):
         assert isinstance(dim_arg.id, str)
         return df.paths.sum_over_dims(dim_arg.id)
 
-    def _custom_prod_dim(
-        self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput
-    ) -> EvalOutput:
+    def _custom_prod_dim(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert len(node.args) == 2
         assert isinstance(df, PDF)
         dim_arg = node.args[1]
@@ -334,33 +352,78 @@ class FormulaNode(Node):
         assert isinstance(dim_arg.id, str)
         return df.paths.prod_over_dims(dim_arg.id)
 
-    def _custom_zero_fill(
-        self, _func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput
-    ) -> EvalOutput:
+    def _custom_mean_dim(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        assert len(node.args) == 2
+        assert isinstance(df, PDF)
+        dim_arg = node.args[1]
+        assert isinstance(dim_arg, ast.Name)
+        assert isinstance(dim_arg.id, str)
+        return df.paths.mean_over_dims(dim_arg.id)
+
+    def _custom_min_dim(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        assert len(node.args) == 2
+        assert isinstance(df, PDF)
+        dim_arg = node.args[1]
+        assert isinstance(dim_arg, ast.Name)
+        assert isinstance(dim_arg.id, str)
+        return df.paths.min_over_dims(dim_arg.id)
+
+    def _custom_max_dim(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        assert len(node.args) == 2
+        assert isinstance(df, PDF)
+        dim_arg = node.args[1]
+        assert isinstance(dim_arg, ast.Name)
+        assert isinstance(dim_arg.id, str)
+        return df.paths.max_over_dims(dim_arg.id)
+
+    def _ast_category_label(self, node: ast.expr) -> str:
+        """Parse a dimension category id (quoted string or bare identifier, like ``dim``)."""
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        raise NodeError(self, 'Expected a string literal or identifier for the category name.')
+
+    def _ast_str_sequence_literal(self, node: ast.expr) -> list[str]:
+        """Parse ``['a', 'b']``, ``(a, b)``, or mixed quoted/unquoted category ids from the formula AST."""
+        if not isinstance(node, (ast.List, ast.Tuple)):
+            raise NodeError(self, 'Expected a list or tuple of category names.')
+        return [self._ast_category_label(el) for el in node.elts]
+
+    def _custom_sum_into_cat(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        """
+        Handle ``sum_into_cat``; see ``PathsExt.sum_into_cat``.
+
+        Syntax: ``sum_to_cat(df, dim, [src, ...], target)``. Use identifiers or quoted strings for
+        ``dim``, each source category, and ``target``.
+        """
+        assert len(node.args) == 4, 'sum_into_cat(df, dim, source_categories, target) requires four arguments'
+        assert isinstance(df, PDF)
+        dim_arg = node.args[1]
+        assert isinstance(dim_arg, ast.Name)
+        sources = self._ast_str_sequence_literal(node.args[2])
+        target = self._ast_category_label(node.args[3])
+        return df.paths.sum_into_cat(dim_arg.id, sources, target)
+
+    def _custom_zero_fill(self, _func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert isinstance(df, PDF)
         df = df.paths.to_wide()
         meta = df.get_meta()
         zdf = df.fill_null(0)
         return ppl.to_ppdf(zdf, meta=meta).paths.to_narrow()
 
-    def _custom_select_port(
-        self, _func: str, node: ast.Call, varss: EvalVars, df: EvalOutput
-    ) -> EvalOutput:
+    def _custom_select_port(self, _func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert len(node.args) == 3
         assert isinstance(df, bool)
         return self.eval_tree(node.args[1], varss) if df else self.eval_tree(node.args[2], varss)
 
-    def _custom_float(
-        self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput
-    ) -> EvalOutput:
+    def _custom_float(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         # FIXME Does this actually make sense?
         assert isinstance(df, bool)
         assert len(node.args) == 1
         return Quantity(1.0, 'dimensionless') if df else Quantity(0.0, 'dimensionless')
 
-    def _custom_coalesce_df(
-        self, _func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput
-    ) -> EvalOutput:
+    def _custom_coalesce_df(self, _func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:
         assert len(node.args) == 2
         df1 = self.eval_tree(node.args[0], varss)
         df2 = self.eval_tree(node.args[1], varss)
@@ -368,35 +431,27 @@ class FormulaNode(Node):
         assert isinstance(df2, PDF)
         return df1.paths.coalesce_df(df2, how='outer')
 
-    def _custom_max_min(
-        self, func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput
-    ) -> EvalOutput:
-        assert len(node.args) == 2, f"{func}(a, b) requires two arguments"
+    def _custom_max_min(self, func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:
+        assert len(node.args) == 2, f'{func}(a, b) requires two arguments'
         left = self.eval_tree(node.args[0], varss)
         right = self.eval_tree(node.args[1], varss)
         return self._apply_max_min(left, right, cast("Literal['max', 'min']", func))
 
-    def _custom_and_or(
-        self, func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput
-    ) -> EvalOutput:
-        assert len(node.args) == 2, f"{func}(a, b) requires two arguments"
+    def _custom_and_or(self, func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:
+        assert len(node.args) == 2, f'{func}(a, b) requires two arguments'
         left = self.eval_tree(node.args[0], varss)
         right = self.eval_tree(node.args[1], varss)
         op: Literal['max', 'min'] = 'min' if func == 'and' else 'max'
         result = self._apply_max_min(left, right, op)
-        self._append_non_binary_warning_if_needed(
-            left, right, result, cast("Literal['and', 'or']", func)
-        )
+        self._append_non_binary_warning_if_needed(left, right, result, cast("Literal['and', 'or']", func))
         return result
 
-    def _apply_max_min(
-        self, left: EvalOutput, right: EvalOutput, op: Literal['max', 'min']
-    ) -> EvalOutput:
+    def _apply_max_min(self, left: EvalOutput, right: EvalOutput, op: Literal['max', 'min']) -> EvalOutput:
         """Element-wise max or min. For 0/1 values, max(a,b) is logical OR, min(a,b) is logical AND."""
         if isinstance(left, Quantity) and isinstance(right, Quantity):
             unit = left.u
-            r_m = right.to(unit).m
-            l_m = left.m
+            r_m: float = right.to(unit).m
+            l_m: float = left.m
             val = max(l_m, r_m) if op == 'max' else min(l_m, r_m)
             return Quantity(val, unit)
         if isinstance(left, PDF) and isinstance(right, Quantity):
@@ -409,13 +464,13 @@ class FormulaNode(Node):
             return right.paths.max_with_scalar(scalar) if op == 'max' else right.paths.min_with_scalar(scalar)
         if isinstance(left, PDF) and isinstance(right, PDF):
             return left.paths.max_with(right) if op == 'max' else left.paths.min_with(right)
-        raise NotImplementedError(f"{op} requires two parameters that are quantities or dataframes.")
+        raise NotImplementedError(f'{op} requires two parameters that are quantities or dataframes.')
 
     def _has_non_binary_values(self, x: EvalOutput) -> bool:
         """Return True if any value deviates from 0 and from 1 by more than LOGICAL_TOLERANCE."""
         tol = LOGICAL_TOLERANCE
         if isinstance(x, Quantity):
-            m = float(x.to(unit_registry('dimensionless')).m)
+            m = float(x.to(unit_registry.parse_units('dimensionless')).m)
             return abs(m) > tol and abs(m - 1.0) > tol
         if isinstance(x, PDF):
             col = x.get_column(VALUE_COLUMN)
@@ -433,9 +488,7 @@ class FormulaNode(Node):
     ) -> None:
         """If and()/or() received non-binary values, append a warning to result._explanation (when result is PDF)."""
         if (self._has_non_binary_values(left) or self._has_non_binary_values(right)) and isinstance(result, PDF):
-            msg = _(
-                "Logical %(func)s() received values outside {0, 1}; interpreted as fuzzy logic."
-            ) % {'func': func_name}
+            msg = _('Logical %(func)s() received values outside {0, 1}; interpreted as fuzzy logic.') % {'func': func_name}
             result._explanation.append(msg)
 
     def eval_tree(self, tree: ast.AST, varss: EvalVars) -> EvalOutput:
@@ -446,7 +499,7 @@ class FormulaNode(Node):
             ast.BinOp: self.eval_binop,
             ast.Compare: self.eval_compare,
             ast.Call: self.eval_call,
-            #ast.UnaryOp: self.eval_unaryop,
+            # ast.UnaryOp: self.eval_unaryop,
         }
 
         for ast_type, evaluator in EVALUATORS.items():
@@ -469,7 +522,7 @@ class FormulaNode(Node):
         return used_names
 
     def evaluate_formula(self, formula: str, varss: EvalVars) -> PDF:
-        tree = ast.parse(formula, "<string>", mode="eval")
+        tree = ast.parse(formula, '<string>', mode='eval')
         ret = self.eval_tree(tree, varss)
         assert isinstance(ret, PDF)
         return ret
@@ -498,10 +551,10 @@ class FormulaNode(Node):
                     datasets[tag] = df
 
         # Collect parameters that have units (for use in formulas)
-        from params.param import ParameterWithUnit
         parameters: dict[str, QuantityType | bool] = {}
         for param_id, param in self.parameters.items():
-            if isinstance(param, ParameterWithUnit) and param.unit is not None:
+            val: Any
+            if param.has_unit():
                 val = self.get_parameter_value(param_id, required=False, units=True)
                 if val is not None:
                     assert isinstance(val, Quantity)
@@ -510,13 +563,15 @@ class FormulaNode(Node):
                 val = self.get_parameter_value(param_id, required=False)
                 if isinstance(val, bool):
                     parameters[param_id] = val
+                elif isinstance(val, (int, float)):
+                    raise NodeError(self, 'Parameter must have a unit in this context.')
 
         return EvalVars(nodes, datasets, parameters)
 
     def compute(self) -> PDF:
         varss = self._collect_eval_vars()
         formula = self.get_parameter_value_str('formula')
-        tree = ast.parse(formula, "<string>", mode="eval")
+        tree = ast.parse(formula, '<string>', mode='eval')
         used_node_names = self._collect_used_node_names(tree, varss)
 
         df = self.eval_tree(tree, varss)
@@ -547,7 +602,7 @@ class FormulaNode(Node):
                 df = self.add_nodes_pl(df, unused_nodes)
             except NodeError as e:
                 err = _('Input nodes that are not used in the formula are used for addition in the end. Error:')
-                raise NodeError(self, f"{err} {e}") from e
+                raise NodeError(self, f'{err} {e}') from e
         return df
 
 
@@ -572,17 +627,17 @@ class FormulaSpec:
     terms: list[dict[str, Any]]
 
 
-_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_IDENTIFIER_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
 
 def make_identifier(name: str) -> str:
     if _IDENTIFIER_RE.match(name):
         return name
-    normalized = re.sub(r"[^A-Za-z0-9_]", "_", name)
+    normalized = re.sub(r'[^A-Za-z0-9_]', '_', name)
     if not normalized:
-        return "_term"
+        return '_term'
     if normalized[0].isdigit():
-        return f"_{normalized}"
+        return f'_{normalized}'
     return normalized
 
 
@@ -629,11 +684,7 @@ def build_name_unit_map(
             val = term.get(field_name)
             if isinstance(val, str) and val:
                 names.append(val)
-        names.extend([
-            var_name
-            for var_name in term.get('var_names', []) or []
-            if isinstance(var_name, str) and var_name
-        ])
+        names.extend([var_name for var_name in term.get('var_names', []) or [] if isinstance(var_name, str) and var_name])
         for name in dict.fromkeys(names):
             for candidate in {name, make_identifier(name)}:
                 if candidate not in name_units:
@@ -651,11 +702,11 @@ def analyze_formula_units(  # noqa: C901, PLR0915
     unit_overrides: dict[str, UnitOverride] | None = None,
 ) -> UnitAnalysis:
     try:
-        tree = ast.parse(formula, "<string>", mode="eval")
+        tree = ast.parse(formula, '<string>', mode='eval')
     except SyntaxError as exc:
         return UnitAnalysis(
             unit=None,
-            errors=[f"Formula parse error: {exc}"],
+            errors=[f'Formula parse error: {exc}'],
         )
 
     analysis = UnitAnalysis(unit=None)
@@ -668,9 +719,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
             analysis.warnings.append(f"Unknown unit for '{op}'.")
             return left or right
         if left.dimensionality != right.dimensionality:
-            analysis.errors.append(
-                f"Unit mismatch for '{op}': {left} vs {right}"
-            )
+            analysis.errors.append(f"Unit mismatch for '{op}': {left} vs {right}")
             return left
         return left
 
@@ -699,25 +748,25 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 if left is None or right is None:
                     analysis.warnings.append("Unknown unit for '*'.")
                     return left or right
-                return cast("Unit", left * right)
+                return cast('Unit', left * right)
             if isinstance(node.op, ast.Div):
                 if left is None or right is None:
                     analysis.warnings.append("Unknown unit for '/'.")
                     return left or right
-                return cast("Unit", left / right)
+                return cast('Unit', left / right)
             if isinstance(node.op, ast.Pow):
                 if not isinstance(node.right, ast.Constant):
-                    analysis.warnings.append("Power exponent is not a constant.")
+                    analysis.warnings.append('Power exponent is not a constant.')
                     return left
                 if left is None:
                     analysis.warnings.append("Unknown unit for '**'.")
                     return None
                 exponent = node.right.value
                 if not isinstance(exponent, (int, float)):
-                    analysis.warnings.append("Power exponent is not numeric.")
+                    analysis.warnings.append('Power exponent is not numeric.')
                     return left
-                return cast("Unit", left ** exponent)
-            analysis.warnings.append(f"Unsupported binary operator: {type(node.op).__name__}")
+                return cast('Unit', left**exponent)
+            analysis.warnings.append(f'Unsupported binary operator: {type(node.op).__name__}')
             return left or right
         if isinstance(node, ast.Compare):
             left = _eval(node.left)
@@ -729,7 +778,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
         if isinstance(node, ast.Call):
             func = node.func
             if not isinstance(func, ast.Name):
-                analysis.warnings.append("Unsupported callable in formula.")
+                analysis.warnings.append('Unsupported callable in formula.')
                 return None
             func_name = func.id
             if not node.args:
@@ -743,7 +792,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 if isinstance(override_unit, str):
                     return unit_registry.parse_units(override_unit)
                 return override_unit
-            if func_name == 'sum_dim':
+            if func_name in ('sum_dim', 'sum_into_cat', 'mean_dim', 'min_dim', 'max_dim'):
                 return first
             if func_name == 'coalesce':
                 unit = first
@@ -752,7 +801,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 return unit
             if func_name in ('max', 'min', 'and', 'or'):
                 if len(node.args) != 2:
-                    analysis.warnings.append(f"{func_name}(a, b) requires two arguments.")
+                    analysis.warnings.append(f'{func_name}(a, b) requires two arguments.')
                 else:
                     second = _eval(node.args[1])
                     return _merge_compatible(func_name, first, second)
@@ -761,19 +810,16 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 if first is None:
                     analysis.warnings.append("Unknown unit for 'geometric_inverse'.")
                     return None
-                return cast("Unit", dimensionless / first)
+                return cast('Unit', dimensionless / first)
             if func_name == 'complement':
-                if (
-                    first is not None
-                    and first.dimensionality != dimensionless.dimensionality
-                ):
+                if first is not None and first.dimensionality != dimensionless.dimensionality:
                     analysis.errors.append("Function 'complement' requires dimensionless units.")
                 return dimensionless
             if func_name in {'convert_gwp', 'zero_fill'} or func_name in passthrough:
                 return first
             analysis.warnings.append(f"Unknown function '{func_name}' in formula.")
             return first
-        analysis.warnings.append(f"Unsupported AST node: {type(node).__name__}")
+        analysis.warnings.append(f'Unsupported AST node: {type(node).__name__}')
         return None
 
     analysis.unit = _eval(tree)
@@ -786,11 +832,11 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
     passthrough_functions: set[str] | None = None,
 ) -> DimensionAnalysis:
     try:
-        tree = ast.parse(formula, "<string>", mode="eval")
+        tree = ast.parse(formula, '<string>', mode='eval')
     except SyntaxError as exc:
         return DimensionAnalysis(
             dims=None,
-            errors=[f"Formula parse error: {exc}"],
+            errors=[f'Formula parse error: {exc}'],
         )
 
     analysis = DimensionAnalysis(dims=None)
@@ -809,9 +855,7 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
         if left is None or right is None:
             return left if left is not None else right
         if left != right:
-            analysis.errors.append(
-                f"Dimension mismatch for '{op}': {sorted(left)} vs {sorted(right)}"
-            )
+            analysis.errors.append(f"Dimension mismatch for '{op}': {sorted(left)} vs {sorted(right)}")
             return _merge_union(left, right)
         return left
 
@@ -837,9 +881,9 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 return _merge_union(left, right)
             if isinstance(node.op, ast.Pow):
                 if not isinstance(node.right, ast.Constant):
-                    analysis.warnings.append("Power exponent is not a constant.")
+                    analysis.warnings.append('Power exponent is not a constant.')
                 return left
-            analysis.warnings.append(f"Unsupported binary operator: {type(node.op).__name__}")
+            analysis.warnings.append(f'Unsupported binary operator: {type(node.op).__name__}')
             return _merge_union(left, right)
         if isinstance(node, ast.Compare):
             left = _eval(node.left)
@@ -850,16 +894,16 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
         if isinstance(node, ast.Call):
             func = node.func
             if not isinstance(func, ast.Name):
-                analysis.warnings.append("Unsupported callable in formula.")
+                analysis.warnings.append('Unsupported callable in formula.')
                 return None
             func_name = func.id
             if not node.args:
                 analysis.warnings.append(f"Function '{func_name}' has no arguments.")
                 return None
             first = _eval(node.args[0])
-            if func_name == 'sum_dim':
+            if func_name in ('sum_dim', 'mean_dim', 'min_dim', 'max_dim'):
                 if len(node.args) != 2:
-                    analysis.errors.append("sum_dim requires exactly two arguments.")
+                    analysis.errors.append(f'{func_name} requires exactly two arguments.')
                     return first
                 dim_arg = node.args[1]
                 if isinstance(dim_arg, ast.Name):
@@ -867,7 +911,9 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                     if first is None:
                         return None
                     return set(d for d in first if d != dim)
-                analysis.errors.append("sum_dim expects a dimension name as second argument.")
+                analysis.errors.append(f'{func_name} expects a dimension name as second argument.')
+                return first
+            if func_name == 'sum_into_cat':
                 return first
             if func_name == 'coalesce':
                 dims = first
@@ -876,7 +922,7 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 return dims
             if func_name in ('max', 'min', 'and', 'or'):
                 if len(node.args) != 2:
-                    analysis.warnings.append(f"{func_name}(a, b) requires two arguments.")
+                    analysis.warnings.append(f'{func_name}(a, b) requires two arguments.')
                 else:
                     return _require_same(func_name, first, _eval(node.args[1]))
                 return first
@@ -884,7 +930,7 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 return first
             analysis.warnings.append(f"Unknown function '{func_name}' in formula.")
             return first
-        analysis.warnings.append(f"Unsupported AST node: {type(node).__name__}")
+        analysis.warnings.append(f'Unsupported AST node: {type(node).__name__}')
         return None
 
     analysis.dims = _eval(tree)
@@ -904,11 +950,7 @@ def build_name_dimension_map(
             val = term.get(field_name)
             if isinstance(val, str) and val:
                 names.append(val)
-        names.extend([
-            var_name
-            for var_name in term.get('var_names', []) or []
-            if isinstance(var_name, str) and var_name
-        ])
+        names.extend([var_name for var_name in term.get('var_names', []) or [] if isinstance(var_name, str) and var_name])
         for name in dict.fromkeys(names):
             for candidate in {name, make_identifier(name)}:
                 if candidate in name_dimensions and name_dimensions[candidate] != dims:

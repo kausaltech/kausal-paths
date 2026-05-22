@@ -9,6 +9,7 @@ from graphene_django.converter import convert_django_field, get_django_field_des
 
 from babel import Locale
 
+from kausal_common.strawberry.pydantic import register_type_conversion
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths.utils import UnitField
@@ -37,9 +38,14 @@ def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:  # n
         formatter = unit_registry.html_formatter
     else:
         formatter = unit_registry.pretty_formatter  # type: ignore
-    #fmt = 'Zh' if html else 'Zp'
+    # fmt = 'Zh' if html else 'Zp'
     f = formatter.format_unit(
-        unit, uspec='Z', sort_func=None, use_plural=not long, length='long' if long else 'short', locale=locale,
+        unit,
+        uspec='Z',
+        sort_func=None,
+        use_plural=not long,
+        length='long' if long else 'short',
+        locale=locale,
     )
     if not long:
         if f == 't/a/cap':
@@ -64,9 +70,19 @@ def resolve_unit(root: Unit | str, info: GQLInfo) -> Unit:
     raise ValueError("Invalid type for unit: %s (expecting 'str' or 'Unit')" % type(root))
 
 
+@sb.type
+class UnitDimensionality:
+    dimension: str
+    value: float
+
+
 @register_strawberry_type
 @sb.type(name='UnitType')
 class UnitType:
+    @sb.field
+    def id(self, parent: sb.Parent[Unit]) -> sb.ID:
+        return sb.ID(str(parent))
+
     @sb.field
     def short(self, parent: sb.Parent[Unit]) -> str:
         return format_unit(parent, html=False)
@@ -91,11 +107,23 @@ class UnitType:
         #     parent, uspec='Z', sort_func=None, use_plural=True, length='short', locale='en'
         # )
 
-@convert_django_field.register(UnitField)  # pyright: ignore
-def convert_unit_field(field, registry=None):
+    @sb.field
+    def dimensionality(self, parent: sb.Parent[Unit]) -> list[UnitDimensionality]:
+        return [
+            UnitDimensionality(dimension=dim, value=float(value))
+            for dim, value in parent.dimensionality.items()
+            if not isinstance(value, complex)
+        ]
+
+
+@convert_django_field.register(UnitField)
+def convert_unit_field(field, _registry=None):
     return graphene.Field(
-        UnitType, description=get_django_field_description(field), required=not field.null,
+        UnitType,
+        description=get_django_field_description(field),
+        required=not field.null,
     )
+
 
 type SBInfo = sb.Info['PathsGraphQLContext']
 
@@ -107,3 +135,6 @@ class AdminButton(graphene.ObjectType[Any]):
     title = graphene.String(required=False)
     target = graphene.String(required=False)
     icon = graphene.String(required=False)
+
+
+register_type_conversion(Unit, UnitType)

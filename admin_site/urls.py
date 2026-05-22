@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from django.conf import settings
-from django.urls import URLPattern, URLResolver, path
+from django.urls import path
 from django.urls.conf import include, re_path
 from django.views.generic import RedirectView
 from rest_framework import routers
@@ -14,6 +16,9 @@ from orgs.autocomplete import OrganizationAutocomplete
 from people.api import all_views as people_views
 
 from .api import check_login_method
+
+if TYPE_CHECKING:
+    from django.urls import URLPattern, URLResolver
 
 wagtail_urls: list[URLPattern | URLResolver] = list(wagtailadmin_urls.urlpatterns)
 

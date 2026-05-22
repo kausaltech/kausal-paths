@@ -607,7 +607,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: behavioral_savings_rate_admin
     validation: {min: 0, max: 0.30}
@@ -651,7 +652,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: behavioral_savings_rate_households
     validation: {min: 0, max: 0.25}
@@ -696,7 +698,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: low_investment_savings_rate_admin
     validation: {min: 0, max: 0.20}
@@ -742,7 +745,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: low_investment_savings_rate_admin_comprehensive
   
@@ -787,7 +791,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: low_investment_savings_rate_households
   
@@ -832,7 +837,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: hvac_efficiency_improvement
   
@@ -877,7 +883,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: datacenter_efficiency_improvement
   
@@ -922,7 +929,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: ict_efficiency_improvement_commercial
   
@@ -967,7 +975,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: ict_efficiency_improvement_households
   
@@ -1248,7 +1257,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: behavioral_heat_savings_admin
   
@@ -1299,7 +1309,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: behavioral_heat_savings_households
   
@@ -1351,7 +1362,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: low_investment_heat_savings_admin
   
@@ -1403,7 +1415,8 @@ direct_measures:
   - id: savings_rate_percent
     label_de: "Erwartete Einsparungsrate"
     label_en: "Expected savings rate"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default_parameter: low_investment_heat_savings_households
   
@@ -2528,7 +2541,8 @@ direct_measures:
   - id: share_within_municipality
     label_de: "Anteil innerhalb Kommune"
     label_en: "Share within municipality"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default: 0.90
     note_de: "Für BISKO-Allokation"
@@ -2650,43 +2664,50 @@ direct_measures:
   - id: modal_split_before_car
     label_de: "Modal Split vorher - Auto"
     label_en: "Modal split before - car"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: modal_split_before_pt
     label_de: "Modal Split vorher - ÖPNV"
     label_en: "Modal split before - public transport"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: modal_split_before_active
     label_de: "Modal Split vorher - Rad/Fuß"
     label_en: "Modal split before - bike/walk"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: modal_split_after_car
     label_de: "Modal Split nachher - Auto"
     label_en: "Modal split after - car"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: modal_split_after_pt
     label_de: "Modal Split nachher - ÖPNV"
     label_en: "Modal split after - public transport"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: modal_split_after_active
     label_de: "Modal Split nachher - Rad/Fuß"
     label_en: "Modal split after - bike/walk"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: home_office_share
     label_de: "Anteil Homeoffice"
     label_en: "Home office share"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default: 0.05
   
@@ -2748,43 +2769,50 @@ direct_measures:
   - id: modal_split_before_car
     label_de: "Modal Split vorher - Auto"
     label_en: "Modal split before - car"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: modal_split_before_pt
     label_de: "Modal Split vorher - Bahn"
     label_en: "Modal split before - train"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: modal_split_before_plane
     label_de: "Modal Split vorher - Flugzeug"
     label_en: "Modal split before - plane"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: modal_split_after_car
     label_de: "Modal Split nachher - Auto"
     label_en: "Modal split after - car"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: modal_split_after_pt
     label_de: "Modal Split nachher - Bahn"
     label_en: "Modal split after - train"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: modal_split_after_plane
     label_de: "Modal Split nachher - Flugzeug"
     label_en: "Modal split after - plane"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: trips_avoided_share
     label_de: "Anteil vermiedener Reisen"
     label_en: "Share of avoided trips"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   parameters_required:
@@ -2855,13 +2883,15 @@ direct_measures:
   - id: regional_share_after
     label_de: "Regionalanteil nachher"
     label_en: "Regional share after"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
   
   - id: food_waste_reduction
     label_de: "Reduktion Lebensmittelverschwendung"
     label_en: "Food waste reduction"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default: 0.0
   
@@ -3301,7 +3331,8 @@ direct_measures:
   - id: consumption_reduction_percent
     label_de: "Verbrauchsreduktion"
     label_en: "Consumption reduction"
-    type: percentage
+    type: number
+    unit: '%'
     required: true
     default: 0.0
   

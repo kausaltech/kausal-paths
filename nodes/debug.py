@@ -20,11 +20,13 @@ def _apply_filters(df: ppl.PathsDataFrame, filters: list[str]) -> ppl.PathsDataF
             if '-' in f:
                 start, end = f.split('-')
                 for year in range(int(start), int(end) + 1):
-                    years.append(year)
+                    years.append(year)  # noqa: PERF402
             else:
                 years.append(int(f))
         elif f == 'S':
             df = df.sort(by=[YEAR_COLUMN, *df.dim_ids])
+        elif f == 'T':
+            df = df.paths.sum_over_dims(df.dim_ids)
         elif ':' in f:
             dim, cat = f.split(':')
             exprs.append(pl.col(dim).eq(cat))
@@ -40,9 +42,8 @@ def _apply_filters(df: ppl.PathsDataFrame, filters: list[str]) -> ppl.PathsDataF
     return df
 
 
-def _get_output_with_baseline(node: Node, filters: list[str] | None):
+def _get_output_with_baseline(node: Node, filters: list[str] | None) -> ppl.PathsDataFrame:
     df = node.get_output_pl()
-    meta = df.get_meta()
 
     if node.context.active_normalization:
         norm = node.context.active_normalization
@@ -54,17 +55,16 @@ def _get_output_with_baseline(node: Node, filters: list[str] | None):
     if filters:
         df = _apply_filters(df, filters)
 
-    if meta.dim_ids:
+    if df.dim_ids:
         df = df.paths.to_wide()
-        if node.quantity in STACKABLE_QUANTITIES:
+        if node.quantity in STACKABLE_QUANTITIES and df.metric_cols:
             df = df.with_columns(pl.sum_horizontal(df.metric_cols).alias('Total'))
         return df
 
     if node._baseline_values is not None:
         m = node.output_metrics[DEFAULT_METRIC]
-        df = (
-            df.with_columns(node._baseline_values[m.column_id].alias(BASELINE_VALUE_COLUMN))
-            .set_unit(BASELINE_VALUE_COLUMN, node._baseline_values.get_unit(m.column_id))
+        df = df.with_columns(node._baseline_values[m.column_id].alias(BASELINE_VALUE_COLUMN)).set_unit(
+            BASELINE_VALUE_COLUMN, node._baseline_values.get_unit(m.column_id)
         )
 
         if norm:
@@ -74,13 +74,12 @@ def _get_output_with_baseline(node: Node, filters: list[str] | None):
 
     return df
 
+
 def print_node_output(node: Node, only_years: list[int] | None = None, filters: list[str] | None = None):
     df = _get_output_with_baseline(node, filters)
     if only_years:
         df = df.filter(pl.col(YEAR_COLUMN).is_in(only_years))
 
-    if filters is not None:
-        pass
     node.print(df)
 
 
@@ -102,12 +101,12 @@ def plot_node(node: Node, df: ppl.PathsDataFrame):
     unique_units = set(meta.units.values())
     plt.title(node.name)
     plt.subplots(1, len(unique_units))
-    for idx, unit in enumerate(unique_units):
+    for idx, unique_unit in enumerate(unique_units):
         plt.subplot(1, idx + 1)
         plt.xlabel('Year')
-        plt.ylabel(unit)
+        plt.ylabel(unique_unit)
         for col, unit in meta.units.items():
-            if unit != unit:
+            if unit != unique_unit:
                 continue
             y = df[col]
             plt.plot(x, y, label=col)

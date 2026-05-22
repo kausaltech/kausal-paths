@@ -1,25 +1,28 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Generator, Sequence
+from typing import TYPE_CHECKING
 
 from django.utils import autoreload
 
 import watchfiles
 
+if TYPE_CHECKING:
+    from collections.abc import Generator, Sequence
+
 
 class DjangoPythonFilter(watchfiles.PythonFilter):
     def __init__(
-            self,
-            *,
-            ignore_paths: Sequence[str | Path] | None = None,
-            extra_extensions: Sequence[str] = (),
+        self,
+        *,
+        ignore_paths: Sequence[str | Path] | None = None,
+        extra_extensions: Sequence[str] = (),
     ) -> None:
         ignore_dirs = list(self.ignore_dirs)
         if 'site-packages' in ignore_dirs:
             # We want to watch site-packages, too
             ignore_dirs.remove('site-packages')
-        for path in ('e2e-tests', 'query-store'):
+        for path in ('e2e-tests', 'query-store', '__generated__'):
             if path not in ignore_dirs:
                 ignore_dirs.append(path)
         self.ignore_dirs = ignore_dirs

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from typing import Tuple, TYPE_CHECKING, Any
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 
 from nodes.exceptions import NodeError
 
-from .dimensions import Dimension, DimensionCategory
-from .context import Context
-
 if TYPE_CHECKING:
+    from .context import Context
+    from .dimensions import Dimension, DimensionCategory
     from .node import Node
 
 
@@ -19,23 +18,23 @@ class EdgeDimension:
     flatten: bool
 
     @classmethod
-    def from_config(cls, dc: dict, context: Context, node: Node, node_dims: dict[str, Dimension]) -> Tuple[str, EdgeDimension]:
+    def from_config(cls, dc: dict, context: Context, node: Node, node_dims: dict[str, Dimension]) -> tuple[str, EdgeDimension]:
         if 'id' not in dc:
             # If 'id' is not supplied, assume it's the first and only dimension
             if len(node_dims) == 1:
-                dim_id, dim = list(node_dims.items())[0]
+                dim_id, dim = next(iter(node_dims.items()))
             else:
-                raise NodeError(node, "dimension id not supplied")
+                raise NodeError(node, 'dimension id not supplied')
         else:
             dim_id = dc['id']
             if dim_id not in context.dimensions:
-                raise NodeError(node, "dimension %s not found" % dim_id)
+                raise NodeError(node, 'dimension %s not found' % dim_id)
             dim = context.dimensions[dim_id]
 
-        flatten = dc.get('flatten', None)
-        exclude = dc.get('exclude', None)
-        cat_ids = dc.get('categories', None)
-        groups = dc.get('groups', None)
+        flatten = dc.get('flatten')
+        exclude = dc.get('exclude')
+        cat_ids = dc.get('categories')
+        groups = dc.get('groups')
         if groups is not None:
             if cat_ids is None:
                 cat_ids = []
@@ -65,8 +64,9 @@ class Edge:
     to_dimensions: dict[str, EdgeDimension] | None = None
     metrics: list[str] = field(default_factory=list)
 
-    _input_port_id: str | None = None
-    _output_port_id: str | None = None
+    # These are used only temporarily at export time to store the port IDs.
+    _to_port_ids: list[str] = field(default_factory=list, init=False, repr=False)
+    _from_output_metric_ids: list[str] = field(default_factory=list, init=False, repr=False)
 
     def __post_init__(self):
         self.tags = self.tags.copy()
@@ -82,13 +82,13 @@ class Edge:
         else:
             s = config.get('id')
             if s is None:
-                raise NodeError(node, "node id not given in edge definition")
+                raise NodeError(node, 'node id not given in edge definition')
             assert isinstance(s, str)
             other_id = s
         assert isinstance(other_id, str)
         other = context.nodes.get(other_id)
         if other is None:
-            raise NodeError(node, "node %s not found" % other_id)
+            raise NodeError(node, 'node %s not found' % other_id)
 
         args: dict[str, Any] = {}
         args['output_node'], args['input_node'] = (other, node) if is_output else (node, other)
