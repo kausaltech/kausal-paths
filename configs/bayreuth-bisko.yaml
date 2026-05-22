@@ -14,7 +14,7 @@ target_year: 2040
 model_end_year: 2050
 reference_year: 1990
 minimum_historical_year: 1990
-maximum_historical_year: 2023
+maximum_historical_year: 2024
 emission_unit: kt_co2e/a
 features:
   baseline_visible_in_graphs: true
