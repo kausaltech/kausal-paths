@@ -146,6 +146,8 @@ dimensions:
     label: Municipal
   - id: private
     label: Private
+  - id: societal
+    label: Societal
 
 - id: business_travel_type
   label: Business Travel Type
