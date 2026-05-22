@@ -24,6 +24,7 @@ class ImpactGraphType(StrEnum):
 
 
 class ImpactOverviewSpec(I18nBaseModel):
+    id: str | None = None
     graph_type: ImpactGraphType
     effect_node_id: str
     indicator_unit: Unit
@@ -44,6 +45,13 @@ class ImpactOverviewSpec(I18nBaseModel):
     effect_label: I18nStringInstance | None = None
     indicator_label: I18nStringInstance | None = None
     description: I18nStringInstance | None = None
+
+    @model_validator(mode='after')
+    def set_default_id(self) -> ImpactOverviewSpec:
+        if self.id is None:
+            cost_part = self.cost_node_id if self.cost_node_id is not None else 'none'
+            self.id = f'{self.graph_type}:{self.effect_node_id}:{cost_part}'
+        return self
 
     @model_validator(mode='after')
     def validate_graph_type_fields(self) -> ImpactOverviewSpec:

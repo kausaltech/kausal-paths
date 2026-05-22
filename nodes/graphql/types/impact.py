@@ -79,8 +79,8 @@ class ImpactOverviewType:
     @sb.field
     @staticmethod
     def id(root: 'ImpactOverview') -> sb.ID:
-        cost_id = root.cost_node.id if root.cost_node else 'None'
-        return sb.ID('%s:%s' % (cost_id, root.effect_node.id))
+        assert root.spec.id is not None
+        return sb.ID(root.spec.id)
 
     @sb.field
     @staticmethod
