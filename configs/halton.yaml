@@ -2287,11 +2287,17 @@ nodes:
 
 - id: pw_purchased_electricity_ev_fleet
   name: Public Works Purchased Electricity (EV Fleet)
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [asset, energy_carrier, department, scope]
   output_dimensions: [asset, energy_carrier, department, scope]
+  params:
+    formula: pw_green_fleet_strategy * pathway_assumption_2
+  input_nodes:
+  - id: pathway_assumption_2
+    tags: [complement]
+    to_dimensions: []
 
 - id: biosolids_management_centre_electricity_emissions
   name: Biosolids Management Centre Electricity Emissions
@@ -2684,11 +2690,17 @@ nodes:
 
 - id: ems_purchased_electricity_ev_fleet
   name: EMS Purchased Electricity (EV Fleet)
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [asset, energy_carrier, department, scope]
   output_dimensions: [asset, energy_carrier, department, scope]
+  params:
+    formula: ems_green_fleet_strategy * pathway_assumption_2
+  input_nodes:
+  - id: pathway_assumption_2
+    tags: [complement]
+    to_dimensions: []
 
 - id: ems_facility_electricity_emissions
   name: EMS Facility Electricity Emissions
@@ -3614,11 +3626,17 @@ nodes:
 
 - id: hrps_purchased_electricity_ev_fleet
   name: HRPS Purchased Electricity (EV Fleet)
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [asset, energy_carrier, department, scope]
   output_dimensions: [asset, energy_carrier, department, scope]
+  params:
+    formula: hrps_green_fleet_strategy * pathway_assumption_2
+  input_nodes:
+  - id: pathway_assumption_2
+    tags: [complement]
+    to_dimensions: []
 
 - id: hrps_facility_electricity_emissions
   name: HRPS Facility Electricity Emissions
