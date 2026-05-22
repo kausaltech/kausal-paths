@@ -77,6 +77,11 @@ class Query:
     def impact_overviews(self, context):
         return context.impact_overviews
 
+    @sb.field(graphql_type=ImpactOverviewType | None)
+    @pass_context
+    def impact_overview(self, context, id: sb.ID):
+        return next((io for io in context.impact_overviews if io.spec.id == str(id)), None)
+
     @sb.field(graphql_type=list[ScenarioType])
     @pass_context
     def scenarios(self, context) -> list[Scenario]:
