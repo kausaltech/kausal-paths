@@ -3,7 +3,7 @@ default_language: en
 site_url: https://cork-nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6888739da7f99c862df78e426e63c8f4cc42bb17
+  commit: 6d73a2d907cfc58e7eb9e1754f50a20e150107a4
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -796,7 +796,7 @@ nodes:
       categories: [city]
 
 - id: project_renovations
-  name: project renovations
+  name: Project renovations
   type: generic.GenericNode
   quantity: floor_area
   unit: m**2
@@ -806,6 +806,61 @@ nodes:
   - id: renovation_intensity_shares
   output_nodes:
   - id: building_stock
+
+- id: social_housing_energy_saving
+  name: Social housing energy saving
+  type: generic.GenericNode
+  quantity: emissions
+  unit: MWh/a
+  input_nodes:
+  - id: be_1_retrofit_social_housing
+    from_dimensions:
+    - id: project
+      flatten: true
+  input_datasets:
+  - id: cork/social_housing
+    column: energy_saving
+  output_nodes:
+  - id: building_heat_energy_use
+    to_dimensions:
+    - id: heating_type
+      categories: [local_heating]
+    - id: fuel_type
+      categories: [fossil]
+    - id: scope
+      categories: [scope1]
+    - id: building_energy_class
+      categories: [old_no_renovations]
+    - id: energy_carrier
+      categories: [fossil]
+
+- id: social_housing_actual_cost_incurred
+  name: Social housing actual cost incurred
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: MEUR/a
+  input_nodes:
+  - id: be_1_retrofit_social_housing
+    tags: [action]
+    from_dimensions:
+    - id: project
+      flatten: true
+  input_datasets:
+  - id: cork/social_housing
+    column: actual_costs
+    tags: [cost_per_apartment, cleaned]
+  - id: cork/social_housing
+    column: floor_area
+    tags: [apartment_floor_area, cleaned]
+  output_nodes:
+  - id: building_cost
+    to_dimensions:
+    - id: cost_type
+      categories: [capex]
+    - id: stakeholder
+      categories: [city]
+  params:
+    formula: cost_per_apartment / apartment_floor_area * difference(action)
 
 # ------------- Building nodes
 
