@@ -473,7 +473,7 @@ dimensions:
   - id: sinks
     label_en: Sinks
     label_de: Senken
-    color: '#89d163'
+    color: '#4ac16d'
   - id: not_defined
     label_en: Not defined
     label_de: Nicht definiert
