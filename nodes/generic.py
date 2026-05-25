@@ -1883,16 +1883,13 @@ class ConstantNode(GenericNode):
             raise NodeError(self, "Operation 'constant' must be the first of the operations.")
         start_year = self.context.instance.reference_year
         end_year = self.context.instance.model_end_year
-        last_historical_year = self.context.instance.maximum_historical_year
-        if last_historical_year is None or last_historical_year < start_year:
-            last_historical_year = start_year
         years = range(start_year, end_year + 1)
         df = PathsDataFrame({YEAR_COLUMN: years})
         df._units = {}
         df._primary_keys = [YEAR_COLUMN]
         df = df.with_columns([
             pl.lit(constant.m).alias(VALUE_COLUMN),
-            (pl.col(YEAR_COLUMN) > pl.lit(last_historical_year)).alias(FORECAST_COLUMN),
+            (pl.lit(value=False)).alias(FORECAST_COLUMN),
         ]).set_unit(VALUE_COLUMN, str(constant.units))
 
         return df
