@@ -10,11 +10,11 @@ owner: City of Cork
 theme_identifier: ie-cork
 target_year: 2030
 model_end_year: 2060
-reference_year: 2018
-minimum_historical_year: 2018
+reference_year: 2023
+minimum_historical_year: 2023
 maximum_historical_year: 2020
 emission_unit: kt/a
-emission_forecast_from: 2021
+emission_forecast_from: 2025
 emission_dimensions: [scope, ghg, sector]
 features:
   baseline_visible_in_graphs: true
