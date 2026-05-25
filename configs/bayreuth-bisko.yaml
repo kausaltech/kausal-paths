@@ -156,7 +156,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: bisko/final_energy
+  - id: bayreuth/final_energy
     tags: [non_additive]
     column: Value
     filters:
