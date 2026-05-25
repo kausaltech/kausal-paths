@@ -3,7 +3,7 @@ default_language: en
 site_url: https://cork-nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1cf9ce6104e72f88cb7615d1dd4ef968dc9ca063
+  commit: 6888739da7f99c862df78e426e63c8f4cc42bb17
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -24,6 +24,7 @@ features:
   show_refresh_prompt: false
   requires_authentication: true
   show_explanations: true
+  use_datasets_from_db: true
 
 include:
 
@@ -665,8 +666,14 @@ nodes:
 - id: intake_fraction
   name_fi: Ilmansaasteiden saantiosuus
   name_en: Intake fraction of air pollution
-  description_fi: 'Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi. Tiedot on saatu artikkelista Sebastien Humbert, Julian D. Marshall, Shanna Shaked, Joseph V. Spadaro, Yurika Nishioka, Philipp Preiss, Thomas E. McKone, Arpad Horvath, and Olivier Jolliet. Intake Fraction for Particulate Matter: Recommendations for Life Cycle Impact Assessment (2011). Environmental Science and Technology, 45, 4808-4816.'
-  description_en: The fraction of air pollution emissions that is eventually inhaled by someone.
+  description_fi: 'Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi.
+    Tiedot on saatu artikkelista Sebastien Humbert, Julian D. Marshall, Shanna Shaked,
+    Joseph V. Spadaro, Yurika Nishioka, Philipp Preiss, Thomas E. McKone, Arpad Horvath,
+    and Olivier Jolliet. Intake Fraction for Particulate Matter: Recommendations for
+    Life Cycle Impact Assessment (2011). Environmental Science and Technology, 45,
+    4808-4816.'
+  description_en: The fraction of air pollution emissions that is eventually 
+    inhaled by someone.
   type: generic.GenericNode
   quantity: fraction
   unit: ppm
@@ -678,6 +685,30 @@ nodes:
     filters:
     - column: population_density
       value: average
+
+- id: active_mobility_distance
+  name_en: Active mobility distance
+  type: formula.FormulaNode
+  quantity: distance
+  unit: km/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometres
+    tags: [nzc_walking]
+    from_dimensions:
+    - id: transport_mode
+      categories: [walking]
+  - id: population
+  input_datasets:
+  - id: cork/active_mobility
+    tags: [cork_cycling, cleaned]
+  params:
+  - id: constant
+    value: 1.0
+    unit: 1/trip
+  - id: formula
+    value: (nzc_walking + cork_cycling + corridor) / population * constant
 
 - id: technical_root_node
   name: Technical root node
@@ -1568,124 +1599,124 @@ nodes:
   - id: active_mobility_conversion
     tags: [geometric_inverse]
     to_dimensions: []
-  output_nodes:
-  - id: active_mobility_combined
+  # output_nodes:
+  # - id: active_mobility_combined
 
 # ----------------------- Active mobility ------------------
 
-- id: population_group_sizes
-  name: Population group sizes
-  type: gpc.DatasetNode
-  quantity: population
-  unit: inh
-  input_dimensions: [age]
-  output_dimensions: [age]
-  input_datasets:
-  - id: hia/heat/lappeenranta_active_mobility
-  params:
-    sector: Population groups
+# - id: population_group_sizes
+#   name: Population group sizes
+#   type: gpc.DatasetNode
+#   quantity: population
+#   unit: inh
+#   input_dimensions: [age]
+#   output_dimensions: [age]
+#   input_datasets:
+#   - id: hia/heat/lappeenranta_active_mobility
+#   params:
+#     sector: Population groups
 
-- id: population_group_shares
-  name: Väestöryhmien suhteet
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [age]
-  output_dimensions: [age]
-  input_nodes:
-  - id: population_group_sizes
-  params:
-    share_dimension: age
-    use_input_node_unit_when_adding: true
+# - id: population_group_shares
+#   name: Väestöryhmien suhteet
+#   type: simple.AdditiveNode
+#   quantity: fraction
+#   unit: dimensionless
+#   input_dimensions: [age]
+#   output_dimensions: [age]
+#   input_nodes:
+#   - id: population_group_sizes
+#   params:
+#     share_dimension: age
+#     use_input_node_unit_when_adding: true
 
-- id: active_mover_fraction
-  name_fi: Aktiivisten liikkujien osuus ikäryhmästä
-  name_en: Active mover fraction in each age group
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [age, transport_mode]
-  output_dimensions: [age, transport_mode]
-  input_datasets:
-  - id: hia/heat/lappeenranta_active_mobility
-  params:
-    sector: Fraction of movers
+# - id: active_mover_fraction
+#   name_fi: Aktiivisten liikkujien osuus ikäryhmästä
+#   name_en: Active mover fraction in each age group
+#   type: gpc.DatasetNode
+#   quantity: fraction
+#   unit: '%'
+#   input_dimensions: [age, transport_mode]
+#   output_dimensions: [age, transport_mode]
+#   input_datasets:
+#   - id: hia/heat/lappeenranta_active_mobility
+#   params:
+#     sector: Fraction of movers
 
-- id: active_mover_distance
-  name_fi: Aktiivisen liikkumisen määrä HLT:n mukaan
-  name_en: Active mover distance
-  description_fi: Aktiivisen liikkumisen määränä käytetään aktiivisten 
-    liikkujien keskimääräistä suomalaista arvoa, joka on saatu 
-    Henkilöliikennetutkimuksesta 2016. Laskenta on Lehtomäen työryhmän (2021) 
-    mukainen.<h3>Viitteet</h3>Heli Lehtomäki ym. 2021. Liikenteen 
-    terveysvaikutukset Suomessa ja suurimmissa kaupungeissa. Suomen 
-    ympäristökeskuksen raportteja 16 / 2021.
-  type: gpc.DatasetNode
-  quantity: mileage
-  unit: km/person/d
-  input_dimensions: [age, transport_mode]
-  output_dimensions: [age, transport_mode]
-  input_datasets:
-  - id: hia/heat/lappeenranta_active_mobility
-  params:
-    sector: Moving distance
+# - id: active_mover_distance
+#   name_fi: Aktiivisen liikkumisen määrä HLT:n mukaan
+#   name_en: Active mover distance
+#   description_fi: Aktiivisen liikkumisen määränä käytetään aktiivisten 
+#     liikkujien keskimääräistä suomalaista arvoa, joka on saatu 
+#     Henkilöliikennetutkimuksesta 2016. Laskenta on Lehtomäen työryhmän (2021) 
+#     mukainen.<h3>Viitteet</h3>Heli Lehtomäki ym. 2021. Liikenteen 
+#     terveysvaikutukset Suomessa ja suurimmissa kaupungeissa. Suomen 
+#     ympäristökeskuksen raportteja 16 / 2021.
+#   type: gpc.DatasetNode
+#   quantity: mileage
+#   unit: km/person/d
+#   input_dimensions: [age, transport_mode]
+#   output_dimensions: [age, transport_mode]
+#   input_datasets:
+#   - id: hia/heat/lappeenranta_active_mobility
+#   params:
+#     sector: Moving distance
 
-- id: active_mobility_by_hlt
-  name_fi: Aktiivisen liikkumisen määrä ikäryhmissä
-  name_en: Average active mobility in age groups
-  description_fi: Tämä solmu kuvaa kyseisen väestöryhmän osuutta koko väestön 
-    liikkumisesta. Summaamalla osaväestöt yhteen saadaan koko väestön 
-    keskimääräinen liikkuminen.
-  type: simple.MultiplicativeNode
-  quantity: mileage
-  unit: km/person/d
-  input_dimensions: [transport_mode, age]
-  output_dimensions: [transport_mode, age]
-  input_nodes:
-  - id: active_mover_fraction
-  - id: active_mover_distance
-    tags: [non_additive]
-  - id: population_group_shares
-    to_dimensions:
-    - id: age
-  output_nodes:
-  - id: active_mobility_combined
-    from_dimensions:
-    - id: age
-      flatten: true
-    to_dimensions:
-    - id: transport_mode
+# - id: active_mobility_by_hlt
+#   name_fi: Aktiivisen liikkumisen määrä ikäryhmissä
+#   name_en: Average active mobility in age groups
+#   description_fi: Tämä solmu kuvaa kyseisen väestöryhmän osuutta koko väestön 
+#     liikkumisesta. Summaamalla osaväestöt yhteen saadaan koko väestön 
+#     keskimääräinen liikkuminen.
+#   type: simple.MultiplicativeNode
+#   quantity: mileage
+#   unit: km/person/d
+#   input_dimensions: [transport_mode, age]
+#   output_dimensions: [transport_mode, age]
+#   input_nodes:
+#   - id: active_mover_fraction
+#   - id: active_mover_distance
+#     tags: [non_additive]
+#   - id: population_group_shares
+#     to_dimensions:
+#     - id: age
+#   output_nodes:
+#   - id: active_mobility_combined
+#     from_dimensions:
+#     - id: age
+#       flatten: true
+#     to_dimensions:
+#     - id: transport_mode
 
-- id: active_mobility_combined
-  name_fi: Aktiivisen liikkumisen yhdistelmä
-  name_en: Combined active mobility
-  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi
-    ja toisaalta Henkilöliikennetutkimus 2016. Tästä eteenpäin käytetään näiden lähteiden
-    keskiarvoa.'
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: km/person/d
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
+# - id: active_mobility_combined
+#   name_fi: Aktiivisen liikkumisen yhdistelmä
+#   name_en: Combined active mobility
+#   description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi
+#     ja toisaalta Henkilöliikennetutkimus 2016. Tästä eteenpäin käytetään näiden lähteiden
+#     keskiarvoa.'
+#   type: simple.AdditiveNode
+#   quantity: mileage
+#   unit: km/person/d
+#   input_dimensions: [transport_mode]
+#   output_dimensions: [transport_mode]
 
-- id: active_mobility_average
-  name_fi: Aktiivisen liikkumisen keskiarvo
-  name_en: Average active mobility
-  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi
-    ja toisaalta Henkilöliikennetutkimus 2016. Tämä on näiden lähteiden keskiarvoa.
-    Tämä solmu toimii myös välisolmuna terveysvaikutusmalliin.'
-  type: simple.FixedMultiplierNode
-  quantity: mileage
-  unit: km/person/d
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_nodes: [active_mobility_combined]
-  output_nodes:
-  - id: active_mobility_distance
-  params:
-  - id: multiplier
-    value: 0.5
-    unit: dimensionless
+# - id: active_mobility_average
+#   name_fi: Aktiivisen liikkumisen keskiarvo
+#   name_en: Average active mobility
+#   description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi
+#     ja toisaalta Henkilöliikennetutkimus 2016. Tämä on näiden lähteiden keskiarvoa.
+#     Tämä solmu toimii myös välisolmuna terveysvaikutusmalliin.'
+#   type: simple.FixedMultiplierNode
+#   quantity: mileage
+#   unit: km/person/d
+#   input_dimensions: [transport_mode]
+#   output_dimensions: [transport_mode]
+#   input_nodes: [active_mobility_combined]
+#   # output_nodes:
+#   # - id: active_mobility_distance
+#   params:
+#   - id: multiplier
+#     value: 0.5
+#     unit: dimensionless
 
 # ------------- Effects from the other parts of the NZC model ---------
 
@@ -1798,6 +1829,9 @@ actions:
   - id: mileage
     quantity: mileage
     unit: vkm/a
+  - id: distance
+    quantity: distance
+    unit: Mpkm/a
   - id: currency
     quantity: currency
     unit: MEUR/a
@@ -1835,6 +1869,15 @@ actions:
       categories: [cars]
     - id: cost_type
       categories: [public_and_workplace_infrastructure]
+  - id: active_mobility_distance
+    metrics: [distance]
+    tags: [corridor]
+    from_dimensions:
+    - id: project
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+      categories: [cycling]
 
 # --------------- TRANSPORT -------------
 
