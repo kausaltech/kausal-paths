@@ -407,11 +407,11 @@ scenarios:
 - id: baseline
   name_de: Business as Usual
   name_en: Business as Usual
-  params:
-  - id: scenario_name
-    value: baseline
-  - id: emission_reduction_action.enabled
-    value: true
+  # params:
+  # - id: scenario_name
+  #   value: baseline
+  # - id: emission_reduction_action.enabled
+  #   value: true
 
 - id: default
   default: true
