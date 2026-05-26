@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bayreuth-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
+  commit: 07a0d6289d2307dcf720e08fae31c0e7a33476f0
   dvc_remote: kausal-s3
 name_de: Bayreuth Klimadashboard
 name_en: Bayreuth Climate Dashboard
@@ -407,11 +407,11 @@ scenarios:
 - id: baseline
   name_de: Business as Usual
   name_en: Business as Usual
-  # params:
-  # - id: scenario_name
-  #   value: baseline
-  # - id: emission_reduction_action.enabled
-  #   value: true
+  params:
+  - id: scenario_name
+    value: baseline
+  - id: emission_reduction_action.enabled
+    value: true
 
 - id: default
   default: true
