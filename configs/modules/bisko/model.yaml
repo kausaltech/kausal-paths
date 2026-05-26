@@ -418,7 +418,7 @@ dimensions:
   - id: transport
     label_en: Transport
     label_de: Verkehr
-    aliases: [verkehr, Verkehr, VL_, VL]
+    aliases: [verkehr, Verkehr, VL_, VL, Mobilität, Mobilitat]
     color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
   - id: buildings
     label_en: Buildings & Heating
@@ -477,6 +477,26 @@ dimensions:
   - id: not_defined
     label_en: Not defined
     label_de: Nicht definiert
+  - id: ghg_neutral_administration
+    label_en: GHG-Neutral Administration
+    label_de: THG-neutrale Verwaltung
+    color: '#34495E'
+  - id: food_and_land_use
+    label_en: Food & Land Use
+    label_de: Ernährung & Landnutzung
+    color: '#2ECC71'
+  - id: consumption
+    label_en: Consumption
+    label_de: Konsum
+    color: '#9B59B6'
+  - id: waste_and_wastewater
+    label_en: Waste & Wastewater
+    label_de: Abfall & (Ab-)Wasser
+    color: '#27AE60'
+  - id: cross_cutting
+    label_en: Cross-cutting Climate Protection
+    label_de: Übergreifende Klimaschutzaspekte
+    color: '#1ABC9C'
 
 - id: upstream_included
   label_en: Upstream included
@@ -496,7 +516,7 @@ dimensions:
   - id: passenger_cars
     label_en: Passenger cars
     label_de: Personenkraftwagen (PKW)
-    aliases: [Pkw, VL_Pkw]
+    aliases: [Pkw, VL_Pkw, PKW, car]
   - id: walking
     label_en: Walking
     label_de: Fußgänger
@@ -504,7 +524,7 @@ dimensions:
   - id: trucks
     label_en: Trucks
     label_de: Lastkraftwagen (LKW)
-    aliases: [Lkw, VL_Lkw]
+    aliases: [Lkw, VL_Lkw, LKW, truck]
   - id: vans
     label_en: Light commercial vehicles
     label_de: Leichte Nutzfahrzeuge
@@ -515,7 +535,7 @@ dimensions:
   - id: buses
     label_en: Buses
     label_de: Busse
-    aliases: [Bus]
+    aliases: [Bus, bus]
   - id: coach_buses
     label_en: Coach buses
     label_de: Reise-/Fernbusse
@@ -527,7 +547,7 @@ dimensions:
   - id: motorcycles
     label_en: Motorcycles
     label_de: Motorisierte Zweiräder
-    aliases: [MZR, VL_MRZ]
+    aliases: [MZR, VL_MRZ, motorcycle]
   - id: cars_and_motorcycles
     label_en: Cars and motorcycles
     label_de: Personenkraftwagen und Motorisierte Zweiräder
@@ -560,8 +580,8 @@ dimensions:
     aliases: [SGV]
   - id: inland_waterway_shipping
     label_en: Inland waterway shipping
-    label_de: Binnenschifffart
-    aliases: [BiSchi]
+    label_de: Binnenschifffahrt
+    aliases: [BiSchi, Binnenschiffahrt]
   - id: air_transport
     label_en: Air transport (LTO)
     label_de: Flugverkehr
@@ -569,6 +589,9 @@ dimensions:
   - id: undefined
     label_en: Undefined
     label_de: Unzugeordnet
+  - id: none
+    label_en: None (stationary energy, no vehicle)
+    label_de: Kein Fahrzeug (stationäre Energie)
 
 # Propulsion/Fuel Types (Antriebsart):
 #   Elektro = Electric (for electrified rail) 
