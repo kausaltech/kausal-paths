@@ -373,7 +373,7 @@ nodes:
   input_nodes:
   - id: scaling_rate
   params:
-    formula: extend_all(potential) * scaling_rate
+    formula: drop_nans(extend_all(potential) * scaling_rate)
 
 - id: action_index
   name_de: Aktion Index
@@ -386,7 +386,7 @@ nodes:
   input_datasets:
   - id: koeln/action_index
   params:
-    operations: get_single_dataset,inventory_only
+    operations: get_single_dataset  # inventory_only omitted: dataset has 2024 data, beyond Munich's max_historical_year 2023
 
 - id: action_emission_shares
   name_de: Emissionenanteil nach Maßnahme
@@ -418,8 +418,10 @@ nodes:
   - id: planned_action_shares
     tags: [planned]
   params:
-    formula: (st + veh) * ef * index / sum_dim(sum_dim(sum_dim((st + veh) * ef *
-      index, energy_carrier), sector), vehicle_type) + planned
+    # empty_to_zero converts 0/0=NaN to 0 for sectors with zero energy use
+    # (e.g. municipal_facilities is all-zero in Munich's BISKO dataset)
+    formula: empty_to_zero((st + veh) * ef * index / sum_dim(sum_dim(sum_dim((st
+      + veh) * ef * index, energy_carrier), sector), vehicle_type)) + planned
 
 - id: action_potential_by_dimensions
   name_de: Aktion Potential nach Dimensionen
@@ -443,6 +445,206 @@ nodes:
   - id: constant
     value: -1.0
     unit: dimensionless
+
+# --- Nodes needed by the action pipeline ---
+# These bridge BISKO's baseline data pipeline into the Cologne-style
+# action calculation mechanism.
+
+- id: stationary_energy_by_type
+  name_de: Stationäre Endenergieverbrauch nach Typ
+  name_en: Stationary energy use by type
+  description_de: Stationärer Endenergieverbrauch aus dem BISKO-Datensatz,
+    genutzt für die Berechnung der Maßnahmenanteile.
+  description_en: Stationary final energy use from the BISKO dataset, used for
+    computing action emission shares.
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+
+- id: vehicle_energy_by_type
+  name_de: Verkehrsenergieverbrauch nach Fahrzeugtyp
+  name_en: Vehicle energy use by vehicle type
+  description_de: Endenergieverbrauch im Verkehr nach Fahrzeugtyp, aus
+    BISKO-Fahrleistungsstatistiken. Einzelne Kraftstofftypen werden zu
+    "fuels" aggregiert, damit die Dimension mit dem Cologne action_index
+    übereinstimmt (Platzhalter bis zur Munich-spezifischen Datenerstellung).
+  description_en: Transport final energy use by vehicle type, from BISKO
+    mileage statistics. Individual fuel types are aggregated into "fuels"
+    so the dimension matches the Cologne action_index (placeholder until
+    Munich-specific data is created).
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy
+    tags: [veh]
+  params:
+    # Aggregate all fossil/bio liquid and gaseous fuels into the 'fuels' category
+    # so the energy_carrier dimension matches the Cologne action_index dataset,
+    # which uses 'fuels' for all drive_transition and mobility_transition actions.
+    # Electricity and hydrogen remain as separate categories.
+    formula: sum_into_cat(veh, energy_carrier, [petrol, diesel, bio_petrol, biodiesel,
+      biogas, biogas_chp, cng_bio, cng_fossil, lpg, propane, natural_gas, kerosene],
+      fuels)
+
+- id: transport_ef_fuels
+  name_de: Emissionsfaktor für aggregierte Kraftstoffe
+  name_en: Emission factor for aggregated transport fuels
+  description_de: Gewichteter Durchschnitts-Emissionsfaktor für den aggregierten
+    Kraftstoffträger 'fuels' — berechnet aus den BISKO-Verkehrsemissionsfaktoren
+    gewichtet nach dem Fahrzeugenergieverbrauch. Wird benötigt, damit
+    action_emission_shares mit dem Cologne-action_index kompatibel ist.
+  description_en: Weighted average emission factor for the aggregated 'fuels'
+    energy carrier — derived from BISKO transport emission factors weighted by
+    vehicle energy consumption. Needed so action_emission_shares is compatible
+    with the Cologne action_index (which uses 'fuels' for drive_transition actions).
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: transport_emission_factors
+    tags: [ef]
+  - id: transport_energy
+    tags: [veh]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  params:
+    # Weighted average: ef_fuels = Σ(ef_i × energy_i) / Σ(energy_i) for i in fuel types
+    # sum_into_cat aggregates source categories into target, keeping non-fuel carriers
+    formula: sum_into_cat(ef * veh, energy_carrier, [petrol, diesel, bio_petrol, biodiesel,
+      biogas, biogas_chp, cng_bio, cng_fossil, lpg, propane, natural_gas, kerosene],
+      fuels) / sum_into_cat(veh, energy_carrier, [petrol, diesel, bio_petrol, biodiesel,
+      biogas, biogas_chp, cng_bio, cng_fossil, lpg, propane, natural_gas, kerosene],
+      fuels)
+
+- id: emission_factors
+  name_de: Emissionsfaktoren
+  name_en: Emission factors
+  description_de: Kombinierte Emissionsfaktoren für stationäre und Verkehrsenergie.
+    Für den Aktionsanteilsrechner werden sowohl stationäre Träger (Erdgas, Strom
+    usw.) als auch der aggregierte 'fuels'-Träger für Verkehrsmaßnahmen benötigt.
+  description_en: Combined emission factors for stationary and transport energy.
+    The action emission shares formula needs both stationary carriers (natural gas,
+    electricity, etc.) and the aggregated 'fuels' carrier for transport actions.
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: end_energy_emission_factors
+  - id: transport_ef_fuels
+
+- id: planned_action_shares
+  name_de: Geplante Maßnahmenanteile
+  name_en: Planned action shares
+  description_de: Geplante Maßnahmenanteile als Ergänzung zur
+    proportionalen Verteilung. Nutzt vorläufig Kölner Daten als Platzhalter.
+  description_en: Planned action shares as an additive supplement to the
+    proportional distribution. Using Cologne data as placeholder for now.
+  type: generic.GenericNode  # Changed from formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [action, sector, energy_carrier, vehicle_type]
+  output_dimensions: [action, sector, energy_carrier, vehicle_type]
+  input_datasets:
+  - id: koeln/planned_action_shares
+  params:
+    operations: get_single_dataset  # dataset has 2024 data, beyond Munich's max_historical_year 2023
+
+# --- Action aggregation output nodes ---
+# Each collects action outputs from its group and feeds them into net_emissions.
+# In the BISKO model, actions express delta-emissions (negative = reduction).
+
+- id: electricity_actions
+  name_de: Strommaßnahmen
+  name_en: Electricity actions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  output_nodes:
+  - id: net_emissions
+
+- id: private_household_actions
+  name_de: Wärmemaßnahmen
+  name_en: Heat actions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  output_nodes:
+  - id: net_emissions
+
+- id: traffic_actions
+  name_de: Verkehrsmaßnahmen
+  name_en: Traffic actions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  output_nodes:
+  - id: net_emissions
+
+- id: consumption_emissions
+  name_de: Konsumemissionen
+  name_en: Consumption emissions
+  color: '#9B59B6'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  output_nodes:
+  - id: net_emissions
+
+- id: waste_and_wastewater_emissions
+  name_de: Abfall- und Abwasseremissionen
+  name_en: Waste and wastewater emissions
+  color: '#27AE60'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  output_nodes:
+  - id: net_emissions
+
+- id: food_and_land_use_emissions
+  name_de: Ernährungs- und Landnutzungsemissionen
+  name_en: Food and land use emissions
+  color: '#2ECC71'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  output_nodes:
+  - id: net_emissions
+
+- id: cross_cutting_climate_protection_emissions
+  name_de: Übergreifende Klimaschutzaspekte Emissionen
+  name_en: Cross-cutting climate protection emissions
+  color: '#1ABC9C'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  output_nodes:
+  - id: net_emissions
 
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -932,85 +1134,57 @@ actions:
     - id: vehicle_type
       flatten: true
 
-- id: drive_transition_freight_transport
-  name_de: Antriebswende – Güterverkehr
-  name_en: Drive Transition – Freight Transport
-  description_en: The strategy consists of these measures:<ul><li>Charging 
-    Infrastructure in Public Space</li></ul>
-  description_de: Die Strategie besteht aus diesen 
-    Maßnahmen:<ul><li>Ladeinfrastruktur im öffentlichen Raum</li></ul><p>Weitere
-    Informationen <a 
-    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/antriebswende-güterverkehr">in
-    Kausal Watch</a></p>
-  type: simple.GenericAction
-  quantity: emissions
-  unit: kt_co2e/a
-  group: mobility
-  input_dimensions: [energy_carrier, sector, vehicle_type]
-  output_dimensions: [energy_carrier, sector, vehicle_type]
-  input_nodes:
-  - id: action_potential_by_dimensions
-    from_dimensions:
-    - id: action
-      categories: [drive_transition_freight_transport]
-      flatten: true
-  output_nodes:
-  - id: traffic_actions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
+# drive_transition_freight_transport and drive_transition_bus are commented out
+# because Munich's BISKO dataset does not track trucks or buses as separate
+# vehicle types. These actions require truck/bus energy data to compute their
+# emission reduction shares. They can be uncommented when Munich-specific
+# vehicle energy data (including trucks and buses) is available.
 
-- id: drive_transition_bus
-  name_de: Antriebswende – Bus
-  name_en: Drive Transition – Bus
-  description_en: The strategy consists of these measures:<ul><li>Expansion of 
-    E-Bus Fleet at KVB</li></ul>
-  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Ausbau der 
-    E-Busflotte bei der KVB</li></ul><p>Weitere Informationen <a 
-    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/antriebswende-bus">in
-    Kausal Watch</a></p>
-  type: simple.GenericAction
-  quantity: emissions
-  unit: kt_co2e/a
-  group: mobility
-  input_dimensions: [energy_carrier, sector, vehicle_type]
-  output_dimensions: [energy_carrier, sector, vehicle_type]
-  input_nodes:
-  - id: action_potential_by_dimensions
-    from_dimensions:
-    - id: action
-      categories: [drive_transition_bus]
-      flatten: true
-  output_nodes:
-  - id: traffic_actions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
+# - id: drive_transition_freight_transport
+#   name_de: Antriebswende – Güterverkehr
+#   ...
+#   input_nodes:
+#   - id: action_potential_by_dimensions
+#     from_dimensions:
+#     - id: action
+#       categories: [drive_transition_freight_transport]
+#       flatten: true
+#   output_nodes:
+#   - id: traffic_actions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
 
-- id: mobility_transition_freight_transport
-  name_de: Mobilitätswende – Güterverkehr
-  name_en: Mobility Transition – Freight Transport
-  description_en: The strategy consists of these measures:<ul><li>(No specific 
-    measures listed)</li></ul>
-  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
-    spezifischen Maßnahmen aufgeführt)</li></ul>
-  type: simple.GenericAction
-  quantity: emissions
-  unit: kt_co2e/a
-  group: mobility
-  input_dimensions: [energy_carrier, sector, vehicle_type]
-  output_dimensions: [energy_carrier, sector, vehicle_type]
-  input_nodes:
-  - id: action_potential_by_dimensions
-    from_dimensions:
-    - id: action
-      categories: [mobility_transition_freight_transport]
-      flatten: true
-  output_nodes:
-  - id: traffic_actions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
+# - id: drive_transition_bus
+#   name_de: Antriebswende – Bus
+#   ...
+#   input_nodes:
+#   - id: action_potential_by_dimensions
+#     from_dimensions:
+#     - id: action
+#       categories: [drive_transition_bus]
+#       flatten: true
+#   output_nodes:
+#   - id: traffic_actions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
+
+# mobility_transition_freight_transport is also commented out — trucks only
+# - id: mobility_transition_freight_transport
+#   name_de: Mobilitätswende – Güterverkehr
+#   ...
+#   input_nodes:
+#   - id: action_potential_by_dimensions
+#     from_dimensions:
+#     - id: action
+#       categories: [mobility_transition_freight_transport]
+#       flatten: true
+#   output_nodes:
+#   - id: traffic_actions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
 
 - id: mobility_transition_local_mobility
   name_de: Mobilitätswende – Nahmobilität
@@ -1247,17 +1421,14 @@ actions:
 - id: ghg_neutral_administration_scope_3
   name_de: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
   name_en: GHG-Neutral Administration (Indirect Influence via Scope 3)
-  description_en: The strategy consists of these measures:<ul><li>Internal 
-    Change Agent Network for Climate Protection</li><li>Integration of Climate 
-    Protection and Sustainability in Procurement and 
+  description_en: The strategy consists of these measures:<ul><li>Internal
+    Change Agent Network for Climate Protection</li><li>Integration of Climate
+    Protection and Sustainability in Procurement and
     Contracting</li><li>Zero-Waste Concept Measures</li></ul>
-  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Internes 
-    Change-Agent-Netzwerk für Klimaschutz</li><li>Verankerung von Klimaschutz 
-    und Nachhaltigkeit bei Beschaffung und Nachhaltigkeit bei Beschaffung und 
-    Vergabe</li><li>Maßnahmen des Zero-Waste-Konzepts</li></ul><p>Weitere 
-    Informationen <a 
-    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/verwaltung-hf-ikka/82-thg-neutrale-verwaltung-indirekter-einflussbereich-über-scope-3">in
-    Kausal Watch</a></p>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Internes
+    Change-Agent-Netzwerk für Klimaschutz</li><li>Verankerung von Klimaschutz
+    und Nachhaltigkeit bei Beschaffung und Nachhaltigkeit bei Beschaffung und
+    Vergabe</li><li>Maßnahmen des Zero-Waste-Konzepts</li></ul>
   type: simple.GenericAction
   quantity: emissions
   unit: kt_co2e/a
@@ -1274,7 +1445,7 @@ actions:
       categories: [none]
       flatten: true
   output_nodes:
-  - id: emission_reductions
+  - id: net_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -1951,13 +2122,13 @@ actions:
 
 pages:
 - id: home
-  name_de: Augsburg Treibhausgasbilanz
-  name_en: Augburg Greenhouse Gas Inventory
+  name_de: München Treibhausgasbilanz
+  name_en: Munich Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
   lead_title: Treibhausgasbilanz und -prognosen
-  lead_paragraph: Historische Treibhausgasemissionen der Stadt Augsburg und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+  lead_paragraph: Historische Treibhausgasemissionen der Stadt München und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
 
 
 #//////  Scenarios  ///////////////////////////////////////////////////////////////////////////////////////////////////
