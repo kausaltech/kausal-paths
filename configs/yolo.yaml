@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://yolo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9e3c523b8b90dd887472e250d65739cee2e6204e
+  commit: a7578dc4cb1121b29f98690fc1f4be5864fcdd56
   dvc_remote: kausal-s3
 name: Yolo County Greenhouse Gas Emissions
 owner: Yolo County
@@ -92,6 +92,10 @@ dimensions:
     label: Agricultural
   - id: industrial
     label: Industrial
+
+  # ----- On-Road Transportation
+  - id: onroad_transportation
+    label: On-Road Transportation
 
   # ----- Off-road Equipment
   # - id: agricultural_eq
@@ -1097,7 +1101,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: onroad_transportation_emission_factors_ice
-  name: On-Road Transportation Emission Factors (ICE)
+  name: On-Road Transportation Emission Factors (ICE Vehicles)
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: t_co2e/mile
@@ -1112,123 +1116,138 @@ nodes:
       categories: [scope1]
   input_dataset_processors: [LinearInterpolation]
 
-# - id: vehicle_miles_traveled_evs
-#   name: Vehicle Miles Traveled (EVs)
-#   type: formula.FormulaNode
-#   quantity: mileage
-#   unit: miles/a
-#   input_dimensions: [vehicle_type, speed_bin, travel_boundary]
-#   output_dimensions: [vehicle_type, speed_bin, travel_boundary]
-#   params:
-#     formula: vmt * annualization_factor * dt3
-#   input_nodes:
-#   - id: vehicle_miles_traveled
-#     tags: [vmt]
-#   - id: vehicle_miles_traveled_annualization_factor
-#     tags: [annualization_factor]
-#     to_dimensions: []
+- id: vehicle_miles_traveled_ev
+  name: Vehicle Miles Traveled (EVs)
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: miles/a
+  input_dimensions: [ev_type, vehicle_type, speed_bin, travel_boundary]
+  output_dimensions: [ev_type, vehicle_type, speed_bin, travel_boundary]
+  params:
+    formula: vmt * annualization_factor * dt3 * split
+  input_nodes:
+  - id: vehicle_miles_traveled
+    tags: [vmt]
+    to_dimensions:
+    - id: vehicle_type
+    - id: speed_bin
+    - id: travel_boundary
+  - id: vehicle_miles_traveled_annualization_factor
+    tags: [annualization_factor]
+    to_dimensions: []
+  - id: bev_phev_split
+    tags: [split]
+    to_dimensions:
+    - id: ev_type
 
-# - id: ice_vmt
-#   name: ICE Vehicle Miles Travelled
-#   type: formula.FormulaNode
-#   quantity: mileage
-#   unit: miles/a
-#   input_dimensions: [travel_boundary, speed_bin, vehicle_type]
-#   output_dimensions: [travel_boundary, speed_bin, vehicle_type]
-#   params:
-#     formula: total_vmt * (1 - ev_fraction)*days_per_year
-#   input_nodes:
-#   - id: vehicle_miles_travelled
-#     tags: [total_vmt]
-#   - id: dt3
-#     tags: [ev_fraction]
-#   - id: days_per_year
-#     tags: [days_per_year]
+- id: vehicle_miles_traveled_ice
+  name: Vehicle Miles Traveled (ICE Vehicles)
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: miles/a
+  input_dimensions: [vehicle_type, speed_bin, travel_boundary]
+  output_dimensions: [vehicle_type, speed_bin, travel_boundary]
+  params:
+    formula: vmt * annualization_factor * complement(dt3)
+  input_nodes:
+  - id: vehicle_miles_traveled
+    tags: [vmt]
+  - id: vehicle_miles_traveled_annualization_factor
+    tags: [annualization_factor]
+    to_dimensions: []
 
-# - id: bev_phev_split
-#   name: BEV/PHEV VMT Split
-#   type: simple.AdditiveNode
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: [ev_type]
-#   output_dimensions: [ev_type]
-#   input_datasets:
-#   - id: yolo/actions-input
-#     forecast_from: 2023
-#     filters:
-#     - column: action
-#       value: dt3_ev_split
-#   input_dataset_processors: [LinearInterpolation]
+- id: bev_phev_split
+  name: BEV/PHEV VMT Split
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [ev_type]
+  output_dimensions: [ev_type]
+  input_datasets:
+  - id: yolo/onroad_transportation
+    column: fraction
+    forecast_from: 2023
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: ev_vmt_by_type
-#   name: EV VMT by Type
-#   type: simple.MultiplicativeNode
-#   quantity: mileage
-#   unit: miles/a
-#   input_dimensions: [travel_boundary, speed_bin, vehicle_type, ev_type]
-#   output_dimensions: [travel_boundary, speed_bin, vehicle_type, ev_type]
-#   input_nodes:
-#   - id: ev_vmt
-#   - id: bev_phev_split
+- id: onroad_transportation_emission_factors_ev
+  name: On-Road Transportation Emission Factors (EVs)
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t_co2e/mile
+  input_dimensions: [ev_type, scope]
+  output_dimensions: [ev_type, scope]
+  input_datasets:
+  - id: yolo/onroad_transportation
+    column: emission_factor
+    forecast_from: 2023
+    filters:
+    - dimension: scope
+      categories: [scope2]
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: ev_emission_factors
-#   name: EV Emission Factors
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: t_co2e/mile
-#   input_dimensions: [scope, ev_type]
-#   output_dimensions: [scope, ev_type]
-#   input_datasets:
-#   - id: yolo/transportation-input
-#     forecast_from: 2023
-#     filters:
-#     - column: quantity
-#       value: emission_factor
-#     - dimension: ev_type
-#       categories: [bev, phev]
-#   input_dataset_processors: [LinearInterpolation]
+- id: onroad_transportation_emissions_ev
+  name: On-Road Transportation Emissions (EVs)
+  short_name: Electric Vehicle Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ev_type, vehicle_type, speed_bin, travel_boundary, scope]
+  output_dimensions: [ev_type, vehicle_type, speed_bin, travel_boundary, scope]
+  input_nodes:
+  - id: vehicle_miles_traveled_ev
+    to_dimensions:
+    - id: ev_type
+    - id: vehicle_type
+    - id: speed_bin
+    - id: travel_boundary
+  - id: onroad_transportation_emission_factors_ev
+    to_dimensions:
+    - id: ev_type
+    - id: scope
 
-# - id: ev_emissions
-#   name: Electric Vehicle Emissions
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [scope, travel_boundary, speed_bin, vehicle_type, ev_type]
-#   output_dimensions: [scope, travel_boundary, vehicle_type]
-#   input_nodes:
-#   - id: ev_vmt_by_type
-#   - id: ev_emission_factors
+- id: onroad_transportation_emissions_ice
+  name: On-Road Transportation Emissions (ICE Vehicles)
+  short_name: ICE Vehicle Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, speed_bin, travel_boundary, scope]
+  output_dimensions: [vehicle_type, speed_bin, travel_boundary, scope]
+  input_nodes:
+  - id: vehicle_miles_traveled_ice
+    to_dimensions:
+    - id: vehicle_type
+    - id: speed_bin
+    - id: travel_boundary
+  - id: onroad_transportation_emission_factors_ice
 
-# - id: ice_transportation_emissions
-#   label: ICE Transportation Emissions
-#   type: formula.FormulaNode
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [scope, travel_boundary, speed_bin, vehicle_type]
-#   output_dimensions: [scope, travel_boundary, vehicle_type]
-#   params: 
-#     formula: ice_vmt*transport_emfac
-#   input_nodes: 
-#   - id: ice_vmt
-#     tags: [ice_vmt]
-#     to_dimensions: [scope, travel_boundary, vehicle_type]
-#   - id: transportation_emission_factors
-#     tags: [transport_emfac]
-#     to_dimensions: [scope, travel_boundary, vehicle_type]
-
-# - id: transportation_emissions
-#   label: Transportation
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [scope, travel_boundary, vehicle_type]
-#   output_dimensions: [scope, travel_boundary, vehicle_type]
-#   input_nodes:
-#   - id: ice_transportation_emissions
-#   - id: ev_emissions
-#   output_nodes:
-#   - id: net_emissions
-#     to_dimensions: [scope]
+- id: onroad_transportation_emissions
+  name: On-Road Transportation
+  color: '#E15759'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, speed_bin, travel_boundary, scope]
+  output_dimensions: [vehicle_type, speed_bin, travel_boundary, scope]
+  input_nodes:
+  - id: onroad_transportation_emissions_ev
+    from_dimensions:
+    - id: ev_type
+      flatten: true
+  - id: onroad_transportation_emissions_ice
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: speed_bin
+      flatten: true
+    - id: travel_boundary
+      flatten: true
+    to_dimensions:
+    - id: subsector
+      categories: [onroad_transportation]
+    - id: scope
 
 # -- offroad
 
@@ -1872,7 +1891,7 @@ nodes:
     to_dimensions:
     - id: ghg
 
-# actions:
+actions:
 # ---- adjusted business as usual actions/trends
 # - id: abau_trend_electricity
 #   name: Federal- and State-mandated electricity emissions reduction
@@ -1927,29 +1946,31 @@ nodes:
 #   input_dataset_processors: [LinearInterpolation]
 
 # ----- On-Road Transportation
-# - id: dt3
-#   name: Encourage Transition to Electric Vehicles
-#   type: simple.AdditiveAction
-#   group: onroad_transportation
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: [ev_type]
-#   output_dimensions: [ev_type]
-#   params:
-#     allow_null_categories: true
-#   input_datasets:
-#   - id: yolo/actions
-#     forecast_from: 2023
-#     filters:
-#     - column: action
-#       value: dt3
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes:
-#   - id: vehicle_miles_traveled_evs
-#     from_dimensions:
-#     - id: ev_type
-#       flatten: true
-#     to_dimensions: []
+- id: dt3
+  name: Encourage Transition to Electric Vehicles
+  type: simple.AdditiveAction
+  group: onroad_transportation
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/actions
+    column: fraction
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: dt3
+    - column: scope
+    - column: factor_type
+    - column: subsector
+    - column: building_status
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: vehicle_miles_traveled_ev
+    to_dimensions: []
+  - id: vehicle_miles_traveled_ice
+    to_dimensions: []
 
 # ---- building actions 
 
