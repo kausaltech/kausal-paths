@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://yolo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 42271d022f741f293bac6b063f1986319070a0eb
+  commit: e3259f9988fed7dace358d95c00bdf48eab28cb8
   dvc_remote: kausal-s3
 name: Yolo County Greenhouse Gas Emissions
 owner: Yolo County
@@ -201,23 +201,23 @@ dimensions:
   - id: propane
     label: Propane
 
-# - id: building_type
-#   label: Building Type
-#   categories:
-#   - id: single_family
-#     label: Single-Family
-#   - id: multi_family
-#     label: Multi-Family
-#   - id: non_residential
-#     label: Non-Residential
+- id: building_type
+  label: Building Type
+  categories:
+  - id: single_family
+    label: Single-Family
+  - id: multi_family
+    label: Multi-Family
+  - id: non_residential
+    label: Non-Residential
 
-# - id: building_status
-#   label: Building Status
-#   categories:
-#   - id: new
-#     label: New
-#   - id: existing
-#     label: Existing
+- id: building_status
+  label: Building Status
+  categories:
+  - id: new
+    label: New
+  - id: existing
+    label: Existing
 
 # ----- On-Road Transportation
 - id: travel_boundary
@@ -458,22 +458,22 @@ nodes:
       categories: [natural_gas]
   input_dataset_processors: [LinearInterpolation]
 
-  # -- building 
-
-# - id: building_electricity_use
-#   label: Building Electricity Use
-#   type: simple.AdditiveNode
-#   quantity: energy_consumption
-#   unit: kWh/year
-#   input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
-#   output_dimensions: [subsector, energy_provider, building_type, building_status]
-#   input_datasets:
-#   - id: yolo/building-input
-#     forecast_from: 2023
-#     filters:
-#     - dimension: energy_carrier
-#       categories: [electricity]
-#   input_dataset_processors: [LinearInterpolation]
+# ----- Buildings
+- id: building_electricity_usage
+  name: Building Electricity Usage
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  output_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  input_datasets:
+  - id: yolo/buildings
+    column: energy
+    forecast_from: 2023
+    filters:
+    - dimension: energy_carrier
+      categories: [electricity]
+  input_dataset_processors: [LinearInterpolation]
 
 # - id: abau_new_buildings_electricity_use
 #   name: New Buildings Electricity Use (Adjusted Business As Usual)
@@ -494,20 +494,21 @@ nodes:
 #       categories: [adjusted_baseline]
 #   input_dataset_processors: [LinearInterpolation]
 
-# - id: building_natural_gas_use
-#   label: Building Natural Gas Use
-#   type: simple.AdditiveNode
-#   quantity: energy_consumption
-#   unit: therms/year
-#   input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
-#   output_dimensions: [subsector, energy_provider, building_type, building_status]
-#   input_datasets:
-#   - id: yolo/building-input
-#     forecast_from: 2023
-#     filters:
-#     - dimension: energy_carrier
-#       categories: [natural_gas]
-#   input_dataset_processors: [LinearInterpolation]
+- id: building_natural_gas_usage
+  name: Building Natural Gas Usage
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: therms/a
+  input_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  output_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  input_datasets:
+  - id: yolo/buildings
+    column: fuel_consumption
+    forecast_from: 2023
+    filters:
+    - dimension: energy_carrier
+      categories: [natural_gas]
+  input_dataset_processors: [LinearInterpolation]
 
 # --- nodes related to action eb1b
 # - id: ac_factor
@@ -1021,51 +1022,63 @@ nodes:
 #   output_nodes:
 #   - id: building_electricity_use
 
-# - id: building_emissions
-#   label: Building Energy
-#   type: formula.FormulaNode #possible to simplify this to a multiplicative node 
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [scope, subsector, ghg, building_type, building_status, energy_provider]
-#   output_dimensions: [scope, subsector, ghg, building_type, building_status]
-#   params: 
-#     formula: (electricity_from_pge*pge_electricity_emfac + electricity_from_vce*vce_electricity_emfac + gas_from_pge*pge_gas_emfac)*gwp
-#   input_nodes:
-#   - id: building_electricity_use
-#     filters: 
-#     - dimension: energy_provider
-#       categories: [PG&E]
-#     tags: [electricity_from_pge]
-#   - id: building_electricity_use
-#     filters: 
-#     - dimension: energy_provider
-#       categories: [VCE]
-#     tags: [electricity_from_vce]
-#   - id: building_natural_gas_use
-#     filters: 
-#     - dimension: energy_provider
-#       categories: [PG&E]
-#     tags: [gas_from_pge]
-#   - id: electricity_emission_factor
-#     filters:
-#     - dimension: energy_provider
-#       categories: [PG&E]
-#     tags: [pge_electricity_emfac]
-#   - id: electricity_emission_factor
-#     filters:
-#     - dimension: energy_provider
-#       categories: [VCE]
-#     tags: [vce_electricity_emfac] 
-#   - id: natural_gas_emission_factor
-#     filters:
-#     - dimension: energy_provider
-#       categories: [PG&E]
-#     tags: [pge_gas_emfac]
-#   - id: global_warming_potential
-#     tags: [gwp]
-#   output_nodes:
-#   - id: net_emissions
-#     to_dimensions: [scope]
+- id: building_emissions
+  name: Building Energy
+  color: '#4E79A7'
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier, ghg, scope]
+  output_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier, ghg, scope]
+  params:
+    formula: ((electricity_usage * electricity_emission_factors) + (gas_usage * gas_emission_factors)) * gwp
+  input_nodes:
+  - id: building_electricity_usage
+    tags: [electricity_usage]
+    to_dimensions:
+    - id: subsector
+    - id: building_type
+    - id: building_status
+    - id: energy_provider
+    - id: energy_carrier
+  - id: building_natural_gas_usage
+    tags: [gas_usage]
+    to_dimensions:
+    - id: subsector
+    - id: building_type
+    - id: building_status
+    - id: energy_provider
+    - id: energy_carrier
+  - id: electricity_emission_factors
+    to_dimensions:
+    - id: energy_provider
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
+  - id: natural_gas_emission_factors
+    tags: [gas_emission_factors]
+    to_dimensions:
+    - id: energy_provider
+    - id: ghg
+    - id: scope
+    - id: energy_carrier
+  - id: global_warming_potential
+    tags: [gwp]
+    to_dimensions:
+    - id: ghg
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: building_type
+      flatten: true
+    - id: building_status
+      flatten: true
+    - id: energy_provider
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
 
 # ----- On-Road Transportation
 - id: vehicle_miles_traveled
