@@ -13,11 +13,11 @@ _.python.venv = { path = ".venv", create = true, uv_create_args = [] }
 _.fnox-env = { tools = true }
 PYTHONPATH = "{{ config_root }}"
 
-[prepare.uv]
+[deps.uv]
 auto = true
 run = "uv sync --all-groups --all-extras"
 
-[prepare.uv-tools]
+[deps.uv-tools]
 auto = true
 description = "Install development tools with uv"
 outputs = [".mise/uv_tools_installed"]
