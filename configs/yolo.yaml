@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://yolo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e3259f9988fed7dace358d95c00bdf48eab28cb8
+  commit: fa918c1deb67cd3cf5395183016975bbed3201e7
   dvc_remote: kausal-s3
 name: Yolo County Greenhouse Gas Emissions
 owner: Yolo County
@@ -33,9 +33,9 @@ action_groups:
 # - id: waste_act
 #   name: Minimize Waste
 #   color: '#897C24'
-# - id: offroad_act
-#   name: Reduce Off-Road Equipment Emissions
-#   color: '#325437'
+- id: offroad_equipment
+  name: Reduce Off-Road Equipment Emissions
+  color: '#F28E2B'
 - id: sequestration
   name: Sequester and Store Carbon in Natural and Working Lands
   color: '#A0CBE8'
@@ -2205,6 +2205,7 @@ actions:
 #   output_nodes: 
 #   - id: solid_waste_emissions
 
+# ----- Off-Road Equipment
 # - id: ofr1
 #   name: Decarbonize offroad & landscaping equipment
 #   type: simple.AdditiveAction
@@ -2226,26 +2227,24 @@ actions:
 #     - dimension: subsector
 #       categories: [construction_eq, tru_eq, industrial_eq, lawn_garden_eq, light_commercial_eq, pleasure_craft, recreational_eq, portable_eq]
 
-# - id: ofr2
-#   name: Decarbonize agricultural equipment
-#   type: simple.AdditiveAction
-#   group: offroad_act
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [subsector, scope]
-#   output_dimensions: [subsector, scope]
-#   input_datasets:
-#   - id: yolo/actions-input
-#     forecast_from: 2023
-#     filters:
-#     - column: action
-#       value: ofr2
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes: 
-#   - id: offroad_emissions
-#     filters: 
-#     - dimension: subsector
-#       categories: [agricultural_eq]
+- id: ofr2
+  name: Decarbonize Agricultural Equipment
+  type: simple.AdditiveAction
+  group: offroad_equipment
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [subsector, scope]
+  output_dimensions: [subsector, scope]
+  input_datasets:
+  - id: yolo/actions
+    column: emissions
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: ofr2
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: offroad_equipment_emissions
 
 # ----- Sequestration
 - id: nwl1
