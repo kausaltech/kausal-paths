@@ -870,6 +870,10 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
             stale_nodes = ic.nodes.filter(identifier__in=stale_ids).defer('spec')
             logger.warning(f'Detected {len(stale_nodes)} stale nodes: {stale_nodes.values_list("identifier", flat=True)}')
             stale_nodes.update(is_stale=True)
+            delete_nodes = stale_nodes.filter(pages__isnull=True, created_by__isnull=True)
+            for stale_node in delete_nodes:
+                logger.info(f'Stale node {stale_node.identifier} was automatically created, removing')
+                stale_node.delete()
             # NodeConfig.objects.filter(instance=ic, identifier__in=stale_ids, pages__isnull=True).defer('spec').delete()
 
         edge_count = _update_edges(ic, ctx, node_configs)
