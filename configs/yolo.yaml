@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://yolo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a7578dc4cb1121b29f98690fc1f4be5864fcdd56
+  commit: 42271d022f741f293bac6b063f1986319070a0eb
   dvc_remote: kausal-s3
 name: Yolo County Greenhouse Gas Emissions
 owner: Yolo County
@@ -98,24 +98,24 @@ dimensions:
     label: On-Road Transportation
 
   # ----- Off-road Equipment
-  # - id: agricultural_eq
-  #   label: Agricultural Equipment
-  # - id: tru_eq
-  #   label: TRUs
-  # - id: construction_eq
-  #   label: Construction
-  # - id: industrial_eq
-  #   label: Industrial
-  # - id: lawn_garden_eq
-  #   label: Lawn & Garden
-  # - id: light_commercial_eq
-  #   label: Light Commercial
-  # - id: pleasure_craft
-  #   label: Pleasure Craft
-  # - id: recreational_eq
-  #   label: Recreational
-  # - id: portable_eq
-  #   label: Portable Equipment
+  - id: agricultural_equipment
+    label: Agricultural Equipment
+  - id: trus
+    label: TRUs
+  - id: construction_equipment
+    label: Construction Equipment
+  - id: industrial_equipment
+    label: Industrial Equipment
+  - id: lawn_garden_equipment
+    label: Lawn & Garden Equipment
+  - id: light_commercial_equipment
+    label: Light Commercial Equipment
+  - id: pleasure_craft
+    label: Pleasure Craft
+  - id: recreational_equipment
+    label: Recreational Equipment
+  - id: portable_equipment
+    label: Portable Equipment
 
   # ----- Solid Waste
   - id: waste_in_place
@@ -1249,22 +1249,22 @@ nodes:
       categories: [onroad_transportation]
     - id: scope
 
-# -- offroad
-
-# - id: offroad_emissions
-#   name: Off Road Equipment 
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [subsector, scope]
-#   output_dimensions: [subsector, scope]
-#   input_datasets:
-#   - id: yolo/offroad-input
-#     forecast_from: 2023
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes:
-#   - id: net_emissions
-#     to_dimensions: [scope]
+# ----- Off-Road Equipment
+- id: offroad_equipment_emissions
+  name: Off-Road Equipment
+  color: '#F28E2B'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [subsector, scope]
+  output_dimensions: [subsector, scope]
+  input_datasets:
+  - id: yolo/offroad_equipment
+    column: emissions
+    forecast_from: 2023
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
 
 # ----- Solid Waste
 - id: solid_waste_emissions
