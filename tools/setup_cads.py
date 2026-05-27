@@ -24,6 +24,7 @@ from wagtail.models import Locale, Page
 from frameworks.models import Framework, FrameworkConfig
 from nodes.defs.instance_defs import InstanceSpec, YearsSpec
 from nodes.models import InstanceConfig, InstanceHostname
+from nodes.spec_export import sync_instance_to_db
 from orgs.models import Organization
 from pages.models import InstanceRootPage
 
@@ -49,7 +50,7 @@ def get_or_create_framework() -> Framework:
             allow_instance_creation=True,
             enable_user_management=True,
             template_instance=template_instance,
-            public_base_fqdn='cads.kausal.tech',
+            public_base_fqdn=BASE_FQDN,
         ),
     )
     if created:
@@ -71,36 +72,33 @@ def get_or_create_framework() -> Framework:
         if fw.public_base_fqdn != BASE_FQDN:
             fw.public_base_fqdn = BASE_FQDN
             updated_fields.append('public_base_fqdn')
-        accept_invitation_url = 'https://{base_fqdn}/auth/register?framework=cads&invitation_code={code}'.format(
-            base_fqdn=BASE_FQDN, code='{code}'
+        accept_invitation_url = 'https://{base_fqdn}/auth/register?framework={fwid}&invitation_code={code}'.format(
+            base_fqdn=BASE_FQDN, code='{code}', fwid=fw.identifier
         )
         if fw.accept_invitation_url != accept_invitation_url:
             fw.accept_invitation_url = accept_invitation_url
             updated_fields.append('accept_invitation_url')
         if updated_fields:
             fw.save(update_fields=updated_fields)
-            print(f'Updated framework fields ({", ".join(updated_fields)}): {fw}')
+            print(f'Updated framework  fields ({", ".join(updated_fields)}): {fw}')
         else:
             print(f'Framework already exists: {fw}')
     return fw
 
 
-def enable_user_management_on_cads_instances() -> None:
-    fw = Framework.objects.get(identifier=FRAMEWORK_IDENTIFIER)
-    instances = InstanceConfig.objects.filter(framework_config__framework=fw, spec__isnull=False)
+def enable_user_management_on_cads_instances(fw: Framework) -> None:
+    instances = InstanceConfig.objects.filter(framework_config__framework=fw)
     flipped = 0
     for ic in instances:
-        spec = ic.spec
-        assert spec is not None
+        spec = ic.ensure_spec()
         if spec.features.enable_user_management:
             continue
         spec.features.enable_user_management = True
         ic.spec = spec
         ic.save(update_fields=['spec'])
+        print(f'Enabled user_management on {ic}')
         flipped += 1
-    if flipped:
-        print(f'Enabled user_management on {flipped} CADS instance(s)')
-    else:
+    if not flipped:
         print('All CADS instances already have user_management enabled')
 
 
@@ -228,7 +226,7 @@ def ensure_template_dataset_ports(source: InstanceConfig, target: InstanceConfig
         if target_metric is None:
             raise ValueError(
                 f'Cannot copy dataset port for {source_port.dataset.identifier!r}; '
-                f'metric {source_port.metric.name!r} is missing in {target.identifier!r}'
+                + f'metric {source_port.metric.name!r} is missing in {target.identifier!r}'
             )
         missing_ports.append(
             DatasetPort(
@@ -372,18 +370,11 @@ def ensure_site(ic: InstanceConfig, root_page: Page) -> None:
     print(f'Created site: {site}')
 
 
-def setup_instance_groups(ic: InstanceConfig) -> None:
-    if ic.admin_group is not None:
-        print('Instance groups already exist')
-        return
-    ic.create_or_update_instance_groups()
-    print('Created instance groups')
-
-
-def create_landing_fwc(ic: InstanceConfig) -> FrameworkConfig:
+def init_framework_instance(fw: Framework, ic: InstanceConfig) -> FrameworkConfig:
     ich = ic.hostnames.filter(hostname=BASE_FQDN).first()
+    base_path = f'/{ic.uuid}' if ic != fw.template_instance else ''
     if ich is None:
-        ich = InstanceHostname.objects.create(instance=ic, hostname=BASE_FQDN)
+        ich = InstanceHostname.objects.create(instance=ic, hostname=BASE_FQDN, base_path=base_path)
         print(f'Created instance hostname: {ich}')
 
     fwc = FrameworkConfig.objects.filter(instance_config=ic).first()
@@ -391,13 +382,19 @@ def create_landing_fwc(ic: InstanceConfig) -> FrameworkConfig:
         print(f'Framework config already exists: {fwc}')
         return fwc
     fw = Framework.objects.get(identifier=FRAMEWORK_IDENTIFIER)
+    spec = ic.ensure_spec()
     fwc = FrameworkConfig.objects.create(
         framework=fw,
         instance_config=ic,
         organization_name=LANDING_ORG_NAME,
-        baseline_year=2020,
-        target_year=2030,
+        baseline_year=spec.years.reference or 2020,
+        target_year=spec.years.target,
     )
+    print(f'Created framework config: {fwc}')
+    if ic.admin_group is None:
+        ic.create_or_update_instance_groups()
+        print('Created instance groups')
+
     return fwc
 
 
@@ -406,12 +403,15 @@ def main() -> None:
     # ensure_template_datasets()
     org = get_or_create_organization()
     with set_i18n_context(PRIMARY_LANGUAGE, []):
-        ic = get_or_create_landing_instance(org)
-        root_page = create_landing_root_page(ic)
-        ensure_site(ic, root_page)
-        create_landing_fwc(ic)
-        setup_instance_groups(ic)
-    enable_user_management_on_cads_instances()
+        landing_ic = get_or_create_landing_instance(org)
+        root_page = create_landing_root_page(landing_ic)
+        ensure_site(landing_ic, root_page)
+        init_framework_instance(fw, landing_ic)
+        template_ic = InstanceConfig.objects.get(identifier=TEMPLATE_INSTANCE_IDENTIFIER)
+        if not template_ic.spec or not template_ic.spec.dimensions:
+            sync_instance_to_db(template_ic.identifier)
+        init_framework_instance(fw, template_ic)
+    enable_user_management_on_cads_instances(fw)
     set_instance_hostnames(fw)
     print('CADS setup complete.')
 
