@@ -27,9 +27,9 @@ action_groups:
 # - id: buildings_act
 #   name: Decarbonize Energy and Buildings and Increase Energy Efficiency
 #   color: '#A4C146'
-# - id: water_act
-#   name: Optimize Water Use
-#   color: '#3C8BDB'
+- id: water
+  name: Optimize Water Use
+  color: '#76B7B2'
 # - id: waste_act
 #   name: Minimize Waste
 #   color: '#897C24'
@@ -1286,34 +1286,22 @@ nodes:
 # ----- Water
 - id: water_usage
   name: Water Usage
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: volume
   unit: Mgal/a
   input_dimensions: [water_source, subsector]
   output_dimensions: [water_source, subsector]
+  params:
+    formula: water_usage * complement(w4)
   input_datasets:
   - id: yolo/water
     column: volume
     forecast_from: 2023
+    tags: [water_usage]
     filters: 
     - dimension: subsector
       categories: [groundwater_pumping]
   input_dataset_processors: [LinearInterpolation]
-
-# - id: water_use
-#   name: Water Use
-#   type: formula.FormulaNode
-#   quantity: volume
-#   unit: Mgal/year
-#   input_dimensions: [subsector, water_source]
-#   output_dimensions: [subsector, water_source]
-#   params:
-#     formula: baseline_use*(1-reduction_fraction)
-#   input_nodes:
-#   - id: baseline_water_use
-#     tags: [baseline_use]
-#   - id: w4
-#     tags: [reduction_fraction] 
 
 # (703.0 kWh/acre-foot / 325851.42857143 gal/acre-foot) * 1000000
 - id: groundwater_pumping_energy_intensity
@@ -1332,9 +1320,8 @@ nodes:
       categories: [groundwater_pumping]
   input_dataset_processors: [LinearInterpolation]
 
-- id: water_usage_emissions
-  name: Water Usage
-  color: '#76B7B2'
+- id: community_water_usage_emissions
+  name: Community Water Usage Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
@@ -1360,13 +1347,26 @@ nodes:
   - id: global_warming_potential
     to_dimensions:
     - id: ghg
-  output_nodes:
-  - id: net_emissions
+
+- id: water_usage_emissions
+  name: Water Usage
+  color: '#76B7B2'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [subsector, energy_carrier, ghg, scope]
+  output_dimensions: [subsector, energy_carrier, ghg, scope]
+  input_nodes:
+  - id: community_water_usage_emissions
     from_dimensions:
     - id: water_source
       flatten: true
     - id: energy_provider
       flatten: true
+  - id: irrigation_pump_emissions
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
     - id: energy_carrier
       flatten: true
     - id: ghg
@@ -1531,10 +1531,6 @@ nodes:
   input_dimensions: [subsector, ghg, scope]
   output_dimensions: [subsector, ghg, scope]
   input_nodes:
-  - id: irrigation_pump_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
   - id: residue_burning_emissions
     from_dimensions:
     - id: crop
@@ -1561,34 +1557,22 @@ nodes:
 # ---------- Irrigation Pumps
 - id: irrigation_pump_fuel_usage
   name: Irrigation Pump Fuel Usage
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: volume
   unit: gal/a
   input_dimensions: [energy_carrier, subsector]
   output_dimensions: [energy_carrier, subsector]
+  params:
+    formula: fuel_usage * complement(w2)
   input_datasets:
   - id: yolo/agriculture
     column: volume
     forecast_from: 2023
+    tags: [fuel_usage]
     filters:
     - dimension: subsector
       categories: [irrigation_pumps]
   input_dataset_processors: [LinearInterpolation]
-
-# - id: agricultural_pumps_volume
-#   name: Agricultural Pumps Volume Intake
-#   type: formula.FormulaNode
-#   quantity: volume
-#   unit: gal/a
-#   input_dimensions: [subsector, energy_carrier]
-#   output_dimensions: [subsector, energy_carrier]
-#   params:
-#     formula: baseline_ag_pump_use*(1-ag_pump_reduction_fraction)
-#   input_nodes:
-#   - id: agricultural_pumps_baseline_volume
-#     tags: [baseline_ag_pump_use]
-#   - id: w2
-#     tags: [ag_pump_reduction_fraction] 
 
 - id: irrigation_pump_emission_factors
   name: Irrigation Pump Emission Factors
@@ -2119,42 +2103,55 @@ actions:
 #   output_nodes:
 #   - id: eb4d_electricity_reduction
 
-# - id: w2
-#   name: Encourage efficient water use in agricultural operations
-#   type: simple.AdditiveAction
-#   group: water_act
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: []
-#   output_dimensions: []
-#   input_datasets:
-#   - id: yolo/actions-input
-#     forecast_from: 2023
-#     filters: 
-#     - column: action
-#       value: w2
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes: 
-#   - id: agricultural_pumps_volume
+# ----- Water
+- id: w2
+  name: Encourage Efficient Water Use in Agricultural Operations
+  type: simple.AdditiveAction
+  group: water
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/actions
+    column: fraction
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: w2
+    - column: scope
+    - column: factor_type
+    - column: subsector
+    - column: building_status
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: irrigation_pump_fuel_usage
+    to_dimensions: []
 
-# - id: w4
-#   name: Conserve water in unincorporated county areas
-#   type: simple.AdditiveAction
-#   group: water_act
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: []
-#   output_dimensions: []
-#   input_datasets:
-#   - id: yolo/actions-input
-#     forecast_from: 2023
-#     filters: 
-#     - column: action
-#       value: w4
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes: 
-#   - id: water_use
-   
+- id: w4
+  name: Conserve Water in Unincorporated County Areas
+  type: simple.AdditiveAction
+  group: water
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/actions
+    column: fraction
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: w4
+    - column: scope
+    - column: factor_type
+    - column: subsector
+    - column: building_status
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: water_usage
+    to_dimensions: []
+
 # - id: sw1
 #   name: Waste diversion
 #   type: simple.AdditiveAction
