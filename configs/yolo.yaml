@@ -36,9 +36,9 @@ action_groups:
 # - id: offroad_act
 #   name: Reduce Off-Road Equipment Emissions
 #   color: '#325437'
-# - id: sequestration_act
-#   name: Sequester and Store Carbon in Natural and Working Lands
-#   color: '#025B57'
+- id: sequestration
+  name: Sequester and Store Carbon in Natural and Working Lands
+  color: '#A0CBE8'
 # - id: abau
 #   name: Federal- and State-mandated GHG emission reduction measures
 #   color: '#000000'
@@ -142,6 +142,10 @@ dimensions:
     label: Urea Application
   - id: lime_application
     label: Lime Application
+
+  # ----- Sequestration
+  - id: sequestration
+    label: Sequestration
 
 # - id: scenario_id
 #   label: Scenario
@@ -388,10 +392,10 @@ emission_sectors:
   name: Net Emissions
   is_outcome: true
 
-# - id: negative_emissions
-#   name: Negative Emissions
-#   part_of: net_emissions
-#   order: -1
+- id: negative_emissions
+  name: Negative Emissions
+  color: '#A0CBE8'
+  part_of: net_emissions
 
 nodes: 
 # -- demographic trends 
@@ -2243,41 +2247,52 @@ actions:
 #     - dimension: subsector
 #       categories: [agricultural_eq]
 
-# - id: nwl1
-#   name: Encourage climate smart practices in working lands
-#   type: simple.AdditiveAction
-#   group: sequestration_act
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [scope]
-#   output_dimensions: [scope]
-#   input_datasets: 
-#   - id: yolo/actions-input
-#     forecast_from: 2023
-#     filters: 
-#     - column: action
-#       value: nwl1
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes: 
-#   - id: negative_emissions
+# ----- Sequestration
+- id: nwl1
+  name: Encourage Climate Smart Practices on Working Lands
+  type: simple.AdditiveAction
+  group: sequestration
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  input_datasets:
+  - id: yolo/actions
+    column: emissions
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: nwl1
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: negative_emissions
+    to_dimensions:
+    - id: subsector
+      categories: [sequestration]
+    - id: scope
 
-# - id: nwl2
-#   name: Restore natural lands
-#   type: simple.AdditiveAction
-#   group: sequestration_act
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [scope]
-#   output_dimensions: [scope]
-#   input_datasets: 
-#   - id: yolo/actions-input
-#     forecast_from: 2023
-#     filters: 
-#     - column: action
-#       value: nwl2
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes: 
-#   - id: negative_emissions
+- id: nwl2
+  name: Restore Natural Lands
+  type: simple.AdditiveAction
+  group: sequestration
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  input_datasets:
+  - id: yolo/actions
+    column: emissions
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: nwl2
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: negative_emissions
+    to_dimensions:
+    - id: subsector
+      categories: [sequestration]
+    - id: scope
 
 pages:
 - id: home
