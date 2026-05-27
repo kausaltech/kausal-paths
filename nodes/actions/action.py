@@ -521,9 +521,16 @@ class ImpactOverview:
         current_series = to_series(current_df)
         years = sorted(current_series.keys())
 
-        # Collect enabled actions connected to effect_node
+        # Collect enabled root actions connected to effect_node.
+        # Child actions (parent_action is not None) are excluded to avoid double-counting:
+        # a ParentActionNode's compute_impact() already captures the combined effect of all
+        # its children, because enabling the parent propagates via notify_parameter_change()
+        # to every child. Including both parent and children would inflate sum_raw by ca. 2*,
+        # collapsing the multiplier to ~0.5 and making every slice appear at half its weight.
         enabled_actions = [
-            action for action in context.get_actions() if action.is_connected_to(effect_node) and action.is_enabled()
+            action
+            for action in context.get_actions()
+            if action.is_connected_to(effect_node) and action.is_enabled() and action.parent_action is None
         ]
 
         action_raw: list[tuple[ActionNode, dict[int, float]]] = []
