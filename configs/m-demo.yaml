@@ -84,6 +84,11 @@ impact_overviews:
   label_de: Return on investment
   label_en: Return on investment
 
+- graph_type: wedge_diagram
+  effect_node: net_emissions
+  indicator_unit: kt/a
+  label_en: Wedge diagram
+
 dimensions:
 
 - id: cost_type
@@ -542,9 +547,14 @@ emission_sectors:
     label_en: Net emissions target
     default: true
     is_main_goal: true
+    linear_interpolation: true
     values:
-    - year: 2030
+    - year: 2021
+      value: 1360
+    - year: 2040
       value: 551
+    - year: 2050
+      value: 0.0
 
 nodes:
 
