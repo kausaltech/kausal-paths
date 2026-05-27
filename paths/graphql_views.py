@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.http import HttpRequest
@@ -22,8 +22,6 @@ if TYPE_CHECKING:
     from strawberry.http import GraphQLRequestData
     from strawberry.http.temporal_response import TemporalResponse
     from strawberry.types import ExecutionResult
-
-    from kausal_common.users import UserOrAnon
 
 
 GRAPHQL_CAPTURE_QUERIES = env_bool('GRAPHQL_CAPTURE_QUERIES', default=False)
@@ -111,12 +109,8 @@ class PathsGraphQLView(GraphQLView[PathsGraphQLContext]):
         return response
 
     def get_context(self, request: HttpRequest, response: HttpResponse) -> PathsGraphQLContext:
-        from paths.context import PathsObjectCache
-
         base_ctx = super().get_base_context(request, response)
         context = PathsGraphQLContext(
             **base_ctx,
         )
-        user = cast('UserOrAnon', request.user)
-        context.cache = PathsObjectCache(user=user)
         return context

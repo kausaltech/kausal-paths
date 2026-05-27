@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from factory import Factory, LazyAttribute, LazyFunction, RelatedFactory, SelfAttribute, Sequence, SubFactory, post_generation
 from factory.django import DjangoModelFactory
@@ -91,6 +91,7 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
         model = InstanceConfig
         exclude = ('instance',)
 
+    uuid = Sequence(lambda _i: uuid4())
     identifier = Sequence(lambda i: f'ic{i}')
     name = Sequence(lambda i: f'instanceconfig{i}')
     lead_title = 'lead title'

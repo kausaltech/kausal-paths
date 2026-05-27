@@ -17,7 +17,7 @@ from kausal_common.i18n.pydantic import is_query_with_instance_context, set_i18n
 from kausal_common.strawberry.context import GraphQLContext
 from kausal_common.strawberry.extensions import AuthenticationExtension, ExecutionCacheExtension, GraphQLPerfNode, SchemaExtension
 
-from paths.context import PathsObjectCache
+from paths.context import PathsObjectCache, paths_object_cache
 
 from params.storage import SessionStorage
 
@@ -51,7 +51,14 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
     def __post_init__(self):
         super().__post_init__()
         user = self.get_user()
-        self.cache = PathsObjectCache(user=user)
+        cache = None
+        if paths_object_cache.is_set():
+            cache = paths_object_cache.get()
+            if cache.user != user:
+                cache = None
+        if cache is None:
+            cache = PathsObjectCache(user=user)
+        self.cache = cache
         self.instance = None  # type: ignore[assignment]
 
 
@@ -356,6 +363,8 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
 
     @contextmanager
     def instance_context(self, _operation: OperationDefinitionNode):
+        from .context import paths_object_cache
+
         context = None
         ctx = self.get_context()
         perf = ctx.graphql_perf
@@ -363,9 +372,11 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
         assert ic is not None
         assert ctx.graphql_query_language is not None
         source = self._resolve_preview_source(ic, ctx)
+        object_cache = PathsObjectCache(user=ctx.get_user())
         with ExitStack() as stack:
             with perf.exec_node(GraphQLPerfNode('prepare instance "%s"' % ic.identifier)):
                 stack.enter_context(self.activate_language(ctx.graphql_query_language))
+                stack.enter_context(paths_object_cache.activate(object_cache))
                 with (
                     perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)),
                     is_query_with_instance_context.set(True),

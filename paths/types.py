@@ -103,5 +103,13 @@ if TYPE_CHECKING:
 
 
 class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel):  # pyright: ignore[reportImplicitAbstractClass]
+    @property
+    def _global_cache(self) -> PathsObjectCache | None:
+        from paths.context import paths_object_cache
+
+        if not paths_object_cache.is_set():
+            return None
+        return paths_object_cache.get()
+
     class Meta:
         abstract = True

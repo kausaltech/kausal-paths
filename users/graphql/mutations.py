@@ -127,8 +127,7 @@ def _user_is_owner_for(user: User, ic: InstanceConfig) -> bool:
 
 
 def _require_user_management_enabled(info: gql.Info, ic: InstanceConfig) -> None:
-    spec = ic.spec
-    if spec is None or not spec.features.enable_user_management:
+    if ic.spec is None or not ic.spec.features.enable_user_management:
         raise PermissionDeniedError(
             info,
             f'User management is not enabled for instance "{ic.identifier}"',

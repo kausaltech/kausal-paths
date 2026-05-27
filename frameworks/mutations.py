@@ -77,8 +77,6 @@ class FrameworkMutation:
             if org is None:
                 org = Organization.add_root(name=input.organization_name)
 
-            from nodes.models import make_empty_instance_spec
-
             ic = InstanceConfig.objects.create(
                 name=input.name,
                 identifier=input.identifier,
@@ -86,7 +84,6 @@ class FrameworkMutation:
                 other_languages=[],
                 organization=org,
                 config_source='database',
-                spec=make_empty_instance_spec(),
             )
             if fw.public_base_fqdn:
                 ic.site_url = f'https://{input.identifier}.{fw.public_base_fqdn}'

@@ -25,6 +25,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
 from django.db.models import F, OuterRef, Q
+from django.db.models.expressions import DatabaseDefault
 from django.db.models.functions import JSONArray, JSONObject
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, gettext_lazy as _, override
@@ -55,7 +56,7 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans, set_i18n_context
+from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
@@ -70,6 +71,7 @@ from kausal_common.models.types import (
 from kausal_common.models.uuid import UUIDIdentifiedModel, query_pk_or_uuid_or_identifier
 
 from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
+from paths.context import InstanceSpecificCache
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import (
     ChoiceArrayField,
@@ -92,6 +94,7 @@ from orgs.models import Organization
 from pages.blocks import CardListBlock
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from datetime import datetime
 
     from django.db.models import CharField
@@ -424,7 +427,9 @@ class InstanceGraphQLContext:
     matched_hostname: InstanceHostname | None = None
 
 
-class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], UUIDIdentifiedModel, models.Model):
+class InstanceConfig(
+    DraftStateMixin, RevisionMixin, CacheablePathsModel[InstanceSpecificCache], UUIDIdentifiedModel, models.Model
+):
     """Metadata for one Paths computational model instance."""
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
@@ -474,7 +479,7 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         choices=[('yaml', 'YAML'), ('database', 'Database')],
         default='yaml',
     )
-    spec = SchemaField(schema=InstanceSpec, null=True)
+    spec = SchemaField(schema=InstanceSpec, null=True, blank=True)
 
     viewer_group: FK[Group | None] = models.ForeignKey(
         Group,
@@ -573,23 +578,30 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         yield 'id', self.pk
         yield 'name', self.name
 
-    def save(self, *args, **kwargs):
-        if not isinstance(self.uuid, uuid.UUID):
-            self.uuid = uuid.uuid4()
-
-        if (spec := self.spec) is not None:
-            with set_i18n_context(self.primary_language, self.other_languages):
+    def save(self, *args, update_fields: Iterable[str] | None = None, **kwargs):
+        if update_fields is None:
+            if not self.uuid or isinstance(self.uuid, DatabaseDefault):
+                self.uuid = uuid.uuid4()
+            if self.site is not None:
+                # TODO: Update Site and root page attributes
+                pass
+            if self.spec is None:
+                if self.config_source == 'database' or self.get_yaml_config_entrypoint():
+                    self.spec = self.ensure_spec(update_self=True, save=False)
+            else:
+                spec = self.spec
                 spec.uuid = self.uuid
-                spec.identifier = self.identifier
-                spec.name = self.name
                 spec.primary_language = self.primary_language
-                spec.other_languages = list(self.other_languages or [])
+                spec.other_languages = self.other_languages
+                spec.identifier = self.identifier
+                spec.name = get_translated_string_from_modeltrans(self, 'name', self.primary_language)
 
-        if self.site is not None:
-            # TODO: Update Site and root page attributes
-            pass
+            if not self.pk and self.spec is not None:
+                spec = self.spec
+                self.primary_language = spec.primary_language
+                self.other_languages = list(spec.other_languages)
 
-        super().save(*args, **kwargs)
+        super().save(*args, update_fields=update_fields, **kwargs)
 
     @transaction.atomic
     @copy_signature(models.Model.delete)
@@ -616,6 +628,11 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
     @classmethod
     def permission_policy(cls) -> InstanceConfigPermissionPolicy:
         return InstanceConfigPermissionPolicy()
+
+    def model_cache_from_global(self) -> InstanceSpecificCache | None:
+        if self._global_cache is None:
+            return None
+        return self._global_cache.for_instance(self)
 
     @classmethod
     def create_for_instance(cls, instance: Instance, **kwargs) -> InstanceConfig:
@@ -954,34 +971,51 @@ class InstanceConfig(DraftStateMixin, RevisionMixin, CacheablePathsModel[None], 
         instance = self.get_instance()
         return str(instance.name)
 
-    def ensure_spec(self) -> InstanceSpec:
+    def _get_spec_from_yaml(self) -> tuple[InstanceSpec, str] | None:
+        from .instance_loader import InstanceYAMLConfig
+
+        config_fn = self.get_yaml_config_entrypoint()
+        if config_fn is None:
+            return None
+        yaml_conf = InstanceYAMLConfig.load_for_entrypoint(config_fn)
+        data = yaml_conf.data
+        assert data is not None
+        spec = make_minimal_instance_spec(data)
+        return spec, yaml_conf.meta.mtime_hash or yaml_conf.meta.calculate_mtime_hash()
+
+    def ensure_spec(self, update_self: bool = True, save: bool = True) -> InstanceSpec:
         if self.spec is not None:
             return self.spec
 
         if self.config_source == 'yaml':
-            from .instance_loader import InstanceYAMLConfig
-
-            config_fn = self.get_yaml_config_entrypoint()
-            if config_fn is None:
+            yaml_ret = self._get_spec_from_yaml()
+            if yaml_ret is None:
                 raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
-            yaml_conf = InstanceYAMLConfig.load_for_entrypoint(config_fn)
-            data = yaml_conf.data
-            assert data is not None
-            self.spec = make_minimal_instance_spec(data)
-            self.yaml_mtime_hash = yaml_conf.meta.mtime_hash or yaml_conf.meta.calculate_mtime_hash()
-            self.primary_language = self.spec.primary_language
-            self.other_languages = list(self.spec.other_languages)
-            self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash'])
+
+            if not save and not update_self:
+                return yaml_ret[0]
+
+            spec, yaml_mtime_hash = yaml_ret
+            self.spec = spec
+            self.yaml_mtime_hash = yaml_mtime_hash
+            self.primary_language = spec.primary_language
+            self.other_languages = list(spec.other_languages)
+            if save:
+                self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash'])
             return self.spec
 
-        self.spec = InstanceSpec(
+        spec = InstanceSpec(
             identifier=self.identifier,
             name=self.name,
             primary_language=self.primary_language,
             other_languages=list(self.other_languages or []),
+            uuid=self.uuid,
         )
+        if not save:
+            return spec
+        self.spec = spec
         self.save(update_fields=['spec'])
-        return self.spec
+        return spec
 
     @property
     def default_language(self) -> str:
@@ -1604,7 +1638,7 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         default=NodeKindChoices.FORMULA,
     )
 
-    spec = SchemaField(schema=NodeSpec, null=True)
+    spec = SchemaField(schema=NodeSpec, null=True, blank=True)
 
     # Audit timestamps (``created_at`` / ``last_modified_at``) + user FKs
     # come from ``UserModifiableModel`` via ``EditableInstanceChild``.

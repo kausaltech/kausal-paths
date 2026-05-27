@@ -8,9 +8,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import translation
 
 from kausal_common.context.single import SingleValueContext
-from kausal_common.models.object_cache import CacheableModel
 
-from paths.types import PathsModel
+from frameworks.models import FrameworkConfig
 
 if TYPE_CHECKING:
     from django.db.models import Model
@@ -33,11 +32,6 @@ class RealmContext:
     user: User | None
 
 
-class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel):
-    class Meta:
-        abstract = True
-
-
 class HasParent(Protocol):
     def __init__(self, parent: Any, /): ...
 
@@ -45,6 +39,20 @@ class HasParent(Protocol):
 @dataclass
 class InstanceSpecificCache:
     instance: InstanceConfig
+    object_cache: PathsObjectCache
+
+    @cached_property
+    def framework_config(self) -> FrameworkConfig | None:
+        fwc = FrameworkConfig.objects.get_queryset().select_related('framework').filter(instance_config=self.instance).first()
+        if fwc is None:
+            return None
+        fw = self.object_cache.for_framework(fwc.framework)
+        if fw is None:
+            return None
+        fwc_cache = fw.cache.framework_configs.get(fwc.pk)
+        if fwc_cache is None:
+            return None
+        return fwc_cache
 
     @cached_property
     def translated_root_page(self) -> Page | None:
@@ -116,7 +124,7 @@ class PathsObjectCache:
     def for_instance(self, instance: InstanceConfig) -> InstanceSpecificCache:
         if instance.pk in self.instance_caches:
             return self.instance_caches[instance.pk]
-        cache = InstanceSpecificCache(instance)
+        cache = InstanceSpecificCache(instance=instance, object_cache=self)
         self.instance_caches[instance.pk] = cache
         return cache
 

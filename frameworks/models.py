@@ -35,6 +35,8 @@ from kausal_common.users import user_or_none
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import IdentifierField, UnitField
 
+from nodes.defs import InstanceSpec
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -754,12 +756,22 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         # Create new organization for instance
         org = Organization.objects.get(name='NetZeroCities')
 
+        uuid = uuid or uuid4()
+        spec = InstanceSpec(
+            identifier=instance_identifier,
+            name=instance_name,
+            primary_language='en',
+            other_languages=[],
+            uuid=uuid,
+        )
         ic = InstanceConfig.objects.create(
             name=instance_name,
             identifier=instance_identifier,
             primary_language='en',
             other_languages=[],
             organization=org,
+            uuid=uuid,
+            spec=spec,
         )
 
         pp = cls.permission_policy()
@@ -767,8 +779,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             extra = cls.permission_policy().get_create_defaults(user, framework)
         else:
             extra = {}
-        if uuid is None:
-            uuid = uuid4()
         fc = cls.objects.create(
             framework=framework,
             instance_config=ic,

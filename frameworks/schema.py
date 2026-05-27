@@ -279,6 +279,7 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     organization_identifier = graphene.String(required=False)
     is_locked = graphene.Boolean(required=True)
     instance_identifier = graphene.String(required=True)
+    framework = graphene.Field(FrameworkType, required=True)
 
     class Meta(DjangoNodeMeta):
         model = FrameworkConfig

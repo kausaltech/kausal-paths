@@ -20,6 +20,7 @@ from paths.graphql_helpers import pass_context
 from paths.graphql_types import UnitType
 
 from datasets.graphql import DatasetType
+from frameworks.models import FrameworkConfig
 from nodes.defs import InstanceSpec
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.goals import GoalActualValue, NodeGoalsEntry
@@ -422,17 +423,10 @@ class InstanceType:
     def is_locked(root: Instance) -> bool:
         return root.config.is_locked
 
-    @sb.field
+    @sb.field(graphql_type=Annotated['FrameworkConfigType', sb.lazy('frameworks.schema')] | None)  # pyright: ignore[reportOperatorIssue]
     @staticmethod
-    def framework_config(
-        root: Instance,
-    ) -> Annotated['FrameworkConfigType', sb.lazy('frameworks.schema')] | None:
-        from frameworks.models import FrameworkConfig as _FrameworkConfig
-
-        try:
-            return root.config.framework_config  # type: ignore[return-value]
-        except _FrameworkConfig.DoesNotExist:
-            return None
+    def framework_config(root: Instance, info: gql.Info) -> FrameworkConfig | None:
+        return root.config.cache.framework_config
 
     @sb.field(description='Active members of this instance. Only visible to instance admins.')
     @staticmethod
