@@ -216,25 +216,10 @@ impact_overviews:
   label: Total cost-benefit
 
 - graph_type: cost_benefit
-  effect_node: discounted_cost_for_citizens
+  effect_node: health_costs_attributed_to_exposure
   indicator_unit: MEUR
-  stakeholder_dimension: stakeholder
   outcome_dimension: cost_type
-  label: Cost-benefit for citizens
-
-- graph_type: cost_benefit
-  effect_node: discounted_cost_for_property_owners
-  indicator_unit: MEUR
-  stakeholder_dimension: stakeholder
-  outcome_dimension: cost_type
-  label: Cost-benefit for property owners
-
-- graph_type: cost_benefit
-  effect_node: discounted_cost_for_city
-  indicator_unit: MEUR
-  stakeholder_dimension: stakeholder
-  outcome_dimension: cost_type
-  label: Cost-benefit for city
+  label: Health costs attributed to exposure
 
 - graph_type: cost_efficiency
   cost_node: discounted_total_cost
