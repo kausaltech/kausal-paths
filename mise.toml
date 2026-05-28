@@ -13,12 +13,15 @@ _.python.venv = { path = ".venv", create = true, uv_create_args = [] }
 _.fnox-env = { tools = true }
 PYTHONPATH = "{{ config_root }}"
 
-[deps.uv]
-auto = true
+[tasks.prepare]
+description = "Install Python venv and development tools"
+depends = ["uv", "uv-tools"]
+
+[tasks.uv]
+description = "Sync Python dependencies (all groups and extras)"
 run = "uv sync --all-groups --all-extras"
 
-[deps.uv-tools]
-auto = true
+[tasks.uv-tools]
 description = "Install development tools with uv"
 outputs = [".mise/uv_tools_installed"]
 run = "sh -c 'uv tool install pyproject-fmt@latest && echo $(date) >> .mise/uv_tools_installed'"

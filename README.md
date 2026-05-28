@@ -7,50 +7,35 @@ Kausal Paths is a tool for predicting the future emissions of cities based on hi
 Make sure you have installed the following:
 - a package manager (e.g., homebrew for macOS, apt for Ubuntu, etc.)
 - git
-- python
-- uv (python package manager)
-- direnv (auto-loads environment variables)
-        - **Beginner Hints**: before direnv works you need to hook it into your shell: depending on which shell you're using (find out with `echo $SHELL`)
-        add `eval "$(direnv hook bash)"` to your `~/.bashrc` OR `eval "$(direnv hook zsh)"` to your `~/.zshrc` (create those files if they don't exist yet).
-        After that, restart the terminal or run `source ~/.bashrc` OR `source ~/.zshrc`.
-
+- [uv](https://docs.astral.sh/uv/) — Python version and package manager
 
 ### Development
-After cloning the repository, move to your project root directory (paths folder) and allow loading environment variables:
-`direnv allow`
 
-In the project root directory, create and activate a Python virtual environment:
+After cloning the repository, create a virtual environment and install all dependencies:
 
 ```shell
-uv venv
-source .venv/bin/activate
+uv sync --all-groups --all-extras
 ```
 
-Install the required Python packages:
+> **Note:** Always use `uv sync --all-groups --all-extras`, not bare `uv sync`.
+> The bare command omits optional groups and extras and will remove packages.
+
+#### Kausal team members
+
+If you are a Kausal team member, use [mise](https://mise.jdx.dev/) instead —
+it also manages tool versions (vault, prek, fnox) and loads credentials:
 
 ```shell
-uv sync
+curl https://mise.run | sh   # if not already installed
+mise prepare
 ```
 
-
-Configure the PyPI index URL in your `.envrc` file (create it if it doesn't exist yet) if you have access to the Kausal private extensions (ask a team member for access):
+If you have access to the Kausal private Python extensions, add your credentials
+to `.envrc` before running `mise prepare`:
 
 ```shell
 export UV_INDEX_KAUSAL_USERNAME=...
 export UV_INDEX_KAUSAL_PASSWORD=...
-```
-
-
-Then install the dependencies like this:
-
-```shell
-uv sync --extra kausal
-```
-
-If you need to run Jupyter notebooks, include the `notebook` dependency group:
-
-```shell
-uv sync --group notebook --extra kausal
 ```
 
 Create a file called `local_settings.py` in your repository root with the following contents:
