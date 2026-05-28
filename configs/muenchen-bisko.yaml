@@ -446,25 +446,6 @@ nodes:
     value: -1.0
     unit: dimensionless
 
-# - id: final_energy_use
-#   name_de: Endenergie
-#   name_en: Final energy use
-#   type: generic.GenericNode
-#   quantity: energy
-#   unit: MWh/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_datasets:
-#   - id: muenchen/final_energy
-#     tags: [non_additive]
-#     filters:
-#     - column: energy_carrier
-#       value: not_defined
-#       exclude: true
-#       drop_col: false
-#   input_nodes:
-#   - id: weather_correction
-
 # --- Nodes needed by the action pipeline ---
 # These bridge BISKO's baseline data pipeline into the Cologne-style
 # action calculation mechanism.
