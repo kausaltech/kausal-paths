@@ -60,7 +60,7 @@ params:
   label_en: Use national rather than local electricity emission factors (BISKO)
   label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren 
     (BISKO).
-  value: true
+  value: false
   is_visible: true
   is_customizable: true
 - id: use_mileage
@@ -68,7 +68,7 @@ params:
     transport
   label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen 
     Energieverbrauchsdaten für den Transport.
-  value: true
+  value: false
   is_visible: true
   is_customizable: true
 - id: use_local_values # FIXME Make connection to district heating emission factors dataset.
@@ -76,7 +76,7 @@ params:
     (BISKO)
   label_de: Verwenden Sie lokale statt nationale Fernwärmeemissionsfaktoren 
     (BISKO).
-  value: true
+  value: false
   is_visible: true
   is_customizable: true
 

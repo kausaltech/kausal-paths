@@ -10,10 +10,10 @@ name: Düsseldorf Klima-Monitor
 owner: Stadt Düsseldorf
 theme_identifier: de-dusseldorf
 target_year: 2035
-model_end_year: 2035
-reference_year: 2010
-minimum_historical_year: 2010
-maximum_historical_year: 2023
+model_end_year: 2050
+reference_year: 1987
+minimum_historical_year: 1987
+maximum_historical_year: 2022
 emission_unit: kt_co2e/a
 features:
   baseline_visible_in_graphs: true
