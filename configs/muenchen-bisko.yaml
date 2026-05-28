@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://muenchen-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
+  commit: 258b76dff3f48de16f872f53e9697ace180c1b59
   dvc_remote: kausal-s3
 name_de: München Klimadashboard
 name_en: Munich Climate Dashboard
@@ -12,8 +12,8 @@ owner: München Stadt
 theme_identifier: default
 target_year: 2035
 model_end_year: 2050
-reference_year: 1990
-minimum_historical_year: 2010
+reference_year: 2018
+minimum_historical_year: 2018
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
@@ -24,10 +24,10 @@ features:
 
 include:
 - file: modules/bisko/model.yaml
-  allow_override: false
-  # dataset_replacements:
-  # - from: bisko/final_energy
-  #   to: augsburg/final_energy
+  allow_override: true
+  dataset_replacements:
+  - from: bisko/final_energy
+    to: muenchen/final_energy
   # - from: bisko/historical_emissions
   #   to: augsburg/historical_emissions
   # - from: bisko/passenger_kilometers
@@ -446,6 +446,25 @@ nodes:
     value: -1.0
     unit: dimensionless
 
+# - id: final_energy_use
+#   name_de: Endenergie
+#   name_en: Final energy use
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_datasets:
+#   - id: muenchen/final_energy
+#     tags: [non_additive]
+#     filters:
+#     - column: energy_carrier
+#       value: not_defined
+#       exclude: true
+#       drop_col: false
+#   input_nodes:
+#   - id: weather_correction
+
 # --- Nodes needed by the action pipeline ---
 # These bridge BISKO's baseline data pipeline into the Cologne-style
 # action calculation mechanism.
@@ -453,9 +472,9 @@ nodes:
 - id: stationary_energy_by_type
   name_de: Stationäre Endenergieverbrauch nach Typ
   name_en: Stationary energy use by type
-  description_de: Stationärer Endenergieverbrauch aus dem BISKO-Datensatz,
+  description_de: Stationärer Endenergieverbrauch aus dem BISKO-Datensatz, 
     genutzt für die Berechnung der Maßnahmenanteile.
-  description_en: Stationary final energy use from the BISKO dataset, used for
+  description_en: Stationary final energy use from the BISKO dataset, used for 
     computing action emission shares.
   type: generic.GenericNode
   quantity: energy
@@ -468,13 +487,13 @@ nodes:
 - id: vehicle_energy_by_type
   name_de: Verkehrsenergieverbrauch nach Fahrzeugtyp
   name_en: Vehicle energy use by vehicle type
-  description_de: Endenergieverbrauch im Verkehr nach Fahrzeugtyp, aus
-    BISKO-Fahrleistungsstatistiken. Einzelne Kraftstofftypen werden zu
-    "fuels" aggregiert, damit die Dimension mit dem Cologne action_index
-    übereinstimmt (Platzhalter bis zur Munich-spezifischen Datenerstellung).
-  description_en: Transport final energy use by vehicle type, from BISKO
-    mileage statistics. Individual fuel types are aggregated into "fuels"
-    so the dimension matches the Cologne action_index (placeholder until
+  description_de: Endenergieverbrauch im Verkehr nach Fahrzeugtyp, aus 
+    BISKO-Fahrleistungsstatistiken. Einzelne Kraftstofftypen werden zu "fuels" 
+    aggregiert, damit die Dimension mit dem Cologne action_index übereinstimmt 
+    (Platzhalter bis zur Munich-spezifischen Datenerstellung).
+  description_en: Transport final energy use by vehicle type, from BISKO mileage
+    statistics. Individual fuel types are aggregated into "fuels" so the 
+    dimension matches the Cologne action_index (placeholder until 
     Munich-specific data is created).
   type: formula.FormulaNode
   quantity: energy
@@ -489,21 +508,22 @@ nodes:
     # so the energy_carrier dimension matches the Cologne action_index dataset,
     # which uses 'fuels' for all drive_transition and mobility_transition actions.
     # Electricity and hydrogen remain as separate categories.
-    formula: sum_into_cat(veh, energy_carrier, [petrol, diesel, bio_petrol, biodiesel,
-      biogas, biogas_chp, cng_bio, cng_fossil, lpg, propane, natural_gas, kerosene],
-      fuels)
+    formula: sum_into_cat(veh, energy_carrier, [petrol, diesel, bio_petrol, 
+      biodiesel, biogas, biogas_chp, cng_bio, cng_fossil, lpg, propane, 
+      natural_gas, kerosene], fuels)
 
 - id: transport_ef_fuels
   name_de: Emissionsfaktor für aggregierte Kraftstoffe
   name_en: Emission factor for aggregated transport fuels
   description_de: Gewichteter Durchschnitts-Emissionsfaktor für den aggregierten
     Kraftstoffträger 'fuels' — berechnet aus den BISKO-Verkehrsemissionsfaktoren
-    gewichtet nach dem Fahrzeugenergieverbrauch. Wird benötigt, damit
+    gewichtet nach dem Fahrzeugenergieverbrauch. Wird benötigt, damit 
     action_emission_shares mit dem Cologne-action_index kompatibel ist.
-  description_en: Weighted average emission factor for the aggregated 'fuels'
-    energy carrier — derived from BISKO transport emission factors weighted by
-    vehicle energy consumption. Needed so action_emission_shares is compatible
-    with the Cologne action_index (which uses 'fuels' for drive_transition actions).
+  description_en: Weighted average emission factor for the aggregated 'fuels' 
+    energy carrier — derived from BISKO transport emission factors weighted by 
+    vehicle energy consumption. Needed so action_emission_shares is compatible 
+    with the Cologne action_index (which uses 'fuels' for drive_transition 
+    actions).
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -520,21 +540,64 @@ nodes:
   params:
     # Weighted average: ef_fuels = Σ(ef_i × energy_i) / Σ(energy_i) for i in fuel types
     # sum_into_cat aggregates source categories into target, keeping non-fuel carriers
-    formula: sum_into_cat(ef * veh, energy_carrier, [petrol, diesel, bio_petrol, biodiesel,
-      biogas, biogas_chp, cng_bio, cng_fossil, lpg, propane, natural_gas, kerosene],
-      fuels) / sum_into_cat(veh, energy_carrier, [petrol, diesel, bio_petrol, biodiesel,
-      biogas, biogas_chp, cng_bio, cng_fossil, lpg, propane, natural_gas, kerosene],
-      fuels)
+    formula: sum_into_cat(ef * veh, energy_carrier, [petrol, diesel, bio_petrol,
+      biodiesel, biogas, biogas_chp, cng_bio, cng_fossil, lpg, propane, 
+      natural_gas, kerosene], fuels) / sum_into_cat(veh, energy_carrier, 
+      [petrol, diesel, bio_petrol, biodiesel, biogas, biogas_chp, cng_bio, 
+      cng_fossil, lpg, propane, natural_gas, kerosene], fuels)
+
+- id: transport_emissions
+  name_en: Transport emissions
+  name_de: Transportemissionen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transport_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
+  goals:
+  - label: Transport emission budget
+    default: true
+    linear_interpolation: true
+    values:
+    - year: 2018
+      value: 2050
+    - year: 2025
+      value: 1700
+    - year: 2035
+      value: 860
+    - year: 2040
+      value: 500
+    is_main_goal: true
 
 - id: emission_factors
   name_de: Emissionsfaktoren
   name_en: Emission factors
-  description_de: Kombinierte Emissionsfaktoren für stationäre und Verkehrsenergie.
-    Für den Aktionsanteilsrechner werden sowohl stationäre Träger (Erdgas, Strom
-    usw.) als auch der aggregierte 'fuels'-Träger für Verkehrsmaßnahmen benötigt.
+  description_de: Kombinierte Emissionsfaktoren für stationäre und 
+    Verkehrsenergie. Für den Aktionsanteilsrechner werden sowohl stationäre 
+    Träger (Erdgas, Strom usw.) als auch der aggregierte 'fuels'-Träger für 
+    Verkehrsmaßnahmen benötigt.
   description_en: Combined emission factors for stationary and transport energy.
-    The action emission shares formula needs both stationary carriers (natural gas,
-    electricity, etc.) and the aggregated 'fuels' carrier for transport actions.
+    The action emission shares formula needs both stationary carriers (natural 
+    gas, electricity, etc.) and the aggregated 'fuels' carrier for transport 
+    actions.
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -547,9 +610,9 @@ nodes:
 - id: planned_action_shares
   name_de: Geplante Maßnahmenanteile
   name_en: Planned action shares
-  description_de: Geplante Maßnahmenanteile als Ergänzung zur
-    proportionalen Verteilung. Nutzt vorläufig Kölner Daten als Platzhalter.
-  description_en: Planned action shares as an additive supplement to the
+  description_de: Geplante Maßnahmenanteile als Ergänzung zur proportionalen 
+    Verteilung. Nutzt vorläufig Kölner Daten als Platzhalter.
+  description_en: Planned action shares as an additive supplement to the 
     proportional distribution. Using Cologne data as placeholder for now.
   type: generic.GenericNode  # Changed from formula.FormulaNode
   quantity: fraction
@@ -754,33 +817,33 @@ actions:
     - id: vehicle_type
       flatten: true
 
-- id: electricity_savings_commercial_sector
-  name_de: Stromeinsparung im Gewerbesektor
-  name_en: Electricity Savings in Commercial Sector
-  description_en: 'The strategy consists of these measures:<ul><li>KölnBusiness Economic
-    Development GmbH Consulting: Promoting Sustainability Projects incl. Financing
-    Options in Companies</li></ul>'
-  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Beratungen der
-    KölnBusiness Wirtschaftsförderungs-GmbH: Nachhaltigkeitsvorhaben inkl. Finanzierungsmöglichkeiten
-    im Unternehmen fördern</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/02-strom/stromeinsparung-im-gewerbesektor">in
-    Kausal Watch</a></p>'
-  type: simple.GenericAction
-  quantity: emissions
-  unit: kt_co2e/a
-  group: electricity
-  input_dimensions: [energy_carrier, sector, vehicle_type]
-  output_dimensions: [energy_carrier, sector, vehicle_type]
-  input_nodes:
-  - id: action_potential_by_dimensions
-    from_dimensions:
-    - id: action
-      categories: [electricity_savings_commercial_sector]
-      flatten: true
-  output_nodes:
-  - id: electricity_actions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
+# - id: electricity_savings_commercial_sector
+#   name_de: Stromeinsparung im Gewerbesektor
+#   name_en: Electricity Savings in Commercial Sector
+#   description_en: 'The strategy consists of these measures:<ul><li>KölnBusiness Economic
+#     Development GmbH Consulting: Promoting Sustainability Projects incl. Financing
+#     Options in Companies</li></ul>'
+#   description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Beratungen der
+#     KölnBusiness Wirtschaftsförderungs-GmbH: Nachhaltigkeitsvorhaben inkl. Finanzierungsmöglichkeiten
+#     im Unternehmen fördern</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/02-strom/stromeinsparung-im-gewerbesektor">in
+#     Kausal Watch</a></p>'
+#   type: simple.GenericAction
+#   quantity: emissions
+#   unit: kt_co2e/a
+#   group: electricity
+#   input_dimensions: [energy_carrier, sector, vehicle_type]
+#   output_dimensions: [energy_carrier, sector, vehicle_type]
+#   input_nodes:
+#   - id: action_potential_by_dimensions
+#     from_dimensions:
+#     - id: action
+#       categories: [electricity_savings_commercial_sector]
+#       flatten: true
+#   output_nodes:
+#   - id: electricity_actions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
 
 - id: electricity_savings_households
   name_de: Stromeinsparung durch Haushalte
@@ -807,30 +870,30 @@ actions:
     - id: vehicle_type
       flatten: true
 
-- id: electricity_savings_industry
-  name_de: Stromeinsparung in der Industrie
-  name_en: Electricity Savings in Industry
-  description_en: The strategy consists of these measures:<ul><li>(No specific 
-    measures listed)</li></ul>
-  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
-    spezifischen Maßnahmen aufgeführt)</li></ul>
-  type: simple.GenericAction
-  quantity: emissions
-  unit: kt_co2e/a
-  group: electricity
-  input_dimensions: [energy_carrier, sector, vehicle_type]
-  output_dimensions: [energy_carrier, sector, vehicle_type]
-  input_nodes:
-  - id: action_potential_by_dimensions
-    from_dimensions:
-    - id: action
-      categories: [electricity_savings_industry]
-      flatten: true
-  output_nodes:
-  - id: electricity_actions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
+# - id: electricity_savings_industry
+#   name_de: Stromeinsparung in der Industrie
+#   name_en: Electricity Savings in Industry
+#   description_en: The strategy consists of these measures:<ul><li>(No specific 
+#     measures listed)</li></ul>
+#   description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
+#     spezifischen Maßnahmen aufgeführt)</li></ul>
+#   type: simple.GenericAction
+#   quantity: emissions
+#   unit: kt_co2e/a
+#   group: electricity
+#   input_dimensions: [energy_carrier, sector, vehicle_type]
+#   output_dimensions: [energy_carrier, sector, vehicle_type]
+#   input_nodes:
+#   - id: action_potential_by_dimensions
+#     from_dimensions:
+#     - id: action
+#       categories: [electricity_savings_industry]
+#       flatten: true
+#   output_nodes:
+#   - id: electricity_actions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
 
 - id: heat_source_development_for_heat_networks
   name_de: Wärmequellenerschließung für Wärmenetze
@@ -1421,13 +1484,13 @@ actions:
 - id: ghg_neutral_administration_scope_3
   name_de: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
   name_en: GHG-Neutral Administration (Indirect Influence via Scope 3)
-  description_en: The strategy consists of these measures:<ul><li>Internal
-    Change Agent Network for Climate Protection</li><li>Integration of Climate
-    Protection and Sustainability in Procurement and
+  description_en: The strategy consists of these measures:<ul><li>Internal 
+    Change Agent Network for Climate Protection</li><li>Integration of Climate 
+    Protection and Sustainability in Procurement and 
     Contracting</li><li>Zero-Waste Concept Measures</li></ul>
-  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Internes
-    Change-Agent-Netzwerk für Klimaschutz</li><li>Verankerung von Klimaschutz
-    und Nachhaltigkeit bei Beschaffung und Nachhaltigkeit bei Beschaffung und
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Internes 
+    Change-Agent-Netzwerk für Klimaschutz</li><li>Verankerung von Klimaschutz 
+    und Nachhaltigkeit bei Beschaffung und Nachhaltigkeit bei Beschaffung und 
     Vergabe</li><li>Maßnahmen des Zero-Waste-Konzepts</li></ul>
   type: simple.GenericAction
   quantity: emissions
@@ -1481,34 +1544,34 @@ actions:
   output_nodes:
   - id: waste_and_wastewater_emissions
 
-- id: water_wastewater_reduction_and_facility_efficiency
-  name_de: Wasser-/Abwasserreduktion & Anlageneffizienz
-  name_en: Water/Wastewater Reduction & Facility Efficiency
-  description_en: The strategy consists of these measures:<ul><li>(No specific 
-    measures listed)</li></ul>
-  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
-    spezifischen Maßnahmen aufgeführt)</li></ul>
-  type: simple.GenericAction
-  quantity: emissions
-  unit: kt_co2e/a
-  group: waste_and_wastewater
-  input_dimensions: [energy_carrier, sector, vehicle_type]
-  output_dimensions: [energy_carrier, sector, vehicle_type]
-  input_nodes:
-  - id: action_potential_by_dimensions
-    from_dimensions:
-    - id: action
-      categories: [water_wastewater_reduction_and_facility_efficiency]
-      flatten: true
-  output_nodes:
-  - id: waste_and_wastewater_emissions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-  params:
-  - id: enabled
-    is_customizable: false
-    is_visible: false
+# - id: water_wastewater_reduction_and_facility_efficiency
+#   name_de: Wasser-/Abwasserreduktion & Anlageneffizienz
+#   name_en: Water/Wastewater Reduction & Facility Efficiency
+#   description_en: The strategy consists of these measures:<ul><li>(No specific 
+#     measures listed)</li></ul>
+#   description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
+#     spezifischen Maßnahmen aufgeführt)</li></ul>
+#   type: simple.GenericAction
+#   quantity: emissions
+#   unit: kt_co2e/a
+#   group: waste_and_wastewater
+#   input_dimensions: [energy_carrier, sector, vehicle_type]
+#   output_dimensions: [energy_carrier, sector, vehicle_type]
+#   input_nodes:
+#   - id: action_potential_by_dimensions
+#     from_dimensions:
+#     - id: action
+#       categories: [water_wastewater_reduction_and_facility_efficiency]
+#       flatten: true
+#   output_nodes:
+#   - id: waste_and_wastewater_emissions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
+#   params:
+#   - id: enabled
+#     is_customizable: false
+#     is_visible: false
 
 - id: cross_cutting_climate_protection_aspects
   name_de: Übergreifende Klimaschutz-aspekte
@@ -2128,7 +2191,9 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Treibhausgasbilanz und -prognosen
-  lead_paragraph: Historische Treibhausgasemissionen der Stadt München und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+  lead_paragraph: Historische Treibhausgasemissionen der Stadt München und 
+    Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen 
+    erfolgreich umgesetzt".
 
 
 #//////  Scenarios  ///////////////////////////////////////////////////////////////////////////////////////////////////

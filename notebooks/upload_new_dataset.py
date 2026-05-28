@@ -235,7 +235,7 @@ def extract_description(df: pl.DataFrame) -> str | None:
 def canonical_metric_column_id(raw: str) -> str:
     """Map a raw metric label to a valid Parquet / NodeMetric column identifier."""
     if raw == VALUE_COLUMN:
-        return 'default'
+        return VALUE_COLUMN
     return to_snake_case(raw)
 
 
