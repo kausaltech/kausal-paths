@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+from typing import Never
+
+from django.urls import reverse
+
 import pytest
 from social_core.backends.base import BaseAuth
 
 from paths.const import INSTANCE_SUPER_ADMIN_ROLE
 
+from admin_site.api import check_user_in_other_clusters
 from admin_site.auth_backends import NZCPortalOAuth2
 from admin_site.auth_pipeline import assign_roles
 from frameworks.models import FrameworkConfig
@@ -17,6 +22,82 @@ pytestmark = pytest.mark.django_db
 
 class DummyAuthBackend(BaseAuth):
     name = 'test'
+
+
+class DummyClusterResponse:
+    status_code = 200
+
+    def json(self) -> dict[str, str]:
+        return {'method': 'azure_ad'}
+
+
+def test_check_login_method_redirects_to_user_cluster(client, monkeypatch, settings) -> None:
+    settings.PATHS_BACKEND_REGION_URLS = ['https://eu.paths.example']
+    url = reverse('admin_check_login_method')
+
+    def post(url: str, json: dict[str, str], timeout: int, headers: dict[str, str]) -> DummyClusterResponse:
+        assert url == 'https://eu.paths.example/admin/login/check/'
+        assert json == {'email': 'user@example.com'}
+        assert timeout == 5
+        assert headers == {'Content-Type': 'application/json'}
+        return DummyClusterResponse()
+
+    monkeypatch.setattr('admin_site.api.requests.post', post)
+
+    response = client.post(url, {'email': ' USER@example.com '}, content_type='application/json')
+
+    assert response.status_code == 200
+    assert response.json() == {
+        'method': 'azure_ad',
+        'cluster_redirect': True,
+        'cluster_url': 'https://eu.paths.example',
+    }
+
+
+def test_check_login_method_ignores_inactive_local_user_when_checking_clusters(client, monkeypatch, settings) -> None:
+    settings.PATHS_BACKEND_REGION_URLS = ['https://eu.paths.example']
+    UserFactory.create(email='user@example.com', is_staff=True, is_superuser=True, is_active=False)
+    url = reverse('admin_check_login_method')
+
+    def post(*_args: object, **_kwargs: object) -> DummyClusterResponse:
+        return DummyClusterResponse()
+
+    monkeypatch.setattr('admin_site.api.requests.post', post)
+
+    response = client.post(url, {'email': 'user@example.com'}, content_type='application/json')
+
+    assert response.status_code == 200
+    assert response.json()['cluster_redirect'] is True
+
+
+def test_check_login_method_prefers_local_user(client, monkeypatch, settings, instance_config) -> None:
+    settings.PATHS_BACKEND_REGION_URLS = ['https://eu.paths.example']
+    user = UserFactory.create(email='user@example.com', is_staff=True, is_superuser=True)
+    user.set_password('password')
+    user.save()
+    url = reverse('admin_check_login_method')
+
+    def post(*_args: object, **_kwargs: object) -> Never:
+        raise AssertionError('local users should not be checked from other clusters')
+
+    monkeypatch.setattr('admin_site.api.requests.post', post)
+
+    response = client.post(url, {'email': 'user@example.com'}, content_type='application/json')
+
+    assert response.status_code == 200
+    assert response.json() == {'method': 'password'}
+
+
+def test_check_user_in_other_clusters_skips_regional_host(rf, monkeypatch, settings) -> None:
+    settings.PATHS_BACKEND_REGION_URLS = ['https://regional.paths.example']
+    request = rf.post('/admin/login/check/', HTTP_HOST='regional.paths.example')
+
+    def post(*_args: object, **_kwargs: object) -> Never:
+        raise AssertionError('regional hosts should not check peer clusters')
+
+    monkeypatch.setattr('admin_site.api.requests.post', post)
+
+    assert check_user_in_other_clusters('user@example.com', request) is None
 
 
 def test_nzcportal_city_admin_maps_to_instance_super_admin() -> None:
