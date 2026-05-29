@@ -62,7 +62,7 @@ def check_login_method(request):
     if not email:
         msg = _('Invalid email address')
         raise ValidationError(dict(detail=msg, code='invalid_email'))
-    user = User.objects.filter(email__iexact=email).first()
+    user = User.objects.filter(email__iexact=email, is_active=True).first()
     if user is None:
         cluster_result = check_user_in_other_clusters(email, request)
         if cluster_result:
