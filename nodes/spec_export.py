@@ -665,7 +665,7 @@ def _resolve_dataset_ports(
     node: Node,
     idx: int,
     ds_instance: DatasetWithFilters,
-    placeholder_datasets: dict[str, DatasetModel],
+    db_datasets: dict[str, DatasetModel],
     metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric],
 ) -> list[DatasetPort]:
     from nodes.datasets import DBDataset
@@ -676,7 +676,7 @@ def _resolve_dataset_ports(
         dataset_obj = ds_instance.db_dataset_obj
         assert dataset_obj is not None
     elif isinstance(ds_instance, DVCDataset):
-        dataset_obj = placeholder_datasets.get(ds_instance.id)
+        dataset_obj = db_datasets.get(ds_instance.id)
     else:
         raise TypeError(f'Unknown dataset type: {type(ds_instance)}')
 
@@ -720,45 +720,33 @@ def _resolve_dataset_ports(
     return ports
 
 
-def _get_placeholder_datasets(ic: InstanceConfig) -> dict[str, DatasetModel]:
-    """
-    Build a lookup of dataset identifier -> placeholder Dataset for an instance.
-
-    Placeholder datasets are scoped through their schema's DatasetSchemaScope,
-    not via the Dataset's own scope fields, so we query through the schema relation.
-    """
-    from django.contrib.contenttypes.models import ContentType
-
-    from kausal_common.datasets.models import DatasetSchemaScope
-
-    schema_scope_ids = DatasetSchemaScope.objects.filter(
-        scope_content_type=ContentType.objects.get_for_model(ic),
-        scope_id=ic.pk,
-    ).values_list('schema_id', flat=True)
+def _get_db_datasets(ic: InstanceConfig) -> dict[str, DatasetModel]:
+    """Build a lookup of dataset identifier -> DB Dataset for an instance."""
     return {
         ds.identifier: ds
-        for ds in DatasetModel.objects.filter(
-            schema_id__in=schema_scope_ids,
-            is_external_placeholder=True,
-        ).select_related('schema')
+        for ds in DatasetModel.objects.get_queryset().for_instance_config(ic).select_related('schema')
         if ds.identifier
     }
 
 
-def _collect_dataset_schema_pks(ctx: Context, placeholder_datasets: dict[str, DatasetModel]) -> set[int]:
+def _collect_dataset_schema_pks(ctx: Context, db_datasets: dict[str, DatasetModel]) -> set[int]:
     """Collect schema PKs from both placeholder and DB-backed datasets."""
     from nodes.datasets import DBDataset
 
     pks: set[int] = set()
-    for ds in placeholder_datasets.values():
-        if ds.schema is not None:
-            pks.add(ds.schema.pk)
+    for ds in db_datasets.values():
+        assert ds.schema is not None
+        pks.add(ds.schema.pk)
     for node in ctx.nodes.values():
         for ds_instance in node.input_dataset_instances:
-            if isinstance(ds_instance, DBDataset) and ds_instance.db_dataset_obj is not None:
+            if isinstance(ds_instance, DBDataset):
                 db_ds = ds_instance.db_dataset_obj
-                if db_ds.schema is not None:
+                if db_ds is not None and db_ds.schema is not None:
                     pks.add(db_ds.schema.pk)
+                continue
+            db_dataset_obj = db_datasets.get(ds_instance.id)
+            if db_dataset_obj is not None and db_dataset_obj.schema is not None:
+                pks.add(db_dataset_obj.schema.pk)
     return pks
 
 
@@ -784,8 +772,8 @@ def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[s
 
     DatasetPort.objects.filter(instance=ic).delete()
 
-    placeholder_datasets = _get_placeholder_datasets(ic)
-    all_schema_pks = _collect_dataset_schema_pks(ctx, placeholder_datasets)
+    db_datasets = _get_db_datasets(ic)
+    all_schema_pks = _collect_dataset_schema_pks(ctx, db_datasets)
     if not all_schema_pks:
         return 0
 
@@ -805,7 +793,7 @@ def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[s
                 continue
             if not isinstance(ds_instance, DatasetWithFilters):
                 continue
-            ports = _resolve_dataset_ports(ic, nc, node, idx, ds_instance, placeholder_datasets, metrics_by_schema_and_name)
+            ports = _resolve_dataset_ports(ic, nc, node, idx, ds_instance, db_datasets, metrics_by_schema_and_name)
             port_objs.extend(ports)
 
     DatasetPort.objects.bulk_create(port_objs)
@@ -837,6 +825,7 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
     ctx = loader.context
     with transaction.atomic(), set_i18n_context(instance.default_language, instance.supported_languages):
         instance_spec = export_instance_spec(instance)
+        instance_spec.features.use_datasets_from_db = True
         ic, _created = InstanceConfig.objects.get_or_create(identifier=instance.id)
         ic.primary_language = instance.default_language
         ic.other_languages = [lang for lang in instance.supported_languages if lang != instance.default_language]

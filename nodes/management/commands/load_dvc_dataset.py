@@ -109,7 +109,7 @@ class Command(BaseCommand):
         )
         parser.add_argument('--force', action='store_true')
 
-    def sync_dataset(
+    def sync_dataset(  # noqa: C901
         self,
         instance_config: InstanceConfig,
         ctx: Context,
@@ -130,17 +130,35 @@ class Command(BaseCommand):
         dvc_metadata = dvc_ds.metadata or {}
 
         identifier = ds_id
+        scope_content_type = ContentType.objects.get_for_model(instance_config)
         get_kwargs = dict(
-            scope_content_type=ContentType.objects.get_for_model(instance_config),
+            scope_content_type=scope_content_type,
             scope_id=instance_config.pk,
             identifier=identifier,
         )
-        try:
-            dataset = Dataset.objects.get(**get_kwargs)
-        except Dataset.DoesNotExist:
-            pass
-        else:
-            if force:
+        dataset: Dataset | None = None
+        schema: DatasetSchema | None = None
+        datasets = list(
+            Dataset.objects
+            .get_queryset()
+            .for_instance_config(instance_config)
+            .filter(identifier=identifier)
+            .select_related('schema')[:2]
+        )
+        if len(datasets) > 1:
+            raise RuntimeError(f"Multiple datasets with identifier '{identifier}' exist for instance '{instance_config}'.")
+        if datasets:
+            dataset = datasets[0]
+            if dataset.is_external_placeholder:
+                print(f"Dataset '{dataset}' with identifier '{identifier}' is an external placeholder. Replacing.")
+                dataset.is_external_placeholder = False
+                dataset.scope_content_type = scope_content_type
+                dataset.scope_id = instance_config.pk
+                dataset.external_ref = make_external_dataset_ref(ctx, ds_id)
+                dataset.save(update_fields=['is_external_placeholder', 'scope_content_type', 'scope_id', 'external_ref'])
+                schema = dataset.schema
+                assert schema is not None
+            elif force:
                 schema = dataset.schema
                 assert schema is not None
                 if schema.datasets.count() > 1:
@@ -154,25 +172,24 @@ class Command(BaseCommand):
                 print(f"Dataset '{dataset}' with identifier '{identifier}' exists for instance '{instance_config}'. Aborting.")
                 return
 
-        schema = self.create_dataset_schema(
-            instance_config=instance_config,
-            default_language=ctx.instance.default_language,
-            name_i18n=dvc_metadata['name'],
-        )
-        create_kwargs = dict(
-            **get_kwargs,
-            schema=schema,
-            external_ref=make_external_dataset_ref(ctx, ds_id),
-        )
-        dataset = Dataset.objects.create(**create_kwargs)
-        print(f"Created dataset '{dataset}'")
+        if schema is None:
+            schema = self.create_dataset_schema(
+                instance_config=instance_config,
+                default_language=ctx.instance.default_language,
+                name_i18n=dvc_metadata['name'],
+            )
+        if dataset is None:
+            dataset = Dataset.objects.create(**get_kwargs, schema=schema, external_ref=make_external_dataset_ref(ctx, ds_id))
+            print(f"Created dataset '{dataset}'")
 
         # Match DB metric columns (DVC units keys) to meta: column_id is the physical column name; id is optional slug.
         metrics_meta = {
             (m.get('column_id') or m.get('id')): m for m in dvc_metadata.get('metrics') or [] if m.get('column_id') or m.get('id')
         }
+
+        metrics = {m.name: m for m in schema.metrics.all() if m.name}
         # Map metric identifiers (column names) to Metric instances
-        metrics = {
+        metrics.update({
             col: self.create_metric(
                 col=col,
                 unit=df_metadata.units[col],
@@ -181,7 +198,8 @@ class Command(BaseCommand):
                 label_i18n=metrics_meta.get(col, {}).get('label'),
             )
             for col in df_metadata.metric_cols
-        }
+            if col not in metrics
+        })
 
         df, column_dimensions = self.sync_dimensions(
             schema=schema,
@@ -292,12 +310,18 @@ class Command(BaseCommand):
             if column not in dim_ids:
                 raise ValueError(
                     f"Column '{column}' is not a dimension/index column in the DVC dataset. "
-                    f'Available dimension columns: {", ".join(sorted(dim_ids))}'
+                    + f'Available dimension columns: {", ".join(sorted(dim_ids))}'
                 )
 
         column_dimensions: dict[str, str] = {}
         for col in df_metadata.dim_ids:
             if dimension_identifier := create_dimensions_from_columns.get(col):
+                self.remove_schema_dimensions_for_column(
+                    schema=schema,
+                    instance_config=instance_config,
+                    column_name=col,
+                    keep_dimension_identifier=dimension_identifier,
+                )
                 self.get_or_create_dimension_from_column(
                     schema=schema,
                     instance_config=instance_config,
@@ -350,8 +374,38 @@ class Command(BaseCommand):
             + 'skipping creation of Dimension, DimensionCategory and DimensionScope instances and '
             + f"linking the existing dimension to the schema '{schema}'"
         )
+        dimension = existing_scope.dimension
+        if schema.dimensions.filter(dimension=dimension).exists():
+            print(f"Dimension '{dimension}' is already linked to schema '{schema}'")
+            return dimension
+        print(f"Linking dimension '{existing_scope.dimension}' to schema '{schema}'")
         DatasetSchemaDimension.objects.create(schema=schema, dimension=existing_scope.dimension)
         return existing_scope.dimension
+
+    def remove_schema_dimensions_for_column(
+        self,
+        schema: DatasetSchema,
+        instance_config: InstanceConfig,
+        column_name: str,
+        keep_dimension_identifier: str,
+    ) -> None:
+        scope_content_type = ContentType.objects.get_for_model(instance_config)
+        for schema_dim in schema.dimensions.select_related('dimension'):
+            scope = DimensionScope.objects.filter(
+                dimension=schema_dim.dimension,
+                scope_content_type=scope_content_type,
+                scope_id=instance_config.pk,
+            ).first()
+            if scope is None or scope.identifier == keep_dimension_identifier:
+                continue
+            dimension_column = schema_dim.column_name or scope.identifier
+            if dimension_column != column_name:
+                continue
+            print(
+                f"Removing dimension '{schema_dim.dimension}' from schema '{schema}' "
+                + f"because column '{column_name}' is now mapped to '{keep_dimension_identifier}'"
+            )
+            schema_dim.delete()
 
     def get_or_create_dimension_from_column(
         self,
@@ -393,11 +447,21 @@ class Command(BaseCommand):
             created_count += 1
         if created_count:
             print(f"Created {created_count} categories for dimension '{dimension_identifier}'")
-        DatasetSchemaDimension.objects.create(
-            schema=schema,
-            dimension=dimension,
-            column_name=column_name if column_name != dimension_identifier else None,
-        )
+        schema_dim = schema.dimensions.filter(dimension=dimension).first()
+        column_name_to_store = column_name if column_name != dimension_identifier else None
+        if schema_dim is None:
+            print(f"Linking dimension '{dimension}' to schema '{schema}'")
+            DatasetSchemaDimension.objects.create(
+                schema=schema,
+                dimension=dimension,
+                column_name=column_name_to_store,
+            )
+        elif schema_dim.column_name != column_name_to_store:
+            schema_dim.column_name = column_name_to_store
+            schema_dim.save(update_fields=['column_name'])
+            print(f"Updated dimension '{dimension}' column mapping in schema '{schema}'")
+        else:
+            print(f"Dimension '{dimension}' is already linked to schema '{schema}'")
         return dimension
 
     def create_dimension(
