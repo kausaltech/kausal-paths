@@ -85,10 +85,6 @@ class FrameworkMutation:
                 organization=org,
                 config_source='database',
             )
-            if fw.public_base_fqdn:
-                ic.site_url = f'https://{input.identifier}.{fw.public_base_fqdn}'
-                ic.save(update_fields=['site_url'])
-
             fwc = FrameworkConfig.objects.create(
                 framework=fw,
                 instance_config=ic,
@@ -96,6 +92,9 @@ class FrameworkMutation:
                 baseline_year=fw.defaults.baseline_year.default or fw.defaults.baseline_year.min or 2020,
                 target_year=fw.defaults.target_year.default or fw.defaults.target_year.min,
             )
+            ic.site_url = fwc.get_view_url()
+            if ic.site_url is not None:
+                ic.save(update_fields=['site_url'])
 
             ic.owned_by = user
             ic.save(update_fields=['owned_by'])

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from loguru import Logger
+    from rich.repr import RichReprResult
 
     from kausal_common.i18n.pydantic import TranslatedString
 
@@ -128,6 +129,12 @@ class Instance:
         from .models import InstanceConfig
 
         return InstanceConfig.objects.get(identifier=self.id)
+
+    def __rich_repr__(self) -> RichReprResult:
+        yield 'id', self.id
+        yield 'name', self.name
+        yield 'default_language', self.default_language
+        yield 'supported_languages', self.supported_languages
 
     def __post_init__(self):
         self.modified_at: datetime | None = None

@@ -272,7 +272,9 @@ class MeasureType(DjangoNode[Measure]):
 
 class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     measures = graphene.List(graphene.NonNull(MeasureType), required=True)
-    view_url = graphene.String(description=_('Public URL for instance dashboard'), required=False)
+    view_url = graphene.String(
+        client_url=graphene.String(required=False), description=_('Public URL for instance dashboard'), required=False
+    )
     results_download_url = graphene.String(description=_('URL for downloading a results file'))
     instance = graphene.Field('nodes.schema.InstanceType', required=False)
     organization_slug = graphene.String(required=False)
@@ -295,13 +297,8 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
         return root.cache.measures.get_list()
 
     @staticmethod
-    def resolve_view_url(root: FrameworkConfig, info: GQLInfo) -> str | None:
-        fw = root.cache.fw_cache.framework
-        if not fw.public_base_fqdn:
-            return None
-        ic = root.cache.fw_cache.instance_configs.get(root.instance_config_id)
-        assert ic is not None
-        return 'https://%s.%s' % (ic.identifier, fw.public_base_fqdn)
+    def resolve_view_url(root: FrameworkConfig, info: GQLInfo, client_url: str | None = None) -> str | None:
+        return root.get_view_url(request=info.context, client_url=client_url)
 
     @staticmethod
     def resolve_results_download_url(root: FrameworkConfig, info: GQLInfo) -> str:

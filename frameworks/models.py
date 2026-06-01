@@ -5,6 +5,7 @@ import uuid
 from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from django.contrib import admin
@@ -14,6 +15,7 @@ from django.db import models, transaction
 from django.db.models import Case, OuterRef, QuerySet
 from django.db.models.expressions import Subquery, When
 from django.db.models.functions import Length, Substr
+from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_stubs_ext.db.models import TypedModelMeta
@@ -24,6 +26,7 @@ from django_pydantic_field import SchemaField
 from loguru import logger
 from treebeard.mp_tree import MP_Node, MP_NodeManager, MP_NodeQuerySet
 
+from kausal_common.const import WILDCARD_DOMAINS_HEADER
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.ordered import OrderedModel
 from kausal_common.models.permission_policy import ModelReadOnlyPolicy, ParentInheritedPolicy
@@ -46,6 +49,8 @@ if TYPE_CHECKING:
     from kausal_common.models.types import FK, M2M, QS, OneToOne, RevMany, RevManyQS
     from kausal_common.users import UserOrAnon
 
+    from paths.schema_context import PathsGraphQLContext
+
     from frameworks.permissions import MeasureTemplatePermissionPolicy
     from nodes.gpc import DatasetNode
     from nodes.instance import Instance
@@ -62,6 +67,8 @@ if TYPE_CHECKING:
         SectionCacheData,  # noqa: F401
     )
     from .permissions import FrameworkConfigPermissionPolicy, FrameworkPermissionPolicy, SectionPermissionPolicy
+
+    type ViewURLRequest = HttpRequest | PathsGraphQLContext
 
 
 @dataclass
@@ -131,6 +138,11 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
     identifier = IdentifierField()
     description = models.TextField(blank=True)
     public_base_fqdn = models.CharField(max_length=100, blank=True, null=True)
+    use_instance_subdomains = models.BooleanField(
+        default=True,
+        verbose_name=_('Use instance subdomains'),
+        help_text=_('Whether public instance URLs should use instance identifiers as subdomains instead of UUID paths.'),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     root_section: OneToOne[Section | None] = models.OneToOneField(
@@ -157,6 +169,16 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
         verbose_name=_('Template instance'),
         help_text=_('Instance to clone when creating new instances under this framework.'),
     )
+    root_instance: FK[InstanceConfig | None] = models.ForeignKey(
+        'nodes.InstanceConfig',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name=_('Root instance'),
+        help_text=_('Instance that serves framework-level content and anchors path-based instance URLs.'),
+    )
+    root_instance_id: int | None = None
     allow_user_registration = models.BooleanField(
         default=False,
         verbose_name=_('Allow user registration'),
@@ -230,6 +252,7 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
             'name': self.name,
             'description': self.description,
             'public_base_fqdn': self.public_base_fqdn,
+            'use_instance_subdomains': self.use_instance_subdomains,
             'result_excel_url': self.result_excel_url,
             'result_excel_node_ids': self.result_excel_node_ids,
         }
@@ -971,11 +994,89 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         loader = InstanceLoader.from_yaml(config_fn, fw_config=self)
         return loader.instance
 
-    def get_view_url(self):
+    @staticmethod
+    def _get_client_url_parts(
+        request: ViewURLRequest | None, client_url: str | None = None
+    ) -> tuple[str, str, int | None] | None:
+        from paths.schema_context import PathsGraphQLContext
+
+        if client_url is None and request is None:
+            return None
+
+        if not client_url and request is not None:
+            if isinstance(request, PathsGraphQLContext):
+                headers = request.get_request_headers()
+            else:
+                headers = request.headers
+            client_url = headers.get('origin') or headers.get('referer')
+            if not client_url and isinstance(request, HttpRequest):
+                client_url = request.build_absolute_uri('/')
+        if not client_url:
+            return None
+
+        parts = urlparse(client_url)
+        if parts.scheme not in ('http', 'https') or not parts.hostname:
+            return None
+        try:
+            port = parts.port
+        except ValueError:
+            port = None
+        if (parts.scheme == 'https' and port == 443) or (parts.scheme == 'http' and port == 80):
+            port = None
+        return parts.scheme, parts.hostname.lower(), port
+
+    @staticmethod
+    def _request_wildcard_domains(request: ViewURLRequest | None) -> list[str]:
+        from paths.schema_context import PathsGraphQLContext
+
+        if request is None:
+            return []
+
+        if isinstance(request, PathsGraphQLContext):
+            wildcard_domains = request.wildcard_domains
+        else:
+            wildcard_domains = request.headers.get(WILDCARD_DOMAINS_HEADER, '').split(',')
+        return [domain.strip().lower() for domain in wildcard_domains]
+
+    @staticmethod
+    def _format_url(scheme: str, hostname: str, port: int | None, path: str = '') -> str:
+        port_str = f':{port}' if port else ''
+        return f'{scheme}://{hostname}{port_str}{path}'
+
+    def get_view_url(self, request: ViewURLRequest | None = None, client_url: str | None = None) -> str | None:
+        from nodes.models import get_instance_identifier_from_wildcard_domain
+
         fw = self.framework
         if not fw.public_base_fqdn:
             return None
-        return 'https://%s.%s' % (self.instance_config.identifier, fw.public_base_fqdn)
+
+        ic = self.instance_config
+        client_parts = self._get_client_url_parts(request, client_url=client_url)
+        if client_parts is not None:
+            scheme, hostname, port = client_parts
+            _, wildcard_hostname = get_instance_identifier_from_wildcard_domain(
+                hostname,
+                request=None,
+                wildcard_domains=self._request_wildcard_domains(request) or None,
+            )
+            if wildcard_hostname and fw.use_instance_subdomains:
+                return self._format_url(scheme, f'{ic.identifier}.{wildcard_hostname}', port)
+
+            root_instance = fw.root_instance
+            if (
+                root_instance is not None
+                and not fw.use_instance_subdomains
+                and (
+                    hostname == fw.public_base_fqdn
+                    or root_instance.hostnames.filter(hostname=hostname).exists()
+                    or (wildcard_hostname is not None and hostname == f'{root_instance.identifier}.{wildcard_hostname}')
+                )
+            ):
+                return self._format_url(scheme, hostname, port, f'/{ic.uuid}')
+
+        if fw.use_instance_subdomains:
+            return 'https://%s.%s' % (ic.identifier, fw.public_base_fqdn)
+        return 'https://%s/%s' % (fw.public_base_fqdn, ic.uuid)
 
     @property
     def data_points(self) -> MeasureDataPointQuerySet:

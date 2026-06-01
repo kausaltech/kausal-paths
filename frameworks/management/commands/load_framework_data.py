@@ -62,6 +62,7 @@ class Command(BaseCommand):
             name=framework_data['name'],
             description=framework_data.get('description', ''),
             public_base_fqdn=framework_data.get('public_base_fqdn'),
+            use_instance_subdomains=framework_data.get('use_instance_subdomains', True),
             result_excel_url=framework_data.get('result_excel_url'),
             result_excel_node_ids=framework_data.get('result_excel_node_ids'),
         )

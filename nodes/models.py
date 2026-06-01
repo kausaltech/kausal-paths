@@ -27,6 +27,7 @@ from django.db import models, transaction
 from django.db.models import F, OuterRef, Q
 from django.db.models.expressions import DatabaseDefault
 from django.db.models.functions import JSONArray, JSONObject
+from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, gettext_lazy as _, override
 from modelcluster.models import ClusterableModel
@@ -55,6 +56,7 @@ from kausal_common.datasets.models import (
     DimensionCategory,
     DimensionScope,
 )
+from kausal_common.deployment.http import get_request_wildcard_domains
 from kausal_common.i18n.helpers import convert_language_code
 from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
 from kausal_common.models.modification_tracking import UserModifiableModel
@@ -98,7 +100,6 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from django.db.models import CharField
-    from django.http import HttpRequest
 
     from loguru import Logger
 
@@ -138,15 +139,17 @@ def get_instance_identifier_from_wildcard_domain(
 ) -> tuple[str, str] | tuple[None, None]:
     # Get instance identifier from hostname for development and testing
     parts = hostname.lower().split('.', maxsplit=1)
+    settings_wildcards = get_request_wildcard_domains(request=None, include_django_settings=True)
     if wildcard_domains is None:
         if request is not None:
-            req_wildcards: list[str] = getattr(request, 'wildcard_domains', None) or []
+            req_wildcards = (
+                get_request_wildcard_domains(request, include_django_settings=False) if isinstance(request, HttpRequest) else []
+            )
         else:
-            req_wildcards = []
-        settings_wildcards: list[str] = cast('list[str]', settings.HOSTNAME_INSTANCE_DOMAINS) or []
-        wd_domains = [*settings_wildcards, *req_wildcards]
+            req_wildcards = set()
     else:
-        wd_domains = wildcard_domains
+        req_wildcards = set(wildcard_domains)
+    wd_domains = list(settings_wildcards.union(req_wildcards))
     if len(parts) == 2 and parts[1].lower() in wd_domains:
         return (parts[0], parts[1])
     return (None, None)

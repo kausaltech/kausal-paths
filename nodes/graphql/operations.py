@@ -146,8 +146,28 @@ class SBQuery(Query):
                 )
             )
         )
+        configs = list(qs)
+        if configs:
+            from frameworks.models import FrameworkConfig
+
+            path_routed_framework_configs = FrameworkConfig.objects.select_related('framework', 'instance_config').filter(
+                framework__root_instance__in=configs,
+                framework__use_instance_subdomains=False,
+            )
+            existing_config_ids = {config.pk for config in configs}
+            for framework_config in path_routed_framework_configs:
+                config = framework_config.instance_config
+                if config.pk in existing_config_ids:
+                    continue
+                setattr(
+                    config,
+                    matched_hostnames_attr,
+                    [InstanceHostname(instance=config, hostname=normalized_hostname, base_path=f'/{config.uuid}')],
+                )
+                configs.append(config)
+                existing_config_ids.add(config.pk)
         instances: list[InstanceConfig] = []
-        for config in qs:
+        for config in configs:
             matched_hostnames: list[InstanceHostname] = getattr(config, matched_hostnames_attr)
             config.graphql_context = InstanceGraphQLContext(
                 requested_hostname=normalized_hostname,

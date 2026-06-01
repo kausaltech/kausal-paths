@@ -1,5 +1,8 @@
 import pytest
 
+from paths.tests.graphql import PathsTestClient
+
+from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.models import InstanceConfig, InstanceHostname
 from nodes.tests.factories import InstanceConfigFactory
@@ -121,6 +124,48 @@ features:
     instance_config.refresh_from_db()
     assert instance_config.spec is not None
     assert instance_config.yaml_mtime_hash is not None
+
+
+def test_available_instances_expands_path_routed_framework_from_root_hostname(client, settings):
+    settings.HOSTNAME_INSTANCE_DOMAINS = ['localhost']
+    root_config = InstanceConfigFactory.create(identifier='cads-landing', name='CADS')
+    city_config = InstanceConfigFactory.create(identifier='city', name='City')
+    framework = FrameworkFactory.create(
+        public_base_fqdn='cads.kausal.tech',
+        use_instance_subdomains=False,
+        root_instance=root_config,
+    )
+    FrameworkConfigFactory.create(framework=framework, instance_config=root_config)
+    FrameworkConfigFactory.create(framework=framework, instance_config=city_config)
+    gql_client = PathsTestClient(client)
+
+    data = gql_client.query_data(
+        """
+        query AvailableInstances($hostname: String!) {
+          availableInstances(hostname: $hostname) {
+            identifier
+            hostname {
+              hostname
+              basePath
+            }
+          }
+        }
+        """,
+        variables={'hostname': 'cads-landing.localhost'},
+    )
+
+    assert data == {
+        'availableInstances': [
+            {
+                'identifier': 'cads-landing',
+                'hostname': {'hostname': 'cads-landing.localhost', 'basePath': ''},
+            },
+            {
+                'identifier': 'city',
+                'hostname': {'hostname': 'cads-landing.localhost', 'basePath': f'/{city_config.uuid}'},
+            },
+        ]
+    }
 
 
 def test_ensure_spec_backfills_from_yaml(settings, tmp_path):
