@@ -250,9 +250,10 @@ class Command(BaseCommand):
         _, by_type = Dataset._default_manager.filter(to_delete).delete()
         self.print_deleted_instances_by_model(by_type)
 
-        # DataSources are only directly scoped. Delete them after the datasets, so their PROTECT-ed
-        # DatasetSourceReference children have already been cascade-deleted.
-        _, by_type = DataSource._default_manager.filter(deleted_scope).delete()
+        # DataSources are only directly scoped. Delete them after the datasets, so references through
+        # deleted datasets/data points have already been cascade-deleted. If a reference remains, it
+        # belongs to retained data, so keep the source to avoid corrupting the retained dataset graph.
+        _, by_type = DataSource._default_manager.filter(deleted_scope, references__isnull=True).delete()
         self.print_deleted_instances_by_model(by_type)
 
         # Scope link rows for the deleted instances/orgs.

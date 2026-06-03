@@ -609,7 +609,7 @@ class InstanceConfig(
     @transaction.atomic
     @copy_signature(models.Model.delete)
     def delete(self, **kwargs):
-        from kausal_common.datasets.models import Dataset, DatasetSchema
+        from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope
 
         site = self.site
         if site is not None:
@@ -624,9 +624,39 @@ class InstanceConfig(
         pp.viewer_role.delete_instance_group(self)
         pp.reviewer_role.delete_instance_group(self)
         pp.super_admin_role.delete_instance_group(obj=self)
+        from pages.models import OutcomePage
+
+        OutcomePage.objects.filter(outcome_node__instance=self).delete()
         self.nodes.all().delete()
-        Dataset.objects.qs.for_instance_config(self).delete()
-        DatasetSchema.objects.qs.for_scope(scope=self).delete()
+
+        # Delete this instance's own dataset graph, but preserve anything shared with another scope.
+        # A DatasetSchema (and its schema-scoped placeholder datasets) can be made available to
+        # several instances via DatasetSchemaScope, so deleting one of them must not remove a schema
+        # or placeholder that another instance still relies on. This matters especially during a
+        # partial `destructively_trim_db` run, where a deleted instance can share a schema with a
+        # retained one.
+        own_scope = models.Q(scope_content_type=ContentType.objects.get_for_model(type(self)), scope_id=self.pk)
+        own_schema_ids = set(DatasetSchemaScope.objects.qs.filter(own_scope).values_list('schema_id', flat=True))
+        shared_schema_ids = set(
+            DatasetSchemaScope.objects.qs
+            .filter(schema_id__in=own_schema_ids)
+            .exclude(own_scope)
+            .values_list('schema_id', flat=True)
+        )
+        exclusive_schema_ids = own_schema_ids - shared_schema_ids
+        # Schemas to check for orphanhood afterwards: those scoped exclusively to this instance, plus
+        # the (possibly unscoped) schemas backing its directly-scoped datasets.
+        affected_schema_ids = exclusive_schema_ids | {
+            sid for sid in Dataset.objects.qs.filter(own_scope).values_list('schema_id', flat=True) if sid is not None
+        }
+        # Delete the instance's own datasets: everything directly scoped to it (its own data, even
+        # when the schema is shared), plus placeholder datasets whose schema is scoped only to this
+        # instance. Placeholders of a schema shared with another scope are left for that scope.
+        Dataset.objects.qs.filter(own_scope | models.Q(schema_id__in=exclusive_schema_ids)).delete()
+        # Drop this instance's schema-scope links, then delete the schemas left with no scopes and no
+        # datasets (so a shared schema, which keeps another scope or its datasets, survives).
+        DatasetSchemaScope.objects.qs.filter(own_scope).delete()
+        DatasetSchema.objects.qs.filter(pk__in=affected_schema_ids, scopes__isnull=True, datasets__isnull=True).delete()
         super().delete(**kwargs)
 
     def natural_key(self):
