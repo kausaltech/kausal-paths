@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from django.contrib.contenttypes.models import ContentType
+    from django.db.models import Model, QuerySet
 
     from kausal_common.datasets.models import (
         Dataset as DatasetModel,
@@ -47,7 +48,7 @@ if TYPE_CHECKING:
     )
 
     from frameworks.models import FrameworkConfig
-    from nodes.models import InstanceConfig, NodeConfig
+    from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge
 
 
 # Current schema version for ``InstanceSnapshot`` and ``InstanceExport``.
@@ -82,7 +83,7 @@ class ModelSnapshot(I18nBaseModel):
         return cls.model_validate(obj, from_attributes=True)
 
 
-def _ts_from_modeltrans(obj: Any, field_name: str, primary_language: str) -> TranslatedString | None:
+def _ts_from_modeltrans(obj: Model, field_name: str, primary_language: str) -> TranslatedString | None:
     """
     Read a modeltrans-backed field into a ``TranslatedString``.
 
@@ -231,7 +232,7 @@ class NodeSnapshot(ModelSnapshot):
     spec: NodeSpec | None = None
 
     @classmethod
-    def from_model(cls, obj: Any) -> Self:
+    def from_model(cls, obj: NodeConfig) -> Self:
         indicator_id: int | None = getattr(obj, 'indicator_node_id', None)
         indicator_identifier: str | None = None
         if indicator_id:
@@ -261,7 +262,7 @@ class EdgeSnapshot(ModelSnapshot):
     tags: list[str] = Field(default_factory=list)
 
     @classmethod
-    def from_model(cls, obj: Any) -> Self:
+    def from_model(cls, obj: NodeEdge) -> Self:
         return cls(
             from_node=obj.from_node.identifier,
             to_node=obj.to_node.identifier,
@@ -283,7 +284,7 @@ class DatasetPortSnapshot(ModelSnapshot):
     dataset_revision: int | None = None
 
     @classmethod
-    def from_model(cls, obj: Any) -> Self:
+    def from_model(cls, obj: DatasetPort) -> Self:
         # Pin to the dataset's current revision so the snapshot is
         # deterministically reconstructible even if the dataset later
         # changes. ``None`` if the dataset has never been saved as a
@@ -393,7 +394,7 @@ def build_instance_snapshot(ic: InstanceConfig) -> InstanceSnapshot:
     )
 
 
-def _dataset_port_qs_for(ic: InstanceConfig) -> Any:
+def _dataset_port_qs_for(ic: InstanceConfig) -> QuerySet[DatasetPort]:
     from nodes.models import DatasetPort
 
     return DatasetPort.objects.filter(instance=ic).select_related('node', 'dataset', 'metric')
@@ -740,7 +741,7 @@ def _validate_dataset_dimensions(
             missing_str += ', ...'
         raise ValueError(
             f'Cannot import dataset {ds_snapshot.identifier!r} into {ic.identifier!r}; missing dimension categories: '
-            f'{missing_str}'
+            + f'{missing_str}'
         )
 
 
@@ -995,7 +996,11 @@ def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config
     ic.config_source = 'database'
     if framework_config is not None:
         spec.owner = framework_config.organization_name
-    ic.save(update_fields=['spec', 'primary_language', 'other_languages', 'config_source'])
+        ic.uuid = framework_config.uuid
+    spec.uuid = ic.uuid
+    spec.identifier = ic.identifier
+    spec.name = get_translated_string_from_modeltrans(ic, 'name', ic.primary_language)
+    ic.save(update_fields=['spec', 'primary_language', 'other_languages', 'config_source', 'uuid'])
 
     # Dimensions first — datasets and data points reference them
     dim_lookup = _import_dimensions(ic, export, ic_ct)
