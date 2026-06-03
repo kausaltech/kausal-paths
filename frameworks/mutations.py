@@ -76,7 +76,6 @@ class FrameworkMutation:
             org = Organization.objects.filter(name=input.organization_name).first()
             if org is None:
                 org = Organization.add_root(name=input.organization_name)
-
             ic = InstanceConfig.objects.create(
                 name=input.name,
                 identifier=input.identifier,
@@ -84,6 +83,9 @@ class FrameworkMutation:
                 other_languages=[],
                 organization=org,
                 config_source='database',
+                created_by=user,
+                last_modified_by=user,
+                owned_by=user,
             )
             fwc = FrameworkConfig.objects.create(
                 framework=fw,
@@ -91,6 +93,9 @@ class FrameworkMutation:
                 organization_name=input.organization_name,
                 baseline_year=fw.defaults.baseline_year.default or fw.defaults.baseline_year.min or 2020,
                 target_year=fw.defaults.target_year.default or fw.defaults.target_year.min,
+                uuid=ic.uuid,
+                created_by=user,
+                last_modified_by=user,
             )
             ic.site_url = fwc.get_view_url()
             if ic.site_url is not None:
@@ -105,7 +110,7 @@ class FrameworkMutation:
             if template_export is not None:
                 from nodes.instance_serialization import import_instance
 
-                import_instance(ic, template_export, framework_config=fwc)
+                import_instance(ic, export=template_export, framework_config=fwc)
             else:
                 spec = ic.spec
                 assert spec is not None
