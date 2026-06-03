@@ -431,7 +431,7 @@ class InstanceGraphQLContext:
 
 
 class InstanceConfig(
-    DraftStateMixin, RevisionMixin, CacheablePathsModel[InstanceSpecificCache], UUIDIdentifiedModel, models.Model
+    DraftStateMixin, RevisionMixin, CacheablePathsModel[InstanceSpecificCache], UUIDIdentifiedModel, UserModifiableModel
 ):
     """Metadata for one Paths computational model instance."""
 
@@ -609,6 +609,8 @@ class InstanceConfig(
     @transaction.atomic
     @copy_signature(models.Model.delete)
     def delete(self, **kwargs):
+        from kausal_common.datasets.models import Dataset, DatasetSchema
+
         site = self.site
         if site is not None:
             rp = site.root_page
@@ -623,6 +625,8 @@ class InstanceConfig(
         pp.reviewer_role.delete_instance_group(self)
         pp.super_admin_role.delete_instance_group(obj=self)
         self.nodes.all().delete()
+        Dataset.objects.qs.for_instance_config(self).delete()
+        DatasetSchema.objects.qs.for_scope(scope=self).delete()
         super().delete(**kwargs)
 
     def natural_key(self):
