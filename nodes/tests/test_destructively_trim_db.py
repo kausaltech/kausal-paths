@@ -10,7 +10,7 @@ purging Wagtail revisions and log entries.
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.utils import timezone
-from wagtail.models import ModelLogEntry, Revision as WagtailRevision
+from wagtail.models import ModelLogEntry, Page, Revision as WagtailRevision
 
 import pytest
 
@@ -20,6 +20,8 @@ from kausal_common.datasets.models import (
     DatasetSchema,
     DatasetSchemaDimension,
     DatasetSchemaScope,
+    DatasetSourceReference,
+    DataSource,
     Dimension,
     DimensionCategory,
     DimensionScope,
@@ -35,9 +37,10 @@ from kausal_common.datasets.tests.factories import (
 )
 
 from nodes.models import InstanceConfig
-from nodes.tests.factories import InstanceConfigFactory
+from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from orgs.models import Organization
 from orgs.tests.factories import OrganizationFactory
+from pages.models import OutcomePage
 from people.tests.factories import PersonFactory
 from users.models import User
 
@@ -112,6 +115,38 @@ def test_direct_dataset_deleted_even_when_schema_shared(run_trim):
     assert not InstanceConfig.objects.filter(pk=deleted.pk).exists()
 
 
+def test_instance_delete_removes_directly_scoped_dataset_with_shared_schema():
+    """
+    InstanceConfig.delete() removes a directly-scoped dataset even when its schema is shared.
+
+    This exercises InstanceConfig.delete() directly (not via the trim command, whose later cleanup
+    would mask the issue): the instance owns the dataset directly, so deleting the instance must
+    remove its data even though the schema is also scoped to another instance (which is preserved).
+    """
+    deleted = _ic()
+    other = _ic()
+
+    schema = DatasetSchemaFactory.create()
+    # The schema is made available to BOTH instances.
+    DatasetSchemaScope.objects.create(schema=schema, **_scope(deleted))
+    DatasetSchemaScope.objects.create(schema=schema, **_scope(other))
+
+    dataset = DatasetFactory.create(schema=schema, **_scope(deleted))
+    metric = DatasetMetricFactory.create(schema=schema)
+    DataPointFactory.create(dataset=dataset, metric=metric)
+
+    deleted.delete()
+
+    # The deleted instance's own (directly-scoped) dataset and its data points are removed...
+    assert not Dataset.objects.filter(pk=dataset.pk).exists()
+    assert not DataPoint.objects.filter(dataset_id=dataset.pk).exists()
+    # ...while the shared schema and the other instance's scope link survive.
+    assert DatasetSchema.objects.filter(pk=schema.pk).exists()
+    assert DatasetSchemaScope.objects.filter(schema=schema, scope_id=other.pk).exists()
+    assert not DatasetSchemaScope.objects.filter(schema=schema, scope_id=deleted.pk).exists()
+    assert InstanceConfig.objects.filter(pk=other.pk).exists()
+
+
 def test_schema_scoped_placeholder_and_orphan_schema_deleted(run_trim):
     """
     Delete schema-scoped placeholder datasets and the now-orphaned schema.
@@ -155,6 +190,26 @@ def test_shared_schema_scoped_placeholder_preserved(run_trim):
     assert DatasetSchema.objects.filter(pk=schema.pk).exists()
     assert DatasetSchemaScope.objects.filter(schema_id=schema.pk, scope_id=kept.pk).exists()
     assert not DatasetSchemaScope.objects.filter(schema_id=schema.pk, scope_id=deleted.pk).exists()
+
+
+def test_deleted_scope_data_source_referenced_by_kept_dataset_preserved(run_trim):
+    """
+    Preserve a deleted-scope data source while retained data still references it.
+
+    DatasetSourceReference.data_source is PROTECT. After deleted datasets are removed, any
+    remaining source reference belongs to retained data, so the source must not be deleted.
+    """
+    deleted = _ic()
+    kept = _ic()
+
+    source = DataSource.objects.create(name='Shared source', **_scope(deleted))
+    kept_dataset = DatasetFactory.create(**_scope(kept))
+    reference = DatasetSourceReference.objects.create(dataset=kept_dataset, data_source=source)
+
+    run_trim([kept])
+
+    assert DataSource.objects.filter(pk=source.pk).exists()
+    assert DatasetSourceReference.objects.filter(pk=reference.pk, dataset=kept_dataset, data_source=source).exists()
 
 
 def test_revisions_and_log_entries_for_deleted_objects_removed_despite_user(run_trim):
@@ -348,3 +403,31 @@ def test_ancestor_organizations_of_kept_instance_preserved(run_trim):
     assert child_org.get_parent() == parent_org
     # The unrelated deleted instance and its organization are gone.
     assert not InstanceConfig.objects.filter(pk=deleted.pk).exists()
+
+
+def test_outcome_pages_referencing_deleted_nodes_are_deleted(run_trim):
+    """
+    Delete outcome pages that reference nodes of a deleted instance before deleting the nodes.
+
+    Wagtail translations or otherwise detached pages can survive deletion of the concrete site
+    root subtree, but OutcomePage.outcome_node protects NodeConfig from deletion. Instance
+    deletion must clean up those page rows explicitly before deleting the instance's nodes.
+    """
+    deleted = _ic()
+    kept = _ic()
+    node = NodeConfigFactory.create(instance=deleted)
+    root = Page.get_first_root_node()
+    assert root is not None
+    outcome_page = root.add_child(
+        instance=OutcomePage(
+            title='Deleted instance outcome',
+            slug='deleted-instance-outcome',
+            outcome_node=node,
+        ),
+    )
+
+    run_trim([kept])
+
+    assert not OutcomePage.objects.filter(pk=outcome_page.pk).exists()
+    assert not InstanceConfig.objects.filter(pk=deleted.pk).exists()
+    assert InstanceConfig.objects.filter(pk=kept.pk).exists()
