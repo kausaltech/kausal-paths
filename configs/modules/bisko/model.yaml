@@ -30,6 +30,7 @@ dimensions:
   # │ Aggregates/other       │ 44-50 │ Dark greens / browns / grays          │ Catch-all categories              │
   # └────────────────────────┴───────┴───────────────────────────────────────┴───────────────────────────────────┘
 
+# Energy_carrier and sector are organised in German alphabetical order.
 - id: energy_carrier
   label_en: Energy carrier
   label_de: Energieträger
@@ -40,62 +41,62 @@ dimensions:
     label_de: Steinkohle
     aliases: [kohle, steinkohle, Kohle]
     color: '#2C2C2C'
-    order: 1
+    order: 45
   - id: brown_coal
     label_en: Brown coal / Lignite
     label_de: Braunkohle
     aliases: [braunkohle]
     color: '#5D3A1A'
-    order: 2
+    order: 9
   # --- Liquid fossil fuels (order 3-9): red-to-orange spectrum ---
   - id: heating_oil
     label_en: Heating oil
     label_de: Heizöl
     aliases: [heizol, Heizoel]
     color: '#7B1A00'
-    order: 3
+    order: 29
   - id: petrol
     label_en: Petrol
     label_de: Benzin
     aliases: [benzin_fossil, benzin, Benzin fossil, Bfoss]
     color: '#B71C1C'
-    order: 4
+    order: 2
   - id: diesel
     label_en: Diesel
     label_de: Diesel
     aliases: [diesel_fossil, Diesel fossil, Dfoss]
     color: '#8B0000'
-    order: 5
+    order: 12
   - id: kerosene
     label_en: Kerosene
     label_de: Kerosin
     aliases: [kerosin, Kerosin fossil]
     color: '#C0392B'
-    order: 6
+    order: 31
   - id: lpg
     label_en: LPG (Liquefied petroleum gas)
     label_de: LPG
     color: '#BF4500'
-    order: 7
+    order: 36
   - id: propane
     label_en: Propane/butane
     label_de: Flüssiggas
     aliases: [flüssiggas, flssiggas, Fluessiggas]
     color: '#A04000'
-    order: 8
+    order: 24
   - id: fuels
     label_en: Fuels
     label_de: Kraftstoffe
     aliases: [kraftstoffe, kraftstoff, Kraftstoff, Kraftstoffe]
     color: '#880000'
-    order: 9
+    order: 35
   # --- Fossil gas (order 10-13): dark blue spectrum ---
   - id: natural_gas
     label_en: Natural gas
     label_de: Erdgas
     aliases: [gas, erdgas]
     color: '#1A5276'
-    order: 10
+    order: 14
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil
@@ -106,225 +107,225 @@ dimensions:
     label_en: Natural gas for steam turbines
     label_de: Erdgas GuD
     color: '#0B2F50'
-    order: 12
+    order: 16
   - id: natural_gas_small_chp
     label_en: Natural gas with small-scale CHP
     label_de: Erdgas BHKW
     color: '#0D3B5A'
-    order: 13
+    order: 15
   # --- Bio transport fuels (order 14-16): olive-green ---
   - id: bio_petrol
     label_en: Bio petrol
     label_de: Biobenzin
     aliases: [benzin_biogen, biobenzin, Benzin Bio, Bbio]
     color: '#4A7C1F'
-    order: 14
+    order: 3
   - id: biodiesel
     label_en: Biodiesel
     label_de: Diesel biogen
     aliases: [diesel_biogen, Diesel Bio, Diesel_biogen, Diesel_Biogen, Dbio]
     color: '#386113'
-    order: 15
+    order: 13
   - id: cng_bio
     label_en: CNG bio
     label_de: CNG bio
     aliases: [CNG_bio, CNGbio]
     color: '#2D5C12'
-    order: 16
+    order: 10
   # --- Biomass (order 17-21): green spectrum ---
   - id: liquid_biomass
     label_en: Liquid biomass
     label_de: flüssige Biomasse
     color: '#5E6B1A'
-    order: 17
+    order: 23
   - id: biomass
     label_en: Biomass
     label_de: Biomasse
     aliases: [biomasse]
     color: '#2E7D32'
-    order: 18
+    order: 6
   - id: solid_biomass
     label_en: Solid biomass
     label_de: feste Biomasse
     color: '#1B5E20'
-    order: 19
+    order: 22
   - id: biomass_boiler
     label_en: Biomass for heat-only boiler
     label_de: Biomasse Heizwerk
     color: '#14611A'
-    order: 20
+    order: 7
   - id: biomass_chp
     label_en: Biomass for CHP
     label_de: Biomasse KWK
     color: '#0D4F13'
-    order: 21
+    order: 8
   # --- Biogas (order 22-24): teal-green ---
   - id: biogas
     label_en: Biogas
     label_de: Biogas
     aliases: [biogas]
     color: '#0D6B4D'
-    order: 22
+    order: 4
   - id: biogas_chp
     label_en: Biogas for CHP
     label_de: Biogas KWK
     color: '#0A5C3E'
-    order: 23
+    order: 5
   - id: sewage_landfill_mine_gas
     label_en: Sewage, landfill, or mine gas
     label_de: Klär- Deponie- Grubengas
     color: '#07452E'
-    order: 24
+    order: 32
   # --- Waste & waste heat (order 25-29) ---
   - id: waste
     label_en: Waste
     label_de: Abfall
     color: '#4A3728'
-    order: 25
+    order: 1
   - id: conventional_waste_heat_gt_90
     label_en: Conventional waste heat > 90 C
     label_de: Konventioneller Abwärme >90 C
     color: '#484848'
-    order: 26
+    order: 34
   - id: conventional_waste_heat_lt_90
     label_en: Conventional waste heat < 90 C
     label_de: Konventioneller Abwärme <90 C
     color: '#5C5C5C'
-    order: 27
+    order: 33
   - id: renewable_waste_heat_gt_90
     label_en: Renewable waste heat > 90 C
     label_de: Erneuerbarer Abwärme >90 C
     color: '#3D5A55'
-    order: 28
+    order: 18
   - id: renewable_waste_heat_lt_90
     label_en: Renewable waste heat < 90 C
     label_de: Erneuerbarer Abwärme <90 C
     color: '#4A6B66'
-    order: 29
+    order: 17
   # --- Renewable thermal (order 30-33): amber and teal ---
   - id: solar_thermal
     label_en: Solar thermal
     label_de: Solarthermie
     aliases: [solarthermie, Solarthermie]
     color: '#BF5C00'
-    order: 30
+    order: 39
   - id: environmental_heat
     label_en: Environmental heat / Heat pump
     label_de: Umweltwärme
     aliases: [umweltwarme, Umweltwarme, Umweltwaerme]
     color: '#006D6D'
-    order: 31
+    order: 47
   - id: geothermatl # FIXME typo
     label_en: Geothermatl
     label_de: Geothermite
     color: '#005757'
-    order: 32
+    order: 28
   - id: geothermal
     label_en: Geothermal
     label_de: Geothermie
     color: '#005757'
-    order: 33
+    order: 27
   # --- District / local heating networks (order 34-36): dark orange-brown ---
   - id: district_heating
     label_en: District heating
     label_de: Fernwärme
     aliases: [fernwarme, Fernwaerme]
     color: '#922B00'
-    order: 34
+    order: 21
   - id: local_heating
     label_en: Local heating
     label_de: Nahwärme
     aliases: [nahwarme, Nahwarme, Nahwaerme]
     color: '#A33300'
-    order: 35
+    order: 37
   - id: district_and_local_heating
     label_en: District and local heating
     label_de: Fern- und Nahwärme
     aliases: [fern_und_nahwarme]
     color: '#7D2500'
-    order: 36
+    order: 20
   # --- Electricity carriers (order 37-39): blue / purple ---
   - id: electricity
     label_en: Electricity
     label_de: Strom
     aliases: [strom]
     color: '#1565C0'
-    order: 37
+    order: 46
   - id: heating_electricity
     label_en: Heating electricity
     label_de: Heizstrom
     aliases: [heizstrom]
     color: '#6A1B9A'
-    order: 38
+    order: 30
   - id: driving_electricity
     label_en: Driving electricity
     label_de: Fahrstrom
     aliases: [fahrstrom, strom_fahrstrom, St]
     color: '#0D3A80'
-    order: 39
+    order: 19
   # --- Electricity generation (order 40-42): amber / blue-teal ---
   - id: photovoltaic
     label_en: Photovoltaic
     label_de: Fotovoltaik
     color: '#CC8400'
-    order: 40
+    order: 25
   - id: hydropower
     label_en: Hydropower
     label_de: Wasser
     color: '#0A5B8A'
-    order: 41
+    order: 48
   - id: wind
     label_en: Wind
     label_de: Wind
     color: '#1A698A'
-    order: 42
+    order: 50
   # --- Clean fuel (order 43) ---
   - id: hydrogen
     label_en: Hydrogen
     label_de: Wasserstoff
     aliases: [wasserstoff, Wasserstoff]
     color: '#007A8A'
-    order: 43
+    order: 49
   # --- Aggregate / other (order 44-50) ---
   - id: other_renewables
     label_en: Other renewables
     label_de: Sonstige Erneuerbare
     aliases: [sonstige_erneuerbare, Sonstige_Erneuerbare, SonstigeEE]
     color: '#276B27'
-    order: 44
+    order: 40
   - id: other_renewable_energy_carriers
     label_en: Other renewable energy carriers
     label_de: Sonstige Erneuerbare Energieträger
     color: '#1E5E1E'
-    order: 45
+    order: 41
   - id: other_conventional
     label_en: Other conventional
     label_de: Sonstige Konventionelle
     aliases: [sonstige_konventionelle, Sonstige_Konventionelle, SonstigeKo]
     color: '#5A3A2A'
-    order: 46
+    order: 42
   - id: other_conventional_energy_carriers
     label_en: Other conventional energy carriers
     label_de: Sonstige konventionelle Energieträger
     color: '#4A2D1A'
-    order: 47
+    order: 43
   - id: other
     label_en: Other
     label_de: Sonstiges
     aliases: [sonstiges]
     color: '#616161'
-    order: 48
+    order: 44
   - id: not_defined
     label_en: Not defined
     label_de: Nicht definiert
     aliases: [nicht_definiert, Unzugeordnet]
     color: '#4D4D4D'
-    order: 49
+    order: 38
   - id: total
     label_en: Total
     label_de: Gesamt
     color: '#303030'
-    order: 50
+    order: 26
 
 - id: municipal_facility_type
   label_en: Municipal facility type
@@ -420,83 +421,103 @@ dimensions:
     label_de: Verkehr
     aliases: [verkehr, Verkehr, VL_, VL, Mobilität, Mobilitat]
     color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+    order: 19
   - id: buildings
     label_en: Buildings & Heating
     label_de: Gebäude & Heizung
+    order: 5
   - id: private_households
     label_en: Private Households
     label_de: Private Haushalte
     aliases: [private_haushalte, Private_Haushalte, HE_, HE, HTHG_, HTHG]
     color: '#009ebe'
+    order: 13
   - id: municipal_facilities
     label_en: Municipal Facilities
     label_de: Kommunale Einrichtungen
     aliases: [kommunale_einrichtungen, Kommunale_Einrichtungen, 
         stadtische_gebaude, KE_, KE, KTHG_, KTHG]
     color: '#6bc248'
+    order: 10
   - id: commerce_trade_services
     label_en: Commerce, Trade & Services
     label_de: Gewerbe, Handel, Dienstleistungen
     aliases: [gewerbe_handel_dienstleistungen, Gewerbe_Handel_Dienstleistungen, 
         gewerbe_sonstiges, GE_, GE, GTHG_, GTHG]
     color: '#fe8035'
+    order: 7
   - id: industry
     label_en: Industry
     label_de: Industrie
     aliases: [industrie, Industrie, IE_, IE, ITHG_, ITHG]
     color: '#737373'
+    order: 8
   - id: industry_commerce
     label_en: Industry & Commerce
     label_de: Industrie & Gewerbe
     color: '#737373'
+    order: 9
   - id: electricity
     label_en: Electricity
     label_de: Strom
     aliases: [strom, Strom]
+    order: 16
   - id: energy_industry
     label_en: Energy industry
     label_de: Energiewirtschaft
     aliases: [energiewirtschaft, Energiewirtschaft]
+    order: 3
   - id: waste
     label_en: Waste
     label_de: Abfall
+    order: 1
   - id: other
     label_en: Other (incl. IPPU & AFOLU)
     label_de: Sonstige (inkl. IPPU & AFOLU)
+    order: 15
   - id: total
     label_en: Total
     label_de: Gesamt
+    order: 6
   - id: heating
     label_en: Heating
     label_de: Wärme
     aliases: [warme, Warme]
+    order: 20
   - id: sinks
     label_en: Sinks
     label_de: Senken
     color: '#4ac16d'
+    order: 14
   - id: not_defined
     label_en: Not defined
     label_de: Nicht definiert
+    order: 12
   - id: ghg_neutral_administration
     label_en: GHG-Neutral Administration
     label_de: THG-neutrale Verwaltung
     color: '#34495E'
+    order: 17
   - id: food_and_land_use
     label_en: Food & Land Use
     label_de: Ernährung & Landnutzung
     color: '#2ECC71'
+    order: 4
   - id: consumption
     label_en: Consumption
     label_de: Konsum
     color: '#9B59B6'
+    order: 11
   - id: waste_and_wastewater
     label_en: Waste & Wastewater
     label_de: Abfall & (Ab-)Wasser
     color: '#27AE60'
+    order: 2
   - id: cross_cutting
     label_en: Cross-cutting Climate Protection
     label_de: Übergreifende Klimaschutzaspekte
     color: '#1ABC9C'
+    order: 18
 
 - id: upstream_included
   label_en: Upstream included
