@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://yolo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: fa918c1deb67cd3cf5395183016975bbed3201e7
+  commit: 7c131bef6b1da1e21a672b7ef0760fcf4a36ac93
   dvc_remote: kausal-s3
 name: Yolo County Greenhouse Gas Emissions
 owner: Yolo County
@@ -39,9 +39,9 @@ action_groups:
 - id: sequestration
   name: Sequester and Store Carbon in Natural and Working Lands
   color: '#A0CBE8'
-# - id: abau
-#   name: Federal- and State-mandated GHG emission reduction measures
-#   color: '#000000'
+- id: abau
+  name: Federal- and State-Mandated Emissions Reduction Measures
+  color: '#BAB0AC'
 
 dimensions:
 # - id: sector
@@ -146,14 +146,6 @@ dimensions:
   # ----- Sequestration
   - id: sequestration
     label: Sequestration
-
-# - id: scenario_id
-#   label: Scenario
-#   categories:
-#   - id: baseline
-#     label: Business As Usual
-#   - id: adjusted_baseline
-#     label: Adjusted Business As Usual
 
 - id: scope
   label: Scope
@@ -378,14 +370,6 @@ dimensions:
     label: Encourage Climate Smart Practices on Working Lands
   - id: nwl2
     label: Restore Natural Lands
-#   - id: abau_trend_electricity
-#     label: Federal- and State-mandated electricity emissions reduction
-#   - id: abau_trend_transportation
-#     label: Federal- and State-mandated transportation emission reduction
-#   - id: abau_trend_building_electricity
-#     label: Federal- and State-mandated building electricity use reduction
-#   - id: abau_trend_building_natural_gas
-#     label: Federal- and State-mandated building natural gas use reduction
 
 emission_sectors:
 - id: net_emissions
@@ -478,25 +462,6 @@ nodes:
     - dimension: energy_carrier
       categories: [electricity]
   input_dataset_processors: [LinearInterpolation]
-
-# - id: abau_new_buildings_electricity_use
-#   name: New Buildings Electricity Use (Adjusted Business As Usual)
-#   type: simple.AdditiveNode
-#   quantity: energy_consumption
-#   unit: kWh/year
-#   input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
-#   output_dimensions: [subsector, energy_provider, building_type, building_status]
-#   input_datasets:
-#   - id: yolo/building-input
-#     forecast_from: 2023
-#     filters:
-#     - dimension: energy_carrier
-#       categories: [electricity]
-#     - dimension: building_status
-#       categories: [new]
-#     - dimension: scenario_id
-#       categories: [adjusted_baseline]
-#   input_dataset_processors: [LinearInterpolation]
 
 - id: building_natural_gas_usage
   name: Building Natural Gas Usage
@@ -1893,58 +1858,70 @@ nodes:
     - id: ghg
 
 actions:
-# ---- adjusted business as usual actions/trends
-# - id: abau_trend_electricity
-#   name: Federal- and State-mandated electricity emissions reduction
-#   type: GpcTrajectoryAction
-#   group: abau
-#   unit: lbs/MWh
-#   parameters:
-#     enabled: false
-#     multiplier: 1.0
-#     dataset_id: "yolo/energy-emission-factors"
-#     dimension: "scenario_id"
-#     category: "adjusted_baseline"
-#   input_dataset_processors: [LinearInterpolation]
+# ----- Adjusted Business as Usual
+- id: abau_electricity_emission_factors
+  name: Federal- and State-Mandated Electricity Emissions Reduction
+  type: simple.AdditiveAction
+  group: abau
+  quantity: emission_factor
+  unit: lbs/MWh
+  input_dimensions: [energy_provider, ghg, scope, energy_carrier]
+  output_dimensions: [energy_provider, ghg, scope, energy_carrier]
+  input_datasets:
+  - id: yolo/adjusted_bau
+    column: emission_factor_electricity
+    forecast_from: 2023
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: electricity_emission_factors
 
-# - id: abau_trend_transportation
-#   name: Federal- and State-mandated transportation emission reduction
-#   type: GpcTrajectoryAction
-#   group: abau
-#   unit: t_co2e/mile
-#   parameters: 
-#     enabled: false
-#     multiplier: 1.0
-#     dataset_id: "yolo/transportation-input"
-#     dimension: "scenario_id"
-#     category: "adjusted_baseline"
-#   input_dataset_processors: [LinearInterpolation]
+- id: abau_onroad_transportation_emission_factors_ice
+  name: Federal- and State-Mandated Transportation Emissions Reduction
+  type: simple.AdditiveAction
+  group: abau
+  quantity: emission_factor
+  unit: t_co2e/mile
+  input_dimensions: [vehicle_type, speed_bin, travel_boundary, scope]
+  output_dimensions: [vehicle_type, speed_bin, travel_boundary, scope]
+  input_datasets:
+  - id: yolo/adjusted_bau
+    column: emission_factor_transportation
+    forecast_from: 2023
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: onroad_transportation_emission_factors_ice
 
-# - id: abau_trend_building_electricity
-#   name: Federal- and State-mandated building electricity use reduction
-#   type: GpcTrajectoryAction
-#   group: abau
-#   unit: kWh/year
-#   parameters: 
-#     enabled: false
-#     multiplier: 1.0
-#     dataset_id: "yolo/building-input"
-#     dimension: "scenario_id"
-#     category: "adjusted_baseline"
-#   input_dataset_processors: [LinearInterpolation]
+- id: abau_building_electricity_usage
+  name: Federal- and State-Mandated Building Electricity Usage Reduction
+  type: simple.AdditiveAction
+  group: abau
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  output_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  input_datasets:
+  - id: yolo/adjusted_bau
+    column: energy
+    forecast_from: 2023
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: building_electricity_usage
 
-# - id: abau_trend_building_natural_gas
-#   name: Federal- and State-mandated building natural gas use reduction
-#   type: GpcTrajectoryAction
-#   group: abau
-#   unit: therms/year
-#   parameters: 
-#     enabled: false
-#     multiplier: 1.0
-#     dataset_id: "yolo/building-input"
-#     dimension: "scenario_id"
-#     category: "adjusted_baseline"
-#   input_dataset_processors: [LinearInterpolation]
+- id: abau_building_natural_gas_usage
+  name: Federal- and State-Mandated Building Natural Gas Usage Reduction
+  type: simple.AdditiveAction
+  group: abau
+  quantity: fuel_consumption
+  unit: therms/a
+  input_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  output_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  input_datasets:
+  - id: yolo/adjusted_bau
+    column: fuel_consumption
+    forecast_from: 2023
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: building_natural_gas_usage
 
 # ----- On-Road Transportation
 - id: dt3
@@ -2306,23 +2283,16 @@ scenarios:
 - id: baseline
   name: Business as Usual
 
-# - id: Adjusted
-#   #default: true
-#   name: Adjusted Business as Usual
-#   all_actions_enabled: false
-#   is_selectable: true
-#   param_values: 
-#     abau_trend_electricity.enabled: true
-#     abau_trend_transportation.enabled: true
-#     abau_trend_building_electricity.enabled: true
-#     abau_trend_building_natural_gas.enabled: true
-  
+- id: abau
+  name: Adjusted Business as Usual
+  all_actions_enabled: false
+  param_values:
+    abau_electricity_emission_factors.enabled: true
+    abau_onroad_transportation_emission_factors_ice.enabled: true
+    abau_building_electricity_usage.enabled: true
+    abau_building_natural_gas_usage.enabled: true
+
 - id: default
   default: true
   name: Climate Action and Adaptation Plan
   all_actions_enabled: true
-  # param_values: 
-  #   abau_trend_electricity.enabled: true
-  #   abau_trend_transportation.enabled: true
-  #   abau_trend_building_electricity.enabled: true
-  #   abau_trend_building_natural_gas.enabled: true
