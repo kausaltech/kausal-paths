@@ -47,7 +47,7 @@ impact_overviews:
   label: Kosteneffizienz
 
 - graph_type: cost_benefit
-  effect_node: total_costs
+  effect_node: net_costs_and_benefits
   indicator_unit: kEUR
   outcome_dimension: cost_type
   label_de: Kosten-Nutzen
@@ -675,6 +675,18 @@ nodes:
   unit: EUR/a
   input_dimensions: [cost_type]
   output_dimensions: [cost_type]
+
+- id: net_costs_and_benefits
+  name: Nettokosten
+  name_en: Net costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_nodes:
+  - id: total_costs
+  - id: total_benefits
 
 - id: cost_benefit_analysis
   name: Kosten-Nutzen-Analyse
