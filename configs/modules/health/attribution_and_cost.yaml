@@ -9,134 +9,173 @@ dimensions:
 
 - id: iteration
   label_en: Modeling basis
+  label_de: Modellierungsgrundlage
   label_fi: Malliperusta
   represents_possible_worlds: true # TODO A new attribute that is not implemented yet.
   categories:
   - id: median
     label_en: Median
+    label_de: Median
     label_fi: Mediaani
   - id: expectation
     label_en: Expectation
+    label_de: Erwartungswert
     label_fi: Odotusarvo
   - id: '0'
-    label: '0'
+    label_en: '0'
+    label_de: '0'
   - id: '1'
-    label: '1'
+    label_en: '1'
+    label_de: '1'
   - id: '2'
-    label: '2'
+    label_en: '2'
+    label_de: '2'
   - id: thl
     label_en: THL model
+    label_de: THL-Modell
     label_fi: THL:n malli
   - id: heat
     label_en: HEAT model
+    label_de: HEAT-Modell
     label_fi: HEAT-malli
   - id: nzp
     label_en: NetZeroPlanner model
+    label_de: NetZeroPlanner-Modell
     label_fi: NetZeroPlanner-malli
 
 - id: pollutant
   label_fi: Saaste
   label_en: Pollutant
+  label_de: Schadstoff
   categories:
   - id: co2
     label_fi: CO2
     label_en: CO2
+    label_de: CO2
     aliases: [co2e]
   - id: pm25
     label_fi: PM2.5
     label_en: PM2.5
+    label_de: PM2,5
     aliases: [pm2_5]
   - id: pm25_combustion
     label_en: PM2.5 combustion
+    label_de: PM2,5-Verbrennung
     label_fi: Polttoperäinen PM2.5
   - id: nox
     label_fi: NOx
     label_en: NOx
+    label_de: NOx
   - id: pm10
     label_fi: PM10
     label_en: PM10
+    label_de: PM10
   - id: pm10_combustion
     label_en: PM10 combustion
+    label_de: PM10-Verbrennung
     label_fi: Polttoperäinen PM10
   - id: walking
     label_fi: Kävely
     label_en: Walking
+    label_de: Gehen
   - id: cycling
     label_fi: Pyöräily
     label_en: Cycling
+    label_de: Radfahren
   - id: pm1025
     label_fi: PM10-PM2.5
     label_en: PM10-PM2.5
+    label_de: PM10-PM2,5
   - id: so2
     label_fi: SO2
     label_en: SO2
+    label_de: SO2
   - id: nh3
     label_fi: NH3
     label_en: NH3
+    label_de: NH3
   - id: pm25_wear_tear
     label_en: PM2.5 wear & tear
+    label_de: PM2,5 Verschleiß und Abrieb
     label_fi: Kulumis- ja pölyperäinen PM2.5
   - id: pm10_wear_tear
     label_en: PM10 wear & tear
+    label_de: PM10 Verschleiß und Abrieb
     label_fi: Kulumis- ja pölyperäinen PM10
 
 - id: response
   label_fi: Terveysvaikutus
   label_en: Response
+  label_de: Gesundheitseffekt
   aliases: [outcome]
   categories:
   - id: mortality
     label_fi: Kaikki ilmansaastekuolleisuus
     label_en: Mortality
+    label_de: Sterblichkeit
     color: '#a6cee3'
   - id: work_days_lost
     label_fi: Menetetyt työpäivät
     label_en: Work days lost
+    label_de: Verlorene Arbeitstage
     aliases: [work days lost]
     color: '#1f78b4'
   - id: chronic_bronchitis
     label_fi: Keuhkoahtaumatauti
     label_en: Chronic bronchitis
+    label_de: Chronische Bronchitis
     aliases: [chronic bronchitis]
   - id: cancer
     label_fi: Syöpä
     label_en: Cancer
+    label_de: Krebs
   - id: tolerable_weekly_intake
     label_fi: Siedettävä viikkosaanti
     label_en: Tolerable weekly intake
+    label_de: Tolerierbare wöchentliche Aufnahme
   - id: chd_mortality
     label_fi: Sepelvaltimotautikuolleisuus
     label_en: Coronary heart disease mortality
+    label_de: Koronare Herzerkrankung Sterblichkeit
   - id: breast_cancer
     label_fi: Rintasyöpä
     label_en: Breast cancer
+    label_de: Brustkrebs
   - id: deficiency  # TODO Add causative agent to response
     label_fi: Puutos
     label_en: Deficiency
+    label_de: Mangelerkrankung
   - id: infection  # TODO Add causative agent to response
     label_fi: Infektio
     label_en: Infection
+    label_de: Infektion
   - id: physical_activity
     label_fi: Fyysinen aktiivisuus
     label_en: Physical activity
+    label_de: Körperliche Aktivität
     color: '#b2df8a'
   - id: air_pollution
     label_fi: Ilmansaastealtistus liikenteessä
     label_en: Air pollution exposure in traffic
+    label_de: Luftschadstoffexposition im Verkehr
     color: '#33a02c'
   - id: crash_risk
     label_fi: Liikenneonnettomuus
     label_en: Traffic accident
+    label_de: Verkehrsunfall
     color: '#fb9a99'
   - id: noise
     label_en: Noise
+    label_de: Lärm
     label_fi: Melu
   - id: carbon_emissions
     label_fi: Hiilidioksidipäästöt
     label_en: Carbon dioxide emissions
+    label_de: Kohlendioxidemissionen
   - id: nzp_response
     label_fi: NZP-vaste
     label_en: NZP response
+    label_de: NZP-Effekt
     color: '#e31a1c'
 
 nodes:
@@ -144,7 +183,8 @@ nodes:
 # ---------- Placeholder nodes -----------
 
 - id: air_pollution_exposure
-  name: Air pollution exposure, placeholder
+  name_en: Air pollution exposure, placeholder
+  name_de: Luftschadstoffexposition, Platzhalter
   name_fi: Ilmansaastealtistus, esimerkki
   type: generic.GenericNode
   quantity: exposure
@@ -158,10 +198,13 @@ nodes:
 - id: incidence
   name_fi: Ilmaantuvuus
   name_en: Incidence
+  name_de: Inzidenz
   description_fi: Ympäristöaltisteiden kannalta olennaisten tautien ja vaikutusten ilmaantuvuus.
     Käytetään Terveyden ja hyvinvoinnin laitoksen tautitaakkamallia. Useita alkuperäislähteitä.
   description_en: 'Incidence of environmentally relevant diseases and effects. Uses
     the THL disease burden model. Multiple original sources.'
+  description_de: 'Inzidenz umweltrelevanter Erkrankungen und Gesundheitseffekte. Verwendet das
+    THL-Krankheitslastmodell. Mehrere Originalquellen.'
   type: gpc.DatasetNode
   quantity: incidence
   unit: case/personyear
@@ -180,10 +223,14 @@ nodes:
 - id: air_pollution_attributable_fraction
   name_fi: Ilmansaasteiden syyosuus
   name_en: Attributable fraction of air pollution
+  name_de: Attributabler Anteil der Luftverschmutzung
   description_fi: 'Se osuus havaitusta tautitaakasta, joka selittyy ilmansaastealtistuksella.
     Syyosuus lasketaan näin: AF = RR / (RR + 1) missä RR on suhteellinen riski.'
   description_en: 'The fraction of observed disease burden that can be attributed to air pollution exposure.
     Attributable fraction is typically calculated as AF = RR / (RR + 1) where RR is the relative risk.'
+  description_de: 'Der Anteil der beobachteten Krankheitslast, der auf Luftschadstoffexposition
+    zurückgeführt werden kann. Der attributable Anteil wird typischerweise berechnet
+    als AF = RR / (RR + 1), wobei RR das relative Risiko ist.'
   type: health.AttributableFractionRR # FIXME Convert to FormulaNode.
   quantity: exposure_response
   unit: dimensionless  # TODO Allow for different units in dataset and node.
@@ -204,9 +251,12 @@ nodes:
 - id: total_number_of_cases
   name_fi: Kokonaistapausmäärä
   name_en: Total number of cases
+  name_de: Gesamtzahl der Fälle
   description_fi: Kokonaistapausmäärä kohdeväestössä saadaan kertomalla taustailmaantuvuus väestömäärällä.
   description_en: 'Total number of cases in the target population is calculated by multiplying
     the background incidence by the population size.'
+  description_de: 'Die Gesamtzahl der Fälle in der Zielpopulation wird berechnet, indem die
+    Hintergrundinzidenz mit der Bevölkerungsgröße multipliziert wird.'
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: case/a
@@ -222,12 +272,17 @@ nodes:
 - id: attributable_cases
   name_fi: Ilmansaasteisiin kohdentuvat tapaukset
   name_en: Cases attributable to air pollution
+  name_de: Der Luftverschmutzung zuzurechnende Fälle
   description_fi: 'Se osa kokonaistapausmäärästä, joka kohdentuu pienhiukkasiin ja typenoksideihin.
     Arvio perustuu Terveyden ja hyvinvoinnin laitoksen kehittämään <a
     href="https://en.opasnet.org/w/Health_impact_assessment">tautitaakkamalliin</a>.'
   description_en: 'The fraction of total number of cases that is attributable to PM2.5 and NOx.
     The estimate is based on a <a href="https://en.opasnet.org/w/Health_impact_assessment">
     disease burden model</a> developed by the National Institute for Health and Welfare (THL).'
+  description_de: 'Der Anteil der Gesamtzahl der Fälle, der auf PM2,5 und NOx zurückzuführen ist.
+    Die Schätzung basiert auf einem <a href="https://en.opasnet.org/w/Health_impact_assessment">
+    Krankheitslastmodell</a>, das vom Nationalen Institut für Gesundheit und Wohlfahrt
+    (THL) entwickelt wurde.'
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: case/a
@@ -253,7 +308,11 @@ nodes:
 - id: total_exposure_related_cases
   name_fi: Altisteisiin kohdentuva tapausmäärä yhteensä
   name_en: Number of cases attributable to exposure
+  name_de: Anzahl expositionsbedingter Fälle insgesamt
   description_fi: Yhteismäärään lasketaan kaikkien mallissa olevien altisteiden aiheuttamat tapaukset. Positiivisen luvut ovat tautitapauksia, negatiiviset luvut ehkäistyjä tapauksia.
+  description_de: Die Gesamtzahl umfasst Fälle, die durch alle Expositionen im Modell verursacht
+    werden. Positive Zahlen stellen Krankheitsfälle dar, negative Zahlen verhinderte
+    Fälle.
   type: simple.AdditiveNode
   quantity: health_effect
   unit: case/a
@@ -263,6 +322,7 @@ nodes:
 - id: premature_deaths
   name_fi: Ennenaikaiset kuolemat
   name_en: Premature deaths
+  name_de: Vorzeitige Sterblichkeit
   description_fi: Tarkasteltujen altisteiden aiheuttamat ennenaikaiset kuolemat. Usein malleissa tarkastellaan
     altisteina pienhiukkasia, typenoksideja ja liikenneonnettomuuksia sekä aktiivista liikkumista kuolemien
     ehkäisijänä. Altistelista kuitenkin vaihtelee mallista toiseen, tämän mallin altisteet listataan
@@ -271,6 +331,11 @@ nodes:
     PM2.5, NOx, traffic accidents, and physical activity as exposures. The list of exposures
     varies from model to model, the exposures for this model are listed
     <a href="air_pollution_exposure">here</a>.'
+  description_de: 'Vorzeitige Todesfälle, die durch die untersuchten Expositionen verursacht werden.
+    Häufig untersucht das Modell PM2,5, NOx, Verkehrsunfälle und körperliche Aktivität
+    als Expositionen. Die Liste der Expositionen variiert von Modell zu Modell;
+    die Expositionen für dieses Modell sind
+    <a href="air_pollution_exposure">hier</a> aufgeführt.'
   type: simple.AdditiveNode
   quantity: health_effect
   unit: case/a
@@ -285,8 +350,10 @@ nodes:
 - id: case_burden
   name_fi: Tautitaakka per tapaus # TODO Add references.
   name_en: Disease burden by case
+  name_de: Krankheitslast pro Fall
   description_fi: Yhden tapauksen aiheuttama tautitaakka eri vasteille.
   description_en: Disease burden caused by a single case.
+  description_de: Krankheitslast, die durch einen einzelnen Fall verursacht wird.
   type: gpc.DatasetNode
   quantity: case_burden
   unit: DALY/case
@@ -301,6 +368,7 @@ nodes:
 - id: disease_burden_attributed_to_exposure
   name_fi: Altisteisiin kohdentuva tautitaakka
   name_en: Disease burden caused by air pollution
+  name_de: Durch Luftverschmutzung verursachte Krankheitslast
   description_fi: Tarkasteltaviin altistuksiin kohdentuva tautitaakka väestössä. Ilmansaasteet
     leviävät satojen kilometrien päähän saastelähteestä. Tässä laskelmassa tarkastellaan kaikkea
     altistumista mutta ne kohdennetaan paikalliseen väestöön. Tämä on tärkeää, koska jokaisen
@@ -318,6 +386,16 @@ nodes:
     at the population level taking into account the severity and duration of the disability.
     For example, the disability weight for premature death is 1 (the highest possible), while
     the disability weight for lower back pain is 0.03.'
+  description_de: 'Krankheitslast, die auf die untersuchten Expositionen zurückgeführt wird.
+    Luftverschmutzung breitet sich Hunderte von Kilometern von der Quelle aus.
+    Diese Schätzung bezieht sich auf die gesamte Exposition, da jede Emissionsquelle
+    ihre eigenen Emissionen berücksichtigen muss, unabhängig davon, wo der Schaden
+    entsteht.</p>
+    Die Maßeinheit ist das behinderungsbereinigte Lebensjahr (<a href="https://de.wikipedia.org/
+    wiki/Behinderungsbereinigte_Lebensjahre">DALY</a>). DALY beschreibt die Anzahl
+    verlorener gesunder Lebensjahre auf Bevölkerungsebene unter Berücksichtigung der
+    Schwere und Dauer der Beeinträchtigung. Das Behinderungsgewicht für vorzeitigen
+    Tod beträgt beispielsweise 1 (das höchstmögliche), für Kreuzschmerzen 0,03.'
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: DALY/a
@@ -336,6 +414,7 @@ nodes:
 - id: health_outcome_unit_price
   name_fi: Terveysvaikutusten yksikkökustannukset
   name_en: Health outcome unit price
+  name_de: Einheitspreis für Gesundheitsfolgen
   description_fi: 'Käytössä on kaksi lopputulemaa: kuolema (ilmansaastealtistukselle, onnettomuuksille
     ja fyysiselle aktiivisuudelle) sekä menetetty työpäivä. Menetetyn työpäivän hinnaksi lasketaan
     työn tekemisestä tuleva lisäarvo, joka jää sairauden takia saamatta. Tilastollisen kuoleman
@@ -346,6 +425,12 @@ nodes:
     the additional value of work that is lost due to absence. The cost of a statistical death
     (value of statistical life) is estimated by looking at the price that people are willing to
     pay to avoid a small risk of death.'
+  description_de: 'Es gibt grundsätzlich zwei unterschiedliche Endpunkte: Tod (für Luftschadstoff-
+    expositionen, Unfälle und körperliche Aktivität) und verlorener Arbeitstag.
+    Der Wert eines Arbeitstages wird als der durch Abwesenheit entgangene Mehrwert
+    der Arbeit berechnet. Die Kosten eines statistischen Todes (Wert des statistischen
+    Lebens) werden anhand des Preises geschätzt, den Menschen bereit sind zu zahlen,
+    um ein kleines Sterberisiko zu vermeiden.'
   type: gpc.DatasetNode
   quantity: unit_price
   unit: kEUR/case
@@ -358,6 +443,7 @@ nodes:
 - id: responses_vs_cost_types
   name_fi: Vasteet vs kustannuslajit
   name_en: Responses vs cost types
+  name_de: Gesundheitseffekte vs. Kostenarten
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -370,6 +456,7 @@ nodes:
 - id: health_costs_attributed_to_exposure
   name_fi: Altistumiseen kohdentuvat terveyskustannukset
   name_en: Health costs attributable to exposure
+  name_de: Expositionsbedingte Gesundheitskosten
   description_fi: Kaikki tarkasteltavat terveysvaikutukset kustannuslajin mukaan. Lisäksi on
     mahdollista tarkastella tuloksia sen perusteella, minkä mallin mukaisesti niitä on laskettu.
     Jos kaksi mallia laskee samaa asiaa, tuloksissa voi olla kaksoislaskentaa tässä solmussa, ja
@@ -380,6 +467,12 @@ nodes:
     If two models calculate the same thing, there may be double counting in the results in this
     node and the correct result is selected by choosing the desired model. Double counting has
     been removed from the discounted health costs.'
+  description_de: 'Alle untersuchten Gesundheitsauswirkungen werden einem Kostentyp zugeordnet.
+    Darüber hinaus können die Ergebnisse danach analysiert werden, mit welchem Modell
+    sie berechnet wurden. Wenn zwei Modelle dasselbe berechnen, kann es in diesem
+    Knoten zu Doppelzählungen kommen; das korrekte Ergebnis erhält man durch Auswahl
+    des gewünschten Modells. Doppelzählungen wurden aus den diskontierten
+    Gesundheitskosten entfernt.'
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
@@ -409,10 +502,14 @@ nodes:
 - id: discounted_health_costs
   name_fi: Diskontatut terveyskustannukset
   name_en: Discounted health costs
+  name_de: Diskontierte Gesundheitskosten
   description_fi: Diskonttaamalla on arvostettu lähiaikoina syntyviä terveysvaikutuksia
     enemmän kuin kaukana tulevaisuudessa tapahtuvia.
   description_en: 'The discounted health costs are discounted by the discount rate,
     favoring more recent health impacts over future ones.'
+  description_de: 'Die diskontierten Gesundheitskosten werden mit dem Diskontierungszinssatz
+    abgezinst, wobei neuere Gesundheitsauswirkungen gegenüber zukünftigen
+    bevorzugt werden.'
   type: costs.ExponentialNode
   quantity: consumption
   unit: MEUR/a
