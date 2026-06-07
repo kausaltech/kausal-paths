@@ -6,7 +6,7 @@ supported_languages: [en]
 site_url: https://muenchen-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 23422cef54799b640807d592133533f58c09df31
+  commit: 8c7c8f79bd54955db8bd66395cf87787888e40e9
   dvc_remote: kausal-s3
 name_de: München Klimadashboard
 name_en: Munich Climate Dashboard
@@ -1125,6 +1125,38 @@ nodes:
 
 ##  Miscellaneous fixes
 
+- id: final_energy_use
+  name_de: Endenergie
+  name_en: Final energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: muenchen/final_energy
+    tags: [non_additive]
+    column: Value
+    filters:
+    - column: energy_carrier
+      value: not_defined
+      exclude: true
+      drop_col: false
+  input_nodes:
+  - id: weather_correction
+
+- id: final_energy_use_data_quality
+  name_de: Endenergie Datenqualität
+  name_en: Final energy use data quality
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: muenchen/final_energy_quality
+    column: quality
+
 - id: other_emissions
   name_en: Other emissions
   name_de: Andere Emissionen
@@ -1137,6 +1169,21 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   output_nodes:
   - id: net_emissions
+
+- id: drive_transition_motorized_individual_transport_total # TODO Copy the idea if it works
+  name_de: drive_transition_motorized_individual_transport total
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_nodes:
+  - id: drive_transition_motorized_individual_transport
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    - id: vehicle_type
+      flatten: true
 
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 

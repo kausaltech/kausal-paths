@@ -666,7 +666,7 @@ nodes:
   is_outcome: true
 
 - id: private_household_emissions
-  name_de: Private Haushalte Emissionen
+  name_de: Private Haushalte
   name_en: Private household emissions
   color: '#009ebe'
   type: generic.GenericNode
@@ -683,7 +683,7 @@ nodes:
   - id: net_emissions
 
 - id: municipal_facilities_emissions
-  name_de: Kommunale Einrichtungen Emissionen
+  name_de: Kommunale Einrichtungen
   name_en: Municipal facilities emissions
   color: '#6bc248'
   type: generic.GenericNode
@@ -700,7 +700,7 @@ nodes:
   - id: net_emissions
 
 - id: industry_emissions
-  name_de: Industrie Emissionen
+  name_de: Industrie
   name_en: Industry emissions
   color: '#737373'
   type: generic.GenericNode
@@ -717,7 +717,7 @@ nodes:
   - id: net_emissions
 
 - id: commerce_trade_services_emissions
-  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_de: Gewerbe, Handel, Dienstleistungen
   name_en: Commerce, trade, services emissions
   color: '#fe8035'
   type: generic.GenericNode
