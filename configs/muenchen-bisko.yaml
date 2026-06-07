@@ -6,7 +6,7 @@ supported_languages: [en]
 site_url: https://muenchen-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6a99be6afe73970bcb1944af01ea163039e01cce
+  commit: 23422cef54799b640807d592133533f58c09df31
   dvc_remote: kausal-s3
 name_de: München Klimadashboard
 name_en: Munich Climate Dashboard
@@ -1125,38 +1125,18 @@ nodes:
 
 ##  Miscellaneous fixes
 
-- id: quality_a_data_for_grid_based_energy
-  name_en: Quality A data for grid-based energy
-  name_de: Qualität A-Daten für gitterbasierte Energie
-  # FIXME When we fix the graph, it will show 1 rather than 3.
-  # FIXME This is a temporary fix to allow addition of new sector categories.
-  description_en: BISKO inventory must use regional primary data for grid-based 
-    energy. To be BISKO-compliant, each sector should have value 3 in the graph.
-    It means that all three critical energy carriers (electricity, natural gas,
-    district heating) have quality A data. Use this node to identify data points
-    that don't meet the quality criteria yet and need to be improved to reach
-    BISKO-compliance.
-  description_de: BISKO-Inventar muss regionale Primärdaten für gitterbasierte 
-    Energie verwenden. Um BISKO-konform zu sein, sollte jeder Sektor den Wert 3
-    in der Grafik haben. Das bedeutet, dass alle drei kritischen Energieträger 
-    (Strom, Erdgas, Fernwärme) Qualität A-Daten haben. Verwenden Sie diesen Knoten,
-    um Datenpunkte zu identifizieren, die noch nicht die Qualitätskriterien
-    erfüllen und verbessert werden müssen, um BISKO-Konformität zu erreichen.
-  type: formula.FormulaNode
-  quantity: probability
-  unit: dimensionless
+- id: other_emissions
+  name_en: Other emissions
+  name_de: Andere Emissionen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_datasets:
+  - id: muenchen/other_emissions
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: final_energy_use_data_quality
-    tags: [data_quality]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity, natural_gas, district_heating]
-  - id: quality_criteria
-  params:
-  - id: formula
-    value: data_quality * quality_criteria * 0
+  output_nodes:
+  - id: net_emissions
 
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
