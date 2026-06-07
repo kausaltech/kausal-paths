@@ -1155,7 +1155,6 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: muenchen/final_energy_quality
-    column: quality
 
 - id: other_emissions
   name_en: Other emissions
