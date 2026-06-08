@@ -6,8 +6,8 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: fde666a3e42954a9ea371c3afa26ef6500105466
   dvc_remote: kausal-s3
-name_de: Bayreuth Klimadashboard
-name_en: Bayreuth Climate Dashboard
+name_de: Bayreuth Treibhausgas-Monitor
+name_en: Bayreuth Greenhouse Gas Monitor
 owner: Bayreuth Stadt
 theme_identifier: de-bayreuth
 target_year: 2040
@@ -413,7 +413,7 @@ pages:
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Treibhausgasbilanz und -prognosen
+  lead_title: Treibhausgas-Monitor
   lead_paragraph: Historische Treibhausgasemissionen der Stadt Bayreuth und 
     Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen 
     erfolgreich umgesetzt".
