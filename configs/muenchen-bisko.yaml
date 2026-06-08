@@ -6,7 +6,7 @@ supported_languages: [en]
 site_url: https://muenchen-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8c7c8f79bd54955db8bd66395cf87787888e40e9
+  commit: 6b98d70c88b9d7c0ee3be1a30979867a72e3cc54
   dvc_remote: kausal-s3
 name_de: München Klimadashboard
 name_en: Munich Climate Dashboard
@@ -42,6 +42,28 @@ include:
   allow_override: true
 - file: modules/health/attribution_and_cost.yaml
   allow_override: true
+
+impact_overviews:
+
+- graph_type: cost_benefit
+  effect_node: total_cost
+  indicator_unit: MEUR
+  cost_dimension: cost_type
+  stakeholder_dimension: stakeholder
+  label_de: Kosten-Nutzen
+
+- graph_type: cost_efficiency
+  cost_node: total_cost
+  effect_node: total_emissions
+  cost_unit: MEUR
+  effect_unit: kt_co2e
+  indicator_unit: EUR/t_co2e
+  label_de: Kosteneffizienz
+
+- graph_type: cost_benefit
+  effect_node: discounted_health_costs
+  indicator_unit: MEUR
+  label_de: Diskontierte Gesundheitskosten
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -134,15 +156,15 @@ action_groups:
   name_en: Electricity
   color: '#FDB813'
 - id: heat
-  name_de: Wärme
+  name_de: Wärme und Kälte
   name_en: Heat
   color: '#E67E22'
 - id: mobility
-  name_de: Mobilität
+  name_de: Verkehr
   name_en: Mobility
   color: '#3498DB'
 - id: consumption
-  name_de: Konsum
+  name_de: Lebensstile
   name_en: Consumption
   color: '#9B59B6'
 - id: waste_and_wastewater
@@ -154,11 +176,11 @@ action_groups:
   name_en: Food & Land Use
   color: '#2ECC71'
 - id: cross_cutting_climate_protection
-  name_de: Übergreifende Klimaschutzaspekte
+  name_de: Bildung für eine nachhaltige Entwicklung
   name_en: Cross-cutting Climate Protection Aspects
   color: '#1ABC9C'
 - id: administration
-  name_de: Verwaltung
+  name_de: Klimaneutrale Stadtverwaltung und kommunale Unternehmen
   name_en: Administration
   color: '#34495E'
 
@@ -1155,9 +1177,8 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: muenchen/final_energy
+  - id: muenchen/endenergie
     tags: [non_additive]
-    column: Value
     filters:
     - column: energy_carrier
       value: not_defined
