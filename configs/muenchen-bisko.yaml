@@ -549,6 +549,27 @@ nodes:
   historical_values: [[2018, 1505306], [2023, 1505306]]
   input_dataset_processors: [LinearInterpolation]
 
+- id: net_emissions
+  name_de: Netto-Emissionen
+  name_en: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  is_outcome: true
+  goals:
+  - label_de: Emissionen
+    label_en: Emissions
+    default: true
+    linear_interpolation: true
+    is_main_goal: true
+    values:
+    - year: 2023
+      value: 3000
+    - year: 2040
+      value: 0
+
 - id: now_year
   name_de: Aktuelles Jahr
   name_en: Current year
