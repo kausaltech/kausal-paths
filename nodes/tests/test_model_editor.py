@@ -207,6 +207,28 @@ mutation SetInstanceLocked($instanceId: ID!, $isLocked: Boolean!) {
 """
 
 
+INSTANCE_QUANTITY_KINDS = """
+query InstanceQuantityKinds {
+    instance {
+        editor {
+            quantityKinds {
+                kind {
+                    id
+                    label
+                }
+                usedUnits {
+                    count
+                    unit {
+                        standard
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+
 def test_create_node_formula(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     data = gql_client.query_data(
         CREATE_NODE,
@@ -250,6 +272,43 @@ def test_create_node_simple(gql_client: PathsTestClient, db_instance_config: Ins
     assert node['identifier'] == 'simple_node'
     assert node['kind'] == 'SIMPLE'
     assert node['editor']['spec']['typeConfig']['nodeClass'] == SIMPLE_NODE_CLASS
+
+
+def test_query_instance_quantity_kinds_with_used_units(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    node_specs = [
+        ('emissions_kt_1', 'kt/a', 'emissions'),
+        ('emissions_kt_2', 'kt/a', 'emissions'),
+        ('emissions_t', 't/a', 'emissions'),
+        ('energy_mwh', 'MWh/a', 'energy'),
+    ]
+    for identifier, unit, quantity in node_specs:
+        gql_client.query_data(
+            CREATE_NODE,
+            variables={
+                'instanceId': str(db_instance_config.pk),
+                'input': {
+                    'identifier': identifier,
+                    'name': identifier.replace('_', ' ').title(),
+                    'kind': 'SIMPLE',
+                    'config': {'simple': {'nodeClass': SIMPLE_NODE_CLASS}},
+                    'outputPorts': [{'unit': unit, 'quantity': quantity}],
+                },
+            },
+        )
+
+    from nodes.models import _pytest_instances
+
+    _pytest_instances.pop(db_instance_config.identifier, None)
+    data = gql_client.query_data(INSTANCE_QUANTITY_KINDS)
+    quantity_kinds = {entry['kind']['id']: entry for entry in data['instance']['editor']['quantityKinds']}
+
+    assert 'emissions' in quantity_kinds
+    assert 'energy' in quantity_kinds
+    assert quantity_kinds['emissions']['usedUnits'] == [
+        {'count': 2, 'unit': {'standard': 'kt/a'}},
+        {'count': 1, 'unit': {'standard': 't/a'}},
+    ]
+    assert quantity_kinds['energy']['usedUnits'] == [{'count': 1, 'unit': {'standard': 'MWh/a'}}]
 
 
 def test_create_node_with_node_group_and_allow_nulls(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
