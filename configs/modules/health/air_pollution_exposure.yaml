@@ -3,130 +3,168 @@ dimensions:
 - id: emission_height
   label_fi: Päästökorkeus
   label_en: Emission height
+  label_de: Emissionshöhe
   categories:
   - id: high
     label_fi: Korkea
     label_en: High
+    label_de: Hoch
   - id: low
     label_fi: Matala
     label_en: Low
+    label_de: Niedrig
   - id: ground
     label_fi: Maan taso
     label_en: Ground
+    label_de: Boden
   - id: average
     label_fi: Keskimääräinen
     label_en: Average
+    label_de: Durchschnitt
 
 - id: heating_type
-  label: Heating type
+  label_en: Heating type
+  label_de: Heizungstyp
   categories:
   - id: district_heating
-    label: District heating
+    label_en: District heating
+    label_de: Fernwärme
   - id: local_heating
-    label: Local heating
+    label_en: Local heating
+    label_de: Nahwärme
 
 - id: pollutant
   label_fi: Saaste
   label_en: Pollutant
+  label_de: Schadstoff
   categories:
   - id: co2
     label_fi: CO2
     label_en: CO2
+    label_de: CO2
     aliases: [co2e]
   - id: pm25
     label_fi: PM2.5
     label_en: PM2.5
+    label_de: PM2,5
     aliases: [pm2_5]
   - id: pm25_combustion
     label_en: PM2.5 combustion
+    label_de: PM2,5-Verbrennung
     label_fi: Polttoperäinen PM2.5
   - id: nox
     label_fi: NOx
     label_en: NOx
+    label_de: NOx
   - id: pm10
     label_fi: PM10
     label_en: PM10
+    label_de: PM10
   - id: pm10_combustion
     label_en: PM10 combustion
+    label_de: PM10-Verbrennung
     label_fi: Polttoperäinen PM10
   - id: walking
     label_fi: Kävely
     label_en: Walking
+    label_de: Gehen
   - id: cycling
     label_fi: Pyöräily
     label_en: Cycling
+    label_de: Radfahren
   - id: pm1025
     label_fi: PM10-PM2.5
     label_en: PM10-PM2.5
+    label_de: PM10-PM2,5
     aliases: [PM10-2.5]
   - id: so2
     label_fi: SO2
     label_en: SO2
+    label_de: SO2
   - id: nh3
     label_fi: NH3
     label_en: NH3
+    label_de: NH3
   - id: pm25_wear_tear
     label_en: PM2.5 wear & tear
+    label_de: PM2,5 Verschleiß und Abrieb
     label_fi: Kulumis- ja pölyperäinen PM2.5
   - id: pm10_wear_tear
     label_en: PM10 wear & tear
+    label_de: PM10 Verschleiß und Abrieb
     label_fi: Kulumis- ja pölyperäinen PM10
 
 - id: response
   label_fi: Terveysvaikutus
   label_en: Response
+  label_de: Gesundheitseffekt
   aliases: [outcome]
   categories:
   - id: mortality
     label_fi: Kaikki ilmansaastekuolleisuus
     label_en: Mortality
+    label_de: Sterblichkeit
     color: '#a6cee3'
   - id: work_days_lost
     label_fi: Menetetyt työpäivät
     label_en: Work days lost
+    label_de: Verlorene Arbeitstage
     color: '#1f78b4'
   - id: chronic_bronchitis
     label_fi: Keuhkoahtaumatauti
     label_en: Chronic bronchitis
+    label_de: Chronische Bronchitis
   - id: cancer
     label_fi: Syöpä
     label_en: Cancer
+    label_de: Krebs
   - id: tolerable_weekly_intake
     label_fi: Siedettävä viikkosaanti
     label_en: Tolerable weekly intake
+    label_de: Tolerierbare wöchentliche Aufnahme
   - id: chd_mortality
     label_fi: Sepelvaltimotautikuolleisuus
     label_en: Coronary heart disease mortality
+    label_de: Koronare Herzerkrankung Sterblichkeit
   - id: breast_cancer
     label_fi: Rintasyöpä
     label_en: Breast cancer
+    label_de: Brustkrebs
   - id: deficiency  # TODO Add causative agent to response
     label_fi: Puutos
     label_en: Deficiency
+    label_de: Mangelerkrankung
   - id: infection  # TODO Add causative agent to response
     label_fi: Infektio
     label_en: Infection
+    label_de: Infektion
   - id: physical_activity
     label_fi: Fyysinen aktiivisuus
     label_en: Physical activity
+    label_de: Körperliche Aktivität
     color: '#b2df8a'
   - id: air_pollution
     label_fi: Ilmansaastealtistus liikenteessä
     label_en: Air pollution exposure in traffic
+    label_de: Luftschadstoffexposition im Verkehr
     color: '#33a02c'
   - id: crash_risk
     label_fi: Liikenneonnettomuus
     label_en: Traffic accident
+    label_de: Verkehrsunfall
     color: '#fb9a99'
   - id: noise
     label_en: Noise
+    label_de: Lärm
     label_fi: Melu
   - id: carbon_emissions
     label_fi: Hiilidioksidipäästöt
     label_en: Carbon diozide emissions
+    label_de: Kohlendioxidemissionen
   - id: nzp_response
     label_fi: NZP-vaste
     label_en: NZP response
+    label_de: NZP-Effekt
     color: '#e31a1c'
 
 nodes:
@@ -135,11 +173,15 @@ nodes:
 
 - id: transport_emissions
   name_en: Transport emissions, placeholder
+  name_de: Verkehrsemissionen, Platzhalter
   name_fi: Liikenteen päästöt, esimerkki
   description_fi: Tämä solmu tulee korvata varsinaisella solmulla, jossa lasketaan liikenteen päästöt.
     Käytetty data on vain esimerkki eikä kuvasta todellisia päästöjä.
   description_en: This node should be replaced with the actual node that calculates transport emissions.
     The used data is only an example and does not represent actual emissions.
+  description_de: Dieser Knoten sollte durch den tatsächlichen Knoten ersetzt werden, der die
+    Verkehrsemissionen berechnet. Die verwendeten Daten sind nur ein Beispiel
+    und spiegeln keine tatsächlichen Emissionen wider.
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -152,11 +194,15 @@ nodes:
 
 - id: power_plant_emissions
   name_en: Power plant emissions, placeholder
+  name_de: Kraftwerksemissionen, Platzhalter
   name_fi: Voimalaitoksen päästöt, esimerkki
   description_fi: Tämä solmu tulee korvata varsinaisella solmulla, jossa lasketaan voimalaitosten päästöt.
     Käytetty data on vain esimerkki eikä kuvasta todellisia päästöjä.
   description_en: This node should be replaced with the actual node that calculates power plant emissions.
     The used data is only an example and does not represent actual emissions.
+  description_de: Dieser Knoten sollte durch den tatsächlichen Knoten ersetzt werden, der die
+    Kraftwerksemissionen berechnet. Die verwendeten Daten sind nur ein Beispiel
+    und spiegeln keine tatsächlichen Emissionen wider.
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -172,6 +218,7 @@ nodes:
 - id: transport_emission_factor_total
   name_fi: Liikennepäästöjen kokonaispäästökerroin
   name_en: Air pollution emission factor total
+  name_de: Gesamtemissionsfaktor für Luftschadstoffe
   description_fi: 'Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista
     Eurostatin tietojen perusteella, AINEISTO: Greenhouse gas emissions by source sector
     (source: EEA) [env_air_gge] & AINEISTO: Motor vehicle movements on national territory,
@@ -180,6 +227,10 @@ nodes:
     Eurostat data, DATASET: Greenhouse gas emissions by source sector
     (source: EEA) [env_air_gge] & DATASET: Motor vehicle movements on national territory,
     by vehicles registration [road_tf_vehmov] (source: Eurostat).'
+  description_de: 'Die Daten stammen aus der Excel-Datei des NetZeroCities-Projekts. Berechnet
+    anhand von Eurostat-Daten, DATENSATZ: Treibhausgasemissionen nach Quellsektor
+    (Quelle: EEA) [env_air_gge] & DATENSATZ: Kraftfahrzeugbewegungen im nationalen
+    Territorium, nach Fahrzeugregistrierung [road_tf_vehmov] (Quelle: Eurostat).'
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
@@ -198,8 +249,11 @@ nodes:
 - id: transport_emission_ratio
   name_fi: Liikennepäästöjen keskinäinen suhde
   name_en: Ratio of air pollution emissions
+  name_de: Verhältnis der Luftschadstoffemissionen
   description_fi: Liikennepäästöjen keskinäinen suhde verrattuna CO2-päästöön, joka saa suhdeluvun 1.
   description_en: Ratio of air pollution emissions from transport compared with CO2 emissions, which has the ratio 1.
+  description_de: Verhältnis der Luftschadstoffemissionen aus dem Verkehr im Vergleich zu den
+    CO2-Emissionen, denen das Verhältnis 1 zugewiesen wird.
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: dimensionless
@@ -215,8 +269,11 @@ nodes:
 - id: transport_air_pollution_emissions_total
   name_fi: Liikenteen kokonaisilmansaastepäästöt
   name_en: Transport air pollution emissions total
+  name_de: Gesamtemissionen der Luftverschmutzung durch den Verkehr
   description_fi: Liikenteen ilmansaastepäästöt laskettuna CO2-päästöstä ja muut päästöt suhteutettuna siihen päästökertoimien suhteessa.
   description_en: Air pollution emissions from transport based on CO2 emissions and other pollutants relative to that based on relative emission factors.
+  description_de: Luftschadstoffemissionen aus dem Verkehr, berechnet aus den CO2-Emissionen
+    und anderen Schadstoffen relativ dazu auf Basis relativer Emissionsfaktoren.
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -233,6 +290,7 @@ nodes:
 - id: power_plant_emission_factor
   name_fi: Voimalaitoksen ilmansaasteiden päästökerroin
   name_en: Power plant air pollution emission factor
+  name_de: Luftschadstoff-Emissionsfaktor für Kraftwerke
   description_fi: 'Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista.
     Painotettu keskiarvo Valencia lähi- ja kaukolämmityksen polttoaineiden seoksesta.
     Oletus perustuu Italiasta. Ilmanpäästöt Madridin kaupungissa, 2017. SNAP 02:
@@ -241,6 +299,10 @@ nodes:
     weighted average on Valencia 2019 local and district Heating fuel mix. Assumption based
     on data for Italy Atmospheric emissions Inventory of Madrid City, 2017. SNAP 02:
     residential, commercial and institutional buildings.'
+  description_de: 'Die Daten stammen aus der Excel-Datei des NetZeroCities-Projekts. Berechnet als
+    gewichteter Durchschnitt des Brennstoffmixes für lokale und Fernwärme in Valencia
+    2019. Annahme basierend auf Daten für Italien: Emissionsinventar der Stadt Madrid,
+    2017. SNAP 02: Wohn-, Gewerbe- und öffentliche Gebäude.'
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
@@ -255,8 +317,11 @@ nodes:
 - id: power_plant_emission_ratio
   name_fi: Voimalaitoksen päästöjen keskinäinen suhde
   name_en: Ratio of air pollution emissions from power plants
+  name_de: Verhältnis der Luftschadstoffemissionen aus Kraftwerken
   description_fi: Fossiilivoimalan päästöjen keskinäinen suhde verrattuna CO2-päästöön, joka saa suhdeluvun 1.
   description_en: Ratio of air pollution emissions from power plants compared with CO2 emissions, which has the ratio 1.
+  description_de: Verhältnis der Luftschadstoffemissionen aus Kraftwerken im Vergleich zu den
+    CO2-Emissionen, denen das Verhältnis 1 zugewiesen wird.
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: dimensionless
@@ -272,8 +337,11 @@ nodes:
 - id: power_plant_air_pollution_emissions
   name_fi: Voimalaitoksen ilmansaastepäästöt
   name_en: Power plant air pollution emissions
+  name_de: Luftschadstoffemissionen aus Kraftwerken
   description_fi: Polttoaineella toimivien suurien voimalaitosten ilmansaastepäästöt laskettuna CO2-päästöstä ja muut päästöt suhteutettuna siihen päästökertoimien suhteessa.
   description_en: Air pollution emissions from large power plants based on CO2 emissions and other pollutants relative to that based on relative emission factors.
+  description_de: Luftschadstoffemissionen aus großen Kraftwerken, berechnet aus den CO2-Emissionen
+    und anderen Schadstoffen relativ dazu auf Basis relativer Emissionsfaktoren.
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -293,6 +361,7 @@ nodes:
 - id: intake_fraction
   name_fi: Ilmansaasteiden saantiosuus
   name_en: Intake fraction of air pollution
+  name_de: Aufnahmefraktion der Luftverschmutzung
   description_fi: 'Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi.
     Saantiosuus lasketaan näin: hengitetty saatemäärä (g/s) / päästönopeus (g/s). Tiedot on
     saatu artikkelista Sebastien Humbert, Julian D. Marshall, Shanna Shaked, Joseph V. Spadaro,
@@ -305,6 +374,14 @@ nodes:
     Yurika Nishioka, Philipp Preiss, Thomas E. McKone, Arpad Horvath, and Olivier Jolliet.
     Intake Fraction for Particulate Matter: Recommendations for Life Cycle Impact Assessment (2011).
     Environmental Science and Technology, 45, 4808-4816.'
+  description_de: 'Der Anteil der Luftschadstoffemissionen, der schließlich von jemandem eingeatmet
+    wird. Die Aufnahmefraktion berechnet sich als: eingeatmete Masse (g/s) /
+    Emissionsrate (g/s). Die Daten stammen aus dem Artikel von Sebastien Humbert,
+    Julian D. Marshall, Shanna Shaked, Joseph V. Spadaro, Yurika Nishioka,
+    Philipp Preiss, Thomas E. McKone, Arpad Horvath und Olivier Jolliet.
+    Aufnahmefraktion für Feinstaub: Empfehlungen für die
+    Lebenszyklusfolgenabschätzung (2011). Environmental Science and Technology,
+    45, 4808-4816.'
   type: generic.GenericNode
   quantity: fraction
   unit: ppm
@@ -320,10 +397,14 @@ nodes:
 - id: breathing_rate
   name_fi: Hengitystilavuus
   name_en: Breathing rate
+  name_de: Atemrate
   description_fi: Hengitystilavuus vuorokaudessa. Käytetään nimellistä lukemaa, jonka täytyy olla
    sama kuin saantiosuutta laskettaessa. Humbert et al. (2011) käyttää 20 m**3/henkilö/d.
   description_en: 'Breathing volume per day. A nominal value is used, as it has to be the same as
     was used for calculating the intake fraction. Humbert et al. (2011) uses 20 m**3/person/day.'
+  description_de: 'Atemvolumen pro Tag. Es wird ein Nennwert verwendet, der identisch mit dem bei
+    der Berechnung der Aufnahmefraktion verwendeten Wert sein muss.
+    Humbert et al. (2011) verwenden 20 m³/Person/Tag.'
   type: simple.AdditiveNode
   quantity: mass
   unit: m**3/person/d
@@ -333,12 +414,17 @@ nodes:
 - id: transport_air_pollution_exposure
   name_fi: Altistuminen liikenteen ilmansaasteille
   name_en: Transport air pollution exposure
+  name_de: Luftschadstoffexposition durch den Verkehr
   description_fi: Altistuminen ilmansaasteille pitkäaikaisena keskimääräisenä pitoisuutena
     hengitysvyöhykkeellä. Altistus kohdennetaan mallin tarkastelemaan väestöön, vaikka osa
     altistumisesta ja siten myös terveysvaikutuksista tapahtuu tarkastelualueen ulkopuolella.
   decription_en: Exposure to air pollution as a long-term average concentration in the
     breathing zone. The exposure is attributed to the modeled population although a part of
     the exposure and thus health effects occur outside the modeled area.
+  description_de: Luftschadstoffexposition als langfristige Durchschnittskonzentration in der
+    Atemzone. Die Exposition wird der modellierten Bevölkerung zugerechnet, auch
+    wenn ein Teil der Exposition und damit der Gesundheitseffekte außerhalb des
+    Modellgebiets auftritt.
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: ug/m**3
@@ -365,12 +451,16 @@ nodes:
 - id: power_plant_air_pollution_exposure
   name_fi: Altistuminen suurten polttoainetta polttavien voimaloiden ilmansaasteille
   name_en: Power plant air pollution exposure
+  name_de: Luftschadstoffexposition durch Kraftwerke
   description_fi: Altistuminen ilmansaasteille pitkäaikaisena keskimääräisenä pitoisuutena
     hengitysvyöhykkeellä. Altistus kohdennetaan mallin tarkastelemaan väestöön, vaikka osa
     altistumisesta tapahtuu tarkastelualueen ulkopuolella.
   description_en: Exposure to air pollution as a long-term average concentration in
     the breathing zone. The exposure is attributed to the modeled population although a part
     of the exposure occurs outside the modeled area.
+  description_de: Luftschadstoffexposition als langfristige Durchschnittskonzentration in der
+    Atemzone. Die Exposition wird der modellierten Bevölkerung zugerechnet, auch
+    wenn ein Teil der Exposition außerhalb des Modellgebiets auftritt.
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: ug/m**3
@@ -397,8 +487,10 @@ nodes:
 - id: air_pollution_exposure
   name_fi: Ilmansaastealtistus
   name_en: Air pollution exposure
+  name_de: Luftschadstoffexposition
   description_fi: Altistuminen ilmansaasteille kaikista lähteistä yhteensä.
   description_en: Exposure to air pollution from all sources combined.
+  description_de: Luftschadstoffexposition aus allen Quellen zusammen.
   type: simple.AdditiveNode
   quantity: exposure
   unit: ug/m**3

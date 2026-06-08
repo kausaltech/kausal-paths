@@ -1,6 +1,6 @@
 """Strawberry GraphQL types for DB-backed datasets."""
 
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
@@ -18,6 +18,9 @@ from kausal_common.datasets.models import (
 from kausal_common.strawberry.ordering import with_sibling_ids
 from kausal_common.strawberry.registry import register_strawberry_type
 
+from users.models import User
+from users.schema import UserType
+
 if TYPE_CHECKING:
     from kausal_common.datasets.models import (
         DataPoint as DataPointModel,
@@ -30,7 +33,6 @@ if TYPE_CHECKING:
     from nodes.defs.binding_def import DatasetPortBindingDef
     from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
-    from users.schema import UserType  # used in lazy strawberry annotations
 
 
 @sb.type(name='DatasetDimensionCategory')
@@ -273,6 +275,16 @@ class DatasetType:
     external_ref: Annotated['DatasetExternalRefType', sb.lazy('nodes.graphql.types.graph')] | None = sb.field(
         description='External source reference for externally backed datasets.'
     )
+    last_modified_at: datetime | None = sb.field(description='The timestamp of the last modification.')
+    last_modified_by: User | None = sb.field(
+        description='The user who last modified the dataset.',
+        graphql_type=UserType | None,
+    )
+    created_at: datetime | None = sb.field(description='The timestamp of the creation.')
+    created_by: User | None = sb.field(
+        description='The user who created the dataset.',
+        graphql_type=UserType | None,
+    )
 
     _model: sb.Private['DatasetModel | None'] = None
     _forecast_from: sb.Private[int | None] = None
@@ -418,6 +430,10 @@ class DatasetType:
             identifier=dataset.identifier,
             is_external_placeholder=dataset.is_external_placeholder,
             external_ref=_dataset_external_ref_to_gql(dataset.external_ref),
+            last_modified_at=dataset.last_modified_at,
+            last_modified_by=dataset.last_modified_by,
+            created_at=dataset.created_at,
+            created_by=dataset.created_by,
         )
         obj._model = dataset
         return obj
@@ -438,6 +454,10 @@ class DatasetType:
             identifier=binding.external_dataset_id,
             is_external_placeholder=binding.dataset_is_external_placeholder,
             external_ref=_dataset_external_ref_to_gql(binding.dataset_external_ref),
+            created_at=None,
+            created_by=None,
+            last_modified_at=None,
+            last_modified_by=None,
         )
 
 

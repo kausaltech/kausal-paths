@@ -1,15 +1,17 @@
+# This model is based on placeholder data.
+# Only the final_energy_use is actual Munich data.
 id: muenchen-bisko
 default_language: de
 supported_languages: [en]
 site_url: https://muenchen-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 258b76dff3f48de16f872f53e9697ace180c1b59
+  commit: 8c7c8f79bd54955db8bd66395cf87787888e40e9
   dvc_remote: kausal-s3
 name_de: München Klimadashboard
 name_en: Munich Climate Dashboard
 owner: München Stadt
-theme_identifier: default
+theme_identifier: de-muenchen
 target_year: 2035
 model_end_year: 2050
 reference_year: 2018
@@ -28,12 +30,18 @@ include:
   dataset_replacements:
   - from: bisko/final_energy
     to: muenchen/final_energy
+  - from: bisko/energy_costs
+    to: muenchen/energy_costs
   # - from: bisko/historical_emissions
   #   to: augsburg/historical_emissions
   # - from: bisko/passenger_kilometers
   #   to: augsburg/passenger_kilometers
   # - from: bisko/vehicle_energy
   #   to: augsburg/vehicle_energy
+- file: modules/health/air_pollution_exposure.yaml
+  allow_override: true
+- file: modules/health/attribution_and_cost.yaml
+  allow_override: true
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -79,6 +87,14 @@ params:
   value: true
   is_visible: true
   is_customizable: true
+- id: discount_rate
+  label: Discount rate
+  value: 3.5
+  min_value: 0
+  max_value: 5
+  unit: '%'
+  is_visible: true
+  is_customizable: false
 
 
 #//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,18 +104,23 @@ result_excels:
   name_de: Stadtspezifische Werte aus BISKO-Datensätzen und anderen Quellen
   name_en: City-specific values from BISKO datasets and elsewhere
   node_ids:
-  - weather_correction
-  - final_energy_use
-  - final_energy_use_data_quality
-  # - final_municipal_facilities_energy_use_by_type
-  # - municipal_fleet_energy
-  - historical_emissions
-  - end_energy_emission_factors
-  - electricity_production_emission_factors
-  - emission_factors_without_fuel_data
-  - emission_factors_for_district_heating_by_generic_fuel
-  - vehicle_kilometers_ifeu
-  - other_transport_energy
+  # - weather_correction
+  # - final_energy_use
+  # - final_energy_use_data_quality
+  # # - final_municipal_facilities_energy_use_by_type
+  # # - municipal_fleet_energy
+  # - historical_emissions
+  # - end_energy_emission_factors
+  # - electricity_production_emission_factors
+  # - emission_factors_without_fuel_data
+  # - emission_factors_for_district_heating_by_generic_fuel
+  # - vehicle_kilometers_ifeu
+  # - other_transport_energy
+  - action_index # Use these nodes to create city-specific datasets.
+  - action_data
+  - emission_reduction_potential
+  - energy_costs
+  - planned_action_shares
 
 action_groups:
 
@@ -330,10 +351,224 @@ dimensions:
     label_en: Municipal Heat Planning Preparation by Administration
     label_de: Erstellung der kommunalen Wärmeplanung durch die Verwaltung
 
+- id: cost_type
+  label_en: Cost Type
+  label_de: Kostentyp
+  label_fi: Kustannustyyppi
+  categories:
+  - id: energy_costs
+    label_en: Energy Costs
+    label_de: Energiekosten
+    label_fi: Energiakustannukset
+  - id: investment_costs
+    label_en: Investment Costs
+    label_de: Investitionskosten
+    label_fi: Investointikustannukset
+  - id: capex
+    label_en: CAPEX (capital expenditure)
+    label_de: CAPEX (Kapitalaufwendungen)
+    label_fi: CAPEX (pääomamenot)
+  - id: capex_levelised
+    label_en: CAPEX (levelised)
+    label_de: CAPEX (nivelliert)
+    label_fi: CAPEX (tasoitettu)
+  - id: opex
+    label_en: OPEX (operational expenditure)
+    label_de: OPEX (Betriebsaufwendungen)
+    label_fi: OPEX (toimintamenot)
+    aliases: [operation_cost, Operation Cost]
+  - id: maintenance_costs
+    label_en: Maintenance Costs
+    label_de: Wartungskosten
+    label_fi: Huoltokustannukset
+    aliases: [maintenance]
+  - id: sales
+    label_en: Sales income
+    label_de: Verkaufserlöse
+    label_fi: Myyntitulot
+  - id: air_pollution
+    label_en: Air pollution in traffic
+    label_de: Luftverschmutzung im Verkehr
+    label_fi: Ilmansaasteet liikenteessä
+    aliases: [air_quality]
+  - id: air_pollution_everywhere
+    label_en: Air pollution everywhere
+    label_de: Gesamte Luftverschmutzung
+    label_fi: Kaikki ilmansaastekuolleisuus
+  - id: noise
+    label_en: Noise
+    label_de: Lärm
+    label_fi: Melu
+  - id: accidents
+    label_en: Accidents
+    label_de: Unfälle
+    label_fi: Onnettomuudet
+  - id: physical_activity
+    aliases: [health]
+    label_en: Health by physical activity
+    label_de: Gesundheit durch körperliche Aktivität
+    label_fi: Terveys fyysisestä aktiivisuudesta
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
+    label_de: Verlorene Arbeitstage
+  - id: co2_cost
+    label_en: CO2 cost
+    label_de: CO2-Kosten
+    label_fi: CO2-kustannus
+  - id: aesthetics
+    label_en: Aesthetics and amenity
+    label_de: Ästhetik und Komfort
+    label_fi: Estetiikka ja mukavuus
+  - id: shading
+    label_en: Shading
+    label_de: Beschattung
+    label_fi: Varjostus
+  - id: water_regulation
+    label_en: Water regulation
+    label_de: Wasserregulierung
+    label_fi: Vedensäätely
+    aliases: [water_regulations]
+  - id: forest_management
+    label_en: Forest management
+    label_de: Waldbewirtschaftung
+    label_fi: Metsänhoito
+  - id: bus_costs
+    label_en: Bus costs
+    label_de: Buskosten
+    label_fi: Bussikustannukset
+  - id: homecharging_infrastructure
+    label_en: Home-charging infrastructure
+    label_de: Heimladeinfrastruktur
+    label_fi: Kotilatausinfrastruktuuri
+  - id: public_and_workplace_infrastructure
+    label_en: Public & workplace infrastructure
+    label_de: Öffentliche und betriebliche Infrastruktur
+    label_fi: Julkinen ja työpaikkainfrastruktuuri
+  - id: charging_infrastructure_costs
+    label_en: Charging infrastructure costs
+    label_de: Kosten der Ladeinfrastruktur
+    label_fi: Latausinfrastruktuurin kustannukset
+  - id: vehicle_costs
+    label_en: Vehicle costs
+    label_de: Fahrzeugkosten
+    label_fi: Ajoneuvokustannukset
+  - id: infrastructure_costs
+    label_en: Infrastructure costs
+    label_de: Infrastrukturkosten
+    label_fi: Infrastruktuurikustannukset
+  - id: network
+    label_en: Network
+    label_de: Netz
+    label_fi: Verkko
+  - id: fuel
+    label_en: Fuel costs
+    label_de: Kraftstoffkosten
+    label_fi: Polttoainekustannukset
+  - id: tires
+    label_en: Tire costs
+    label_de: Reifenkosten
+    label_fi: Rengaskustannukset
+  - id: depreciation
+    label_en: Depreciation costs
+    label_de: Abschreibungskosten
+    label_fi: Poistokustannukset
+  - id: labour_costs
+    label_en: Labour costs
+    label_de: Arbeitskosten
+    label_fi: Työvoimakustannukset
+  - id: industry_ippu
+    label_en: Industry (IPPU)
+    label_de: Industrie (IPPU)
+    label_fi: Teollisuus (IPPU)
+  - id: agriculture_afolu
+    label_en: Agriculture (AFOLU)
+    label_de: Landwirtschaft (AFOLU)
+    label_fi: Maatalous (AFOLU)
+  - id: other_sources
+    label_en: Other sources
+    label_de: Andere Quellen
+    label_fi: Muut lähteet
+  - id: grid_stability
+    label_en: Storage, grid stability etc.
+    label_de: Speicherung, Netzstabilität usw.
+    label_fi: Varastointi, verkon vakaus jne.
+
+- id: stakeholder
+  label_en: Stakeholder
+  label_de: Interessengruppe
+  label_fi: Sidosryhmä
+  categories:
+  - id: citizens
+    label_en: Citizens
+    label_de: Bürgerinnen und Bürger
+    label_fi: Kansalaiset
+  - id: property_owners
+    label_en: Property owners
+    label_de: Grundstückseigentümer
+    label_fi: Kiinteistönomistajat
+  - id: city
+    aliases: [cities, Cities]
+    label_en: City
+    label_de: Stadt
+    label_fi: Kaupunki
+  - id: healthcare_providers
+    label_en: Healthcare providers
+    label_de: Gesundheitsdienstleister
+    label_fi: Terveydenhuollon tarjoajat
+  - id: transport_operators
+    label_en: Transport operators
+    label_de: Verkehrsbetreiber
+    label_fi: Liikenneoperaattorit
+  - id: utilities
+    label_en: Utilities
+    label_de: Versorgungsunternehmen
+    label_fi: Julkiset palvelut
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 nodes:
+
+- id: action_data
+  name: Action data
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [action, sector, energy_carrier]
+  output_dimensions: [action, sector, energy_carrier]
+  input_datasets:
+  - id: muenchen/direkte_massnahmen_ikka
+    # tags: [inventory_only]
+
+- id: population
+  name_en: Population
+  name_de: Bevölkerung
+  type: simple.AdditiveNode
+  quantity: number
+  unit: cap
+  historical_values: [[2018, 1505306], [2023, 1505306]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: net_emissions
+  name_de: Netto-Emissionen
+  name_en: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  is_outcome: true
+  goals:
+  - label_de: Emissionen
+    label_en: Emissions
+    default: true
+    linear_interpolation: true
+    is_main_goal: true
+    values:
+    - year: 2023
+      value: 3000
+    - year: 2040
+      value: 0
 
 - id: now_year
   name_de: Aktuelles Jahr
@@ -368,7 +603,7 @@ nodes:
   input_dimensions: [sector, action] # TODO sector --> handlungsfeld
   output_dimensions: [sector, action]
   input_datasets:
-  - id: koeln/emission_reduction_potential_total
+  - id: muenchen/emission_reduction_potential_total
     tags: [potential]
   input_nodes:
   - id: scaling_rate
@@ -384,7 +619,7 @@ nodes:
   input_dimensions: [action, sector, energy_carrier, vehicle_type]
   output_dimensions: [action, sector, energy_carrier, vehicle_type]
   input_datasets:
-  - id: koeln/action_index
+  - id: muenchen/action_index
   params:
     operations: get_single_dataset  # inventory_only omitted: dataset has 2024 data, beyond Munich's max_historical_year 2023
 
@@ -568,6 +803,35 @@ nodes:
       value: 500
     is_main_goal: true
 
+- id: transport_air_pollution_emissions_total
+  name_fi: Liikenteen kokonaisilmansaastepäästöt
+  name_en: Transport air pollution emissions total
+  name_de: Gesamtemissionen der Luftverschmutzung durch den Verkehr
+  description_fi: Liikenteen ilmansaastepäästöt laskettuna CO2-päästöstä ja muut
+    päästöt suhteutettuna siihen päästökertoimien suhteessa.
+  description_en: Air pollution emissions from transport based on CO2 emissions 
+    and other pollutants relative to that based on relative emission factors.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  - id: transport_emission_ratio
+    from_dimensions:
+    - id: pollutant
+      categories: [pm25, pm10, nox]
+  params:
+  - id: multiplier
+    value: 1
+    unit: t/t_co2e
+
 - id: emission_factors
   name_de: Emissionsfaktoren
   name_en: Emission factors
@@ -601,13 +865,50 @@ nodes:
   input_dimensions: [action, sector, energy_carrier, vehicle_type]
   output_dimensions: [action, sector, energy_carrier, vehicle_type]
   input_datasets:
-  - id: koeln/planned_action_shares
+  - id: muenchen/planned_action_shares
   params:
     operations: get_single_dataset  # dataset has 2024 data, beyond Munich's max_historical_year 2023
+
+- id: stationary_emissions
+  name_de: Stationäre Emissionen
+  name_en: Stationary emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: final_energy_use
+  - id: end_energy_emission_factors
+  - id: district_heating_emissions
+    # tags: [splittee]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: per_what_energy
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+    - id: sector
+      categories: [private_households] # FIXME Should be split to other sectors as well.
+  # params:
+  #   operations: multiply,add,split_dims
 
 # --- Action aggregation output nodes ---
 # Each collects action outputs from its group and feeds them into net_emissions.
 # In the BISKO model, actions express delta-emissions (negative = reduction).
+
+- id: total_emissions
+  name_de: Totalemissionen
+  name_en: Total emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: net_emissions
 
 - id: electricity_actions
   name_de: Strommaßnahmen
@@ -618,7 +919,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   output_nodes:
-  - id: net_emissions
+  - id: stationary_emissions
 
 - id: private_household_actions
   name_de: Wärmemaßnahmen
@@ -629,7 +930,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   output_nodes:
-  - id: net_emissions
+  - id: stationary_emissions
 
 - id: traffic_actions
   name_de: Verkehrsmaßnahmen
@@ -640,7 +941,14 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+      categories: [passenger_cars]
+    - id: energy_carrier
 
 - id: consumption_emissions
   name_de: Konsumemissionen
@@ -652,7 +960,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   output_nodes:
-  - id: net_emissions
+  - id: total_emissions
 
 - id: waste_and_wastewater_emissions
   name_de: Abfall- und Abwasseremissionen
@@ -664,7 +972,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   output_nodes:
-  - id: net_emissions
+  - id: total_emissions
 
 - id: food_and_land_use_emissions
   name_de: Ernährungs- und Landnutzungsemissionen
@@ -676,7 +984,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   output_nodes:
-  - id: net_emissions
+  - id: total_emissions
 
 - id: cross_cutting_climate_protection_emissions
   name_de: Übergreifende Klimaschutzaspekte Emissionen
@@ -688,7 +996,214 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   output_nodes:
+  - id: total_emissions
+
+## COSTS
+
+- id: total_cost
+  name_en: Total cost
+  name_de: Gesamtkosten
+  name_fi: Kokonaiskustannus
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: health_costs_attributed_to_exposure
+    from_dimensions:
+    - id: response
+      flatten: true
+    - id: iteration
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+      categories: [citizens]
+
+- id: co2_unit_price
+  name_en: CO2 unit price
+  name_de: CO2-Einheitspreis
+  name_fi: Hiilidioksidin yksikköhinta
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/t_co2e
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_datasets:
+  - id: nzc/other_sectors
+    column: value_of_co2_reduction
+    filters:
+    - column: uuid
+    - column: ghg
+  params:
+  - id: multiplier
+    value: 1.0
+    unit: t/t_co2e
+
+- id: co2_emissions_cost
+  name_en: CO2 emissions cost
+  name_de: CO2-Emissionskosten
+  name_fi: CO2-päästön kustannus
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  color: '#984ea3'
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: co2_unit_price
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+      categories: [city]
   - id: net_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: energy_carrier
+    to_dimensions: []
+  output_nodes:
+  - id: total_cost
+
+- id: car_driving_unit_price
+  name_en: Car driving unit price
+  name_de: Einheitspreis für Autofahrten
+  name_fi: Auton ajamisen yksikköhinta
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/vkm
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_datasets:
+  - id: nzc/passenger_transport_costs_ownership
+    column: cost_of_driving_a_car_per_kilometre_excluding_fuel
+    filters:
+    - column: transport_mode
+      values: [cars]
+      flatten: true
+
+- id: car_driving_costs
+  name_en: Car driving costs
+  name_de: Kosten für Autofahrten
+  name_fi: Auton ajamisen kustannukset
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: car_driving_unit_price
+  - id: vehicle_kilometers
+    from_dimensions:
+    - id: vehicle_type
+      categories: [passenger_cars]
+      flatten: true
+    - id: road_type
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+      categories: [citizens]
+  output_nodes:
+  - id: total_cost
+
+- id: consumer_heating_unit_price  # TODO Prices should be separated by energy_carrier but no data available.
+  name_en: Consumer heating unit price
+  name_de: Verbraucher-Heizungseinheitspreis
+  name_fi: Kuluttajan lämmityksen yksikköhinta
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_datasets:
+  - id: nzc/buildings_heating_fuel_tech
+    column: retail_price_of_heating
+    filters:
+    - column: uuid
+
+- id: stationary_energy_costs
+  name_en: Stationary energy costs
+  name_de: Stationäre Energiekosten
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: consumer_heating_unit_price
+  - id: stationary_energy_by_type
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+      categories: [energy_costs]
+    - id: stakeholder
+      categories: [citizens]
+
+##  Miscellaneous fixes
+
+- id: final_energy_use
+  name_de: Endenergie
+  name_en: Final energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: muenchen/final_energy
+    tags: [non_additive]
+    column: Value
+    filters:
+    - column: energy_carrier
+      value: not_defined
+      exclude: true
+      drop_col: false
+  input_nodes:
+  - id: weather_correction
+
+- id: final_energy_use_data_quality
+  name_de: Endenergie Datenqualität
+  name_en: Final energy use data quality
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: muenchen/final_energy_quality
+
+- id: other_emissions
+  name_en: Other emissions
+  name_de: Andere Emissionen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_datasets:
+  - id: muenchen/other_emissions
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  output_nodes:
+  - id: net_emissions
+
+- id: drive_transition_motorized_individual_transport_total # TODO Copy the idea if it works
+  name_de: drive_transition_motorized_individual_transport total
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_nodes:
+  - id: drive_transition_motorized_individual_transport
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+    - id: vehicle_type
+      flatten: true
 
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1603,7 +2118,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1626,7 +2141,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1649,7 +2164,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1672,7 +2187,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1695,7 +2210,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1718,7 +2233,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1741,7 +2256,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1764,7 +2279,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1788,7 +2303,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1811,7 +2326,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1834,7 +2349,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1857,7 +2372,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1880,7 +2395,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1903,7 +2418,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1926,7 +2441,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1949,7 +2464,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1972,7 +2487,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -1995,7 +2510,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -2021,7 +2536,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -2048,7 +2563,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -2074,7 +2589,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -2097,7 +2612,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -2123,7 +2638,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action
@@ -2149,7 +2664,7 @@ actions:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: koeln/direkte_manahmen_ikka
+  - id: muenchen/direkte_massnahmen_ikka
     column: emissions
     filters:
     - column: action

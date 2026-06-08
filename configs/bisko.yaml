@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
+  commit: fe52570a2e2edfdc6ba5d52aa68037f34a75adac
   dvc_remote: kausal-s3
 name: Klima-Monitor Treibhausgasinventar
 owner: Kausal Ltd

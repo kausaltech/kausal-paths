@@ -20,10 +20,15 @@ from kausal_common.datasets.tests.factories import (
     DimensionCategoryFactory,
     DimensionFactory,
 )
+from kausal_common.deployment import env_bool
 
 from users.tests.factories import UserFactory
 
+IS_CI = env_bool('CI', default=False)
 
+
+# Transactions cause reuse-db to not work due to db flushing, so we only run this test in CI.
+@pytest.mark.skipif(not IS_CI, reason='Requires transactions, so only run in CI')
 @pytest.mark.django_db(transaction=True)
 def test_datapoint_concurrent_create_revalidates_after_dataset_lock(monkeypatch):
     user = UserFactory.create(is_superuser=True)

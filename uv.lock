@@ -2778,15 +2778,15 @@ prod = [
 
 [[package]]
 name = "kausal-paths-extensions"
-version = "0.7.6"
+version = "0.7.7"
 source = { registry = "https://pypi.kausal.tech/" }
 dependencies = [
     { name = "django", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "pygithub", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
-sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.7.6.tar.gz", hash = "sha256:929e3651627da4fe3d3a0fc415ea07d52c5734da6d221ff053debca4b81f869a" }
+sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.7.7.tar.gz", hash = "sha256:a2c264a8b8da49712ff823aaf3a74bb5618f704f6d5127dca282ce78b7e1686d" }
 wheels = [
-    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.7.6-py3-none-any.whl", hash = "sha256:bdbab477b58fb997b35df3ed2f408f4c64e090f99a4aded6b5c33278e7707cf0" },
+    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.7.7-py3-none-any.whl", hash = "sha256:bdb86dbac3afa36d083e7f02c9053329466eb4024fefd22d8445b26c1b00babd" },
 ]
 
 [[package]]

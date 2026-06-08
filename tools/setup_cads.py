@@ -8,8 +8,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
-
 from kausal_common.development.django import init_django
 
 from kausal_common.i18n.pydantic import set_i18n_context
@@ -37,7 +35,8 @@ LANDING_INSTANCE_NAME = 'CADS'
 LANDING_ORG_NAME = 'CADS'
 PRIMARY_LANGUAGE = 'en'
 
-BASE_FQDN = 'cads.kausal.tech' if os.getenv('DEPLOYMENT_TYPE') == 'production' else 'cads.kausal.dev'
+BASE_FQDN = 'cads.kausal.tech'
+OLD_BASE_FQDNS = ('cads.paths.kausal.tech', 'cads.kausal.dev')
 
 
 def get_or_create_framework() -> Framework:
@@ -51,6 +50,7 @@ def get_or_create_framework() -> Framework:
             enable_user_management=True,
             template_instance=template_instance,
             public_base_fqdn=BASE_FQDN,
+            use_instance_subdomains=False,
         ),
     )
     if created:
@@ -72,6 +72,9 @@ def get_or_create_framework() -> Framework:
         if fw.public_base_fqdn != BASE_FQDN:
             fw.public_base_fqdn = BASE_FQDN
             updated_fields.append('public_base_fqdn')
+        if fw.use_instance_subdomains:
+            fw.use_instance_subdomains = False
+            updated_fields.append('use_instance_subdomains')
         accept_invitation_url = 'https://{base_fqdn}/auth/register?framework={fwid}&invitation_code={code}'.format(
             base_fqdn=BASE_FQDN, code='{code}', fwid=fw.identifier
         )
@@ -84,6 +87,14 @@ def get_or_create_framework() -> Framework:
         else:
             print(f'Framework already exists: {fw}')
     return fw
+
+
+def set_root_instance(fw: Framework, root_ic: InstanceConfig) -> None:
+    if fw.root_instance_id == root_ic.pk:
+        return
+    fw.root_instance = root_ic
+    fw.save(update_fields=['root_instance'])
+    print(f'Updated framework root instance: {root_ic}')
 
 
 def enable_user_management_on_cads_instances(fw: Framework) -> None:
@@ -102,13 +113,43 @@ def enable_user_management_on_cads_instances(fw: Framework) -> None:
         print('All CADS instances already have user_management enabled')
 
 
+def _desired_base_path(fw: Framework, ic: InstanceConfig) -> str:
+    return '' if ic == fw.root_instance else f'/{ic.uuid}'
+
+
 def set_instance_hostnames(fw: Framework):
     for ic in InstanceConfig.objects.filter(framework_config__framework=fw):
+        desired_base_path = _desired_base_path(fw, ic)
+        old_hostnames = list(ic.hostnames.filter(hostname__in=OLD_BASE_FQDNS))
         ich = ic.hostnames.filter(hostname=BASE_FQDN).first()
         if ich is None:
-            assert fw.public_base_fqdn is not None
-            ich = InstanceHostname.objects.create(instance=ic, hostname=fw.public_base_fqdn, base_path='/' + str(ic.uuid))
-            print(f'Created instance hostname: {ich}')
+            if old_hostnames:
+                ich = old_hostnames.pop(0)
+                ich.hostname = BASE_FQDN
+                ich.base_path = desired_base_path
+                ich.save(update_fields=['hostname', 'base_path'])
+                print(f'Migrated instance hostname: {ich}')
+            else:
+                ich = InstanceHostname.objects.create(instance=ic, hostname=BASE_FQDN, base_path=desired_base_path)
+                print(f'Created instance hostname: {ich}')
+        elif ich.base_path != desired_base_path:
+            ich.base_path = desired_base_path
+            ich.save(update_fields=['base_path'])
+            print(f'Updated instance hostname base path: {ich}')
+        for old_hostname in old_hostnames:
+            print(f'Removed old instance hostname: {old_hostname}')
+            old_hostname.delete()
+
+
+def update_instance_site_urls(fw: Framework) -> None:
+    for fwc in FrameworkConfig.objects.filter(framework=fw).select_related('instance_config', 'framework'):
+        ic = fwc.instance_config
+        site_url = fwc.get_view_url()
+        if ic.site_url == site_url:
+            continue
+        ic.site_url = site_url
+        ic.save(update_fields=['site_url'])
+        print(f'Updated site URL for {ic}: {site_url}')
 
 
 def ensure_template_datasets() -> None:
@@ -372,7 +413,7 @@ def ensure_site(ic: InstanceConfig, root_page: Page) -> None:
 
 def init_framework_instance(fw: Framework, ic: InstanceConfig) -> FrameworkConfig:
     ich = ic.hostnames.filter(hostname=BASE_FQDN).first()
-    base_path = f'/{ic.uuid}' if ic != fw.template_instance else ''
+    base_path = _desired_base_path(fw, ic)
     if ich is None:
         ich = InstanceHostname.objects.create(instance=ic, hostname=BASE_FQDN, base_path=base_path)
         print(f'Created instance hostname: {ich}')
@@ -404,6 +445,7 @@ def main() -> None:
     org = get_or_create_organization()
     with set_i18n_context(PRIMARY_LANGUAGE, []):
         landing_ic = get_or_create_landing_instance(org)
+        set_root_instance(fw, landing_ic)
         root_page = create_landing_root_page(landing_ic)
         ensure_site(landing_ic, root_page)
         init_framework_instance(fw, landing_ic)
@@ -413,6 +455,7 @@ def main() -> None:
         init_framework_instance(fw, template_ic)
     enable_user_management_on_cads_instances(fw)
     set_instance_hostnames(fw)
+    update_instance_site_urls(fw)
     print('CADS setup complete.')
 
 

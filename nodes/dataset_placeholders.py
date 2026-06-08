@@ -248,8 +248,6 @@ def sync_dataset_placeholder(  # noqa: C901
 ) -> tuple[Dataset | None, bool]:
     from django.contrib.contenttypes.models import ContentType
 
-    from kausal_common.datasets.models import DatasetSchemaScope
-
     try:
         dvc_ds = ctx.load_dvc_dataset(ds_id)
     except Exception as e:
@@ -260,16 +258,12 @@ def sync_dataset_placeholder(  # noqa: C901
     metric_units = dvc_ds.units or _collect_placeholder_metric_units_from_node_bindings(ctx, ds_id, reporter)
     index_columns = _iter_mappable_index_columns(dvc_ds.index_columns or [], ds_id, reporter)
 
-    schema_scope_ids = DatasetSchemaScope.objects.filter(
-        scope_content_type=ContentType.objects.get_for_model(instance_config),
-        scope_id=instance_config.pk,
-    ).values_list('schema_id', flat=True)
     existing = (
         Dataset.objects
+        .get_queryset()
+        .for_instance_config(instance_config)
         .filter(
             identifier=ds_id,
-            schema_id__in=schema_scope_ids,
-            is_external_placeholder=True,
         )
         .select_related('schema')
         .first()
@@ -307,6 +301,8 @@ def sync_dataset_placeholder(  # noqa: C901
         schema=schema,
         external_ref=make_external_dataset_ref(ctx, ds_id),
         is_external_placeholder=True,
+        scope_content_type=ContentType.objects.get_for_model(instance_config),
+        scope_id=instance_config.pk,
     )
 
     metrics_meta = {

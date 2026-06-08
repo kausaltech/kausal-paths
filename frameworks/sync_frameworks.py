@@ -215,11 +215,20 @@ class FrameworkModel(DjangoDiffModel[Framework]):
     _model = Framework
     _modelname = 'framework'
     _identifiers = ('uuid',)
-    _attributes = ('identifier', 'name', 'description', 'public_base_fqdn', 'result_excel_url', 'result_excel_node_ids')
+    _attributes = (
+        'identifier',
+        'name',
+        'description',
+        'public_base_fqdn',
+        'use_instance_subdomains',
+        'result_excel_url',
+        'result_excel_node_ids',
+    )
     _children = {'section': 'sections'}
 
     sections: list[str] = Field(default_factory=list)
     identifier: str
+    use_instance_subdomains: bool = True
     uuid: UUID = Field(default_factory=uuid4)
 
     @classmethod
