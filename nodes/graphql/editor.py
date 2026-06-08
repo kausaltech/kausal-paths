@@ -14,6 +14,7 @@ from django.utils.module_loading import import_string
 from graphql import GraphQLError
 from strawberry import Maybe, auto
 
+from kausal_common.i18n.pydantic import get_translated_string_from_modeltrans
 from kausal_common.strawberry.errors import GraphQLValidationError, NotFoundError, PermissionDeniedError
 from kausal_common.strawberry.helpers import get_or_error
 from kausal_common.strawberry.ordering import SiblingPositionInputMixin
@@ -1176,6 +1177,71 @@ class InstanceEditorMutation:
             'order': cat.order,
         }
 
+    @staticmethod
+    def _modeltrans_value(obj: Any, field_name: str, primary_language: str) -> str | dict[str, str]:
+        ts = get_translated_string_from_modeltrans(obj, field_name, primary_language)
+        if len(ts.i18n) == 1:
+            return str(ts)
+        return dict(ts.i18n)
+
+    @staticmethod
+    def _sync_spec_dimension_from_orm(ic: InstanceConfig, scope: DimensionScope) -> None:
+        """
+        Keep the transitional InstanceSpec.dimensions copy in step with ORM edits.
+
+        Runtime DB hydration still reads dimensions from InstanceSpec, while
+        Trailhead edits write Dimension/DimensionCategory rows. Until hydration
+        is fully ORM-backed, replace only the mutated dimension's spec entry
+        from the ORM source of truth.
+        """
+        spec = ic.spec
+        if spec is None:
+            return
+
+        dim = scope.dimension
+        dim_id = scope.identifier
+        if dim_id is None:
+            return
+
+        existing_dims = list(spec.dimensions)
+        existing_dim = next((d for d in existing_dims if d.get('id') == dim_id), {})
+        existing_cats = {cat.get('id'): cat for cat in existing_dim.get('categories', [])}
+
+        dim_dict = {
+            **existing_dim,
+            **(dim.spec or {}),
+            'id': dim_id,
+            'label': InstanceEditorMutation._modeltrans_value(dim, 'name', ic.primary_language),
+            'categories': [],
+        }
+        categories: list[dict[str, Any]] = []
+        for cat in dim.categories.all().order_by('order'):
+            if cat.identifier is None:
+                continue
+            cat_dict = {
+                **existing_cats.get(cat.identifier, {}),
+                **(cat.spec or {}),
+                'id': cat.identifier,
+                'label': InstanceEditorMutation._modeltrans_value(cat, 'label', ic.primary_language),
+            }
+            categories.append(cat_dict)
+        dim_dict['categories'] = categories
+
+        replaced = False
+        new_dims: list[dict[str, Any]] = []
+        for existing in existing_dims:
+            if existing.get('id') == dim_id:
+                new_dims.append(dim_dict)
+                replaced = True
+            else:
+                new_dims.append(existing)
+        if not replaced:
+            new_dims.append(dim_dict)
+
+        spec = spec.model_copy(update={'dimensions': new_dims})
+        InstanceConfig.objects.filter(pk=ic.pk).update(spec=spec)
+        ic.spec = spec
+
     @gql.mutation(description='Update a dimension (e.g. rename)')
     def update_dimension(self, info: gql.Info, root: sb.Parent[Me], input: UpdateDimensionInput) -> DimensionType:
         from nodes.change_ops import gql_change_operation, record_change
@@ -1200,6 +1266,7 @@ class InstanceEditorMutation:
                 before=before,
                 after=self._dimension_snapshot(dim),
             )
+            self._sync_spec_dimension_from_orm(ic, scope)
         return DimensionType.from_scope(scope)
 
     @gql.mutation(description='Add categories to a dimension')
@@ -1259,6 +1326,8 @@ class InstanceEditorMutation:
                     before=None,
                     after=self._dimension_category_snapshot(cat),
                 )
+
+            self._sync_spec_dimension_from_orm(ic, scope)
 
         return DimensionType.from_scope(scope)
 
@@ -1330,7 +1399,9 @@ class InstanceEditorMutation:
                     after=self._dimension_category_snapshot(cat),
                 )
 
-        scope = self._get_dimension_scope(info, ic, dim.uuid)
+            scope = self._get_dimension_scope(info, ic, dim.uuid)
+            self._sync_spec_dimension_from_orm(ic, scope)
+
         return DimensionType.from_scope(scope)
 
     @gql.mutation(description='Delete a dimension category')
@@ -1356,6 +1427,7 @@ class InstanceEditorMutation:
                 after=None,
             )
             cat.delete()
+            self._sync_spec_dimension_from_orm(ic, scope)
 
     @gql.mutation(description='Create a new scenario')
     @staticmethod
