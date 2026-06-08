@@ -293,7 +293,7 @@ def clean_dataframe(df: pl.DataFrame) -> pl.DataFrame:
 def convert_to_standard_format(df: pl.DataFrame) -> pl.DataFrame:
     """Convert dataframe to standard format with Year column if needed."""
     if 'Year' in df.columns:
-        return df
+        return df.with_columns(pl.col('Year').cast(pl.Int64))
 
     year_columns = [col for col in df.columns if col.isdigit()]
     if not year_columns:
