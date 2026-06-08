@@ -8,7 +8,7 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 6b98d70c88b9d7c0ee3be1a30979867a72e3cc54
   dvc_remote: kausal-s3
-name_de: München Klimadashboard
+name_de: Maßnahmenplan Klimaneutralität München
 name_en: Munich Climate Dashboard
 owner: München Stadt
 theme_identifier: de-muenchen
@@ -192,9 +192,8 @@ dimensions:
   categories:
   # Indirect Actions (Strategies)
   - id: renewable_generation_small_decentralized_systems
-    label_en: Renewable Electricity Generation through Small Decentralized 
-      Systems
-    label_de: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen
+    label_en: Expansion of Renewable Energy for Electricity Generation in the City
+    label_de: Ausbau erneuerbarer Energien zur Stromerzeugung im Stadtgebiet
   - id: renewable_generation_open_space
     label_en: Renewable Electricity Generation in Open Spaces
     label_de: Erneuerbare Stromerzeugung in der Fläche
@@ -205,17 +204,17 @@ dimensions:
     label_en: Electricity Savings in Commercial Sector
     label_de: Stromeinsparung im Gewerbesektor
   - id: heat_source_development_for_heat_networks
-    label_en: WKS-1-2 Measures for Expanding Use of Shallow Geothermal Energy and Waste Heat
-    label_de: WKS-1-2 Maßnahmenbündel Ausbau Nutzung oberflächennaher Geothermie und Abwärme
+    label_en: Heat Source Development for District Heating Networks
+    label_de: Wärmequellenerschließung für Wärmenetze
   - id: expansion_and_densification_of_heat_networks
-    label_en: Expansion and Densification of District Heating Networks
-    label_de: Erweiterung und Verdichtung der Wärmenetze
+    label_en: Climate-Neutral District Heating and Cooling
+    label_de: Klimaneutrale Fernwärme und Fernkälte
   - id: decentralized_heating_replacement_households
     label_en: Decentralized Heating System Replacement in Households
     label_de: Dezentraler Heizungstausch in Haushalten
   - id: new_construction_residential_buildings
-    label_en: WKS-1-6 Securing Building Quality for Climate-Neutral New Residential Construction
-    label_de: WKS-1-6 Sicherung der Bauqualitäten für einen klimaneutralen Wohnungsneubau
+    label_en: New Construction Residential Buildings
+    label_de: Neubau Wohngebäude
   - id: new_construction_commercial_industrial
     label_en: New Construction Commercial/Industrial
     label_de: Neubau Gewerbe/Industrie
@@ -223,11 +222,11 @@ dimensions:
     label_en: Decentralized Heating System Replacement in Commercial Sector
     label_de: Dezentraler Heizungstausch im Gewerbe
   - id: renovation_residential_buildings
-    label_en: WKS-1-5 Further Development of Urban Renovation Ordinances
-    label_de: WKS-1-5 Weiterentwicklung städtebaulicher Sanierungssatzungen
+    label_en: Energy-Efficient Building Renovation, Decentralized Renewable Heating, Efficient New Buildings
+    label_de: Energetische Gebäudesanierung, dezentrale erneuerbare Wärmeversorgung, effiziente Neubauten
   - id: drive_transition_motorized_individual_transport
-    label_en: Drive Transition – Motorized Individual Transport
-    label_de: Antriebswende – Motorisierter Individualverkehr
+    label_en: Promotion of Alternative Fuels and Drive Technologies
+    label_de: Förderung alternativer Kraftstoffe und Antriebskonzepte
     aliases: [Antriebswende - Motorisierter Individualverkehr]
   - id: drive_transition_freight_transport
     label_en: Drive Transition – Freight Transport
@@ -238,16 +237,16 @@ dimensions:
     label_de: Antriebswende – Bus
     aliases: [Antriebswende - Bus]
   - id: mobility_transition_freight_transport
-    label_en: Mobility Transition – Freight Transport
-    label_de: Mobilitätswende – Güterverkehr
+    label_en: Freight and Commercial Transport
+    label_de: Güter- und Wirtschaftsverkehr
     aliases: [Mobilitätswende - Güterverkehr]
   - id: mobility_transition_local_mobility
-    label_en: V-1-6 Continuation of Promotion of Local Mobility
-    label_de: V-1-6 Fortführung der Förderung der Nahmobilität
+    label_en: Further Public Transport Measures
+    label_de: Weitere ÖPNV-Maßnahmen
     aliases: [Mobilitätswende - Nahmobilität]
   - id: mobility_transition_regional_mobility
-    label_en: V-2-1 Continuation of Subway Expansion
-    label_de: V-2-1 Fortführung U-Bahn-Ausbau
+    label_en: Expansion of Public Transport Infrastructure
+    label_de: Ausbau ÖPNV-Infrastruktur
     aliases: [Mobilitätswende - Regionale Mobilität]
   - id: food_and_nutrition
     label_en: Food & Nutrition
@@ -278,8 +277,8 @@ dimensions:
     label_en: Rewetting of Organic Soils
     label_de: Wiedervernässung organischer Böden
   - id: electricity_savings_households
-    label_en: Electricity Savings in Households
-    label_de: Stromeinsparung durch Haushalte
+    label_en: Efficient Use of Electricity, Heat and Living/Usable Space
+    label_de: Effiziente Nutzung von Strom, Wärme und Wohn-/Nutzflächen
   - id: electricity_savings_industry
     label_en: Electricity Savings in Industry
     label_de: Stromeinsparung in der Industrie
@@ -351,8 +350,8 @@ dimensions:
     label_en: Decarbonization of Inland Waterway Shipping by HGK
     label_de: Dekarbonisierung der Binnenschifffahrt durch HGK
   - id: ghg_reduction_through_circular_use_of_wood_and_building_materials
-    label_en: WKS-1-8 Creation and Dissemination of a Building Materials Catalogue
-    label_de: WKS-1-8 Erstellung und Verbreitung „Materialkatalog" Baumaterialien
+    label_en: GHG Reduction through Circular Use of Wood and Building Materials
+    label_de: THG-Minderung durch Kreislaufnutzung von Holz- und Baumaterialien
   - id: optimization_of_residual_waste_utilization_by_avg
     label_en: Optimization of Residual Waste Utilization by AVG
     label_de: Optimierung der Restmüllverwertung durch AVG
@@ -361,8 +360,8 @@ dimensions:
     label_de: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der
       AVG'
   - id: sump_development_by_city_administration
-    label_en: V-1-1 Intensification of Integrated Settlement and Transport Development
-    label_de: V-1-1 Intensivierung integrierte Siedlungs- und Verkehrsentwicklung
+    label_en: Urban Planning, Settlement Development and Spatial Design
+    label_de: Stadtplanung, Siedlungsentwicklung und räumliche Gestaltung
   - id: digital_climate_protection_monitoring_by_administration
     label_en: Digital Climate Protection Monitoring by Administration
     label_de: Digitales Klimaschutz-Monitoring durch die Verwaltung
@@ -370,8 +369,8 @@ dimensions:
     label_en: Climate Protection Coordination Office
     label_de: Koordinationsstelle Klimaschutz
   - id: municipal_heat_planning_preparation_by_administration
-    label_en: WKS-1-1 Development of a Comprehensive Municipal Heat Strategy
-    label_de: WKS-1-1 Entwicklung einer flächendeckenden kommunalen Wärmestrategie
+    label_en: Municipal Heat Planning Preparation by Administration
+    label_de: Erstellung der kommunalen Wärmeplanung durch die Verwaltung
 
 - id: cost_type
   label_en: Cost Type
@@ -1231,8 +1230,8 @@ nodes:
 actions:
 
 - id: renewable_generation_small_decentralized_systems
-  name_de: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen
-  name_en: Renewable Electricity Generation through Small Decentralized Systems
+  name_de: Ausbau erneuerbarer Energien zur Stromerzeugung im Stadtgebiet
+  name_en: Expansion of Renewable Energy for Electricity Generation in the City
   description_en: The strategy consists of these measures:<ul><li>PV Funding 
     Programs of City Administration</li><li>Cologne Solar Cadastre for PV and 
     Solar Systems</li><li>Mobile One-Stop-Shop for Cologne</li><li>KlimaVeedel 
@@ -1363,8 +1362,8 @@ actions:
 #       flatten: true
 
 - id: electricity_savings_households
-  name_de: Stromeinsparung durch Haushalte
-  name_en: Electricity Savings in Households
+  name_de: Effiziente Nutzung von Strom, Wärme und Wohn-/Nutzflächen
+  name_en: Efficient Use of Electricity, Heat and Living/Usable Space
   description_en: The strategy consists of these measures:<ul><li>(No specific 
     measures listed)</li></ul>
   description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
@@ -1413,8 +1412,8 @@ actions:
 #       flatten: true
 
 - id: heat_source_development_for_heat_networks
-  name_de: WKS-1-2 Maßnahmenbündel Ausbau Nutzung oberflächennaher Geothermie und Abwärme
-  name_en: WKS-1-2 Measures for Expanding Use of Shallow Geothermal Energy and Waste Heat
+  name_de: Wärmequellenerschließung für Wärmenetze
+  name_en: Heat Source Development for District Heating Networks
   description_en: The strategy consists of these measures:<ul><li>Transformation
     Plans of RheinEnergie AG for Cologne District Heating Networks</li></ul>
   description_de: Die Strategie besteht aus diesen 
@@ -1441,8 +1440,8 @@ actions:
       flatten: true
 
 - id: expansion_and_densification_of_heat_networks
-  name_de: Erweiterung und Verdichtung der Wärmenetze
-  name_en: Expansion and Densification of District Heating Networks
+  name_de: Klimaneutrale Fernwärme und Fernkälte
+  name_en: Climate-Neutral District Heating and Cooling
   description_en: The strategy consists of these 
     measures:<ul><li>Climate-Neutral Heat Supply at KVB</li></ul>
   description_de: Die Strategie besteht aus diesen 
@@ -1495,8 +1494,8 @@ actions:
       flatten: true
 
 - id: new_construction_residential_buildings
-  name_de: WKS-1-6 Sicherung der Bauqualitäten für einen klimaneutralen Wohnungsneubau
-  name_en: WKS-1-6 Securing Building Quality for Climate-Neutral New Residential Construction
+  name_de: Neubau Wohngebäude
+  name_en: New Construction Residential Buildings
   description_en: The strategy consists of these measures:<ul><li>Building 
     Standards in New Construction (public, private and 
     commercial)</li><li>Decarbonization Strategy of GAG Immobilien AG</li></ul>
@@ -1576,8 +1575,8 @@ actions:
       flatten: true
 
 - id: renovation_residential_buildings
-  name_de: WKS-1-5 Weiterentwicklung städtebaulicher Sanierungssatzungen
-  name_en: WKS-1-5 Further Development of Urban Renovation Ordinances
+  name_de: Energetische Gebäudesanierung, dezentrale erneuerbare Wärmeversorgung, effiziente Neubauten
+  name_en: Energy-Efficient Building Renovation, Decentralized Renewable Heating, Efficient New Buildings
   description_en: The strategy consists of these measures:<ul><li>Energy 
     Retrofitting of Heritage-Protected Building Stock</li><li>KfW 432 
     Energy-Efficient Neighborhood Development</li><li>Concept Allocations as 
@@ -1687,8 +1686,8 @@ actions:
       flatten: true
 
 - id: drive_transition_motorized_individual_transport
-  name_de: Antriebswende – Motorisierter Individualverkehr
-  name_en: Drive Transition – Motorized Individual Transport
+  name_de: Förderung alternativer Kraftstoffe und Antriebskonzepte
+  name_en: Promotion of Alternative Fuels and Drive Technologies
   description_en: The strategy consists of these measures:<ul><li>Charging 
     Station Infrastructure in Public Road Space</li></ul>
   description_de: Die Strategie besteht aus diesen 
@@ -1767,8 +1766,8 @@ actions:
 #       flatten: true
 
 - id: mobility_transition_local_mobility
-  name_de: V-1-6 Fortführung der Förderung der Nahmobilität
-  name_en: V-1-6 Continuation of Promotion of Local Mobility
+  name_de: Weitere ÖPNV-Maßnahmen
+  name_en: Further Public Transport Measures
   description_en: The strategy consists of these measures:<ul><li>Adjustments in
     Motorized Individual Transport (MIT)</li><li>Bicycle Traffic 
     Promotion</li><li>Light Rail Expansion</li></ul>
@@ -1797,8 +1796,8 @@ actions:
       flatten: true
 
 - id: mobility_transition_regional_mobility
-  name_de: V-2-1 Fortführung U-Bahn-Ausbau
-  name_en: V-2-1 Continuation of Subway Expansion
+  name_de: Ausbau ÖPNV-Infrastruktur
+  name_en: Expansion of Public Transport Infrastructure
   description_en: The strategy consists of these measures:<ul><li>Light Rail 
     Expansion</li><li>Bicycle Traffic Promotion</li><li>Networked 
     Mobility</li></ul>
@@ -2522,8 +2521,8 @@ actions:
   - id: traffic_actions
 
 - id: ghg_reduction_through_circular_use_of_wood_and_building_materials
-  name_de: WKS-1-8 Erstellung und Verbreitung „Materialkatalog" Baumaterialien
-  name_en: WKS-1-8 Creation and Dissemination of a Building Materials Catalogue
+  name_de: THG-Minderung durch Kreislaufnutzung von Holz- und Baumaterialien
+  name_en: GHG Reduction through Circular Use of Wood and Building Materials
   type: simple.GenericAction
   quantity: emissions
   unit: kt_co2e/a
@@ -2601,8 +2600,8 @@ actions:
     is_visible: false
 
 - id: sump_development_by_city_administration
-  name_de: V-1-1 Intensivierung integrierte Siedlungs- und Verkehrsentwicklung
-  name_en: V-1-1 Intensification of Integrated Settlement and Transport Development
+  name_de: Stadtplanung, Siedlungsentwicklung und räumliche Gestaltung
+  name_en: Urban Planning, Settlement Development and Spatial Design
   type: simple.GenericAction
   quantity: emissions
   unit: kt_co2e/a
@@ -2676,8 +2675,8 @@ actions:
     is_visible: false
 
 - id: municipal_heat_planning_preparation_by_administration
-  name_de: WKS-1-1 Entwicklung einer flächendeckenden kommunalen Wärmestrategie
-  name_en: WKS-1-1 Development of a Comprehensive Municipal Heat Strategy
+  name_de: Erstellung der kommunalen Wärmeplanung durch die Verwaltung
+  name_en: Municipal Heat Planning Preparation by Administration
   type: simple.GenericAction
   quantity: emissions
   unit: kt_co2e/a
