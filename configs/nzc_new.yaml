@@ -1,14 +1,14 @@
-# New version saved 2026-06-09 based on lucia.yaml
-id: nzc
+id: lucia
 default_language: en
-site_url: https://nzc.paths.staging.kausal.tech
+supported_languages: [fi]
+site_url: https://lucia.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 40f8e4546e41297546498938271144337e75c9f8
   dvc_remote: kausal-s3
-name: Demonstration BASIC+ Greenhouse Gas Inventory
-owner: City of Demonstration
-theme_identifier: eu-netzerocities
+name: Lucia Greenhouse Gas Inventory
+owner: Kausal Ltd
+theme_identifier: default
 target_year: 2030
 model_end_year: 2060
 reference_year: 2018
@@ -19,8 +19,8 @@ emission_forecast_from: 2021
 emission_dimensions: [scope, ghg, sector]
 features:
   baseline_visible_in_graphs: true
-  show_significant_digits: 4
-  maximum_fraction_digits: 0
+  show_significant_digits: 6
+  maximum_fraction_digits: 6
   hide_node_details: true
   show_refresh_prompt: true
   requires_authentication: true
@@ -28,7 +28,7 @@ features:
   use_datasets_from_db: true
 
 result_excels:
-- base_excel_url:
+- base_excel_url: 
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
   name: Climate City Contract Tables
   node_ids:
@@ -1295,11 +1295,9 @@ actions:
   group: transport
   input_datasets:
   - id: nzc/transport_actions
-    tags: [city_data]
     column: transportation_need_reduction_by_2030_from_urban_pla
     filters:
     - column: uuid
-      drop_col: false
   output_nodes:
   - id: motorised_transport_change
     to_dimensions: []
@@ -1314,11 +1312,9 @@ actions:
   group: transport
   input_datasets:
   - id: nzc/transport_actions
-    tags: [city_data]
     column: reduced_pkm_cars_motorcycles_by_2030
     filters:
     - column: uuid
-      drop_col: false
   output_nodes:
   - id: passenger_kilometres_switched
     to_dimensions: []
@@ -1336,11 +1332,9 @@ actions:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/transport_actions
-    tags: [city_data]
     column: 13_car_pooling
     filters:
     - column: uuid
-      drop_col: false
   output_nodes:
   - id: relative_transport_efficiency
     to_dimensions:
@@ -1357,11 +1351,9 @@ actions:
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
   - id: nzc/transport_actions
-    tags: [city_data]
     column: electrification_of_transport_fleet
     filters:
     - column: uuid
-      drop_col: false
   input_nodes:
   - id: fully_electric_vehicle_share_historical
     from_dimensions:
@@ -1382,12 +1374,10 @@ actions:
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
   - id: nzc/transport_actions
-    tags: [city_data]
     column: expected_procurement_schedule_for_buses
     forecast_from: 2020
     filters:
     - column: uuid
-      drop_col: false
   output_nodes:
   - id: fully_electric_bus_share
     tags: [cumulative]
@@ -1430,11 +1420,9 @@ actions:
   parent: a21_optimised_logistics
   input_datasets:
   - id: nzc/transport_actions
-    tags: [city_data]
     column: reduction_of_total_distance_travelled_through_route_
     filters:
     - column: uuid
-      drop_col: false
   output_nodes:
   - id: freight_transport_vehicle_kilometres
     tags: [complement, non_additive]
@@ -1451,11 +1439,9 @@ actions:
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
   - id: nzc/transport_actions
-    tags: [city_data]
     column: electrification_of_transport_fleet
     filters:
     - column: uuid
-      drop_col: false
   input_nodes:
   - id: fully_electric_truck_share_historical
   output_nodes:
@@ -1490,28 +1476,25 @@ actions:
     filters:
     - column: uuid
     - column: energy_carrier
-    tags: [historical, renovation_rate, city_data]
+    tags: [historical, renovation_rate]
   - id: nzc/buildings_stock_renovation
     column: renovation_rate_decarbonisation_scenario
     filters:
     - column: uuid
-      drop_col: false
     - column: energy_carrier
-    tags: [goal, renovation_rate, city_data]
+    tags: [goal, renovation_rate]
   - id: nzc/buildings_stock_renovation
     column: renovations_actual_share_of_market_in_baseline_scenario
     filters:
     - column: uuid
-      drop_col: false
     - column: energy_carrier
-    tags: [historical, renovation_shares, city_data]
+    tags: [historical, renovation_shares]
   - id: nzc/buildings_stock_renovation
     column: assumed_share_of_type_of_renovation_in_lever
     filters:
     - column: uuid
-      drop_col: false
     - column: energy_carrier
-    tags: [goal, renovation_shares, city_data]
+    tags: [goal, renovation_shares]
   output_nodes:
   - id: old_building_renovation_rate_observed
     metrics: [renovation_rate]
@@ -1533,14 +1516,13 @@ actions:
     column: share_of_new_buildings_built
     filters:
     - column: uuid
-    tags: [historical, city_data]
+    tags: [historical]
   - id: nzc/buildings_stock_renovation
     column: share_of_new_buildings_built_with_high_energy_effici
     filters:
     - column: uuid
-      drop_col: false
     - column: energy_carrier
-    tags: [goal, city_data]
+    tags: [goal]
   output_nodes:
   - id: new_building_shares
 
@@ -1573,27 +1555,25 @@ actions:
     filters:
     - column: uuid
     - column: building_energy_class
-    tags: [goal, renovation_rate, city_data]
+    tags: [goal, renovation_rate]
   - id: nzc/buildings_materials_costs
     column: current_share_of_type_of_efficiency_programme
     filters:
     - column: uuid
-      drop_col: false
     - column: cost_type
     - column: material
     - column: stakeholder
     - column: building_energy_class
-    tags: [historical, efficiency_shares, city_data]
+    tags: [historical, efficiency_shares]
   - id: nzc/buildings_materials_costs
     column: assumed_share_of_type_of_efficiency_programme_for_lever
     filters:
     - column: uuid
-      drop_col: false
     - column: cost_type
     - column: material
     - column: stakeholder
     - column: building_energy_class
-    tags: [goal, efficiency_shares, city_data]
+    tags: [goal, efficiency_shares]
   output_nodes:
   - id: efficient_appliances_rate
     metrics: [renovation_rate]
@@ -1634,15 +1614,14 @@ actions:
     - column: uuid
     - column: energy_carrier
     - column: fuel_type
-    tags: [historical, city_data]
+    tags: [historical]
   - id: nzc/buildings_heating_fuel_tech
     column: heating_technologies_in_2030
     filters:
     - column: uuid
-      drop_col: false
     - column: energy_carrier
     - column: fuel_type
-    tags: [goal, city_data]
+    tags: [goal]
   output_nodes:
   - id: building_heating_type_share
     to_dimensions:
@@ -1664,13 +1643,12 @@ actions:
     column: share_of_heating_fuel
     filters:
     - column: uuid
-    tags: [historical, city_data]
+    tags: [historical]
   - id: nzc/buildings_heating_fuel_tech
     column: share_of_heating_in_2030
     filters:
     - column: uuid
-      drop_col: false
-    tags: [goal, city_data]
+    tags: [goal]
   output_nodes:
   - id: heating_fuel_share_local
     from_dimensions:
@@ -1696,13 +1674,12 @@ actions:
     column: share_of_waste_used_in_district_heating_that_is_foss
     filters:
     - column: uuid
-    tags: [historical, city_data]
+    tags: [historical]
   - id: nzc/buildings_heating_fuel_tech
     column: share_of_waste_in_2030_used_in_district_heating_that
     filters:
     - column: uuid
-      drop_col: false
-    tags: [goal, city_data]
+    tags: [goal]
   output_nodes:
   - id: heating_waste_fossil_share
 
@@ -1800,12 +1777,10 @@ actions:
     to_dimensions: []
   input_datasets:
   - id: nzc/other_actions
-    tags: [city_data]
     column: reduced_co2e_emissions_committed_by_industry_agricu
     forecast_from: 2025
     filters:
     - column: uuid
-      drop_col: false
 
 # --------------- Scope 3 ---------------
 
@@ -1956,11 +1931,9 @@ nodes:
   unit: cap
   input_datasets:
   - id: nzc/population
-    tags: [city_data]
     column: population
     filters:
     - column: uuid
-      drop_col: false
   input_nodes:
   - id: population_growth
     tags: [arithmetic_inverse, complement_cumulative_product, non_additive]
@@ -1973,11 +1946,9 @@ nodes:
   unit: '%/a'
   input_datasets:
   - id: nzc/population
-    tags: [city_data]
     column: expected_annual_population_growth_up_until_2030
     filters:
     - column: uuid
-      drop_col: false
 
 - id: aggregated_net_emissions
   name: Aggregated net emissions
@@ -2017,11 +1988,9 @@ nodes:
   output_dimensions: [cost_type, ghg]
   input_datasets:
   - id: nzc/other_sectors
-    tags: [city_data]
     column: value_of_co2_reduction
     filters:
     - column: uuid
-      drop_col: false
 
 - id: co2_emissions_cost
   name: CO2 emissions cost
@@ -2072,11 +2041,9 @@ nodes:
   output_dimensions: [cost_type, aggregated_cost_type]
   input_datasets:
   - id: nzc/other_sectors
-    tags: [city_data]
     column: aggregated_cost_types
     filters:
     - column: uuid
-      drop_col: false
 
 - id: aggregated_cost
   name: Aggregated cost
@@ -2624,11 +2591,9 @@ nodes:
       categories: [other]
   input_datasets:
   - id: nzc/other_sectors
-    tags: [city_data]
     column: emissions_from_other_sectors
     filters:
     - column: uuid
-      drop_col: false
   visualizations:
   - kind: group
     label: Drivers of other emissions
@@ -2675,11 +2640,9 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: electrification_of_transport_fleet
     filters:
     - column: uuid
-      drop_col: false
     - column: parameter
       value: max_year
 
@@ -2726,11 +2689,9 @@ nodes:
   output_dimensions: [transport_pollutant, transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_emissions
-    tags: [city_data]
     column: transport_emission_factors
     filters:
     - column: uuid
-      drop_col: false
 
 - id: new_fleet_emission_factor_pre
   name_en: New fleet emission factor before splitting
@@ -2786,11 +2747,9 @@ nodes:
   output_dimensions: [transport_pollutant, transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_emissions
-    tags: [city_data]
     column: new_fleet_emission_factor
     filters:
     - column: uuid
-      drop_col: false
   # params:
   #   crop_to_model_range: true
 
@@ -2826,11 +2785,9 @@ nodes:
   output_dimensions: [pollutant, transport_pollutant, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_emissions
-    tags: [city_data]
     column: transport_pollutant_split
     filters:
     - column: uuid
-      drop_col: false
 
 - id: baseline_year_fleet_emission_factor
   name_en: Baseline year fleet emission factor
@@ -2890,11 +2847,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: share_of_fleet_that_is_less_than_2_years_old
     filters:
     - column: uuid
-      drop_col: false
   params:
   - id: multiplier
     value: 0.5
@@ -3017,11 +2972,9 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: share_of_fleet_fully_electric_not_including_hybrids
     filters:
     - column: uuid
-      drop_col: false
 
 - id: fully_electric_vehicle_share
   name_en: Fully electric car and truck share
@@ -3038,11 +2991,9 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: share_of_fleet_fully_electric_not_including_hybrids
     filters:
     - column: uuid
-      drop_col: false
 
 - id: fully_electric_bus_share
   name_en: Fully electric bus share
@@ -3057,11 +3008,9 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: share_of_bus_fleet_as_fully_electric_buses_not_incl
     filters:
     - column: uuid
-      drop_col: false
 
 - id: number_of_buses_historical
   name_en: Number of buses historical
@@ -3073,11 +3022,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: number_of_buses_in_city_bus_fleet
     filters:
     - column: uuid
-      drop_col: false
 
 - id: vehicle_kilometres_per_bus
   name_en: Vehicle kilometres per bus
@@ -3191,11 +3138,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: number_of_passengers_per_vehicle
     filters:
     - column: uuid
-      drop_col: false
 
 - id: passenger_kilometres_historical
   name_en: Passenger kilometres data
@@ -3205,11 +3150,9 @@ nodes:
   unit: Mpkm/a
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: transport_need
     filters:
     - column: uuid
-      drop_col: false
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
 
@@ -3265,11 +3208,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: share_of_car_motorcycle_km_reduced_shifted_towards
     filters:
     - column: uuid
-      drop_col: false
 
 - id: passenger_kilometres_switched
   name_en: Passenger kilometres switched
@@ -3299,11 +3240,9 @@ nodes:
   unit: Mpkm/a
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: transport_need
     filters:
     - column: uuid
-      drop_col: false
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
@@ -3340,11 +3279,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: motorised_transport_index
     filters:
     - column: uuid
-      drop_col: false
 
 - id: motorised_transport_change
   name_en: Motorised transport change
@@ -3373,11 +3310,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: relative_transport_efficiency
     filters:
     - column: uuid
-      drop_col: false
   output_nodes:
   - id: transport_efficiency
     tags: [non_additive]
@@ -3467,11 +3402,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: total_number_of_cars_motorcycles_in_city
     filters:
     - column: uuid
-      drop_col: false
 
 - id: vehicle_kilometres_per_car
   name_en: Vehicle kilometres per car
@@ -3750,11 +3683,9 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
-    tags: [city_data]
     column: electricity_consumption_average_vehicle
     filters:
     - column: uuid
-      drop_col: false
 
 - id: up_front_cost_shares_of_evs
   name_en: Up-front cost shares of EVs
@@ -4283,11 +4214,9 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: share_of_trucks_fully_electric_not_including_hybrids
     filters:
     - column: uuid
-      drop_col: false
 
 - id: fully_electric_light_truck_share
   name_en: Fully electric light truck share
@@ -4304,11 +4233,9 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: share_of_trucks_fully_electric_not_including_hybrids
     filters:
     - column: uuid
-      drop_col: false
 
 - id: fully_electric_heavy_truck_share
   name_en: Fully electric heavy truck share
@@ -4325,11 +4252,9 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: share_of_trucks_fully_electric_not_including_hybrids
     filters:
     - column: uuid
-      drop_col: false
 
 - id: freight_transport_energy_carrier_shares
   name_en: Freight transport energy carrier shares
@@ -4364,11 +4289,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: total_transportation_need_within_city_road_freight
     filters:
     - column: uuid
-      drop_col: false
 
  # A separate node is needed so that the progress tracker scenario gets implemented in the main model correctly.
 - id: freight_transport_need_scaled
@@ -4416,11 +4339,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: average_utilisation
     filters:
     - column: uuid
-      drop_col: false
 
 - id: average_truck_utilisation
   name_en: Average truck utilisation
@@ -4432,11 +4353,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: average_utilisation
     filters:
     - column: uuid
-      drop_col: false
 
 - id: average_truck_utilisation_goal
   name_en: Average truck utilisation goal
@@ -4448,11 +4367,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: utilisation_of_trucks_in_decarbonisation_scenario
     filters:
     - column: uuid
-      drop_col: false
 
 - id: truck_max_load_weight
   name_en: Truck max load weight
@@ -4464,11 +4381,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: max_load_weight
     filters:
     - column: uuid
-      drop_col: false
 
 - id: conversion_from_tonnes_to_vehicle_kilometres
   name_en: Conversion from tonnes to vehicle kilometres
@@ -4532,11 +4447,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: number_of_trucks_registered_within_city
     filters:
     - column: uuid
-      drop_col: false
 
 - id: truck_mileage
   name_en: Truck mileage
@@ -4620,11 +4533,9 @@ nodes:
   output_dimensions: [transport_mode, pollutant]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: new_truck_emission_factor
     filters:
     - column: uuid
-      drop_col: false
   # params:
   #   crop_to_model_range: true
 
@@ -4692,11 +4603,9 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: fleet_average_consumption
     filters:
     - column: uuid
-      drop_col: false
 
 - id: freight_transport_fuel_consumption
   name_en: freight transport fuel consumption
@@ -4818,11 +4727,9 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: freight_transport_noise
     filters:
     - column: uuid
-      drop_col: false
 
 - id: freight_transport_noise_cost
   name_en: Freight transport noise cost
@@ -4867,11 +4774,9 @@ nodes:
   output_dimensions: [transport_mode, cost_type]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: freight_transport_traffic_accidents
     filters:
     - column: uuid
-      drop_col: false
 
 - id: freight_transport_accident_cost
   name_en: Freight transport accident cost
@@ -4934,11 +4839,9 @@ nodes:
   output_dimensions: [cost_type, transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: freight_labour_cost_fraction
     filters:
     - column: uuid
-      drop_col: false
 
 - id: freight_ownership_cost_without_labour
   name_en: Freight ownership cost without labour
@@ -4991,11 +4894,9 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: nzc/freight_transport
-    tags: [city_data]
     column: fuel_consumption_change_of_1_utilisation_change
     filters:
     - column: uuid
-      drop_col: false
 
 - id: fuel_consumption_increase_due_to_load
   name_en: Fuel consumption increase due to load
@@ -5091,11 +4992,9 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    tags: [city_data]
     column: total_floor_area_residental_non_residential
     filters:
     - column: uuid
-      drop_col: false
 
 - id: projected_building_stock
   name_en: Projected building stock
@@ -5122,11 +5021,9 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    tags: [city_data]
     column: share_of_new_buildings_built
     filters:
     - column: uuid
-      drop_col: false
 
 - id: demolition_rate
   name_en: Demolition rate
@@ -5138,11 +5035,9 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    tags: [city_data]
     column: demolition_rate_existing_buildings
     filters:
     - column: uuid
-      drop_col: false
 
 - id: demolished_building_stock
   name_en: Demolished building stock
@@ -5232,11 +5127,9 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    tags: [city_data]
     column: share_of_building_stock_renovated_each_year
     filters:
     - column: uuid
-      drop_col: false
 
 - id: renovation_intensity_shares
   name_en: Renovation intensity shares
@@ -5248,11 +5141,9 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    tags: [city_data]
     column: renovations_actual_share_of_market_in_baseline_scenario
     filters:
     - column: uuid
-      drop_col: false
 
 - id: renovated_building_stock
   name_en: Renovated building stock
@@ -5288,11 +5179,9 @@ nodes:
   unit: GWh/a
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    tags: [city_data]
     column: total_heating_demand_space_heating_domestic_hot_w
     filters:
     - column: uuid
-      drop_col: false
 
 - id: energy_use_intensity_data
   name_en: Energy use intensity data for heating
@@ -5304,11 +5193,9 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    tags: [city_data]
     column: energy_use_intensity
     filters:
     - column: uuid
-      drop_col: false
 
 - id: energy_use_intensity_ratio
   name_en: Energy use intensity ratio for heating
@@ -5337,11 +5224,9 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    tags: [city_data]
     column: energy_efficiency_improvements_from_building_renovat
     filters:
     - column: uuid
-      drop_col: false
 
 - id: energy_use_intensity_old
   name_en: Energy use intensity of existing buildings
@@ -5390,11 +5275,9 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    tags: [city_data]
     column: improvement_in_energy_efficiency_relative_to_minimum
     filters:
     - column: uuid
-      drop_col: false
 
 - id: energy_use_intensity_new
   name_en: Energy use intensity for heating of new buildings
@@ -5447,11 +5330,9 @@ nodes:
   output_dimensions: [heating_type]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    tags: [city_data]
     column: heating_technologies
     filters:
     - column: uuid
-      drop_col: false
 
 - id: heating_fuel_share_local
   name_en: Local heating energy carrier shares  # TODO update ids to match names
@@ -5503,11 +5384,9 @@ nodes:
   output_dimensions: [fuel_type, heating_type, energy_carrier]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    tags: [city_data]
     column: share_of_waste_used_in_district_heating_that_is_foss
     filters:
     - column: uuid
-      drop_col: false
 
 - id: building_heating_shares_pre
   name_en: Building heating shares unadjusted
@@ -5576,11 +5455,9 @@ nodes:
   output_dimensions: [scope, heating_type, energy_carrier]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    tags: [city_data]
     column: scope_of_energy_carriers
     filters:
     - column: uuid
-      drop_col: false
 
 - id: building_heat_energy_use_before_obs
   name_en: Building heat energy use before observations
@@ -5678,11 +5555,9 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    tags: [city_data]
     column: efficiency_of_heat_pumps
     filters:
     - column: uuid
-      drop_col: false
 
 - id: building_heat_electricity_use
   name_en: Building heat electricity use
@@ -5751,11 +5626,9 @@ nodes:
   output_dimensions: [pollutant, heating_type]
   input_datasets:
   - id: nzc/buildings_heating_emission_factors
-    tags: [city_data]
     column: emission_factors_from_heat_production
     filters:
     - column: uuid
-      drop_col: false
 
 - id: building_heat_fossil_energy
   name_en: Building heat fossil energy
@@ -5882,11 +5755,9 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    tags: [city_data]
     column: building_costs_new_buildings
     filters:
     - column: uuid
-      drop_col: false
 
 - id: new_building_unit_price
   name_en: New building unit price
@@ -5913,11 +5784,9 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    tags: [city_data]
     column: investment_costs_in_new_buildings
     filters:
     - column: uuid
-      drop_col: false
 
 - id: new_building_cost
   name_en: New building cost
@@ -5951,11 +5820,9 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    tags: [city_data]
     column: share_of_building_stock_renovated_each_year
     filters:
     - column: uuid
-      drop_col: false
 
 - id: efficient_appliances_rate
   name_en: Lighting & appliances renovation rate
@@ -5984,11 +5851,9 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: average_electricity_use_for_lighting_appliances
     filters:
     - column: uuid
-      drop_col: false
 
 - id: efficiency_programme_shares
   name_en: Electricity efficiency programme intensity shares
@@ -6000,11 +5865,9 @@ nodes:
   output_dimensions: [efficiency_programme, energy_carrier]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    tags: [city_data]
     column: current_share_of_type_of_efficiency_programme
     filters:
     - column: uuid
-      drop_col: false
   params:
     new_category: efficiency_programme:no_improvements
 
@@ -6026,11 +5889,9 @@ nodes:
     - id: energy_carrier
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: efficiency_improvements_for_each_renovation
     filters:
     - column: uuid
-      drop_col: false
 
 - id: consumer_electricity_intensity
   name_en: Electricity use intensity for lighting & appliances
@@ -6144,11 +6005,9 @@ nodes:
   unit: jobs/(MEUR/a)
   input_datasets:
   - id: nzc/buildings_materials_costs
-    tags: [city_data]
     column: jobs_created_by_investment_in_renovation
     filters:
     - column: uuid
-      drop_col: false
 
 - id: jobs_created_by_renovations
   name_en: Jobs created by renovations
@@ -6179,11 +6038,9 @@ nodes:
   output_dimensions: [pollutant, heating_type, area_distance]
   input_datasets:
   - id: nzc/other_sectors
-    tags: [city_data]
     column: air_pollutant_distance_index
     filters:
     - column: uuid
-      drop_col: false
 
 - id: building_air_pollution_cost
   name_en: Building air pollution cost
@@ -6245,11 +6102,9 @@ nodes:
   output_dimensions: [efficiency_programme, energy_carrier, cost_type]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    tags: [city_data]
     column: cost_of_efficiency_programme_per_m2
     filters:
     - column: uuid
-      drop_col: false
 
 - id: old_building_renovation_unit_price
   name_en: Old building renovation unit price
@@ -6261,11 +6116,9 @@ nodes:
   output_dimensions: [building_energy_class, cost_type]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    tags: [city_data]
     column: cost_of_energy_renovations
     filters:
     - column: uuid
-      drop_col: false
 
 - id: old_building_cost_shares
   name_en: Old building cost shares
@@ -6277,11 +6130,9 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    tags: [city_data]
     column: building_renovation_investments
     filters:
     - column: uuid
-      drop_col: false
 
 - id: old_building_renovation_costs
   name_en: Old building renovation costs
@@ -6361,11 +6212,9 @@ nodes:
   output_dimensions: [heating_type, energy_carrier]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    tags: [city_data]
     column: share_of_current_fossil_production_that_would_need_t
     filters:
     - column: uuid
-      drop_col: false
 
 - id: new_heating_capacity_needed
   name_en: New heating capacity needed (differential investments)
@@ -6412,11 +6261,9 @@ nodes:
   output_dimensions: [stakeholder, cost_type, heating_type]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    tags: [city_data]
     column: heating_costs
     filters:
     - column: uuid
-      drop_col: false
 
 - id: new_heating_capacity_cost
   name_en: New heating capacity cost
@@ -6459,11 +6306,9 @@ nodes:
   unit: EUR/MWh
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
-    tags: [city_data]
     column: retail_price_of_heating
     filters:
     - column: uuid
-      drop_col: false
 
 - id: consumer_heating_cost
   name_en: Consumer heating cost (excluding electricity)
@@ -6519,11 +6364,9 @@ nodes:
   output_dimensions: [energy_carrier, heating_type, cost_type]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    tags: [city_data]
     column: un_levelised_costs_of_decarbonised_heating
     filters:
     - column: uuid
-      drop_col: false
 
 - id: heat_production_cost
   name_en: Heat production cost
@@ -6584,11 +6427,9 @@ nodes:
   output_dimensions: [energy_carrier, heating_type, cost_type]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    tags: [city_data]
     column: un_levelized_capital_cost_of_heating
     filters:
     - column: uuid
-      drop_col: false
 
 - id: heat_production_network_unit_price
   name_en: Heat production network unit price
@@ -6600,11 +6441,9 @@ nodes:
   output_dimensions: [heating_type, cost_type]
   input_datasets:
   - id: nzc/buildings_heating_costs
-    tags: [city_data]
     column: un_levelized_capital_cost_of_heating_network
     filters:
     - column: uuid
-      drop_col: false
 
 - id: new_heating_network_cost
   name_en: New heating network cost
@@ -6781,11 +6620,9 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: total_electricity_demand_within_city_boundaries
     filters:
     - column: uuid
-      drop_col: false
 
 - id: electricity_consumption_ratio
   name_en: Electricity consumption ratio between statistics and modelled
@@ -6836,11 +6673,9 @@ nodes:
   output_dimensions: [pollutant, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: emission_factors_from_electricity_generation
     filters:
     - column: uuid
-      drop_col: false
 
 - id: electricity_production_unit_price
   name_en: Electricity production unit_price
@@ -6852,11 +6687,9 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: spot_price_electricity
     filters:
     - column: uuid
-      drop_col: false
 
 - id: consumer_electricity_unit_price
   name_en: Consumer electricity unit_price
@@ -6868,11 +6701,9 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: retail_price_of_electricity
     filters:
     - column: uuid
-      drop_col: false
 
 - id: electricity_consumption_cost
   name_en: Electricity consumption cost
@@ -7037,11 +6868,9 @@ nodes:
   output_dimensions: [cost_type, fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: operating_cost_for_renewables
     filters:
     - column: uuid
-      drop_col: false
 
 - id: renewable_electricity_operating_cost
   name_en: Renewable electricity operating cost
@@ -7123,11 +6952,9 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: assumed_uptime_of_windsolar
     filters:
     - column: uuid
-      drop_col: false
 
 - id: job_demand_of_renewables
   name_en: Job demand of renewables
@@ -7144,11 +6971,9 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: jobs_created_per_mw
     filters:
     - column: uuid
-      drop_col: false
 
 - id: jobs_created_by_renewables
   name_en: Jobs created by renewables
@@ -7192,11 +7017,9 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: distribution_of_type_of_new_renewables
     filters:
     - column: uuid
-      drop_col: false
 
 - id: electricity_production_shares_historical
   name_en: Electricity production shares historical
@@ -7208,11 +7031,9 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: share_of_total_electricity_demand_produced_by_fossil
     filters:
     - column: uuid
-      drop_col: false
 
 # - id: solar_electricity_produced_by_solar_pvs  # TODO Could we use these?
 #   name_en: Solar electricity produced by solar PVs
@@ -7274,11 +7095,9 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier, cost_type]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: pv_upfront_investment_cost
     filters:
     - column: uuid
-      drop_col: false
 
 - id: renewable_electricity_shares
   name_en: Renewable electricity cost shares
@@ -7290,11 +7109,9 @@ nodes:
   output_dimensions: [fuel_type, stakeholder, cost_type]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: solar_panel_costs
     filters:
     - column: uuid
-      drop_col: false
   output_nodes:
   - id: renewable_electricity_investment_cost
     to_dimensions:
@@ -7362,11 +7179,9 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: fossilcurrent_electricity_supply
     filters:
     - column: uuid
-      drop_col: false
 
 - id: fossil_electricity_goal
   name_en: Fossil electricity reduction goal
@@ -7382,11 +7197,9 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: share_of_current_fossil_production_replaced_by_renew
     filters:
     - column: uuid
-      drop_col: false
 
 - id: fossil_electricity_shares_goal
   name_en: Fossil electricity shares goal
@@ -7438,11 +7251,9 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:
   - id: nzc/electricity
-    tags: [city_data]
     column: share_of_total_electricity_demand_produced_by_fossil
     filters:
     - column: uuid
-      drop_col: false
 
 - id: electricity_share_fossil
   name_en: Electricity share from fossil sources
@@ -7475,11 +7286,9 @@ nodes:
   output_dimensions: [waste_type]
   input_datasets:
   - id: nzc/waste_management
-    tags: [city_data]
     column: total_collected_waste_within_city_boundaries_by_type
     filters:
     - column: uuid
-      drop_col: false
 
 - id: waste_recycling_shares_frozen
   name_en: Waste recycling shares frozen scenario
@@ -7491,11 +7300,9 @@ nodes:
   output_dimensions: [waste_treatment, waste_type]
   input_datasets:
   - id: nzc/waste_recycling_shares
-    tags: [city_data]
     column: share_recyclingincinerationlandfill
     filters:
     - column: uuid
-      drop_col: false
 
 - id: waste_recycling_future_baseline_shares
   name_en: Waste recycling future baseline shares
@@ -7507,11 +7314,9 @@ nodes:
   output_dimensions: [waste_treatment, waste_type]
   input_datasets:
   - id: nzc/waste_recycling_shares
-    tags: [city_data]
     column: share_recyclingincinerationlandfill_baseline
     filters:
     - column: uuid
-      drop_col: false
 
 - id: waste_recycling_shares_baseline
   name_en: Waste recycling shares baseline
@@ -7534,12 +7339,10 @@ nodes:
   output_dimensions: [waste_treatment, waste_type]
   input_datasets:
   - id: nzc/waste_recycling_goal
-    tags: [city_data]
     column: 51_increased_recycling_of_waste
     forecast_from: 2026
     filters:
     - column: uuid
-      drop_col: false
     - column: parameter
       value: decarbonisation_scenario
 
@@ -7583,11 +7386,9 @@ nodes:
   output_dimensions: [waste_type, waste_treatment, pollutant]
   input_datasets:
   - id: nzc/waste_management
-    tags: [city_data]
     column: waste_emission_factor
     filters:
     - column: uuid
-      drop_col: false
   output_nodes:
   - id: waste_emissions
 
@@ -7634,11 +7435,9 @@ nodes:
   output_dimensions: [pollutant, waste_treatment, energy_carrier]
   input_datasets:
   - id: nzc/waste_management
-    tags: [city_data]
     column: emission_factors_from_waste_management
     filters:
     - column: uuid
-      drop_col: false
   output_nodes:
   - id: waste_incineration_air_pollution_emissions
     from_dimensions:
@@ -7693,11 +7492,9 @@ nodes:
   output_dimensions: [waste_type, cost_type, energy_carrier]
   input_datasets:
   - id: nzc/waste_management
-    tags: [city_data]
     column: prices_of_sorted_waste
     filters:
     - column: uuid
-      drop_col: false
   output_nodes:
   - id: recycled_waste_sales_income
     from_dimensions:
@@ -7734,11 +7531,9 @@ nodes:
   output_dimensions: [waste_treatment, cost_type, energy_carrier]
   input_datasets:
   - id: nzc/waste_management
-    tags: [city_data]
     column: waste_management_costs
     filters:
     - column: uuid
-      drop_col: false
   output_nodes:
   - id: waste_treatment_cost
     from_dimensions:
@@ -7784,11 +7579,9 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
   input_datasets:
   - id: nzc/waste_management
-    tags: [city_data]
     column: waste_recycling
     filters:
     - column: uuid
-      drop_col: false
 
 - id: waste_management_cost_by_stakeholder
   name_en: Waste management cost by stakeholder
@@ -7895,11 +7688,9 @@ nodes:
   output_dimensions: [material]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    tags: [city_data]
     column: materials_as_share_of_total_mass
     filters:
     - column: uuid
-      drop_col: false
 
 - id: building_materials_used_in_new_buildings
   name_en: Building material used in new buildings
@@ -7909,11 +7700,9 @@ nodes:
   unit: t/m**2
   input_datasets:
   - id: nzc/buildings_stock_renovation
-    tags: [city_data]
     column: tonnes_material_used_in_for_new_buildings_2010
     filters:
     - column: uuid
-      drop_col: false
 
 - id: building_materials_used_by_material
   name_en: Building materials used by material
@@ -7957,11 +7746,9 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    tags: [city_data]
     column: tonnes_material_used_for_renovations
     filters:
     - column: uuid
-      drop_col: false
 
 - id: building_renovation_material_use
   name_en: Building renovation material use
@@ -8007,11 +7794,9 @@ nodes:
   output_dimensions: [material]
   input_datasets:
   - id: nzc/buildings_materials_costs
-    tags: [city_data]
     column: production_costs_per_tonne
     filters:
     - column: uuid
-      drop_col: false
 
 - id: building_material_cost
   name_en: Building material cost
