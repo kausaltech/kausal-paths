@@ -524,10 +524,15 @@ class InstanceLoader:
 
             use_framework_ds = 'framework_measure_data' in ds_def.tags
             use_obs_ds = 'observation_dataset' in ds_def.tags
+            use_city_ds = 'city_data' in ds_def.tags
             if use_obs_ds:
                 from frameworks.datasets import ObservationDataset
 
                 ds_obj = ObservationDataset.from_def(ds_def, self.context)
+            elif use_city_ds:
+                from frameworks.datasets import CityDataset
+
+                ds_obj = CityDataset.from_def(ds_def, self.context)
             elif self.fw_config is not None:
                 from nodes.gpc import DatasetNode
 

@@ -9,7 +9,7 @@ from pint import DimensionalityError
 from common import polars as ppl
 from frameworks.models import MeasureDataPoint
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.datasets import DVCDataset
+from nodes.datasets import DVCDataset, GenericDataset
 
 ENABLE_UNIT_CONVERSION = True
 
@@ -235,6 +235,10 @@ class ObservationDataset(DVCDataset):
                 '_obs_unit': [r[4] for r in raw_dps],
             },
         )
+        # DVC files may store uuid as categorical; cast obs_raw to match for join compatibility.
+        uuid_dtype = df.schema['uuid']
+        if obs_raw.schema['uuid'] != uuid_dtype:
+            obs_raw = obs_raw.with_columns(pl.col('uuid').cast(uuid_dtype))
 
         # --- 4. Unit conversion -------------------------------------------------------
         ds_unit_str = str(df.get_unit(VALUE_COLUMN))
@@ -304,14 +308,39 @@ class ObservationDataset(DVCDataset):
         # --- 6. Overlay in-range observations (years already in df) ------------------
         in_range_obs = obs_raw.filter(pl.col(YEAR_COLUMN) >= ref_year)
         if len(in_range_obs) > 0:
-            joined = ppl.to_ppdf(
-                df.join(
-                    in_range_obs.select(['uuid', YEAR_COLUMN, '_obs_value', '_obs_default']),
-                    on=['uuid', YEAR_COLUMN],
-                    how='left',
-                ),
-                meta=meta,
-            )
+            dvc_years = set(df[YEAR_COLUMN].to_list())
+            obs_years = set(in_range_obs[YEAR_COLUMN].to_list())
+            years_overlap = dvc_years & obs_years
+
+            if years_overlap:
+                # Normal case: DVC and DB share year values, join on both uuid + year.
+                joined = ppl.to_ppdf(
+                    df.join(
+                        in_range_obs.select(['uuid', YEAR_COLUMN, '_obs_value', '_obs_default']),
+                        on=['uuid', YEAR_COLUMN],
+                        how='left',
+                    ),
+                    meta=meta,
+                )
+            else:
+                # Lookup-table case: DVC has a single placeholder year (originally Year=0,
+                # transformed to reference_year) that doesn't appear in DB observations.
+                # Fall back to UUID-only join using the latest available observation.
+                latest_obs = (
+                    obs_raw
+                    .sort(YEAR_COLUMN, descending=True)
+                    .group_by('uuid')
+                    .first()
+                    .select(['uuid', '_obs_value', '_obs_default'])
+                )
+                uuid_dtype = df.schema['uuid']
+                if latest_obs.schema['uuid'] != uuid_dtype:
+                    latest_obs = latest_obs.with_columns(pl.col('uuid').cast(uuid_dtype))
+                joined = ppl.to_ppdf(
+                    df.join(latest_obs, on='uuid', how='left'),
+                    meta=meta,
+                )
+
             df = ppl.to_ppdf(
                 joined.with_columns([
                     pl.coalesce(['_obs_value', VALUE_COLUMN]).alias(VALUE_COLUMN),
@@ -328,4 +357,53 @@ class ObservationDataset(DVCDataset):
         if 'uuid' not in df.columns:
             return df
         df = self._overlay_observations(df)
+        return df
+
+
+@dataclass
+class CityDataset(GenericDataset, ObservationDataset):
+    """
+    GenericDataset that overlays city-specific DB values (via MeasureDataPoints) before return.
+
+    Used with the ``city_data`` tag on datasets consumed by plain GenericNode and action
+    nodes that need city-specific DB values without being ObservableNodes. The consuming
+    node receives clean data with city-specific values already in the Value column.
+
+    Inherits from GenericDataset (for proper metric-column setup via _transform_data /
+    _index_data) and ObservationDataset (for _overlay_observations). The overlay is
+    injected between _filter_and_process_df and _transform_data so it runs before the
+    PathsDataFrame metric columns are finalised.
+    """
+
+    def load_internal(self) -> ppl.PathsDataFrame:
+        cached_df = self.cache_get()
+        if cached_df is not None:
+            return cached_df
+
+        ds_id = self.input_dataset or self.id
+        dvc_ds = self.context.load_dvc_dataset(ds_id)
+        assert dvc_ds.df is not None
+        df = self._convert_dvc_dataset(dvc_ds)
+        df = self._filter_and_process_df(df)
+
+        # Apply city-specific DB overlay when uuid column is present.
+        # If the overlay empties the df (e.g. all uuid values were null so no DB lookup
+        # was possible), fall back to the original DVC data.
+        if 'uuid' in df.columns:
+            df_before = df
+            df = self._overlay_observations(df)
+            if df.is_empty() and not df_before.is_empty():
+                df = df_before
+            df = df.drop([c for c in ['uuid', 'observed', 'placeholder'] if c in df.columns])
+
+        df = self._transform_data(df)
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))  # noqa: FBT003
+        self.interpolate = True
+        if self.interpolate:
+            df = self._linear_interpolate(df)
+        df = self._index_data(df)
+        if self.context.sample_size > 0:
+            df = self._sample(df)
+        self.cache_set(df)
         return df
