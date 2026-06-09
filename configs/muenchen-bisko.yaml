@@ -1214,23 +1214,21 @@ nodes:
 - id: other_emissions
   name_en: Other emissions
   name_de: Andere Emissionen
-  type: formula.FormulaNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
   input_nodes:
   - id: other_activity
-    tags: [activity]
   - id: end_energy_emission_factors
-    tags: [emission_factors]
-  input_datasets:
-  - id: muenchen/other_emissions
-    tags: [emission_data]
+  # input_datasets:
+  # - id: muenchen/other_emissions
+  #   tags: [emission_data]
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   output_nodes:
   - id: net_emissions
-  params:
-    formula: activity * emission_factors + emission_data
+  # params:
+  #   formula: activity * emission_factors + emission_data
 
 - id: drive_transition_motorized_individual_transport_total # TODO Copy the idea if it works
   name_de: drive_transition_motorized_individual_transport total
