@@ -6,7 +6,7 @@ supported_languages: [en]
 site_url: https://muenchen-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6b98d70c88b9d7c0ee3be1a30979867a72e3cc54
+  commit: ca699b8271b8f04e7897a114015c4c5d024d2416
   dvc_remote: kausal-s3
 name_de: Maßnahmenplan Klimaneutralität München
 name_en: Munich Climate Dashboard
@@ -192,7 +192,8 @@ dimensions:
   categories:
   # Indirect Actions (Strategies)
   - id: renewable_generation_small_decentralized_systems
-    label_en: Expansion of Renewable Energy for Electricity Generation in the City
+    label_en: Expansion of Renewable Energy for Electricity Generation in the 
+      City
     label_de: Ausbau erneuerbarer Energien zur Stromerzeugung im Stadtgebiet
   - id: renewable_generation_open_space
     label_en: Renewable Electricity Generation in Open Spaces
@@ -222,8 +223,10 @@ dimensions:
     label_en: Decentralized Heating System Replacement in Commercial Sector
     label_de: Dezentraler Heizungstausch im Gewerbe
   - id: renovation_residential_buildings
-    label_en: Energy-Efficient Building Renovation, Decentralized Renewable Heating, Efficient New Buildings
-    label_de: Energetische Gebäudesanierung, dezentrale erneuerbare Wärmeversorgung, effiziente Neubauten
+    label_en: Energy-Efficient Building Renovation, Decentralized Renewable 
+      Heating, Efficient New Buildings
+    label_de: Energetische Gebäudesanierung, dezentrale erneuerbare 
+      Wärmeversorgung, effiziente Neubauten
   - id: drive_transition_motorized_individual_transport
     label_en: Promotion of Alternative Fuels and Drive Technologies
     label_de: Förderung alternativer Kraftstoffe und Antriebskonzepte
@@ -1197,14 +1200,26 @@ nodes:
   input_datasets:
   - id: muenchen/final_energy_quality
 
+- id: other_activity
+  name_en: Other activity
+  name_de: Andere Aktivität
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: muenchen/andere_aktivitaet
+
 - id: other_emissions
   name_en: Other emissions
   name_de: Andere Emissionen
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
-  input_datasets:
-  - id: muenchen/other_emissions
+  input_nodes:
+  - id: other_activity
+  - id: end_energy_emission_factors
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   output_nodes:
@@ -1575,8 +1590,10 @@ actions:
       flatten: true
 
 - id: renovation_residential_buildings
-  name_de: Energetische Gebäudesanierung, dezentrale erneuerbare Wärmeversorgung, effiziente Neubauten
-  name_en: Energy-Efficient Building Renovation, Decentralized Renewable Heating, Efficient New Buildings
+  name_de: Energetische Gebäudesanierung, dezentrale erneuerbare 
+    Wärmeversorgung, effiziente Neubauten
+  name_en: Energy-Efficient Building Renovation, Decentralized Renewable 
+    Heating, Efficient New Buildings
   description_en: The strategy consists of these measures:<ul><li>Energy 
     Retrofitting of Heritage-Protected Building Stock</li><li>KfW 432 
     Energy-Efficient Neighborhood Development</li><li>Concept Allocations as 
