@@ -1488,7 +1488,6 @@ actions:
   - id: nzc/buildings_stock_renovation
     column: share_of_building_stock_renovated_each_year
     filters:
-    - column: uuid
     - column: energy_carrier
     tags: [historical, renovation_rate, city_data]
   - id: nzc/buildings_stock_renovation
@@ -1531,8 +1530,6 @@ actions:
   input_datasets:
   - id: nzc/buildings_stock_renovation
     column: share_of_new_buildings_built
-    filters:
-    - column: uuid
     tags: [historical, city_data]
   - id: nzc/buildings_stock_renovation
     column: share_of_new_buildings_built_with_high_energy_effici
@@ -1571,7 +1568,6 @@ actions:
   - id: nzc/buildings_stock_renovation
     column: 33_efficient_lighting_appliances
     filters:
-    - column: uuid
     - column: building_energy_class
     tags: [goal, renovation_rate, city_data]
   - id: nzc/buildings_materials_costs
@@ -1631,7 +1627,6 @@ actions:
   - id: nzc/buildings_heating_fuel_tech
     column: heating_technologies
     filters:
-    - column: uuid
     - column: energy_carrier
     - column: fuel_type
     tags: [historical, city_data]
@@ -1662,8 +1657,6 @@ actions:
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
     column: share_of_heating_fuel
-    filters:
-    - column: uuid
     tags: [historical, city_data]
   - id: nzc/buildings_heating_fuel_tech
     column: share_of_heating_in_2030
@@ -1694,8 +1687,6 @@ actions:
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
     column: share_of_waste_used_in_district_heating_that_is_foss
-    filters:
-    - column: uuid
     tags: [historical, city_data]
   - id: nzc/buildings_heating_fuel_tech
     column: share_of_waste_in_2030_used_in_district_heating_that
