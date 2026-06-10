@@ -171,7 +171,7 @@ class DatasetReduceAction(ActionNode):
             meta=ppl.DataFrameMeta(primary_keys=old_meta.primary_keys, units={VALUE_COLUMN: old_meta.units[col]}),
         )
 
-    def _get_metric_data(self, metric_id: str, col: str, data_role: str, is_multi_metric: bool) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
+    def _get_metric_data(self, metric_id: str, col: str, data_role: str, is_multi_metric: bool) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912, PLR0915
         """
         Load hist or goal data for one metric, returning a narrow df with VALUE_COLUMN.
 
@@ -190,6 +190,8 @@ class DatasetReduceAction(ActionNode):
                     df = ds.get_copy()
                     assert len(df.metric_cols) == 1
                     df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
+                    if not is_forecast and FORECAST_COLUMN in df.columns:
+                        df = df.filter(~pl.col(FORECAST_COLUMN))
                     return df.with_columns(pl.lit(value=is_forecast).alias(FORECAST_COLUMN))
             for edge in self.edges:
                 if edge.output_node is self and data_role in edge.tags and metric_id in edge.tags:
@@ -209,6 +211,8 @@ class DatasetReduceAction(ActionNode):
                     else:
                         assert len(df.metric_cols) == 1
                         df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
+                    if not is_forecast and FORECAST_COLUMN in df.columns:
+                        df = df.filter(~pl.col(FORECAST_COLUMN))
                     return df.with_columns(pl.lit(value=is_forecast).alias(FORECAST_COLUMN))
             for edge in self.edges:
                 if edge.output_node is self and data_role in edge.tags and metric_id not in edge.tags:
@@ -232,6 +236,8 @@ class DatasetReduceAction(ActionNode):
             df = self.get_input_dataset_pl(tag='historical')
             if FORECAST_COLUMN not in df.columns:
                 df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+            else:
+                df = df.filter(~pl.col(FORECAST_COLUMN))
             assert len(df.metric_cols) == 1
             return df.rename({df.metric_cols[0]: VALUE_COLUMN})
 

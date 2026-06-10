@@ -181,6 +181,14 @@ class ObservationDataset(DVCDataset):
         if 'uuid' not in df.columns:
             df = df.with_columns([pl.lit(value=False).alias('observed'), pl.lit(value=False).alias('placeholder')])
             return df
+
+        # Rows with null uuid have DVC values but no DB linkage (e.g. reference-year
+        # baseline rows whose uuid only exists for the target year).  Keep them as
+        # passthrough — observed=False, value unchanged — and re-attach at every exit.
+        _passthrough = df.filter(pl.col('uuid').is_null() & pl.col(VALUE_COLUMN).is_not_null()).with_columns([
+            pl.lit(value=False).alias('observed'),
+            pl.lit(value=False).alias('placeholder'),
+        ])
         df = df.filter(pl.col('uuid').is_not_null() & pl.col(VALUE_COLUMN).is_not_null())
 
         # Drop all-null dimension columns (e.g. pollutant/cost_type that don't apply
@@ -205,7 +213,7 @@ class ObservationDataset(DVCDataset):
         ])
 
         if fwd is None:
-            return df
+            return self._reattach_passthrough(df, _passthrough)
 
         # --- 3. Query DB for MeasureDataPoints by UUID --------------------------------
         # DVC stores UUIDs with underscores; DB uses hyphens.
@@ -223,7 +231,7 @@ class ObservationDataset(DVCDataset):
             .values_list('uuid_str', 'year', 'value', 'default_value', 'measure__measure_template__unit')
         )
         if not raw_dps:
-            return df
+            return self._reattach_passthrough(df, _passthrough)
 
         # Build obs DataFrame (convert hyphen UUIDs back to underscore format)
         obs_raw: pl.DataFrame = pl.DataFrame(
@@ -343,14 +351,33 @@ class ObservationDataset(DVCDataset):
 
             df = ppl.to_ppdf(
                 joined.with_columns([
-                    pl.coalesce(['_obs_value', VALUE_COLUMN]).alias(VALUE_COLUMN),
+                    pl.coalesce(['_obs_value', '_obs_default', VALUE_COLUMN]).alias(VALUE_COLUMN),
                     pl.col('_obs_value').is_not_null().alias('observed'),
                     (pl.col('_obs_value').is_null() & pl.col('_obs_default').is_not_null()).alias('placeholder'),
                 ]).drop(['_obs_value', '_obs_default']),
                 meta=meta,
             )
 
-        return df
+        return self._reattach_passthrough(df, _passthrough)
+
+    @staticmethod
+    def _reattach_passthrough(df: ppl.PathsDataFrame, passthrough: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """Re-attach null-uuid passthrough rows that were split off in _overlay_observations step 1."""
+        if passthrough.is_empty():
+            return df
+        if df.is_empty():
+            # No uuid-linked rows survived; return passthrough with its original schema intact.
+            # (When df is empty, all_null_dims cleanup would have dropped all dimension columns,
+            # making df.columns an unreliable guide for schema alignment.)
+            return passthrough
+        # Align passthrough columns to df (all_null_dims may have been dropped from df).
+        shared_cols = [c for c in passthrough.columns if c in df.columns]
+        pt = passthrough.select(shared_cols)
+        meta = df.get_meta()
+        return ppl.to_ppdf(
+            pl.concat([df, pt], how='diagonal_relaxed').sort(YEAR_COLUMN),
+            meta=meta,
+        )
 
     def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         df = super().post_process(df)

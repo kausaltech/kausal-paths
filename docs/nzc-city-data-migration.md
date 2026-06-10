@@ -312,26 +312,33 @@ entries the `tags:` key comes **after** the `filters:` key, so `city_data` appea
 **after** the uuid filter line and was not detected.  These entries kept
 `drop_col: true`, meaning uuid was silently dropped before `CityDataset` could use it.
 
-**Status:** Partially addressed.  A second targeted pass is needed for entries where
-`tags:` follows `filters:`.
+**Status:** Fixed.  Six entries were missing `drop_col: false`: the historical dataset
+entries in `a31_renovation_improvements`, `a32_new_building_improvements`,
+`a33_do_efficient_appliances`, `a341_increase_district_heating`,
+`a342_...` (share_of_heating_fuel), and `a343_change_heating_fossil_share`.
+All now have `drop_col: false`.
 
 ---
 
 ### What remains to be done
 
-1. **Fix `drop_col: false` for remaining uuid filters where `tags:` follows `filters:`.**
-   Write a YAML script that inspects within the dataset entry boundary (not just
-   a fixed 15-line lookback) to find city_data-tagged entries whose uuid filter
-   still has `drop_col: true`.
+1. ~~**Fix `drop_col: false` for remaining uuid filters where `tags:` follows `filters:`.**~~
+   **DONE.** Six entries were found and fixed (see Problem 6 above).
 
-2. **Investigate `old_building_renovation_rate_observed` dimension error.**
-   `a31_renovation_improvements` (a `DatasetReduceAction`) feeds into
-   `old_building_renovation_rate_observed` via `output_nodes`, and the connection
-   fails with "Dimensions do not match ([] vs. ['building_energy_class'])".  The root
-   cause is unclear — `lucia` instance works (possibly due to DB datasets providing
-   full category data) but `nzc` framework instance does not.  Needs investigation into
-   whether `nzc/buildings_stock_renovation` DVC data provides all `building_energy_class`
-   categories for the action's historical dataset.
+2. ~~**Investigate `old_building_renovation_rate_observed` dimension error.**~~
+   **FIXED** in `nodes/actions/linear.py`.
+
+   **Root cause:** `CityDataset._index_data` calls `extend_last_historical_value_pl`,
+   which fills data up to `model_end_year` and marks those extended rows `FORECAST=True`.
+   `DatasetReduceAction._get_metric_data` then overrides all historical rows to
+   `FORECAST=False`, making `df[YEAR_COLUMN].max()` return `model_end_year` instead of
+   the last actual observation year.  The resulting `gdf.filter(Year > model_end_year)`
+   was empty, so the delta computation produced a 0-row wide dataframe, and after
+   `to_narrow()` this became an empty `(Year, Forecast)` frame with no dimension columns.
+
+   **Fix:** For the three dataset-based historical code paths in `_get_metric_data`,
+   filter to `~FORECAST_COLUMN` rows before overriding FORECAST to False — matching the
+   existing behaviour of the three node-based historical paths (lines 198, 221-222, 231).
 
 3. **Full regression test with `collect_city_data`.**
    Run `python -m notebooks.collect_city_data ../scripts/paths/collectors/emission_potential.yaml`
@@ -359,6 +366,7 @@ entries the `tags:` key comes **after** the `filters:` key, so `city_data` appea
 
 | File | Change |
 |---|---|
-| `frameworks/datasets.py` | UUID dtype cast fix; lookup-table year fallback; `CityDataset` class; null-uuid fallback |
+| `frameworks/datasets.py` | UUID dtype cast fix; lookup-table year fallback; `CityDataset` class; null-uuid fallback; `_reattach_passthrough` for null-uuid rows; coalesce now includes `_obs_default` (comparable-city tier) so cities without entered values use their city estimate rather than the raw DVC reference |
 | `nodes/instance_loader.py` | `city_data` tag → `CityDataset` |
-| `configs/nzc.yaml` | `use_datasets_from_db: true`; `city_data` tags on 118 datasets; `drop_col: false` on 112 uuid filters |
+| `nodes/actions/linear.py` | `DatasetReduceAction._get_metric_data`: filter historical datasets to `~FORECAST` rows before returning, so `max_hist_year` = last actual observation, not model_end_year |
+| `configs/nzc.yaml` | `use_datasets_from_db: true`; `city_data` tags on 118 datasets; uuid filters cleaned up (removed redundant `- column: uuid` filters; remaining ones use `drop_col: false`) |
