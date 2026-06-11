@@ -4,7 +4,7 @@ default_language: en
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: bd133fd92fb4189cee08cad276a1bd4e82ba3ccd
+  commit: 40f8e4546e41297546498938271144337e75c9f8
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -28,7 +28,7 @@ features:
   use_datasets_from_db: true
 
 result_excels:
-- base_excel_url: 
+- base_excel_url:
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
   name: Climate City Contract Tables
   node_ids:
@@ -615,9 +615,6 @@ dimensions:
   label_fi: Transport pollutant
 - id: uuid # FIXME '_' need to be replaced with '-' when operating with frameworks.
   categories:
-  - id: 7b02936d_9de3_4aa4_beb2_b14a182da975
-    label_en: 7b02936d-9de3-4aa4-beb2-b14a182da975 # This UUID is used when it is not linked to anything.
-    label_fi: Ei mitään
   - id: 00005eaf_8435_4048_8950_ae010dc6ee5e
     label_en: 00005eaf-8435-4048-8950-ae010dc6ee5e
     label_fi: 00005eaf-8435-4048-8950-ae010dc6ee5e
@@ -1522,7 +1519,7 @@ actions:
 
 - id: a32_new_building_improvements
   name: 3.2 New building shares improvement
-  name_fi: 3.2 Energiatehokkaiden rakennusten osuuden lisääminen 
+  name_fi: 3.2 Energiatehokkaiden rakennusten osuuden lisääminen
     uudisrakentamisessa
   type: linear.DatasetReduceAction
   quantity: fraction
@@ -1944,7 +1941,7 @@ nodes:
 
 - id: population
   name: Population
-  name_fi: Väestön koko
+  name_fi: Väestön koko Lappeenrannassa
   type: generic.GenericNode
   quantity: population
   unit: cap
@@ -5512,8 +5509,7 @@ nodes:
   input_dimensions: [heating_type, energy_carrier, fuel_type]
   output_dimensions: [heating_type, energy_carrier, fuel_type]
   params:
-    formula: building_heating_type_share * (heating_fuel_share_local + 
-      heating_fuel_share_district)
+    formula: building_heating_type_share * (heating_fuel_share_local + heating_fuel_share_district)
   input_nodes:
   - id: building_heating_type_share
   - id: heating_fuel_share_local
