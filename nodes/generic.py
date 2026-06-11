@@ -605,6 +605,7 @@ class GenericNode(SimpleNode):
             unit = next(metric.unit for metric in self.output_metrics.values() if metric.column_id == col)
             df = df.ensure_unit(col, unit)
 
+        df = self.replace_nans(df)
         return df
 
 

@@ -127,7 +127,7 @@ class SCurveAction(GenericAction):
             filter_dict = {col: row[indices.columns.index(col)] for col in index_columns}
 
             filtered_df = df
-            filtered_param = params
+            filtered_param = params.filter(~pl.col(FORECAST_COLUMN))
             for col, value in filter_dict.items():
                 filtered_df = filtered_df.filter(pl.col(col) == value)
                 filtered_param = filtered_param.filter(pl.col(col) == value)
