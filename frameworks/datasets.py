@@ -72,7 +72,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 
         baseline_year = context.instance.reference_year
         df = df.with_columns(  # FIXME Does this not already happen in load()? So this is redundant.
-            pl.when(pl.col('Year').lt(100)).then(pl.col('Year') + baseline_year).otherwise(pl.col('Year')).alias('Year'),
+            pl.when(pl.col('Year').lt(100)).then(pl.col('Year') + baseline_year - 1).otherwise(pl.col('Year')).alias('Year'),
         )
         # Duplicates may occur when baseline year overlaps with existing data points.
         df = ppl.to_ppdf(df.unique(subset=meta.primary_keys, keep='last', maintain_order=True), meta=meta)
@@ -303,7 +303,7 @@ class ObservationDataset(DVCDataset):
                 )
                 extra = extra.with_columns([
                     pl.col('_pre_year').alias(YEAR_COLUMN),
-                    pl.coalesce(['_obs_value', pl.lit(None, dtype=pl.Float64)]).alias(VALUE_COLUMN),
+                    pl.coalesce(['_obs_value', '_obs_default', pl.lit(None, dtype=pl.Float64)]).alias(VALUE_COLUMN),
                     pl.col('_obs_value').is_not_null().alias('observed'),
                     (pl.col('_obs_value').is_null() & pl.col('_obs_default').is_not_null()).alias('placeholder'),
                     pl.lit(value=False).alias(FORECAST_COLUMN),

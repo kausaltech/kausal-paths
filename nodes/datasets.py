@@ -479,7 +479,7 @@ class DatasetWithFilters(Dataset, ABC):
             ldf = ldf.with_columns(
                 pl
                 .when(pl.col(YEAR_COLUMN) < 90)
-                .then(pl.col(YEAR_COLUMN) + pl.lit(baseline_year))
+                .then(pl.col(YEAR_COLUMN) + pl.lit(baseline_year - 1))
                 .otherwise(pl.col(YEAR_COLUMN))
                 .alias(YEAR_COLUMN),
             )
@@ -487,7 +487,7 @@ class DatasetWithFilters(Dataset, ABC):
             ldf = ldf.with_columns(
                 pl
                 .when((pl.col(YEAR_COLUMN) >= 90) & (pl.col(YEAR_COLUMN) < 200))
-                .then(pl.col(YEAR_COLUMN) + pl.lit(target_year) - pl.lit(100))
+                .then(pl.col(YEAR_COLUMN) + pl.lit(target_year) - pl.lit(101))
                 .otherwise(pl.col(YEAR_COLUMN))
                 .alias(YEAR_COLUMN),
             )
