@@ -1184,8 +1184,8 @@ class Command(BaseCommand):
                 continue
 
             ic = InstanceConfig.objects.get(identifier=iid)
-            if ic.has_framework_config():
-                continue
+            # if ic.has_framework_config():
+            #     continue
             succeeded = self.check_instance(ic)
             if not succeeded:
                 self.nr_fails += 1
