@@ -816,18 +816,28 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             pp.realm_admin_role.assign_user(ic, user)
         ic.site_url = fc.get_view_url()
         if ic.site_url is not None:
-            from pages.models import ActionListPage
-
             ic.sync_nodes()
             ic.create_default_content()
-            site = ic.site
-            assert site is not None
-            for alp in site.root_page.get_descendants().type(ActionListPage).specific():
-                assert isinstance(alp, ActionListPage)
-                alp.show_in_footer = False
-                alp.save()
+            fc.setup_instance_pages()
 
         return fc
+
+    def setup_instance_pages(self) -> None:
+        """Configure root-page menu state and ActionListPage footer state after default content creation."""
+        from pages.models import ActionListPage, PathsPage
+
+        site = self.instance_config.site
+        if site is None:
+            return
+        root_page = site.root_page.specific
+        if isinstance(root_page, PathsPage):
+            root_page.show_in_menus = True
+            root_page.menu_label = 'Home'
+            root_page.save()
+        for alp in site.root_page.get_descendants().type(ActionListPage).specific():
+            assert isinstance(alp, ActionListPage)
+            alp.show_in_footer = False
+            alp.save()
 
     def _get_default_value_multiplier(self, measure_template: MeasureTemplate) -> float:
         if measure_template.default_value_scaling is None:
