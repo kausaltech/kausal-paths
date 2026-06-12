@@ -8,7 +8,7 @@ from paths.graphql_types import UnitType
 from nodes.constants import FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN
 from nodes.metric import DimensionalMetric, Metric, YearlyValue
 
-from .metric import DimensionalMetricType
+from .metric import DimensionalMetricType, NodeGoal
 
 if TYPE_CHECKING:
     from common import polars as ppl
@@ -143,6 +143,23 @@ class ImpactOverviewType:
     @staticmethod
     def description(root: 'ImpactOverview') -> str | None:
         return str(root.spec.description) if root.spec.description is not None else None
+
+    @sb.field
+    @staticmethod
+    def goal(root: 'ImpactOverview') -> list[NodeGoal]:
+        # Generic across graph types: the goal belongs to the chart (effect_node target),
+        # not to individual actions.
+        # Selects the main goal (is_main_goal=True) if one is defined, otherwise falls
+        # back to the first entry. get_values() produces dimensionless yearly values
+        # (normalization and interpolation applied, no data-dimension columns). If the
+        # entry carries dimensional filters (e.g. per-sector targets), those are currently
+        # ignored and the target is treated as the total. Supporting per-dimension goals
+        # may be added in the future.
+        if root.effect_node.goals is None or not root.effect_node.goals.root:
+            return []
+        entries = root.effect_node.goals.root
+        entry = next((e for e in entries if e.is_main_goal), entries[0])
+        return [NodeGoal(year=val.year, value=val.value) for val in entry.get_values()]
 
     @sb.field
     @pass_context

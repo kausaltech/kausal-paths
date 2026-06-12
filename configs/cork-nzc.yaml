@@ -644,7 +644,16 @@ dimensions:
 emission_sectors:
 - id: net_emissions
   name: Net emissions
+  description: The goal is just a placeholder and not based on city decisions.
   is_outcome: true
+  goals:
+  - is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2023
+      value: 1000
+    - year: 2035
+      value: 0
 
 nodes:
 
