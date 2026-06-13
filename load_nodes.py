@@ -370,7 +370,7 @@ if args.print_visualizations_data:
             scenarios = [context.get_default_scenario()]
 
         # Collect one filtered series per scenario.
-        scenario_cols: dict[str, list[float | None]] = {}
+        scenario_cols: dict[str, dict[int, float | None]] = {}
         years_union: list[int] = []
         unit_str = ''
         for scenario in scenarios:
@@ -390,8 +390,8 @@ if args.print_visualizations_data:
             for dim_id in remaining_dims:
                 df = df.paths.sum_over_dims(dim_id)
             df = df.filter(year_filter).sort(YEAR_COLUMN)
-            year_vals = {int(row[0]): row[1] for row in df.select([YEAR_COLUMN, val_col]).iter_rows()}
-            scenario_cols[scenario.id] = year_vals  # type: ignore[assignment]
+            year_vals: dict[int, float | None] = {int(row[0]): row[1] for row in df.select([YEAR_COLUMN, val_col]).iter_rows()}
+            scenario_cols[scenario.id] = year_vals
             for y in year_vals:
                 if y not in years_union:
                     years_union.append(y)
@@ -411,7 +411,7 @@ if args.print_visualizations_data:
             for scenario in scenarios:
                 if scenario.id not in scenario_cols:
                     continue
-                v = scenario_cols[scenario.id].get(year)  # type: ignore[union-attr]
+                v = scenario_cols[scenario.id].get(year)
                 row_vals.append(f'{v:.4g}' if v is not None else '—')
             table.add_row(*row_vals)
         console.print(table)
