@@ -437,7 +437,7 @@ class DatasetWithFilters(Dataset, ABC):
         return df
 
     @measure_dataset_call('dataset.filter', capture_df_result=True, capture_df_arg=True)
-    def _filter_and_process_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901
+    def _filter_and_process_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         from nodes.defs.node_defs import RenameColumnDatasetFilterDef
 
         if self.filters is not None:
@@ -470,16 +470,13 @@ class DatasetWithFilters(Dataset, ABC):
         ldf = df.lazy()
         if YEAR_COLUMN in cols and not ldf.filter((pl.col(YEAR_COLUMN) < 200).first()).collect().is_empty():
             baseline_year = self.context.instance.reference_year
-            if baseline_year is None:
-                raise DatasetError(
-                    self,
-                    'The reference_year from instance is not given. '
-                    + 'It is needed by dataset %s to define the baseline for relative data.' % self.id,
-                )
+            adjustment = -1 if 'city_data' in self.tags else 0  # Old dataset had 0 for reference year, new one has 1.
+            # The reference_year from instance is needed by dataset to define the baseline for relative data.
+
             ldf = ldf.with_columns(
                 pl
                 .when(pl.col(YEAR_COLUMN) < 90)
-                .then(pl.col(YEAR_COLUMN) + pl.lit(baseline_year - 1))
+                .then(pl.col(YEAR_COLUMN) + pl.lit(baseline_year + adjustment))
                 .otherwise(pl.col(YEAR_COLUMN))
                 .alias(YEAR_COLUMN),
             )
@@ -487,7 +484,7 @@ class DatasetWithFilters(Dataset, ABC):
             ldf = ldf.with_columns(
                 pl
                 .when((pl.col(YEAR_COLUMN) >= 90) & (pl.col(YEAR_COLUMN) < 200))
-                .then(pl.col(YEAR_COLUMN) + pl.lit(target_year) - pl.lit(101))
+                .then(pl.col(YEAR_COLUMN) + pl.lit(target_year + adjustment) - pl.lit(100))
                 .otherwise(pl.col(YEAR_COLUMN))
                 .alias(YEAR_COLUMN),
             )
