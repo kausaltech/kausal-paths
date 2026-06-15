@@ -6,8 +6,8 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 9e3a361604b91a6f70decca7685b5ddf4d1296e2
   dvc_remote: kausal-s3
-name_de: Augsburg Klimadashboard
-name_en: Augsburg Climate Dashboard
+name_de: CO₂-Zukunfts-Rechner
+name_en: CO₂-Future Calculator
 owner: Augsburg Stadt
 theme_identifier: de-augsburg
 target_year: 2035
@@ -125,12 +125,12 @@ action_groups:
 
 pages:
 - id: home
-  name_de: Augsburg Treibhausgasbilanz
-  name_en: Augburg Greenhouse Gas Inventory
+  name_de: Treibhausgasbilanz
+  name_en: Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Treibhausgasbilanz und -prognosen
+  lead_title: CO₂-Zukunfts-Rechner
   lead_paragraph: Historische Treibhausgasemissionen der Stadt Augsburg und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
 
 
