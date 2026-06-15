@@ -221,7 +221,7 @@ class NodeVisualizations(RootModel[list[VisualizationEntryType]]):
                 self._plot_recursive(context, child, charts)
 
     def plot(self, context: Context):
-        import altair as alt  # type: ignore # noqa: TC002
+        import altair as alt  # noqa: TC002
 
         charts: list[alt.Chart] = []
         for viz in self.root:

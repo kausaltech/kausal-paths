@@ -1116,7 +1116,8 @@ class Node:
             dim_cats = dim.get_cat_ids()
             diff = cats - dim_cats
             if diff:
-                raise NodeError(self, "Unknown categories in dimension column '%s': %s" % (dim_id, ', '.join(diff)))
+                diff_strs = [c if c is not None else '(null)' for c in diff]
+                raise NodeError(self, "Unknown categories in dimension column '%s': %s" % (dim_id, ', '.join(diff_strs)))
 
         dim_ids = set(meta.dim_ids)
         node_dims = set(self.output_dimensions.keys())

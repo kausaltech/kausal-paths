@@ -1975,6 +1975,7 @@ class ObservableNode(GenericNode):
     nodes only see the semantic category dimensions.
     """
 
+    global_parameters = ['use_observations']
     explanation = _('GenericNode that blends modelled values with user observations from the database.')
     DEFAULT_OPERATIONS = 'get_single_dataset,apply_observations,multiply,add,other,apply_multiplier'
 
@@ -2078,6 +2079,15 @@ class ObservableNode(GenericNode):
         """Blend observation data (from ObservationDataset) with modelled input."""
         if df is None:
             return None
+
+        # FrameworkMeasureDVCDataset2 uses ObservedDataPoint/FromMeasureDataPoint;
+        # normalise to the observed/placeholder vocabulary expected below.
+        if 'ObservedDataPoint' in df.columns and 'observed' not in df.columns:
+            df = df.with_columns([
+                pl.col('ObservedDataPoint').alias('observed'),
+                (pl.col('FromMeasureDataPoint') & ~pl.col('ObservedDataPoint')).alias('placeholder'),
+            ]).drop(['ObservedDataPoint', 'FromMeasureDataPoint'])
+
         if 'observed' not in df.columns or 'placeholder' not in df.columns:
             # Dataset did not provide observation flags - no-op
             return df

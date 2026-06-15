@@ -143,12 +143,131 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 
 
 @dataclass
+class FrameworkMeasureDVCDataset2(DVCDataset):
+    measure_data_point_years: list[int] = field(default_factory=list)
+
+    def hash_data(self) -> dict[str, Any]:
+        data = super().hash_data()
+        if self.context.framework_config_data:
+            data['framework_config_updated'] = str(self.context.framework_config_data.last_modified_at)
+        return data
+
+    def _override_with_measure_datapoints(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        from django.db.models import TextField
+        from django.db.models.functions import Cast
+
+        from frameworks.models import Measure
+
+        print(df)
+        context = self.context
+        fwd = context.framework_config_data
+        if fwd is None:
+            if 'prepare_gpc_dataset' in self.tags:
+                drop_cols = [col for col in ['UUID', 'Sector'] if col in df.columns]
+                df = df.drop(drop_cols)
+            # Add flag columns so _observed_only_extend_all falls through to
+            # model_default=True and extends values to the full time range.
+            df = df.with_columns([
+                pl.lit(value=False).alias('ObservedDataPoint'),
+                pl.lit(value=False).alias('FromMeasureDataPoint'),
+            ])
+            return df
+
+        df = df.with_columns(
+            pl.when(pl.col('UUID') == 'ADD UUID HERE').then(pl.lit(None)).otherwise(pl.col('UUID')).alias('UUID'),
+        )
+
+        uuids = df['UUID'].unique().to_list()
+        measures = Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
+        dps = (
+            MeasureDataPoint.objects
+            .filter(measure__in=measures)
+            .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
+            .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
+        )
+        schema = (
+            ('UUID', pl.String),
+            ('MeasureYear', pl.Int64),
+            ('MeasureValue', pl.Float64),
+            ('MeasureDefaultValue', pl.Float64),
+            ('MeasureUnit', pl.String),
+        )
+        dpdf = ppl.PathsDataFrame(data=list(dps), schema=schema, orient='row')
+
+        # Convert measure values to the dataset unit. After a UUID-keyed join there is
+        # exactly one MeasureUnit, so a single ensure_unit() call is sufficient.
+        ds_unit = df.get_unit(VALUE_COLUMN)
+        mu_strs = dpdf['MeasureUnit'].drop_nulls().unique().to_list()
+        if mu_strs:
+            mu = context.unit_registry.parse_units(mu_strs[0])
+            dpdf = (
+                ppl
+                .to_ppdf(
+                    dpdf,
+                    meta=ppl.DataFrameMeta(units={'MeasureValue': mu, 'MeasureDefaultValue': mu}, primary_keys=['UUID']),
+                )
+                .ensure_unit('MeasureValue', ds_unit)
+                .ensure_unit('MeasureDefaultValue', ds_unit)
+            )
+
+        meta = df.get_meta()
+        df_cols = df.columns
+
+        baseline_year = context.instance.reference_year
+        df = df.with_columns(  # FIXME Does this not already happen in load()? So this is redundant.
+            pl.when(pl.col('Year').lt(100)).then(pl.col('Year') + baseline_year - 1).otherwise(pl.col('Year')).alias('Year'),
+        )
+        # Duplicates may occur when baseline year overlaps with existing data points.
+        df = ppl.to_ppdf(df.unique(subset=meta.primary_keys, keep='last', maintain_order=True), meta=meta)
+
+        # If a UUID appears at only one year in the DVC data, MeasureYear (from the DB
+        # entry) overrides the DVC year — this handles the "single baseline row per UUID"
+        # pattern. UUIDs that span multiple years keep their DVC years unchanged.
+        unique_years_by_uuid = df.group_by('UUID').agg(pl.col('Year').unique().len().alias('NrUUIDYears'))
+
+        # Left join: only keep rows present in the DVC data (dpdf rows without a DVC
+        # counterpart would introduce phantom rows with null Year/dims).
+        jdf = df.join(dpdf, on='UUID', how='left')
+        jdf = jdf.join(unique_years_by_uuid, on='UUID', how='left')
+
+        jdf = jdf.with_columns([
+            # Only override Year when the UUID has a single year in the DVC data AND
+            # that year is the baseline year — the "single reference-row" pattern where
+            # MeasureYear meaningfully shifts when the value applies. UUIDs that already
+            # carry a specific calendar year (≠ baseline) are left unchanged.
+            pl
+            .when((pl.col('NrUUIDYears') == 1) & (pl.col(YEAR_COLUMN) == baseline_year))
+            .then(pl.coalesce(['MeasureYear', YEAR_COLUMN]))
+            .otherwise(pl.col(YEAR_COLUMN))
+            .alias(YEAR_COLUMN),
+            pl.coalesce(['MeasureValue', 'MeasureDefaultValue', 'Value']).alias('Value'),
+            (pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null()).alias('FromMeasureDataPoint'),
+            ((pl.col('MeasureValue').is_not_null()) & (pl.col('UUID').is_not_null())).alias('ObservedDataPoint'),
+        ])
+        out_cols = [*df_cols, 'FromMeasureDataPoint', 'ObservedDataPoint']
+        df = ppl.to_ppdf(jdf.select(out_cols), meta=meta)
+        df = df.drop('UUID', strict=False)
+
+        return df
+
+    def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = super().post_process(df)
+        if 'uuid' in df.columns:
+            df = df.rename({'uuid': 'UUID'})
+            df = df.with_columns(pl.col('UUID').cast(pl.String).str.replace_all('_', '-'))
+
+        if 'UUID' not in df.columns:
+            raise Exception("Dataset must have a 'UUID' column")
+        df = self._override_with_measure_datapoints(df)
+        return df
+
+
+@dataclass
 class ObservationDataset(DVCDataset):
     """
     DVCDataset that overlays user observations from MeasureDataPoints.
 
-    UUID must be present as a dimension in the loaded DVC dataset (use
-    ``drop_col: false`` in the YAML filter so uuid is retained). After loading,
+    UUID must be present as a dimension in the loaded DVC dataset. After loading,
     queries DB for MeasureDataPoints matching those UUIDs and adds two boolean
     columns to the result:
 
@@ -301,13 +420,19 @@ class ObservationDataset(DVCDataset):
                     on='uuid',
                     how='inner',
                 )
-                extra = extra.with_columns([
+                extra_cols = [
                     pl.col('_pre_year').alias(YEAR_COLUMN),
                     pl.coalesce(['_obs_value', '_obs_default', pl.lit(None, dtype=pl.Float64)]).alias(VALUE_COLUMN),
                     pl.col('_obs_value').is_not_null().alias('observed'),
                     (pl.col('_obs_value').is_null() & pl.col('_obs_default').is_not_null()).alias('placeholder'),
-                    pl.lit(value=False).alias(FORECAST_COLUMN),
-                ]).drop(['_pre_year', '_obs_value', '_obs_default'])
+                    # Mark FORECAST=True so DatasetReduceAction._get_metric_data('historical')
+                    # excludes these rows when computing max_hist_year, keeping the DVC
+                    # reference year as the action baseline.
+                    pl.lit(value=True).alias(FORECAST_COLUMN),
+                ]
+                extra = extra.with_columns(extra_cols).drop(['_pre_year', '_obs_value', '_obs_default'])
+                if FORECAST_COLUMN not in df.columns:
+                    df = ppl.to_ppdf(df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN)), meta=meta)
                 df = ppl.to_ppdf(
                     pl.concat([df.select(extra.columns), extra]),
                     meta=meta,
@@ -357,6 +482,44 @@ class ObservationDataset(DVCDataset):
                 ]).drop(['_obs_value', '_obs_default']),
                 meta=meta,
             )
+
+            # Observation years not present in the DVC data only make sense to add when
+            # the normal (overlap) path was taken. In the lookup-table / no-overlap case
+            # the latest observation already overwrites every DVC row via the UUID-only
+            # join above, so adding extra rows would duplicate data and corrupt datasets
+            # that legitimately have future-only DVC years (e.g. action scenario targets).
+            extra_obs_years = obs_years - dvc_years if years_overlap else set()
+            if extra_obs_years:
+                extra_obs = in_range_obs.filter(pl.col(YEAR_COLUMN).is_in(sorted(extra_obs_years)))
+                ref_rows = df.filter(pl.col(YEAR_COLUMN) == ref_year)
+                if len(ref_rows) > 0:
+                    template = ref_rows.select([
+                        c
+                        for c in ref_rows.columns
+                        if c not in [YEAR_COLUMN, VALUE_COLUMN, 'observed', 'placeholder', FORECAST_COLUMN]
+                    ])
+                    extra = template.join(
+                        extra_obs.rename({YEAR_COLUMN: '_extra_year'}),
+                        on='uuid',
+                        how='inner',
+                    )
+                    extra_cols = [
+                        pl.col('_extra_year').alias(YEAR_COLUMN),
+                        pl.coalesce(['_obs_value', '_obs_default', pl.lit(None, dtype=pl.Float64)]).alias(VALUE_COLUMN),
+                        pl.col('_obs_value').is_not_null().alias('observed'),
+                        (pl.col('_obs_value').is_null() & pl.col('_obs_default').is_not_null()).alias('placeholder'),
+                        # Mark FORECAST=True so DatasetReduceAction._get_metric_data('historical')
+                        # excludes these rows when computing max_hist_year, keeping the DVC
+                        # reference year as the action baseline.
+                        pl.lit(value=True).alias(FORECAST_COLUMN),
+                    ]
+                    extra = extra.with_columns(extra_cols).drop(['_extra_year', '_obs_value', '_obs_default'])
+                    if FORECAST_COLUMN not in df.columns:
+                        df = ppl.to_ppdf(df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN)), meta=meta)
+                    df = ppl.to_ppdf(
+                        pl.concat([df.select(extra.columns), extra]),
+                        meta=meta,
+                    )
 
         return self._reattach_passthrough(df, _passthrough)
 

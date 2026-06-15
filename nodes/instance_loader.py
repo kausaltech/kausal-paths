@@ -530,9 +530,9 @@ class InstanceLoader:
 
                 ds_obj = ObservationDataset.from_def(ds_def, self.context)
             elif use_city_ds:
-                from frameworks.datasets import CityDataset
+                from frameworks.datasets import FrameworkMeasureDVCDataset2
 
-                ds_obj = CityDataset.from_def(ds_def, self.context)
+                ds_obj = FrameworkMeasureDVCDataset2.from_def(ds_def, self.context)
             elif self.fw_config is not None:
                 from nodes.gpc import DatasetNode
 
