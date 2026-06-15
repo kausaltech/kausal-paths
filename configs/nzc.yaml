@@ -1538,11 +1538,15 @@ actions:
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
+    - id: efficiency_programme
+      categories: [aggressive_improvements]
   input_datasets:
   - id: nzc/buildings_stock_renovation
     column: 33_efficient_lighting_appliances
     filters:
     - column: building_energy_class
+    - dimension: efficiency_programme
+      assign_category: aggressive_improvements
     tags: [goal, renovation_rate, city_data]
   - id: nzc/buildings_materials_costs
     column: current_share_of_type_of_efficiency_programme
