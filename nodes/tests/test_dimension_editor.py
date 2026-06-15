@@ -12,7 +12,7 @@ import pytest
 from kausal_common.datasets.models import DimensionCategory, DimensionScope
 from kausal_common.datasets.tests.factories import DimensionCategoryFactory, DimensionFactory
 
-from nodes.defs.instance_defs import InstanceSpec, YearsSpec
+from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 
 if TYPE_CHECKING:
@@ -36,15 +36,14 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def db_instance_config() -> InstanceConfig:
     instance = InstanceFactory.create()
-    spec = InstanceSpec(
-        primary_language='en',
-        owner='Test Owner',
+    spec = InstanceModelSpec(
         years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
     )
     return InstanceConfigFactory.create(
         identifier=instance.id,
         instance=instance,
         config_source='database',
+        owner='Test Owner',
         spec=spec,
     )
 

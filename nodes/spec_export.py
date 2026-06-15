@@ -17,7 +17,7 @@ from uuid import uuid3, uuid4
 from loguru import logger
 
 from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
-from kausal_common.i18n.pydantic import TranslatedString, set_i18n_context
+from kausal_common.i18n.pydantic import TranslatedString, get_modeltrans_attrs_from_str, set_i18n_context
 
 from nodes.actions.action import ActionNode
 from nodes.datasets import DatasetWithFilters, DVCDataset
@@ -25,7 +25,7 @@ from nodes.defs import (
     ActionConfig,
     DatasetPortSpec,
     InputDatasetDef,
-    InstanceSpec,
+    InstanceModelSpec,
     NodeSpec,
     SimpleConfig,
     YearsSpec,
@@ -73,8 +73,31 @@ def _to_ts(val: I18nString | None) -> TranslatedString | None:
     return TranslatedString(str(val))
 
 
-def export_instance_spec(instance: Instance) -> InstanceSpec:
-    """Build an InstanceSpec from a live Instance."""
+def _apply_instance_metadata_columns(ic: InstanceConfig, instance: Instance) -> None:
+    """
+    Write identity metadata from a runtime Instance onto the InstanceConfig columns.
+
+    Identity (name, owner, languages) lives on the columns now, not in the spec.
+    """
+    name_val, i18n = get_modeltrans_attrs_from_str(instance.name, 'name', instance.default_language)
+    ic.name = name_val
+    ic.owner = ''
+    if instance.owner:
+        owner_val, owner_i18n = get_modeltrans_attrs_from_str(instance.owner, 'owner', instance.default_language)
+        ic.owner = owner_val
+        i18n.update(owner_i18n)
+    ic.i18n = {**(ic.i18n or {}), **i18n}
+    ic.primary_language = instance.default_language
+    ic.other_languages = [lang for lang in instance.supported_languages if lang != instance.default_language]
+
+
+def export_instance_spec(instance: Instance) -> InstanceModelSpec:
+    """
+    Build the computation-only ``InstanceModelSpec`` from a live Instance.
+
+    Identity metadata (identifier, name, owner, languages, uuid) lives on the
+    ``InstanceConfig`` columns, not in the spec.
+    """
     ctx = instance.context
 
     years = YearsSpec(
@@ -89,13 +112,7 @@ def export_instance_spec(instance: Instance) -> InstanceSpec:
     action_groups = _export_action_groups(instance)
     scenarios = _export_scenarios(ctx)
 
-    return InstanceSpec(
-        uuid=instance.config.uuid,
-        identifier=instance.id,
-        name=_to_ts(instance.name),
-        owner=_to_ts(instance.owner),
-        primary_language=instance.default_language,
-        other_languages=[lang for lang in instance.supported_languages if lang != instance.default_language],
+    return InstanceModelSpec(
         years=years,
         dataset_repo=ctx.dataset_repo_spec,
         dimensions=_export_dimensions(ctx),
@@ -827,8 +844,7 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
         instance_spec = export_instance_spec(instance)
         instance_spec.features.use_datasets_from_db = True
         ic, _created = InstanceConfig.objects.get_or_create(identifier=instance.id)
-        ic.primary_language = instance.default_language
-        ic.other_languages = [lang for lang in instance.supported_languages if lang != instance.default_language]
+        _apply_instance_metadata_columns(ic, instance)
         ic.spec = instance_spec
         ic.config_source = 'database'
         ic.save()

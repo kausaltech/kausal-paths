@@ -83,7 +83,7 @@ from paths.utils import (
     get_supported_languages,
 )
 
-from nodes.defs import DatasetPortBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceSpec, NodeSpec, YearsSpec
+from nodes.defs import DatasetPortBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
 from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.defs.node_defs import NodeKind
@@ -377,19 +377,21 @@ class PreferredInstanceSource(StrEnum):
     PUBLISHED = 'published'
 
 
-def make_empty_instance_spec() -> InstanceSpec:
-    return InstanceSpec(primary_language='en')
+def make_empty_instance_spec() -> InstanceModelSpec:
+    return InstanceModelSpec()
 
 
-def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> InstanceSpec:
+def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> InstanceModelSpec:
+    """
+    Build the computation-only ``InstanceModelSpec``.
+
+    Identity metadata (identifier, name, owner, languages) lives on the
+    ``InstanceConfig`` columns and is *not* part of the spec — callers must
+    set those columns separately.
+    """
     if isinstance(instance, Mapping):
         features = InstanceFeatures.model_validate(instance.get('features') or {})
-        return InstanceSpec(
-            identifier=instance.get('id', ''),
-            name=instance.get('name', ''),
-            owner=instance.get('owner'),
-            primary_language=instance['default_language'],
-            other_languages=list(instance.get('supported_languages') or []),
+        return InstanceModelSpec(
             years=YearsSpec(
                 reference=instance.get('reference_year'),
                 min_historical=instance.get('minimum_historical_year'),
@@ -405,13 +407,7 @@ def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> Instan
     features = instance.features
     if not isinstance(features, InstanceFeatures):
         features = InstanceFeatures.model_validate(features or {})
-    other_languages = [lang for lang in instance.supported_languages if lang != instance.default_language]
-    return InstanceSpec(
-        identifier=instance.id,
-        name=instance.name,
-        owner=instance.owner,
-        primary_language=instance.default_language,
-        other_languages=other_languages,
+    return InstanceModelSpec(
         years=YearsSpec(
             reference=instance.reference_year,
             min_historical=instance.minimum_historical_year,
@@ -437,6 +433,14 @@ class InstanceConfig(
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
     name = models.CharField(max_length=150, verbose_name=_('name'), unique=True)
+    owner = models.CharField(
+        blank=True,
+        default='',
+        max_length=200,
+        verbose_name=_('Owner name'),
+        help_text=_('Display name of the organization that owns this instance.'),
+    )
+    owner_i18n: str | None
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_title_i18n: str
     lead_paragraph = RichTextField[str | None, str | None](null=True, blank=True, verbose_name=_('Lead paragraph'))
@@ -482,7 +486,7 @@ class InstanceConfig(
         choices=[('yaml', 'YAML'), ('database', 'Database')],
         default='yaml',
     )
-    spec = SchemaField(schema=InstanceSpec, null=True, blank=True)
+    spec = SchemaField(schema=InstanceModelSpec, null=True, blank=True)
 
     viewer_group: FK[Group | None] = models.ForeignKey(
         Group,
@@ -531,7 +535,7 @@ class InstanceConfig(
     """
     """Used to store data to speed up model runs"""
 
-    i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))
+    i18n = TranslationField(fields=('name', 'owner', 'lead_title', 'lead_paragraph'))
 
     objects: ClassVar[InstanceConfigManager] = InstanceConfigManager()
 
@@ -588,21 +592,8 @@ class InstanceConfig(
             if self.site is not None:
                 # TODO: Update Site and root page attributes
                 pass
-            if self.spec is None:
-                if self.config_source == 'database' or self.get_yaml_config_entrypoint():
-                    self.spec = self.ensure_spec(update_self=True, save=False)
-            else:
-                spec = self.spec
-                spec.uuid = self.uuid
-                spec.primary_language = self.primary_language
-                spec.other_languages = self.other_languages
-                spec.identifier = self.identifier
-                spec.name = get_translated_string_from_modeltrans(self, 'name', self.primary_language)
-
-            if not self.pk and self.spec is not None:
-                spec = self.spec
-                self.primary_language = spec.primary_language
-                self.other_languages = list(spec.other_languages)
+            if self.spec is None and (self.config_source == 'database' or self.get_yaml_config_entrypoint()):
+                self.spec = self.ensure_spec(update_self=True, save=False)
 
         super().save(*args, update_fields=update_fields, **kwargs)
 
@@ -676,8 +667,19 @@ class InstanceConfig(
         assert not cls.objects.filter(identifier=instance.id).exists()
 
         org = Organization.objects.get(name='Kausal')  # TODO: Define the organization better when we have a better idea?
+        # Identity metadata now lives on the columns (not in the spec), so
+        # populate name/owner here, splitting TranslatedStrings into their
+        # modeltrans parts.
+        name_val, i18n = get_modeltrans_attrs_from_str(instance.name, 'name', instance.default_language)
+        owner_val = ''
+        if instance.owner:
+            owner_val, owner_i18n = get_modeltrans_attrs_from_str(instance.owner, 'owner', instance.default_language)
+            i18n.update(owner_i18n)
         fields = {
             'identifier': instance.id,
+            'name': name_val,
+            'owner': owner_val,
+            'i18n': i18n,
             'site_url': instance.site_url,
             'organization': org,
             'primary_language': instance.default_language,
@@ -717,9 +719,9 @@ class InstanceConfig(
             node_config.update_node_from_config(node, keep_ref=node_refs)
 
     def update_from_instance(self, instance: Instance, overwrite=False):
-        """Update lead_title and lead_paragraph from instance but do not call save()."""
+        """Update identity/content metadata columns from the instance but do not call save()."""
 
-        for field_name in ('lead_title', 'lead_paragraph', 'name'):
+        for field_name in ('lead_title', 'lead_paragraph', 'name', 'owner'):
             field_val = getattr(instance, field_name)
             if field_val is None:
                 continue
@@ -818,7 +820,7 @@ class InstanceConfig(
         self.edges.all().delete()
         self.dataset_ports.all().delete()
         self.nodes.update(spec='{}')
-        self.spec = InstanceSpec(primary_language=self.primary_language, other_languages=list(self.other_languages or []))
+        self.spec = InstanceModelSpec()
 
     @property
     def draft_head_token(self) -> UUID | None:
@@ -1008,7 +1010,8 @@ class InstanceConfig(
         instance = self.get_instance()
         return str(instance.name)
 
-    def _get_spec_from_yaml(self) -> tuple[InstanceSpec, str] | None:
+    def _get_spec_from_yaml(self) -> tuple[InstanceModelSpec, str, list[str], str] | None:
+        """Return ``(spec, primary_language, other_languages, mtime_hash)`` from the YAML entrypoint."""
         from .instance_loader import InstanceYAMLConfig
 
         config_fn = self.get_yaml_config_entrypoint()
@@ -1018,9 +1021,12 @@ class InstanceConfig(
         data = yaml_conf.data
         assert data is not None
         spec = make_minimal_instance_spec(data)
-        return spec, yaml_conf.meta.mtime_hash or yaml_conf.meta.calculate_mtime_hash()
+        primary_language = data['default_language']
+        other_languages = list(data.get('supported_languages') or [])
+        mtime_hash = yaml_conf.meta.mtime_hash or yaml_conf.meta.calculate_mtime_hash()
+        return spec, primary_language, other_languages, mtime_hash
 
-    def ensure_spec(self, update_self: bool = True, save: bool = True) -> InstanceSpec:
+    def ensure_spec(self, update_self: bool = True, save: bool = True) -> InstanceModelSpec:
         if self.spec is not None:
             return self.spec
 
@@ -1032,22 +1038,18 @@ class InstanceConfig(
             if not save and not update_self:
                 return yaml_ret[0]
 
-            spec, yaml_mtime_hash = yaml_ret
+            spec, primary_language, other_languages, yaml_mtime_hash = yaml_ret
             self.spec = spec
             self.yaml_mtime_hash = yaml_mtime_hash
-            self.primary_language = spec.primary_language
-            self.other_languages = list(spec.other_languages)
+            self.primary_language = primary_language
+            self.other_languages = other_languages
             if save:
                 self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash'])
             return self.spec
 
-        spec = InstanceSpec(
-            identifier=self.identifier,
-            name=self.name,
-            primary_language=self.primary_language,
-            other_languages=list(self.other_languages or []),
-            uuid=self.uuid,
-        )
+        # Database-sourced: identity metadata already lives on the columns,
+        # so the computation spec starts empty.
+        spec = InstanceModelSpec()
         if not save:
             return spec
         self.spec = spec

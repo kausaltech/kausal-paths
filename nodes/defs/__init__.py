@@ -3,6 +3,8 @@ from .edge_def import AssignCategoryTransformation, EdgeTransformation, FlattenT
 from .instance_defs import (
     ActionGroup,
     DatasetRepoSpec,
+    InstanceMetadata,
+    InstanceModelSpec,
     InstanceSpec,
     YearsSpec,
 )
@@ -31,6 +33,8 @@ __all__ = [
     'FormulaConfig',
     'InputDatasetDef',
     'InputPortDef',
+    'InstanceMetadata',
+    'InstanceModelSpec',
     'InstanceSpec',
     'NodeSpec',
     'OutputMetricDef',

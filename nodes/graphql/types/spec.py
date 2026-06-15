@@ -18,7 +18,7 @@ from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_t
 
 from paths.refs import DimensionRef
 
-from nodes.defs.instance_defs import DatasetRepoSpec, InstanceSpec, YearsSpec
+from nodes.defs.instance_defs import DatasetRepoSpec, InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import OutputMetricDef
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.graphql.types.metric import DimensionalMetricType
@@ -131,7 +131,7 @@ class ScenarioSpecType:
     params: list[ScenarioParamOverride]
 
 
-@pydantic_type(InstanceSpec, name='InstanceSpec')
+@pydantic_type(InstanceModelSpec, name='InstanceSpec')
 class InstanceSpecType:
     config_source: str
     dataset_repo: DatasetRepoType | None

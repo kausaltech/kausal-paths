@@ -923,8 +923,6 @@ class InstanceEditorMutation:
 
         ic = root.instance
         nc = InstanceEditorMutation._lookup_node(info, ic, node_id)
-        if not nc.gql_action_allowed(info, 'delete'):
-            raise PermissionDeniedError(info, 'Permission denied for delete')
 
         with gql_change_operation(info, ic, action='node.delete'):
             # Log cascade-delete entries BEFORE the DB CASCADE wipes the rows,

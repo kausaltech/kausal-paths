@@ -22,7 +22,7 @@ from paths.graphql_types import UnitType
 
 from datasets.graphql import DatasetType
 from frameworks.models import FrameworkConfig
-from nodes.defs import InstanceSpec
+from nodes.defs import InstanceModelSpec
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
@@ -275,7 +275,7 @@ class InstanceEditorFields:
 
     @sb.field(graphql_type=Annotated[InstanceSpecType | None, sb.lazy('nodes.schema_spec')])
     @staticmethod
-    def spec(root: 'InstanceEditorFields') -> InstanceSpec | None:
+    def spec(root: 'InstanceEditorFields') -> InstanceModelSpec | None:
         return root._instance.config.spec
 
     @sb.field(graphql_type=list[NodeEdgeType])
