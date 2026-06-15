@@ -1,11 +1,17 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from kausal_common.i18n.pydantic import I18nBaseModel, I18nString, I18nStringInstance, TranslatedString, set_i18n_context
+from kausal_common.i18n.pydantic import (
+    I18nBaseModel,
+    I18nString,
+    I18nStringInstance,
+    TranslatedString,
+    get_translated_string_from_modeltrans,
+)
 
 from paths.identifiers import ActionGroupIdentifier
 
@@ -16,6 +22,9 @@ from pages.config import OutcomePage
 from params.discover import AnyParameter
 
 from .action_def import ImpactOverviewSpec
+
+if TYPE_CHECKING:
+    from nodes.models import InstanceConfig
 
 
 class YearsSpec(I18nBaseModel):
@@ -155,15 +164,18 @@ class NormalizationSpec(BaseModel):
     """Whether this normalization should be activated by default for the instance."""
 
 
-class InstanceSpec(I18nBaseModel):
-    """Computation schema for a model instance, stored as a SchemaField on InstanceConfig."""
+class InstanceModelSpec(I18nBaseModel):
+    """
+    Computation schema for a model instance, stored as a SchemaField on InstanceConfig.
 
-    uuid: UUID = Field(default_factory=uuid4)
-    identifier: str = ''
-    name: I18nString = ''
-    owner: I18nString | None = None
-    primary_language: str = 'en'
-    other_languages: list[str] = Field(default_factory=list)
+    Identity/registry metadata (identifier, name, owner, languages, uuid) lives
+    on the ``InstanceConfig`` columns and is projected via ``InstanceMetadata``;
+    this model holds only the computation definition.
+
+    Callers are responsible for establishing the i18n context (primary/other
+    languages) before constructing or validating this model — it no longer
+    carries the language fields needed to do so itself.
+    """
 
     years: YearsSpec = YearsSpec()
     dataset_repo: DatasetRepoSpec | None = None
@@ -180,16 +192,40 @@ class InstanceSpec(I18nBaseModel):
     # Raw dimension configs — will be properly modeled later
     dimensions: list[dict[str, Any]] = Field(default_factory=list)
 
-    @model_validator(mode='wrap')
+
+class InstanceMetadata(I18nBaseModel):
+    """
+    Identity/registry metadata for an instance.
+
+    The ``InstanceConfig`` columns are the source of truth; this is a
+    projection built on demand (snapshots, export). See ``InstanceModelSpec``
+    for the computation half. Build it from a row with ``from_model``.
+    """
+
+    uuid: UUID = Field(default_factory=uuid4)
+    identifier: str = ''
+    name: I18nString = ''
+    owner: I18nString | None = None
+    primary_language: str = 'en'
+    other_languages: list[str] = Field(default_factory=list)
+
     @classmethod
-    def _with_i18n_context(cls, values: Any, handler: Any) -> InstanceSpec:
-        if isinstance(values, dict):
-            lang = values.get('primary_language')
-            others = values.get('other_languages', [])
-            if lang is not None:
-                with set_i18n_context(lang, others):
-                    return handler(values)
-        return handler(values)
+    def from_model(cls, ic: InstanceConfig) -> InstanceMetadata:
+        i18n: dict[str, Any] = getattr(ic, 'i18n', None) or {}
+        has_owner = bool(ic.owner) or any(k.startswith('owner_') and v for k, v in i18n.items())
+        return cls(
+            uuid=ic.uuid,
+            identifier=ic.identifier,
+            name=get_translated_string_from_modeltrans(ic, 'name', ic.primary_language),
+            owner=get_translated_string_from_modeltrans(ic, 'owner', ic.primary_language) if has_owner else None,
+            primary_language=ic.primary_language,
+            other_languages=list(ic.other_languages or []),
+        )
 
 
-InstanceSpec.model_rebuild()
+# Backwards-compatible alias: frozen migrations (0040, 0047) import
+# ``InstanceSpec`` by path. New code should use ``InstanceModelSpec``.
+InstanceSpec = InstanceModelSpec
+
+InstanceModelSpec.model_rebuild()
+InstanceMetadata.model_rebuild()

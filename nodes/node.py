@@ -499,7 +499,7 @@ class Node:
         self.name = name
         self.config_location = config_location
         self.node_group = node_group
-        if self.name is None:
+        if self.name is None:  # pyright: ignore[reportUnnecessaryComparison]
             raise NodeError(self, 'Node has no name')
         self.short_name = short_name
         self.description = description
@@ -1306,9 +1306,9 @@ class Node:
     def input_port_multiplicity_hint(
         self,
         *,
-        edge: Edge | None = None,
-        metric: NodeMetric | None = None,
-        dataset: Dataset | None = None,
+        edge: Edge | None = None,  # pyright: ignore[reportUnusedParameter]
+        metric: NodeMetric | None = None,  # pyright: ignore[reportUnusedParameter]
+        dataset: Dataset | None = None,  # pyright: ignore[reportUnusedParameter]
     ) -> InputPortMultiplicityHint:
         return InputPortMultiplicityHint()
 

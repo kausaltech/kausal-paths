@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bayreuth-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: fde666a3e42954a9ea371c3afa26ef6500105466
+  commit: a8e9584d8a313025877793f4ceabac8fcf865ace
   dvc_remote: kausal-s3
 name_de: Bayreuth Treibhausgas-Monitor
 name_en: Bayreuth Greenhouse Gas Monitor

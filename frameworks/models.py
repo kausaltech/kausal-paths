@@ -38,7 +38,7 @@ from kausal_common.users import user_or_none
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import IdentifierField, UnitField
 
-from nodes.defs import InstanceSpec
+from nodes.defs import InstanceModelSpec
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -780,13 +780,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         org = Organization.objects.get(name='NetZeroCities')
 
         uuid = uuid or uuid4()
-        spec = InstanceSpec(
-            identifier=instance_identifier,
-            name=instance_name,
-            primary_language='en',
-            other_languages=[],
-            uuid=uuid,
-        )
+        # Identity metadata lives on the columns; the spec is computation-only.
+        spec = InstanceModelSpec()
         ic = InstanceConfig.objects.create(
             name=instance_name,
             identifier=instance_identifier,

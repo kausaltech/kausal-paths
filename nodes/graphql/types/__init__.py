@@ -16,9 +16,11 @@ from .instance import (
     InstanceFeaturesType,
     InstanceGoalDimension,
     InstanceGoalEntry,
+    InstanceQuantityKindType,
     InstanceType,
     InstanceYearlyGoalType,
     NormalizationType,
+    QuantityKindUnitUsageType,
 )
 from .metric import (
     DimensionalFlowType,
@@ -95,6 +97,7 @@ __all__ = [
     'InstanceGoalDimension',
     'InstanceGoalEntry',
     'InstanceHostname',
+    'InstanceQuantityKindType',
     'InstanceSpecType',
     'InstanceType',
     'InstanceYearlyGoalType',
@@ -115,6 +118,7 @@ __all__ = [
     'OutputPortType',
     'PipelineConfigType',
     'QuantityKindType',
+    'QuantityKindUnitUsageType',
     'ScenarioActionImpacts',
     'ScenarioParamOverride',
     'ScenarioParameterOverrideType',

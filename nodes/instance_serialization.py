@@ -19,7 +19,7 @@ carrying types (``DatasetExport``, ``DatasetMetricExport``) keep their
 from __future__ import annotations
 
 from datetime import date
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, Self, cast
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -32,7 +32,7 @@ from kausal_common.i18n.pydantic import (
 )
 
 from nodes.defs.edge_def import EdgeTransformation
-from nodes.defs.instance_defs import InstanceSpec
+from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
 
 if TYPE_CHECKING:
@@ -53,7 +53,10 @@ if TYPE_CHECKING:
 
 # Current schema version for ``InstanceSnapshot`` and ``InstanceExport``.
 # Bump when making non-backwards-compatible changes to the snapshot layout.
-SNAPSHOT_SCHEMA_VERSION = 1
+#   v2: split identity metadata out of the embedded spec into a dedicated
+#       ``metadata`` field (``InstanceMetadata``); ``spec`` is now the
+#       computation-only ``InstanceModelSpec``.
+SNAPSHOT_SCHEMA_VERSION = 2
 
 
 # ---------------------------------------------------------------------------
@@ -307,13 +310,17 @@ class InstanceSnapshot(BaseModel):
     """
     Structural state of an instance; unit of revisioning.
 
-    Contains spec + nodes + edges + dataset ports. Dataset references are
-    identifier-pinned; dataset bodies live in ``DatasetExport`` alongside
-    (see ``InstanceExport``).
+    Contains metadata + spec + nodes + edges + dataset ports. Dataset
+    references are identifier-pinned; dataset bodies live in ``DatasetExport``
+    alongside (see ``InstanceExport``).
     """
 
     schema_version: int = SNAPSHOT_SCHEMA_VERSION
-    spec: InstanceSpec
+    # Identity metadata, projected from the InstanceConfig columns. Defaulted
+    # so that pre-v2 revision blobs (which embedded metadata inside ``spec``)
+    # still deserialize.
+    metadata: InstanceMetadata = Field(default_factory=InstanceMetadata)
+    spec: InstanceModelSpec
     nodes: list[NodeSnapshot] = Field(default_factory=list)
     edges: list[EdgeSnapshot] = Field(default_factory=list)
     dataset_ports: list[DatasetPortSnapshot] = Field(default_factory=list)
@@ -387,6 +394,7 @@ def build_instance_snapshot(ic: InstanceConfig) -> InstanceSnapshot:
     dataset_ports = [DatasetPortSnapshot.from_model(p) for p in port_qs]
 
     return InstanceSnapshot(
+        metadata=InstanceMetadata.from_model(ic),
         spec=ic.spec,
         nodes=nodes,
         edges=edges,
@@ -985,22 +993,36 @@ def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config
 
     ic_ct = ContentType.objects.get_for_model(ic)
 
-    # Store the spec. Also copy the spec's language fields onto the
-    # InstanceConfig row so i18n-bearing data (ActionGroup names, etc.)
-    # stays loadable — the spec's TranslatedStrings are authored under
-    # the template's primary_language and would be filtered out if the
+    # Store the computation spec. Copy the template's language metadata onto
+    # the InstanceConfig row so i18n-bearing data (ActionGroup names, etc.)
+    # stays loadable — the spec's TranslatedStrings are authored under the
+    # template's primary_language and would be filtered out if the
     # InstanceConfig used a different language.
-    spec = ic.spec = export.instance.spec.model_copy()
-    ic.primary_language = export.instance.spec.primary_language
-    ic.other_languages = list(export.instance.spec.other_languages)
+    ic.spec = export.instance.spec.model_copy()
+    meta = export.instance.metadata
+    ic.primary_language = meta.primary_language
+    ic.other_languages = list(meta.other_languages)
     ic.config_source = 'database'
+    update_fields = ['spec', 'primary_language', 'other_languages', 'config_source']
+
+    # Owner display name comes from the template (or the framework org) and is
+    # written to the column; the instance keeps its own name.
+    owner_src = meta.owner
     if framework_config is not None:
-        spec.owner = framework_config.organization_name
+        owner_src = str(framework_config.organization_name)
         ic.uuid = framework_config.uuid
-    spec.uuid = ic.uuid
-    spec.identifier = ic.identifier
-    spec.name = get_translated_string_from_modeltrans(ic, 'name', ic.primary_language)
-    ic.save(update_fields=['spec', 'primary_language', 'other_languages', 'config_source', 'uuid'])
+        update_fields.append('uuid')
+    i18n = dict(ic.i18n or {})
+    ic.owner = ''
+    if owner_src:
+        owner_val, owner_i18n = get_modeltrans_attrs_from_str(
+            cast('str | TranslatedString', owner_src), 'owner', ic.primary_language
+        )
+        ic.owner = owner_val
+        i18n.update(owner_i18n)
+    ic.i18n = i18n
+    update_fields += ['owner', 'i18n']
+    ic.save(update_fields=update_fields)
 
     # Dimensions first — datasets and data points reference them
     dim_lookup = _import_dimensions(ic, export, ic_ct)

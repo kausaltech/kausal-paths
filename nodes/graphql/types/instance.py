@@ -1,4 +1,5 @@
 import enum
+from collections import Counter
 from collections.abc import Iterable
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Protocol
@@ -21,7 +22,7 @@ from paths.graphql_types import UnitType
 
 from datasets.graphql import DatasetType
 from frameworks.models import FrameworkConfig
-from nodes.defs import InstanceSpec
+from nodes.defs import InstanceModelSpec
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
@@ -30,6 +31,7 @@ from nodes.instance import Instance
 from nodes.models import InstanceConfig
 from nodes.node import Node
 from nodes.normalization import Normalization
+from nodes.quantities import get_registry as get_quantity_registry
 from nodes.units import Unit
 from pages.models import ActionListPage
 from users.models import User
@@ -43,6 +45,7 @@ from .graph import (
     NodePortRef,
     _external_dataset_id_from_dataset,
 )
+from .node import QuantityKindType
 from .spec import InstanceSpecType, YearsDefType
 
 if TYPE_CHECKING:
@@ -190,6 +193,40 @@ def _collect_instance_members(ic: InstanceConfig) -> list[InstanceMemberType]:
     ]
 
 
+@sb.type(name='QuantityKindUnitUsage')
+class QuantityKindUnitUsageType:
+    unit: Unit = sb.field(graphql_type=UnitType)
+    count: int
+
+
+@sb.type(name='InstanceQuantityKind')
+class InstanceQuantityKindType:
+    kind: QuantityKindType
+    used_units: list[QuantityKindUnitUsageType]
+
+
+def _collect_quantity_kind_unit_usage(instance: Instance) -> dict[str, list[QuantityKindUnitUsageType]]:
+    counts_by_quantity: dict[str, Counter[str]] = {}
+    units_by_key: dict[tuple[str, str], Unit] = {}
+    for node in instance.context.nodes.values():
+        for metric in node.output_metrics.values():
+            quantity = metric.quantity
+            unit_key = str(metric.unit)
+            counts_by_quantity.setdefault(quantity, Counter())[unit_key] += 1
+            units_by_key[(quantity, unit_key)] = metric.unit
+
+    return {
+        quantity: [
+            QuantityKindUnitUsageType(
+                unit=units_by_key[(quantity, unit_key)],
+                count=count,
+            )
+            for unit_key, count in sorted(unit_counts.items(), key=lambda item: (-item[1], item[0]))
+        ]
+        for quantity, unit_counts in counts_by_quantity.items()
+    }
+
+
 @sb.type(name='InstanceEditor')
 class InstanceEditorFields:
     _instance: sb.Private[Instance]
@@ -238,7 +275,7 @@ class InstanceEditorFields:
 
     @sb.field(graphql_type=Annotated[InstanceSpecType | None, sb.lazy('nodes.schema_spec')])
     @staticmethod
-    def spec(root: 'InstanceEditorFields') -> InstanceSpec | None:
+    def spec(root: 'InstanceEditorFields') -> InstanceModelSpec | None:
         return root._instance.config.spec
 
     @sb.field(graphql_type=list[NodeEdgeType])
@@ -356,6 +393,21 @@ class InstanceEditorFields:
             .order_by('order')
         )
         return [DimensionType.from_scope(scope) for scope in scopes]
+
+    @sb.field(
+        graphql_type=list[InstanceQuantityKindType],
+        description='All registered quantity kinds, with units already used in this instance ordered by frequency.',
+    )
+    @staticmethod
+    def quantity_kinds(root: 'InstanceEditorFields') -> list[InstanceQuantityKindType]:
+        units_by_quantity = _collect_quantity_kind_unit_usage(root._instance)
+        return [
+            InstanceQuantityKindType(
+                kind=QuantityKindType.from_kind(kind),
+                used_units=units_by_quantity.get(kind.id, []),
+            )
+            for kind in get_quantity_registry()
+        ]
 
     @sb.field
     @staticmethod

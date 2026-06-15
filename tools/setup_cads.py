@@ -20,7 +20,7 @@ from django.utils.translation import override as translation_override
 from wagtail.models import Locale, Page
 
 from frameworks.models import Framework, FrameworkConfig
-from nodes.defs.instance_defs import InstanceSpec, YearsSpec
+from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.models import InstanceConfig, InstanceHostname
 from nodes.spec_export import sync_instance_to_db
 from orgs.models import Organization
@@ -298,11 +298,7 @@ def get_or_create_organization() -> Organization:
 
 
 def get_or_create_landing_instance(org: Organization) -> InstanceConfig:
-    spec = InstanceSpec(
-        identifier=LANDING_INSTANCE_IDENTIFIER,
-        name=LANDING_INSTANCE_NAME,
-        owner=LANDING_ORG_NAME,
-        primary_language=PRIMARY_LANGUAGE,
+    spec = InstanceModelSpec(
         theme_identifier='eu-climate-4-cast',
         years=YearsSpec(reference=2020, min_historical=2018, max_historical=2024, target=2030),
     )
@@ -310,8 +306,7 @@ def get_or_create_landing_instance(org: Organization) -> InstanceConfig:
         ic = InstanceConfig.objects.get(identifier=LANDING_INSTANCE_IDENTIFIER)
         needs_update = ic.spec is None or ic.spec.theme_identifier != spec.theme_identifier
         if needs_update:
-            if ic.spec is not None:
-                spec.uuid = ic.spec.uuid  # preserve existing UUID
+            # uuid lives on the InstanceConfig column, so it's preserved across spec updates.
             ic.spec = spec
             ic.save(update_fields=['spec'])
             print(f'Updated instance spec: {ic}')

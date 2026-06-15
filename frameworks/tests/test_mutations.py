@@ -247,7 +247,7 @@ def test_framework_query_exposes_frameworks(
 
 
 CREATE_FRAMEWORK_CONFIG = gql("""
-mutation CreateFrameworkConfig(
+mutation CreateFrameworkConfigTest(
     $frameworkId: ID!
     $instanceIdentifier: ID!
     $name: String!
@@ -387,7 +387,7 @@ def test_update_framework_config_mutation_repopulates_measure_defaults(client: C
 
 
 DELETE_FRAMEWORK_CONFIG = gql("""
-mutation DeleteFrameworkConfig($id: ID!) {
+mutation DeleteFrameworkConfigTest($id: ID!) {
     deleteFrameworkConfig(id: $id) {
         ok
     }
@@ -791,20 +791,19 @@ def test_landing_block_exposes_framework(client: Client, framework: Framework) -
 
     from paths.tests.graphql import PathsTestClient
 
-    from nodes.defs.instance_defs import InstanceSpec, YearsSpec
+    from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
     from nodes.models import InstanceConfig
     from orgs.tests.factories import OrganizationFactory
     from pages.models import InstanceRootPage
 
     org = OrganizationFactory.create()
-    spec = InstanceSpec(
-        primary_language='en',
-        owner='Test',
+    spec = InstanceModelSpec(
         years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
     )
     ic = InstanceConfig.objects.create(
         name='Landing Test',
         identifier='landing-test',
+        owner='Test',
         primary_language='en',
         other_languages=[],
         organization=org,

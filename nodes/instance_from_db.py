@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from kausal_common.i18n.pydantic import I18nString
 
     from nodes.defs.edge_def import EdgeTransformation
-    from nodes.defs.instance_defs import ActionGroup, InstanceSpec
+    from nodes.defs.instance_defs import ActionGroup, InstanceModelSpec
     from nodes.defs.node_defs import NodeSpec
     from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge
     from nodes.scenario import Scenario
@@ -70,7 +70,7 @@ def serialize_instance_to_dict(ic: InstanceConfig) -> dict[str, Any]:
     return config
 
 
-def _resolve_dimensions(ic: InstanceConfig, spec: InstanceSpec) -> list[dict[str, Any]]:
+def _resolve_dimensions(ic: InstanceConfig, spec: InstanceModelSpec) -> list[dict[str, Any]]:
     """
     Build the dimensions config and check the ORM covers spec.dimensions.
 
@@ -112,16 +112,21 @@ def _orm_category_ids_by_dim(ic: InstanceConfig) -> dict[str, set[str]]:
     return result
 
 
-def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceSpec) -> dict[str, Any]:
+def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceModelSpec) -> dict[str, Any]:
+    from nodes.defs.instance_defs import InstanceMetadata
+
+    # Identity metadata is the responsibility of the InstanceConfig columns;
+    # the spec carries only the computation definition.
+    meta = InstanceMetadata.from_model(ic)
     years = spec.years
     repo = spec.dataset_repo
 
     config: dict[str, Any] = {
-        'id': spec.identifier or ic.identifier,
-        'uuid': spec.uuid,
-        'default_language': spec.primary_language,
+        'id': meta.identifier or ic.identifier,
+        'uuid': meta.uuid,
+        'default_language': meta.primary_language,
         'site_url': ic.site_url,
-        'supported_languages': spec.other_languages,
+        'supported_languages': meta.other_languages,
         'target_year': years.target,
         'reference_year': years.reference,
         'minimum_historical_year': years.min_historical,
@@ -130,8 +135,8 @@ def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceSpec) -> dict
         'features': spec.features.model_dump(),
         'params': [_param_to_dict(p) for p in cast('Sequence[Parameter]', spec.params)],
         'theme_identifier': spec.theme_identifier,
-        **_ts_to_yaml('owner', spec.owner),
-        **_ts_to_yaml('name', spec.name),
+        **_ts_to_yaml('owner', meta.owner),
+        **_ts_to_yaml('name', meta.name),
         **(
             {'dataset_repo': {'url': repo.url, 'commit': repo.commit, 'dvc_remote': repo.dvc_remote}} if repo and repo.url else {}
         ),

@@ -1,0 +1,688 @@
+id: saskatoon-2025
+default_language: en
+supported_languages: []
+site_url: https://saskatoon-2025.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: d2de5c4c3fcd92a918454ae0898a7f5e2d7f9fe3
+  dvc_remote: kausal-s3
+name: City of Saskatoon's GHG Emissions Inventories
+owner: City of Saskatoon
+theme_identifier: ca-saskatoon
+target_year: 2050
+model_end_year: 2050
+reference_year: 2014
+minimum_historical_year: 2014
+maximum_historical_year: 2023
+emission_unit: t_co2e/a
+emission_forecast_from: 2024
+emission_dimensions: [sector]
+features:
+  baseline_visible_in_graphs: true
+  use_datasets_from_db: true
+  show_significant_digits: 10
+  maximum_fraction_digits: 0
+
+action_groups:
+- id: scenario
+  name: Scenario
+  color: '#A0CBE8'
+
+dimensions:
+- id: scope
+  label: Emission Scope
+  categories:
+  - id: scope1
+    label: Scope 1
+  - id: scope2
+    label: Scope 2
+  - id: scope3
+    label: Scope 3
+
+- id: sector
+  label: Emission Sector
+  categories:
+
+  # ----- Inventory
+  - id: i11
+    label: Residential Buildings, Fuel (Inv.)
+  - id: i12
+    label: Residential Buildings, Grid Energy (Inv.)
+  - id: i13
+    label: Residential Buildings, T & D Losses (Inv.)
+  - id: i21
+    label: C & I Buildings, Fuel (Inv.)
+  - id: i22
+    label: C & I Buildings, Grid Energy (Inv.)
+  - id: i23
+    label: C & I Buildings, T & D Losses (Inv.)
+  - id: i31
+    label: Manufacturing & Construction, Fuel (Inv.)
+  - id: i32
+    label: Manufacturing & Construction, Grid Energy (Inv.)
+  - id: i33
+    label: Manufacturing & Construction, T & D Losses (Inv.)
+  - id: i44
+    label: Electricity Generation (Inv.)
+  - id: i62
+    label: Non-Specified Sources, Grid Energy (Inv.)
+  - id: i63
+    label: Non-Specified Sources, T & D Losses (Inv.)
+  - id: ii11
+    label: On-Road Transportation, Fuel (Inv.)
+  - id: ii13
+    label: On-Road Transportation, Outside City (Inv.)
+  - id: ii21
+    label: Railway Transportation, Fuel (Inv.)
+  - id: ii31
+    label: Waterborne Navigation, Fuel (Inv.)
+  - id: ii41
+    label: Aviation, Fuel (Inv.)
+  - id: ii43
+    label: Aviation, Outside City (Inv.)
+  - id: iii11
+    label: Solid Waste, Disposed in City (Inv.)
+  - id: iii12
+    label: Solid Waste, Disposed Outside City (Inv.)
+  - id: iii21
+    label: Solid Waste, Treated Biologically in City (Inv.)
+  - id: iii41
+    label: Wastewater, Treated in City (Inv.)
+  - id: iv1
+    label: Industrial Processes (Inv.)
+  - id: v1
+    label: Livestock (Inv.)
+
+  # ----- Forecast
+  - id: existing_buildings_part_9
+    label: Existing Buildings, Part 9 (Forecast)
+  - id: existing_buildings_part_3_multifamily
+    label: Existing Buildings, Part 3 Multifamily (Forecast)
+  - id: existing_buildings_part_3_ci
+    label: Existing Buildings, Part 3 C & I (Forecast)
+  - id: new_construction_part_9
+    label: New Construction, Part 9 (Forecast)
+  - id: new_construction_part_3_multifamily
+    label: New Construction, Part 3 Multifamily (Forecast)
+  - id: new_construction_part_3_ci
+    label: New Construction, Part 3 C & I (Forecast)
+  - id: transport_ldvs
+    label: Transport, LDVs (Forecast)
+  - id: transport_hdvs
+    label: Transport, HDVs (Forecast)
+  - id: transport_motorcycles
+    label: Transport, Motorcycles (Forecast)
+  - id: transport_other
+    label: Transport, Other (Forecast)
+  - id: agriculture_land_use
+    label: Agriculture & Land Use (Forecast)
+  - id: waste
+    label: Waste (Forecast)
+  - id: manufacturing_construction
+    label: Manufacturing & Construction (Forecast)
+  - id: streetlighting
+    label: Streetlighting (Forecast)
+  - id: electricity_generation
+    label: Electricity Generation (Forecast)
+  - id: ippu
+    label: IPPU (Forecast)
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+
+nodes:
+- id: existing_residential_building_emissions
+  name: Existing Residential Building Emissions
+  short_name: Existing Residential Buildings
+  color: '#FFBE7D'
+  order: 1
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+    formula: inventory + forecast
+  input_datasets:
+  - id: saskatoon/community_inventory
+    tags: [inventory]
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [i11, i12, i13]
+    - column: scope
+  - id: saskatoon/community_forecast
+    tags: [forecast]
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [existing_buildings_part_9, existing_buildings_part_3_multifamily]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+- id: new_residential_building_emissions
+  name: New Residential Building Emissions
+  short_name: New Residential Buildings
+  color: '#F28E2B'
+  order: 2
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: saskatoon/community_forecast
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [new_construction_part_9, new_construction_part_3_multifamily]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+- id: existing_commercial_institutional_building_emissions
+  name: Existing Commercial & Institutional Building Emissions
+  short_name: Existing Commercial & Institutional Buildings
+  color: '#FF9D9A'
+  order: 3
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+    formula: inventory + forecast
+  input_datasets:
+  - id: saskatoon/community_inventory
+    tags: [inventory]
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [i21, i22, i23]
+    - column: scope
+  - id: saskatoon/community_forecast
+    tags: [forecast]
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [existing_buildings_part_3_ci]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+- id: new_commercial_institutional_building_emissions
+  name: New Commercial & Institutional Building Emissions
+  short_name: New Commercial & Institutional Buildings
+  color: '#E15759'
+  order: 4
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: saskatoon/community_forecast
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [new_construction_part_3_ci]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+- id: onroad_transportation_emissions
+  name: On-Road Transportation Emissions
+  short_name: On-Road Transportation
+  color: '#59A14F'
+  order: 5
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+    formula: inventory + forecast
+  input_datasets:
+  - id: saskatoon/community_inventory
+    tags: [inventory]
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [ii11, ii13]
+    - column: scope
+  - id: saskatoon/community_forecast
+    tags: [forecast]
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [transport_ldvs, transport_hdvs, transport_motorcycles]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+- id: other_transportation_emissions
+  name: Other Transportation Emissions
+  short_name: Other Transportation
+  color: '#8CD17D'
+  order: 6
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+    formula: inventory + forecast
+  input_datasets:
+  - id: saskatoon/community_inventory
+    tags: [inventory]
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [ii21, ii31, ii41, ii43]
+    - column: scope
+  - id: saskatoon/community_forecast
+    tags: [forecast]
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [transport_other]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+- id: manufacturing_construction_emissions
+  name: Manufacturing Industries & Construction Emissions
+  short_name: Manufacturing Industries & Construction
+  color: '#B07AA1'
+  order: 7
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+    formula: inventory + forecast
+  input_datasets:
+  - id: saskatoon/community_inventory
+    tags: [inventory]
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [i31, i32, i33]
+    - column: scope
+  - id: saskatoon/community_forecast
+    tags: [forecast]
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [manufacturing_construction]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+- id: nonspecified_source_emissions
+  name: Non-Specified Source Emissions
+  short_name: Non-Specified Sources
+  color: '#D4A6C8'
+  order: 8
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+    formula: inventory + forecast
+  input_datasets:
+  - id: saskatoon/community_inventory
+    tags: [inventory]
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [i62, i63]
+    - column: scope
+  - id: saskatoon/community_forecast
+    tags: [forecast]
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [streetlighting]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+- id: waste_emissions
+  name: Waste Emissions
+  short_name: Waste
+  color: '#4E79A7'
+  order: 9
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+    formula: inventory + forecast
+  input_datasets:
+  - id: saskatoon/community_inventory
+    tags: [inventory]
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [iii11, iii12, iii21, iii41]
+    - column: scope
+  - id: saskatoon/community_forecast
+    tags: [forecast]
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [waste]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+- id: ippu_emissions
+  name: Industrial Processes & Product Use Emissions
+  short_name: Industrial Processes & Product Use
+  color: '#D37295'
+  order: 10
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+    formula: inventory + forecast
+  input_datasets:
+  - id: saskatoon/community_inventory
+    tags: [inventory]
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [iv1]
+    - column: scope
+  - id: saskatoon/community_forecast
+    tags: [forecast]
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [ippu]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+- id: energy_industry_emissions
+  name: Energy Industry Emissions
+  short_name: Energy Industries
+  color: '#EDC948'
+  order: 11
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: saskatoon/community_forecast
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [electricity_generation]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+- id: agriculture_land_use_emissions
+  name: Agriculture & Land Use Emissions
+  short_name: Agriculture & Land Use
+  color: '#BAB0AC'
+  order: 12
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+    formula: inventory + forecast
+  input_datasets:
+  - id: saskatoon/community_inventory
+    tags: [inventory]
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [v1]
+    - column: scope
+  - id: saskatoon/community_forecast
+    tags: [forecast]
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_moderate
+    - dimension: sector
+      categories: [agriculture_land_use]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+
+actions:
+- id: climate_action_moderate_improvement
+  name: Climate Action, Moderate Improvement
+  group: scenario
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+  - id: enabled
+    is_customizable: false
+  input_datasets:
+  - id: saskatoon/community_forecast
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: action_moderate
+  output_nodes:
+  - id: existing_residential_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [existing_buildings_part_9, existing_buildings_part_3_multifamily]
+  - id: new_residential_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [new_construction_part_9, new_construction_part_3_multifamily]
+  - id: existing_commercial_institutional_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [existing_buildings_part_3_ci]
+  - id: new_commercial_institutional_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [new_construction_part_3_ci]
+  - id: onroad_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [transport_ldvs]
+  - id: waste_emissions
+    from_dimensions:
+    - id: sector
+      categories: [waste]
+  - id: agriculture_land_use_emissions
+    from_dimensions:
+    - id: sector
+      categories: [agriculture_land_use]
+
+- id: bau_decarbonized_grid
+  name: BAU, Decarbonized Grid
+  group: scenario
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+  - id: enabled
+    is_customizable: false
+  input_datasets:
+  - id: saskatoon/community_forecast
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: bau_decarbonized
+  output_nodes:
+  - id: existing_residential_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [existing_buildings_part_9, existing_buildings_part_3_multifamily]
+  - id: new_residential_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [new_construction_part_9, new_construction_part_3_multifamily]
+  - id: existing_commercial_institutional_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [existing_buildings_part_3_ci]
+  - id: new_commercial_institutional_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [new_construction_part_3_ci]
+  - id: onroad_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [transport_ldvs]
+  - id: manufacturing_construction_emissions
+    from_dimensions:
+    - id: sector
+      categories: [manufacturing_construction]
+  - id: nonspecified_source_emissions
+    from_dimensions:
+    - id: sector
+      categories: [streetlighting]
+
+- id: climate_action_decarbonized_grid
+  name: Climate Action, Decarbonized Grid
+  group: scenario
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  params:
+  - id: enabled
+    is_customizable: false
+  input_datasets:
+  - id: saskatoon/community_forecast
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: scenario
+      value: action_decarbonized
+  output_nodes:
+  - id: existing_residential_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [existing_buildings_part_9, existing_buildings_part_3_multifamily]
+  - id: new_residential_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [new_construction_part_9, new_construction_part_3_multifamily]
+  - id: existing_commercial_institutional_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [existing_buildings_part_3_ci]
+  - id: new_commercial_institutional_building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [new_construction_part_3_ci]
+  - id: onroad_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [transport_ldvs]
+  - id: manufacturing_construction_emissions
+    from_dimensions:
+    - id: sector
+      categories: [manufacturing_construction]
+  - id: nonspecified_source_emissions
+    from_dimensions:
+    - id: sector
+      categories: [streetlighting]
+  - id: waste_emissions
+    from_dimensions:
+    - id: sector
+      categories: [waste]
+  - id: agriculture_land_use_emissions
+    from_dimensions:
+    - id: sector
+      categories: [agriculture_land_use]
+
+pages:
+- id: home
+  name: Community GHG Emissions
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Saskatoon's Community GHG Emissions Inventory
+  lead_paragraph: Community greenhouse gas inventory (2014-2023) and forecast (2024-2050) for the City of Saskatoon.
+
+scenarios:
+- id: baseline
+  name: BAU, Moderate Improvement
+
+- id: action_moderate
+  name: Climate Action, Moderate Improvement
+  param_values:
+    climate_action_moderate_improvement.enabled: true
+    bau_decarbonized_grid.enabled: false
+    climate_action_decarbonized_grid.enabled: false
+
+- id: bau_decarbonized
+  name: BAU, Decarbonized Grid
+  param_values:
+    climate_action_moderate_improvement.enabled: false
+    bau_decarbonized_grid.enabled: true
+    climate_action_decarbonized_grid.enabled: false
+
+- id: default
+  default: true
+  name: Climate Action, Decarbonized Grid
+  param_values:
+    climate_action_moderate_improvement.enabled: false
+    bau_decarbonized_grid.enabled: false
+    climate_action_decarbonized_grid.enabled: true

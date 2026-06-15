@@ -6,8 +6,6 @@
     "github.vscode-github-actions",
     "eamodio.gitlens",
     "GraphQL.vscode-graphql-syntax",
-    "VisualStudioExptTeam.vscodeintellicode",
-    "VisualStudioExptTeam.intellicode-api-usage-examples",
     "ms-python.mypy-type-checker",
     "ms-python.python",
     "charliermarsh.ruff",

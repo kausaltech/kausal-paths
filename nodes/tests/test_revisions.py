@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from nodes.defs.instance_defs import InstanceSpec, YearsSpec
+from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import DatasetPortSpec
 from nodes.instance_serialization import (
     SNAPSHOT_SCHEMA_VERSION,
@@ -30,15 +30,14 @@ pytestmark = pytest.mark.django_db
 def empty_db_instance() -> InstanceConfig:
     """Bare DB-sourced InstanceConfig, no nodes/edges."""
     instance = InstanceFactory.create()
-    spec = InstanceSpec(
-        primary_language='en',
-        owner='Test Owner',
+    spec = InstanceModelSpec(
         years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
     )
     return InstanceConfigFactory.create(
         identifier=instance.id,
         instance=instance,
         config_source='database',
+        owner='Test Owner',
         spec=spec,
     )
 
@@ -52,8 +51,7 @@ def test_instance_snapshot_json_round_trip():
     """A minimal snapshot dumps to JSON and reloads to an equal object."""
     from kausal_common.i18n.pydantic import TranslatedString
 
-    spec = InstanceSpec(
-        primary_language='en',
+    spec = InstanceModelSpec(
         years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
     )
     snap = InstanceSnapshot(
@@ -120,7 +118,7 @@ def test_i18n_spec_assignment_stays_dict_serializable():
 
 def test_instance_snapshot_schema_version_default():
     """New snapshots carry the current schema version."""
-    spec = InstanceSpec(primary_language='en', years=YearsSpec(target=2030))
+    spec = InstanceModelSpec(years=YearsSpec(target=2030))
     snap = InstanceSnapshot(spec=spec)
     assert snap.schema_version == SNAPSHOT_SCHEMA_VERSION
 
@@ -625,9 +623,8 @@ def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db
         identifier=target_instance.id,
         instance=target_instance,
         config_source='database',
-        spec=InstanceSpec(
-            primary_language='en',
-            owner='Target',
+        owner='Target',
+        spec=InstanceModelSpec(
             years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
         ),
     )
@@ -710,9 +707,8 @@ def test_import_instance_datasets_preserves_dimension_column_name(empty_db_insta
         identifier=target_instance.id,
         instance=target_instance,
         config_source='database',
-        spec=InstanceSpec(
-            primary_language='en',
-            owner='Target',
+        owner='Target',
+        spec=InstanceModelSpec(
             years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
         ),
     )
