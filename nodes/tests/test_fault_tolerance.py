@@ -6,13 +6,14 @@ See ``docs/architecture/fault-tolerance.md``.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from factory import Sequence
 
 from nodes.edges import Edge
 from nodes.exceptions import NodeError
+from nodes.instance_loader import InstanceLoader
 from nodes.node import NodeErrorPhase, NodeStatus, NodeStatusError
 from nodes.simple import AdditiveNode, SimpleNode
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeFactory
@@ -166,6 +167,62 @@ def test_enter_instance_context_defaults_to_fail_fast():
     ic = _instance_config()
     with ic.enter_instance_context() as instance:
         assert instance.context.tolerate_node_failures is False
+
+
+# --- construction-time (init-phase) tolerance --------------------------------
+
+
+def _loader_config(nodes: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        'id': 'ft_test',
+        'default_language': 'en',
+        'supported_languages': [],
+        'name': 'Fault tolerance test',
+        'owner': 'Owner',
+        'target_year': 2030,
+        'minimum_historical_year': 2010,
+        'maximum_historical_year': 2020,
+        'reference_year': 1990,
+        'nodes': nodes,
+    }
+
+
+def _node_cfg(node_id: str, **extra: Any) -> dict[str, Any]:
+    return {'id': node_id, 'type': 'nodes.simple.AdditiveNode', 'name': node_id, 'unit': 'kWh', 'quantity': 'energy', **extra}
+
+
+def test_construction_tolerates_bad_param():
+    config = _loader_config([
+        _node_cfg('good'),
+        _node_cfg('bad', params=[{'id': 'this_param_does_not_exist', 'value': 1}]),
+    ])
+    ctx = InstanceLoader(config=config, tolerate_node_failures=True).context
+
+    assert ctx.nodes['bad'].status is NodeStatus.FAILED
+    assert any(e.phase is NodeErrorPhase.INITIALIZATION for e in ctx.nodes['bad'].status_errors)
+    # The rest of the graph still loaded, and the healthy node isn't flagged at init.
+    assert ctx.nodes['good'].status is None
+
+
+def test_construction_tolerates_bad_edge():
+    config = _loader_config([
+        _node_cfg('good'),
+        _node_cfg('dangling', output_nodes=['nonexistent_node']),
+    ])
+    ctx = InstanceLoader(config=config, tolerate_node_failures=True).context
+
+    assert ctx.nodes['dangling'].status is NodeStatus.FAILED
+    assert any(e.phase is NodeErrorPhase.INITIALIZATION for e in ctx.nodes['dangling'].status_errors)
+    assert 'good' in ctx.nodes
+
+
+def test_construction_strict_mode_still_raises():
+    config = _loader_config([
+        _node_cfg('good'),
+        _node_cfg('bad', params=[{'id': 'this_param_does_not_exist', 'value': 1}]),
+    ])
+    with pytest.raises(NodeError):
+        InstanceLoader(config=config, tolerate_node_failures=False)
 
 
 # --- editor status field: opt-in compute ------------------------------------
