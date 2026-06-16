@@ -168,6 +168,34 @@ def test_enter_instance_context_defaults_to_fail_fast():
         assert instance.context.tolerate_node_failures is False
 
 
+# --- editor status field: opt-in compute ------------------------------------
+
+
+def test_maybe_compute_status_is_noop_without_opt_in(context):
+    from nodes.graphql.types.node import _maybe_compute_status
+
+    boom = BoomNodeFactory.create(context=context)
+    _maybe_compute_status(boom, compute=False)
+    assert boom.status is None  # not computed; cheap default path
+
+
+def test_maybe_compute_status_computes_and_swallows_failure(context):
+    from nodes.graphql.types.node import _maybe_compute_status
+
+    boom = BoomNodeFactory.create(context=context)
+    _maybe_compute_status(boom, compute=True)  # must not raise
+    assert boom.status is NodeStatus.FAILED
+    assert len(boom.status_errors) == 1
+
+
+def test_maybe_compute_status_marks_clean_node_ok(context):
+    from nodes.graphql.types.node import _maybe_compute_status
+
+    leaf = _leaf(context)
+    _maybe_compute_status(leaf, compute=True)
+    assert leaf.status is NodeStatus.OK
+
+
 # --- tolerant mode ----------------------------------------------------------
 
 
