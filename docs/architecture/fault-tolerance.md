@@ -77,21 +77,37 @@ Status is determined at the cheapest point that can determine it, in
 three tiers:
 
 1. **Construction time (metadata only).** Anything provable without
-   computing is stamped during instance load: missing required
-   parameters, incompatible units, dangling edge targets, dimension
-   requirements that no upstream can satisfy, and the unwired
-   (`INCOMPLETE`) case. This is the most valuable tier — it costs nothing
-   at compute time and catches the "just dropped a node in" case, the
-   most common ephemeral failure. The dimension-constraint propagation
-   described in [`dimension-constraints.md`](dimension-constraints.md) is
-   the detector for the shape-related failures here.
+   computing is stamped during instance load: disallowed/unresolvable
+   parameters, invalid tags, bad visualizations, invalid action
+   metadata (decision level, group, parent), and unresolvable edges.
 
-   This tier lands together with the planned Spec-based graph
-   construction that will replace the current YAML/`InstanceLoader` path
-   (see the implementation plan). Until then, the unwired (`INCOMPLETE`)
-   case is caught at compute time — a tolerant `AdditiveNode` with no
-   available inputs marks itself `INCOMPLETE` — and richer metadata
-   validation is deferred rather than retrofitted onto `InstanceLoader`.
+   This is implemented in `InstanceLoader`: when `context.tolerate_node_failures`
+   is set (threaded in before construction, so the flag is live the moment
+   the `Context` is built), each metadata raise-site routes through
+   `InstanceLoader._init_failure(node, msg)`, which records a
+   `NodeStatusError(INITIALIZATION, …)` and `FAILED` status on the node and
+   continues, instead of aborting the load. The node keeps its **real
+   class** (so the editor renders it normally, just flagged) — only the
+   offending piece (param/edge/tag/viz) is skipped. In strict mode
+   `_init_failure` raises a structured `NodeError`; the plain
+   `Exception`/`TypeError` raises at these sites were converted to
+   `NodeError` so origin info reaches the UI uniformly.
+
+   **Scope:** this covers failures where the `Node` object already exists.
+   Failures *before* the object exists — node class not importable, no
+   unit/quantity, unparseable unit — and structural failures (duplicate
+   id, graph cycles) are **not** tolerated: the model editor's own
+   validation prevents those from being saved, so they can't reach a load.
+   They stay hard failures and are a deliberate non-goal for the
+   to-be-replaced loader. One known imperfection: some init errors (e.g. a
+   bad visualization) aren't actually fatal to computation, but we mark
+   `FAILED` anyway since there's no "warning" severity yet.
+
+   Note: this tier-1 work targets the current `InstanceLoader` on purpose
+   — to surface the metadata-error sites and learn from them before the
+   Spec-based loader replaces it. The dimension-constraint detector in
+   [`dimension-constraints.md`](dimension-constraints.md) will add
+   shape-related metadata validation as part of that rewrite.
 
 2. **Compute time.** A node whose own `compute()` raises marks **its own**
    status `FAILED` in the `except` block of `get_output_pl`, distinguishing
@@ -334,9 +350,10 @@ dimension work).
 
 ## Implementation plan (temporary — remove once landed)
 
-Status: steps 1–6 **landed** (engine + GraphQL reporting, with tests in
-`nodes/tests/test_fault_tolerance.py` and `test_model_editor.py`). Steps 7
-and the two wiring items below are **not yet done**.
+Status: steps 1–6 **landed** (compute-time engine, GraphQL reporting,
+activation, and construction-time/tier-1 tolerance in `InstanceLoader`),
+with tests in `nodes/tests/test_fault_tolerance.py` and
+`test_model_editor.py`. Step 7 (publish guard) is **not yet done**.
 
 1. **`NodeStatus` enum + `Node.status` field.** Define `NodeStatus`
    (`OK`, `INCOMPLETE`, `DEGRADED`, `FAILED`) and the `NodeErrorPhase`
@@ -398,17 +415,24 @@ argument (see Reporting): `false` for a fast read of the whole graph,
 `true` to run `get_output_pl()` on demand (node-detail view, or a deferred
 "compute all" follow-up query). No separate compute endpoint is needed.
 
+**Construction-time status / tier 1 (landed).** Implemented in
+`InstanceLoader` via `_init_failure` for the "node object already exists"
+metadata failures (params, tags, visualizations, action metadata, edges,
+subactions) — see "When status is set / tier 1". Deliberately scoped to
+the current loader (not deferred to the rewrite) to surface and learn from
+the metadata-error sites. Failures before the node exists (class import,
+unit/quantity) and structural failures (duplicate id, cycles) stay hard
+failures, since editor-side validation prevents them from being saved.
+
 **Deferred — not part of this work:**
 
-- **Construction-time status (tier 1).** Do **not** modify
-  `InstanceLoader`; it is slated for replacement by graph construction
-  directly from the Spec definitions, eliminating the YAML dict structure
-  altogether. Per-node construction tolerance and metadata validation
-  (units, dangling edges, dimension constraints) land as part of *that*
-  work, against the new loader. Before it exists, only tolerant
-  `AdditiveNode`s self-identify `INCOMPLETE`; other unwired nodes simply
-  surface as `FAILED` at compute time — still flagged, still
-  unpublishable.
+- **Shape/dimension metadata validation.** The dimension-constraint
+  detector ([`dimension-constraints.md`](dimension-constraints.md)) lands
+  with the Spec-based loader that replaces `InstanceLoader`.
+
+- **A non-fatal "warning" severity.** Some init errors (e.g. a bad
+  visualization) don't actually block computation but are currently marked
+  `FAILED`. A warning level would let those degrade more precisely.
 
 - **`get_input(port)` migration.** When the port-based input accessor
   lands, move the skip-don't-sum logic out of `add_nodes_pl` into

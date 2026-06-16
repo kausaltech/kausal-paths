@@ -882,6 +882,7 @@ class InstanceConfig(
         self,
         node_refs: bool = False,
         source: PreferredInstanceSource | Literal['draft', 'published'] = PreferredInstanceSource.DRAFT,
+        tolerate_node_failures: bool = False,
     ) -> Instance:
         from .instance_loader import InstanceLoader
 
@@ -900,7 +901,7 @@ class InstanceConfig(
             from .instance_from_db import serialize_instance_to_dict
 
             config = serialize_instance_to_dict(self)
-            loader = InstanceLoader(config=config)
+            loader = InstanceLoader(config=config, tolerate_node_failures=tolerate_node_failures)
             instance = loader.instance
             self.update_instance_from_configs(instance, node_refs=True)
             return instance
@@ -915,7 +916,7 @@ class InstanceConfig(
             if config_fn is None:
                 raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
             self.log.debug('Creating instance from YAML file: %s' % config_fn)
-            loader = InstanceLoader.from_yaml(config_fn)
+            loader = InstanceLoader.from_yaml(config_fn, tolerate_node_failures=tolerate_node_failures)
             instance = loader.instance
             with sentry_sdk.start_span(name='update-instance-from-configs: %s' % self.identifier, op='function'):
                 # We only need to do this on the plain old YAML path
@@ -927,6 +928,7 @@ class InstanceConfig(
         self,
         node_refs: bool = False,
         source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+        tolerate_node_failures: bool = False,
     ) -> Instance:
         self.log.info(
             'Creating new instance from %s (source=%s)'
@@ -937,7 +939,11 @@ class InstanceConfig(
         )
 
         with sentry_sdk.start_span(name='create-instance-from-config: %s' % self.identifier, op='function'):
-            instance = self._create_from_config(node_refs=node_refs, source=source)
+            instance = self._create_from_config(
+                node_refs=node_refs,
+                source=source,
+                tolerate_node_failures=tolerate_node_failures,
+            )
 
         instance.modified_at = timezone.now()
         if settings.ENABLE_PERF_TRACING:
@@ -959,7 +965,7 @@ class InstanceConfig(
         if self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
-            instance = self._initialize_instance(node_refs=True, source=source)
+            instance = self._initialize_instance(node_refs=True, source=source, tolerate_node_failures=tolerate_node_failures)
 
         # Set explicitly every time (default False) so the flag never leaks across requests
         # that reuse a cached instance/context. See docs/architecture/fault-tolerance.md.
@@ -982,7 +988,11 @@ class InstanceConfig(
         if self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
-            instance = await sync_to_async(self._initialize_instance)(node_refs=True, source=source)
+            instance = await sync_to_async(self._initialize_instance)(
+                node_refs=True,
+                source=source,
+                tolerate_node_failures=tolerate_node_failures,
+            )
 
         # Set explicitly every time (default False) so the flag never leaks across requests.
         instance.context.tolerate_node_failures = tolerate_node_failures
