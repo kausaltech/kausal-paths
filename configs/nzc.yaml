@@ -53,7 +53,8 @@ result_excels:
   - new_building_shares
   - efficient_appliances_rate
   - building_heating_type_share
-  - heating_fuel_share_local # FIXME Result excel G149:H155.
+  - heating_fuel_share
+  - heating_fuel_share_local # TODO Result excel G149:H155 if you want to remove heating_fuel_share.
   - heating_fuel_share_district
   - electricity_shares
   - waste_recycling_shares

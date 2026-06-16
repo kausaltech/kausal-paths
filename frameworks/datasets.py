@@ -161,8 +161,8 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         context = self.context
         fwd = context.framework_config_data
         if fwd is None:
-            if 'prepare_gpc_dataset' in self.tags:
-                drop_cols = [col for col in ['UUID', 'Sector'] if col in df.columns]
+            drop_cols = [col for col in ['uuid', 'Sector'] if col in df.columns]
+            if drop_cols:
                 df = df.drop(drop_cols)
             # Add flag columns so _observed_only_extend_all falls through to
             # model_default=True and extends values to the full time range.
@@ -173,10 +173,10 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             return df
 
         df = df.with_columns(
-            pl.when(pl.col('UUID') == 'ADD UUID HERE').then(pl.lit(None)).otherwise(pl.col('UUID')).alias('UUID'),
+            pl.when(pl.col('uuid') == 'ADD uuid HERE').then(pl.lit(None)).otherwise(pl.col('uuid')).alias('uuid'),
         )
 
-        uuids = df['UUID'].unique().to_list()
+        uuids = df['uuid'].unique().to_list()
         measures = Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
         dps = (
             MeasureDataPoint.objects
@@ -185,7 +185,7 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
         )
         schema = (
-            ('UUID', pl.String),
+            ('uuid', pl.String),
             ('MeasureYear', pl.Int64),
             ('MeasureValue', pl.Float64),
             ('MeasureDefaultValue', pl.Float64),
@@ -222,7 +222,7 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
                 ppl
                 .to_ppdf(
                     dpdf,
-                    meta=ppl.DataFrameMeta(units={'MeasureValue': mu, 'MeasureDefaultValue': mu}, primary_keys=['UUID']),
+                    meta=ppl.DataFrameMeta(units={'MeasureValue': mu, 'MeasureDefaultValue': mu}, primary_keys=['uuid']),
                 )
                 .ensure_unit('MeasureValue', ds_unit)
                 .ensure_unit('MeasureDefaultValue', ds_unit)
@@ -238,10 +238,10 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         # Duplicates may occur when baseline year overlaps with existing data points.
         df = ppl.to_ppdf(df.unique(subset=meta.primary_keys, keep='last', maintain_order=True), meta=meta)
 
-        # If a UUID appears at only one year in the DVC data, MeasureYear (from the DB
-        # entry) overrides the DVC year — this handles the "single baseline row per UUID"
+        # If a uuid appears at only one year in the DVC data, MeasureYear (from the DB
+        # entry) overrides the DVC year — this handles the "single baseline row per uuid"
         # pattern. UUIDs that span multiple years keep their DVC years unchanged.
-        unique_years_by_uuid = df.group_by('UUID').agg(pl.col('Year').unique().len().alias('NrUUIDYears'))
+        unique_years_by_uuid = df.group_by('uuid').agg(pl.col('Year').unique().len().alias('NrUUIDYears'))
 
         # When not in observation/progress-tracking mode, restrict DB data points to the
         # reference year only. Without this, a single-year DVC baseline row (NrUUIDYears==1)
@@ -253,11 +253,11 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
 
         # Left join: only keep rows present in the DVC data (dpdf rows without a DVC
         # counterpart would introduce phantom rows with null Year/dims).
-        jdf = df.join(dpdf, on='UUID', how='left')
-        jdf = jdf.join(unique_years_by_uuid, on='UUID', how='left')
+        jdf = df.join(dpdf, on='uuid', how='left')
+        jdf = jdf.join(unique_years_by_uuid, on='uuid', how='left')
 
         jdf = jdf.with_columns([
-            # Only override Year when the UUID has a single year in the DVC data AND
+            # Only override Year when the uuid has a single year in the DVC data AND
             # that year is the baseline year — the "single reference-row" pattern where
             # MeasureYear meaningfully shifts when the value applies. UUIDs that already
             # carry a specific calendar year (≠ baseline) are left unchanged.
@@ -268,10 +268,10 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             .alias(YEAR_COLUMN),
             pl.coalesce(['MeasureValue', 'MeasureDefaultValue', 'Value']).alias('Value'),
             (pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null()).alias('FromMeasureDataPoint'),
-            ((pl.col('MeasureValue').is_not_null()) & (pl.col('UUID').is_not_null())).alias('ObservedDataPoint'),
+            ((pl.col('MeasureValue').is_not_null()) & (pl.col('uuid').is_not_null())).alias('ObservedDataPoint'),
         ])
-        out_cols = [c for c in [*df_cols, 'FromMeasureDataPoint', 'ObservedDataPoint'] if c != 'UUID']
-        new_pks = [pk for pk in meta.primary_keys if pk != 'UUID']
+        out_cols = [c for c in [*df_cols, 'FromMeasureDataPoint', 'ObservedDataPoint'] if c != 'uuid']
+        new_pks = [pk for pk in meta.primary_keys if pk != 'uuid']
         df = ppl.to_ppdf(
             jdf.select(out_cols),
             meta=ppl.DataFrameMeta(primary_keys=new_pks, units=meta.units),
@@ -282,10 +282,10 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
     def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         df = super().post_process(df)
         if 'uuid' in df.columns:
-            df = df.rename({'uuid': 'UUID'})
-            df = df.with_columns(pl.col('UUID').cast(pl.String).str.replace_all('_', '-'))
+            # df = df.rename({'uuid': 'UUID'})
+            df = df.with_columns(pl.col('uuid').cast(pl.String).str.replace_all('_', '-'))
 
-        if 'UUID' not in df.columns:
+        if 'uuid' not in df.columns:
             raise Exception("Dataset must have a 'UUID' column")
         df = self._override_with_measure_datapoints(df)
         return df
