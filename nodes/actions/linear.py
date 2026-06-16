@@ -323,6 +323,12 @@ class DatasetReduceAction(ActionNode):
 
         assert result_df is not None
         df = result_df
+        # After joining metrics with different dimensional spans via join_over_index,
+        # some rows have null in dimensions that weren't used by a particular metric.
+        # Drop those rows — the unused dimension has "dropped off" for that metric.
+        for dim_id in df.dim_ids:
+            if df[dim_id].null_count() > 0:
+                df = ppl.to_ppdf(df.filter(pl.col(dim_id).is_not_null()), meta=df.get_meta())
         for m in self.output_metrics.values():
             if m.column_id not in df.metric_cols:
                 raise NodeError(self, "Metric column '%s' not found in output" % m.column_id)

@@ -158,7 +158,6 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
 
         from frameworks.models import Measure
 
-        print(df)
         context = self.context
         fwd = context.framework_config_data
         if fwd is None:
@@ -198,6 +197,25 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         # exactly one MeasureUnit, so a single ensure_unit() call is sufficient.
         ds_unit = df.get_unit(VALUE_COLUMN)
         mu_strs = dpdf['MeasureUnit'].drop_nulls().unique().to_list()
+        if len(mu_strs) > 1:  # FIXME This is needed for SCurveAction that has several units in one metric.
+            if all(s in ['%', 'dimensionless'] for s in mu_strs):
+                print(dpdf)
+                dpdf = dpdf.with_columns([
+                    pl
+                    .when(pl.col('MeasureUnit') == '%')
+                    .then(pl.col('MeasureValue') * 0.01)
+                    .otherwise(pl.col('MeasureValue'))
+                    .alias('MeasureValue'),
+                    pl
+                    .when(pl.col('MeasureUnit') == '%')
+                    .then(pl.col('MeasureDefaultValue') * 0.01)
+                    .otherwise(pl.col('MeasureDefaultValue'))
+                    .alias('MeasureDefaultValue'),
+                    pl.lit('dimensionless').alias('MeasureUnit'),
+                ])
+            else:
+                raise ValueError(self, 'Measure dataset tries to use more than one unit at a time.')
+
         if mu_strs:
             mu = context.unit_registry.parse_units(mu_strs[0])
             dpdf = (
@@ -225,6 +243,14 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         # pattern. UUIDs that span multiple years keep their DVC years unchanged.
         unique_years_by_uuid = df.group_by('UUID').agg(pl.col('Year').unique().len().alias('NrUUIDYears'))
 
+        # When not in observation/progress-tracking mode, restrict DB data points to the
+        # reference year only. Without this, a single-year DVC baseline row (NrUUIDYears==1)
+        # expands into one row per observed year via the left join, pushing max_hist_year
+        # forward and masking future goal targets for cities with recent observed data.
+        use_obs = bool(context.get_parameter_value('use_observations', required=False) or False)
+        if not use_obs and not dpdf.is_empty():
+            dpdf = dpdf.filter(pl.col('MeasureYear') == baseline_year)
+
         # Left join: only keep rows present in the DVC data (dpdf rows without a DVC
         # counterpart would introduce phantom rows with null Year/dims).
         jdf = df.join(dpdf, on='UUID', how='left')
@@ -244,9 +270,12 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             (pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null()).alias('FromMeasureDataPoint'),
             ((pl.col('MeasureValue').is_not_null()) & (pl.col('UUID').is_not_null())).alias('ObservedDataPoint'),
         ])
-        out_cols = [*df_cols, 'FromMeasureDataPoint', 'ObservedDataPoint']
-        df = ppl.to_ppdf(jdf.select(out_cols), meta=meta)
-        df = df.drop('UUID', strict=False)
+        out_cols = [c for c in [*df_cols, 'FromMeasureDataPoint', 'ObservedDataPoint'] if c != 'UUID']
+        new_pks = [pk for pk in meta.primary_keys if pk != 'UUID']
+        df = ppl.to_ppdf(
+            jdf.select(out_cols),
+            meta=ppl.DataFrameMeta(primary_keys=new_pks, units=meta.units),
+        )
 
         return df
 
