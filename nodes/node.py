@@ -4,8 +4,10 @@ import typing
 # import warnings
 from contextlib import nullcontext
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, ClassVar, Literal, Self, overload
 
+import strawberry as sb
 from django.utils.translation import gettext_lazy as _
 
 import numpy as np
@@ -67,6 +69,52 @@ if typing.TYPE_CHECKING:
     from .scenario import Scenario
 
 import polars as pl
+
+
+@sb.enum
+class NodeStatus(Enum):
+    """
+    Health of a node within a single (per-request, ephemeral) computation graph.
+
+    See ``docs/architecture/fault-tolerance.md``. Within one request a node's
+    status only ever moves toward failure (see ``Node.mark_status``); a fresh
+    graph is built per request, so a node fixed by the user "recovers" simply by
+    being re-evaluated from scratch in the next request.
+    """
+
+    OK = 'ok'
+    DEGRADED = 'degraded'
+    """Produced output, but from a partial input set (a tolerant node dropped a failed/unavailable input)."""
+    INCOMPLETE = 'incomplete'
+    """Not enough inputs wired to compute — mid-construction, not an error."""
+    FAILED = 'failed'
+    """Construction or computation failed; no usable output."""
+
+
+# Severity ordering for the monotonic status transition (higher = worse).
+_NODE_STATUS_SEVERITY: dict[NodeStatus, int] = {
+    NodeStatus.OK: 0,
+    NodeStatus.DEGRADED: 1,
+    NodeStatus.INCOMPLETE: 2,
+    NodeStatus.FAILED: 3,
+}
+
+
+@sb.enum
+class NodeErrorPhase(Enum):
+    """The phase in which a node-level error occurred (reported to the editor)."""
+
+    INITIALIZATION = 'initialization'
+    COMPUTATION = 'computation'
+
+
+@dataclass
+class NodeStatusError:
+    """A structured problem recorded at a node, surfaced via ``NodeEditorFields``."""
+
+    phase: NodeErrorPhase
+    message: str
+
 
 DEBUG_NODE_EXCEPTIONS = env_bool('DEBUG_NODE_EXCEPTIONS', default=False)
 
@@ -283,6 +331,12 @@ class Node:
 
     allow_nulls: bool
     'If the node allows null values in the output'
+
+    status: NodeStatus | None
+    'Health status within the current (per-request) computation graph; None until evaluated.'
+
+    status_errors: list[NodeStatusError]
+    'Structured problems recorded at this node (own errors only, not inherited cascades).'
 
     tags: set[str]
     'Tags to differentiate between multiple input/output nodes'
@@ -528,6 +582,8 @@ class Node:
         self._baseline_values = None
         self.parameters = {}
         self.tags = set()
+        self.status = None
+        self.status_errors = []
 
         kls = type(self)
         self.logger = context.log.bind(node=self.id, node_class='%s.%s' % (kls.__module__, kls.__qualname__))
@@ -1123,6 +1179,19 @@ class Node:
         if dim_ids != node_dims and not getattr(self, 'allow_unknown_dimensions', None):
             raise NodeError(self, 'Output has unknown dimensions: %s (expecting %s)' % (', '.join(dim_ids), ', '.join(node_dims)))
 
+    def mark_status(self, status: NodeStatus, error: NodeStatusError | None = None) -> None:
+        """
+        Record the node's status, only ever moving toward failure.
+
+        Status is monotonic within the node's (per-request) lifetime: a more
+        severe status replaces a less severe one, never the reverse. An optional
+        structured error is appended. See ``docs/architecture/fault-tolerance.md``.
+        """
+        if error is not None:
+            self.status_errors.append(error)
+        if self.status is None or _NODE_STATUS_SEVERITY[status] > _NODE_STATUS_SEVERITY[self.status]:
+            self.status = status
+
     def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:
         df = self.get_output_pl(target_node, metric)
         return df.to_pandas()
@@ -1165,9 +1234,21 @@ class Node:
             try:
                 df, cache_res = self._get_output_pl(target_node=target_node, metric=metric, skip_dim_test=skip_dim_test)
             except Exception as e:
+                first_failure = self.status is not NodeStatus.FAILED
                 if isinstance(e, NodeError):
+                    # Record an own-error only if this node is where the error originated; an
+                    # inherited cascade leaves the error on the upstream node (event_chain[0]).
+                    own_error = first_failure and bool(e.event_chain) and e.event_chain[0].node is self
+                    self.mark_status(
+                        NodeStatus.FAILED,
+                        NodeStatusError(phase=NodeErrorPhase.COMPUTATION, message=str(e)) if own_error else None,
+                    )
                     e.add_node_event(self, event='get_output', target_node=target_node)
                     raise
+                self.mark_status(
+                    NodeStatus.FAILED,
+                    NodeStatusError(phase=NodeErrorPhase.COMPUTATION, message=str(e)) if first_failure else None,
+                )
                 raise NodeComputationError(self, 'Error getting output', event='get_output', target_node=target_node) from e
 
             if span is not None:
@@ -1189,12 +1270,16 @@ class Node:
 
         return df
 
-    def _get_output_pl(  # noqa: C901
+    def _get_output_pl(  # noqa: C901, PLR0912
         self,
         target_node: Node | None = None,
         metric: str | None = None,
         skip_dim_test: bool = False,
     ) -> tuple[ppl.PathsDataFrame, CacheResult[ppl.PathsDataFrame] | None]:
+        if self.status is NodeStatus.FAILED:
+            # Memoized failure: a node that already failed in this run is not recomputed.
+            raise NodeError(self, 'Node failed earlier in this computation run', event='compute', target_node=target_node)
+
         use_cache = not (self.disable_cache or self.context.skip_cache)
         cache_res = None
         if use_cache:
@@ -1217,11 +1302,17 @@ class Node:
                 df = ppl.from_pandas(df)
 
             self.validate_output(df)
-            if cache_res is not None:
+            # mark_status keeps any DEGRADED/INCOMPLETE a tolerant node set during compute().
+            self.mark_status(NodeStatus.OK)
+            # Cache only clean results: a cross-request cache hit must never read back as OK
+            # a node that actually computed DEGRADED/INCOMPLETE (those are deliberately not cached).
+            if cache_res is not None and self.status is NodeStatus.OK:
                 self.hasher.cache_output(cache_res, df)
         else:
             assert cache_res.obj is not None
             df = cache_res.obj
+            # Only OK results are cached, so a hit means the node was healthy.
+            self.mark_status(NodeStatus.OK)
 
         assert isinstance(df, ppl.PathsDataFrame)
 
@@ -1543,7 +1634,7 @@ class Node:
         ctx = {'node.id': self.id}
         self.context.warning('%s %s' % (str(self), msg), depth=depth + 1, **ctx, **kwargs)
 
-    def add_nodes_pl(  # noqa: C901, PLR0912, PLR0915
+    def _add_nodes_impl(  # noqa: C901, PLR0912, PLR0915
         self,
         df: ppl.PathsDataFrame | None,
         nodes: list[Node],
@@ -1553,11 +1644,29 @@ class Node:
         unit: Unit | None = None,
         start_from_year: int | None = None,
         ignore_unit: bool = False,
-    ) -> ppl.PathsDataFrame:
-        if len(nodes) == 0:
+        *,
+        tolerate_failures: bool = False,
+    ) -> tuple[ppl.PathsDataFrame | None, int]:
+        """
+        Sum the outputs of ``nodes`` (plus an optional input ``df``) together.
+
+        Shared implementation behind ``add_nodes_pl`` and ``add_nodes_tolerant``.
+        When ``tolerate_failures`` is set, inputs whose upstream node failed or is
+        INCOMPLETE are skipped (treated as a zero contribution) and counted; the
+        returned df is ``None`` only when nothing at all could be produced (no
+        dataset and every input unavailable). See
+        ``docs/architecture/fault-tolerance.md``.
+        """
+        # Pair each multiplier with its node up front, so skipping a node keeps the rest aligned.
+        apply_mult = bool(node_multipliers)
+        mults = node_multipliers if node_multipliers is not None else [1.0] * len(nodes)
+
+        if not nodes:
             if df is None:
+                if tolerate_failures:
+                    return None, 0
                 raise NodeError(self, 'No input dataset and no input nodes')
-            return df
+            return df, 0
         if self.debug:
             print('%s: input dataset:' % str(self.id))
             if df is not None:
@@ -1565,25 +1674,39 @@ class Node:
             else:
                 print('\tNo input dataset')
 
-        node_outputs: list[tuple[Node, ppl.PathsDataFrame]] = []
-        for node in nodes:
-            node_df = node.get_output_pl(self, metric=metric)
+        node_outputs: list[tuple[Node, ppl.PathsDataFrame, float]] = []
+        skipped = 0
+        for node, mult in zip(nodes, mults, strict=True):
+            try:
+                node_df = node.get_output_pl(self, metric=metric)
+            except NodeError:
+                if not tolerate_failures:
+                    raise
+                skipped += 1
+                continue
+            if tolerate_failures and node.status is NodeStatus.INCOMPLETE:
+                # An INCOMPLETE upstream produces an empty self-report only; treat it as absent.
+                skipped += 1
+                continue
             if start_from_year is not None:
                 node_df = node_df.filter(pl.col(YEAR_COLUMN) >= start_from_year)
             if node_df.paths.index_has_duplicates():
                 raise NodeError(self, "Input from node '%s' has duplicate index rows" % node.id)
             if keep_nodes:
                 node_df = node_df.with_columns(pl.lit(node.id).alias(NODE_COLUMN)).add_to_index(NODE_COLUMN)
-            node_outputs.append((node, node_df))
+            node_outputs.append((node, node_df, mult))
+
+        if df is None and not node_outputs:
+            # No input dataset and every input node was unavailable (tolerant mode only).
+            return None, skipped
 
         if df is None:
-            node, df = node_outputs.pop(0)
+            node, df, first_mult = node_outputs.pop(0)
             if self.debug:
                 print('%s: adding output from node %s' % (self.id, node.id))
                 self.print(df)
-            if node_multipliers:
-                mult = node_multipliers.pop(0)
-                df = df.with_columns(pl.col(VALUE_COLUMN) * mult)
+            if apply_mult:
+                df = df.with_columns(pl.col(VALUE_COLUMN) * first_mult)
         elif keep_nodes:
             df = df.with_columns(pl.lit('').alias(NODE_COLUMN)).add_to_index(NODE_COLUMN)
 
@@ -1600,7 +1723,7 @@ class Node:
             df = df.ensure_unit(VALUE_COLUMN, unit)
 
         meta = df.get_meta()
-        for node, node_df in node_outputs:
+        for node, node_df, mult in node_outputs:
             if self.debug:
                 print('%s: adding output from node %s' % (self.id, node.id))
                 self.print(node_df)
@@ -1608,8 +1731,7 @@ class Node:
             if VALUE_COLUMN not in node_df.columns:
                 raise NodeError(self, 'Value column missing in output of %s' % node.id)
 
-            if node_multipliers:
-                mult = node_multipliers.pop(0)
+            if apply_mult:
                 node_df = node_df.with_columns(pl.col(VALUE_COLUMN) * mult)  # noqa: PLW2901
 
             ndf_meta = node_df.get_meta()
@@ -1618,7 +1740,61 @@ class Node:
             df = df.paths.add_with_dims(node_df, how='outer')
 
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
-        return df
+        return df, skipped
+
+    def add_nodes_pl(
+        self,
+        df: ppl.PathsDataFrame | None,
+        nodes: list[Node],
+        metric: str | None = None,
+        keep_nodes: bool = False,
+        node_multipliers: list[float] | None = None,
+        unit: Unit | None = None,
+        start_from_year: int | None = None,
+        ignore_unit: bool = False,
+    ) -> ppl.PathsDataFrame:
+        out, _ = self._add_nodes_impl(
+            df,
+            nodes,
+            metric=metric,
+            keep_nodes=keep_nodes,
+            node_multipliers=node_multipliers,
+            unit=unit,
+            start_from_year=start_from_year,
+            ignore_unit=ignore_unit,
+            tolerate_failures=False,
+        )
+        assert out is not None  # the non-tolerant path raises rather than returning None
+        return out
+
+    def add_nodes_tolerant(
+        self,
+        df: ppl.PathsDataFrame | None,
+        nodes: list[Node],
+        metric: str | None = None,
+        keep_nodes: bool = False,
+        node_multipliers: list[float] | None = None,
+        unit: Unit | None = None,
+        start_from_year: int | None = None,
+        ignore_unit: bool = False,
+    ) -> tuple[ppl.PathsDataFrame | None, int]:
+        """
+        Like ``add_nodes_pl``, but skip inputs whose upstream node failed or is INCOMPLETE.
+
+        Returns ``(df, skip_count)``; ``df`` is ``None`` if nothing could be produced (no
+        dataset and every input node unavailable). See ``docs/architecture/fault-tolerance.md``.
+        """
+        return self._add_nodes_impl(
+            df,
+            nodes,
+            metric=metric,
+            keep_nodes=keep_nodes,
+            node_multipliers=node_multipliers,
+            unit=unit,
+            start_from_year=start_from_year,
+            ignore_unit=ignore_unit,
+            tolerate_failures=True,
+        )
 
     def multiply_nodes_pl(
         self,

@@ -38,10 +38,10 @@ class NodeEvent:
 
 class NodeError(Exception):
     error_code: ClassVar[NodeErrorCode | None] = None
-    event_chain: list[NodeEvent] = []
+    event_chain: list[NodeEvent]
 
     def __init__(self, node: Node, msg: str, *args, event: str | None = None, target_node: Node | None = None, **kwargs):
-        self.event_chain.append(NodeEvent(node, event, target_node))
+        self.event_chain = [NodeEvent(node, event, target_node)]
         msg_with_id = 'Node %s: %s' % (node.id, msg)
         super().__init__(msg_with_id, *args, **kwargs)
 

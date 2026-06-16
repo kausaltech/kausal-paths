@@ -16,7 +16,7 @@ from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .constants import FORECAST_COLUMN, MIX_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
 from .exceptions import NodeError
-from .node import InputPortMultiplicityHint, Node, NodeMetric
+from .node import InputPortMultiplicityHint, Node, NodeMetric, NodeStatus
 from .pipeline.compat import PipelineCompatibleNode
 
 if TYPE_CHECKING:
@@ -335,6 +335,23 @@ Missing values are assumed to be zero.""")
             df = extend_last_historical_value_pl(df, self.get_end_year())
         return df
 
+    def _empty_output(self) -> ppl.PathsDataFrame:
+        """
+        Build an empty (zero-row) but schema-valid output for an INCOMPLETE node.
+
+        Used when the node has no available inputs (e.g. not wired up yet). The frame
+        is dimensionless — a transparent additive node with no inputs has no categorical
+        dimensions. See ``docs/architecture/fault-tolerance.md``.
+        """
+        schema: dict[str, Any] = {YEAR_COLUMN: pl.Int64}
+        units = {}
+        for m in self.output_metrics.values():
+            schema[m.column_id] = pl.Float64
+            units[m.column_id] = m.unit
+        schema[FORECAST_COLUMN] = pl.Boolean
+        meta = ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN])
+        return ppl.to_ppdf(pl.DataFrame(schema=schema), meta=meta)
+
     def compute(self) -> ppl.PathsDataFrame:
         idf = self.get_input_dataset_pl(required=False)
         metric = self.get_parameter_value_str('metric', required=False)
@@ -345,15 +362,32 @@ Missing values are assumed to be zero.""")
         na_nodes = self.get_input_nodes(tag='non_additive')
         input_nodes = [node for node in self.input_nodes if node not in na_nodes]
 
-        if self.get_parameter_value('use_input_node_unit_when_adding', required=False):
+        if self.get_parameter_value('use_input_node_unit_when_adding', required=False) and self.input_nodes:
             unit = self.input_nodes[0].unit
         else:
             unit = self.unit
+
+        tolerant = self.context.tolerate_node_failures
+        skipped = 0
         if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
-            df = self.add_nodes_pl(None, input_nodes, metric, unit=unit)
-            df = self.fill_gaps_using_input_dataset_pl(df)
+            if tolerant:
+                df, skipped = self.add_nodes_tolerant(None, input_nodes, metric, unit=unit)
+            else:
+                df = self.add_nodes_pl(None, input_nodes, metric, unit=unit)
+            if df is not None:
+                df = self.fill_gaps_using_input_dataset_pl(df)
+        elif tolerant:
+            df, skipped = self.add_nodes_tolerant(idf, input_nodes, metric, unit=unit)
         else:
             df = self.add_nodes_pl(idf, input_nodes, metric, unit=unit)
+
+        if df is None:
+            # No input dataset and every input node unavailable: the node isn't wired up yet.
+            self.mark_status(NodeStatus.INCOMPLETE)
+            return self._empty_output()
+        if skipped:
+            self.mark_status(NodeStatus.DEGRADED)
+
         df = self.maybe_drop_nulls(df)  # FIXME Check where this should be done.
         if self.get_parameter_value('drop_nans', required=False):  # FIXME: Implement this in the same way as drop_nulls
             df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
