@@ -160,21 +160,19 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
 
         context = self.context
         fwd = context.framework_config_data
-        if fwd is None:
+        ref_year = context.instance.reference_year
+        df = df.paths._drop_unnecessary_levels(df, context)
+
+        if fwd is None or 'uuid' not in df.columns:
             drop_cols = [col for col in ['uuid', 'Sector'] if col in df.columns]
             if drop_cols:
                 df = df.drop(drop_cols)
-            # Add flag columns so _observed_only_extend_all falls through to
-            # model_default=True and extends values to the full time range.
             df = df.with_columns([
                 pl.lit(value=False).alias('ObservedDataPoint'),
                 pl.lit(value=False).alias('FromMeasureDataPoint'),
+                (pl.col(YEAR_COLUMN) > ref_year).alias(FORECAST_COLUMN),
             ])
             return df
-
-        df = df.with_columns(
-            pl.when(pl.col('uuid') == 'ADD uuid HERE').then(pl.lit(None)).otherwise(pl.col('uuid')).alias('uuid'),
-        )
 
         uuids = df['uuid'].unique().to_list()
         measures = Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
@@ -270,7 +268,13 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             (pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null()).alias('FromMeasureDataPoint'),
             ((pl.col('MeasureValue').is_not_null()) & (pl.col('uuid').is_not_null())).alias('ObservedDataPoint'),
         ])
+        max_hist = context.instance.maximum_historical_year or ref_year
+        has_db_data = pl.col('ObservedDataPoint') | pl.col('FromMeasureDataPoint')
+        obs_expr = (has_db_data & (pl.col(YEAR_COLUMN) <= max_hist)) | (pl.col(YEAR_COLUMN) == ref_year)
+        jdf = jdf.with_columns(~obs_expr.alias(FORECAST_COLUMN))
+
         out_cols = [c for c in [*df_cols, 'FromMeasureDataPoint', 'ObservedDataPoint'] if c != 'uuid']
+        out_cols = out_cols if FORECAST_COLUMN in out_cols else [*out_cols, FORECAST_COLUMN]
         new_pks = [pk for pk in meta.primary_keys if pk != 'uuid']
         df = ppl.to_ppdf(
             jdf.select(out_cols),
