@@ -29,6 +29,7 @@ from nodes.graph_layout import NodeGraphLayoutMeta
 from nodes.graphql.types import DatasetPortType
 from nodes.graphql.types.change_history import EditableEntity
 from nodes.graphql.types.impact import get_impact_metric
+from nodes.node import NodeErrorPhase, NodeStatus
 from nodes.quantities import get_registry as get_quantity_registry
 from nodes.scenario import Scenario, ScenarioKind
 from params import Parameter
@@ -172,9 +173,29 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
         ]
 
 
+@sb.type(name='NodeError')
+class NodeErrorType:
+    """A problem recorded at a node during initialization or computation."""
+
+    phase: NodeErrorPhase
+    message: str
+
+
 @sb.type(name='NodeEditor')
 class NodeEditorFields:
     _node: sb.Private['Node']
+
+    @sb.field
+    @staticmethod
+    def status(root: 'NodeEditorFields') -> NodeStatus | None:
+        """Health of the node in the current (draft) computation; null until evaluated."""
+        return root._node.status
+
+    @sb.field
+    @staticmethod
+    def errors(root: 'NodeEditorFields') -> list[NodeErrorType]:
+        """Problems recorded at this node (own errors only; a cascade-failed node has FAILED status but empty errors)."""
+        return [NodeErrorType(phase=e.phase, message=e.message) for e in root._node.status_errors]
 
     @sb.field(graphql_type=NodeSpecType | None)
     @staticmethod
