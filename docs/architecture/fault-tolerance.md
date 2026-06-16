@@ -237,12 +237,25 @@ dimensioned sibling.
 `NodeEditorFields` (`nodes/graphql/types/node.py`) gains two fields for
 the editor:
 
-- `status: NodeStatus!` — the node's effective status (the query-time
-  ancestor-walk result).
-- `errors: [NodeError!]!` — the structured problems recorded *at this
-  node*. Empty for an OK node, and empty for a node that is only affected
-  via a cascade (its status reflects an upstream break, but the error
-  itself lives on the upstream node).
+- `status(compute: Boolean! = false): NodeStatus` — the node's status,
+  `null` until evaluated.
+- `errors(compute: Boolean! = false): [NodeError!]!` — the structured
+  problems recorded *at this* node. Empty for an OK node, and empty for a
+  node only affected via a cascade (its status reflects an upstream break,
+  but the error itself lives on the upstream node).
+
+Both fields take a `compute` argument. With `compute: false` (the
+default) the resolver just reads what's already there — cheap, so the
+editor can fetch statuses for the whole graph in one fast query.
+Init-phase failures (metadata validation, once tier 1 lands) are known
+without computing and show up immediately; compute-phase status stays
+`null` until determined. With `compute: true`, the resolver runs
+`get_output_pl()` for that node if its status is still unknown (failures
+are swallowed — the node's status/errors are populated as a side effect).
+The UI uses this for a node-detail view, or as a deferred follow-up query
+("compute statuses for all nodes") after the main view has rendered, with
+a spinner while results stream in. Computing a node also stamps statuses
+on its whole upstream cone as a side effect, since pulling it pulls them.
 
 The error type carries a few structured fields alongside the free-form
 message, so the editor can filter/group without parsing strings:
@@ -359,9 +372,10 @@ and the two wiring items below are **not yet done**.
 6. **Reporting via GraphQL.** `NodeStatus` and `NodeErrorPhase` are
    registered as Strawberry enums (`@sb.enum` directly on the Python
    enums). A `NodeError` GraphQL type (`phase`, `message`) is exposed, and
-   `NodeEditorFields` gained `status: NodeStatus` and `errors: [NodeError!]!`.
-   No server-side DAG walk: root-vs-cascade is derivable client-side from
-   `(status, errors)` as described under "Query time". *(Landed.)*
+   `NodeEditorFields` gained `status(compute)` and `errors(compute)` (see
+   Reporting). No server-side DAG walk: root-vs-cascade is derivable
+   client-side from `(status, errors)` as described under "Query time".
+   *(Landed.)*
 
 7. **Publish guard.** Block publishing a snapshot when any node is non-OK.
    *(Not yet done.)*
@@ -378,11 +392,11 @@ DRAFT-implies-tolerant default would silently make every instance
 tolerant. Once the publishing workflow lands, the default can become
 `source == DRAFT`.
 
-**Remaining wiring (not yet done):**
-
-- **Drive computation to populate status.** `status` is `None` until a node
-  is pulled. The editor must trigger a compute (e.g. of the outcome nodes)
-  for the status/errors fields to be meaningful.
+**Drive computation to populate status (landed).** Status is `None` until
+a node is pulled, so the `status`/`errors` fields take a `compute`
+argument (see Reporting): `false` for a fast read of the whole graph,
+`true` to run `get_output_pl()` on demand (node-detail view, or a deferred
+"compute all" follow-up query). No separate compute endpoint is needed.
 
 **Deferred — not part of this work:**
 
