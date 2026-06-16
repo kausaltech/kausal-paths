@@ -2641,7 +2641,7 @@ nodes:
 - id: emissions_from_other_sectors_observed
   name_en: Total emissions from other sectors
   name_fi: Kokonaispäästöt muilta sektoreilta
-  type: generic.GenericNode # ObservableNode
+  type: generic.ObservableNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [cost_type]
@@ -2652,7 +2652,7 @@ nodes:
     filters:
     - column: scope
     - column: ghg
-    tags: [city_data] # [observation_dataset]
+    tags: [city_data]
   input_nodes:
   - id: emissions_from_other_sectors
     tags: [modeled]
@@ -3330,7 +3330,7 @@ nodes:
 - id: passenger_kilometres_observed
   name_en: Passenger kilometres, observed
   name_fi: Henkilökilometrit, havaitut
-  type: generic.GenericNode # ObservableNode
+  type: generic.ObservableNode
   quantity: mileage
   unit: Mpkm/a
   color: '#ff69b4'
@@ -3339,7 +3339,7 @@ nodes:
   input_datasets:
   - id: nzc/passenger_transport_need_fleet
     column: transport_need
-    tags: [city_data] # [observation_dataset]
+    tags: [city_data]
   input_nodes:
   - id: passenger_kilometres
     tags: [modeled]
@@ -4379,7 +4379,7 @@ nodes:
 - id: freight_transport_need_observed
   name_en: Freight transport need observed
   name_fi: Havaittu rahtiliikenteen tarve
-  type: generic.GenericNode # ObservableNode
+  type: generic.ObservableNode
   quantity: freight_mileage
   unit: Mtkm/a
   color: '#ff69b4'
@@ -4388,7 +4388,7 @@ nodes:
   input_datasets:
   - id: nzc/freight_transport
     column: total_transportation_need_within_city_road_freight
-    tags: [city_data] # [observation_dataset]
+    tags: [city_data]
   input_nodes:
   - id: freight_transport_need_scaled
     tags: [modeled]
@@ -5567,14 +5567,14 @@ nodes:
 - id: building_heat_energy_use_observed
   name_en: Building heat energy use observed
   name_fi: Havaittu rakennusten lämmitysenergia
-  type: generic.GenericNode # ObservableNode
+  type: generic.ObservableNode
   quantity: energy
   unit: GWh/a
   color: '#ff69B4'
   input_datasets:
   - id: nzc/buildings_heating_fuel_tech
     column: total_heating_demand_space_heating_domestic_hot_w
-    tags: [city_data] # [observation_dataset]
+    tags: [city_data]
   input_nodes:
   - id: building_heat_energy_use_before_obs
     tags: [modeled]
@@ -6597,7 +6597,7 @@ nodes:
 - id: total_electricity_consumption
   name_en: Total electricity consumption
   name_fi: Sähkön kokonaiskulutus
-  type: generic.GenericNode # ObservableNode
+  type: generic.ObservableNode
   quantity: energy
   unit: GWh/a
   color: '#ff69b4'
@@ -6606,7 +6606,7 @@ nodes:
   input_datasets:
   - id: nzc/electricity
     column: total_electricity_demand_within_city_boundaries
-    tags: [city_data] # [observation_dataset]
+    tags: [city_data]
   input_nodes:
   - id: total_electricity_consumption_corr
     tags: [modeled]
