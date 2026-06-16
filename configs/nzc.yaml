@@ -1432,8 +1432,8 @@ actions:
   quantity: fraction
   unit: '%'
   group: freight_transport
-  input_dimensions: [energy_carrier, transport_mode]
-  output_dimensions: [energy_carrier, transport_mode]
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/transport_actions
     tags: [city_data]
@@ -1575,6 +1575,50 @@ actions:
     - id: energy_carrier
   - id: efficiency_programme_shares
     metrics: [efficiency_shares]
+
+## Legacy actions for testing -v
+
+- id: a331_increase_appliance_renovation
+  name: 3.3.1 Increase appliance renovation
+  type: linear.DatasetReduceAction
+  quantity: rate
+  unit: '%/a'
+  group: buildings
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: efficient_appliances_renovation_rate_historical
+    tags: [historical]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: efficient_appliances_renovation_rate_goal
+    tags: [goal]
+  # output_nodes:
+  # - id: efficient_appliances_rate
+  #   to_dimensions:
+  #   - id: energy_carrier
+
+- id: a332_increase_aggressive_renovations
+  name: 3.3.2 Increase aggressive appliance renovation
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: efficiency_programme_shares_historical
+    tags: [historical]
+  - id: efficiency_programme_shares_goal
+    tags: [goal]
+  # output_nodes:
+  # - id: efficiency_programme_shares
+
+## Legacy actions for testing -^
 
 - id: a34_decarbonising_heat_generation
   name: 3.4 Decarbonising heating generation
@@ -1885,6 +1929,61 @@ scenarios:
 # NZC MAIN MODEL
 
 nodes:
+
+## Legacy nodes for testing -v
+
+# - id: efficient_appliances_renovation_rate_historical  # Same data as old_building_renovation_rate_historical
+#   name_en: Lighting & appliances renovation rate historical
+#   name_fi: Valaistuksen ja laitteiden peruskorjausaste historiallisesti
+#   type: gpc.DatasetNode
+#   quantity: fraction
+#   unit: '%/a'
+#   input_dimensions: [building_energy_class]
+#   output_dimensions: [building_energy_class]
+#   input_datasets:
+#   - id: nzc/defaults
+#   params:
+#     sector: Share of building stock renovated each year
+
+- id: efficient_appliances_renovation_rate_goal
+  name_en: Lighting & appliances renovation rate goal
+  name_fi: Valaistuksen ja laitteiden peruskorjausasteen tavoite
+  type: gpc.DatasetPlusOneNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: 3.3 Efficient lighting & appliances
+
+- id: efficiency_programme_shares_historical
+  name_en: Efficiency programme shares historical
+  name_fi: Tehokkuusohjelmien osuudet historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Current share of type of efficiency programme
+
+- id: efficiency_programme_shares_goal
+  name_en: Efficiency programme shares goal
+  name_fi: Tehokkuusohjelmien osuuksien tavoite
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Assumed share of type of efficiency programme for lever
+
+## Legacy nodes for testing -^
 
 - id: technical_root_node
   name: Technical root node
@@ -5312,6 +5411,17 @@ nodes:
     - column: heating_type
       value: district_heating
       drop_col: false
+
+- id: heating_fuel_share # Needed for the result excel
+  name: Technical intermediate node
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, heating_type, fuel_type]
+  output_dimensions: [energy_carrier, heating_type, fuel_type]
+  input_nodes:
+  - id: heating_fuel_share_local
+  - id: heating_fuel_share_district
 
 - id: heating_fuel_share_district_legacy
   name_en: District heating energy carrier shares legacy  # TODO update ids to match names
