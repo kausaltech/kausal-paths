@@ -954,11 +954,16 @@ class InstanceConfig(
     def enter_instance_context(
         self,
         source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+        tolerate_node_failures: bool = False,
     ):
         if self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
             instance = self._initialize_instance(node_refs=True, source=source)
+
+        # Set explicitly every time (default False) so the flag never leaks across requests
+        # that reuse a cached instance/context. See docs/architecture/fault-tolerance.md.
+        instance.context.tolerate_node_failures = tolerate_node_failures
 
         token = instance_context.set(instance)
         try:
@@ -972,11 +977,15 @@ class InstanceConfig(
     async def enter_instance_context_async(
         self,
         source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
+        tolerate_node_failures: bool = False,
     ):
         if self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
             instance = await sync_to_async(self._initialize_instance)(node_refs=True, source=source)
+
+        # Set explicitly every time (default False) so the flag never leaks across requests.
+        instance.context.tolerate_node_failures = tolerate_node_failures
 
         token = instance_context.set(instance)
         try:

@@ -47,6 +47,7 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
     # (`preview_mode`).
     preview_mode: PreviewMode | None = None
     expected_version: UUID | None = None
+    tolerate_node_failures: bool = False
 
     def __post_init__(self):
         super().__post_init__()
@@ -139,7 +140,11 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
             ic = self.get_instance_by_hostname(qs, hostname, directive)
         else:
             raise GraphQLError('Invalid instance directive', directive)
-        self._apply_preview_and_version(arguments.get('preview'), arguments.get('version'))
+        self._apply_preview_and_version(
+            arguments.get('preview'),
+            arguments.get('version'),
+            arguments.get('tolerate_node_failures', False),
+        )
         return ic
 
     def process_context_directive(self, directive: DirectiveNode) -> tuple[InstanceConfig | None, str | None]:
@@ -167,25 +172,32 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
             locale = ic.primary_language
         elif locale not in ic.supported_languages:
             raise GraphQLError('unsupported language: %s. Did you run --update-instance?' % locale, directive)
-        self._apply_preview_and_version(ctx.get('preview'), ctx.get('version'))
+        self._apply_preview_and_version(
+            ctx.get('preview'),
+            ctx.get('version'),
+            ctx.get('tolerate_node_failures', False),
+        )
         return ic, locale
 
     def _apply_preview_and_version(
         self,
         preview: Any,
         version: Any,
+        tolerate_node_failures: bool = False,
     ) -> None:
         """
-        Stash the directive's ``preview`` / ``version`` args on the context.
+        Stash the directive's ``preview`` / ``version`` / fault-tolerance args on the context.
 
         ``preview`` reaches us as the ``PreviewMode`` enum instance (via
         ``get_argument_values``) or ``None``. ``version`` is a ``UUID`` or
         ``None``. Editing mutations later read ``expected_version`` to gate
-        the stale-check.
+        the stale-check. ``tolerate_node_failures`` opts into fault-tolerant
+        computation (see docs/architecture/fault-tolerance.md).
         """
         ctx = self.get_context()
         ctx.preview_mode = preview
         ctx.expected_version = version
+        ctx.tolerate_node_failures = bool(tolerate_node_failures)
 
     def process_instance_headers(self) -> InstanceConfig | None:
         headers = self.get_request_headers()
@@ -381,7 +393,9 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
                     perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)),
                     is_query_with_instance_context.set(True),
                 ):
-                    instance = stack.enter_context(ic.enter_instance_context(source=source))
+                    instance = stack.enter_context(
+                        ic.enter_instance_context(source=source, tolerate_node_failures=ctx.tolerate_node_failures),
+                    )
                     ctx.instance = instance
                 context = instance.context
                 stack.enter_context(instance.lock)

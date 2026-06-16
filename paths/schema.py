@@ -85,6 +85,15 @@ def instance_directive(
             ),
         ),
     ] = None,
+    tolerate_node_failures: Annotated[
+        bool,
+        sb.argument(
+            description=(
+                'Run the model in fault-tolerant mode: quarantine node failures and report them '
+                'as node status instead of aborting. For draft model editing; defaults to false.'
+            ),
+        ),
+    ] = False,
 ):
     pass
 
@@ -96,6 +105,14 @@ class InstanceContextInput:
     locale: str | None
     preview: PreviewMode | None = None
     version: UUID | None = None
+    tolerate_node_failures: bool = sb.field(
+        default=False,
+        description=(
+            'Run the model in fault-tolerant mode: quarantine node failures and report them as '
+            'node status (via the node editor) instead of aborting the whole computation. For '
+            'draft model editing; defaults to false. See docs/architecture/fault-tolerance.md.'
+        ),
+    )
 
 
 @sb.directive(

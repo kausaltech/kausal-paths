@@ -15,7 +15,7 @@ from nodes.edges import Edge
 from nodes.exceptions import NodeError
 from nodes.node import NodeErrorPhase, NodeStatus, NodeStatusError
 from nodes.simple import AdditiveNode, SimpleNode
-from nodes.tests.factories import NodeFactory
+from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeFactory
 
 if TYPE_CHECKING:
     from nodes.context import Context
@@ -146,6 +146,26 @@ def test_default_mode_unwired_additive_raises(context):
     context.finalize_nodes()
     with pytest.raises(NodeError):
         node.get_output_pl()
+
+
+# --- activation: enter_instance_context threads the flag onto the context ----
+
+
+def _instance_config():
+    instance = InstanceFactory.create()
+    return InstanceConfigFactory.create(identifier=instance.id, instance=instance)
+
+
+def test_enter_instance_context_sets_tolerant_flag():
+    ic = _instance_config()
+    with ic.enter_instance_context(tolerate_node_failures=True) as instance:
+        assert instance.context.tolerate_node_failures is True
+
+
+def test_enter_instance_context_defaults_to_fail_fast():
+    ic = _instance_config()
+    with ic.enter_instance_context() as instance:
+        assert instance.context.tolerate_node_failures is False
 
 
 # --- tolerant mode ----------------------------------------------------------
