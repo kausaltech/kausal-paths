@@ -366,12 +366,20 @@ and the two wiring items below are **not yet done**.
 7. **Publish guard.** Block publishing a snapshot when any node is non-OK.
    *(Not yet done.)*
 
+**Activation (landed).** The UI opts in per request via a
+`tolerateNodeFailures` flag on the `@context` input (and the `@instance`
+directive), defaulting to `false`. It is stashed on `PathsGraphQLContext`
+and threaded through `InstanceConfig.enter_instance_context(...)`, which
+sets `context.tolerate_node_failures` explicitly on every entry (so the
+flag never leaks across requests that reuse a cached instance). It is
+**not** yet auto-derived from `source == DRAFT`: all current public
+instances are de-facto draft (no published snapshots exist yet), so a
+DRAFT-implies-tolerant default would silently make every instance
+tolerant. Once the publishing workflow lands, the default can become
+`source == DRAFT`.
+
 **Remaining wiring (not yet done):**
 
-- **Enable tolerant mode per editor request.** `Context.tolerate_node_failures`
-  exists and the engine respects it, but nothing flips it on yet. The draft
-  editor's compute path must set it for draft instances (and never for
-  published ones). Until then the behavior is dormant.
 - **Drive computation to populate status.** `status` is `None` until a node
   is pulled. The editor must trigger a compute (e.g. of the outcome nodes)
   for the status/errors fields to be meaningful.
