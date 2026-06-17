@@ -177,6 +177,8 @@ class VisualizationNodeOutput(VisualizationEntry):
     def get_output(self, node: Node) -> PathsDataFrame:
         import polars as pl
 
+        from nodes.calc import extend_last_historical_value_pl
+
         df = node.get_output_pl()
         if self.output_metric_id is not None:
             m = node.output_metrics[self.output_metric_id]
@@ -190,6 +192,7 @@ class VisualizationNodeOutput(VisualizationEntry):
             if dim.flatten:
                 df = df.paths.sum_over_dims(dim.id)
 
+        df = extend_last_historical_value_pl(df, node.get_end_year())
         return df
 
 

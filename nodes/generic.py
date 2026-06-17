@@ -61,6 +61,8 @@ class GenericNode(SimpleNode):
 
     explanation = _('Multiply input nodes whose unit does not match the output. Add the rest.')
 
+    global_parameters = ['use_observations']
+
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
         StringParameter(local_id='operations', label=_('Comma-separated list of operations to execute in order')),

@@ -186,6 +186,12 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 class FrameworkMeasureDVCDataset2(DVCDataset):
     measure_data_point_years: list[int] = field(default_factory=list)
 
+    @property  # Override parent @cached_property: key must vary per scenario
+    def cache_key(self) -> str:
+        base = self.get_cache_key()
+        use_obs = bool(self.context.get_parameter_value('use_observations', required=False) or False)
+        return f'{base}:use_obs={use_obs}'
+
     def hash_data(self) -> dict[str, Any]:
         data = super().hash_data()
         if self.context.framework_config_data:
@@ -233,6 +239,7 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
                     .alias('MeasureDefaultValue'),
                     pl.lit('dimensionless').alias('MeasureUnit'),
                 ])
+                mu_strs = ['dimensionless']
             else:
                 raise ValueError(self, 'Measure dataset tries to use more than one unit at a time.')
 
