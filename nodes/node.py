@@ -1698,11 +1698,11 @@ class Node:
         return df[YEAR_COLUMN].unique().sort().to_list()
 
     def _get_measure_datapoint_years(self, n: DatasetNode, dims: list[VisualizationNodeDimension]) -> list[int]:
-        datacol = 'ObservedDataPoint'
+        data_col = 'ObservedDataPoint'
 
         df = n.get_filtered_dataset_df()
-        if datacol in df.columns:
-            df = df.filter(pl.col(datacol)).drop(datacol)
+        if data_col in df.columns:
+            df = df.filter(pl.col(data_col)).drop(data_col)
             df = n.drop_unnecessary_levels(df, droplist=['Description', 'FromMeasureDataPoint'])
             df = n.rename_dimensions(df)
             df = n.convert_names_to_ids(df)
@@ -1710,8 +1710,7 @@ class Node:
         return []
 
     def get_measure_datapoint_years(self, dims: list[VisualizationNodeDimension]) -> list[int]:
-        """Get the years with measure data points from the input datasets and upstream nodes."""
-
+        """Get the years with measure data points from this node or its input nodes."""
         # FIXME: This should probably be in the future "datapoint metadata" column instead.
         from nodes.actions.action import ActionNode
         from nodes.gpc import DatasetNode
@@ -1719,28 +1718,26 @@ class Node:
         if isinstance(self, DatasetNode):
             return self._get_measure_datapoint_years(self, dims)
 
+        years = set[int]([])
         if self.input_dataset_instances:
             for ds in self.input_dataset_instances:
-                if 'framework_measure_data' in ds.tags:
-                    df = ds.get_copy()
-                    data_col = 'ObservedDataPoint'
-                    if data_col not in df.columns:
-                        return []
-                    df = df.filter(pl.col(data_col))
-                    return self._filter_measure_datapoint_years(df, dims)
+                if 'framework_measure_data' in ds.tags or 'city_data' in ds.tags:
+                    get_obs_years = getattr(ds, 'get_observation_years', None)
+                    if get_obs_years is not None:
+                        years.update(get_obs_years())
+                    else:
+                        data_col = 'ObservedDataPoint'
+                        df = ds.get_copy()
+                        if data_col in df.columns:
+                            df = df.filter(pl.col(data_col))
+                            years.update(self._filter_measure_datapoint_years(df, dims))
 
-        years = set[int]([])
-        nodes = self.get_upstream_nodes()
-        # FIXME: What is this?
-        for n in nodes:
-            if not isinstance(n, DatasetNode) or issubclass(type(n), ActionNode):  # Ignore action data
+        for n in self.input_nodes:
+            if issubclass(type(n), ActionNode):
                 continue
-            if any(issubclass(type(d), ActionNode) for d in n.get_downstream_nodes()):
-                continue  # Ignore data that is used in actions
             if n.id in ['energy_use_intensity_change_new', 'relative_transport_mode_switches']:
                 continue  # Last resort to get rid of non-observed data
-            years.update(n._get_measure_datapoint_years(n, dims))
-
+            years.update(n.get_measure_datapoint_years(dims))
         return sorted(years)
 
     def get_explanation(self) -> str:

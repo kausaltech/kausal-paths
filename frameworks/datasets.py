@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import polars as pl
 from pint import DimensionalityError
@@ -11,7 +11,47 @@ from frameworks.models import MeasureDataPoint
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.datasets import DVCDataset, GenericDataset
 
+if TYPE_CHECKING:
+    from nodes.context import FrameworkConfigData
+
 ENABLE_UNIT_CONVERSION = True
+
+
+def collect_measure_datapoints(
+    fwd: FrameworkConfigData | None,
+    uuids: list[str],
+) -> pl.DataFrame:
+    """
+    Query the DB for all MeasureDataPoints matching the given UUIDs under fwd.
+
+    Returns a plain DataFrame with columns: uuid, MeasureYear, MeasureValue,
+    MeasureDefaultValue, MeasureUnit. No unit conversion is applied — callers
+    that need values in a specific unit should convert themselves.
+    Returns an empty DataFrame with the same schema if fwd is None or uuids is empty.
+    """
+    from django.db.models import TextField
+    from django.db.models.functions import Cast
+
+    from frameworks.models import Measure
+
+    schema: dict[str, type[pl.DataType]] = {
+        'uuid': pl.String,
+        'MeasureYear': pl.Int64,
+        'MeasureValue': pl.Float64,
+        'MeasureDefaultValue': pl.Float64,
+        'MeasureUnit': pl.String,
+    }
+    if fwd is None or not uuids:
+        return pl.DataFrame(schema=schema)
+
+    measures = Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
+    dps = (
+        MeasureDataPoint.objects
+        .filter(measure__in=measures)
+        .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
+        .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
+    )
+    return pl.DataFrame(data=list(dps), schema=schema, orient='row')
 
 
 @dataclass
@@ -153,11 +193,6 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         return data
 
     def _override_with_measure_datapoints(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        from django.db.models import TextField
-        from django.db.models.functions import Cast
-
-        from frameworks.models import Measure
-
         context = self.context
         fwd = context.framework_config_data
         ref_year = context.instance.reference_year
@@ -172,32 +207,19 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
                 pl.lit(value=False).alias('FromMeasureDataPoint'),
                 (pl.col(YEAR_COLUMN) > ref_year).alias(FORECAST_COLUMN),
             ])
+            self._all_observation_years: list[int] = []
             return df
 
         uuids = df['uuid'].unique().to_list()
-        measures = Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
-        dps = (
-            MeasureDataPoint.objects
-            .filter(measure__in=measures)
-            .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
-            .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
-        )
-        schema = (
-            ('uuid', pl.String),
-            ('MeasureYear', pl.Int64),
-            ('MeasureValue', pl.Float64),
-            ('MeasureDefaultValue', pl.Float64),
-            ('MeasureUnit', pl.String),
-        )
-        dpdf = ppl.PathsDataFrame(data=list(dps), schema=schema, orient='row')
+        dpdf = collect_measure_datapoints(fwd, uuids)
+        self._all_observation_years = dpdf['MeasureYear'].drop_nulls().unique().sort().to_list()
 
         # Convert measure values to the dataset unit. After a UUID-keyed join there is
-        # exactly one MeasureUnit, so a single ensure_unit() call is sufficient.
+        # usually exactly one MeasureUnit, so a single ensure_unit() call is sufficient.
         ds_unit = df.get_unit(VALUE_COLUMN)
         mu_strs = dpdf['MeasureUnit'].drop_nulls().unique().to_list()
         if len(mu_strs) > 1:  # FIXME This is needed for SCurveAction that has several units in one metric.
             if all(s in ['%', 'dimensionless'] for s in mu_strs):
-                print(dpdf)
                 dpdf = dpdf.with_columns([
                     pl
                     .when(pl.col('MeasureUnit') == '%')
@@ -282,6 +304,10 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         )
 
         return df
+
+    def get_observation_years(self) -> list[int]:
+        """Return all years with MeasureDataPoints, regardless of use_observations."""
+        return getattr(self, '_all_observation_years', [])
 
     def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         df = super().post_process(df)
