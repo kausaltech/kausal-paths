@@ -455,6 +455,17 @@ class InstanceConfig(
         help_text=_('The main organization for the instance'),
     )
 
+    copy_of: FK[InstanceConfig | None] = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='copies',
+        editable=False,
+        help_text=_('The instance this one was copied from, if any.'),
+    )
+    copy_of_id: int | None
+
     is_protected = models.BooleanField(default=False)
     protection_password = models.CharField(max_length=50, null=True, blank=True)
     is_locked = models.BooleanField(
@@ -1664,6 +1675,17 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         on_delete=models.SET_NULL,
         related_name='indicates_nodes',
     )
+
+    copy_of: FK[NodeConfig | None] = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='copies',
+        editable=False,
+        help_text=_('The node this one was copied from, if any.'),
+    )
+    copy_of_id: int | None
 
     datasets: M2M[DatasetModel, NodeDataset] = models.ManyToManyField(DatasetModel, through='NodeDataset', related_name='nodes')
 

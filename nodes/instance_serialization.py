@@ -18,7 +18,7 @@ carrying types (``DatasetExport``, ``DatasetMetricExport``) keep their
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Self, cast
 from uuid import UUID
 
@@ -34,6 +34,7 @@ from kausal_common.i18n.pydantic import (
 from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
+from nodes.page_snapshot import PageSnapshot
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -127,6 +128,46 @@ class DatasetMetricSnapshot(ModelSnapshot):
         )
 
 
+class DataPointKey(BaseModel):
+    """Natural key locating a DataPoint within its dataset (id-free, restore-stable)."""
+
+    year: int
+    metric: str  # metric identifier (name or uuid)
+    categories: list[str] = Field(default_factory=list)  # sorted dimension-category ids
+
+
+class DataSourceSnapshot(BaseModel):
+    """A published data source referenced by a dataset or its data points."""
+
+    uuid: str  # source DataSource uuid; the join key for references within the snapshot
+    name: str
+    edition: str | None = None
+    authority: str | None = None
+    description: str | None = None
+    url: str | None = None
+
+
+class SourceReferenceSnapshot(BaseModel):
+    """Links a data source to the dataset (``point`` is None) or to one data point."""
+
+    data_source: str  # DataSourceSnapshot.uuid
+    point: DataPointKey | None = None
+
+
+class DataPointCommentSnapshot(BaseModel):
+    """A (non-soft-deleted) comment on a data point. Users are referenced by uuid."""
+
+    point: DataPointKey
+    text: str
+    is_sticky: bool = False
+    is_review: bool = False
+    review_state: str | None = None
+    resolved_at: str | None = None  # ISO 8601
+    created_by: str | None = None  # user uuid
+    last_modified_by: str | None = None  # user uuid
+    resolved_by: str | None = None  # user uuid
+
+
 class DatasetSnapshot(ModelSnapshot):
     """
     Pydantic representation of a ``Dataset`` ORM row.
@@ -146,6 +187,9 @@ class DatasetSnapshot(ModelSnapshot):
     dimension_columns: dict[str, str] = Field(default_factory=dict)
     metrics: list[DatasetMetricSnapshot] = Field(default_factory=list)
     data: dict[str, Any] | None = None
+    data_sources: list[DataSourceSnapshot] = Field(default_factory=list)
+    source_references: list[SourceReferenceSnapshot] = Field(default_factory=list)
+    comments: list[DataPointCommentSnapshot] = Field(default_factory=list)
 
     @classmethod
     def from_model(cls, obj: Any) -> Self:
@@ -192,8 +236,12 @@ class DatasetSnapshot(ModelSnapshot):
                             dimension_columns[scope.identifier] = dsd.column_name
 
         data: dict[str, Any] | None = None
+        data_sources: list[DataSourceSnapshot] = []
+        source_references: list[SourceReferenceSnapshot] = []
+        comments: list[DataPointCommentSnapshot] = []
         if not obj.is_external_placeholder:
             data = _export_dataset_data_safe(obj)
+            data_sources, source_references, comments = _export_dataset_provenance(obj)
 
         return cls(
             identifier=obj.identifier,
@@ -205,6 +253,9 @@ class DatasetSnapshot(ModelSnapshot):
             dimension_columns=dimension_columns,
             metrics=metrics,
             data=data,
+            data_sources=data_sources,
+            source_references=source_references,
+            comments=comments,
         )
 
 
@@ -232,6 +283,7 @@ class NodeSnapshot(ModelSnapshot):
     order: int | None = None
     is_visible: bool = True
     indicator_node: str | None = None
+    copy_of: str | None = None  # uuid of the NodeConfig this was copied from
     spec: NodeSpec | None = None
 
     @classmethod
@@ -252,6 +304,7 @@ class NodeSnapshot(ModelSnapshot):
             order=obj.order,
             is_visible=obj.is_visible,
             indicator_node=indicator_identifier,
+            copy_of=str(obj.copy_of.uuid) if obj.copy_of else None,
             spec=obj.spec,
         )
 
@@ -281,6 +334,9 @@ class DatasetPortSnapshot(ModelSnapshot):
     dataset: str
     port_id: UUID
     metric: str
+    # Position of this binding in the node's input_dataset_instances list;
+    # preserves ordering when a node has multiple dataset inputs.
+    dataset_index: int = 0
     spec: DatasetPortSpec = Field(default_factory=DatasetPortSpec)
     # Populated once Dataset acquires RevisionMixin (see paths/dataset_pydantic.py
     # and kausal_common/datasets/models.py bridge).
@@ -301,6 +357,7 @@ class DatasetPortSnapshot(ModelSnapshot):
             dataset=obj.dataset.identifier or str(obj.dataset.uuid),
             port_id=obj.port_id,
             metric=obj.metric.name or str(obj.metric.uuid),
+            dataset_index=obj.dataset_index,
             spec=obj.spec,
             dataset_revision=dataset_revision_id,
         )
@@ -321,6 +378,7 @@ class InstanceSnapshot(BaseModel):
     # still deserialize.
     metadata: InstanceMetadata = Field(default_factory=InstanceMetadata)
     spec: InstanceModelSpec
+    copy_of: str | None = None  # uuid of the InstanceConfig this was copied from
     nodes: list[NodeSnapshot] = Field(default_factory=list)
     edges: list[EdgeSnapshot] = Field(default_factory=list)
     dataset_ports: list[DatasetPortSnapshot] = Field(default_factory=list)
@@ -340,6 +398,9 @@ class InstanceExport(BaseModel):
     schema_version: int = SNAPSHOT_SCHEMA_VERSION
     instance: InstanceSnapshot
     datasets: list[DatasetSnapshot] = Field(default_factory=list)
+    # Wagtail page tree, for verification only (not used on import — pages are
+    # copied/restored via Wagtail's own machinery). Node references are by identifier.
+    pages: list[PageSnapshot] = Field(default_factory=list)
 
     model_config = {'arbitrary_types_allowed': True}
 
@@ -347,6 +408,70 @@ class InstanceExport(BaseModel):
 # ---------------------------------------------------------------------------
 # Export / Import helpers
 # ---------------------------------------------------------------------------
+
+
+def _data_point_key(dp: Any) -> DataPointKey:
+    """Natural key for a DataPoint: (year, metric identifier, sorted category ids)."""
+    metric = dp.metric
+    metric_id = metric.name or str(metric.uuid)
+    categories = sorted((c.identifier or str(c.uuid)) for c in dp.dimension_categories.all())
+    return DataPointKey(year=dp.date.year, metric=metric_id, categories=categories)
+
+
+def _export_dataset_provenance(
+    ds: DatasetModel,
+) -> tuple[list[DataSourceSnapshot], list[SourceReferenceSnapshot], list[DataPointCommentSnapshot]]:
+    """Serialize a dataset's source references and (non-soft-deleted) data-point comments."""
+    from kausal_common.datasets.models import DataPointComment, DatasetSourceReference
+
+    sources: dict[str, DataSourceSnapshot] = {}
+
+    def add_source(src: Any) -> str:
+        key = str(src.uuid)
+        if key not in sources:
+            sources[key] = DataSourceSnapshot(
+                uuid=key,
+                name=src.name,
+                edition=src.edition,
+                authority=src.authority,
+                description=src.description,
+                url=src.url,
+            )
+        return key
+
+    dataset_refs = DatasetSourceReference.objects.filter(dataset=ds).select_related('data_source')
+    dp_refs = (
+        DatasetSourceReference.objects
+        .filter(data_point__dataset=ds)
+        .select_related('data_source', 'data_point__metric')
+        .prefetch_related('data_point__dimension_categories')
+    )
+    references = [SourceReferenceSnapshot(data_source=add_source(r.data_source), point=None) for r in dataset_refs]
+    references += [
+        SourceReferenceSnapshot(data_source=add_source(r.data_source), point=_data_point_key(r.data_point)) for r in dp_refs
+    ]
+
+    comment_qs = (
+        DataPointComment.objects  # default manager excludes soft-deleted
+        .filter(data_point__dataset=ds)
+        .select_related('data_point__metric', 'created_by', 'last_modified_by', 'resolved_by')
+        .prefetch_related('data_point__dimension_categories')
+    )
+    comments = [
+        DataPointCommentSnapshot(
+            point=_data_point_key(c.data_point),
+            text=c.text,
+            is_sticky=c.is_sticky,
+            is_review=c.is_review,
+            review_state=c.review_state,
+            resolved_at=c.resolved_at.isoformat() if c.resolved_at else None,
+            created_by=str(c.created_by.uuid) if c.created_by else None,
+            last_modified_by=str(c.last_modified_by.uuid) if c.last_modified_by else None,
+            resolved_by=str(c.resolved_by.uuid) if c.resolved_by else None,
+        )
+        for c in comment_qs
+    ]
+    return list(sources.values()), references, comments
 
 
 def _export_dataset_data(ds: DatasetModel) -> dict[str, Any]:
@@ -384,7 +509,7 @@ def build_instance_snapshot(ic: InstanceConfig) -> InstanceSnapshot:
         msg = f'Instance {ic.identifier} has no spec — run sync_instance_to_db first'
         raise ValueError(msg)
 
-    node_qs = ic.nodes.get_queryset().for_serialization().select_related('indicator_node')
+    node_qs = ic.nodes.get_queryset().for_serialization().select_related('indicator_node', 'copy_of')
     nodes = [NodeSnapshot.from_model(nc) for nc in node_qs]
 
     edge_qs = NodeEdge.objects.filter(instance=ic).select_related('from_node', 'to_node')
@@ -396,6 +521,7 @@ def build_instance_snapshot(ic: InstanceConfig) -> InstanceSnapshot:
     return InstanceSnapshot(
         metadata=InstanceMetadata.from_model(ic),
         spec=ic.spec,
+        copy_of=str(ic.copy_of.uuid) if ic.copy_of else None,
         nodes=nodes,
         edges=edges,
         dataset_ports=dataset_ports,
@@ -450,12 +576,14 @@ def export_instance(ic: InstanceConfig) -> InstanceExport:
     """Serialize a DB-sourced InstanceConfig with dataset bodies included."""
     from django.contrib.contenttypes.models import ContentType
 
+    from nodes.page_snapshot import build_instance_page_snapshots
+
     snapshot = build_instance_snapshot(ic)
 
     ic_ct = ContentType.objects.get_for_model(ic)
     datasets = [DatasetSnapshot.from_model_for_instance(ds, ic) for ds in _datasets_for_instance_export(ic, ic_ct)]
 
-    return InstanceExport(instance=snapshot, datasets=datasets)
+    return InstanceExport(instance=snapshot, datasets=datasets, pages=build_instance_page_snapshots(ic))
 
 
 # ---------------------------------------------------------------------------
@@ -598,10 +726,124 @@ def _import_dataset(
     dataset.save()
 
     # Create data points
+    dp_map: dict[tuple[int, str, tuple[str, ...]], Any] = {}
     if ds_snapshot.data is not None:
-        _import_data_points(dataset, ds_snapshot, metrics_by_id, dim_lookup)
+        dp_map = _import_data_points(dataset, ds_snapshot, metrics_by_id, dim_lookup)
+
+    # Recreate source references and comments (data points must exist first).
+    _import_dataset_provenance(ic, ic_ct, ds_snapshot, dataset, dp_map)
 
     return dataset
+
+
+def _data_point_key_tuple(point: DataPointKey) -> tuple[int, str, tuple[str, ...]]:
+    return (point.year, point.metric, tuple(point.categories))
+
+
+def _import_dataset_provenance(  # noqa: C901
+    ic: InstanceConfig,
+    ic_ct: ContentType,
+    ds_snapshot: DatasetSnapshot,
+    dataset: DatasetModel,
+    dp_map: dict[tuple[int, str, tuple[str, ...]], Any],
+) -> None:
+    """Recreate a dataset's DataSources, source references and data-point comments."""
+    if not (ds_snapshot.data_sources or ds_snapshot.source_references or ds_snapshot.comments):
+        return
+
+    from django.contrib.auth import get_user_model
+
+    from kausal_common.datasets.models import (
+        DataPointComment,
+        DataPointCommentReviewState,
+        DatasetSourceReference,
+        DataSource,
+    )
+
+    user_model = get_user_model()
+    user_cache: dict[str, Any] = {}
+
+    def resolve_user(user_uuid: str | None) -> Any:
+        if not user_uuid:
+            return None
+        if user_uuid not in user_cache:
+            user_cache[user_uuid] = user_model.objects.filter(uuid=user_uuid).first()
+        return user_cache[user_uuid]
+
+    # DataSources are scoped to the target instance and get fresh uuids (a same-DB
+    # copy can't reuse the globally-unique source uuid); map old uuid → new object.
+    src_map: dict[str, Any] = {}
+    for s in ds_snapshot.data_sources:
+        src_map[s.uuid] = DataSource.objects.create(
+            scope_content_type=ic_ct,
+            scope_id=ic.pk,
+            name=s.name,
+            edition=s.edition,
+            authority=s.authority,
+            description=s.description,
+            url=s.url,
+        )
+
+    for ref in ds_snapshot.source_references:
+        src_obj = src_map.get(ref.data_source)
+        if src_obj is None:
+            continue
+        if ref.point is None:
+            DatasetSourceReference.objects.create(dataset=dataset, data_source=src_obj)
+            continue
+        dp = dp_map.get(_data_point_key_tuple(ref.point))
+        if dp is not None:
+            DatasetSourceReference.objects.create(data_point=dp, data_source=src_obj)
+
+    for c in ds_snapshot.comments:
+        dp = dp_map.get(_data_point_key_tuple(c.point))
+        if dp is None:
+            continue
+        DataPointComment.objects.create(
+            data_point=dp,
+            text=c.text,
+            is_sticky=c.is_sticky,
+            is_review=c.is_review,
+            review_state=DataPointCommentReviewState(c.review_state) if c.review_state else None,
+            resolved_at=datetime.fromisoformat(c.resolved_at) if c.resolved_at else None,
+            created_by=resolve_user(c.created_by),
+            last_modified_by=resolve_user(c.last_modified_by),
+            resolved_by=resolve_user(c.resolved_by),
+        )
+
+
+def _resolve_metric_data_columns(
+    ds_snapshot: DatasetSnapshot, metric_ids: list[str], dim_columns: dict[str, str]
+) -> dict[str, str]:
+    """
+    Map each metric id to the data column that holds its value.
+
+    The serialized data columns are named ``Coalesce(name, label, uuid)`` (see
+    ``DBDataset.deserialize_df``), whereas a metric snapshot's identifier is
+    ``name or uuid`` — so a metric with no ``name`` but a ``label`` is keyed by
+    its uuid here while its data column is the label. ``deserialize_df`` builds
+    that column from the metric's raw (base-language) ``label``, which need not
+    equal ``str(label)`` under a different active Django language, so match
+    against *all* of the label's translations. Fall back (for the common
+    single-metric case) to the sole remaining value column.
+    """
+    fields = (ds_snapshot.data or {}).get('schema', {}).get('fields', [])
+    all_columns = {f['name'] for f in fields}
+    value_columns = all_columns - {'Year', 'id', 'uuid', *dim_columns.values()}
+    labels_by_id = {m.identifier: (m.label.all() if m.label is not None else []) for m in ds_snapshot.metrics}
+
+    columns: dict[str, str] = {}
+    for metric_id in metric_ids:
+        label_match = next((lbl for lbl in labels_by_id.get(metric_id, []) if lbl in value_columns), None)
+        if metric_id in value_columns:
+            columns[metric_id] = metric_id
+        elif label_match is not None:
+            columns[metric_id] = label_match
+        elif len(metric_ids) == 1 and len(value_columns) == 1:
+            columns[metric_id] = next(iter(value_columns))
+        else:
+            columns[metric_id] = metric_id
+    return columns
 
 
 def _import_data_points(
@@ -609,16 +851,20 @@ def _import_data_points(
     ds_snapshot: DatasetSnapshot,
     metrics_by_id: dict[str, DatasetMetric],
     dim_lookup: dict[str, DimensionCategory],
-) -> None:
+) -> dict[tuple[int, str, tuple[str, ...]], Any]:
+    """Create DataPoints; return a natural-key → DataPoint map for provenance wiring."""
     from kausal_common.datasets.models import DataPoint, DataPointDimensionCategory
 
     assert ds_snapshot.data is not None
     dim_ids = ds_snapshot.dimensions
     dim_columns = {dim_id: ds_snapshot.dimension_columns.get(dim_id, dim_id) for dim_id in dim_ids}
+    metric_columns = _resolve_metric_data_columns(ds_snapshot, list(metrics_by_id), dim_columns)
 
     data_points: list[DataPoint] = []
     # (data_point_index, category) pairs for bulk M2M creation
     dp_categories: list[tuple[int, DimensionCategory]] = []
+    # natural key per created data point, parallel to ``data_points``
+    dp_keys: list[tuple[int, str, tuple[str, ...]]] = []
 
     for row in ds_snapshot.data['data']:
         year_val = row.get('Year')
@@ -626,17 +872,21 @@ def _import_data_points(
             continue
         dp_date = date(year=int(year_val), month=1, day=1)
 
-        # Resolve dimension categories for this row
+        # Resolve dimension categories for this row (objects + their id strings,
+        # which match the export-side natural key).
         row_cats: list[DimensionCategory] = []
+        row_cat_ids: list[str] = []
         for dim_id in dim_ids:
             cat_id = row.get(dim_columns[dim_id])
             if cat_id:
                 cat = dim_lookup.get(f'{dim_id}/{cat_id}')
                 if cat:
                     row_cats.append(cat)
+                    row_cat_ids.append(str(cat_id))
+        cat_key = tuple(sorted(row_cat_ids))
 
         for metric_id, metric in metrics_by_id.items():
-            value = row.get(metric_id)
+            value = row.get(metric_columns[metric_id])
             if value is None:
                 continue
             dp_idx = len(data_points)
@@ -648,6 +898,7 @@ def _import_data_points(
                     value=value,
                 )
             )
+            dp_keys.append((int(year_val), metric_id, cat_key))
             dp_categories.extend((dp_idx, cat) for cat in row_cats)
 
     # Bulk create data points
@@ -663,6 +914,8 @@ def _import_data_points(
             for dp_idx, cat in dp_categories
         ]
         DataPointDimensionCategory.objects.bulk_create(m2m_objs)
+
+    return {dp_keys[i]: created_dps[i] for i in range(len(created_dps))}
 
 
 def _dimension_category_lookup_for_instance(ic: InstanceConfig, ic_ct: ContentType) -> dict[str, DimensionCategory]:
@@ -867,6 +1120,45 @@ def import_instance_datasets(
     return imported
 
 
+def import_instance_nodes(ic: InstanceConfig, export: InstanceExport) -> dict[str, NodeConfig]:
+    """
+    Create NodeConfig rows for ``ic`` from the snapshot's nodes.
+
+    Materialises the node rows (all fields — ``name``/``short_description``/
+    ``description``/``goal``/``color``/``order``/``is_visible`` — plus ``spec``
+    and ``indicator_node`` links) from ``export.instance.nodes``, *without*
+    touching the instance-level spec or ``config_source``. Node references are
+    identifier-keyed in the snapshot, so no pk remapping is needed.
+
+    Used by yaml-mode copies so admin-authored node fields (which the YAML
+    can't express) are carried over, instead of rebuilding rows from the YAML
+    via ``InstanceConfig.sync_nodes()``.
+    """
+    return _import_nodes(ic, export)
+
+
+def import_instance_edges_and_ports(
+    ic: InstanceConfig,
+    export: InstanceExport,
+    nodes_by_id: dict[str, NodeConfig],
+    datasets_by_id: dict[str, DatasetModel],
+) -> None:
+    """
+    Recreate the editor graph bindings (``NodeEdge`` + ``DatasetPort``) for ``ic``.
+
+    Companion to :func:`import_instance_nodes` for callers that build the DB
+    mirror piecemeal (yaml-mode copies) rather than through the full
+    :func:`import_instance`. Edges and ports are matched by node/dataset
+    *identifier*, so references that don't resolve in ``ic`` (e.g. a DVC dataset
+    not materialised in the DB) are skipped rather than erroring. Does not touch
+    ``config_source`` or the instance spec — these tables are dormant for
+    ``config_source='yaml'`` (the runtime loads the YAML) but are read by the
+    Trailhead editor, so a copy should mirror whatever the source has.
+    """
+    _import_edges(ic, export, nodes_by_id)
+    _import_dataset_ports(ic, export, nodes_by_id, datasets_by_id)
+
+
 def _apply_translated(
     fields: dict[str, Any],
     i18n: dict[str, str],
@@ -928,6 +1220,15 @@ def _import_nodes(
             indicator = nodes_by_id[n.indicator_node]
             NodeConfig.objects.filter(pk=nc.pk).update(indicator_node=indicator)
 
+    # Resolve copy_of references by uuid (restore fidelity; the source node may
+    # live in another instance and be absent here, in which case it stays null).
+    for n in export.instance.nodes:
+        if not n.copy_of:
+            continue
+        src = NodeConfig.objects.filter(uuid=n.copy_of).first()
+        if src is not None:
+            NodeConfig.objects.filter(pk=nodes_by_id[n.identifier].pk).update(copy_of=src)
+
     return nodes_by_id
 
 
@@ -978,6 +1279,7 @@ def _import_dataset_ports(
             dataset=dataset,
             port_id=p.port_id,
             metric=metric,
+            dataset_index=p.dataset_index,
             spec=p.spec,
         )
 
@@ -1023,6 +1325,15 @@ def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config
     ic.i18n = i18n
     update_fields += ['owner', 'i18n']
     ic.save(update_fields=update_fields)
+
+    # Resolve copy_of by uuid (restore fidelity; absent source → stays null).
+    if export.instance.copy_of:
+        from nodes.models import InstanceConfig as _InstanceConfig
+
+        src_ic = _InstanceConfig.objects.filter(uuid=export.instance.copy_of).first()
+        if src_ic is not None:
+            ic.copy_of = src_ic
+            ic.save(update_fields=['copy_of'])
 
     # Dimensions first — datasets and data points reference them
     dim_lookup = _import_dimensions(ic, export, ic_ct)

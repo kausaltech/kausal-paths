@@ -262,6 +262,19 @@ class NodeInterface:
         return nc.uuid if nc is not None else None
 
     @sb.field(
+        graphql_type=UUID | None,
+        description='UUID of the node this one was copied from, if any.',
+    )
+    @staticmethod
+    def copy_of(root: 'Node') -> UUID | None:
+        from nodes.models import NodeConfig
+
+        nc = root.db_obj
+        if nc is None or nc.copy_of_id is None:
+            return None
+        return NodeConfig.objects.filter(pk=nc.copy_of_id).values_list('uuid', flat=True).first()
+
+    @sb.field(
         graphql_type=list[Annotated['InstanceModelLogEntryType', sb.lazy('nodes.graphql.types.change_history')]],
         description='Row-level change history for this node, newest first.',
     )

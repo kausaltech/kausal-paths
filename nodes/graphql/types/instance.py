@@ -465,6 +465,19 @@ class InstanceType:
     def lead_paragraph(root: Instance) -> str | None:
         return root.config.lead_paragraph_i18n
 
+    @sb.field(
+        graphql_type=UUID | None,
+        description='UUID of the instance this one was copied from, if any.',
+    )
+    @staticmethod
+    def copy_of(root: Instance) -> UUID | None:
+        from nodes.models import InstanceConfig as _InstanceConfig
+
+        cfg = root.config
+        if cfg.copy_of_id is None:
+            return None
+        return _InstanceConfig.objects.filter(pk=cfg.copy_of_id).values_list('uuid', flat=True).first()
+
     @sb.field
     @staticmethod
     def identifier(root: Instance) -> str:
