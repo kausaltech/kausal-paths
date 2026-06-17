@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from kausal_common.i18n.pydantic import (
     I18nBaseModel,
@@ -132,12 +132,6 @@ class InstanceFeatures(BaseModel):
 
     show_category_warnings: bool = False
     """Whether to show category warnings in the node explanation."""
-
-    @model_validator(mode='after')
-    def _migrate_hide_node_details(self) -> InstanceFeatures:
-        if self.hide_node_details and not self.hide_scenario_editor:
-            self.hide_scenario_editor = True
-        return self
 
     model_config = ConfigDict(use_attribute_docstrings=True)
 
