@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 
     from kausal_common.perf.perf_context import PerfAttrs, PerfRunContext, PerfSpanEntry
 
+    from common import polars as ppl
     from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.explanations import NodeExplanationSystem
     from params import Parameter
@@ -76,6 +77,9 @@ class Context:
 
     datasets: dict[str, Dataset]
     """All datasets in the context keyed by the dataset identifier."""
+
+    db_dataset_dfs: dict[int, ppl.PathsDataFrame]
+    """Raw DB-backed dataset dataframes keyed by dataset primary key."""
 
     dvc_datasets: dict[str, dvc_pandas.Dataset]
     """All the loaded dvc-pandas datasets keyed by the dataset identifier."""
@@ -201,6 +205,7 @@ class Context:
             self.perf_context.enabled = True
         self.nodes = {}
         self.datasets = {}
+        self.db_dataset_dfs = {}
         self.dvc_datasets = {}
         self.global_parameters = {}
         self.scenarios = {}

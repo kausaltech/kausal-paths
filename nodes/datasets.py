@@ -1178,7 +1178,11 @@ class DBDataset(DatasetWithFilters):
         ds_obj = self.db_dataset_obj
         if ds_obj is None:
             raise Exception('Admin dataset not loaded')
-        df = self.deserialize_df(ds_obj)
+        df = self.context.db_dataset_dfs.get(ds_obj.pk)
+        if df is None:
+            df = self.deserialize_df(ds_obj)
+            self.context.db_dataset_dfs[ds_obj.pk] = df
+        df = df.copy()
         df = self._filter_and_process_df(df)
         df = self.post_process(df)
         self.df = df
