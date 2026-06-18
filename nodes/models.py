@@ -472,6 +472,10 @@ class InstanceConfig(
         default=False,
         help_text=_('Whether end-user mutation surfaces should treat this instance as read-only.'),
     )
+    is_hidden = models.BooleanField(
+        default=False,
+        help_text=_('Hide this instance from the admin instance chooser. It remains reachable directly and via permissions.'),
+    )
 
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(auto_now=True)
