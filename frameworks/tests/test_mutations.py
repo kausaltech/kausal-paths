@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from frameworks.models import (
@@ -239,6 +242,44 @@ def test_framework_query_exposes_frameworks(
     selected = data['framework']
     assert selected['identifier'] == framework.identifier
     assert selected['name'] == framework.name
+
+
+def test_framework_sections_resolve_influencing_measure_templates_without_n_plus_one(
+    gql_client: PathsTestClient,
+    framework: Framework,
+) -> None:
+    root = framework.create_root_section()
+    source_section = root.add_child(instance=Section(framework=framework, name='Source'))
+    source_template = MeasureTemplate.objects.create(section=source_section, name='Source measure', unit='kt/a')
+    for i in range(5):
+        section = root.add_child(instance=Section(framework=framework, name=f'Target {i}'))
+        section.influencing_measure_templates.add(source_template)
+
+    query = gql("""
+    query FrameworkSections($identifier: ID!) {
+        framework(identifier: $identifier) {
+            sections {
+                name
+                influencingMeasureTemplates {
+                    name
+                }
+            }
+        }
+    }
+    """)
+
+    with CaptureQueriesContext(connection) as query_ctx:
+        data = gql_client.query_data(query, variables={'identifier': framework.identifier})
+
+    sections = data['framework']['sections']
+    targets = [section for section in sections if section['name'].startswith('Target')]
+    assert len(targets) == 5
+    assert all(target['influencingMeasureTemplates'] == [{'name': 'Source measure'}] for target in targets)
+
+    m2m_queries = [
+        query['sql'] for query in query_ctx.captured_queries if 'frameworks_section_influencing_measure_templates' in query['sql']
+    ]
+    assert len(m2m_queries) == 1
 
 
 # ---------------------------------------------------------------------------

@@ -109,6 +109,10 @@ class SectionType(DjangoNode[Section]):
         return root.cache.fw_cache.measure_templates.by_section(root.pk)
 
     @staticmethod
+    def resolve_influencing_measure_templates(root: Section, info: GQLInfo) -> list[MeasureTemplate]:
+        return root.cache.fw_cache.measure_templates.by_influenced_section(root.pk)
+
+    @staticmethod
     def resolve_parent(root: Section, info: GQLInfo) -> Section | None:
         return root.cache.get_parent()
 
