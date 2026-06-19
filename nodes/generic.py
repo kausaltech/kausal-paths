@@ -1992,7 +1992,7 @@ class ObservableNode(GenericNode):
             drop_cols = [c for c in drop_cols if c in dataset_df.columns]
             if drop_cols:
                 dataset_df = dataset_df.drop(drop_cols)
-            return dataset_df
+            return dataset_df.paths._extend_all(dataset_df, self.context)
         # No dataset configured — fall back to modeled.
         if modeled_node is not None:
             return modeled_node.get_output_pl(target_node=self)

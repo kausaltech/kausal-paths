@@ -110,13 +110,6 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         meta = df.get_meta()
         df_cols = df.columns
 
-        baseline_year = context.instance.reference_year
-        df = df.with_columns(  # FIXME Does this not already happen in load()? So this is redundant.
-            pl.when(pl.col('Year').lt(100)).then(pl.col('Year') + baseline_year - 1).otherwise(pl.col('Year')).alias('Year'),
-        )
-        # Duplicates may occur when baseline year overlaps with existing data points.
-        df = ppl.to_ppdf(df.unique(subset=meta.primary_keys, keep='last', maintain_order=True), meta=meta)
-
         # Check if there are multiple years for the same UUID. If so, we
         # know it's not just the baseline year.
         unique_years_by_sector = df.group_by('Sector').agg(pl.col('Year').unique().len().alias('NrSectorYears'))
@@ -213,12 +206,10 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
                 pl.lit(value=False).alias('FromMeasureDataPoint'),
                 (pl.col(YEAR_COLUMN) > ref_year).alias(FORECAST_COLUMN),
             ])
-            self._all_observation_years: list[int] = []
             return df
 
         uuids = df['uuid'].unique().to_list()
         dpdf = collect_measure_datapoints(fwd, uuids)
-        self._all_observation_years = dpdf['MeasureYear'].drop_nulls().unique().sort().to_list()
 
         # Convert measure values to the dataset unit. After a UUID-keyed join there is
         # usually exactly one MeasureUnit, so a single ensure_unit() call is sufficient.
@@ -255,15 +246,18 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
                 .ensure_unit('MeasureDefaultValue', ds_unit)
             )
 
+        # NaN is not null in Polars, so coalesce would pick up NaN as a "real" value and
+        # propagate it through interpolation. Treat NaN measure values as null (missing data)
+        # so the coalesce falls through to the DVC baseline instead.
+        dpdf = dpdf.with_columns([
+            pl.col('MeasureValue').fill_nan(None),
+            pl.col('MeasureDefaultValue').fill_nan(None),
+        ])
+
         meta = df.get_meta()
         df_cols = df.columns
 
         baseline_year = context.instance.reference_year
-        df = df.with_columns(  # FIXME Does this not already happen in load()? So this is redundant.
-            pl.when(pl.col('Year').lt(100)).then(pl.col('Year') + baseline_year - 1).otherwise(pl.col('Year')).alias('Year'),
-        )
-        # Duplicates may occur when baseline year overlaps with existing data points.
-        df = ppl.to_ppdf(df.unique(subset=meta.primary_keys, keep='last', maintain_order=True), meta=meta)
 
         # If a uuid appears at only one year in the DVC data, MeasureYear (from the DB
         # entry) overrides the DVC year — this handles the "single baseline row per uuid"
@@ -309,12 +303,33 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             jdf.select(out_cols),
             meta=ppl.DataFrameMeta(primary_keys=new_pks, units=meta.units),
         )
-
         return df
 
     def get_observation_years(self) -> list[int]:
-        """Return all years with MeasureDataPoints, regardless of use_observations."""
-        return getattr(self, '_all_observation_years', [])
+        """
+        Return all years with MeasureDataPoints, regardless of use_observations.
+
+        Reads UUIDs from the raw DVC file (before post-processing) and queries
+        the DB directly, so the result is independent of the use_observations
+        parameter and of whether the processed df is in cache.
+        """
+        cached: list[int] | None = getattr(self, '_cached_observation_years', None)
+        if cached is not None:
+            return cached
+        fwd = self.context.framework_config_data
+        if fwd is None:
+            return []
+        ds_id = self.input_dataset or self.id
+        dvc_ds = self.context.load_dvc_dataset(ds_id)
+        if dvc_ds.df is None or 'uuid' not in dvc_ds.df.columns:
+            return []
+        uuids = dvc_ds.df['uuid'].cast(pl.String).str.replace_all('_', '-').drop_nulls().unique().to_list()
+        if not uuids:
+            return []
+        dpdf = collect_measure_datapoints(fwd, uuids)
+        result = dpdf['MeasureYear'].drop_nulls().unique().sort().to_list()
+        self._cached_observation_years: list[int] = result
+        return result
 
     def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         df = super().post_process(df)
