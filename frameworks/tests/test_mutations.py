@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from frameworks.models import (
@@ -241,13 +244,51 @@ def test_framework_query_exposes_frameworks(
     assert selected['name'] == framework.name
 
 
+def test_framework_sections_resolve_influencing_measure_templates_without_n_plus_one(
+    gql_client: PathsTestClient,
+    framework: Framework,
+) -> None:
+    root = framework.create_root_section()
+    source_section = root.add_child(instance=Section(framework=framework, name='Source'))
+    source_template = MeasureTemplate.objects.create(section=source_section, name='Source measure', unit='kt/a')
+    for i in range(5):
+        section = root.add_child(instance=Section(framework=framework, name=f'Target {i}'))
+        section.influencing_measure_templates.add(source_template)
+
+    query = gql("""
+    query FrameworkSections($identifier: ID!) {
+        framework(identifier: $identifier) {
+            sections {
+                name
+                influencingMeasureTemplates {
+                    name
+                }
+            }
+        }
+    }
+    """)
+
+    with CaptureQueriesContext(connection) as query_ctx:
+        data = gql_client.query_data(query, variables={'identifier': framework.identifier})
+
+    sections = data['framework']['sections']
+    targets = [section for section in sections if section['name'].startswith('Target')]
+    assert len(targets) == 5
+    assert all(target['influencingMeasureTemplates'] == [{'name': 'Source measure'}] for target in targets)
+
+    m2m_queries = [
+        query['sql'] for query in query_ctx.captured_queries if 'frameworks_section_influencing_measure_templates' in query['sql']
+    ]
+    assert len(m2m_queries) == 1
+
+
 # ---------------------------------------------------------------------------
 # Legacy Graphene framework mutations
 # ---------------------------------------------------------------------------
 
 
 CREATE_FRAMEWORK_CONFIG = gql("""
-mutation CreateFrameworkConfig(
+mutation CreateFrameworkConfigTest(
     $frameworkId: ID!
     $instanceIdentifier: ID!
     $name: String!
@@ -387,7 +428,7 @@ def test_update_framework_config_mutation_repopulates_measure_defaults(client: C
 
 
 DELETE_FRAMEWORK_CONFIG = gql("""
-mutation DeleteFrameworkConfig($id: ID!) {
+mutation DeleteFrameworkConfigTest($id: ID!) {
     deleteFrameworkConfig(id: $id) {
         ok
     }
@@ -791,20 +832,19 @@ def test_landing_block_exposes_framework(client: Client, framework: Framework) -
 
     from paths.tests.graphql import PathsTestClient
 
-    from nodes.defs.instance_defs import InstanceSpec, YearsSpec
+    from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
     from nodes.models import InstanceConfig
     from orgs.tests.factories import OrganizationFactory
     from pages.models import InstanceRootPage
 
     org = OrganizationFactory.create()
-    spec = InstanceSpec(
-        primary_language='en',
-        owner='Test',
+    spec = InstanceModelSpec(
         years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
     )
     ic = InstanceConfig.objects.create(
         name='Landing Test',
         identifier='landing-test',
+        owner='Test',
         primary_language='en',
         other_languages=[],
         organization=org,

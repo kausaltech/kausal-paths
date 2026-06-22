@@ -274,6 +274,7 @@ class OutcomePageManager(PathsPageManager['OutcomePage']):
 
 class OutcomePage(PathsPage):
     outcome_node: PK[NodeConfig] = ParentalKey(NodeConfig, on_delete=models.PROTECT, related_name='pages')
+    outcome_node_id: int
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_paragraph = RichTextField(blank=True, verbose_name=_('Lead paragraph'))
 

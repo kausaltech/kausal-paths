@@ -7,14 +7,17 @@ experimental = true
 prek = "latest"
 vault = "latest"
 fnox = "latest"
+python = "3.14"
 
 [env]
 _.python.venv = { path = ".venv", create = true, uv_create_args = [] }
 _.fnox-env = { tools = true }
 PYTHONPATH = "{{ config_root }}"
+SENTRY_ORG = "kausal"
+SENTRY_PROJECT = "paths-backend"
 
 [deps.uv]
-auto = true
+auto = false
 run = "uv sync --all-groups --all-extras"
 
 [deps.uv-tools]
@@ -33,7 +36,7 @@ run = "vault login -address=https://vault.kausal.tech -path=keycloak -method=oid
 [tasks.portless]
 description = "Run the backend with Portless"
 run = "portless --name paths-backend --app-port 8041 kausal_common/development/tools/portless-backend.sh"
-env = { PORTLESS_WILDCARD = "1", "PORTLESS_TLD" = "dev" }
+env = { PORTLESS_WILDCARD = "1", "PORTLESS_TLD" = "test" }
 raw = true
 
 [tasks.export-graphql-schema]

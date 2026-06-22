@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from django.db.models import F
 
@@ -26,6 +26,8 @@ from frameworks.models import (
 from nodes.models import InstanceConfig, InstanceConfigQuerySet
 
 if TYPE_CHECKING:
+    from django.db.models import Model
+
     from kausal_common.models.permission_policy import ObjectSpecificAction
     from kausal_common.users import UserOrAnon
 
@@ -75,9 +77,27 @@ class MeasureTemplateCache(ModelObjectCache[MeasureTemplate, MeasureTemplateQuer
     def __post_init__(self):
         super().__post_init__()
         self._groups['section'] = ObjectCacheGroup(self, lambda obj: obj.section_id)
+        self._by_influenced_section: dict[int, list[MeasureTemplate]] | None = None
 
     def by_section(self, section_id: int) -> list[MeasureTemplate]:
         return self.get_list_by_group('section', section_id)
+
+    def by_influenced_section(self, section_id: int) -> list[MeasureTemplate]:
+        if self._by_influenced_section is None:
+            self.full_populate()
+            through_model = cast('type[Model]', Section.influencing_measure_templates.through)
+            rows = through_model._default_manager.filter(section__framework=self.parent).values_list(
+                'section_id',
+                'measuretemplate_id',
+            )
+            by_section: dict[int, list[MeasureTemplate]] = {}
+            for influenced_section_id, measure_template_id in rows:
+                measure_template = self._by_id.get(measure_template_id)
+                if measure_template is None:
+                    continue
+                by_section.setdefault(influenced_section_id, []).append(measure_template)
+            self._by_influenced_section = by_section
+        return self._by_influenced_section.get(section_id, [])
 
     def add_obj(self, obj: MeasureTemplate) -> None:
         obj.cache = self.parent.cache

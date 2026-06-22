@@ -6,9 +6,9 @@ supported_languages: [en]
 site_url: https://muenchen-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8c7c8f79bd54955db8bd66395cf87787888e40e9
+  commit: a8e9584d8a313025877793f4ceabac8fcf865ace
   dvc_remote: kausal-s3
-name_de: München Klimadashboard
+name_de: Maßnahmenplan Klimaneutralität München
 name_en: Munich Climate Dashboard
 owner: München Stadt
 theme_identifier: de-muenchen
@@ -42,6 +42,28 @@ include:
   allow_override: true
 - file: modules/health/attribution_and_cost.yaml
   allow_override: true
+
+impact_overviews:
+
+- graph_type: cost_benefit
+  effect_node: total_cost
+  indicator_unit: MEUR
+  cost_dimension: cost_type
+  stakeholder_dimension: stakeholder
+  label_de: Kosten-Nutzen
+
+- graph_type: cost_efficiency
+  cost_node: total_cost
+  effect_node: total_emissions
+  cost_unit: MEUR
+  effect_unit: kt_co2e
+  indicator_unit: EUR/t_co2e
+  label_de: Kosteneffizienz
+
+- graph_type: cost_benefit
+  effect_node: discounted_health_costs
+  indicator_unit: MEUR
+  label_de: Diskontierte Gesundheitskosten
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -134,15 +156,15 @@ action_groups:
   name_en: Electricity
   color: '#FDB813'
 - id: heat
-  name_de: Wärme
+  name_de: Wärme und Kälte
   name_en: Heat
   color: '#E67E22'
 - id: mobility
-  name_de: Mobilität
+  name_de: Verkehr
   name_en: Mobility
   color: '#3498DB'
 - id: consumption
-  name_de: Konsum
+  name_de: Lebensstile
   name_en: Consumption
   color: '#9B59B6'
 - id: waste_and_wastewater
@@ -154,11 +176,11 @@ action_groups:
   name_en: Food & Land Use
   color: '#2ECC71'
 - id: cross_cutting_climate_protection
-  name_de: Übergreifende Klimaschutzaspekte
+  name_de: Bildung für eine nachhaltige Entwicklung
   name_en: Cross-cutting Climate Protection Aspects
   color: '#1ABC9C'
 - id: administration
-  name_de: Verwaltung
+  name_de: Klimaneutrale Stadtverwaltung und kommunale Unternehmen
   name_en: Administration
   color: '#34495E'
 
@@ -170,9 +192,9 @@ dimensions:
   categories:
   # Indirect Actions (Strategies)
   - id: renewable_generation_small_decentralized_systems
-    label_en: Renewable Electricity Generation through Small Decentralized 
-      Systems
-    label_de: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen
+    label_en: Expansion of Renewable Energy for Electricity Generation in the 
+      City
+    label_de: Ausbau erneuerbarer Energien zur Stromerzeugung im Stadtgebiet
   - id: renewable_generation_open_space
     label_en: Renewable Electricity Generation in Open Spaces
     label_de: Erneuerbare Stromerzeugung in der Fläche
@@ -186,8 +208,8 @@ dimensions:
     label_en: Heat Source Development for District Heating Networks
     label_de: Wärmequellenerschließung für Wärmenetze
   - id: expansion_and_densification_of_heat_networks
-    label_en: Expansion and Densification of District Heating Networks
-    label_de: Erweiterung und Verdichtung der Wärmenetze
+    label_en: Climate-Neutral District Heating and Cooling
+    label_de: Klimaneutrale Fernwärme und Fernkälte
   - id: decentralized_heating_replacement_households
     label_en: Decentralized Heating System Replacement in Households
     label_de: Dezentraler Heizungstausch in Haushalten
@@ -201,11 +223,13 @@ dimensions:
     label_en: Decentralized Heating System Replacement in Commercial Sector
     label_de: Dezentraler Heizungstausch im Gewerbe
   - id: renovation_residential_buildings
-    label_en: Renovation of Residential Buildings
-    label_de: Sanierung Wohngebäude
+    label_en: Energy-Efficient Building Renovation, Decentralized Renewable 
+      Heating, Efficient New Buildings
+    label_de: Energetische Gebäudesanierung, dezentrale erneuerbare 
+      Wärmeversorgung, effiziente Neubauten
   - id: drive_transition_motorized_individual_transport
-    label_en: Drive Transition – Motorized Individual Transport
-    label_de: Antriebswende – Motorisierter Individualverkehr
+    label_en: Promotion of Alternative Fuels and Drive Technologies
+    label_de: Förderung alternativer Kraftstoffe und Antriebskonzepte
     aliases: [Antriebswende - Motorisierter Individualverkehr]
   - id: drive_transition_freight_transport
     label_en: Drive Transition – Freight Transport
@@ -216,16 +240,16 @@ dimensions:
     label_de: Antriebswende – Bus
     aliases: [Antriebswende - Bus]
   - id: mobility_transition_freight_transport
-    label_en: Mobility Transition – Freight Transport
-    label_de: Mobilitätswende – Güterverkehr
+    label_en: Freight and Commercial Transport
+    label_de: Güter- und Wirtschaftsverkehr
     aliases: [Mobilitätswende - Güterverkehr]
   - id: mobility_transition_local_mobility
-    label_en: Mobility Transition – Local Mobility
-    label_de: Mobilitätswende – Nahmobilität
+    label_en: Further Public Transport Measures
+    label_de: Weitere ÖPNV-Maßnahmen
     aliases: [Mobilitätswende - Nahmobilität]
   - id: mobility_transition_regional_mobility
-    label_en: Mobility Transition – Regional Mobility
-    label_de: Mobilitätswende – Regionale Mobilität
+    label_en: Expansion of Public Transport Infrastructure
+    label_de: Ausbau ÖPNV-Infrastruktur
     aliases: [Mobilitätswende - Regionale Mobilität]
   - id: food_and_nutrition
     label_en: Food & Nutrition
@@ -256,8 +280,8 @@ dimensions:
     label_en: Rewetting of Organic Soils
     label_de: Wiedervernässung organischer Böden
   - id: electricity_savings_households
-    label_en: Electricity Savings in Households
-    label_de: Stromeinsparung durch Haushalte
+    label_en: Efficient Use of Electricity, Heat and Living/Usable Space
+    label_de: Effiziente Nutzung von Strom, Wärme und Wohn-/Nutzflächen
   - id: electricity_savings_industry
     label_en: Electricity Savings in Industry
     label_de: Stromeinsparung in der Industrie
@@ -339,8 +363,8 @@ dimensions:
     label_de: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der
       AVG'
   - id: sump_development_by_city_administration
-    label_en: SUMP Development by City Administration
-    label_de: SUMP Entwicklung durch die Stadtverwaltung
+    label_en: Urban Planning, Settlement Development and Spatial Design
+    label_de: Stadtplanung, Siedlungsentwicklung und räumliche Gestaltung
   - id: digital_climate_protection_monitoring_by_administration
     label_en: Digital Climate Protection Monitoring by Administration
     label_de: Digitales Klimaschutz-Monitoring durch die Verwaltung
@@ -1155,9 +1179,8 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: muenchen/final_energy
+  - id: muenchen/endenergie
     tags: [non_additive]
-    column: Value
     filters:
     - column: energy_carrier
       value: not_defined
@@ -1177,18 +1200,35 @@ nodes:
   input_datasets:
   - id: muenchen/final_energy_quality
 
+- id: other_activity
+  name_en: Other activity
+  name_de: Andere Aktivität
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: muenchen/andere_aktivitaet
+
 - id: other_emissions
   name_en: Other emissions
   name_de: Andere Emissionen
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
-  input_datasets:
-  - id: muenchen/other_emissions
+  input_nodes:
+  - id: other_activity
+  - id: end_energy_emission_factors
+  # input_datasets:
+  # - id: muenchen/other_emissions
+  #   tags: [emission_data]
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   output_nodes:
   - id: net_emissions
+  # params:
+  #   formula: activity * emission_factors + emission_data
 
 - id: drive_transition_motorized_individual_transport_total # TODO Copy the idea if it works
   name_de: drive_transition_motorized_individual_transport total
@@ -1210,8 +1250,8 @@ nodes:
 actions:
 
 - id: renewable_generation_small_decentralized_systems
-  name_de: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen
-  name_en: Renewable Electricity Generation through Small Decentralized Systems
+  name_de: Ausbau erneuerbarer Energien zur Stromerzeugung im Stadtgebiet
+  name_en: Expansion of Renewable Energy for Electricity Generation in the City
   description_en: The strategy consists of these measures:<ul><li>PV Funding 
     Programs of City Administration</li><li>Cologne Solar Cadastre for PV and 
     Solar Systems</li><li>Mobile One-Stop-Shop for Cologne</li><li>KlimaVeedel 
@@ -1342,8 +1382,8 @@ actions:
 #       flatten: true
 
 - id: electricity_savings_households
-  name_de: Stromeinsparung durch Haushalte
-  name_en: Electricity Savings in Households
+  name_de: Effiziente Nutzung von Strom, Wärme und Wohn-/Nutzflächen
+  name_en: Efficient Use of Electricity, Heat and Living/Usable Space
   description_en: The strategy consists of these measures:<ul><li>(No specific 
     measures listed)</li></ul>
   description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
@@ -1420,8 +1460,8 @@ actions:
       flatten: true
 
 - id: expansion_and_densification_of_heat_networks
-  name_de: Erweiterung und Verdichtung der Wärmenetze
-  name_en: Expansion and Densification of District Heating Networks
+  name_de: Klimaneutrale Fernwärme und Fernkälte
+  name_en: Climate-Neutral District Heating and Cooling
   description_en: The strategy consists of these 
     measures:<ul><li>Climate-Neutral Heat Supply at KVB</li></ul>
   description_de: Die Strategie besteht aus diesen 
@@ -1555,8 +1595,10 @@ actions:
       flatten: true
 
 - id: renovation_residential_buildings
-  name_de: Sanierung Wohngebäude
-  name_en: Renovation of Residential Buildings
+  name_de: Energetische Gebäudesanierung, dezentrale erneuerbare 
+    Wärmeversorgung, effiziente Neubauten
+  name_en: Energy-Efficient Building Renovation, Decentralized Renewable 
+    Heating, Efficient New Buildings
   description_en: The strategy consists of these measures:<ul><li>Energy 
     Retrofitting of Heritage-Protected Building Stock</li><li>KfW 432 
     Energy-Efficient Neighborhood Development</li><li>Concept Allocations as 
@@ -1666,8 +1708,8 @@ actions:
       flatten: true
 
 - id: drive_transition_motorized_individual_transport
-  name_de: Antriebswende – Motorisierter Individualverkehr
-  name_en: Drive Transition – Motorized Individual Transport
+  name_de: Förderung alternativer Kraftstoffe und Antriebskonzepte
+  name_en: Promotion of Alternative Fuels and Drive Technologies
   description_en: The strategy consists of these measures:<ul><li>Charging 
     Station Infrastructure in Public Road Space</li></ul>
   description_de: Die Strategie besteht aus diesen 
@@ -1746,8 +1788,8 @@ actions:
 #       flatten: true
 
 - id: mobility_transition_local_mobility
-  name_de: Mobilitätswende – Nahmobilität
-  name_en: Mobility Transition – Local Mobility
+  name_de: Weitere ÖPNV-Maßnahmen
+  name_en: Further Public Transport Measures
   description_en: The strategy consists of these measures:<ul><li>Adjustments in
     Motorized Individual Transport (MIT)</li><li>Bicycle Traffic 
     Promotion</li><li>Light Rail Expansion</li></ul>
@@ -1776,8 +1818,8 @@ actions:
       flatten: true
 
 - id: mobility_transition_regional_mobility
-  name_de: Mobilitätswende – Regionale Mobilität
-  name_en: Mobility Transition – Regional Mobility
+  name_de: Ausbau ÖPNV-Infrastruktur
+  name_en: Expansion of Public Transport Infrastructure
   description_en: The strategy consists of these measures:<ul><li>Light Rail 
     Expansion</li><li>Bicycle Traffic Promotion</li><li>Networked 
     Mobility</li></ul>
@@ -2580,8 +2622,8 @@ actions:
     is_visible: false
 
 - id: sump_development_by_city_administration
-  name_de: SUMP Entwicklung durch die Stadtverwaltung
-  name_en: SUMP Development by City Administration
+  name_de: Stadtplanung, Siedlungsentwicklung und räumliche Gestaltung
+  name_en: Urban Planning, Settlement Development and Spatial Design
   type: simple.GenericAction
   quantity: emissions
   unit: kt_co2e/a

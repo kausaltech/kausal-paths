@@ -24,7 +24,7 @@ from kausal_common.datasets.tests.factories import (
 
 from paths.tests.graphql import PathsTestClient
 
-from nodes.defs.instance_defs import InstanceSpec, YearsSpec
+from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from users.tests.factories import UserFactory
 
@@ -119,15 +119,14 @@ query InstanceDatasets($instanceId: ID!) {
 @pytest.fixture
 def db_instance_config():
     instance = InstanceFactory.create()
-    spec = InstanceSpec(
-        primary_language='en',
-        owner='Test Owner',
+    spec = InstanceModelSpec(
         years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
     )
     return InstanceConfigFactory.create(
         identifier=instance.id,
         instance=instance,
         config_source='database',
+        owner='Test Owner',
         spec=spec,
     )
 

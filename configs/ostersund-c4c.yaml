@@ -396,6 +396,27 @@ dimensions:
     label: Mobility Management
   - id: parking_measures
     label: Parking Measures
+  # ----- New Action Placeholders -----
+  - id: action_01
+    label: New Action 1
+  - id: action_02
+    label: New Action 2
+  - id: action_03
+    label: New Action 3
+  - id: action_04
+    label: New Action 4
+  - id: action_05
+    label: New Action 5
+  - id: action_06
+    label: New Action 6
+  - id: action_07
+    label: New Action 7
+  - id: action_08
+    label: New Action 8
+  - id: action_09
+    label: New Action 9
+  - id: action_10
+    label: New Action 10
 
 - id: cost_type
   label: Cost Type

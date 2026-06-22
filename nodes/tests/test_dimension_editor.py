@@ -12,7 +12,7 @@ import pytest
 from kausal_common.datasets.models import DimensionCategory, DimensionScope
 from kausal_common.datasets.tests.factories import DimensionCategoryFactory, DimensionFactory
 
-from nodes.defs.instance_defs import InstanceSpec, YearsSpec
+from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 
 if TYPE_CHECKING:
@@ -36,15 +36,14 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def db_instance_config() -> InstanceConfig:
     instance = InstanceFactory.create()
-    spec = InstanceSpec(
-        primary_language='en',
-        owner='Test Owner',
+    spec = InstanceModelSpec(
         years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
     )
     return InstanceConfigFactory.create(
         identifier=instance.id,
         instance=instance,
         config_source='database',
+        owner='Test Owner',
         spec=spec,
     )
 
@@ -71,6 +70,12 @@ def _make_dimension(ic: InstanceConfig, identifier: str, name: str, categories: 
         for label in categories:
             DimensionCategoryFactory.create(dimension=dim, identifier=label.lower(), label=label)
     return dim
+
+
+def _spec_dimension(ic: InstanceConfig, identifier: str) -> dict:
+    ic.refresh_from_db()
+    assert ic.spec is not None
+    return next(dim for dim in ic.spec.dimensions if dim['id'] == identifier)
 
 
 # ---------------------------------------------------------------------------
@@ -220,6 +225,23 @@ def test_create_category_with_identifier(gql_client: PathsTestClient, db_instanc
         ],
     )
     assert result['categories'][0]['identifier'] == 'energy'
+
+
+def test_create_category_updates_spec_dimensions(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.instance_from_db import serialize_instance_to_dict
+
+    dim = _make_dimension(db_instance_config, 'sector', 'Sector')
+    _create_cats(
+        gql_client,
+        db_instance_config,
+        [
+            {'dimensionId': str(dim.uuid), 'label': 'Energy', 'identifier': 'energy'},
+        ],
+    )
+
+    spec_dim = _spec_dimension(db_instance_config, 'sector')
+    assert spec_dim['categories'] == [{'id': 'energy', 'label': 'Energy'}]
+    assert serialize_instance_to_dict(db_instance_config)['dimensions'] == [spec_dim]
 
 
 def test_create_category_duplicate_identifier_fails(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -389,6 +411,21 @@ def test_update_category_identifier(gql_client: PathsTestClient, db_instance_con
     assert result['categories'][0]['identifier'] == 'renewable'
 
 
+def test_update_category_updates_spec_dimensions(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    dim = _make_dimension(db_instance_config, 'sector', 'Sector', ['Energy'])
+    cat = DimensionCategory.objects.get(dimension=dim, identifier='energy')
+    _update_cats(
+        gql_client,
+        db_instance_config,
+        [
+            {'categoryId': str(cat.uuid), 'identifier': 'renewable', 'label': 'Renewable Energy'},
+        ],
+    )
+
+    spec_dim = _spec_dimension(db_instance_config, 'sector')
+    assert spec_dim['categories'] == [{'id': 'renewable', 'label': 'Renewable Energy'}]
+
+
 def test_move_category_to_front(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     """Move last category to front using nextSibling."""
     dim = _make_dimension(db_instance_config, 's', 'S', ['A', 'B', 'C'])
@@ -525,6 +562,28 @@ def test_delete_category(gql_client: PathsTestClient, db_instance_config: Instan
     )
     remaining = list(DimensionCategory.objects.filter(dimension=dim).order_by('order').values_list('identifier', flat=True))
     assert remaining == ['a', 'c']
+
+
+def test_delete_category_updates_spec_dimensions(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.instance_from_db import serialize_instance_to_dict
+
+    dim = _make_dimension(db_instance_config, 'sector', 'Sector', ['A', 'B'])
+    a = DimensionCategory.objects.get(dimension=dim, identifier='a')
+    b = DimensionCategory.objects.get(dimension=dim, identifier='b')
+
+    _update_cats(gql_client, db_instance_config, [{'categoryId': str(a.uuid)}])
+    _update_cats(gql_client, db_instance_config, [{'categoryId': str(b.uuid)}])
+    gql_client.query_data(
+        DELETE_CAT,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'categoryId': str(b.uuid),
+        },
+    )
+
+    spec_dim = _spec_dimension(db_instance_config, 'sector')
+    assert spec_dim['categories'] == [{'id': 'a', 'label': 'A'}]
+    assert serialize_instance_to_dict(db_instance_config)['dimensions'] == [spec_dim]
 
 
 def test_delete_nonexistent_category_fails(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

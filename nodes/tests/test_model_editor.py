@@ -14,7 +14,7 @@ from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetric
 from nodes.actions.parent import ParentActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
-from nodes.defs.instance_defs import ActionGroup, InstanceSpec, NormalizationSpec, YearsSpec
+from nodes.defs.instance_defs import ActionGroup, InstanceModelSpec, NormalizationSpec, YearsSpec
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.models import NodeKindChoices
@@ -97,15 +97,14 @@ def _rebuild_from_db(ic: InstanceConfig) -> Context:
 def db_instance_config() -> InstanceConfig:
     """Create an InstanceConfig with config_source='database' and valid years."""
     instance = InstanceFactory.create()
-    spec = InstanceSpec(
-        primary_language='en',
-        owner='Test Owner',
+    spec = InstanceModelSpec(
         years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
     )
     return InstanceConfigFactory.create(
         identifier=instance.id,
         instance=instance,
         config_source='database',
+        owner='Test Owner',
         spec=spec,
     )
 
@@ -207,6 +206,80 @@ mutation SetInstanceLocked($instanceId: ID!, $isLocked: Boolean!) {
 """
 
 
+INSTANCE_QUANTITY_KINDS = """
+query InstanceQuantityKinds {
+    instance {
+        editor {
+            quantityKinds {
+                kind {
+                    id
+                    label
+                }
+                usedUnits {
+                    count
+                    unit {
+                        standard
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+
+INSTANCE_ADMIN_EDITOR_FIELDS = """
+query InstanceAdminEditorFields($instanceId: ID!) {
+    modelInstance(instanceId: $instanceId) {
+        editor {
+            configSource
+        }
+        nodes {
+            identifier
+            editor {
+                spec {
+                    outputPorts {
+                        id
+                    }
+                }
+            }
+        }
+    }
+    instance {
+        editor {
+            configSource
+        }
+    }
+}
+"""
+
+
+def test_instance_admin_can_read_model_editor_fields(client, db_instance_config: InstanceConfig):
+    from paths.tests.graphql import PathsTestClient
+
+    from nodes.roles import instance_admin_role
+    from users.tests.factories import UserFactory
+
+    NodeConfigFactory.create(instance=db_instance_config, identifier='editable_node', spec=_make_node_spec())
+
+    user = UserFactory.create()
+    instance_admin_role.assign_user(db_instance_config, user)
+    client.force_login(user)
+
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(db_instance_config)
+    data = gql_client.query_data(
+        INSTANCE_ADMIN_EDITOR_FIELDS,
+        variables={'instanceId': str(db_instance_config.pk)},
+    )
+
+    assert data['modelInstance']['editor']['configSource'] == 'database'
+    assert data['instance']['editor']['configSource'] == 'database'
+    node = data['modelInstance']['nodes'][0]
+    assert node['identifier'] == 'editable_node'
+    assert node['editor']['spec']['outputPorts'][0]['id'] == str(_port_uuid('default'))
+
+
 def test_create_node_formula(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     data = gql_client.query_data(
         CREATE_NODE,
@@ -250,6 +323,43 @@ def test_create_node_simple(gql_client: PathsTestClient, db_instance_config: Ins
     assert node['identifier'] == 'simple_node'
     assert node['kind'] == 'SIMPLE'
     assert node['editor']['spec']['typeConfig']['nodeClass'] == SIMPLE_NODE_CLASS
+
+
+def test_query_instance_quantity_kinds_with_used_units(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    node_specs = [
+        ('emissions_kt_1', 'kt/a', 'emissions'),
+        ('emissions_kt_2', 'kt/a', 'emissions'),
+        ('emissions_t', 't/a', 'emissions'),
+        ('energy_mwh', 'MWh/a', 'energy'),
+    ]
+    for identifier, unit, quantity in node_specs:
+        gql_client.query_data(
+            CREATE_NODE,
+            variables={
+                'instanceId': str(db_instance_config.pk),
+                'input': {
+                    'identifier': identifier,
+                    'name': identifier.replace('_', ' ').title(),
+                    'kind': 'SIMPLE',
+                    'config': {'simple': {'nodeClass': SIMPLE_NODE_CLASS}},
+                    'outputPorts': [{'unit': unit, 'quantity': quantity}],
+                },
+            },
+        )
+
+    from nodes.models import _pytest_instances
+
+    _pytest_instances.pop(db_instance_config.identifier, None)
+    data = gql_client.query_data(INSTANCE_QUANTITY_KINDS)
+    quantity_kinds = {entry['kind']['id']: entry for entry in data['instance']['editor']['quantityKinds']}
+
+    assert 'emissions' in quantity_kinds
+    assert 'energy' in quantity_kinds
+    assert quantity_kinds['emissions']['usedUnits'] == [
+        {'count': 2, 'unit': {'standard': 'kt/a'}},
+        {'count': 1, 'unit': {'standard': 't/a'}},
+    ]
+    assert quantity_kinds['energy']['usedUnits'] == [{'count': 1, 'unit': {'standard': 'MWh/a'}}]
 
 
 def test_create_node_with_node_group_and_allow_nulls(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -585,12 +695,14 @@ def test_runtime_rebuild_preserves_node_group_and_allow_nulls(db_instance_config
     assert node.allow_nulls is True
 
 
-def test_instance_spec_syncs_identity_fields(db_instance_config: InstanceConfig):
+def test_instance_metadata_projects_from_columns(db_instance_config: InstanceConfig):
+    from nodes.defs.instance_defs import InstanceMetadata
+
     db_instance_config.refresh_from_db()
-    assert db_instance_config.spec is not None
-    assert db_instance_config.spec.uuid == db_instance_config.uuid
-    assert db_instance_config.spec.identifier == db_instance_config.identifier
-    assert str(db_instance_config.spec.name) == db_instance_config.name
+    meta = InstanceMetadata.from_model(db_instance_config)
+    assert meta.uuid == db_instance_config.uuid
+    assert meta.identifier == db_instance_config.identifier
+    assert str(meta.name) == db_instance_config.name
 
 
 def test_node_spec_syncs_identity_fields_on_save(db_instance_config: InstanceConfig):
@@ -766,6 +878,30 @@ def test_delete_node(gql_client: PathsTestClient, db_instance_config: InstanceCo
         variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid)},
     )
     # query_data asserts no errors; just verify the node is gone
+    assert not NodeConfig.objects.filter(pk=node_pk).exists()
+
+
+def test_instance_admin_can_delete_node(client, db_instance_config: InstanceConfig):
+    from paths.tests.graphql import PathsTestClient
+
+    from nodes.models import NodeConfig
+    from nodes.roles import instance_admin_role
+    from users.tests.factories import UserFactory
+
+    nc = NodeConfigFactory.create(instance=db_instance_config, identifier='doomed_by_admin')
+    node_pk = nc.pk
+
+    user = UserFactory.create()
+    instance_admin_role.assign_user(db_instance_config, user)
+    client.force_login(user)
+
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(db_instance_config)
+    gql_client.query_data(
+        DELETE_NODE,
+        variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid)},
+    )
+
     assert not NodeConfig.objects.filter(pk=node_pk).exists()
 
 

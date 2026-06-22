@@ -114,13 +114,14 @@ class FrameworkMutation:
             else:
                 spec = ic.spec
                 assert spec is not None
-                spec.owner = fwc.organization_name
                 spec.years.reference = fwc.baseline_year
                 spec.years.min_historical = fwc.baseline_year
                 spec.years.max_historical = fwc.baseline_year
                 if fwc.target_year is not None:
                     spec.years.target = fwc.target_year
-                ic.save(update_fields=['spec'])
+                # Owner display name lives on the column now.
+                ic.owner = fwc.organization_name or ''
+                ic.save(update_fields=['spec', 'owner'])
 
             ic.refresh_from_db()
             ic.create_default_content()

@@ -7,14 +7,14 @@ dataset_repo:
   commit: d7bf5e7d2b3c468c65ba4b6315ce1e35220a835b
   dvc_remote: kausal-s3-private
   default_path: zuerich
-name_en: Net Zero Cockpit
+name_en: Net Zero Cockpit 2025
 name_de: Netto-Null-Cockpit 2025
 owner_en: City of Zürich
 owner_de: Stadt Zürich
 theme_identifier: zurich
 target_year: 2040
 model_end_year: 2040
-reference_year: 2010
+reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2024
 emission_unit: kt/a
@@ -70,10 +70,7 @@ dimensions:
 - id: emission_scope
   label: Emissionsbereiche
   label_en: Emission scopes
-  help_text: Die Netto-Null-Berichterstattung fokussiert im ersten Jahr auf die direkten
-    Emissionen; die indirekten Emissionen werden später ergänzt. Die hier dargestellten
-    indirekten Emissionen basieren weitgehend auf der Netto-Null-Grundlagenstudie und
-    bilden die bis 2040 angestrebte Reduktion noch nicht ab.
+  help_text: Die Netto-Null-Berichterstattung fokussiert im ersten Jahr auf die direkten Emissionen; die indirekten Emissionen werden später ergänzt. Die hier dargestellten indirekten Emissionen basieren weitgehend auf der Netto-Null-Grundlagenstudie und bilden die bis 2040 angestrebte Reduktion noch nicht ab.
   groups:
   - id: direct
     label: Direkte Emissionen
@@ -281,7 +278,7 @@ params:
 - id: municipality_name
   value: zurich
 - id: action_impact_from_baseline
-  value: True
+  value: true
 
 emission_sectors:
 - id: net_emissions
@@ -695,8 +692,7 @@ nodes:
   input_dimensions: []
   output_dimensions: []
   params:
-    formula: (stationary_end_renewable_energy_consumption + transport_end_renewable_energy_consumption)
-      / end_energy_consumption
+    formula: (stationary_end_renewable_energy_consumption + transport_end_renewable_energy_consumption) / end_energy_consumption
   input_nodes:
   - id: stationary_end_renewable_energy_consumption
     from_dimensions:
@@ -821,18 +817,7 @@ actions:
 - id: heater_replacement_and_district_heat
   name_en: Replacement of heaters and district heat expansion
   name_de: Heizungsersatz und Ausbau thermische Netze
-  description_de: '<b>Hauptziel bis 2040: 100 Prozent der Wärmeenergie stammen aus
-    erneuerbaren Energiequellen, Abfall oder Abwärme.</b><br><br>Aktuell werden noch
-    19 800 Heizungen in der Stadt Zürich mit fossiler Energie betrieben (Stand 2022).
-    Sie verursachen 560 000 Tonnen CO<sub>2</sub>-Äquivalente pro Jahr und müssen
-    in den kommenden Jahren durch klimafreundliche Heizlösungen wie Wärmepumpen oder
-    Anschlüsse an thermische Netze ersetzt werden. Damit das Ziel von 100 Prozent
-    Wärme aus erneuerbaren Energiequellen, Abfall oder Abwärme erreicht werden kann,
-    müssen zudem die thermischen Netze weiter ausgebaut und bis 2040 vollständig dekarbonisiert
-    werden.<br><br> Grundsätzlich ist eine vollständige Dekarbonisierung des Gebäudesektors
-    aufgrund der beschränkten Verfügbarkeit von Wärme aus erneuerbarer Energie, Abfall
-    oder Abwärme nur dann möglich, wenn auch der Gesamtenergieverbrauch gesenkt wird
-    (vgl. Massnahmenpaket 2).'
+  description_de: '<b>Hauptziel bis 2040: 100 Prozent der Wärmeenergie stammen aus erneuerbaren Energiequellen, Abfall oder Abwärme.</b><br><br>Aktuell werden noch 19 800 Heizungen in der Stadt Zürich mit fossiler Energie betrieben (Stand 2022). Sie verursachen 560 000 Tonnen CO<sub>2</sub>-Äquivalente pro Jahr und müssen in den kommenden Jahren durch klimafreundliche Heizlösungen wie Wärmepumpen oder Anschlüsse an thermische Netze ersetzt werden. Damit das Ziel von 100 Prozent Wärme aus erneuerbaren Energiequellen, Abfall oder Abwärme erreicht werden kann, müssen zudem die thermischen Netze weiter ausgebaut und bis 2040 vollständig dekarbonisiert werden.<br><br> Grundsätzlich ist eine vollständige Dekarbonisierung des Gebäudesektors aufgrund der beschränkten Verfügbarkeit von Wärme aus erneuerbarer Energie, Abfall oder Abwärme nur dann möglich, wenn auch der Gesamtenergieverbrauch gesenkt wird (vgl. Massnahmenpaket 2).'
   type: parent.ParentActionNode
   unit: kt/a
   quantity: emissions
@@ -874,8 +859,7 @@ actions:
 - id: district_heat_ccs_installation
   name_de: CCS Thermische Netze
   name_en: CCS installation district heat
-  description_de: Die Dekarbonisierung der thermischen Netze steigt von 70% im Jahr
-    2022 auf 100% im Jahr 2040.
+  description_de: Die Dekarbonisierung der thermischen Netze steigt von 70% im Jahr 2022 auf 100% im Jahr 2040.
   group: buildings
   parent: district_heat_decarbonisation
   type: linear.DatasetReduceAction
@@ -984,17 +968,7 @@ actions:
 - id: reduce_building_heat_demand
   name_en: Replacement of heaters and district heat expansion
   name_de: Reduktion des Wärmeenergiebedarfes
-  description_de: "Der absolute Wärmeverbrauch im Gebäudebereich muss reduziert werden,
-    damit das 2000 Watt-Ziel sowie die Zielsetzung von 100% Wärmeenergie aus erneuerbarer
-    Energie, Abfall oder Abwärme erreicht werden kann. Insgesamt soll eine Reduktion
-    des Wärmeenergieverbrauchs von 20% gegenüber dem Mittelwert 2018-2022 erreicht
-    werden (pro Einwohner\\*in: Reduktion um xx%).\nDiese Senkung des Energiebedarfes
-    bedarf Massnahmen in den Bereichen der Verbesserung der Gebäudehülle, der Optimierung
-    des Heizbetriebs und der suffizienten Nutzung der Wärme. Alle Massnahmen zusammen
-    haben das Potenzial den Wärmebedarf zu reduzieren. Die Liegenschaftsbesitzer*innen
-    sowie die Nutzer*innen von Liegenschaften haben für die Erreichung dieses Ziels
-    eine Schlüsselfunktion.\nAufgrund der Wetterabhängigkeit des Wärmeenergieverbrauches
-    wird jeweils der Fünfjahresdurchschnitt (FJDS) betrachtet."
+  description_de: "Der absolute Wärmeverbrauch im Gebäudebereich muss reduziert werden, damit das 2000 Watt-Ziel sowie die Zielsetzung von 100% Wärmeenergie aus erneuerbarer Energie, Abfall oder Abwärme erreicht werden kann. Insgesamt soll eine Reduktion des Wärmeenergieverbrauchs von 20% gegenüber dem Mittelwert 2018-2022 erreicht werden (pro Einwohner\\*in: Reduktion um xx%).\nDiese Senkung des Energiebedarfes bedarf Massnahmen in den Bereichen der Verbesserung der Gebäudehülle, der Optimierung des Heizbetriebs und der suffizienten Nutzung der Wärme. Alle Massnahmen zusammen haben das Potenzial den Wärmebedarf zu reduzieren. Die Liegenschaftsbesitzer*innen sowie die Nutzer*innen von Liegenschaften haben für die Erreichung dieses Ziels eine Schlüsselfunktion.\nAufgrund der Wetterabhängigkeit des Wärmeenergieverbrauches wird jeweils der Fünfjahresdurchschnitt (FJDS) betrachtet."
   type: parent.ParentActionNode
   unit: kt/a
   quantity: emissions
@@ -1006,11 +980,7 @@ actions:
   name_de: Verbesserung der Gebäudehülle
   parent: reduce_building_heat_demand
   group: buildings
-  description_de: Die energetische Sanierung von Bestandesbauten und erhöhte Anforderungen
-    an (Ersatz-)Neubauten führen dazu, dass die Wärme im Gebäude bleibt und die Energie
-    effizient genutzt wird. Während das kantonale Energiegesetz die Anforderungen
-    an Neubauten und Ersatzneubauten festlegt, gibt es aktuell keine regulativen Anforderungen
-    zur Beschleunigung der Sanierung von Bestandesbauten.
+  description_de: Die energetische Sanierung von Bestandesbauten und erhöhte Anforderungen an (Ersatz-)Neubauten führen dazu, dass die Wärme im Gebäude bleibt und die Energie effizient genutzt wird. Während das kantonale Energiegesetz die Anforderungen an Neubauten und Ersatzneubauten festlegt, gibt es aktuell keine regulativen Anforderungen zur Beschleunigung der Sanierung von Bestandesbauten.
   type: linear.DatasetReduceAction
   quantity: energy_per_area
   unit: kWh/m**2/a
@@ -1030,12 +1000,7 @@ actions:
   name_de: Suffiziente Nutzung der Wärme
   parent: reduce_building_heat_demand
   group: buildings
-  description_de: Die suffiziente Nutzung der Wärme senkt den Wärmebedarf ebenfalls.
-    Dazu gehören Temperatursenkungen während der Heizperiode und ein geringerer Flächenverbrauch
-    pro Person beim Wohnen und Arbeiten. Beim heutigen Gebäudemix kann durch die Senkung
-    der Temperatur um 1°C 6% der Wärmeenergie eingespart wer-den. Neben der Energiespar-Kampagne
-    im Jahr 2022 bestehen aktuell keine Mass-nahmen, zur suffizienten Nutzung der
-    Wärmeenergie.
+  description_de: Die suffiziente Nutzung der Wärme senkt den Wärmebedarf ebenfalls. Dazu gehören Temperatursenkungen während der Heizperiode und ein geringerer Flächenverbrauch pro Person beim Wohnen und Arbeiten. Beim heutigen Gebäudemix kann durch die Senkung der Temperatur um 1°C 6% der Wärmeenergie eingespart wer-den. Neben der Energiespar-Kampagne im Jahr 2022 bestehen aktuell keine Mass-nahmen, zur suffizienten Nutzung der Wärmeenergie.
   type: linear.DatasetReduceAction
   quantity: per_capita
   unit: m**2/cap
@@ -1056,14 +1021,7 @@ actions:
 - id: reduce_transportation_demand
   name_de: Vermeidung von Verkehrsaufkommen
   name_en: Reduce transportation demand
-  description_de: Durch eine Veränderung der räumlichen Nutzungsstrukturen sollen
-    ohne Einbussen hinsichtlich Erreichbarkeit und Lebensqualität die Weglängen und
-    somit die Verkehrsleistung reduziert werden. Die Weglängen umfassen alle Wege,
-    unabhängig davon, ob sie mit dem MIV, dem ÖV, dem Velo oder zu Fuss zurückgelegt
-    werden. Die Verringerung der Wegdistanzen wird durch eine "Stadt der kurzen Wege"
-    und durch vermehrte Arbeit zu Hause oder in der Nähe des Wohnortes erreicht. Die
-    entsprechenden stadtplanerischen Prozesse und Massnahmen werden erst mittel- bis
-    langfristig Wirkung zeigen.
+  description_de: Durch eine Veränderung der räumlichen Nutzungsstrukturen sollen ohne Einbussen hinsichtlich Erreichbarkeit und Lebensqualität die Weglängen und somit die Verkehrsleistung reduziert werden. Die Weglängen umfassen alle Wege, unabhängig davon, ob sie mit dem MIV, dem ÖV, dem Velo oder zu Fuss zurückgelegt werden. Die Verringerung der Wegdistanzen wird durch eine "Stadt der kurzen Wege" und durch vermehrte Arbeit zu Hause oder in der Nähe des Wohnortes erreicht. Die entsprechenden stadtplanerischen Prozesse und Massnahmen werden erst mittel- bis langfristig Wirkung zeigen.
   group: mobility
   type: linear.DatasetReduceAction
   quantity: per_capita
@@ -1083,15 +1041,7 @@ actions:
 - id: shift_to_sustainable_transport_modes
   name_de: Verlagerung des MIV in Richtung des Umweltverbundes
   name_en: Shift to sustainable transport modes
-  description_de: Dieses Massnahmenpaket umfasst die Massnahmen, um den Verkehr vom
-    motorisierten Individualverkehr hin zu öffentlichem Verkehr, Velo- oder Fussverkehr
-    (= Umweltverbund) zu verlagern. Es geht dabei insbesondere um Massnahmen auf der
-    Angebotsseite des verträglichen Verkehrs, wie den Ausbau und die stetige Verbesserung
-    des öffentlichen Verkehrs sowie die Bereitstellung von attraktiven und sicheren
-    Velo- und Fussverkehrsinfrastrukturen. Auch wird die Verlagerung durch eine optimale
-    Vernetzung der Verkehrsmittel untereinander unterstützt.\n Die Prozesse und Massnahmen
-    werden über eine längere Zeitdauer umgesetzt und sind entsprechend erst mittel-
-    bis langfristig wirksam.
+  description_de: Dieses Massnahmenpaket umfasst die Massnahmen, um den Verkehr vom motorisierten Individualverkehr hin zu öffentlichem Verkehr, Velo- oder Fussverkehr (= Umweltverbund) zu verlagern. Es geht dabei insbesondere um Massnahmen auf der Angebotsseite des verträglichen Verkehrs, wie den Ausbau und die stetige Verbesserung des öffentlichen Verkehrs sowie die Bereitstellung von attraktiven und sicheren Velo- und Fussverkehrsinfrastrukturen. Auch wird die Verlagerung durch eine optimale Vernetzung der Verkehrsmittel untereinander unterstützt.\n Die Prozesse und Massnahmen werden über eine längere Zeitdauer umgesetzt und sind entsprechend erst mittel- bis langfristig wirksam.
   group: mobility
   type: linear.DatasetReduceAction
   quantity: mix
@@ -1113,10 +1063,7 @@ actions:
 - id: improved_vehicle_fleet
   name_de: Verträgliche Abwicklung des Verkehrs
   name_en: Electrify vehicle fleet
-  description_de: Dieses Massnahmenpaket beschreibt Massnahmen, welche dazu führen,
-    dass der verbleibende Verkehr verträglich gestaltet wird (d.h. energieeffizient,
-    erneuerbar, leise und sauber). Die Elektromobilität und die Verstetigung (= Verlangsamung)
-    des Verkehrs spielen dafür eine Schlüsselfunktion.
+  description_de: Dieses Massnahmenpaket beschreibt Massnahmen, welche dazu führen, dass der verbleibende Verkehr verträglich gestaltet wird (d.h. energieeffizient, erneuerbar, leise und sauber). Die Elektromobilität und die Verstetigung (= Verlangsamung) des Verkehrs spielen dafür eine Schlüsselfunktion.
   group: mobility
   type: parent.ParentActionNode
   quantity: emissions
@@ -1338,9 +1285,7 @@ actions:
 - id: install_waste_treatment_ccs
   name_en: Install CCS in waste treatment
   name_de: CO2-Entnahme und -Speicherung (CCS)
-  description_de: Dieses Massnahmenpaket beinhaltet die Anstrengungen zur CO<sub>2</sub>-Entnahme
-    und -Speicherung (CCS) bei der Klärschlammverwertungsanlage Werdhölzli und beim
-    Kehrichtverwertungsanlage (KVA) Hagenholz.
+  description_de: Dieses Massnahmenpaket beinhaltet die Anstrengungen zur CO<sub>2</sub>-Entnahme und -Speicherung (CCS) bei der Klärschlammverwertungsanlage Werdhölzli und beim Kehrichtverwertungsanlage (KVA) Hagenholz.
   type: parent.ParentActionNode
   unit: kt/a
   quantity: emissions
@@ -1417,10 +1362,8 @@ actions:
   name_de: Import biogas emission accounting agreement
   type: linear.ReduceAction
   quantity: mix
-  description_en: Agreement on how import biogas emissions should be accounted to
-    avoid double counting.
-  description_de: Agreement on how import biogas emissions should be accounted to
-    avoid double counting.
+  description_en: Agreement on how import biogas emissions should be accounted to avoid double counting.
+  description_de: Agreement on how import biogas emissions should be accounted to avoid double counting.
   output_nodes:
   - id: building_energy_consumption_non_grid_emission_factor
   output_dimensions: [energy_carrier, emission_scope]
@@ -1525,15 +1468,15 @@ scenarios:
   all_actions_enabled: true
 
 include:
-  - file: zuerich-2025/buildings-2025.yaml
-    node_group: Buildings
-  - file: zuerich-2025/aviation-2025.yaml
-    node_group: Aviation
-  - file: zuerich-2025/waste-2025.yaml
-    node_group: Waste
-  - file: zuerich-2025/mobility-2025.yaml
-    node_group: Mobility
-  - file: zuerich-2025/electricity-2025.yaml
-    node_group: Electricity
-  - file: zuerich-2025/energy-2025.yaml
-    node_group: Energy
+- file: zuerich-2025/buildings-2025.yaml
+  node_group: Buildings
+- file: zuerich-2025/aviation-2025.yaml
+  node_group: Aviation
+- file: zuerich-2025/waste-2025.yaml
+  node_group: Waste
+- file: zuerich-2025/mobility-2025.yaml
+  node_group: Mobility
+- file: zuerich-2025/electricity-2025.yaml
+  node_group: Electricity
+- file: zuerich-2025/energy-2025.yaml
+  node_group: Energy
