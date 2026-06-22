@@ -1579,45 +1579,45 @@ actions:
 
 ## Legacy actions for testing -v
 
-- id: a331_increase_appliance_renovation
-  name: 3.3.1 Increase appliance renovation
-  type: linear.DatasetReduceAction
-  quantity: rate
-  unit: '%/a'
-  group: buildings
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: efficient_appliances_renovation_rate_historical
-    tags: [historical]
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-  - id: efficient_appliances_renovation_rate_goal
-    tags: [goal]
-  # output_nodes:
-  # - id: efficient_appliances_rate
-  #   to_dimensions:
-  #   - id: energy_carrier
+# - id: a331_increase_appliance_renovation
+#   name: 3.3.1 Increase appliance renovation
+#   type: linear.DatasetReduceAction
+#   quantity: rate
+#   unit: '%/a'
+#   group: buildings
+#   input_dimensions: [energy_carrier]
+#   output_dimensions: [energy_carrier]
+#   input_nodes:
+#   - id: efficient_appliances_renovation_rate_historical
+#     tags: [historical]
+#     from_dimensions:
+#     - id: building_energy_class
+#       flatten: true
+#     to_dimensions:
+#     - id: energy_carrier
+#       categories: [electricity]
+#   - id: efficient_appliances_renovation_rate_goal
+#     tags: [goal]
+#   # output_nodes:
+#   # - id: efficient_appliances_rate
+#   #   to_dimensions:
+#   #   - id: energy_carrier
 
-- id: a332_increase_aggressive_renovations
-  name: 3.3.2 Increase aggressive appliance renovation
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_nodes:
-  - id: efficiency_programme_shares_historical
-    tags: [historical]
-  - id: efficiency_programme_shares_goal
-    tags: [goal]
-  # output_nodes:
-  # - id: efficiency_programme_shares
+# - id: a332_increase_aggressive_renovations
+#   name: 3.3.2 Increase aggressive appliance renovation
+#   type: linear.DatasetReduceAction
+#   quantity: fraction
+#   unit: '%'
+#   group: buildings
+#   input_dimensions: [efficiency_programme, energy_carrier]
+#   output_dimensions: [efficiency_programme, energy_carrier]
+#   input_nodes:
+#   - id: efficiency_programme_shares_historical
+#     tags: [historical]
+#   - id: efficiency_programme_shares_goal
+#     tags: [goal]
+#   # output_nodes:
+#   # - id: efficiency_programme_shares
 
 ## Legacy actions for testing -^
 
@@ -1752,7 +1752,7 @@ actions:
 
 # ------------- WASTE -------------------------
 
-- id: waste_recycling_trend
+- id: waste_recycling_trend # FIXME Remove when bring to max hist year works for this.
   name: Waste recycling trend
   name_fi: Jätteiden kierrätyksen trendi
   type: linear.DatasetDifferenceAction
@@ -7357,6 +7357,22 @@ nodes:
   output_dimensions: [waste_treatment, waste_type]
   input_nodes:
   - id: waste_recycling_shares_frozen
+
+- id: waste_recycling_shares_baseline1
+  name: Waste recycling trend
+  name_fi: Jätteiden kierrätyksen trendi
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_nodes:
+  - id: waste_recycling_shares_frozen
+    tags: [baseline]
+  - id: waste_recycling_future_baseline_shares
+    tags: [goal]
+  params:
+    formula: inventory_only(baseline) + goal # FIXME make bring max hist year -> ref year.
 
 - id: waste_recycling_shares_goal
   name_en: Waste recycling shares goal
