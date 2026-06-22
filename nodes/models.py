@@ -1863,7 +1863,10 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         if not isinstance(self.uuid, uuid.UUID):
             self.uuid = uuid.uuid4()
 
-        if (spec := self.spec) is not None:
+        # Skip spec sync when spec is deferred: accessing self.spec on a deferred instance
+        # triggers refresh_from_db which reloads ALL fields from DB (due to defer+only
+        # interaction in NodeConfigManager), silently overwriting any unsaved field changes.
+        if 'spec' not in self.get_deferred_fields() and (spec := self.spec) is not None:
             spec.uuid = self.uuid
             spec.identifier = self.identifier
             spec.name = get_translated_string_from_modeltrans(self, 'name', self.instance.primary_language)
