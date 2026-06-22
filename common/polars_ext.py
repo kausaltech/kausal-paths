@@ -42,6 +42,7 @@ class PathsExt:
         'add_missing_years': '_add_missing_years',
         'arithmetic_inverse': '_arithmetic_inverse',
         'bring_to_maximum_historical_year': '_bring_to_maximum_historical_year',
+        'bring_to_reference_year': '_bring_to_reference_year',
         'complement': '_complement',
         'complement_cumulative_product': '_complement_cumulative_product',
         'cumulative': '_cumulative',
@@ -1048,10 +1049,14 @@ class PathsExt:
             pl
             .when(pl.col(YEAR_COLUMN) <= max_year)
             .then(pl.lit(is_forecast))
-            .otherwise(pl.col(FORECAST_COLUMN))
+            .otherwise(pl.col(FORECAST_COLUMN))  # TODO do we want to keep existing forecast years?
             .alias(FORECAST_COLUMN)
         )
         return df
+
+    def _bring_to_reference_year(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        ref_year = context.instance.reference_year
+        return df.with_columns((pl.col(YEAR_COLUMN) > ref_year).alias(FORECAST_COLUMN))
 
     def _complement(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         u = df.get_unit(VALUE_COLUMN)

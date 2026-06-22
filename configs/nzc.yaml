@@ -1752,25 +1752,6 @@ actions:
 
 # ------------- WASTE -------------------------
 
-- id: waste_recycling_trend # FIXME Remove when bring to max hist year works for this.
-  name: Waste recycling trend
-  name_fi: Jätteiden kierrätyksen trendi
-  type: linear.DatasetDifferenceAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [waste_treatment, waste_type]
-  output_dimensions: [waste_treatment, waste_type]
-  input_nodes:
-  - id: waste_recycling_shares_frozen
-    tags: [baseline]
-  - id: waste_recycling_future_baseline_shares
-    tags: [goal]
-    to_dimensions:
-    - id: waste_treatment
-    - id: waste_type
-  output_nodes:
-  - id: waste_recycling_shares_baseline
-
 - id: a51_increase_waste_recycling
   name: 5.1 Increase waste recycling
   name_fi: 5.1 Lisää jätteiden kierrätystä
@@ -1871,8 +1852,6 @@ scenarios:
   params:
   - id: show_scenario_impacts
     value: false
-  - id: waste_recycling_trend.enabled
-    value: true
   - id: use_observations
     value: false
   - id: measure_data_baseline_year_only
@@ -1899,8 +1878,6 @@ scenarios:
     value: true
   - id: measure_data_baseline_year_only
     value: false
-  - id: waste_recycling_trend.enabled
-    value: true
   - id: a51_increase_waste_recycling.enabled
     value: true
   - id: a13_car_pooling.enabled
@@ -7348,17 +7325,6 @@ nodes:
     column: share_recyclingincinerationlandfill_baseline
 
 - id: waste_recycling_shares_baseline
-  name_en: Waste recycling shares baseline
-  name_fi: Jätteiden kierrätysosuudet perustaso
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [waste_treatment, waste_type]
-  output_dimensions: [waste_treatment, waste_type]
-  input_nodes:
-  - id: waste_recycling_shares_frozen
-
-- id: waste_recycling_shares_baseline1
   name: Waste recycling trend
   name_fi: Jätteiden kierrätyksen trendi
   type: formula.FormulaNode
@@ -7370,9 +7336,9 @@ nodes:
   - id: waste_recycling_shares_frozen
     tags: [baseline]
   - id: waste_recycling_future_baseline_shares
-    tags: [goal]
+    tags: [goals]
   params:
-    formula: inventory_only(baseline) + goal # FIXME make bring max hist year -> ref year.
+    formula: bring_to_reference_year(extend_all(inventory_only(baseline) + goals))
 
 - id: waste_recycling_shares_goal
   name_en: Waste recycling shares goal
