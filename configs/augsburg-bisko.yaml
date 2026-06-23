@@ -1,7 +1,7 @@
 id: augsburg-bisko  # defines which instance is updated
 default_language: de
 supported_languages: [en]
-site_url: https://augsburg-zukunftsrechner.paths.kausal.tech
+site_url: https://augsburg-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: a8e9584d8a313025877793f4ceabac8fcf865ace
@@ -44,6 +44,17 @@ _palette:
   BlueCity_Green:       &green        '#04a64a'
   BlueCity_Lime:        &lime         '#b9c400'
   BlueCity_Grey:        &grey         '#bfcfd8'
+  BlueCity_Black:       &black        '#000000'
+
+  gradient_grey1:       &g_grey1      '#303436'
+  gradient_grey2:       &g_grey2      '#60686c'
+  gradient_grey3:       &g_grey3      '#8f9ba2'
+  gradient_darkblue2:   &g_darkblue2  '#337cd0'
+  gradient_blue2:       &g_blue2      '#65a4d2'
+  gradient_lilac2:      &g_lilac2     '#449887'
+  gradient_green2:      &g_green2     '#5fb525'
+  gradient_lime2:       &g_lime2      '#bcca6c'
+  
 # Order of sectors in public page:
 # Private Household (emissions)
 # Commerce, Trade & Services (emissions)
@@ -210,6 +221,302 @@ dimensions:
     label_de: Übergreifende Klimaschutzaspekte
     color: '#1ABC9C'
     order: 18
+
+- id: energy_carrier
+  label_en: Energy carrier
+  label_de: Energieträger
+  categories:
+  # --- Coal (order 1-2): darkest fossil, brown-to-black ---
+  - id: hard_coal
+    label_en: Hard coal
+    label_de: Steinkohle
+    aliases: [kohle, steinkohle, Kohle]
+    color: *black
+    order: 45
+  - id: brown_coal
+    label_en: Brown coal / Lignite
+    label_de: Braunkohle
+    aliases: [braunkohle]
+    color: '#5D3A1A'
+    order: 9
+  # --- Liquid fossil fuels (order 3-9): red-to-orange spectrum ---
+  - id: heating_oil
+    label_en: Heating oil
+    label_de: Heizöl
+    aliases: [heizol, Heizoel]
+    color: *g_grey1
+    order: 29
+  - id: petrol
+    label_en: Petrol
+    label_de: Benzin
+    aliases: [benzin_fossil, benzin, Benzin fossil, Bfoss]
+    color: *g_grey2
+    order: 2
+  - id: diesel
+    label_en: Diesel
+    label_de: Diesel
+    aliases: [diesel_fossil, Diesel fossil, Dfoss]
+    color: *g_grey3
+    order: 12
+  - id: kerosene
+    label_en: Kerosene
+    label_de: Kerosin
+    aliases: [kerosin, Kerosin fossil]
+    color: '#C0392B'
+    order: 31
+  - id: lpg
+    label_en: LPG (Liquefied petroleum gas)
+    label_de: LPG
+    color: *grey
+    order: 36
+  - id: propane
+    label_en: Propane/butane
+    label_de: Flüssiggas
+    aliases: [flüssiggas, flssiggas, Fluessiggas]
+    color: '#A04000'
+    order: 24
+  - id: fuels
+    label_en: Fuels
+    label_de: Kraftstoffe
+    aliases: [kraftstoffe, kraftstoff, Kraftstoff, Kraftstoffe]
+    color: '#880000'
+    order: 35
+  # --- Fossil gas (order 10-13): dark blue spectrum ---
+  - id: natural_gas
+    label_en: Natural gas
+    label_de: Erdgas
+    aliases: [gas, erdgas]
+    color: *grey
+    order: 14
+  - id: cng_fossil
+    label_en: CNG fossil
+    label_de: CNG fossil
+    aliases: [CNG_fossil, CNGfoss]
+    color: '#154360'
+    order: 11
+  - id: natural_gas_turbine
+    label_en: Natural gas for steam turbines
+    label_de: Erdgas GuD
+    color: '#0B2F50'
+    order: 16
+  - id: natural_gas_small_chp
+    label_en: Natural gas with small-scale CHP
+    label_de: Erdgas BHKW
+    color: '#0D3B5A'
+    order: 15
+  # --- Bio transport fuels (order 14-16): olive-green ---
+  - id: bio_petrol
+    label_en: Bio petrol
+    label_de: Biobenzin
+    aliases: [benzin_biogen, biobenzin, Benzin Bio, Bbio]
+    color: *blue
+    order: 3
+  - id: biodiesel
+    label_en: Biodiesel
+    label_de: Diesel biogen
+    aliases: [diesel_biogen, Diesel Bio, Diesel_biogen, Diesel_Biogen, Dbio]
+    color: *g_blue2
+    order: 13
+  - id: cng_bio
+    label_en: CNG bio
+    label_de: CNG bio
+    aliases: [CNG_bio, CNGbio]
+    color: '#2D5C12'
+    order: 10
+  # --- Biomass (order 17-21): green spectrum ---
+  - id: liquid_biomass
+    label_en: Liquid biomass
+    label_de: flüssige Biomasse
+    color: '#5E6B1A'
+    order: 23
+  - id: biomass
+    label_en: Biomass
+    label_de: Biomasse
+    aliases: [biomasse]
+    color: *green
+    order: 6
+  - id: solid_biomass
+    label_en: Solid biomass
+    label_de: feste Biomasse
+    color: *green
+    order: 22
+  - id: biomass_boiler
+    label_en: Biomass for heat-only boiler
+    label_de: Biomasse Heizwerk
+    color: *green
+    order: 7
+  - id: biomass_chp
+    label_en: Biomass for CHP
+    label_de: Biomasse KWK
+    color: *green
+    order: 8
+  # --- Biogas (order 22-24): teal-green ---
+  - id: biogas
+    label_en: Biogas
+    label_de: Biogas
+    aliases: [biogas]
+    color: *g_lime2
+    order: 4
+  - id: biogas_chp
+    label_en: Biogas for CHP
+    label_de: Biogas KWK
+    color: '#0A5C3E'
+    order: 5
+  - id: sewage_landfill_mine_gas
+    label_en: Sewage, landfill, or mine gas
+    label_de: Klär- Deponie- Grubengas
+    color: '#07452E'
+    order: 32
+  # --- Waste & waste heat (order 25-29) ---
+  - id: waste
+    label_en: Waste
+    label_de: Abfall
+    color: '#4A3728'
+    order: 1
+  - id: conventional_waste_heat_gt_90
+    label_en: Conventional waste heat > 90 C
+    label_de: Konventioneller Abwärme >90 C
+    color: '#484848'
+    order: 34
+  - id: conventional_waste_heat_lt_90
+    label_en: Conventional waste heat < 90 C
+    label_de: Konventioneller Abwärme <90 C
+    color: '#5C5C5C'
+    order: 33
+  - id: renewable_waste_heat_gt_90
+    label_en: Renewable waste heat > 90 C
+    label_de: Erneuerbarer Abwärme >90 C
+    color: '#3D5A55'
+    order: 18
+  - id: renewable_waste_heat_lt_90
+    label_en: Renewable waste heat < 90 C
+    label_de: Erneuerbarer Abwärme <90 C
+    color: '#4A6B66'
+    order: 17
+  # --- Renewable thermal (order 30-33): amber and teal ---
+  - id: solar_thermal
+    label_en: Solar thermal
+    label_de: Solarthermie
+    aliases: [solarthermie, Solarthermie]
+    color: *lime
+    order: 39
+  - id: environmental_heat
+    label_en: Environmental heat / Heat pump
+    label_de: Umweltwärme
+    aliases: [umweltwarme, Umweltwarme, Umweltwaerme]
+    color: *g_green2
+    order: 47
+  - id: geothermatl # FIXME typo
+    label_en: Geothermatl
+    label_de: Geothermite
+    color: '#005757'
+    order: 28
+  - id: geothermal
+    label_en: Geothermal
+    label_de: Geothermie
+    color: '#005757'
+    order: 27
+  # --- District / local heating networks (order 34-36): dark orange-brown ---
+  - id: district_heating
+    label_en: District heating
+    label_de: Fernwärme
+    aliases: [fernwarme, Fernwaerme]
+    color: *lilac
+    order: 21
+  - id: local_heating
+    label_en: Local heating
+    label_de: Nahwärme
+    aliases: [nahwarme, Nahwarme, Nahwaerme]
+    color: *g_lilac2
+    order: 37
+  - id: district_and_local_heating
+    label_en: District and local heating
+    label_de: Fern- und Nahwärme
+    aliases: [fern_und_nahwarme]
+    color: '#7D2500'
+    order: 20
+  # --- Electricity carriers (order 37-39): blue / purple ---
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: [strom]
+    color: *darkblue
+    order: 46
+  - id: heating_electricity
+    label_en: Heating electricity
+    label_de: Heizstrom
+    aliases: [heizstrom]
+    color: *g_darkblue2
+    order: 30
+  - id: driving_electricity
+    label_en: Driving electricity
+    label_de: Fahrstrom
+    aliases: [fahrstrom, strom_fahrstrom, St]
+    color: *g_darkblue2
+    order: 19
+  # --- Electricity generation (order 40-42): amber / blue-teal ---
+  - id: photovoltaic
+    label_en: Photovoltaic
+    label_de: Fotovoltaik
+    color: *lime
+    order: 25
+  - id: hydropower
+    label_en: Hydropower
+    label_de: Wasser
+    color: *darkblue
+    order: 48
+  - id: wind
+    label_en: Wind
+    label_de: Wind
+    color: *blue
+    order: 50
+  # --- Clean fuel (order 43) ---
+  - id: hydrogen
+    label_en: Hydrogen
+    label_de: Wasserstoff
+    aliases: [wasserstoff, Wasserstoff]
+    color: *grey
+    order: 49
+  # --- Aggregate / other (order 44-50) ---
+  - id: other_renewables
+    label_en: Other renewables
+    label_de: Sonstige Erneuerbare
+    aliases: [sonstige_erneuerbare, Sonstige_Erneuerbare, SonstigeEE]
+    color: '#276B27'
+    order: 40
+  - id: other_renewable_energy_carriers
+    label_en: Other renewable energy carriers
+    label_de: Sonstige Erneuerbare Energieträger
+    color: '#1E5E1E'
+    order: 41
+  - id: other_conventional
+    label_en: Other conventional
+    label_de: Sonstige Konventionelle
+    aliases: [sonstige_konventionelle, Sonstige_Konventionelle, SonstigeKo]
+    color: '#5A3A2A'
+    order: 42
+  - id: other_conventional_energy_carriers
+    label_en: Other conventional energy carriers
+    label_de: Sonstige konventionelle Energieträger
+    color: '#4A2D1A'
+    order: 43
+  - id: other
+    label_en: Other
+    label_de: Sonstiges
+    aliases: [sonstiges]
+    color: '#616161'
+    order: 44
+  - id: not_defined
+    label_en: Not defined
+    label_de: Nicht definiert
+    aliases: [nicht_definiert, Unzugeordnet]
+    color: '#4D4D4D'
+    order: 38
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+    color: '#303030'
+    order: 26
 
 
 - id: vehicle_type
