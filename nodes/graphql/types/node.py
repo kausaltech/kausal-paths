@@ -1,3 +1,4 @@
+import contextlib
 import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Optional  # pyright: ignore[reportDeprecated]
@@ -25,10 +26,12 @@ from nodes.actions.action import ActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs import SimpleConfig
 from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeKind, NodeSpec, PipelineConfig
+from nodes.exceptions import NodeError
 from nodes.graph_layout import NodeGraphLayoutMeta
 from nodes.graphql.types import DatasetPortType
 from nodes.graphql.types.change_history import EditableEntity
 from nodes.graphql.types.impact import get_impact_metric
+from nodes.node import NodeErrorPhase, NodeStatus
 from nodes.quantities import get_registry as get_quantity_registry
 from nodes.scenario import Scenario, ScenarioKind
 from params import Parameter
@@ -172,9 +175,48 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
         ]
 
 
+@sb.type(name='NodeError')
+class NodeErrorType:
+    """A problem recorded at a node during initialization or computation."""
+
+    phase: NodeErrorPhase
+    message: str
+
+
+def _maybe_compute_status(node: Node, compute: bool) -> None:
+    """
+    Trigger computation to determine a node's status, on explicit opt-in.
+
+    Init-phase failures are known without computing, so ``status`` is cheap by
+    default; pass ``compute=true`` (e.g. from a node-detail view) to actually run
+    ``get_output_pl()`` and surface a compute failure. A failure leaves the node's
+    status/errors populated, so the exception is swallowed here.
+    """
+    if not compute or node.status is not None:
+        return
+    # get_output_pl records FAILED status + the error on the node before raising, so we only
+    # need to suppress the exception here.
+    with contextlib.suppress(NodeError):
+        node.get_output_pl()
+
+
 @sb.type(name='NodeEditor')
 class NodeEditorFields:
     _node: sb.Private['Node']
+
+    @sb.field
+    @staticmethod
+    def status(root: 'NodeEditorFields', compute: bool = False) -> NodeStatus | None:
+        """Health of the node; null until evaluated. Pass `compute: true` to run it now (may be slow)."""
+        _maybe_compute_status(root._node, compute)
+        return root._node.status
+
+    @sb.field
+    @staticmethod
+    def errors(root: 'NodeEditorFields', compute: bool = False) -> list[NodeErrorType]:
+        """Problems recorded at this node (own errors only). Pass `compute: true` to run it now (may be slow)."""
+        _maybe_compute_status(root._node, compute)
+        return [NodeErrorType(phase=e.phase, message=e.message) for e in root._node.status_errors]
 
     @sb.field(graphql_type=NodeSpecType | None)
     @staticmethod

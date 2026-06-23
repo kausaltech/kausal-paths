@@ -140,6 +140,14 @@ class Context:
     compare_pipeline_compatibility: bool = False
     """If set, the pipeline-compatible nodes will be compared against their pipeline-originated output."""
 
+    tolerate_node_failures: bool = False
+    """If set, node computation failures are quarantined (recorded as node status) instead of
+    aborting the whole computation.
+
+    Only for draft models in the model editor; the default fail-fast path is unchanged. A snapshot
+    with any non-OK node must not be publishable. See ``docs/architecture/fault-tolerance.md``.
+    """
+
     instance: Instance
     """The computation model instance."""
 

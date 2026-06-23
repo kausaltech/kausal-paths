@@ -280,6 +280,34 @@ def test_instance_admin_can_read_model_editor_fields(client, db_instance_config:
     assert node['editor']['spec']['outputPorts'][0]['id'] == str(_port_uuid('default'))
 
 
+NODE_STATUS_FIELDS = gql("""
+query NodeStatusFields($instanceId: ID!) {
+    modelInstance(instanceId: $instanceId) {
+        nodes {
+            identifier
+            editor {
+                status
+                errors {
+                    phase
+                    message
+                }
+            }
+        }
+    }
+}
+""")
+
+
+def test_node_editor_exposes_status_and_errors(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    NodeConfigFactory.create(instance=db_instance_config, identifier='status_node', spec=_make_node_spec())
+    data = gql_client.query_data(NODE_STATUS_FIELDS, variables={'instanceId': str(db_instance_config.pk)})
+    nodes = {n['identifier']: n for n in data['modelInstance']['nodes']}
+    editor = nodes['status_node']['editor']
+    # Freshly loaded and not computed: status is null and no errors are recorded yet.
+    assert editor['status'] is None
+    assert editor['errors'] == []
+
+
 def test_create_node_formula(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     data = gql_client.query_data(
         CREATE_NODE,
