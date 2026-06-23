@@ -969,6 +969,15 @@ class Node:
             param_arr = param_arr[0].split(':')
             df = df.filter(pl.col(params[0]).eq(params[1]))
 
+        # Drop dim columns that are entirely null before from/to_dimensions processing.
+        # Multi-metric nodes with different dimensional spans use null to mark
+        # dimensions not applicable to a given metric; those must be pruned so
+        # from_dimensions filtering and to_dimensions validation see the correct
+        # (narrowed) dimension set.
+        for dim_col in list(df.dim_ids):
+            if df[dim_col].null_count() == df[dim_col].len():
+                df = df.drop(dim_col)
+
         if edge.from_dimensions:
             meta = df.get_meta()
             if not meta.dim_ids:
@@ -1003,6 +1012,7 @@ class Node:
                 new_cols.append((dim_id, cat.id))
 
             if new_cols:
+                meta = df.get_meta()
                 exprs = [pl.lit(cat).cast(pl.Categorical).alias(dim_id) for dim_id, cat in new_cols]
                 df = df.with_columns(exprs)
                 for dim_id, _ in new_cols:
@@ -1022,12 +1032,6 @@ class Node:
         else:
             output_dimensions = set(target_node.input_dimensions.keys())
 
-        # Validate output
-        meta = df.get_meta()
-        # Drop dim columns that only have nulls
-        for dim_col in meta.dim_ids:
-            if df[dim_col].null_count() == df[dim_col].len():
-                df = df.drop(dim_col)
         meta = df.get_meta()
         # if set(meta.dim_ids) != output_dimensions and not skip_dim_test: # TODO Consider testing this in node validation
         #     print(df)

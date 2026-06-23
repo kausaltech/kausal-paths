@@ -363,6 +363,7 @@ class DatasetReduceAction2(ActionNode):
     """
 
     allowed_parameters: ClassVar[list[Parameter[Any]]] = [
+        *ActionNode.allowed_parameters,
         BoolParameter(local_id='relative_goal'),
     ]
 
@@ -380,6 +381,17 @@ class DatasetReduceAction2(ActionNode):
         if FORECAST_COLUMN in df.columns:
             df = df.filter(pl.col(FORECAST_COLUMN) if is_forecast else ~pl.col(FORECAST_COLUMN))
         return df.with_columns(pl.lit(value=is_forecast).alias(FORECAST_COLUMN))
+
+    def _ensure_columns(self, df: ppl.PathsDataFrame, of: ppl.PathsDataFrame) -> tuple[ppl.PathsDataFrame, ppl.PathsDataFrame]:
+        of_dims = [dim for dim in of.dim_ids if dim not in df.dim_ids]
+        df = df.with_columns([pl.lit(None, dtype=of[dim].dtype).alias(dim) for dim in of_dims])
+        df = df.add_to_index(of_dims)
+
+        df_dims = [dim for dim in df.dim_ids if dim not in of.dim_ids]
+        of = of.with_columns([pl.lit(None, dtype=df[dim].dtype).alias(dim) for dim in df_dims])
+        of = of.add_to_index(df_dims)
+
+        return df, of
 
     # ----------------------------------------------------------- source lookup
 
@@ -504,6 +516,8 @@ class DatasetReduceAction2(ActionNode):
 
     def compute_effect(self) -> ppl.PathsDataFrame:
         is_multi_metric = len(self.output_metrics) > 1
+        if is_multi_metric or self.get_parameter_value('allow_null_categories', required=False):
+            self.allow_null_categories = True  # type: ignore[attr-defined]
         result_df: ppl.PathsDataFrame | None = None
 
         for metric_id, metric in self.output_metrics.items():
@@ -516,16 +530,20 @@ class DatasetReduceAction2(ActionNode):
             if is_multi_metric:
                 df = df.rename({VALUE_COLUMN: col})
 
-            result_df = df if result_df is None else result_df.paths.join_over_index(df, how='outer', index_from='union')
+            if result_df is None:
+                result_df = df
+            else:
+                # Expand both dfs to share all dimension columns (null for missing),
+                # then outer-join treating null==null so metrics with different
+                # dimensional spans land on separate rows rather than broadcasting.
+                df, result_df = self._ensure_columns(df, result_df)
+                result_df = result_df.paths.join_over_index(df, how='outer', index_from='union', nulls_equal=True)
 
         assert result_df is not None
         df = result_df
-
-        # Drop rows with null dimension categories — arises when metrics have different
-        # dimensional spans and join_over_index fills missing combos with null.
-        for dim_id in df.dim_ids:
-            if df[dim_id].null_count() > 0:
-                df = ppl.to_ppdf(df.filter(pl.col(dim_id).is_not_null()), meta=df.get_meta())
+        # Rows with null in a dimension column represent a metric whose data does
+        # not span that dimension.  Do NOT filter them out here — _get_output_for_target
+        # drops all-null dim columns per-edge after metric extraction.
 
         for m in self.output_metrics.values():
             if m.column_id not in df.metric_cols:

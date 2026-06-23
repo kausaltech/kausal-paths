@@ -689,6 +689,7 @@ class PathsExt:
         other: ppl.PathsDataFrame,
         how: Literal['left', 'outer', 'inner'] = 'left',
         index_from: Literal['left', 'right', 'union'] = 'left',
+        nulls_equal: bool = False,
     ) -> ppl.PathsDataFrame:
         sdf = self._df
         sm = sdf.get_meta()
@@ -727,7 +728,7 @@ class PathsExt:
         pl_how: pl_types.JoinStrategy = how
         if how == 'outer':
             pl_how = 'outer_coalesce'
-        ldf = sdf_lazy.join(oldf, on=join_on, how=pl_how)
+        ldf = sdf_lazy.join(oldf, on=join_on, how=pl_how, nulls_equal=nulls_equal)
         fc_right = '%s_right' % FORECAST_COLUMN
         meta = sm.copy()
         ldf_cols = set(ldf.collect_schema().keys())
