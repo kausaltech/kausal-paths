@@ -24,6 +24,7 @@ from .action import ActionNode
 
 if TYPE_CHECKING:
     from nodes.actions.params import ReduceFlow, ReduceTarget
+    from nodes.node import NodeMetric
     from nodes.units import Unit
     from params import Parameter
 
@@ -250,7 +251,7 @@ class DatasetReduceAction(ActionNode):
         goal_df = goal_df.rename({goal_df.metric_cols[0]: VALUE_COLUMN})
         return goal_df.with_columns(pl.lit(value=True).alias(FORECAST_COLUMN))
 
-    def compute_effect(self) -> ppl.PathsDataFrame:  # noqa: PLR0915
+    def compute_effect(self) -> ppl.PathsDataFrame:  # noqa: C901, PLR0915
         is_multi_metric = len(self.output_metrics) > 1
         result_df: ppl.PathsDataFrame | None = None
         max_hist_year: int | None = None
@@ -342,6 +343,204 @@ class DatasetReduceAction(ActionNode):
                 )
             df = df.ensure_unit(m.column_id, m.unit)
         # ensure_unit uses numpy which converts null→NaN; convert back to null
+        df = df.with_columns([pl.col(c).fill_nan(None) for c in df.metric_cols])
+        return df
+
+
+class DatasetReduceAction2(ActionNode):
+    """
+    Multi-metric action: interpolate each output metric from a historical baseline to a goal value.
+
+    Then returns the year-by-year delta (change from baseline).
+
+    Two source layouts are supported per metric:
+
+    * **Per-metric**: dataset/node tagged with both the data role and the metric id,
+      e.g. ``tags: [historical, renovation_rate]``.
+    * **Shared**: dataset/node tagged with only the data role, e.g. ``tags: [historical]``.
+      If the source has a column named after the metric it is extracted; otherwise the
+      single column is used as-is (e.g. a shared multiplier with ``relative_goal: true``).
+    """
+
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
+        BoolParameter(local_id='relative_goal'),
+    ]
+
+    # ------------------------------------------------------------------ helpers
+
+    @staticmethod
+    def _extract_col_as_value(df: ppl.PathsDataFrame, col: str) -> ppl.PathsDataFrame:
+        """Drop all metric columns except `col` and rename it to VALUE_COLUMN."""
+        key_cols = [c for c in df.columns if c not in df.metric_cols]
+        return df.select([*key_cols, col]).rename({col: VALUE_COLUMN})
+
+    @staticmethod
+    def _apply_forecast_filter(df: ppl.PathsDataFrame, *, is_forecast: bool) -> ppl.PathsDataFrame:
+        """Keep only rows matching `is_forecast`, then stamp the Forecast column."""
+        if FORECAST_COLUMN in df.columns:
+            df = df.filter(pl.col(FORECAST_COLUMN) if is_forecast else ~pl.col(FORECAST_COLUMN))
+        return df.with_columns(pl.lit(value=is_forecast).alias(FORECAST_COLUMN))
+
+    # ----------------------------------------------------------- source lookup
+
+    def _find_metric_source(self, metric_id: str, col: str, data_role: str) -> ppl.PathsDataFrame:
+        """
+        Return the raw source data for one metric with VALUE_COLUMN renamed but no Forecast filtering applied.
+
+        Lookup order:
+        1. Per-metric dataset  (tagged with data_role AND metric_id)
+        2. Per-metric edge     (tagged with data_role AND metric_id)
+        3. Shared dataset      (tagged with data_role only; col extracted if present)
+        4. Shared edge         (tagged with data_role only)
+        """
+        for ds in self.input_dataset_instances:
+            if data_role in ds.tags and metric_id in ds.tags:
+                df = ds.get_copy()
+                assert len(df.metric_cols) == 1
+                return df.rename({df.metric_cols[0]: VALUE_COLUMN})
+        for edge in self.edges:
+            if edge.output_node is self and data_role in edge.tags and metric_id in edge.tags:
+                df = edge.input_node.get_output_pl(target_node=self)
+                assert len(df.metric_cols) == 1
+                return df.rename({df.metric_cols[0]: VALUE_COLUMN})
+        for ds in self.input_dataset_instances:
+            if data_role in ds.tags and metric_id not in ds.tags:
+                df = ds.get_copy()
+                target_col = col if col in df.columns else df.metric_cols[0]
+                return self._extract_col_as_value(df, target_col)
+        for edge in self.edges:
+            if edge.output_node is self and data_role in edge.tags and metric_id not in edge.tags:
+                full_df = edge.input_node.get_output_pl(target_node=self)
+                target_col = col if col in full_df.columns else full_df.metric_cols[0]
+                return self._extract_col_as_value(full_df, target_col)
+        raise NodeError(self, "No %s data found for metric '%s'" % (data_role, metric_id))
+
+    # ---------------------------------------- per-metric pipeline steps
+
+    def _load_baseline(self, metric_id: str, col: str) -> ppl.PathsDataFrame:
+        """
+        Return the historical baseline for one metric at its natural max historical year.
+
+        Split is by Forecast column when present; otherwise all rows in the
+        historical-tagged source are treated as historical.  The max-year row
+        (per dimension category) becomes the baseline anchor.
+        """
+        df = self._find_metric_source(metric_id, col, 'historical')
+        df = self._apply_forecast_filter(df, is_forecast=False)
+        baseline_year_val = df[YEAR_COLUMN].max()
+        assert isinstance(baseline_year_val, int)
+        df = df.filter(pl.col(YEAR_COLUMN) == baseline_year_val).paths.cast_index_to_str()
+        return df
+
+    def _load_goal(self, metric_id: str, col: str, baseline_year: int) -> ppl.PathsDataFrame:
+        """
+        Return goal data for one metric, excluding years at or before baseline_year.
+
+        Split is by Forecast column when present; otherwise all rows in the
+        goal-tagged source are treated as goals.  The year guard prevents overlap
+        with the baseline row when both sources share rows at the same year.
+        """
+        gdf = self._find_metric_source(metric_id, col, 'goal')
+        gdf = self._apply_forecast_filter(gdf, is_forecast=True)
+        if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
+            raise NodeError(self, 'Dimension mismatch in goal data for metric %s' % metric_id)
+        gdf = gdf.paths.cast_index_to_str()
+        return gdf.filter(pl.col(YEAR_COLUMN) > baseline_year)
+
+    def _build_metric_delta(
+        self,
+        baseline: ppl.PathsDataFrame,
+        goal: ppl.PathsDataFrame,
+        metric: NodeMetric,
+    ) -> ppl.PathsDataFrame:
+        """
+        Interpolate from baseline to goal and return year-by-year deltas (forecast years only).
+
+        baseline: single-year snapshot at each metric's natural baseline year, Forecast=False
+        goal:     target values at future years, Forecast=True, year > baseline_year
+        """
+        # Restrict baseline to dimension categories present in goal
+        exprs = [pl.col(dim_id).is_in(goal[dim_id].unique()) for dim_id in goal.dim_ids]
+        if exprs:
+            baseline = baseline.filter(pl.all_horizontal(exprs))
+
+        # Expand relative goal (multiplier * baseline value) to absolute values
+        is_mult = self.get_parameter_value('relative_goal', required=False)
+        if is_mult:
+            goal = goal.rename({VALUE_COLUMN: 'Multiplier'})
+            hdf = baseline.drop(YEAR_COLUMN).rename({VALUE_COLUMN: 'HistoricalValue'})
+            goal = goal.paths.join_over_index(hdf, how='outer', index_from='union')
+            goal = goal.filter(~pl.col('HistoricalValue').is_null())
+            goal = goal.multiply_cols(['Multiplier', 'HistoricalValue'], VALUE_COLUMN, out_unit=metric.unit)
+            goal = goal.with_columns(pl.col(VALUE_COLUMN).fill_nan(None))
+            goal = goal.select_metrics([VALUE_COLUMN])
+
+        # Harmonize units, widen, concatenate baseline + goal years
+        baseline = baseline.ensure_unit(VALUE_COLUMN, metric.unit).paths.to_wide()
+        goal = goal.ensure_unit(VALUE_COLUMN, metric.unit).paths.to_wide()
+        meta = goal.get_meta()
+        baseline = baseline.with_columns(pl.col(YEAR_COLUMN).cast(pl.Int64))
+        goal = goal.with_columns(pl.col(YEAR_COLUMN).cast(pl.Int64))
+        df = ppl.to_ppdf(pl.concat([baseline, goal], how='diagonal'), meta=meta)
+
+        # Fill gaps in baseline rows (null → 0 for non-forecast anchor)
+        df = df.drop([m for m in df.metric_cols if df[m].is_null().all()])
+        df = df.with_columns([
+            pl.when(~pl.col(FORECAST_COLUMN)).then(pl.col(m).fill_null(0.0)).otherwise(pl.col(m)) for m in df.metric_cols
+        ])
+
+        # Fill every year, interpolate between known points, plateau past last goal year
+        df = df.paths.make_forecast_rows(end_year=self.get_end_year())
+        df = df.with_columns([pl.col(m).interpolate() for m in df.metric_cols])
+        df = df.with_columns([pl.col(m).fill_nan(None).forward_fill() for m in df.metric_cols])
+
+        # delta = value - baseline_value; pl.first() is the Forecast=False anchor row
+        delta_exprs = [pl.col(m) - pl.first(m) for m in df.metric_cols]
+        df = df.select([YEAR_COLUMN, FORECAST_COLUMN, *delta_exprs])
+        df = df.filter(pl.col(YEAR_COLUMN).le(self.get_end_year()))
+        return df.paths.to_narrow()
+
+    # ------------------------------------------------------- main entry point
+
+    def compute_effect(self) -> ppl.PathsDataFrame:
+        is_multi_metric = len(self.output_metrics) > 1
+        result_df: ppl.PathsDataFrame | None = None
+
+        for metric_id, metric in self.output_metrics.items():
+            col = metric.column_id
+            baseline = self._load_baseline(metric_id, col)
+            baseline_year_val = baseline[YEAR_COLUMN].max()
+            assert isinstance(baseline_year_val, int)
+            goal = self._load_goal(metric_id, col, baseline_year_val)
+            df = self._build_metric_delta(baseline, goal, metric)
+            if is_multi_metric:
+                df = df.rename({VALUE_COLUMN: col})
+
+            result_df = df if result_df is None else result_df.paths.join_over_index(df, how='outer', index_from='union')
+
+        assert result_df is not None
+        df = result_df
+
+        # Drop rows with null dimension categories — arises when metrics have different
+        # dimensional spans and join_over_index fills missing combos with null.
+        for dim_id in df.dim_ids:
+            if df[dim_id].null_count() > 0:
+                df = ppl.to_ppdf(df.filter(pl.col(dim_id).is_not_null()), meta=df.get_meta())
+
+        for m in self.output_metrics.values():
+            if m.column_id not in df.metric_cols:
+                raise NodeError(self, "Metric column '%s' not found in output" % m.column_id)
+            if not self.is_enabled():
+                df = df.with_columns(
+                    pl
+                    .when(pl.col(m.column_id).is_null() | pl.col(m.column_id).is_nan())
+                    .then(None)
+                    .otherwise(0.0)
+                    .alias(m.column_id)
+                )
+            df = df.ensure_unit(m.column_id, m.unit)
+
+        # ensure_unit uses numpy which converts null → NaN; restore nulls
         df = df.with_columns([pl.col(c).fill_nan(None) for c in df.metric_cols])
         return df
 
