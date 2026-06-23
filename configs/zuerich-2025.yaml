@@ -321,7 +321,7 @@ emission_sectors:
         groups: [indirect]
     values:
     - year: 2040
-      value: 6.7
+      value: 7.0
     is_main_goal: true
   is_outcome: true
 
