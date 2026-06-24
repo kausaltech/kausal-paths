@@ -4,7 +4,7 @@ default_language: en
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: bd133fd92fb4189cee08cad276a1bd4e82ba3ccd
+  commit: 96e8ebba885da2cd10ff7b3232b1811ef654eb00
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -29,7 +29,7 @@ features:
 
 result_excels:
 - base_excel_url: 
-    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+    https://docs.google.com/spreadsheets/d/1qJuinNK-LfwniqNZ8mshEQyai6VOCvMS/export?format=xlsx
   name: Climate City Contract Tables
   node_ids:
   - population
@@ -65,17 +65,11 @@ result_excels:
   - a141_electrification_of_passenger_cars
   - a142_electrification_of_buses
   - a21_optimised_logistics
-  # - a211_improve_utilisation_of_trucks  # FIXME Fix the excel accordingly - make a copy
-  # - a212_route_optimisation
   - a22_truck_fleet_electrification
   - a31_renovation_improvements
   - a32_new_building_improvements
   - a33_do_efficient_appliances
   - a34_decarbonising_heat_generation
-  # - a341_heating_technology_improvement
-  # - a342_heating_energy_improvement
-  # - a343_change_heating_fossil_share
-  # - a344_top_performance_improvement
   - a41_replace_fossil_electricity
   - a51_increase_waste_recycling
   - a61_reduced_co2_emissions_in_other_sectors
@@ -1571,13 +1565,10 @@ actions:
 - id: a34_decarbonising_heat_generation  # TODO Add 20 a lifetime
   name: 3.4 Decarbonising heating generation
   name_fi: 3.4 Lämmöntuotannon vähähiilistäminen
-  description: 3.4.1 Increase district heating
-    Switch from local to district heating.
-    3.4.2 Increase low-emission heating
-    Improve the fuel shares of local and district heating.
-    3.4.3 Reduce fossil waste in heating
-    3.4.4 Top performance standard improvement compared with the regular new
-    buildings  # 3.4.3: Example city has 0 % waste, so there is no impact
+  description: 3.4.1 Increase district heating Switch from local to district 
+    heating. 3.4.2 Increase low-emission heating Improve the fuel shares of 
+    local and district heating. 3.4.3 Reduce fossil waste in heating 3.4.4 Top 
+    performance standard improvement compared with the regular new buildings # 3.4.3: Example city has 0 % waste, so there is no impact
   type: linear.DatasetReduceAction2
   input_dimensions: [energy_carrier, heating_type, fuel_type]
   output_dimensions: [energy_carrier, heating_type, fuel_type]
@@ -7167,7 +7158,8 @@ nodes:
   - id: waste_recycling_future_baseline_shares
     tags: [goals]
   params:
-    formula: bring_to_reference_year(extend_all(inventory_only(baseline) + goals))
+    formula: bring_to_reference_year(extend_all(inventory_only(baseline) + 
+      goals))
 
 - id: waste_recycling_shares_goal
   name_en: Waste recycling shares goal
