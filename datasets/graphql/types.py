@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from nodes.defs.binding_def import DatasetPortBindingDef
     from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
+    from nodes.metric import DimensionalMetric
 
 
 @sb.type(name='DatasetDimensionCategory')
@@ -296,6 +297,15 @@ class DatasetType:
             return root.identifier or ''
         return root._model.schema.name_i18n or root.identifier or ''
 
+    @sb.field(description='Default or effective first forecast year for this dataset.')
+    @staticmethod
+    def forecast_from(root: 'DatasetType') -> int | None:
+        if root._forecast_from is not None:
+            return root._forecast_from
+        if root._model is None:
+            return None
+        return (root._model.spec or {}).get('forecast_from')
+
     @sb.field
     @staticmethod
     def dimensions(root: 'DatasetType') -> list[DatasetDimensionType]:
@@ -359,31 +369,17 @@ class DatasetType:
 
     @sb.field(graphql_type=list[Annotated['DimensionalMetricType', sb.lazy('nodes.graphql.types.metric')]])
     @staticmethod
-    def data(root: 'DatasetType') -> list[Any]:
+    def data(root: 'DatasetType') -> list['DimensionalMetric']:
         """Load the full dataset as DimensionalMetric objects (one per metric column)."""
         if root._model is None:
             return []
-        from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
         from nodes.datasets import DBDataset
 
         df = DBDataset.deserialize_df(root._model)
 
-        if FORECAST_COLUMN not in df.columns and root._forecast_from is not None:
-            import polars as pl
-
-            from common import polars as ppl
-
-            df = df.with_columns(
-                pl
-                .when(pl.col(YEAR_COLUMN) >= root._forecast_from)
-                .then(pl.lit(value=True))
-                .otherwise(pl.lit(value=False))
-                .alias(FORECAST_COLUMN),
-            )
-            df = ppl.to_ppdf(df, meta=df.get_meta())
-
+        forecast_from = DatasetType.forecast_from(root)
         meta = df.get_meta()
-        results: list[Any] = []
+        results: list['DimensionalMetric'] = []
         from nodes.metric_gen import metric_from_dataframe_standalone
 
         for col in meta.metric_cols:
@@ -394,13 +390,14 @@ class DatasetType:
                     metric_col=col,
                     metric_id=f'{ds_id}:{col}',
                     metric_name=col,
+                    forecast_from=forecast_from,
                 )
             )
         return results
 
     @sb.field(graphql_type=list[Annotated['DatasetPortType', sb.lazy('nodes.graphql.types.graph')]])
     @staticmethod
-    def port_bindings(root: 'DatasetType') -> list[Any]:
+    def port_bindings(root: 'DatasetType') -> list['DatasetPortType']:
         """Discover which node ports use this dataset."""
         from nodes.graphql.types.graph import DatasetPortType, NodePortRef
         from nodes.models import DatasetPort
@@ -436,6 +433,7 @@ class DatasetType:
             created_by=dataset.created_by,
         )
         obj._model = dataset
+        obj._forecast_from = (dataset.spec or {}).get('forecast_from')
         return obj
 
     @classmethod
@@ -447,7 +445,10 @@ class DatasetType:
             return None
         model = DatasetModel.objects.filter(uuid=binding.dataset_uuid).select_related('schema').first()
         if model is not None:
-            return cls.from_model(model)
+            obj = cls.from_model(model)
+            if binding.forecast_from is not None:
+                obj._forecast_from = binding.forecast_from
+            return obj
         # Fallback: construct without model (dimensions/data will be empty)
         return cls(
             id=sb.ID(str(binding.dataset_uuid)),

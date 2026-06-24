@@ -822,6 +822,128 @@ def _apply_update_node_input(
 
 
 @sb.type
+class NodeEditorMutation:
+    instance: sb.Private[InstanceConfig]
+    node: sb.Private[NodeConfig]
+    type Me = NodeEditorMutation
+
+    @gql.mutation(description='Update this node', graphql_type=AnyNodeType)
+    @staticmethod
+    def update(info: gql.Info, root: sb.Parent[Me], input: UpdateNodeInput) -> Node:
+        from nodes.change_ops import gql_change_operation, record_change
+
+        nc = root.node
+        with gql_change_operation(info, root.instance, action='node.update'):
+            before = nc.serializable_data()
+
+            spec = nc.spec
+            updates: dict[str, object] = {}
+            assert spec is not None
+            _apply_update_node_input(info, nc, spec, input, updates)
+            nc.spec = spec
+            updates['spec'] = spec
+            NodeConfig.objects.filter(pk=nc.pk).update(**updates)
+            # QuerySet.update() bypasses the instance; refresh so snapshot_data()
+            # reflects the committed state.
+            nc.refresh_from_db()
+            record_change(nc, action='node.update', before=before, after=nc.serializable_data())
+
+        return _resolve_runtime_node(nc.instance, nc.pk)
+
+    @gql.mutation(description='Delete this node')
+    @staticmethod
+    def delete(info: gql.Info, root: sb.Parent[Me]) -> None:
+        from django.db.models import Q
+
+        from nodes.change_ops import gql_change_operation, record_change
+        from nodes.models import DatasetPort, NodeEdge
+
+        nc = root.node
+        with gql_change_operation(info, root.instance, action='node.delete'):
+            # Log cascade-delete entries BEFORE the DB CASCADE wipes the rows,
+            # while pks are still valid. After the ``nc.delete()`` call below,
+            # only the IMLE rows carry the pre-state.
+            affected_edges = list(
+                NodeEdge.objects.filter(Q(from_node=nc) | Q(to_node=nc)).select_related('from_node', 'to_node'),
+            )
+            for edge in affected_edges:
+                record_change(
+                    edge,
+                    action='node.edges.delete',
+                    before=edge.serializable_data(),
+                    after=None,
+                )
+
+            affected_ports = list(
+                DatasetPort.objects.filter(node=nc).select_related('node', 'dataset', 'metric'),
+            )
+            for port in affected_ports:
+                record_change(
+                    port,
+                    action='node.dataset_ports.delete',
+                    before=port.serializable_data(),
+                    after=None,
+                )
+
+            record_change(
+                nc,
+                action='node.delete',
+                before=nc.serializable_data(),
+                after=None,
+            )
+
+            nc.delete()
+
+    @gql.mutation(description='Append a new input port to this node', graphql_type=InputPortType)
+    @staticmethod
+    def add_input_port(info: gql.Info, root: sb.Parent[Me], input: InputPortInput) -> InputPortDef:
+        from uuid import uuid4
+
+        from nodes.change_ops import gql_change_operation, record_change
+
+        nc = root.node
+        if nc.spec is None:
+            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
+
+        new_port = _input_port_to_def(nc.identifier, len(nc.spec.input_ports), input)
+        if input.id is None:
+            new_port = new_port.model_copy(update={'id': uuid4()})
+
+        with gql_change_operation(info, root.instance, action='node.input_ports.create'):
+            before = nc.serializable_data()
+            nc.spec.input_ports = [*nc.spec.input_ports, new_port]
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
+            nc.refresh_from_db()
+            record_change(nc, action='node.input_ports.create', before=before, after=nc.serializable_data())
+
+        return new_port
+
+    @gql.mutation(description='Append a new output port to this node', graphql_type=OutputPortType)
+    @staticmethod
+    def add_output_port(info: gql.Info, root: sb.Parent[Me], input: OutputPortInput) -> OutputPortDef:
+        from uuid import uuid4
+
+        from nodes.change_ops import gql_change_operation, record_change
+
+        nc = root.node
+        if nc.spec is None:
+            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
+
+        new_port = _output_port_to_def(nc.identifier, len(nc.spec.output_ports), input)
+        if input.id is None:
+            new_port = new_port.model_copy(update={'id': uuid4()})
+
+        with gql_change_operation(info, root.instance, action='node.output_ports.create'):
+            before = nc.serializable_data()
+            nc.spec.output_ports = [*nc.spec.output_ports, new_port]
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
+            nc.refresh_from_db()
+            record_change(nc, action='node.output_ports.create', before=before, after=nc.serializable_data())
+
+        return new_port
+
+
+@sb.type
 class InstanceEditorMutation:
     instance: sb.Private[InstanceConfig]
     type Me = InstanceEditorMutation
@@ -888,76 +1010,33 @@ class InstanceEditorMutation:
 
         return _resolve_runtime_node(ic, nc.pk)
 
-    @gql.mutation(description='Update an existing node', graphql_type=AnyNodeType)
+    @gql.mutation(
+        description='Update an existing node',
+        graphql_type=AnyNodeType,
+        deprecation_reason='Use instanceEditor.nodeEditor(nodeId).update instead.',
+    )
     @staticmethod
     def update_node(info: gql.Info, root: sb.Parent[Me], node_id: sb.ID, input: UpdateNodeInput) -> Node:
-        from nodes.change_ops import gql_change_operation, record_change
-
         ic = root.instance
-        nc = InstanceEditorMutation._lookup_node(info, ic, node_id)
+        editor = NodeEditorMutation(instance=ic, node=InstanceEditorMutation._lookup_node(info, ic, node_id))
+        return NodeEditorMutation.update(info, editor, input)
 
-        with gql_change_operation(info, ic, action='node.update'):
-            before = nc.serializable_data()
-
-            spec = nc.spec
-            updates: dict[str, object] = {}
-            assert spec is not None
-            _apply_update_node_input(info, nc, spec, input, updates)
-            nc.spec = spec
-            updates['spec'] = spec
-            NodeConfig.objects.filter(pk=nc.pk).update(**updates)
-            # QuerySet.update() bypasses the instance; refresh so snapshot_data()
-            # reflects the committed state.
-            nc.refresh_from_db()
-            record_change(nc, action='node.update', before=before, after=nc.serializable_data())
-
-        return _resolve_runtime_node(nc.instance, nc.pk)
-
-    @gql.mutation(description='Delete a node and its edges')
+    @gql.mutation(
+        description='Delete a node and its edges',
+        deprecation_reason='Use instanceEditor.nodeEditor(nodeId).delete instead.',
+    )
     @staticmethod
     def delete_node(root: sb.Parent[Me], info: gql.Info, node_id: sb.ID) -> None:
-        from django.db.models import Q
-
-        from nodes.change_ops import gql_change_operation, record_change
-        from nodes.models import DatasetPort, NodeEdge
-
         ic = root.instance
-        nc = InstanceEditorMutation._lookup_node(info, ic, node_id)
+        editor = NodeEditorMutation(instance=ic, node=InstanceEditorMutation._lookup_node(info, ic, node_id))
+        NodeEditorMutation.delete(info, editor)
 
-        with gql_change_operation(info, ic, action='node.delete'):
-            # Log cascade-delete entries BEFORE the DB CASCADE wipes the rows,
-            # while pks are still valid. After the ``nc.delete()`` call below,
-            # only the IMLE rows carry the pre-state.
-            affected_edges = list(
-                NodeEdge.objects.filter(Q(from_node=nc) | Q(to_node=nc)).select_related('from_node', 'to_node'),
-            )
-            for edge in affected_edges:
-                record_change(
-                    edge,
-                    action='node.edges.delete',
-                    before=edge.serializable_data(),
-                    after=None,
-                )
-
-            affected_ports = list(
-                DatasetPort.objects.filter(node=nc).select_related('node', 'dataset', 'metric'),
-            )
-            for port in affected_ports:
-                record_change(
-                    port,
-                    action='node.dataset_ports.delete',
-                    before=port.serializable_data(),
-                    after=None,
-                )
-
-            record_change(
-                nc,
-                action='node.delete',
-                before=nc.serializable_data(),
-                after=None,
-            )
-
-            nc.delete()
+    @sb.field(description='Edit a node that belongs to this instance')
+    @staticmethod
+    def node_editor(info: gql.Info, root: sb.Parent[Me], node_id: sb.ID) -> NodeEditorMutation:
+        ic = root.instance
+        nc = InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True)
+        return NodeEditorMutation(instance=ic, node=nc)
 
     @sb.field(description='Edit a DB-backed dataset that belongs to this instance')
     @staticmethod
@@ -1060,7 +1139,11 @@ class InstanceEditorMutation:
             raise NotFoundError(info, f'Node "{node_id}" not found in instance "{ic.identifier}"')
         return nc
 
-    @gql.mutation(description='Append a new input port to a node', graphql_type=InputPortType)
+    @gql.mutation(
+        description='Append a new input port to a node',
+        graphql_type=InputPortType,
+        deprecation_reason='Use instanceEditor.nodeEditor(nodeId).addInputPort instead.',
+    )
     @staticmethod
     def add_node_input_port(
         info: gql.Info,
@@ -1068,32 +1151,18 @@ class InstanceEditorMutation:
         node_id: sb.ID,
         input: InputPortInput,
     ) -> InputPortDef:
-        from uuid import uuid4
-
-        from nodes.change_ops import gql_change_operation, record_change
-
         ic = root.instance
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
-        nc = InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True)
-        if nc.spec is None:
-            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
+        editor = NodeEditorMutation(instance=ic, node=InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True))
+        return NodeEditorMutation.add_input_port(info, editor, input)
 
-        new_port = _input_port_to_def(nc.identifier, len(nc.spec.input_ports), input)
-        if input.id is None:
-            new_port = new_port.model_copy(update={'id': uuid4()})
-
-        with gql_change_operation(info, ic, action='node.input_ports.create'):
-            before = nc.serializable_data()
-            nc.spec.input_ports = [*nc.spec.input_ports, new_port]
-            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
-            nc.refresh_from_db()
-            record_change(nc, action='node.input_ports.create', before=before, after=nc.serializable_data())
-
-        return new_port
-
-    @gql.mutation(description='Append a new output port to a node', graphql_type=OutputPortType)
+    @gql.mutation(
+        description='Append a new output port to a node',
+        graphql_type=OutputPortType,
+        deprecation_reason='Use instanceEditor.nodeEditor(nodeId).addOutputPort instead.',
+    )
     @staticmethod
     def add_node_output_port(
         info: gql.Info,
@@ -1101,30 +1170,12 @@ class InstanceEditorMutation:
         node_id: sb.ID,
         input: OutputPortInput,
     ) -> OutputPortDef:
-        from uuid import uuid4
-
-        from nodes.change_ops import gql_change_operation, record_change
-
         ic = root.instance
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
-        nc = InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True)
-        if nc.spec is None:
-            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
-
-        new_port = _output_port_to_def(nc.identifier, len(nc.spec.output_ports), input)
-        if input.id is None:
-            new_port = new_port.model_copy(update={'id': uuid4()})
-
-        with gql_change_operation(info, ic, action='node.output_ports.create'):
-            before = nc.serializable_data()
-            nc.spec.output_ports = [*nc.spec.output_ports, new_port]
-            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
-            nc.refresh_from_db()
-            record_change(nc, action='node.output_ports.create', before=before, after=nc.serializable_data())
-
-        return new_port
+        editor = NodeEditorMutation(instance=ic, node=InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True))
+        return NodeEditorMutation.add_output_port(info, editor, input)
 
     # -- Dimension mutations --------------------------------------------------
 

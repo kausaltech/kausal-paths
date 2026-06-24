@@ -1171,10 +1171,13 @@ class DBDataset(DatasetWithFilters):
 
     @classmethod
     def from_def(cls, ds_def: InputDatasetDef, context: Context, db_dataset_obj: DBDatasetModel) -> Self:
+        kwargs = super().kwargs_from_def(ds_def)
+        if kwargs['forecast_from'] is None:
+            kwargs['forecast_from'] = (db_dataset_obj.spec or {}).get('forecast_from')
         return cls(
             id=ds_def.id,
             context=context,
-            **super().kwargs_from_def(ds_def),
+            **kwargs,
             db_dataset_obj=db_dataset_obj,
         )
 
@@ -1186,7 +1189,11 @@ class DBDataset(DatasetWithFilters):
         ds_obj = self.db_dataset_obj
         if ds_obj is None:
             raise Exception('Admin dataset not loaded')
-        df = self.deserialize_df(ds_obj)
+        df = self.context.db_dataset_dfs.get(ds_obj.pk)
+        if df is None:
+            df = self.deserialize_df(ds_obj)
+            self.context.db_dataset_dfs[ds_obj.pk] = df
+        df = df.copy()
         df = self._filter_and_process_df(df)
         df = self.post_process(df)
         self.df = df

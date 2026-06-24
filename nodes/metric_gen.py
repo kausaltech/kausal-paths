@@ -745,6 +745,7 @@ def metric_from_dataframe_standalone(
     *,
     metric_id: str,
     metric_name: str,
+    forecast_from: int | None = None,
 ) -> DimensionalMetric:
     """Build a DimensionalMetric without a Context (uses raw DataFrame column values for dimensions)."""
     unit = df.get_unit(metric_col)
@@ -765,9 +766,10 @@ def metric_from_dataframe_standalone(
     jdf = idx_df.join(val_df, how='left', on=idx_exprs, validate='1:1')
     vals: list[float] = jdf[VALUE_COLUMN].fill_null(0).to_list()
 
-    forecast_from = df.filter(pl.col(FORECAST_COLUMN))[YEAR_COLUMN].min()
-    if forecast_from is not None:
-        assert isinstance(forecast_from, int)
+    if forecast_from is None:
+        forecast_from = df.filter(pl.col(FORECAST_COLUMN))[YEAR_COLUMN].min()
+        if forecast_from is not None:
+            assert isinstance(forecast_from, int)
 
     return DimensionalMetric(
         id=metric_id,

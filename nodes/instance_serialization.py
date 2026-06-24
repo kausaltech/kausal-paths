@@ -180,6 +180,7 @@ class DatasetSnapshot(ModelSnapshot):
     schema_version: int = 1
     identifier: str | None = None
     name: TranslatedString | None = None
+    forecast_from: int | None = None
     is_external_placeholder: bool = False
     external_ref: dict[str, Any] | None = None
     time_resolution: str = 'yearly'
@@ -246,6 +247,7 @@ class DatasetSnapshot(ModelSnapshot):
         return cls(
             identifier=obj.identifier,
             name=name_ts,
+            forecast_from=(obj.spec or {}).get('forecast_from'),
             is_external_placeholder=obj.is_external_placeholder,
             external_ref=obj.external_ref,
             time_resolution=time_resolution,
@@ -717,6 +719,7 @@ def _import_dataset(
     # Create dataset
     dataset = DatasetModel(
         identifier=ds_snapshot.identifier,
+        spec={'forecast_from': ds_snapshot.forecast_from} if ds_snapshot.forecast_from is not None else {},
         is_external_placeholder=ds_snapshot.is_external_placeholder,
         external_ref=ds_snapshot.external_ref,
         scope_content_type=ic_ct,

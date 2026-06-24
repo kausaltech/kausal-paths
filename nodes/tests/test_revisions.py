@@ -538,6 +538,25 @@ def test_dataset_serializable_data_bridges_to_paths():
     assert 'data' in data
 
 
+def test_dataset_serializable_data_includes_forecast_from():
+    from kausal_common.datasets.tests.factories import DatasetFactory
+
+    from nodes.instance_serialization import DatasetSnapshot, _import_dataset
+    from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
+
+    source = InstanceConfigFactory.create(instance=InstanceFactory.create(), config_source='database')
+    target = InstanceConfigFactory.create(instance=InstanceFactory.create(), config_source='database')
+    ds = DatasetFactory.create(scope=source, identifier='forecasted', spec={'forecast_from': 2025})
+
+    snap = DatasetSnapshot.from_model_for_instance(ds, source)
+    assert snap.forecast_from == 2025
+
+    from django.contrib.contenttypes.models import ContentType
+
+    copied = _import_dataset(target, snap, ContentType.objects.get_for_model(target), {})
+    assert copied.spec == {'forecast_from': 2025}
+
+
 def test_dataset_save_revision_updates_latest_revision():
     from kausal_common.datasets.tests.factories import DatasetFactory
 

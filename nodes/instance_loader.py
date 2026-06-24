@@ -567,7 +567,23 @@ class InstanceLoader:
             datasets.append(fds)
         return datasets
 
-    def _make_node_params(self, config: dict[str, Any], node: Node) -> None:  # noqa: C901, PLR0912
+    def _init_failure(self, node: Node, msg: str, *, cause: Exception | None = None) -> None:
+        """
+        Handle a node init-phase (construction) failure.
+
+        In tolerant (draft) mode, record the failure on the node and return so the caller can
+        skip the offending piece and keep loading the rest of the graph. Otherwise raise a
+        structured ``NodeError``. See ``docs/architecture/fault-tolerance.md``.
+        """
+        from nodes.node import NodeErrorPhase, NodeStatus, NodeStatusError
+
+        if self.context.tolerate_node_failures:
+            node.mark_status(NodeStatus.FAILED, NodeStatusError(phase=NodeErrorPhase.INITIALIZATION, message=msg))
+            self.logger.warning('Node %s failed to initialize: %s' % (node.id, msg))
+            return
+        raise NodeError(node, msg) from cause
+
+    def _make_node_params(self, config: dict[str, Any], node: Node) -> None:  # noqa: C901, PLR0912, PLR0915
         from params.base import Parameter
         from params.param import ReferenceParameter
 
@@ -584,7 +600,8 @@ class InstanceLoader:
 
             param_obj = class_allowed_params.get(param_id)
             if param_obj is None:
-                raise NodeError(node, 'Parameter %s not allowed by node class' % param_id)
+                self._init_failure(node, 'Parameter %s not allowed by node class' % param_id)
+                continue
             param_class = type(param_obj)
 
             label = make_trans_string(pc, 'label', pop=True, required=False) or param_obj.label
@@ -597,10 +614,11 @@ class InstanceLoader:
             if ref is not None:
                 target = self.context.global_parameters.get(ref)
                 if target is None:
-                    raise NodeError(node, 'Parameter %s refers to an unknown global parameter: %s' % (param_id, ref))
+                    self._init_failure(node, 'Parameter %s refers to an unknown global parameter: %s' % (param_id, ref))
+                    continue
 
                 if not isinstance(target, param_class):
-                    raise NodeError(
+                    self._init_failure(
                         node,
                         'Node requires parameter of type %s, but referenced parameter %s is %s'
                         % (
@@ -609,6 +627,7 @@ class InstanceLoader:
                             type(target),
                         ),
                     )
+                    continue
                 ref_param = ReferenceParameter(
                     local_id=param_obj.local_id,
                     label=param_obj.label,
@@ -639,13 +658,18 @@ class InstanceLoader:
             try:
                 if value is not None:
                     param.value = param.clean(value)
-            except:
-                self.instance.log.error('Error setting parameter %s for node %s' % (param.local_id, node.id))
-                raise
+            except Exception as e:
+                self._init_failure(node, 'Error setting parameter %s: %s' % (param.local_id, e), cause=e)
+                continue
 
             for scenario_id, value in scenario_values.items():
+                try:
+                    cleaned = param.clean(value)
+                except Exception as e:
+                    self._init_failure(node, 'Invalid scenario value for parameter %s: %s' % (param.local_id, e), cause=e)
+                    continue
                 sv = self._scenario_values.setdefault(scenario_id, list())
-                sv.append((param, param.clean(value)))
+                sv.append((param, cleaned))
 
     def _make_node_visualizations(self, node: Node, config: list[dict[str, Any]]) -> None:
         from nodes.visualizations import NodeVisualizations
@@ -654,7 +678,8 @@ class InstanceLoader:
         try:
             node.visualizations = NodeVisualizations.model_validate(config, context=ctx)
         except Exception as e:
-            raise NodeError(node, 'Error validating visualizations') from e
+            # Tolerant mode leaves visualizations at their default (a node without viz config is fine).
+            self._init_failure(node, 'Error validating visualizations: %s' % e, cause=e)
 
     def make_node(  # noqa: C901, PLR0912, PLR0915
         self, node_class: type[Node], config: dict[str, Any], _yaml_lc: LineCol | None = None
@@ -741,10 +766,10 @@ class InstanceLoader:
         if isinstance(tags, str):
             tags = [tags]
         if tags:
-            for tag in tags:
-                if not isinstance(tag, str):
-                    raise NodeError(node, "'tags' must be a list of strings")
-            node.tags.update(tags)
+            if all(isinstance(tag, str) for tag in tags):
+                node.tags.update(tags)
+            else:
+                self._init_failure(node, "'tags' must be a list of strings")
 
         viz_config = config.get('visualizations')
         if viz_config:
@@ -900,17 +925,16 @@ class InstanceLoader:
                         node.decision_level = val
                         break
                 else:
-                    raise Exception('Invalid decision level for action %s: %s' % (nc['id'], decision_level))
+                    self._init_failure(node, 'Invalid decision level: %s' % decision_level)
 
             ag_id = nc.get('group', None)
             if ag_id is not None:
                 assert isinstance(ag_id, str)
-                for ag in self.instance.action_groups:
-                    if ag.id == ag_id:
-                        break
+                ag = next((ag for ag in self.instance.action_groups if ag.id == ag_id), None)
+                if ag is None:
+                    self._init_failure(node, "Action group '%s' not found" % ag_id)
                 else:
-                    raise Exception("Action group '%s' not found for action %s" % (ag_id, nc['id']))
-                node.group = ag
+                    node.group = ag
 
             parent_id = nc.get('parent', None)
             if parent_id is not None:
@@ -924,19 +948,21 @@ class InstanceLoader:
 
         ctx = self.context
         for node in ctx.nodes.values():
-            try:
-                for ec in self._output_nodes.get(node.id, []):
+            for ec in self._output_nodes.get(node.id, []):
+                try:
                     edge = Edge.from_config(ec, node=node, is_output=True, context=ctx)
                     node.add_edge(edge)
                     edge.output_node.add_edge(edge)
+                except Exception as e:
+                    self._init_failure(node, 'Invalid output edge: %s' % e, cause=e)
 
-                for ec in self._input_nodes.get(node.id, []):
+            for ec in self._input_nodes.get(node.id, []):
+                try:
                     edge = Edge.from_config(ec, node=node, is_output=False, context=ctx)
                     node.add_edge(edge)
                     edge.input_node.add_edge(edge)
-            except Exception:
-                self.logger.error('Error setting up edges for node %s' % node)
-                raise
+                except Exception as e:
+                    self._init_failure(node, 'Invalid input edge: %s' % e, cause=e)
 
     def _setup_subactions(self) -> None:
         from nodes.actions.action import ActionNode
@@ -946,9 +972,15 @@ class InstanceLoader:
         for parent_id, subs in self._subactions.items():
             parent = ctx.nodes.get(parent_id)
             if parent is None:
-                raise Exception("Action parent '%s' not found" % parent_id)
+                # No parent node to attribute to; record on each subaction that references it.
+                for sub_id in subs:
+                    sub = ctx.nodes.get(sub_id)
+                    if sub is not None:
+                        self._init_failure(sub, "Parent action '%s' not found" % parent_id)
+                continue
             if not isinstance(parent, ParentActionNode):
-                raise TypeError("Action '%s' is marked as a parent but is not a ParentActionNode" % parent_id)
+                self._init_failure(parent, "Action '%s' is marked as a parent but is not a ParentActionNode" % parent_id)
+                continue
             for sub_id in subs:
                 node = ctx.get_node(sub_id)
                 assert isinstance(node, ActionNode)
@@ -1156,13 +1188,24 @@ class InstanceLoader:
         )
 
     @classmethod
-    def from_yaml(cls, filename: Path, fw_config: FrameworkConfig | None = None) -> Self:
+    def from_yaml(
+        cls,
+        filename: Path,
+        fw_config: FrameworkConfig | None = None,
+        tolerate_node_failures: bool = False,
+    ) -> Self:
         yaml_fn = filename.resolve()
         yaml_conf = InstanceYAMLConfig.load_for_entrypoint(yaml_fn)
 
         data = yaml_conf.data
         assert data is not None
-        return cls(config=data, yaml_file_path=yaml_fn, fw_config=fw_config, config_mtime_hash=yaml_conf.meta.mtime_hash)
+        return cls(
+            config=data,
+            yaml_file_path=yaml_fn,
+            fw_config=fw_config,
+            config_mtime_hash=yaml_conf.meta.mtime_hash,
+            tolerate_node_failures=tolerate_node_failures,
+        )
 
     def __init__(
         self,
@@ -1170,6 +1213,7 @@ class InstanceLoader:
         yaml_file_path: Path | None = None,
         fw_config: FrameworkConfig | None = None,
         config_mtime_hash: str | None = None,
+        tolerate_node_failures: bool = False,
     ):
         from .units import add_unit_translations
 
@@ -1177,6 +1221,7 @@ class InstanceLoader:
         self.yaml_file_path = yaml_file_path.absolute() if yaml_file_path else None
         self.config = config
         self.fw_config = fw_config
+        self.tolerate_node_failures = tolerate_node_failures
         self.default_language = config['default_language']
         self.other_languages = config.get('supported_languages', [])
         self.config_mtime_hash = config_mtime_hash
@@ -1301,6 +1346,9 @@ class InstanceLoader:
                 sample_size=sample_size,
             )
         self.instance.set_context(self.context)
+        # Make the fault-tolerance flag available throughout construction (setup_nodes/edges),
+        # not just at compute time. See docs/architecture/fault-tolerance.md.
+        self.context.tolerate_node_failures = self.tolerate_node_failures
 
         # Store input and output node configs for each created node, to be used in setup_edges().
         self._input_nodes = {}

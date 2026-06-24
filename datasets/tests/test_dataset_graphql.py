@@ -96,6 +96,7 @@ query InstanceDatasets($instanceId: ID!) {
         editor {
             datasets {
                 id
+                forecastFrom
                 metrics {
                     id
                     name
@@ -108,6 +109,22 @@ query InstanceDatasets($instanceId: ID!) {
                     value
                     metric { id name }
                     dimensionCategories { uuid label }
+                }
+            }
+        }
+    }
+}
+"""
+
+
+DATASET_DATA = """
+query DatasetData($instanceId: ID!) {
+    modelInstance(instanceId: $instanceId) {
+        editor {
+            datasets {
+                id
+                data {
+                    forecastFrom
                 }
             }
         }
@@ -327,6 +344,43 @@ def test_dataset_metrics_include_sibling_ids(gql_client: PathsTestClient, datase
     assert metrics[1]['nextSibling'] == str(third_metric.uuid)
     assert metrics[2]['previousSibling'] == str(second_metric.uuid)
     assert metrics[2]['nextSibling'] is None
+
+
+def test_dataset_forecast_from(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, _metric, _category = dataset_setup
+    dataset.spec = {'forecast_from': 2025}
+    dataset.save(update_fields=['spec'])
+
+    data = gql_client.query_data(
+        INSTANCE_DATASETS,
+        variables={'instanceId': str(instance_config.pk)},
+    )
+
+    datasets = data['modelInstance']['editor']['datasets']
+    result = next(item for item in datasets if item['id'] == str(dataset.uuid))
+    assert result['forecastFrom'] == 2025
+
+
+def test_dataset_data_uses_dataset_forecast_from(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    dataset.spec = {'forecast_from': 2025}
+    dataset.save(update_fields=['spec'])
+    DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        date=date(2024, 1, 1),
+        value=Decimal('42.5'),
+        dimension_categories=[category],
+    )
+
+    data = gql_client.query_data(
+        DATASET_DATA,
+        variables={'instanceId': str(instance_config.pk)},
+    )
+
+    datasets = data['modelInstance']['editor']['datasets']
+    result = next(item for item in datasets if item['id'] == str(dataset.uuid))
+    assert result['data'][0]['forecastFrom'] == 2025
 
 
 def test_dataset_data_points_include_dimension_categories(gql_client: PathsTestClient, dataset_setup):
