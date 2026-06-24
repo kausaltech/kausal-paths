@@ -1535,6 +1535,47 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
     assert filter_def.value == 'multi_metric_action'
 
 
+def test_dataset_ports_rebuild_uses_dataset_forecast_default(db_instance_config: InstanceConfig):
+    from nodes.models import DatasetPort
+
+    assert db_instance_config.spec is not None
+    db_instance_config.spec.features.use_datasets_from_db = True
+    db_instance_config.save(update_fields=['spec'])
+
+    dataset = DatasetFactory.create(identifier='forecast_default_dataset', scope=db_instance_config, spec={'forecast_from': 2026})
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='emissions', label='Emissions', unit='t/a')
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='uses_forecast_default',
+        spec=NodeSpec(
+            kind=NodeKind.SIMPLE,
+            type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS),
+            input_ports=[_make_input_port(id='emissions', unit='t/a', quantity='emissions')],
+            output_ports=[
+                OutputPortDef(
+                    id=_port_uuid('emissions'),
+                    unit=unit_registry.parse_units('t/a'),
+                    quantity='emissions',
+                    column_id='emissions',
+                ),
+            ],
+        ),
+    )
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=nc,
+        port_id=_port_uuid('emissions'),
+        dataset=dataset,
+        metric=metric,
+    )
+
+    ctx = _rebuild_from_db(db_instance_config)
+    node = ctx.nodes['uses_forecast_default']
+    assert len(node.input_dataset_instances) == 1
+    ds = cast('DatasetWithFilters', node.input_dataset_instances[0])
+    assert ds.forecast_from == 2026
+
+
 def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: InstanceConfig):
     from types import SimpleNamespace
 
@@ -1595,6 +1636,65 @@ def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: 
         filter_def = binding.spec.filters[0]
         assert isinstance(filter_def, ColumnDatasetFilterDef)
         assert filter_def.column == 'action'
+
+
+def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_config: InstanceConfig):
+    from nodes.defs.node_defs import DatasetPortSpec
+    from nodes.models import DatasetPort
+    from nodes.spec_export import _promote_dataset_forecast_defaults
+
+    promoted_dataset = DatasetFactory.create(identifier='promoted', scope=db_instance_config)
+    promoted_metric = DatasetMetricFactory.create(schema=promoted_dataset.schema, name='value', label='Value', unit='kt/a')
+    conflict_dataset = DatasetFactory.create(identifier='conflict', scope=db_instance_config)
+    conflict_metric = DatasetMetricFactory.create(schema=conflict_dataset.schema, name='value', label='Value', unit='kt/a')
+
+    node_a = NodeConfigFactory.create(instance=db_instance_config, identifier='node_a', spec=_make_node_spec())
+    node_b = NodeConfigFactory.create(instance=db_instance_config, identifier='node_b', spec=_make_node_spec())
+    node_c = NodeConfigFactory.create(instance=db_instance_config, identifier='node_c', spec=_make_node_spec())
+    node_d = NodeConfigFactory.create(instance=db_instance_config, identifier='node_d', spec=_make_node_spec())
+
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=node_a,
+        port_id=_port_uuid('input_a'),
+        dataset=promoted_dataset,
+        metric=promoted_metric,
+        spec=DatasetPortSpec(forecast_from=2025),
+    )
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=node_b,
+        port_id=_port_uuid('input_b'),
+        dataset=promoted_dataset,
+        metric=promoted_metric,
+    )
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=node_c,
+        port_id=_port_uuid('input_c'),
+        dataset=conflict_dataset,
+        metric=conflict_metric,
+        spec=DatasetPortSpec(forecast_from=2024),
+    )
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=node_d,
+        port_id=_port_uuid('input_d'),
+        dataset=conflict_dataset,
+        metric=conflict_metric,
+        spec=DatasetPortSpec(forecast_from=2025),
+    )
+
+    assert _promote_dataset_forecast_defaults(db_instance_config) == 1
+
+    promoted_dataset.refresh_from_db()
+    conflict_dataset.refresh_from_db()
+    assert promoted_dataset.spec == {'forecast_from': 2025}
+    assert conflict_dataset.spec == {}
+
+    promoted_ports = DatasetPort.objects.filter(dataset=promoted_dataset)
+    assert all(port.spec.forecast_from is None for port in promoted_ports)
+    assert sorted((port.spec.forecast_from or 0) for port in DatasetPort.objects.filter(dataset=conflict_dataset)) == [2024, 2025]
 
 
 def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_instance_config: InstanceConfig):

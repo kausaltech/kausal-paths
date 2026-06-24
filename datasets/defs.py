@@ -24,6 +24,13 @@ if TYPE_CHECKING:
     from nodes.dimensions import Dimension as RuntimeDimension, DimensionCategory as RuntimeDimensionCategory
 
 
+class DatasetSpec(I18nBaseModel):
+    forecast_from: int | None = None
+
+    def to_json(self) -> dict[str, Any]:
+        return self.model_dump(mode='json', exclude_defaults=True)
+
+
 class DimensionCategoryGroupSpec(I18nBaseModel):
     id: Identifier
     label: I18nStringInstance

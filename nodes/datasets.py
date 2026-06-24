@@ -1163,10 +1163,13 @@ class DBDataset(DatasetWithFilters):
 
     @classmethod
     def from_def(cls, ds_def: InputDatasetDef, context: Context, db_dataset_obj: DBDatasetModel) -> Self:
+        kwargs = super().kwargs_from_def(ds_def)
+        if kwargs['forecast_from'] is None:
+            kwargs['forecast_from'] = (db_dataset_obj.spec or {}).get('forecast_from')
         return cls(
             id=ds_def.id,
             context=context,
-            **super().kwargs_from_def(ds_def),
+            **kwargs,
             db_dataset_obj=db_dataset_obj,
         )
 

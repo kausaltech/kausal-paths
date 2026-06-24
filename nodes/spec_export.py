@@ -817,6 +817,51 @@ def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[s
     return len(port_objs)
 
 
+def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
+    """
+    Promote binding-level forecast years to dataset defaults when unambiguous.
+
+    YAML allows ``forecast_from`` per input-dataset binding. In the DB editor we
+    want the common case to be dataset-scoped, with ``DatasetPort.spec`` kept as
+    an override. If all non-null binding years for an instance dataset agree,
+    store that year on ``Dataset.spec.forecast_from`` and clear matching port
+    overrides so those ports inherit the dataset default.
+    """
+    from collections import defaultdict
+
+    from nodes.models import DatasetPort
+
+    ports_by_dataset: dict[int, list[DatasetPort]] = defaultdict(list)
+    ports = DatasetPort.objects.filter(instance=ic).select_related('dataset').order_by('dataset_id')
+    for port in ports:
+        ports_by_dataset[port.dataset_id].append(port)
+
+    promoted = 0
+    for dataset_ports in ports_by_dataset.values():
+        years = {port.spec.forecast_from for port in dataset_ports if port.spec.forecast_from is not None}
+        if len(years) != 1:
+            continue
+
+        year = years.pop()
+        dataset = dataset_ports[0].dataset
+        spec = dict(dataset.spec or {})
+        if spec.get('forecast_from') != year:
+            spec['forecast_from'] = year
+            dataset.spec = spec
+            dataset.save(update_fields=['spec'])
+            promoted += 1
+
+        changed_ports: list[DatasetPort] = []
+        for port in dataset_ports:
+            if port.spec.forecast_from == year:
+                port.spec = port.spec.model_copy(update={'forecast_from': None})
+                changed_ports.append(port)
+        if changed_ports:
+            DatasetPort.objects.bulk_update(changed_ports, ['spec'])
+
+    return promoted
+
+
 def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -> None:
     """
     Load an instance from YAML and sync its spec to the DB.
@@ -886,12 +931,17 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
         created_placeholder_ids = sync_instance_dataset_placeholders(ic, ctx)
 
         dataset_port_count = _update_dataset_ports(ic, ctx, node_configs)
+        promoted_forecast_defaults = _promote_dataset_forecast_defaults(ic)
 
     logger.info(
-        'Synced {id}: {nodes} nodes, {edges} edges, {placeholders} dataset placeholders created, {ports} dataset ports',
+        (
+            'Synced {id}: {nodes} nodes, {edges} edges, {placeholders} dataset placeholders created, '
+            '{ports} dataset ports, {forecast_defaults} dataset forecast defaults promoted'
+        ),
         id=instance.id,
         nodes=len(node_configs),
         edges=edge_count,
         placeholders=len(created_placeholder_ids),
         ports=dataset_port_count,
+        forecast_defaults=promoted_forecast_defaults,
     )
