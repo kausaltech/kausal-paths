@@ -163,6 +163,26 @@ dimensions:
   - id: natural_gas
     label: Maakaasu
     label_en: Natural gas
+  - id: gasoline
+    label: Bensiini
+    label_en: Gasoline
+  - id: diesel
+    label: Diesel
+    label_en: Diesel
+  - id: gas_biogas
+    label: Kaasu/Biokaasu
+    label_en: Gas/Biogas
+
+- id: road_type
+  label: Tietyyppi
+  label_en: Road type
+  categories:
+  - id: roads
+    label: Tiet
+    label_en: Roads
+  - id: streets
+    label: Kadut
+    label_en: Streets
 
 - id: heating
   label: Lämmitys
