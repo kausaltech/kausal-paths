@@ -72,12 +72,27 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 
         context = self.context
         fwd = context.framework_config_data
+        ref_year = context.instance.reference_year
         if fwd is None:
             # FIXME This is needed because DatasetNode and other nodes have a different sequence of operations.
             if 'prepare_gpc_dataset' in self.tags:
                 drop_cols = [col for col in ['UUID', 'Sector'] if col in df.columns]
                 df = df.drop(drop_cols)
                 df = df.set_unit(VALUE_COLUMN, df['Unit'].unique()[0]).drop('Unit')
+            # Legacy DVC datasets encode the reference year as Year=0, which
+            # DatasetWithFilters._filter_and_process_df converts to ref_year-1 (e.g. 2017).
+            # Remap to ref_year so get_correct_baseline (measure_data_baseline_year_only) keeps
+            # the row instead of filtering it out.
+            target_year = context.instance.target_year
+            df = df.with_columns(
+                pl
+                .when(pl.col(YEAR_COLUMN) == ref_year - 1)
+                .then(pl.lit(ref_year))
+                .when(pl.col(YEAR_COLUMN) == target_year - 1)
+                .then(pl.lit(target_year))
+                .otherwise(pl.col(YEAR_COLUMN))
+                .alias(YEAR_COLUMN),
+            )
             # Add flag columns so _observed_only_extend_all falls through to
             # model_default=True and extends values to the full time range.
             df = df.with_columns([
@@ -139,6 +154,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
                 ],
             )
 
+        target_year = context.instance.target_year
         jdf = jdf.with_columns([
             pl
             .when(pl.col('NrSectorYears') == 1)
@@ -152,6 +168,19 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             (pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null()).alias('FromMeasureDataPoint'),
             ((pl.col('MeasureValue').is_not_null()) & (pl.col('UUID').is_not_null())).alias('ObservedDataPoint'),
         ])
+        # Legacy DVC datasets encode reference/target years as Year=0/100. After
+        # DatasetWithFilters._filter_and_process_df these become ref_year-1 and target_year-1.
+        # If MeasureYear from the DB also carries these off-by-one values, remap them so that
+        # get_correct_baseline (measure_data_baseline_year_only) keeps the rows.
+        jdf = jdf.with_columns(
+            pl
+            .when(pl.col(YEAR_COLUMN) == ref_year - 1)
+            .then(pl.lit(ref_year))
+            .when(pl.col(YEAR_COLUMN) == target_year - 1)
+            .then(pl.lit(target_year))
+            .otherwise(pl.col(YEAR_COLUMN))
+            .alias(YEAR_COLUMN),
+        )
         out_cols = [*df_cols, 'FromMeasureDataPoint', 'ObservedDataPoint']
         df = ppl.to_ppdf(jdf.select(out_cols), meta=meta)
         # FIXME This is needed because DatasetNode and other nodes have a different sequence of operations.
