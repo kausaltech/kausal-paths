@@ -590,6 +590,45 @@ mutation UpdateNode($instanceId: ID!, $nodeId: ID!, $input: UpdateNodeInput!) {
 """)
 
 
+UPDATE_NODE_VIA_NODE_EDITOR = gql("""
+mutation UpdateNodeViaNodeEditor($instanceId: ID!, $nodeId: ID!, $input: UpdateNodeInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        nodeEditor(nodeId: $nodeId) {
+            update(input: $input) {
+                ... on NodeInterface {
+                    identifier
+                    name
+                    color
+                    isVisible
+                }
+                ... on OperationInfo { messages { kind message } }
+            }
+        }
+    }
+}
+""")
+
+
+ADD_NODE_INPUT_PORT_VIA_NODE_EDITOR = gql("""
+mutation AddNodeInputPortViaNodeEditor($instanceId: ID!, $nodeId: ID!, $input: InputPortInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        nodeEditor(nodeId: $nodeId) {
+            addInputPort(input: $input) {
+                __typename
+                ... on InputPortType {
+                    id
+                    quantity
+                    multi
+                    unit { standard }
+                }
+                ... on OperationInfo { messages { kind message } }
+            }
+        }
+    }
+}
+""")
+
+
 def test_update_node_direct_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     nc = NodeConfigFactory.create(instance=db_instance_config, identifier='editable', name='Old', color='#000')
 
@@ -609,6 +648,64 @@ def test_update_node_direct_fields(gql_client: PathsTestClient, db_instance_conf
     assert node['name'] == 'Updated'
     assert node['color'] == '#00ff00'
     assert node['isVisible'] is False
+
+
+def test_node_editor_update_alias(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    nc = NodeConfigFactory.create(instance=db_instance_config, identifier='editable_nested', name='Old', color='#000')
+
+    data = gql_client.query_data(
+        UPDATE_NODE_VIA_NODE_EDITOR,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {
+                'name': 'Nested Updated',
+                'color': '#0088ff',
+                'isVisible': False,
+            },
+        },
+    )
+    node = data['instanceEditor']['nodeEditor']['update']
+    assert node['name'] == 'Nested Updated'
+    assert node['color'] == '#0088ff'
+    assert node['isVisible'] is False
+
+    nc.refresh_from_db()
+    assert nc.name == 'Nested Updated'
+    assert nc.color == '#0088ff'
+    assert nc.is_visible is False
+
+
+def test_node_editor_add_input_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import NodeConfig
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='editable_ports',
+        spec=_make_node_spec(),
+    )
+
+    data = gql_client.query_data(
+        ADD_NODE_INPUT_PORT_VIA_NODE_EDITOR,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {
+                'unit': 'kt/a',
+                'quantity': 'emissions',
+                'multi': True,
+            },
+        },
+    )
+    port = data['instanceEditor']['nodeEditor']['addInputPort']
+    assert port['quantity'] == 'emissions'
+    assert port['multi'] is True
+    assert port['unit']['standard'] == 'kt/a'
+
+    nc = NodeConfig.objects.get(pk=nc.pk)
+    assert nc.spec is not None
+    assert len(nc.spec.input_ports) == 1
+    assert str(nc.spec.input_ports[0].id) == port['id']
 
 
 def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -895,6 +992,19 @@ mutation DeleteNode($instanceId: ID!, $nodeId: ID!) {
 """)
 
 
+DELETE_NODE_VIA_NODE_EDITOR = gql("""
+mutation DeleteNodeViaNodeEditor($instanceId: ID!, $nodeId: ID!) {
+    instanceEditor(instanceId: $instanceId) {
+        nodeEditor(nodeId: $nodeId) {
+            delete {
+                messages { kind message }
+            }
+        }
+    }
+}
+""")
+
+
 def test_delete_node(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     from nodes.models import NodeConfig
 
@@ -906,6 +1016,20 @@ def test_delete_node(gql_client: PathsTestClient, db_instance_config: InstanceCo
         variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid)},
     )
     # query_data asserts no errors; just verify the node is gone
+    assert not NodeConfig.objects.filter(pk=node_pk).exists()
+
+
+def test_node_editor_delete(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import NodeConfig
+
+    nc = NodeConfigFactory.create(instance=db_instance_config, identifier='doomed_nested')
+    node_pk = nc.pk
+
+    data = gql_client.query_data(
+        DELETE_NODE_VIA_NODE_EDITOR,
+        variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid)},
+    )
+    assert data['instanceEditor']['nodeEditor']['delete'] is None
     assert not NodeConfig.objects.filter(pk=node_pk).exists()
 
 

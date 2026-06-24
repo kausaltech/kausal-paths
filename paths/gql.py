@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping, Sequence
 
     from strawberry.extensions import FieldExtension
-    from strawberry_django.mutations.fields import DjangoMutationBase
 
     from kausal_common.strawberry.mutations import (
         ResolverFunc,
@@ -54,7 +53,7 @@ def get_ic_or_error(info: Info, ic_id: str) -> InstanceConfig:
 
 
 @overload
-def mutation(
+def mutation[T: ResolverFunc](
     *,
     name: str | None = None,
     description: str | None = None,
@@ -66,12 +65,12 @@ def mutation(
     directives: Sequence[object] | None = (),
     extensions: list[FieldExtension] | None = None,
     graphql_type: Any | None = None,
-) -> DjangoMutationBase | Callable[[ResolverFunc], DjangoMutationBase]: ...
+) -> Callable[[T], T]: ...
 
 
 @overload
-def mutation(
-    resolver: ResolverFunc,
+def mutation[T: ResolverFunc](
+    resolver: T,
     *,
     name: str | None = None,
     description: str | None = None,
@@ -83,7 +82,7 @@ def mutation(
     directives: Sequence[object] | None = (),
     extensions: list[FieldExtension] | None = None,
     graphql_type: Any | None = None,
-) -> DjangoMutationBase: ...
+) -> T: ...
 
 
 def mutation(  # noqa: PLR0913
@@ -99,7 +98,7 @@ def mutation(  # noqa: PLR0913
     directives: Sequence[object] | None = (),
     extensions: list[FieldExtension] | None = None,
     graphql_type: Any | None = None,
-) -> DjangoMutationBase | Callable[[ResolverFunc], DjangoMutationBase]:
+) -> Any:
     """
     Create a mutation type with Django-specific bells and whistles.
 
