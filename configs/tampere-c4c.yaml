@@ -1665,6 +1665,8 @@ nodes:
     filters:
     - column: sector
       value: ii11
+    - column: energy_carrier
+    - column: road_type
   output_nodes:
   - id: bus_emissions
   - id: motorcycle_emissions
@@ -1726,6 +1728,8 @@ nodes:
     - column: ghg
     - dimension: vehicle_type
       categories: [buses]
+    - column: energy_carrier
+    - column: road_type
   output_nodes:
   - id: bus_emissions
     to_dimensions:
@@ -1761,6 +1765,8 @@ nodes:
       value: ii11
     - dimension: vehicle_type
       categories: [buses]
+    - column: energy_carrier
+    - column: road_type
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_emissions
@@ -1841,6 +1847,8 @@ nodes:
     - column: ghg
     - dimension: vehicle_type
       categories: [motorcycles]
+    - column: energy_carrier
+    - column: road_type
   output_nodes:
   - id: motorcycle_emissions
     to_dimensions:
@@ -1876,6 +1884,8 @@ nodes:
       value: ii11
     - dimension: vehicle_type
       categories: [motorcycles]
+    - column: energy_carrier
+    - column: road_type
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_emissions
@@ -1908,6 +1918,8 @@ nodes:
     - column: ghg
     - dimension: vehicle_type
       categories: [passenger_cars]
+    - column: energy_carrier
+    - column: road_type
   output_nodes:
   - id: car_emissions
     to_dimensions:
@@ -1943,6 +1955,8 @@ nodes:
       value: ii11
     - dimension: vehicle_type
       categories: [passenger_cars]
+    - column: energy_carrier
+    - column: road_type
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_emissions
@@ -2023,6 +2037,8 @@ nodes:
     - column: ghg
     - dimension: vehicle_type
       categories: [trucks]
+    - column: energy_carrier
+    - column: road_type
   output_nodes:
   - id: truck_emissions
     to_dimensions:
@@ -2058,6 +2074,8 @@ nodes:
       value: ii11
     - dimension: vehicle_type
       categories: [trucks]
+    - column: energy_carrier
+    - column: road_type
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_emissions
@@ -2090,6 +2108,8 @@ nodes:
     - column: ghg
     - dimension: vehicle_type
       categories: [vans]
+    - column: energy_carrier
+    - column: road_type
   output_nodes:
   - id: van_emissions
     to_dimensions:
@@ -2125,6 +2145,8 @@ nodes:
       value: ii11
     - dimension: vehicle_type
       categories: [vans]
+    - column: energy_carrier
+    - column: road_type
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_emissions
