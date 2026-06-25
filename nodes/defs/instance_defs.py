@@ -109,8 +109,11 @@ class InstanceFeatures(BaseModel):
     maximum_fraction_digits: int | None = None
     """Maximum number of decimal places to display after the decimal point. None means no limit."""
 
-    hide_node_details: bool = False
-    """Whether to hide detailed node information in the UI."""
+    hide_node_details: bool = Field(default=False, deprecated=True)
+    """Deprecated: use hide_scenario_editor instead."""
+
+    hide_scenario_editor: bool = False
+    """Whether to hide the scenario editor (action/parameter controls) in the UI."""
 
     show_refresh_prompt: bool = False
     """Whether to show a prompt to refresh data when it might be outdated."""
