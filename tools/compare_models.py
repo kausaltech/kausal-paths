@@ -12,11 +12,15 @@ import django
 django.setup()
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import polars as pl
 
 from nodes.constants import YEAR_COLUMN
 from nodes.instance_loader import InstanceLoader
+
+if TYPE_CHECKING:
+    from common import polars as ppl
 
 CONFIGS = {
     'new': 'configs/nzc.yaml',
@@ -32,7 +36,7 @@ def load_context(config: str):
     return loader.instance.context
 
 
-def get_sector_totals(ctx, node_id: str) -> pl.DataFrame | None:
+def get_sector_totals(ctx, node_id: str) -> ppl.PathsDataFrame | None:
     """Get the node output summed over all non-year dimensions."""
     try:
         node = ctx.get_node(node_id)
@@ -47,7 +51,7 @@ def get_sector_totals(ctx, node_id: str) -> pl.DataFrame | None:
         return agg
 
 
-def get_by_sector(ctx, node_id: str) -> pl.DataFrame | None:
+def get_by_sector(ctx, node_id: str) -> ppl.PathsDataFrame | None:
     """Get the node output by sector dimension."""
     try:
         node = ctx.get_node(node_id)
