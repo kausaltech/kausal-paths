@@ -398,12 +398,16 @@ dimensions:
   categories:
   - id: capex
     label: CAPEX
+    color: '#4e79a7'
   - id: opex
     label: OPEX
+    color: '#f28e2b'
   - id: co_benefits
     label: Co-benefits
+    color: '#59a14f'
   - id: co2_cost
     label: CO2 cost
+    color: '#e15759'
 
 - id: ghg
   label: Greenhouse gas
@@ -532,17 +536,23 @@ dimensions:
   categories:
   - id: citizens
     label: Citizens
+    color: '#4e79a7'
   - id: property_owners
     label: Property owners
+    color: '#f28e2b'
   - id: city
     label: City
     aliases: [cities, Cities]
+    color: '#59a14f'
   - id: healthcare_providers
     label: Healthcare providers
+    color: '#e15759'
   - id: transport_operators
     label: Transport operators
+    color: '#76b7b2'
   - id: utilities
     label: Utilities
+    color: '#edc948'
 
 - id: parameter
   label: Parameter

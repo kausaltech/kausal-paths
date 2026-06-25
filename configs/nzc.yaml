@@ -1789,11 +1789,7 @@ scenarios:
     value: true
   - id: measure_data_baseline_year_only
     value: false
-  - id: a51_increase_waste_recycling.enabled
-    value: true
-  - id: a13_car_pooling.enabled
-    value: true
-  - id: a21_optimised_logistics.enabled
+  - id: a51_increase_waste_recycling.enabled  # This is needed so that DatasetDifferenceAction works correctly.
     value: true
 
 # Required nodes from outside the framework:

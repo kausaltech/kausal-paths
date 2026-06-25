@@ -283,6 +283,12 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             pl.col('MeasureDefaultValue').fill_nan(None),
         ])
 
+        # Drop datapoints where both value and default_value are null — they provide no
+        # actual data. Without this filter, they still participate in the year-override join
+        # and cause single-row DVC baselines to appear at wrong years with the DVC fallback
+        # value (rather than not appearing at all).
+        dpdf = dpdf.filter(pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null())
+
         meta = df.get_meta()
         df_cols = df.columns
 
@@ -356,6 +362,9 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         if not uuids:
             return []
         dpdf = collect_measure_datapoints(fwd, uuids)
+        # Exclude rows where both value and default_value are null — those have no
+        # data to contribute and should not be counted as observation years.
+        dpdf = dpdf.filter(pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null())
         result = dpdf['MeasureYear'].drop_nulls().unique().sort().to_list()
         self._cached_observation_years: list[int] = result
         return result
