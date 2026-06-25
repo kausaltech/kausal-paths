@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 from social_core.backends.base import BaseAuth
 
@@ -8,7 +11,7 @@ from paths.const import INSTANCE_VIEWER_ROLE
 from admin_site.auth_pipeline import assign_roles
 from frameworks.models import Framework, FrameworkConfig
 from frameworks.roles import FrameworkRoleDef
-from nodes.models import InstanceConfig, _pytest_instances
+from nodes.models import InstanceConfig, _pytest_instances, make_minimal_instance_spec
 from nodes.roles import instance_admin_role, instance_super_admin_role
 from nodes.tests.factories import InstanceFactory, NodeConfigFactory, SimpleNodeFactory
 from orgs.tests.factories import OrganizationFactory
@@ -47,6 +50,33 @@ def test_framework_backed_yaml_instance_resolves_outcome_node_configs(monkeypatc
 
     assert [node.identifier for node in ic.get_outcome_nodes()] == ['net_emissions']
     assert instance.context.nodes['net_emissions'].database_id == node_config.pk
+
+
+def test_hydrated_instance_reuses_source_instance_config() -> None:
+    ic = InstanceConfig.objects.create(
+        identifier='profile-city',
+        name='Profile City',
+        owner='Profile Owner',
+        primary_language='en',
+        organization=OrganizationFactory.create(),
+        config_source='database',
+        spec=make_minimal_instance_spec({
+            'reference_year': 2020,
+            'minimum_historical_year': 2020,
+            'target_year': 2030,
+            'model_end_year': 2030,
+        }),
+    )
+
+    instance = ic.get_instance()
+    with CaptureQueriesContext(connection) as query_ctx:
+        assert instance.config is ic
+        assert instance.config is ic
+
+    instance_config_queries = [
+        query['sql'] for query in query_ctx.captured_queries if 'FROM "nodes_instanceconfig"' in query['sql']
+    ]
+    assert instance_config_queries == []
 
 
 def test_locked_instance_removes_mutating_permissions_for_superuser_and_children() -> None:

@@ -949,6 +949,7 @@ class InstanceConfig(
                 tolerate_node_failures=tolerate_node_failures,
             )
 
+        instance.config = self
         instance.modified_at = timezone.now()
         if settings.ENABLE_PERF_TRACING:
             instance.context.perf_context.enabled = True
