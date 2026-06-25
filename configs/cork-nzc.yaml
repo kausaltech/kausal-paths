@@ -21,6 +21,7 @@ features:
   show_significant_digits: 4
   maximum_fraction_digits: 3
   hide_node_details: false
+  hide_scenario_editor: false
   show_refresh_prompt: false
   requires_authentication: true
   show_explanations: true
