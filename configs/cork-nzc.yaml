@@ -16,6 +16,20 @@ maximum_historical_year: 2020
 emission_unit: kt/a
 emission_forecast_from: 2025
 emission_dimensions: [scope, ghg, sector]
+normalizations:
+- normalizer_node: population
+  quantities:
+  - id: emissions
+    unit: t/cap/a
+  - id: energy
+    unit: kWh/cap/a
+  - id: mileage
+    unit: km/cap/a
+  - id: vehicle_mileage
+    unit: vkm/cap/a
+  - id: passenger_mileage
+    unit: pkm/cap/a
+  default: false
 features:
   baseline_visible_in_graphs: true
   show_significant_digits: 4
@@ -340,6 +354,7 @@ dimensions:
     label: Health
   - id: co2_cost
     label: CO2 Cost
+    color: '#984ea3'
   - id: aesthetics
     label: Aesthetics and amenity
   - id: shading
@@ -408,7 +423,7 @@ dimensions:
     color: '#59a14f'
   - id: co2_cost
     label: CO2 cost
-    color: '#e15759'
+    color: '#984ea3'
 
 - id: ghg
   label: Greenhouse gas
@@ -560,8 +575,10 @@ dimensions:
   categories:
   - id: max_impact
     label: Maximum impact
+    aliases: [Max impact]
   - id: max_year
     label: Year to reach maximum impact
+    aliases: [Max year]
   - id: baseline_scenario
     label: Baseline scenario
   - id: decarbonisation_scenario
@@ -662,7 +679,9 @@ emission_sectors:
     linear_interpolation: true
     values:
     - year: 2023
-      value: 1000
+      value: 1080
+    - year: 2030
+      value: 216
     - year: 2035
       value: 0
 
