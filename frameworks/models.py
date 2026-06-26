@@ -38,8 +38,6 @@ from kausal_common.users import user_or_none
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import IdentifierField, UnitField
 
-from nodes.defs import InstanceModelSpec
-
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -771,7 +769,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         target_year: int | None = None,
         user: UserOrAnon | None = None,
     ) -> FrameworkConfig:
-        from nodes.models import InstanceConfig
+        from nodes.models import InstanceConfig, make_minimal_instance_spec
         from orgs.models import Organization
 
         instance_name = '%s: %s' % (framework.name, org_name)
@@ -780,8 +778,10 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         org = Organization.objects.get(name='NetZeroCities')
 
         uuid = uuid or uuid4()
-        # Identity metadata lives on the columns; the spec is computation-only.
-        spec = InstanceModelSpec()
+        # Identity metadata lives on the columns; the computation spec is
+        # populated from the framework YAML further below, once the framework
+        # link exists. It's left null here rather than set to an empty spec, so
+        # readers of the stored spec don't see a stale, theme-less default.
         ic = InstanceConfig.objects.create(
             name=instance_name,
             identifier=instance_identifier,
@@ -789,7 +789,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             other_languages=[],
             organization=org,
             uuid=uuid,
-            spec=spec,
+            spec=None,
         )
 
         pp = cls.permission_policy()
@@ -821,6 +821,14 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
                 assert isinstance(alp, ActionListPage)
                 alp.show_in_footer = False
                 alp.save()
+
+            # Populate the computation spec from the framework YAML now that the
+            # framework config is linked. Without this, readers of the stored
+            # spec (e.g. `availableInstances` via `InstanceBasicConfiguration`)
+            # would see an empty spec and fall back to a theme-less default, even
+            # though the runtime instance carries the framework's theme_identifier.
+            ic.spec = make_minimal_instance_spec(ic.get_instance())
+            ic.save(update_fields=['spec'])
 
         return fc
 
