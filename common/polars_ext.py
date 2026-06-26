@@ -1227,9 +1227,9 @@ class PathsExt:
         )
 
     def _inventory_only(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
-        df = df.with_columns(  # TODO A non-elegant way to ensure there is at least one historical row.
+        df = df.with_columns(
             pl
-            .when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
+            .when(pl.col(YEAR_COLUMN) == pl.col(YEAR_COLUMN).min())
             .then(pl.lit(value=False))
             .otherwise(pl.col(FORECAST_COLUMN))
             .alias(FORECAST_COLUMN),
