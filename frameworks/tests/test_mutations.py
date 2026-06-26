@@ -625,6 +625,43 @@ def test_create_nzc_framework_config_mutation_creates_instance_and_defaults(
     assert populated_framework_configs == [('nzc-created-city', 2020)]
 
 
+def test_create_instance_populates_spec_theme_from_framework_yaml() -> None:
+    """
+    The stored spec must carry the framework YAML's ``theme_identifier``.
+
+    ``availableInstances`` (via ``InstanceBasicConfiguration``) reads the theme
+    from the stored ``InstanceConfig.spec``, not from the runtime instance. If
+    ``create_instance`` leaves an empty spec, that query falls back to the
+    ``'default'`` theme even though the direct ``instance`` query (which reads
+    the runtime instance loaded from YAML) reports the correct one. This is a
+    regression test for that mismatch.
+    """
+    _create_net_zero_cities_organization()
+    # identifier='nzc' makes the YAML entrypoint resolve to configs/nzc.yaml,
+    # which declares `theme_identifier: eu-netzerocities`. A non-null
+    # public_base_fqdn gives the instance a site_url, so the node graph is
+    # synced and the spec gets populated from the loaded instance.
+    framework = FrameworkFactory.create(
+        identifier='nzc',
+        name='NetZeroCities',
+        public_base_fqdn='nzc.example.com',
+    )
+
+    fc = FrameworkConfig.create_instance(
+        framework=framework,
+        instance_identifier='nzc-theme-city',
+        org_name='NZC Theme City',
+        baseline_year=2020,
+    )
+
+    ic = fc.instance_config
+    assert ic.config_source == 'yaml'
+    assert ic.spec is not None
+    assert ic.spec.theme_identifier == 'eu-netzerocities'
+    # The lazy accessor that InstanceBasicConfiguration uses must agree.
+    assert ic.ensure_spec(save=False).theme_identifier == 'eu-netzerocities'
+
+
 # ---------------------------------------------------------------------------
 # registerUser
 # ---------------------------------------------------------------------------
