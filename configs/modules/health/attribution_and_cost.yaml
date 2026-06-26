@@ -133,14 +133,17 @@ dimensions:
     label_fi: Siedettävä viikkosaanti
     label_en: Tolerable weekly intake
     label_de: Tolerierbare wöchentliche Aufnahme
+    aliases: [tolerable weekly intake]
   - id: chd_mortality
     label_fi: Sepelvaltimotautikuolleisuus
     label_en: Coronary heart disease mortality
     label_de: Koronare Herzerkrankung Sterblichkeit
+    aliases: [chd mortality]
   - id: breast_cancer
     label_fi: Rintasyöpä
     label_en: Breast cancer
     label_de: Brustkrebs
+    aliases: [breast cancer]
   - id: deficiency  # TODO Add causative agent to response
     label_fi: Puutos
     label_en: Deficiency

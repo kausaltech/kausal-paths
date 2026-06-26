@@ -15,58 +15,79 @@ dimensions:
 - id: response
   label_fi: Terveysvaikutus
   label_en: Response
+  label_de: Gesundheitseffekt
   aliases: [outcome]
   categories:
   - id: mortality
     label_fi: Kaikki ilmansaastekuolleisuus
     label_en: Mortality
+    label_de: Sterblichkeit
     color: '#a6cee3'
   - id: work_days_lost
     label_fi: Menetetyt työpäivät
     label_en: Work days lost
+    label_de: Verlorene Arbeitstage
+    aliases: [work days lost]
     color: '#1f78b4'
   - id: chronic_bronchitis
     label_fi: Keuhkoahtaumatauti
     label_en: Chronic bronchitis
+    label_de: Chronische Bronchitis
+    aliases: [chronic bronchitis]
   - id: cancer
     label_fi: Syöpä
     label_en: Cancer
+    label_de: Krebs
   - id: tolerable_weekly_intake
     label_fi: Siedettävä viikkosaanti
     label_en: Tolerable weekly intake
+    label_de: Tolerierbare wöchentliche Aufnahme
+    aliases: [tolerable weekly intake]
   - id: chd_mortality
     label_fi: Sepelvaltimotautikuolleisuus
     label_en: Coronary heart disease mortality
+    label_de: Koronare Herzerkrankung Sterblichkeit
+    aliases: [chd mortality]
   - id: breast_cancer
     label_fi: Rintasyöpä
     label_en: Breast cancer
+    label_de: Brustkrebs
+    aliases: [breast cancer]
   - id: deficiency  # TODO Add causative agent to response
     label_fi: Puutos
     label_en: Deficiency
+    label_de: Mangelerkrankung
   - id: infection  # TODO Add causative agent to response
     label_fi: Infektio
     label_en: Infection
+    label_de: Infektion
   - id: physical_activity
     label_fi: Fyysinen aktiivisuus
     label_en: Physical activity
+    label_de: Körperliche Aktivität
     color: '#b2df8a'
   - id: air_pollution
     label_fi: Ilmansaastealtistus liikenteessä
     label_en: Air pollution exposure in traffic
+    label_de: Luftschadstoffexposition im Verkehr
     color: '#33a02c'
   - id: crash_risk
     label_fi: Liikenneonnettomuus
     label_en: Traffic accident
+    label_de: Verkehrsunfall
     color: '#fb9a99'
   - id: noise
     label_en: Noise
+    label_de: Lärm
     label_fi: Melu
   - id: carbon_emissions
     label_fi: Hiilidioksidipäästöt
-    label_en: Carbon diozide emissions
+    label_en: Carbon dioxide emissions
+    label_de: Kohlendioxidemissionen
   - id: nzp_response
     label_fi: NZP-vaste
     label_en: NZP response
+    label_de: NZP-Effekt
     color: '#e31a1c'
 
 - id: emission_height
@@ -612,7 +633,7 @@ nodes:
   is_outcome: true
   input_nodes:
   - id: case_burden
-    tags: [non_additive]
+    tags: [non_additive, extend_all]
     to_dimensions:
     - id: response
   - id: total_exposure_related_cases
