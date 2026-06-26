@@ -21,6 +21,7 @@ from frameworks.models import (
 )
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
 from nodes.models import InstanceConfig
+from nodes.tests.factories import InstanceConfigFactory
 from users.models import User
 
 if TYPE_CHECKING:
@@ -767,6 +768,36 @@ def test_create_instance_success(authenticated_gql_client: PathsTestClient, fram
     assert ic.admin_group is not None
 
 
+def test_create_instance_allows_multiple_path_routed_instances_on_shared_host(
+    authenticated_gql_client: PathsTestClient,
+) -> None:
+    root_instance = InstanceConfigFactory.create(identifier='cads-landing', name='CADS')
+    framework = FrameworkFactory.create(
+        identifier='cads',
+        name='CADS',
+        public_base_fqdn='cads.kausal.tech',
+        use_instance_subdomains=False,
+        root_instance=root_instance,
+        allow_instance_creation=True,
+    )
+    FrameworkConfigFactory.create(framework=framework, instance_config=root_instance)
+
+    for identifier in ('first-city', 'second-city'):
+        data = authenticated_gql_client.query_data(
+            CREATE_INSTANCE,
+            variables={
+                'input': {
+                    'frameworkId': framework.identifier,
+                    'name': identifier.replace('-', ' ').title(),
+                    'identifier': identifier,
+                    'organizationName': identifier.replace('-', ' ').title(),
+                },
+            },
+        )
+
+        assert data['createInstance']['instanceId'] == identifier
+
+
 def test_create_instance_unauthenticated(gql_client: PathsTestClient, framework: Framework) -> None:
     gql_client.query_errors(
         CREATE_INSTANCE,
@@ -828,6 +859,8 @@ query Pages {
 def test_landing_block_exposes_framework(client: Client, framework: Framework) -> None:
     import json
 
+    from django.test import override_settings
+    from wagtail.coreutils import get_dummy_request
     from wagtail.models import Locale, Page, Site
 
     from paths.tests.graphql import PathsTestClient
@@ -875,9 +908,18 @@ def test_landing_block_exposes_framework(client: Client, framework: Framework) -
             body=body,
         )
     )
-    site = Site.objects.create(site_name='Landing Test', hostname='landing-test.localhost', root_page=page)
-    ic.site = site
-    ic.save(update_fields=['site'])
+    ic.root_page = page
+    ic.save(update_fields=['root_page'])
+
+    url_parts = page.specific.get_url_parts()
+    assert url_parts is not None
+    assert url_parts[1] == 'http://landing-test.localhost'
+
+    site = Site.objects.get(is_default_site=True)
+    with override_settings(ALLOWED_HOSTS=['example.com']):
+        dummy_url_parts = page.specific.get_url_parts(get_dummy_request(site=site))
+    assert dummy_url_parts is not None
+    assert dummy_url_parts[1] == 'http://landing-test.localhost'
 
     gql_client = PathsTestClient(client)
     gql_client.set_instance(ic)

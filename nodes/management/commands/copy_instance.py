@@ -56,7 +56,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from wagtail.blocks import ListBlock, StreamBlock, StructBlock
 from wagtail.fields import StreamField
-from wagtail.models import Page, Site
+from wagtail.models import Page
 
 from loguru import logger
 
@@ -509,7 +509,6 @@ class Command(BaseCommand):
             organization=ic_src.organization,
             primary_language=ic_src.primary_language,
             other_languages=list(ic_src.other_languages or []),
-            site_url=options['site_url'],
             config_source='database',
         )
         ic_copy.save()
@@ -569,7 +568,6 @@ class Command(BaseCommand):
             organization=ic_src.organization,
             primary_language=ic_src.primary_language,
             other_languages=list(ic_src.other_languages or []),
-            site_url=site_url,
             config_source='yaml',
         )
         ic_copy.save()
@@ -701,13 +699,13 @@ class Command(BaseCommand):
     def _copy_pages(
         self, ic_src: InstanceConfig, ic_copy: InstanceConfig, site_url: str | None, *, allow_dangling: bool = False
     ) -> None:
-        if ic_src.site is None:
-            self.stdout.write(self.style.WARNING('Source has no Site; skipping page copy.'))
+        if ic_src.root_page is None:
+            self.stdout.write(self.style.WARNING('Source has no root page; skipping page copy.'))
             return
 
         node_map = self._node_pk_map(ic_src, ic_copy)
         source_pks = set(ic_src.nodes.values_list('pk', flat=True))
-        src_home = ic_src.site.root_page.specific
+        src_home = ic_src.root_page.specific
         root_node = Page.get_first_root_node()
         assert root_node is not None
 
@@ -747,28 +745,18 @@ class Command(BaseCommand):
                 raise CommandError(msg)
             self.stdout.write(self.style.WARNING(f'  {len(dangling)} dangling node ref(s) left (allowed): {sample}'))
 
-        # Create a Site for the copy so it is reachable.
+        ic_copy.root_page = new_home
+        ic_copy.save(update_fields=['root_page'])
+
+        # Create an explicit hostname route for the copy so it is reachable.
         if site_url is None:
-            self.stdout.write(
-                self.style.WARNING('No --site-url given; pages copied but no Site created (copy will not be served).')
-            )
+            self.stdout.write(self.style.WARNING('No --site-url given; pages copied but no InstanceHostname route created.'))
             return
         parsed = urlparse(site_url)
         if not parsed.hostname:
             raise CommandError(f'Could not parse a hostname from --site-url {site_url!r}.')
-        port = parsed.port or (443 if parsed.scheme == 'https' else 80)
-        if Site.objects.filter(hostname=parsed.hostname, port=port).exists():
-            raise CommandError(f"A Wagtail Site with hostname '{parsed.hostname}' on port {port} already exists.")
-        site = Site(site_name=ic_copy.get_name(), hostname=parsed.hostname, port=port, root_page=new_home)
-        site.save()
-        ic_copy.site = site
-        ic_copy.save(update_fields=['site'])
-        self.stdout.write(f"  created Site at {parsed.hostname}:{port} → page '{new_home.slug}'.")
 
-        # Mirror the host in InstanceHostname so the frontend resolves the copy via
-        # availableInstances(hostname:) on deployments that route by explicit host
-        # rather than by wildcard-domain identifier. A non-root --site-url path
-        # (e.g. https://host/foo) maps onto base_path so routing matches the URL.
+        # A non-root --site-url path (e.g. https://host/foo) maps onto base_path so routing matches the URL.
         base_path = parsed.path.rstrip('/')
         if InstanceHostname.objects.filter(hostname=parsed.hostname, base_path=base_path).exists():
             self.stdout.write(

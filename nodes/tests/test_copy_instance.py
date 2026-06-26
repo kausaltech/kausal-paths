@@ -14,7 +14,7 @@ from typing import Any
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from wagtail.blocks import CharBlock, ListBlock, StreamBlock, StructBlock
-from wagtail.models import Page, Site
+from wagtail.models import Page
 
 import pytest
 
@@ -318,7 +318,7 @@ def test_remap_is_noop_when_no_node_refs(remap_setup):
 
 @pytest.fixture
 def db_source():
-    """Build a database-backed source instance with a node, a Site + pages, and site content."""
+    """Build a database-backed source instance with a node, root page, and site content."""
     from pages.models import InstanceSiteContent, OutcomePage
 
     ic = InstanceConfigFactory.create(identifier='copytest-src', name='copytest-src', config_source='database')
@@ -331,9 +331,8 @@ def db_source():
     home.title = 'Home (draft)'
     home.save_revision()  # an unpublished draft revision too
 
-    site = Site.objects.create(hostname='copytest-src.example', root_page=home, site_name='copytest-src')
-    ic.site = site
-    ic.save(update_fields=['site'])
+    ic.root_page = home
+    ic.save(update_fields=['root_page'])
 
     # Give the source non-empty intro content so we can assert it is (not) copied.
     sc = InstanceSiteContent.objects.get(instance=ic)
@@ -364,15 +363,14 @@ def test_copy_instance_db_mode_end_to_end(db_source):
     for n in cp.nodes.all():
         assert n.copy_of_id == src_by_id[n.identifier]
 
-    # Site + InstanceHostname routing both created for the copy.
-    assert cp.site is not None
-    assert cp.site.hostname == 'copytest-dst.example'
+    # Root page + InstanceHostname routing both created for the copy.
+    assert cp.root_page is not None
     assert InstanceHostname.objects.filter(instance=cp, hostname='copytest-dst.example').exists()
 
     # Page tree copied and the outcome_node FK repointed to the copy's node.
     src_pks = set(ic_src.nodes.values_list('pk', flat=True))
     cp_pks = set(cp.nodes.values_list('pk', flat=True))
-    home = cp.site.root_page.specific
+    home = cp.root_page.specific
     assert isinstance(home, OutcomePage)
     assert home.outcome_node_id in cp_pks
     assert home.outcome_node_id not in src_pks
@@ -389,7 +387,6 @@ def test_copy_instance_dry_run_leaves_nothing(db_source):
     _run('copytest-src', 'copytest-dst', '--site-url', 'https://copytest-dst.example/', '--dry-run')
 
     assert not InstanceConfig.objects.filter(identifier='copytest-dst').exists()
-    assert not Site.objects.filter(hostname='copytest-dst.example').exists()
     assert not InstanceHostname.objects.filter(hostname='copytest-dst.example').exists()
 
 
@@ -400,7 +397,7 @@ def test_copy_instance_no_pages_skips_all_wagtail_content(db_source):
 
     cp = InstanceConfig.objects.get(identifier='copytest-dst')
     assert cp.nodes.exists()  # model still copied
-    assert cp.site is None  # no Site
+    assert cp.root_page is None  # no pages
     assert not InstanceHostname.objects.filter(hostname='copytest-dst.example').exists()
     # The signal-created InstanceSiteContent stays blank — source intro NOT copied.
     cp_sc = InstanceSiteContent.objects.get(instance=cp)

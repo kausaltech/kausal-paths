@@ -50,8 +50,8 @@ class AdminMiddleware:
         if iscoroutinefunction(get_response):
             markcoroutinefunction(self)
 
-    def get_adminable_instances(self, user):
-        return list(user.get_adminable_instances().filter(site__isnull=False))
+    def get_adminable_instances(self, user: User):
+        return list(user.get_adminable_instances().filter(root_page__isnull=False))
 
     async def get_admin_instance(self, request: PathsAdminRequest) -> None | InstanceConfig:
         if not re.match(r'^/admin/', request.path):
@@ -108,7 +108,8 @@ class AdminMiddleware:
         await self.activate_language(ic, user)
 
         def update_wagtail_site() -> None:
-            request._wagtail_site = ic.site
+            root_page = ic.root_page
+            request._wagtail_site = root_page.get_site() if root_page is not None else None
 
         await sync_to_async(update_wagtail_site)()
 

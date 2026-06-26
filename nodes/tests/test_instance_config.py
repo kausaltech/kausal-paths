@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.db import connection
+from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 
 import pytest
@@ -22,6 +23,30 @@ pytestmark = pytest.mark.django_db
 
 class DummyAuthBackend(BaseAuth):
     name = 'test'
+
+
+@override_settings(INSTANCE_WILDCARD_DOMAIN='paths-ui.example')
+def test_instance_view_url_falls_back_to_wildcard_domain() -> None:
+    ic = InstanceConfig.objects.create(
+        identifier='fallback-city',
+        name='Fallback City',
+        primary_language='en',
+        organization=OrganizationFactory.create(),
+    )
+
+    assert ic.get_view_url() == 'https://fallback-city.paths-ui.example'
+
+
+@override_settings(INSTANCE_WILDCARD_DOMAIN='localhost')
+def test_instance_view_url_preserves_client_wildcard_scheme_and_port() -> None:
+    ic = InstanceConfig.objects.create(
+        identifier='fallback-city',
+        name='Fallback City',
+        primary_language='en',
+        organization=OrganizationFactory.create(),
+    )
+
+    assert ic.get_view_url(client_url='http://landing.localhost:3000') == 'http://fallback-city.localhost:3000'
 
 
 def test_framework_backed_yaml_instance_resolves_outcome_node_configs(monkeypatch: pytest.MonkeyPatch) -> None:

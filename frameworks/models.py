@@ -809,15 +809,14 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         )
         if pp.user_is_authenticated(user):
             pp.realm_admin_role.assign_user(ic, user)
-        ic.site_url = fc.get_view_url()
-        if ic.site_url is not None:
+        if fc.get_view_url() is not None:
             from pages.models import ActionListPage
 
             ic.sync_nodes()
             ic.create_default_content()
-            site = ic.site
-            assert site is not None
-            for alp in site.root_page.get_descendants().type(ActionListPage).specific():
+            root_page = ic.root_page
+            assert root_page is not None
+            for alp in root_page.get_descendants().type(ActionListPage).specific():
                 assert isinstance(alp, ActionListPage)
                 alp.show_in_footer = False
                 alp.save()
