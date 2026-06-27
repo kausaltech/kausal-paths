@@ -141,17 +141,6 @@ def set_instance_hostnames(fw: Framework):
             old_hostname.delete()
 
 
-def update_instance_site_urls(fw: Framework) -> None:
-    for fwc in FrameworkConfig.objects.filter(framework=fw).select_related('instance_config', 'framework'):
-        ic = fwc.instance_config
-        site_url = fwc.get_view_url()
-        if ic.site_url == site_url:
-            continue
-        ic.site_url = site_url
-        ic.save(update_fields=['site_url'])
-        print(f'Updated site URL for {ic}: {site_url}')
-
-
 def ensure_template_datasets() -> None:
     from django.contrib.contenttypes.models import ContentType
 
@@ -389,21 +378,14 @@ def create_landing_root_page(ic: InstanceConfig) -> InstanceRootPage:
         return page  # type: ignore[return-value]
 
 
-def ensure_site(ic: InstanceConfig, root_page: Page) -> None:
-    from wagtail.models import Site
-
-    if ic.site is not None:
-        print(f'Site already exists: {ic.site}')
+def ensure_root_page(ic: InstanceConfig, root_page: Page) -> None:
+    if ic.root_page_id == root_page.pk:
+        print(f'Instance root page already set: {root_page}')
         return
 
-    site = Site.objects.create(
-        site_name=LANDING_INSTANCE_NAME,
-        hostname=f'{LANDING_INSTANCE_IDENTIFIER}.localhost',
-        root_page=root_page,
-    )
-    ic.site = site
-    ic.save(update_fields=['site'])
-    print(f'Created site: {site}')
+    ic.root_page = root_page
+    ic.save(update_fields=['root_page'])
+    print(f'Updated instance root page: {root_page}')
 
 
 def init_framework_instance(fw: Framework, ic: InstanceConfig) -> FrameworkConfig:
@@ -442,7 +424,7 @@ def main() -> None:
         landing_ic = get_or_create_landing_instance(org)
         set_root_instance(fw, landing_ic)
         root_page = create_landing_root_page(landing_ic)
-        ensure_site(landing_ic, root_page)
+        ensure_root_page(landing_ic, root_page)
         init_framework_instance(fw, landing_ic)
         template_ic = InstanceConfig.objects.get(identifier=TEMPLATE_INSTANCE_IDENTIFIER)
         if not template_ic.spec or not template_ic.spec.dimensions:
@@ -450,7 +432,6 @@ def main() -> None:
         init_framework_instance(fw, template_ic)
     enable_user_management_on_cads_instances(fw)
     set_instance_hostnames(fw)
-    update_instance_site_urls(fw)
     print('CADS setup complete.')
 
 

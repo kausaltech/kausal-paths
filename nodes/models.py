@@ -702,8 +702,6 @@ class InstanceConfig(
             **kwargs,
         }
         ic = cls.objects.create(**fields)
-        if instance.site_url:
-            ic.add_hostname_from_url(instance.site_url)
         return ic
 
     def has_framework_config(self) -> bool:

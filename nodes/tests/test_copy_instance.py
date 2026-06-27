@@ -47,18 +47,18 @@ def _write_yaml(tmp_path, text):
 
 def test_read_yaml_identity_prefers_top_level_name(tmp_path):
     p = _write_yaml(tmp_path, 'id: x\nsite_url: https://x/\nname: Top\nname_de: Deutsch\n')
-    assert _read_yaml_identity(p) == ('https://x/', 'Top')
+    assert _read_yaml_identity(p) == 'Top'
 
 
 def test_read_yaml_identity_uses_default_language_when_no_bare_name(tmp_path):
     # default_language is a regional code, but the name suffix is the short form.
     p = _write_yaml(tmp_path, 'id: x\ndefault_language: de-CH\nname_en: English\nname_de: Deutsch\n')
-    assert _read_yaml_identity(p) == (None, 'Deutsch')
+    assert _read_yaml_identity(p) == 'Deutsch'
 
 
 def test_read_yaml_identity_falls_back_to_first_name_field(tmp_path):
     p = _write_yaml(tmp_path, 'id: x\nname_fi: Suomi\nname_en: English\n')
-    assert _read_yaml_identity(p) == (None, 'Suomi')
+    assert _read_yaml_identity(p) == 'Suomi'
 
 
 # ---------------------------------------------------------------------------
@@ -76,10 +76,10 @@ def test_rewrite_instance_yaml_changes_only_identity():
         'emission_dataset': 'zuerich/emissions',
         'nodes': [{'id': 'zuerich/population', 'type': 'ch.zuerich.Foo'}],
     }
-    out = rewrite_instance_yaml(data, dest_id='zuerich-copy', site_url='https://copy.example/')
+    out = rewrite_instance_yaml(data, dest_id='zuerich-copy')
 
     assert out['id'] == 'zuerich-copy'
-    assert out['site_url'] == 'https://copy.example/'
+    assert 'site_url' not in out
     assert out['name_en'] == 'Net Zero Cockpit (copy)'
     assert out['name_de'] == 'Netto-Null-Cockpit (copy)'
     # Dataset paths and code references are left untouched.
@@ -90,14 +90,14 @@ def test_rewrite_instance_yaml_changes_only_identity():
 
 def test_rewrite_instance_yaml_drops_site_url_when_none():
     data = {'id': 'a', 'site_url': 'https://a.example/'}
-    out = rewrite_instance_yaml(data, dest_id='b', site_url=None)
+    out = rewrite_instance_yaml(data, dest_id='b')
     assert out['id'] == 'b'
     assert 'site_url' not in out
 
 
 def test_rewrite_instance_yaml_explicit_name_overwrites_all_name_fields():
     data = {'id': 'a', 'name_en': 'Foo', 'name_de': 'Föö'}
-    out = rewrite_instance_yaml(data, dest_id='b', site_url=None, name='Sandbox')
+    out = rewrite_instance_yaml(data, dest_id='b', name='Sandbox')
     assert out['name_en'] == 'Sandbox'
     assert out['name_de'] == 'Sandbox'
 

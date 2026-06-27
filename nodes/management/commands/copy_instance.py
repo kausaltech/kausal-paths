@@ -15,7 +15,7 @@ the source's ``config_source``):
          of the source's *current DB state*; the right choice for instances
          that are already database-backed.
   yaml — copy ``configs/<src>.yaml`` → ``configs/<dst>.yaml`` (rewriting only
-         the instance id / site_url / name), create a ``config_source='yaml'``
+         the instance id / name), create a ``config_source='yaml'``
          InstanceConfig, then materialise its NodeConfig rows — plus the editor
          graph (NodeEdge/DatasetPort) — from the source's DB snapshot so
          admin-authored fields are carried (falling back to ``sync_nodes()``
@@ -27,7 +27,7 @@ the source's ``config_source``):
          ``sync_instance_to_db``), which can lag the YAML.
 
 Both modes then deep-copy the source's Wagtail page subtree (including draft
-revisions) and InstanceSiteContent, create a new Site, and repoint every node
+revisions) and InstanceSiteContent, create an InstanceHostname route, and repoint every node
 reference — ``OutcomePage.outcome_node`` plus ``NodeChooserBlock`` PKs inside
 StreamField bodies — from the source's NodeConfig rows to the copy's, on both
 the live page rows and every copied revision.
@@ -79,14 +79,12 @@ class DryRunRollbackError(Exception):
     """Raised to roll back the transaction at the end of a dry run."""
 
 
-def rewrite_instance_yaml(
-    data: Any, *, dest_id: str, site_url: str | None, name: str | None = None, name_suffix: str = ' (copy)'
-) -> Any:
+def rewrite_instance_yaml(data: Any, *, dest_id: str, name: str | None = None, name_suffix: str = ' (copy)') -> Any:
     """
     Rewrite a loaded instance-YAML mapping in place for a copy.
 
-    Only the top-level instance identity is changed: ``id``, ``site_url`` and
-    the ``name``/``name_*`` fields. When ``name`` is given it overwrites every
+    Only the top-level instance identity is changed: ``id`` and the
+    ``name``/``name_*`` fields. When ``name`` is given it overwrites every
     name field (so the runtime/model name matches the DB row); otherwise
     ``name_suffix`` is appended to each. Dataset paths (``default_path``,
     ``emission_dataset``, ``zuerich/...`` dataset ids) and code references
@@ -94,22 +92,19 @@ def rewrite_instance_yaml(
     shared DVC data and region code, not at the instance id.
     """
     data['id'] = dest_id
-    if site_url:
-        data['site_url'] = site_url
-    elif 'site_url' in data:
-        del data['site_url']
+    data.pop('site_url', None)
     for key in list(data.keys()):
         if key == 'name' or key.startswith('name_'):
             data[key] = name if name is not None else f'{data[key]}{name_suffix}'
     return data
 
 
-def _read_yaml_identity(yaml_path: Path) -> tuple[str | None, str | None]:
+def _read_yaml_identity(yaml_path: Path) -> str | None:
     """
-    Read ``site_url`` and the primary ``name`` from a committed instance YAML.
+    Read the primary ``name`` from a committed instance YAML.
 
-    Used by ``--use-existing-yaml`` to default the DB row / routing from the
-    already-deployed file when the CLI omits ``--site-url`` / ``--name``.
+    Used by ``--use-existing-yaml`` to default the DB row from the
+    already-deployed file when the CLI omits ``--name``.
 
     Most configs carry the name only as per-language ``name_<lang>`` fields (no
     bare ``name``), and ``default_language`` may be a regional code (``de-CH``)
@@ -122,7 +117,6 @@ def _read_yaml_identity(yaml_path: Path) -> tuple[str | None, str | None]:
     yaml = YAML()
     with yaml_path.open() as f:
         data = yaml.load(f)
-    site_url = data.get('site_url')
 
     name = data.get('name')
     if not name:
@@ -137,7 +131,7 @@ def _read_yaml_identity(yaml_path: Path) -> tuple[str | None, str | None]:
                 name = data[key]
                 break
 
-    return (str(site_url) if site_url else None, str(name) if name else None)
+    return str(name) if name else None
 
 
 def rewrite_include_paths(data: Any, *, src_id: str, dest_id: str) -> list[tuple[str, str]]:
@@ -377,7 +371,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--site-url',
             type=str,
-            help='Site URL for the copy. Required to create a Wagtail Site (its hostname+port must be unique).',
+            help='Public URL for the copy. Used to create an InstanceHostname route.',
         )
         parser.add_argument(
             '--mode',
@@ -391,7 +385,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--no-pages',
             action='store_true',
-            help='Skip copying all Wagtail content (the page tree, Site, and instance site content)',
+            help='Skip copying all Wagtail content (the page tree and instance site content)',
         )
         parser.add_argument(
             '--allow-dangling-refs',
@@ -553,14 +547,11 @@ class Command(BaseCommand):
 
         # Stage 2 — DB side: InstanceConfig + datasets + nodes + Wagtail content.
         # When applying an already-committed config (--use-existing-yaml), fall back
-        # to the file's own site_url / name for any value the CLI omits, so the DB
-        # row and routing can't silently disagree with the deployed YAML.
+        # to the file's own name for any value the CLI omits.
         site_url = options['site_url']
         name = options['name']
         if options['use_existing_yaml']:
-            yaml_site_url, yaml_name = _read_yaml_identity(dst_yaml)
-            site_url = site_url or yaml_site_url
-            name = name or yaml_name
+            name = name or _read_yaml_identity(dst_yaml)
         name = name or f'{ic_src.get_name()} (copy)'
         ic_copy = InstanceConfig(
             identifier=dest,
@@ -639,7 +630,7 @@ class Command(BaseCommand):
         # Without it, each name independently gets " (copy)" appended — pass the same
         # --name to both the --write-config-only and --use-existing-yaml runs to keep
         # the two stages consistent.
-        rewrite_instance_yaml(data, dest_id=dest, site_url=options['site_url'], name=options['name'])
+        rewrite_instance_yaml(data, dest_id=dest, name=options['name'])
         include_copies = rewrite_include_paths(data, src_id=ic_src.identifier, dest_id=dest)
         with dst_yaml.open('w') as f:
             yaml.dump(data, f)
