@@ -1041,7 +1041,10 @@ class Node:
             for dim_id, edge_dim in edge.from_dimensions.items():
                 cat_ids = [cat.id for cat in edge_dim.categories]
                 if dim_id not in meta.dim_ids:
-                    raise NodeError(self, 'Dimension %s not in output df' % dim_id)
+                    if dim_id not in self.output_dimensions:
+                        raise NodeError(self, 'Dimension %s not declared in node output dimensions' % dim_id)
+                    # Dimension is declared but was dropped as all-null for this metric — flatten is a no-op.
+                    continue
                 filter_expr = pl.col(dim_id).is_in(cat_ids)
                 if edge_dim.exclude:
                     filter_expr = pl.col(dim_id).is_null() | ~filter_expr
