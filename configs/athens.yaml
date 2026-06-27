@@ -1,7 +1,6 @@
 id: athens
 default_language: el
 supported_languages: [en]
-site_url: https://athens.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 77872ba76751d5e390079b1d2d6858c1e1eb7ee6

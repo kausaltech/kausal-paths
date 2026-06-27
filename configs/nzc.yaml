@@ -1,6 +1,5 @@
 id: nzc
 default_language: en
-site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   # commit: be7dcb8ce57f03eff60803f38867a8eab02ffbdb # 7 Jan

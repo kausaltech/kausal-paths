@@ -1,7 +1,6 @@
 id: budget
 default_language: en
 supported_languages: [fi, sv, cs, da, de, pl, lv]
-site_url: https://budget.paths.test.kausal.dev
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 00f0a9789bde35ba32e8fa7c45717fcaeda2b18e

@@ -1,7 +1,6 @@
 id: tampere-c4c
 default_language: fi
 supported_languages: [en]
-site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: e0caa32243959172733de453b131e3f3dd38263d

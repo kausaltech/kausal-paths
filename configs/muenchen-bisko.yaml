@@ -3,7 +3,6 @@
 id: muenchen-bisko
 default_language: de
 supported_languages: [en]
-site_url: https://muenchen-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: a8e9584d8a313025877793f4ceabac8fcf865ace

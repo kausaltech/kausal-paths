@@ -1,6 +1,5 @@
 id: hsy-multidim
 default_language: fi
-site_url: https://hsy-multidim.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 428b6c0879a556b5659117c27bdeb53b408799fd

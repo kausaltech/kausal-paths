@@ -1,7 +1,6 @@
 id: krakow-c4c
 default_language: en
 supported_languages: []
-site_url: https://krakow-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 42eadc2686710713b77e518b600492b97f74b82a

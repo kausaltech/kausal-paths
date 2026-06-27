@@ -4,7 +4,6 @@
 id: koeln-dev
 default_language: de
 supported_languages: [en]
-site_url: https://koeln-dev.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 3279790b3866175110bf4c78bb3517d46726266a

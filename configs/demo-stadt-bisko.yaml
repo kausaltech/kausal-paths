@@ -1,7 +1,6 @@
 id: demo-stadt-bisko
 default_language: de
 supported_languages: []
-site_url: https://demo-stadt-bisko.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 6c3aadebc4d0fcf3e4f88507ceeffbb6174273c3

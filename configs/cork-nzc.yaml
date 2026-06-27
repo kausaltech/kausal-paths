@@ -1,6 +1,5 @@
 id: cork-nzc
 default_language: en
-site_url: https://cork-nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: e5455d9015ffca0846763c4c97773825b7da3a26

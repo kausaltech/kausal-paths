@@ -1,7 +1,6 @@
 id: norderstedt-c4c
 default_language: de
 supported_languages: [en]
-site_url: https://norderstedt-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: b127bc31c70c26acb87be22c6586d35983816092

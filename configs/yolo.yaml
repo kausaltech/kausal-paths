@@ -1,7 +1,6 @@
 id: yolo
 default_language: en
 supported_languages: []
-site_url: https://yolo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 7c131bef6b1da1e21a672b7ef0760fcf4a36ac93

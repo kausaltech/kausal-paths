@@ -1,7 +1,6 @@
 id: espoo-2026
 default_language: fi
 supported_languages: [sv, en]
-site_url: https://espoo-2026.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   # commit: f1a7f7cd69a10d5fb1c7f95eeea6cb65f7add0f3

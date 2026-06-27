@@ -1,7 +1,6 @@
 id: bytom-c4c
 default_language: en
 supported_languages: []
-site_url: https://bytom-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: b93ea7c0f0eb088c37e16a9bbf364aa0c398910b
