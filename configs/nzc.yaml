@@ -165,15 +165,19 @@ dimensions:
   - id: capex
     label_en: CAPEX
     label_fi: CAPEX
+    color: '#4e79a7'
   - id: opex
     label_en: OPEX
     label_fi: OPEX
+    color: '#f28e2b'
   - id: co_benefits
     label_en: Co-benefits
     label_fi: Rinnakkaishyödyt
+    color: '#59a14f'
   - id: co2_cost
     label_en: CO2 cost
     label_fi: CO2-kustannus
+    color: '#984ea3'
   label_en: Aggregated cost type
   label_fi: Koottu kustannustyyppi
 - id: area_distance
@@ -331,6 +335,23 @@ dimensions:
   - id: grid_stability
     label_en: Storage, grid stability etc.
     label_fi: Varastointi, verkon vakaus jne.
+  - id: air_pollution_everywhere
+    label_en: Air pollution everywhere
+    label_fi: Ilmansaasteet kaikkialla
+  - id: work_days_lost
+    label_en: Work days lost
+    label_fi: Menetetyt työpäivät
+    color: '#1f78b4'
+  - id: physical_activity
+    label_en: Physical activity
+    label_fi: Fyysinen aktiivisuus
+    color: '#b2df8a'
+  - id: renovation_capex
+    label_en: Renovation CAPEX
+    label_fi: Renovation CAPEX
+  - id: public_building_opex
+    label_en: Public Building OPEX
+    label_fi: Public Building OPEX
   label_en: Cost Type
   label_fi: Kustannustyyppi
 - id: efficiency_programme
@@ -467,6 +488,18 @@ dimensions:
   - id: progress_tracking
     label_en: Progress tracking scenario
     label_fi: Progress tracking scenario
+  - id: rr_min
+    label_en: RR min
+    label_fi: RR min
+  - id: period
+    label_en: Period
+    label_fi: Period
+  - id: threshold
+    label_en: Threshold
+    label_fi: Threshold
+  - id: beta
+    label_en: Beta
+    label_fi: Beta
   label_en: Parameter
   label_fi: Parametri
 - id: pollutant
@@ -479,19 +512,40 @@ dimensions:
     label_en: NOx
     label_fi: NOx
   - id: pm25_combustion
-    aliases: [pm25]
     label_en: PM2.5 combustion
     label_fi: Polttoperäinen PM2.5
   - id: pm25_wear_tear
     label_en: PM2.5 wear & tear
     label_fi: Kulumis- ja pölyperäinen PM2.5
   - id: pm10_combustion
-    aliases: [pm10]
     label_en: PM10 combustion
     label_fi: Polttoperäinen PM10
   - id: pm10_wear_tear
     label_en: PM10 wear & tear
     label_fi: Kulumis- ja pölyperäinen PM10
+  - id: pm25
+    aliases: [pm2_5]
+    label_en: PM2.5
+    label_fi: PM2.5
+  - id: pm10
+    label_en: PM10
+    label_fi: PM10
+  - id: walking
+    label_en: Walking
+    label_fi: Kävely
+  - id: cycling
+    label_en: Cycling
+    label_fi: Pyöräily
+  - id: pm1025
+    aliases: [PM10-2.5]
+    label_en: PM10-PM2.5
+    label_fi: PM10-PM2.5
+  - id: so2
+    label_en: SO2
+    label_fi: SO2
+  - id: nh3
+    label_en: NH3
+    label_fi: NH3
   label_en: Pollutant
   label_fi: Saaste
 - id: scope
@@ -539,22 +593,28 @@ dimensions:
   - id: citizens
     label_en: Citizens
     label_fi: Kansalaiset
+    color: '#4e79a7'
   - id: property_owners
     label_en: Property owners
     label_fi: Kiinteistönomistajat
+    color: '#f28e2b'
   - id: city
     aliases: [cities, Cities]
     label_en: City
     label_fi: Kaupunki
+    color: '#59a14f'
   - id: healthcare_providers
     label_en: Healthcare providers
     label_fi: Terveydenhuollon tarjoajat
+    color: '#e15759'
   - id: transport_operators
     label_en: Transport operators
     label_fi: Liikenneoperaattorit
+    color: '#76b7b2'
   - id: utilities
     label_en: Utilities
     label_fi: Julkiset palvelut
+    color: '#edc948'
   label_en: Stakeholder
   label_fi: Sidosryhmä
 - id: transport_mode
@@ -578,6 +638,10 @@ dimensions:
   - id: cycling
     label_en: Cycling
     label_fi: Pyöräily
+  - id: ebike
+    label_en: E-bike
+    label_fi: Sähköpyörä
+    aliases: [Ebike]
   - id: light_trucks
     label_en: Light duty trucks <3.5 tonne
     label_fi: Kevyet kuorma-autot <3,5 tonnia
@@ -590,6 +654,9 @@ dimensions:
   - id: other_motorized
     label_en: Other motorized transport
     label_fi: Muu moottoroitu liikenne
+  - id: bikeshare
+    label_en: Bikeshare
+    label_fi: Kaupunkipyörät
   label_en: Transport mode
   label_fi: Kuljetusmuoto
 - id: transport_pollutant

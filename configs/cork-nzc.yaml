@@ -3,7 +3,7 @@ default_language: en
 site_url: https://cork-nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: fd44d0299be8622a6e446287f2939fe385afb595
+  commit: 9e9c2483ba4459868b35f3a763a0b97c30753cae
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -43,18 +43,15 @@ features:
 
 include:
 
-# - file: modules/health/air_pollution_exposure.yaml
-#   allow_override: true
-# - file: modules/health/active_mobility.yaml
-#   allow_override: true
-# - file: modules/health/attribution_and_cost.yaml
-#   allow_override: true
-- file: modules/health.yaml
+- file: modules/health/air_pollution_exposure.yaml
   node_group: Health
   allow_override: true
-  dataset_replacements:
-  - from: nzc/defaults
-    to: cork/defaults
+- file: modules/health/active_mobility.yaml
+  node_group: Health
+  allow_override: true
+- file: modules/health/attribution_and_cost.yaml
+  node_group: Health
+  allow_override: true
 - file: nzc.yaml
   allow_override: true
   dataset_replacements:
@@ -274,502 +271,7 @@ dimensions:
   - id: ballyhooly_road
     label: Ballyhooly Road
 
-- id: age
-  label: age
-  categories:
-  - id: '20_49'
-    label: 20-49
-    aliases: ['2049']
-  - id: '50_64'
-    label: 50-64
-    aliases: ['5064']
-  - id: '65_79'
-    label: 65-79
-    aliases: ['6579']
-  - id: '80_99'
-    label: 80-99
-    aliases: ['8099']
-
-- id: sector
-  label: Sector
-  help_text: Sectors as categorised in the Mission City Climate City Contracts 
-    (CCC).
-  categories:
-  - id: transport
-    label: Transport
-  - id: buildings
-    label: Buildings & Heating
-  - id: electricity
-    label: Electricity  # TODO If you start using different electricity sectors, you may want to rename this Other electricity
-  - id: waste
-    label: Waste
-  - id: other
-    label: Other (incl. IPPU & AFOLU)
-
-- id: scope
-  label: Scope
-  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
-    3: Indirect emissions.'
-  categories:
-  - id: scope1
-    label: Scope 1
-    aliases: [scope_1]
-  - id: scope2
-    label: Scope 2
-    aliases: [scope_2]
-  - id: scope3
-    label: Scope 3
-    aliases: [scope_3]
-
-- id: cost_type
-  label: Cost Type
-  categories:
-  - id: energy_costs
-    label: Energy Costs
-  - id: investment_costs
-    label: Investment Costs
-  - id: capex
-    label: CAPEX (capital expenditure)
-  - id: capex_levelised
-    label: CAPEX (levelised)
-  - id: opex
-    label: OPEX (operational expenditure)
-    aliases: [operation_cost, Operation Cost]
-  - id: maintenance_costs
-    label: Maintenance Costs
-    aliases: [maintenance]
-  - id: sales
-    label: Sales income
-  - id: air_pollution
-    label: Air pollution
-    aliases: [air_quality]
-  - id: noise
-    label: Noise
-  - id: accidents
-    label: Accidents
-  - id: health
-    label: Health
-  - id: co2_cost
-    label: CO2 Cost
-    color: '#984ea3'
-  - id: aesthetics
-    label: Aesthetics and amenity
-  - id: shading
-    label: Shading
-  - id: water_regulation
-    label: Water regulation
-    aliases: [water_regulations]
-  - id: forest_management
-    label: Forest management
-  - id: bus_costs
-    label: Bus costs
-  - id: homecharging_infrastructure
-    label: Home-charging infrastructure
-  - id: public_and_workplace_infrastructure
-    label: Public & workplace infrastructure
-  - id: charging_infrastructure_costs
-    label: Charging infrastructure costs
-  - id: vehicle_costs
-    label: Vehicle costs
-  - id: infrastructure_costs
-    label: Infrastructure costs
-  - id: network
-    label: Network
-  - id: fuel
-    label: Fuel costs
-  - id: tires
-    label: Tire costs
-  - id: depreciation
-    label: Depreciation costs
-  - id: labour_costs
-    label: Labour costs
-  - id: industry_ippu
-    label: Industry (IPPU)
-  - id: agriculture_afolu
-    label: Agriculture (AFOLU)
-  - id: other_sources
-    label: Other sources
-  - id: grid_stability
-    label: Storage, grid stability etc.
-  - id: air_pollution_everywhere
-    label: Air pollution everywhere
-  - id: work_days_lost
-    label_fi: Menetetyt työpäivät
-    label_en: Work days lost
-    color: '#1f78b4'
-  - id: physical_activity
-    label_fi: Fyysinen aktiivisuus
-    label_en: Physical activity
-    color: '#b2df8a'
-  - id: renovation_capex
-    label_en: Renovation CAPEX
-  - id: public_building_opex
-    label_en: Public Building OPEX
-
-- id: aggregated_cost_type
-  label: Aggregated cost type
-  categories:
-  - id: capex
-    label: CAPEX
-    color: '#4e79a7'
-  - id: opex
-    label: OPEX
-    color: '#f28e2b'
-  - id: co_benefits
-    label: Co-benefits
-    color: '#59a14f'
-  - id: co2_cost
-    label: CO2 cost
-    color: '#984ea3'
-
-- id: ghg
-  label: Greenhouse gas
-  categories:
-  - id: co2e
-    label: CO2e
-    aliases: [co2]
-
-- id: transport_mode
-  label: Transport mode
-  categories:
-  - id: cars
-    label: Cars
-  - id: buses
-    label: Buses
-  - id: trains
-    label: Trains
-    aliases: [Metro/tram, metro/tram, metro_tram]
-  - id: public_transport
-    label: Public transport
-  - id: walking
-    label: Walking
-  - id: cycling
-    label: Cycling
-  - id: light_trucks
-    label: Light duty trucks <3.5 tonne
-  - id: heavy_trucks
-    label: Heavy duty trucks >3.5 tonne
-  - id: trucks
-    label: Trucks
-  - id: other_motorized
-    label: Other motorized transport
-  - id: bikeshare
-    label_en: Bikeshare
-    label_fi: Kaupunkipyörät
-  - id: ebike
-    label_en: E-bike
-    label_fi: Sähköpyörä
-
-- id: energy_carrier
-  label: Energy carrier
-  categories:
-  - id: petrol_diesel
-    label: Petrol and diesel
-  - id: electricity
-    label: Electricity
-  - id: fossil
-    label: Fossil (oil, coal, gas)
-  - id: heat_pump
-    label: Electric heat pumps / geothermal
-  - id: bioenergy
-    label: Bio (biogas, biomass) and solar heaters
-  - id: waste
-    label: Waste (fossil & non-fossil waste)
-
-- id: fuel_type
-  label: Fuel type
-  categories:
-  - id: fossil
-    label: Fossil
-  - id: non_fossil
-    label: Non-fossil
-    aliases: [nonfossil, non-fossil]
-  - id: mixed
-    label: Mixed fossil and non-fossil
-  - id: other
-    label: Other (e.g. nuclear)
-  - id: local_pv
-    label: Local photovoltaics
-  - id: centralised_pv
-    label: Centralised photovoltaics and wind
-  - id: pv
-    label: Photovoltaics
-  - id: flexibility
-    label: Flexibility
-  - id: direct_electricity
-    label: Direct electricity
-  - id: heat_pump
-    label: Heat pump
-
-- id: efficiency_programme
-  label: Energy efficiency programme
-  categories:
-  - id: no_improvements
-    label: No improvements
-    aliases: [no_improvement]
-  - id: minor_improvements
-    label: Minor improvements
-  - id: aggressive_improvements
-    label: Aggressive improvements
-  - id: moderate_improvements
-    label: Moderate improvements
-  - id: nzeb
-    label: Net zero emission buildings
-
-- id: city_area
-  label: City area
-  categories:
-  - id: grey
-    label: Grey area
-  - id: green
-    label: Green area
-  - id: grey_inside
-    label: Grey area inside city
-  - id: green_inside
-    label: Green area inside city
-  - id: green_outside
-    label: Green area outside city
-  - id: grey_outside
-    label: Grey area outside city
-
-- id: area_distance
-  label: Area distance
-  categories:
-  - id: metropolitan
-    label: Metropolitan
-  - id: inside
-    label: Inside city
-  - id: outside
-    label: Outside city
-  - id: average
-    label: Average
-
-- id: stakeholder
-  label: Stakeholder
-  categories:
-  - id: citizens
-    label: Citizens
-    color: '#4e79a7'
-  - id: property_owners
-    label: Property owners
-    color: '#f28e2b'
-  - id: city
-    label: City
-    aliases: [cities, Cities]
-    color: '#59a14f'
-  - id: healthcare_providers
-    label: Healthcare providers
-    color: '#e15759'
-  - id: transport_operators
-    label: Transport operators
-    color: '#76b7b2'
-  - id: utilities
-    label: Utilities
-    color: '#edc948'
-
-- id: parameter
-  label: Parameter
-  categories:
-  - id: max_impact
-    label: Maximum impact
-    aliases: [Max impact]
-  - id: max_year
-    label: Year to reach maximum impact
-    aliases: [Max year]
-  - id: baseline_scenario
-    label: Baseline scenario
-  - id: decarbonisation_scenario
-    label: Decarbonisation scenario
-  - id: frozen_scenario
-    label: Frozen scenario
-  - id: progress_tracking
-    label: Progress tracking scenario
-  - id: rr_min
-    label: RR min
-  - id: period
-    label: Period
-  - id: threshold
-    label: Threshold
-  - id: beta
-    label: Beta
-
-- id: country
-  label: Country
-  categories:
-  - id: at
-    label: Austria
-  - id: be
-    label: Belgium
-  - id: cz
-    label: Czeck Republic
-  - id: dk
-    label: Denmark
-  - id: fr
-    label: France
-  - id: de
-    label: Germany
-  - id: it
-    label: Italy
-  - id: lt
-    label: Latvia
-  # - id: 'no'
-  #   label: Norway
-  - id: pl
-    label: Poland
-  - id: ro
-    label: Romania
-  - id: sk
-    label: Slovakia
-  - id: es
-    label: Spain
-  - id: se
-    label: Sweden
-  - id: average
-    label: Average
-
-- id: pollutant
-  label_fi: Saaste
-  label_en: Pollutant
-  categories:
-  - id: co2
-    label_fi: CO2
-    label_en: CO2
-    aliases: [co2e]
-  - id: pm25
-    label_fi: PM2.5
-    label_en: PM2.5
-    aliases: [pm2_5]
-  - id: pm25_combustion
-    label_en: PM2.5 combustion
-    label_fi: Polttoperäinen PM2.5
-  - id: nox
-    label_fi: NOx
-    label_en: NOx
-  - id: pm10
-    label_fi: PM10
-    label_en: PM10
-  - id: pm10_combustion
-    label_en: PM10 combustion
-    label_fi: Polttoperäinen PM10
-  - id: walking
-    label_fi: Kävely
-    label_en: Walking
-  - id: cycling
-    label_fi: Pyöräily
-    label_en: Cycling
-  - id: pm1025
-    label_fi: PM10-PM2.5
-    label_en: PM10-PM2.5
-    aliases: [PM10-2.5]
-  - id: so2
-    label_fi: SO2
-    label_en: SO2
-  - id: nh3
-    label_fi: NH3
-    label_en: NH3
-  - id: pm25_wear_tear
-    label_en: PM2.5 wear & tear
-    label_fi: Kulumis- ja pölyperäinen PM2.5
-  - id: pm10_wear_tear
-    label_en: PM10 wear & tear
-    label_fi: Kulumis- ja pölyperäinen PM10
-
 nodes:
-
-- id: active_mobility_speed
-  name_fi: Aktiivisen liikkumisen keskinopeus
-  name_en: Average speed of active mobility
-  description_fi: Aktiivisen liikkumisen keskinopeus saadaan artikkelista Kelly 
-    ym. 2014. Myös Heli Lehtomäki ym. 2021. Liikenteen terveysvaikutukset 
-    Suomessa ja suurimmissa kaupungeissa. Suomen ympäristökeskuksen raportteja 
-    16 / 2021.
-  description_en: The average speed of active mobility is obtained from the 
-    article by Kelly et al. 2014. Also Heli Lehtomäki et al. 2021. Health 
-    effects of transport in Finland and major cities. Reports of the Finnish 
-    Environment Institute 16 / 2021.
-  type: generic.GenericNode
-  quantity: speed
-  unit: km/h
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_datasets:
-  - id: hia/heat/lappeenranta_active_mobility  # TODO Use a generic dataset instead
-    forecast_from: 2024
-    filters:
-    - column: Sector
-      value: Average speed
-
-- id: air_pollution_attributable_fraction
-  name_fi: Ilmansaasteiden syyosuus
-  name_en: Attributable fraction of air pollution
-  name_de: Attributabler Anteil der Luftverschmutzung
-  description_fi: 'Se osuus havaitusta tautitaakasta, joka selittyy ilmansaastealtistuksella.
-    Syyosuus lasketaan näin: AF = RR / (RR + 1) missä RR on suhteellinen riski.'
-  description_en: The fraction of observed disease burden that can be attributed
-    to air pollution exposure. Attributable fraction is typically calculated as 
-    AF = RR / (RR + 1) where RR is the relative risk.
-  description_de: Der Anteil der beobachteten Krankheitslast, der auf 
-    Luftschadstoffexposition zurückgeführt werden kann. Der attributable Anteil 
-    wird typischerweise berechnet als AF = RR / (RR + 1), wobei RR das relative 
-    Risiko ist.
-  type: health.AttributableFractionRR # FIXME Convert to FormulaNode.
-  quantity: exposure_response
-  unit: dimensionless  # TODO Allow for different units in dataset and node.
-  input_dimensions: [response, pollutant]
-  output_dimensions: [response, pollutant]
-  input_datasets:
-  - id: hia/exposure_response/air_pollution_erf
-    filters:
-    - column: Route
-      value: inhalation
-  input_nodes:
-  - id: air_pollution_exposure
-    to_dimensions:
-    - id: pollutant
-  params:
-    sector: Air pollution
-
-- id: incidence
-  name_fi: Ilmaantuvuus
-  name_en: Incidence
-  name_de: Inzidenz
-  description_fi: Ympäristöaltisteiden kannalta olennaisten tautien ja 
-    vaikutusten ilmaantuvuus. Käytetään Terveyden ja hyvinvoinnin laitoksen 
-    tautitaakkamallia. Useita alkuperäislähteitä.
-  description_en: Incidence of environmentally relevant diseases and effects. 
-    Uses the THL disease burden model. Multiple original sources.
-  description_de: Inzidenz umweltrelevanter Erkrankungen und Gesundheitseffekte.
-    Verwendet das THL-Krankheitslastmodell. Mehrere Originalquellen.
-  type: generic.GenericNode
-  quantity: incidence
-  unit: case/personyear
-  input_dimensions: [response]
-  output_dimensions: [response]
-  input_datasets:
-  - id: hia/incidence
-    # tags: [bring_to_maximum_historical_year]
-    filters:
-    - column: place
-      value: default
-    - column: population
-      value: default
-
-- id: case_burden
-  name_fi: Tautitaakka per tapaus
-  name_en: Disease burden by case
-  description_fi: Yhden tapauksen aiheuttama tautitaakka eri vasteille.
-  description_en: Disease burden caused by a single case.
-  type: gpc.DatasetNode
-  quantity: case_burden
-  unit: DALY/case
-  input_dimensions: [response]
-  output_dimensions: [response]
-  input_datasets:
-  - id: hia/heat/lappeenranta_active_mobility
-    forecast_from: 1990
-    # tags: [extend_all]
-  params:
-    sector: Case burden
 
 - id: net_emissions
   name: Net emissions
@@ -790,29 +292,6 @@ nodes:
       value: 216
     - year: 2035
       value: 0
-
-- id: intake_fraction
-  name_fi: Ilmansaasteiden saantiosuus
-  name_en: Intake fraction of air pollution
-  description_fi: 'Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi.
-    Tiedot on saatu artikkelista Sebastien Humbert, Julian D. Marshall, Shanna Shaked,
-    Joseph V. Spadaro, Yurika Nishioka, Philipp Preiss, Thomas E. McKone, Arpad Horvath,
-    and Olivier Jolliet. Intake Fraction for Particulate Matter: Recommendations for
-    Life Cycle Impact Assessment (2011). Environmental Science and Technology, 45,
-    4808-4816.'
-  description_en: The fraction of air pollution emissions that is eventually 
-    inhaled by someone.
-  type: generic.GenericNode
-  quantity: fraction
-  unit: ppm
-  input_dimensions: [pollutant, emission_height]
-  output_dimensions: [pollutant, emission_height]
-  input_datasets:
-  - id: hia/intake_fraction/air_pollution_if
-    column: Intake fraction
-    filters:
-    - column: population_density
-      value: average
 
 - id: active_mobility_distance
   name_en: Active mobility distance
@@ -1064,9 +543,15 @@ nodes:
     - id: energy_carrier
       flatten: true
   historical_values: [[2020, 0]]
-  output_nodes:
-  - id: transport_air_pollution_emissions2
-    tags: [non_additive]
+
+- id: transport_co2_for_health
+  name_en: CO2 emissions from road transport for health module
+  name_fi: Tieliikenteen CO2-päästöt terveysmoduuliin
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: road_transport_emissions_intermediate
     to_dimensions: []
 
 - id: district_heating_emissions_intermediate
@@ -1093,9 +578,15 @@ nodes:
     - id: scope
       flatten: true
   historical_values: [[2020, 0]]
-  output_nodes:
-  - id: fossil_plant_air_pollution_emissions
-    tags: [non_additive]
+
+- id: power_plant_emissions
+  name_en: CO2 emissions from district heating for health module
+  name_fi: Kaukolämmön CO2-päästöt terveysmoduuliin
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: district_heating_emissions_intermediate
     to_dimensions: []
 
 - id: active_mobility_conversion  # TODO Should passenger and inhabitant be in the same dimension?
