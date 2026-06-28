@@ -4,7 +4,7 @@ supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 8f2c9e0f2bb1cde5b63098688d1bc02faa197bfb
+  commit: 9e9c2483ba4459868b35f3a763a0b97c30753cae
 theme_identifier: default
 name: 'DUT: Liikennetoimenpiteitä terveys- ja ilmastohyötyjen edistämiseksi'
 name_en: 'DUT: Transport actions to promote health and climate benefits'
@@ -30,8 +30,16 @@ include:
 - file: modules/dut_transport_actions.yaml
   node_group: DUT Transport Actions
   allow_override: true
-- file: modules/health.yaml
-  node_group: health
+- file: modules/health/air_pollution_exposure.yaml
+  # Intermodular nodes: transport_co2_for_health, power_plant_emissions_for_health
+  node_group: Health
+  allow_override: true
+- file: modules/health/active_mobility.yaml
+  # Intermodular nodes: passenger_transport_for_health, population_group_sizes_for_health
+  node_group: Health
+  allow_override: true
+- file: modules/health/attribution_and_cost.yaml
+  node_group: Health
   allow_override: true
 - file: nzc/transport.yaml
   node_group: Transport
@@ -1206,9 +1214,15 @@ nodes:
     - id: energy_carrier
       flatten: true
   historical_values: [[2020, 0]]
-  output_nodes:
-  - id: transport_air_pollution_emissions2
-    tags: [non_additive]
+
+- id: transport_co2_for_health
+  name_en: CO2 emissions from road transport for health module
+  name_fi: Tieliikenteen CO2-päästöt terveysmoduuliin
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: road_transport_emissions_intermediate
     to_dimensions: []
 
 - id: active_mobility_conversion  # TODO Fix units in dataset
@@ -1244,7 +1258,7 @@ nodes:
 
 # ----------------------- Active mobility ------------------
 
-- id: population_group_sizes
+- id: population_group_sizes_for_health
   name: Population group sizes
   type: gpc.DatasetNode
   quantity: population
@@ -1264,7 +1278,7 @@ nodes:
   input_dimensions: [age]
   output_dimensions: [age]
   input_nodes:
-  - id: population_group_sizes
+  - id: population_group_sizes_for_health
   params:
     share_dimension: age
     use_input_node_unit_when_adding: true
@@ -1410,18 +1424,14 @@ nodes:
 
 # ------------- Effects from the other parts of the NZC model ---------
 
-- id: fossil_plant_emissions
-  name: Fossil plant emissions (placeholder)
-  description: This model does not consider fossil plant emissions. This node is just
+- id: power_plant_emissions_for_health
+  name: Power plant emissions for health module
+  description: This model does not consider power plant emissions. This node is just
     for matching the necessary interfaces between modules.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   historical_values: [[2010, 0.0]]
-  output_nodes:
-  - id: fossil_plant_air_pollution_emissions
-    tags: [non_additive]
-    to_dimensions: []
 
 pages:
 - id: home

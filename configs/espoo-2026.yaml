@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   # commit: f1a7f7cd69a10d5fb1c7f95eeea6cb65f7add0f3
-  commit: 39ae5d20cb8d6eb4b9e2abffd9baa723860df1ea # Commit before DB -> DVC update.
+  commit: 9e9c2483ba4459868b35f3a763a0b97c30753cae # Commit before DB -> DVC update.
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030, Luonnos 2026
 name_en: Carbon-neutral Espoo 2030, Draft 2026
@@ -43,6 +43,7 @@ include:
   node_group: Transport
   allow_override: true
 - file: modules/health/air_pollution_exposure.yaml
+  # Intermodular nodes: transport_co2_for_health, power_plant_emissions_for_health
   node_group: Health
   allow_override: true
 - file: modules/health/attribution_and_cost.yaml
@@ -129,7 +130,7 @@ result_excels:
   - power_plant_air_pollution_exposure
   - power_plant_emission_factor
   - power_plant_emission_ratio
-  - power_plant_emissions
+  - power_plant_emissions_for_health
   - premature_deaths
   - rail_transport_emissions
   - rail_transport_energy
@@ -1015,7 +1016,7 @@ nodes:
     - id: economic_sector
       flatten: true
 
-- id: power_plant_emissions
+- id: power_plant_emissions_for_health
   name_en: District heating plant emissions
   name_fi: Kaukolämpövoimalaitosten päästöt
   type: generic.GenericNode

@@ -3,7 +3,7 @@ default_language: fi
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 39de45351665aec17e08651fda65547fb23262f0
+  commit: 9e9c2483ba4459868b35f3a763a0b97c30753cae
 name: Kaupungin sähköautopolitiikka
 name_en: Electric vehicle policy in cities
 owner: Kausal Oy
@@ -50,6 +50,7 @@ include:
   node_group: Active mobility
   allow_override: true
 - file: modules/health/air_pollution_exposure.yaml
+  # Intermodular nodes: transport_co2_for_health, power_plant_emissions_for_health
   node_group: Air pollution health
   allow_override: true
 - file: modules/health/attribution_and_cost.yaml

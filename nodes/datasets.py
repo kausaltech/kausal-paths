@@ -398,6 +398,8 @@ class DatasetWithFilters(Dataset, ABC):
         if col not in df.columns:
             raise DatasetError(self, f'Column {col} not found. Available columns are {df.columns}')
         if val:
+            if val in df.columns:
+                df = df.drop(val)
             df = df.rename({col: val})
         return df
 
