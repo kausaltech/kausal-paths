@@ -28,8 +28,14 @@ def install_node_error_handler():
 
     def node_error_handler(exc_type, exc_value, exc_traceback) -> None:
         if isinstance(exc_value, NodeError):
+            sys.excepthook = old_excepthook
             if cause := exc_value.__cause__:
                 print_exception(cause)
+            else:
+                try:
+                    print_exception(exc_value)
+                except Exception as e:
+                    print(f'Error while printing exception: {e}')
             print(exc_value)
             exit(1)
         else:

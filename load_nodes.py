@@ -6,6 +6,8 @@ from contextlib import ExitStack
 
 from kausal_common.development.django import init_django
 
+from kausal_common.logging.init import is_pretty_terminal
+
 from common.utils import install_node_error_handler
 
 init_django()
@@ -160,6 +162,9 @@ def print_db_datasets():
 
     if TYPE_CHECKING:
         from nodes.node import Node
+
+    if not is_pretty_terminal():
+        return
 
     db_datasets: dict[str, tuple[DBDataset, list[Node]]] = {}
     dvc_datasets: dict[str, tuple[DVCDataset, list[Node]]] = {}

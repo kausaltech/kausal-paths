@@ -12,7 +12,6 @@
 id: longmont-dev
 default_language: en
 supported_languages: [es-US]
-site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: ad50da5a21200b37695fc462081d7872840f6991

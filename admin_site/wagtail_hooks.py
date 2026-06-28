@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from django.db.models import Q
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.html import format_html
@@ -60,7 +61,12 @@ class InstanceItem(MenuItem):
 class InstanceChooserMenu(Menu):
     def menu_items_for_request(self, request: HttpRequest):
         user = user_or_bust(request.user)
-        instances = user.get_adminable_instances()
+        # Hide instances flagged as ``is_hidden`` from the chooser, but keep the
+        # currently-active one visible so a user on a hidden instance can switch
+        # away. This filters the listing only; ``get_adminable_instances()`` (the
+        # authorization gate for direct switching) is deliberately left untouched.
+        current = realm_context.get().realm
+        instances = user.get_adminable_instances().filter(Q(is_hidden=False) | Q(pk=current.pk if current is not None else None))
         if len(instances) < 2:
             return []
         items = []

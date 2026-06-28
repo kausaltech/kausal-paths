@@ -4,7 +4,6 @@
 id: ikka
 default_language: en
 supported_languages: [de]
-site_url: https://ikka.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 580902f96830a266c02740185c6da7d78271ad49

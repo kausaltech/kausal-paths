@@ -68,7 +68,7 @@ class InstanceGroupMembershipRole(InstanceFieldGroupRole['InstanceConfig'], meta
         return '%s %s' % (obj.name, self.group_name)
 
     def get_instance_site(self, obj: InstanceConfig) -> Site | None:
-        return obj.site
+        return None
 
 
 class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']):

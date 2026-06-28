@@ -2,7 +2,7 @@ import enum
 from collections import Counter
 from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Any, Protocol
+from typing import TYPE_CHECKING, Annotated, Any, Protocol, Self, cast
 from uuid import UUID
 
 import strawberry as sb
@@ -119,11 +119,11 @@ class InstanceGoalEntry:
         return df.get_unit(self.outcome_node.get_default_output_metric().column_id)
 
 
-def _instance_editor_allowed(root: Instance, info: gql.Info) -> bool:
-    return root.config.gql_action_allowed(info, 'change', raise_on_denied=False)
+def _instance_editor_allowed(ic: InstanceConfig, info: gql.Info) -> bool:
+    return ic.gql_action_allowed(info, 'change', raise_on_denied=False)
 
 
-def _instance_admin_allowed(root: Instance, info: gql.Info) -> bool:
+def _instance_admin_allowed(ic: InstanceConfig, info: gql.Info) -> bool:
     from kausal_common.users import user_or_none
 
     user = user_or_none(info.context.user)
@@ -131,7 +131,6 @@ def _instance_admin_allowed(root: Instance, info: gql.Info) -> bool:
         return False
     if user.is_superuser:
         return True
-    ic = root.config
     if ic.owned_by_id == user.pk:
         return True
     return ic.permission_policy().is_admin(user, ic)
@@ -229,27 +228,33 @@ def _collect_quantity_kind_unit_usage(instance: Instance) -> dict[str, list[Quan
 
 @sb.type(name='InstanceEditor')
 class InstanceEditorFields:
-    _instance: sb.Private[Instance]
+    _config: sb.Private[InstanceConfig]
+    _instance: sb.Private[Instance | None] = None
+
+    def runtime_instance(self) -> Instance:
+        if self._instance is None:
+            self._instance = self._config.get_instance()
+        return self._instance
 
     @sb.field
     @staticmethod
     def config_source(root: 'InstanceEditorFields') -> str:
-        return root._instance.config.config_source
+        return root._config.config_source
 
     @sb.field
     @staticmethod
     def is_locked(root: 'InstanceEditorFields') -> bool:
-        return root._instance.config.is_locked
+        return root._config.is_locked
 
     @sb.field
     @staticmethod
     def live(root: 'InstanceEditorFields') -> bool:
-        return root._instance.config.live
+        return root._config.live
 
     @sb.field
     @staticmethod
     def has_unpublished_changes(root: 'InstanceEditorFields') -> bool:
-        return root._instance.config.has_unpublished_changes
+        return root._config.has_unpublished_changes
 
     @sb.field(
         description=(
@@ -261,27 +266,27 @@ class InstanceEditorFields:
     )
     @staticmethod
     def draft_head_token(root: 'InstanceEditorFields') -> UUID | None:
-        return root._instance.config.draft_head_token
+        return root._config.draft_head_token
 
     @sb.field
     @staticmethod
     def first_published_at(root: 'InstanceEditorFields') -> datetime | None:
-        return root._instance.config.first_published_at
+        return root._config.first_published_at
 
     @sb.field
     @staticmethod
     def last_published_at(root: 'InstanceEditorFields') -> datetime | None:
-        return root._instance.config.last_published_at
+        return root._config.last_published_at
 
     @sb.field(graphql_type=Annotated[InstanceSpecType | None, sb.lazy('nodes.schema_spec')])
     @staticmethod
     def spec(root: 'InstanceEditorFields') -> InstanceModelSpec | None:
-        return root._instance.config.spec
+        return root._config.spec
 
     @sb.field(graphql_type=list[NodeEdgeType])
     @staticmethod
     def edges(root: 'InstanceEditorFields') -> list[NodeEdgeType]:
-        edges = root._instance.config.edges.select_related('from_node', 'to_node')
+        edges = root._config.edges.select_related('from_node', 'to_node')
         return [NodeEdgeType.from_node_edge(edge) for edge in edges]
 
     @sb.field(
@@ -302,7 +307,7 @@ class InstanceEditorFields:
 
         qs = (
             InstanceChangeOperation.objects
-            .filter(instance_config=root._instance.config)
+            .filter(instance_config=root._config)
             .select_related('user', 'superseded_by')
             .order_by('-created_at')
         )
@@ -313,7 +318,7 @@ class InstanceEditorFields:
     @sb.field(graphql_type=list[DatasetPortType])
     @staticmethod
     def dataset_ports(root: 'InstanceEditorFields') -> list[DatasetPortType]:
-        dataset_ports = root._instance.config.dataset_ports.select_related('node', 'dataset', 'metric')
+        dataset_ports = root._config.dataset_ports.select_related('node', 'dataset', 'metric')
         result = []
         for dp in dataset_ports:
             port = DatasetPortType(
@@ -336,7 +341,7 @@ class InstanceEditorFields:
         """All DB-backed datasets scoped to this instance."""
         from kausal_common.datasets.models import Dataset as DatasetModel
 
-        ic = root._instance.config
+        ic = root._config
         qs = DatasetModel.objects.get_queryset().for_instance_config(ic).viewable_by(info.context.user).select_related('schema')
         return [DatasetType.from_model(ds) for ds in qs]
 
@@ -350,7 +355,7 @@ class InstanceEditorFields:
 
         if not id.strip():
             return None
-        ic = root._instance.config
+        ic = root._config
         qs = DatasetModel.objects.get_queryset().for_instance_config(ic).viewable_by(info.context.user).select_related('schema')
         qs = qs.filter(query_pk_or_uuid_or_identifier(id))
         try:
@@ -369,7 +374,7 @@ class InstanceEditorFields:
 
         from kausal_common.datasets.models import DataSource
 
-        ic = root._instance.config
+        ic = root._config
         ct = ContentType.objects.get_for_model(type(ic))
         return list(
             DataSource.objects
@@ -384,7 +389,7 @@ class InstanceEditorFields:
         """All dimensions scoped to this model instance."""
         from kausal_common.datasets.models import DimensionScope
 
-        ic = root._instance.config
+        ic = root._config
         scopes = (
             DimensionScope.objects
             .for_instance_config(ic)
@@ -400,7 +405,7 @@ class InstanceEditorFields:
     )
     @staticmethod
     def quantity_kinds(root: 'InstanceEditorFields') -> list[InstanceQuantityKindType]:
-        units_by_quantity = _collect_quantity_kind_unit_usage(root._instance)
+        units_by_quantity = _collect_quantity_kind_unit_usage(root.runtime_instance())
         return [
             InstanceQuantityKindType(
                 kind=QuantityKindType.from_kind(kind),
@@ -412,7 +417,7 @@ class InstanceEditorFields:
     @sb.field
     @staticmethod
     def graph_layout(root: 'InstanceEditorFields') -> GraphLayout:
-        classifier = root._instance.context.node_graph_classifier
+        classifier = root.runtime_instance().context.node_graph_classifier
         return GraphLayout(
             thresholds=classifier.thresholds,
             core_node_ids=[sb.ID(node_id) for node_id in classifier.core_nodes],
@@ -424,112 +429,14 @@ class InstanceEditorFields:
         )
 
 
-@sb.type
-class InstanceType:
-    id: sb.ID
-    uuid: UUID
-    owner: str | None
-    default_language: str
-    supported_languages: list[str]
-    base_path: str
-    years: YearsDefType
-    target_year: int | None
-    model_end_year: int
-    reference_year: int | None
-    minimum_historical_year: int
-    maximum_historical_year: int | None
-    theme_identifier: str | None
-    action_groups: list[ActionGroupType]
-    features: InstanceFeaturesType
-
-    @sb.field(graphql_type=InstanceHostname | None)
-    @staticmethod
-    def hostname(root: Instance, hostname: str) -> InstanceHostname | None:
-        hn = root.config.hostnames.filter(hostname__iexact=hostname).first()
-        if not hn:
-            return None
-        return InstanceHostname(hostname=hn.hostname, base_path=hn.base_path)
+@sb.type(name='InstanceModel')
+class InstanceModelType:
+    _instance: sb.Private[Instance]
 
     @sb.field
-    @staticmethod
-    def name(root: Instance) -> str:
-        return str(root.name)
-
-    @sb.field
-    @staticmethod
-    def lead_title(root: Instance) -> str:
-        return root.config.lead_title_i18n or ''
-
-    @sb.field
-    @staticmethod
-    def lead_paragraph(root: Instance) -> str | None:
-        return root.config.lead_paragraph_i18n
-
-    @sb.field(
-        graphql_type=UUID | None,
-        description='UUID of the instance this one was copied from, if any.',
-    )
-    @staticmethod
-    def copy_of(root: Instance) -> UUID | None:
-        from nodes.models import InstanceConfig as _InstanceConfig
-
-        cfg = root.config
-        if cfg.copy_of_id is None:
-            return None
-        return _InstanceConfig.objects.filter(pk=cfg.copy_of_id).values_list('uuid', flat=True).first()
-
-    @sb.field
-    @staticmethod
-    def identifier(root: Instance) -> str:
-        return root.id
-
-    @sb.field
-    @staticmethod
-    def is_locked(root: Instance) -> bool:
-        return root.config.is_locked
-
-    @sb.field(graphql_type=Annotated['FrameworkConfigType', sb.lazy('frameworks.schema')] | None)  # pyright: ignore[reportOperatorIssue]
-    @staticmethod
-    def framework_config(root: Instance, info: gql.Info) -> FrameworkConfig | None:
-        return root.config.cache.framework_config
-
-    @sb.field(description='Active members of this instance. Only visible to instance admins.')
-    @staticmethod
-    def users(root: Instance, info: gql.Info) -> list[InstanceMemberType]:
-        if not _instance_admin_allowed(root, info):
-            return []
-        return _collect_instance_members(root.config)
-
-    @sb.field(
-        graphql_type=list[Annotated['InstanceInvitationType', sb.lazy('users.graphql.mutations')]],
-        description='Active (not accepted, not expired, not revoked) invitations for this instance.',
-    )
-    @staticmethod
-    def invitations(root: Instance, info: gql.Info) -> list['InstanceInvitation']:
-        from nodes.models import InstanceInvitation as _InstanceInvitation
-
-        if not _instance_admin_allowed(root, info):
-            return []
-        return list(
-            _InstanceInvitation.objects.filter(
-                instance_config=root.config,
-                accepted_at__isnull=True,
-                expires_at__gt=timezone.now(),
-            )
-        )
-
-    @sb.field
-    @staticmethod
-    def editor(root: Instance, info: gql.Info) -> InstanceEditorFields | None:
-        if not _instance_editor_allowed(root, info):
-            return None
-        return InstanceEditorFields(_instance=root)
-
-    @sb.field
-    @staticmethod
-    def goals(root: Instance, id: sb.ID | None = None) -> list[InstanceGoalEntry]:
+    def goals(self, id: sb.ID | None = None) -> list[InstanceGoalEntry]:
         ret = []
-        for goal in root.get_goals():
+        for goal in self._instance.get_goals():
             node = goal.get_node()
             goal_id = goal.get_id()
             if id is not None and goal_id != id:
@@ -559,34 +466,193 @@ class InstanceType:
             ret.append(out)
         return ret
 
-    @grapple_field
-    @staticmethod
-    def action_list_page(root: Instance) -> ActionListPage | None:
-        return root.config.action_list_page
-
-    @sb.field(graphql_type=list[StreamFieldInterface] | None)
-    @staticmethod
-    def intro_content(root: Instance) -> StreamValue:
-        return root.config.site_content.intro_content
-
     @sb.field(graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.schema')]])
-    @staticmethod
-    def nodes(root: Instance, info: gql.Info, id: list[sb.ID] | None = None) -> list[Node]:
-        can_edit = _instance_editor_allowed(root, info)
+    def nodes(self, info: gql.Info, id: list[sb.ID] | None = None) -> list[Node]:
+        can_edit = _instance_editor_allowed(self._instance.config, info)
         if id is not None:
             nodes: list[Node] = []
             for obj_id in id:
-                node = root.context.nodes.get(obj_id)
+                node = self._instance.context.nodes.get(obj_id)
                 if node is None:
                     continue
                 if not can_edit and not _node_is_publicly_visible(node):
                     continue
                 nodes.append(node)
             return nodes
-        node_seq: Iterable[Node] = root.context.nodes.values()
+        node_seq: Iterable[Node] = self._instance.context.nodes.values()
         if not can_edit:
             node_seq = filter(_node_is_publicly_visible, node_seq)
         return sorted(node_seq, key=lambda node: (node.order is None, node.order or 0, node.id))
+
+
+@sb.type
+class InstanceType:
+    _config: sb.Private[InstanceConfig]
+    _instance: sb.Private[Instance | None] = None
+
+    id: sb.ID
+    uuid: UUID
+    name: str
+    owner: str | None
+    default_language: str
+    supported_languages: list[str]
+    base_path: str
+    identifier: str
+    is_locked: bool
+    lead_title: str
+    lead_paragraph: str | None
+
+    @classmethod
+    def from_model(cls, ic: InstanceConfig, instance: Instance | None = None) -> Self:
+        return cls(
+            _config=ic,
+            _instance=instance,
+            id=sb.ID(ic.identifier),
+            uuid=ic.uuid,
+            name=getattr(ic, 'name_i18n', None) or ic.name,
+            owner=ic.owner_i18n or ic.owner or None,
+            default_language=ic.default_language,
+            supported_languages=ic.supported_languages,
+            base_path='',
+            identifier=ic.identifier,
+            is_locked=ic.is_locked,
+            lead_title=ic.lead_title_i18n or '',
+            lead_paragraph=ic.lead_paragraph_i18n,
+        )
+
+    def runtime_instance(self) -> Instance:
+        if self._instance is None:
+            self._instance = self._config.get_instance()
+        return self._instance
+
+    @property
+    def spec(self) -> InstanceModelSpec:
+        return self._config.ensure_spec()
+
+    @sb.field
+    def years(self) -> YearsDefType:
+        return cast('YearsDefType', self.spec.years)
+
+    @sb.field
+    def target_year(self) -> int | None:
+        if self._instance is not None:
+            return self._instance.context.target_year
+        return self.spec.years.target
+
+    @sb.field
+    def model_end_year(self) -> int:
+        if self._instance is not None:
+            return self._instance.context.model_end_year
+        years = self.spec.years
+        return years.model_end or years.target or timezone.now().year
+
+    @sb.field
+    def reference_year(self) -> int | None:
+        if self._instance is not None:
+            return self._instance.reference_year
+        return self.spec.years.reference
+
+    @sb.field
+    def minimum_historical_year(self) -> int:
+        if self._instance is not None:
+            return self._instance.minimum_historical_year
+        years = self.spec.years
+        return years.min_historical or years.reference or timezone.now().year
+
+    @sb.field
+    def maximum_historical_year(self) -> int | None:
+        if self._instance is not None:
+            return self._instance.maximum_historical_year
+        return self.spec.years.max_historical
+
+    @sb.field
+    def theme_identifier(self) -> str | None:
+        return self._config.theme_identifier
+
+    @sb.field
+    def action_groups(self) -> list[ActionGroupType]:
+        return cast('list[ActionGroupType]', list(self.spec.action_groups))
+
+    @sb.field
+    def features(self) -> InstanceFeaturesType:
+        return cast('InstanceFeaturesType', self.spec.features)
+
+    @sb.field(
+        graphql_type=InstanceModelType,
+        description='Runtime computation model for fields that require hydrating the calculation graph.',
+    )
+    def model(self) -> InstanceModelType:
+        return InstanceModelType(_instance=self.runtime_instance())
+
+    @sb.field(graphql_type=InstanceHostname | None)
+    def hostname(self, hostname: str) -> InstanceHostname | None:
+        hn = self._config.hostnames.filter(hostname__iexact=hostname).first()
+        if not hn:
+            return None
+        return InstanceHostname(hostname=hn.hostname, base_path=hn.base_path)
+
+    @sb.field(
+        graphql_type=UUID | None,
+        description='UUID of the instance this one was copied from, if any.',
+    )
+    def copy_of(self) -> UUID | None:
+        from nodes.models import InstanceConfig as _InstanceConfig
+
+        if self._config.copy_of_id is None:
+            return None
+        return _InstanceConfig.objects.filter(pk=self._config.copy_of_id).values_list('uuid', flat=True).first()
+
+    @sb.field(graphql_type=Annotated['FrameworkConfigType', sb.lazy('frameworks.schema')] | None)  # pyright: ignore[reportOperatorIssue]
+    def framework_config(self, info: gql.Info) -> FrameworkConfig | None:
+        return self._config.cache.framework_config
+
+    @sb.field(description='Active members of this instance. Only visible to instance admins.')
+    def users(self, info: gql.Info) -> list[InstanceMemberType]:
+        if not _instance_admin_allowed(self._config, info):
+            return []
+        return _collect_instance_members(self._config)
+
+    @sb.field(
+        graphql_type=list[Annotated['InstanceInvitationType', sb.lazy('users.graphql.mutations')]],
+        description='Active (not accepted, not expired, not revoked) invitations for this instance.',
+    )
+    def invitations(self, info: gql.Info) -> list['InstanceInvitation']:
+        from nodes.models import InstanceInvitation as _InstanceInvitation
+
+        if not _instance_admin_allowed(self._config, info):
+            return []
+        return list(
+            _InstanceInvitation.objects.filter(
+                instance_config=self._config,
+                accepted_at__isnull=True,
+                expires_at__gt=timezone.now(),
+            )
+        )
+
+    @sb.field
+    def editor(self, info: gql.Info) -> InstanceEditorFields | None:
+        if not _instance_editor_allowed(self._config, info):
+            return None
+        return InstanceEditorFields(_config=self._config, _instance=self._instance)
+
+    @sb.field(deprecation_reason='Use model.goals instead.')
+    def goals(self, id: sb.ID | None = None) -> list[InstanceGoalEntry]:
+        return self.model().goals(id)
+
+    @grapple_field
+    def action_list_page(self) -> ActionListPage | None:
+        return self._config.action_list_page
+
+    @sb.field(graphql_type=list[StreamFieldInterface] | None)
+    def intro_content(self) -> StreamValue:
+        return self._config.site_content.intro_content
+
+    @sb.field(
+        graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.schema')]],
+        deprecation_reason='Use model.nodes instead.',
+    )
+    def nodes(self, info: gql.Info, id: list[sb.ID] | None = None) -> list[Node]:
+        return self.model().nodes(info, id)
 
 
 @sb.type

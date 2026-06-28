@@ -39,6 +39,8 @@ if TYPE_CHECKING:
         Panel,
     )
 
+    from kausal_common.models.types import RevOne
+
     from paths.context import InstanceSpecificCache
 
 
@@ -57,14 +59,10 @@ class PathsAdminPageForm(WagtailAdminPageForm):
             pp = self.instance
         else:
             pp = cast('PathsPage', self.parent_page)
-        for page in pp.get_ancestors(inclusive=True).filter(depth__gte=2):
-            site = page.sites_rooted_here.first()
-            if site is not None:
-                break
-        else:
-            raise Exception('No sites found for page: %s' % self.instance)
-
-        return cast('InstanceConfig', site.instance)  # pyright: ignore
+        if hasattr(pp, 'instance_config_root'):
+            return pp.instance_config_root
+        root_page = pp.get_ancestors(inclusive=True).filter(depth__gte=2, instance_config_root__isnull=False).get()
+        return cast('PathsPage', root_page).instance_config_root
 
 
 class PathsPageManager[PageT: PathsPage](PageModelManager[PageT, PageQuerySet[PageT]]):
@@ -132,6 +130,7 @@ class PathsPage(Page):
 
     objects: ClassVar[PathsPageManager[Self]] = PathsPageManager()
     id: AutoField[Combinable | int | str | None, int]
+    instance_config_root: RevOne[PathsPage, InstanceConfig]
 
     class Meta:
         abstract = True
@@ -146,12 +145,19 @@ class PathsPage(Page):
     def get_url_parts(self, request=None):
         # Find the root page for this sub-page
         root_page = self.get_ancestors(inclusive=True).filter(depth=2).specific().first()
-        site = Site.objects.filter(root_page=root_page).first()
-        instance = InstanceConfig.objects.filter(site=site).first()
-        if not site or not instance:
+        if root_page is None:
+            return super().get_url_parts(request)
+        instance = InstanceConfig.objects.filter(root_page__translation_key=root_page.translation_key).first()
+        if instance is None:
+            return super().get_url_parts(request)
+        site = getattr(request, '_wagtail_site', None) if request is not None else None
+        if site is None:
+            site = Site.objects.filter(is_default_site=True).first() or Site.objects.first()
+        site_url = instance.get_view_url(request=request)
+        if site is None or site_url is None:
             return super().get_url_parts(request)
 
-        return (site.pk, instance.site_url, self.url_path)
+        return (site.pk, site_url, self.url_path)
 
     def natural_key(self):
         page: Page | None = self
@@ -209,9 +215,9 @@ class PathsPage(Page):
         else:
             root = cast('PathsPage | None', self.get_ancestors(inclusive=False).filter(depth=2).specific().first())
             assert root is not None
-        site = Site.objects.filter(root_page__translation_key=root.translation_key).first()
-        assert site is not None
-        return getattr(site, 'instance')  # noqa: B009
+        instance = InstanceConfig.objects.filter(root_page__translation_key=root.translation_key).first()
+        assert instance is not None
+        return instance
 
     def __rich_repr__(self):
         yield self.title

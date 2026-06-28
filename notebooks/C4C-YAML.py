@@ -191,7 +191,6 @@ instanceyaml = (
     'id: [instance]_c4c\n'
     + 'default_language: [language]\n'
     + 'supported_languages: []\n'
-    + 'site_url: https://[instance]-c4c.paths.staging.kausal.tech\n'
     + 'dataset_repo:\n'
     + '  url: https://github.com/kausaltech/dvctest.git\n'
     + '  commit: [commit]\n'

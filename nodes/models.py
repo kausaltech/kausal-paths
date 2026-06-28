@@ -36,7 +36,6 @@ from modeltrans.manager import MultilingualQuerySet
 from wagtail import blocks
 from wagtail.fields import RichTextField, StreamField
 from wagtail.models import DraftStateMixin, Locale, Page, RevisionMixin
-from wagtail.models.sites import Site
 from wagtail.search import index
 
 import sentry_sdk
@@ -445,8 +444,13 @@ class InstanceConfig(
     lead_title_i18n: str
     lead_paragraph = RichTextField[str | None, str | None](null=True, blank=True, verbose_name=_('Lead paragraph'))
     lead_paragraph_i18n: str | None
-    site_url = models.URLField(verbose_name=_('Site URL'), null=True)
-    site = models.OneToOneField(Site, null=True, on_delete=models.PROTECT, editable=False, related_name='instance')
+    root_page = models.OneToOneField(
+        Page,
+        null=True,
+        on_delete=models.PROTECT,
+        editable=False,
+        related_name='instance_config_root',
+    )
     organization: FK[Organization] = models.ForeignKey(
         Organization,
         related_name='instances',
@@ -471,6 +475,10 @@ class InstanceConfig(
     is_locked = models.BooleanField(
         default=False,
         help_text=_('Whether end-user mutation surfaces should treat this instance as read-only.'),
+    )
+    is_hidden = models.BooleanField(
+        default=False,
+        help_text=_('Hide this instance from the admin instance chooser. It remains reachable directly and via permissions.'),
     )
 
     created_at = models.DateTimeField(default=timezone.now)
@@ -600,9 +608,6 @@ class InstanceConfig(
         if update_fields is None:
             if not self.uuid or isinstance(self.uuid, DatabaseDefault):
                 self.uuid = uuid.uuid4()
-            if self.site is not None:
-                # TODO: Update Site and root page attributes
-                pass
             if self.spec is None and (self.config_source == 'database' or self.get_yaml_config_entrypoint()):
                 self.spec = self.ensure_spec(update_self=True, save=False)
 
@@ -613,13 +618,11 @@ class InstanceConfig(
     def delete(self, **kwargs):
         from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope
 
-        site = self.site
-        if site is not None:
-            rp = site.root_page
-            self.site = None
-            self.save()
-            site.delete()
-            rp.get_descendants(inclusive=True).delete()
+        root_page = self.root_page
+        if root_page is not None:
+            self.root_page = None
+            self.save(update_fields=['root_page'])
+            root_page.get_descendants(inclusive=True).delete()
 
         pp = self.permission_policy()
         pp.admin_role.delete_instance_group(self)
@@ -691,7 +694,6 @@ class InstanceConfig(
             'name': name_val,
             'owner': owner_val,
             'i18n': i18n,
-            'site_url': instance.site_url,
             'organization': org,
             'primary_language': instance.default_language,
             'other_languages': [lang for lang in instance.supported_languages if lang != instance.default_language],
@@ -699,7 +701,8 @@ class InstanceConfig(
             'yaml_mtime_hash': instance.config_mtime_hash,
             **kwargs,
         }
-        return cls.objects.create(**fields)
+        ic = cls.objects.create(**fields)
+        return ic
 
     def has_framework_config(self) -> bool:
         try:
@@ -945,6 +948,7 @@ class InstanceConfig(
                 tolerate_node_failures=tolerate_node_failures,
             )
 
+        instance.config = self
         instance.modified_at = timezone.now()
         if settings.ENABLE_PERF_TRACING:
             instance.context.perf_context.enabled = True
@@ -1102,20 +1106,18 @@ class InstanceConfig(
         return 'default'
 
     @cached_property
-    def root_page(self) -> Page:
-        assert self.site is not None
-        return self.site.root_page
-
-    @cached_property
     def action_list_page(self) -> ActionListPage | None:
         from pages.models import ActionListPage
 
+        if self.root_page is None:
+            return None
         qs = self.root_page.get_descendants().type(ActionListPage).specific()
         return cast('ActionListPage | None', qs.first())
 
     def get_translated_root_page(self) -> Page:
         """Return root page in activated language, fall back to default language."""
-        root: Page = self.root_page
+        root = self.root_page
+        assert root is not None
         language = get_language()
         language = convert_language_code(language, 'wagtail')
         try:
@@ -1124,6 +1126,94 @@ class InstanceConfig(
         except Locale.DoesNotExist, Page.DoesNotExist:
             pass
         return root
+
+    @staticmethod
+    def _format_url_from_hostname(
+        hostname: str,
+        base_path: str = '',
+        *,
+        scheme: str | None = None,
+        port: int | None = None,
+    ) -> str:
+        if scheme is None:
+            scheme = 'http' if hostname == 'localhost' or hostname.endswith('.localhost') else 'https'
+        port_str = f':{port}' if port else ''
+        return f'{scheme}://{hostname}{port_str}{base_path.rstrip("/")}'
+
+    @staticmethod
+    def _get_client_url_parts(
+        request: HttpRequest | None = None,
+        client_url: str | None = None,
+    ) -> tuple[str, str, int | None] | None:
+        from paths.schema_context import PathsGraphQLContext
+
+        if client_url is None and request is None:
+            return None
+
+        if not client_url and request is not None:
+            if isinstance(request, PathsGraphQLContext):
+                headers = request.get_request_headers()
+            else:
+                headers = request.headers
+            client_url = headers.get('origin') or headers.get('referer')
+        if not client_url:
+            return None
+
+        parts = urlparse(client_url)
+        if parts.scheme not in ('http', 'https') or not parts.hostname:
+            return None
+        try:
+            port = parts.port
+        except ValueError:
+            port = None
+        if (parts.scheme == 'https' and port == 443) or (parts.scheme == 'http' and port == 80):
+            port = None
+        return parts.scheme, parts.hostname.lower(), port
+
+    def get_view_url(self, request: HttpRequest | None = None, client_url: str | None = None) -> str | None:
+        client_parts = self._get_client_url_parts(request=request, client_url=client_url)
+        if client_parts is not None:
+            scheme, hostname, port = client_parts
+            hn = self.hostnames.filter(hostname__iexact=hostname).first()
+            if hn is not None:
+                return self._format_url_from_hostname(hn.hostname, hn.base_path, scheme=scheme, port=port)
+
+        wildcard_domain = settings.INSTANCE_WILDCARD_DOMAIN
+        if not wildcard_domain:
+            return None
+        hn = self.hostnames.order_by('pk').first()
+        if hn is not None:
+            return self._format_url_from_hostname(hn.hostname, hn.base_path)
+
+        if client_parts is not None:
+            scheme, hostname, port = client_parts
+            if hostname == wildcard_domain or hostname.endswith(f'.{wildcard_domain}'):
+                return self._format_url_from_hostname(f'{self.identifier}.{wildcard_domain}', scheme=scheme, port=port)
+
+        hostname = f'{self.identifier}.{wildcard_domain}'
+        return self._format_url_from_hostname(hostname)
+
+    def add_hostname_from_url(self, url: str) -> InstanceHostname | None:
+        parts = urlparse(url)
+        if not parts.hostname:
+            return None
+        base_path = parts.path.rstrip('/')
+        hostname = parts.hostname.lower()
+        hostname_obj = self.hostnames.filter(hostname=hostname).first()
+        if hostname_obj is not None:
+            if (
+                hostname_obj.base_path != base_path
+                and not InstanceHostname.objects.filter(
+                    hostname=hostname,
+                    base_path=base_path,
+                ).exists()
+            ):
+                hostname_obj.base_path = base_path
+                hostname_obj.save(update_fields=['base_path'])
+            return hostname_obj
+        if InstanceHostname.objects.filter(hostname=hostname, base_path=base_path).exists():
+            return None
+        return InstanceHostname.objects.create(instance=self, hostname=hostname, base_path=base_path)
 
     def sync_nodes(self, update_existing=False, delete_stale=False, overwrite=False, skip_descriptions=False):
         from nodes.datasets import DBDataset
@@ -1292,7 +1382,7 @@ class InstanceConfig(
             )
         return page
 
-    def _create_default_pages(self) -> Page:  # noqa: C901, PLR0912
+    def _create_default_pages(self) -> Page:  # noqa: C901
         from pages.models import ActionListPage, OutcomePage
 
         root = cast('Page', Page.get_first_root_node())
@@ -1310,9 +1400,6 @@ class InstanceConfig(
                 break
         if home_page_conf is None:
             if not outcome_nodes:
-                hps = list(home_pages)
-                if hps:
-                    return hps[0]
                 return self._create_instance_root_page()
 
             onode = outcome_nodes.get('net_emissions') or next(iter(outcome_nodes.values()))
@@ -1379,12 +1466,9 @@ class InstanceConfig(
     def create_default_content(self):
         self.create_or_update_instance_groups()
         root_page = self._create_default_pages()
-        if self.site is None and self.site_url is not None:
-            o = urlparse(self.site_url)
-            site = Site(site_name=self.get_name(), hostname=o.hostname, root_page=root_page)
-            site.save()
-            self.site = site
-            self.save(update_fields=['site'])
+        if self.root_page is None:
+            self.root_page = root_page
+            self.save(update_fields=['root_page'])
 
     def create_or_update_instance_groups(self):
         pp = self.permission_policy()

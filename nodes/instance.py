@@ -54,8 +54,6 @@ class Instance:
     _: dataclasses.KW_ONLY
     yaml_file_path: Path | None = None
     config_mtime_hash: str | None = None
-    site_url: str | None = None
-    """The URL for the main deployment of thepublic UI for this instance."""
 
     reference_year: int
     """Reference (or baseline) year for the instance."""

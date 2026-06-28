@@ -1,7 +1,6 @@
 id: saskatoon-2025
 default_language: en
 supported_languages: []
-site_url: https://saskatoon-2025.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: d2de5c4c3fcd92a918454ae0898a7f5e2d7f9fe3

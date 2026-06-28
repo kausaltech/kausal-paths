@@ -121,7 +121,7 @@ python manage.py copy_instance zuerich zuerich-copy --dry-run
   DB-resident datasets. Use for instances that are already
   database-backed.
 - **`yaml`** — copies `configs/<src>.yaml` → `configs/<dst>.yaml`
-  (rewriting only the instance `id` / `site_url` / `name*`), creates a
+  (rewriting only the instance `id` / `name*`), creates a
   `config_source='yaml'` InstanceConfig, then materialises its `NodeConfig`
   rows — and the editor graph (`NodeEdge` / `DatasetPort`) — from the
   source's DB snapshot, so admin-authored fields the YAML can't express are

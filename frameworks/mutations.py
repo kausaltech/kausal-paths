@@ -97,10 +97,6 @@ class FrameworkMutation:
                 created_by=user,
                 last_modified_by=user,
             )
-            ic.site_url = fwc.get_view_url()
-            if ic.site_url is not None:
-                ic.save(update_fields=['site_url'])
-
             ic.owned_by = user
             ic.save(update_fields=['owned_by'])
 

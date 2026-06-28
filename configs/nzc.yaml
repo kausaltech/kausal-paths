@@ -1,7 +1,6 @@
 # New version saved 2026-06-09 based on lucia.yaml
 id: nzc
 default_language: en
-site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 96e8ebba885da2cd10ff7b3232b1811ef654eb00

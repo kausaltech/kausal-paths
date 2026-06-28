@@ -77,7 +77,7 @@ def _resolve_model_instance(ic: InstanceConfig) -> InstanceType:
         nc = node_config_by_identifier.get(node_id)
         if nc is not None:
             node.db_obj = nc
-    return cast('InstanceType', instance)
+    return InstanceType.from_model(ic, instance=instance)
 
 
 def _resolve_runtime_node(ic: InstanceConfig, node_id: int) -> Node:

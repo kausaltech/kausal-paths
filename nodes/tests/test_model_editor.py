@@ -1713,6 +1713,11 @@ def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_ins
             nodes {
                 identifier
             }
+            model {
+                nodes {
+                    identifier
+                }
+            }
         }
     }
     """
@@ -1726,8 +1731,10 @@ def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_ins
         if cached is not None:
             _pytest_instances[db_instance_config.identifier] = cached
     public_ids = {node['identifier'] for node in public_data['instance']['nodes']}
+    public_model_ids = {node['identifier'] for node in public_data['instance']['model']['nodes']}
     assert 'visible_node' in public_ids
     assert 'hidden_node' not in public_ids
+    assert public_model_ids == public_ids
 
     user = UserFactory.create()
     instance_admin_role.assign_user(db_instance_config, user)
@@ -1742,8 +1749,10 @@ def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_ins
         if cached is not None:
             _pytest_instances[db_instance_config.identifier] = cached
     editor_ids = {node['identifier'] for node in editor_data['instance']['nodes']}
+    editor_model_ids = {node['identifier'] for node in editor_data['instance']['model']['nodes']}
     assert 'visible_node' in editor_ids
     assert 'hidden_node' in editor_ids
+    assert editor_model_ids == editor_ids
 
 
 # ---------------------------------------------------------------------------

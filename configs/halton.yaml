@@ -1,7 +1,6 @@
 id: halton
 default_language: en
 supported_languages: []
-site_url: https://halton.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 8633346287e090f780fa75625942cd0e8174ca38

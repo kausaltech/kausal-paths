@@ -1,7 +1,6 @@
 id: koeln-gpc
 default_language: de
 supported_languages: [en]
-site_url: https://koeln-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: c96cb099ed2443ee185979240aefb32a22eb6708

@@ -14,7 +14,6 @@ from paths import gql
 from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
 from paths.graphql_helpers import ensure_instance, get_instance_context, pass_context
 
-from nodes.instance import Instance
 from nodes.models import InstanceConfig, InstanceGraphQLContext
 from nodes.normalization import Normalization
 from nodes.scenario import Scenario
@@ -36,8 +35,9 @@ logger = logger.bind(name='nodes.schema')
 class Query:
     @sb.field(graphql_type=InstanceType)
     @pass_context
-    def instance(self, context: 'Context') -> Instance:
-        return context.instance
+    def instance(self, context: 'Context') -> InstanceType:
+        config = context.instance.config
+        return InstanceType.from_model(config, instance=context.instance)
 
     @sb.field(graphql_type=list[NodeInterface])
     @pass_context

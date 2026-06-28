@@ -76,14 +76,14 @@ class Role:
 
     @transaction.atomic()
     def _update_page_perms(self, group: Group, instance: InstanceConfig) -> None:
-        if instance.site is None:
+        root_page = instance.root_page
+        if root_page is None:
             return
 
         filt = dict(
             content_type__app_label='wagtailcore',
             content_type__model='page',
         )
-        root_page = instance.site.root_page
         grp_perms = root_page.group_permissions.filter(group=group)  # pyright: ignore[reportAttributeAccessIssue]
         old_perms = set(grp_perms.values_list('permission', flat=True))
         new_perms = set(Permission.objects.filter(**filt, codename__in=self.page_perms))

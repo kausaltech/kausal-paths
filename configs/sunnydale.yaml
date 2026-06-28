@@ -1,7 +1,6 @@
 id: sunnydale  # FIXME /graph gives errors, e.g. [district_heating_consumption <nodes.simple.Activity>] Metric has nans or nulls
 default_language: en
 supported_languages: [de, fi]  # FIXME instance_config.other_languages is [] for an unknown reason
-site_url: https://sunnydale.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: dc83135f4ce6b248c96ae0c6eb69024bf2434f42

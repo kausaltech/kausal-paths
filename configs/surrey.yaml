@@ -1,7 +1,6 @@
 id: surrey
 default_language: en
 supported_languages: []
-site_url: https://surrey.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 4f65354a5566e4161fdb5dd2fdea9625bb3d7e62

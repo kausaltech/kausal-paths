@@ -2,7 +2,6 @@
 id: dinspec
 default_language: en
 supported_languages: [de]
-site_url: https://dinspec.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 116732e7b177932dadba8865fa5d1552ff7aa528
