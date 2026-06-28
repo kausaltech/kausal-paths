@@ -5,7 +5,7 @@ site_url: https://lappeenranta-nzc.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: b3fec277bd21292fb22f8d59f6d5c9beb2a5000f # New with a separate lappeenranta/defaults dataset
+  commit: 9e9c2483ba4459868b35f3a763a0b97c30753cae # Updated for new health sub-modules
   # commit: 892daa0d78ff8da19b981aea687e2d8221831721 # Old Lappeenranta-specific version of nzc/defaults
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan missiokaupungin ilmasto-ohjelma 2030
@@ -28,12 +28,17 @@ features:
   hide_scenario_editor: false
 
 include:
-- file: modules/health.yaml
+- file: modules/health/air_pollution_exposure.yaml
+  # Intermodular nodes: transport_co2_for_health, power_plant_emissions_for_health
   node_group: Health
   allow_override: true
-  dataset_replacements:
-  - from: nzc/defaults
-    to: lappeenranta/defaults
+- file: modules/health/active_mobility.yaml
+  # Intermodular nodes: passenger_transport_for_health, population_group_sizes_for_health
+  node_group: Health
+  allow_override: true
+- file: modules/health/attribution_and_cost.yaml
+  node_group: Health
+  allow_override: true
 - file: nzc/transport.yaml
   node_group: Transport
   dataset_replacements:
@@ -58,6 +63,7 @@ include:
     to: lappeenranta/defaults
 - file: nzc/buildings.yaml
   node_group: Buildings
+  allow_override: true
   dataset_replacements:
   - from: nzc/defaults
     to: lappeenranta/defaults
@@ -973,9 +979,15 @@ nodes:
     - id: energy_carrier
       flatten: true
   historical_values: [[2020, 0]]
-  output_nodes:
-  - id: transport_air_pollution_emissions2
-    tags: [non_additive]
+
+- id: transport_co2_for_health
+  name_en: CO2 emissions from road transport for health module
+  name_fi: Tieliikenteen CO2-päästöt terveysmoduuliin
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: road_transport_emissions_intermediate
     to_dimensions: []
 
 - id: district_heating_emissions_intermediate
@@ -1002,9 +1014,15 @@ nodes:
     - id: scope
       flatten: true
   historical_values: [[2020, 0]]
-  output_nodes:
-  - id: fossil_plant_air_pollution_emissions
-    tags: [non_additive]
+
+- id: power_plant_emissions_for_health
+  name_en: CO2 emissions from district heating for health module
+  name_fi: Kaukolämmön CO2-päästöt terveysmoduuliin
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: district_heating_emissions_intermediate
     to_dimensions: []
 
 - id: active_mobility_conversion  # TODO Should passenger and inhabitant be in the same dimension?
@@ -1041,7 +1059,7 @@ nodes:
 
 # ----------------------- Active mobility ------------------
 
-- id: population_group_sizes
+- id: population_group_sizes_for_health
   name: Population group sizes
   type: gpc.DatasetNode
   quantity: population
@@ -1061,7 +1079,7 @@ nodes:
   input_dimensions: [age]
   output_dimensions: [age]
   input_nodes:
-  - id: population_group_sizes
+  - id: population_group_sizes_for_health
   params:
     share_dimension: age
     use_input_node_unit_when_adding: true

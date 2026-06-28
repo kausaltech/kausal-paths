@@ -6,7 +6,7 @@ site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 6b12b72fec0c688b3886d45ea63cc94891b2f2ab
+  commit: 9e9c2483ba4459868b35f3a763a0b97c30753cae
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan ilmasto-ohjelma 2030
 name_en: Lappeenranta Climate Action Plan 2030
@@ -248,9 +248,15 @@ nodes:
   quantity: emissions
   unit: kt/a
   input_nodes: [road_transport_emissions]
-  output_nodes:
-  - id: transport_air_pollution_emissions2
-    tags: [non_additive]
+
+- id: transport_co2_for_health
+  name_en: CO2 emissions from road transport for health module
+  name_fi: Tieliikenteen CO2-päästöt terveysmoduuliin
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: road_transport_emissions_intermediate
     to_dimensions: []
 
 - id: district_heating_emissions_intermediate
@@ -262,9 +268,15 @@ nodes:
   quantity: emissions
   unit: kt/a
   input_nodes: [district_heating_emissions]
-  output_nodes:
-  - id: fossil_plant_air_pollution_emissions
-    tags: [non_additive]
+
+- id: power_plant_emissions_for_health
+  name_en: CO2 emissions from district heating for health module
+  name_fi: Kaukolämmön CO2-päästöt terveysmoduuliin
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: district_heating_emissions_intermediate
     to_dimensions: []
 
 - id: carbon_factor_of_active_mobility
@@ -302,7 +314,7 @@ nodes:
 
 # ----------------------- HEAT Active mobility ------------------
 
-- id: population_group_sizes
+- id: population_group_sizes_for_health
   name: Väestöryhmien koko
   type: gpc.DatasetNode
   quantity: population
@@ -322,7 +334,7 @@ nodes:
   input_dimensions: [age]
   output_dimensions: [age]
   input_nodes:
-  - id: population_group_sizes
+  - id: population_group_sizes_for_health
   params:
     share_dimension: age
     use_input_node_unit_when_adding: true
@@ -419,6 +431,14 @@ scenarios:
   all_actions_enabled: true
 
 include:
-- file: modules/health.yaml
-  node_group: health
+- file: modules/health/air_pollution_exposure.yaml
+  # Intermodular nodes: transport_co2_for_health, power_plant_emissions_for_health
+  node_group: Health
+  allow_override: true
+- file: modules/health/active_mobility.yaml
+  # Intermodular nodes: passenger_transport_for_health, population_group_sizes_for_health
+  node_group: Health
+  allow_override: true
+- file: modules/health/attribution_and_cost.yaml
+  node_group: Health
   allow_override: true

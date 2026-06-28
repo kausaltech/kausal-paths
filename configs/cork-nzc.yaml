@@ -44,9 +44,11 @@ features:
 include:
 
 - file: modules/health/air_pollution_exposure.yaml
+  # Intermodular nodes: transport_co2_for_health, power_plant_emissions_for_health
   node_group: Health
   allow_override: true
 - file: modules/health/active_mobility.yaml
+  # Intermodular nodes: passenger_transport_for_health, population_group_sizes_for_health
   node_group: Health
   allow_override: true
 - file: modules/health/attribution_and_cost.yaml
@@ -579,7 +581,7 @@ nodes:
       flatten: true
   historical_values: [[2020, 0]]
 
-- id: power_plant_emissions
+- id: power_plant_emissions_for_health
   name_en: CO2 emissions from district heating for health module
   name_fi: Kaukolämmön CO2-päästöt terveysmoduuliin
   type: simple.AdditiveNode
