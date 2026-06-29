@@ -1286,7 +1286,7 @@ class Node:
     ) -> tuple[ppl.PathsDataFrame, CacheResult[ppl.PathsDataFrame] | None]:
         if self.status is NodeStatus.FAILED:
             # Memoized failure: a node that already failed in this run is not recomputed.
-            raise NodeError(self, 'Node failed earlier in this computation run', event='compute', target_node=target_node)
+            raise NodeError(self, 'This node failed earlier in this computation run', event='compute', target_node=target_node)
 
         use_cache = not (self.disable_cache or self.context.skip_cache)
         cache_res = None
