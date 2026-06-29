@@ -1,7 +1,6 @@
 id: climaville-c4c
 default_language: en
 supported_languages: []
-site_url: https://climaville-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: d9e5892252e0f6e81d9f2975df1ac8d7e9539c51

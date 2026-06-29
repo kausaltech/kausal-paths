@@ -1,7 +1,6 @@
 id: equalia
 default_language: en
 supported_languages: [de, fi]
-site_url: https://equalia.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: ef98e3122ff78516297c2c6f3f3369ef8614dcbe

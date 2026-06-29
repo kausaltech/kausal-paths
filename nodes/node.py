@@ -1025,6 +1025,15 @@ class Node:
             param_arr = param_arr[0].split(':')
             df = df.filter(pl.col(params[0]).eq(params[1]))
 
+        # Drop dim columns that are entirely null before from/to_dimensions processing.
+        # Multi-metric nodes with different dimensional spans use null to mark
+        # dimensions not applicable to a given metric; those must be pruned so
+        # from_dimensions filtering and to_dimensions validation see the correct
+        # (narrowed) dimension set.
+        for dim_col in list(df.dim_ids):
+            if df[dim_col].null_count() == df[dim_col].len():
+                df = df.drop(dim_col)
+
         if edge.from_dimensions:
             meta = df.get_meta()
             if not meta.dim_ids:
@@ -1032,7 +1041,10 @@ class Node:
             for dim_id, edge_dim in edge.from_dimensions.items():
                 cat_ids = [cat.id for cat in edge_dim.categories]
                 if dim_id not in meta.dim_ids:
-                    raise NodeError(self, 'Dimension %s not in output df' % dim_id)
+                    if dim_id not in self.output_dimensions:
+                        raise NodeError(self, 'Dimension %s not declared in node output dimensions' % dim_id)
+                    # Dimension is declared but was dropped as all-null for this metric — flatten is a no-op.
+                    continue
                 filter_expr = pl.col(dim_id).is_in(cat_ids)
                 if edge_dim.exclude:
                     filter_expr = pl.col(dim_id).is_null() | ~filter_expr
@@ -1059,6 +1071,7 @@ class Node:
                 new_cols.append((dim_id, cat.id))
 
             if new_cols:
+                meta = df.get_meta()
                 exprs = [pl.lit(cat).cast(pl.Categorical).alias(dim_id) for dim_id, cat in new_cols]
                 df = df.with_columns(exprs)
                 for dim_id, _ in new_cols:
@@ -1078,12 +1091,6 @@ class Node:
         else:
             output_dimensions = set(target_node.input_dimensions.keys())
 
-        # Validate output
-        meta = df.get_meta()
-        # Drop dim columns that only have nulls
-        for dim_col in meta.dim_ids:
-            if df[dim_col].null_count() == df[dim_col].len():
-                df = df.drop(dim_col)
         meta = df.get_meta()
         # if set(meta.dim_ids) != output_dimensions and not skip_dim_test: # TODO Consider testing this in node validation
         #     print(df)
@@ -1172,7 +1179,8 @@ class Node:
             dim_cats = dim.get_cat_ids()
             diff = cats - dim_cats
             if diff:
-                raise NodeError(self, "Unknown categories in dimension column '%s': %s" % (dim_id, ', '.join(diff)))
+                diff_strs = [c if c is not None else '(null)' for c in diff]
+                raise NodeError(self, "Unknown categories in dimension column '%s': %s" % (dim_id, ', '.join(diff_strs)))
 
         dim_ids = set(meta.dim_ids)
         node_dims = set(self.output_dimensions.keys())
@@ -1278,7 +1286,7 @@ class Node:
     ) -> tuple[ppl.PathsDataFrame, CacheResult[ppl.PathsDataFrame] | None]:
         if self.status is NodeStatus.FAILED:
             # Memoized failure: a node that already failed in this run is not recomputed.
-            raise NodeError(self, 'Node failed earlier in this computation run', event='compute', target_node=target_node)
+            raise NodeError(self, 'This node failed earlier in this computation run', event='compute', target_node=target_node)
 
         use_cache = not (self.disable_cache or self.context.skip_cache)
         cache_res = None
@@ -1873,11 +1881,11 @@ class Node:
         return df[YEAR_COLUMN].unique().sort().to_list()
 
     def _get_measure_datapoint_years(self, n: DatasetNode, dims: list[VisualizationNodeDimension]) -> list[int]:
-        datacol = 'ObservedDataPoint'
+        data_col = 'ObservedDataPoint'
 
         df = n.get_filtered_dataset_df()
-        if datacol in df.columns:
-            df = df.filter(pl.col(datacol)).drop(datacol)
+        if data_col in df.columns:
+            df = df.filter(pl.col(data_col)).drop(data_col)
             df = n.drop_unnecessary_levels(df, droplist=['Description', 'FromMeasureDataPoint'])
             df = n.rename_dimensions(df)
             df = n.convert_names_to_ids(df)
@@ -1885,8 +1893,7 @@ class Node:
         return []
 
     def get_measure_datapoint_years(self, dims: list[VisualizationNodeDimension]) -> list[int]:
-        """Get the years with measure data points from the input datasets and upstream nodes."""
-
+        """Get the years with measure data points from this node or its input nodes."""
         # FIXME: This should probably be in the future "datapoint metadata" column instead.
         from nodes.actions.action import ActionNode
         from nodes.gpc import DatasetNode
@@ -1894,28 +1901,26 @@ class Node:
         if isinstance(self, DatasetNode):
             return self._get_measure_datapoint_years(self, dims)
 
+        years = set[int]([])
         if self.input_dataset_instances:
             for ds in self.input_dataset_instances:
-                if 'framework_measure_data' in ds.tags:
-                    df = ds.get_copy()
-                    data_col = 'ObservedDataPoint'
-                    if data_col not in df.columns:
-                        return []
-                    df = df.filter(pl.col(data_col))
-                    return self._filter_measure_datapoint_years(df, dims)
+                if 'framework_measure_data' in ds.tags or 'city_data' in ds.tags:
+                    get_obs_years = getattr(ds, 'get_observation_years', None)
+                    if get_obs_years is not None:
+                        years.update(get_obs_years())
+                    else:
+                        data_col = 'ObservedDataPoint'
+                        df = ds.get_copy()
+                        if data_col in df.columns:
+                            df = df.filter(pl.col(data_col))
+                            years.update(self._filter_measure_datapoint_years(df, dims))
 
-        years = set[int]([])
-        nodes = self.get_upstream_nodes()
-        # FIXME: What is this?
-        for n in nodes:
-            if not isinstance(n, DatasetNode) or issubclass(type(n), ActionNode):  # Ignore action data
+        for n in self.input_nodes:
+            if issubclass(type(n), ActionNode):
                 continue
-            if any(issubclass(type(d), ActionNode) for d in n.get_downstream_nodes()):
-                continue  # Ignore data that is used in actions
             if n.id in ['energy_use_intensity_change_new', 'relative_transport_mode_switches']:
                 continue  # Last resort to get rid of non-observed data
-            years.update(n._get_measure_datapoint_years(n, dims))
-
+            years.update(n.get_measure_datapoint_years(dims))
         return sorted(years)
 
     def get_explanation(self) -> str:

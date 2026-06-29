@@ -8,10 +8,12 @@ import pytest
 from social_core.backends.base import BaseAuth
 
 from paths.const import INSTANCE_SUPER_ADMIN_ROLE
+from paths.context import RealmContext, realm_context
 
 from admin_site.api import check_user_in_other_clusters
 from admin_site.auth_backends import NZCPortalOAuth2
 from admin_site.auth_pipeline import assign_roles
+from admin_site.wagtail_hooks import instance_chooser
 from frameworks.models import FrameworkConfig
 from frameworks.tests.factories import FrameworkFactory
 from nodes.tests.factories import InstanceConfigFactory
@@ -98,6 +100,51 @@ def test_check_user_in_other_clusters_skips_regional_host(rf, monkeypatch, setti
     monkeypatch.setattr('admin_site.api.requests.post', post)
 
     assert check_user_in_other_clusters('user@example.com', request) is None
+
+
+def _chooser_labels(user, realm, rf) -> set[str]:
+    request = rf.get('/admin/')
+    request.user = user
+    ctx = RealmContext(realm=realm, user=user)
+    with realm_context.activate(ctx):
+        items = instance_chooser.menu_items_for_request(request)
+    return {item.label for item in items}
+
+
+def test_instance_chooser_omits_hidden_instances(rf) -> None:
+    admin = UserFactory.create(is_staff=True, is_superuser=True)
+    visible_a = InstanceConfigFactory.create(identifier='visible-a', name='Visible A')
+    InstanceConfigFactory.create(identifier='visible-b', name='Visible B')
+    InstanceConfigFactory.create(identifier='hidden-one', name='Hidden One', is_hidden=True)
+
+    labels = _chooser_labels(admin, visible_a, rf)
+
+    assert 'Visible A' in labels
+    assert 'Visible B' in labels
+    assert 'Hidden One' not in labels
+
+
+def test_instance_chooser_keeps_active_hidden_instance(rf) -> None:
+    # A user currently on a hidden instance must still see it (and be able to
+    # switch away), so the active realm is exempt from the filter.
+    admin = UserFactory.create(is_staff=True, is_superuser=True)
+    InstanceConfigFactory.create(identifier='visible', name='Visible')
+    hidden = InstanceConfigFactory.create(identifier='hidden', name='Hidden', is_hidden=True)
+
+    labels = _chooser_labels(admin, hidden, rf)
+
+    assert 'Hidden' in labels
+    assert 'Visible' in labels
+
+
+def test_hidden_instance_still_reachable() -> None:
+    # The hiding is listing-only: it does not touch get_adminable_instances(),
+    # which is the authorization gate for directly switching to an instance.
+    admin = UserFactory.create(is_staff=True, is_superuser=True)
+    hidden = InstanceConfigFactory.create(identifier='hidden', name='Hidden', is_hidden=True)
+
+    assert admin.user_is_admin_for_instance(hidden)
+    assert hidden in admin.get_adminable_instances()
 
 
 def test_nzcportal_city_admin_maps_to_instance_super_admin() -> None:

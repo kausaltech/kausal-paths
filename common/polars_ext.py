@@ -42,6 +42,7 @@ class PathsExt:
         'add_missing_years': '_add_missing_years',
         'arithmetic_inverse': '_arithmetic_inverse',
         'bring_to_maximum_historical_year': '_bring_to_maximum_historical_year',
+        'bring_to_reference_year': '_bring_to_reference_year',
         'complement': '_complement',
         'complement_cumulative_product': '_complement_cumulative_product',
         'cumulative': '_cumulative',
@@ -688,6 +689,7 @@ class PathsExt:
         other: ppl.PathsDataFrame,
         how: Literal['left', 'outer', 'inner'] = 'left',
         index_from: Literal['left', 'right', 'union'] = 'left',
+        nulls_equal: bool = False,
     ) -> ppl.PathsDataFrame:
         sdf = self._df
         sm = sdf.get_meta()
@@ -726,7 +728,7 @@ class PathsExt:
         pl_how: pl_types.JoinStrategy = how
         if how == 'outer':
             pl_how = 'outer_coalesce'
-        ldf = sdf_lazy.join(oldf, on=join_on, how=pl_how)
+        ldf = sdf_lazy.join(oldf, on=join_on, how=pl_how, nulls_equal=nulls_equal)
         fc_right = '%s_right' % FORECAST_COLUMN
         meta = sm.copy()
         ldf_cols = set(ldf.collect_schema().keys())
@@ -1048,10 +1050,14 @@ class PathsExt:
             pl
             .when(pl.col(YEAR_COLUMN) <= max_year)
             .then(pl.lit(is_forecast))
-            .otherwise(pl.col(FORECAST_COLUMN))
+            .otherwise(pl.col(FORECAST_COLUMN))  # TODO do we want to keep existing forecast years?
             .alias(FORECAST_COLUMN)
         )
         return df
+
+    def _bring_to_reference_year(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        ref_year = context.instance.reference_year
+        return df.with_columns((pl.col(YEAR_COLUMN) > ref_year).alias(FORECAST_COLUMN))
 
     def _complement(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         u = df.get_unit(VALUE_COLUMN)
@@ -1221,9 +1227,9 @@ class PathsExt:
         )
 
     def _inventory_only(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
-        df = df.with_columns(  # TODO A non-elegant way to ensure there is at least one historical row.
+        df = df.with_columns(
             pl
-            .when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
+            .when(pl.col(YEAR_COLUMN) == pl.col(YEAR_COLUMN).min())
             .then(pl.lit(value=False))
             .otherwise(pl.col(FORECAST_COLUMN))
             .alias(FORECAST_COLUMN),

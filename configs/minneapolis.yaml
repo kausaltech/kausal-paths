@@ -1,7 +1,6 @@
 id: minneapolis
 default_language: en
 supported_languages: []
-site_url: https://minneapolis.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 7424223f2e9a24f589a34bfb4855c5d86aa35cd9

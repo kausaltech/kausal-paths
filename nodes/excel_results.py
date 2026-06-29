@@ -400,23 +400,22 @@ class InstanceResultExcel(I18nBaseModel):
                 node.get_baseline_values()
 
         pc.display('baseline calculated')
-        all_dims = set()
+        all_dims: dict[str, None] = {}
         has_multi_metric = any(len(node.output_metrics) > 1 for node in nodes)
 
         for node in nodes:
             for dim in node.output_dimensions.values():
-                if dim.id not in all_dims:
-                    all_dims.add(dim.id)
+                all_dims[dim.id] = None
 
         wb = self._create_base(existing_wb)
         ds: Worksheet = wb.create_sheet(DATA_SHEET_NAME)
 
-        dims = [context.dimensions[dim_id] for dim_id in all_dims]
+        dims = [context.dimensions[dim_id] for dim_id in sorted(all_dims)]
         if self.format == 'wide':
             fixed_cols = FIXED_COLUMNS_WIDE.copy()
             if has_multi_metric:
                 fixed_cols.insert(3, 'Metric')
-            cols = fixed_cols + [dim_id for dim_id in all_dims]  # noqa: C416
+            cols = fixed_cols + sorted(all_dims)
         else:
             fixed_cols = FIXED_COLUMNS_LONG.copy()
             if has_multi_metric:

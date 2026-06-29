@@ -1,7 +1,6 @@
 id: m-demo
 default_language: de
 supported_languages: [en]
-site_url: https://m-demo.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 909a934f279d51078fd57ac7336ea972576cc6ce

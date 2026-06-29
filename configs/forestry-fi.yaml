@@ -2,7 +2,6 @@
 id: forestry-fi
 default_language: en
 supported_languages: [fi]
-site_url: https://forestry-fi.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: d9648b604f976770dfa3205976b34c3eabc94f60

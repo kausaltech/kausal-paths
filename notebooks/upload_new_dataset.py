@@ -63,9 +63,6 @@ def node_metric_to_metadata_dict(m: NodeMetric) -> dict[str, Any]:
 
 def to_snake_case(string: str) -> str:
     """Convert a string to snake_case."""
-    if not isinstance(string, str):
-        return string
-
     s = string.replace('-', ' ').replace('ä', 'a').replace('ö', 'o').lower().replace(' ', '_')
     s = re.sub(r'[^a-z0-9_]', '', s)
     s = re.sub(r'_+', '_', s)
@@ -551,6 +548,14 @@ def process_dataset(
     # 1. Validate required columns
     validate_required_columns(df)
 
+    # 1b. Normalise Unit: empty string is ambiguous — replace with explicit 'dimensionless'
+    df = df.with_columns(
+        pl.when(pl.col('Unit').is_null() | (pl.col('Unit') == ''))
+        .then(pl.lit('dimensionless'))
+        .otherwise(pl.col('Unit'))
+        .alias('Unit')
+    )
+
     # 2. Determine which column to use for metrics
     metric_col = determine_metric_column(df)
     print(f"Using '{metric_col}' as the metric column.")
@@ -597,10 +602,10 @@ def process_dataset(
 
     # 11. Push to DVC if requested
     if outdvcpath:
-        # Strip any source namespace prefix (e.g. 'aarhus/') and replace with
-        # outdvcpath.  Identifiers must NOT go through to_snake_case: it removes
-        # '/' separators and collapses intentional double-underscores.
-        identifier = dataset_name.rsplit('/', maxsplit=1)[-1]
+        # Strip any source namespace prefix (e.g. 'aarhus/') then snake-case
+        # the leaf segment so DVC paths are always normalised identifiers.
+        # NOTE! Subfolder identifiers will break here, so be careful with them.
+        identifier = to_snake_case(dataset_name.rsplit('/', maxsplit=1)[-1])
         dataset_dvc_path = f'{outdvcpath}/{identifier}'
         push_to_dvc(df, dataset_dvc_path, dataset_name, description, metrics, language, units=units)
 

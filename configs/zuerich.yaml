@@ -1,7 +1,6 @@
 id: zuerich
 default_language: de-CH
 supported_languages: [en]
-site_url: https://zuerich.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: e2ba0c10796895a39139120d07f92f5619981b8d

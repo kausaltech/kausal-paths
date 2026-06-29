@@ -84,11 +84,15 @@ dimensions:
   - id: air_pollution
     label_fi: Ilmansaastealtistus liikenteessä
     label_en: Air pollution exposure in traffic
+    label_de: Luftschadstoffexposition im Verkehr
     color: '#33a02c'
+    aliases: [Air pollution]
   - id: crash_risk
     label_fi: Liikenneonnettomuus
     label_en: Traffic accident
+    label_de: Verkehrsunfall
     color: '#fb9a99'
+    aliases: [Crash risk]
   - id: noise
     label_en: Noise
     label_fi: Melu
@@ -102,11 +106,11 @@ dimensions:
 
 nodes:
 
-# ---------------- Placeholder nodes ---------------
+# -------------- Intermodular nodes ------
 
-- id: passenger_transport
-  name_en: Passenger transport, placeholder
-  name_fi: Henkilökilometrit, esimerkki
+- id: passenger_transport_for_health
+  name_en: Passenger transport for health module
+  name_fi: Henkilökilometrit terveysmoduuliin
   description_fi: 'Henkilökilometrit on esimerkki, joka kuvaa henkilöiden liikkumista eri
     kulkumuodoilla. Tämä data tulee korvata todellisella datalla.'
   description_en: 'Passenger transport is an example that describes the movement of people
@@ -117,7 +121,7 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets:
-  - id: sunnydale/defaults/passenger_transport
+  - id: health/placeholders/passenger_transport
     forecast_from: 2025
 
 # -------------- WHO/HEAT Active mobility ---------
@@ -131,14 +135,14 @@ nodes:
   description_en: 'The average speed of active mobility is obtained from the article by Kelly et al. 2014.
     Also Heli Lehtomäki et al. 2021. Health effects of transport in Finland and major cities.
     Reports of the Finnish Environment Institute 16 / 2021.'
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: speed
   unit: km/h
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
-  input_datasets: [hia/heat/lappeenranta_active_mobility]  # TODO Use a generic dataset instead
-  params:
-    sector: Average speed
+  input_datasets:
+  - id: health/active_mobility
+    column: average_speed
 
 - id: active_mobility_distance # TODO Add references.
   name_fi: Aktiivisen liikkumisen matka
@@ -177,14 +181,14 @@ nodes:
     terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
     aktiiviseen liikkumiseen käytettynä aikana Suomen kokoisessa aikuisväestössä.
     Kävelyn ja pyöräilyn osalta tarkastellaan 20 - 79 -vuotiaita.
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: exposure_response
   unit: incidence_unit/personal_activity # cases/100000 person-years / (min/d/cap)
   input_dimensions: [response, transport_mode]
   output_dimensions: [response, transport_mode]
-  input_datasets: [gpc/dut_transport_nzc]
-  params:
-    sector: HEAT health factor
+  input_datasets:
+  - id: health/heat_health_factor
+    column: heat_health_factor
 
 - id: health_factor_of_active_mobility
   name_fi: Aktiivisen liikkumisen terveyskerroin väestössä
@@ -250,7 +254,7 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: passenger_transport
+  - id: passenger_transport_for_health
     from_dimensions:
     - id: transport_mode
       categories: [walking]
@@ -265,17 +269,16 @@ nodes:
 
 # ----------------------- Active mobility ------------------
 
-- id: population_group_sizes
-  name: Population group sizes
-  type: gpc.DatasetNode
+- id: population_group_sizes_for_health
+  name: Population group sizes for health module
+  type: generic.GenericNode
   quantity: population
   unit: inh
   input_dimensions: [age]
   output_dimensions: [age]
   input_datasets:
-  - id: hia/heat/lappeenranta_active_mobility
-  params:
-    sector: Population groups
+  - id: health/placeholders/population_groups
+    column: population_groups
 
 - id: population_group_shares
   name: Väestöryhmien suhteet
@@ -285,7 +288,7 @@ nodes:
   input_dimensions: [age]
   output_dimensions: [age]
   input_nodes:
-  - id: population_group_sizes
+  - id: population_group_sizes_for_health
   params:
     share_dimension: age
     use_input_node_unit_when_adding: true
@@ -293,15 +296,14 @@ nodes:
 - id: active_mover_fraction
   name_fi: Aktiivisten liikkujien osuus ikäryhmästä
   name_en: Active mover fraction in each age group
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
   input_dimensions: [age, transport_mode]
   output_dimensions: [age, transport_mode]
   input_datasets:
-  - id: hia/heat/lappeenranta_active_mobility
-  params:
-    sector: Fraction of movers
+  - id: health/active_mobility
+    column: fraction_of_movers
 
 - id: active_mover_distance
   name_fi: Aktiivisen liikkumisen määrä HLT:n mukaan
@@ -314,15 +316,14 @@ nodes:
   description_en: 'The amount of active mobility is based on the data from the Heli
     Lehtomäki et al. 2021. Health effects of transport in Finland and major cities.
     Reports of the Finnish Environment Institute 16 / 2021.'
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: mileage
   unit: km/person/d
   input_dimensions: [age, transport_mode]
   output_dimensions: [age, transport_mode]
   input_datasets:
-  - id: hia/heat/lappeenranta_active_mobility
-  params:
-    sector: Moving distance
+  - id: health/active_mobility
+    column: moving_distance
 
 - id: active_mobility_by_hlt
   name_fi: Aktiivisen liikkumisen määrä ikäryhmissä

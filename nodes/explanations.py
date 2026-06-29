@@ -84,6 +84,8 @@ TAG_DESCRIPTIONS = {
     'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
     'base': _('Use this input as the base value to start from.'),
     'bring_to_maximum_historical_year': _('Makes all years up to maximum historical year non-forecasts.'),
+    'bring_to_reference_year': _('Makes all years after reference year forecast years.'),
+    'city_data': _('Check if city-specific data exists for this framework model.'),
     'coalesce': _('Use the first non-null value among the inputs (priority order).'),
     'complement': _('Take the complement of the unitless values (1-x).'),
     'complement_cumulative_product': _('Take the cumulative product of the dimensionless complement values over time.'),

@@ -2,7 +2,6 @@
 id: c4cdemo
 default_language: en
 supported_languages: [fi, sv, da, lv, pl, de, cs]
-site_url: https://c4cdemo.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: b1dfff9c6472b1c4fcc96bb5f7df7cd6b9bba71a

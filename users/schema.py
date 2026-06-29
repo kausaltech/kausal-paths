@@ -13,13 +13,12 @@ from kausal_common.users import user_or_none
 from paths import gql
 
 from frameworks.roles import FrameworkRoleDef
-from nodes.instance import Instance
 from nodes.models import InstanceConfig
 
 from .models import User
 
 if TYPE_CHECKING:
-    from nodes.graphql.types.instance import InstanceType  # used in lazy strawberry annotation
+    from nodes.graphql.types.instance import InstanceType
 
 
 @sb.type(name='UserFrameworkRole')
@@ -59,7 +58,7 @@ class UserType:
     def editable_instances(
         root: sb.Parent[User],
         framework_id: sb.ID | None = None,
-    ) -> list[Instance]:
+    ) -> list['InstanceType']:
         admin_group_ids = list(root.groups.values_list('pk', flat=True))
         qs = InstanceConfig.objects.qs.filter(
             Q(owned_by=root) | Q(admin_group__in=admin_group_ids) | Q(super_admin_group__in=admin_group_ids)
@@ -73,7 +72,9 @@ class UserType:
             else:
                 framework_filter |= Q(framework_config__framework__uuid=fw_uuid)
             qs = qs.filter(framework_filter)
-        return [ic._get_instance(node_refs=False) for ic in qs]
+        from nodes.graphql.types.instance import InstanceType
+
+        return [InstanceType.from_model(ic) for ic in qs]
 
 
 @sb.type

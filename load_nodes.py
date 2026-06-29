@@ -6,6 +6,8 @@ from contextlib import ExitStack
 
 from kausal_common.development.django import init_django
 
+from kausal_common.logging.init import is_pretty_terminal
+
 from common.utils import install_node_error_handler
 
 init_django()
@@ -38,6 +40,7 @@ from nodes.instance_loader import InstanceLoader
 if TYPE_CHECKING:
     from nodes.models import InstanceConfig
     from nodes.units import Quantity
+    from nodes.visualizations import VisualizationEntryType
 
 
 load_dotenv()
@@ -74,6 +77,14 @@ parser.add_argument(
 parser.add_argument('--validation-valid-also', action='store_true', help='include validations that pass without errors')
 parser.add_argument(
     '--print-impact-overviews', action='store_true', help='calculate and print impact overviews (previously action efficiencies)'
+)
+parser.add_argument(
+    '--print-visualizations-meta',
+    action='store_true',
+    help='print node visualization config (structure, referenced nodes, dimensions)',
+)
+parser.add_argument(
+    '--print-visualizations-data', action='store_true', help='compute and print the actual data for each node visualization'
 )
 parser.add_argument('--show-perf', action='store_true', help='show performance info')
 parser.add_argument('--profile', action='store_true', help='profile computation performance')
@@ -151,6 +162,9 @@ def print_db_datasets():
 
     if TYPE_CHECKING:
         from nodes.node import Node
+
+    if not is_pretty_terminal():
+        return
 
     db_datasets: dict[str, tuple[DBDataset, list[Node]]] = {}
     dvc_datasets: dict[str, tuple[DVCDataset, list[Node]]] = {}
@@ -296,6 +310,141 @@ else:
 
 if args.print_graph:
     context.print_graph(include_datasets=True)
+
+if args.print_visualizations_meta:
+    from nodes.visualizations import VisualizationGroup, VisualizationNodeOutput
+
+    def _add_entries(entries_list: list, prefix: str = '', *, table: Table) -> None:  # type: ignore[type-arg]
+        for entry in entries_list:
+            if isinstance(entry, VisualizationNodeOutput):
+                dims = (
+                    ', '.join(
+                        f'{d.id}{"[" + ",".join(d.categories) + "]" if d.categories else ""}{"(flat)" if d.flatten else ""}'
+                        for d in entry.dimensions
+                    )
+                    or '(none)'
+                )
+                scenarios = ', '.join(entry.scenarios) if entry.scenarios else '(all)'
+                details = f'node_id={entry.node_id}  desired={entry.desired_outcome.value}\ndims: {dims}\nscenarios: {scenarios}'
+                if entry.output_metric_id:
+                    details += f'\nmetric: {entry.output_metric_id}'
+                table.add_row(prefix + entry.id, 'node', details)
+            elif isinstance(entry, VisualizationGroup):
+                label_str = str(entry.label) if entry.label else '(no label)'
+                table.add_row(prefix + entry.id, 'group', f'label={label_str}')
+                _add_entries(entry.children, prefix=prefix + '  ', table=table)
+
+    total = 0
+    for node in context.nodes.values():
+        if node.visualizations is None:
+            continue
+        entries = node.visualizations.root
+        if not entries:
+            continue
+        total += 1
+        table = Table(title=f'Node: [bold]{node.id}[/bold]', show_header=True)
+        table.add_column('ID')
+        table.add_column('Kind')
+        table.add_column('Details')
+        _add_entries(entries, table=table)
+        console.print(table)
+
+    if total == 0:
+        print('No nodes have visualizations configured.')
+
+if args.print_visualizations_data:
+    from nodes.constants import YEAR_COLUMN
+    from nodes.visualizations import VisualizationGroup, VisualizationNodeOutput
+
+    min_year: int = context.instance.minimum_historical_year
+    max_year: int | None = context.instance.maximum_historical_year
+
+    def _print_node_viz_data(root_node_id: str, entry: VisualizationNodeOutput, depth: int = 0) -> None:  # noqa: PLR0912, C901
+        indent = '  ' * depth
+        label_part = f'  [italic]{entry.label}[/italic]' if entry.label else ''
+        rule_text = (
+            f'{indent}[cyan]{entry.id}[/cyan]{label_part}'
+            f'  root=[bold]{root_node_id}[/bold]  data from=[bold]{entry.node_id}[/bold]'
+        )
+        console.rule(rule_text)
+        ref_node = context.nodes[entry.node_id]
+
+        if entry.scenarios:
+            scenarios = [context.scenarios[sid] for sid in entry.scenarios]
+        else:
+            scenarios = [context.get_default_scenario()]
+
+        # Collect one filtered series per scenario.
+        scenario_cols: dict[str, dict[int, float | None]] = {}
+        years_union: list[int] = []
+        unit_str = ''
+        for scenario in scenarios:
+            with scenario.override(set_active=True):
+                df = entry.get_output(ref_node)
+            metric_cols = df.metric_cols
+            if not metric_cols:
+                continue
+            val_col = metric_cols[0]
+            if not unit_str:
+                unit_str = str(df.get_unit(val_col))
+            year_filter = pl.col(YEAR_COLUMN) >= min_year
+            if max_year is not None:
+                year_filter = year_filter & (pl.col(YEAR_COLUMN) <= max_year)
+            # Sum over any remaining dimensions so we always get a scalar per year.
+            remaining_dims = df.dim_ids
+            for dim_id in remaining_dims:
+                df = df.paths.sum_over_dims(dim_id)
+            df = df.filter(year_filter).sort(YEAR_COLUMN)
+            year_vals: dict[int, float | None] = {int(row[0]): row[1] for row in df.select([YEAR_COLUMN, val_col]).iter_rows()}
+            scenario_cols[scenario.id] = year_vals
+            for y in year_vals:
+                if y not in years_union:
+                    years_union.append(y)
+
+        if not scenario_cols:
+            print('[red]  No data[/red]')
+            return
+
+        years_union.sort()
+        table = Table(title=f'unit: {unit_str}', show_lines=False)
+        table.add_column('Year', style='dim')
+        for scenario in scenarios:
+            if scenario.id in scenario_cols:
+                table.add_column(scenario.id)
+        for year in years_union:
+            row_vals: list[str] = [str(year)]
+            for scenario in scenarios:
+                if scenario.id not in scenario_cols:
+                    continue
+                v = scenario_cols[scenario.id].get(year)
+                row_vals.append(f'{v:.4g}' if v is not None else '—')
+            table.add_row(*row_vals)
+        console.print(table)
+
+    def _print_viz_entry_data(root_node_id: str, entry: VisualizationEntryType, depth: int = 0) -> None:
+        if isinstance(entry, VisualizationNodeOutput):
+            _print_node_viz_data(root_node_id, entry, depth=depth)
+        elif isinstance(entry, VisualizationGroup):
+            label_str = str(entry.label) if entry.label else '(no label)'
+            console.rule(f'[yellow]group {entry.id}[/yellow]  {label_str}')
+            for child in entry.children:
+                _print_viz_entry_data(root_node_id, child, depth=depth + 1)
+
+    total = 0
+    with context.run():
+        for node in context.nodes.values():
+            if node.visualizations is None:
+                continue
+            entries = node.visualizations.root
+            if not entries:
+                continue
+            total += 1
+            console.rule(f'[bold yellow]Node: {node.id}[/bold yellow]', style='yellow')
+            for entry in entries:
+                _print_viz_entry_data(node.id, entry)
+
+    if total == 0:
+        print('No nodes have visualizations configured.')
 
 if args.skip_cache:
     context.skip_cache = True
@@ -489,7 +638,7 @@ if args.print_impact_overviews:
 
                 rows.append((action.id, None))
 
-            rows = sorted(rows, key=lambda x: x[1].m if x[1] is not None else 1e100)
+            rows = sorted(rows, key=lambda x: x[1].m if x[1] is not None else 1e100)  # pyright: ignore[reportUnknownLambdaType]
             for row in rows:
                 table.add_row(row[0], str(row[1]))
             console.print(table)
@@ -527,7 +676,7 @@ if args.print_impact_overviews:
                 rows.append([action.id, *vals])
 
             console = Console()
-            rows = sorted(rows, key=lambda x: x[1])
+            rows = sorted(rows, key=lambda x: x[1])  # pyright: ignore[reportUnknownLambdaType]
             for row in rows:
                 table.add_row(row[0], *[str(x) for x in row[1:]])
             console.print(table)

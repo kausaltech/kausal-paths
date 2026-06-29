@@ -1,7 +1,6 @@
 id: gronlogik
 default_language: sv
 supported_languages: [en, fi]
-site_url: https://gronlogik.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 676d333cdb0c68659b0248b0de1274bbe887f64e

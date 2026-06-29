@@ -125,7 +125,6 @@ def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceModelSpec) ->
         'id': meta.identifier or ic.identifier,
         'uuid': meta.uuid,
         'default_language': meta.primary_language,
-        'site_url': ic.site_url,
         'supported_languages': meta.other_languages,
         'target_year': years.target,
         'reference_year': years.reference,

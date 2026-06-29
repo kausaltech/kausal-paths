@@ -1,7 +1,6 @@
 id: aarhus-c4c
 default_language: da
 supported_languages: [en]
-site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 6a131ae009dfe6d5aef70fa15e38fca279ceceb0

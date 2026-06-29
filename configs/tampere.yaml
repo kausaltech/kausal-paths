@@ -1,7 +1,6 @@
 id: tampere
 default_language: fi
 supported_languages: [en]
-site_url: https://ilmastovahti.tampere.fi/paastoskenaariot
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 0ed7e0faff316fbbb1d2bdde8db65c3df33a1f15

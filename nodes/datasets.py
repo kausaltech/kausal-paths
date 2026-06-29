@@ -398,6 +398,8 @@ class DatasetWithFilters(Dataset, ABC):
         if col not in df.columns:
             raise DatasetError(self, f'Column {col} not found. Available columns are {df.columns}')
         if val:
+            if val in df.columns:
+                df = df.drop(val)
             df = df.rename({col: val})
         return df
 
@@ -437,7 +439,7 @@ class DatasetWithFilters(Dataset, ABC):
         return df
 
     @measure_dataset_call('dataset.filter', capture_df_result=True, capture_df_arg=True)
-    def _filter_and_process_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901
+    def _filter_and_process_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         from nodes.defs.node_defs import RenameColumnDatasetFilterDef
 
         if self.filters is not None:
@@ -470,16 +472,24 @@ class DatasetWithFilters(Dataset, ABC):
         ldf = df.lazy()
         if YEAR_COLUMN in cols and not ldf.filter((pl.col(YEAR_COLUMN) < 200).first()).collect().is_empty():
             baseline_year = self.context.instance.reference_year
-            if baseline_year is None:
-                raise DatasetError(
-                    self,
-                    'The reference_year from instance is not given. '
-                    + 'It is needed by dataset %s to define the baseline for relative data.' % self.id,
-                )
+            adjustment = -1  # DVC and DB use year 1 for reference year; offset by -1 so year 1 → baseline_year.
+
+            # Legacy DVC datasets used Year=0 for reference year and Year=100 for target year.
+            # Remap them to Year=1 and Year=101 so the standard offset formula below handles both.
+            ldf = ldf.with_columns(
+                pl
+                .when(pl.col(YEAR_COLUMN) == 0)
+                .then(pl.lit(1))
+                .when(pl.col(YEAR_COLUMN) == 100)
+                .then(pl.lit(101))
+                .otherwise(pl.col(YEAR_COLUMN))
+                .alias(YEAR_COLUMN),
+            )
+
             ldf = ldf.with_columns(
                 pl
                 .when(pl.col(YEAR_COLUMN) < 90)
-                .then(pl.col(YEAR_COLUMN) + pl.lit(baseline_year))
+                .then(pl.col(YEAR_COLUMN) + pl.lit(baseline_year + adjustment))
                 .otherwise(pl.col(YEAR_COLUMN))
                 .alias(YEAR_COLUMN),
             )
@@ -487,7 +497,7 @@ class DatasetWithFilters(Dataset, ABC):
             ldf = ldf.with_columns(
                 pl
                 .when((pl.col(YEAR_COLUMN) >= 90) & (pl.col(YEAR_COLUMN) < 200))
-                .then(pl.col(YEAR_COLUMN) + pl.lit(target_year) - pl.lit(100))
+                .then(pl.col(YEAR_COLUMN) + pl.lit(target_year + adjustment) - pl.lit(100))
                 .otherwise(pl.col(YEAR_COLUMN))
                 .alias(YEAR_COLUMN),
             )
@@ -1284,15 +1294,6 @@ class DBDataset(DatasetWithFilters):
             **{str(dim[1]): pl.Utf8 for dim in dims},
         }
         df = pl.DataFrame(dp_list, schema=df_schema, orient='row')
-        # load_dvc_dataset.py stores relative NZC years (DVC year <= 100) as date year+1 to
-        # avoid year=0 being invalid in Python's date type. Undo that offset here so that
-        # relative years match the DVC convention: year=0 == reference year, year=100 ==
-        # target year, etc. DVC years > 100 are stored as absolute calendar years (unaffected).
-        # Stored range [1, 101] corresponds to DVC relative years [0, 100]; calendar years
-        # start at 2020+, well above the 101 threshold.
-        df = df.with_columns(
-            pl.when(pl.col(YEAR_COLUMN) <= 101).then(pl.col(YEAR_COLUMN) - 1).otherwise(pl.col(YEAR_COLUMN)).alias(YEAR_COLUMN)
-        )
         mdf = pl.DataFrame(ds.metrics)  # type: ignore
         df = df.join(mdf.select(pl.col('uuid').alias('metric'), pl.col('name').alias('metric_name')), on='metric', how='left')
 

@@ -1,7 +1,6 @@
 id: riga-c4c
 default_language: en
 supported_languages: [lv]
-site_url: https://riga-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 94582c72f1515679bb43a52a4fa37e79e5bb0bc2

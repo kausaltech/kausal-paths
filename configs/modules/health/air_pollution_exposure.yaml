@@ -169,12 +169,12 @@ dimensions:
 
 nodes:
 
-# -------------- Placeholder nodes ------
+# -------------- Intermodular nodes ------
 
-- id: transport_emissions
-  name_en: Transport emissions, placeholder
-  name_de: Verkehrsemissionen, Platzhalter
-  name_fi: Liikenteen päästöt, esimerkki
+- id: transport_co2_for_health
+  name_en: Transport CO2 emissions for health calculation
+  name_de: Verkehrs-CO2-Emissionen für Gesundheitsberechnung
+  name_fi: Liikenteen CO2-päästöt terveyslaskentaan
   description_fi: Tämä solmu tulee korvata varsinaisella solmulla, jossa lasketaan liikenteen päästöt.
     Käytetty data on vain esimerkki eikä kuvasta todellisia päästöjä.
   description_en: This node should be replaced with the actual node that calculates transport emissions.
@@ -186,16 +186,13 @@ nodes:
   quantity: emissions
   unit: kt/a
   input_datasets:
-  - id: sunnydale/defaults/transport_and_power_plant_emissions
+  - id: health/placeholders/transport_emissions
     forecast_from: 2025
-    filters:
-    - column: sector
-      value: road_transport
 
-- id: power_plant_emissions
-  name_en: Power plant emissions, placeholder
-  name_de: Kraftwerksemissionen, Platzhalter
-  name_fi: Voimalaitoksen päästöt, esimerkki
+- id: power_plant_emissions_for_health
+  name_en: Power plant emissions for health module
+  name_de: Kraftwerksemissionen für das Gesundheitsmodul
+  name_fi: Voimalaitoksen päästöt terveysmoduuliin
   description_fi: Tämä solmu tulee korvata varsinaisella solmulla, jossa lasketaan voimalaitosten päästöt.
     Käytetty data on vain esimerkki eikä kuvasta todellisia päästöjä.
   description_en: This node should be replaced with the actual node that calculates power plant emissions.
@@ -207,11 +204,8 @@ nodes:
   quantity: emissions
   unit: kt/a
   input_datasets:
-  - id: sunnydale/defaults/transport_and_power_plant_emissions
+  - id: health/placeholders/power_plant_emissions
     forecast_from: 2025
-    filters:
-    - column: sector
-      value: district_heating
 
 # -------------- Air pollution emissions --------------
 
@@ -231,20 +225,20 @@ nodes:
     anhand von Eurostat-Daten, DATENSATZ: Treibhausgasemissionen nach Quellsektor
     (Quelle: EEA) [env_air_gge] & DATENSATZ: Kraftfahrzeugbewegungen im nationalen
     Territorium, nach Fahrzeugregistrierung [road_tf_vehmov] (Quelle: Eurostat).'
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
   input_datasets:
-  - id: nzc/defaults
-    forecast_from: 2025
+  - id: nzc/passenger_transport_emissions
+    tags: [city_data]
+    column: transport_emission_factors
     filters:
-    - column: Transport mode
+    - column: transport_mode
       value: cars
-  params:
-    sector: Transport Emission factors
-    rename_dimensions: 'Transport pollutant:pollutant'
+    - rename_col: transport_pollutant
+      value: pollutant
 
 - id: transport_emission_ratio
   name_fi: Liikennepäästöjen keskinäinen suhde
@@ -284,7 +278,7 @@ nodes:
     from_dimensions:
     - id: pollutant
       categories: [pm25, pm10, nox]
-  - id: transport_emissions
+  - id: transport_co2_for_health
     tags: [non_additive]
 
 - id: power_plant_emission_factor
@@ -309,10 +303,9 @@ nodes:
   input_dimensions: [pollutant, heating_type]
   output_dimensions: [pollutant, heating_type]
   input_datasets:
-  - id: nzc/defaults
-    filters:
-    - column: Sector
-      value: Emission factors from heat production
+  - id: nzc/buildings_heating_emission_factors
+    tags: [city_data]
+    column: emission_factors_from_heat_production
 
 - id: power_plant_emission_ratio
   name_fi: Voimalaitoksen päästöjen keskinäinen suhde
@@ -353,7 +346,7 @@ nodes:
     - id: heating_type
       categories: [district_heating]
       flatten: true
-  - id: power_plant_emissions
+  - id: power_plant_emissions_for_health
     tags: [non_additive]
 
 # -------------- Exposure -----------------
@@ -388,8 +381,8 @@ nodes:
   input_dimensions: [pollutant, emission_height]
   output_dimensions: [pollutant, emission_height]
   input_datasets:
-  - id: hia/intake_fraction/air_pollution_if
-    column: Intake fraction
+  - id: health/intake_fraction
+    column: intake_fraction
     filters:
     - column: population_density
       value: average

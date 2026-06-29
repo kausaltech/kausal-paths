@@ -1,7 +1,6 @@
 id: minneapolis-demo
 default_language: en
 supported_languages: []
-site_url: https://minneapolis-demo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 67f551708512a96488637e66e72d1d8b74f4c96d

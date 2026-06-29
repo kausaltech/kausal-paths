@@ -839,6 +839,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
     framework_config = graphene.Field(FrameworkConfigType, description=_('The created framework config instance'))
 
     @staticmethod
+    @transaction.atomic
     def mutate(
         root,
         info: GQLInfo,
@@ -850,8 +851,16 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
                 return 'high'
             return 'low'
 
+        data = cast('dict[str, Any]', nzc_data)
+        renewable_mix = lowhigh_to_str(data['renewable_mix'])
+        temperature = lowhigh_to_str(data['temperature'])
+
+        # Resolve categories before creating the FWC so that a missing dimension
+        # raises GraphQLError before any DB writes are committed.
+        framework = CreateFrameworkConfigMutation._get_fw(info, str(config_input.framework_id))
+
         def get_category(identifier: str, value: Literal['high', 'low']) -> FrameworkDimensionCategory:
-            dimension = fwc.framework.dimensions.filter(identifier=identifier).first()
+            dimension = framework.dimensions.filter(identifier=identifier).first()
             if dimension is None:
                 raise GraphQLError(f"Framework dimension '{identifier}' not found", nodes=info.field_nodes)
             category = dimension.categories.filter(name__iexact=value).first()
@@ -862,11 +871,11 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
                 )
             return category
 
+        cat_renewable_mix = get_category('renewable_mix', renewable_mix)
+        cat_temperature = get_category('temperature', temperature)
+
         ret = CreateFrameworkConfigMutation.create_framework_config(info, config_input)
         fwc = cast('FrameworkConfig', ret.framework_config)
-        data = cast('dict[str, Any]', nzc_data)
-        renewable_mix = lowhigh_to_str(data['renewable_mix'])
-        temperature = lowhigh_to_str(data['temperature'])
         fwc.extra = {
             **(fwc.extra or {}),
             'create_context': {
@@ -876,10 +885,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
             },
         }
         fwc.save(update_fields=['extra'])
-        fwc.categories.add(
-            get_category('renewable_mix', renewable_mix),
-            get_category('temperature', temperature),
-        )
+        fwc.categories.add(cat_renewable_mix, cat_temperature)
         fwc.populate_measure_defaults(only_year=fwc.baseline_year)
         return ret
 

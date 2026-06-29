@@ -1,7 +1,6 @@
 id: saskatoon
 default_language: en
 supported_languages: []
-site_url: https://saskatoon.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 906516c06b837ae0c73fe657779a99a8b5e1d8d1

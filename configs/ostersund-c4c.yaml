@@ -1,7 +1,6 @@
 id: ostersund-c4c
 default_language: en
 supported_languages: []
-site_url: https://ostersund-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 310c7977472c7169ac8bbfe979ca52221a710d65

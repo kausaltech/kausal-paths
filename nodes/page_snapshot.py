@@ -73,8 +73,8 @@ def _streamfield_to_identifiers(block: Any, raw: Any, pk_to_id: dict[int, str]) 
 
 
 def build_instance_page_snapshots(ic: InstanceConfig) -> list[PageSnapshot]:
-    """Serialize the instance's Wagtail page subtree (empty if it has no Site)."""
-    if ic.site is None:
+    """Serialize the instance's Wagtail page subtree (empty if it has no root page)."""
+    if ic.root_page is None:
         return []
     from pages.models import OutcomePage
 
@@ -97,4 +97,4 @@ def build_instance_page_snapshots(ic: InstanceConfig) -> list[PageSnapshot]:
             children=[serialize(child) for child in page.get_children()],
         )
 
-    return [serialize(ic.site.root_page)]
+    return [serialize(ic.root_page)]

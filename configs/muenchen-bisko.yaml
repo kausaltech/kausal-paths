@@ -3,10 +3,9 @@
 id: muenchen-bisko
 default_language: de
 supported_languages: [en]
-site_url: https://muenchen-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a8e9584d8a313025877793f4ceabac8fcf865ace
+  commit: 9e9c2483ba4459868b35f3a763a0b97c30753cae
   dvc_remote: kausal-s3
 name_de: Maßnahmenplan Klimaneutralität München
 name_en: Munich Climate Dashboard
@@ -39,6 +38,7 @@ include:
   # - from: bisko/vehicle_energy
   #   to: augsburg/vehicle_energy
 - file: modules/health/air_pollution_exposure.yaml
+  # Intermodular nodes: transport_co2_for_health, power_plant_emissions_for_health
   allow_override: true
 - file: modules/health/attribution_and_cost.yaml
   allow_override: true

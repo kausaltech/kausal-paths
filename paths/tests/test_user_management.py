@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from frameworks.tests.factories import FrameworkConfigFactory
-from nodes.models import InstanceInvitation
+from nodes.models import InstanceConfig, InstanceInvitation
 from users.models import User
 
 if TYPE_CHECKING:
@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from paths.tests.graphql import PathsTestClient
 
     from frameworks.models import Framework
-    from nodes.models import InstanceConfig
 
 
 pytestmark = pytest.mark.django_db
@@ -424,7 +423,7 @@ def test_remove_invitation_soft_deletes(
 
 EDITABLE_QUERY = """
 query Me($frameworkId: ID) {
-  me { editableInstances(frameworkId: $frameworkId) { id identifier } }
+  me { editableInstances(frameworkId: $frameworkId) { id identifier editor { configSource } } }
 }
 """
 
@@ -434,11 +433,20 @@ def test_editable_instances_includes_owned_and_admin_instances(
     client: Client,
     managed_instance: InstanceConfig,
     owner_user: User,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    def fail_get_instance(*args: object, **kwargs: object) -> None:
+        raise AssertionError('editableInstances must not hydrate runtime instances for config-only fields')
+
+    monkeypatch.setattr(InstanceConfig, '_get_instance', fail_get_instance)
+    monkeypatch.setattr(InstanceConfig, 'get_instance', fail_get_instance)
+
     client.force_login(owner_user)
     data = gql_client.query_data(EDITABLE_QUERY, variables={'frameworkId': None})
     identifiers = [i['identifier'] for i in data['me']['editableInstances']]
     assert managed_instance.identifier in identifiers
+    editable_instance = next(i for i in data['me']['editableInstances'] if i['identifier'] == managed_instance.identifier)
+    assert editable_instance['editor']['configSource'] == managed_instance.config_source
 
 
 def test_editable_instances_filters_by_framework(

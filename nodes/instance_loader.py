@@ -524,10 +524,15 @@ class InstanceLoader:
 
             use_framework_ds = 'framework_measure_data' in ds_def.tags
             use_obs_ds = 'observation_dataset' in ds_def.tags
+            use_city_ds = 'city_data' in ds_def.tags
             if use_obs_ds:
                 from frameworks.datasets import ObservationDataset
 
                 ds_obj = ObservationDataset.from_def(ds_def, self.context)
+            elif use_city_ds:
+                from frameworks.datasets import FrameworkMeasureDVCDataset2
+
+                ds_obj = FrameworkMeasureDVCDataset2.from_def(ds_def, self.context)
             elif self.fw_config is not None:
                 from nodes.gpc import DatasetNode
 
@@ -1284,7 +1289,6 @@ class InstanceLoader:
             name = make_trans_string(self.config, 'name', required=True)
             max_hist_year: int | None = self.config.get('maximum_historical_year')
             min_hist_year: int = self.config['minimum_historical_year']
-            site_url = self.config.get('site_url')
             reference_year = self.config.get('reference_year')
             if reference_year is None:
                 raise ValueError(self, 'Reference year must be given for the instance.')
@@ -1299,7 +1303,6 @@ class InstanceLoader:
             )
             max_hist_year = mdp_data['max_year'] or fwc.baseline_year
             min_hist_year = mdp_data['min_year'] or fwc.baseline_year
-            site_url = fwc.get_view_url()
             reference_year = fwc.baseline_year
             if fwc.target_year is not None:
                 target_year = fwc.target_year
@@ -1318,7 +1321,6 @@ class InstanceLoader:
             pages=pages_from_config(self.config.get('pages', [])),
             maximum_historical_year=max_hist_year,
             minimum_historical_year=min_hist_year,
-            site_url=site_url,
             reference_year=reference_year,
             supported_languages=cast(
                 'list[str]',

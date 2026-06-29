@@ -86,6 +86,7 @@ dimensions:
     label_fi: PM10-PM2.5
     label_en: PM10-PM2.5
     label_de: PM10-PM2,5
+    aliases: [PM10-2.5]
   - id: so2
     label_fi: SO2
     label_en: SO2
@@ -133,14 +134,17 @@ dimensions:
     label_fi: Siedettävä viikkosaanti
     label_en: Tolerable weekly intake
     label_de: Tolerierbare wöchentliche Aufnahme
+    aliases: [tolerable weekly intake]
   - id: chd_mortality
     label_fi: Sepelvaltimotautikuolleisuus
     label_en: Coronary heart disease mortality
     label_de: Koronare Herzerkrankung Sterblichkeit
+    aliases: [chd mortality]
   - id: breast_cancer
     label_fi: Rintasyöpä
     label_en: Breast cancer
     label_de: Brustkrebs
+    aliases: [breast cancer]
   - id: deficiency  # TODO Add causative agent to response
     label_fi: Puutos
     label_en: Deficiency
@@ -192,7 +196,7 @@ nodes:
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
   input_datasets:
-  - id: sunnydale/defaults/air_pollution_exposure
+  - id: health/placeholders/air_pollution_exposure
     forecast_from: 2025
 
 - id: incidence
@@ -205,20 +209,19 @@ nodes:
     the THL disease burden model. Multiple original sources.'
   description_de: 'Inzidenz umweltrelevanter Erkrankungen und Gesundheitseffekte. Verwendet das
     THL-Krankheitslastmodell. Mehrere Originalquellen.'
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: incidence
   unit: case/personyear
   input_dimensions: [response]
   output_dimensions: [response]
   input_datasets:
-  - id: hia/incidence/default_incidence
+  - id: health/incidence
+    column: incidence
     filters:
-    - column: Place
+    - column: place
       value: default
-    - column: Population
+    - column: population
       value: default
-  params:
-    sector: Environmental health
 
 - id: air_pollution_attributable_fraction
   name_fi: Ilmansaasteiden syyosuus
@@ -354,16 +357,15 @@ nodes:
   description_fi: Yhden tapauksen aiheuttama tautitaakka eri vasteille.
   description_en: Disease burden caused by a single case.
   description_de: Krankheitslast, die durch einen einzelnen Fall verursacht wird.
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: case_burden
   unit: DALY/case
   input_dimensions: [response]
   output_dimensions: [response]
   input_datasets:
-  - id: hia/heat/lappeenranta_active_mobility
+  - id: health/case_burden
+    column: case_burden
     forecast_from: 2025
-  params:
-    sector: Case burden
 
 - id: disease_burden_attributed_to_exposure
   name_fi: Altisteisiin kohdentuva tautitaakka
@@ -431,27 +433,27 @@ nodes:
     der Arbeit berechnet. Die Kosten eines statistischen Todes (Wert des statistischen
     Lebens) werden anhand des Preises geschätzt, den Menschen bereit sind zu zahlen,
     um ein kleines Sterberisiko zu vermeiden.'
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: unit_price
   unit: kEUR/case
   input_dimensions: [response]
   output_dimensions: [response]
-  input_datasets: [gpc/dut_transport_nzc]
-  params:
-    sector: Health outcome unit price
+  input_datasets:
+  - id: health/health_outcome_unit_price
+    column: health_outcome_unit_price
 
 - id: responses_vs_cost_types
   name_fi: Vasteet vs kustannuslajit
   name_en: Responses vs cost types
   name_de: Gesundheitseffekte vs. Kostenarten
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: fraction
   unit: dimensionless
   input_dimensions: [response, cost_type]
   output_dimensions: [response, cost_type]
-  input_datasets: [gpc/dut_transport_nzc]
-  params:
-    sector: Responses vs cost types
+  input_datasets:
+  - id: health/responses_vs_cost_types
+    column: responses_vs_cost_types
 
 - id: health_costs_attributed_to_exposure
   name_fi: Altistumiseen kohdentuvat terveyskustannukset
