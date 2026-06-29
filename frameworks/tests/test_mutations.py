@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
+from wagtail.models import Locale, Page
 
 import pytest
 
@@ -22,6 +23,7 @@ from frameworks.models import (
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
 from nodes.models import InstanceConfig
 from nodes.tests.factories import InstanceConfigFactory
+from pages.models import ActionListPage, InstanceRootPage
 from users.models import User
 
 if TYPE_CHECKING:
@@ -202,6 +204,67 @@ def test_framework_config_populates_defaults_for_only_year_and_removes_stale_def
     assert data_points_by_year[2022].default_value == 5.0
     assert data_points_by_year[2022].value == 42.0
     assert not other_measure.data_points.exists()
+
+
+# ---------------------------------------------------------------------------
+# setup_instance_pages
+# ---------------------------------------------------------------------------
+
+
+def _attach_root_page(ic: InstanceConfig, *, title: str = 'Test Root') -> InstanceRootPage:
+    locale, _ = Locale.objects.get_or_create(language_code='en')
+    wagtail_root = Page.get_first_root_node()
+    assert wagtail_root is not None
+    root = cast(
+        'InstanceRootPage',
+        wagtail_root.add_child(
+            instance=InstanceRootPage(locale=locale, title=title, slug=ic.identifier, url_path='', body='[]'),
+        ),
+    )
+    ic.root_page = root
+    ic.save(update_fields=['root_page'])
+    return root
+
+
+def test_setup_instance_pages_sets_home_label_for_nzc() -> None:
+    nzc = FrameworkFactory.create(identifier='nzc', name='NetZeroCities')
+    fwc = FrameworkConfigFactory.create(framework=nzc)
+    root = _attach_root_page(fwc.instance_config)
+
+    fwc.setup_instance_pages()
+
+    root.refresh_from_db()
+    assert root.show_in_menus is True
+    assert root.menu_label == 'Home'
+
+
+def test_setup_instance_pages_leaves_non_nzc_root_alone(framework: Framework) -> None:
+    fwc = FrameworkConfigFactory.create(framework=framework)
+    root = _attach_root_page(fwc.instance_config)
+    assert root.show_in_menus is False
+    assert root.menu_label == ''
+
+    fwc.setup_instance_pages()
+
+    root.refresh_from_db()
+    assert root.show_in_menus is False
+    assert root.menu_label == ''
+
+
+def test_setup_instance_pages_hides_action_list_pages_from_footer(framework: Framework) -> None:
+    fwc = FrameworkConfigFactory.create(framework=framework)
+    root = _attach_root_page(fwc.instance_config)
+    alp = cast(
+        'ActionListPage',
+        root.add_child(
+            instance=ActionListPage(locale=root.locale, title='Actions', slug='actions', show_in_footer=True),
+        ),
+    )
+
+    fwc.setup_instance_pages()
+
+    alp.refresh_from_db()
+    assert alp.show_in_footer is False
 
 
 # ---------------------------------------------------------------------------
