@@ -38,10 +38,11 @@ include:
 
 # Viridis Color Palette
 _palette:
-  Viridis4_yellow:    &viridis_yellow     '#fde725'
-  Viridis4_green:     &viridis_green      '#35b779'
-  Viridis4_teal:      &viridis_teal       '#31688e'
-  Viridis4_blue:      &viridis_blue       '#440154'
+  Viridis5_yellow:    &viridis_yellow     '#fde725'
+  Viridis5_green:     &viridis_green      '#5ec962'
+  Viridis5_teal:      &viridis_teal       '#21918c'
+  Viridis5_blue:      &viridis_blue       '#3b528b'
+  Viridis5_darkblue:  &viridis_darkblue   '#440154'
 
   Viridis15_1:        &viridis15_1        '#fde725'
   Viridis15_2:        &viridis15_2        '#d0e11c'
@@ -66,6 +67,119 @@ _palette:
 #//////  Dimensions  ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 dimensions:
+
+- id: sector
+  label_en: Sector
+  label_de: Sektoren
+  help_text: Sectors as categorised in the Mission City Climate City Contracts 
+    (CCC) and BISKO.
+  categories:
+  - id: transport
+    label_en: Transport
+    label_de: Verkehr
+    aliases: [verkehr, Verkehr, VL_, VL, Mobilität, Mobilitat]
+    color: *viridis_teal
+    order: 19
+  - id: buildings
+    label_en: Buildings & Heating
+    label_de: Gebäude & Heizung
+    order: 5
+  - id: private_households
+    label_en: Private Households
+    label_de: Private Haushalte
+    aliases: [private_haushalte, Private_Haushalte, HE_, HE, HTHG_, HTHG]
+    color: *viridis_yellow
+    order: 13
+  - id: municipal_facilities
+    label_en: Municipal Facilities
+    label_de: Kommunale Einrichtungen
+    aliases: [kommunale_einrichtungen, Kommunale_Einrichtungen, 
+        stadtische_gebaude, KE_, KE, KTHG_, KTHG]
+    color: *viridis_green
+    order: 10
+  - id: commerce_trade_services
+    label_en: Commerce, Trade & Services
+    label_de: Gewerbe, Handel, Dienstleistungen
+    aliases: [gewerbe_handel_dienstleistungen, Gewerbe_Handel_Dienstleistungen, 
+        gewerbe_sonstiges, GE_, GE, GTHG_, GTHG]
+    color: *viridis_blue
+    order: 7
+  - id: industry
+    label_en: Industry
+    label_de: Industrie
+    aliases: [industrie, Industrie, IE_, IE, ITHG_, ITHG]
+    color: *viridis_darkblue
+    order: 8
+  - id: industry_commerce
+    label_en: Industry & Commerce
+    label_de: Industrie & Gewerbe
+    color: *viridis_darkblue
+    order: 9
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: [strom, Strom]
+    color: viridis_yellow
+    order: 16
+  - id: energy_industry
+    label_en: Energy industry
+    label_de: Energiewirtschaft
+    aliases: [energiewirtschaft, Energiewirtschaft]
+    order: 3
+  - id: waste
+    label_en: Waste
+    label_de: Abfall
+    order: 1
+  - id: other
+    label_en: Other (incl. IPPU & AFOLU)
+    label_de: Sonstige (inkl. IPPU & AFOLU)
+    order: 15
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+    order: 6
+  - id: heating
+    label_en: Heating
+    label_de: Wärme
+    aliases: [warme, Warme]
+    order: 20
+  - id: sinks
+    label_en: Sinks
+    label_de: Senken
+    color: *viridis_green
+    order: 14
+  - id: not_defined
+    label_en: Not defined
+    label_de: Nicht definiert
+    color: viridis_green
+    order: 12
+  - id: ghg_neutral_administration
+    label_en: GHG-Neutral Administration
+    label_de: THG-neutrale Verwaltung
+    color: *viridis_green
+    order: 17
+  - id: food_and_land_use
+    label_en: Food & Land Use
+    label_de: Ernährung & Landnutzung
+    color: *viridis_green
+    order: 4
+  - id: consumption
+    label_en: Consumption
+    label_de: Konsum
+    color: '#9B59B6'
+    order: 11
+  - id: waste_and_wastewater
+    label_en: Waste & Wastewater
+    label_de: Abfall & (Ab-)Wasser
+    color: '#27AE60'
+    order: 2
+  - id: cross_cutting
+    label_en: Cross-cutting Climate Protection
+    label_de: Übergreifende Klimaschutzaspekte
+    color: '#1ABC9C'
+    order: 18
+
+
 - id: energy_carrier
   label_en: Energy carrier
   label_de: Energieträger
@@ -338,8 +452,8 @@ dimensions:
     color: '#616161'
     order: 44
   - id: not_defined
-    label_en: Not defined
-    label_de: Nicht definiert
+    label_en: Sinks
+    label_de: Senken
     aliases: [nicht_definiert, Unzugeordnet]
     color: *viridis_green
     order: 38
@@ -348,6 +462,8 @@ dimensions:
     label_de: Gesamt
     color: '#303030'
     order: 26
+
+
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -420,7 +536,7 @@ result_excels:
 
 nodes:
 
-- id: net_emissions
+- id: net_emissions    # Node copied here to enable goals.
   name_de: Netto-Emissionen
   name_en: Net emissions
   type: generic.GenericNode
@@ -429,10 +545,11 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   is_outcome: true
-  goals: # Node copied here to make goals possible.
+  goals: 
   - label_de: Ursprünglicher Zielpfad 2022
     label_en: Original path 2
     default: true
+    is_main_goal: true   # should be here to enbale dashboard page
     linear_interpolation: true
     values:
     - year: 2019
@@ -548,7 +665,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
-  color: *viridis_blue
+  color: *viridis_darkblue
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
@@ -621,7 +738,7 @@ nodes:
   name_de: Private Haushalte Emissionen
   name_en: Private household emissions
   description: This is just a placeholder to mask a redundant node.
-  color: '#009ebe'
+  color: *viridis_yellow
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
@@ -631,7 +748,7 @@ nodes:
   name_de: Kommunale Einrichtungen Emissionen
   name_en: Municipal facilities emissions
   description: This is just a placeholder to mask a redundant node.
-  color: '#009ebe'
+  color: *viridis_green
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
@@ -641,7 +758,7 @@ nodes:
   name_de: Industrie Emissionen
   name_en: Industry emissions
   description: This is just a placeholder to mask a redundant node.
-  color: '#009ebe'
+  color: *viridis_darkblue
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
@@ -651,7 +768,7 @@ nodes:
   name_de: Gewerbe, Handel, Dienstleistungen Emissionen
   name_en: Commerce, trade, services emissions
   description: This is just a placeholder to mask a redundant node.
-  color: '#009ebe'
+  color: *viridis_blue
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
