@@ -97,6 +97,12 @@ class PathsPage(Page):
         verbose_name=_('show in additional links'),
         help_text=_('Should the page be shown in the additional links?'),
     )
+    menu_label = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name=_('menu label'),
+        help_text=_('Optional override for how this page appears in the menu. Defaults to the page title.'),
+    )
 
     content_panels: Sequence[Panel] = [
         FieldPanel('title', classname='full title'),
@@ -104,6 +110,7 @@ class PathsPage(Page):
     common_settings_panels = [
         FieldPanel('seo_title'),
         FieldPanel('show_in_menus'),
+        FieldPanel('menu_label'),
         FieldPanel('show_in_footer'),
         FieldPanel('show_in_additional_links'),
         FieldPanel('search_description'),
@@ -124,6 +131,7 @@ class PathsPage(Page):
         GraphQLBoolean('show_in_footer', required=True),
         GraphQLBoolean('show_in_additional_links', required=True),
         GraphQLString('title', required=True),
+        GraphQLString('menu_label'),
     ]
 
     base_form_class = PathsAdminPageForm

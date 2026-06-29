@@ -809,17 +809,11 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         )
         if pp.user_is_authenticated(user):
             pp.realm_admin_role.assign_user(ic, user)
-        if fc.get_view_url() is not None:
-            from pages.models import ActionListPage
 
+        if fc.get_view_url() is not None:
             ic.sync_nodes()
             ic.create_default_content()
-            root_page = ic.root_page
-            assert root_page is not None
-            for alp in root_page.get_descendants().type(ActionListPage).specific():
-                assert isinstance(alp, ActionListPage)
-                alp.show_in_footer = False
-                alp.save()
+            fc.setup_instance_pages()
 
             # Populate the computation spec from the framework YAML now that the
             # framework config is linked. Without this, readers of the stored
@@ -830,6 +824,22 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             ic.save(update_fields=['spec'])
 
         return fc
+
+    def setup_instance_pages(self) -> None:
+        """Configure root-page menu state and ActionListPage footer state after default content creation."""
+        from pages.models import ActionListPage, PathsPage
+
+        ic = self.instance_config
+        root_page = ic.root_page
+        assert root_page is not None
+        if self.framework.identifier == 'nzc' and isinstance(root_page, PathsPage):
+            root_page.show_in_menus = True
+            root_page.menu_label = 'Home'
+            root_page.save()
+        for alp in root_page.get_descendants().type(ActionListPage).specific():
+            assert isinstance(alp, ActionListPage)
+            alp.show_in_footer = False
+            alp.save()
 
     def _get_default_value_multiplier(self, measure_template: MeasureTemplate) -> float:
         if measure_template.default_value_scaling is None:

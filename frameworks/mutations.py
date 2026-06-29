@@ -121,5 +121,6 @@ class FrameworkMutation:
 
             ic.refresh_from_db()
             ic.create_default_content()
+            fwc.setup_instance_pages()
 
         return CreateInstanceResult(instance=ic)
