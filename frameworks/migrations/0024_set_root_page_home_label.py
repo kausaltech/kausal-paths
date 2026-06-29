@@ -1,16 +1,18 @@
 from django.db import migrations
 
 
-def set_root_page_home_label(apps, _schema_editor):
+def set_root_page_home_label(apps, schema_editor):  # noqa: ARG001
     FrameworkConfig = apps.get_model('frameworks', 'FrameworkConfig')
     InstanceRootPage = apps.get_model('pages', 'InstanceRootPage')
     OutcomePage = apps.get_model('pages', 'OutcomePage')
     Page = apps.get_model('wagtailcore', 'Page')
 
     root_page_ids: list[int] = []
-    qs = FrameworkConfig.objects.select_related('instance_config__root_page')
+    qs = FrameworkConfig.objects.filter(
+        framework__identifier='nzc',
+    ).select_related('instance_config__root_page')
     for fwc in qs:
-        ic = fwc.instance_config
+        ic = fwc.instance_config 
         if ic is None or ic.root_page_id is None:
             continue
         root_page_ids.append(ic.root_page_id)

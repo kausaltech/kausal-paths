@@ -830,10 +830,9 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         from pages.models import ActionListPage, PathsPage
 
         ic = self.instance_config
-
-
         root_page = ic.root_page
-        if isinstance(root_page, PathsPage):
+        assert root_page is not None
+        if self.framework.identifier == 'nzc' and isinstance(root_page, PathsPage):
             root_page.show_in_menus = True
             root_page.menu_label = 'Home'
             root_page.save()
@@ -841,7 +840,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             assert isinstance(alp, ActionListPage)
             alp.show_in_footer = False
             alp.save()
-
 
     def _get_default_value_multiplier(self, measure_template: MeasureTemplate) -> float:
         if measure_template.default_value_scaling is None:
