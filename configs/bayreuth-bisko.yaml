@@ -60,7 +60,7 @@ _palette:
   Black      :        &black              '#000000'
   Grey       :        &grey               '#bcbcbc'
 
-# energy carriers order: Benzin, Biobenzin, Biomase, CNG fossil, Diesel, Diesel biogen, Erdgas, Fern- und Nahwärme, Flüssiggas, Heizöl, Heizstrom, LPG, Solarthermie, Strom, Umweltwärme
+# energy carriers order: fossil first (German alpha), then renewables (German alpha); Steinkohle → *black, Nicht definiert → Senken (*viridis_green)
 
 #//////  Dimensions  ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -69,284 +69,526 @@ dimensions:
   label_en: Energy carrier
   label_de: Energieträger
   categories:
-  - id: hard_coal
-    label_en: Hard coal
-    label_de: Steinkohle
-    aliases: [kohle, steinkohle, Kohle]
-    color: *black
-    order: 45
-  - id: brown_coal
-    label_en: Brown coal / Lignite
-    label_de: Braunkohle
-    aliases: [braunkohle]
-    color: '#5D3A1A'
-    order: 9
-  - id: heating_oil
-    label_en: Heating oil
-    label_de: Heizöl
-    aliases: [heizol, Heizoel]
-    color: *viridis15_10
-    order: 29
-  - id: petrol
-    label_en: Petrol
-    label_de: Benzin
-    aliases: [benzin_fossil, benzin, Benzin fossil, Bfoss]
-    color: *viridis15_1
-    order: 2
-  - id: diesel
-    label_en: Diesel
-    label_de: Diesel
-    aliases: [diesel_fossil, Diesel fossil, Dfoss]
-    color: *viridis15_5
-    order: 12
-  - id: kerosene
-    label_en: Kerosene
-    label_de: Kerosin
-    aliases: [kerosin, Kerosin fossil]
-    color: '#C0392B'
-    order: 31
-  - id: lpg
-    label_en: LPG (Liquefied petroleum gas)
-    label_de: LPG
-    color: *viridis15_12
-    order: 36
-  - id: propane
-    label_en: Propane/butane
-    label_de: Flüssiggas
-    aliases: [flüssiggas, flssiggas, Fluessiggas]
-    color: *viridis15_9
-    order: 24
-  - id: fuels
-    label_en: Fuels
-    label_de: Kraftstoffe
-    aliases: [kraftstoffe, kraftstoff, Kraftstoff, Kraftstoffe]
-    color: '#880000'
-    order: 35
-  - id: natural_gas
-    label_en: Natural gas
-    label_de: Erdgas
-    aliases: [gas, erdgas]
-    color: *viridis15_7
-    order: 14
-  - id: cng_fossil
-    label_en: CNG fossil
-    label_de: CNG fossil
-    aliases: [CNG_fossil, CNGfoss]
-    color: *viridis15_4
-    order: 11
-  - id: natural_gas_turbine
-    label_en: Natural gas for steam turbines
-    label_de: Erdgas GuD
-    color: '#0B2F50'
-    order: 16
-  - id: natural_gas_small_chp
-    label_en: Natural gas with small-scale CHP
-    label_de: Erdgas BHKW
-    color: '#0D3B5A'
-    order: 15
-  - id: bio_petrol
-    label_en: Bio petrol
-    label_de: Biobenzin
-    aliases: [benzin_biogen, biobenzin, Benzin Bio, Bbio]
-    color: *viridis15_2
-    order: 3
-  - id: biodiesel
-    label_en: Biodiesel
-    label_de: Diesel biogen
-    aliases: [diesel_biogen, Diesel Bio, Diesel_biogen, Diesel_Biogen, Dbio]
-    color: *viridis15_6
-    order: 13
-  - id: cng_bio
-    label_en: CNG bio
-    label_de: CNG bio
-    aliases: [CNG_bio, CNGbio]
-    color: '#2D5C12'
-    order: 10
-  - id: liquid_biomass
-    label_en: Liquid biomass
-    label_de: flüssige Biomasse
-    color: '#5E6B1A'
-    order: 23
-  - id: biomass
-    label_en: Biomass
-    label_de: Biomasse
-    aliases: [biomasse]
-    color: *viridis15_3
-    order: 6
-  - id: solid_biomass
-    label_en: Solid biomass
-    label_de: feste Biomasse
-    color: '#1B5E20'
-    order: 22
-  - id: biomass_boiler
-    label_en: Biomass for heat-only boiler
-    label_de: Biomasse Heizwerk
-    color: '#14611A'
-    order: 7
-  - id: biomass_chp
-    label_en: Biomass for CHP
-    label_de: Biomasse KWK
-    color: '#0D4F13'
-    order: 8
-  - id: biogas
-    label_en: Biogas
-    label_de: Biogas
-    aliases: [biogas]
-    color: '#0D6B4D'
-    order: 4
-  - id: biogas_chp
-    label_en: Biogas for CHP
-    label_de: Biogas KWK
-    color: '#0A5C3E'
-    order: 5
-  - id: sewage_landfill_mine_gas
-    label_en: Sewage, landfill, or mine gas
-    label_de: Klär- Deponie- Grubengas
-    color: '#07452E'
-    order: 32
+  # --- Fossil energy carriers (German alphabetical) ---
   - id: waste
     label_en: Waste
     label_de: Abfall
     color: '#4A3728'
     order: 1
-  - id: conventional_waste_heat_gt_90
-    label_en: Conventional waste heat > 90 C
-    label_de: Konventioneller Abwärme >90 C
-    color: '#484848'
-    order: 34
-  - id: conventional_waste_heat_lt_90
-    label_en: Conventional waste heat < 90 C
-    label_de: Konventioneller Abwärme <90 C
-    color: '#5C5C5C'
-    order: 33
-  - id: renewable_waste_heat_gt_90
-    label_en: Renewable waste heat > 90 C
-    label_de: Erneuerbarer Abwärme >90 C
-    color: '#3D5A55'
-    order: 18
-  - id: renewable_waste_heat_lt_90
-    label_en: Renewable waste heat < 90 C
-    label_de: Erneuerbarer Abwärme <90 C
-    color: '#4A6B66'
-    order: 17
-  - id: solar_thermal
-    label_en: Solar thermal
-    label_de: Solarthermie
-    aliases: [solarthermie, Solarthermie]
-    color: *viridis15_13
-    order: 39
-  - id: environmental_heat
-    label_en: Environmental heat / Heat pump
-    label_de: Umweltwärme
-    aliases: [umweltwarme, Umweltwarme, Umweltwaerme]
-    color: *viridis15_15
-    order: 47
-  - id: geothermatl
-    label_en: Geothermatl
-    label_de: Geothermite
-    color: '#005757'
-    order: 28
-  - id: geothermal
-    label_en: Geothermal
-    label_de: Geothermie
-    color: '#005757'
-    order: 27
-  - id: district_heating
-    label_en: District heating
-    label_de: Fernwärme
-    aliases: [fernwarme, Fernwaerme]
-    color: '#922B00'
-    order: 21
-  - id: local_heating
-    label_en: Local heating
-    label_de: Nahwärme
-    aliases: [nahwarme, Nahwarme, Nahwaerme]
-    color: '#A33300'
-    order: 37
-  - id: district_and_local_heating
-    label_en: District and local heating
-    label_de: Fern- und Nahwärme
-    aliases: [fern_und_nahwarme]
-    color: *viridis15_8
-    order: 20
-  - id: electricity
-    label_en: Electricity
-    label_de: Strom
-    aliases: [strom]
-    color: *viridis15_14
-    order: 46
-  - id: heating_electricity
-    label_en: Heating electricity
-    label_de: Heizstrom
-    aliases: [heizstrom]
-    color: *viridis15_11
-    order: 30
+  - id: petrol
+    label_en: Petrol
+    label_de: Benzin
+    aliases: [benzin_fossil, benzin, Benzin fossil, Bfoss]
+    color: *viridis15_7   # fossil: Benzin (dark blue range)
+    order: 2
+  - id: brown_coal
+    label_en: Brown coal / Lignite
+    label_de: Braunkohle
+    aliases: [braunkohle]
+    color: '#5D3A1A'
+    order: 3
+  - id: cng_fossil
+    label_en: CNG fossil
+    label_de: CNG fossil
+    aliases: [CNG_fossil, CNGfoss]
+    color: *viridis15_8   # fossil: CNG fossil (dark blue range)
+    order: 4
+  - id: diesel
+    label_en: Diesel
+    label_de: Diesel
+    aliases: [diesel_fossil, Diesel fossil, Dfoss]
+    color: *viridis15_9   # fossil: Diesel (dark blue range)
+    order: 5
+  - id: natural_gas
+    label_en: Natural gas
+    label_de: Erdgas
+    aliases: [gas, erdgas]
+    color: *viridis15_10  # fossil: Erdgas (dark blue range)
+    order: 6
+  - id: natural_gas_small_chp
+    label_en: Natural gas with small-scale CHP
+    label_de: Erdgas BHKW
+    color: '#0D3B5A'
+    order: 7
+  - id: natural_gas_turbine
+    label_en: Natural gas for steam turbines
+    label_de: Erdgas GuD
+    color: '#0B2F50'
+    order: 8
   - id: driving_electricity
     label_en: Driving electricity
     label_de: Fahrstrom
     aliases: [fahrstrom, strom_fahrstrom, St]
     color: '#0D3A80'
+    order: 9
+  - id: district_and_local_heating
+    label_en: District and local heating
+    label_de: Fern- und Nahwärme
+    aliases: [fern_und_nahwarme]
+    color: *viridis15_11  # fossil: Fern- und Nahwärme (dark blue range)
+    order: 10
+  - id: district_heating
+    label_en: District heating
+    label_de: Fernwärme
+    aliases: [fernwarme, Fernwaerme]
+    color: '#922B00'
+    order: 11
+  - id: propane
+    label_en: Propane/butane
+    label_de: Flüssiggas
+    aliases: [flüssiggas, flssiggas, Fluessiggas]
+    color: *viridis15_12  # fossil: Flüssiggas (dark blue range)
+    order: 12
+  - id: heating_oil
+    label_en: Heating oil
+    label_de: Heizöl
+    aliases: [heizol, Heizoel]
+    color: *viridis15_13  # fossil: Heizöl (dark blue range)
+    order: 13
+  - id: heating_electricity
+    label_en: Heating electricity
+    label_de: Heizstrom
+    aliases: [heizstrom]
+    color: *viridis15_14  # fossil: Heizstrom (dark blue range)
+    order: 14
+  - id: kerosene
+    label_en: Kerosene
+    label_de: Kerosin
+    aliases: [kerosin, Kerosin fossil]
+    color: '#C0392B'
+    order: 15
+  - id: sewage_landfill_mine_gas
+    label_en: Sewage, landfill, or mine gas
+    label_de: Klär- Deponie- Grubengas
+    color: '#07452E'
+    order: 16
+  - id: conventional_waste_heat_lt_90
+    label_en: Conventional waste heat < 90 C
+    label_de: Konventioneller Abwärme <90 C
+    color: '#5C5C5C'
+    order: 17
+  - id: conventional_waste_heat_gt_90
+    label_en: Conventional waste heat > 90 C
+    label_de: Konventioneller Abwärme >90 C
+    color: '#484848'
+    order: 18
+  - id: fuels
+    label_en: Fuels
+    label_de: Kraftstoffe
+    aliases: [kraftstoffe, kraftstoff, Kraftstoff, Kraftstoffe]
+    color: '#880000'
     order: 19
-  - id: photovoltaic
-    label_en: Photovoltaic
-    label_de: Fotovoltaik
-    color: '#CC8400'
-    order: 25
-  - id: hydropower
-    label_en: Hydropower
-    label_de: Wasser
-    color: '#0A5B8A'
-    order: 48
-  - id: wind
-    label_en: Wind
-    label_de: Wind
-    color: '#1A698A'
-    order: 50
-  - id: hydrogen
-    label_en: Hydrogen
-    label_de: Wasserstoff
-    aliases: [wasserstoff, Wasserstoff]
-    color: '#007A8A'
-    order: 49
-  - id: other_renewables
-    label_en: Other renewables
-    label_de: Sonstige Erneuerbare
-    aliases: [sonstige_erneuerbare, Sonstige_Erneuerbare, SonstigeEE]
-    color: '#276B27'
-    order: 40
-  - id: other_renewable_energy_carriers
-    label_en: Other renewable energy carriers
-    label_de: Sonstige Erneuerbare Energieträger
-    color: '#1E5E1E'
-    order: 41
+  - id: lpg
+    label_en: LPG (Liquefied petroleum gas)
+    label_de: LPG
+    color: *viridis15_15  # fossil: LPG (dark blue range, darkest)
+    order: 20
+  - id: local_heating
+    label_en: Local heating
+    label_de: Nahwärme
+    aliases: [nahwarme, Nahwarme, Nahwaerme]
+    color: '#A33300'
+    order: 21
   - id: other_conventional
     label_en: Other conventional
     label_de: Sonstige Konventionelle
     aliases: [sonstige_konventionelle, Sonstige_Konventionelle, SonstigeKo]
     color: '#5A3A2A'
-    order: 42
+    order: 22
   - id: other_conventional_energy_carriers
     label_en: Other conventional energy carriers
     label_de: Sonstige konventionelle Energieträger
     color: '#4A2D1A'
-    order: 43
+    order: 23
   - id: other
     label_en: Other
     label_de: Sonstiges
     aliases: [sonstiges]
     color: '#616161'
-    order: 44
-  - id: not_defined
-    label_en: Not defined
-    label_de: Nicht definiert
-    aliases: [nicht_definiert, Unzugeordnet]
-    color: *viridis_green
+    order: 24
+  - id: hard_coal
+    label_en: Hard coal
+    label_de: Steinkohle
+    aliases: [kohle, steinkohle, Kohle]
+    color: *black          # fossil: Steinkohle (special: black)
+    order: 25
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: [strom]
+    color: *viridis_yellow # fossil: Strom (switched: viridis_yellow = brightest viridis)
+    order: 26
+  # --- Renewable energy carriers (German alphabetical) ---
+  - id: bio_petrol
+    label_en: Bio petrol
+    label_de: Biobenzin
+    aliases: [benzin_biogen, biobenzin, Benzin Bio, Bbio]
+    color: *viridis15_1    # renewable: Biobenzin (yellow-green range)
+    order: 27
+  - id: biogas
+    label_en: Biogas
+    label_de: Biogas
+    aliases: [biogas]
+    color: '#0D6B4D'
+    order: 28
+  - id: biogas_chp
+    label_en: Biogas for CHP
+    label_de: Biogas KWK
+    color: '#0A5C3E'
+    order: 29
+  - id: biomass
+    label_en: Biomass
+    label_de: Biomasse
+    aliases: [biomasse]
+    color: *viridis15_2    # renewable: Biomasse (yellow-green range)
+    order: 30
+  - id: biomass_boiler
+    label_en: Biomass for heat-only boiler
+    label_de: Biomasse Heizwerk
+    color: '#14611A'
+    order: 31
+  - id: biomass_chp
+    label_en: Biomass for CHP
+    label_de: Biomasse KWK
+    color: '#0D4F13'
+    order: 32
+  - id: cng_bio
+    label_en: CNG bio
+    label_de: CNG bio
+    aliases: [CNG_bio, CNGbio]
+    color: '#2D5C12'
+    order: 33
+  - id: biodiesel
+    label_en: Biodiesel
+    label_de: Diesel biogen
+    aliases: [diesel_biogen, Diesel Bio, Diesel_biogen, Diesel_Biogen, Dbio]
+    color: *viridis15_3    # renewable: Diesel biogen (yellow-green range)
+    order: 34
+  - id: renewable_waste_heat_lt_90
+    label_en: Renewable waste heat < 90 C
+    label_de: Erneuerbarer Abwärme <90 C
+    color: '#4A6B66'
+    order: 35
+  - id: renewable_waste_heat_gt_90
+    label_en: Renewable waste heat > 90 C
+    label_de: Erneuerbarer Abwärme >90 C
+    color: '#3D5A55'
+    order: 36
+  - id: solid_biomass
+    label_en: Solid biomass
+    label_de: feste Biomasse
+    color: '#1B5E20'
+    order: 37
+  - id: liquid_biomass
+    label_en: Liquid biomass
+    label_de: flüssige Biomasse
+    color: '#5E6B1A'
     order: 38
+  - id: photovoltaic
+    label_en: Photovoltaic
+    label_de: Fotovoltaik
+    color: '#CC8400'
+    order: 39
+  - id: geothermal
+    label_en: Geothermal
+    label_de: Geothermie
+    color: '#005757'
+    order: 40
+  - id: geothermatl
+    label_en: Geothermatl
+    label_de: Geothermite
+    color: '#005757'
+    order: 41
+  - id: solar_thermal
+    label_en: Solar thermal
+    label_de: Solarthermie
+    aliases: [solarthermie, Solarthermie]
+    color: *viridis15_4    # renewable: Solarthermie (yellow-green range)
+    order: 42
+  - id: other_renewables
+    label_en: Other renewables
+    label_de: Sonstige Erneuerbare
+    aliases: [sonstige_erneuerbare, Sonstige_Erneuerbare, SonstigeEE]
+    color: '#276B27'
+    order: 43
+  - id: other_renewable_energy_carriers
+    label_en: Other renewable energy carriers
+    label_de: Sonstige Erneuerbare Energieträger
+    color: '#1E5E1E'
+    order: 44
+  - id: environmental_heat
+    label_en: Environmental heat / Heat pump
+    label_de: Umweltwärme
+    aliases: [umweltwarme, Umweltwarme, Umweltwaerme]
+    color: *viridis15_5    # renewable: Umweltwärme (yellow-green range)
+    order: 45
+  - id: hydropower
+    label_en: Hydropower
+    label_de: Wasser
+    color: '#0A5B8A'
+    order: 46
+  - id: hydrogen
+    label_en: Hydrogen
+    label_de: Wasserstoff
+    aliases: [wasserstoff, Wasserstoff]
+    color: '#007A8A'
+    order: 47
+  - id: wind
+    label_en: Wind
+    label_de: Wind
+    color: '#1A698A'
+    order: 48
+  # --- Special categories ---
+  - id: not_defined
+    label_en: Sinks
+    label_de: Senken
+    aliases: [nicht_definiert, Unzugeordnet]
+    color: *viridis_green   # special: Nicht definiert renamed to Senken
+    order: 49
   - id: total
     label_en: Total
     label_de: Gesamt
     color: '#303030'
-    order: 26
+    order: 50
+
+- id: sector
+  label_en: Sector
+  label_de: Sektoren
+  help_text: Sectors as categorised in the Mission City Climate City Contracts
+    (CCC) and BISKO.
+  categories:
+  - id: transport
+    label_en: Transport
+    label_de: Verkehr
+    aliases: [verkehr, Verkehr, VL_, VL, Mobilität, Mobilitat]
+    color: *viridis_teal  # sector color: main outcome graph + transport_emissions node
+    order: 19
+  - id: buildings
+    label_en: Buildings & Heating
+    label_de: Gebäude & Heizung
+    order: 5
+  - id: private_households
+    label_en: Private Households
+    label_de: Private Haushalte
+    aliases: [private_haushalte, Private_Haushalte, HE_, HE, HTHG_, HTHG]
+    color: '#009ebe'
+    order: 13
+  - id: municipal_facilities
+    label_en: Municipal Facilities
+    label_de: Kommunale Einrichtungen
+    aliases: [kommunale_einrichtungen, Kommunale_Einrichtungen,
+        stadtische_gebaude, KE_, KE, KTHG_, KTHG]
+    color: '#6bc248'
+    order: 10
+  - id: commerce_trade_services
+    label_en: Commerce, Trade & Services
+    label_de: Gewerbe, Handel, Dienstleistungen
+    aliases: [gewerbe_handel_dienstleistungen, Gewerbe_Handel_Dienstleistungen,
+        gewerbe_sonstiges, GE_, GE, GTHG_, GTHG]
+    color: '#fe8035'
+    order: 7
+  - id: industry
+    label_en: Industry
+    label_de: Industrie
+    aliases: [industrie, Industrie, IE_, IE, ITHG_, ITHG]
+    color: '#737373'
+    order: 8
+  - id: industry_commerce
+    label_en: Industry & Commerce
+    label_de: Industrie & Gewerbe
+    color: '#737373'
+    order: 9
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: [strom, Strom]
+    color: *viridis_yellow  # sector color: main outcome graph + electricity_emissions node (switched: Strom → viridis_yellow)
+    order: 16
+  - id: energy_industry
+    label_en: Energy industry
+    label_de: Energiewirtschaft
+    aliases: [energiewirtschaft, Energiewirtschaft]
+    order: 3
+  - id: waste
+    label_en: Waste
+    label_de: Abfall
+    order: 1
+  - id: other
+    label_en: Other (incl. IPPU & AFOLU)
+    label_de: Sonstige (inkl. IPPU & AFOLU)
+    order: 15
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+    order: 6
+  - id: heating
+    label_en: Heating
+    label_de: Wärme
+    aliases: [warme, Warme]
+    color: *viridis_blue  # sector color: main outcome graph + heating_emissions node (switched: Wärme → viridis_blue)
+    order: 20
+  - id: sinks
+    label_en: Sinks
+    label_de: Senken
+    color: *viridis_green  # sector color: main outcome graph + sinks node
+    order: 14
+  - id: not_defined
+    label_en: Not defined
+    label_de: Nicht definiert
+    order: 12
+  - id: ghg_neutral_administration
+    label_en: GHG-Neutral Administration
+    label_de: THG-neutrale Verwaltung
+    color: '#34495E'
+    order: 17
+  - id: food_and_land_use
+    label_en: Food & Land Use
+    label_de: Ernährung & Landnutzung
+    color: '#2ECC71'
+    order: 4
+  - id: consumption
+    label_en: Consumption
+    label_de: Konsum
+    color: '#9B59B6'
+    order: 11
+  - id: waste_and_wastewater
+    label_en: Waste & Wastewater
+    label_de: Abfall & (Ab-)Wasser
+    color: '#27AE60'
+    order: 2
+  - id: cross_cutting
+    label_en: Cross-cutting Climate Protection
+    label_de: Übergreifende Klimaschutzaspekte
+    color: '#1ABC9C'
+    order: 18
+
+- id: vehicle_type
+  label_en: Vehicle type
+  label_de: Fahrzeugtyp
+  categories:
+  # --- Personal transportation (light to heavy) ---
+  - id: walking
+    label_en: Walking
+    label_de: Fußgänger
+    aliases: [Fuss, VL_Fuss]
+    color: *viridis15_1    # personal: walking
+    order: 1
+  - id: bicycles
+    label_en: Bicycles
+    label_de: Fahrräder
+    aliases: [VL_Rad, Rad]
+    color: *viridis15_2    # personal: bicycles
+    order: 2
+  - id: motorcycles
+    label_en: Motorcycles
+    label_de: Motorisierte Zweiräder
+    aliases: [MZR, VL_MRZ, motorcycle]
+    color: *viridis15_3    # personal: motorcycles
+    order: 3
+  - id: passenger_cars
+    label_en: Passenger cars
+    label_de: Personenkraftwagen (PKW)
+    aliases: [Pkw, VL_Pkw, PKW, car]
+    color: *viridis15_4    # personal: passenger cars (PKW)
+    order: 4
+  - id: cars_and_motorcycles
+    label_en: Cars and motorcycles
+    label_de: Personenkraftwagen und Motorisierte Zweiräder
+    color: *viridis15_5    # personal: PKW + Motorisierte Zweiräder (combined)
+    order: 5
+  # --- Public transportation (local to long-distance) ---
+  - id: tram
+    label_en: Tram
+    label_de: Straßenbahn
+    aliases: [Tram]
+    color: *viridis15_6    # public: tram (Straßenbahn)
+    order: 6
+  - id: rail_vehicles
+    label_en: Tram and metro
+    label_de: Schienenfahrzeuge
+    aliases: [SSU, 'Stadt- , Straßen- und U-Bahn', VL_SSU]
+    color: *viridis15_7    # public: tram & metro (Schienenfahrzeuge)
+    order: 7
+  - id: local_buses
+    label_en: Local buses
+    label_de: LinienBus
+    aliases: [Lbus, VL_Lbus]
+    color: *viridis15_8    # public: local buses (LinienBus)
+    order: 8
+  - id: buses
+    label_en: Buses
+    label_de: Busse
+    aliases: [Bus, bus]
+    color: *viridis15_9    # public: buses (generic)
+    order: 9
+  - id: local_trains
+    label_en: Local trains
+    label_de: Schienenpersonennahverkehr
+    aliases: [SPNV, VL_SPNV]
+    color: *viridis15_10   # public: local trains (SPNV)
+    order: 10
+  - id: coach_buses
+    label_en: Coach buses
+    label_de: Reise-/Fernbusse
+    aliases: [Reisebus, long_distance_buses]
+    color: *viridis15_11   # public: coach buses (Reisebus/Fernbus)
+    order: 11
+  - id: long_distance_trains
+    label_en: Long-distance trains
+    label_de: Schienenpersonenfernverkehr
+    aliases: [SPFV]
+    color: *viridis15_12   # public: long-distance trains (SPFV)
+    order: 12
+  - id: trains
+    label_en: Trains
+    label_de: Züge
+    color: *viridis15_13   # public: trains (generic / Züge)
+    order: 13
+  # --- Freight transportation (light to heavy) ---
+  - id: vans
+    label_en: Light commercial vehicles
+    label_de: Leichte Nutzfahrzeuge
+    aliases: [LNF, VL_LNF]
+    color: *viridis15_14   # freight: light commercial vehicles (LNF)
+    order: 14
+  - id: trucks
+    label_en: Trucks
+    label_de: Lastkraftwagen (LKW)
+    aliases: [Lkw, VL_Lkw, LKW, truck]
+    color: *viridis15_15   # freight: trucks (LKW)
+    order: 15
+  - id: heavy_commercial
+    label_en: Heavy commercial vehicles
+    label_de: Schwere Nutzfahrzeuge
+    order: 16
+  - id: cargo_trains
+    label_en: Cargo trains
+    label_de: Schienengüterverkehr
+    aliases: [SGV]
+    order: 17
+  - id: inland_waterway_shipping
+    label_en: Inland waterway shipping
+    label_de: Binnenschifffahrt
+    aliases: [BiSchi, Binnenschiffahrt]
+    order: 18
+  # --- Other ---
+  - id: air_transport
+    label_en: Air transport (LTO)
+    label_de: Flugverkehr
+    aliases: [LTO, Flug]
+    order: 19
+  - id: undefined
+    label_en: Undefined
+    label_de: Unzugeordnet
+    order: 20
+  - id: none
+    label_en: None (stationary energy, no vehicle)
+    label_de: Kein Fahrzeug (stationäre Energie)
+    order: 21
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+    order: 22
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -418,29 +660,6 @@ result_excels:
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 nodes:
-
-- id: net_emissions
-  name_de: Netto-Emissionen
-  name_en: Net emissions
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  is_outcome: true
-  goals: # Node copied here to make goals possible.
-  - label_de: Ursprünglicher Zielpfad 2022
-    label_en: Original path 2
-    default: true
-    linear_interpolation: true
-    values:
-    - year: 2019
-      value: 696.41147
-    - year: 2021
-      value: 664.732782
-    - year: 2040
-      value: 0
-
 - id: sector_index   # Translates BISKO categories to Wärme/Strom/Verkehr sectors. TRUE for any allowed combi of sector and energy carrier
   name_de: Sektor Index
   name_en: Sector index
@@ -485,7 +704,7 @@ nodes:
   unit: kt_co2e/a
   input_dimensions: [sector]
   output_dimensions: [sector]
-  color: *viridis_green
+  color: *viridis_green  # subsector card color: sinks (matches sector "sinks" in outcome graph)
   input_datasets:
   - id: bayreuth/sinks
   output_nodes:
@@ -506,13 +725,77 @@ nodes:
   output_nodes:
   - id: stationary_emissions
 
+- id: private_household_emissions
+  name_de: Private Haushalte Emissionen
+  name_en: Private household emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#009ebe'  # subsector card color: private households (matches sector "private_households" in outcome graph)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
+
+- id: municipal_facilities_emissions
+  name_de: Kommunale Einrichtungen Emissionen
+  name_en: Municipal facilities emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#6bc248'  # subsector card color: municipal facilities (matches sector "municipal_facilities" in outcome graph)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
+
+- id: industry_emissions
+  name_de: Industrie Emissionen
+  name_en: Industry emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#737373'  # subsector card color: industry (matches sector "industry" in outcome graph)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
+
+- id: commerce_trade_services_emissions
+  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_en: Commerce, trade, services emissions
+  description: This is just a placeholder to mask a redundant node.
+  color: '#fe8035'  # subsector card color: commerce/trade/services (matches sector "commerce_trade_services" in outcome graph)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2019, 0], [2021, 0]]
+
+
+- id: net_emissions
+  name_de: Netto-Emissionen
+  name_en: Net emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  is_outcome: true
+  goals: # Node copied here to make goals possible.
+  - label_de: Ursprünglicher Zielpfad 2022
+    label_en: Original path 2
+    default: true
+    linear_interpolation: true
+    is_main_goal: true
+    values:
+    - year: 2019
+      value: 696.41147
+    - year: 2021
+      value: 664.732782
+    - year: 2040
+      value: 0
+
 - id: heating_emissions
   name_de: Wärme Emissionen
   name_en: Heating Emissions
   type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
-  color: *viridis_yellow
+  color: *viridis_blue  # subsector card color: heating/Wärme
   input_dimensions: [energy_carrier, sector]  # switched around dimensions, because in Outcome page it shows the first listed dimension when "drilling down" 
   output_dimensions: [energy_carrier, sector]
   input_nodes:
@@ -547,7 +830,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
-  color: *viridis_blue
+  color: *viridis_yellow  # subsector card color: electricity/Strom
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
@@ -578,7 +861,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
-  color: *viridis_teal
+  color: *viridis_teal  # subsector card color: transport (matches sector "transport" in outcome graph)
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
@@ -616,45 +899,7 @@ nodes:
     - year: 2038
       value: 0
 
-- id: private_household_emissions
-  name_de: Private Haushalte Emissionen
-  name_en: Private household emissions
-  description: This is just a placeholder to mask a redundant node.
-  color: '#009ebe'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt_co2e/a
-  historical_values: [[2019, 0], [2021, 0]]
 
-- id: municipal_facilities_emissions
-  name_de: Kommunale Einrichtungen Emissionen
-  name_en: Municipal facilities emissions
-  description: This is just a placeholder to mask a redundant node.
-  color: '#009ebe'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt_co2e/a
-  historical_values: [[2019, 0], [2021, 0]]
-
-- id: industry_emissions
-  name_de: Industrie Emissionen
-  name_en: Industry emissions
-  description: This is just a placeholder to mask a redundant node.
-  color: '#009ebe'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt_co2e/a
-  historical_values: [[2019, 0], [2021, 0]]
-
-- id: commerce_trade_services_emissions
-  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
-  name_en: Commerce, trade, services emissions
-  description: This is just a placeholder to mask a redundant node.
-  color: '#009ebe'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt_co2e/a
-  historical_values: [[2019, 0], [2021, 0]]
 
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
