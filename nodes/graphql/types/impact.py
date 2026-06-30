@@ -157,9 +157,14 @@ class ImpactOverviewType:
         # may be added in the future.
         if root.effect_node.goals is None or not root.effect_node.goals.root:
             return []
+        if root.spec.graph_type not in ['wedge_diagram', 'stacked_raw_impact']:
+            return []
         entries = root.effect_node.goals.root
         entry = next((e for e in entries if e.is_main_goal), entries[0])
-        return [NodeGoal(year=val.year, value=val.value) for val in entry.get_values()]
+        df = entry._get_values_df()
+        m = root.effect_node.get_default_output_metric()
+        df = df.ensure_unit(m.column_id, root.spec.indicator_unit)
+        return [NodeGoal(year=row[YEAR_COLUMN], value=row[m.column_id]) for row in df.sort(YEAR_COLUMN).to_dicts()]
 
     @sb.field
     @pass_context
