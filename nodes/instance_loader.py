@@ -532,7 +532,19 @@ class InstanceLoader:
             elif use_city_ds:
                 from frameworks.datasets import FrameworkMeasureDVCDataset2
 
-                ds_obj = FrameworkMeasureDVCDataset2.from_def(ds_def, self.context)
+                # Prefer a DB-stored dataset when one exists for this instance.
+                # FrameworkMeasureDVCDataset2 handles both cases: when db_dataset_obj is
+                # provided it loads from DB, otherwise falls through to DVC. Either way,
+                # post_process() runs and handles the uuid dimension and any framework
+                # measure datapoint overrides correctly.
+                # Future: if both a DB dataset and framework measure datapoints exist,
+                # the DB values should be loaded first and then overridden by the
+                # framework measures where available. That case doesn't arise yet, so
+                # for now the DB dataset simply wins outright.
+                ds_db_obj = None
+                if self.instance.features.use_datasets_from_db:
+                    ds_db_obj = self.db_datasets.get(ds_def.id)
+                ds_obj = FrameworkMeasureDVCDataset2.from_def(ds_def, self.context, db_dataset_obj=ds_db_obj)
             elif self.fw_config is not None:
                 from nodes.gpc import DatasetNode
 

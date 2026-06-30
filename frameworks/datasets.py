@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self, override
 
 import polars as pl
 from pint import DimensionalityError
@@ -12,7 +12,10 @@ from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.datasets import DVCDataset, GenericDataset
 
 if TYPE_CHECKING:
-    from nodes.context import FrameworkConfigData
+    from kausal_common.datasets.models import Dataset as DBDatasetModel
+
+    from nodes.context import Context, FrameworkConfigData
+    from nodes.defs.node_defs import InputDatasetDef
 
 ENABLE_UNIT_CONVERSION = True
 
@@ -207,6 +210,35 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 @dataclass
 class FrameworkMeasureDVCDataset2(DVCDataset):
     measure_data_point_years: list[int] = field(default_factory=list)
+    db_dataset_obj: DBDatasetModel | None = field(default=None)
+
+    @classmethod
+    def from_def(  # type: ignore[override]
+        cls,
+        ds_def: InputDatasetDef,
+        context: Context,
+        *,
+        db_dataset_obj: DBDatasetModel | None = None,
+    ) -> Self:
+        obj = super().from_def(ds_def, context)
+        obj.db_dataset_obj = db_dataset_obj
+        return obj
+
+    @override
+    def load_internal(self) -> ppl.PathsDataFrame:
+        if self.db_dataset_obj is None:
+            return super().load_internal()
+        cached = self.cache_get()
+        if cached is not None:
+            return cached
+        from nodes.datasets import DBDataset
+
+        df = DBDataset.deserialize_df(self.db_dataset_obj)
+        df = self._filter_and_process_df(df)
+        df = self.post_process(df)
+        if self.cache_key:
+            self.cache_set(df)
+        return df
 
     @property  # Override parent @cached_property: key must vary per scenario
     def cache_key(self) -> str:
