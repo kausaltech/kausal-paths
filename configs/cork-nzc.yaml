@@ -211,7 +211,7 @@ impact_overviews:
 - graph_type: wedge_diagram
   label_en: Wedge diagram
   effect_node: net_emissions
-  indicator_unit: Mt/a
+  indicator_unit: kt/a
 
 - graph_type: stacked_raw_impact
   label_en: Budget timeline

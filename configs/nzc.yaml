@@ -2545,8 +2545,8 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [scope, cost_type, ghg]
-  output_dimensions: [scope, cost_type, ghg]
+  input_dimensions: [cost_type, scope, ghg]
+  output_dimensions: [cost_type, scope, ghg]
   output_nodes:
   - id: net_emissions
     from_dimensions:
