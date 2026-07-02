@@ -563,6 +563,29 @@ nodes:
 
 - id: decision_rules
   name: Decision rules
+  description: |
+    <p>This node collects together the implemented welfare functions for comparison.</p>
+    <p><strong>Different functions:</strong></p>
+    <p><strong>Need satisfaction welfare</strong></p>
+    <p>Measures poverty multidimensionally, by identifying both who among society is poor and
+    the range and depth of their deprivations. A flexible approach, useful f.ex. for monitoring
+    and evaluating the effectiveness of a program.</p>
+    <p><strong>Utilitarian social welfare</strong></p>
+    <p>A baseline utilitarian principle, supposes that maximising the total average welfare among
+    all groups is the best course of action.</p>
+    <p><strong>Floor-constrained average welfare</strong></p>
+    <p>Posits that there should be a minimum level of welfare for all members of the society and
+    if it is not met, implements penalties accordingly.</p>
+    <p><strong>Sen-Gini social welfare function</strong></p>
+    <p>A welfare function based on the Gini coefficient, used to estimate how much a society's
+    wealth distribution deviates from an equal distribution.</p>
+    <p><strong>Atkinson index</strong></p>
+    <p>Used to determine the scale of the inequal wealth distribution. Is more sensitive to changes
+    in the lower end of income distribution with a greater inequality aversion parameter.</p>
+    <p><strong>Maximin/Rawlsian social welfare function</strong></p>
+    <p>Measures welfare based on the welfare of the least well-off group or individual members of
+    the society. Considers maximising societal welfare to equal maximising the welfare of its
+    poorest member.</p>
   type: simple.AdditiveNode
   quantity: number
   unit: dimensionless
@@ -589,6 +612,10 @@ nodes:
 
 - id: moral_welfare_normalized
   name: Normalized welfare per stakeholder
+# I have NO idea what the Moral Impact Assessment Tool is, especially not in a mathematical framework context??
+# I did find a UNESCO ETHICAL impact assessment tool (which ironically talks about the ethics of AI) but
+# that clearly has nothing to do with this. Does not help that this node has no sources.
+# NEVER MIND it's in the program, but that does bring up the concern of understandability. Idk what to do about it tho.
   description: |
     <p>Normalization of multi-dimensional welfare per Section 1.2 of the
     <em>Moral Impact Assessment Tool</em> mathematical framework. Applies two steps in sequence:</p>
@@ -664,11 +691,11 @@ nodes:
   description: |
     <p>Maximin welfare: <code>W_R = min_i(u_i)</code></p>
     <p>The maximin principle holds that a just outcome maximises the welfare of the worst-off
-    group regardless of what happens to others. Rawls (1971) argued that rational agents behind
-    the veil of ignorance would choose this principle. Pure maximin is rarely chosen in
-    deliberative experiments but provides a useful limiting case: it answers which scenario is
+    group regardless of what happens to others. Philosopher John Rawls argued that rational agents
+    would choose this principle when behind a "veil of ignorance" with regards to their social position.
+    Although it has its share of criticism, the concept provides a useful limiting case: answering which scenario is
     best for the worst-off group. Use as a lower-bound sensitivity check alongside other nodes.</p>
-    <p><strong>Implementation:</strong> approximated using the Atkinson SWF with high inequality
+    <p><strong>Implementation:</strong> approximated using the Atkinson index with high inequality
     aversion (ε = 10), which concentrates weight on the worst-off group and converges to the
     true minimum as ε → ∞. For exact maximin, compute <code>min(u_i)</code> directly over the
     stakeholder dimension.</p>
@@ -690,16 +717,20 @@ nodes:
     formula: min_dim(welfare, stakeholder)
 
 - id: moral_welfare_atkinson
-  name: Atkinson social welfare function (W_A)
+  name: Atkinson index (W_A)
   description: |
-    <p>Atkinson SWF parameterised by inequality aversion ε:</p>
+    <p>Atkinson index parameterised by inequality aversion ε:</p>
     <ul>
-    <li>ε ≠ 1: <code>W_A(ε) = [(1/n) * sum_i u_i^(1-ε)]^(1/(1-ε))</code></li>
+    <li>ε ≠ 1: <code>W_A(ε) = 1 - 1/m * [(1/n) * sum_i u_i^(1-ε)]^(1/(1-ε))</code></li>
     <li>ε = 1 (geometric mean): <code>W_A(1) = exp((1/n) * sum_i ln(u_i))</code> — not implemented here; approximated by adding 0.0001 to ε.</li>
+# I don't know how to fix that second one, nor how to properly implement the change into the calculation... m here denotes the mean income
     </ul>
-    <p>The Atkinson function parameterises continuously from pure utilitarianism (ε = 0) to pure
+    <p>The Atkinson index parameterises continuously from pure utilitarianism (ε = 0) to pure
     maximin (ε → ∞), making moral assumptions explicit and testable. The inequality index
     <code>A(ε) = 1 - W_A(ε) / W_U</code> measures the welfare fraction lost to inequality.
+# I have spent too much time reading about the Atkinson index to still not understand what this is trying to say. What is the inequality index??
+# Does it mean just the Atkinson index, since it was originally talking about an "Atkinson welfare function" (a thing I cannot confirm is real or different from the index)
+# Or is it talking about something else entirely?? I cannot spend more time on this anymore...
     Prioritarianism (intermediate ε) is most consistently supported in empirical studies.</p>
     <p><strong>Interpretation of ε:</strong></p>
     <ul>
@@ -762,8 +793,8 @@ nodes:
     </ul>
     <p>This is the most robustly supported principle in empirical veil-of-ignorance studies.
     Deliberating groups consistently chose to maximise average welfare subject to a guaranteed
-    minimum, replicated across US, Canada, Poland, and Australia. The structure — not the
-    specific threshold — showed strong cross-cultural replication.</p>
+    minimum. The structure showed strong cross-cultural replication, tested across US, Canada,
+    Poland, and Australia, even when the specific threshold varied.</p>
     <p><strong>Setting the floor threshold f:</strong></p>
     <ul>
     <li><em>Absolute:</em> fixed subsistence threshold in model units</li>
@@ -800,7 +831,7 @@ nodes:
 - id: moral_welfare_sen_gini
   name: Sen-Gini social welfare function (W_Sen)
   description: |
-    <p>Sen-Gini social welfare function: <code>W_Sen = ū * (1 - G)</code></p>
+    <p>Amartya Sen's social welfare function, based on the Gini coefficient: <code>W_Sen = ū * (1 - G)</code></p>
     <p>Where the Gini coefficient is:
     <code>G = sum_i sum_j |u_i - u_j| / (2 * n² * ū)</code></p>
     <p><strong>Interpretation:</strong></p>
@@ -809,7 +840,7 @@ nodes:
     <li>G = 1 (maximum inequality): W_Sen → 0</li>
     <li>The gap W_U - W_Sen is the welfare cost of inequality under the scenario</li>
     </ul>
-    <p>The Gini captures pairwise differences between all groups and complements the Atkinson
+    <p>The Gini coefficient captures pairwise differences between all groups and complements the Atkinson
     function with a measure more familiar to policy audiences. The gap between W_U and W_Sen
     is directly interpretable as the welfare cost of inequality.</p>
     <p><strong>Implementation note:</strong> exact Gini computation requires double summation over
@@ -848,7 +879,7 @@ nodes:
     group i on dimension k. W_N = 1 means all groups meet all thresholds on all dimensions.
     Report dimension-level scores separately to identify which dimensions drive shortfalls.</p>
     <p>The need principle addresses specific substantive dimensions required for basic functioning
-    (nutrition, shelter, health, safety) regardless of overall welfare level, and is empirically
+    (nutrition, shelter, health, safety) in addition to overall welfare level, and is empirically
     distinct from the floor constraint. This follows the Alkire-Foster counting approach
     underlying the UN Multidimensional Poverty Index.</p>
     <p><strong>Implementation:</strong> applies a single uniform threshold (constant parameter)
@@ -914,7 +945,7 @@ nodes:
     are equal, W_Acc reduces to W_U.</p>
     <p>The accountability principle reflects the empirically robust judgment that individuals
     should be compensated for disadvantages from unchosen circumstances but not from freely made
-    choices. Identified by Konow (2003) as one of three robust distributive principles alongside
+    choices. Identified by Konow in 2003 as one of three robust distributive principles alongside
     efficiency and need. This is the empirical counterpart of luck egalitarianism.</p>
     <p><strong>Full implementation (Steps 1-3):</strong> decompose u_i = f(C_i, E_i), estimate
     û_i(C) = E[u | C_i] via regression, then apply the Atkinson SWF to û_i(C) only.
