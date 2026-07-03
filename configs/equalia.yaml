@@ -722,14 +722,10 @@ nodes:
     <ul>
     <li>ε ≠ 1: <code>W_A(ε) = 1 - 1/m * [(1/n) * sum_i u_i^(1-ε)]^(1/(1-ε))</code></li>
     <li>ε = 1 (geometric mean): <code>W_A(1) = exp((1/n) * sum_i ln(u_i))</code> — not implemented here; approximated by adding 0.0001 to ε.</li>
-# I don't know how to fix that second one, nor how to properly implement the change into the calculation... m here denotes the mean income
     </ul>
     <p>The Atkinson index parameterises continuously from pure utilitarianism (ε = 0) to pure
     maximin (ε → ∞), making moral assumptions explicit and testable. The inequality index
     <code>A(ε) = 1 - W_A(ε) / W_U</code> measures the welfare fraction lost to inequality.
-# I have spent too much time reading about the Atkinson index to still not understand what this is trying to say. What is the inequality index??
-# Does it mean just the Atkinson index, since it was originally talking about an "Atkinson welfare function" (a thing I cannot confirm is real or different from the index)
-# Or is it talking about something else entirely?? I cannot spend more time on this anymore...
     Prioritarianism (intermediate ε) is most consistently supported in empirical studies.</p>
     <p><strong>Interpretation of ε:</strong></p>
     <ul>
@@ -746,6 +742,10 @@ nodes:
     <li><a href="https://doi.org/10.1016/0022-0531(70)90039-6">Atkinson (1970). On the Measurement of Inequality. <em>Journal of Economic Theory</em> 2(3).</a></li>
     <li><a href="https://doi.org/10.1162/003355399556151">Fehr &amp; Schmidt (1999). A Theory of Fairness, Competition, and Cooperation. <em>Quarterly Journal of Economics</em> 114(3).</a></li>
     </ul>
+  # I don't know how to fix that second one, nor how to properly implement the change into the calculation... m here denotes the mean income
+  # I have spent too much time reading about the Atkinson index to still not understand what this is trying to say. What is the inequality index??
+  # Does it mean just the Atkinson index, since it was originally talking about an "Atkinson welfare function" (a thing I cannot confirm is real or different from the index)
+  # Or is it talking about something else entirely?? I cannot spend more time on this anymore...
   type: formula.FormulaNode
   quantity: number
   unit: dimensionless
