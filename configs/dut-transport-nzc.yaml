@@ -41,20 +41,7 @@ include:
 - file: modules/health/attribution_and_cost.yaml
   node_group: Health
   allow_override: true
-- file: nzc/transport.yaml
-  node_group: Transport
-  allow_override: true
-- file: nzc/transport_cost.yaml # Adjust nodes, this should not be needed.
-  node_group: Transport cost
-  allow_override: true
-- file: nzc/transport_health_cost.yaml
-  node_group: Transport health
-  allow_override: true
-- file: nzc/freight_transport.yaml
-  node_group: Freight transport
-  allow_override: true
-- file: nzc/electricity.yaml
-  node_group: Electricity
+- file: nzc.yaml
   allow_override: true
 
 params:
@@ -102,7 +89,7 @@ action_groups:
 - id: promoting_active_mobility
   name: Aktiivisen liikkumisen edistäminen
   name_en: Promoting active mobility
-  color: 66c2a5
+  color: '#66c2a5'
 - id: promoting_systemic_public_transport
   name: Joukkoliikennejärjestelmän edistäminen
   name_en: Promoting systemic public transport
@@ -123,6 +110,14 @@ action_groups:
   name: Sähköistäminen (NetZeroPlanner-työkalusta)
   name_en: Electrification (from NetZeroPlanner)
   color: '#ffd92f'
+- id: transport
+  name_en: 1. Transport
+  name: 1. Liikenne
+  color: '#93c572'
+- id: freight_transport
+  name_en: 2. Freight transport
+  name: 2. Tavaraliikenne
+
 
 impact_overviews:
 
@@ -135,587 +130,6 @@ impact_overviews:
   label_en: Health benefits and harms
 
 dimensions:
-
-- id: response
-  label_fi: Terveysvaikutus
-  label_en: Response
-  aliases: [outcome]
-  categories:
-  - id: mortality
-    label_fi: Kaikki ilmansaastealtistus
-    label_en: All air pollution exposure
-    color: '#a6cee3'
-  - id: work_days_lost
-    label_fi: Menetetyt työpäivät
-    label_en: Work days lost
-    color: '#1f78b4'
-  - id: chronic_bronchitis
-    label_fi: Keuhkoahtaumatauti
-    label_en: Chronic bronchitis
-  - id: cancer
-    label_fi: Syöpä
-    label_en: Cancer
-  - id: tolerable_weekly_intake
-    label_fi: Siedettävä viikkosaanti
-    label_en: Tolerable weekly intake
-  - id: chd_mortality
-    label_fi: Sepelvaltimotautikuolleisuus
-    label_en: Coronary heart disease mortality
-  - id: breast_cancer
-    label_fi: Rintasyöpä
-    label_en: Breast cancer
-  - id: deficiency  # TODO Add causative agent to response
-    label_fi: Puutos
-    label_en: Deficiency
-  - id: infection  # TODO Add causative agent to response
-    label_fi: Infektio
-    label_en: Infection
-  - id: physical_activity
-    label: Fyysinen aktiivisuus
-    label_en: Physical activity
-    color: '#b2df8a'
-  - id: air_pollution
-    label: Ilmansaastealtistus liikenteessä
-    label_en: Air pollution exposure in traffic
-    color: '#33a02c'
-  - id: crash_risk
-    label: Liikenneonnettomuus
-    label_en: Traffic accidents
-    color: '#fb9a99'
-  - id: noise
-    label_en: Noise
-    label_fi: Melu
-  - id: carbon_emissions
-    label: Hiilidioksidipäästöt
-    label_en: CO2 emissions
-  - id: nzp_response
-    label: NZP-vaste
-    color: '#e31a1c'
-
-- id: pollutant
-  label_fi: Saaste
-  label_en: Pollutant
-  categories:
-  - id: co2
-    label_fi: CO2
-    label_en: CO2
-    aliases: [co2e]
-  - id: pm25
-    label_fi: PM2.5
-    label_en: PM2.5
-    aliases: [pm2_5]
-  - id: pm25_combustion
-    label_en: PM2.5 combustion
-    label_fi: Polttoperäinen PM2.5
-  - id: nox
-    label_fi: NOx
-    label_en: NOx
-  - id: pm10
-    label_fi: PM10
-    label_en: PM10
-  - id: pm10_combustion
-    label_en: PM10 combustion
-    label_fi: Polttoperäinen PM10
-  - id: walking
-    label_fi: Kävely
-    label_en: Walking
-  - id: cycling
-    label_fi: Pyöräily
-    label_en: Cycling
-  - id: pm1025
-    label_fi: PM10-PM2.5
-    label_en: PM10-PM2.5
-  - id: so2
-    label_fi: SO2
-    label_en: SO2
-  - id: nh3
-    label_fi: NH3
-    label_en: NH3
-  - id: pm25_wear_tear
-    label_en: PM2.5 wear & tear
-    label_fi: Kulumis- ja pölyperäinen PM2.5
-  - id: pm10_wear_tear
-    label_en: PM10 wear & tear
-    label_fi: Kulumis- ja pölyperäinen PM10
-
-- id: sector
-  label_en: Sector
-  label_fi: Sektori
-  help_text_en: Sectors as categorised in the Mission City Climate City Contracts
-    (CCC).
-  help_text_fi: Luokitteluna on käytetty Missio-kaupunkien Climate City Contractia
-    (CCC).
-  categories:
-  - id: transport
-    label_en: Transport
-    label_fi: Liikenne
-  - id: buildings
-    label_en: Buildings & Heating
-    label_fi: Rakennukset ja lämmitys
-  - id: electricity
-    label_en: Electricity
-    label_fi: Sähkö
-  - id: waste
-    label_en: Waste
-    label_fi: Jätteet
-  - id: other
-    label_en: Other (incl. IPPU & AFOLU)
-    label_fi: Muut (sis. IPPU, AFOLU)
-
-- id: scope
-  label: Scope
-  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
-    3: Indirect emissions.'
-  categories:
-  - id: scope1
-    label: Scope 1
-    aliases: [scope_1]
-  - id: scope2
-    label: Scope 2
-    aliases: [scope_2]
-  - id: scope3
-    label: Scope 3
-    aliases: [scope_3]
-
-- id: cost_type
-  label_en: Cost Type
-  label_fi: Kustannustyyppi
-  categories:
-  - id: energy_costs
-    label_en: Energy Costs
-    label_fi: Energiakustannukset
-  - id: investment_costs
-    label_en: Investment Costs
-    label_fi: Investointikustannukset
-  - id: capex
-    label_en: CAPEX (capital expenditure)
-    label_fi: CAPEX (pääomamenot)
-  - id: capex_levelised
-    label_en: CAPEX (levelised)
-    label_fi: CAPEX (tasoitettu)
-  - id: opex
-    label_en: OPEX (operational expenditure)
-    label_fi: OPEX (toimintamenot)
-    aliases: [operation_cost, Operation Cost]
-  - id: maintenance_costs
-    label_en: Maintenance Costs
-    label_fi: Huoltokustannukset
-    aliases: [maintenance]
-  - id: sales
-    label_en: Sales income
-    label_fi: Myyntitulot
-  - id: air_pollution
-    label_en: Air pollution in traffic
-    label_fi: Ilmansaasteet liikenteessä
-    aliases: [air_quality]
-  - id: air_pollution_everywhere
-    label_en: Air pollution everywhere
-    label_fi: Kaikki ilmansaastekuolleisuus
-  - id: noise
-    label_en: Noise
-    label_fi: Melu
-  - id: accidents
-    label_en: Accidents
-    label_fi: Onnettomuudet
-  - id: physical_activity
-    aliases: [health]
-    label_en: Health by physical activity
-    label_fi: Terveys fyysisestä aktiivisuudesta
-  - id: work_days_lost
-    label_fi: Menetetyt työpäivät
-    label_en: Work days lost
-  - id: co2_cost
-    label_en: CO2 Cost
-    label_fi: CO2-kustannus
-  - id: aesthetics
-    label_en: Aesthetics and amenity
-    label_fi: Estetiikka ja mukavuus
-  - id: shading
-    label_en: Shading
-    label_fi: Varjostus
-  - id: water_regulation
-    label_en: Water regulation
-    label_fi: Vedensäätely
-    aliases: [water_regulations]
-  - id: forest_management
-    label_en: Forest management
-    label_fi: Metsänhoito
-  - id: bus_costs
-    label_en: Bus costs
-    label_fi: Bussikustannukset
-  - id: homecharging_infrastructure
-    label_en: Home-charging infrastructure
-    label_fi: Kotilatausinfrastruktuuri
-  - id: public_and_workplace_infrastructure
-    label_en: Public & workplace infrastructure
-    label_fi: Julkinen ja työpaikkainfrastruktuuri
-  - id: charging_infrastructure_costs
-    label_en: Charging infrastructure costs
-    label_fi: Latausinfrastruktuurin kustannukset
-  - id: vehicle_costs
-    label_en: Vehicle costs
-    label_fi: Ajoneuvokustannukset
-  - id: infrastructure_costs
-    label_en: Infrastructure costs
-    label_fi: Infrastruktuurikustannukset
-  - id: network
-    label_en: Network
-    label_fi: Verkko
-  - id: fuel
-    label_en: Fuel costs
-    label_fi: Polttoainekustannukset
-  - id: tires
-    label_en: Tire costs
-    label_fi: Rengaskustannukset
-  - id: depreciation
-    label_en: Depreciation costs
-    label_fi: Poistokustannukset
-  - id: labour_costs
-    label_en: Labour costs
-    label_fi: Työvoimakustannukset
-  - id: industry_ippu
-    label_en: Industry (IPPU)
-    label_fi: Teollisuus (IPPU)
-  - id: agriculture_afolu
-    label_en: Agriculture (AFOLU)
-    label_fi: Maatalous (AFOLU)
-  - id: other_sources
-    label_en: Other sources
-    label_fi: Muut lähteet
-  - id: grid_stability
-    label_en: Storage, grid stability etc.
-    label_fi: Varastointi, verkon vakaus jne.
-
-- id: aggregated_cost_type
-  label_en: Aggregated cost type
-  label_fi: Koottu kustannustyyppi
-  categories:
-  - id: capex
-    label_en: CAPEX
-    label_fi: CAPEX
-  - id: opex
-    label_en: OPEX
-    label_fi: OPEX
-  - id: co_benefits
-    label_en: Co-benefits
-    label_fi: Rinnakkaishyödyt
-  - id: co2_cost
-    label_en: CO2 cost
-    label_fi: CO2-kustannus
-
-- id: ghg
-  label_en: Greenhouse gas
-  label_fi: Kasvihuonekaasu
-  categories:
-  - id: co2e
-    label_en: CO2e
-    label_fi: CO2e
-    aliases: [co2]
-
-- id: transport_mode
-  label_en: Transport mode
-  label_fi: Kuljetusmuoto
-  categories:
-  - id: cars
-    aliases: [henkiloauto]
-    label_en: Cars
-    label_fi: Autot
-  - id: buses
-    aliases: [bussi]
-    label_en: Buses
-    label_fi: Bussit
-  - id: trains
-    label_en: Trains
-    label_fi: Junat
-    aliases: [Metro/tram, metro/tram, metro_tram, raide]
-  - id: public_transport
-    label_en: Public transport
-    label_fi: Joukkoliikenne
-  - id: walking
-    aliases: [jalankulku]
-    label_en: Walking
-    label_fi: Kävely
-  - id: cycling
-    aliases: [pyoraliikenne]
-    label_en: Cycling
-    label_fi: Pyöräily
-  - id: light_trucks
-    label_en: Light duty trucks <3.5 tonne
-    label_fi: Kevyet kuorma-autot <3,5 tonnia
-  - id: heavy_trucks
-    label_en: Heavy duty trucks >3.5 tonne
-    label_fi: Raskaat kuorma-autot >3,5 tonnia
-  - id: trucks
-    label_en: Trucks
-    label_fi: Kuorma-autot
-  - id: other_motorized
-    label_en: Other motorized transport
-    label_fi: Muu moottoroitu liikenne
-  - id: bikeshare
-    label_en: Bikeshare
-    label_fi: Kaupunkipyörät
-  - id: ebike
-    label_en: E-bike
-    label_fi: Sähköpyörä
-  - id: other
-    aliases: [muu]
-    label_fi: Muu
-    label_en: Other
-  - id: total
-    aliases: [yhteensä]
-    label_fi: Yhteensä
-    label_en: Total
-
-- id: energy_carrier
-  label_en: Energy carrier
-  label_fi: Energiamuoto
-  categories:
-  - id: petrol_diesel
-    label_en: Petrol and diesel
-    label_fi: Bensiini ja diesel
-  - id: electricity
-    label_en: Electricity
-    label_fi: Sähkö
-  - id: fossil
-    label_en: Fossil (oil, coal, gas)
-    label_fi: Fossiiliset (öljy, hiili, kaasu)
-  - id: heat_pump
-    label_en: Electric heat pumps / geothermal
-    label_fi: Sähkölämpöpumput / maalämpö
-  - id: bioenergy
-    label_en: Bio (biogas, biomass) and solar heaters
-    label_fi: Bio (biokaasu, biomassa) ja aurinkolämmittimet
-  - id: waste
-    label_en: Waste (fossil & non-fossil waste)
-    label_fi: Jäte (fossiilinen ja ei-fossiilinen jäte)
-
-- id: building_energy_class
-  label: Building energy class
-  categories:
-  - id: new_standard
-    label: New, standard
-  - id: new_top_performance
-    label: New, top performance
-  - id: old_no_renovations
-    label: Old, no renovation
-  - id: minor_renovation
-    aliases: [minor_renovations]
-    label: Old, minor heating renovation
-  - id: major_renovation
-    aliases: [major_renovations]
-    label: Old, extensive heating renovation
-  - id: no_improvement  # TODO Remove redundant
-    label: No improvement
-  - id: minor_improvements
-    label: Minor improvements
-  - id: aggressive_improvements
-    label: Aggressive improvements
-  - id: moderate_improvements
-    label: Moderate improvements
-  - id: nzeb
-    label: Net zero emission buildings
-  - id: moderate_renovation
-    aliases: [moderate_renovations]
-    label: Moderate renovation
-
-- id: heating_type
-  label: Heating type
-  categories:
-  - id: district_heating
-    label: District heating
-  - id: local_heating
-    label: Local heating
-
-- id: fuel_type
-  label_en: Fuel type
-  label_fi: Polttoainetyyppi
-  categories:
-  - id: fossil
-    label_en: Fossil
-    label_fi: Fossiilinen
-  - id: non_fossil
-    label_en: Non-fossil
-    label_fi: Ei-fossiilinen
-    aliases: [nonfossil, non-fossil]
-  - id: mixed
-    label_en: Mixed fossil and non-fossil
-    label_fi: Sekoitettu fossiilinen ja ei-fossiilinen
-  - id: other
-    label_en: Other (e.g. nuclear)
-    label_fi: Muu (esim. ydinvoima)
-  - id: local_pv
-    label_en: Local photovoltaics
-    label_fi: Paikalliset aurinkopaneelit
-  - id: centralised_pv
-    label_en: Centralised photovoltaics and wind
-    label_fi: Keskitetyt aurinkopaneelit ja tuulivoima
-  - id: pv
-    label_en: Photovoltaics
-    label_fi: Aurinkopaneelit
-  - id: flexibility
-    label_en: Flexibility
-    label_fi: Joustavuus
-  - id: direct_electricity
-    label_en: Direct electricity
-    label_fi: Suora sähkö
-  - id: heat_pump
-    label_en: Heat pump
-    label_fi: Lämpöpumppu
-
-- id: efficiency_programme
-  label_en: Energy efficiency programme
-  label_fi: Energiatehokkuusohjelma
-  categories:
-  - id: no_improvements
-    label_en: No improvements
-    label_fi: Ei parannuksia
-    aliases: [no_improvement]
-  - id: minor_improvements
-    label_en: Minor improvements
-    label_fi: Pieniä parannuksia
-  - id: aggressive_improvements
-    label_en: Aggressive improvements
-    label_fi: Aggressiivisia parannuksia
-  - id: moderate_improvements
-    label_en: Moderate improvements
-    label_fi: Kohtalaisia parannuksia
-  - id: nzeb
-    label_en: Net zero emission buildings
-    label_fi: Nollapäästörakennukset
-
-- id: city_area
-  label_en: City area
-  label_fi: Kaupunkialue
-  categories:
-  - id: grey
-    label_en: Grey area
-    label_fi: Harmaa alue
-  - id: green
-    label_en: Green area
-    label_fi: Vihreä alue
-  - id: grey_inside
-    label_en: Grey area inside city
-    label_fi: Harmaa alue kaupungin sisällä
-  - id: green_inside
-    label_en: Green area inside city
-    label_fi: Vihreä alue kaupungin sisällä
-  - id: green_outside
-    label_en: Green area outside city
-    label_fi: Vihreä alue kaupungin ulkopuolella
-  - id: grey_outside
-    label_en: Grey area outside city
-    label_fi: Harmaa alue kaupungin ulkopuolella
-
-- id: area_distance
-  label_en: Area distance
-  label_fi: Alueen etäisyys
-  categories:
-  - id: metropolitan
-    label_en: Metropolitan
-    label_fi: Suurkaupunki
-  - id: inside
-    label_en: Inside city
-    label_fi: Kaupungin sisällä
-  - id: outside
-    label_en: Outside city
-    label_fi: Kaupungin ulkopuolella
-  - id: average
-    label_en: Average
-    label_fi: Keskimääräinen
-
-- id: stakeholder
-  label_en: Stakeholder
-  label_fi: Sidosryhmä
-  categories:
-  - id: citizens
-    label_en: Citizens
-    label_fi: Kansalaiset
-  - id: property_owners
-    label_en: Property owners
-    label_fi: Kiinteistönomistajat
-  - id: city
-    label_en: City
-    label_fi: Kaupunki
-    aliases: [cities, Cities]
-  - id: healthcare_providers
-    label_en: Healthcare providers
-    label_fi: Terveydenhuollon tarjoajat
-  - id: transport_operators
-    label_en: Transport operators
-    label_fi: Liikenneoperaattorit
-  - id: utilities
-    label_en: Utilities
-    label_fi: Julkiset palvelut
-
-- id: parameter
-  label_en: Parameter
-  label_fi: Parametri
-  categories:
-  - id: max_impact
-    label_en: Maximum impact
-    label_fi: Suurin vaikutus
-  - id: max_year
-    label_en: Year to reach maximum impact
-    label_fi: Vuosi, jolloin suurin vaikutus
-  - id: baseline_scenario
-    label_en: Baseline scenario
-    label_fi: Perusskenaario
-  - id: decarbonisation_scenario
-    label_en: Decarbonisation scenario
-    label_fi: Hiilestä irtautumisen skenaario
-  - id: frozen_scenario
-    label_en: Frozen scenario
-    label_fi: Jäädytetty skenaario
-
-- id: country
-  label: Country
-  categories:
-  - id: at
-    label: Austria
-  - id: be
-    label: Belgium
-  - id: cz
-    label: Czeck Republic
-  - id: dk
-    label: Denmark
-  - id: fr
-    label: France
-  - id: de
-    label: Germany
-  - id: it
-    label: Italy
-  - id: lt
-    label: Latvia
-  # - id: 'no'
-  #   label: Norway
-  - id: pl
-    label: Poland
-  - id: ro
-    label: Romania
-  - id: sk
-    label: Slovakia
-  - id: es
-    label: Spain
-  - id: se
-    label: Sweden
-  - id: average
-    label: Average
-
-- id: age
-  label: age
-  categories:
-  - id: '20_49'
-    label: 20-49
-    aliases: ['2049']
-  - id: '50_64'
-    label: 50-64
-    aliases: ['5064']
-  - id: '65_79'
-    label: 65-79
-    aliases: ['6579']
-  - id: '80_99'
-    label: 80-99
-    aliases: ['8099']
 
 - id: subgroup
   label: Population subgroup
@@ -769,16 +183,19 @@ dimensions:
   - id: unclassified
     label: Unclassified
 
-emission_sectors:
+nodes:
+
 - id: net_emissions
   name_fi: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
   description_fi: Kasvihuonekaasujen kokonaispäästöt liikenteen osalta
   description_en: Total greenhouse gas emissions from transport
-  type: simple.AdditiveNode
   is_outcome: true
-
-nodes:
+  input_dimensions: [scope, ghg, sector]
+  output_dimensions: [scope, ghg, sector]
 
 - id: technical_root_node
   name: Technical root node
@@ -1433,6 +850,223 @@ nodes:
   unit: kt/a
   historical_values: [[2010, 0.0]]
 
+# ----------- Emission sectors to block away from net_emissions ---------
+
+- id: building_emissions
+  name_en: Building emissions
+  name_fi: Rakennusten päästöt
+  description_en: This module (all nodes upstream) is based on the excel sheets 
+    3.0 - 3.4 Building & heat levers.
+  description_fi: Tämä moduuli (kaikki ylävirtasolmut) perustuu 
+    excel-taulukoihin 3.0 - 3.4 Rakennusten ja lämmityksen vipuvaikutukset.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+
+- id: electricity_emissions
+  name_en: Electricity emissions
+  name_fi: Sähköntuotannon päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: total_electricity_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+
+- id: emissions_from_other_sectors
+  name_en: Emissions from other sectors
+  name_fi: Päästöt muilta sektoreilta
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [cost_type, scope, ghg]
+  output_dimensions: [cost_type, scope, ghg]
+
+- id: waste_emissions
+  name_en: Waste emissions
+  name_fi: Jätepäästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#B07AA1'
+  input_dimensions: [waste_type, waste_treatment, pollutant]
+  output_dimensions: [waste_type, waste_treatment, pollutant]
+  input_nodes:
+  - id: waste_management_amount
+    tags: [non_additive]
+    to_dimensions:
+    - id: waste_type
+    - id: waste_treatment
+
+# ---------- Cost sectors to block away from total_cost ---------
+
+- id: building_cost
+  name_en: Building cost
+  name_fi: Rakennusten kustannus
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  color: '#e41a1c'
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: new_building_cost
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+  - id: efficiency_programme_cost
+    from_dimensions:
+    - id: efficiency_programme
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: waste_cost
+  name_en: Waste cost
+  name_fi: Jätekustannukset
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  color: '#ff7f00'
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: waste_air_pollution_cost
+    from_dimensions:
+    - id: waste_treatment
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  - id: waste_management_cost_by_stakeholder
+    from_dimensions:
+    - id: waste_treatment
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+
+actions:
+
+# ------------ NZP actions to block ------------
+
+- id: a61_reduced_co2_emissions_in_other_sectors
+  name: 6.1 Reduced CO2 emissions in other sectors
+  name_fi: 6.1 Vähennetyt CO2-päästöt muilla sektoreilla
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: nzc/other_actions
+    column: reduced_co2e_emissions_committed_by_industry_agricu
+
+- id: a51_increase_waste_recycling
+  name: 5.1 Increase waste recycling
+  name_fi: 5.1 Lisää jätteiden kierrätystä
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: nzc/other_actions
+    column: reduced_co2e_emissions_committed_by_industry_agricu
+
+- id: a34_decarbonising_heat_generation  # TODO Add 20 a lifetime
+  name: 3.4 Decarbonising heating generation
+  name_fi: 3.4 Lämmöntuotannon vähähiilistäminen
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: nzc/other_actions
+    column: reduced_co2e_emissions_committed_by_industry_agricu
+
+- id: a32_new_building_improvements
+  name: 3.2 New building shares improvement
+  name_fi: 3.2 Energiatehokkaiden rakennusten osuuden lisääminen 
+    uudisrakentamisessa
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: nzc/other_actions
+    column: reduced_co2e_emissions_committed_by_industry_agricu
+
+- id: a33_do_efficient_appliances
+  name: 3.3 Do efficient lighting & appliances renovation
+  name_fi: 3.3 Tee tehokas valaistus- ja laitekorjaus
+  type: linear.DatasetReduceAction
+  # group: buildings
+  input_dimensions: [energy_carrier, efficiency_programme]
+  output_dimensions: [energy_carrier, efficiency_programme]
+  output_metrics:
+  - id: renovation_rate
+    unit: '%/a'
+    quantity: rate
+  - id: efficiency_shares
+    unit: '%'
+    quantity: fraction
+  input_nodes:
+  - id: efficient_appliances_renovation_rate_historical
+    tags: [historical, renovation_rate]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: efficiency_programme
+      categories: [aggressive_improvements]
+  input_datasets:
+  - id: nzc/buildings_stock_renovation
+    column: 33_efficient_lighting_appliances
+    filters:
+    - column: building_energy_class
+    - dimension: efficiency_programme
+      assign_category: aggressive_improvements
+    tags: [goal, renovation_rate, city_data]
+  - id: nzc/buildings_materials_costs
+    column: current_share_of_type_of_efficiency_programme
+    filters:
+    - column: cost_type
+    - column: material
+    - column: stakeholder
+    - column: building_energy_class
+    tags: [historical, efficiency_shares, city_data]
+  - id: nzc/buildings_materials_costs
+    column: assumed_share_of_type_of_efficiency_programme_for_lever
+    filters:
+    - column: cost_type
+    - column: material
+    - column: stakeholder
+    - column: building_energy_class
+    tags: [goal, efficiency_shares, city_data]
+  output_nodes:
+  - id: efficiency_programme_shares
+    metrics: [efficiency_shares]
+
+- id: a31_renovation_improvements
+  name: 3.1 Improve old building renovations
+  name_fi: 3.1 Paranna vanhojen rakennusten korjauksia
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: nzc/other_actions
+    column: reduced_co2e_emissions_committed_by_industry_agricu
+
 pages:
 - id: home
   name: DUT-liikenne- ja -päästöskenaario
@@ -1478,4 +1112,14 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: statistical_correction
+    value: false
+
+- id: progress_tracking
+  name: Progress tracking
+  all_actions_enabled: true
+  is_selectable: false
+  params:
+  - id: measure_data_override
+    value: true
+  - id: measure_data_baseline_year_only
     value: false

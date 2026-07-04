@@ -4,7 +4,7 @@ supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 9e9c2483ba4459868b35f3a763a0b97c30753cae # Updated for new health sub-modules
+  commit: 391dcf63f00d46c566c2d985f4b413a5e4d11f54
   # commit: 892daa0d78ff8da19b981aea687e2d8221831721 # Old Lappeenranta-specific version of nzc/defaults
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan missiokaupungin ilmasto-ohjelma 2030
@@ -38,49 +38,51 @@ include:
 - file: modules/health/attribution_and_cost.yaml
   node_group: Health
   allow_override: true
-- file: nzc/transport.yaml
-  node_group: Transport
-  dataset_replacements:
-  - from: nzc/defaults
-    to: lappeenranta/defaults
-- file: nzc/transport_cost.yaml
-  node_group: Transport cost
+- file: nzc.yaml
   allow_override: true
   dataset_replacements:
   - from: nzc/defaults
     to: lappeenranta/defaults
-- file: nzc/transport_health_cost.yaml
-  node_group: Transport health
-  allow_override: true
-  dataset_replacements:
-  - from: nzc/defaults
-    to: lappeenranta/defaults
-- file: nzc/freight_transport.yaml
-  node_group: Freight transport
-  dataset_replacements:
-  - from: nzc/defaults
-    to: lappeenranta/defaults
-- file: nzc/buildings.yaml
-  node_group: Buildings
-  allow_override: true
-  dataset_replacements:
-  - from: nzc/defaults
-    to: lappeenranta/defaults
-- file: nzc/electricity.yaml
-  node_group: Electricity
-  dataset_replacements:
-  - from: nzc/defaults
-    to: lappeenranta/defaults
-- file: nzc/waste.yaml
-  node_group: Waste
-  dataset_replacements:
-  - from: nzc/defaults
-    to: lappeenranta/defaults
-- file: nzc/other.yaml
-  node_group: Other
-  dataset_replacements:
-  - from: nzc/defaults
-    to: lappeenranta/defaults
+  - from: nzc/electricity
+    to: lappeenranta/electricity
+  - from: nzc/passenger_transport_need_fleet
+    to: lappeenranta/passenger_transport_need_fleet
+  - from: nzc/buildings_stock_renovation
+    to: lappeenranta/buildings_stock_renovation
+  - from: nzc/freight_transport
+    to: lappeenranta/freight_transport
+  - from: nzc/buildings_heating_fuel_tech
+    to: lappeenranta/buildings_heating_fuel_tech
+  - from: nzc/buildings_materials_costs
+    to: lappeenranta/buildings_materials_costs
+  - from: nzc/transport_actions
+    to: lappeenranta/transport_actions
+  - from: nzc/passenger_transport_costs_ownership
+    to: lappeenranta/passenger_transport_costs_ownership
+  - from: nzc/waste_management
+    to: lappeenranta/waste_management
+  - from: nzc/buildings_heating_costs
+    to: lappeenranta/buildings_heating_costs
+  - from: nzc/passenger_transport_costs_walking_pt
+    to: lappeenranta/passenger_transport_costs_walking_pt
+  - from: nzc/other_sectors
+    to: lappeenranta/other_sectors
+  - from: nzc/passenger_transport_costs_external
+    to: lappeenranta/passenger_transport_costs_external
+  - from: nzc/passenger_transport_emissions
+    to: lappeenranta/passenger_transport_emissions
+  - from: nzc/waste_recycling_shares
+    to: lappeenranta/waste_recycling_shares
+  - from: nzc/population
+    to: lappeenranta/population
+  - from: nzc/building_actions
+    to: lappeenranta/building_actions
+  - from: nzc/waste_recycling_goal
+    to: lappeenranta/waste_recycling_goal
+  - from: nzc/other_actions
+    to: lappeenranta/other_actions
+  - from: nzc/buildings_heating_emission_factors
+    to: lappeenranta/buildings_heating_emission_factors
 
 params:
 - id: municipality_name
@@ -167,561 +169,14 @@ action_groups:
 #   plot_limit_for_indicator: 1000
 #   label: Cost efficiency
 
-dimensions:
+nodes:
 
-- id: response
-  label_fi: Terveysvaikutus
-  label_en: Response
-  aliases: [outcome]
-  categories:
-  - id: mortality
-    label_fi: Kaikki ilmansaastekuolleisuus
-    label_en: Mortality
-    color: '#a6cee3'
-  - id: work_days_lost
-    label_fi: Menetetyt työpäivät
-    label_en: Work days lost
-    color: '#1f78b4'
-  - id: chronic_bronchitis
-    label_fi: Keuhkoahtaumatauti
-    label_en: Chronic bronchitis
-  - id: cancer
-    label_fi: Syöpä
-    label_en: Cancer
-  - id: tolerable_weekly_intake
-    label_fi: Siedettävä viikkosaanti
-    label_en: Tolerable weekly intake
-  - id: chd_mortality
-    label_fi: Sepelvaltimotautikuolleisuus
-    label_en: Coronary heart disease mortality
-  - id: breast_cancer
-    label_fi: Rintasyöpä
-    label_en: Breast cancer
-  - id: deficiency  # TODO Add causative agent to response
-    label_fi: Puutos
-    label_en: Deficiency
-  - id: infection  # TODO Add causative agent to response
-    label_fi: Infektio
-    label_en: Infection
-  - id: physical_activity
-    label: Fyysinen aktiivisuus
-    color: '#b2df8a'
-  - id: air_pollution
-    label: Ilmansaastealtistus liikenteessä
-    color: '#33a02c'
-  - id: crash_risk
-    label: Liikenneonnettomuus
-    color: '#fb9a99'
-  - id: carbon_emissions
-    label: Hiilidioksidipäästöt
-  - id: nzp_response
-    label: NZP-vaste
-    color: '#e31a1c'
-  - id: noise
-    label_en: Noise
-    label_fi: Melu
-
-- id: emission_height
-  label_fi: Päästökorkeus
-  label_en: Emission height
-  categories:
-  - id: high
-    label_fi: Korkea
-    label_en: High
-  - id: low
-    label_fi: Matala
-    label_en: Low
-  - id: ground
-    label_fi: Maan taso
-    label_en: Ground
-  - id: average
-    label_fi: Keskimääräinen
-    label_en: Average
-
-- id: pollutant
-  label_fi: Saaste
-  label_en: Pollutant
-  categories:
-  - id: co2
-    label_fi: CO2
-    label_en: CO2
-    aliases: [co2e]
-  - id: pm25
-    label_fi: PM2.5
-    label_en: PM2.5
-    aliases: [pm2_5]
-  - id: pm25_combustion
-    label_en: PM2.5 combustion
-    label_fi: Polttoperäinen PM2.5
-  - id: nox
-    label_fi: NOx
-    label_en: NOx
-  - id: pm10
-    label_fi: PM10
-    label_en: PM10
-  - id: pm10_combustion
-    label_en: PM10 combustion
-    label_fi: Polttoperäinen PM10
-  - id: walking
-    label_fi: Kävely
-    label_en: Walking
-  - id: cycling
-    label_fi: Pyöräily
-    label_en: Cycling
-  - id: pm1025
-    label_fi: PM10-PM2.5
-    label_en: PM10-PM2.5
-  - id: so2
-    label_fi: SO2
-    label_en: SO2
-  - id: nh3
-    label_fi: NH3
-    label_en: NH3
-  - id: pm25_wear_tear
-    label_en: PM2.5 wear & tear
-    label_fi: Kulumis- ja pölyperäinen PM2.5
-  - id: pm10_wear_tear
-    label_en: PM10 wear & tear
-    label_fi: Kulumis- ja pölyperäinen PM10
-
-- id: sector
-  label_en: Sector
-  label_fi: Sektori
-  help_text_en: Sectors as categorised in the Mission City Climate City Contracts
-    (CCC).
-  help_text_fi: Luokitteluna on käytetty Missio-kaupunkien Climate City Contractia
-    (CCC).
-  categories:
-  - id: transport
-    label_en: Transport
-    label_fi: Liikenne
-  - id: buildings
-    label_en: Buildings & Heating
-    label_fi: Rakennukset ja lämmitys
-  - id: electricity
-    label_en: Electricity
-    label_fi: Sähkö
-  - id: waste
-    label_en: Waste
-    label_fi: Jätteet
-  - id: other
-    label_en: Other (incl. IPPU & AFOLU)
-    label_fi: Muut (sis. IPPU, AFOLU)
-
-- id: scope
-  label: Scope
-  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
-    3: Indirect emissions.'
-  categories:
-  - id: scope1
-    label: Scope 1
-    aliases: [scope_1]
-  - id: scope2
-    label: Scope 2
-    aliases: [scope_2]
-  - id: scope3
-    label: Scope 3
-    aliases: [scope_3]
-
-- id: cost_type
-  label_en: Cost Type
-  label_fi: Kustannustyyppi
-  categories:
-  - id: energy_costs
-    label_en: Energy Costs
-    label_fi: Energiakustannukset
-  - id: investment_costs
-    label_en: Investment Costs
-    label_fi: Investointikustannukset
-  - id: capex
-    label_en: CAPEX (capital expenditure)
-    label_fi: CAPEX (pääomamenot)
-  - id: capex_levelised
-    label_en: CAPEX (levelised)
-    label_fi: CAPEX (tasoitettu)
-  - id: opex
-    label_en: OPEX (operational expenditure)
-    label_fi: OPEX (toimintamenot)
-    aliases: [operation_cost, Operation Cost]
-  - id: maintenance_costs
-    label_en: Maintenance Costs
-    label_fi: Huoltokustannukset
-    aliases: [maintenance]
-  - id: sales
-    label_en: Sales income
-    label_fi: Myyntitulot
-  - id: air_pollution
-    label_en: Air pollution
-    label_fi: Ilmansaasteet
-    aliases: [air_quality]
-  - id: noise
-    label_en: Noise
-    label_fi: Melu
-  - id: accidents
-    label_en: Accidents
-    label_fi: Onnettomuudet
-  - id: health
-    label_en: Health
-    label_fi: Terveys
-  - id: co2_cost
-    label_en: CO2 Cost
-    label_fi: CO2-kustannus
-  - id: aesthetics
-    label_en: Aesthetics and amenity
-    label_fi: Estetiikka ja mukavuus
-  - id: shading
-    label_en: Shading
-    label_fi: Varjostus
-  - id: water_regulation
-    label_en: Water regulation
-    label_fi: Vedensäätely
-    aliases: [water_regulations]
-  - id: forest_management
-    label_en: Forest management
-    label_fi: Metsänhoito
-  - id: bus_costs
-    label_en: Bus costs
-    label_fi: Bussikustannukset
-  - id: homecharging_infrastructure
-    label_en: Home-charging infrastructure
-    label_fi: Kotilatausinfrastruktuuri
-  - id: public_and_workplace_infrastructure
-    label_en: Public & workplace infrastructure
-    label_fi: Julkinen ja työpaikkainfrastruktuuri
-  - id: charging_infrastructure_costs
-    label_en: Charging infrastructure costs
-    label_fi: Latausinfrastruktuurin kustannukset
-  - id: vehicle_costs
-    label_en: Vehicle costs
-    label_fi: Ajoneuvokustannukset
-  - id: infrastructure_costs
-    label_en: Infrastructure costs
-    label_fi: Infrastruktuurikustannukset
-  - id: network
-    label_en: Network
-    label_fi: Verkko
-  - id: fuel
-    label_en: Fuel costs
-    label_fi: Polttoainekustannukset
-  - id: tires
-    label_en: Tire costs
-    label_fi: Rengaskustannukset
-  - id: depreciation
-    label_en: Depreciation costs
-    label_fi: Poistokustannukset
-  - id: labour_costs
-    label_en: Labour costs
-    label_fi: Työvoimakustannukset
-  - id: industry_ippu
-    label_en: Industry (IPPU)
-    label_fi: Teollisuus (IPPU)
-  - id: agriculture_afolu
-    label_en: Agriculture (AFOLU)
-    label_fi: Maatalous (AFOLU)
-  - id: other_sources
-    label_en: Other sources
-    label_fi: Muut lähteet
-  - id: grid_stability
-    label_en: Storage, grid stability etc.
-    label_fi: Varastointi, verkon vakaus jne.
-  - id: air_pollution_everywhere
-    label_en: Air pollution everywhere
-    label_fi: Kaikki ilmansaastekuolleisuus
-  - id: work_days_lost
-    label_fi: Menetetyt työpäivät
-    label_en: Work days lost
-    color: '#1f78b4'
-  - id: physical_activity
-    label_en: Physical activity
-    label_fi: Fyysinen aktiivisuus
-    color: '#b2df8a'
-
-- id: aggregated_cost_type
-  label_en: Aggregated cost type
-  label_fi: Koottu kustannustyyppi
-  categories:
-  - id: capex
-    label_en: CAPEX
-    label_fi: CAPEX
-  - id: opex
-    label_en: OPEX
-    label_fi: OPEX
-  - id: co_benefits
-    label_en: Co-benefits
-    label_fi: Rinnakkaishyödyt
-  - id: co2_cost
-    label_en: CO2 cost
-    label_fi: CO2-kustannus
-
-- id: ghg
-  label_en: Greenhouse gas
-  label_fi: Kasvihuonekaasu
-  categories:
-  - id: co2e
-    label_en: CO2e
-    label_fi: CO2e
-    aliases: [co2]
-
-- id: transport_mode
-  label_en: Transport mode
-  label_fi: Kuljetusmuoto
-  categories:
-  - id: cars
-    label_en: Cars
-    label_fi: Autot
-  - id: buses
-    label_en: Buses
-    label_fi: Bussit
-  - id: trains
-    label_en: Trains
-    label_fi: Junat
-    aliases: [Metro/tram, metro/tram, metro_tram]
-  - id: public_transport
-    label_en: Public transport
-    label_fi: Joukkoliikenne
-  - id: walking
-    label_en: Walking and cycling
-    label_fi: Kävely ja pyöräily
-  - id: cycling
-    label_en: Cycling
-    label_fi: Pyöräily
-  - id: light_trucks
-    label_en: Light duty trucks <3.5 tonne
-    label_fi: Kevyet kuorma-autot <3,5 tonnia
-  - id: heavy_trucks
-    label_en: Heavy duty trucks >3.5 tonne
-    label_fi: Raskaat kuorma-autot >3,5 tonnia
-  - id: trucks
-    label_en: Trucks
-    label_fi: Kuorma-autot
-  - id: other_motorized
-    label_en: Other motorized transport
-    label_fi: Muu moottoroitu liikenne
-  - id: bikeshare
-    label_en: Bikeshare
-    label_fi: Kaupunkipyörät
-  - id: ebike
-    label_en: E-bike
-    label_fi: Sähköpyörä
-
-- id: energy_carrier
-  label_en: Energy carrier
-  label_fi: Energiamuoto
-  categories:
-  - id: petrol_diesel
-    label_en: Petrol and diesel
-    label_fi: Bensiini ja diesel
-  - id: electricity
-    label_en: Electricity
-    label_fi: Sähkö
-  - id: fossil
-    label_en: Fossil (oil, coal, gas)
-    label_fi: Fossiiliset (öljy, hiili, kaasu)
-  - id: heat_pump
-    label_en: Electric heat pumps / geothermal
-    label_fi: Sähkölämpöpumput / maalämpö
-  - id: bioenergy
-    label_en: Bio (biogas, biomass) and solar heaters
-    label_fi: Bio (biokaasu, biomassa) ja aurinkolämmittimet
-  - id: waste
-    label_en: Waste (fossil & non-fossil waste)
-    label_fi: Jäte (fossiilinen ja ei-fossiilinen jäte)
-
-- id: fuel_type
-  label_en: Fuel type
-  label_fi: Polttoainetyyppi
-  categories:
-  - id: fossil
-    label_en: Fossil
-    label_fi: Fossiilinen
-  - id: non_fossil
-    label_en: Non-fossil
-    label_fi: Ei-fossiilinen
-    aliases: [nonfossil, non-fossil]
-  - id: mixed
-    label_en: Mixed fossil and non-fossil
-    label_fi: Sekoitettu fossiilinen ja ei-fossiilinen
-  - id: other
-    label_en: Other (e.g. nuclear)
-    label_fi: Muu (esim. ydinvoima)
-  - id: local_pv
-    label_en: Local photovoltaics
-    label_fi: Paikalliset aurinkopaneelit
-  - id: centralised_pv
-    label_en: Centralised photovoltaics and wind
-    label_fi: Keskitetyt aurinkopaneelit ja tuulivoima
-  - id: pv
-    label_en: Photovoltaics
-    label_fi: Aurinkopaneelit
-  - id: flexibility
-    label_en: Flexibility
-    label_fi: Joustavuus
-  - id: direct_electricity
-    label_en: Direct electricity
-    label_fi: Suora sähkö
-  - id: heat_pump
-    label_en: Heat pump
-    label_fi: Lämpöpumppu
-
-- id: efficiency_programme
-  label_en: Energy efficiency programme
-  label_fi: Energiatehokkuusohjelma
-  categories:
-  - id: no_improvements
-    label_en: No improvements
-    label_fi: Ei parannuksia
-    aliases: [no_improvement]
-  - id: minor_improvements
-    label_en: Minor improvements
-    label_fi: Pieniä parannuksia
-  - id: aggressive_improvements
-    label_en: Aggressive improvements
-    label_fi: Aggressiivisia parannuksia
-  - id: moderate_improvements
-    label_en: Moderate improvements
-    label_fi: Kohtalaisia parannuksia
-  - id: nzeb
-    label_en: Net zero emission buildings
-    label_fi: Nollapäästörakennukset
-
-- id: city_area
-  label_en: City area
-  label_fi: Kaupunkialue
-  categories:
-  - id: grey
-    label_en: Grey area
-    label_fi: Harmaa alue
-  - id: green
-    label_en: Green area
-    label_fi: Vihreä alue
-  - id: grey_inside
-    label_en: Grey area inside city
-    label_fi: Harmaa alue kaupungin sisällä
-  - id: green_inside
-    label_en: Green area inside city
-    label_fi: Vihreä alue kaupungin sisällä
-  - id: green_outside
-    label_en: Green area outside city
-    label_fi: Vihreä alue kaupungin ulkopuolella
-  - id: grey_outside
-    label_en: Grey area outside city
-    label_fi: Harmaa alue kaupungin ulkopuolella
-
-- id: area_distance
-  label_en: Area distance
-  label_fi: Alueen etäisyys
-  categories:
-  - id: metropolitan
-    label_en: Metropolitan
-    label_fi: Suurkaupunki
-  - id: inside
-    label_en: Inside city
-    label_fi: Kaupungin sisällä
-  - id: outside
-    label_en: Outside city
-    label_fi: Kaupungin ulkopuolella
-  - id: average
-    label_en: Average
-    label_fi: Keskimääräinen
-
-- id: stakeholder
-  label_en: Stakeholder
-  label_fi: Sidosryhmä
-  categories:
-  - id: citizens
-    label_en: Citizens
-    label_fi: Kansalaiset
-  - id: property_owners
-    label_en: Property owners
-    label_fi: Kiinteistönomistajat
-  - id: city
-    label_en: City
-    label_fi: Kaupunki
-    aliases: [cities, Cities]
-  - id: healthcare_providers
-    label_en: Healthcare providers
-    label_fi: Terveydenhuollon tarjoajat
-  - id: transport_operators
-    label_en: Transport operators
-    label_fi: Liikenneoperaattorit
-  - id: utilities
-    label_en: Utilities
-    label_fi: Julkiset palvelut
-
-- id: parameter
-  label_en: Parameter
-  label_fi: Parametri
-  categories:
-  - id: max_impact
-    label_en: Maximum impact
-    label_fi: Suurin vaikutus
-  - id: max_year
-    label_en: Year to reach maximum impact
-    label_fi: Vuosi, jolloin suurin vaikutus saavutetaan
-  - id: baseline_scenario
-    label_en: Baseline scenario
-    label_fi: Perusskenaario
-  - id: decarbonisation_scenario
-    label_en: Decarbonisation scenario
-    label_fi: Hiilestä irtautumisen skenaario
-  - id: frozen_scenario
-    label_en: Frozen scenario
-    label_fi: Jäädytetty skenaario
-
-- id: country
-  label: Country
-  categories:
-  - id: at
-    label: Austria
-  - id: be
-    label: Belgium
-  - id: cz
-    label: Czeck Republic
-  - id: dk
-    label: Denmark
-  - id: fr
-    label: France
-  - id: de
-    label: Germany
-  - id: it
-    label: Italy
-  - id: lt
-    label: Latvia
-  # - id: 'no'
-  #   label: Norway
-  - id: pl
-    label: Poland
-  - id: ro
-    label: Romania
-  - id: sk
-    label: Slovakia
-  - id: es
-    label: Spain
-  - id: se
-    label: Sweden
-  - id: average
-    label: Average
-
-- id: age
-  label: age
-  categories:
-  - id: '20_49'
-    label: 20-49
-    aliases: ['2049']
-  - id: '50_64'
-    label: 50-64
-    aliases: ['5064']
-  - id: '65_79'
-    label: 65-79
-    aliases: ['6579']
-  - id: '80_99'
-    label: 80-99
-    aliases: ['8099']
-
-emission_sectors:
 - id: net_emissions
   name_fi: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
   description_fi: 'Päästötavoitteena on olla hiilineutraali vuonna 2030. Päästöistä
     vähennetään vähintään 80 % verrattuna vuoden 2020 tilanteeseen (363,7 kt) ja korkeintaan
     20 % (72,7 kt) kompensoidaan. (Lähde: Lappeenrannan Climate City Contract)'
@@ -729,16 +184,15 @@ emission_sectors:
     of emissions will be reduced compared to the situation in 2020 (363.7 kt) and
     a maximum of 20% (72.7 kt) will be compensated. (Source: Lappeenranta Climate
     City Contract)'
-  type: simple.AdditiveNode
   is_outcome: true
+  input_dimensions: [scope, ghg, sector]
+  output_dimensions: [scope, ghg, sector]
   target_year_goal: 72.7
-
-nodes:
 
 - id: technical_root_node
   name: Technical root node
-  description: This node is used as the outcome node of ParentActionNodes so that
-    they don't pick a random root node from the model.
+  description: This node is used as the outcome node of ParentActionNodes so 
+    that they don't pick a random root node from the model.
   type: simple.AdditiveNode
   quantity: fraction
   unit: m**3
@@ -949,10 +403,10 @@ nodes:
 - id: road_transport_emissions_intermediate
   name_fi: Tieliikenteen CO2-päästöt
   name_en: CO2 emissions from road transport
-  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa summataan
-    pois terveysmallissa tarpeettomat ulottuvuudet.
-  description_en: Intermediate node between the main model and the health module.
-    Unnecessary dimensions are summed up here.
+  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa 
+    summataan pois terveysmallissa tarpeettomat ulottuvuudet.
+  description_en: Intermediate node between the main model and the health 
+    module. Unnecessary dimensions are summed up here.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -992,10 +446,10 @@ nodes:
 - id: district_heating_emissions_intermediate
   name_fi: Kaukolämmön CO2-päästöt
   name_en: CO2 emissions from district heating
-  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa summataan
-    pois terveysmallissa tarpeettomat ulottuvuudet.
-  description_en: Intermediate node between the main model and the health module.
-    Unnecessary dimensions are summed up here.
+  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa 
+    summataan pois terveysmallissa tarpeettomat ulottuvuudet.
+  description_en: Intermediate node between the main model and the health 
+    module. Unnecessary dimensions are summed up here.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -1026,7 +480,8 @@ nodes:
 
 - id: active_mobility_conversion  # TODO Should passenger and inhabitant be in the same dimension?
   name: Aktiivisen liikkumisen muunnos
-  description: Tämä tekninen solmu on vain yksiköiden johdonmukaisuuden varmistamiseksi.
+  description: Tämä tekninen solmu on vain yksiköiden johdonmukaisuuden 
+    varmistamiseksi.
   type: simple.AdditiveNode
   quantity: exposure
   unit: passenger
@@ -1035,8 +490,9 @@ nodes:
 
 - id: amount_of_active_mobility_by_nzc
   name: Aktiivisen liikkumisen määrä NZP:n mukaan
-  description_fi: Aktiivisen liikkumisen tiedot, jotka perustuvat NetZeroPlanner-mallilla
-    tuotettuun dataan. Katso myös solmu Aktiivisen liikkumisen määrä HLT:n mukaan.
+  description_fi: Aktiivisen liikkumisen tiedot, jotka perustuvat 
+    NetZeroPlanner-mallilla tuotettuun dataan. Katso myös solmu Aktiivisen 
+    liikkumisen määrä HLT:n mukaan.
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: km/cap/d
@@ -1099,11 +555,12 @@ nodes:
 - id: active_mover_distance
   name_fi: Aktiivisen liikkumisen määrä HLT:n mukaan
   name_en: Active mover distance
-  description_fi: Aktiivisen liikkumisen määränä käytetään aktiivisten liikkujien
-    keskimääräistä suomalaista arvoa, joka on saatu Henkilöliikennetutkimuksesta 2016.
-    Laskenta on Lehtomäen työryhmän (2021) mukainen.<h3>Viitteet</h3>Heli Lehtomäki
-    ym. 2021. Liikenteen terveysvaikutukset Suomessa ja suurimmissa kaupungeissa.
-    Suomen ympäristökeskuksen raportteja 16 / 2021.
+  description_fi: Aktiivisen liikkumisen määränä käytetään aktiivisten 
+    liikkujien keskimääräistä suomalaista arvoa, joka on saatu 
+    Henkilöliikennetutkimuksesta 2016. Laskenta on Lehtomäen työryhmän (2021) 
+    mukainen.<h3>Viitteet</h3>Heli Lehtomäki ym. 2021. Liikenteen 
+    terveysvaikutukset Suomessa ja suurimmissa kaupungeissa. Suomen 
+    ympäristökeskuksen raportteja 16 / 2021.
   type: gpc.DatasetNode
   quantity: mileage
   unit: km/person/d
@@ -1117,8 +574,9 @@ nodes:
 - id: active_mobility_by_hlt
   name_fi: Aktiivisen liikkumisen määrä ikäryhmissä
   name_en: Average active mobility in age groups
-  description_fi: Tämä solmu kuvaa kyseisen väestöryhmän osuutta koko väestön liikkumisesta.
-    Summaamalla osaväestöt yhteen saadaan koko väestön keskimääräinen liikkuminen.
+  description_fi: Tämä solmu kuvaa kyseisen väestöryhmän osuutta koko väestön 
+    liikkumisesta. Summaamalla osaväestöt yhteen saadaan koko väestön 
+    keskimääräinen liikkuminen.
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: km/person/d
@@ -1175,11 +633,11 @@ nodes:
 - id: other_health_effects_from_nzc
   name_fi: Muita terveysvaikutuksia NZC-mallista
   name_en: Other health effects from the NZC model
-  description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös joitakin
-    terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä THL:n mallin
-    kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa (liikenneonnettomuudet).
-    On siis syytä olla tarkkana näiden kanssa. Ne on kuitenkin toistaiseksi nostettu
-    tänne vertailua varten.
+  description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös 
+    joitakin terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä 
+    THL:n mallin kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa 
+    (liikenneonnettomuudet). On siis syytä olla tarkkana näiden kanssa. Ne on 
+    kuitenkin toistaiseksi nostettu tänne vertailua varten.
   description_en: Other health impacts from the NetZeroPlanner model.
   type: simple.AdditiveNode
   quantity: currency
@@ -1217,508 +675,6 @@ nodes:
     - id: iteration
       categories: [nzp]
 
-actions:
-
-# --------------- TRANSPORT -------------
-
-- id: a11_reduce_all_motorised_transport
-  name_en: 1.1 Reduce all motorised transport
-  name_fi: 1.1 Vähennä kaikkea moottoroitua liikennettä
-  type: gpc.DatasetAction2  # TODO Salli historialliset arvot LinearCumulativeAdditiveAction-luokassa.
-  quantity: fraction
-  unit: '%'
-  group: transport
-  input_datasets: [lappeenranta/defaults]
-  params:
-    sector: Transportation need reduction by 2030 from urban planning, digital meetings
-      and other transport-reducing initiatives
-  output_nodes:
-  - id: motorised_transport_change
-    to_dimensions: []
-    tags: [non_additive, extend_values]
-
-- id: a12_modal_switch_from_cars_to_other_modes
-  name_en: 1.2 Modal switch from cars to other modes
-  name_fi: 1.2 Kulkumuotosiirtymä autoista muihin kulkumuotoihin
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: transport
-  input_datasets: [lappeenranta/defaults]
-  params:
-    sector: Reduced Pkm cars + motorcycles by 2030
-  output_nodes:
-  - id: passenger_kilometres_switched
-    to_dimensions: []
-
-- id: a13_car_pooling
-  name_en: 1.3 Car pooling
-  name_fi: 1.3 Henkilöautojen matkustajamäärän lisääminen
-  description_en: How many % increase there is in the average number of people in
-    a car.
-  description_fi: Kuinka monta % keskimääräinen henkilömäärä autossa kasvaa.
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: transport
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_datasets: [lappeenranta/defaults]
-  output_nodes:
-  - id: relative_transport_efficiency
-    to_dimensions:
-    - id: transport_mode
-  params:
-    sector: 1.3 Car pooling
-
-- id: a141_electrification_of_passenger_cars
-  name_en: 1.4.1 Electrification of passenger cars
-  name_fi: 1.4.1 Henkilöautojen sähköistäminen
-  type: gpc.SCurveAction
-  quantity: fraction
-  unit: '%'
-  group: transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets:
-  - id: lappeenranta/defaults
-  params:
-    sector: Electrification of transport fleet
-  input_nodes:
-  - id: fully_electric_vehicle_share_historical
-    from_dimensions:
-    - id: transport_mode
-      categories: [cars]
-  output_nodes:
-  - id: fully_electric_vehicle_share
-
-- id: a142_electrification_of_buses
-  name_en: 1.4.2 Electrification of buses
-  name_fi: 1.4.2 Linja-autojen sähköistäminen
-  description_en: Fraction of buses that is replaced with electric buses each year.
-  description_fi: Osuus linja-autoista, jotka korvataan sähköbusseilla vuosittain.
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%/a'
-  group: transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets:
-  - id: lappeenranta/defaults
-  params:
-    sector: Expected procurement schedule for buses
-  output_nodes:
-  - id: fully_electric_bus_share
-    tags: [cumulative]
-
-# ----------------- Freight transport -----------------
-
-- id: a21_optimised_logistics
-  name_en: 2.1 Optimised logistics
-  name_fi: 2.1 Optimoidut logistiikkaratkaisut
-  type: parent.ParentActionNode
-  quantity: mass
-  unit: m**3
-  group: freight_transport
-
-- id: a211_improve_utilisation_of_trucks
-  name_en: 2.1.1 Improve utilisation of trucks
-  name_fi: 2.1.1 Paranna kuorma-autojen käyttöastetta
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: freight_transport
-  parent: a21_optimised_logistics
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_nodes:
-  - id: average_truck_utilisation_goal
-    tags: [goal]
-  - id: average_truck_utilisation_historical
-    tags: [historical]
-  output_nodes:
-  - id: average_truck_utilisation
-
-- id: a212_route_optimisation
-  name_en: 2.1.2 Route optimisation
-  name_fi: 2.1.2 Reittioptimointi
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: freight_transport
-  parent: a21_optimised_logistics
-  input_datasets:
-  - id: lappeenranta/defaults
-  output_nodes:
-  - id: freight_transport_vehicle_kilometres
-    tags: [complement, non_additive]
-    to_dimensions: []
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
-- id: a22_truck_fleet_electrification
-  name_en: 2.2 Truck fleet electrification
-  name_fi: 2.2 Kuorma-autokannan sähköistäminen
-  type: gpc.SCurveAction
-  quantity: fraction
-  unit: '%'
-  group: freight_transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
-  input_datasets:
-  - id: lappeenranta/defaults
-    filters:
-    - column: Transport mode
-      values: [light_trucks, heavy_trucks]
-      drop_col: false
-  params:
-    sector: Electrification of transport fleet
-  input_nodes:
-  - id: fully_electric_truck_share_historical
-  output_nodes:
-  - id: fully_electric_light_truck_share
-    from_dimensions:
-    - id: transport_mode
-      categories: [light_trucks]
-  - id: fully_electric_heavy_truck_share
-    from_dimensions:
-    - id: transport_mode
-      categories: [heavy_trucks]
-
-  # ----------- BUILDINGS ---------------
-
-- id: a31_renovation_improvements
-  name_en: 3.1 Improve old building renovations
-  name_fi: 3.1 Paranna vanhojen rakennusten korjauksia
-  type: parent.ParentActionNode
-  quantity: fraction
-  unit: m**3
-  group: buildings
-
-- id: a311_renovation_rate_improvement
-  name_en: 3.1.1 Renovation rate improvement
-  name_fi: 3.1.1 Peruskorjausasteen parantaminen
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%/a'
-  group: buildings
-  parent: a31_renovation_improvements
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_nodes:
-  - id: old_building_renovation_rate_historical
-    tags: [historical]
-    to_dimensions:
-    - id: building_energy_class
-  - id: old_building_renovation_rate_goal
-    tags: [goal]
-    to_dimensions:
-    - id: building_energy_class
-  output_nodes:
-  - id: old_building_renovation_rate_observed
-
-- id: a312_renovation_shares_improvement
-  name_en: 3.1.2 Renovation shares improvement
-  name_fi: 3.1.2 Korjausosuuksien parantaminen
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: a31_renovation_improvements
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_nodes:
-  - id: renovation_intensity_shares_historical
-    tags: [historical, inventory_only]
-    to_dimensions:
-    - id: building_energy_class
-  - id: renovation_intensity_shares_goal
-    tags: [goal]
-    to_dimensions:
-    - id: building_energy_class
-  output_nodes:
-  - id: renovation_intensity_shares
-
-- id: a32_new_building_improvements
-  name_en: 3.2 New building shares improvement
-  name_fi: 3.2 Energiatehokkaiden rakennusten osuuden lisääminen uudisrakentamisessa
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  input_dimensions: [building_energy_class]
-  output_dimensions: [building_energy_class]
-  input_nodes:
-  - id: new_building_shares_historical
-    tags: [historical]
-  - id: new_building_shares_goal
-    tags: [goal]
-  output_nodes:
-  - id: new_building_shares
-
-- id: a33_do_efficient_appliances
-  name_en: 3.3 Do efficient lighting & appliances renovation
-  name_fi: 3.3 Tee tehokas valaistus- ja laitekorjaus
-  type: parent.ParentActionNode
-  quantity: fraction
-  unit: m**3
-  group: buildings
-
-- id: a331_increase_appliance_renovation
-  name_en: 3.3.1 Increase appliance renovation
-  name_fi: 3.3.1 Lisää laitteiden uusimista
-  type: linear.DatasetReduceAction
-  quantity: rate
-  unit: '%/a'
-  group: buildings
-  parent: a33_do_efficient_appliances
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: efficient_appliances_renovation_rate_historical
-    tags: [historical]
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-  - id: efficient_appliances_renovation_rate_goal
-    tags: [goal]
-  output_nodes:
-  - id: efficient_appliances_rate
-    to_dimensions:
-    - id: energy_carrier
-
-- id: a332_increase_aggressive_renovations
-  name_en: 3.3.2 Increase aggressive appliance renovation
-  name_fi: 3.3.2 Lisää aggressiivisia laitekorjauksia
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: a33_do_efficient_appliances
-  input_dimensions: [efficiency_programme, energy_carrier]
-  output_dimensions: [efficiency_programme, energy_carrier]
-  input_nodes:
-  - id: efficiency_programme_shares_historical
-    tags: [historical]
-  - id: efficiency_programme_shares_goal
-    tags: [goal]
-  output_nodes:
-  - id: efficiency_programme_shares
-
-- id: a34_decarbonising_heat_generation
-  name_en: 3.4 Decarbonising heating generation
-  name_fi: 3.4 Lämmöntuotannon vähähiilistäminen
-  type: parent.ParentActionNode
-  quantity: fraction
-  unit: m**3
-  group: buildings
-  # indicator_nodes:
-  # - id: building_heat_mix
-
-- id: a341_heating_technology_improvement  # TODO Add 20 a lifetime
-  name_en: 3.4.1 Increase district heating
-  name_fi: 3.4.1 Lisää kaukolämpöä
-  description_en: Switch from local to district heating.
-  description_fi: Vaihda paikallisesta lämmityksestä kaukolämpöön.
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: a34_decarbonising_heat_generation
-  input_dimensions: [heating_type]
-  output_dimensions: [heating_type]
-  input_nodes:
-  - id: building_heating_type_share_historical
-    tags: [historical, inventory_only]
-  - id: building_heating_type_share_goal
-    tags: [goal]
-    to_dimensions:
-    - id: heating_type
-  output_nodes:
-  - id: building_heating_type_share
-    to_dimensions:
-    - id: heating_type
-
-- id: a342_heating_energy_improvement
-  name_en: 3.4.2 Increase low-emission heating
-  name_fi: 3.4.2 Lisää vähäpäästöistä lämmitystä
-  description_en: Improve the fuel shares of heating.
-  description_fi: Paranna lämmityksen polttoaineosuuksia.
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: a34_decarbonising_heat_generation
-  input_dimensions: [energy_carrier, heating_type, fuel_type]
-  output_dimensions: [energy_carrier, heating_type, fuel_type]
-  input_nodes:
-  - id: heating_fuel_share_historical
-    tags: [historical]
-  - id: heating_fuel_share_goal
-    tags: [goal]
-  output_nodes:
-  - id: heating_fuel_share
-
-- id: a343_change_heating_fossil_share
-  name_en: 3.4.3 Reduce fossil waste in heating  # Example city has 0 % waste, so there is no impact
-  name_fi: 3.4.3 Vähennä fossiilista jätettä lämmityksessä  # Esimerkkikaupungissa on 0 % jätettä, joten vaikutusta ei ole
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: a34_decarbonising_heat_generation
-  input_dimensions: [energy_carrier, fuel_type, heating_type]
-  output_dimensions: [energy_carrier, fuel_type, heating_type]
-  input_nodes:
-  - id: heating_fossil_share_historical
-    tags: [historical]
-  - id: heating_fossil_share_goal
-    tags: [goal]
-    to_dimensions:
-    - id: fuel_type
-    - id: energy_carrier
-    - id: heating_type
-  output_nodes:
-  - id: heating_waste_fossil_share
-
-- id: a344_top_performance_improvement
-  name_en: 3.4.4 Top performance standard improvement compared with the regular new
-    buildings
-  name_fi: 3.4.4 Huippusuorituskyvyn parannus verrattuna tavallisiin uusiin rakennuksiin
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: buildings
-  parent: a34_decarbonising_heat_generation
-  input_datasets: [lappeenranta/defaults]
-  params:
-    sector: 3.4.4 Top performance standard improvement compared with the regular new
-      buildings
-  output_nodes:
-  - id: energy_use_intensity_change_new
-    to_dimensions:
-    - id: building_energy_class
-      categories: [new_top_performance]
-
-# -------------- ELECTRICITY ----------------
-
-- id: a41_replace_fossil_electricity  # TODO virtaviivaista tämä käyttämällä suhteellista tavoitetta
-  name_en: 4.1 Replace fossil electricity
-  name_fi: 4.1 Korvaa fossiilinen sähkö
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: electricity
-  input_dimensions: [fuel_type, energy_carrier]
-  output_dimensions: [fuel_type, energy_carrier]
-  input_nodes:
-  - id: electricity_production_shares_historical
-    tags: [historical]
-  - id: electricity_shares_goal
-    tags: [goal, forecast_only]
-  output_nodes:
-  - id: electricity_shares
-
-# ------------- WASTE -------------------------
-
-- id: waste_recycling_trend
-  name_en: Waste recycling trend
-  name_fi: Jätteiden kierrätyksen trendi
-  type: linear.DatasetDifferenceAction
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [waste_treatment, waste_type]
-  output_dimensions: [waste_treatment, waste_type]
-  input_nodes:
-  - id: waste_recycling_shares_frozen
-    tags: [baseline]
-  - id: waste_recycling_future_baseline_shares
-    tags: [goal]
-    to_dimensions:
-    - id: waste_treatment
-    - id: waste_type
-  output_nodes:
-  - id: waste_recycling_shares_baseline
-
-- id: a51_increase_waste_recycling
-  name_en: 5.1 Increase waste recycling
-  name_fi: 5.1 Lisää jätteiden kierrätystä
-  type: linear.DatasetDifferenceAction
-  quantity: fraction
-  unit: '%'
-  group: waste
-  input_dimensions: [waste_treatment, waste_type]
-  output_dimensions: [waste_treatment, waste_type]
-  input_nodes:
-  - id: waste_recycling_shares_baseline
-    tags: [baseline]
-  - id: waste_recycling_shares_goal
-    tags: [goal]
-    to_dimensions:
-    - id: waste_treatment
-    - id: waste_type
-  output_nodes:
-  - id: waste_recycling_shares
-
-# ---------------- OTHER SECTORS -------------
-
-- id: a61_reduced_co2_emissions_in_other_sectors
-  name_en: 6.1 Reduced CO2 emissions in other sectors
-  name_fi: 6.1 Vähennetyt CO2-päästöt muilla sektoreilla
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: scope_3
-  output_nodes:
-  - id: emissions_from_other_sectors
-    tags: [non_additive, complement]
-    to_dimensions: []
-  input_datasets: [lappeenranta/defaults]
-  params:
-    sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in Other
-      sector
-
-# --------------- Scope 3 ---------------
-
-# - id: improve_building_material_composition
-#   name_en: 6.1 Improve building material composition
-#   name_fi: 6.1 Paranna rakennusmateriaalien koostumusta
-#   type: linear.DatasetReduceAction
-#   quantity: mass
-#   unit: t/m**2
-#   input_dimensions: [material]
-#   output_dimensions: [material]
-#   group: scope_3
-#   input_nodes:
-#   - id: building_material_composition_historical
-#     tags: [historical]
-#   - id: building_material_composition_goal
-#     tags: [goal]
-#   output_nodes:
-#   - id: building_materials_used_by_material
-#     to_dimensions:
-#     - id: material
-
-# --------------- AFOLU -----------------
-
-# - id: tree_planting
-#   name_en: 7.1 Tree planting
-#   name_fi: 7.1 Puiden istutus
-#   type: gpc.DatasetAction2
-#   quantity: number
-#   unit: pcs
-#   group: reforestation
-#   input_dimensions: [area_distance]
-#   output_dimensions: [area_distance]
-#   input_datasets: [lappeenranta/defaults]
-#   params:
-#     sector: Number of planted trees until 2030
-#   output_nodes:
-#   - id: number_of_new_trees
-
 pages:
 - id: home
   name: Hiilineutraali Lappeenranta -päästöskenaario
@@ -1727,11 +683,12 @@ pages:
   outcome_node: net_emissions
   lead_title: Lappeenrannan päästöskenaariot
   lead_title_en: Lappeenranta emission scenarios
-  lead_paragraph: Lappeenrannan päästöskenaariot visualisoi Lappeenrannan kasvihuonekaasupäästöjen
-    kehityksen. Voit tarkastella, mistä Lappeenrannan kaupungin alueen päästöt syntyvät
-    ja kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on peruskehitys-skenaario,
-    Lappeenrannan ilmasto-ohjelman mukainen skenaario sekä skenaario, jota voit itse
-    muokata. Hiilineutraaliksi pääseminen edellyttää vielä lisää toimia, ja niiden
+  lead_paragraph: Lappeenrannan päästöskenaariot visualisoi Lappeenrannan 
+    kasvihuonekaasupäästöjen kehityksen. Voit tarkastella, mistä Lappeenrannan 
+    kaupungin alueen päästöt syntyvät ja kuinka niiden ennustetaan muuttuvan 
+    vuoteen 2030 mennessä. Valittavana on peruskehitys-skenaario, Lappeenrannan 
+    ilmasto-ohjelman mukainen skenaario sekä skenaario, jota voit itse muokata. 
+    Hiilineutraaliksi pääseminen edellyttää vielä lisää toimia, ja niiden 
     riittävyyttä arvioidaan jatkossa tämän työkalun avulla.
 
 scenarios:
@@ -1741,8 +698,6 @@ scenarios:
   params:
   - id: show_scenario_impacts
     value: false
-  - id: waste_recycling_trend.enabled
-    value: true
 
 - id: default
   default: true

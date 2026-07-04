@@ -621,11 +621,13 @@ dimensions:
   - id: cars
     label_en: Cars
     label_fi: Autot
+    aliases: [henkiloauto]
   - id: buses
     label_en: Buses
     label_fi: Bussit
+    aliases: [bussi]
   - id: trains
-    aliases: [Metro/tram, metro/tram, metro_tram]
+    aliases: [Metro/tram, metro/tram, metro_tram, raide]
     label_en: Trains
     label_fi: Junat
   - id: public_transport
@@ -634,9 +636,11 @@ dimensions:
   - id: walking
     label_en: Walking and cycling
     label_fi: Kävely ja pyöräily
+    aliases: [jalankulku]
   - id: cycling
     label_en: Cycling
     label_fi: Pyöräily
+    aliases: [pyoraliikenne]
   - id: ebike
     label_en: E-bike
     label_fi: Sähköpyörä
@@ -656,6 +660,14 @@ dimensions:
   - id: bikeshare
     label_en: Bikeshare
     label_fi: Kaupunkipyörät
+  - id: other
+    aliases: [muu]
+    label_fi: Muu
+    label_en: Other
+  - id: total
+    aliases: [yhteensä]
+    label_fi: Yhteensä
+    label_en: Total
   label_en: Transport mode
   label_fi: Kuljetusmuoto
 - id: transport_pollutant
