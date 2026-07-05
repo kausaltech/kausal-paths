@@ -4,7 +4,7 @@ supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 391dcf63f00d46c566c2d985f4b413a5e4d11f54
+  commit: a0e0e4b406eb60c34d11e543fa082fc43109fbbe
   # commit: 892daa0d78ff8da19b981aea687e2d8221831721 # Old Lappeenranta-specific version of nzc/defaults
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan missiokaupungin ilmasto-ohjelma 2030
@@ -141,33 +141,33 @@ action_groups:
   name_en: 7. Reforestation
   name: 7. Uudelleenmetsitys
 
-# impact_overviews:
+impact_overviews:
 
-# - graph_type: cost_benefit
-#   cost_node: discounted_investment
-#   effect_node: discounted_benefits
-#   indicator_unit: MEUR
-#   stakeholder_dimension: stakeholder
-#   outcome_dimension: cost_type
-#   label: Cost-benefit
+- graph_type: cost_benefit
+  effect_node: total_cost
+  indicator_unit: MEUR
+  stakeholder_dimension: stakeholder
+  outcome_dimension: cost_type
+  label_en: Cost-benefit
+  label_fi: Kustannus-hyöty
 
-# - graph_type: cost_benefit
-#   cost_node: health_effect_of_active_mobility
-#   effect_node: health_effect_of_active_mobility
-#   indicator_unit: case
-#   stakeholder_dimension: transport_mode
-#   outcome_dimension: response
-#   label_en: Number of attributable (avoided) deaths
-#   label_fi: Aktiiviseen liikkumiseen liittyvät (vältetyt) tapaukset
+- graph_type: cost_benefit
+  effect_node: health_effect_of_active_mobility
+  indicator_unit: case
+  stakeholder_dimension: transport_mode
+  outcome_dimension: response
+  label_en: Number of attributable (avoided) deaths
+  label_fi: Aktiiviseen liikkumiseen liittyvät (vältetyt) tapaukset
 
-# - graph_type: cost_efficiency
-#   cost_node: discounted_total_cost
-#   effect_node: aggregated_net_emissions
-#   indicator_unit: EUR/t
-#   cost_unit: MEUR
-#   effect_unit: kt
-#   plot_limit_for_indicator: 1000
-#   label: Cost efficiency
+- graph_type: cost_efficiency
+  cost_node: discounted_total_cost
+  effect_node: net_emissions
+  indicator_unit: EUR/t
+  cost_unit: MEUR
+  effect_unit: kt
+  plot_limit_for_indicator: 1000
+  label_en: Cost efficiency
+  label_fi: Kustannustehokkuus
 
 nodes:
 
@@ -198,44 +198,6 @@ nodes:
   unit: m**3
   historical_values: [[2018, 0.0], [2023, 0.0]]
 
-- id: population
-  name_fi: Väestön koko Lappeenrannassa
-  name_en: Population size in Lappeenranta
-  type: gpc.DatasetNode
-  quantity: population
-  unit: cap
-  input_datasets: [lappeenranta/defaults]
-  input_nodes:
-  - id: population_growth
-    tags: [arithmetic_inverse, complement_cumulative_product, non_additive]
-  params:
-    sector: Population
-
-- id: population_growth
-  name_fi: Väestön kasvunopeus
-  name_en: Population growth
-  type: gpc.DatasetNode
-  quantity: rate
-  unit: '%/a'
-  input_datasets: [lappeenranta/defaults]
-  params:
-    sector: Expected annual population growth (up until 2030)
-
-# - id: aggregated_net_emissions
-#   name: Aggregated net emissions
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: kt/a
-#   # is_outcome: true
-#   input_nodes:
-#   - id: net_emissions
-#     from_dimensions:
-#     - id: ghg
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     - id: sector
-#       flatten: true
 
 # ------------- Jobs -----------------
 
@@ -360,43 +322,6 @@ nodes:
       flatten: true
     - id: aggregated_cost_type
       flatten: true
-
-- id: discounted_investment
-  name_fi: Diskontatut sijoitukset
-  name_en: Discounted investment
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, cost_type]
-  output_dimensions: [stakeholder, cost_type]
-  input_nodes:
-  - id: discounted_cost
-    from_dimensions:
-    - id: aggregated_cost_type
-#      categories: [capex]
-      flatten: true
-    to_dimensions:
-    - id: stakeholder
-    - id: cost_type
-
-- id: discounted_benefits  # TODO Remove this if the single-node CBA visualisation gets accepted.
-  name_fi: Diskontatut hyödyt
-  name_en: Discounted benefits
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, cost_type]
-  output_dimensions: [stakeholder, cost_type]
-  input_nodes:
-  - id: discounted_cost
-    from_dimensions:
-    - id: aggregated_cost_type
-      categories: [capex]
-      exclude: true
-      flatten: true
-    to_dimensions:
-    - id: stakeholder
-    - id: cost_type
 
 # ------------ Lappeenranta-specific nodes -----------
 
