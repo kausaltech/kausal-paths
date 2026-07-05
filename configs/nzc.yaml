@@ -3,7 +3,7 @@ id: nzc
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 96e8ebba885da2cd10ff7b3232b1811ef654eb00
+  commit: a0e0e4b406eb60c34d11e543fa082fc43109fbbe
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -1889,16 +1889,6 @@ scenarios:
 
 nodes:
 
-- id: technical_root_node
-  name: Technical root node
-  name_fi: Tekninen juurisolmu
-  description: This node is used as the outcome node of ParentActionNodes so 
-    that they don't pick a random root node from the model.
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: m**3
-  historical_values: [[2018, 0.0], [2025, 0.0]]
-
 - id: net_emissions
   name: Net emissions
   name_fi: Kokonaispäästöt (scope 1+2)
@@ -3041,8 +3031,11 @@ nodes:
   type: generic.GenericNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2018, 100.0], [2025, 100.0]]
-  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: nzc/passenger_transport_need_fleet
+    column: fully_electric_train_share
 
 - id: transport_energy_carrier_shares
   name_en: Transport energy carrier shares
@@ -3064,9 +3057,11 @@ nodes:
     - id: energy_carrier
     - id: transport_mode
   - id: fully_electric_train_share
-    to_dimensions:
+    from_dimensions:
     - id: energy_carrier
       categories: [electricity]
+    to_dimensions:
+    - id: energy_carrier
     - id: transport_mode
       categories: [trains]
   params:
@@ -3678,16 +3673,12 @@ nodes:
     pääosastolle</li> <li>Sveriges kommuner och landsting (2017). 
     Kollektivtrafikens kostnadsutveckling – en överblick. 
     https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
-  # type: gpc.DatasetNode
   type: generic.GenericNode
   quantity: unit_price
   unit: EUR/vkm
-  historical_values: [[2018, 0.32], [2025, 0.32]]
-  # # input_dimensions: [transport_mode, cost_type]
-  # # output_dimensions: [transport_mode, cost_type]
-  # input_datasets: [nzc/defaults]
-  # params:
-  #   sector: public transport operation unit price
+  input_datasets:
+  - id: nzc/passenger_transport_costs_walking_pt
+    column: public_transport_operation_unit_price
 
 - id: public_transport_operation_cost_shares
   name_en: Public transport operation cost shares
@@ -6192,28 +6183,35 @@ nodes:
 - id: new_heating_capacity_cost
   name_en: New heating capacity cost
   name_fi: Uuden lämmityskapasiteetin kustannus
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [energy_carrier, cost_type, heating_type, stakeholder]
   output_dimensions: [energy_carrier, cost_type, heating_type, stakeholder]
   input_nodes:
   - id: new_heating_capacity_needed
+    tags: [need]
     to_dimensions:
     - id: heating_type
     - id: energy_carrier
   - id: heat_production_capital_unit_price
+    tags: [unit_price]
     to_dimensions:
     - id: cost_type
     - id: heating_type
     - id: energy_carrier
   - id: heating_cost_stakeholder_shares
+    tags: [cost_shares]
     to_dimensions:
     - id: stakeholder
     - id: cost_type
     - id: heating_type
-  - id: multiplier_node  # TODO
-    to_dimensions: []
+  params:
+  - id: formula
+    value: need * constant * unit_price * cost_shares
+  - id: constant
+    value: 1.0
+    unit: a
   output_nodes:
   - id: building_cost
     from_dimensions:
@@ -6368,23 +6366,26 @@ nodes:
 - id: new_heating_network_cost
   name_en: New heating network cost
   name_fi: Uuden lämmitysverkon kustannus
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder, heating_type, cost_type]
   output_dimensions: [stakeholder, heating_type, cost_type]
   input_nodes:
   - id: new_heating_capacity_needed
+    tags: [need]
     from_dimensions:
     - id: energy_carrier
       flatten: true
     to_dimensions:
     - id: heating_type
   - id: heat_production_network_unit_price
+    tags: [unit_price]
     to_dimensions:
     - id: heating_type
     - id: cost_type
   - id: heating_cost_stakeholder_shares
+    tags: [cost_shares]
     from_dimensions:
     - id: cost_type
       categories: [capex]
@@ -6392,8 +6393,12 @@ nodes:
     to_dimensions:
     - id: stakeholder
     - id: heating_type
-  - id: multiplier_node  # TODO
-    to_dimensions: []
+  params:
+  - id: formula
+    value: need * constant * unit_price * cost_shares
+  - id: constant
+    value: 1.0
+    unit: a
   output_nodes:
   - id: building_cost
     from_dimensions:
@@ -7018,42 +7023,39 @@ nodes:
   - id: nzc/electricity
     tags: [city_data]
     column: solar_panel_costs
-  output_nodes:
-  - id: renewable_electricity_investment_cost
-    to_dimensions:
-    - id: fuel_type
-    - id: stakeholder
-    - id: cost_type
 
 - id: renewable_electricity_investment_cost
   name_en: Renewable electricity investment cost
   name_fi: Uusiutuvan sähkön investointikustannukset
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [fuel_type, energy_carrier, cost_type, stakeholder]
   output_dimensions: [fuel_type, energy_carrier, cost_type, stakeholder]
   input_nodes:
   - id: new_electricity_production_capacity
+    tags: [capacity]
     to_dimensions:
     - id: fuel_type
     - id: energy_carrier
   - id: renewable_electricity_upfront_price
+    tags: [price]
     to_dimensions:
     - id: fuel_type
     - id: energy_carrier
     - id: cost_type
-  - id: multiplier_node  # TODO
-    to_dimensions: []
-
-- id: multiplier_node  # TODO Improve
-  name_en: Multiplier node
-  name_fi: Kerroinsolmu
-  type: generic.GenericNode
-  quantity: fraction
-  unit: a
-  input_dataset_processors: [LinearInterpolation]
-  historical_values: [[2018, 1], [2025, 1]]
+  - id: renewable_electricity_shares
+    tags: [shares]
+    to_dimensions:
+    - id: fuel_type
+    - id: stakeholder
+    - id: cost_type
+  params:
+  - id: formula
+    value: capacity * constant * price * shares
+  - id: constant
+    value: 1.0
+    unit: a
 
 - id: electricity_cost
   name_en: Electricity cost
