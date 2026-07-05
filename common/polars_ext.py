@@ -972,8 +972,12 @@ class PathsExt:
         zdf = pl.concat([df, other], how='vertical')
         df = ppl.to_ppdf(zdf, meta=meta)
 
-        if df.paths.index_has_duplicates():
-            raise Exception('Concatenation resulted in duplicated index rows')
+        if df._primary_keys:
+            dupes = (
+                df.lazy().group_by(df._primary_keys).agg(pl.len().alias('count')).filter(pl.col('count') > 1).limit(10).collect()
+            )
+            if len(dupes) > 0:
+                raise Exception('Concatenation resulted in duplicated index rows:\n%s' % dupes)
 
         return df
 
