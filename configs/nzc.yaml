@@ -1448,10 +1448,9 @@ actions:
   - id: nzc/transport_actions
     tags: [city_data]
     column: expected_procurement_schedule_for_buses
-    forecast_from: 2020
   output_nodes:
   - id: fully_electric_bus_share
-    tags: [cumulative]
+    tags: [cumulative, bring_to_reference_year]
 
 # ----------------- Freight transport -----------------
 
