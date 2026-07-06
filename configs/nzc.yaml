@@ -3,7 +3,7 @@ id: nzc
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a0e0e4b406eb60c34d11e543fa082fc43109fbbe
+  commit: eb62b63210792805ad5041bb32579585d29314f1
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -160,6 +160,8 @@ action_groups:
 dimensions:
 
 - id: aggregated_cost_type
+  label_en: Aggregated cost type
+  label_fi: Koottu kustannustyyppi
   categories:
   - id: capex
     label_en: CAPEX
@@ -177,9 +179,10 @@ dimensions:
     label_en: CO2 cost
     label_fi: CO2-kustannus
     color: '#984ea3'
-  label_en: Aggregated cost type
-  label_fi: Koottu kustannustyyppi
+
 - id: area_distance
+  label_en: Area distance
+  label_fi: Alueen etäisyys
   categories:
   - id: metropolitan
     label_en: Metropolitan
@@ -193,9 +196,10 @@ dimensions:
   - id: average
     label_en: Average
     label_fi: Keskimääräinen
-  label_en: Area distance
-  label_fi: Alueen etäisyys
+
 - id: building_energy_class
+  label_en: Building energy class
+  label_fi: Building energy class
   categories:
   - id: new_standard
     label_en: New, standard
@@ -233,9 +237,10 @@ dimensions:
     aliases: [moderate_renovations]
     label_en: Moderate renovation
     label_fi: Moderate renovation
-  label_en: Building energy class
-  label_fi: Building energy class
+
 - id: cost_type
+  label_en: Cost Type
+  label_fi: Kustannustyyppi
   categories:
   - id: energy_costs
     label_en: Energy Costs
@@ -351,9 +356,10 @@ dimensions:
   - id: public_building_opex
     label_en: Public Building OPEX
     label_fi: Public Building OPEX
-  label_en: Cost Type
-  label_fi: Kustannustyyppi
+
 - id: efficiency_programme
+  label_en: Energy efficiency programme
+  label_fi: Energiatehokkuusohjelma
   categories:
   - id: no_improvements
     aliases: [no_improvement]
@@ -371,9 +377,10 @@ dimensions:
   - id: nzeb
     label_en: Net zero emission buildings
     label_fi: Nollapäästörakennukset
-  label_en: Energy efficiency programme
-  label_fi: Energiatehokkuusohjelma
+
 - id: energy_carrier
+  label_en: Energy carrier
+  label_fi: Energiamuoto
   categories:
   - id: petrol_diesel
     label_en: Petrol and diesel
@@ -393,9 +400,10 @@ dimensions:
   - id: waste
     label_en: Waste (fossil & non-fossil waste)
     label_fi: Jäte (fossiilinen ja ei-fossiilinen jäte)
-  label_en: Energy carrier
-  label_fi: Energiamuoto
+
 - id: fuel_type
+  label_en: Fuel type
+  label_fi: Polttoainetyyppi
   categories:
   - id: fossil
     label_en: Fossil
@@ -428,18 +436,22 @@ dimensions:
   - id: heat_pump
     label_en: Heat pump
     label_fi: Lämpöpumppu
-  label_en: Fuel type
-  label_fi: Polttoainetyyppi
+
 - id: ghg
+  label_en: Greenhouse gas
+  label_fi: Kasvihuonekaasu
   categories:
-  - id: co2e
+  - id: co2e  # TODO Separate co2e and co2
     aliases: [co2]
     label_en: CO2e
     label_fi: CO2e
+  - id: ch4
+    label_en: Methane
+    label_fi: Metaani
 
-  label_en: Greenhouse gas
-  label_fi: Kasvihuonekaasu
 - id: heating_type
+  label_en: Heating type
+  label_fi: Heating type
   categories:
   - id: district_heating
     label_en: District heating
@@ -447,9 +459,10 @@ dimensions:
   - id: local_heating
     label_en: Local heating
     label_fi: Local heating
-  label_en: Heating type
-  label_fi: Heating type
+
 - id: material
+  label_en: Material
+  label_fi: Material
   categories:
   - id: concrete
     label_en: Concrete
@@ -463,9 +476,10 @@ dimensions:
   - id: aluminium
     label_en: Aluminium
     label_fi: Aluminium
-  label_en: Material
-  label_fi: Material
+
 - id: parameter
+  label_en: Parameter
+  label_fi: Parametri
   categories:
   - id: max_impact
     aliases: [Max impact]
@@ -499,9 +513,10 @@ dimensions:
   - id: beta
     label_en: Beta
     label_fi: Beta
-  label_en: Parameter
-  label_fi: Parametri
+
 - id: pollutant
+  label_en: Pollutant
+  label_fi: Saaste
   categories:
   - id: co2
     aliases: [co2e]
@@ -545,9 +560,10 @@ dimensions:
   - id: nh3
     label_en: NH3
     label_fi: NH3
-  label_en: Pollutant
-  label_fi: Saaste
+
 - id: scope
+  label_en: Scope
+  label_fi: Scope
   help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
     3: Indirect emissions.'
   categories:
@@ -564,9 +580,9 @@ dimensions:
     label_en: Scope 3
     label_fi: Scope 3
 
-  label_en: Scope
-  label_fi: Scope
 - id: sector
+  label_en: Sector
+  label_fi: Sektori
   help_text: Sectors as categorised in the Mission City Climate City Contracts 
     (CCC).
   categories:
@@ -585,9 +601,10 @@ dimensions:
   - id: other
     label_en: Other (incl. IPPU & AFOLU)
     label_fi: Muut (sis. IPPU, AFOLU)
-  label_en: Sector
-  label_fi: Sektori
+
 - id: stakeholder
+  label_en: Stakeholder
+  label_fi: Sidosryhmä
   categories:
   - id: citizens
     label_en: Citizens
@@ -614,9 +631,10 @@ dimensions:
     label_en: Utilities
     label_fi: Julkiset palvelut
     color: '#edc948'
-  label_en: Stakeholder
-  label_fi: Sidosryhmä
+
 - id: transport_mode
+  label_en: Transport mode
+  label_fi: Kuljetusmuoto
   categories:
   - id: cars
     label_en: Cars
@@ -668,9 +686,10 @@ dimensions:
     aliases: [yhteensä]
     label_fi: Yhteensä
     label_en: Total
-  label_en: Transport mode
-  label_fi: Kuljetusmuoto
+
 - id: transport_pollutant
+  label_en: Transport pollutant
+  label_fi: Transport pollutant
   categories:
   - id: co2
     label_en: CO2
@@ -684,9 +703,10 @@ dimensions:
   - id: pm10
     label_en: PM10
     label_fi: PM10
-  label_en: Transport pollutant
-  label_fi: Transport pollutant
-- id: uuid # FIXME '_' need to be replaced with '-' when operating with frameworks.
+
+- id: uuid
+  label_en: UUID
+  label_fi: UUID
   categories:
   - id: 7b02936d_9de3_4aa4_beb2_b14a182da975
     label_en: 7b02936d-9de3-4aa4-beb2-b14a182da975 # This UUID is used when it is not linked to anything.
@@ -1297,9 +1317,10 @@ dimensions:
   - id: ff1c126d_5134_437d_9d4d_1237ca1512e8
     label_en: ff1c126d-5134-437d-9d4d-1237ca1512e8
     label_fi: ff1c126d-5134-437d-9d4d-1237ca1512e8
-  label_en: UUID
-  label_fi: UUID
+
 - id: waste_type
+  label_en: Waste type
+  label_fi: Waste type
   categories:
   - id: paper
     label_en: Paper and cardboard
@@ -1325,9 +1346,10 @@ dimensions:
   - id: aluminium
     label_en: Aluminiium
     label_fi: Aluminiium
-  label_en: Waste type
-  label_fi: Waste type
+
 - id: waste_treatment
+  label_en: Waste treatment
+  label_fi: Waste treatment
   categories:
   # - id: other
   #   label: Other waste management
@@ -1356,8 +1378,7 @@ dimensions:
   - id: composting
     label_en: Composting
     label_fi: Composting
-  label_en: Waste treatment
-  label_fi: Waste treatment
+
 actions:
 
 # --------------- TRANSPORT -------------
@@ -3056,6 +3077,7 @@ nodes:
     - id: energy_carrier
     - id: transport_mode
   - id: fully_electric_train_share
+    tags: [bring_to_reference_year]
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
@@ -3705,6 +3727,7 @@ nodes:
   output_dimensions: [transport_mode, stakeholder, cost_type]
   input_nodes:
   - id: public_transport_operation_unit_price
+    tags: [bring_to_reference_year]
     to_dimensions:
     - id: transport_mode
       categories: [buses]

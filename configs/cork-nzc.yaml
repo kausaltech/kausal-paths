@@ -2,7 +2,7 @@ id: cork-nzc
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: eb62b63210792805ad5041bb32579585d29314f1
+  commit: c6baf98f5dee19257d1695b78ffbe835f42816a1
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -272,6 +272,20 @@ dimensions:
   - id: ballyhooly_road
     label: Ballyhooly Road
 
+- id: ghg  # TODO Update the nzc.yaml dimension and drop this.
+  label_en: Greenhouse gas
+  label_fi: Kasvihuonekaasu
+  categories:
+  - id: co2e
+    label_en: CO2e
+    label_fi: CO2e
+  - id: co2
+    label_en: CO2
+    label_fi: CO2
+  - id: ch4
+    label_en: Methane
+    label_fi: Metaani
+
 nodes:
 
 - id: net_emissions
@@ -293,6 +307,62 @@ nodes:
       value: 216
     - year: 2035
       value: 0
+
+# -------------- Local waste emissions --------------
+
+- id: local_waste_emissions
+  name: Local waste emissions
+  description: |
+    Pollutant Release and Transfer Register (PRTR) total GHG emissions for the former Kinsale Road Landfill.
+    The Kinsale Road Landfill closed in July 2009.
+    PRTR methane emissions are used in this model in scope 1 emissions. However, the KPMG model only present them for transparency and historical context only and are not used in the 2023 BEI Scope 1 total. 
+    Cork City Council provided site-specific operational data for the former Kinsale Road Landfill, including measured methane capture, flaring and utilisation, as well as data on waste collected at the civic amenity facility.
+    Information on the operations on the former Kinsale Road Landfill.
+    Source: Cork City Council
+    ~55.3% used in on-site engines to generate 916 MWh of renewable electricity.
+    ~45% destroyed via high-temperature flaring.
+    PRTR submissions represent modelled estimates of residual emissions to atmosphere after gas capture and treatment, rather than direct measurements. 
+    At mature, capped landfill sites such as Kinsale Road, diffuse methane emissions cannot be directly metered and are therefore inferred using conservative modelling assumptions.
+    A significant proportion of landfill methane generated on site is measured, captured, and destroyed under controlled conditions, either through electricity generation or high-temperature flaring. 
+    These quantities are supported by metered gas flows, engine performance data, flare records, and regulatory compliance monitoring, and are reflected in PRTR methane emission totals in this model but not in KPMG.
+    2023 BEI Assumption about treated methane
+    The 2023 BEI calculations for waste scope 1 include the  methane emissions only from flaring.
+    Methane utilised for on-site electricity generation is assumed to be fully combusted and therefore does not result in methane emissions.
+    Any associated CO₂ emissions are assumed to be accounted for under energy consumption in the relevant sector and are not double-counted within the waste sector.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kg/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  input_datasets:
+  - id: cork/local_waste_emissions
+    column: emissions
+
+- id: local_treated_waste_emissions
+  name: Local treated equivalent waste emissions
+  description: Methane emissions are converted to CO2 equivalent emissions by 
+    considering three cases. First, methane emissions to air are multiplied by 
+    global warming potential for 100 years (GWP100), which is 27.9 for methane. 
+    Second, if methane is used for energy production, it is already included in 
+    energy production emissions and it gets multiplier 0 here. Third, with 
+    flaring, methane converts to CO2 on molar basis and therefore the mass 
+    conversion is 44/16 = 2.75.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  input_nodes:
+  - id: local_waste_emissions
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: sector
+      categories: [waste]
+  params:
+    formula: local_waste_emissions * 27.9 + energy_use * 0 + flaring * 2.75
 
 - id: active_mobility_distance
   name_en: Active mobility distance
@@ -679,8 +749,7 @@ actions:
   name: BE.1 Retrofit social housing
   description: The details of this action are described <a 
     href="https://cork-planner.watch-test.kausal.tech/actions/BE.1">here</a>. 
-    2700 apartment will be retrofitted, assuming 100 m<sup>2</sup> per 
-    apartment.
+    2700 apartment will be retrofitted, assuming 76 m<sup>2</sup> per apartment.
   type: simple.GenericAction
   quantity: floor_area
   unit: m**2
@@ -784,6 +853,50 @@ actions:
     to_dimensions:
     - id: transport_mode
       categories: [cycling]
+
+- id: energy_use_of_local_waste_methane
+  name: Energy use of local waste methane
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: kg/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  input_datasets:
+  - id: cork/local_waste_emissions
+    tags: [extend_values]
+    column: energy_use
+    forecast_from: 2024
+  output_nodes:
+  - id: local_treated_waste_emissions
+    tags: [energy_use]
+  - id: local_waste_emissions
+    tags: [arithmetic_inverse]
+
+- id: flaring_of_local_waste_methane
+  name: Flaring of local waste methane
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: kg/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: cork/local_waste_emissions
+    tags: [extend_values]
+    column: flaring
+    forecast_from: 2024
+  output_nodes:
+  - id: local_treated_waste_emissions
+    tags: [flaring]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2]
+    - id: scope
+  - id: local_waste_emissions
+    tags: [arithmetic_inverse]
 
 pages:
 - id: home
