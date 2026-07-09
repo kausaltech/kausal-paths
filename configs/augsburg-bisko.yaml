@@ -132,7 +132,7 @@ dimensions:
     label_en: Private Households
     label_de: Private Haushalte
     aliases: [private_haushalte, Private_Haushalte, HE_, HE, HTHG_, HTHG]
-    color: *darkblue
+    color: '#203abf'
     order: 13
   - id: municipal_facilities
     label_en: Municipal Facilities
@@ -662,9 +662,9 @@ action_groups:
 
 nodes:
 - id: private_household_emissions
-  name_de: Private Haushalte
+  name_de: Private Haushalte Emissionen
   name_en: Private household emissions
-  color: *darkblue
+  color: '#203abf'
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
@@ -680,7 +680,7 @@ nodes:
 
 
 - id: commerce_trade_services_emissions
-  name_de: Gewerbe, Handel, Dienstleistungen
+  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
   name_en: Commerce, trade, services emissions
   color: *blue
   type: generic.GenericNode
@@ -698,8 +698,8 @@ nodes:
 
 
 - id: industry_emissions
-  name_de: Industrie
-  name_en: Industry emissions
+  name_de: Industrie Emissionen
+  name_en: Industry Emissions
   color: *grey
   type: generic.GenericNode
   quantity: emissions
@@ -716,8 +716,8 @@ nodes:
 
 
 - id: transport_emissions
-  name_en: Transport emissions
-  name_de: Transportemissionen
+  name_en: Transport & Verkehr Emissionen 
+  name_de: Transport Emissions
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
@@ -757,8 +757,8 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [municipal_facilities]
-  output_nodes:
-  - id: net_emissions
+#  output_nodes:    # commented out to hide from outcome page
+#  - id: net_emissions
 
 
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
