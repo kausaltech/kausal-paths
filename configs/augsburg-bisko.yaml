@@ -677,6 +677,15 @@ nodes:
       categories: [private_households]
   output_nodes:
   - id: net_emissions
+  goals:
+  - label_de: Klimaneutralität 2050
+    label_en: Climate neutrality 2050
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2050
+      value: 0
 
 
 - id: commerce_trade_services_emissions
@@ -695,6 +704,15 @@ nodes:
       categories: [commerce_trade_services]
   output_nodes:
   - id: net_emissions
+  goals:
+  - label_de: Klimaneutralität 2050
+    label_en: Climate neutrality 2050
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2050
+      value: 0
 
 
 - id: industry_emissions
@@ -713,10 +731,19 @@ nodes:
       categories: [industry]
   output_nodes:
   - id: net_emissions
+  goals:
+  - label_de: Klimaneutralität 2050
+    label_en: Climate neutrality 2050
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2050
+      value: 0
 
 
 - id: transport_emissions
-  name_en: Transport & Verkehr Emissionen 
+  name_en: Transport & Verkehr Emissionen
   name_de: Transport Emissions
   type: generic.GenericNode
   quantity: emissions
@@ -741,6 +768,15 @@ nodes:
     - id: energy_carrier
     - id: sector
       categories: [transport]
+  goals:
+  - label_de: Klimaneutralität 2050
+    label_en: Climate neutrality 2050
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2050
+      value: 0
 
 
 - id: municipal_facilities_emissions
@@ -783,23 +819,23 @@ nodes:
 
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-actions:
-- id: klimaschutzprogramm
-  name_de: Klimaschutzprogramm
-  name_en: Climate Protection Program
-  type: simple.AdditiveAction
-  quantity: emissions
-  unit: kt_co2e/a
-  historical_values: [[2023, 0.0]]
-  forecast_values: [[2050, -1583.68]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: net_emissions
-    to_dimensions:
-    - id: sector
-      categories: [not_defined]
-    - id: energy_carrier
-      categories: [not_defined]
+actions: []
+# - id: klimaschutzprogramm
+#   name_de: Klimaschutzprogramm
+#   name_en: Climate Protection Program
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt_co2e/a
+#   historical_values: [[2023, 0.0]]
+#   forecast_values: [[2050, -1583.68]]  # = 100% of 2023 net_emissions
+#   input_dataset_processors: [LinearInterpolation]
+#   output_nodes:
+#   - id: net_emissions
+#     to_dimensions:
+#     - id: sector
+#       categories: [not_defined]
+#     - id: energy_carrier
+#       categories: [not_defined]
 
 
 #//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
