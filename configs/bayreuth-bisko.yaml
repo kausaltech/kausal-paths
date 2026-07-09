@@ -795,6 +795,7 @@ nodes:
   type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
+  part_of: net_emissions
   color: *viridis_blue  # subsector card color: heating/Wärme
   input_dimensions: [energy_carrier, sector]  # switched around dimensions, because in Outcome page it shows the first listed dimension when "drilling down" 
   output_dimensions: [energy_carrier, sector]
@@ -830,6 +831,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
+  part_of: net_emissions
   color: *viridis_yellow  # subsector card color: electricity/Strom
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
@@ -861,6 +863,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
+  part_of: net_emissions
   color: *viridis_teal  # subsector card color: transport (matches sector "transport" in outcome graph)
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
