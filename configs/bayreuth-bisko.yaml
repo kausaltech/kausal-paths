@@ -941,6 +941,7 @@ actions:
   - id: bayreuth/emission_reduction_action
     forecast_from: 2024
     column: action
+    tags: [extend_all]
   output_nodes:
   - id: heating_emissions
     tags: [splittee] # FIXME Make splitter work in FormulaNode
