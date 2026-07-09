@@ -915,6 +915,31 @@ action_groups:
 
 actions:
 
+- id: combined_heat_and_power_chp_fraction
+  name_en: Combined heat and power CHP fraction
+  name_de: Kombination aus Wärme und Strom CHP Anteil
+  type: simple.ChpAction
+  quantity: fraction
+  unit: '%'
+  group: combined_heat_and_power
+  output_dimensions: [energy_carrier]
+  params:
+  - id: method
+    value: bisko
+  - id: electricity_fraction
+    value: 0.38
+    min_value: 0.3
+    max_value: 0.45
+  - id: t_supply
+    value: 363
+    min_value: 333
+    max_value: 393
+  - id: enabled
+    value: true
+    is_visible: true
+    is_customizable: true
+
+
 - id: historical_actions
   name_en: Historical actions
   name_de: Historische Aktionen
