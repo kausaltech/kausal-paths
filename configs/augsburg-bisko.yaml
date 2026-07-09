@@ -5,13 +5,13 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: a8e9584d8a313025877793f4ceabac8fcf865ace
   dvc_remote: kausal-s3
-name_de: Augsburg CO₂-Zukunfts-Rechner
-name_en: Augsburg CO₂-Future Calculator
-owner: Augsburg Stadt
+name_de: CO₂-Zukunfts-Rechner
+name_en: CO₂-Future Calculator
+owner: Stadt Augsburg
 theme_identifier: de-augsburg
-target_year: 2035
+target_year: 2050
 model_end_year: 2050
-reference_year: 1990
+reference_year: 1996
 minimum_historical_year: 1996
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
@@ -761,10 +761,45 @@ nodes:
 #  - id: net_emissions
 
 
+- id: net_emissions
+  name_de: Netto-Emissionen
+  name_en: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  is_outcome: true
+  goals:
+  - label_de: Klimaneutralität 2050
+    label_en: Climate neutrality 2050
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2050
+      value: 0
+
+
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#actions:
-#- id: 
+actions:
+- id: klimaschutzprogramm
+  name_de: Klimaschutzprogramm
+  name_en: Climate Protection Program
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2023, 0.0]]
+  forecast_values: [[2050, -1583.68]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: sector
+      categories: [not_defined]
+    - id: energy_carrier
+      categories: [not_defined]
 
 
 #//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
