@@ -5,8 +5,8 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: a8e9584d8a313025877793f4ceabac8fcf865ace
   dvc_remote: kausal-s3
-name_de: CO₂-Zukunfts-Rechner
-name_en: CO₂-Future Calculator
+name_de: Augsburg CO₂-Zukunfts-Rechner
+name_en: Augsburg CO₂-Future Calculator
 owner: Stadt Augsburg
 theme_identifier: de-augsburg
 target_year: 2050
@@ -752,6 +752,7 @@ nodes:
   quantity: emissions
   unit: kt_co2e/a
   color: *lilac
+  is_visible: false
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
@@ -763,7 +764,7 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions_helper
     from_dimensions:
     - id: vehicle_type
       flatten: true
@@ -771,6 +772,19 @@ nodes:
     - id: energy_carrier
     - id: sector
       categories: [transport]
+
+
+- id: transport_emissions_helper
+  name_de: Verkehrsemissionen gesamt
+  name_en: Transport emissions total
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  color: *lilac
+  output_nodes:
+  - id: net_emissions
   goals:
   - label_de: Klimaneutralität 2050
     label_en: Climate neutrality 2050
@@ -824,23 +838,74 @@ nodes:
 
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-actions: []
-# - id: klimaschutzprogramm
-#   name_de: Klimaschutzprogramm
-#   name_en: Climate Protection Program
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   historical_values: [[2023, 0.0]]
-#   forecast_values: [[2050, -1583.68]]  # = 100% of 2023 net_emissions
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes:
-#   - id: net_emissions
-#     to_dimensions:
-#     - id: sector
-#       categories: [not_defined]
-#     - id: energy_carrier
-#       categories: [not_defined]
+actions:
+- id: klimaschutzprogramm_private_households
+  name_de: Klimaschutzprogramm – Private Haushalte
+  name_en: Climate Protection Program – Private Households
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2023, 0.0]]
+  forecast_values: [[2050, -491.0]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: private_household_emissions
+    to_dimensions:
+    - id: sector
+      categories: [private_households]
+    - id: energy_carrier
+      categories: [not_defined]
+
+- id: klimaschutzprogramm_commerce
+  name_de: Klimaschutzprogramm – Gewerbe, Handel, Dienstleistungen
+  name_en: Climate Protection Program – Commerce, Trade & Services
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2023, 0.0]]
+  forecast_values: [[2050, -419.0]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: commerce_trade_services_emissions
+    to_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+    - id: energy_carrier
+      categories: [not_defined]
+
+- id: klimaschutzprogramm_industry
+  name_de: Klimaschutzprogramm – Industrie
+  name_en: Climate Protection Program – Industry
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2023, 0.0]]
+  forecast_values: [[2050, -382.0]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: industry_emissions
+    to_dimensions:
+    - id: sector
+      categories: [industry]
+    - id: energy_carrier
+      categories: [not_defined]
+
+- id: klimaschutzprogramm_transport
+  name_de: Klimaschutzprogramm – Verkehr
+  name_en: Climate Protection Program – Transport
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2023, 0.0]]
+  forecast_values: [[2050, -291.0]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transport_emissions_helper
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: energy_carrier
+      categories: [not_defined]
 
 
 #//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////

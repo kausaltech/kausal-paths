@@ -498,6 +498,8 @@ class NodeInterface:
                 return False
             if not include_actions and isinstance(node, ActionNode):
                 return False
+            if not node.is_visible:
+                return False
             return True
 
         return root.get_upstream_nodes(filter_func=filter_nodes)
