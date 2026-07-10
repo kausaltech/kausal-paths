@@ -44,6 +44,8 @@ class NodeGoalsEntry(I18nBaseModel):
     normalized_by: str | None = None
     dimensions: dict[str, NodeGoalsDimension] = Field(default_factory=dict)
     linear_interpolation: bool = False
+    auto_start: bool = False
+    "If True, prepend the node's last historical year value as the first goal anchor automatically."
     is_main_goal: bool = False
     default: bool = False
     disabled: bool = False
@@ -130,7 +132,15 @@ class NodeGoalsEntry(I18nBaseModel):
         context = node.context
         goal_norm, unit = self.get_normalization_info()
         m = node.get_default_output_metric()
-        zdf = pl.DataFrame({YEAR_COLUMN: [x.year for x in self.values], m.column_id: [x.value for x in self.values]})
+        values = list(self.values)
+        if self.auto_start:
+            last_hist_year: int | None = context.instance.maximum_historical_year
+            if last_hist_year is not None and (not values or values[0].year > last_hist_year):
+                actual_df = node.get_output_pl()
+                actual_df = actual_df.filter(pl.col(YEAR_COLUMN) == last_hist_year).paths.sum_over_dims()
+                auto_val = float(actual_df[VALUE_COLUMN].sum())
+                values = [GoalValue(year=last_hist_year, value=auto_val), *values]
+        zdf = pl.DataFrame({YEAR_COLUMN: [x.year for x in values], m.column_id: [x.value for x in values]})
         df = ppl.to_ppdf(zdf, meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={m.column_id: unit}))
         if goal_norm:
             df = goal_norm.denormalize_output(m, df)

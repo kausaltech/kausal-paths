@@ -683,6 +683,7 @@ nodes:
     default: true
     is_main_goal: true
     linear_interpolation: true
+    auto_start: true
     values:
     - year: 2050
       value: 0
@@ -710,6 +711,7 @@ nodes:
     default: true
     is_main_goal: true
     linear_interpolation: true
+    auto_start: true
     values:
     - year: 2050
       value: 0
@@ -737,6 +739,7 @@ nodes:
     default: true
     is_main_goal: true
     linear_interpolation: true
+    auto_start: true
     values:
     - year: 2050
       value: 0
@@ -774,6 +777,7 @@ nodes:
     default: true
     is_main_goal: true
     linear_interpolation: true
+    auto_start: true
     values:
     - year: 2050
       value: 0
@@ -812,6 +816,7 @@ nodes:
     default: true
     is_main_goal: true
     linear_interpolation: true
+    auto_start: true
     values:
     - year: 2050
       value: 0
