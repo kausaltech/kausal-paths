@@ -769,7 +769,7 @@ nodes:
 - id: net_emissions
   name_de: Netto-Emissionen
   name_en: Net emissions
-  type: generic.GenericNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
