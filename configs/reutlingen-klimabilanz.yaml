@@ -1,0 +1,404 @@
+id: reutlingen-klimabilanz  # defines which instance is updated
+default_language: de
+supported_languages: [en]
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: a8e9584d8a313025877793f4ceabac8fcf865ace
+  dvc_remote: kausal-s3
+name_de: Reutlingen THG-Bilanzierungstool
+name_en: Reutlingen GHG-Inventory Tool
+owner: Stadt Reutlingen
+theme_identifier: default
+target_year: 2040
+model_end_year: 2050
+reference_year: 2010
+minimum_historical_year: 1990
+maximum_historical_year: 2025
+emission_unit: kt_co2e/a
+features:
+  baseline_visible_in_graphs: true
+  use_datasets_from_db: true
+  show_explanations: true
+  show_category_warnings: true
+
+include:
+- file: modules/bisko/model.yaml
+  allow_override: true
+  dataset_replacements:
+  - from: bisko/final_energy
+    to: augsburg/final_energy
+  - from: bisko/historical_emissions
+    to: augsburg/historical_emissions
+  - from: bisko/passenger_kilometers
+    to: augsburg/passenger_kilometers
+  - from: bisko/vehicle_energy
+    to: augsburg/vehicle_energy
+
+
+#  Custom Color Palette
+_palette:
+
+
+
+#//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
+params:
+
+- id: weather_correction
+  label_de: Wetterkorrektur durchführen?
+  label_en: Perform weather correction?
+  value: false
+  is_customizable: true
+  is_visible: true
+- id: municipality_name
+  label_en: Municipality name
+  label_de: Gemeindename
+  value: Augsburg
+  is_customizable: true
+  is_visible: true
+- id: ags_number
+  label_en: AGS number
+  label_de: AGS-Nummer
+  value: '09761000'
+  is_customizable: false
+  is_visible: false
+- id: use_national_values
+  label_en: Use national rather than local electricity emission factors (BISKO)
+  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren 
+    (BISKO).
+  value: true
+  is_visible: true
+  is_customizable: true
+- id: use_mileage
+  label_en: Use BISKO mileage statistics rather than own energy data for 
+    transport
+  label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen 
+    Energieverbrauchsdaten für den Transport.
+  value: true
+  is_visible: true
+  is_customizable: true
+- id: use_local_values # FIXME Make connection to district heating emission factors dataset.
+  label_en: Use local rather than national district heating emission factors 
+    (BISKO)
+  label_de: Verwenden Sie lokale statt nationale Fernwärmeemissionsfaktoren 
+    (BISKO).
+  value: true
+  is_visible: true
+  is_customizable: true
+
+
+#//////  Dimensions  ///////////////////////////////////////////////////////////////////////////////////////////////////
+# copied here from bisko --> model.yaml  to change colors
+
+
+#//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
+result_excels:
+- base_excel_url: 
+    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+  name_de: Stadtspezifische Werte aus BISKO-Datensätzen und anderen Quellen
+  name_en: City-specific values from BISKO datasets and elsewhere
+  node_ids:
+  - weather_correction
+  - final_energy_use
+  - final_energy_use_data_quality
+  # - final_municipal_facilities_energy_use_by_type
+  # - municipal_fleet_energy
+  - historical_emissions
+  - end_energy_emission_factors
+  - electricity_production_emission_factors
+  - emission_factors_without_fuel_data
+  - emission_factors_for_district_heating_by_generic_fuel
+  - vehicle_kilometers_ifeu
+  - other_transport_energy
+
+action_groups:
+
+- id: combined_heat_and_power
+  name_en: Combined heat and power
+  name_de: Kombination aus Wärme und Strom
+  color: '#007C78'
+
+
+#//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
+# copied from bisko --> model.yaml  ... overwrites what is in model.yaml
+# in order how they appear on homepage
+
+nodes:
+- id: private_household_emissions
+  name_de: Private Haushalte Emissionen
+  name_en: Private household emissions
+  color: '#009ebe'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  part_of: net_emissions
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [private_households]
+  output_nodes:
+  - id: net_emissions
+  goals:
+  - label_de: Klimaneutralität 2040
+    label_en: Climate neutrality 2040
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2040
+      value: 0
+
+
+- id: commerce_trade_services_emissions
+  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_en: Commerce, trade, services emissions
+  color: '#fe8035'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  part_of: net_emissions
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+  output_nodes:
+  - id: net_emissions
+  goals:
+  - label_de: Klimaneutralität 2040
+    label_en: Climate neutrality 2040
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2040
+      value: 0
+
+
+- id: industry_emissions
+  name_de: Industrie Emissionen
+  name_en: Industry Emissions
+  color: '#737373'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  part_of: net_emissions
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [industry]
+  output_nodes:
+  - id: net_emissions
+  goals:
+  - label_de: Klimaneutralität 2040
+    label_en: Climate neutrality 2040
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2040
+      value: 0
+
+
+- id: transport_emissions
+  name_en: Transport & Verkehr Emissionen
+  name_de: Transport Emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+
+  color: '#5341a4'
+  is_visible: false
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transport_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: transport_emissions_helper
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
+
+
+- id: transport_emissions_helper
+  name_de: Verkehrsemissionen gesamt
+  name_en: Transport emissions total
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  part_of: net_emissions
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  color: '#5341a4'
+  output_nodes:
+  - id: net_emissions
+  goals:
+  - label_de: Klimaneutralität 2040
+    label_en: Climate neutrality 2040
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2040
+      value: 0
+
+
+- id: municipal_facilities_emissions
+  name_de: Kommunale Einrichtungen
+  name_en: Municipal facilities emissions
+  color: '#6bc248'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: stationary_emissions
+    from_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
+#  output_nodes:    # commented out to hide from outcome page
+#  - id: net_emissions
+
+
+- id: net_emissions
+  name_de: Netto-Emissionen
+  name_en: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  is_outcome: true
+  goals:
+  - label_de: Klimaneutralität 2040
+    label_en: Climate neutrality 2040
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2040
+      value: 0
+
+
+#//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+actions:
+- id: klimaschutzprogramm_private_households
+  name_de: Klimaschutzprogramm – Private Haushalte
+  name_en: Climate Protection Program – Private Households
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2023, 0.0]]
+  forecast_values: [[2050, -491.0]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: private_household_emissions
+    to_dimensions:
+    - id: sector
+      categories: [private_households]
+    - id: energy_carrier
+      categories: [not_defined]
+
+- id: klimaschutzprogramm_commerce
+  name_de: Klimaschutzprogramm – Gewerbe, Handel, Dienstleistungen
+  name_en: Climate Protection Program – Commerce, Trade & Services
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2023, 0.0]]
+  forecast_values: [[2050, -419.0]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: commerce_trade_services_emissions
+    to_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+    - id: energy_carrier
+      categories: [not_defined]
+
+- id: klimaschutzprogramm_industry
+  name_de: Klimaschutzprogramm – Industrie
+  name_en: Climate Protection Program – Industry
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2023, 0.0]]
+  forecast_values: [[2050, -382.0]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: industry_emissions
+    to_dimensions:
+    - id: sector
+      categories: [industry]
+    - id: energy_carrier
+      categories: [not_defined]
+
+- id: klimaschutzprogramm_transport
+  name_de: Klimaschutzprogramm – Verkehr
+  name_en: Climate Protection Program – Transport
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2023, 0.0]]
+  forecast_values: [[2050, -291.0]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transport_emissions_helper
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: energy_carrier
+      categories: [not_defined]
+
+
+#//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+pages:
+- id: home
+  name_de: Treibhausgasbilanz
+  name_en: Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Treibhausgasbilanz Stadt Reutlingen
+  lead_paragraph: Unsere Emissionen nach Sektoren und Jahren
+
+
+#//////  Scenarios  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+scenarios:
+
+- id: baseline
+  name_de: Business as Usual
+  name_en: Business as Usual
+
+- id: default
+  default: true
+  all_actions_enabled: true
+  name_de: Klimaschutzkonzept
+  name_en: Climate Protection Concept
