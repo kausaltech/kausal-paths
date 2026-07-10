@@ -1775,6 +1775,22 @@ class Node:
         assert out is not None  # the non-tolerant path raises rather than returning None
         return out
 
+    def impute_nodes_pl(self, df: ppl.PathsDataFrame, nodes: list[Node]) -> ppl.PathsDataFrame:
+        """
+        Overlay ``nodes``' outputs onto ``df``, in order, each one taking priority over what came before.
+
+        An outer join keyed on dimensions, with values coalesced: each node's own value wins
+        wherever it has one, and ``df``'s existing value survives only where the node has none.
+        """
+        for node in nodes:
+            node_df = node.get_output_pl(self)
+            if set(df.dim_ids) != set(node_df.dim_ids):
+                raise NodeError(
+                    self, "Dimensions must match for imputing: %s vs %s (node '%s')." % (df.dim_ids, node_df.dim_ids, node.id)
+                )
+            df = node_df.paths.coalesce_df(df, how='outer')
+        return df
+
     def add_nodes_tolerant(
         self,
         df: ppl.PathsDataFrame | None,
