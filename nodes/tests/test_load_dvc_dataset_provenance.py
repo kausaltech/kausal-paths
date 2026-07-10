@@ -32,9 +32,9 @@ def test_create_data_points_links_source_and_comment():
         DataFrameMeta(units={'value': unit_registry.parse_units('kt')}, primary_keys=[]),
     )
 
-    sources_meta: dict[str, dict[str, str | None]] = {
-        'NPF': {'authority': 'Dept of Housing', 'url': 'https://example.com/npf', 'description': 'desc'}
-    }
+    sources_meta: list[dict[str, str | None]] = [
+        {'name': 'NPF', 'authority': 'Dept of Housing', 'url': 'https://example.com/npf', 'description': 'desc'}
+    ]
 
     cmd = Command()
     cmd.create_data_points(instance_config, df, dataset, {'value': metric}, sources_meta=sources_meta)

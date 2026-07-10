@@ -256,14 +256,16 @@ class Command(BaseCommand):
         return schema
 
     def get_or_create_data_sources(
-        self, instance_config: InstanceConfig, sources_meta: dict[str, dict[str, str | None]] | None
+        self, instance_config: InstanceConfig, sources_meta: list[dict[str, str | None]] | None
     ) -> dict[str, DataSource]:
-        """Resolve a dvc_metadata['sources'] registry into DataSource rows, keyed by name."""
+        """Resolve a dvc_metadata['sources'] list into DataSource rows, keyed by name."""
         if not sources_meta:
             return {}
         scope_content_type = ContentType.objects.get_for_model(instance_config)
         result: dict[str, DataSource] = {}
-        for name, fields in sources_meta.items():
+        for fields in sources_meta:
+            name = fields['name']
+            assert name is not None
             source, _ = DataSource.objects.get_or_create(
                 scope_content_type=scope_content_type,
                 scope_id=instance_config.pk,
@@ -277,6 +279,15 @@ class Command(BaseCommand):
             result[name] = source
         return result
 
+    def link_data_point_sources(self, data_point: DataPoint, source_cell: str, data_sources: dict[str, DataSource]) -> None:
+        """Link data_point to each DataSource named in source_cell (SOURCE_NAME_SEPARATOR-joined for >1 citation)."""
+        for name in source_cell.split(SOURCE_NAME_SEPARATOR):
+            data_source = data_sources.get(name)
+            if data_source is not None:
+                DatasetSourceReference.objects.create(data_point=data_point, data_source=data_source)
+            else:
+                print(f"Source '{name}' not found in dvc_metadata['sources']; skipping.")
+
     def create_data_points(
         self,
         instance_config: InstanceConfig,
@@ -285,7 +296,7 @@ class Command(BaseCommand):
         metrics: dict[str, DatasetMetric],
         *,
         column_dimensions: dict[str, str] | None = None,
-        sources_meta: dict[str, dict[str, str | None]] | None = None,
+        sources_meta: list[dict[str, str | None]] | None = None,
     ):
         column_dimensions = column_dimensions or {}
         data_sources = self.get_or_create_data_sources(instance_config, sources_meta)
@@ -324,14 +335,7 @@ class Command(BaseCommand):
                             raise
                         data_point.dimension_categories.add(cat)
                 if source_col and row.get(source_col):
-                    # A cell may list multiple names (SOURCE_NAME_SEPARATOR-joined) when a
-                    # value was derived from more than one citation.
-                    for name in row[source_col].split(SOURCE_NAME_SEPARATOR):
-                        data_source = data_sources.get(name)
-                        if data_source is not None:
-                            DatasetSourceReference.objects.create(data_point=data_point, data_source=data_source)
-                        else:
-                            print(f"Source '{name}' not found in dvc_metadata['sources']; skipping.")
+                    self.link_data_point_sources(data_point, row[source_col], data_sources)
                 if comment_col and row.get(comment_col):
                     DataPointComment.objects.create(data_point=data_point, text=row[comment_col])
         print(f'Created {num_created} data points')

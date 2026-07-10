@@ -269,9 +269,15 @@ SOURCE_NAME_SEPARATOR = '; '
 
 def build_sources_metadata(
     df: pl.DataFrame, registry: dict[str, dict[str, str | None]] | None
-) -> dict[str, dict[str, str | None]] | None:
+) -> list[dict[str, str | None]] | None:
     """
     Build the DVC metadata['sources'] entry: registry fields for every Source name used in df.
+
+    A list of {name, authority, url, description} dicts, matching the shape of the existing
+    metadata['metrics'] list -- NOT a dict keyed by name. dvc_pandas writes the whole metadata
+    dict straight to YAML (ruamel), and a long human-readable source name used as a YAML
+    mapping *key* can get line-wrapped by the writer, producing YAML that's invalid to read
+    back ("could not find expected ':'"). Names are safe as plain *values*, just not as keys.
 
     A 'Source' cell may hold multiple names joined by SOURCE_NAME_SEPARATOR when a value was
     derived from more than one citation (see data/cork/trace_uuid_sources.py for an example);
@@ -285,7 +291,10 @@ def build_sources_metadata(
     if not names:
         return None
     registry = registry or {}
-    return {name: registry.get(name, {'authority': None, 'url': None, 'description': None}) for name in names}
+    return [
+        {'name': name, **registry.get(name, {'authority': None, 'url': None, 'description': None})}
+        for name in sorted(names)
+    ]
 
 
 def canonical_metric_column_id(raw: str) -> str:
@@ -508,7 +517,7 @@ def push_to_dvc(
     language: str,
     units: dict[str, str] | None = None,
     index_columns_override: list[str] | None = None,
-    sources: dict[str, dict[str, str | None]] | None = None,
+    sources: list[dict[str, str | None]] | None = None,
 ) -> None:
     """
     Push dataset to DVC repository.
