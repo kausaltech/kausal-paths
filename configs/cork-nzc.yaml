@@ -2,7 +2,7 @@ id: cork-nzc
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6fd5045487f145f7a5832cf2a09eca35c4e80e36
+  commit: 07c2dba5827e1dc290b0fdcf70161c1ca687ea1e
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -1408,8 +1408,8 @@ actions:
   input_dimensions: [project]
   output_dimensions: [project]
   input_datasets:
-  - id: sunnydale/cork/cork_actions
-    column: House retrofit
+  - id: cork/cork_actions
+    column: house_retrofit
     forecast_from: 2025
   output_nodes:
   - id: project_renovations
@@ -1431,8 +1431,8 @@ actions:
   input_dimensions: [project]
   output_dimensions: [project]
   input_datasets:
-  - id: sunnydale/cork/cork_actions
-    column: New social housing
+  - id: cork/cork_actions
+    column: new_social_housing
     forecast_from: 2025
   output_nodes:
   - id: building_stock
@@ -1465,11 +1465,11 @@ actions:
   input_dimensions: [project]
   output_dimensions: [project]
   input_datasets:
-  - id: sunnydale/cork/cork_actions
+  - id: cork/cork_actions
     forecast_from: 2025
     filters:
-    - column: House retrofit
-    - column: New social housing
+    - column: house_retrofit
+    - column: new_social_housing
     - dimension: project
       categories: [ballyhooly_road]
   output_nodes:
