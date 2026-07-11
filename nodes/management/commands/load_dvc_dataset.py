@@ -42,6 +42,11 @@ if TYPE_CHECKING:
 # join multiple citation names when a value was derived from more than one.
 SOURCE_NAME_SEPARATOR = '; '
 
+# Must match notebooks/upload_new_dataset.py's RESERVED_ROW_COLUMNS: columns that ride
+# through to DVC as literal per-row data (excluded from index_columns there) rather than
+# being dimensions or metrics -- read back here into DataSource/DataPointComment links.
+RESERVED_ROW_COLUMNS = {'source', 'comment', 'description'}
+
 
 def _translated_metadata(values: dict[str, str], default_language: str) -> TranslatedString:
     values = values.copy()
@@ -350,6 +355,8 @@ class Command(BaseCommand):
             elif col.lower() == YEAR_COLUMN.lower():
                 if col != YEAR_COLUMN:
                     df = df.rename({col: YEAR_COLUMN})
+            elif col.lower() in RESERVED_ROW_COLUMNS:
+                pass
             else:
                 print(df)
                 raise Exception(f'Unknown column {col}')
