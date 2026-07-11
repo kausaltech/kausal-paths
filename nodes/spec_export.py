@@ -892,6 +892,7 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
         _apply_instance_metadata_columns(ic, instance)
         ic.spec = instance_spec
         ic.config_source = 'database'
+        ic.invalidate_cache(save=False)
         ic.save()
 
         ic.sync_dimensions(update_existing=True, instance=instance)
