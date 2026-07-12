@@ -2,7 +2,7 @@ id: cork-nzc
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 07c2dba5827e1dc290b0fdcf70161c1ca687ea1e
+  commit: ba894171e35b51849584369962555e475246ef6b
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
