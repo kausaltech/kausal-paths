@@ -229,6 +229,74 @@ def extract_description(df: pl.DataFrame) -> str | None:
     return description
 
 
+# Columns that ride through to DVC as literal per-row values (like 'UUID') but must never
+# be treated as dimension/index columns: they're read back by load_dvc_dataset into
+# DataSource/DataPointComment links, not dimension categories.
+RESERVED_ROW_COLUMNS = {'source', 'comment', 'description'}
+
+
+def load_sources_registry(path: str) -> dict[str, dict[str, str | None]]:
+    """
+    Load a data source registry CSV: one row per unique source, keyed by 'Name'.
+
+    Columns 'Authority', 'URL' and 'Description' map directly onto DataSource fields.
+    Any other columns (e.g. Arup's 'Format', 'Licensing', 'RAG Rating') aren't modeled by
+    DataSource, so they're folded into the end of 'Description' as labeled text rather
+    than silently dropped.
+    """
+    df = pl.read_csv(path, infer_schema_length=0)
+    if 'Name' not in df.columns:
+        raise ValueError(f"Sources registry '{path}' must have a 'Name' column.")
+    extra_cols = [c for c in df.columns if c not in ('Name', 'Authority', 'URL', 'Description')]
+
+    registry: dict[str, dict[str, str | None]] = {}
+    for row in df.iter_rows(named=True):
+        name = row.get('Name')
+        if not name:
+            continue
+        description_parts = [row['Description']] if row.get('Description') else []
+        description_parts += [f'{col}: {row[col]}' for col in extra_cols if row.get(col)]
+        registry[name] = {
+            'authority': row.get('Authority') or None,
+            'url': row.get('URL') or None,
+            'description': '; '.join(description_parts) or None,
+        }
+    return registry
+
+
+SOURCE_NAME_SEPARATOR = '; '
+
+
+def build_sources_metadata(
+    df: pl.DataFrame, registry: dict[str, dict[str, str | None]] | None
+) -> list[dict[str, str | None]] | None:
+    """
+    Build the DVC metadata['sources'] entry: registry fields for every Source name used in df.
+
+    A list of {name, authority, url, description} dicts, matching the shape of the existing
+    metadata['metrics'] list -- NOT a dict keyed by name. dvc_pandas writes the whole metadata
+    dict straight to YAML (ruamel), and a long human-readable source name used as a YAML
+    mapping *key* can get line-wrapped by the writer, producing YAML that's invalid to read
+    back ("could not find expected ':'"). Names are safe as plain *values*, just not as keys.
+
+    A 'Source' cell may hold multiple names joined by SOURCE_NAME_SEPARATOR when a value was
+    derived from more than one citation (see data/cork/trace_uuid_sources.py for an example);
+    load_dvc_dataset splits on the same separator to create one DatasetSourceReference each.
+    """
+    source_col = next((c for c in df.columns if c.lower() == 'source'), None)
+    if source_col is None:
+        return None
+    cells = [c for c in df.select(source_col).unique().to_series().to_list() if c]
+    names = {n for cell in cells for n in cell.split(SOURCE_NAME_SEPARATOR) if n}
+    if not names:
+        return None
+    registry = registry or {}
+    return [
+        {'name': name, **registry.get(name, {'authority': None, 'url': None, 'description': None})}
+        for name in sorted(names)
+    ]
+
+
 def canonical_metric_column_id(raw: str) -> str:
     """Map a raw metric label to a valid Parquet / NodeMetric column identifier."""
     if raw == VALUE_COLUMN:
@@ -449,6 +517,7 @@ def push_to_dvc(
     language: str,
     units: dict[str, str] | None = None,
     index_columns_override: list[str] | None = None,
+    sources: list[dict[str, str | None]] | None = None,
 ) -> None:
     """
     Push dataset to DVC repository.
@@ -460,6 +529,10 @@ def push_to_dvc(
     (which defaults to all columns not in units). Use this for multi-sector NZC-style flat
     datasets (plain_csv_wide) to explicitly exclude value columns ('Value', 'Unit', 'UUID')
     from the index so that from_dvc_dataset yields the correct primary_keys.
+
+    ``sources`` is the data source registry (see build_sources_metadata) for any 'Source'
+    column present in df; it's written to metadata['sources'] and read back by
+    load_dvc_dataset to create DataSource/DatasetSourceReference rows.
     """
     if output_path.upper() in ['N', 'NONE']:
         return
@@ -471,11 +544,12 @@ def push_to_dvc(
 
     check_for_duplicates(df, metric_columns=list(units.keys()))
 
-    # Get index columns (excluding metric value columns)
+    # Get index columns (excluding metric value columns and reserved passthrough columns
+    # like 'Source'/'Comment', which are read back per-row rather than treated as dimensions)
     if index_columns_override is not None:
         index_columns = index_columns_override
     else:
-        index_columns = [col for col in df.columns if col not in units.keys()]
+        index_columns = [col for col in df.columns if col not in units.keys() and col.lower() not in RESERVED_ROW_COLUMNS]
 
     # Build metadata
     metadata: dict[str, Any] = {
@@ -486,6 +560,8 @@ def push_to_dvc(
         metadata['description'] = {language: description}
     if metrics:
         metadata['metrics'] = [node_metric_to_metadata_dict(m) for m in metrics]
+    if sources:
+        metadata['sources'] = sources
 
     # Persist index_columns in the .dvc file metadata so the round-trip is lossless.
     # dvc_pandas.Dataset.dvc_metadata does NOT include index_columns, so without this
@@ -536,7 +612,13 @@ def push_to_dvc(
 
 
 def process_dataset(
-    df: pl.DataFrame, dataset_name: str, outcsvpath: str, outdvcpath: str, language: str, context: Context | None
+    df: pl.DataFrame,
+    dataset_name: str,
+    outcsvpath: str,
+    outdvcpath: str,
+    language: str,
+    context: Context | None,
+    sources_registry: dict[str, dict[str, str | None]] | None = None,
 ) -> None:
     """Process a single dataset of data."""
     print(f'\n==== Processing dataset: {dataset_name} ====\n')
@@ -607,7 +689,8 @@ def process_dataset(
         # NOTE! Subfolder identifiers will break here, so be careful with them.
         identifier = to_snake_case(dataset_name.rsplit('/', maxsplit=1)[-1])
         dataset_dvc_path = f'{outdvcpath}/{identifier}'
-        push_to_dvc(df, dataset_dvc_path, dataset_name, description, metrics, language, units=units)
+        sources = build_sources_metadata(df, sources_registry)
+        push_to_dvc(df, dataset_dvc_path, dataset_name, description, metrics, language, units=units, sources=sources)
 
 
 def process_datasets(
@@ -617,6 +700,7 @@ def process_datasets(
     language: str,
     context: Context | None = None,
     dataset_name: str | None = None,
+    sources_registry: dict[str, dict[str, str | None]] | None = None,
 ) -> None:
     # Process all datasets
     # Process datasets
@@ -624,41 +708,46 @@ def process_datasets(
         if dataset_name == 'plain_csv':
             print('Uploading the csv file as is, but checking for units.')
             units, full_df = extract_units_from_row(full_df)
-            push_to_dvc(full_df, outdvcpath, '', None, [], language, units=units)
+            sources = build_sources_metadata(full_df, sources_registry)
+            push_to_dvc(full_df, outdvcpath, '', None, [], language, units=units, sources=sources)
         elif dataset_name == 'plain_csv_wide':
             print('Uploading csv with year columns pivoted to Year column.')
             units, full_df = extract_units_from_row(full_df)
             full_df = convert_to_standard_format(full_df)
             full_df = full_df.with_columns(pl.col('Value').cast(pl.Float64))
-            # Drop columns never used by DatasetNode.
-            flat_drop = [c for c in ['Is_action', 'Description'] if c in full_df.columns]
-            if flat_drop:
-                full_df = full_df.drop(flat_drop)
+            # 'Is_action' is never used by DatasetNode; drop it. 'Description'/'Source' are
+            # kept as literal per-row columns (like 'UUID') for load_dvc_dataset to read back
+            # into DataPointComment/DataSource links.
+            if 'Is_action' in full_df.columns:
+                full_df = full_df.drop('Is_action')
+            sources = build_sources_metadata(full_df, sources_registry)
             # Exclude value/unit/id columns from the index so from_dvc_dataset produces
             # primary_keys matching the nzc/defaults format (all dimension cols + Year).
             # Including 'Value' in primary_keys would corrupt PathsDataFrame when
             # implement_unit_col later tries to promote it to a metric column.
             non_index = {'Value', 'Unit', 'UUID'}
-            plain_index_cols = [c for c in full_df.columns if c not in non_index]
+            plain_index_cols = [
+                c for c in full_df.columns if c not in non_index and c.lower() not in RESERVED_ROW_COLUMNS
+            ]
             push_to_dvc(full_df, outdvcpath, '', None, [], language, units=units,
-                        index_columns_override=plain_index_cols)
+                        index_columns_override=plain_index_cols, sources=sources)
         else:
             d = 'Dataset'
             if d in full_df.columns:
                 # Process only the specified
                 print(f'Processing only dataset: {dataset_name}')
                 dataset_df = full_df.filter(pl.col(d) == dataset_name).drop(d)
-                process_dataset(dataset_df, dataset_name, outcsvpath, outdvcpath, language, context)
+                process_dataset(dataset_df, dataset_name, outcsvpath, outdvcpath, language, context, sources_registry)
             else:
                 print(f"No '{d}' column, treating the whole table as one dataset '{dataset_name}'.")
-                process_dataset(full_df, dataset_name, outcsvpath, outdvcpath, language, context)
+                process_dataset(full_df, dataset_name, outcsvpath, outdvcpath, language, context, sources_registry)
     else:
         # Process all datasets
         dataset_dfs = split_by_dataset(full_df)
         print(f'Found {len(dataset_dfs)} datasets to process')
 
         for ds_name, dataset_df in dataset_dfs.items():
-            process_dataset(dataset_df, ds_name, outcsvpath, outdvcpath, language, context)
+            process_dataset(dataset_df, ds_name, outcsvpath, outdvcpath, language, context, sources_registry)
 
 
 def main():
@@ -690,6 +779,17 @@ def main():
 
     parser.add_argument('--instance', '-n', required=False, default=None, help='Use dimensions and categories from an instance')
 
+    parser.add_argument(
+        '--sources-csv',
+        required=False,
+        default=None,
+        help=(
+            "Path to a data source registry CSV (columns: 'Name' plus any of "
+            "'Authority'/'URL'/'Description'; other columns are folded into Description). "
+            "Looked up by the values of a 'Source' column in the input CSV."
+        ),
+    )
+
     # Parse arguments
     args = parser.parse_args()
 
@@ -702,13 +802,14 @@ def main():
     dataset_name = args.dataset
     encoding = args.encoding
     instance = args.instance
+    sources_registry = load_sources_registry(args.sources_csv) if args.sources_csv else None
 
     context = get_context(instance) if instance is not None else None
 
     # Load data
     full_df = load_data(incsvpath, incsvsep, encoding)
 
-    process_datasets(full_df, outcsvpath, outdvcpath, language, context, dataset_name)
+    process_datasets(full_df, outcsvpath, outdvcpath, language, context, dataset_name, sources_registry)
 
 
 if __name__ == '__main__':

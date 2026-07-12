@@ -72,7 +72,7 @@ class GenericNode(SimpleNode):
         NumberParameter(local_id='no_correction_value', label=_('Value to use for no correction')),
     ]
     # Class-level default operations
-    DEFAULT_OPERATIONS = 'get_single_dataset,multiply,add,other,apply_multiplier'  # FIXME
+    DEFAULT_OPERATIONS = 'get_single_dataset,multiply,add,other,apply_multiplier,impute'  # FIXME
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -90,6 +90,7 @@ class GenericNode(SimpleNode):
             'do_correction': self._operation_do_correction,
             'get_single_dataset': self._operation_get_single_dataset,
             'goal_gap': self._operation_goal_gap,
+            'impute': self._operation_impute,
             'multiply': self._operation_multiply,
             'other': self._operation_other,
             'select_variant': self._operation_select_variant,
@@ -405,6 +406,21 @@ class GenericNode(SimpleNode):
         if self.quantity in STACKABLE_QUANTITIES:
             raise NodeError(self, f'Node cannot have stackable quantity but has {self.quantity}.')
         return self._dispatch_split_dims(df, 'add_from_incoming_dims')
+
+    def _operation_impute(self, df: PathsDataFrame | None) -> OperationReturn:
+        """
+        Overlay inputs tagged 'impute' onto the result, each taking priority over the node's own value.
+
+        A no-op when there are no 'impute'-tagged inputs, matching the convention in SimpleNode and
+        FormulaNode -- this lets 'impute' sit in DEFAULT_OPERATIONS for every GenericNode without
+        requiring nodes that don't use it to configure anything.
+        """
+        if df is None:
+            raise NodeError(self, 'Cannot operate because no PathsDataFrame is available.')
+        nodes = self.get_input_nodes(tag='impute')
+        if not nodes:
+            return df
+        return self.impute_nodes_pl(df, nodes)
 
     def drop_unnecessary_levels(self, df: PathsDataFrame, droplist: list[str]) -> PathsDataFrame:
         # Drop filter levels and empty dimension levels.
@@ -1967,7 +1983,7 @@ class ObservableNode(GenericNode):
 
     global_parameters = ['use_observations']
     explanation = _('Passes through model output by default; switches to observed city data in progress-tracking mode.')
-    DEFAULT_OPERATIONS = 'get_observable'
+    DEFAULT_OPERATIONS = 'get_observable,impute'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

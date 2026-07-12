@@ -838,6 +838,13 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
 
     promoted = 0
     for dataset_ports in ports_by_dataset.values():
+        # External placeholders (no real DB dataset content) are loaded via plain DVCDataset at
+        # runtime, which has no fallback to Dataset.spec.forecast_from (only DBDataset.from_def
+        # does). Promoting for these would clear the binding-level value with nothing left to
+        # read it back, silently dropping forecast_from and breaking Forecast-column synthesis.
+        if dataset_ports[0].dataset.is_external_placeholder:
+            continue
+
         years = {port.spec.forecast_from for port in dataset_ports if port.spec.forecast_from is not None}
         if len(years) != 1:
             continue
@@ -892,6 +899,7 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
         _apply_instance_metadata_columns(ic, instance)
         ic.spec = instance_spec
         ic.config_source = 'database'
+        ic.invalidate_cache(save=False)
         ic.save()
 
         ic.sync_dimensions(update_existing=True, instance=instance)

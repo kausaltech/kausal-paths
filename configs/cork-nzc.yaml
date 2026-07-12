@@ -2,7 +2,7 @@ id: cork-nzc
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c6baf98f5dee19257d1695b78ffbe835f42816a1
+  commit: ba894171e35b51849584369962555e475246ef6b
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -741,6 +741,657 @@ nodes:
   #   - id: iteration
   #     categories: [nzp]
 
+# -------------- Arup preprocessing: vehicle emission factor cluster --------------
+# Raw data points from the Deliverable 1 Calculation sheet, kept in their own dataset
+# `cork/preprocessing_data_from_arup` (see data/cork/preprocessing_data_from_arup.csv and
+# data/cork/calculation_sheet_inventory.md) rather than folded into the production `cork/*`
+# datasets. Each calculation step is its own node so the derivation and its sources stay visible.
+# None of these override any existing node -- they feed their result in via `output_nodes` tagged
+# `impute`, which overlays onto the target's own value for exactly the categories this data
+# covers, leaving everything else (and the target's own YAML) untouched.
+
+# All Arup preprocessing nodes below read from the same wide `cork/preprocessing_data_from_arup`
+# dataset, which carries five potential dimension columns (transport_mode, transport_pollutant,
+# energy_carrier, fuel_type, building_energy_class) even though any given metric column only uses
+# a subset of them. Every input_datasets entry below explicitly drops whichever of those five
+# columns it doesn't need (a bare `filters: - column: <dim>`, no value, drops that column -- see
+# nodes/datasets.py:_column_filter) so the node's actual dimensions match what it declares.
+
+- id: arup_freight_vehicle_count
+  name_en: Freight vehicle count (Arup preprocessing)
+  description_en: Cork's registered goods vehicle fleet split into light/heavy 
+    duty by the Department of Transport's national weight-class share. Feeds 
+    number_of_trucks_registered_within_city and is reused by 
+    arup_vehicle_km_by_mode below.
+  type: formula.FormulaNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: goods_vehicles_number
+    tags: [goods_vehicles]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: freight_weight_class_share
+    tags: [weight_class_share]
+    filters:
+    - column: energy_carrier
+    - column: fuel_type
+  params:
+    formula: goods_vehicles * weight_class_share
+  output_nodes:
+  - id: number_of_trucks_registered_within_city
+    tags: [impute]
+    to_dimensions:
+    - id: transport_mode
+
+- id: arup_vehicle_km_by_mode
+  name_en: Vehicle-km by mode (Arup preprocessing)
+  description_en: Annual vehicle-km per transport mode -- cars and buses come 
+    straight from Cork-specific data, light/heavy trucks are derived from 
+    arup_freight_vehicle_count times the national average km per goods vehicle 
+    (CSO). Used only as an input to arup_vehicle_emission_factor below, not 
+    imputed into the model directly.
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: vkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: arup_freight_vehicle_count
+    tags: [freight_vehicle_count]
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: vehicle_km
+    tags: [direct_vehicle_km]
+    filters:
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: avg_km_per_goods_vehicle
+    tags: [avg_km_per_goods_vehicle]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  params:
+    formula: direct_vehicle_km + freight_vehicle_count * 
+      avg_km_per_goods_vehicle
+
+- id: arup_vehicle_emission_factor
+  name_en: Vehicle emission factor (Arup preprocessing)
+  description_en: Cork's on-road transport emissions (KPMG BEI) split across 
+    modes by an Arup assumption (percentage breakdown, since only the total was 
+    available) for cars/light/heavy trucks, plus buses' own directly reported 
+    emissions (Bus Éireann), divided by vehicle-km per mode. Feeds 
+    baseline_year_fleet_emission_factor_pre.
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: arup_vehicle_km_by_mode
+    tags: [vehicle_km]
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: on_road_transport_emissions_ktco2e
+    tags: [total_emissions]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: vehicle_emissions_share
+    tags: [emission_shares]
+    filters:
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: bus_emissions_tco2e
+    tags: [bus_emissions]
+    filters:
+    - column: energy_carrier
+    - column: fuel_type
+  params:
+    formula: (total_emissions * emission_shares + bus_emissions) / vehicle_km
+  output_nodes:
+  - id: baseline_year_fleet_emission_factor_pre
+    tags: [impute]
+    to_dimensions:
+    - id: transport_pollutant
+      categories: [co2]
+    - id: transport_mode
+
+# -------------- Arup preprocessing: occupancy and passenger transport need --------------
+
+- id: arup_car_occupancy
+  name_en: Car occupancy (Arup preprocessing)
+  description_en: Census commuting counts -- car driver+passenger over car 
+    driver alone.
+  type: formula.FormulaNode
+  quantity: occupancy_factor
+  unit: passenger/vehicle
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: car_commuters_driver_and_passenger
+    tags: [driver_and_passenger]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: car_commuters_driver_only
+    tags: [driver_only]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  params:
+    formula: driver_and_passenger / driver_only
+  output_nodes:
+  - id: transport_efficiency
+    tags: [impute]
+    to_dimensions:
+    - id: transport_mode
+      categories: [cars]
+
+- id: arup_bus_occupancy
+  name_en: Bus occupancy (Arup preprocessing)
+  description_en: Bus passenger-km (NTA average trip distance x annual passenger
+    journeys) over annual bus vehicle-km (reusing the same vehicle_km column as 
+    the emission-factor cluster).
+  type: formula.FormulaNode
+  quantity: occupancy_factor
+  unit: passenger/vehicle
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: avg_trip_distance_km
+    tags: [avg_trip_distance]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: bus_annual_passenger_journeys
+    tags: [bus_annual_passenger_journeys]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: vehicle_km
+    tags: [bus_vehicle_km]
+    filters:
+    - column: transport_mode
+      value: buses
+    - column: energy_carrier
+    - column: fuel_type
+  params:
+    formula: (avg_trip_distance * bus_annual_passenger_journeys) / 
+      bus_vehicle_km
+  output_nodes:
+  - id: transport_efficiency
+    tags: [impute]
+    to_dimensions:
+    - id: transport_mode
+      categories: [buses]
+
+- id: arup_passenger_transport_need_car
+  name_en: Passenger transport need, cars (Arup preprocessing)
+  description_en: Car vehicle-km (from the emission-factor cluster) times car 
+    occupancy.
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_nodes:
+  - id: arup_car_occupancy
+    tags: [car_occupancy]
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: vehicle_km
+    tags: [car_vehicle_km]
+    filters:
+    - column: transport_mode
+      value: cars
+    - column: energy_carrier
+    - column: fuel_type
+  params:
+    formula: car_vehicle_km * car_occupancy
+  output_nodes:
+  - id: passenger_kilometres
+    tags: [impute]
+    to_dimensions:
+    - id: transport_mode
+      categories: [cars]
+
+- id: arup_passenger_transport_need_bus
+  name_en: Passenger transport need, buses (Arup preprocessing)
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: avg_trip_distance_km
+    tags: [avg_trip_distance]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: bus_annual_passenger_journeys
+    tags: [bus_annual_passenger_journeys]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  params:
+    formula: avg_trip_distance * bus_annual_passenger_journeys
+  output_nodes:
+  - id: passenger_kilometres
+    tags: [impute]
+    to_dimensions:
+    - id: transport_mode
+      categories: [buses]
+
+- id: arup_passenger_transport_need_rail
+  name_en: Passenger transport need, rail (Arup preprocessing)
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: avg_trip_distance_km
+    tags: [avg_trip_distance]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: cork_kent_passenger_journeys
+    tags: [cork_kent_passenger_journeys]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  params:
+    formula: avg_trip_distance * cork_kent_passenger_journeys
+  output_nodes:
+  - id: passenger_kilometres
+    tags: [impute]
+    to_dimensions:
+    - id: transport_mode
+      categories: [trains]
+
+# -------------- Arup preprocessing: road freight demand --------------
+
+- id: arup_road_freight_demand
+  name_en: Road freight transport demand (Arup preprocessing)
+  description_en: National freight demand (CSO) split by weight class (Dept. of 
+    Transport share, reused from the freight fleet count above) and scaled down 
+    to Cork by its share of the national goods vehicle fleet.
+  type: formula.FormulaNode
+  quantity: freight_mileage
+  unit: Mtkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: national_freight_demand_total
+    tags: [national_demand]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: freight_weight_class_share
+    tags: [weight_class_share]
+    filters:
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: cork_share_of_national_fleet
+    tags: [cork_share]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  params:
+    formula: national_demand * weight_class_share * cork_share
+  output_nodes:
+  - id: freight_transport_need
+    tags: [impute]
+    to_dimensions:
+    - id: transport_mode
+
+# -------------- Arup preprocessing: buildings & heating --------------
+
+- id: arup_heating_carrier_share_local
+  name_en: Local heating carrier share (Arup preprocessing)
+  description_en: SEAI national local-heating demand by carrier 
+    (fossil/electricity/biobased) over the national local-heating total. The 
+    sheet only computes this split for local heating, so district heating's 
+    carrier share is left on the model's own default.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, fuel_type]
+  output_dimensions: [energy_carrier, fuel_type]
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: local_heating_by_carrier_gwh
+    tags: [carrier_gwh]
+    filters:
+    - column: transport_mode
+  - id: cork/preprocessing_data_from_arup
+    column: total_local_heating_gwh
+    tags: [total_gwh]
+    filters:
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  params:
+    formula: carrier_gwh / total_gwh
+  output_nodes:
+  - id: heating_fuel_share_local
+    tags: [impute]
+    to_dimensions:
+    - id: heating_type
+      categories: [local_heating]
+    - id: energy_carrier
+    - id: fuel_type
+
+- id: arup_total_heating_demand
+  name_en: Total heating demand (Arup preprocessing)
+  description_en: Cork's residential/commercial/industrial/public buildings' 
+    total energy use, scaled by SEAI's national heating-demand share to isolate 
+    the heating portion.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: GWh/a
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: residential_buildings_energy_gwh
+    tags: [residential]
+    filters: &drop_all_dims
+    - column: transport_mode
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: commercial_buildings_energy_gwh
+    tags: [commercial]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: industrial_buildings_energy_gwh
+    tags: [industrial]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: public_buildings_natgas_gwh
+    tags: [public_gas]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: public_buildings_electricity_gwh
+    tags: [public_elec]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: share_of_heating_demand_national
+    tags: [heating_share]
+    filters: *drop_all_dims
+  params:
+    formula: (residential + commercial + industrial + public_gas + public_elec) 
+      * heating_share
+  output_nodes:
+  - id: building_heat_energy_use_observed
+    tags: [impute]
+
+# Note: "Total Floor Area" (Calculation!F263, ~6.19M m2) does not have a clean impute target.
+# existing_building_stock is dimensioned by building_energy_class (a real renovation-state
+# breakdown with several active categories), and our aggregate total can't be split across those
+# categories without data we don't have -- imputing it into one category would silently misstate
+# the rest. Left out; needs either a per-energy-class breakdown from Cork or a use_as_totals-style
+# redistribution (which isn't in GenericNode's default operations).
+
+# -------------- Arup preprocessing: electricity & prices --------------
+
+- id: arup_total_electricity_consumption
+  name_en: Total electricity consumption (Arup preprocessing)
+  description_en: Sum of Cork's 
+    residential/commercial/industrial/public/transport-sector electricity 
+    demand.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: GWh/a
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: residential_electricity_gwh
+    tags: [residential]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: commercial_electricity_gwh
+    tags: [commercial]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: industrial_electricity_gwh
+    tags: [industrial]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: public_electricity_gwh
+    tags: [public]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: transport_sector_electricity_gwh
+    tags: [transport]
+    filters: *drop_all_dims
+  params:
+    formula: residential + commercial + industrial + public + transport
+  output_nodes:
+  - id: total_electricity_consumption
+    tags: [impute]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: arup_new_building_shares
+  name_en: Share of new buildings by standard, baseline (Arup preprocessing)
+  description_en: CSO new-building BER counts today, split into minimum-standard
+    and better-than-minimum shares. The target-year figure (Calculation!F1034, 
+    minimum standard only) is left out for now -- blending a baseline and a 
+    target-year fact for the same category into one formula needs more care than
+    a straight ratio.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: buildings_built_minimum_standard
+    tags: [minimum_standard_count]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: buildings_built_all_ber
+    tags: [all_ber_count]
+    filters: *drop_all_dims
+  params:
+    formula: minimum_standard_count / all_ber_count
+  output_nodes:
+  - id: new_building_shares
+    tags: [impute]
+    to_dimensions:
+    - id: building_energy_class
+      categories: [new_standard]
+
+- id: arup_new_building_shares_top_performance
+  name_en: Share of new buildings, top performance, baseline (Arup 
+    preprocessing)
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: buildings_built_better_than_minimum
+    tags: [better_than_minimum_count]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: buildings_built_all_ber
+    tags: [all_ber_count]
+    filters: *drop_all_dims
+  params:
+    formula: better_than_minimum_count / all_ber_count
+  output_nodes:
+  - id: new_building_shares
+    tags: [impute]
+    to_dimensions:
+    - id: building_energy_class
+      categories: [new_top_performance]
+
+- id: arup_consumer_heating_price
+  name_en: Consumer heating unit price (Arup preprocessing)
+  description_en: Blended household heating fuel price, averaged across 
+    oil/gas/electricity/wood (SEAI), matching what consumer_heating_unit_price 
+    already expects (a single blended price).
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: avg_oil_price_c_per_kwh
+    tags: [oil]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: avg_gas_price_c_per_kwh
+    tags: [gas]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: avg_heating_electricity_price_c_per_kwh
+    tags: [electricity]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: avg_wood_price_c_per_kwh
+    tags: [wood]
+    filters: *drop_all_dims
+  params:
+    formula: (oil + gas + electricity + wood) / 4
+  output_nodes:
+  - id: consumer_heating_unit_price
+    tags: [impute]
+
+- id: arup_consumer_electricity_price
+  name_en: Consumer electricity unit price (Arup preprocessing)
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/kWh
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: electricity_price_s1_c_per_kwh
+    tags: [s1]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: electricity_price_s2_c_per_kwh
+    tags: [s2]
+    filters: *drop_all_dims
+  params:
+    formula: (s1 + s2) / 2
+  output_nodes:
+  - id: consumer_electricity_unit_price
+    tags: [impute]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+# -------------- Arup preprocessing: modal share, heating technology, renovation --------------
+
+- id: arup_modal_share_change_walk_cycle
+  name_en: Walking/cycling modal share change, target year (Arup preprocessing)
+  description_en: Cork's Transport and Mobility Plan's reference share change by
+    2040, scaled down to the model's 2030 target year by straight-line 
+    interpolation between the 2011 baseline and 2040 reference years. Covers 
+    walking, cycling and public_transport (all three rows use the identical 
+    formula in the sheet); bus/rail's own split of the public_transport figure 
+    (Calculation!F943/F947) is left out for now.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: modal_share_existing
+    tags: [existing]
+    filters:
+    - column: energy_carrier
+    - column: fuel_type
+  - id: cork/preprocessing_data_from_arup
+    column: modal_share_target_ref
+    tags: [target_ref]
+    filters:
+    - column: energy_carrier
+    - column: fuel_type
+  params:
+    formula: (target_ref - existing) * ((2030 - 2011) / (2040 - 2011))
+  output_nodes:
+  - id: relative_transport_mode_switches
+    tags: [impute]
+
+- id: arup_district_heating_share_target
+  name_en: District heating share, target year (Arup preprocessing)
+  description_en: DECC's district-heating target for Cork over SEAI's national 
+    local-heating total (Calculation!F1043) -- reused as the denominator, same 
+    figure as the local heating carrier share above.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: district_heating_target_twh
+    tags: [district_target]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: total_local_heating_gwh
+    tags: [total_local_heating]
+    filters: *drop_all_dims
+  params:
+    formula: district_target / total_local_heating
+  output_nodes:
+  - id: building_heating_type_share
+    tags: [impute]
+    to_dimensions:
+    - id: heating_type
+      categories: [district_heating]
+
+- id: arup_renovation_rate_baseline
+  name_en: Old building renovation rate, baseline (Arup preprocessing)
+  description_en: Cork City Council's retrofit grant programme (units/year) over
+    the total residential building stock. Scoped to old_no_renovations, matching
+    how old_building_renovation_rate_observed is consumed downstream 
+    (renovated_building_stock reads it against the old_no_renovations category 
+    of existing_building_stock). The target-year rate (Calculation!F1029, a 
+    national ~15%/year decarbonisation-scenario assumption) is left out -- worth
+    confirming with Cork given it implies an ~85x jump from baseline.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%/a'
+  input_datasets:
+  - id: cork/preprocessing_data_from_arup
+    column: housing_units_retrofitted_per_year
+    tags: [retrofits_per_year]
+    filters: *drop_all_dims
+  - id: cork/preprocessing_data_from_arup
+    column: total_residential_buildings_units
+    tags: [total_units]
+    filters: *drop_all_dims
+  params:
+    formula: retrofits_per_year / total_units
+  output_nodes:
+  - id: old_building_renovation_rate_observed
+    tags: [impute]
+    to_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations]
+
 actions:
 
 # --------------- Project-level actions ----------
@@ -757,8 +1408,8 @@ actions:
   input_dimensions: [project]
   output_dimensions: [project]
   input_datasets:
-  - id: sunnydale/cork/cork_actions
-    column: House retrofit
+  - id: cork/cork_actions
+    column: house_retrofit
     forecast_from: 2025
   output_nodes:
   - id: project_renovations
@@ -780,8 +1431,8 @@ actions:
   input_dimensions: [project]
   output_dimensions: [project]
   input_datasets:
-  - id: sunnydale/cork/cork_actions
-    column: New social housing
+  - id: cork/cork_actions
+    column: new_social_housing
     forecast_from: 2025
   output_nodes:
   - id: building_stock
@@ -814,11 +1465,11 @@ actions:
   input_dimensions: [project]
   output_dimensions: [project]
   input_datasets:
-  - id: sunnydale/cork/cork_actions
+  - id: cork/cork_actions
     forecast_from: 2025
     filters:
-    - column: House retrofit
-    - column: New social housing
+    - column: house_retrofit
+    - column: new_social_housing
     - dimension: project
       categories: [ballyhooly_road]
   output_nodes:

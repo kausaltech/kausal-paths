@@ -34,6 +34,7 @@ TAG_TO_BASKET = {
     'add_from_incoming_dims': 'add_from_incoming_dims',
     'add_to_existing_dims': 'add_to_existing_dims',
     'base': 'other',
+    'impute': 'impute',
     # These operations only handle existing df and do not take new inputs:
     # apply_multipliet, do_correction, drop_nand, drop_infs, extend_values, extrapolate
     # [concat_datasets: generalize to use the port theory]
@@ -55,6 +56,7 @@ BASKET_DISPLAY_NAMES = {  # FIXME We may not need explicit basket names.
     'add_from_incoming_dims': _('addition from incoming dimensions'),
     'add_to_existing_dims': _('addition to existing dimensions'),
     'coalesce': _('coalesce'),
+    'impute': _('imputation'),
     'multiply': _('multiplication'),
     'other': _('other operations'),
     'skip_dim_test': _('skip dimension test'),
@@ -71,6 +73,7 @@ BASKET_OPERATION_LABEL = {
     'add_from_incoming_dims': ' + ',
     'add_to_existing_dims': ' + ',
     'coalesce': ', ',
+    'impute': ', ',
     'multiply': ' * ',
 }
 
@@ -109,6 +112,10 @@ TAG_DESCRIPTIONS = {
     'goal_gap': _("Compute gap = actual - goal from the single input node's output and goals."),
     'historical': _('The node is used as the historical starting point.'),
     'ignore_content': _('Show edge on graphs but ignore upstream content.'),
+    'impute': _(
+        'Overlay this input onto the result, outer-joined on dimensions: the input value replaces the '
+        "result's own value wherever the input has one, and the result's own value is used elsewhere."
+    ),
     'incoming': _('This is used for the incoming stock.'),
     'inserting': _('This is the rate of new stock coming in.'),
     'inventory_only': _('Truncate the forecast values.'),

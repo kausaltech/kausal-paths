@@ -13,11 +13,14 @@ from rich import print
 
 from kausal_common.datasets.models import (
     DataPoint,
+    DataPointComment,
     Dataset,
     DatasetMetric,
     DatasetSchema,
     DatasetSchemaDimension,
     DatasetSchemaScope,
+    DatasetSourceReference,
+    DataSource,
     Dimension,
     DimensionCategory,
     DimensionScope,
@@ -34,6 +37,15 @@ if TYPE_CHECKING:
     from nodes.context import Context
     from nodes.dimensions import Dimension as DimensionSpec, DimensionCategory as DimensionCategorySpec
     from nodes.units import Unit
+
+# Must match notebooks/upload_new_dataset.py's SOURCE_NAME_SEPARATOR: a 'Source' cell may
+# join multiple citation names when a value was derived from more than one.
+SOURCE_NAME_SEPARATOR = '; '
+
+# Must match notebooks/upload_new_dataset.py's RESERVED_ROW_COLUMNS: columns that ride
+# through to DVC as literal per-row data (excluded from index_columns there) rather than
+# being dimensions or metrics -- read back here into DataSource/DataPointComment links.
+RESERVED_ROW_COLUMNS = {'source', 'comment', 'description'}
 
 
 def _translated_metadata(values: dict[str, str], default_language: str) -> TranslatedString:
@@ -177,6 +189,7 @@ class Command(BaseCommand):
                 instance_config=instance_config,
                 default_language=ctx.instance.default_language,
                 name_i18n=dvc_metadata['name'],
+                description_i18n=dvc_metadata.get('description'),
             )
         if dataset is None:
             dataset = Dataset.objects.create(**get_kwargs, schema=schema, external_ref=make_external_dataset_ref(ctx, ds_id))
@@ -212,10 +225,21 @@ class Command(BaseCommand):
         for col, dt in df.schema.items():
             if dt == pl.Categorical:
                 df = df.with_columns(pl.col(col).cast(pl.Utf8))
-        self.create_data_points(instance_config, df, dataset, metrics, column_dimensions=column_dimensions)
+        self.create_data_points(
+            instance_config,
+            df,
+            dataset,
+            metrics,
+            column_dimensions=column_dimensions,
+            sources_meta=dvc_metadata.get('sources'),
+        )
 
     def create_dataset_schema(
-        self, instance_config: InstanceConfig, default_language: str, name_i18n: dict[str, str] | None
+        self,
+        instance_config: InstanceConfig,
+        default_language: str,
+        name_i18n: dict[str, str] | None,
+        description_i18n: dict[str, str] | None = None,
     ) -> DatasetSchema:
         schema = DatasetSchema(
             time_resolution=DatasetSchema.TimeResolution.YEARLY,  # TODO: allow other granularities
@@ -224,6 +248,8 @@ class Command(BaseCommand):
         if name_i18n is not None:
             name = _translated_metadata(name_i18n, default_language)
             name.set_modeltrans_field(schema, 'name', default_language)
+        if description_i18n:
+            schema.description = description_i18n.get(default_language) or next(iter(description_i18n.values()))
         schema.save()
         print(f"Created dataset schema '{schema}'")
         print(f"Setting scope of schema '{schema}' to '{instance_config}'")
@@ -234,6 +260,39 @@ class Command(BaseCommand):
         )
         return schema
 
+    def get_or_create_data_sources(
+        self, instance_config: InstanceConfig, sources_meta: list[dict[str, str | None]] | None
+    ) -> dict[str, DataSource]:
+        """Resolve a dvc_metadata['sources'] list into DataSource rows, keyed by name."""
+        if not sources_meta:
+            return {}
+        scope_content_type = ContentType.objects.get_for_model(instance_config)
+        result: dict[str, DataSource] = {}
+        for fields in sources_meta:
+            name = fields['name']
+            assert name is not None
+            source, _ = DataSource.objects.get_or_create(
+                scope_content_type=scope_content_type,
+                scope_id=instance_config.pk,
+                name=name,
+                defaults={
+                    'authority': fields.get('authority'),
+                    'url': fields.get('url'),
+                    'description': fields.get('description'),
+                },
+            )
+            result[name] = source
+        return result
+
+    def link_data_point_sources(self, data_point: DataPoint, source_cell: str, data_sources: dict[str, DataSource]) -> None:
+        """Link data_point to each DataSource named in source_cell (SOURCE_NAME_SEPARATOR-joined for >1 citation)."""
+        for name in source_cell.split(SOURCE_NAME_SEPARATOR):
+            data_source = data_sources.get(name)
+            if data_source is not None:
+                DatasetSourceReference.objects.create(data_point=data_point, data_source=data_source)
+            else:
+                print(f"Source '{name}' not found in dvc_metadata['sources']; skipping.")
+
     def create_data_points(
         self,
         instance_config: InstanceConfig,
@@ -242,13 +301,19 @@ class Command(BaseCommand):
         metrics: dict[str, DatasetMetric],
         *,
         column_dimensions: dict[str, str] | None = None,
+        sources_meta: list[dict[str, str | None]] | None = None,
     ):
         column_dimensions = column_dimensions or {}
+        data_sources = self.get_or_create_data_sources(instance_config, sources_meta)
         meta = df.get_meta()
         table = JSONDataset.serialize_df(df)
         # We might not need to serialize `df` to create the data points, but I didn't check what the manipulations
         # of `df` above and the serialization do, so I'll take the serialization like the old version of
         # this management command did.
+        # 'Source'/'Comment' (or, for plain_csv_wide, 'Description') are reserved per-row columns:
+        # not dimensions, read back here into DataSource/DataPointComment links.
+        source_col = next((c for c in df.columns if c.lower() == 'source'), None)
+        comment_col = next((c for c in df.columns if c.lower() in ('comment', 'description')), None)
         num_created = 0
         for row in table['data']:
             year_val = row['Year']
@@ -274,6 +339,10 @@ class Command(BaseCommand):
                             print(f"Dimension category '{dim_cat_identifier}' not found. Did you run --update-instance?")
                             raise
                         data_point.dimension_categories.add(cat)
+                if source_col and row.get(source_col):
+                    self.link_data_point_sources(data_point, row[source_col], data_sources)
+                if comment_col and row.get(comment_col):
+                    DataPointComment.objects.create(data_point=data_point, text=row[comment_col])
         print(f'Created {num_created} data points')
 
     def rename_value_columns(self, df: ppl.PathsDataFrame):
@@ -286,6 +355,8 @@ class Command(BaseCommand):
             elif col.lower() == YEAR_COLUMN.lower():
                 if col != YEAR_COLUMN:
                     df = df.rename({col: YEAR_COLUMN})
+            elif col.lower() in RESERVED_ROW_COLUMNS:
+                pass
             else:
                 print(df)
                 raise Exception(f'Unknown column {col}')

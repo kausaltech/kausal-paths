@@ -498,6 +498,7 @@ class InstanceConfig(
             default=get_default_language,
         ),
         default=list,
+        blank=True,
     )
 
     config_source = models.CharField(

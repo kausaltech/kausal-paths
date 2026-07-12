@@ -1697,6 +1697,39 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
     assert sorted((port.spec.forecast_from or 0) for port in DatasetPort.objects.filter(dataset=conflict_dataset)) == [2024, 2025]
 
 
+def test_dataset_port_forecast_from_not_promoted_for_external_placeholder(db_instance_config: InstanceConfig):
+    """
+    Promotion must not clear the binding-level forecast_from for external placeholders.
+
+    External placeholders load via plain DVCDataset at runtime, which has no fallback to
+    Dataset.spec.forecast_from (only DBDataset.from_def does). Promoting for these would clear
+    the binding-level value with nothing left to read it back.
+    """
+    from nodes.defs.node_defs import DatasetPortSpec
+    from nodes.models import DatasetPort
+    from nodes.spec_export import _promote_dataset_forecast_defaults
+
+    placeholder_dataset = DatasetFactory.create(identifier='placeholder', scope=db_instance_config, is_external_placeholder=True)
+    placeholder_metric = DatasetMetricFactory.create(schema=placeholder_dataset.schema, name='value', label='Value', unit='kt/a')
+    node_a = NodeConfigFactory.create(instance=db_instance_config, identifier='node_a', spec=_make_node_spec())
+
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=node_a,
+        port_id=_port_uuid('input_a'),
+        dataset=placeholder_dataset,
+        metric=placeholder_metric,
+        spec=DatasetPortSpec(forecast_from=2025),
+    )
+
+    assert _promote_dataset_forecast_defaults(db_instance_config) == 0
+
+    placeholder_dataset.refresh_from_db()
+    assert placeholder_dataset.spec == {}
+    port = DatasetPort.objects.get(dataset=placeholder_dataset)
+    assert port.spec.forecast_from == 2025
+
+
 def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_instance_config: InstanceConfig):
     from paths.tests.graphql import PathsTestClient
 

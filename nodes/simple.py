@@ -199,7 +199,10 @@ class SimpleNode(Node):
 
 class AdditiveNode(SimpleNode, PipelineCompatibleNode):
     explanation = _("""This is an Additive Node. It performs a simple addition of inputs.
-Missing values are assumed to be zero.""")
+Missing values are assumed to be zero.
+
+Input nodes tagged 'impute' are excluded from the addition; their values overlay the result
+afterwards instead, replacing it wherever the tagged node has a value and leaving the rest untouched.""")
     export_additive_input_ports_as_multi: ClassVar[bool] = False
     additive_multi_input_excluded_tags: ClassVar[frozenset[str]] = frozenset({'non_additive'})
     allowed_parameters = [
@@ -352,7 +355,7 @@ Missing values are assumed to be zero.""")
         meta = ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN])
         return ppl.to_ppdf(pl.DataFrame(schema=schema), meta=meta)
 
-    def compute(self) -> ppl.PathsDataFrame:
+    def compute(self) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
         idf = self.get_input_dataset_pl(required=False)
         metric = self.get_parameter_value_str('metric', required=False)
         assert self.unit is not None
@@ -360,7 +363,8 @@ Missing values are assumed to be zero.""")
             idf = self._process_input_dataset_df(idf, metric)
 
         na_nodes = self.get_input_nodes(tag='non_additive')
-        input_nodes = [node for node in self.input_nodes if node not in na_nodes]
+        impute_nodes = self.get_input_nodes(tag='impute')
+        input_nodes = [node for node in self.input_nodes if node not in na_nodes and node not in impute_nodes]
 
         if self.get_parameter_value('use_input_node_unit_when_adding', required=False) and self.input_nodes:
             unit = self.input_nodes[0].unit
@@ -394,6 +398,9 @@ Missing values are assumed to be zero.""")
         df = self.scale_by_reference_category(df)
         df = self.scale_by_reference_year(df)
         df = self.get_shares(df)
+
+        if impute_nodes:
+            df = self.impute_nodes_pl(df, impute_nodes)
 
         return df
 
@@ -465,6 +472,9 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
     explanation = _("""This is a Multiplicative Node. It multiplies nodes together with potentially adding other input nodes.
 
     Multiplication and addition is determined based on the input node units.
+
+    Input nodes tagged 'impute' take no part in the multiplication or addition; their values
+    overlay the result afterwards, replacing it wherever the tagged node has a value.
     """)
 
     allowed_parameters = [
@@ -598,12 +608,15 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
-    def _compute(self, input_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
+    def _compute(self, input_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912, PLR0915
         additive_nodes: list[Node] = []
         operation_nodes: list[Node] = []
         assert self.unit is not None
         non_additive_nodes = self.get_input_nodes(tag='non_additive')
+        impute_nodes = self.get_input_nodes(tag='impute')
         for node in self.input_nodes:
+            if node in impute_nodes:
+                continue
             if node.unit is None:
                 raise NodeError(self, 'Input node %s does not have a unit' % str(node))
             if node in non_additive_nodes:
@@ -654,6 +667,8 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         if replace_output:
             df = self.replace_output_using_input_dataset_pl(df)
         df = self.replace_nans(df)
+        if impute_nodes:
+            df = self.impute_nodes_pl(df, impute_nodes)
         if self.debug:
             print('%s: Output:' % str(self))
             self.print(df)

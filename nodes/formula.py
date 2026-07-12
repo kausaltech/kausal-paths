@@ -45,7 +45,11 @@ type BinomRightDF = Callable[[Quantity, PDF], PDF]
 
 
 class FormulaNode(Node):
-    explanation = _('This is a Formula Node. It uses a specified formula to calculate the output.')
+    explanation = _(
+        'This is a Formula Node. It uses a specified formula to calculate the output. '
+        "Input nodes tagged 'impute' are not part of the formula; their values overlay the result "
+        'afterwards, replacing it wherever the tagged node has a value.'
+    )
     allowed_parameters = [
         StringParameter(local_id='formula'),
         BoolParameter(local_id='extend_last_historical_value'),
@@ -586,14 +590,18 @@ class FormulaNode(Node):
         if implicit_add:
             df = self.add_nodes_pl(df, implicit_add)
 
-        # Unused nodes (not in formula, not ignore_content) are also added for backward compatibility
+        # Unused nodes (not in formula, not ignore_content, not impute) are also added for backward compatibility
         all_nodes = set(varss.nodes.values())
         used_nodes = {varss.nodes[name] for name in used_node_names if name in varss.nodes}
         unused_nodes = list(all_nodes - used_nodes)
         for edge in self.edges:
             node = edge.input_node
             if node in unused_nodes and (
-                'ignore_content' in edge.tags or 'ignore_content' in node.tags or node.quantity == 'argument'
+                'ignore_content' in edge.tags
+                or 'ignore_content' in node.tags
+                or 'impute' in edge.tags
+                or 'impute' in node.tags
+                or node.quantity == 'argument'
             ):
                 unused_nodes.remove(node)
 
@@ -603,6 +611,11 @@ class FormulaNode(Node):
             except NodeError as e:
                 err = _('Input nodes that are not used in the formula are used for addition in the end. Error:')
                 raise NodeError(self, f'{err} {e}') from e
+
+        # Implicit impute: inputs tagged impute replace/fill values in the result, applied last
+        impute_nodes = self.get_input_nodes(tag='impute')
+        if impute_nodes:
+            df = self.impute_nodes_pl(df, impute_nodes)
         return df
 
 
