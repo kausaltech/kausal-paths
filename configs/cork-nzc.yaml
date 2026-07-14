@@ -658,6 +658,8 @@ nodes:
       flatten: true
   - id: freight_transport_emissions
     from_dimensions:
+    - id: scope
+      flatten: true
     - id: transport_mode
       categories: [light_trucks]
       flatten: true
