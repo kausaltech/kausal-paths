@@ -8,7 +8,7 @@ dataset_repo:
 name_de: Reutlingen THG-Bilanzierungstool
 name_en: Reutlingen GHG-Inventory Tool
 owner: Stadt Reutlingen
-theme_identifier: default
+theme_identifier: de-reutlingen #default
 target_year: 2040
 model_end_year: 2050
 reference_year: 1990
@@ -116,6 +116,11 @@ action_groups:
   name_en: Combined heat and power
   name_de: Kombination aus Wärme und Strom
   color: '#007C78'
+
+- id: klimaschutzprogramm
+  name_en: Climate Protection Program
+  name_de: Klimaschutzprogramm
+  color: '#1c7a4d'
 
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -353,6 +358,7 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
+  group: klimaschutzprogramm
   historical_values: [[2022, 0.0]]
   forecast_values: [[2040, -216.03066074753758], [2050, -216.03066074753758]]
   input_dataset_processors: [LinearInterpolation]
@@ -370,6 +376,7 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
+  group: klimaschutzprogramm
   historical_values: [[2022, 0.0]]
   forecast_values: [[2040, -128.871991899971], [2050, -128.871991899971]]
   input_dataset_processors: [LinearInterpolation]
@@ -387,6 +394,7 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
+  group: klimaschutzprogramm
   historical_values: [[2022, 0.0]]
   forecast_values: [[2040, -183.17582790078492], [2050, -183.17582790078492]]
   input_dataset_processors: [LinearInterpolation]
@@ -404,6 +412,7 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
+  group: klimaschutzprogramm
   historical_values: [[2022, 0.0]]
   forecast_values: [[2040, -163.28185090799545], [2050, -163.28185090799545]]
   input_dataset_processors: [LinearInterpolation]
@@ -421,6 +430,7 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
+  group: klimaschutzprogramm
   historical_values: [[2022, 0.0]]
   forecast_values: [[2040, -15.58022490581885], [2050, -15.58022490581885]]
   input_dataset_processors: [LinearInterpolation]
