@@ -11,7 +11,7 @@ owner: Stadt Reutlingen
 theme_identifier: default
 target_year: 2040
 model_end_year: 2050
-reference_year: 2010
+reference_year: 1990
 minimum_historical_year: 1990
 maximum_historical_year: 2022
 emission_unit: kt_co2e/a
