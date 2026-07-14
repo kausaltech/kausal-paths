@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a8e9584d8a313025877793f4ceabac8fcf865ace
+  commit: 697e07ab8027b1a22e27ed8292b0330391554ce4
   dvc_remote: kausal-s3
 name_de: Reutlingen THG-Bilanzierungstool
 name_en: Reutlingen GHG-Inventory Tool
@@ -13,7 +13,7 @@ target_year: 2040
 model_end_year: 2050
 reference_year: 2010
 minimum_historical_year: 1990
-maximum_historical_year: 2025
+maximum_historical_year: 2022
 emission_unit: kt_co2e/a
 features:
   baseline_visible_in_graphs: true
@@ -123,6 +123,19 @@ action_groups:
 # in order how they appear on homepage
 
 nodes:
+- id: historical_sector_emissions
+  name_de: Historische Emissionen nach Sektor
+  name_en: Historical emissions by sector
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: reutlingen/historical_emissions_by_sector
+    column: Value
+    forecast_from: 2023
+
 - id: private_household_emissions
   name_de: Private Haushalte Emissionen
   name_en: Private household emissions
@@ -134,10 +147,14 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: stationary_emissions
+  - id: historical_sector_emissions
     from_dimensions:
     - id: sector
       categories: [private_households]
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+      categories: [not_defined]
   output_nodes:
   - id: net_emissions
   goals:
@@ -163,10 +180,14 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: stationary_emissions
+  - id: historical_sector_emissions
     from_dimensions:
     - id: sector
       categories: [commerce_trade_services]
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+      categories: [not_defined]
   output_nodes:
   - id: net_emissions
   goals:
@@ -192,10 +213,14 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: stationary_emissions
+  - id: historical_sector_emissions
     from_dimensions:
     - id: sector
       categories: [industry]
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+      categories: [not_defined]
   output_nodes:
   - id: net_emissions
   goals:
@@ -229,15 +254,15 @@ nodes:
   - id: transport_emission_factors
     to_dimensions:
     - id: energy_carrier
-  output_nodes:
-  - id: transport_emissions_helper
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: sector
-      categories: [transport]
+#  output_nodes:    # disconnected: replaced by historical_sector_emissions for now
+#  - id: transport_emissions_helper
+#    from_dimensions:
+#    - id: vehicle_type
+#      flatten: true
+#    to_dimensions:
+#    - id: energy_carrier
+#    - id: sector
+#      categories: [transport]
 
 
 - id: transport_emissions_helper
@@ -250,6 +275,15 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   color: '#5341a4'
+  input_nodes:
+  - id: historical_sector_emissions
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+      categories: [not_defined]
   output_nodes:
   - id: net_emissions
   goals:
@@ -274,12 +308,16 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: stationary_emissions
+  - id: historical_sector_emissions
     from_dimensions:
     - id: sector
       categories: [municipal_facilities]
-#  output_nodes:    # commented out to hide from outcome page
-#  - id: net_emissions
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+      categories: [not_defined]
+  output_nodes:
+  - id: net_emissions
 
 
 - id: net_emissions
@@ -291,14 +329,17 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   is_outcome: true
-  goals:
+  goals: # Node copied here to make goals possible.
   - label_de: Klimaneutralität 2040
     label_en: Climate neutrality 2040
     default: true
-    is_main_goal: true
     linear_interpolation: true
-    auto_start: true
+    is_main_goal: true
     values:
+    - year: 2021
+      value: 687.8480933065471
+    - year: 2022
+      value: 706.9405563621078
     - year: 2040
       value: 0
 
@@ -312,8 +353,8 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
-  historical_values: [[2023, 0.0]]
-  forecast_values: [[2050, -491.0]]
+  historical_values: [[2022, 0.0]]
+  forecast_values: [[2040, -216.03066074753758], [2050, -216.03066074753758]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: private_household_emissions
@@ -329,8 +370,8 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
-  historical_values: [[2023, 0.0]]
-  forecast_values: [[2050, -419.0]]
+  historical_values: [[2022, 0.0]]
+  forecast_values: [[2040, -128.871991899971], [2050, -128.871991899971]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: commerce_trade_services_emissions
@@ -346,8 +387,8 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
-  historical_values: [[2023, 0.0]]
-  forecast_values: [[2050, -382.0]]
+  historical_values: [[2022, 0.0]]
+  forecast_values: [[2040, -183.17582790078492], [2050, -183.17582790078492]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: industry_emissions
@@ -363,14 +404,31 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
-  historical_values: [[2023, 0.0]]
-  forecast_values: [[2050, -291.0]]
+  historical_values: [[2022, 0.0]]
+  forecast_values: [[2040, -163.28185090799545], [2050, -163.28185090799545]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transport_emissions_helper
     to_dimensions:
     - id: sector
       categories: [transport]
+    - id: energy_carrier
+      categories: [not_defined]
+
+- id: klimaschutzprogramm_municipal_facilities
+  name_de: Klimaschutzprogramm – Kommunale Einrichtungen
+  name_en: Climate Protection Program – Municipal Facilities
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[2022, 0.0]]
+  forecast_values: [[2040, -15.58022490581885], [2050, -15.58022490581885]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: municipal_facilities_emissions
+    to_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
     - id: energy_carrier
       categories: [not_defined]
 
