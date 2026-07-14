@@ -2,7 +2,7 @@ id: cork-nzc
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ba894171e35b51849584369962555e475246ef6b
+  commit: 07b87a8f497dbe4e966941e2cb09badf35b58bd0
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -308,6 +308,58 @@ nodes:
     - year: 2035
       value: 0
 
+- id: total_electricity_consumption_uncorr
+  name_en: Total electricity consumption, uncorrected
+  name_fi: Sähkön kokonaiskulutus, korjaamaton
+  description_en: Consumption is not corrected for the actual consumption 
+    statistics.
+  description_fi: Kulutusta ei ole korjattu todellisten kulutustilastojen 
+    mukaan.
+  type: generic.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: transport_electricity_consumption
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]  # TODO You may want to change the categorisation some day
+    - id: energy_carrier
+  - id: consumer_electricity_use
+    from_dimensions:
+    - id: efficiency_programme
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [non_heating_electricity]
+    - id: energy_carrier
+  - id: building_heat_electricity_use
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: heating_type
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [buildings]
+  - id: freight_transport_electricity_consumption
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [freight_transport]
+    - id: energy_carrier
+
 # -------------- Local waste emissions --------------
 
 - id: local_waste_emissions
@@ -339,7 +391,7 @@ nodes:
     column: emissions
 
 - id: local_treated_waste_emissions
-  name: Local treated equivalent waste emissions
+  name: Local Kinsale Road Landfill emissions
   description: Methane emissions are converted to CO2 equivalent emissions by 
     considering three cases. First, methane emissions to air are multiplied by 
     global warming potential for 100 years (GWP100), which is 27.9 for methane. 
@@ -606,6 +658,8 @@ nodes:
       flatten: true
   - id: freight_transport_emissions
     from_dimensions:
+    - id: scope
+      flatten: true
     - id: transport_mode
       categories: [light_trucks]
       flatten: true
@@ -1190,11 +1244,86 @@ nodes:
   params:
     formula: residential + commercial + industrial + public + transport
   output_nodes:
-  - id: total_electricity_consumption
+  - id: electricity_consumption_historical
     tags: [impute]
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
+
+- id: total_electricity_emissions_by_sector
+  name_en: Total electricity emissions by sector
+  name_fi: Sähköntuotannon kokonaispäästöt sektoreittain
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, pollutant, energy_carrier]
+  output_dimensions: [sector, pollutant, energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption_corr
+  - id: effective_electricity_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: sector
+      categories: [buildings, non_heating_electricity]
+      flatten: true
+    - id: pollutant
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope2]
+    - id: ghg
+      categories: [co2e]
+  - id: freight_transport_emissions
+    from_dimensions:
+    - id: sector
+      categories: [freight_transport]
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope2]
+    - id: transport_mode
+      categories: [trucks]
+    - id: pollutant
+    - id: energy_carrier
+  - id: transport_emissions
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+      flatten: true
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+      categories: [other]
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope2]
+    - id: energy_carrier
+
+- id: electricity_emissions
+  name_en: Electricity emissions
+  name_fi: Sähköntuotannon päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: total_electricity_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
 
 - id: arup_new_building_shares
   name_en: Share of new buildings by standard, baseline (Arup preprocessing)
@@ -1301,6 +1430,123 @@ nodes:
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
+
+- id: off_road_emissions
+  name_en: Off-road emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  color: '#F28E2B'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: cork/off_road_emissions
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope1]
+    - id: ghg
+      categories: [co2e]
+    - id: sector
+      categories: [transport]
+
+- id: freight_transport_emissions
+  name_en: Freight transport emissions
+  name_fi: Rahtiliikenteen päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#F28E2B'
+  input_dimensions: [transport_mode, pollutant, energy_carrier, scope]
+  output_dimensions: [transport_mode, pollutant, energy_carrier, scope]
+  input_nodes:
+  - id: truck_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+    to_dimensions:
+    - id: energy_carrier
+    - id: transport_mode
+    - id: pollutant
+    - id: scope
+      categories: [scope1]
+  output_nodes:
+  - id: road_transport_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+    - id: sector
+      categories: [transport]
+
+- id: transport_emissions
+  name_en: Transport emissions
+  name_fi: Liikenteen päästöt
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  color: '#E15759'
+  input_dimensions: [transport_mode, ghg, scope, energy_carrier]
+  output_dimensions: [transport_mode, ghg, scope, energy_carrier]
+  input_nodes:
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+    - id: transport_mode
+    - id: energy_carrier
+  - id: transport_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+    - id: energy_carrier
+  output_nodes:
+  - id: road_transport_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: ghg
+    - id: scope
+
+- id: road_transport_emissions
+  name_en: Road transport emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  color: '#E15759'
+  input_dimensions: [scope, ghg, sector]
+  output_dimensions: [scope, ghg, sector]
+  output_nodes:
+  - id: net_emissions
 
 # -------------- Arup preprocessing: modal share, heating technology, renovation --------------
 
@@ -1510,6 +1756,7 @@ actions:
   type: simple.AdditiveAction
   quantity: energy
   unit: kg/a
+  group: project
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
   input_datasets:
@@ -1528,6 +1775,7 @@ actions:
   type: simple.AdditiveAction
   quantity: energy
   unit: kg/a
+  group: project
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
   input_dataset_processors: [LinearInterpolation]
@@ -1588,6 +1836,10 @@ scenarios:
   - id: tm_i_developing_ballyvolane_strategic_transport_corridor.enabled
     value: true
   - id: be_2_complete_the_railyard_apartments_and_creamfields_projects.enabled
+    value: true
+  - id: energy_use_of_local_waste_methane.enabled
+    value: true
+  - id: flaring_of_local_waste_methane.enabled
     value: true
 
 - id: decarbonisation

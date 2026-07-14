@@ -589,12 +589,21 @@ dimensions:
   - id: transport
     label_en: Transport
     label_fi: Liikenne
+  - id: freight_transport
+    label_en: Freight transport
+    label_fi: Tavaraliikenne
   - id: buildings
     label_en: Buildings & Heating
     label_fi: Rakennukset ja lämmitys
   - id: electricity
     label_en: Electricity
     label_fi: Sähkö
+  - id: heating_electricity
+    label_en: Heating electricity
+    label_fi: Lämmityssähkö
+  - id: non_heating_electricity
+    label_en: Non-heating electricity
+    label_fi: Ei-lämmityssähkö
   - id: waste
     label_en: Waste
     label_fi: Jätteet
@@ -645,7 +654,7 @@ dimensions:
     label_fi: Bussit
     aliases: [bussi]
   - id: trains
-    aliases: [Metro/tram, metro/tram, metro_tram, raide]
+    aliases: [Metro/tram, metro/tram, metro_tram, raide, Rail]
     label_en: Trains
     label_fi: Junat
   - id: public_transport
@@ -678,6 +687,12 @@ dimensions:
   - id: bikeshare
     label_en: Bikeshare
     label_fi: Kaupunkipyörät
+  - id: aviation
+    label_en: Aviation
+    label_fi: Lentoliikenne
+  - id: waterborne_navigation
+    label_en: Waterborne navigation
+    label_fi: Laivaliikenne
   - id: other
     aliases: [muu]
     label_fi: Muu
@@ -2367,8 +2382,8 @@ nodes:
   quantity: emissions
   unit: kt/a
   color: '#F28E2B'
-  input_dimensions: [transport_mode, pollutant, energy_carrier]
-  output_dimensions: [transport_mode, pollutant, energy_carrier]
+  input_dimensions: [transport_mode, pollutant, energy_carrier, scope]
+  output_dimensions: [transport_mode, pollutant, energy_carrier, scope]
   input_nodes:
   - id: truck_emission_factor
     from_dimensions:
@@ -2378,6 +2393,8 @@ nodes:
     - id: energy_carrier
     - id: transport_mode
     - id: pollutant
+    - id: scope
+      categories: [scope1]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -2392,9 +2409,8 @@ nodes:
     - id: ghg
       categories: [co2e]
     - id: scope
-      categories: [scope1]
     - id: sector
-      categories: [transport]
+      categories: [transport]  # TODO Why is this not freight_transport?
   visualizations:
   - kind: group
     label: Drivers of light truck emissions
@@ -3104,15 +3120,6 @@ nodes:
   - id: electricity_efficiency_for_electric_vehicles
     to_dimensions:
     - id: transport_mode
-    - id: energy_carrier
-  output_nodes:
-  - id: total_electricity_consumption_uncorr
-    from_dimensions:
-    - id: transport_mode
-      flatten: true
-    to_dimensions:
-    - id: sector
-      categories: [electricity]  # TODO You may want to change the categorisation some day
     - id: energy_carrier
 
 - id: transport_efficiency
@@ -4596,15 +4603,6 @@ nodes:
     tags: [arithmetic_inverse, complement]
     to_dimensions:
     - id: transport_mode
-  output_nodes:
-  - id: total_electricity_consumption_uncorr
-    from_dimensions:
-    - id: transport_mode
-      flatten: true
-    to_dimensions:
-    - id: sector
-      categories: [electricity]  # TODO You may want to change the categorisation some day
-    - id: energy_carrier
 
 # ---------------- Freight transport costs -------
 
@@ -5547,21 +5545,6 @@ nodes:
     to_dimensions:
     - id: fuel_type
     - id: energy_carrier
-  output_nodes:
-  - id: total_electricity_consumption_uncorr
-    from_dimensions:
-    - id: fuel_type
-      flatten: true
-    - id: heating_type
-      flatten: true
-    - id: building_energy_class
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: sector
-      categories: [electricity]  # TODO You may want to change the categorisation some day
 
 - id: average_heating_emission_factor
   name_en: Average heating emission factor
@@ -5927,15 +5910,6 @@ nodes:
   input_nodes:
   - id: building_stock_by_electricity_renovation
   - id: consumer_electricity_intensity
-  output_nodes:
-  - id: total_electricity_consumption_uncorr
-    from_dimensions:
-    - id: efficiency_programme
-      flatten: true
-    to_dimensions:
-    - id: sector
-      categories: [electricity]
-    - id: energy_carrier
 
 # --------------- Emissions ------------
 
@@ -6474,6 +6448,45 @@ nodes:
   unit: GWh/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: transport_electricity_consumption
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [electricity]  # TODO You may want to change the categorisation some day
+    - id: energy_carrier
+  - id: consumer_electricity_use
+    from_dimensions:
+    - id: efficiency_programme
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [electricity]
+    - id: energy_carrier
+  - id: building_heat_electricity_use
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: heating_type
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [electricity]
+  - id: freight_transport_electricity_consumption
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [electricity]
+    - id: energy_carrier
 
 - id: total_electricity_consumption_corr
   name_en: Total electricity consumption, corrected
@@ -6570,17 +6583,18 @@ nodes:
 - id: electricity_consumption_ratio
   name_en: Electricity consumption ratio between statistics and modelled
   name_fi: Sähkönkulutuksen suhde tilastojen ja mallinnetun välillä
-  type: simple.FixedScenarioNode
-  quantity: ratio
+  type: formula.FormulaNode
+  quantity: fraction
   unit: dimensionless
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
   - id: electricity_consumption_historical
+    tags: [observed]
     to_dimensions:
     - id: energy_carrier
   - id: total_electricity_consumption_uncorr
-    tags: [geometric_inverse]
+    tags: [modelled]
     from_dimensions:
     - id: sector
       flatten: true
@@ -6590,6 +6604,8 @@ nodes:
   - id: total_electricity_consumption_corr
     to_dimensions:
     - id: energy_carrier
+  params:
+    formula: extend_all(inventory_only(observed)) / output_with_scenario(modelled, 'baseline')
 
 - id: electricity_correction # Inactivated for now; you cannot turn correction off.
   name_en: Electricity statistics correction

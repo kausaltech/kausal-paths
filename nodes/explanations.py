@@ -845,16 +845,16 @@ class NodeExplanationSystem:
                 input_node = self.graph.nodes[input_id]
                 edge_props = self.graph.edges.get((input_id, node_id), {})
                 edge_tags = edge_props.get('tags', []) if isinstance(edge_props, dict) else []
+                node_tags = input_node.get('tags', []) if isinstance(input_node, dict) else []
                 assigned = False
-                if 'tags' in input_node:
-                    if any(tag in input_node['tags'] or tag in edge_tags for tag in skip_tags):  #  or tag in node.tags
-                        basket = 'skip'
-                        assigned = True
-                    else:
-                        for tag, basket in TAG_TO_BASKET.items():  # noqa: B007
-                            if tag in input_node['tags'] or tag in edge_tags:  # TODO or tag in node.tags:
-                                assigned = True
-                                break
+                if any(tag in node_tags or tag in edge_tags for tag in skip_tags):
+                    basket = 'skip'
+                    assigned = True
+                else:
+                    for tag, basket in TAG_TO_BASKET.items():  # noqa: B007
+                        if tag in node_tags or tag in edge_tags:
+                            assigned = True
+                            break
 
                 if not assigned:
                     node_unit = node_config.get('unit')  # FIXME Does not Work with multi-metric nodes.
@@ -1384,7 +1384,12 @@ class BasketRule(ValidationRule):
         ]
 
         has_dataset_terms = any(t['kind'] == 'dataset' for t in raw_terms)
-        filtered_ops = [op for op in operations if not (op == 'get_single_dataset' and not has_dataset_terms)]
+        has_impute_inputs = bool(baskets.get('impute'))
+        filtered_ops = [
+            op
+            for op in operations
+            if not (op == 'get_single_dataset' and not has_dataset_terms) and not (op == 'impute' and not has_impute_inputs)
+        ]
         functions = self._collect_functions(filtered_ops, raw_terms, node_config)
 
         remaining_baskets = [b for b in baskets if b not in operations and b != 'skip']
@@ -1651,11 +1656,14 @@ class BasketRule(ValidationRule):
             if not funcs:
                 continue
             for var in term.get('var_names', []) or []:
+                # Nest from the inside out so the last-applied function ends up outermost,
+                # matching the actual execution order in Node._process_edge_output.
+                wrapped = var
                 for func in funcs:
-                    wrapped = f'{func}({var})'
-                    if wrapped in updated:
-                        continue
-                    updated = re.sub(rf'\b{re.escape(var)}\b', wrapped, updated)
+                    wrapped = f'{func}({wrapped})'
+                if wrapped in updated:
+                    continue
+                updated = re.sub(rf'\b{re.escape(var)}\b', wrapped, updated)
         return updated
 
     def _term_var_names(self, input_spec: dict[str, Any] | str, input_id: str) -> list[str]:
