@@ -300,6 +300,11 @@ class FormulaNode(Node):
         assert isinstance(func_name, ast.Name)
         func = func_name.id
 
+        # output_with_scenario's node argument must not be evaluated under the active scenario,
+        # so it is handled before the eager first-argument evaluation below.
+        if func == 'output_with_scenario':
+            return self._custom_output_with_scenario(node, varss)
+
         # Evaluate first argument
         assert len(node.args) >= 1, f'Function {func} requires at least one argument'
         df = self.eval_tree(node.args[0], varss)  # Get the first result
@@ -335,6 +340,20 @@ class FormulaNode(Node):
         if method_name is None:
             raise NotImplementedError(f'Unknown function: {func}')
         return getattr(self, method_name)(func, node, varss, df)
+
+    def _custom_output_with_scenario(self, node: ast.Call, varss: EvalVars) -> EvalOutput:
+        """Handle output_with_scenario(node, 'scenario_id'); the node reference is not evaluated eagerly."""
+        assert len(node.args) == 2, 'output_with_scenario(node, scenario) requires two arguments'
+        node_arg = node.args[0]
+        if not isinstance(node_arg, ast.Name) or node_arg.id not in varss.nodes:
+            raise NodeError(self, 'First argument to output_with_scenario() must be a reference to an input node')
+        input_node = varss.nodes[node_arg.id]
+
+        scenario_arg = node.args[1]
+        if not isinstance(scenario_arg, ast.Constant) or not isinstance(scenario_arg.value, str):
+            raise NodeError(self, 'Second argument to output_with_scenario() must be a quoted scenario id')
+
+        return input_node.get_output_pl_for_scenario(scenario_arg.value, target_node=self)
 
     def _custom_convert_gwp(self, _func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert isinstance(df, PDF)
@@ -828,7 +847,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 if first is not None and first.dimensionality != dimensionless.dimensionality:
                     analysis.errors.append("Function 'complement' requires dimensionless units.")
                 return dimensionless
-            if func_name in {'convert_gwp', 'zero_fill'} or func_name in passthrough:
+            if func_name in {'convert_gwp', 'zero_fill', 'output_with_scenario'} or func_name in passthrough:
                 return first
             analysis.warnings.append(f"Unknown function '{func_name}' in formula.")
             return first
@@ -939,7 +958,7 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 else:
                     return _require_same(func_name, first, _eval(node.args[1]))
                 return first
-            if func_name in {'convert_gwp', 'zero_fill'} or func_name in passthrough:
+            if func_name in {'convert_gwp', 'zero_fill', 'output_with_scenario'} or func_name in passthrough:
                 return first
             analysis.warnings.append(f"Unknown function '{func_name}' in formula.")
             return first
