@@ -3,7 +3,7 @@ default_language: en
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7c131bef6b1da1e21a672b7ef0760fcf4a36ac93
+  commit: d036c1c6f536dc09a20005e8a067e565da5a6e4f
   dvc_remote: kausal-s3
 name: Yolo County Greenhouse Gas Emissions
 owner: Yolo County
@@ -23,9 +23,9 @@ action_groups:
 - id: onroad_transportation
   name: Decarbonize Transportation
   color: '#E15759'
-# - id: buildings_act
-#   name: Decarbonize Energy and Buildings and Increase Energy Efficiency
-#   color: '#A4C146'
+- id: buildings
+  name: Decarbonize Energy and Buildings and Increase Energy Efficiency
+  color: '#4E79A7'
 - id: water
   name: Optimize Water Use
   color: '#76B7B2'
@@ -125,6 +125,10 @@ dimensions:
   # ----- Water
   - id: groundwater_pumping
     label: Groundwater Pumping for Community Use
+
+  # ----- Wastewater
+  - id: wastewater_treatment
+    label: Wastewater Treatment
 
   # ----- Agriculture
   - id: irrigation_pumps
@@ -317,22 +321,22 @@ dimensions:
   - id: manure_management
     label: Manure Management
 
-# -- wastewater
-# - id: influent_source
-#   label: Influent Source
-#   categories:
-#   - id: wild_wings_csd_wrf
-#     label: Wild Wings CSD Wastewater Recycling Facility
-#   - id: madison_wwtf
-#     label: Madison WWTF
-#   - id: knights_landing_csd_wwtp
-#     label: Knights Landing CSD WWTP
-#   - id: esparto_csd_wwtp
-#     label: Esparto CSD WWTP
-#   - id: davis_wwtp
-#     label: City of Davis WWTP (Unincorporated Population)
-#   - id: dunnigan_wwtf
-#     label: Dunnigan WWTF
+# ----- Wastewater
+- id: influent_source
+  label: Influent Source
+  categories:
+  - id: wild_wings_csd_wastewater_recycling_facility
+    label: Wild Wings CSD Wastewater Recycling Facility
+  - id: madison_wwtf
+    label: Madison WWTF
+  - id: knights_landing_csd_wwtp
+    label: Knights Landing CSD WWTP
+  - id: esparto_csd_wwtp
+    label: Esparto CSD WWTP
+  - id: city_of_davis_wwtp_unincorporated_population
+    label: City of Davis WWTP (Unincorporated Population)
+  - id: dunnigan_wwtf
+    label: Dunnigan WWTF
 
 - id: action
   label: Action
@@ -446,8 +450,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 # ----- Buildings
-- id: building_electricity_usage
-  name: Building Electricity Usage
+- id: baseline_existing_building_electricity_usage
+  name: Baseline Electricity Usage (Existing Buildings)
   type: simple.AdditiveNode
   quantity: energy
   unit: kWh/a
@@ -458,9 +462,36 @@ nodes:
     column: energy
     forecast_from: 2023
     filters:
-    - dimension: energy_carrier
-      categories: [electricity]
+    - dimension: building_status
+      categories: [existing]
   input_dataset_processors: [LinearInterpolation]
+
+- id: baseline_new_building_electricity_usage
+  name: Baseline Electricity Usage (New Buildings)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  output_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  input_datasets:
+  - id: yolo/buildings
+    column: energy
+    forecast_from: 2023
+    filters:
+    - dimension: building_status
+      categories: [new]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_electricity_usage
+  name: Building Electricity Usage
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  output_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  input_nodes:
+  - id: baseline_existing_building_electricity_usage
+  - id: baseline_new_building_electricity_usage
 
 - id: building_natural_gas_usage
   name: Building Natural Gas Usage
@@ -478,143 +509,85 @@ nodes:
       categories: [natural_gas]
   input_dataset_processors: [LinearInterpolation]
 
-# --- nodes related to action eb1b
-# - id: ac_factor
-#   name: AC Factor
-#   type: simple.AdditiveNode
-#   quantity: factor
-#   unit: dimensionless
-#   input_dimensions: [subsector, building_status, factor_type]
-#   output_dimensions: [subsector, building_status]
-#   input_datasets:
-#   - id: yolo/actions-input
-#     filters:
-#     - column: action
-#       value: eb1b
-#     - column: quantity
-#       value: factor
-#     - dimension: factor_type
-#       categories: [ac]
+# ---------- EB1B
+- id: eb1b_electricity_reduction_factors
+  name: EB1B Electricity Reduction Factors
+  type: simple.AdditiveNode
+  quantity: factor
+  unit: kWh/kWh
+  input_dimensions: [subsector, factor_type, building_status]
+  output_dimensions: [subsector, factor_type, building_status]
+  input_datasets:
+  - id: yolo/actions
+    column: factor
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: eb1b
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: cool_roof_factor
-#   name: Cool Roof Factor
-#   type: simple.AdditiveNode
-#   quantity: factor
-#   unit: dimensionless
-#   input_dimensions: [subsector, building_status, factor_type]
-#   output_dimensions: [subsector, building_status]
-#   input_datasets:
-#   - id: yolo/actions-input
-#     filters:
-#     - column: action
-#       value: eb1b
-#     - column: quantity
-#       value: factor
-#     - dimension: factor_type
-#       categories: [cool_roof]
+- id: eb1b_electricity_usage_reduction
+  name: EB1B Electricity Usage Reduction
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [subsector, building_type, factor_type, building_status, energy_provider, energy_carrier]
+  output_dimensions: [subsector, building_type, factor_type, building_status, energy_provider, energy_carrier]
+  input_nodes:
+  - id: baseline_new_building_electricity_usage
+    tags: [non_additive]
+    to_dimensions:
+    - id: subsector
+    - id: building_type
+    - id: building_status
+    - id: energy_provider
+    - id: energy_carrier
+  - id: eb1b_electricity_reduction_factors
+    to_dimensions:
+    - id: subsector
+    - id: factor_type
+    - id: building_status
 
-# - id: eb1b_electricity_reduction
-#   name: New Buildings Electricity Use Reduction
-#   type: formula.FormulaNode
-#   quantity: energy_consumption
-#   unit: kWh/year
-#   input_dimensions: [subsector, energy_provider, building_type, building_status]
-#   output_dimensions: [subsector, energy_provider, building_type, building_status]
-#   params:
-#     formula: -fraction * new_bldg_elec * ac_factor * cool_roof_factor
-#   input_nodes:
-#   - id: eb1b
-#     tags: [fraction]
-#   - id: abau_new_buildings_electricity_use
-#     tags: [new_bldg_elec]
-#   - id: ac_factor
-#     tags: [ac_factor]
-#   - id: cool_roof_factor
-#     tags: [cool_roof_factor]
-#   output_nodes:
-#   - id: building_electricity_use
+# ---------- EB1D
+- id: baseline_existing_commercial_electricity_mix
+  name: Baseline Electricity Mix (Existing Commercial Buildings)
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_provider, subsector, building_type, building_status, energy_carrier]
+  output_dimensions: [energy_provider, subsector, building_type, building_status, energy_carrier]
+  input_nodes:
+  - id: baseline_existing_building_electricity_usage
+    tags: [activity]
+    from_dimensions:
+    - id: subsector
+      categories: [commercial]
 
-# -- nodes related to action eb1d
-# - id: eb1d_existing_commercial_electricity
-#   name: Existing Commercial Buildings Electricity Use (Adjusted BAU)
-#   type: simple.AdditiveNode
-#   quantity: energy_consumption
-#   unit: kWh/year
-#   input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
-#   output_dimensions: [energy_provider]
-#   input_datasets:
-#   - id: yolo/building-input
-#     forecast_from: 2023
-#     filters:
-#     - dimension: energy_carrier
-#       categories: [electricity]
-#     - dimension: building_status
-#       categories: [existing]
-#     - dimension: subsector
-#       categories: [commercial]
-#     - dimension: scenario_id
-#       categories: [adjusted_baseline]
-#   input_dataset_processors: [LinearInterpolation]
+- id: eb1d_csi_electricity_usage_reduction
+  name: EB1D CSI Electricity Usage Reduction
+  type: formula.FormulaNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  output_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  params:
+    formula: -5883.5 * (reduction_percentage / 100) * 663.5 * mix
+  input_nodes:
+  - id: baseline_existing_commercial_electricity_mix
+    tags: [mix]
 
-# - id: eb1d_existing_commercial_electricity_total
-#   name: Existing Commercial Buildings Total Electricity Use (Adjusted BAU)
-#   type: simple.AdditiveNode
-#   quantity: energy_consumption
-#   unit: kWh/year
-#   input_dimensions: [energy_provider]
-#   output_dimensions: []
-#   input_nodes:
-#   - id: eb1d_existing_commercial_electricity
-#     to_dimensions: []
-
-# - id: eb1d_utility_share
-#   name: Existing Commercial Buildings Electricity Share by Provider
-#   type: formula.FormulaNode
-#   quantity: fraction
-#   unit: dimensionless
-#   input_dimensions: [energy_provider]
-#   output_dimensions: [energy_provider]
-#   params:
-#     formula: elec_by_provider / total_elec
-#   input_nodes:
-#   - id: eb1d_existing_commercial_electricity
-#     tags: [elec_by_provider]
-#   - id: eb1d_existing_commercial_electricity_total
-#     tags: [total_elec]
-
-# - id: eb1d_csi_electricity_reduction
-#   name: EB1D CSI Electricity Reduction
-#   type: formula.FormulaNode
-#   quantity: energy_consumption
-#   unit: kWh/year
-#   input_dimensions: [energy_provider]
-#   output_dimensions: [energy_provider]
-#   params:
-#     formula: -5883.5 * (fraction / 100) * 663.5 * utility_share
-#   input_nodes:
-#   - id: eb1d
-#     tags: [fraction]
-#   - id: eb1d_utility_share
-#     tags: [utility_share]
-#   output_nodes:
-#   - id: building_electricity_use
-
-# - id: eb1d_pace_electricity_reduction
-#   name: EB1D PACE Electricity Reduction
-#   type: formula.FormulaNode
-#   quantity: energy_consumption
-#   unit: kWh/year
-#   input_dimensions: [energy_provider]
-#   output_dimensions: [energy_provider]
-#   params:
-#     formula: -1.02 * fraction * 663.5 * utility_share
-#   input_nodes:
-#   - id: eb1d
-#     tags: [fraction]
-#   - id: eb1d_utility_share
-#     tags: [utility_share]
-#   output_nodes:
-#   - id: building_electricity_use
+- id: eb1d_pace_electricity_usage_reduction
+  name: EB1D PACE Electricity Usage Reduction
+  type: formula.FormulaNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  output_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  params:
+    formula: -1.02 * reduction_percentage * 663.5 * mix
+  input_nodes:
+  - id: baseline_existing_commercial_electricity_mix
+    tags: [mix]
 
 # - id: eb1d_csi_gas_reduction
 #   name: EB1D CSI Natural Gas Reduction
@@ -1353,154 +1326,180 @@ nodes:
     - id: ghg
       flatten: true
 
-# -- wastewater
+# ----- Wastewater
+- id: wastewater_influent_volume
+  name: Wastewater Influent Volume
+  type: simple.AdditiveNode
+  quantity: volume
+  unit: gal/a
+  input_dimensions: [influent_source]
+  output_dimensions: [influent_source]
+  input_datasets:
+  - id: yolo/wastewater
+    column: volume
+    forecast_from: 2023
+    filters:
+    - column: ghg
+    - column: scope
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: influent_volume #should this be per capita, since the baseline projection uses population scaling? 
-#   name: Influent Volume
-#   type: simple.AdditiveNode
-#   quantity: volume
-#   unit: gal/year
-#   input_dimensions: [influent_source]
-#   output_dimensions: [influent_source]
-#   input_datasets: 
-#   - id: yolo/wastewater-input
-#     forecast_from: 2023
-#     filters: 
-#     - column: quantity
-#       value: volume
-#   input_dataset_processors: [LinearInterpolation]
+- id: wastewater_energy_intensity
+  name: Wastewater Energy Intensity
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/(acre foot)
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/wastewater
+    column: energy_factor
+    forecast_from: 2023
+    filters:
+    - column: influent_source
+    - column: ghg
+    - column: scope
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: wastewater_energy_factor
-#   name: Wastewater Energy Intensity
-#   type: simple.AdditiveNode
-#   quantity: energy_factor
-#   unit: kWh/acre-foot
-#   input_dimensions: []
-#   output_dimensions: []
-#   input_datasets: 
-#   - id: yolo/wastewater-input
-#     forecast_from: 2023
-#     filters: 
-#     - column: quantity
-#       value: energy_factor
-#   input_dataset_processors: [LinearInterpolation]
+- id: wastewater_influent_bod_factor
+  name: Wastewater Influent BOD Factor
+  type: simple.AdditiveNode
+  quantity: factor
+  unit: g/cap/day
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/wastewater
+    column: bod_factor
+    forecast_from: 2023
+    filters:
+    - column: influent_source
+    - column: ghg
+    - column: scope
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: wastewater_influent_BOD_factor
-#   name: Wastewater Influent BOD Factor
-#   type: simple.AdditiveNode
-#   quantity: factor
-#   unit: g/person/day
-#   input_dimensions: []
-#   output_dimensions: []
-#   input_datasets:
-#   - id: yolo/wastewater-input
-#     forecast_from: 2023
-#     filters: 
-#     - column: unit
-#       value: g/person/day
-#   input_dataset_processors: [LinearInterpolation]
+- id: wastewater_emission_factor
+  name: Wastewater Emission Factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/kg
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  input_datasets:
+  - id: yolo/wastewater
+    column: emission_factor
+    forecast_from: 2023
+    filters:
+    - column: influent_source
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: wastewater_emission_factor
-#   name: Wastewater Emission Factor
-#   type: simple.AdditiveNode
-#   quantity: emission_factor
-#   unit: kg/kg
-#   input_dimensions: [ghg, scope]
-#   output_dimensions: [ghg, scope]
-#   input_datasets:
-#   - id: yolo/wastewater-input
-#     forecast_from: 2023
-#     filters:
-#     - dimension: ghg
-#       categories: [ch4]
-#   input_dataset_processors: [LinearInterpolation]
+- id: wastewater_methane_correction_factor
+  name: Wastewater Methane Correction Factor (MCF)
+  type: simple.AdditiveNode
+  quantity: factor
+  unit: kg/kg
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/wastewater
+    column: correction_factor
+    forecast_from: 2023
+    filters:
+    - column: influent_source
+    - column: ghg
+    - column: scope
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: wastewater_ch4_correction_factor
-#   name: Wastewater CH4 correction factor
-#   type: simple.AdditiveNode
-#   quantity: factor
-#   unit: kg/kg
-#   input_dimensions: []
-#   output_dimensions: []
-#   input_datasets:
-#   - id: yolo/wastewater-input
-#     forecast_from: 2023
-#     filters: 
-#     - column: quantity
-#       value: factor
-#     - column: unit
-#       value: kg/kg
+- id: wastewater_population
+  name: Wastewater Population
+  type: simple.AdditiveNode
+  quantity: population
+  unit: cap
+  input_dimensions: [influent_source]
+  output_dimensions: [influent_source]
+  input_datasets:
+  - id: yolo/wastewater
+    column: population
+    forecast_from: 2023
+    filters:
+    - column: ghg
+    - column: scope
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: wastewater_population
-#   name: Wastewater Population
-#   type: simple.AdditiveNode
-#   quantity: population
-#   unit: person
-#   input_dimensions: [influent_source]
-#   output_dimensions: [influent_source]
-#   input_datasets:
-#   - id: yolo/wastewater-input
-#     forecast_from: 2023
-#     filters: 
-#     - column: quantity
-#       value: population
-  
-# - id: wastewater_treatment_energy_use_emissions
-#   name: Wastewater Treatment Energy Use Emissions
-#   type: formula.FormulaNode
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [ghg, influent_source, scope]
-#   output_dimensions: [ghg, influent_source, scope]
-#   params:
-#     formula: (annual_influent_volume*energy_intensity*pge_electricity_emfac)*gwp
-#   input_nodes: 
-#   - id: influent_volume 
-#     tags: [annual_influent_volume]
-#   - id: wastewater_energy_factor
-#     tags: [energy_intensity]
-#   - id: electricity_emission_factor
-#     filters:
-#     - dimension: energy_provider
-#       categories: [PG&E]
-#     tags: [pge_electricity_emfac]
-#   - id: global_warming_potential
-#     tags: [gwp]
+- id: wastewater_treatment_energy_usage_emissions
+  name: Wastewater Treatment Energy Usage Emissions
+  short_name: Treatment Energy Usage Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [influent_source, ghg, scope]
+  output_dimensions: [influent_source, ghg, scope]
+  input_nodes:
+  - id: wastewater_influent_volume
+    to_dimensions:
+    - id: influent_source
+  - id: wastewater_energy_intensity
+    to_dimensions: []
+  - id: electricity_emission_factors
+    from_dimensions:
+    - id: energy_provider
+      categories: [pge]
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: scope
+  - id: global_warming_potential
+    to_dimensions:
+    - id: ghg
 
-# - id: wastewater_treatment_bod_emissions
-#   name: Wastewater Treatment BOD Emissions
-#   type: formula.FormulaNode
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [ghg, influent_source, scope]
-#   output_dimensions: [ghg, influent_source, scope]
-#   params: 
-#     formula: (bod_rate*wastewater_population*ch4_emission_factor*ch4_correction_factor)*gwp
-#   input_nodes: 
-#   - id: wastewater_influent_BOD_factor
-#     tags: [bod_rate]
-#   - id: wastewater_population
-#     tags: [wastewater_population]
-#   - id: wastewater_emission_factor
-#     tags: [ch4_emission_factor]
-#   - id: wastewater_ch4_correction_factor
-#     tags: [ch4_correction_factor]
-#   - id: global_warming_potential
-#     tags: [gwp]
-  
-# - id: wastewater_emissions
-#   name: Wastewater Emissions
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [ghg, influent_source, scope]
-#   output_dimensions: [ghg, influent_source, scope] 
-#   input_nodes: 
-#   - id: wastewater_treatment_energy_use_emissions
-#   - id: wastewater_treatment_bod_emissions
-#   output_nodes: 
-#   - id: net_emissions
-#     to_dimensions: [scope]
+- id: wastewater_treatment_process_emissions
+  name: Wastewater Treatment Process Emissions
+  short_name: Treatment Process Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [influent_source, ghg, scope]
+  output_dimensions: [influent_source, ghg, scope]
+  input_nodes:
+  - id: wastewater_population
+    to_dimensions:
+    - id: influent_source
+  - id: wastewater_influent_bod_factor
+    to_dimensions: []
+  - id: wastewater_emission_factor
+    to_dimensions:
+    - id: ghg
+    - id: scope
+  - id: wastewater_methane_correction_factor
+    to_dimensions: []
+  - id: global_warming_potential
+    to_dimensions:
+    - id: ghg
+
+- id: wastewater_emissions
+  name: Wastewater Emissions
+  short_name: Wastewater
+  color: '#EDC948'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [influent_source, ghg, scope]
+  output_dimensions: [influent_source, ghg, scope]
+  input_nodes:
+  - id: wastewater_treatment_energy_usage_emissions
+  - id: wastewater_treatment_process_emissions
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: influent_source
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: subsector
+      categories: [wastewater_treatment]
+    - id: scope
 
 # ----- Agriculture
 - id: agriculture_emissions
@@ -1904,7 +1903,7 @@ actions:
     forecast_from: 2023
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: building_electricity_usage
+  - id: baseline_new_building_electricity_usage
 
 - id: abau_building_natural_gas_usage
   name: Federal- and State-Mandated Building Natural Gas Usage Reduction
@@ -1949,49 +1948,57 @@ actions:
   - id: vehicle_miles_traveled_ice
     to_dimensions: []
 
-# ---- building actions 
+# ----- Buildings
+- id: eb1b
+  name: Incentivize Cool and Green Roof Installation
+  type: simple.AdditiveAction
+  group: buildings
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/actions
+    column: fraction
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: eb1b
+    - column: scope
+    - column: factor_type
+    - column: subsector
+    - column: building_status
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: eb1b_electricity_usage_reduction
+    tags: [arithmetic_inverse]
 
-# - id: eb1b
-#   name: Incentivize cool and green roofs installation
-#   type: simple.AdditiveAction
-#   group: buildings_act
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: []
-#   output_dimensions: []
-#   input_datasets:
-#   - id: yolo/actions-input
-#     forecast_from: 2023
-#     filters:
-#     - column: action
-#       value: eb1b
-#     - column: quantity
-#       value: fraction
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes: 
-#   - id: eb1b_electricity_reduction
-
-# - id: eb1d
-#   name: Energy efficiency retrofits for existing buildings
-#   type: simple.AdditiveAction
-#   group: buildings_act
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: []
-#   output_dimensions: []
-#   input_datasets:
-#   - id: yolo/actions-input
-#     forecast_from: 2023
-#     filters:
-#     - column: action
-#       value: eb1d
-#     - column: quantity
-#       value: fraction
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes:
-#   - id: eb1d_csi_electricity_reduction
-#   - id: eb1d_pace_electricity_reduction
-#   - id: eb1d_csi_gas_reduction
+- id: eb1d
+  name: Energy Efficiency Retrofits for Existing Buildings
+  type: simple.AdditiveAction
+  group: buildings
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/actions
+    column: fraction
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: eb1d
+    - column: scope
+    - column: factor_type
+    - column: subsector
+    - column: building_status
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: eb1d_csi_electricity_usage_reduction
+    tags: [reduction_percentage]
+  - id: eb1d_pace_electricity_usage_reduction
+    tags: [reduction_percentage]
+#  - id: eb1d_csi_gas_reduction
 
 # - id: eb2b
 #   name: Incentivize appliance electrification in existing buildings
