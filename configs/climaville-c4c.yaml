@@ -381,7 +381,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: climaville/emission_factors_energy # TODO Was climaville/emission_factors__energy
+  - id: emission_factors_energy
     column: emission_factor
     forecast_from: 2024
 
@@ -421,7 +421,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: climaville/combined_heat_and_power
+  - id: combined_heat_and_power
     column: energy
     dropna: true
     forecast_from: 2024
@@ -442,7 +442,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: climaville/combined_heat_and_power
+  - id: combined_heat_and_power
     column: energy
     dropna: true
     forecast_from: 2024
@@ -479,7 +479,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: climaville/combined_heat_and_power
+  - id: combined_heat_and_power
     column: energy
     dropna: true
     forecast_from: 2024
@@ -514,7 +514,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: climaville/combined_heat_and_power
+  - id: combined_heat_and_power
     column: energy_factor
     dropna: true
     forecast_from: 2024
@@ -546,7 +546,7 @@ nodes:
   input_dimensions: [sector, energy_carrier, ghg]
   output_dimensions: [sector, energy_carrier, ghg]
   input_datasets:
-  - id: climaville/combined_heat_and_power
+  - id: combined_heat_and_power
     column: emissions
     dropna: true
     forecast_from: 2024
@@ -564,7 +564,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: climaville/electricity
+  - id: electricity
     column: energy
     forecast_from: 2024
     filters:
@@ -580,7 +580,7 @@ nodes:
   input_dimensions: [energy_usage, energy_carrier]
   output_dimensions: [energy_usage, energy_carrier]
   input_datasets:
-  - id: climaville/electricity
+  - id: electricity
     column: energy
     forecast_from: 2024
     filters:
@@ -647,7 +647,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: climaville/manufacturing
+  - id: manufacturing
     column: energy
     dropna: true
     forecast_from: 2024
@@ -666,7 +666,7 @@ nodes:
     formula: (manufacturing_energy_consumption * energy_emission_factors) + 
       reference
   input_datasets:
-  - id: climaville/manufacturing
+  - id: manufacturing
     tags: [reference]
     column: emissions
     dropna: true
@@ -689,7 +689,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: climaville/other_energy
+  - id: other_energy
     column: energy
     forecast_from: 2024
 
@@ -751,7 +751,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: climaville/nonroad_energy
+  - id: nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -767,7 +767,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: climaville/nonroad_energy
+  - id: nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -783,7 +783,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: climaville/nonroad_energy
+  - id: nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -799,7 +799,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: climaville/nonroad_energy
+  - id: nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -815,7 +815,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: climaville/nonroad_energy
+  - id: nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -831,7 +831,7 @@ nodes:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: climaville/nonroad_energy
+  - id: nonroad_energy
     column: emissions
     forecast_from: 2024
     filters:
@@ -863,7 +863,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: climaville/biogenic_shares
+  - id: biogenic_shares
     column: fraction
     forecast_from: 2024
 
@@ -890,7 +890,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_datasets:
-  - id: climaville/emission_factors_transportation # TODO Was climaville/emission_factors__transportation
+  - id: emission_factors_transportation
     column: emission_factor
     forecast_from: 2024
     filters:
@@ -906,7 +906,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: climaville/gasoline_hybrid_shares
+  - id: gasoline_hybrid_shares
     column: fraction
     forecast_from: 2024
 
@@ -979,7 +979,7 @@ nodes:
   input_dimensions: [energy_carrier, owner, vehicle_type]
   output_dimensions: [energy_carrier, owner, vehicle_type]
   input_datasets:
-  - id: climaville/onroad_transportation
+  - id: onroad_transportation
     column: mileage
     dropna: true
     forecast_from: 2024
@@ -997,7 +997,7 @@ nodes:
   input_dimensions: [energy_carrier, owner, vehicle_type]
   output_dimensions: [energy_carrier, owner, vehicle_type]
   input_datasets:
-  - id: climaville/onroad_transportation
+  - id: onroad_transportation
     column: energy_factor
     dropna: true
     forecast_from: 2024
@@ -1031,7 +1031,7 @@ nodes:
       ch4_n2o_emission_factors) + reference
   input_datasets:
   # ----- Reference
-  - id: climaville/onroad_transportation
+  - id: onroad_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1041,7 +1041,7 @@ nodes:
     - dimension: vehicle_type
       categories: [buses]
   # ----- CH4 & N2O Emission Factors
-  - id: climaville/emission_factors_transportation # TODO Was climaville/emission_factors__transportation
+  - id: emission_factors_transportation
     tags: [ch4_n2o_emission_factors]
     column: emission_factor
     forecast_from: 2024
@@ -1083,7 +1083,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: climaville/onroad_transportation
+  - id: onroad_transportation
     column: mileage
     dropna: true
     forecast_from: 2024
@@ -1102,7 +1102,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: climaville/onroad_transportation
+  - id: onroad_transportation
     column: energy_factor
     dropna: true
     forecast_from: 2024
@@ -1137,7 +1137,7 @@ nodes:
       (hybrid_emission_factors * energy_consumption) + (ch4_n2o_emission_factors
       * mileage) + reference) * complement(green_mobility_2a2)
   input_datasets:
-  - id: climaville/onroad_transportation
+  - id: onroad_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1204,7 +1204,7 @@ nodes:
     formula: (energy_consumption * nonhybrid_emission_factors) + (mileage * 
       ch4_n2o_emission_factors) + reference
   input_datasets:
-  - id: climaville/onroad_transportation
+  - id: onroad_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1258,7 +1258,7 @@ nodes:
       (hybrid_emission_factors * energy_consumption) + (ch4_n2o_emission_factors
       * mileage) + reference
   input_datasets:
-  - id: climaville/onroad_transportation
+  - id: onroad_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1325,7 +1325,7 @@ nodes:
     formula: (energy_consumption * nonhybrid_emission_factors) + (mileage * 
       ch4_n2o_emission_factors) + reference
   input_datasets:
-  - id: climaville/onroad_transportation
+  - id: onroad_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1374,7 +1374,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: climaville/rail_transportation
+  - id: rail_transportation
     column: mileage
     dropna: true
     forecast_from: 2024
@@ -1390,7 +1390,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: climaville/rail_transportation
+  - id: rail_transportation
     column: energy_factor
     dropna: true
     forecast_from: 2024
@@ -1522,7 +1522,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_datasets:
-  - id: climaville/rail_transportation
+  - id: rail_transportation
     column: emissions
     dropna: true
     forecast_from: 2024
@@ -1545,7 +1545,7 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
-  - id: climaville/waterborne_transportation
+  - id: waterborne_transportation
     column: energy
     dropna: true
     forecast_from: 2024
@@ -1563,7 +1563,7 @@ nodes:
   params:
     formula: (energy_consumption * emission_factors) + reference
   input_datasets:
-  - id: climaville/waterborne_transportation
+  - id: waterborne_transportation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1594,7 +1594,7 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
-  - id: climaville/aviation
+  - id: aviation
     column: energy
     dropna: true
     forecast_from: 2024
@@ -1613,7 +1613,7 @@ nodes:
     formula: (aviation_energy_consumption * 
       transportation_energy_emission_factors) + reference
   input_datasets:
-  - id: climaville/aviation
+  - id: aviation
     tags: [reference]
     column: emissions
     dropna: true
@@ -1655,7 +1655,7 @@ nodes:
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_datasets:
-  - id: climaville/waste
+  - id: waste
     column: emissions
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
@@ -1670,7 +1670,7 @@ nodes:
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_datasets:
-  - id: climaville/ippu
+  - id: ippu
     column: emissions
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
@@ -1710,7 +1710,7 @@ nodes:
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   input_datasets:
-  - id: climaville/land
+  - id: land
     column: emission_factor
     dropna: true
     forecast_from: 2024
@@ -1723,7 +1723,7 @@ nodes:
   input_dimensions: [sector]
   output_dimensions: [sector]
   input_datasets:
-  - id: climaville/land
+  - id: land
     column: area
     dropna: true
     forecast_from: 2024
@@ -1741,7 +1741,7 @@ nodes:
     formula: (land_areas * land_emission_factors) + reference + 
       biogenic_energy_park + climate_supervision_and_action_plans
   input_datasets:
-  - id: climaville/land
+  - id: land
     tags: [reference]
     column: emissions
     dropna: true
@@ -1769,7 +1769,7 @@ nodes:
   params:
     formula: (land_areas * land_emission_factors) + reference
   input_datasets:
-  - id: climaville/land
+  - id: land
     tags: [reference]
     column: emissions
     dropna: true
@@ -1797,7 +1797,7 @@ nodes:
   params:
     formula: (land_areas * land_emission_factors) + reference
   input_datasets:
-  - id: climaville/land
+  - id: land
     tags: [reference]
     column: emissions
     dropna: true
@@ -1881,7 +1881,7 @@ nodes:
   input_dimensions: [sector, emission_source, ghg]
   output_dimensions: [sector, emission_source, ghg]
   input_datasets:
-  - id: climaville/livestock
+  - id: livestock
     column: emission_factor
     dropna: true
     forecast_from: 2024
@@ -1894,7 +1894,7 @@ nodes:
   input_dimensions: [sector]
   output_dimensions: [sector]
   input_datasets:
-  - id: climaville/livestock
+  - id: livestock
     column: number
     dropna: true
     forecast_from: 2024
@@ -1913,7 +1913,7 @@ nodes:
     formula: (livestock_counts * livestock_emission_factors) + reference + 
       biogenic_energy_park
   input_datasets:
-  - id: climaville/livestock
+  - id: livestock
     tags: [reference]
     column: emissions
     dropna: true
@@ -2001,7 +2001,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/energy_actions
+  - id: energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2053,7 +2053,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/energy_actions
+  - id: energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2102,7 +2102,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/energy_actions
+  - id: energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2170,7 +2170,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/energy_actions
+  - id: energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2218,7 +2218,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/energy_actions
+  - id: energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2263,7 +2263,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/energy_actions
+  - id: energy_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2302,7 +2302,7 @@ actions:
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
-  - id: climaville/energy_actions
+  - id: energy_actions
     column: emissions
     forecast_from: 2024
     filters:
@@ -2325,7 +2325,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/transportation_actions
+  - id: transportation_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2363,7 +2363,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/transportation_actions
+  - id: transportation_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2408,7 +2408,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/transportation_actions
+  - id: transportation_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2447,7 +2447,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/green_mobility_plan_actions
+  - id: green_mobility_plan_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2483,7 +2483,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/waste_actions
+  - id: waste_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2518,7 +2518,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/ippu_actions
+  - id: ippu_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2553,7 +2553,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/afolu_actions
+  - id: afolu_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2612,7 +2612,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/afolu_actions
+  - id: afolu_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2647,7 +2647,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/afolu_actions
+  - id: afolu_actions
     forecast_from: 2024
     filters:
     - column: action
@@ -2680,7 +2680,7 @@ actions:
   params:
     allow_null_categories: true
   input_datasets:
-  - id: climaville/afolu_actions
+  - id: afolu_actions
     forecast_from: 2024
     filters:
     - column: action
