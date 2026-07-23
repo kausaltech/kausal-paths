@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
     import dvc_pandas
     import networkx  # noqa: ICN001
+    import polars as pl
     from rich.repr import RichReprResult
     from sentry_sdk.tracing import Span
 
@@ -804,6 +805,21 @@ class Context:
         if fwc is None:
             return None
         return FrameworkConfigData(last_modified_at=fwc[0], id=fwc[1])
+
+    @cached_property
+    def measure_datapoints(self) -> pl.DataFrame:
+        """
+        All MeasureDataPoints for this context's framework config.
+
+        Fetched once (a single DB query) and reused for the whole run, so the
+        many FrameworkMeasure datasets loaded during a model computation filter
+        this in memory instead of each issuing its own query (avoids an N+1).
+        The result is keyed to the framework config's `last_modified_at` via the
+        dataset cache keys, so it never outlives an edit.
+        """
+        from frameworks.datasets import query_all_measure_datapoints
+
+        return query_all_measure_datapoints(self.framework_config_data)
 
     @contextmanager
     def run(self):

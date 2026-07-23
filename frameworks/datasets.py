@@ -20,41 +20,65 @@ if TYPE_CHECKING:
 ENABLE_UNIT_CONVERSION = True
 
 
-def collect_measure_datapoints(
-    fwd: FrameworkConfigData | None,
-    uuids: list[str],
-) -> pl.DataFrame:
+MEASURE_DATAPOINT_SCHEMA: dict[str, type[pl.DataType]] = {
+    'uuid': pl.String,
+    'MeasureYear': pl.Int64,
+    'MeasureValue': pl.Float64,
+    'MeasureDefaultValue': pl.Float64,
+    'MeasureUnit': pl.String,
+}
+
+
+def query_all_measure_datapoints(fwd: FrameworkConfigData | None) -> pl.DataFrame:
     """
-    Query the DB for all MeasureDataPoints matching the given UUIDs under fwd.
+    Query the DB for every MeasureDataPoint under the given framework config.
+
+    This is the single query behind `Context.measure_datapoints`; per-dataset
+    lookups slice its result in memory via `collect_measure_datapoints` instead
+    of issuing their own query (avoids an N+1 across a model run).
 
     Returns a plain DataFrame with columns: uuid, MeasureYear, MeasureValue,
-    MeasureDefaultValue, MeasureUnit. No unit conversion is applied — callers
-    that need values in a specific unit should convert themselves.
-    Returns an empty DataFrame with the same schema if fwd is None or uuids is empty.
+    MeasureDefaultValue, MeasureUnit. `uuid` is in DB (hyphenated) canonical
+    form. No unit conversion is applied. Returns an empty DataFrame with the
+    same schema if fwd is None.
     """
     from django.db.models import TextField
     from django.db.models.functions import Cast
 
     from frameworks.models import Measure
 
-    schema: dict[str, type[pl.DataType]] = {
-        'uuid': pl.String,
-        'MeasureYear': pl.Int64,
-        'MeasureValue': pl.Float64,
-        'MeasureDefaultValue': pl.Float64,
-        'MeasureUnit': pl.String,
-    }
-    if fwd is None or not uuids:
-        return pl.DataFrame(schema=schema)
+    if fwd is None:
+        return pl.DataFrame(schema=MEASURE_DATAPOINT_SCHEMA)
 
-    measures = Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
+    measures = Measure.objects.filter(framework_config=fwd.id)
     dps = (
         MeasureDataPoint.objects
         .filter(measure__in=measures)
         .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
         .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
     )
-    return pl.DataFrame(data=list(dps), schema=schema, orient='row')
+    return pl.DataFrame(data=list(dps), schema=MEASURE_DATAPOINT_SCHEMA, orient='row')
+
+
+def collect_measure_datapoints(
+    context: Context,
+    uuids: list[str],
+) -> pl.DataFrame:
+    """
+    Return MeasureDataPoints for the given UUIDs, sliced from the context cache.
+
+    Filters `context.measure_datapoints` (fetched with a single DB query per
+    context) instead of querying the DB per call. `uuids` must be in DB
+    (hyphenated) canonical form.
+
+    Returns a plain DataFrame with columns: uuid, MeasureYear, MeasureValue,
+    MeasureDefaultValue, MeasureUnit. No unit conversion is applied — callers
+    that need values in a specific unit should convert themselves.
+    Returns an empty DataFrame with the same schema if uuids is empty.
+    """
+    if not uuids:
+        return pl.DataFrame(schema=MEASURE_DATAPOINT_SCHEMA)
+    return context.measure_datapoints.filter(pl.col('uuid').is_in(uuids))
 
 
 @dataclass
@@ -68,11 +92,6 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         return data
 
     def _override_with_measure_datapoints(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        from django.db.models import TextField
-        from django.db.models.functions import Cast
-
-        from frameworks.models import Measure
-
         context = self.context
         fwd = context.framework_config_data
         ref_year = context.instance.reference_year
@@ -109,21 +128,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         )
 
         uuids = df['UUID'].unique().to_list()
-        measures = Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
-        dps = (
-            MeasureDataPoint.objects
-            .filter(measure__in=measures)
-            .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
-            .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
-        )
-        schema = (
-            ('UUID', pl.String),
-            ('MeasureYear', pl.Int64),
-            ('MeasureValue', pl.Float64),
-            ('MeasureDefaultValue', pl.Float64),
-            ('MeasureUnit', pl.String),
-        )
-        dpdf = ppl.PathsDataFrame(data=list(dps), schema=schema, orient='row')
+        dpdf = collect_measure_datapoints(context, uuids).rename({'uuid': 'UUID'})
 
         meta = df.get_meta()
         df_cols = df.columns
@@ -270,7 +275,7 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             return df
 
         uuids = df['uuid'].unique().to_list()
-        dpdf = collect_measure_datapoints(fwd, uuids)
+        dpdf = collect_measure_datapoints(context, uuids)
 
         # Convert measure values to the dataset unit. After a UUID-keyed join there is
         # usually exactly one MeasureUnit, so a single ensure_unit() call is sufficient.
@@ -393,7 +398,7 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         uuids = dvc_ds.df['uuid'].cast(pl.String).str.replace_all('_', '-').drop_nulls().unique().to_list()
         if not uuids:
             return []
-        dpdf = collect_measure_datapoints(fwd, uuids)
+        dpdf = collect_measure_datapoints(self.context, uuids)
         # Exclude rows where both value and default_value are null — those have no
         # data to contribute and should not be counted as observation years.
         dpdf = dpdf.filter(pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null())
@@ -439,11 +444,6 @@ class ObservationDataset(DVCDataset):
 
     def _overlay_observations(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901,PLR0912,PLR0915
         """Query DB for observations and overlay onto DVC data, adding observed/placeholder columns."""
-        from django.db.models import TextField
-        from django.db.models.functions import Cast
-
-        from frameworks.models import Measure
-
         context = self.context
         fwd = context.framework_config_data
 
@@ -485,33 +485,22 @@ class ObservationDataset(DVCDataset):
         if fwd is None:
             return self._reattach_passthrough(df, _passthrough)
 
-        # --- 3. Query DB for MeasureDataPoints by UUID --------------------------------
+        # --- 3. Look up MeasureDataPoints by UUID -------------------------------------
         # DVC stores UUIDs with underscores; DB uses hyphens.
         dvc_uuids = df['uuid'].unique().drop_nulls().to_list()
         db_uuids = [u.replace('_', '-') for u in dvc_uuids]
 
-        measures = Measure.objects.filter(
-            framework_config=fwd.id,
-            measure_template__uuid__in=db_uuids,
-        )
-        raw_dps = list(
-            MeasureDataPoint.objects
-            .filter(measure__in=measures)
-            .annotate(uuid_str=Cast('measure__measure_template__uuid', output_field=TextField()))
-            .values_list('uuid_str', 'year', 'value', 'default_value', 'measure__measure_template__unit')
-        )
-        if not raw_dps:
+        dpdf = collect_measure_datapoints(context, db_uuids)
+        if dpdf.is_empty():
             return self._reattach_passthrough(df, _passthrough)
 
         # Build obs DataFrame (convert hyphen UUIDs back to underscore format)
-        obs_raw: pl.DataFrame = pl.DataFrame(
-            {
-                'uuid': [r[0].replace('-', '_') for r in raw_dps],
-                YEAR_COLUMN: [r[1] for r in raw_dps],
-                '_obs_value': [r[2] for r in raw_dps],
-                '_obs_default': [r[3] for r in raw_dps],
-                '_obs_unit': [r[4] for r in raw_dps],
-            },
+        obs_raw: pl.DataFrame = dpdf.select(
+            pl.col('uuid').str.replace_all('-', '_', literal=True),
+            pl.col('MeasureYear').alias(YEAR_COLUMN),
+            pl.col('MeasureValue').alias('_obs_value'),
+            pl.col('MeasureDefaultValue').alias('_obs_default'),
+            pl.col('MeasureUnit').alias('_obs_unit'),
         )
         # DVC files may store uuid as categorical; cast obs_raw to match for join compatibility.
         uuid_dtype = df.schema['uuid']
