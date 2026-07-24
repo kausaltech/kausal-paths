@@ -450,6 +450,20 @@ nodes:
       categories: [new]
   input_dataset_processors: [LinearInterpolation]
 
+- id: baseline_existing_residential_electricity_mix
+  name: Baseline Electricity Mix (Existing Residential Buildings)
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_provider, subsector, building_type, building_status, energy_carrier]
+  output_dimensions: [energy_provider, subsector, building_type, building_status, energy_carrier]
+  input_nodes:
+  - id: baseline_existing_building_electricity_usage
+    tags: [activity]
+    from_dimensions:
+    - id: subsector
+      categories: [residential]
+
 - id: baseline_existing_commercial_electricity_mix
   name: Baseline Electricity Mix (Existing Commercial Buildings)
   type: simple.MixNode
@@ -507,6 +521,9 @@ nodes:
   - id: eb1b_electricity_reduction_cool_green_roofs
   - id: eb3d_electricity_reduction_new_residential_buildings
   - id: eb3d_electricity_reduction_new_commercial_buildings
+  - id: eb3e_electricity_reduction_existing_residential_buildings
+  - id: eb3e_electricity_reduction_existing_commercial_buildings
+  - id: eb4d_electricity_reduction_ultragreen
 
 - id: building_natural_gas_usage
   name: Building Natural Gas Usage
@@ -799,26 +816,32 @@ nodes:
       value: change_from_2022
   input_dataset_processors: [LinearInterpolation]
 
-- id: new_commercial_square_footage
-  name: New Commercial Square Footage from 2022
-  type: formula.FormulaNode
-  quantity: floor_area
-  unit: ft**2
+- id: commercial_square_footage_per_employee
+  name: Commercial Square Footage per Employee
+  type: simple.AdditiveNode
+  quantity: factor
+  unit: ft**2/cap
   input_dimensions: []
   output_dimensions: []
-  params:
-    formula: new_employees * area_per_employee
   input_datasets:
   - id: yolo/households_and_employees
     column: factor_area_per_employee
     forecast_from: 2023
-    tags: [area_per_employee]
     filters:
     - column: demographic_group
     - column: demographic_quantity
   input_dataset_processors: [LinearInterpolation]
+
+- id: new_commercial_square_footage
+  name: New Commercial Square Footage from 2022
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: ft**2
+  input_dimensions: []
+  output_dimensions: []
   input_nodes:
   - id: new_employees
+  - id: commercial_square_footage_per_employee
 
 - id: pv_electricity_production_per_commercial_square_foot
   name: PV Electricity Production per Commercial Square Foot
@@ -851,74 +874,98 @@ nodes:
   - id: baseline_new_commercial_electricity_mix
 
 # ---------- EB3E
-# - id: eb3e_electricity_reduction_existing_residential_buildings
-#   name: EB3E Residential Annual Energy (Existing Units)
-#   type: formula.FormulaNode
-#   quantity: energy_consumption
-#   unit: kWh/year
-#   input_dimensions: []
-#   output_dimensions: []
-#   params:
-#     formula: fraction * 11546 * 6688
-#   input_nodes:
-#   - id: eb3e
-#     filters:
-#     - dimension: subsector
-#       categories: [residential]
-#     tags: [fraction]
 
-# - id: eb3e_electricity_reduction_existing_commercial_buildings
-#   name: EB3E Commercial Annual Energy (Existing Units)
-#   type: formula.FormulaNode
-#   quantity: energy_consumption
-#   unit: kWh/year
-#   input_dimensions: []
-#   output_dimensions: []
-#   params:
-#     formula: fraction * 136570 * 663.5
-#   input_nodes:
-#   - id: eb3e
-#     filters:
-#     - dimension: subsector
-#       categories: [commercial]
-#     tags: [fraction]
+# --------------- Residential
+- id: existing_households
+  name: Number of Households in 2022
+  type: simple.AdditiveNode
+  quantity: number
+  unit: count
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/households_and_employees
+    column: number
+    max_year: 2022
+    filters:
+    - column: demographic_group
+      value: households
+    - column: demographic_quantity
+      value: total
+
+- id: eb3e_electricity_reduction_existing_residential_buildings
+  name: 'EB3E Electricity Reduction: PV on Existing Residential Buildings'
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [energy_provider, subsector, building_type, building_status, energy_carrier]
+  output_dimensions: [energy_provider, subsector, building_type, building_status, energy_carrier]
+  input_nodes:
+  - id: existing_households
+    to_dimensions: []
+  - id: pv_electricity_production_per_household
+    tags: [non_additive]
+    to_dimensions: []
+  - id: baseline_existing_residential_electricity_mix
+
+# --------------- Commercial
+- id: existing_employees
+  name: Number of Employees in 2022
+  type: simple.AdditiveNode
+  quantity: population
+  unit: cap
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: yolo/households_and_employees
+    column: population
+    max_year: 2022
+    filters:
+    - column: demographic_group
+      value: employees
+    - column: demographic_quantity
+      value: total
+
+- id: existing_commercial_square_footage
+  name: Commercial Square Footage in 2022
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: ft**2
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: existing_employees
+  - id: commercial_square_footage_per_employee
+
+- id: eb3e_electricity_reduction_existing_commercial_buildings
+  name: 'EB3E Electricity Reduction: PV on Existing Commercial Buildings'
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [energy_provider, subsector, building_type, building_status, energy_carrier]
+  output_dimensions: [energy_provider, subsector, building_type, building_status, energy_carrier]
+  input_nodes:
+  - id: existing_commercial_square_footage
+    to_dimensions: []
+  - id: pv_electricity_production_per_commercial_square_foot
+    to_dimensions: []
+  - id: baseline_existing_commercial_electricity_mix
 
 # ---------- EB4D
-# - id: eb4d_building_electricity
-#   name: Building Electricity Use (Adjusted BAU)
-#   type: simple.AdditiveNode
-#   quantity: energy_consumption
-#   unit: kWh/year
-#   input_dimensions: [subsector, energy_provider, building_type, building_status, energy_carrier]
-#   output_dimensions: [subsector, energy_provider, building_type, building_status]
-#   input_datasets:
-#   - id: yolo/building-input
-#     forecast_from: 2023
-#     filters:
-#     - dimension: energy_carrier
-#       categories: [electricity]
-#     - dimension: subsector
-#       categories: [residential, commercial]
-#     - dimension: scenario_id
-#       categories: [adjusted_baseline]
-#   input_dataset_processors: [LinearInterpolation]
-
-# - id: eb4d_electricity_reduction
-#   name: EB4D Electricity Reduction
-#   type: formula.FormulaNode
-#   quantity: energy_consumption
-#   unit: kWh/year
-#   input_dimensions: [subsector, energy_provider, building_type, building_status]
-#   output_dimensions: [subsector, energy_provider, building_type, building_status]
-#   params:
-#     formula: -fraction * total_elec
-#   input_nodes:
-#   - id: eb4d
-#     tags: [fraction]
-#   - id: eb4d_building_electricity
-#     tags: [total_elec]
-#   output_nodes:
-#   - id: building_electricity_use
+- id: eb4d_electricity_reduction_ultragreen
+  name: "EB4D Electricity Reduction: VCE's UltraGreen Program"
+  type: formula.FormulaNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  output_dimensions: [subsector, building_type, building_status, energy_provider, energy_carrier]
+  params:
+    formula: (existing_buildings + new_buildings) * eb4d
+  input_nodes:
+  - id: baseline_existing_building_electricity_usage
+    tags: [existing_buildings]
+  - id: baseline_new_building_electricity_usage
+    tags: [new_buildings]
 
 - id: building_emissions
   name: Building Energy
@@ -2033,46 +2080,59 @@ actions:
       flatten: true
     to_dimensions: []
 
-# - id: eb3e
-#   name: Facilitate adoption of enhanced solar PV system requirements
-#   type: simple.AdditiveAction
-#   group: buildings_act
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: [subsector]
-#   output_dimensions: [subsector]
-#   input_datasets:
-#   - id: yolo/actions-input
-#     forecast_from: 2023
-#     filters:
-#     - column: action
-#       value: eb3e
-#     - column: quantity
-#       value: fraction
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes:
-#   - id: eb3e_residential_energy
-#   - id: eb3e_commercial_energy
+- id: eb3e
+  name: Facilitate Adoption of Enhanced PV System Requirements
+  type: simple.AdditiveAction
+  group: buildings
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [subsector]
+  output_dimensions: [subsector]
+  input_datasets:
+  - id: yolo/actions
+    column: fraction
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: eb3e
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: eb3e_electricity_reduction_existing_residential_buildings
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: subsector
+      categories: [residential]
+      flatten: true
+    to_dimensions: []
+  - id: eb3e_electricity_reduction_existing_commercial_buildings
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: subsector
+      categories: [commercial]
+      flatten: true
+    to_dimensions: []
 
-# - id: eb4d
-#   name: Encourage enrollment in "UltraGreen" program by VCE
-#   type: simple.AdditiveAction
-#   group: buildings_act
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: [subsector]
-#   output_dimensions: [subsector]
-#   input_datasets:
-#   - id: yolo/actions-input
-#     forecast_from: 2023
-#     filters:
-#     - column: action
-#       value: eb4d
-#     - column: quantity
-#       value: fraction
-#   input_dataset_processors: [LinearInterpolation]
-#   output_nodes:
-#   - id: eb4d_electricity_reduction
+- id: eb4d
+  name: Encourage Enrollment in VCE's UltraGreen Program
+  type: simple.AdditiveAction
+  group: buildings
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [subsector]
+  output_dimensions: [subsector]
+  input_datasets:
+  - id: yolo/actions
+    column: fraction
+    forecast_from: 2023
+    filters:
+    - column: action
+      value: eb4d
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: eb4d_electricity_reduction_ultragreen
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: subsector
 
 # ----- Water
 - id: w2
