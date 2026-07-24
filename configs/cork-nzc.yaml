@@ -2,7 +2,7 @@ id: cork-nzc
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 07b87a8f497dbe4e966941e2cb09badf35b58bd0
+  commit: 1150382552c652141a4430d81e7ded033e5d5563
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -260,6 +260,28 @@ impact_overviews:
 
 dimensions:
 
+- id: building_type
+  label_en: Building type
+  categories:
+  - id: detached_house
+    label_en: Detached house
+  - id: semi_detached_house
+    label_en: Semi-detached/ end of terrace house
+  - id: terraced_house
+    label_en: Terraced house
+  - id: apartment
+    label_en: Apartment
+  - id: commercial
+    label_en: Commercial
+  - id: office
+    label_en: Office
+  - id: church
+    label_en: Church
+  - id: garage
+    label_en: Garage
+  - id: industrial
+    label_en: Industrial
+
 - id: project
   label: Project
   categories:
@@ -271,6 +293,43 @@ dimensions:
     label: Creamfield Projects
   - id: ballyhooly_road
     label: Ballyhooly Road
+
+- id: sector
+  label_en: Sector
+  label_fi: Sektori
+  help_text: Sectors as categorised in the Mission City Climate City Contracts 
+    (CCC).
+  categories:
+  - id: transport
+    label_en: Transport
+    label_fi: Liikenne
+  - id: freight_transport
+    label_en: Freight transport
+    label_fi: Tavaraliikenne
+  - id: buildings
+    label_en: Buildings & Heating
+    label_fi: Rakennukset ja lämmitys
+  - id: electricity
+    label_en: Electricity
+    label_fi: Sähkö
+  - id: heating_electricity
+    label_en: Heating electricity
+    label_fi: Lämmityssähkö
+  - id: non_heating_electricity
+    label_en: Non-heating electricity
+    label_fi: Ei-lämmityssähkö
+  - id: waste
+    label_en: Waste
+    label_fi: Jätteet
+  - id: other
+    label_en: Other (incl. IPPU & AFOLU)
+    label_fi: Muut (sis. IPPU, AFOLU)
+  - id: residential
+    label_en: Residential
+  - id: commercial
+    label_en: Commercial
+  - id: industrial
+    label_en: Industrial
 
 - id: ghg  # TODO Update the nzc.yaml dimension and drop this.
   label_en: Greenhouse gas
@@ -359,6 +418,76 @@ nodes:
     - id: sector
       categories: [freight_transport]
     - id: energy_carrier
+
+# -------------- Local building emissions -----------
+
+- id: building_energy_by_type
+  name: Building energy by type (KPMG inventory)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_type, sector]
+  output_dimensions: [building_type, sector]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: cork/kpmg_building_data
+    column: energy_use
+
+- id: building_heat_energy_by_type
+  name: Building heat energy by building type
+  description: Model heat energy split across building types using KPMG inventory
+    shares (use_as_shares), so totals equal the model and all action impacts pass
+    through. The building-type split is applied uniformly across heating types and
+    carriers.
+  type: generic.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_type, sector, heating_type, scope, energy_carrier, fuel_type, building_energy_class]
+  output_dimensions: [building_type, sector, heating_type, scope, energy_carrier, fuel_type, building_energy_class]
+  input_nodes:
+  - id: building_energy_by_type
+    tags: [use_as_shares]
+  - id: building_heat_energy_use
+  params:
+    operations: add,use_as_shares
+
+- id: building_emission_factors
+  name: Building emission factors (KPMG, blended incl. electricity)
+  description: Blended all-energy emission factors per building type from the KPMG
+    BEI, including electricity at grid intensity (~254 g/kWh, SEAI 2023). The
+    Apartment factor (0.296 kg/kWh) reflects 69 GWh classified as house coal that
+    is most plausibly mains gas; corrected, it would be ~0.230 kg/kWh and total
+    building emissions ~539 kt/a instead of 548 kt/a. Non-domestic factors use a
+    certificate-count fuel split (CSO BER), not an energy-weighted split.
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [building_type, sector]
+  output_dimensions: [building_type, sector]
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: cork/kpmg_building_data
+    column: emission_factor
+
+- id: building_emissions_by_type_inventory
+  name: Building emissions by building type (KPMG inventory view)
+  description: Reproduces the KPMG 2023 building emissions inventory (548 kt/a
+    incl. electricity) by building type. Reporting view only — not connected to
+    net emissions, where building heating and electricity emissions are accounted
+    separately to avoid double counting.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+  input_dimensions: [building_type, sector]
+  output_dimensions: [building_type, sector]
+  input_nodes:
+  - id: building_energy_by_type
+    tags: [energy]
+  - id: building_emission_factors
+    tags: [ef]
+  params:
+    formula: energy * ef
 
 # -------------- Local waste emissions --------------
 
@@ -494,7 +623,7 @@ nodes:
 - id: social_housing_energy_saving
   name: Social housing energy saving
   type: generic.GenericNode
-  quantity: emissions
+  quantity: energy
   unit: MWh/a
   input_nodes:
   - id: be_1_retrofit_social_housing
