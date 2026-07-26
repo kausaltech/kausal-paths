@@ -14,7 +14,7 @@ default_language: en
 supported_languages: [es-US]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ad50da5a21200b37695fc462081d7872840f6991
+  commit: ef08a8359893a551927be5b739dac879ee16b5a6
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -1153,17 +1153,117 @@ nodes:
   params:
     formula: (old + new) * action_mix
 
+- id: updated_building_code_stock
+  name: Updated building code (accumulated stock share)
+  description: Cumulative share of existing building stock brought under the 
+    updated building code so far, built from the action's own yearly incremental
+    share (see updated_building_code) so that each year's floor area is weighted
+    by the code vintage in effect when it was brought under the code, not by the
+    current year's improvement figure.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class, emission_sectors]
+  output_dimensions: [building_energy_class, emission_sectors]
+  input_nodes:
+  - id: updated_building_code
+    tags: [flow]
+  params:
+    formula: cumulative(flow)
+
+- id: develop_beyond_building_code_stock
+  name: Develop beyond building code (accumulated stock share)
+  description: Cumulative share of new building stock developed beyond code so 
+    far, built from the action's own yearly incremental share (see 
+    develop_beyond_building_code) so that each year's floor area is weighted by 
+    the vintage in effect when it was built, not by the current year's 
+    improvement figure.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class, emission_sectors]
+  output_dimensions: [building_energy_class, emission_sectors]
+  input_nodes:
+  - id: develop_beyond_building_code
+    tags: [flow]
+  params:
+    formula: cumulative(flow)
+
+- id: benchmark_energy_use_stock
+  name: Benchmark energy use (accumulated stock share)
+  description: Cumulative share of commercial/industrial building stock brought 
+    under the benchmarking program so far, built from the action's own yearly 
+    incremental share (see benchmark_energy_use).
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class, emission_sectors]
+  output_dimensions: [building_energy_class, emission_sectors]
+  input_nodes:
+  - id: benchmark_energy_use
+    tags: [flow]
+  params:
+    formula: cumulative(flow)
+
+- id: building_class_mix_none
+  name: Building class mix (no action taken, residual)
+  description: The complement of whatever share has been claimed by 
+    updated_building_code, develop_beyond_building_code, and 
+    benchmark_energy_use, so the three action shares plus this one always sum to
+    100% for every (building_energy_class, emission_sectors) cell.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class, emission_sectors]
+  output_dimensions: [building_energy_class, emission_sectors]
+  input_nodes:
+  - id: updated_building_code_stock
+    tags: [ubc]
+  - id: develop_beyond_building_code_stock
+    tags: [dbbc]
+  - id: benchmark_energy_use_stock
+    tags: [beu]
+  params:
+    formula: complement(ubc + dbbc + beu)
+
 - id: building_class_mix
   name: Building class mix
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: fraction
   unit: '%'
   input_dimensions: [action, building_energy_class, emission_sectors]
   output_dimensions: [action, building_energy_class, emission_sectors]
-  input_datasets:
-  - id: longmont/building_class_mix
+  input_nodes:
+  - id: updated_building_code_stock
+    tags: [ubc]
+    to_dimensions:
+    - id: building_energy_class
+    - id: emission_sectors
+    - id: action
+      categories: [updated_building_code]
+  - id: develop_beyond_building_code_stock
+    tags: [dbbc]
+    to_dimensions:
+    - id: building_energy_class
+    - id: emission_sectors
+    - id: action
+      categories: [develop_beyond_building_code]
+  - id: benchmark_energy_use_stock
+    tags: [beu]
+    to_dimensions:
+    - id: building_energy_class
+    - id: emission_sectors
+    - id: action
+      categories: [benchmark_energy_use]
+  - id: building_class_mix_none
+    tags: [none_share]
+    to_dimensions:
+    - id: building_energy_class
+    - id: emission_sectors
+    - id: action
+      categories: [none]
   params:
-    operations: get_single_dataset,add_to_existing_dims
+    formula: ubc + dbbc + beu + none_share
 
 - id: electricity_use_on_streetlights_and_internal_operations
   name: Electricity use on streetlights and internal operations
@@ -1207,7 +1307,7 @@ nodes:
   input_nodes:
   - id: energy_use_intensity_trend_natural_gas
     tags: [trend, extend_both_ways]
-  - id: energy_use_intensity_improvement
+  - id: energy_use_intensity_improvement_vintage
     tags: [improvement]
   params:
     formula: (eui + trend) * complement(improvement)
@@ -1251,7 +1351,7 @@ nodes:
     forecast_from: 2025
     output_dimensions: [emission_sectors]
   input_nodes:
-  - id: energy_use_intensity_improvement
+  - id: energy_use_intensity_improvement_vintage
     tags: [improvement]
   - id: energy_use_intensity_trend_electricity
     tags: [trend]
@@ -1565,57 +1665,64 @@ nodes:
 - id: stationary_fuel_consumption_emissions
   name: Stationary fuel consumption emissions
   name_es-US: Emisiones del consumo de combustible estacionario
-  description: <p>1) Stationary Diesel Use data was provided by CDPHE. Spreadsheet
-    on file.</p> <p>2) Xcel Energy emission factor, electricity and natural gas usage
-    data, and renewable energy data is from Xcel's 2021 Community Energy Report for
-    Longmont, on file.</p> <p>3) Longmont Power & Communications data provided. PDF
-    on file. The commercial buildings in Longmont's Weld County portion consumed 31,000,000
-    kWh in 2021.</p> <p>4) T&D losses are calculated for Xcel and Longmont based on
-    the EIA 861 (https://www.eia.gov/electricity/data/eia861/) reported data. Specifically
-    the Utility Operational Data_2021. Spreadsheet on file.</p> <p>5) Propane data
-    provided by FerrellGas. Spreadsheet on file.</p> <p>6) Houses heated with wood
-    were pulled from the US Census Bureau, data on file. It was assumed that all of
-    the houses heated by wood in Longmont fell within the Boulder County portion of
-    Longmont.</p> <p>7) Longmont Power and Communications data was provided by Longmont
-    Power & Communications. PDF on file.</p> <p>8) Longmont Power & Communications
-    and Lyons Municipal rooftop solar data was provided in kW of capacity rather than
-    kWh generated. NREL's PVWatts was used to estimate kWh generated by rooftop solar
-    systems. PDF of results on file. See https://pvwatts.nrel.gov/</p> <p>10) Due
-    to Xcel's 15/15 rule, with less than 15 customers in the commercial and residential
-    data sets they cannot provide usage for those customers to avoid violating privacy
-    concerns. Therefore Lotus applied the average residential and commercial kWh use
-    from LPC to the 7 residential and commercial customers (respectively) in Xcel
-    territory to estimate use.</p> <p>11) PRPA emission factor and transmission and
-    distribution loss rate for 2021 was provided. Email on file. Emissions factor
-    value represents Longmont's load share emissions rate without unbundled RECs.</p>
-  description_es-US: <p>1) Los datos sobre el consumo de diésel estacionario fueron
-    brindados por el CDPHE. Hoja de cálculo en el archivo.</p> <p>2) El factor de
-    emisión de Xcel Energy, los datos de consumo de electricidad y gas natural y los
-    datos de energía renovable provienen del Informe de energía comunitaria 2021 de
-    Xcel para Longmont (en el archivo).</p> <p>3) Datos facilitados por Longmont Power
-    & Communications. PDF en el archivo. Los edificios comerciales en la parte del
-    condado de Weld de Longmont consumieron 31.000.000 kWh en el año 2021.</p> <p>4)
-    Las pérdidas de transmisión y distribución se calculan para Xcel y Longmont según
-    los datos de la EIA 861 (https://www.eia.gov/electricity/data/eia861/). Específicamente
-    los Datos operativos de servicios públicos 2021. Hoja de cálculo en el archivo.</p>
-    <p>5) Datos de propano facilitados por FerrellGas. Hoja de cálculo en el archivo.</p>
-    <p>6) Las casas con calefacción de madera fueron retiradas de la Oficina del Censo
-    de los Estados Unidos (datos en el archivo). Se supuso que todas las casas con
-    calefacción de madera se encontraban en la parte del condado de Boulder de Longmont.</p>
-    <p>7) Los datos de energía y comunicaciones de Longmont fueron facilitados por
-    Longmont Power & Communications. PDF en el archivo.</p> <p>8) Los datos de sistemas
-    solares de techo de Longmont Power & Communications y Lyons Municipal se ofrecieron
-    en kW de capacidad en lugar de kWh generados. Los PVWatts del NREL se utilizaron
-    para estimar los kWh generados por los sistemas solares de techo. PDF de los resultados
-    en el archivo. Visite https://pvwatts.nrel.gov/</p> <p>10) Debido a la regla 15/15
-    de Xcel, con menos de 15 clientes en los conjuntos de datos comerciales y residenciales,
-    no pueden brindar el consumo de esos clientes para evitar problemas de privacidad.
-    Por lo tanto, Lotus aplicó el consumo promedio de kWh residencial y comercial
-    de LPC a los siete clientes residenciales y comerciales (respectivamente) en el
-    territorio de Xcel para estimar el consumo.</p> <p>11) Se proporcionó la tasa
-    de pérdida de transmisión y distribución y el factor de emisión de la PRPA de
-    2021. Correo electrónico en el archivo. El valor del factor de emisiones representa
-    la tasa de emisiones de carga compartida de Longmont sin REC desagregados.</p>
+  description: <p>1) Stationary Diesel Use data was provided by CDPHE. 
+    Spreadsheet on file.</p> <p>2) Xcel Energy emission factor, electricity and 
+    natural gas usage data, and renewable energy data is from Xcel's 2021 
+    Community Energy Report for Longmont, on file.</p> <p>3) Longmont Power & 
+    Communications data provided. PDF on file. The commercial buildings in 
+    Longmont's Weld County portion consumed 31,000,000 kWh in 2021.</p> <p>4) 
+    T&D losses are calculated for Xcel and Longmont based on the EIA 861 
+    (https://www.eia.gov/electricity/data/eia861/) reported data. Specifically 
+    the Utility Operational Data_2021. Spreadsheet on file.</p> <p>5) Propane 
+    data provided by FerrellGas. Spreadsheet on file.</p> <p>6) Houses heated 
+    with wood were pulled from the US Census Bureau, data on file. It was 
+    assumed that all of the houses heated by wood in Longmont fell within the 
+    Boulder County portion of Longmont.</p> <p>7) Longmont Power and 
+    Communications data was provided by Longmont Power & Communications. PDF on 
+    file.</p> <p>8) Longmont Power & Communications and Lyons Municipal rooftop 
+    solar data was provided in kW of capacity rather than kWh generated. NREL's 
+    PVWatts was used to estimate kWh generated by rooftop solar systems. PDF of 
+    results on file. See https://pvwatts.nrel.gov/</p> <p>10) Due to Xcel's 
+    15/15 rule, with less than 15 customers in the commercial and residential 
+    data sets they cannot provide usage for those customers to avoid violating 
+    privacy concerns. Therefore Lotus applied the average residential and 
+    commercial kWh use from LPC to the 7 residential and commercial customers 
+    (respectively) in Xcel territory to estimate use.</p> <p>11) PRPA emission 
+    factor and transmission and distribution loss rate for 2021 was provided. 
+    Email on file. Emissions factor value represents Longmont's load share 
+    emissions rate without unbundled RECs.</p>
+  description_es-US: <p>1) Los datos sobre el consumo de diésel estacionario 
+    fueron brindados por el CDPHE. Hoja de cálculo en el archivo.</p> <p>2) El 
+    factor de emisión de Xcel Energy, los datos de consumo de electricidad y gas
+    natural y los datos de energía renovable provienen del Informe de energía 
+    comunitaria 2021 de Xcel para Longmont (en el archivo).</p> <p>3) Datos 
+    facilitados por Longmont Power & Communications. PDF en el archivo. Los 
+    edificios comerciales en la parte del condado de Weld de Longmont 
+    consumieron 31.000.000 kWh en el año 2021.</p> <p>4) Las pérdidas de 
+    transmisión y distribución se calculan para Xcel y Longmont según los datos 
+    de la EIA 861 (https://www.eia.gov/electricity/data/eia861/). 
+    Específicamente los Datos operativos de servicios públicos 2021. Hoja de 
+    cálculo en el archivo.</p> <p>5) Datos de propano facilitados por 
+    FerrellGas. Hoja de cálculo en el archivo.</p> <p>6) Las casas con 
+    calefacción de madera fueron retiradas de la Oficina del Censo de los 
+    Estados Unidos (datos en el archivo). Se supuso que todas las casas con 
+    calefacción de madera se encontraban en la parte del condado de Boulder de 
+    Longmont.</p> <p>7) Los datos de energía y comunicaciones de Longmont fueron
+    facilitados por Longmont Power & Communications. PDF en el archivo.</p> 
+    <p>8) Los datos de sistemas solares de techo de Longmont Power & 
+    Communications y Lyons Municipal se ofrecieron en kW de capacidad en lugar 
+    de kWh generados. Los PVWatts del NREL se utilizaron para estimar los kWh 
+    generados por los sistemas solares de techo. PDF de los resultados en el 
+    archivo. Visite https://pvwatts.nrel.gov/</p> <p>10) Debido a la regla 15/15
+    de Xcel, con menos de 15 clientes en los conjuntos de datos comerciales y 
+    residenciales, no pueden brindar el consumo de esos clientes para evitar 
+    problemas de privacidad. Por lo tanto, Lotus aplicó el consumo promedio de 
+    kWh residencial y comercial de LPC a los siete clientes residenciales y 
+    comerciales (respectivamente) en el territorio de Xcel para estimar el 
+    consumo.</p> <p>11) Se proporcionó la tasa de pérdida de transmisión y 
+    distribución y el factor de emisión de la PRPA de 2021. Correo electrónico 
+    en el archivo. El valor del factor de emisiones representa la tasa de 
+    emisiones de carga compartida de Longmont sin REC desagregados.</p>
   type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
@@ -1638,7 +1745,7 @@ nodes:
     - id: ghg
     - id: emission_sectors
     - id: scope
-      categories: [scope1] 
+      categories: [scope1]
   params:
     formula: use * ef
 
@@ -2417,7 +2524,8 @@ nodes:
   - id: gas_collection_rate
     to_dimensions: []
   params:
-    formula: mass * complement(diversion_rate) * msw_characterization * ef * complement(gas_collection_rate)
+    formula: mass * complement(diversion_rate) * msw_characterization * ef * 
+      complement(gas_collection_rate)
   output_nodes:
   - id: waste_emissions
     from_dimensions:
@@ -2762,8 +2870,9 @@ nodes:
 - id: electric_vehicle_miles_traveled
   name: Electric vehicle miles traveled
   name_es-US: Millas recorridas por vehículos eléctricos
-  description_en: Amount of electric vehicle miles traveled replacing combustion engine miles.
-    Note! The energy carrier shows what energy carrier is replaced by electric vehicles.
+  description_en: Amount of electric vehicle miles traveled replacing combustion
+    engine miles. Note! The energy carrier shows what energy carrier is replaced
+    by electric vehicles.
   type: formula.FormulaNode
   quantity: mileage
   unit: VMT/a
@@ -2781,11 +2890,13 @@ nodes:
   - id: vehicle_miles_traveled
     tags: [electric_vmt]
   params:
-    formula: vehicles * vmt_per_vehicle * extend_all(vmt / sum_dim(sum_dim(vmt, vehicle_type), energy_carrier))
+    formula: vehicles * vmt_per_vehicle * extend_all(vmt / sum_dim(sum_dim(vmt, 
+      vehicle_type), energy_carrier))
 
 - id: vmt_change_due_to_public_transportation
   name: Change in vehicle miles traveled due to public transportation
-  name_es-US: Cambio en las millas recorridas por vehículos debido al transporte público
+  name_es-US: Cambio en las millas recorridas por vehículos debido al transporte
+    público
   type: formula.FormulaNode
   quantity: mileage
   unit: VMT/a
@@ -2829,7 +2940,8 @@ nodes:
   - id: population
     tags: [pop]
   params:
-    formula: (extend_all(baseline) * ratio_to_max_hist_year(pop) - electric_vmt - transit) * complement(multimod)
+    formula: (extend_all(baseline) * ratio_to_max_hist_year(pop) - electric_vmt 
+      - transit) * complement(multimod)
 
 - id: vehicle_fuel_use
   name: Vehicle fuel use
@@ -2958,15 +3070,158 @@ nodes:
   params:
     operations: get_single_dataset,extend_to_history
 
+- id: energy_use_intensity_improvement_updated_building_code
+  name: Energy use intensity improvement, updated_building_code (vintage-weighted)
+  description: Vintage-weighted average of energy_use_intensity_improvement's
+    updated_building_code figure -- each year's newly-brought-under-code floor
+    area is weighted by that year's achievable improvement, so floor area
+    brought under code in an earlier year keeps that year's rate rather than
+    being retroactively upgraded to the current year's rate.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: updated_building_code
+    tags: [flow]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [existing]
+      flatten: true
+  - id: updated_building_code_stock
+    tags: [stock]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [existing]
+      flatten: true
+  - id: energy_use_intensity_improvement
+    tags: [improvement]
+    from_dimensions:
+    - id: action
+      categories: [updated_building_code]
+      flatten: true
+  params:
+    formula: cumulative(flow * improvement) / (stock + 0.0000001)
+
+- id: energy_use_intensity_improvement_develop_beyond_building_code
+  name: Energy use intensity improvement, develop_beyond_building_code
+    (vintage-weighted)
+  description: Vintage-weighted average of energy_use_intensity_improvement's
+    develop_beyond_building_code figure -- see
+    energy_use_intensity_improvement_updated_building_code for the mechanism.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: develop_beyond_building_code
+    tags: [flow]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [new]
+      flatten: true
+  - id: develop_beyond_building_code_stock
+    tags: [stock]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [new]
+      flatten: true
+  - id: energy_use_intensity_improvement
+    tags: [improvement]
+    from_dimensions:
+    - id: action
+      categories: [develop_beyond_building_code]
+      flatten: true
+  params:
+    formula: cumulative(flow * improvement) / (stock + 0.0000001)
+
+- id: energy_use_intensity_improvement_benchmark_energy_use
+  name: Energy use intensity improvement, benchmark_energy_use (vintage-weighted)
+  description: Vintage-weighted average of energy_use_intensity_improvement's
+    benchmark_energy_use figure -- see
+    energy_use_intensity_improvement_updated_building_code for the mechanism.
+    benchmark_energy_use's flow is identical for existing and new building
+    stock, so either category can be used as the representative slice.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: benchmark_energy_use
+    tags: [flow]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [existing]
+      flatten: true
+  - id: benchmark_energy_use_stock
+    tags: [stock]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [existing]
+      flatten: true
+  - id: energy_use_intensity_improvement
+    tags: [improvement]
+    from_dimensions:
+    - id: action
+      categories: [benchmark_energy_use]
+      flatten: true
+  params:
+    formula: cumulative(flow * improvement) / (stock + 0.0000001)
+
+- id: energy_use_intensity_improvement_vintage
+  name: Energy use intensity improvement (vintage-weighted)
+  description: Per-action EUI improvement replacing
+    energy_use_intensity_improvement's raw current-year lookup with a
+    vintage-weighted average for updated_building_code,
+    develop_beyond_building_code, and benchmark_energy_use -- see
+    energy_use_intensity_improvement_updated_building_code for the mechanism.
+    none is unaffected (always 0, matching no action-driven improvement).
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [emission_sectors, action]
+  output_dimensions: [emission_sectors, action]
+  input_nodes:
+  - id: energy_use_intensity_improvement
+    tags: [none_imp]
+    from_dimensions:
+    - id: action
+      categories: [none]
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+    - id: action
+      categories: [none]
+  - id: energy_use_intensity_improvement_updated_building_code
+    tags: [ubc_imp]
+    to_dimensions:
+    - id: emission_sectors
+    - id: action
+      categories: [updated_building_code]
+  - id: energy_use_intensity_improvement_develop_beyond_building_code
+    tags: [dbbc_imp]
+    to_dimensions:
+    - id: emission_sectors
+    - id: action
+      categories: [develop_beyond_building_code]
+  - id: energy_use_intensity_improvement_benchmark_energy_use
+    tags: [beu_imp]
+    to_dimensions:
+    - id: emission_sectors
+    - id: action
+      categories: [benchmark_energy_use]
+  params:
+    formula: none_imp + ubc_imp + dbbc_imp + beu_imp
+
 - id: energy_use_intensity_trend_natural_gas
   name: Energy use intensity trend (natural gas)
   name_es-US: Tendencia de la intensidad del uso de la energía (gas natural)
-  description: This action describes the assumed improvement in the energy use
-    intensity for the baseline scenario, i.e. changes that will occur anyway
+  description: This action describes the assumed improvement in the energy use 
+    intensity for the baseline scenario, i.e. changes that will occur anyway 
     without any activity from the city.
-  description_es-US: Esta acción describe la mejora supuesta en la intensidad
+  description_es-US: Esta acción describe la mejora supuesta en la intensidad 
     del uso de la energía para el escenario de referencia, es decir, los cambios
-    que se producirán de todos modos sin intervención alguna por parte de la
+    que se producirán de todos modos sin intervención alguna por parte de la 
     ciudad.
   type: generic.GenericNode
   quantity: consumption_factor
@@ -2984,12 +3239,12 @@ nodes:
 - id: energy_use_intensity_trend_electricity
   name: Energy use intensity trend (electricity)
   name_es-US: Tendencia de la intensidad del uso de la energía (electricidad)
-  description: This action describes the assumed improvement in the energy use
-    intensity for the baseline scenario, i.e. changes that will occur anyway
+  description: This action describes the assumed improvement in the energy use 
+    intensity for the baseline scenario, i.e. changes that will occur anyway 
     without any activity from the city.
-  description_es-US: Esta acción describe la mejora supuesta en la intensidad
+  description_es-US: Esta acción describe la mejora supuesta en la intensidad 
     del uso de la energía para el escenario de referencia, es decir, los cambios
-    que se producirán de todos modos sin intervención alguna por parte de la
+    que se producirán de todos modos sin intervención alguna por parte de la 
     ciudad.
   type: generic.GenericNode
   quantity: consumption_factor
@@ -3009,11 +3264,11 @@ nodes:
 - id: mpg_trend
   name: Miles per gallon increasing trend
   name_es-US: Tendencia al aumento de las millas recorridas por galón
-  description: The model assumes that internal combustion vehicles that use
-    gasoline and diesel will become more efficient, increase miles traveled per
+  description: The model assumes that internal combustion vehicles that use 
+    gasoline and diesel will become more efficient, increase miles traveled per 
     gallon, over time.
-  description_es-US: El modelo supone que, con el tiempo, los vehículos de
-    combustión interna que usan gasolina y diésel serán más eficientes y
+  description_es-US: El modelo supone que, con el tiempo, los vehículos de 
+    combustión interna que usan gasolina y diésel serán más eficientes y 
     aumentarán las millas recorridas por galón.
   type: simple.AdditiveNode
   quantity: fuel_consumption
@@ -3033,11 +3288,11 @@ nodes:
 - id: vmt_per_vehicle_trend
   name: Vehicle miles per vehicle trend
   name_es-US: Tendencia de millas recorridas por vehículo
-  description: <p>The model assumes that overtime there will be a decrease in
-    the annual miles traveled per vehicle.</p> <p><b>Unit:</b> mi/(yr. v) =
+  description: <p>The model assumes that overtime there will be a decrease in 
+    the annual miles traveled per vehicle.</p> <p><b>Unit:</b> mi/(yr. v) = 
     miles per year per vehicle</p>
-  description_es-US: <p>El modelo supone que con el tiempo se producirá una
-    disminución de las millas anuales recorridas por vehículo.</p>
+  description_es-US: <p>El modelo supone que con el tiempo se producirá una 
+    disminución de las millas anuales recorridas por vehículo.</p> 
     <p><b>Unidad:</b> mi/(a.v) = millas anuales por vehículo</p>
   type: simple.AdditiveNode
   quantity: mileage
@@ -3052,10 +3307,10 @@ nodes:
 - id: electric_vehicle_efficiency_trend
   name: Electric vehicle efficiency trend
   name_es-US: Tendencia de la eficiencia de los vehículos eléctricos
-  description: The model assumes that electric vehicles will become more
+  description: The model assumes that electric vehicles will become more 
     efficient, increase in miles traveled per kilowatt hour of energy, overtime.
-  description_es-US: El modelo supone que, con el tiempo, los vehículos
-    eléctricos serán más eficientes y aumentarán los kilómetros recorridos por
+  description_es-US: El modelo supone que, con el tiempo, los vehículos 
+    eléctricos serán más eficientes y aumentarán los kilómetros recorridos por 
     kilovatio hora de energía.
   type: simple.AdditiveNode
   quantity: fuel_consumption
@@ -3081,28 +3336,16 @@ actions:
     de energía (EUI, por sus siglas en inglés) causada por esta acción.</p> <p>Seguimiento
     de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-5">Estrategia
     del Plan de Sustentabilidad BI-5</a></li></ul></p>'
-  type: shift.ShiftAction
+  type: simple.GenericAction
   quantity: fraction
-  unit: '%'
+  unit: '%/a'
   group: buildings
-  output_nodes:
-  - id: building_class_mix
-    tags: [add_to_existing_dims]
+  output_dimensions: [building_energy_class, emission_sectors]
+  input_datasets:
+  - id: longmont/building_actions
+    column: updated_building_code
   params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          action: none
-          building_energy_class: existing
-      dests:
-      - categories:
-          action: updated_building_code
-          building_energy_class: existing
-      amounts:
-      - {year: 2025, source_amount: -1.0, dest_amounts: [100]}
+    operations: get_single_dataset
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
@@ -3121,29 +3364,16 @@ actions:
     del consumo de energía (EUI, por sus siglas en inglés) causada por esta acción.</p>
     <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-6">Estrategia
     del Plan de Sustentabilidad BI-6</a></li></ul></p>'
-  type: shift.ShiftAction
+  type: simple.GenericAction
   quantity: fraction
-  unit: '%'
+  unit: '%/a'
   group: buildings
-  output_nodes:
-  - id: building_class_mix
-    tags: [add_to_existing_dims]
+  output_dimensions: [building_energy_class, emission_sectors]
+  input_datasets:
+  - id: longmont/building_actions
+    column: develop_beyond_building_code
   params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          action: none
-          building_energy_class: new
-      dests:
-      - categories:
-          action: develop_beyond_building_code
-          building_energy_class: new
-      amounts:
-      - {year: 2025, source_amount: -90.0, dest_amounts: [100]}
-      - {year: 2026, source_amount: -0.0, dest_amounts: [100]}
+    operations: get_single_dataset
 
 - id: benchmark_energy_use
   name: Report and benchmark energy use in commercial buildings
@@ -3161,30 +3391,16 @@ actions:
     de la intensidad del consumo de energía (EUI, por sus siglas en inglés) causada
     por esta acción.</p> <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-5">Estrategia
     del Plan de Sustentabilidad E-5</a></li></ul>'
-  type: shift.ShiftAction
+  type: simple.GenericAction
   quantity: fraction
-  unit: '%'
+  unit: '%/a'
   group: buildings
-  output_dimensions: [emission_sectors, building_energy_class, energy_carrier]
-  output_nodes:
-  - id: building_class_mix
-    tags: [add_to_existing_dims]
+  output_dimensions: [building_energy_class, emission_sectors]
+  input_datasets:
+  - id: longmont/building_actions
+    column: benchmark_energy_use
   params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          action: none
-          emission_sectors: commercial_industrial_energy
-      dests:
-      - categories:
-          action: benchmark_energy_use
-          emission_sectors: commercial_industrial_energy
-      amounts:
-      - {year: 2027, source_amount: -88.0, dest_amounts: [100]}
-      - {year: 2028, source_amount: -0.0, dest_amounts: [100]}
+    operations: get_single_dataset
 
 - id: efficiency_works_program
   name: Expand the Efficiency Works Program
