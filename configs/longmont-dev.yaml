@@ -1269,7 +1269,7 @@ nodes:
     - id: building_energy_class
     - id: emission_sectors
     - id: action
-      categories: [develop_beyond_building_code]
+      categories: [updated_building_code]
   - id: benchmark_energy_use_stock
     tags: [beu]
     to_dimensions:
@@ -1318,8 +1318,8 @@ nodes:
   type: formula.FormulaNode
   quantity: consumption_factor
   unit: therm/ft**2/a
-  input_dimensions: [emission_sectors, action]
-  output_dimensions: [emission_sectors, action]
+  input_dimensions: [building_energy_class, emission_sectors, action]
+  output_dimensions: [building_energy_class, emission_sectors, action]
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: natural_gas
@@ -1354,6 +1354,7 @@ nodes:
   - id: building_natural_gas_eui_by_action
     tags: [eui]
     to_dimensions:
+    - id: building_energy_class
     - id: emission_sectors
     - id: action
   params:
@@ -1364,8 +1365,8 @@ nodes:
   type: formula.FormulaNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
-  input_dimensions: [emission_sectors, action]
-  output_dimensions: [emission_sectors, action]
+  input_dimensions: [building_energy_class, emission_sectors, action]
+  output_dimensions: [building_energy_class, emission_sectors, action]
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: electricity
@@ -1402,6 +1403,7 @@ nodes:
   - id: building_electricity_eui_by_action
     tags: [eui]
     to_dimensions:
+    - id: building_energy_class
     - id: emission_sectors
     - id: action
   params:
@@ -3157,26 +3159,6 @@ nodes:
   params:
     formula: cumulative(flow * improvement) / (stock + 0.0000001)
 
-- id: energy_use_intensity_improvement_develop_beyond_building_code_layered
-  name: Energy use intensity improvement, develop_beyond_building_code
-    (layered on updated_building_code)
-  description: develop_beyond_building_code's own vintage-weighted improvement
-    plus updated_building_code's, matching the original consultant
-    spreadsheet (Building Energy Model, row 99 equals row 61 -- both
-    actions' percentages are expressed against the same baseline, so they
-    add rather than each applying as an independent discount).
-  type: formula.FormulaNode
-  quantity: fraction
-  unit: '%'
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: energy_use_intensity_improvement_updated_building_code
-    tags: [ubc_imp]
-  - id: energy_use_intensity_improvement_develop_beyond_building_code
-    tags: [dbbc_imp]
-  params:
-    formula: ubc_imp + dbbc_imp
-
 - id: energy_use_intensity_improvement_benchmark_energy_use
   name: Energy use intensity improvement, benchmark_energy_use (vintage-weighted)
   description: Vintage-weighted average of energy_use_intensity_improvement's
@@ -3210,20 +3192,14 @@ nodes:
   params:
     formula: cumulative(flow * improvement) / (stock + 0.0000001)
 
-- id: energy_use_intensity_improvement_vintage
-  name: Energy use intensity improvement (vintage-weighted)
-  description: Per-action EUI improvement replacing
-    energy_use_intensity_improvement's raw current-year lookup with a
-    vintage-weighted average for updated_building_code,
-    develop_beyond_building_code, and benchmark_energy_use -- see
-    energy_use_intensity_improvement_updated_building_code for the mechanism.
-    develop_beyond_building_code's improvement is layered on top of
-    updated_building_code's, matching the original consultant spreadsheet
-    (Building Energy Model, row 99 equals row 61 -- both actions'
-    percentages expressed against the same baseline), not applied
-    independently. benchmark_energy_use is not layered on
-    updated_building_code -- no evidence for that in the source spreadsheet.
-    none is unaffected (always 0, matching no action-driven improvement).
+- id: energy_use_intensity_improvement_vintage_existing
+  name: Energy use intensity improvement (vintage-weighted, existing building
+    stock)
+  description: Per-action EUI improvement for existing building stock -- see
+    energy_use_intensity_improvement_updated_building_code for the vintage-
+    weighting mechanism. No develop_beyond_building_code term here -- it
+    doesn't apply to existing stock (see
+    energy_use_intensity_improvement_vintage_new).
   type: formula.FormulaNode
   quantity: fraction
   unit: '%'
@@ -3246,12 +3222,53 @@ nodes:
     - id: emission_sectors
     - id: action
       categories: [updated_building_code]
-  - id: energy_use_intensity_improvement_develop_beyond_building_code_layered
+  - id: energy_use_intensity_improvement_benchmark_energy_use
+    tags: [beu_imp]
+    to_dimensions:
+    - id: emission_sectors
+    - id: action
+      categories: [benchmark_energy_use]
+  params:
+    formula: none_imp + ubc_imp + beu_imp
+
+- id: energy_use_intensity_improvement_vintage_new
+  name: Energy use intensity improvement (vintage-weighted, new building stock)
+  description: Per-action EUI improvement for new building stock.
+    develop_beyond_building_code has no category of its own here (matching
+    building_class_mix -- it applies to the same new-construction
+    population as updated_building_code, not a separate share, per the
+    original consultant spreadsheet's Building Energy Model rows 69-75 and
+    112-119 both using the same affected-square-footage formula and
+    compliance rate). Its vintage-weighted improvement is instead added
+    into the updated_building_code slot here.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [emission_sectors, action]
+  output_dimensions: [emission_sectors, action]
+  input_nodes:
+  - id: energy_use_intensity_improvement
+    tags: [none_imp]
+    from_dimensions:
+    - id: action
+      categories: [none]
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+    - id: action
+      categories: [none]
+  - id: energy_use_intensity_improvement_updated_building_code
+    tags: [ubc_imp]
+    to_dimensions:
+    - id: emission_sectors
+    - id: action
+      categories: [updated_building_code]
+  - id: energy_use_intensity_improvement_develop_beyond_building_code
     tags: [dbbc_imp]
     to_dimensions:
     - id: emission_sectors
     - id: action
-      categories: [develop_beyond_building_code]
+      categories: [updated_building_code]
   - id: energy_use_intensity_improvement_benchmark_energy_use
     tags: [beu_imp]
     to_dimensions:
@@ -3260,6 +3277,39 @@ nodes:
       categories: [benchmark_energy_use]
   params:
     formula: none_imp + ubc_imp + dbbc_imp + beu_imp
+
+- id: energy_use_intensity_improvement_vintage
+  name: Energy use intensity improvement (vintage-weighted)
+  description: Per-action EUI improvement replacing
+    energy_use_intensity_improvement's raw current-year lookup with a
+    vintage-weighted average for updated_building_code,
+    develop_beyond_building_code, and benchmark_energy_use -- combines
+    energy_use_intensity_improvement_vintage_existing and _new (see those
+    for the per-building-class breakdown; see
+    energy_use_intensity_improvement_updated_building_code for the
+    vintage-weighting mechanism itself).
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class, emission_sectors, action]
+  output_dimensions: [building_energy_class, emission_sectors, action]
+  input_nodes:
+  - id: energy_use_intensity_improvement_vintage_existing
+    tags: [existing_slice]
+    to_dimensions:
+    - id: emission_sectors
+    - id: action
+    - id: building_energy_class
+      categories: [existing]
+  - id: energy_use_intensity_improvement_vintage_new
+    tags: [new_slice]
+    to_dimensions:
+    - id: emission_sectors
+    - id: action
+    - id: building_energy_class
+      categories: [new]
+  params:
+    formula: existing_slice + new_slice
 
 - id: energy_use_intensity_trend_natural_gas
   name: Energy use intensity trend (natural gas)
