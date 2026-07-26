@@ -1228,6 +1228,28 @@ nodes:
 
 - id: building_class_mix
   name: Building class mix
+  description: "Floor area by building class<ul>
+    <li>old(t)   = building_square_footage_old(t)                         [historical/baseline, existing stock]</li>
+    <li>new(t)   = old(t) * (ratio_to_max_hist_year(population(t)) - 1)   [scales with population growth]</li></ul>
+
+    Building class mix — the share of floor area classified under each action, per (building energy class, emission sector) cell:
+    <ul><li>flow_a(t)  = yearly incremental share newly brought under action a</li>
+    <li>stock_a(t) = Σ_{t'≤t} flow_a(t')                                   [cumulative, 'cumulative(flow)']</li>
+    <li>none(t)    = 1 - Σ_a stock_a(t)                                   [complement of the three actions]</li></ul>
+    where a ∈ {updated_building_code, develop_beyond_building_code, benchmark_energy_use}.
+
+    Vintage-weighted EUI improvement — per action, weighted by when the floor area entered, not by the current year's rate:
+    <ul><li>improvement_a(t) = Σ_{t'≤t} [flow_a(t') * improvement_table_a(t')]  /  Σ_{t'≤t} flow_a(t')</li>
+    <li>improvement_table_a(t') is the achievable EUI improvement for action a using the technology/code available in year t'. This means floor area brought under develop_beyond_building_code in 2025 keeps 2025's ~55%/58% rate forever, rather than being retroactively upgraded to whatever rate is current. improvement_none(t) = 0 always (no action → no improvement).</li></ul>
+
+    EUI by action:
+    <ul><li>EUI_a(t) = (eui_baseline + trend(t)) * (1 - improvement_a(t))</li>
+    <li>eui_baseline is the fixed observed baseline intensity; trend(t) is the autonomous/BAU improvement (additive, same regardless of action); improvement_a(t) is the vintage-weighted figure above (multiplicative discount via complement()).</li></ul>
+
+    Total building energy use:
+    <ul><li>Energy(t) = Σ_a [ floor_area_by_class(t, a) * EUI_a(t) ] * other multipliers (e.g. efficiency_works_program)
+    where floor_area_by_class(t, a) = (old(t) + new(t)) * building_class_mix(t, a).</li></ul>"
+
   type: formula.FormulaNode
   quantity: fraction
   unit: '%'
@@ -3135,6 +3157,26 @@ nodes:
   params:
     formula: cumulative(flow * improvement) / (stock + 0.0000001)
 
+- id: energy_use_intensity_improvement_develop_beyond_building_code_layered
+  name: Energy use intensity improvement, develop_beyond_building_code
+    (layered on updated_building_code)
+  description: develop_beyond_building_code's own vintage-weighted improvement
+    plus updated_building_code's, matching the original consultant
+    spreadsheet (Building Energy Model, row 99 equals row 61 -- both
+    actions' percentages are expressed against the same baseline, so they
+    add rather than each applying as an independent discount).
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: energy_use_intensity_improvement_updated_building_code
+    tags: [ubc_imp]
+  - id: energy_use_intensity_improvement_develop_beyond_building_code
+    tags: [dbbc_imp]
+  params:
+    formula: ubc_imp + dbbc_imp
+
 - id: energy_use_intensity_improvement_benchmark_energy_use
   name: Energy use intensity improvement, benchmark_energy_use (vintage-weighted)
   description: Vintage-weighted average of energy_use_intensity_improvement's
@@ -3175,6 +3217,12 @@ nodes:
     vintage-weighted average for updated_building_code,
     develop_beyond_building_code, and benchmark_energy_use -- see
     energy_use_intensity_improvement_updated_building_code for the mechanism.
+    develop_beyond_building_code's improvement is layered on top of
+    updated_building_code's, matching the original consultant spreadsheet
+    (Building Energy Model, row 99 equals row 61 -- both actions'
+    percentages expressed against the same baseline), not applied
+    independently. benchmark_energy_use is not layered on
+    updated_building_code -- no evidence for that in the source spreadsheet.
     none is unaffected (always 0, matching no action-driven improvement).
   type: formula.FormulaNode
   quantity: fraction
@@ -3198,7 +3246,7 @@ nodes:
     - id: emission_sectors
     - id: action
       categories: [updated_building_code]
-  - id: energy_use_intensity_improvement_develop_beyond_building_code
+  - id: energy_use_intensity_improvement_develop_beyond_building_code_layered
     tags: [dbbc_imp]
     to_dimensions:
     - id: emission_sectors
