@@ -55,9 +55,7 @@ result_excels:
   - aviation_fuel_usage
   - building_class_mix
   - building_electricity_eui_by_action
-  - building_electricity_use_historical
   - building_natural_gas_eui_by_action
-  - building_natural_gas_use_historical
   - building_square_footage_new
   - building_square_footage_old
   - commercial_air_conditioned_square_footage
@@ -1123,16 +1121,12 @@ nodes:
   quantity: floor_area
   unit: ft^2
   output_dimensions: [emission_sectors]
-  input_datasets:
-  - id: longmont/building_square_footage
-    tags: [all]
-    forecast_from: 2025
-    column: floor_area
   input_nodes:
   - id: building_square_footage_old
     tags: [old]
+  - id: population
   params:
-    formula: all + arithmetic_inverse(old)
+    formula: old * (ratio_to_max_hist_year(population) - 1)
 
 - id: building_square_footage_by_building_class
   name: Building square footage by building class
@@ -1192,108 +1186,10 @@ nodes:
       drop_col: false
   output_nodes:
   - id: electricity_use
+    tags: [streetlights]
     from_dimensions:
     - id: site
       flatten: true
-
-# TODO MAYBE REMOVE ALL THESE NODES --v
-
-- id: building_electricity_use_historical
-  name: Building electricity use (historical)
-  name_es-US: Consumo de electricidad en edificios (histórico)
-  type: generic.GenericNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [emission_sectors, site]
-  output_dimensions: [emission_sectors, site]
-  input_datasets:
-  - id: longmont/stationary_energy_consumption
-    column: electricity
-    filters:
-    - column: energy_carrier
-      value: electricity
-
-- id: building_electricity_use_per_resident
-  name: Building electricity use per resident
-  name_es-US: Consumo de electricidad en edificios por residente
-  type: formula.FormulaNode
-  quantity: per_capita
-  unit: GWh/a/cap
-  input_nodes:
-  - id: building_electricity_use_historical
-    from_dimensions:
-    - id: site
-      flatten: true
-  - id: population
-    to_dimensions: []
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  params:
-    formula: extend_values(inventory_only(building_electricity_use_historical / 
-      population))
-
-- id: building_electricity_use_bau
-  name: Building electricity use (baseline)
-  name_es-US: Consumo de electricidad en edificios (referencia)
-  type: generic.GenericNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes:
-  - id: building_electricity_use_per_resident
-  - id: population
-    to_dimensions: []
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-
-- id: building_natural_gas_use_historical
-  name: Building natural gas use (historical)
-  name_es-US: Consumo de gas natural en edificios (histórico)
-  type: buildings.HistoricalNode # FIXME
-  quantity: energy
-  unit: Mtherm/a
-  input_dimensions: [emission_sectors, site]
-  output_dimensions: [emission_sectors, site]
-  input_datasets:
-  - id: longmont/stationary_energy_consumption
-    column: natural_gas
-    filters:
-    - column: energy_carrier
-      value: natural_gas
-  input_dataset_processors: [LinearInterpolation]
-
-- id: building_natural_gas_use_per_resident
-  name: Building natural gas use per resident
-  name_es-US: Consumo de gas natural en edificios por residente
-  type: formula.FormulaNode
-  quantity: per_capita
-  unit: Mtherm/a/cap
-  input_nodes:
-  - id: building_natural_gas_use_historical
-    from_dimensions:
-    - id: site
-      flatten: true
-  - id: population
-    to_dimensions: []
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  params:
-    formula: extend_values(inventory_only(building_natural_gas_use_historical / 
-      population))
-
-- id: building_natural_gas_use_bau
-  name: Building natural gas use (baseline)
-  name_es-US: Consumo de gas natural en edificios (referencia)
-  type: generic.GenericNode
-  quantity: energy
-  unit: Mtherm/a
-  input_nodes:
-  - id: building_natural_gas_use_per_resident
-  - id: population
-    to_dimensions: []
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-
-## TODO MAYBE REMOVE ALL THESE NODES ABOVE --^
 
 - id: building_natural_gas_eui_by_action
   name: Energy use intensity EUI baseline for natural gas by energy class
@@ -1309,8 +1205,7 @@ nodes:
     tags: [eui, extend_both_ways]
     output_dimensions: [emission_sectors]
   input_nodes:
-  - id: energy_use_intensity_trend
-    metrics: [natural_gas]
+  - id: energy_use_intensity_trend_natural_gas
     tags: [trend, extend_both_ways]
   - id: energy_use_intensity_improvement
     tags: [improvement]
@@ -1358,8 +1253,7 @@ nodes:
   input_nodes:
   - id: energy_use_intensity_improvement
     tags: [improvement]
-  - id: energy_use_intensity_trend
-    metrics: [electricity]
+  - id: energy_use_intensity_trend_electricity
     tags: [trend]
   params:
     formula: (eui + trend) * complement(improvement)
@@ -1398,15 +1292,16 @@ nodes:
     kilowatt-hours per year.
   description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones 
     de kilovatios hora al año.
-  type: generic.ActionWithHistoryNode
+  type: formula.FormulaNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   params:
-    operations: add,action_with_history
+    formula: (buildings + streetlights) * (1 - reduce_losses)
   input_nodes:
   - id: building_electricity_use
+    tags: [buildings]
     from_dimensions:
     - id: building_energy_class
       flatten: true
@@ -2470,6 +2365,9 @@ nodes:
   input_datasets:
   - id: longmont/waste_data
     column: waste_landfilled
+  input_nodes:
+  - id: population
+    tags: [ratio_to_max_hist_year]
 
 - id: diversion_rate
   name: Diversion rate
@@ -2562,6 +2460,9 @@ nodes:
   input_datasets:
   - id: longmont/waste_data
     column: waste_composted
+  input_nodes:
+  - id: population
+    tags: [ratio_to_max_hist_year]
 
 - id: composted_waste_emissions
   name: Composted waste emissions
@@ -2638,6 +2539,9 @@ nodes:
   input_datasets:
   - id: longmont/waste_data
     column: waste_recycled
+  input_nodes:
+  - id: population
+    tags: [ratio_to_max_hist_year]
 
 - id: recycling_characterization
   name: Recycling characterization
@@ -3054,6 +2958,113 @@ nodes:
   params:
     operations: get_single_dataset,extend_to_history
 
+- id: energy_use_intensity_trend_natural_gas
+  name: Energy use intensity trend (natural gas)
+  name_es-US: Tendencia de la intensidad del uso de la energía (gas natural)
+  description: This action describes the assumed improvement in the energy use
+    intensity for the baseline scenario, i.e. changes that will occur anyway
+    without any activity from the city.
+  description_es-US: Esta acción describe la mejora supuesta en la intensidad
+    del uso de la energía para el escenario de referencia, es decir, los cambios
+    que se producirán de todos modos sin intervención alguna por parte de la
+    ciudad.
+  type: generic.GenericNode
+  quantity: consumption_factor
+  unit: thm/ft**2/a
+  output_dimensions: [emission_sectors]
+  input_datasets:
+  - id: longmont/energy_use_intensity_improvements
+    column: natural_gas
+    tags: [cleaned, extend_both_ways]
+    filters:
+    - column: action
+      value: none
+    forecast_from: 2025
+
+- id: energy_use_intensity_trend_electricity
+  name: Energy use intensity trend (electricity)
+  name_es-US: Tendencia de la intensidad del uso de la energía (electricidad)
+  description: This action describes the assumed improvement in the energy use
+    intensity for the baseline scenario, i.e. changes that will occur anyway
+    without any activity from the city.
+  description_es-US: Esta acción describe la mejora supuesta en la intensidad
+    del uso de la energía para el escenario de referencia, es decir, los cambios
+    que se producirán de todos modos sin intervención alguna por parte de la
+    ciudad.
+  type: generic.GenericNode
+  quantity: consumption_factor
+  unit: kWh/ft**2/a
+  output_dimensions: [emission_sectors]
+  input_datasets:
+  - id: longmont/energy_use_intensity_improvements
+    column: electricity
+    tags: [cleaned, extend_both_ways]
+    filters:
+    - column: action
+      value: none
+    forecast_from: 2025
+
+# Trends beyond the city's own control.
+
+- id: mpg_trend
+  name: Miles per gallon increasing trend
+  name_es-US: Tendencia al aumento de las millas recorridas por galón
+  description: The model assumes that internal combustion vehicles that use
+    gasoline and diesel will become more efficient, increase miles traveled per
+    gallon, over time.
+  description_es-US: El modelo supone que, con el tiempo, los vehículos de
+    combustión interna que usan gasolina y diésel serán más eficientes y
+    aumentarán las millas recorridas por galón.
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: MPG
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    forecast_from: 2025
+    column: mpg_trend
+  output_nodes:
+  - id: transportation_miles_per_gallon
+    to_dimensions:
+    - id: energy_carrier
+      categories: [petrol]
+    - id: vehicle_type
+      categories: [car]
+
+- id: vmt_per_vehicle_trend
+  name: Vehicle miles per vehicle trend
+  name_es-US: Tendencia de millas recorridas por vehículo
+  description: <p>The model assumes that overtime there will be a decrease in
+    the annual miles traveled per vehicle.</p> <p><b>Unit:</b> mi/(yr. v) =
+    miles per year per vehicle</p>
+  description_es-US: <p>El modelo supone que con el tiempo se producirá una
+    disminución de las millas anuales recorridas por vehículo.</p>
+    <p><b>Unidad:</b> mi/(a.v) = millas anuales por vehículo</p>
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: VMT/vehicle/a
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    forecast_from: 2025
+    column: vmt_per_vehicle_trend
+  output_nodes:
+  - vehicle_miles_per_vehicle
+
+- id: electric_vehicle_efficiency_trend
+  name: Electric vehicle efficiency trend
+  name_es-US: Tendencia de la eficiencia de los vehículos eléctricos
+  description: The model assumes that electric vehicles will become more
+    efficient, increase in miles traveled per kilowatt hour of energy, overtime.
+  description_es-US: El modelo supone que, con el tiempo, los vehículos
+    eléctricos serán más eficientes y aumentarán los kilómetros recorridos por
+    kilovatio hora de energía.
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: kWh/VMT
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    forecast_from: 2025
+    column: electric_vehicle_efficiency_trend
+
 actions:
 
 - id: updated_building_code
@@ -3404,7 +3415,7 @@ actions:
     forecast_from: 2025
   output_nodes:
   - id: electricity_use
-    tags: [extend_to_history, complement, action_with_history]
+    tags: [reduce_losses]
 
 - id: leak_detection
   name: Adopt and enforce leak detection and repair
@@ -3461,28 +3472,6 @@ actions:
     column: increase_waste_diversion
   output_nodes:
   - diversion_rate
-
-- id: energy_use_intensity_trend
-  name: Energy use intensity trend
-  name_es-US: Tendencia de la intensidad del uso de la energía
-  description: This action describes the assumed improvement in the energy use 
-    intensity for the baseline scenario, i.e. changes that will occur anyway 
-    without any activity from the city.
-  description_es-US: Esta acción describe la mejora supuesta en la intensidad 
-    del uso de la energía para el escenario de referencia, es decir, los cambios
-    que se producirán de todos modos sin intervención alguna por parte de la 
-    ciudad.
-  type: energy_saving.EnergyAction
-  quantity: consumption_factor
-  group: trend
-  input_datasets:
-  - id: longmont/energy_use_intensity_improvements
-    tags: [cleaned, extend_both_ways]
-    filters:
-    - column: action
-      value: none
-    forecast_from: 2025
-  output_dimensions: [emission_sectors]
 
 - id: vehicle_incentives
   name: Increase electric vehicles through vehicle incentives and improved 
@@ -3600,70 +3589,6 @@ actions:
 #   output_nodes:
 #   - id: total_transit_vmt
 
-# Trend actions. TODO Do we need these?
-
-- id: mpg_trend
-  name: Miles per gallon increasing trend
-  name_es-US: Tendencia al aumento de las millas recorridas por galón
-  description: The model assumes that internal combustion vehicles that use 
-    gasoline and diesel will become more efficient, increase miles traveled per 
-    gallon, over time.
-  description_es-US: El modelo supone que, con el tiempo, los vehículos de 
-    combustión interna que usan gasolina y diésel serán más eficientes y 
-    aumentarán las millas recorridas por galón.
-  type: simple.AdditiveAction
-  quantity: fuel_consumption
-  unit: MPG
-  group: trend
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2025
-    column: mpg_trend
-  output_nodes:
-  - id: transportation_miles_per_gallon
-    to_dimensions:
-    - id: energy_carrier
-      categories: [petrol]
-    - id: vehicle_type
-      categories: [car]
-
-- id: vmt_per_vehicle_trend
-  name: Vehicle miles per vehicle trend
-  name_es-US: Tendencia de millas recorridas por vehículo
-  description: <p>The model assumes that overtime there will be a decrease in 
-    the annual miles traveled per vehicle.</p> <p><b>Unit:</b> mi/(yr. v) = 
-    miles per year per vehicle</p>
-  description_es-US: <p>El modelo supone que con el tiempo se producirá una 
-    disminución de las millas anuales recorridas por vehículo.</p> 
-    <p><b>Unidad:</b> mi/(a.v) = millas anuales por vehículo</p>
-  type: simple.AdditiveAction
-  quantity: mileage
-  unit: VMT/vehicle/a
-  group: trend
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2025
-    column: vmt_per_vehicle_trend
-  output_nodes:
-  - vehicle_miles_per_vehicle
-
-- id: electric_vehicle_efficiency_trend
-  name: Electric vehicle efficiency trend
-  name_es-US: Tendencia de la eficiencia de los vehículos eléctricos
-  description: The model assumes that electric vehicles will become more 
-    efficient, increase in miles traveled per kilowatt hour of energy, overtime.
-  description_es-US: El modelo supone que, con el tiempo, los vehículos 
-    eléctricos serán más eficientes y aumentarán los kilómetros recorridos por 
-    kilovatio hora de energía.
-  type: simple.AdditiveAction
-  quantity: fuel_consumption
-  unit: kWh/VMT
-  group: trend
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2025
-    column: electric_vehicle_efficiency_trend
-
 pages:
 - id: home
   name: Longmont Greenhouse Gas Inventory
@@ -3675,23 +3600,18 @@ scenarios:
 - id: baseline
   name: Business as Usual
   name_es-US: Normalidad
-  params:
-  - id: energy_use_intensity_trend.enabled
-    value: true
 
 - id: default
   default: true
   name: Climate Action Initiatives
   name_es-US: Iniciativas de acción climática
   all_actions_enabled: true
-  params:
-  - id: energy_use_intensity_trend.enabled
-    value: false
 
-- id: historical_actions
-  name: Historical actions
-  all_actions_enabled: false
-  is_selectable: false
-  params:
-  - id: reduce_transmission_distribution_losses.enabled
-    value: true
+# This was an exploration of how previous actions should work in historical years. Not needed now.
+# - id: historical_actions
+#   name: Historical actions
+#   all_actions_enabled: false
+#   is_selectable: false
+#   params:
+#   - id: reduce_transmission_distribution_losses.enabled
+#     value: true
