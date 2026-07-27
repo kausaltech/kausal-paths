@@ -10,6 +10,14 @@ NZP action mechanics.
 a 31% gap that turned out to be almost entirely methodological, not missing
 emissions.
 
+**Companion document:**
+[`matching-a-model-to-an-inventory.md`](matching-a-model-to-an-inventory.md)
+covers the step that comes before the routing below — how to build a line-level
+comparison detailed enough to classify each difference into the three buckets,
+and what to do when the city wants the inventory reproduced *including* its
+errors. This document answers "what do I do about this gap?"; that one answers
+"what exactly is the gap?".
+
 **Design goal:** every step below is expressed as datasets, dataset overrides, or
 node wiring inside the *city's own config file*, using operations already present
 in the shared model (`nzc.yaml` or equivalent). None of it requires adding
