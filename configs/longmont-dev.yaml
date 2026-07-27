@@ -14,7 +14,7 @@ default_language: en
 supported_languages: [es-US]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ef08a8359893a551927be5b739dac879ee16b5a6
+  commit: a7eacebcebdc8b131bc25a69fed8d8e38e2cedd7
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -1189,28 +1189,15 @@ nodes:
   params:
     formula: cumulative(flow)
 
-- id: benchmark_energy_use_stock
-  name: Benchmark energy use (accumulated stock share)
-  description: Cumulative share of commercial/industrial building stock brought 
-    under the benchmarking program so far, built from the action's own yearly 
-    incremental share (see benchmark_energy_use).
-  type: formula.FormulaNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [building_energy_class, emission_sectors]
-  output_dimensions: [building_energy_class, emission_sectors]
-  input_nodes:
-  - id: benchmark_energy_use
-    tags: [flow]
-  params:
-    formula: cumulative(flow)
-
 - id: building_class_mix_none
   name: Building class mix (no action taken, residual)
   description: The complement of whatever share has been claimed by 
-    updated_building_code, develop_beyond_building_code, and 
-    benchmark_energy_use, so the three action shares plus this one always sum to
-    100% for every (building_energy_class, emission_sectors) cell.
+    updated_building_code and develop_beyond_building_code, so the two action 
+    shares plus this one always sum to 100% for every (building_energy_class, 
+    emission_sectors) cell. benchmark_energy_use has no floor-area share here --
+    it's now a direct GWh/a subtraction on building_electricity_use / 
+    building_natural_gas_use, per request to keep it out of the EUI 
+    path (see benchmark_energy_use's own node and README item 5).
   type: formula.FormulaNode
   quantity: fraction
   unit: '%'
@@ -1221,34 +1208,37 @@ nodes:
     tags: [ubc]
   - id: develop_beyond_building_code_stock
     tags: [dbbc]
-  - id: benchmark_energy_use_stock
-    tags: [beu]
   params:
-    formula: complement(ubc + dbbc + beu)
+    formula: complement(ubc + dbbc)
 
 - id: building_class_mix
   name: Building class mix
-  description: "Floor area by building class<ul>
-    <li>old(t)   = building_square_footage_old(t)                         [historical/baseline, existing stock]</li>
-    <li>new(t)   = old(t) * (ratio_to_max_hist_year(population(t)) - 1)   [scales with population growth]</li></ul>
-
-    Building class mix — the share of floor area classified under each action, per (building energy class, emission sector) cell:
-    <ul><li>flow_a(t)  = yearly incremental share newly brought under action a</li>
-    <li>stock_a(t) = Σ_{t'≤t} flow_a(t')                                   [cumulative, 'cumulative(flow)']</li>
-    <li>none(t)    = 1 - Σ_a stock_a(t)                                   [complement of the three actions]</li></ul>
-    where a ∈ {updated_building_code, develop_beyond_building_code, benchmark_energy_use}.
-
-    Vintage-weighted EUI improvement — per action, weighted by when the floor area entered, not by the current year's rate:
-    <ul><li>improvement_a(t) = Σ_{t'≤t} [flow_a(t') * improvement_table_a(t')]  /  Σ_{t'≤t} flow_a(t')</li>
-    <li>improvement_table_a(t') is the achievable EUI improvement for action a using the technology/code available in year t'. This means floor area brought under develop_beyond_building_code in 2025 keeps 2025's ~55%/58% rate forever, rather than being retroactively upgraded to whatever rate is current. improvement_none(t) = 0 always (no action → no improvement).</li></ul>
-
-    EUI by action:
-    <ul><li>EUI_a(t) = (eui_baseline + trend(t)) * (1 - improvement_a(t))</li>
-    <li>eui_baseline is the fixed observed baseline intensity; trend(t) is the autonomous/BAU improvement (additive, same regardless of action); improvement_a(t) is the vintage-weighted figure above (multiplicative discount via complement()).</li></ul>
-
-    Total building energy use:
-    <ul><li>Energy(t) = Σ_a [ floor_area_by_class(t, a) * EUI_a(t) ] * other multipliers (e.g. efficiency_works_program)
-    where floor_area_by_class(t, a) = (old(t) + new(t)) * building_class_mix(t, a).</li></ul>"
+  description: "Floor area by building class<ul> <li>old(t)   = building_square_footage_old(t)\
+    \                         [historical/baseline, existing stock]</li> <li>new(t)\
+    \   = old(t) * (ratio_to_max_hist_year(population(t)) - 1)   [scales with population
+    growth]</li></ul>\nBuilding class mix — the share of floor area classified under
+    each action, per (building energy class, emission sector) cell: <ul><li>flow_a(t)\
+    \  = yearly incremental share newly brought under action a</li> <li>stock_a(t)
+    = Σ_{t'≤t} flow_a(t')                                   [cumulative, 'cumulative(flow)']</li>
+    <li>none(t)    = 1 - Σ_a stock_a(t)                                   [complement
+    of the actions below]</li></ul> where a ∈ {updated_building_code, develop_beyond_building_code}.
+    benchmark_energy_use is not one of these -- it has no floor-area share; it's a
+    direct GWh/a subtraction on building_electricity_use / building_natural_gas_use
+    instead (see benchmark_energy_use's own node).\nVintage-weighted EUI improvement
+    — per action, weighted by when the floor area entered, not by the current year's
+    rate: <ul><li>improvement_a(t) = Σ_{t'≤t} [flow_a(t') * improvement_table_a(t')]\
+    \  /  Σ_{t'≤t} flow_a(t')</li> <li>improvement_table_a(t') is the achievable EUI
+    improvement for action a using the technology/code available in year t'. This
+    means floor area brought under develop_beyond_building_code in 2025 keeps 2025's
+    ~55%/58% rate forever, rather than being retroactively upgraded to whatever rate
+    is current. improvement_none(t) = 0 always (no action → no improvement).</li></ul>\n\
+    EUI by action: <ul><li>EUI_a(t) = (eui_baseline + trend(t)) * (1 - improvement_a(t))</li>
+    <li>eui_baseline is the fixed observed baseline intensity; trend(t) is the autonomous/BAU
+    improvement (additive, same regardless of action); improvement_a(t) is the vintage-weighted
+    figure above (multiplicative discount via complement()).</li></ul>\nTotal building
+    energy use: <ul><li>Energy(t) = Σ_a [ floor_area_by_class(t, a) * EUI_a(t) ] *
+    other multipliers (e.g. efficiency_works_program) where floor_area_by_class(t,
+    a) = (old(t) + new(t)) * building_class_mix(t, a).</li></ul>"
 
   type: formula.FormulaNode
   quantity: fraction
@@ -1270,13 +1260,6 @@ nodes:
     - id: emission_sectors
     - id: action
       categories: [updated_building_code]
-  - id: benchmark_energy_use_stock
-    tags: [beu]
-    to_dimensions:
-    - id: building_energy_class
-    - id: emission_sectors
-    - id: action
-      categories: [benchmark_energy_use]
   - id: building_class_mix_none
     tags: [none_share]
     to_dimensions:
@@ -1285,7 +1268,7 @@ nodes:
     - id: action
       categories: [none]
   params:
-    formula: ubc + dbbc + beu + none_share
+    formula: ubc + dbbc + none_share
 
 - id: electricity_use_on_streetlights_and_internal_operations
   name: Electricity use on streetlights and internal operations
@@ -1337,7 +1320,10 @@ nodes:
 - id: building_natural_gas_use
   name: Building natural gas use
   name_es-US: Consumo de gas natural en edificios
-  description: <b>Unit:</b> Mthm/yr. = million therms per year.
+  description: <b>Unit:</b> Mthm/yr. = million therms per year. Includes a 
+    direct Mthm/a-scale subtraction of benchmark_energy_use's cumulative savings,
+    assigned to the existing building stock (see that action's own node for the 
+    rationale).
   description_es-US: <b>Unidad:</b> Mthm/año = millones de termias al año.
   type: formula.FormulaNode
   quantity: energy
@@ -1358,7 +1344,8 @@ nodes:
     - id: emission_sectors
     - id: action
   params:
-    formula: sum_dim(square_footage * eui, action) * efficiency_works_program
+    formula: sum_dim(square_footage * eui, action) * efficiency_works_program - 
+      benchmark_natural_gas
 
 - id: building_electricity_eui_by_action
   name: Energy use intensity EUI for electricity by action
@@ -1385,7 +1372,9 @@ nodes:
   name: Building electricity use
   name_es-US: Consumo de electricidad en edificios
   description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million 
-    kilowatt-hours per year.
+    kilowatt-hours per year. Includes a direct GWh/a-scale subtraction of 
+    benchmark_energy_use's cumulative savings, assigned to the existing building
+    stock (see that action's own node for the rationale).
   description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones 
     de kilovatios hora al año.
   type: formula.FormulaNode
@@ -1407,7 +1396,8 @@ nodes:
     - id: emission_sectors
     - id: action
   params:
-    formula: sum_dim(square_footage * eui, action) * efficiency_works_program
+    formula: sum_dim(square_footage * eui, action) * efficiency_works_program - 
+      benchmark_electricity
 
 - id: electricity_use
   name: Electricity use
@@ -3095,11 +3085,12 @@ nodes:
     operations: get_single_dataset,extend_to_history
 
 - id: energy_use_intensity_improvement_updated_building_code
-  name: Energy use intensity improvement, updated_building_code (vintage-weighted)
-  description: Vintage-weighted average of energy_use_intensity_improvement's
-    updated_building_code figure -- each year's newly-brought-under-code floor
-    area is weighted by that year's achievable improvement, so floor area
-    brought under code in an earlier year keeps that year's rate rather than
+  name: Energy use intensity improvement, updated_building_code 
+    (vintage-weighted)
+  description: Vintage-weighted average of energy_use_intensity_improvement's 
+    updated_building_code figure -- each year's newly-brought-under-code floor 
+    area is weighted by that year's achievable improvement, so floor area 
+    brought under code in an earlier year keeps that year's rate rather than 
     being retroactively upgraded to the current year's rate.
   type: formula.FormulaNode
   quantity: fraction
@@ -3128,10 +3119,10 @@ nodes:
     formula: cumulative(flow * improvement) / (stock + 0.0000001)
 
 - id: energy_use_intensity_improvement_develop_beyond_building_code
-  name: Energy use intensity improvement, develop_beyond_building_code
+  name: Energy use intensity improvement, develop_beyond_building_code 
     (vintage-weighted)
-  description: Vintage-weighted average of energy_use_intensity_improvement's
-    develop_beyond_building_code figure -- see
+  description: Vintage-weighted average of energy_use_intensity_improvement's 
+    develop_beyond_building_code figure -- see 
     energy_use_intensity_improvement_updated_building_code for the mechanism.
   type: formula.FormulaNode
   quantity: fraction
@@ -3159,47 +3150,13 @@ nodes:
   params:
     formula: cumulative(flow * improvement) / (stock + 0.0000001)
 
-- id: energy_use_intensity_improvement_benchmark_energy_use
-  name: Energy use intensity improvement, benchmark_energy_use (vintage-weighted)
-  description: Vintage-weighted average of energy_use_intensity_improvement's
-    benchmark_energy_use figure -- see
-    energy_use_intensity_improvement_updated_building_code for the mechanism.
-    benchmark_energy_use's flow is identical for existing and new building
-    stock, so either category can be used as the representative slice.
-  type: formula.FormulaNode
-  quantity: fraction
-  unit: '%'
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: benchmark_energy_use
-    tags: [flow]
-    from_dimensions:
-    - id: building_energy_class
-      categories: [existing]
-      flatten: true
-  - id: benchmark_energy_use_stock
-    tags: [stock]
-    from_dimensions:
-    - id: building_energy_class
-      categories: [existing]
-      flatten: true
-  - id: energy_use_intensity_improvement
-    tags: [improvement]
-    from_dimensions:
-    - id: action
-      categories: [benchmark_energy_use]
-      flatten: true
-  params:
-    formula: cumulative(flow * improvement) / (stock + 0.0000001)
-
 - id: energy_use_intensity_improvement_vintage_existing
-  name: Energy use intensity improvement (vintage-weighted, existing building
+  name: Energy use intensity improvement (vintage-weighted, existing building 
     stock)
-  description: Per-action EUI improvement for existing building stock -- see
-    energy_use_intensity_improvement_updated_building_code for the vintage-
-    weighting mechanism. No develop_beyond_building_code term here -- it
-    doesn't apply to existing stock (see
-    energy_use_intensity_improvement_vintage_new).
+  description: Per-action EUI improvement for existing building stock -- see 
+    energy_use_intensity_improvement_updated_building_code for the vintage- 
+    weighting mechanism. No develop_beyond_building_code term here -- it doesn't
+    apply to existing stock (see energy_use_intensity_improvement_vintage_new).
   type: formula.FormulaNode
   quantity: fraction
   unit: '%'
@@ -3222,25 +3179,19 @@ nodes:
     - id: emission_sectors
     - id: action
       categories: [updated_building_code]
-  - id: energy_use_intensity_improvement_benchmark_energy_use
-    tags: [beu_imp]
-    to_dimensions:
-    - id: emission_sectors
-    - id: action
-      categories: [benchmark_energy_use]
   params:
-    formula: none_imp + ubc_imp + beu_imp
+    formula: none_imp + ubc_imp
 
 - id: energy_use_intensity_improvement_vintage_new
   name: Energy use intensity improvement (vintage-weighted, new building stock)
-  description: Per-action EUI improvement for new building stock.
-    develop_beyond_building_code has no category of its own here (matching
-    building_class_mix -- it applies to the same new-construction
-    population as updated_building_code, not a separate share, per the
-    original consultant spreadsheet's Building Energy Model rows 69-75 and
-    112-119 both using the same affected-square-footage formula and
-    compliance rate). Its vintage-weighted improvement is instead added
-    into the updated_building_code slot here.
+  description: Per-action EUI improvement for new building stock. 
+    develop_beyond_building_code has no category of its own here (matching 
+    building_class_mix -- it applies to the same new-construction population as 
+    updated_building_code, not a separate share, per the original consultant 
+    spreadsheet's Building Energy Model rows 69-75 and 112-119 both using the 
+    same affected-square-footage formula and compliance rate). Its 
+    vintage-weighted improvement is instead added into the updated_building_code
+    slot here.
   type: formula.FormulaNode
   quantity: fraction
   unit: '%'
@@ -3269,25 +3220,22 @@ nodes:
     - id: emission_sectors
     - id: action
       categories: [updated_building_code]
-  - id: energy_use_intensity_improvement_benchmark_energy_use
-    tags: [beu_imp]
-    to_dimensions:
-    - id: emission_sectors
-    - id: action
-      categories: [benchmark_energy_use]
   params:
-    formula: none_imp + ubc_imp + dbbc_imp + beu_imp
+    formula: none_imp + ubc_imp + dbbc_imp
 
 - id: energy_use_intensity_improvement_vintage
   name: Energy use intensity improvement (vintage-weighted)
-  description: Per-action EUI improvement replacing
-    energy_use_intensity_improvement's raw current-year lookup with a
-    vintage-weighted average for updated_building_code,
-    develop_beyond_building_code, and benchmark_energy_use -- combines
-    energy_use_intensity_improvement_vintage_existing and _new (see those
-    for the per-building-class breakdown; see
-    energy_use_intensity_improvement_updated_building_code for the
-    vintage-weighting mechanism itself).
+  description: Per-action EUI improvement replacing 
+    energy_use_intensity_improvement's raw current-year lookup with a 
+    vintage-weighted average for updated_building_code and 
+    develop_beyond_building_code -- combines 
+    energy_use_intensity_improvement_vintage_existing and _new (see those for 
+    the per-building-class breakdown; see 
+    energy_use_intensity_improvement_updated_building_code for the 
+    vintage-weighting mechanism itself). benchmark_energy_use is not part of 
+    this mechanism -- it's a direct GWh/a subtraction on 
+    building_electricity_use / building_natural_gas_use instead (see that 
+    action's own node).
   type: formula.FormulaNode
   quantity: fraction
   unit: '%'
@@ -3489,16 +3437,32 @@ actions:
     de la intensidad del consumo de energía (EUI, por sus siglas en inglés) causada
     por esta acción.</p> <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-5">Estrategia
     del Plan de Sustentabilidad E-5</a></li></ul>'
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%/a'
+  type: simple.AdditiveAction
   group: buildings
-  output_dimensions: [building_energy_class, emission_sectors]
+  output_dimensions: [emission_sectors, building_energy_class]
+  output_metrics:
+  - id: electricity
+    quantity: energy
+    unit: GWh/a
+    column_id: benchmark_energy_use_electricity
+  - id: natural_gas
+    quantity: energy
+    unit: Mthm/a
+    column_id: benchmark_energy_use_natural_gas
   input_datasets:
   - id: longmont/building_actions
-    column: benchmark_energy_use
-  params:
-    operations: get_single_dataset
+    tags: [extend_all]
+    forecast_from: 2025
+    filters:
+    - column: updated_building_code
+    - column: develop_beyond_building_code
+  output_nodes:
+  - id: building_electricity_use
+    metrics: [benchmark_energy_use_electricity]
+    tags: [benchmark_electricity]
+  - id: building_natural_gas_use
+    metrics: [benchmark_energy_use_natural_gas]
+    tags: [benchmark_natural_gas]
 
 - id: efficiency_works_program
   name: Expand the Efficiency Works Program
