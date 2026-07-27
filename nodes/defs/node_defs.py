@@ -76,6 +76,13 @@ class SelectColumnDatasetTransformOp(BaseModel):
     column: str
 
 
+class SelectColumnsDatasetTransformOp(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    kind: Literal['select_columns'] = 'select_columns'
+    columns: list[str]
+
+
 class FilterColumnDatasetTransformOp(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -140,6 +147,7 @@ class ForecastFromDatasetTransformOp(BaseModel):
 
 type DatasetTransformOp = (
     SelectColumnDatasetTransformOp
+    | SelectColumnsDatasetTransformOp
     | FilterColumnDatasetTransformOp
     | FilterDimensionDatasetTransformOp
     | RenameItemDatasetTransformOp
@@ -179,6 +187,18 @@ class InputDatasetDef(I18nBaseModel):
     input_dataset: str | None = None
     """DVC dataset identifier override (when different from ``id``)."""
     column: str | None = None
+    columns: list[str] | None = None
+    """
+    Explicit whitelist of metric columns to keep, for nodes that consume
+    several (but not all) metric columns from a shared multi-metric dataset
+    (e.g. a multimetric ``simple.AdditiveAction``). Every other unlisted
+    metric column is dropped, rows where all listed columns are null are
+    dropped, and any dimension column left entirely null by that row-drop is
+    dropped too -- the same "empty dimensions are dropped automatically"
+    behavior ``column`` gets, generalized to more than one column. Mutually
+    exclusive with ``column``, which aliases a single column to the internal
+    value column instead of keeping it under its own name.
+    """
     forecast_from: int | None = None
     filters: list[InputDatasetFilterDef] = Field(default_factory=list)
     dropna: bool | None = None
@@ -187,10 +207,18 @@ class InputDatasetDef(I18nBaseModel):
     unit: Unit | None = None
     output_dimensions: list[DimensionRef] | None = None
 
+    @model_validator(mode='after')
+    def validate_column_and_columns(self) -> InputDatasetDef:
+        if self.column is not None and self.columns is not None:
+            raise ValueError("'column' and 'columns' are mutually exclusive")
+        return self
+
     def to_transform_pipeline(self) -> DatasetTransformPipelineDef:
         operations: list[DatasetTransformOp] = []
         if self.column is not None:
             operations.append(SelectColumnDatasetTransformOp(column=self.column))
+        if self.columns is not None:
+            operations.append(SelectColumnsDatasetTransformOp(columns=self.columns))
         operations.extend(input_dataset_filter_to_transform_op(filter_def) for filter_def in self.filters)
         if self.forecast_from is not None:
             operations.append(ForecastFromDatasetTransformOp(year=self.forecast_from))
@@ -220,6 +248,8 @@ class DatasetPortSpec(I18nBaseModel):
     wide DVC datasets use human-readable column labels with spaces (e.g.
     "Trucks and lorries").
     """
+    columns: list[str] | None = None
+    """Mirrors ``InputDatasetDef.columns`` -- see there. Mutually exclusive with ``column``."""
     forecast_from: int | None = None
     filters: list[InputDatasetFilterDef] = Field(default_factory=list)
     dropna: bool | None = None
@@ -234,6 +264,7 @@ class DatasetPortSpec(I18nBaseModel):
             tags=ds_def.tags,
             input_dataset=ds_def.input_dataset,
             column=ds_def.column,
+            columns=ds_def.columns,
             forecast_from=ds_def.forecast_from,
             filters=ds_def.filters,
             dropna=ds_def.dropna,
@@ -249,6 +280,7 @@ class DatasetPortSpec(I18nBaseModel):
             tags=self.tags,
             input_dataset=self.input_dataset,
             column=self.column,
+            columns=self.columns,
             forecast_from=self.forecast_from,
             filters=self.filters,
             dropna=self.dropna,
