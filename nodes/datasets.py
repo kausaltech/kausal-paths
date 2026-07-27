@@ -243,6 +243,7 @@ def get_input_dataset_filter_adapter() -> TypeAdapter[InputDatasetFilterDef]:
 
 class FilterDatasetKwargs(DatasetKwargs):
     column: str | None
+    columns: list[str] | None
     filters: list[InputDatasetFilterDef] | None
     dropna: bool | None
     min_year: int | None
@@ -254,6 +255,7 @@ class FilterDatasetKwargs(DatasetKwargs):
 @dataclass
 class DatasetWithFilters(Dataset, ABC):
     column: str | None = None
+    columns: list[str] | None = None
     filters: list[InputDatasetFilterDef] | None = None
     dropna: bool | None = None
     min_year: int | None = None
@@ -268,6 +270,7 @@ class DatasetWithFilters(Dataset, ABC):
         return FilterDatasetKwargs(
             **super().kwargs_from_def(ds_def),
             column=ds_def.column,
+            columns=ds_def.columns,
             filters=ds_def.filters,
             dropna=ds_def.dropna,
             min_year=ds_def.min_year,
@@ -280,6 +283,8 @@ class DatasetWithFilters(Dataset, ABC):
         yield from super().__rich_repr__()
         if self.column is not None:
             yield 'column', self.column
+        if self.columns is not None:
+            yield 'columns', self.columns
         if self.filters is not None:
             yield 'filters', len(self.filters)
 
@@ -438,6 +443,43 @@ class DatasetWithFilters(Dataset, ABC):
                 df = df.paths.get_operation(tag)(df, context)
         return df
 
+    def _select_column(self, df: ppl.PathsDataFrame, cols: list[str]) -> tuple[ppl.PathsDataFrame, list[str]]:
+        assert self.column
+        if self.column not in cols:
+            available = ', '.join(cols)
+            raise DatasetError(
+                self,
+                "Column '%s' not found in dataset '%s'. Available columns: %s" % (self.column, self.id, available),
+            )
+        df = df.with_columns(pl.col(self.column).alias(VALUE_COLUMN))
+        df = df.filter(pl.col(VALUE_COLUMN).is_not_null())
+        return df, [YEAR_COLUMN, VALUE_COLUMN, *df.dim_ids]
+
+    def _select_columns(self, df: ppl.PathsDataFrame, cols: list[str]) -> tuple[ppl.PathsDataFrame, list[str]]:
+        assert self.columns
+        missing = [col for col in self.columns if col not in cols]
+        if missing:
+            available = ', '.join(cols)
+            raise DatasetError(
+                self,
+                "Column(s) %s not found in dataset '%s'. Available columns: %s" % (', '.join(missing), self.id, available),
+            )
+        null_condition = pl.lit(True)  # noqa: FBT003
+        for col in self.columns:
+            null_condition = null_condition & pl.col(col).is_null()
+        df = df.filter(~null_condition)
+        all_null_dims = [dim_id for dim_id in df.dim_ids if df[dim_id].null_count() == len(df)]
+        if all_null_dims:
+            df = df.drop(all_null_dims)
+        return df, [YEAR_COLUMN, *self.columns, *df.dim_ids]
+
+    def _select_dataset_columns(self, df: ppl.PathsDataFrame, cols: list[str]) -> tuple[ppl.PathsDataFrame, list[str]]:
+        if self.column:
+            return self._select_column(df, cols)
+        if self.columns:
+            return self._select_columns(df, cols)
+        return df, cols
+
     @measure_dataset_call('dataset.filter', capture_df_result=True, capture_df_arg=True)
     def _filter_and_process_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         from nodes.defs.node_defs import RenameColumnDatasetFilterDef
@@ -449,22 +491,7 @@ class DatasetWithFilters(Dataset, ABC):
                     df = self._rename_col_filter(df, filter_def)
 
         cols = list(df.columns)
-
-        if self.column:
-            if self.column not in cols:
-                available = ', '.join(cols)
-                raise DatasetError(
-                    self,
-                    "Column '%s' not found in dataset '%s'. Available columns: %s"
-                    % (
-                        self.column,
-                        self.id,
-                        available,
-                    ),
-                )
-            df = df.with_columns(pl.col(self.column).alias(VALUE_COLUMN))
-            df = df.filter(pl.col(VALUE_COLUMN).is_not_null())
-            cols = [YEAR_COLUMN, VALUE_COLUMN, *df.dim_ids]
+        df, cols = self._select_dataset_columns(df, cols)
 
         if YEAR_COLUMN in cols and YEAR_COLUMN not in df.primary_keys:
             df = df.add_to_index(YEAR_COLUMN)
@@ -789,6 +816,7 @@ class DVCDataset(DatasetWithFilters):
         extra_fields = [
             'input_dataset',
             'column',
+            'columns',
             'filters',
             'dropna',
             'forecast_from',

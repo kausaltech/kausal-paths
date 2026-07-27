@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections.abc
 import re
 import typing
 from dataclasses import dataclass
@@ -181,6 +182,18 @@ class PathsDataFrame(pl.DataFrame):
         *columns: ColumnNameOrSelector | Iterable[ColumnNameOrSelector],
         strict: bool = True,
     ) -> PathsDataFrame:
+        if strict:
+            requested: list[str] = []
+            for col in columns:
+                if isinstance(col, str):
+                    requested.append(col)
+                elif isinstance(col, collections.abc.Iterable):
+                    requested.extend(c for c in col if isinstance(c, str))
+            missing = [col for col in requested if col not in self.columns]
+            if missing:
+                raise Exception(
+                    'Cannot drop non-existent column(s) %s; available columns: %s' % (', '.join(missing), ', '.join(self.columns))
+                )
         meta = self.get_meta()
         df = super().drop(*columns, strict=strict)
         for col in list(meta.units.keys()):

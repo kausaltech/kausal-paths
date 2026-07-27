@@ -354,12 +354,14 @@ def _dataset_binding_columns_for_node(node: Node, ds_instance: DatasetWithFilter
     """
     Return dataset metric columns to expose as editor bindings.
 
-    Single-column dataset inputs carry ``column`` directly. Multi-metric
-    action datasets usually leave it unset and consume columns matching the
-    node's output metrics.
+    Single-column dataset inputs carry ``column`` directly; an explicit
+    ``columns`` whitelist is used as-is. Multi-metric action datasets that
+    leave both unset consume columns matching the node's output metrics.
     """
     if ds_instance.column is not None:
         return [ds_instance.column]
+    if ds_instance.columns is not None:
+        return list(ds_instance.columns)
     columns: list[str] = []
     seen: set[str] = set()
     for metric in node.output_metrics.values():
@@ -512,6 +514,7 @@ def _input_dataset_def_from_instance(ds: DatasetWithFilters) -> InputDatasetDef:
         tags=ds.tags or [],
         input_dataset=ds.input_dataset if isinstance(ds, DVCDataset) else None,
         column=ds.column,
+        columns=ds.columns,
         forecast_from=ds.forecast_from,
         filters=ds.filters or [],
         dropna=ds.dropna,
@@ -706,7 +709,8 @@ def _resolve_dataset_ports(
     ports: list[DatasetPort] = []
     spec = DatasetPortSpec.from_input_dataset(_input_dataset_def_from_instance(ds_instance))
     metric_columns = _dataset_binding_columns_for_node(node, ds_instance)
-    if ds_instance.column is None:
+    explicit_columns = ds_instance.column is not None or ds_instance.columns is not None
+    if not explicit_columns:
         # Column-less bindings: the node consumes the full frame. Bind to every
         # metric the dataset actually exposes so ports stay accurate even when
         # the node renames columns post-load (e.g. HsyNode translating Finnish
@@ -718,7 +722,7 @@ def _resolve_dataset_ports(
     for column in metric_columns:
         metric = metrics_by_schema_and_name.get((dataset_obj.schema.pk, column))
         if metric is None:
-            if ds_instance.column is not None:
+            if explicit_columns:
                 raise ValueError(f'No metric {column} in dataset {ds_instance.id} for node {node.id}')
             logger.debug('No metric %s in dataset %s for node %s; skipping dataset-port binding', column, ds_instance.id, node.id)
             continue
