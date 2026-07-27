@@ -14,7 +14,7 @@ default_language: en
 supported_languages: [es-US]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a7eacebcebdc8b131bc25a69fed8d8e38e2cedd7
+  commit: 3cc296bc3b1d3ee0d0a6d15cb66c5b303f046aa3
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -1196,8 +1196,8 @@ nodes:
     shares plus this one always sum to 100% for every (building_energy_class, 
     emission_sectors) cell. benchmark_energy_use has no floor-area share here --
     it's now a direct GWh/a subtraction on building_electricity_use / 
-    building_natural_gas_use, per request to keep it out of the EUI 
-    path (see benchmark_energy_use's own node and README item 5).
+    building_natural_gas_use, per request to keep it out of the EUI path (see 
+    benchmark_energy_use's own node and README item 5).
   type: formula.FormulaNode
   quantity: fraction
   unit: '%'
@@ -1317,13 +1317,18 @@ nodes:
   params:
     formula: (eui + trend) * complement(improvement)
 
-- id: building_natural_gas_use
-  name: Building natural gas use
-  name_es-US: Consumo de gas natural en edificios
+- id: building_natural_gas_use_pre_electrification
+  name: Building natural gas use (before building electrification)
+  name_es-US: Consumo de gas natural en edificios (antes de la electrificación)
   description: <b>Unit:</b> Mthm/yr. = million therms per year. Includes a 
-    direct Mthm/a-scale subtraction of benchmark_energy_use's cumulative savings,
-    assigned to the existing building stock (see that action's own node for the 
-    rationale).
+    direct Mthm/a-scale subtraction of benchmark_energy_use's cumulative 
+    savings, assigned to the existing building stock (see that action's own node
+    for the rationale). Feeds replace_natural_gas_residential/commercial (see 
+    natural_gas_removed_by_replace_natural_gas_residential/commercial and 
+    building_natural_gas_use), which remove a fraction of whatever gas use 
+    remains here -- so their impact correctly depends on how much gas heating 
+    the other building actions have already eliminated, instead of being a fixed
+    absolute amount.
   description_es-US: <b>Unidad:</b> Mthm/año = millones de termias al año.
   type: formula.FormulaNode
   quantity: energy
@@ -1346,6 +1351,79 @@ nodes:
   params:
     formula: sum_dim(square_footage * eui, action) * efficiency_works_program - 
       benchmark_natural_gas
+
+- id: natural_gas_removed_by_replace_natural_gas_residential
+  name: Natural gas removed by residential building electrification
+  description: The Mthm/a actually removed from 
+    building_natural_gas_use_pre_electrification (residential, existing) by 
+    replace_natural_gas_residential this year -- feeds both 
+    building_natural_gas_use (as a subtraction) and 
+    electricity_replacing_natural_gas_residential (converted to the electricity 
+    that replaces it), so the two stay consistent with each other. Uses 
+    GenericNode's implicit add/multiply combination (gas is unit-compatible so 
+    it's added as the base; replace_natural_gas_residential's '%' is 
+    unit-incompatible so it's multiplied in) rather than a FormulaNode formula 
+    string, so replace_natural_gas_residential stays an implicit input -- 
+    removable without also having to edit a formula elsewhere.
+  type: generic.GenericNode
+  quantity: energy
+  unit: Mthm/a
+  input_dimensions: [emission_sectors, building_energy_class]
+  output_dimensions: [emission_sectors, building_energy_class]
+  input_nodes:
+  - id: building_natural_gas_use_pre_electrification
+    tags: [non_additive]
+  output_nodes:
+  - id: electricity_replacing_natural_gas_residential
+    tags: [removed]
+
+- id: natural_gas_removed_by_replace_natural_gas_commercial
+  name: Natural gas removed by commercial building electrification
+  description: The Mthm/a actually removed from 
+    building_natural_gas_use_pre_electrification (commercial, existing) by 
+    replace_natural_gas_commercial this year -- feeds both 
+    building_natural_gas_use (as a subtraction) and 
+    electricity_replacing_natural_gas_commercial (converted to the electricity 
+    that replaces it), so the two stay consistent with each other. Uses 
+    GenericNode's implicit add/multiply combination (gas is unit-compatible so 
+    it's added as the base; replace_natural_gas_commercial's '%' is 
+    unit-incompatible so it's multiplied in) rather than a FormulaNode formula 
+    string, so replace_natural_gas_commercial stays an implicit input -- 
+    removable without also having to edit a formula elsewhere.
+  type: generic.GenericNode
+  quantity: energy
+  unit: Mthm/a
+  input_dimensions: [emission_sectors, building_energy_class]
+  output_dimensions: [emission_sectors, building_energy_class]
+  input_nodes:
+  - id: building_natural_gas_use_pre_electrification
+    tags: [non_additive]
+  output_nodes:
+  - id: electricity_replacing_natural_gas_commercial
+    tags: [removed]
+
+- id: building_natural_gas_use
+  name: Building natural gas use
+  name_es-US: Consumo de gas natural en edificios
+  description: <b>Unit:</b> Mthm/yr. = million therms per year. Equal to 
+    building_natural_gas_use_pre_electrification minus whatever 
+    natural_gas_removed_by_replace_natural_gas_residential/commercial claim that
+    year.
+  description_es-US: <b>Unidad:</b> Mthm/año = millones de termias al año.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: Mthm/a
+  input_dimensions: [emission_sectors, building_energy_class]
+  output_dimensions: [emission_sectors, building_energy_class]
+  input_nodes:
+  - id: building_natural_gas_use_pre_electrification
+    tags: [gas]
+  - id: natural_gas_removed_by_replace_natural_gas_residential
+    tags: [removed_res]
+  - id: natural_gas_removed_by_replace_natural_gas_commercial
+    tags: [removed_com]
+  params:
+    formula: gas - removed_res - removed_com
 
 - id: building_electricity_eui_by_action
   name: Energy use intensity EUI for electricity by action
@@ -1487,17 +1565,14 @@ nodes:
   type: generic.GenericNode
   quantity: energy
   unit: kWh/a
+  input_dimensions: [emission_sectors, building_energy_class]
+  output_dimensions: [emission_sectors, building_energy_class]
   params:
   - id: multiplier
-    value: -0.33
+    value: 0.33
     unit: dimensionless
   output_nodes:
   - id: building_electricity_use
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-    - id: building_energy_class
-      categories: [existing]
 
 - id: electricity_replacing_natural_gas_commercial
   name: Electricity that replaces natural gas in commercial buildings
@@ -1505,19 +1580,16 @@ nodes:
   type: formula.FormulaNode
   quantity: energy
   unit: kWh/a
+  input_dimensions: [emission_sectors, building_energy_class]
+  output_dimensions: [emission_sectors, building_energy_class]
   params:
   - id: constant
-    value: -0.39
+    value: 0.39
     unit: dimensionless
   - id: formula
-    value: constant * replace_natural_gas_commercial
+    value: constant * removed
   output_nodes:
   - id: building_electricity_use
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-    - id: building_energy_class
-      categories: [existing]
 
 # Natural gas
 
@@ -3456,13 +3528,21 @@ actions:
     filters:
     - column: updated_building_code
     - column: develop_beyond_building_code
+    - column: replace_natural_gas_residential
+    - column: replace_natural_gas_commercial
   output_nodes:
   - id: building_electricity_use
     metrics: [benchmark_energy_use_electricity]
     tags: [benchmark_electricity]
-  - id: building_natural_gas_use
+    to_dimensions:
+    - id: emission_sectors
+    - id: building_energy_class
+  - id: building_natural_gas_use_pre_electrification
     metrics: [benchmark_energy_use_natural_gas]
     tags: [benchmark_natural_gas]
+    to_dimensions:
+    - id: emission_sectors
+    - id: building_energy_class
 
 - id: efficiency_works_program
   name: Expand the Efficiency Works Program
@@ -3497,7 +3577,7 @@ actions:
   output_nodes:
   - id: building_electricity_use
     tags: [complement]
-  - id: building_natural_gas_use
+  - id: building_natural_gas_use_pre_electrification
     tags: [complement]
 
 - id: replace_natural_gas_residential
@@ -3513,21 +3593,16 @@ actions:
     de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/bbe">Plan
     de electrificación beneficiosa de edificios</a></li></ul>'
   type: simple.GenericAction
-  quantity: energy
-  unit: ktherm/a
+  quantity: fraction
+  unit: '%'
   group: buildings
+  output_dimensions: [emission_sectors, building_energy_class]
   input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
+  - id: longmont/building_actions
     forecast_from: 2025
     column: replace_natural_gas_residential
   output_nodes:
-  - id: building_natural_gas_use
-    to_dimensions:
-    - id: emission_sectors
-      categories: [residential_energy]
-    - id: building_energy_class
-      categories: [existing]
-  - id: electricity_replacing_natural_gas_residential
+  - id: natural_gas_removed_by_replace_natural_gas_residential
   params:
     operations: get_single_dataset,extend_to_history
 
@@ -3544,21 +3619,16 @@ actions:
     de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/bbe">Plan
     de electrificación beneficiosa de edificios</a></li></ul>'
   type: simple.GenericAction
-  quantity: energy
-  unit: ktherm/a
+  quantity: fraction
+  unit: '%'
   group: buildings
+  output_dimensions: [emission_sectors, building_energy_class]
   input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
+  - id: longmont/building_actions
     forecast_from: 2025
     column: replace_natural_gas_commercial
   output_nodes:
-  - id: building_natural_gas_use
-    to_dimensions:
-    - id: emission_sectors
-      categories: [commercial_industrial_energy]
-    - id: building_energy_class
-      categories: [existing]
-  - id: electricity_replacing_natural_gas_commercial
+  - id: natural_gas_removed_by_replace_natural_gas_commercial
   params:
     operations: get_single_dataset,extend_to_history
 
