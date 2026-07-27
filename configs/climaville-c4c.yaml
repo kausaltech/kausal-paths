@@ -8,17 +8,17 @@ dataset_repo:
 name_en: Climaville Greenhouse Gas Inventory
 owner: City of Climaville
 theme_identifier: eu-climate-4-cast
-target_year: 2030
-model_end_year: 2035
+target_year: 2035
+model_end_year: 2040
 reference_year: 1990
 minimum_historical_year: 2018
-maximum_historical_year: 2023
+maximum_historical_year: 2025
 emission_unit: t/a
-emission_forecast_from: 2024
+emission_forecast_from: 2026
 emission_dimensions: [ghg]
 features:
   baseline_visible_in_graphs: true
-  use_datasets_from_db: false
+  use_datasets_from_db: true
 
 impact_overviews:
 - graph_type: cost_efficiency
@@ -34,8 +34,8 @@ impact_overviews:
   effect_node: net_costs
   indicator_unit: MDKK
   outcome_dimension: cost_type
-  label_da: Kost-nytte
   label_en: Cost-benefit
+  label_da: Kost-nytte
 
 action_groups:
 - id: energy
@@ -44,8 +44,8 @@ action_groups:
 - id: transportation
   name_en: Transportation
   color: '#E15759'
-- id: transportation_green_mobility
-  name_en: Transportation (Green Mobility Plan)
+- id: transportation_sump
+  name_en: Transportation (Sustainable Urban Mobility Plan)
   color: '#E15759'
 - id: waste
   name_en: Waste
@@ -383,13 +383,13 @@ nodes:
   input_datasets:
   - id: emission_factors_energy
     column: emission_factor
-    forecast_from: 2024
+    forecast_from: 2026
 
 # ----- I Energy
 
 - id: energy_emissions
-  name_da: Energi
   name_en: Energy Emissions
+  name_da: Energi
   color: '#4E79A7'
   type: simple.AdditiveNode
   quantity: emissions
@@ -424,7 +424,7 @@ nodes:
   - id: combined_heat_and_power
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: energy_carrier
       value: electricity
@@ -445,7 +445,7 @@ nodes:
   - id: combined_heat_and_power
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - dimension: energy_carrier
       categories: [electricity]
@@ -482,7 +482,7 @@ nodes:
   - id: combined_heat_and_power
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - dimension: sector
       categories: [i12]
@@ -517,7 +517,7 @@ nodes:
   - id: combined_heat_and_power
     column: energy_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
       value: i12
@@ -549,7 +549,7 @@ nodes:
   - id: combined_heat_and_power
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
   input_nodes:
   - id: chp_district_heat_emissions
   - id: chp_electricity_generation_emissions
@@ -566,7 +566,7 @@ nodes:
   input_datasets:
   - id: electricity
     column: energy
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
       value: i21
@@ -582,7 +582,7 @@ nodes:
   input_datasets:
   - id: electricity
     column: energy
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
       value: i22
@@ -650,7 +650,7 @@ nodes:
   - id: manufacturing
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: ghg
@@ -670,7 +670,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
   input_nodes:
@@ -691,7 +691,7 @@ nodes:
   input_datasets:
   - id: other_energy
     column: energy
-    forecast_from: 2024
+    forecast_from: 2026
 
 - id: other_energy_heating_emissions
   name_en: Other Energy Heating Emissions
@@ -753,7 +753,7 @@ nodes:
   input_datasets:
   - id: nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
       value: i51
@@ -769,7 +769,7 @@ nodes:
   input_datasets:
   - id: nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
       value: i52
@@ -785,7 +785,7 @@ nodes:
   input_datasets:
   - id: nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
       value: i53
@@ -801,7 +801,7 @@ nodes:
   input_datasets:
   - id: nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
       value: i54
@@ -817,7 +817,7 @@ nodes:
   input_datasets:
   - id: nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
       value: i55
@@ -833,7 +833,7 @@ nodes:
   input_datasets:
   - id: nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
       value: i56
@@ -865,7 +865,7 @@ nodes:
   input_datasets:
   - id: biogenic_shares
     column: fraction
-    forecast_from: 2024
+    forecast_from: 2026
 
 - id: transportation_energy_emission_factors
   name_en: Transportation Energy Emission Factors
@@ -892,7 +892,7 @@ nodes:
   input_datasets:
   - id: emission_factors_transportation
     column: emission_factor
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - dimension: vehicle_type
       categories: [cycling, mopeds, motorcycles, passenger_cars, trucks, vans]
@@ -908,7 +908,7 @@ nodes:
   input_datasets:
   - id: gasoline_hybrid_shares
     column: fraction
-    forecast_from: 2024
+    forecast_from: 2026
 
 - id: gasoline_hybrid_emission_factors
   name_en: Gasoline Hybrid Emission Factors
@@ -929,8 +929,8 @@ nodes:
     - id: energy_carrier
 
 - id: transportation_emissions
-  name_da: Transport og Mobilitet
   name_en: Transportation Emissions
+  name_da: Transport og Mobilitet
   color: '#E15759'
   type: simple.AdditiveNode
   quantity: emissions
@@ -982,7 +982,7 @@ nodes:
   - id: onroad_transportation
     column: mileage
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: ghg
@@ -1000,7 +1000,7 @@ nodes:
   - id: onroad_transportation
     column: energy_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: ghg
@@ -1035,7 +1035,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - dimension: vehicle_type
@@ -1044,7 +1044,7 @@ nodes:
   - id: emission_factors_transportation
     tags: [ch4_n2o_emission_factors]
     column: emission_factor
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - dimension: vehicle_type
       categories: [buses]
@@ -1075,8 +1075,8 @@ nodes:
 
 # --------------- Other Vehicles
 
-- id: onroad_transport_vehicle_mileage
-  name_en: On-Road Transport Vehicle Mileage
+- id: onroad_transport_vehicle_mileage_baseline
+  name_en: On-Road Transport Vehicle Mileage (Baseline)
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/a
@@ -1086,13 +1086,40 @@ nodes:
   - id: onroad_transportation
     column: mileage
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: owner
     - column: ghg
     - dimension: vehicle_type
       categories: [cycling, mopeds, motorcycles, passenger_cars, trucks, vans]
+
+- id: onroad_transport_passenger_car_mileage_reduction_zez
+  name_en: On-Road Transport Passenger Car Mileage Reduction (ZEZ)
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: km/a
+  params:
+    formula: mileage * zez
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: onroad_transport_vehicle_mileage_baseline
+    tags: [mileage]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [passenger_cars]
+
+- id: onroad_transport_vehicle_mileage
+  name_en: On-Road Transport Vehicle Mileage
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: km/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: onroad_transport_vehicle_mileage_baseline
+  - id: onroad_transport_passenger_car_mileage_reduction_zez
 
 - id: onroad_transport_vehicle_energy_factors
   name_en: On-Road Transport Vehicle Energy Factors
@@ -1105,7 +1132,7 @@ nodes:
   - id: onroad_transportation
     column: energy_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: owner
@@ -1133,15 +1160,15 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
-    formula: ((nonhybrid_emission_factors * energy_consumption) + 
+    formula: (nonhybrid_emission_factors * energy_consumption) + 
       (hybrid_emission_factors * energy_consumption) + (ch4_n2o_emission_factors
-      * mileage) + reference) * complement(green_mobility_2a2)
+      * mileage) + reference
   input_datasets:
   - id: onroad_transportation
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: owner
@@ -1208,7 +1235,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: owner
@@ -1262,7 +1289,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: owner
@@ -1329,7 +1356,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: owner
@@ -1377,7 +1404,7 @@ nodes:
   - id: rail_transportation
     column: mileage
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: ghg
@@ -1393,7 +1420,7 @@ nodes:
   - id: rail_transportation
     column: energy_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: ghg
@@ -1525,7 +1552,7 @@ nodes:
   - id: rail_transportation
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
   input_nodes:
@@ -1548,7 +1575,7 @@ nodes:
   - id: waterborne_transportation
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: ghg
@@ -1567,7 +1594,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
   input_nodes:
@@ -1597,7 +1624,7 @@ nodes:
   - id: aviation
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: ghg
@@ -1617,7 +1644,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
   input_nodes:
@@ -1633,8 +1660,8 @@ nodes:
 # ----- III Waste, Biogas Production & IPPU
 
 - id: waste_ippu_emissions
-  name_da: Materialer og Ressourcer
   name_en: Waste & IPPU Emissions
+  name_da: Materialer og Ressourcer
   color: '#59A14F'
   type: simple.AdditiveNode
   quantity: emissions
@@ -1657,7 +1684,7 @@ nodes:
   input_datasets:
   - id: waste
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2026
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: waste_ippu_emissions
@@ -1672,7 +1699,7 @@ nodes:
   input_datasets:
   - id: ippu
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2026
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: waste_ippu_emissions
@@ -1680,8 +1707,8 @@ nodes:
 # ----- V AFOLU
 
 - id: afolu_emissions
-  name_da: Natur og Landbrug
   name_en: Agriculture, Forestry & Other Land Use Emissions
+  name_da: Natur og Landbrug
   color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: emissions
@@ -1713,7 +1740,7 @@ nodes:
   - id: land
     column: emission_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
 
 - id: land_areas
   name_en: Land Areas
@@ -1726,7 +1753,7 @@ nodes:
   - id: land
     column: area
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: ghg
 
@@ -1745,7 +1772,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - dimension: sector
       categories: [v11]
@@ -1773,7 +1800,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - dimension: sector
       categories: [v121]
@@ -1801,7 +1828,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - dimension: sector
       categories: [v122]
@@ -1884,7 +1911,7 @@ nodes:
   - id: livestock
     column: emission_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
 
 - id: livestock_counts
   name_en: Livestock Counts
@@ -1897,7 +1924,7 @@ nodes:
   - id: livestock
     column: number
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: emission_source
     - column: ghg
@@ -1917,7 +1944,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2026
   input_nodes:
   - id: livestock_emission_factors
   - id: livestock_counts
@@ -1992,7 +2019,6 @@ nodes:
 actions:
 # ----- Energy
 - id: carbon_capture_and_storage
-  name_da: Carbon capture and storage
   name_en: Carbon Capture and Storage
   group: energy
   type: simple.AdditiveAction
@@ -2002,7 +2028,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: energy_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: carbon_capture_and_storage
@@ -2044,8 +2070,8 @@ actions:
       flatten: true
 
 - id: energy_efficiency_improvements
-  name_da: Energieffektiviseringer
   name_en: Energy Efficiency Improvements
+  name_da: Energieffektiviseringer
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
@@ -2054,7 +2080,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: energy_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: energy_efficiency_improvements
@@ -2093,8 +2119,8 @@ actions:
       flatten: true
 
 - id: energy_efficient_municipal_buildings
-  name_da: Energieffektive kommunale bygninger
   name_en: Energy Efficient Municipal Buildings
+  name_da: Energieffektive kommunale bygninger
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
@@ -2103,7 +2129,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: energy_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: energy_efficient_municipal_buildings
@@ -2161,8 +2187,8 @@ actions:
       flatten: true
 
 - id: expansion_of_renewable_energy
-  name_da: Udbygning af vedvarende energi
   name_en: Expansion of Renewable Energy
+  name_da: Udbygning af vedvarende energi
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector]
@@ -2171,7 +2197,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: energy_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: expansion_of_renewable_energy
@@ -2209,8 +2235,8 @@ actions:
       flatten: true
 
 - id: green_district_heating_of_the_future
-  name_da: Fremtidens fjernvarme
   name_en: Green District Heating of the Future
+  name_da: Fremtidens fjernvarme
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector]
@@ -2219,7 +2245,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: energy_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: green_district_heating_of_the_future
@@ -2254,8 +2280,8 @@ actions:
       flatten: true
 
 - id: sustainable_municipal_facilities
-  name_da: Kommunale bæredygtige anlæg
   name_en: Sustainable Municipal Facilities
+  name_da: Kommunale bæredygtige anlæg
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector, ghg]
@@ -2264,7 +2290,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: energy_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: sustainable_municipal_facilities
@@ -2293,8 +2319,8 @@ actions:
       flatten: true
 
 - id: zero_emission_municipal_machinery_and_driving
-  name_da: Kommunale emissionsfrie maskiner
   name_en: Zero-emission Municipal Machinery and Driving
+  name_da: Kommunale emissionsfrie maskiner
   group: energy
   type: simple.AdditiveAction
   quantity: emissions
@@ -2304,7 +2330,7 @@ actions:
   input_datasets:
   - id: energy_actions
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: sector
     - column: action
@@ -2316,8 +2342,8 @@ actions:
 
 # ----- Transportation
 - id: optimized_and_emission_free_municipal_fleet
-  name_da: Kommunal emissionsfri kørsel
   name_en: Optimized and Emission Free Municipal Fleet
+  name_da: Kommunal emissionsfri kørsel
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
@@ -2326,7 +2352,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: transportation_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: optimized_and_emission_free_municipal_fleet
@@ -2354,8 +2380,8 @@ actions:
       flatten: true
 
 - id: sustainable_air_and_maritime_transport
-  name_da: Bæredygtig skibs- og luftfart
   name_en: Sustainable Air and Maritime Transport
+  name_da: Bæredygtig skibs- og luftfart
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
@@ -2364,7 +2390,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: transportation_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: sustainable_air_and_maritime_transport
@@ -2399,8 +2425,8 @@ actions:
       flatten: true
 
 - id: sustainable_soil_management
-  name_da: Bæredygtig jordhåndtering
   name_en: Sustainable Soil Management
+  name_da: Bæredygtig jordhåndtering
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
@@ -2409,7 +2435,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: transportation_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: sustainable_soil_management
@@ -2436,22 +2462,23 @@ actions:
     - id: energy_carrier
       flatten: true
 
-# ----- Green Mobility Plan
+# ----- Sustainable Urban Mobility Plan
 - id: green_mobility_2a2_zero_emission_zone
-  name_da: 2.A.2 Nulemissionszone i Climaville
-  name_en: 2.A.2 Zero Emission Zone
-  group: transportation_green_mobility
+  name_en: Zero-Emission Zone (ZEZ) in the Climaville City Center
+  group: transportation_sump
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
   output_dimensions: [sector, cost_type]
   params:
     allow_null_categories: true
   input_datasets:
-  - id: green_mobility_plan_actions
-    forecast_from: 2024
+  - id: transportation_actions
+    forecast_from: 2026
     filters:
     - column: action
-      value: 2a2_zero_emission_zone
+      value: green_mobility_plan
+    - column: energy_carrier
+    - column: vehicle_type
   output_metrics:
   - id: fraction
     unit: '%'
@@ -2460,9 +2487,9 @@ actions:
     unit: DKK/a
     quantity: currency
   output_nodes:
-  - id: onroad_transport_passenger_car_emissions
+  - id: onroad_transport_passenger_car_mileage_reduction_zez
     metrics: [fraction]
-    tags: [green_mobility_2a2]
+    tags: [zez]
     from_dimensions:
     - id: sector
       flatten: true
@@ -2474,8 +2501,8 @@ actions:
 
 # ----- Waste
 - id: biocover_on_landfills
-  name_da: Biocover på deponier
   name_en: Biocover on Landfills
+  name_da: Biocover på deponier
   group: waste
   type: simple.AdditiveAction
   input_dimensions: [sector, ghg, cost_type]
@@ -2484,7 +2511,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: waste_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: biocover_on_landfills
@@ -2509,8 +2536,8 @@ actions:
 
 # ----- IPPU
 - id: green_materials_in_industry_and_construction
-  name_da: Klimavenlige materialer i industrien og byggeriet
   name_en: Green Materials in Industry and Construction
+  name_da: Klimavenlige materialer i industrien og byggeriet
   group: ippu
   type: simple.AdditiveAction
   input_dimensions: [sector, ghg, cost_type]
@@ -2519,7 +2546,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: ippu_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: green_materials_in_industry_and_construction
@@ -2544,8 +2571,8 @@ actions:
 
 # ----- AFOLU
 - id: biogenic_energy_park
-  name_da: Biogen energipark
   name_en: Biogenic Energy Park
+  name_da: Biogen energipark
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, emission_source, cost_type, ghg]
@@ -2554,7 +2581,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: afolu_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: biogenic_energy_park
@@ -2603,8 +2630,8 @@ actions:
       flatten: true
 
 - id: climate_supervision_and_action_plans
-  name_da: Klimatilsyn og klimahandleplaner
   name_en: Climate Supervision and Action Plans
+  name_da: Klimatilsyn og klimahandleplaner
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type, ghg]
@@ -2613,7 +2640,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: afolu_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: climate_supervision_and_action_plans
@@ -2638,8 +2665,8 @@ actions:
       flatten: true
 
 - id: conversion_to_forestry_and_nature
-  name_da: Omdannelse til skov og natur
   name_en: Conversion to Forestry and Nature
+  name_da: Omdannelse til skov og natur
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2648,7 +2675,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: afolu_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: conversion_to_forestry_and_nature
@@ -2671,8 +2698,8 @@ actions:
     metrics: [currency]
 
 - id: extraction_of_organic_soils
-  name_da: Udtagning af lavbundsjord
   name_en: Extraction of Organic Soils
+  name_da: Udtagning af lavbundsjord
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2681,7 +2708,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: afolu_actions
-    forecast_from: 2024
+    forecast_from: 2026
     filters:
     - column: action
       value: extraction_of_organic_soils
@@ -2719,8 +2746,8 @@ scenarios:
 
 - id: default
   default: true
-  name_da: Klimaplanen 2025-2030
   name_en: Climate Action Plan
+  name_da: Klimaplanen 2025-2030
   all_actions_enabled: true
   params:
   - id: carbon_capture_and_storage.enabled
