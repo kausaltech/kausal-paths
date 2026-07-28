@@ -29,16 +29,15 @@ from .transform_def import (
     FilterTemporalOp,
     IndexTemporalOp,
     PortTransformOp,
-    PortTransformPipeline,
     RemapLegacyYearsOp,
     RenameColumnOp,
     RenameItemOp,
     SelectMetricOp,
     SetForecastFromOp,
     TagOperationOp,
-    forecast_from_operations,
-    unit_from_operations,
-    without_operations,
+    forecast_from_transformations,
+    unit_from_transformations,
+    without_transformations,
 )
 
 
@@ -91,7 +90,7 @@ type InputDatasetFilterDef = (
 
 def input_dataset_filter_to_ops(filter_def: InputDatasetFilterDef) -> list[PortTransformOp]:
     """
-    Convert one legacy input-dataset filter into port transform operations.
+    Convert one legacy input-dataset filter into port transformations.
 
     A legacy dimension filter conflates filtering and assignment, so it can
     expand into two ops. The runtime applies the branches in the order
@@ -144,17 +143,17 @@ class InputDatasetDef(I18nBaseModel):
     max_year: int | None = None
     unit: Unit | None = None
     output_dimensions: list[DimensionRef] | None = None
-    operations: list[PortTransformOp] | None = None
+    transformations: list[PortTransformOp] | None = None
     """
     The transform pipeline, when the definition came from the DB.
 
     Authoritative when set: the flat fields above are the YAML-era shape, and
-    ``to_transform_pipeline()`` converts them into this. Keeping both would mean
+    ``to_transformations()`` converts them into this. Keeping both would mean
     two sources of truth for the same semantics, so only one is ever read —
     see ``DatasetWithFilters.kwargs_from_def``.
     """
 
-    def to_transform_pipeline(self) -> PortTransformPipeline:
+    def to_transformations(self) -> list[PortTransformOp]:
         """
         Convert the legacy flat fields into the complete ordered pipeline.
 
@@ -178,34 +177,34 @@ class InputDatasetDef(I18nBaseModel):
         ``GenericDataset`` interpolates at its own point in loading. It stays a
         binding field until those cases are gone.
         """
-        operations: list[PortTransformOp] = []
+        transformations: list[PortTransformOp] = []
         rename_cols = [f for f in self.filters if isinstance(f, RenameColumnDatasetFilterDef)]
         other_filters = [f for f in self.filters if not isinstance(f, RenameColumnDatasetFilterDef)]
         for filter_def in rename_cols:
-            operations.extend(input_dataset_filter_to_ops(filter_def))
+            transformations.extend(input_dataset_filter_to_ops(filter_def))
         if self.column is not None:
-            operations.append(SelectMetricOp())
-        operations.append(IndexTemporalOp())
-        operations.append(RemapLegacyYearsOp())
+            transformations.append(SelectMetricOp())
+        transformations.append(IndexTemporalOp())
+        transformations.append(RemapLegacyYearsOp())
         if self.forecast_from is not None:
-            operations.append(SetForecastFromOp(year=self.forecast_from))
+            transformations.append(SetForecastFromOp(year=self.forecast_from))
         for filter_def in other_filters:
-            operations.extend(input_dataset_filter_to_ops(filter_def))
-        operations.extend(TagOperationOp(tag=tag) for tag in self.tags)
+            transformations.extend(input_dataset_filter_to_ops(filter_def))
+        transformations.extend(TagOperationOp(tag=tag) for tag in self.tags)
         if self.min_year is not None or self.max_year is not None:
-            operations.append(FilterTemporalOp(min_year=self.min_year, max_year=self.max_year))
+            transformations.append(FilterTemporalOp(min_year=self.min_year, max_year=self.max_year))
         if self.dropna:
-            operations.append(DropNullsOp())
+            transformations.append(DropNullsOp())
         if self.unit is not None:
-            operations.append(EnsureUnitOp(unit=self.unit))
-        return PortTransformPipeline(operations=operations)
+            transformations.append(EnsureUnitOp(unit=self.unit))
+        return transformations
 
 
 LEGACY_DATASET_SPEC_FIELDS = ('column', 'filters', 'forecast_from', 'dropna', 'min_year', 'max_year', 'unit')
 """The flat fields ``DatasetPortSpec`` used to store before it stored a pipeline."""
 
 
-def legacy_dataset_spec_to_operations(data: dict[str, Any]) -> dict[str, Any]:
+def legacy_dataset_spec_to_transformations(data: dict[str, Any]) -> dict[str, Any]:
     """
     Rewrite a stored spec that still has the flat filter fields into a pipeline.
 
@@ -222,7 +221,7 @@ def legacy_dataset_spec_to_operations(data: dict[str, Any]) -> dict[str, Any]:
         'output_dimensions': data.get('output_dimensions'),
     })
     return {
-        'operations': [op.model_dump(mode='json') for op in ds_def.to_transform_pipeline().operations],
+        'transformations': [op.model_dump(mode='json') for op in ds_def.to_transformations()],
         'column': ds_def.column,
         'tags': ds_def.tags,
         'input_dataset': ds_def.input_dataset,
@@ -236,7 +235,7 @@ class DatasetPortSpec(I18nBaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
-    operations: list[PortTransformOp] = Field(default_factory=list)
+    transformations: list[PortTransformOp] = Field(default_factory=list)
     """
     The transform pipeline, in execution order.
 
@@ -263,7 +262,7 @@ class DatasetPortSpec(I18nBaseModel):
     Tags, which pick this dataset out at runtime (``get_input_dataset_pl(tag=...)``).
 
     Only selection now: the transforming half of the tag mechanism is explicit
-    as ``tag_operation`` entries in ``operations``. A tag can legitimately be
+    as ``tag_operation`` entries in ``transformations``. A tag can legitimately be
     both, so the list keeps every tag and the pipeline carries the ones that
     name a registered dataframe operation.
     """
@@ -292,33 +291,44 @@ class DatasetPortSpec(I18nBaseModel):
 
     @model_validator(mode='before')
     @classmethod
-    def _convert_legacy_flat_fields(cls, data: Any) -> Any:
-        """Accept specs stored before the pipeline replaced the flat filter fields."""
-        if not isinstance(data, dict) or 'operations' in data:
+    def _convert_legacy_shapes(cls, data: Any) -> Any:
+        """
+        Accept the two spec shapes this field has had before.
+
+        First it stored flat filter fields; then it stored the pipeline under
+        ``operations``, before that name was reserved for a node's own
+        computation. Rows in either shape convert on read, so deploy order never
+        matters; both conversions go away when bindings move to their own table.
+        """
+        if not isinstance(data, dict) or 'transformations' in data:
             return data
+        if 'operations' in data:
+            renamed = {key: value for key, value in data.items() if key != 'operations'}
+            renamed['transformations'] = data['operations']
+            return renamed
         if not any(key in data for key in LEGACY_DATASET_SPEC_FIELDS):
             return data
-        return legacy_dataset_spec_to_operations(cast('dict[str, Any]', data))
+        return legacy_dataset_spec_to_transformations(cast('dict[str, Any]', data))
 
     @property
     def forecast_from(self) -> int | None:
         """The year the pipeline starts marking values as forecast. Derived, not stored."""
-        return forecast_from_operations(self.operations)
+        return forecast_from_transformations(self.transformations)
 
     @property
     def unit(self) -> Unit | None:
         """The unit the pipeline coerces to. Derived, not stored."""
-        return unit_from_operations(self.operations)
+        return unit_from_transformations(self.transformations)
 
     def without_forecast_from(self) -> DatasetPortSpec:
         """Return a copy with forecast synthesis removed, so the dataset default applies."""
-        return self.model_copy(update={'operations': without_operations(self.operations, 'set_forecast_from')})
+        return self.model_copy(update={'transformations': without_transformations(self.transformations, 'set_forecast_from')})
 
     @classmethod
     def from_input_dataset(cls, ds_def: InputDatasetDef) -> DatasetPortSpec:
-        operations = ds_def.operations if ds_def.operations is not None else ds_def.to_transform_pipeline().operations
+        transformations = ds_def.transformations if ds_def.transformations is not None else ds_def.to_transformations()
         return cls(
-            operations=list(operations),
+            transformations=list(transformations),
             column=ds_def.column,
             tags=list(ds_def.tags),
             input_dataset=ds_def.input_dataset,
@@ -329,7 +339,7 @@ class DatasetPortSpec(I18nBaseModel):
     def to_input_dataset(self, *, id: DatasetIdentifier) -> InputDatasetDef:
         return InputDatasetDef(
             id=id,
-            operations=list(self.operations),
+            transformations=list(self.transformations),
             column=self.column,
             unit=self.unit,
             tags=self.tags,
@@ -376,6 +386,7 @@ class PipelineConfig(BaseModel):
 
     kind: Literal[NodeKind.PIPELINE] = NodeKind.PIPELINE
     operations: list[PipelineOperation] = Field(default_factory=list)
+    """The node's own computation. Not to be confused with a binding's transformations."""
 
 
 class ActionConfig(BaseModel):

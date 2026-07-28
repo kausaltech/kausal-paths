@@ -227,7 +227,7 @@ class Dataset(ABC):
 
 class FilterDatasetKwargs(DatasetKwargs):
     column: str | None
-    operations: list[PortTransformOp]
+    transformations: list[PortTransformOp]
     unit: Unit | None
     forecast_from: int | None
 
@@ -242,7 +242,7 @@ class DatasetWithFilters(Dataset, ABC):
     the selection happens.
     """
 
-    operations: list[PortTransformOp] = field(default_factory=list)
+    transformations: list[PortTransformOp] = field(default_factory=list)
     """The transform pipeline, executed in order (see ``nodes.transforms``)."""
 
     unit: Unit | None = None
@@ -255,11 +255,11 @@ class DatasetWithFilters(Dataset, ABC):
         # A YAML-authored definition carries the legacy flat fields, a DB-backed
         # one carries the pipeline directly. Converting here means there is one
         # execution path, whichever the config source was.
-        operations = ds_def.operations if ds_def.operations is not None else ds_def.to_transform_pipeline().operations
+        transformations = ds_def.transformations if ds_def.transformations is not None else ds_def.to_transformations()
         return FilterDatasetKwargs(
             **super().kwargs_from_def(ds_def),
             column=ds_def.column,
-            operations=list(operations),
+            transformations=list(transformations),
             unit=ds_def.unit,
             forecast_from=ds_def.forecast_from,
         )
@@ -268,16 +268,16 @@ class DatasetWithFilters(Dataset, ABC):
         yield from super().__rich_repr__()
         if self.column is not None:
             yield 'column', self.column
-        if self.operations:
-            yield 'operations', len(self.operations)
+        if self.transformations:
+            yield 'transformations', len(self.transformations)
 
     @measure_dataset_call('dataset.filter', capture_df_result=True, capture_df_arg=True)
     def _filter_and_process_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         """Run the binding's transform pipeline over a freshly loaded frame."""
-        from nodes.transforms import PipelineEnv, apply_port_pipeline
+        from nodes.transforms import PipelineEnv, apply_port_transformations
 
         env = PipelineEnv(context=self.context, dataset=self, metric_column=self.column)
-        df = apply_port_pipeline(df, self.operations, env)
+        df = apply_port_transformations(df, self.transformations, env)
         ppl.validate_ppdf(df)
         return df
 
@@ -537,18 +537,18 @@ class DVCDataset(DatasetWithFilters):
         raise DatasetError(self, 'Dataset %s does not have the value column' % self.id)
 
     def hash_data(self) -> dict[str, Any]:
-        # 'operations' covers what 'filters', 'forecast_from', 'dropna' and the
+        # 'transformations' covers what 'filters', 'forecast_from', 'dropna' and the
         # year limits used to contribute separately.
         extra_fields = [
             'input_dataset',
             'column',
-            'operations',
+            'transformations',
             'interpolate',
         ]
         d = {}
         for f in extra_fields:
             value = getattr(self, f)
-            if f == 'operations':
+            if f == 'transformations':
                 value = [op.model_dump(mode='json') for op in value]
             d[f] = value
 
@@ -934,7 +934,7 @@ class DBDataset(DatasetWithFilters):
             dataset_default = (db_dataset_obj.spec or {}).get('forecast_from')
             if dataset_default is not None:
                 kwargs['forecast_from'] = dataset_default
-                kwargs['operations'] = with_forecast_from(kwargs['operations'], dataset_default)
+                kwargs['transformations'] = with_forecast_from(kwargs['transformations'], dataset_default)
         return cls(
             id=ds_def.id,
             context=context,

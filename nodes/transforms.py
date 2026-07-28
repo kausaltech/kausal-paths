@@ -1,15 +1,21 @@
 """
-Execute a port binding's transform pipeline.
+Apply a port binding's transformations.
 
-One literal pass over the operations, in the order they are stored. The
-pipeline is the complete recipe: the stages that used to be hardcoded around
-the filters are ops too (see the legacy markers in
-``nodes.defs.transform_def``), so there is nothing implicit left between them.
+Transformations adapt a source to what a port expects: they select, filter,
+reshape and relabel. They never compute the node's output — that is the node's
+own pipeline (``nodes.pipeline``), which is why these are transformations and
+not operations. Note that adapting is not always shape-only: flattening sums
+over a dimension and unit coercion rescales values.
 
-Deliberately decoupled from ``Dataset``: it takes a frame, the ops, and a
-small environment. That is what lets edge bindings run the same pipeline
+One literal pass, in the order stored. The list is the complete recipe — the
+stages that used to be hardcoded around the filters are transformations too
+(see the legacy markers in ``nodes.defs.transform_def``), so nothing implicit
+happens between them.
+
+Deliberately decoupled from ``Dataset``: it takes a frame, the transformations
+and a small environment. That is what lets edge bindings run the same list
 later, and what will make the ``MetricDataFrame`` migration a change of the
-op bodies rather than a redesign.
+transformation bodies rather than a redesign.
 """
 
 from __future__ import annotations
@@ -52,7 +58,7 @@ class PipelineError(Exception):
 @dataclass
 class PipelineEnv:
     """
-    What the operations need besides the frame.
+    What the transformations need besides the frame.
 
     ``metric_column`` is what ``select_metric`` resolves to: the binding names
     the metric, the op only says where the selection happens.
@@ -78,13 +84,13 @@ class PipelineEnv:
         raise PipelineError(msg)
 
 
-def apply_port_pipeline(
+def apply_port_transformations(
     df: ppl.PathsDataFrame,
-    operations: list[PortTransformOp],
+    transformations: list[PortTransformOp],
     env: PipelineEnv,
 ) -> ppl.PathsDataFrame:
-    """Run the operations against the frame, in order."""
-    for op in operations:
+    """Run the transformations against the frame, in order."""
+    for op in transformations:
         df = apply_operation(df, op, env)
     return df
 
@@ -242,7 +248,7 @@ def _is_bound_to_dataset_node(env: PipelineEnv) -> bool:
     )
 
 
-# --- Dimension and column operations ----------------------------------------
+# --- Dimension and column transformations ----------------------------------------
 
 
 def _filter_column(df: ppl.PathsDataFrame, op: FilterColumnOp, env: PipelineEnv) -> ppl.PathsDataFrame:

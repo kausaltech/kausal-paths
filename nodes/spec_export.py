@@ -564,7 +564,7 @@ def _input_dataset_def_from_instance(ds: DatasetWithFilters) -> InputDatasetDef:
         tags=ds.tags or [],
         input_dataset=ds.input_dataset if isinstance(ds, DVCDataset) else None,
         column=ds.column,
-        operations=list(ds.operations),
+        transformations=list(ds.transformations),
         interpolate=ds.interpolate,
         unit=ds.unit,
     )

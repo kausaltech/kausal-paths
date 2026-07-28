@@ -1080,7 +1080,7 @@ class NodeClassRule(ValidationRule):
         return results
 
 
-def _flat_keys_from_operations(dataset_config: dict[str, Any]) -> dict[str, Any]:
+def _flat_keys_from_transformations(dataset_config: dict[str, Any]) -> dict[str, Any]:
     """
     Describe a transform pipeline using the flat keys the explanations below read.
 
@@ -1089,13 +1089,13 @@ def _flat_keys_from_operations(dataset_config: dict[str, Any]) -> dict[str, Any]
     generated text identical for both, and goes away when the explanations
     describe the pipeline in order — which is the point of having one.
     """
-    operations = dataset_config.get('operations')
-    if not operations:
+    transformations = dataset_config.get('transformations')
+    if not transformations:
         return dataset_config
 
     config = dict(dataset_config)
     filters: list[dict[str, Any]] = []
-    for op in operations:
+    for op in transformations:
         kind = op.get('kind')
         params = {key: value for key, value in op.items() if key != 'kind'}
         if kind in ('filter_column', 'filter_dimension'):
@@ -1124,7 +1124,7 @@ class DatasetRule(ValidationRule):
         """Explain a single dataset configuration."""
         if isinstance(dataset_config, str):
             return [f'<li><i>{dataset_config}</i></li>']
-        dataset_config = _flat_keys_from_operations(dataset_config)
+        dataset_config = _flat_keys_from_transformations(dataset_config)
         tags: list[Any] = dataset_config.get('tags', [])
         tag_str = ', '.join(tags) + ': ' if tags else ''
         html = [f'<li>{tag_str}{dataset_config["id"]}<ul>']

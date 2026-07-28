@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from paths.identifiers import DatasetIdentifier, NodeIdentifier, NodePortIdentifier
 
 from .edge_def import EdgeTransformation
-from .transform_def import PortTransformOp, forecast_from_operations
+from .transform_def import PortTransformOp, forecast_from_transformations
 
 
 class NodePortRef(BaseModel):
@@ -67,7 +67,7 @@ class DatasetBindingDef(PortBindingDef):
         default=None,
         description='Stable identifier of the external metric within the dataset.',
     )
-    operations: list[PortTransformOp] = Field(
+    transformations: list[PortTransformOp] = Field(
         default_factory=list,
         description="The binding's transform pipeline, in execution order.",
     )
@@ -75,7 +75,7 @@ class DatasetBindingDef(PortBindingDef):
     @property
     def forecast_from(self) -> int | None:
         """The year from which the time series becomes a forecast. Derived from the pipeline."""
-        return forecast_from_operations(self.operations)
+        return forecast_from_transformations(self.transformations)
 
 
 type AnyPortBindingDef = EdgeBindingDef | DatasetBindingDef

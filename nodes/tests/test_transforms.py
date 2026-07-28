@@ -3,7 +3,7 @@ Tests for the port transform pipeline executor.
 
 The executor replaced a hardcoded loading sequence in ``DatasetWithFilters``.
 These pin the stages whose *position* in that sequence was load-bearing, since
-that is what a literal pass over the operations has to reproduce.
+that is what a literal pass over the transformations has to reproduce.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from nodes.defs.transform_def import (
     SelectMetricOp,
     SetForecastFromOp,
 )
-from nodes.transforms import PipelineEnv, apply_port_pipeline
+from nodes.transforms import PipelineEnv, apply_port_transformations
 from nodes.units import unit_registry
 
 pytestmark = pytest.mark.django_db
@@ -63,7 +63,7 @@ def _wide_ppdf() -> PathsDataFrame:
 
 
 def _run(df: PathsDataFrame, ops: list[PortTransformOp], env: PipelineEnv | None = None) -> PathsDataFrame:
-    return apply_port_pipeline(df, ops, env or _env())
+    return apply_port_transformations(df, ops, env or _env())
 
 
 def test_select_metric_aliases_the_bound_column_and_narrows_the_frame():
@@ -227,7 +227,7 @@ def test_dataset_level_forecast_default_enters_the_pipeline():
     from nodes.defs.node_defs import InputDatasetDef
     from nodes.defs.transform_def import with_forecast_from
 
-    ops = InputDatasetDef(id='some/dataset', column='C').to_transform_pipeline().operations
+    ops = InputDatasetDef(id='some/dataset', column='C').to_transformations()
 
     with_default = with_forecast_from(ops, 2030)
 
@@ -241,11 +241,11 @@ def test_dataset_level_forecast_default_enters_the_pipeline():
 
 def test_a_binding_forecast_year_is_not_overridden_by_the_dataset_default():
     from nodes.defs.node_defs import InputDatasetDef
-    from nodes.defs.transform_def import forecast_from_operations, with_forecast_from
+    from nodes.defs.transform_def import forecast_from_transformations, with_forecast_from
 
-    ops = InputDatasetDef(id='some/dataset', forecast_from=2025).to_transform_pipeline().operations
+    ops = InputDatasetDef(id='some/dataset', forecast_from=2025).to_transformations()
 
-    assert forecast_from_operations(with_forecast_from(ops, 2030)) == 2025
+    assert forecast_from_transformations(with_forecast_from(ops, 2030)) == 2025
 
 
 def test_explanations_still_describe_a_pipeline_shaped_dataset_config():
@@ -255,11 +255,11 @@ def test_explanations_still_describe_a_pipeline_shaped_dataset_config():
     Database-backed instances carry an ordered pipeline where YAML carries flat
     fields, and the explanations were written against the latter.
     """
-    from nodes.explanations import _flat_keys_from_operations
+    from nodes.explanations import _flat_keys_from_transformations
 
     config = {
         'id': 'some/dataset',
-        'operations': [
+        'transformations': [
             {'kind': 'rename_column', 'column': 'Vuosi', 'new_name': 'Year'},
             {'kind': 'set_forecast_from', 'year': 2025},
             {'kind': 'filter_column', 'column': 'action', 'value': 'x'},
@@ -270,7 +270,7 @@ def test_explanations_still_describe_a_pipeline_shaped_dataset_config():
         ],
     }
 
-    flat = _flat_keys_from_operations(config)
+    flat = _flat_keys_from_transformations(config)
 
     assert flat['forecast_from'] == 2025
     assert flat['dropna'] is True
@@ -284,8 +284,8 @@ def test_explanations_still_describe_a_pipeline_shaped_dataset_config():
 
 
 def test_flat_key_translation_leaves_yaml_shaped_configs_alone():
-    from nodes.explanations import _flat_keys_from_operations
+    from nodes.explanations import _flat_keys_from_transformations
 
     config = {'id': 'some/dataset', 'forecast_from': 2025, 'filters': [{'column': 'action', 'value': 'x'}]}
 
-    assert _flat_keys_from_operations(config) is config
+    assert _flat_keys_from_transformations(config) is config

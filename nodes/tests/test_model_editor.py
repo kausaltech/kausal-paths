@@ -17,7 +17,7 @@ from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceModelSpec, NormalizationSpec, YearsSpec
 from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
-from nodes.defs.transform_def import FilterColumnOp, forecast_from_operations
+from nodes.defs.transform_def import FilterColumnOp, forecast_from_transformations
 from nodes.models import NodeKindChoices
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
 from nodes.units import unit_registry
@@ -1531,8 +1531,8 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
     ds = cast('DatasetWithFilters', action.input_dataset_instances[0])
     assert ds.id == 'multi_metric_actions'
     assert ds.column is None
-    assert forecast_from_operations(ds.operations) == 2024
-    filter_op = next(op for op in ds.operations if isinstance(op, FilterColumnOp))
+    assert forecast_from_transformations(ds.transformations) == 2024
+    filter_op = next(op for op in ds.transformations if isinstance(op, FilterColumnOp))
     assert filter_op.column == 'action'
     assert filter_op.value == 'multi_metric_action'
 
@@ -1596,13 +1596,11 @@ def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: 
         id='sync_multi_metric_actions',
         context=context,
         db_dataset_obj=dataset,
-        operations=InputDatasetDef(
+        transformations=InputDatasetDef(
             id='sync_multi_metric_actions',
             forecast_from=2024,
             filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
-        )
-        .to_transform_pipeline()
-        .operations,
+        ).to_transformations(),
         forecast_from=2024,
     )
     node = cast(
@@ -1641,7 +1639,7 @@ def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: 
     assert {binding.port_id for binding in bindings} == {port.id for port in input_ports}
     assert all(binding.spec.forecast_from == 2024 for binding in bindings)
     for binding in bindings:
-        filter_op = next(op for op in binding.spec.operations if isinstance(op, FilterColumnOp))
+        filter_op = next(op for op in binding.spec.transformations if isinstance(op, FilterColumnOp))
         assert filter_op.column == 'action'
 
 

@@ -1,5 +1,5 @@
 """
-Transform operations carried by a port binding.
+Transform transformations carried by a port binding.
 
 This is the target vocabulary for reshaping data as it arrives at a node
 input port, shared by dataset bindings and (eventually) edges. See
@@ -35,7 +35,7 @@ DATASET_ONLY: frozenset[PortBindingKind] = frozenset({'dataset'})
 
 
 class PortTransformOpBase(BaseModel):
-    """Common base for port transform operations."""
+    """Common base for port transformations."""
 
     model_config = ConfigDict(extra='forbid')
 
@@ -184,7 +184,7 @@ class SelectMetricOp(PortTransformOpBase):
 
     Carries no parameters: which metric is selected is the binding's source
     reference, so there is exactly one place to edit it. This op only says
-    *when* the selection happens relative to the other operations, which
+    *when* the selection happens relative to the other transformations, which
     matters because renames may have to run first to make the column
     addressable.
     """
@@ -248,31 +248,23 @@ type PortTransformOp = Annotated[
 ]
 
 
-class PortTransformPipeline(BaseModel):
-    """An ordered pipeline of transform operations."""
-
-    model_config = ConfigDict(extra='forbid')
-
-    operations: list[PortTransformOp] = Field(default_factory=list)
-
-
-def forecast_from_operations(operations: Sequence[PortTransformOp]) -> int | None:
+def forecast_from_transformations(transformations: Sequence[PortTransformOp]) -> int | None:
     """Return the year the pipeline starts marking values as forecast, if any."""
-    for op in operations:
+    for op in transformations:
         if isinstance(op, SetForecastFromOp):
             return op.year
     return None
 
 
-def unit_from_operations(operations: Sequence[PortTransformOp]) -> Unit | None:
+def unit_from_transformations(transformations: Sequence[PortTransformOp]) -> Unit | None:
     """Return the unit the pipeline ends up coercing to, if any."""
-    for op in reversed(operations):
+    for op in reversed(transformations):
         if isinstance(op, EnsureUnitOp):
             return op.unit
     return None
 
 
-def with_forecast_from(operations: Sequence[PortTransformOp], year: int) -> list[PortTransformOp]:
+def with_forecast_from(transformations: Sequence[PortTransformOp], year: int) -> list[PortTransformOp]:
     """
     Insert forecast synthesis into a pipeline that has none.
 
@@ -280,7 +272,7 @@ def with_forecast_from(operations: Sequence[PortTransformOp], year: int) -> list
     other filters — so a default inherited from the dataset behaves exactly like
     one declared on the binding.
     """
-    ops = list(operations)
+    ops = list(transformations)
     if any(isinstance(op, SetForecastFromOp) for op in ops):
         return ops
     anchors = ('index_temporal', 'remap_legacy_years', 'select_metric')
@@ -292,14 +284,14 @@ def with_forecast_from(operations: Sequence[PortTransformOp], year: int) -> list
     return ops
 
 
-def without_operations(operations: Sequence[PortTransformOp], *kinds: str) -> list[PortTransformOp]:
+def without_transformations(transformations: Sequence[PortTransformOp], *kinds: str) -> list[PortTransformOp]:
     """Return the pipeline with every operation of the given kinds removed."""
-    return [op for op in operations if op.kind not in kinds]
+    return [op for op in transformations if op.kind not in kinds]
 
 
-def unsupported_ops_for_binding(
-    operations: Sequence[PortTransformOp],
+def unsupported_transformations_for_binding(
+    transformations: Sequence[PortTransformOp],
     binding_kind: PortBindingKind,
 ) -> list[PortTransformOp]:
-    """Return the operations that the given binding kind may not carry."""
-    return [op for op in operations if binding_kind not in type(op).applies_to]
+    """Return the transformations that the given binding kind may not carry."""
+    return [op for op in transformations if binding_kind not in type(op).applies_to]

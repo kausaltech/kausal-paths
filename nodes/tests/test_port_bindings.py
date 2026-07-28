@@ -35,7 +35,7 @@ from nodes.defs.transform_def import (
     RenameItemOp,
     SelectMetricOp,
     SetForecastFromOp,
-    unsupported_ops_for_binding,
+    unsupported_transformations_for_binding,
 )
 from nodes.instance_from_db import _serialize_dataset_ports
 from nodes.spec_export import _drop_ambiguous_port_identifiers, _port_identifier_for_column
@@ -60,7 +60,7 @@ def test_transform_pipeline_reproduces_runtime_order():
 
     The old loading sequence was hardcoded — renames before anything looked at
     columns, then metric selection, temporal indexing and year remapping, then
-    forecast synthesis *before* the other filters, then tag operations, then the
+    forecast synthesis *before* the other filters, then tag transformations, then the
     output shaping. Every one of those stages is an op now, so this list is what
     guarantees the executor reproduces it.
     """
@@ -79,7 +79,7 @@ def test_transform_pipeline_reproduces_runtime_order():
         ],
     )
 
-    kinds = [op.kind for op in ds_def.to_transform_pipeline().operations]
+    kinds = [op.kind for op in ds_def.to_transformations()]
 
     assert kinds == [
         'rename_column',
@@ -105,7 +105,7 @@ def test_select_metric_carries_no_column():
     """
     ds_def = InputDatasetDef(id='some/dataset', column='Value')
 
-    ops = ds_def.to_transform_pipeline().operations
+    ops = ds_def.to_transformations()
 
     assert [op.kind for op in ops] == ['select_metric', 'index_temporal', 'remap_legacy_years']
     assert ops[0].model_dump() == {'kind': 'select_metric'}
@@ -121,7 +121,7 @@ def test_interpolate_is_not_an_operation():
     """
     ds_def = InputDatasetDef(id='some/dataset', interpolate=True)
 
-    assert 'interpolate' not in [op.kind for op in ds_def.to_transform_pipeline().operations]
+    assert 'interpolate' not in [op.kind for op in ds_def.to_transformations()]
     assert DatasetPortSpec.from_input_dataset(ds_def).interpolate is True
 
 
@@ -170,8 +170,8 @@ def test_legacy_filters_map_onto_ops():
 def test_dataset_only_ops_are_rejected_for_edge_bindings():
     ops: list[PortTransformOp] = [FilterDimensionOp(dimension='sector'), SetForecastFromOp(year=2025), SelectMetricOp()]
 
-    assert unsupported_ops_for_binding(ops, 'dataset') == []
-    assert [op.kind for op in unsupported_ops_for_binding(ops, 'edge')] == ['set_forecast_from', 'select_metric']
+    assert unsupported_transformations_for_binding(ops, 'dataset') == []
+    assert [op.kind for op in unsupported_transformations_for_binding(ops, 'edge')] == ['set_forecast_from', 'select_metric']
 
 
 def test_operations_keep_their_discriminator_when_defaults_are_excluded():
@@ -191,13 +191,13 @@ def test_operations_keep_their_discriminator_when_defaults_are_excluded():
         .model_dump(mode='json', exclude_defaults=True, exclude_none=True)
     )
 
-    assert [op['kind'] for op in dumped['operations']] == [
+    assert [op['kind'] for op in dumped['transformations']] == [
         'select_metric',
         'index_temporal',
         'remap_legacy_years',
         'set_forecast_from',
     ]
-    assert [op.kind for op in (InputDatasetDef.model_validate(dumped).operations or [])] == [
+    assert [op.kind for op in (InputDatasetDef.model_validate(dumped).transformations or [])] == [
         'select_metric',
         'index_temporal',
         'remap_legacy_years',
@@ -287,6 +287,24 @@ def test_bindings_share_a_port_ref_through_the_base_class():
 # ---------------------------------------------------------------------------
 
 
+def test_spec_reads_the_shape_that_stored_the_pipeline_as_operations():
+    """
+    Rows written while the field was called `operations` still read correctly.
+
+    `operations` now means a node's own computation, so the binding's list was
+    renamed — but stored rows keep the old key until bindings move to their own
+    table.
+    """
+    spec = DatasetPortSpec.model_validate({
+        'operations': [{'kind': 'select_metric'}, {'kind': 'set_forecast_from', 'year': 2024}],
+        'column': 'Cars',
+    })
+
+    assert [op.kind for op in spec.transformations] == ['select_metric', 'set_forecast_from']
+    assert spec.forecast_from == 2024
+    assert spec.column == 'Cars'
+
+
 def test_interpolate_survives_the_dataset_port_spec_round_trip():
     """
     `interpolate` used to be dropped for DB-sourced instances.
@@ -303,7 +321,7 @@ def test_interpolate_survives_the_dataset_port_spec_round_trip():
     round_tripped = spec.to_input_dataset(id=ds_def.id)
     assert round_tripped.interpolate is True
     assert round_tripped.forecast_from is None, 'the flat field is gone; the pipeline carries it'
-    assert [op.kind for op in (round_tripped.operations or [])] == [
+    assert [op.kind for op in (round_tripped.transformations or [])] == [
         'index_temporal',
         'remap_legacy_years',
         'set_forecast_from',
@@ -386,7 +404,7 @@ def test_ports_of_one_binding_collapse_to_a_single_input_dataset(db_instance_con
 
     assert len(input_datasets) == 1
     assert input_datasets[0]['id'] == 'multi_metric'
-    assert [op['kind'] for op in input_datasets[0]['operations']] == [
+    assert [op['kind'] for op in input_datasets[0]['transformations']] == [
         'index_temporal',
         'remap_legacy_years',
         'set_forecast_from',
@@ -425,6 +443,6 @@ def test_diverging_specs_within_one_binding_warn_and_keep_the_first(db_instance_
         logger.remove(sink_id)
 
     assert len(input_datasets) == 1
-    forecast_ops = [op for op in input_datasets[0]['operations'] if op['kind'] == 'set_forecast_from']
+    forecast_ops = [op for op in input_datasets[0]['transformations'] if op['kind'] == 'set_forecast_from']
     assert forecast_ops == [{'kind': 'set_forecast_from', 'year': 2025}], 'the first port wins'
     assert any('differing specs' in message for message in warnings)
