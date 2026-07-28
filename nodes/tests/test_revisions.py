@@ -781,6 +781,81 @@ def test_import_instance_datasets_preserves_dimension_column_name(empty_db_insta
     assert 'green_mobility_action' not in copied_df.columns
 
 
+def test_import_instance_preserves_dataset_only_dimension(empty_db_instance: InstanceConfig):
+    import datetime
+    from decimal import Decimal
+
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dataset, DatasetSchemaDimension, DimensionScope
+    from kausal_common.datasets.tests.factories import (
+        DataPointFactory,
+        DatasetFactory,
+        DatasetMetricFactory,
+        DatasetSchemaDimensionFactory,
+        DimensionCategoryFactory,
+        DimensionFactory,
+    )
+
+    from nodes.datasets import DBDataset
+    from nodes.instance_serialization import export_instance, import_instance
+
+    source = empty_db_instance
+    target_instance = InstanceFactory.create()
+    target = InstanceConfigFactory.create(
+        identifier=target_instance.id,
+        instance=target_instance,
+        config_source='database',
+        owner='Target',
+    )
+    source_ct = ContentType.objects.get_for_model(source)
+
+    dimension = DimensionFactory.create(name='Green Mobility Action')
+    DimensionScope.objects.create(
+        dimension=dimension,
+        scope_content_type=source_ct,
+        scope_id=source.pk,
+        identifier='green_mobility_action',
+    )
+    category = DimensionCategoryFactory.create(
+        dimension=dimension,
+        identifier='school_roads',
+        label='School Roads',
+    )
+    dataset = DatasetFactory.create(identifier='actions/source', scope=source)
+    DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=dimension, column_name='action')
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='fraction', label='Fraction', unit='%')
+    DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        date=datetime.date(2020, 1, 1),
+        value=Decimal('12.5'),
+        dimension_categories=[category],
+    )
+
+    export = export_instance(source)
+    assert 'green_mobility_action' not in {dim['id'] for dim in export.instance.spec.dimensions}
+    snapshot = next(ds for ds in export.datasets if ds.identifier == 'actions/source')
+    assert snapshot.dimensions == ['green_mobility_action']
+    assert snapshot.dimension_columns == {'green_mobility_action': 'action'}
+
+    import_instance(target, export)
+
+    copied_dataset = Dataset.objects.get(scope_content_type=source_ct, scope_id=target.pk, identifier='actions/source')
+    copied_schema_dim = DatasetSchemaDimension.objects.select_related('dimension').get(schema=copied_dataset.schema)
+    copied_scope = DimensionScope.objects.get(
+        dimension=copied_schema_dim.dimension,
+        scope_content_type=source_ct,
+        scope_id=target.pk,
+    )
+    assert copied_scope.identifier == 'green_mobility_action'
+    assert copied_schema_dim.column_name == 'action'
+    assert copied_dataset.data_points.count() == 1
+
+    copied_df = DBDataset.deserialize_df(copied_dataset)
+    assert copied_df.primary_keys == ['Year', 'action']
+
+
 # ---------------------------------------------------------------------------
 # Demo-flow mutations (edges, dimension categories, datapoints)
 #
