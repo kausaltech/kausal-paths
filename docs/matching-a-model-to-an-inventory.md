@@ -211,9 +211,27 @@ emissions delta, and decompose:
 
 > ΔE = ΔEF · A_inventory + EF_model · ΔA + interaction
 
+**Decompose within a carrier, never across.** This is the single easiest way to
+get a badly wrong answer. If the two sides have different carrier mixes, blending
+them into one activity × EF pair manufactures a factor difference that does not
+exist: the "EF gap" is really the mix difference, and an equal and opposite
+"activity gap" appears to cancel it. Split by carrier first, and only then
+decompose. The same applies to any other dimension along which the factor varies
+a lot — heating type, vehicle mode, waste treatment.
+
+**Check for a basis mismatch before calling anything a factor difference.** If a
+sector's activity ratio and its inverse factor ratio are the same number, the two
+sides are measuring different quantities — useful heat delivered versus fuel
+consumed, tonnes treated versus tonnes collected, gross versus net. The emissions
+will match while the activities disagree by tens of percent. That is not
+agreement, and it matters: any action expressed as a fraction of the activity
+lands on the wrong base. Record it as a basis difference, not as an offsetting
+A/B pair.
+
 A quick diagnostic before the full decomposition: compare total activity and
-implied average EF separately. If the activity ratio explains most of the gap it
-is mostly bucket B; if the factor ratio does, mostly bucket A.
+implied average EF separately, **per carrier**. If the activity ratio explains
+most of the gap it is mostly bucket B; if the factor ratio does, mostly bucket A;
+if each explains all of it in opposite directions, suspect a basis mismatch.
 
 Each line then gets a bucket and a **named fix target** — the dataset to override
 for A, the node chain to anchor for B, the residual category to create for C.
