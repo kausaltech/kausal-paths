@@ -2,7 +2,7 @@ id: cork-nzc
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1150382552c652141a4430d81e7ded033e5d5563
+  commit: 2be3953e1533ac5a2bea4010bf3fd28d5fab149e
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -330,6 +330,12 @@ dimensions:
     label_en: Commercial
   - id: industrial
     label_en: Industrial
+  # KPMG BEI reports these as separate sectors; the NZC model has no chain for
+  # either, so both enter as named boundary residuals (bucket C).
+  - id: public_services
+    label_en: Public services
+  - id: lulucf
+    label_en: LULUCF
 
 - id: ghg  # TODO Update the nzc.yaml dimension and drop this.
   label_en: Greenhouse gas
@@ -344,6 +350,10 @@ dimensions:
   - id: ch4
     label_en: Methane
     label_fi: Metaani
+  # Needed for the KPMG BEI's LULUCF per-gas split (cork/kpmg_inventory_residuals).
+  - id: n2o
+    label_en: N2O
+    label_fi: N2O
 
 nodes:
 
@@ -435,15 +445,17 @@ nodes:
 
 - id: building_heat_energy_by_type
   name: Building heat energy by building type
-  description: Model heat energy split across building types using KPMG inventory
-    shares (use_as_shares), so totals equal the model and all action impacts pass
-    through. The building-type split is applied uniformly across heating types and
-    carriers.
+  description: Model heat energy split across building types using KPMG 
+    inventory shares (use_as_shares), so totals equal the model and all action 
+    impacts pass through. The building-type split is applied uniformly across 
+    heating types and carriers.
   type: generic.GenericNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [building_type, sector, heating_type, scope, energy_carrier, fuel_type, building_energy_class]
-  output_dimensions: [building_type, sector, heating_type, scope, energy_carrier, fuel_type, building_energy_class]
+  input_dimensions: [building_type, sector, heating_type, scope, energy_carrier, 
+      fuel_type, building_energy_class]
+  output_dimensions: [building_type, sector, heating_type, scope, energy_carrier,
+    fuel_type, building_energy_class]
   input_nodes:
   - id: building_energy_by_type
     tags: [use_as_shares]
@@ -453,12 +465,12 @@ nodes:
 
 - id: building_emission_factors
   name: Building emission factors (KPMG, blended incl. electricity)
-  description: Blended all-energy emission factors per building type from the KPMG
-    BEI, including electricity at grid intensity (~254 g/kWh, SEAI 2023). The
-    Apartment factor (0.296 kg/kWh) reflects 69 GWh classified as house coal that
-    is most plausibly mains gas; corrected, it would be ~0.230 kg/kWh and total
-    building emissions ~539 kt/a instead of 548 kt/a. Non-domestic factors use a
-    certificate-count fuel split (CSO BER), not an energy-weighted split.
+  description: Blended all-energy emission factors per building type from the 
+    KPMG BEI, including electricity at grid intensity (~254 g/kWh, SEAI 2023). 
+    The Apartment factor (0.296 kg/kWh) reflects 69 GWh classified as house coal
+    that is most plausibly mains gas; corrected, it would be ~0.230 kg/kWh and 
+    total building emissions ~539 kt/a instead of 548 kt/a. Non-domestic factors
+    use a certificate-count fuel split (CSO BER), not an energy-weighted split.
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/kWh
@@ -471,10 +483,10 @@ nodes:
 
 - id: building_emissions_by_type_inventory
   name: Building emissions by building type (KPMG inventory view)
-  description: Reproduces the KPMG 2023 building emissions inventory (548 kt/a
-    incl. electricity) by building type. Reporting view only — not connected to
-    net emissions, where building heating and electricity emissions are accounted
-    separately to avoid double counting.
+  description: Reproduces the KPMG 2023 building emissions inventory (548 kt/a 
+    incl. electricity) by building type. Reporting view only — not connected to 
+    net emissions, where building heating and electricity emissions are 
+    accounted separately to avoid double counting.
   type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
@@ -521,13 +533,35 @@ nodes:
 
 - id: local_treated_waste_emissions
   name: Local Kinsale Road Landfill emissions
-  description: Methane emissions are converted to CO2 equivalent emissions by 
-    considering three cases. First, methane emissions to air are multiplied by 
-    global warming potential for 100 years (GWP100), which is 27.9 for methane. 
-    Second, if methane is used for energy production, it is already included in 
-    energy production emissions and it gets multiplier 0 here. Third, with 
-    flaring, methane converts to CO2 on molar basis and therefore the mass 
-    conversion is 44/16 = 2.75.
+  description: |
+    Reproduces the KPMG 2023 BEI treatment of the former Kinsale Road landfill
+    (3.381 kt), which is NOT the physically correct treatment. See
+    data/cork/kpmg_error_register.md entries 1 and 3; the multipliers below are
+    what those entries reverse.
+
+    Three methane streams, from cork/local_waste_emissions:
+
+    1. Vented (PRTR to air minus metered capture) — multiplier 0.
+       KPMG excludes fugitive release entirely, arguing that PRTR submissions
+       are modelled estimates of gross generation rather than measured release,
+       and that a capped mature site with gas engines captures and oxidises
+       essentially all of it. The correct multiplier is GWP100 = 27.9, which
+       would add 74.24 kt. KPMG's assumption implies zero fugitive release,
+       which no landfill achieves; the model's own alternative implies a 9.2%
+       capture rate, which is implausibly low. The defensible figure lies
+       between the two and needs Cork City Council's capture-efficiency data.
+
+    2. Energy utilisation — multiplier 0. Correct on both sides: the methane is
+       fully combusted and the resulting CO2 is attributed to energy
+       consumption in the relevant sector, not to waste.
+
+    3. Flaring — multiplier 27.9. This is a KPMG error. High-temperature
+       flaring oxidises CH4 to CO2, so the methane no longer exists as methane
+       and its GWP does not apply; the correct conversion is molar,
+       44/16 = 2.75. KPMG's treatment overstates this stream roughly tenfold
+       (3.381 kt instead of 0.333 kt).
+
+    Reverting both to the correct treatment means multipliers 27.9 / 0 / 2.75.
   type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
@@ -543,7 +577,146 @@ nodes:
     - id: sector
       categories: [waste]
   params:
-    formula: local_waste_emissions * 27.9 + energy_use * 0 + flaring * 2.75
+    # KPMG treatment — see the description above and error register 1 and 3.
+    # Correct treatment would be: local_waste_emissions * 27.9 + energy_use * 0
+    #                             + flaring * 2.75
+    formula: local_waste_emissions * 0 + energy_use * 0 + flaring * 27.9
+
+# -------------- KPMG BEI boundary residuals (bucket C) --------------
+# Emission sources the KPMG 2023 BEI reports and the NZC model has no chain for.
+# Each is a named node reading the published figure from
+# cork/kpmg_inventory_residuals, rather than an adjustment folded into a scaling
+# factor, so the boundary difference stays visible and auditable.
+# See data/cork/kpmg_reconciliation.md §10.
+#
+# None of these has an activity basis in the inventory, so none can be modelled
+# as activity x emission factor; they are emissions-only by construction and no
+# action moves them. Per-value provenance (source workbook, sheet and cell, and
+# the reasoning) lives in the dataset's `source` and `comment` columns.
+#
+# NB the dataset also carries a `ccc_transport_fuels` metric which is
+# deliberately NOT wired up: KPMG excludes it from the reported Public Services
+# total (55.9126 + 6.883 = 62.7957). It is there for reference only.
+
+- id: public_services_emissions
+  name_en: Public services emissions (KPMG BEI)
+  description_en: >
+    Public sector emissions as reported in the KPMG 2023 BEI: public services
+    excluding Cork City Council (the 2018 BEI figure uplifted by a national
+    trend, with no 2023 activity data) plus Cork City Council's own buildings
+    from its M&R returns. Together 62.7957 kt for 2023. CCC transport fuels are
+    not included, matching KPMG. The NZC model has no public-sector building
+    chain. KPMG does not split the figure between scope 1 and scope 2, so it is
+    assigned to scope 1 pending a split.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  params:
+  - id: operations
+    value: add_datasets
+  input_datasets:
+  - id: cork/kpmg_inventory_residuals
+    column: public_services_excluding_ccc
+    tags: [extend_values]
+    forecast_from: 2024
+  - id: cork/kpmg_inventory_residuals
+    column: ccc_buildings
+    tags: [extend_values]
+    forecast_from: 2024
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: sector
+      categories: [public_services]
+
+- id: water_services_emissions
+  name_en: Water services emissions (KPMG BEI)
+  description_en: >
+    Scope 3 emissions from wastewater treatment and drinking water treatment
+    operated by Uisce Éireann, as reported in the KPMG 2023 BEI: 19.2643 kt for
+    2023. KPMG computed both as Cork's 2022 census population (224,004) times
+    per-capita benchmarks of 58.5 and 27.5 kgCO2/cap. The NZC waste module
+    covers collected waste only and has no water-services chain.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  params:
+  - id: operations
+    value: add_datasets
+  input_datasets:
+  - id: cork/kpmg_inventory_residuals
+    column: wastewater_treatment
+    tags: [extend_values]
+    forecast_from: 2024
+  - id: cork/kpmg_inventory_residuals
+    column: drinking_water_treatment
+    tags: [extend_values]
+    forecast_from: 2024
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: sector
+      categories: [waste]
+
+- id: civic_amenity_site_emissions
+  name_en: Civic amenity site emissions (KPMG BEI)
+  description_en: >
+    Scope 1 emissions from the single civic amenity site inside the Cork City
+    Council boundary, as reported in the KPMG 2023 BEI: 0.3836 kt. KPMG did not
+    calculate these from waste composition — the site's 7,600 t is 0.668% of the
+    1,137,613 t NWCPO return, and that share was applied to the NWCPO scope 3
+    total. Deemed immaterial (<1%) by KPMG. The NZC waste module has no
+    civic-amenity chain.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  input_datasets:
+  - id: cork/kpmg_inventory_residuals
+    column: civic_amenity_site
+    tags: [extend_values]
+    forecast_from: 2024
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: sector
+      categories: [waste]
+
+- id: lulucf_emissions
+  name_en: LULUCF net emissions (KPMG BEI)
+  description_en: >
+    Net land use, land-use change and forestry emissions from the KPMG 2023 BEI:
+    a net sink of 3.8884 kt, carried as its per-gas split of CH4 +0.9509,
+    CO2 -8.3016 and N2O +3.4622 ktCO2e. Not present in the 2018 BEI. The NZC
+    model has no LULUCF chain.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  input_datasets:
+  - id: cork/kpmg_inventory_residuals
+    column: lulucf_net
+    tags: [extend_values]
+    forecast_from: 2024
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+    - id: sector
+      categories: [lulucf]
 
 - id: active_mobility_distance
   name_en: Active mobility distance
@@ -1653,12 +1826,16 @@ nodes:
     - id: energy_carrier
   output_nodes:
   - id: road_transport_emissions
+    # NB: nzc.yaml excludes energy_carrier=electricity here, because there
+    # transport_emissions feeds net_emissions directly and EV charging emissions
+    # arrive via the electricity module instead. Cork's wiring is different:
+    # total_electricity_emissions_by_sector feeds its transport share *into*
+    # transport_emissions, so excluding it here dropped 9.9 kt/a of passenger EV
+    # charging from net_emissions entirely. Freight never had the exclusion.
     from_dimensions:
     - id: transport_mode
       flatten: true
     - id: energy_carrier
-      categories: [electricity]
-      exclude: true
       flatten: true
     to_dimensions:
     - id: sector
