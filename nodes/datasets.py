@@ -9,16 +9,13 @@ import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import KW_ONLY, dataclass, field
-from functools import cache, cached_property, wraps
+from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, Literal, Self, TypedDict, cast, override
-
-from pydantic import TypeAdapter
 
 import numpy as np
 import orjson
 import polars as pl
-from loguru import logger
 from numpy.random import default_rng  # TODO Could call Generator to give hints about rng attributes but requires code change
 from numpy.typing import NDArray
 
@@ -40,14 +37,8 @@ if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DBDatasetModel
     from kausal_common.perf.perf_context import PerfAttrs, PerfSpanEntry
 
-    from nodes.defs.node_defs import (
-        ColumnDatasetFilterDef,
-        DimensionDatasetFilterDef,
-        InputDatasetDef,
-        InputDatasetFilterDef,
-        RenameColumnDatasetFilterDef,
-        RenameItemDatasetFilterDef,
-    )
+    from nodes.defs.node_defs import InputDatasetDef
+    from nodes.defs.transform_def import PortTransformOp
 
     from .context import Context
 
@@ -234,19 +225,9 @@ class Dataset(ABC):
         return self.sampler.interpret(self, df)
 
 
-@cache
-def get_input_dataset_filter_adapter() -> TypeAdapter[InputDatasetFilterDef]:
-    from nodes.defs.node_defs import InputDatasetFilterDef
-
-    return TypeAdapter(InputDatasetFilterDef)
-
-
 class FilterDatasetKwargs(DatasetKwargs):
     column: str | None
-    filters: list[InputDatasetFilterDef] | None
-    dropna: bool | None
-    min_year: int | None
-    max_year: int | None
+    operations: list[PortTransformOp]
     unit: Unit | None
     forecast_from: int | None
 
@@ -254,10 +235,16 @@ class FilterDatasetKwargs(DatasetKwargs):
 @dataclass
 class DatasetWithFilters(Dataset, ABC):
     column: str | None = None
-    filters: list[InputDatasetFilterDef] | None = None
-    dropna: bool | None = None
-    min_year: int | None = None
-    max_year: int | None = None
+    """
+    The metric column this binding selects, or None when it consumes the frame whole.
+
+    Read by the ``select_metric`` operation, which says *where* in the pipeline
+    the selection happens.
+    """
+
+    operations: list[PortTransformOp] = field(default_factory=list)
+    """The transform pipeline, executed in order (see ``nodes.transforms``)."""
+
     unit: Unit | None = None
 
     # The year from which the time series becomes a forecast
@@ -265,13 +252,14 @@ class DatasetWithFilters(Dataset, ABC):
 
     @classmethod
     def kwargs_from_def(cls, ds_def: InputDatasetDef) -> FilterDatasetKwargs:
+        # A YAML-authored definition carries the legacy flat fields, a DB-backed
+        # one carries the pipeline directly. Converting here means there is one
+        # execution path, whichever the config source was.
+        operations = ds_def.operations if ds_def.operations is not None else ds_def.to_transform_pipeline().operations
         return FilterDatasetKwargs(
             **super().kwargs_from_def(ds_def),
             column=ds_def.column,
-            filters=ds_def.filters,
-            dropna=ds_def.dropna,
-            min_year=ds_def.min_year,
-            max_year=ds_def.max_year,
+            operations=list(operations),
             unit=ds_def.unit,
             forecast_from=ds_def.forecast_from,
         )
@@ -280,254 +268,17 @@ class DatasetWithFilters(Dataset, ABC):
         yield from super().__rich_repr__()
         if self.column is not None:
             yield 'column', self.column
-        if self.filters is not None:
-            yield 'filters', len(self.filters)
-
-    def _process_output(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        if self.max_year:
-            df = df.filter(pl.col(YEAR_COLUMN) <= self.max_year)
-        if self.min_year:
-            df = df.filter(pl.col(YEAR_COLUMN) >= self.min_year)
-        if self.dropna:
-            df = df.drop_nulls()
-
-        # If units are given as a constructor argument, ensure the dataset units match.
-        if self.unit is not None:
-            for col in df.columns:
-                if col in [FORECAST_COLUMN, YEAR_COLUMN, *df.dim_ids]:
-                    continue
-                if col in df.metric_cols:
-                    df = df.ensure_unit(col, self.unit)
-                else:
-                    df = df.set_unit(col, self.unit)
-
-        return df
-
-    def _filter_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        from nodes.defs.node_defs import (
-            ColumnDatasetFilterDef,
-            DimensionDatasetFilterDef,
-            RenameColumnDatasetFilterDef,
-            RenameItemDatasetFilterDef,
-        )
-
-        if not self.filters:
-            return df
-
-        df_orig = df
-        for filter_def in self.filters:
-            if isinstance(filter_def, ColumnDatasetFilterDef):
-                df = self._column_filter(df, filter_def)
-            elif isinstance(filter_def, DimensionDatasetFilterDef):
-                df = self._dimension_filter(df, filter_def)
-            elif isinstance(filter_def, RenameColumnDatasetFilterDef):
-                continue
-            else:
-                assert isinstance(filter_def, RenameItemDatasetFilterDef)
-                df = self._rename_item_filter(df, filter_def)
-
-            if len(df) == 0:
-                print(df_orig)
-                print(self.filters)
-                raise DatasetError(self, 'Nothing left after filtering. See original dataset above.')
-
-        return df
-
-    def _column_filter(self, df: ppl.PathsDataFrame, d: ColumnDatasetFilterDef) -> ppl.PathsDataFrame:
-        context = self.context
-        col = d.column
-        val = d.value
-        vals = d.values
-        ref = d.ref
-        drop = d.drop_col
-        exclude = d.exclude
-        flatten = d.flatten
-        mask = None
-        if vals:
-            mask = pl.col(col).is_in(vals)
-        if val:
-            mask = pl.col(col) == val
-        if ref:
-            pval = context.get_parameter_value(ref, required=True)
-            if isinstance(pval, float):
-                pval = int(pval)
-            val = str(pval)
-            mask = pl.col(col) == val
-        if mask is not None:
-            if exclude:
-                mask = ~mask
-            df = df.filter(mask)
-
-        if flatten:
-            if VALUE_COLUMN in df.columns:
-                df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
-            df = df.paths.sum_over_dims(col)
-
-        elif drop:
-            df = df.drop(col)
-        return df
-
-    def _dimension_filter(self, df: ppl.PathsDataFrame, d: DimensionDatasetFilterDef) -> ppl.PathsDataFrame:
-        context = self.context
-        dim_id = d.dimension
-        if d.groups:
-            dim = context.dimensions[dim_id]
-            grp_ids = d.groups
-            grp_s = dim.ids_to_groups(dim.series_to_ids_pl(df[dim_id]))
-            df = df.filter(grp_s.is_in(grp_ids))
-        elif d.categories:
-            cat_ids = d.categories
-            df = df.filter(pl.col(dim_id).is_in(cat_ids))
-        elif d.assign_category is not None:
-            cat_id = d.assign_category
-            if dim_id in context.dimensions:
-                dim = context.dimensions[dim_id]
-                assert dim_id not in df.dim_ids
-                assert cat_id in dim.cat_map
-            df = df.with_columns(pl.lit(cat_id).alias(dim_id)).add_to_index(dim_id)
-        flatten = d.flatten
-        if flatten:
-            if VALUE_COLUMN in df.columns:
-                df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
-            df = df.paths.sum_over_dims(dim_id)
-        return df
-
-    def _rename_col_filter(self, df: ppl.PathsDataFrame, d: RenameColumnDatasetFilterDef) -> ppl.PathsDataFrame:
-        col = d.rename_col
-        val = d.value
-        if col not in df.columns:
-            raise DatasetError(self, f'Column {col} not found. Available columns are {df.columns}')
-        if val:
-            if val in df.columns:
-                df = df.drop(val)
-            df = df.rename({col: val})
-        return df
-
-    def _rename_item_filter(self, df: ppl.PathsDataFrame, d: RenameItemDatasetFilterDef) -> ppl.PathsDataFrame:
-        old = d.rename_item.split('|')
-        if len(old) != 2:
-            raise DatasetError(self, f"Rename item must have format 'col|item', now it is '{d.rename_item}'.")
-        col = old[0]
-        item = old[1]
-        new_item = d.value
-        if new_item == '':
-            raise DatasetError(self, 'rename_item must have value.')
-        # str.replace_all requires Utf8; cast if column is not string (e.g. Categorical)
-        series = pl.col(col)
-        if df.schema[col] != pl.Utf8:
-            series = series.cast(pl.Utf8)
-        df = df.with_columns(series.str.replace_all(re.escape(item), new_item))
-        return df
-
-    # Similar to Node._process_edge_output
-    def _operate_tags(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        context = self.context
-
-        # FIXME Don't let DatasetNodes get double preparation of gpc. Remove when you gte rid of DatasetNodes
-        from nodes.gpc import DatasetNode
-
-        tags = self.tags.copy()
-        for n in context.nodes.values():
-            if any(ds is self for ds in n.input_dataset_instances) and isinstance(n, DatasetNode):
-                tags = [tag for tag in tags if tag != 'prepare_gpc_dataset']
-
-        for tag in tags:
-            if tag == 'ignore_content':
-                logger.warning(f"Dataset {self.id} has tag 'ignore_content', which is not supported.")
-            elif df.paths.has_operation(tag):
-                df = df.paths.get_operation(tag)(df, context)
-        return df
+        if self.operations:
+            yield 'operations', len(self.operations)
 
     @measure_dataset_call('dataset.filter', capture_df_result=True, capture_df_arg=True)
     def _filter_and_process_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        from nodes.defs.node_defs import RenameColumnDatasetFilterDef
+        """Run the binding's transform pipeline over a freshly loaded frame."""
+        from nodes.transforms import PipelineEnv, apply_port_pipeline
 
-        if self.filters is not None:
-            for filter_def in self.filters:
-                assert hasattr(filter_def, 'model_dump')
-                if isinstance(filter_def, RenameColumnDatasetFilterDef):
-                    df = self._rename_col_filter(df, filter_def)
-
-        cols = list(df.columns)
-
-        if self.column:
-            if self.column not in cols:
-                available = ', '.join(cols)
-                raise DatasetError(
-                    self,
-                    "Column '%s' not found in dataset '%s'. Available columns: %s"
-                    % (
-                        self.column,
-                        self.id,
-                        available,
-                    ),
-                )
-            df = df.with_columns(pl.col(self.column).alias(VALUE_COLUMN))
-            df = df.filter(pl.col(VALUE_COLUMN).is_not_null())
-            cols = [YEAR_COLUMN, VALUE_COLUMN, *df.dim_ids]
-
-        if YEAR_COLUMN in cols and YEAR_COLUMN not in df.primary_keys:
-            df = df.add_to_index(YEAR_COLUMN)
-
-        ldf = df.lazy()
-        if YEAR_COLUMN in cols and not ldf.filter((pl.col(YEAR_COLUMN) < 200).first()).collect().is_empty():
-            baseline_year = self.context.instance.reference_year
-            adjustment = -1  # DVC and DB use year 1 for reference year; offset by -1 so year 1 → baseline_year.
-
-            # Legacy DVC datasets used Year=0 for reference year and Year=100 for target year.
-            # Remap them to Year=1 and Year=101 so the standard offset formula below handles both.
-            ldf = ldf.with_columns(
-                pl
-                .when(pl.col(YEAR_COLUMN) == 0)
-                .then(pl.lit(1))
-                .when(pl.col(YEAR_COLUMN) == 100)
-                .then(pl.lit(101))
-                .otherwise(pl.col(YEAR_COLUMN))
-                .alias(YEAR_COLUMN),
-            )
-
-            ldf = ldf.with_columns(
-                pl
-                .when(pl.col(YEAR_COLUMN) < 90)
-                .then(pl.col(YEAR_COLUMN) + pl.lit(baseline_year + adjustment))
-                .otherwise(pl.col(YEAR_COLUMN))
-                .alias(YEAR_COLUMN),
-            )
-            target_year = self.context.instance.target_year
-            ldf = ldf.with_columns(
-                pl
-                .when((pl.col(YEAR_COLUMN) >= 90) & (pl.col(YEAR_COLUMN) < 200))
-                .then(pl.col(YEAR_COLUMN) + pl.lit(target_year + adjustment) - pl.lit(100))
-                .otherwise(pl.col(YEAR_COLUMN))
-                .alias(YEAR_COLUMN),
-            )
-            ldf = ldf.with_columns(pl.col(YEAR_COLUMN).cast(int).alias(YEAR_COLUMN))
-
-            # FIXME Duplicates may occur when baseline year overlaps with existing data points.
-            ldf = ldf.unique(subset=df.get_meta().primary_keys, keep='last', maintain_order=True)
-
-        if FORECAST_COLUMN in df.columns:
-            cols.append(FORECAST_COLUMN)
-        elif self.forecast_from is not None:
-            ldf = ldf.with_columns(
-                pl
-                .when(pl.col(YEAR_COLUMN) >= self.forecast_from)
-                .then(pl.lit(value=True))
-                .otherwise(pl.lit(value=False))
-                .alias(FORECAST_COLUMN),
-            )
-            cols.append(FORECAST_COLUMN)
-
-        ldf = ldf.select(cols)
-        cdf = ldf.collect()
-
-        df = ppl.to_ppdf(cdf, meta=df.get_meta().select(cols))
-        df = self._filter_df(df)
-        df = self._operate_tags(df)
+        env = PipelineEnv(context=self.context, dataset=self, metric_column=self.column)
+        df = apply_port_pipeline(df, self.operations, env)
         ppl.validate_ppdf(df)
-
-        df = self._process_output(df)
-
         return df
 
 
@@ -786,21 +537,19 @@ class DVCDataset(DatasetWithFilters):
         raise DatasetError(self, 'Dataset %s does not have the value column' % self.id)
 
     def hash_data(self) -> dict[str, Any]:
+        # 'operations' covers what 'filters', 'forecast_from', 'dropna' and the
+        # year limits used to contribute separately.
         extra_fields = [
             'input_dataset',
             'column',
-            'filters',
-            'dropna',
-            'forecast_from',
-            'max_year',
-            'min_year',
+            'operations',
             'interpolate',
         ]
         d = {}
         for f in extra_fields:
             value = getattr(self, f)
-            if f == 'filters' and value is not None:
-                value = [item.model_dump() if hasattr(item, 'model_dump') else item for item in value]
+            if f == 'operations':
+                value = [op.model_dump(mode='json') for op in value]
             d[f] = value
 
         if self.context.dataset_repo_spec is not None:
@@ -1173,9 +922,19 @@ class DBDataset(DatasetWithFilters):
 
     @classmethod
     def from_def(cls, ds_def: InputDatasetDef, context: Context, db_dataset_obj: DBDatasetModel) -> Self:
+        from nodes.defs.transform_def import with_forecast_from
+
         kwargs = super().kwargs_from_def(ds_def)
         if kwargs['forecast_from'] is None:
-            kwargs['forecast_from'] = (db_dataset_obj.spec or {}).get('forecast_from')
+            # A DB dataset can declare its own forecast year, which bindings
+            # inherit when they don't override it (see
+            # `_promote_dataset_forecast_defaults`). Forecast synthesis is an
+            # operation now, so the default has to enter the pipeline — setting
+            # the field alone would do nothing.
+            dataset_default = (db_dataset_obj.spec or {}).get('forecast_from')
+            if dataset_default is not None:
+                kwargs['forecast_from'] = dataset_default
+                kwargs['operations'] = with_forecast_from(kwargs['operations'], dataset_default)
         return cls(
             id=ds_def.id,
             context=context,

@@ -15,8 +15,9 @@ from nodes.actions.parent import ParentActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceModelSpec, NormalizationSpec, YearsSpec
-from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, SimpleConfig
+from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.defs.transform_def import FilterColumnOp, forecast_from_operations
 from nodes.models import NodeKindChoices
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
 from nodes.units import unit_registry
@@ -1469,9 +1470,12 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
     dataset = DatasetFactory.create(identifier='multi_metric_actions', scope=db_instance_config)
     emissions_metric = DatasetMetricFactory.create(schema=dataset.schema, name='emissions', label='Emissions', unit='t/a')
     energy_metric = DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='TJ/a')
-    binding_spec = DatasetPortSpec(
-        forecast_from=2024,
-        filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+    binding_spec = DatasetPortSpec.from_input_dataset(
+        InputDatasetDef(
+            id='multi_metric_actions',
+            forecast_from=2024,
+            filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+        )
     )
 
     nc = NodeConfigFactory.create(
@@ -1527,12 +1531,10 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
     ds = cast('DatasetWithFilters', action.input_dataset_instances[0])
     assert ds.id == 'multi_metric_actions'
     assert ds.column is None
-    assert ds.forecast_from == 2024
-    assert ds.filters is not None
-    filter_def = ds.filters[0]
-    assert isinstance(filter_def, ColumnDatasetFilterDef)
-    assert filter_def.column == 'action'
-    assert filter_def.value == 'multi_metric_action'
+    assert forecast_from_operations(ds.operations) == 2024
+    filter_op = next(op for op in ds.operations if isinstance(op, FilterColumnOp))
+    assert filter_op.column == 'action'
+    assert filter_op.value == 'multi_metric_action'
 
 
 def test_dataset_ports_rebuild_uses_dataset_forecast_default(db_instance_config: InstanceConfig):
@@ -1594,7 +1596,13 @@ def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: 
         id='sync_multi_metric_actions',
         context=context,
         db_dataset_obj=dataset,
-        filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+        operations=InputDatasetDef(
+            id='sync_multi_metric_actions',
+            forecast_from=2024,
+            filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+        )
+        .to_transform_pipeline()
+        .operations,
         forecast_from=2024,
     )
     node = cast(
@@ -1633,9 +1641,8 @@ def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: 
     assert {binding.port_id for binding in bindings} == {port.id for port in input_ports}
     assert all(binding.spec.forecast_from == 2024 for binding in bindings)
     for binding in bindings:
-        filter_def = binding.spec.filters[0]
-        assert isinstance(filter_def, ColumnDatasetFilterDef)
-        assert filter_def.column == 'action'
+        filter_op = next(op for op in binding.spec.operations if isinstance(op, FilterColumnOp))
+        assert filter_op.column == 'action'
 
 
 def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_config: InstanceConfig):
@@ -1659,7 +1666,7 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
         port_id=_port_uuid('input_a'),
         dataset=promoted_dataset,
         metric=promoted_metric,
-        spec=DatasetPortSpec(forecast_from=2025),
+        spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
     )
     DatasetPort.objects.create(
         instance=db_instance_config,
@@ -1674,7 +1681,7 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
         port_id=_port_uuid('input_c'),
         dataset=conflict_dataset,
         metric=conflict_metric,
-        spec=DatasetPortSpec(forecast_from=2024),
+        spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2024)),
     )
     DatasetPort.objects.create(
         instance=db_instance_config,
@@ -1682,7 +1689,7 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
         port_id=_port_uuid('input_d'),
         dataset=conflict_dataset,
         metric=conflict_metric,
-        spec=DatasetPortSpec(forecast_from=2025),
+        spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
     )
 
     assert _promote_dataset_forecast_defaults(db_instance_config) == 1
@@ -1719,7 +1726,7 @@ def test_dataset_port_forecast_from_not_promoted_for_external_placeholder(db_ins
         port_id=_port_uuid('input_a'),
         dataset=placeholder_dataset,
         metric=placeholder_metric,
-        spec=DatasetPortSpec(forecast_from=2025),
+        spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
     )
 
     assert _promote_dataset_forecast_defaults(db_instance_config) == 0

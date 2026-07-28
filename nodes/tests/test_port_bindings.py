@@ -30,10 +30,10 @@ from nodes.defs.transform_def import (
     AssignDimensionOp,
     FilterColumnOp,
     FilterDimensionOp,
-    InterpolateOp,
     PortTransformOp,
     RenameColumnOp,
     RenameItemOp,
+    SelectMetricOp,
     SetForecastFromOp,
     unsupported_ops_for_binding,
 )
@@ -56,13 +56,13 @@ pytestmark = pytest.mark.django_db
 
 def test_transform_pipeline_reproduces_runtime_order():
     """
-    The pipeline order must match what the runtime actually does.
+    The pipeline order is the contract: executing it literally must equal the old behaviour.
 
-    `rename_column` runs before anything else looks at columns, forecast
-    synthesis precedes the remaining filters, temporal limits and null
-    dropping come from `_process_output`, and interpolation is last
-    (`post_process`). Executing the pipeline literally has to be equivalent
-    to the current flat-field behaviour, so this ordering is the contract.
+    The old loading sequence was hardcoded — renames before anything looked at
+    columns, then metric selection, temporal indexing and year remapping, then
+    forecast synthesis *before* the other filters, then tag operations, then the
+    output shaping. Every one of those stages is an op now, so this list is what
+    guarantees the executor reproduces it.
     """
     ds_def = InputDatasetDef(
         id='some/dataset',
@@ -70,7 +70,8 @@ def test_transform_pipeline_reproduces_runtime_order():
         forecast_from=2025,
         min_year=2010,
         dropna=True,
-        interpolate=True,
+        unit=unit_registry.parse_units('kt/a'),
+        tags=['prepare_gpc_dataset'],
         filters=[
             RenameColumnDatasetFilterDef(rename_col='Old', value='New'),
             DimensionDatasetFilterDef(dimension='sector', categories=['transport']),
@@ -82,20 +83,57 @@ def test_transform_pipeline_reproduces_runtime_order():
 
     assert kinds == [
         'rename_column',
+        'select_metric',
+        'index_temporal',
+        'remap_legacy_years',
         'set_forecast_from',
         'filter_dimension',
         'filter_column',
+        'tag_operation',
         'filter_temporal',
         'drop_nulls',
-        'interpolate',
+        'ensure_unit',
     ]
 
 
-def test_transform_pipeline_has_no_select_column_op():
-    """Metric selection is the binding's source reference, never an operation."""
+def test_select_metric_carries_no_column():
+    """
+    Which metric is selected is the binding's source reference, not an op parameter.
+
+    The op says only *where* the selection happens, so there is exactly one
+    place to edit the metric.
+    """
     ds_def = InputDatasetDef(id='some/dataset', column='Value')
 
-    assert ds_def.to_transform_pipeline().operations == []
+    ops = ds_def.to_transform_pipeline().operations
+
+    assert [op.kind for op in ops] == ['select_metric', 'index_temporal', 'remap_legacy_years']
+    assert ops[0].model_dump() == {'kind': 'select_metric'}
+
+
+def test_interpolate_is_not_an_operation():
+    """
+    Interpolation stays a binding field for now.
+
+    It also applies to datasets that have no pipeline (`FixedDataset`,
+    `JSONDataset`), and `GenericDataset` interpolates at its own point during
+    loading — so it cannot yet be positional.
+    """
+    ds_def = InputDatasetDef(id='some/dataset', interpolate=True)
+
+    assert 'interpolate' not in [op.kind for op in ds_def.to_transform_pipeline().operations]
+    assert DatasetPortSpec.from_input_dataset(ds_def).interpolate is True
+
+
+def test_forecast_from_and_unit_are_derived_from_the_pipeline():
+    """They are stored once, as ops; the accessors read them back out."""
+    ds_def = InputDatasetDef(id='some/dataset', forecast_from=2025, unit=unit_registry.parse_units('kt/a'))
+
+    spec = DatasetPortSpec.from_input_dataset(ds_def)
+
+    assert spec.forecast_from == 2025
+    assert spec.unit == unit_registry.parse_units('kt/a')
+    assert spec.without_forecast_from().forecast_from is None
 
 
 def test_dimension_filter_with_assign_category_splits_into_two_ops():
@@ -130,10 +168,41 @@ def test_legacy_filters_map_onto_ops():
 
 
 def test_dataset_only_ops_are_rejected_for_edge_bindings():
-    ops: list[PortTransformOp] = [FilterDimensionOp(dimension='sector'), SetForecastFromOp(year=2025), InterpolateOp()]
+    ops: list[PortTransformOp] = [FilterDimensionOp(dimension='sector'), SetForecastFromOp(year=2025), SelectMetricOp()]
 
     assert unsupported_ops_for_binding(ops, 'dataset') == []
-    assert [op.kind for op in unsupported_ops_for_binding(ops, 'edge')] == ['set_forecast_from', 'interpolate']
+    assert [op.kind for op in unsupported_ops_for_binding(ops, 'edge')] == ['set_forecast_from', 'select_metric']
+
+
+def test_operations_keep_their_discriminator_when_defaults_are_excluded():
+    """
+    Parameterless ops must not serialize to `{}`.
+
+    `kind` always equals its default, so `exclude_defaults` drops it first — and
+    without it the union cannot be deserialized. Config dicts for the loader are
+    dumped exactly that way.
+    """
+    ds_def = InputDatasetDef(id='some/dataset', column='C', forecast_from=2025)
+
+    dumped = (
+        DatasetPortSpec
+        .from_input_dataset(ds_def)
+        .to_input_dataset(id='some/dataset')
+        .model_dump(mode='json', exclude_defaults=True, exclude_none=True)
+    )
+
+    assert [op['kind'] for op in dumped['operations']] == [
+        'select_metric',
+        'index_temporal',
+        'remap_legacy_years',
+        'set_forecast_from',
+    ]
+    assert [op.kind for op in (InputDatasetDef.model_validate(dumped).operations or [])] == [
+        'select_metric',
+        'index_temporal',
+        'remap_legacy_years',
+        'set_forecast_from',
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -231,7 +300,14 @@ def test_interpolate_survives_the_dataset_port_spec_round_trip():
     spec = DatasetPortSpec.from_input_dataset(ds_def)
     assert spec.interpolate is True
 
-    assert spec.to_input_dataset(id=ds_def.id) == ds_def
+    round_tripped = spec.to_input_dataset(id=ds_def.id)
+    assert round_tripped.interpolate is True
+    assert round_tripped.forecast_from is None, 'the flat field is gone; the pipeline carries it'
+    assert [op.kind for op in (round_tripped.operations or [])] == [
+        'index_temporal',
+        'remap_legacy_years',
+        'set_forecast_from',
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +367,7 @@ def test_ports_of_one_binding_collapse_to_a_single_input_dataset(db_instance_con
 
     dataset = DatasetFactory.create(identifier='multi_metric', scope=db_instance_config)
     nc = NodeConfigFactory.create(instance=db_instance_config, identifier='multi_consumer')
-    spec = DatasetPortSpec(forecast_from=2025)
+    spec = DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025))
 
     ports = [
         DatasetPort.objects.create(
@@ -308,7 +384,13 @@ def test_ports_of_one_binding_collapse_to_a_single_input_dataset(db_instance_con
 
     input_datasets = _serialize_dataset_ports(ports)
 
-    assert input_datasets == [{'id': 'multi_metric', 'forecast_from': 2025}]
+    assert len(input_datasets) == 1
+    assert input_datasets[0]['id'] == 'multi_metric'
+    assert [op['kind'] for op in input_datasets[0]['operations']] == [
+        'index_temporal',
+        'remap_legacy_years',
+        'set_forecast_from',
+    ]
 
 
 def test_diverging_specs_within_one_binding_warn_and_keep_the_first(db_instance_config: InstanceConfig):
@@ -329,7 +411,7 @@ def test_diverging_specs_within_one_binding_warn_and_keep_the_first(db_instance_
             port_id=uuid4(),
             dataset=dataset,
             metric=DatasetMetricFactory.create(schema=dataset.schema, name=name, label=name, unit='kt/a'),
-            spec=DatasetPortSpec(forecast_from=year),
+            spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='diverged', forecast_from=year)),
             dataset_index=0,
         )
         for name, year in (('emissions', 2025), ('energy', 2030))
@@ -342,5 +424,7 @@ def test_diverging_specs_within_one_binding_warn_and_keep_the_first(db_instance_
     finally:
         logger.remove(sink_id)
 
-    assert input_datasets == [{'id': 'diverged', 'forecast_from': 2025}]
+    assert len(input_datasets) == 1
+    forecast_ops = [op for op in input_datasets[0]['operations'] if op['kind'] == 'set_forecast_from']
+    assert forecast_ops == [{'kind': 'set_forecast_from', 'year': 2025}], 'the first port wins'
     assert any('differing specs' in message for message in warnings)

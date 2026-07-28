@@ -17,11 +17,13 @@ Two things deliberately absent:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
 
 from paths.refs import DimensionCategoryRef, DimensionRef
+
+from nodes.units import Unit
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -39,6 +41,19 @@ class PortTransformOpBase(BaseModel):
 
     applies_to: ClassVar[frozenset[PortBindingKind]] = EDGE_AND_DATASET
     """Binding kinds that may carry this operation."""
+
+    @model_serializer(mode='wrap')
+    def _serialize_with_kind(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """
+        Keep the discriminator even under ``exclude_defaults``.
+
+        ``kind`` always equals its default, so it is the first thing dropped —
+        and without it the union cannot be deserialized. Parameterless ops would
+        serialize to ``{}``.
+        """
+        data = handler(self)
+        data['kind'] = getattr(self, 'kind')  # noqa: B009  (declared on the subclasses)
+        return data
 
 
 class FilterDimensionOp(PortTransformOpBase):
@@ -139,12 +154,80 @@ class SetForecastFromOp(PortTransformOpBase):
     year: int
 
 
-class InterpolateOp(PortTransformOpBase):
-    """Linearly interpolate gaps, setting the interpolation qualifier."""
+class EnsureUnitOp(PortTransformOpBase):
+    """
+    Coerce the metric columns to a unit.
+
+    Positional: coercion before or after a flatten is not the same thing.
+    Converts columns that already carry a unit and forces the unit on ones
+    that don't — a distinction that disappears once a port carries exactly
+    one metric and the frame states its unit.
+    """
+
+    kind: Literal['ensure_unit'] = 'ensure_unit'
+    unit: Unit
+
+
+# --- Legacy stage markers ---------------------------------------------------
+#
+# These exist so the pipeline is the *complete* recipe and the executor can be
+# a single literal pass over it. Each one marks where a stage of the old
+# hardcoded loading sequence happened, and each is expected to disappear:
+# `select_metric` and `index_temporal` once a port carries one metric over a
+# frame that states its own temporal axis, `remap_legacy_years` with the DVC
+# datasets that need it, `tag_operation` with the tag mechanism itself.
+
+
+class SelectMetricOp(PortTransformOpBase):
+    """
+    Marker for where the binding's metric is picked out of a wide frame.
+
+    Carries no parameters: which metric is selected is the binding's source
+    reference, so there is exactly one place to edit it. This op only says
+    *when* the selection happens relative to the other operations, which
+    matters because renames may have to run first to make the column
+    addressable.
+    """
 
     applies_to = DATASET_ONLY
 
-    kind: Literal['interpolate'] = 'interpolate'
+    kind: Literal['select_metric'] = 'select_metric'
+
+
+class IndexTemporalOp(PortTransformOpBase):
+    """Marker for adding the temporal column to the frame's index."""
+
+    applies_to = DATASET_ONLY
+
+    kind: Literal['index_temporal'] = 'index_temporal'
+
+
+class RemapLegacyYearsOp(PortTransformOpBase):
+    """
+    Marker for remapping placeholder year numbers to real years.
+
+    Legacy DVC datasets encode the reference year as 0 or 1 and the target
+    year as 100 or 101. Parameterless: the years come from the instance.
+    """
+
+    applies_to = DATASET_ONLY
+
+    kind: Literal['remap_legacy_years'] = 'remap_legacy_years'
+
+
+class TagOperationOp(PortTransformOpBase):
+    """
+    Apply a named dataframe operation registered under a tag.
+
+    Makes the operation half of the legacy ``tags`` mechanism explicit and
+    ordered. Tags used to *select* a dataset rather than transform it stay
+    on the binding.
+    """
+
+    applies_to = DATASET_ONLY
+
+    kind: Literal['tag_operation'] = 'tag_operation'
+    tag: str
 
 
 type PortTransformOp = Annotated[
@@ -156,7 +239,11 @@ type PortTransformOp = Annotated[
     | RenameColumnOp
     | RenameItemOp
     | SetForecastFromOp
-    | InterpolateOp,
+    | EnsureUnitOp
+    | SelectMetricOp
+    | IndexTemporalOp
+    | RemapLegacyYearsOp
+    | TagOperationOp,
     Field(discriminator='kind'),
 ]
 
@@ -167,6 +254,47 @@ class PortTransformPipeline(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     operations: list[PortTransformOp] = Field(default_factory=list)
+
+
+def forecast_from_operations(operations: Sequence[PortTransformOp]) -> int | None:
+    """Return the year the pipeline starts marking values as forecast, if any."""
+    for op in operations:
+        if isinstance(op, SetForecastFromOp):
+            return op.year
+    return None
+
+
+def unit_from_operations(operations: Sequence[PortTransformOp]) -> Unit | None:
+    """Return the unit the pipeline ends up coercing to, if any."""
+    for op in reversed(operations):
+        if isinstance(op, EnsureUnitOp):
+            return op.unit
+    return None
+
+
+def with_forecast_from(operations: Sequence[PortTransformOp], year: int) -> list[PortTransformOp]:
+    """
+    Insert forecast synthesis into a pipeline that has none.
+
+    Placed where the converter puts it — after the temporal stages, before the
+    other filters — so a default inherited from the dataset behaves exactly like
+    one declared on the binding.
+    """
+    ops = list(operations)
+    if any(isinstance(op, SetForecastFromOp) for op in ops):
+        return ops
+    anchors = ('index_temporal', 'remap_legacy_years', 'select_metric')
+    insert_at = 0
+    for index, op in enumerate(ops):
+        if op.kind in anchors:
+            insert_at = index + 1
+    ops.insert(insert_at, SetForecastFromOp(year=year))
+    return ops
+
+
+def without_operations(operations: Sequence[PortTransformOp], *kinds: str) -> list[PortTransformOp]:
+    """Return the pipeline with every operation of the given kinds removed."""
+    return [op for op in operations if op.kind not in kinds]
 
 
 def unsupported_ops_for_binding(

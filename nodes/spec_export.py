@@ -552,16 +552,19 @@ def _export_output_ports(node: Node) -> list[OutputPortDef]:
 
 
 def _input_dataset_def_from_instance(ds: DatasetWithFilters) -> InputDatasetDef:
+    """
+    Describe a loaded dataset binding as a definition, for storing in the DB.
+
+    The runtime already holds the pipeline — converted from the YAML flat fields
+    when the instance loaded — so it is passed straight through rather than
+    reconstructed field by field.
+    """
     return InputDatasetDef(
         id=ds.id,
         tags=ds.tags or [],
         input_dataset=ds.input_dataset if isinstance(ds, DVCDataset) else None,
         column=ds.column,
-        forecast_from=ds.forecast_from,
-        filters=ds.filters or [],
-        dropna=ds.dropna,
-        min_year=ds.min_year,
-        max_year=ds.max_year,
+        operations=list(ds.operations),
         interpolate=ds.interpolate,
         unit=ds.unit,
     )
@@ -907,7 +910,7 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
         changed_ports: list[DatasetPort] = []
         for port in dataset_ports:
             if port.spec.forecast_from == year:
-                port.spec = port.spec.model_copy(update={'forecast_from': None})
+                port.spec = port.spec.without_forecast_from()
                 changed_ports.append(port)
         if changed_ports:
             DatasetPort.objects.bulk_update(changed_ports, ['spec'])

@@ -1080,6 +1080,41 @@ class NodeClassRule(ValidationRule):
         return results
 
 
+def _flat_keys_from_operations(dataset_config: dict[str, Any]) -> dict[str, Any]:
+    """
+    Describe a transform pipeline using the flat keys the explanations below read.
+
+    Database-backed instances carry an ordered pipeline where YAML carries flat
+    fields, and the explanations were written against the latter. This keeps the
+    generated text identical for both, and goes away when the explanations
+    describe the pipeline in order — which is the point of having one.
+    """
+    operations = dataset_config.get('operations')
+    if not operations:
+        return dataset_config
+
+    config = dict(dataset_config)
+    filters: list[dict[str, Any]] = []
+    for op in operations:
+        kind = op.get('kind')
+        params = {key: value for key, value in op.items() if key != 'kind'}
+        if kind in ('filter_column', 'filter_dimension'):
+            filters.append(params)
+        elif kind == 'assign_dimension':
+            filters.append({'dimension': op['dimension'], 'assign_category': op['category']})
+        elif kind == 'rename_column':
+            filters.append({'rename_col': op['column'], 'value': op.get('new_name')})
+        elif kind == 'rename_item':
+            filters.append({'rename_item': f'{op["column"]}|{op["old_item"]}', 'value': op['new_item']})
+        elif kind == 'set_forecast_from':
+            config['forecast_from'] = op['year']
+        elif kind == 'drop_nulls':
+            config['dropna'] = True
+    if filters:
+        config['filters'] = filters
+    return config
+
+
 class DatasetRule(ValidationRule):
     def explain(self, node_config: dict[str, Any], context: Context) -> NodeExplanation:
         # Terms (including datasets) are handled by BasketRule to keep inputs in one place.
@@ -1089,6 +1124,7 @@ class DatasetRule(ValidationRule):
         """Explain a single dataset configuration."""
         if isinstance(dataset_config, str):
             return [f'<li><i>{dataset_config}</i></li>']
+        dataset_config = _flat_keys_from_operations(dataset_config)
         tags: list[Any] = dataset_config.get('tags', [])
         tag_str = ', '.join(tags) + ': ' if tags else ''
         html = [f'<li>{tag_str}{dataset_config["id"]}<ul>']

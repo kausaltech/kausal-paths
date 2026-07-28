@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-from nodes.defs.node_defs import DatasetPortSpec
+from nodes.defs.node_defs import DatasetPortSpec, InputDatasetDef
 from nodes.instance_serialization import (
     SNAPSHOT_SCHEMA_VERSION,
     DatasetPortSnapshot,
@@ -78,7 +78,7 @@ def test_instance_snapshot_json_round_trip():
                 dataset='ds',
                 port_id=uuid.UUID('6c8b0551-7ccf-472b-94db-26f513d706dc'),
                 metric='m',
-                spec=DatasetPortSpec(forecast_from=2025),
+                spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
             )
         ],
     )
