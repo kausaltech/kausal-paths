@@ -187,6 +187,11 @@ class CheckState(BaseModel):
     def has_instance(self, instance_id: str) -> bool:
         return any(details.instance_id == instance_id for details in self.instance_details)
 
+    def has_failed_instance(self, instance_id: str) -> bool:
+        if instance_id in self.failed_instances:
+            return True
+        return any(details.instance_id == instance_id and details.failure_at is not None for details in self.instance_details)
+
     def mark_failed(self, instance_id: str, reason: InstanceFailReason):
         self.checked_instances.add(instance_id)
         self.failed_instances.add(instance_id)
@@ -941,6 +946,8 @@ class Command(BaseCommand):
             check_time_ms = int((time.time() - now) * 1000)
             details = instance_details.get_node_details(node)
             if fail_reason and self.compare:
+                if self.state.has_failed_instance(ctx.instance.id):
+                    continue
                 # Returns False (failure) if the same node succeeded in the previous run
                 if not details:
                     continue
@@ -957,10 +964,44 @@ class Command(BaseCommand):
             statuses.append(fail_reason)
         return not any(statuses) and not failed
 
+    @staticmethod
+    def log_action_impact_error(
+        impact_logger: loguru.Logger,
+        ctx: Context,
+        action: ActionNode,
+        node: Node,
+        err: Exception,
+        *,
+        reference_instance_failed: bool,
+        unexpected: bool = False,
+    ) -> None:
+        if reference_instance_failed:
+            impact_logger.error(
+                'Action impact failed for {instance_id}:{action_id}->{node_id}, '
+                'but the reference instance also failed; not printing traceback',
+                instance_id=ctx.instance.id,
+                action_id=action.id,
+                node_id=node.id,
+            )
+            return
+
+        if err.__cause__:
+            print_exception(err.__cause__)
+        else:
+            print_exception(err)
+        impact_logger.error(
+            '{prefix}error getting action impact for {instance_id}:{action_id}->{node_id}',
+            prefix='Unexpected ' if unexpected else '',
+            instance_id=ctx.instance.id,
+            action_id=action.id,
+            node_id=node.id,
+        )
+
     def run_action_impacts(self, logger: loguru.Logger, ctx: Context) -> bool:  # noqa: C901
         if ctx.active_scenario.id == 'baseline':
             return True
 
+        reference_instance_failed = self.compare and self.state.has_failed_instance(ctx.instance.id)
         actions = sorted((action for action in ctx.get_actions() if action.is_enabled()), key=lambda action: action.id)
         if not actions:
             return True
@@ -986,26 +1027,28 @@ class Command(BaseCommand):
                 try:
                     fail_reason = self.handle_action_impact_output(impact_logger, action, node)
                 except NodeError as err:
-                    if err.__cause__:
-                        print_exception(err.__cause__)
-                    else:
-                        print_exception(err)
-                    impact_logger.error(
-                        'Error getting action impact for {instance_id}:{action_id}->{node_id}',
-                        instance_id=ctx.instance.id,
-                        action_id=action.id,
-                        node_id=node.id,
+                    self.log_action_impact_error(
+                        impact_logger,
+                        ctx,
+                        action,
+                        node,
+                        err,
+                        reference_instance_failed=reference_instance_failed,
                     )
                 except Exception as err:
-                    print_exception(err)
-                    impact_logger.error(
-                        'Unexpected error getting action impact for {instance_id}:{action_id}->{node_id}',
-                        instance_id=ctx.instance.id,
-                        action_id=action.id,
-                        node_id=node.id,
+                    self.log_action_impact_error(
+                        impact_logger,
+                        ctx,
+                        action,
+                        node,
+                        err,
+                        reference_instance_failed=reference_instance_failed,
+                        unexpected=True,
                     )
 
                 if fail_reason and self.compare:
+                    if reference_instance_failed:
+                        continue
                     self.nr_fails += 1
                     if self.maxfail > 0 and self.nr_fails < self.maxfail:
                         failed = True
@@ -1059,7 +1102,7 @@ class Command(BaseCommand):
         except Exception as e:
             logger.error('Error initializing instance %s' % instance_id)
             print_exception(e)
-            if self.compare and instance_details.failure_at == 'init':
+            if self.compare and self.state.has_failed_instance(instance_id):
                 return True
             self.state.mark_failed(instance_id, 'init')
             self.save_state()
