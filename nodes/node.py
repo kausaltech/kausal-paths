@@ -514,7 +514,7 @@ class Node:
             dims[dim_id] = d
         return dims
 
-    def __init__(  # noqa: PLR0913, PLR0915
+    def __init__(  # noqa: PLR0913, PLR0915, PLR0917
         self,
         id: str,
         context: Context,
@@ -1225,7 +1225,7 @@ class Node:
         skip_dim_test: bool = False,
     ) -> ppl.PathsDataFrame:
         perf_cm = self.context.perf_context
-        span_ctx: AbstractContextManager[None | Span]
+        span_ctx: AbstractContextManager[Span | None]
         if self.hasher.is_cached(run=True, local=True):
             span_ctx = nullcontext()
         else:

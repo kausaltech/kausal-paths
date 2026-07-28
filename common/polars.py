@@ -280,7 +280,7 @@ class PathsDataFrame(pl.DataFrame):
         )
         return PathsDataFrame._from_pydf(df._df, meta=self.get_meta(), source_df=self)
 
-    def join(
+    def join(  # noqa: PLR0913
         self,
         other: pl.DataFrame | PathsDataFrame,
         on: str | pl.Expr | Sequence[str | pl.Expr] | None = None,

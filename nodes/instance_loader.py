@@ -403,7 +403,7 @@ def make_trans_string(  # noqa: C901, PLR0912
     pop: bool = False,
     required: bool = False,
     default_language=None,
-) -> None | TranslatedString:
+) -> TranslatedString | None:
     ctx = get_i18n_context()
     assert ctx is not None
     default_language = default_language or ctx.default_language

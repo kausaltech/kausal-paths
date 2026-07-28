@@ -76,7 +76,7 @@ class Metric:
         self.split_values = None
 
     @staticmethod
-    def from_node(node: Node, goal_id: str | None = None) -> None | Metric:  # noqa: C901, PLR0912
+    def from_node(node: Node, goal_id: str | None = None) -> Metric | None:  # noqa: C901, PLR0912
         import polars as pl
 
         from common import polars as ppl
@@ -552,7 +552,7 @@ class DimensionalFlow:
     links: list[FlowLinks]
 
     @classmethod
-    def from_action_node(cls, node: ActionNode) -> None | DimensionalFlow:  # noqa: C901, PLR0915
+    def from_action_node(cls, node: ActionNode) -> DimensionalFlow | None:  # noqa: C901, PLR0915
         import polars as pl
 
         from .actions.shift import ShiftAction

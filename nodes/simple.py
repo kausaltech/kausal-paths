@@ -689,7 +689,7 @@ class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Ta
         BoolParameter(local_id='convert_missing_values_to_zero'),
     ]
 
-    def _get_dataset_emissions(self) -> None | ppl.PathsDataFrame:
+    def _get_dataset_emissions(self) -> ppl.PathsDataFrame | None:
         edfs = self.get_input_datasets_pl(tag='emissions')
         ds_list = self.get_input_datasets_pl(exclude_tags=['emissions'])
         if not ds_list:

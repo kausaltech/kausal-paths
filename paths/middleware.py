@@ -53,7 +53,7 @@ class AdminMiddleware:
     def get_adminable_instances(self, user: User):
         return list(user.get_adminable_instances().filter(root_page__isnull=False))
 
-    async def get_admin_instance(self, request: PathsAdminRequest) -> None | InstanceConfig:
+    async def get_admin_instance(self, request: PathsAdminRequest) -> InstanceConfig | None:
         if not re.match(r'^/admin/', request.path):
             return None
 

@@ -103,7 +103,7 @@ class InstanceResultExcel(I18nBaseModel):
                 if action_id not in actions:
                     raise KeyError(f'Action {action_id} not found.')
 
-    def _output_node_long(  # noqa: PLR0913
+    def _output_node_long(  # noqa: PLR0913, PLR0917
         self,
         context: Context,
         wb: Workbook,
