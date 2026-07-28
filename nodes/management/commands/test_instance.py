@@ -26,6 +26,7 @@ from kausal_common.logging.errors import print_exception
 from kausal_common.logging.warnings import register_warning_handler
 from kausal_common.perf.perf_context import estimate_size_bytes
 
+from frameworks.models import Framework
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.datasets import JSONDataset
 from nodes.exceptions import NodeError
@@ -366,6 +367,12 @@ class Command(BaseCommand):
             type=int,
             default=0,
             help='Maximum number of instances to check (0 means no limit)',
+        )
+        parser.add_argument(
+            '--framework',
+            type=str,
+            choices=list(Framework.objects.values_list('identifier', flat=True)),
+            help='Limit to instances associated with the given framework identifier',
         )
 
     def load_state(self) -> CheckState:
@@ -1168,7 +1175,12 @@ class Command(BaseCommand):
             if self.compare:
                 instance_ids = self.state.checked_instances
             else:
-                instance_ids = list(InstanceConfig.objects.all().order_by('identifier').values_list('identifier', flat=True))
+                qs = InstanceConfig.objects.all().order_by('identifier').values_list('identifier', flat=True)
+                if options['framework']:
+                    qs = qs.filter(framework_config__framework__identifier=options['framework'])
+                else:
+                    qs = qs.filter(framework_config__isnull=True)
+                instance_ids = list(qs)
 
         start_from = options['start_from']
 
@@ -1184,8 +1196,6 @@ class Command(BaseCommand):
                 continue
 
             ic = InstanceConfig.objects.get(identifier=iid)
-            # if ic.has_framework_config():
-            #     continue
             succeeded = self.check_instance(ic)
             if not succeeded:
                 self.nr_fails += 1
