@@ -1339,16 +1339,13 @@ def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config
             ic.save(update_fields=['copy_of'])
 
     # Dimensions first — datasets and data points reference them
-    dim_lookup = _import_dimensions(ic, export, ic_ct)
+    _import_dimensions(ic, export, ic_ct)
 
     # Datasets (with data points)
-    datasets_by_id: dict[str, DatasetModel] = {}
-    for ds_snapshot in export.datasets:
-        ds = _import_dataset(ic, ds_snapshot, ic_ct, dim_lookup)
-        # ``identifier`` may be None for datasets keyed only by uuid; skip
-        # those here since node→dataset wiring goes through identifier.
-        if ds_snapshot.identifier is not None:
-            datasets_by_id[ds_snapshot.identifier] = ds
+    datasets = import_instance_datasets(ic, export.datasets, create_missing_dimensions=True)
+    # ``identifier`` may be None for datasets keyed only by uuid; skip those
+    # here since node→dataset wiring goes through identifier.
+    datasets_by_id = {ds.identifier: ds for ds in datasets if ds.identifier is not None}
 
     # Nodes
     nodes_by_id = _import_nodes(ic, export)

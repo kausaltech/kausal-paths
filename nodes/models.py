@@ -27,6 +27,7 @@ from django.db import models, transaction
 from django.db.models import F, OuterRef, Q
 from django.db.models.expressions import DatabaseDefault
 from django.db.models.functions import JSONArray, JSONObject
+from django.db.models.manager import Manager
 from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, gettext_lazy as _, override
@@ -175,7 +176,7 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
         return self.filter(query_pk_or_uuid_or_identifier(id_or_identifier))
 
 
-_InstanceConfigManager = cast('models.Manager[InstanceConfig]', models.Manager).from_queryset(InstanceConfigQuerySet)
+_InstanceConfigManager = cast('Manager[InstanceConfig]', Manager).from_queryset(InstanceConfigQuerySet)
 
 
 class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # type: ignore[valid-type,misc]
@@ -1364,7 +1365,7 @@ class InstanceConfig(
         instance = self.get_instance()
         ctx = instance.context
         root_nodes = ctx.get_outcome_nodes()
-        pks = [node.database_id for node in root_nodes]
+        pks = [node.database_id for node in root_nodes if node.database_id is not None]
         return list(self.nodes.filter(pk__in=pks))
 
     def _create_instance_root_page(self) -> Page:
@@ -1526,7 +1527,7 @@ class InstanceConfig(
         return logger.bind(instance=self.identifier, markup=True)
 
 
-class InstanceHostnameManager(models.Manager['InstanceHostname']):
+class InstanceHostnameManager(Manager['InstanceHostname']):
     def get_by_natural_key(self, instance_identifier, hostname, base_path):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance, hostname=hostname, base_path=base_path)
@@ -1558,7 +1559,7 @@ class InstanceHostname(models.Model):
         return self.instance.natural_key() + (self.hostname, self.base_path)
 
 
-class InstanceTokenManager(models.Manager['InstanceToken']):
+class InstanceTokenManager(Manager['InstanceToken']):
     def get_by_natural_key(self, instance_identifier, token, created_at):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance, token=token, created_at=created_at)
@@ -2056,8 +2057,8 @@ class NodeEdge(EditableInstanceChild):
         blank=True,
     )
 
-    objects: ClassVar[models.Manager[NodeEdge]] = models.Manager()
-    _default_manager: ClassVar[models.Manager[NodeEdge]]
+    objects: ClassVar[Manager[NodeEdge]] = Manager()
+    _default_manager: ClassVar[Manager[NodeEdge]]
 
     from_node_id: int  # for type checkers
     to_node_id: int
@@ -2115,8 +2116,8 @@ class DatasetPort(EditableInstanceChild):
     dataset_id: int
     metric_id: int
 
-    objects: ClassVar[models.Manager[DatasetPort]] = models.Manager()
-    _default_manager: ClassVar[models.Manager[DatasetPort]]
+    objects: ClassVar[Manager[DatasetPort]] = Manager()
+    _default_manager: ClassVar[Manager[DatasetPort]]
 
     class Meta:
         ordering = ['node', 'dataset_index', 'metric__order']
@@ -2187,7 +2188,7 @@ class InstanceChangeOperation(UUIDIdentifiedModel):
         help_text='Set when this operation has been undone by another operation.',
     )
 
-    objects: ClassVar[models.Manager[InstanceChangeOperation]] = models.Manager()
+    objects: ClassVar[Manager[InstanceChangeOperation]] = Manager()
 
     class Meta:
         ordering = ['-created_at']
@@ -2242,7 +2243,7 @@ class InstanceModelLogEntry(UUIDIdentifiedModel):
     data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    objects: ClassVar[models.Manager[InstanceModelLogEntry]] = models.Manager()
+    objects: ClassVar[Manager[InstanceModelLogEntry]] = Manager()
 
     class Meta:
         ordering = ['-id']
