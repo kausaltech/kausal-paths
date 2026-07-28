@@ -30,16 +30,19 @@ from loguru import logger
 from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.transform_def import (
+    AssignCategoryTransformation,
     AssignDimensionOp,
     DropNullsOp,
     EnsureUnitOp,
     FilterColumnOp,
     FilterDimensionOp,
     FilterTemporalOp,
+    FlattenTransformation,
     IndexTemporalOp,
     RemapLegacyYearsOp,
     RenameColumnOp,
     RenameItemOp,
+    SelectCategoriesTransformation,
     SelectMetricOp,
     SetForecastFromOp,
     TagOperationOp,
@@ -76,12 +79,16 @@ class PipelineEnv:
     def source_id(self) -> str:
         return self.dataset.id if self.dataset is not None else '<unknown>'
 
-    def fail(self, msg: str) -> NoReturn:
+    def error(self, msg: str) -> Exception:
+        """Build the failure for this source, so callers can ``raise`` it."""
         from nodes.exceptions import DatasetError
 
         if self.dataset is not None:
-            raise DatasetError(self.dataset, msg)
-        raise PipelineError(msg)
+            return DatasetError(self.dataset, msg)
+        return PipelineError(msg)
+
+    def fail(self, msg: str) -> NoReturn:
+        raise self.error(msg)
 
 
 def apply_port_transformations(
@@ -127,6 +134,13 @@ def apply_operation(  # noqa: C901, PLR0911, PLR0912
             return df.drop_nulls()
         case EnsureUnitOp():
             return _ensure_unit(df, op)
+        case SelectCategoriesTransformation() | AssignCategoryTransformation() | FlattenTransformation():
+            # The legacy edge vocabulary. Edges still apply their own
+            # transformations on the producing node, so nothing should reach
+            # here; saying so beats silently passing the frame through.
+            raise env.error(
+                f'Transformation {op.kind!r} belongs to the edge vocabulary and is not executable on a dataset binding'
+            )
 
 
 def _guard_not_empty(

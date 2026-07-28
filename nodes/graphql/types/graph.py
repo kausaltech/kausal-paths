@@ -11,13 +11,9 @@ from paths.graphql_helpers import pass_context
 from nodes.actions.action import ActionNode
 from nodes.context import Context
 from nodes.defs.binding_def import DatasetBindingDef
-from nodes.defs.edge_def import (
-    AssignCategoryTransformation,
-    EdgeTransformation,
-    FlattenTransformation,
-    SelectCategoriesTransformation,
-)
+from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.instance_defs import ActionGroup
+from nodes.defs.transform_def import PortTransformOp
 from nodes.graphql.types.change_history import EditableEntity
 from nodes.graphql.types.metric import DimensionalMetricType
 
@@ -30,6 +26,7 @@ if TYPE_CHECKING:
     from nodes.models import NodeEdge
     from nodes.node import Node
 
+from nodes.graphql.types.transformations import PortTransformationType
 from nodes.metric import DimensionalMetric
 
 
@@ -45,37 +42,6 @@ class NodePortRef:
     port_id: UUID
 
 
-@pydantic_type(SelectCategoriesTransformation)
-class SelectCategoriesTransformationType:
-    """Filter or select categories within a dimension, optionally flattening."""
-
-    dimension: sb.auto
-    categories: sb.auto
-    flatten: sb.auto
-    exclude: sb.auto
-
-
-@pydantic_type(AssignCategoryTransformation)
-class AssignCategoryTransformationType:
-    """Assign a fixed category to a (possibly new) dimension."""
-
-    dimension: sb.auto
-    category: sb.auto
-
-
-@pydantic_type(FlattenTransformation)
-class FlattenTransformationType:
-    """Flatten (sum over) a dimension."""
-
-    dimension: sb.auto
-
-
-EdgeTransformationType = Annotated[
-    SelectCategoriesTransformationType | AssignCategoryTransformationType | FlattenTransformationType,
-    sb.union('EdgeTransformationUnion'),
-]
-
-
 @sb.type
 class NodeEdgeType(EditableEntity):
     id: sb.ID
@@ -89,7 +55,10 @@ class NodeEdgeType(EditableEntity):
 
     _transformations: sb.Private[list[EdgeTransformation] | None] = None
 
-    @sb.field(graphql_type=list[EdgeTransformationType])
+    @sb.field(
+        graphql_type=list[PortTransformationType],
+        description='Transformations applied to the source output, in execution order.',
+    )
     @staticmethod
     def transformations(root: 'NodeEdgeType') -> list[EdgeTransformation]:
         return root._transformations or []
@@ -209,6 +178,21 @@ class DatasetPortType(EditableEntity):
 
     _dataset: sb.Private[Any] = None
 
+    _transformations: sb.Private[list[PortTransformOp] | None] = None
+
+    @sb.field(
+        graphql_type=list[PortTransformationType],
+        description=(
+            'Transformations applied to the dataset, in execution order. '
+            'Editing replaces the whole list; entries whose kind is one of '
+            '`select_metric`, `index_temporal` or `remap_legacy_years` are generated '
+            'and should be passed back unchanged.'
+        ),
+    )
+    @staticmethod
+    def transformations(root: 'DatasetPortType') -> list[PortTransformOp]:
+        return root._transformations or []
+
     @sb.field(graphql_type=Annotated['DatasetType', sb.lazy('datasets.graphql.types')] | None)  # type: ignore[name-defined]  # noqa: F821
     @staticmethod
     def dataset(root: 'DatasetPortType') -> Any:
@@ -259,6 +243,7 @@ class DatasetPortType(EditableEntity):
             dataset_type._forecast_from = binding.forecast_from
         port._dataset = dataset_type
         port._node = node
+        port._transformations = list(binding.transformations)
         return port
 
     @sb.field(

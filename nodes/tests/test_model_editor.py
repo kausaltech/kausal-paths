@@ -1079,13 +1079,13 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
                 }
                 transformations {
                     __typename
-                    ... on SelectCategoriesTransformationType {
+                    ... on SelectCategoriesType {
                         dimension categories flatten exclude
                     }
-                    ... on AssignCategoryTransformationType {
+                    ... on AssignCategoryType {
                         dimension category
                     }
-                    ... on FlattenTransformationType {
+                    ... on FlattenType {
                         dimension
                     }
                 }

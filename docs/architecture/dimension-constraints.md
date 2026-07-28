@@ -237,7 +237,11 @@ propagation, not independent work:
 
 1. Give ports authored, stable identity that survives a sync, and make
    `instance_from_db` emit port wiring that the loader consumes. Until
-   then port ids are cosmetic.
+   then port ids are cosmetic. Related: unify `NodeEdge` and `DatasetPort`
+   into one `NodeInputPortBinding` table. That is where a binding's ordering
+   within a `multi` port can live — ordering has to be shared, because a port
+   may hold both an edge and a dataset — and it retires the
+   `(node, dataset_index)` grouping that stands in for binding identity today.
 2. Move the ex-`FlattenTransformation` shape declarations onto
    `InputPortDef`, then migrate `NodeEdge.transformations` to
    `PortTransformOp`. These have to happen together — the op vocabulary

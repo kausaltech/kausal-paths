@@ -32,6 +32,7 @@ type PortBindingKind = Literal['edge', 'dataset']
 
 EDGE_AND_DATASET: frozenset[PortBindingKind] = frozenset({'edge', 'dataset'})
 DATASET_ONLY: frozenset[PortBindingKind] = frozenset({'dataset'})
+EDGE_ONLY: frozenset[PortBindingKind] = frozenset({'edge'})
 
 
 class PortTransformOpBase(BaseModel):
@@ -230,6 +231,58 @@ class TagOperationOp(PortTransformOpBase):
     tag: str
 
 
+# --- Legacy edge vocabulary -------------------------------------------------
+#
+# Edges said the same things in different words, and their stored rows still
+# do. These are union members so that one column can hold either kind's
+# transformations without converting data, and so that the applicability rules
+# keep them apart. `select_categories` and `assign_category` are
+# `filter_dimension` and `assign_dimension` under other names;
+# `flatten` is not a transformation at all — see the note in
+# `docs/architecture/dimension-constraints.md` — and moves onto `InputPortDef`
+# when required dimensions become authored rather than observed.
+
+
+class SelectCategoriesTransformation(PortTransformOpBase):
+    """Filter or select categories within a dimension, optionally flattening afterward."""
+
+    applies_to = EDGE_ONLY
+
+    kind: Literal['select_categories'] = 'select_categories'
+    dimension: DimensionRef
+    categories: list[DimensionCategoryRef] = Field(default_factory=list)
+    flatten: bool = False
+    exclude: bool = False
+
+
+class AssignCategoryTransformation(PortTransformOpBase):
+    """Assign a fixed category to a (possibly new) dimension."""
+
+    applies_to = EDGE_ONLY
+
+    kind: Literal['assign_category'] = 'assign_category'
+    dimension: DimensionRef
+    category: DimensionCategoryRef
+
+
+class FlattenTransformation(PortTransformOpBase):
+    """
+    Declares that the edge output must carry a dimension.
+
+    Misnamed: it does not flatten. It only ever comes from a bare
+    `to_dimensions` entry, and the runtime skips such entries, so its whole
+    effect is that its dimension joins the set asserted against the output.
+    """
+
+    applies_to = EDGE_ONLY
+
+    kind: Literal['flatten'] = 'flatten'
+    dimension: DimensionRef
+
+
+type EdgeTransformation = SelectCategoriesTransformation | AssignCategoryTransformation | FlattenTransformation
+
+
 type PortTransformOp = Annotated[
     FilterDimensionOp
     | AssignDimensionOp
@@ -243,7 +296,10 @@ type PortTransformOp = Annotated[
     | SelectMetricOp
     | IndexTemporalOp
     | RemapLegacyYearsOp
-    | TagOperationOp,
+    | TagOperationOp
+    | SelectCategoriesTransformation
+    | AssignCategoryTransformation
+    | FlattenTransformation,
     Field(discriminator='kind'),
 ]
 

@@ -57,6 +57,8 @@ if TYPE_CHECKING:
     from datasets.graphql.editor import DatasetEditorMutation
     from datasets.graphql.types import DataSourceType  # used in lazy strawberry annotations
     from nodes.defs.edge_def import EdgeTransformation
+    from nodes.graphql.bindings import BindDatasetInput, DatasetBindingEditorMutation
+    from nodes.graphql.types.graph import DatasetPortType  # used in lazy strawberry annotations
 
 
 def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
@@ -924,6 +926,20 @@ class NodeEditorMutation:
 
         return new_port
 
+    @gql.mutation(
+        description='Bind a dataset metric to an existing input port on this node',
+        graphql_type=Annotated['DatasetPortType', sb.lazy('nodes.graphql.types.graph')],
+    )
+    @staticmethod
+    def bind_dataset(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: Annotated['BindDatasetInput', sb.lazy('nodes.graphql.bindings')],
+    ) -> Any:
+        from nodes.graphql.bindings import bind_dataset
+
+        return bind_dataset(info, root.instance, root.node, input)
+
     @gql.mutation(description='Append a new output port to this node', graphql_type=OutputPortType)
     @staticmethod
     def add_output_port(info: gql.Info, root: sb.Parent[Me], input: OutputPortInput) -> OutputPortDef:
@@ -1064,6 +1080,15 @@ class InstanceEditorMutation:
             for_action='change',
         )
         return DatasetEditorMutation(dataset=dataset, instance=ic)
+
+    @sb.field(description='Edit a dataset-to-port binding that belongs to this instance')
+    @staticmethod
+    def binding_editor(
+        info: gql.Info, root: sb.Parent[Me], binding_id: sb.ID
+    ) -> Annotated['DatasetBindingEditorMutation', sb.lazy('nodes.graphql.bindings')]:
+        from nodes.graphql.bindings import binding_editor
+
+        return binding_editor(info, root.instance, binding_id)
 
     @gql.mutation(description='Create a new edge between nodes')
     @staticmethod
