@@ -1072,7 +1072,7 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
                     nodeId
                     portId
                 }
-                toRef {
+                portRef {
                     nodeId
                     portId
                 }
@@ -1140,8 +1140,8 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     edge = editor['createEdge']
     assert edge['__typename'] == 'NodeEdgeType'
     assert edge['fromRef']['nodeId'] == 'node_a'
-    assert edge['toRef']['nodeId'] == 'node_b'
-    assert edge['toRef']['portId'] == str(_port_uuid('input'))
+    assert edge['portRef']['nodeId'] == 'node_b'
+    assert edge['portRef']['portId'] == str(_port_uuid('input'))
 
     # Delete
     edge_obj = NodeEdge.objects.get(instance=db_instance_config, from_node=nc_a, to_node=nc_b)
@@ -1235,12 +1235,12 @@ query ModelInstanceTest($id: ID!) {
                 fromRef {
                     nodeId
                 }
-                toRef {
+                portRef {
                     nodeId
                 }
             }
             datasetPorts {
-                nodeRef {
+                portRef {
                     nodeId
                     portId
                 }
@@ -1298,13 +1298,13 @@ query ModelInstanceTest($id: ID!) {
                                     nodeId
                                     portId
                                 }
-                                toRef {
+                                portRef {
                                     nodeId
                                     portId
                                 }
                             }
                             ... on DatasetPortType {
-                                nodeRef {
+                                portRef {
                                     nodeId
                                     portId
                                 }
@@ -1337,7 +1337,7 @@ query ModelInstanceTest($id: ID!) {
                                 nodeId
                                 portId
                             }
-                            toRef {
+                            portRef {
                                 nodeId
                                 portId
                             }
@@ -1984,7 +1984,7 @@ def test_create_edge_allows_second_binding_for_multi_port(gql_client: PathsTestC
     edge = data['instanceEditor']['createEdge']
     assert edge['__typename'] == 'NodeEdgeType'
     assert edge['fromRef']['nodeId'] == 'src_b'
-    assert edge['toRef']['portId'] == str(_port_uuid('input'))
+    assert edge['portRef']['portId'] == str(_port_uuid('input'))
 
 
 def test_delete_node_roundtrip(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -14,21 +15,39 @@ class NodePortRef(BaseModel):
     port_id: NodePortIdentifier
 
 
-class EdgeBindingDef(BaseModel):
-    """A source-node binding to one input port on a node."""
+class PortBindingDef(BaseModel):
+    """
+    Something bound to one node input port, independent of what is on the other end.
 
-    id: UUID = Field(description='Globally unique identifier of the node-edge binding.')
-    from_ref: NodePortRef = Field(description='Reference to the source node and output port.')
-    to_ref: NodePortRef = Field(description='Reference to the target node and input port.')
-    transformations: list[EdgeTransformation] = Field(default_factory=list)
+    Bindings are the ORM-free view of ``NodeEdge`` and ``DatasetPort`` rows.
+    Consumers that only care that a port *has* an input — validation, the
+    editor, dimension-constraint propagation — work against this base.
+
+    ``transformations`` is deliberately not here yet. Dataset bindings will
+    carry ``list[PortTransformOp]``, but edge transformations still use the
+    legacy ``EdgeTransformation`` vocabulary, which has no home for the port
+    shape declarations that ``FlattenTransformation`` actually encodes. The
+    field moves onto this base once those declarations move onto
+    ``InputPortDef``. See `docs/architecture/dimension-constraints.md`.
+    """
+
+    id: UUID = Field(description='Globally unique identifier of the binding.')
+    port_ref: NodePortRef = Field(description='Reference to the node and the input port this binds to.')
     tags: list[str] = Field(default_factory=list)
 
 
-class DatasetPortBindingDef(BaseModel):
+class EdgeBindingDef(PortBindingDef):
+    """A source-node binding to one input port on a node."""
+
+    kind: Literal['edge'] = 'edge'
+    from_ref: NodePortRef = Field(description='Reference to the source node and output port.')
+    transformations: list[EdgeTransformation] = Field(default_factory=list)
+
+
+class DatasetBindingDef(PortBindingDef):
     """A dataset-metric binding to one input port on a node."""
 
-    id: UUID = Field(description='Globally unique identifier of the dataset-port binding.')
-    node_ref: NodePortRef = Field(description='Reference to the node and its bound input port.')
+    kind: Literal['dataset'] = 'dataset'
     dataset_uuid: UUID | None = Field(default=None, description='Globally unique identifier of the bound dataset object.')
     metric_uuid: UUID | None = Field(default=None, description='Globally unique identifier of the bound dataset metric object.')
     dataset_is_external_placeholder: bool = Field(
@@ -51,3 +70,6 @@ class DatasetPortBindingDef(BaseModel):
         default=None,
         description='The year from which the time series becomes a forecast.',
     )
+
+
+type AnyPortBindingDef = EdgeBindingDef | DatasetBindingDef

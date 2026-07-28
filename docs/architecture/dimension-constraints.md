@@ -45,13 +45,42 @@ The core operations:
 | **FilterDimension** | Keep or exclude specific categories within a dimension. Optionally flatten (sum over) the dimension afterward. |
 | **AssignDimension** | Tag every row with a fixed category in a new dimension. Adds a dimension that didn't exist upstream. |
 
-These two operations cover all current edge transformation patterns and
-are the same operations used in dataset input pipelines
-(`FilterDimensionDatasetTransformOp`, `assign_category`).
+These two operations cover every edge transformation pattern that
+actually reshapes data, and they are the same operations used in dataset
+input pipelines.
 
-Dataset pipelines add data-prep operations on top (column selection,
-renaming, null handling, year limits) that don't apply to edges because
-node outputs are already well-formed.
+Dataset pipelines add data-prep operations on top (renaming, null
+handling, temporal limits, qualifier setting) that mostly don't apply to
+edges, because node outputs are already well-formed. "Mostly" is
+deliberate: null handling and temporal limits are meaningful on both
+sides. See [Unification with dataset transforms](#unification-with-dataset-transforms)
+for how that is modelled.
+
+Metric selection is **not** a transformation. A binding names the single
+metric it carries (a `DatasetMetric` for dataset bindings, an output port
+for edges); the op pipeline only reshapes what that selection produced.
+
+
+### `FlattenTransformation` is not a flatten
+
+The current `FlattenTransformation` type is a misnomer and must not be
+folded into `FilterDimension(flatten=True)`.
+
+It is only ever produced from a bare `to_dimensions` entry (one with no
+`categories`), and `_get_output_for_target()` skips to-dimension entries
+that have no categories. Its only runtime effect is that its dimension id
+joins the set asserted against the edge output. In other words it is a
+**shape declaration about the consuming port**, not an operation.
+
+Real flattening on an edge is `SelectCategoriesTransformation(categories=[],
+flatten=True)`, produced from a bare `from_dimensions` entry.
+
+The target state is therefore:
+
+- the shape declaration moves to the port (`InputPortDef`), where
+  constraint propagation can compute or validate it
+- `FlattenTransformation` disappears from the op vocabulary rather than
+  merging into another op
 
 
 ### How constraint propagation works
@@ -78,50 +107,148 @@ node outputs are already well-formed.
    downstream shape + node signature + edge transforms.
 
 
+### Structural dimensions only
+
+Signature facets (`requires` / `consumes` / `produces` / `transparent`)
+and collapse policy apply to **structural** dimensions only.
+
+- **Temporal** axes are always present and are not part of
+  requires/produces bookkeeping. A node does not "require `Year`".
+- **Ensemble** and **decomposition** axes (Monte Carlo iteration,
+  `action_id`) are transparent by construction. They are never consumed
+  implicitly, and collapsing them requires an explicit reducer, not
+  summation.
+
+See [`metric-dataframe.md`](metric-dataframe.md) for the dimension kinds
+this rule refers to. A consequence: `FilterDimension(flatten=True)` must
+refuse non-structural dimensions rather than silently summing them.
+
+
 ### Where the declarations live
 
 | What | Where | Static or computed? |
 |---|---|---|
 | Node class dimension rules | Node class or pipeline definition | Static (per class/pipeline) |
 | Outcome node required dims | `InputPortDef.required_dimensions` | Static (user-configured) |
-| Edge transformations | `NodeEdge.transformations` (`list[EdgeTransformation]`) | Static (user-configured) |
+| Port shape declarations (ex-`FlattenTransformation`) | `InputPortDef` | Static (user-configured) |
+| Binding transformations | `PortBindingDef.transformations` on the **consuming** port | Static (user-configured) |
 | Input port effective requirement | Computed from downstream | Computed at validation/editor time |
 | Dataset produced dims | Dataset schema | Static |
 
 
+### Authored vs computed declarations
+
+Stored dimension fields on ports are **authored** data. Propagation
+results are **computed** and must not be written back over them.
+
+This is not yet true in the code: `_export_input_ports()` fills in
+`required_dimensions` *and* `supported_dimensions` on every port from
+observed runtime dimensions, which stores computed data in authored
+fields — the drifting-registry failure that
+[`metric-dataframe.md`](metric-dataframe.md) warns against. The same
+applies to `DatasetPortSpec.output_dimensions`, a manual override of what
+the dataset schema plus the op pipeline should derive.
+
+Rules going forward:
+
+- `InputPortDef.required_dimensions` is authored, and meaningful for
+  outcome nodes and explicit shape declarations. Everywhere else the
+  requirement is computed.
+- Propagation results are exposed as a separate derived field (for
+  example `effectiveRequiredDimensions` in GraphQL), never by overwriting
+  the authored one.
+- No mutation may accept computed dimension sets as input.
+  `DatasetPortSpec.output_dimensions` stays read-only and is retired once
+  schema + ops can derive it.
+
+
+### Transformations attach to the consuming port
+
+Propagation walks upstream *through input ports*, so it needs
+transformations attached to the binding at the consuming port. The code
+does not do this yet: edge transformations execute on the **producing**
+node, in `_get_output_for_target()`, keyed by consumer identity. Dataset
+filters execute inside dataset loading. Neither runs at the port.
+
+Propagation also needs port identity that is authored and stable. Ports
+are currently derived at export time and their ids are hashed from
+`(node, direction, key)`, so they are regenerated on every sync and
+nothing downstream can attach computed state to them.
+
+
 ## Unification with dataset transforms
 
-The dimension-aware subset of dataset transforms and edge transforms
-are the same operations:
+The dimension-aware subset of dataset transforms and edge transforms are
+the same operations. Today's encodings map like this:
 
 ```
 Edge: SelectCategoriesTransformation  ≡  Dataset: FilterDimensionDatasetTransformOp
 Edge: AssignCategoryTransformation    ≡  Dataset: FilterDimensionDatasetTransformOp(assign_category=...)
+Edge: FlattenTransformation           ≡  (nothing — it is a port shape declaration)
 ```
 
-A future refactoring could unify these into a shared
-`DimensionTransformOp` type, with dataset pipelines adding
-data-cleaning ops (column selection, renaming, null handling, year
-limits) as a separate layer.
+The second line describes a **legacy encoding** that is being retired:
+assignment is its own operation (`AssignDimension`), not a field on a
+dimension filter.
+
+### Decision: one op type, not two layers
+
+There is **one** op union, `PortTransformOp`, covering dimension ops and
+data-prep ops together. Applicability is a property of each op, validated
+against the binding kind that carries it — not a second type hierarchy.
+
+Rationale: two unions means two GraphQL input types and two executors,
+which is the duplication this unification exists to remove. And the
+dimension/data-prep line does not fall cleanly between edges and datasets
+anyway — null handling and temporal limits are meaningful on both sides.
+
+The ops:
+
+| Op | Applies to | Notes |
+|---|---|---|
+| `filter_dimension` | edge, dataset | Categories or groups; optional exclude and flatten. Refuses non-structural dimensions when flattening. |
+| `assign_dimension` | edge, dataset | Was `assign_category` on the dataset dimension filter. |
+| `drop_nulls` | edge, dataset | |
+| `filter_temporal` | edge, dataset | Currently the yearly specialization (`min_year` / `max_year`). |
+| `filter_column` | dataset | Legacy, pre-dimension column filtering. |
+| `rename_column` | dataset | Legacy wide-DVC column labels. |
+| `rename_item` | dataset | Category value remapping. |
+| `set_forecast_from` | dataset | Sets the forecast **qualifier**; see `metric-dataframe.md`. |
+| `interpolate` | dataset | Fills gaps and sets the interpolation qualifier. |
+
+There is deliberately no `select_column` op: metric selection is the
+binding's source reference, not a transformation.
 
 
 ## Current state and next steps
 
 **Done:**
 - `NodeEdge.transformations` uses structured Pydantic types
-  (`SelectCategoriesTransformation`, `AssignCategoryTransformation`)
-  stored via `SchemaField`.
+  (`SelectCategoriesTransformation`, `AssignCategoryTransformation`,
+  `FlattenTransformation`) stored via `SchemaField`.
 - Export and import round-trip through these types.
 - `edge_def.py` defines the transformation types.
+- `PortTransformOp` defines the target op vocabulary (dataset side only so
+  far); `PortBindingDef` gives edge and dataset bindings a common base.
+- Ports may carry an optional human-readable `identifier`.
 
-**Next:**
-- Remove the `side` field from edge transformations — the operations
-  are semantically the same regardless of from/to context.
-- Rewrite `_get_output_for_node()` and `_get_output_for_target()` to
-  consume the transformation pipeline directly instead of the legacy
-  `from_dimensions` / `to_dimensions` dicts.
-- Add node dimension signatures (requires/consumes/produces/transparent)
-  to node classes or pipeline definitions.
-- Implement upstream constraint propagation for the editor's validation
-  and port compatibility checks.
-- Unify dimension operations between edge and dataset transforms.
+**Next, in dependency order.** The first three are prerequisites for
+propagation, not independent work:
+
+1. Give ports authored, stable identity that survives a sync, and make
+   `instance_from_db` emit port wiring that the loader consumes. Until
+   then port ids are cosmetic.
+2. Move the ex-`FlattenTransformation` shape declarations onto
+   `InputPortDef`, then migrate `NodeEdge.transformations` to
+   `PortTransformOp`. These have to happen together — the op vocabulary
+   has no home for a shape declaration.
+3. Rewrite `_get_output_for_node()` and `_get_output_for_target()` to
+   consume the op pipeline at the consuming port instead of the legacy
+   `from_dimensions` / `to_dimensions` dicts on the producer.
+4. Add node dimension signatures (requires/consumes/produces/transparent)
+   to node classes or pipeline definitions.
+5. Implement upstream constraint propagation for the editor's validation
+   and port compatibility checks, exposing results as derived fields.
+
+Removed from this list: "remove the `side` field from edge
+transformations" — there is no such field in `edge_def.py`.

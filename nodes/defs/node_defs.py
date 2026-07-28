@@ -20,6 +20,19 @@ from nodes.visualizations import NodeVisualizations
 from params.discover import AnyParameter
 
 from .port_def import InputPortDef, OutputPortDef
+from .transform_def import (
+    AssignDimensionOp,
+    DropNullsOp,
+    FilterColumnOp,
+    FilterDimensionOp,
+    FilterTemporalOp,
+    InterpolateOp,
+    PortTransformOp,
+    PortTransformPipeline,
+    RenameColumnOp,
+    RenameItemOp,
+    SetForecastFromOp,
+)
 
 
 class ColumnDatasetFilterDef(BaseModel):
@@ -69,103 +82,41 @@ type InputDatasetFilterDef = (
 )
 
 
-class SelectColumnDatasetTransformOp(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+def input_dataset_filter_to_ops(filter_def: InputDatasetFilterDef) -> list[PortTransformOp]:
+    """
+    Convert one legacy input-dataset filter into port transform operations.
 
-    kind: Literal['select_column'] = 'select_column'
-    column: str
-
-
-class FilterColumnDatasetTransformOp(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    kind: Literal['filter_column'] = 'filter_column'
-    column: str
-    value: str | None = None
-    values: list[str] = Field(default_factory=list)
-    ref: str | None = None
-    drop_col: bool = True
-    exclude: bool = False
-    flatten: bool = False
-
-
-class FilterDimensionDatasetTransformOp(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    kind: Literal['filter_dimension'] = 'filter_dimension'
-    dimension: str
-    groups: list[str] = Field(default_factory=list)
-    categories: list[str] = Field(default_factory=list)
-    assign_category: str | None = None
-    flatten: bool = False
-
-
-class RenameItemDatasetTransformOp(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    kind: Literal['rename_item'] = 'rename_item'
-    column: str
-    old_item: str
-    new_item: str
-
-
-class RenameColumnDatasetTransformOp(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    kind: Literal['rename_column'] = 'rename_column'
-    column: str
-    new_name: str | None = None
-
-
-class DropNullsDatasetTransformOp(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    kind: Literal['drop_nulls'] = 'drop_nulls'
-
-
-class LimitYearsDatasetTransformOp(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    kind: Literal['limit_years'] = 'limit_years'
-    min_year: int | None = None
-    max_year: int | None = None
-
-
-class ForecastFromDatasetTransformOp(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    kind: Literal['forecast_from'] = 'forecast_from'
-    year: int
-
-
-type DatasetTransformOp = (
-    SelectColumnDatasetTransformOp
-    | FilterColumnDatasetTransformOp
-    | FilterDimensionDatasetTransformOp
-    | RenameItemDatasetTransformOp
-    | RenameColumnDatasetTransformOp
-    | DropNullsDatasetTransformOp
-    | LimitYearsDatasetTransformOp
-    | ForecastFromDatasetTransformOp
-)
-
-
-class DatasetTransformPipelineDef(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    operations: list[DatasetTransformOp] = Field(default_factory=list)
-
-
-def input_dataset_filter_to_transform_op(filter_def: InputDatasetFilterDef) -> DatasetTransformOp:
+    A legacy dimension filter conflates filtering and assignment, so it can
+    expand into two ops. The runtime applies the branches in the order
+    reproduced here: filter (by group or category) or assign, then flatten.
+    """
     if isinstance(filter_def, ColumnDatasetFilterDef):
-        return FilterColumnDatasetTransformOp(**filter_def.model_dump())
+        return [FilterColumnOp(**filter_def.model_dump())]
     if isinstance(filter_def, DimensionDatasetFilterDef):
-        return FilterDimensionDatasetTransformOp(**filter_def.model_dump())
+        ops: list[PortTransformOp] = []
+        if filter_def.assign_category is not None and not filter_def.groups and not filter_def.categories:
+            ops.append(AssignDimensionOp(dimension=filter_def.dimension, category=filter_def.assign_category))
+            if filter_def.flatten:
+                ops.append(FilterDimensionOp(dimension=filter_def.dimension, flatten=True))
+            return ops
+        if filter_def.assign_category is not None:
+            raise ValueError(
+                f'Dimension filter for {filter_def.dimension!r} both selects and assigns categories;'
+                + ' the runtime ignores the assignment, so the intent is unclear'
+            )
+        return [
+            FilterDimensionOp(
+                dimension=filter_def.dimension,
+                groups=filter_def.groups,
+                categories=filter_def.categories,
+                flatten=filter_def.flatten,
+            )
+        ]
     if isinstance(filter_def, RenameColumnDatasetFilterDef):
-        return RenameColumnDatasetTransformOp(column=filter_def.rename_col, new_name=filter_def.value)
+        return [RenameColumnOp(column=filter_def.rename_col, new_name=filter_def.value)]
     assert isinstance(filter_def, RenameItemDatasetFilterDef)
     col, old_item = filter_def.rename_item.split('|', 1)
-    return RenameItemDatasetTransformOp(column=col, old_item=old_item, new_item=filter_def.value)
+    return [RenameItemOp(column=col, old_item=old_item, new_item=filter_def.value)]
 
 
 class InputDatasetDef(I18nBaseModel):
@@ -187,18 +138,39 @@ class InputDatasetDef(I18nBaseModel):
     unit: Unit | None = None
     output_dimensions: list[DimensionRef] | None = None
 
-    def to_transform_pipeline(self) -> DatasetTransformPipelineDef:
-        operations: list[DatasetTransformOp] = []
-        if self.column is not None:
-            operations.append(SelectColumnDatasetTransformOp(column=self.column))
-        operations.extend(input_dataset_filter_to_transform_op(filter_def) for filter_def in self.filters)
+    def to_transform_pipeline(self) -> PortTransformPipeline:
+        """
+        Convert the legacy flat fields into an ordered pipeline.
+
+        The order reproduces what the runtime actually does, so that executing
+        the pipeline literally is equivalent to the current behaviour:
+
+        1. ``rename_column`` — applied before anything else looks at columns
+           (``_filter_and_process_df``)
+        2. metric selection — *not* an op; it is the binding's source reference
+        3. ``set_forecast_from`` — forecast synthesis precedes the other filters
+        4. the remaining filters, in their declared order (``_filter_df``)
+        5. ``filter_temporal`` then ``drop_nulls`` (``_process_output``)
+        6. ``interpolate`` — last, in ``post_process``
+
+        Unit coercion is not an op either; it belongs to the binding.
+        """
+        operations: list[PortTransformOp] = []
+        rename_cols = [f for f in self.filters if isinstance(f, RenameColumnDatasetFilterDef)]
+        other_filters = [f for f in self.filters if not isinstance(f, RenameColumnDatasetFilterDef)]
+        for filter_def in rename_cols:
+            operations.extend(input_dataset_filter_to_ops(filter_def))
         if self.forecast_from is not None:
-            operations.append(ForecastFromDatasetTransformOp(year=self.forecast_from))
-        if self.dropna:
-            operations.append(DropNullsDatasetTransformOp())
+            operations.append(SetForecastFromOp(year=self.forecast_from))
+        for filter_def in other_filters:
+            operations.extend(input_dataset_filter_to_ops(filter_def))
         if self.min_year is not None or self.max_year is not None:
-            operations.append(LimitYearsDatasetTransformOp(min_year=self.min_year, max_year=self.max_year))
-        return DatasetTransformPipelineDef(operations=operations)
+            operations.append(FilterTemporalOp(min_year=self.min_year, max_year=self.max_year))
+        if self.dropna:
+            operations.append(DropNullsOp())
+        if self.interpolate:
+            operations.append(InterpolateOp())
+        return PortTransformPipeline(operations=operations)
 
 
 class DatasetPortSpec(I18nBaseModel):
@@ -225,8 +197,16 @@ class DatasetPortSpec(I18nBaseModel):
     dropna: bool | None = None
     min_year: int | None = None
     max_year: int | None = None
+    interpolate: bool = False
     unit: Unit | None = None
     output_dimensions: list[DimensionRef] | None = None
+    """
+    Dimensions the binding claims to produce.
+
+    Authored override of what the dataset schema plus the transform pipeline
+    should derive. Read-only over the API and slated for removal; see
+    `docs/architecture/dimension-constraints.md`.
+    """
 
     @classmethod
     def from_input_dataset(cls, ds_def: InputDatasetDef) -> DatasetPortSpec:
@@ -236,6 +216,7 @@ class DatasetPortSpec(I18nBaseModel):
             column=ds_def.column,
             forecast_from=ds_def.forecast_from,
             filters=ds_def.filters,
+            interpolate=ds_def.interpolate,
             dropna=ds_def.dropna,
             min_year=ds_def.min_year,
             max_year=ds_def.max_year,
@@ -254,6 +235,7 @@ class DatasetPortSpec(I18nBaseModel):
             dropna=self.dropna,
             min_year=self.min_year,
             max_year=self.max_year,
+            interpolate=self.interpolate,
             unit=self.unit,
             output_dimensions=self.output_dimensions,
         )
@@ -394,3 +376,26 @@ class NodeSpec(I18nBaseModel):
     @cached_property
     def input_port_by_id(self) -> dict[UUID, InputPortDef]:
         return {port.id: port for port in self.input_ports}
+
+    @cached_property
+    def input_port_by_identifier(self) -> dict[str, InputPortDef]:
+        """Input ports that have a human-readable identifier, keyed by it."""
+        return {port.identifier: port for port in self.input_ports if port.identifier is not None}
+
+    @cached_property
+    def output_port_by_identifier(self) -> dict[str, OutputPortDef]:
+        """Output ports that have a human-readable identifier, keyed by it."""
+        return {port.identifier: port for port in self.output_ports if port.identifier is not None}
+
+    @model_validator(mode='after')
+    def validate_port_identifiers(self) -> NodeSpec:
+        """Port identifiers must be unique within their direction, since they name the port."""
+        for direction, ports in (('input', self.input_ports), ('output', self.output_ports)):
+            seen: set[str] = set()
+            for port in ports:
+                if port.identifier is None:
+                    continue
+                if port.identifier in seen:
+                    raise ValueError(f'Duplicate {direction} port identifier {port.identifier!r} on node {self.identifier!r}')
+                seen.add(port.identifier)
+        return self

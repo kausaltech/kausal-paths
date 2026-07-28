@@ -30,7 +30,7 @@ if TYPE_CHECKING:
         DimensionCategory as DimensionCategoryModel,
     )
 
-    from nodes.defs.binding_def import DatasetPortBindingDef
+    from nodes.defs.binding_def import DatasetBindingDef
     from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
     from nodes.metric import DimensionalMetric
@@ -410,7 +410,7 @@ class DatasetType:
             port = DatasetPortType(
                 id=sb.ID(str(dp.uuid)),
                 uuid=dp.uuid,
-                node_ref=NodePortRef(node_id=sb.ID(str(dp.node.identifier)), port_id=dp.port_id),
+                port_ref=NodePortRef(node_id=sb.ID(str(dp.node.identifier)), port_id=dp.port_id),
                 metric=None,
                 external_dataset_id=None,
                 external_metric_id=dp.metric.name if dp.metric else None,
@@ -437,8 +437,8 @@ class DatasetType:
         return obj
 
     @classmethod
-    def from_binding(cls, binding: DatasetPortBindingDef) -> DatasetType | None:
-        """Construct from a DatasetPortBindingDef, loading the DB model by UUID."""
+    def from_binding(cls, binding: DatasetBindingDef) -> DatasetType | None:
+        """Construct from a DatasetBindingDef, loading the DB model by UUID."""
         from nodes.graphql.types.graph import _dataset_external_ref_to_gql
 
         if binding.dataset_uuid is None:

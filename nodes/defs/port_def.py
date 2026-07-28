@@ -20,6 +20,14 @@ class InputPortDef(I18nBaseModel):
     """Definition of a node input port (stored in NodeConfig.input_ports JSONField)."""
 
     id: UUID
+    identifier: MixedCaseIdentifier | None = None
+    """
+    Optional human-readable name for the port, unique among the node's input
+    ports. This is the name the port is addressed by outside the API — most
+    importantly in formulas, where a port identifier is a variable. Optional
+    because ports synced from YAML often have no name worth keeping (their
+    key was an index or a label with spaces).
+    """
     label: I18nString | None = None
     quantity: QuantityKindRef | None = None
     unit: Unit | None = None
@@ -43,6 +51,14 @@ class OutputPortDef(I18nBaseModel):
     """
 
     id: UUID
+    identifier: MixedCaseIdentifier | None = None
+    """
+    Optional human-readable name for the port, unique among the node's output
+    ports. Distinct from ``column_id``: this names the port in the node's
+    namespace, while ``column_id`` names the physical metric column in the
+    output frame. They usually agree, and ``identifier`` defaults to
+    ``column_id`` when only the latter is known.
+    """
     label: I18nString | None = None
     quantity: QuantityKindRef | None = None
     unit: Unit

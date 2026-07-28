@@ -22,6 +22,7 @@ from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_i
 from kausal_common.users import user_or_none
 
 from paths import gql
+from paths.identifiers import identifier_or_none
 
 from nodes.defs import FormulaConfig, SimpleConfig
 from nodes.defs.edge_def import (
@@ -311,6 +312,7 @@ class ActionConfigInput(StrawberryPydanticType[ActionConfig]):
 @sb.input
 class InputPortInput:
     id: UUID | None = None
+    identifier: str | None = None
     label: str | None = None
     quantity: str | None = None
     unit: str | None = None
@@ -322,6 +324,7 @@ class InputPortInput:
 @sb.input
 class OutputPortInput:
     id: UUID | None = None
+    identifier: str | None = None
     label: str | None = None
     quantity: str | None = None
     unit: str
@@ -553,9 +556,10 @@ def _generated_port_id(node_identifier: str, direction: str, key: str) -> UUID:
 
 
 def _input_port_to_def(node_identifier: str, index: int, port: InputPortInput) -> InputPortDef:
-    key = port.label or port.quantity or str(index)
+    key = port.identifier or port.label or port.quantity or str(index)
     return InputPortDef(
         id=port.id or _generated_port_id(node_identifier, 'input', key),
+        identifier=port.identifier or identifier_or_none(port.label or port.quantity),
         label=port.label,
         quantity=port.quantity,
         unit=unit_registry.parse_units(port.unit) if port.unit is not None else None,
@@ -566,9 +570,10 @@ def _input_port_to_def(node_identifier: str, index: int, port: InputPortInput) -
 
 
 def _output_port_to_def(node_identifier: str, index: int, port: OutputPortInput) -> OutputPortDef:
-    key = port.column_id or port.label or port.quantity or str(index)
+    key = port.identifier or port.column_id or port.label or port.quantity or str(index)
     return OutputPortDef(
         id=port.id or _generated_port_id(node_identifier, 'output', key),
+        identifier=port.identifier or identifier_or_none(port.column_id or port.label or port.quantity),
         label=port.label,
         quantity=port.quantity,
         unit=unit_registry.parse_units(port.unit),
@@ -582,6 +587,7 @@ def _output_metric_to_port_def(node_identifier: str, metric: OutputMetricInput, 
     column_id = metric.column_id or metric.id
     return OutputPortDef(
         id=metric.port_id or _generated_port_id(node_identifier, 'output', metric.id),
+        identifier=identifier_or_none(metric.id),
         label=metric.label,
         quantity=metric.quantity,
         unit=unit_registry.parse_units(metric.unit),

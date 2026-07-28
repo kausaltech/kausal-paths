@@ -10,7 +10,7 @@ from paths.graphql_helpers import pass_context
 
 from nodes.actions.action import ActionNode
 from nodes.context import Context
-from nodes.defs.binding_def import DatasetPortBindingDef
+from nodes.defs.binding_def import DatasetBindingDef
 from nodes.defs.edge_def import (
     AssignCategoryTransformation,
     EdgeTransformation,
@@ -80,8 +80,8 @@ EdgeTransformationType = Annotated[
 class NodeEdgeType(EditableEntity):
     id: sb.ID
     uuid: UUID
-    from_ref: NodePortRef
-    to_ref: NodePortRef
+    from_ref: NodePortRef = sb.field(description='Reference to the source node and output port.')
+    port_ref: NodePortRef = sb.field(description='Reference to the node and input port this edge binds to.')
     tags: list[str]
 
     _node: sb.Private['Node | None'] = None
@@ -118,7 +118,7 @@ class NodeEdgeType(EditableEntity):
             id=sb.ID(str(binding.id)),
             uuid=binding.id if isinstance(binding.id, UUID) else UUID(str(binding.id)),
             from_ref=NodePortRef(node_id=sb.ID(str(binding.from_ref.node_id)), port_id=binding.from_ref.port_id),
-            to_ref=NodePortRef(node_id=sb.ID(str(binding.to_ref.node_id)), port_id=binding.to_ref.port_id),
+            port_ref=NodePortRef(node_id=sb.ID(str(binding.port_ref.node_id)), port_id=binding.port_ref.port_id),
             tags=binding.tags,
         )
         edge._node = node
@@ -130,7 +130,7 @@ class NodeEdgeType(EditableEntity):
             id=sb.ID(str(edge.uuid)),
             uuid=edge.uuid,
             from_ref=NodePortRef(node_id=sb.ID(str(edge.from_node.identifier)), port_id=edge.from_port),
-            to_ref=NodePortRef(node_id=sb.ID(str(edge.to_node.identifier)), port_id=edge.to_port),
+            port_ref=NodePortRef(node_id=sb.ID(str(edge.to_node.identifier)), port_id=edge.to_port),
             tags=edge.tags or [],
         )
         obj._transformations = list(edge.transformations)
@@ -173,7 +173,7 @@ class DatasetMetricRefType:
     label: str = sb.field(description='Human-readable label of the metric.')
 
     @classmethod
-    def from_binding(cls, binding: DatasetPortBindingDef) -> DatasetMetricRefType | None:
+    def from_binding(cls, binding: DatasetBindingDef) -> DatasetMetricRefType | None:
         if binding.metric_uuid is None:
             return None
         return DatasetMetricRefType(
@@ -191,13 +191,13 @@ class DatasetMetricRefType:
         )
 
 
-@pydantic_type(DatasetPortBindingDef)
+@pydantic_type(DatasetBindingDef)
 class DatasetPortType(EditableEntity):
     """Binding of an external dataset metric to one node input port."""
 
     id: sb.ID = sb.field(description='Globally unique identifier of this dataset-port binding.')
     uuid: UUID
-    node_ref: NodePortRef = sb.field(description='Reference to the node that owns the bound input port.')
+    port_ref: NodePortRef = sb.field(description='Reference to the node and input port this dataset binds to.')
     metric: DatasetMetricRefType | None = sb.field(description='Dataset metric object bound to this port.')
     external_dataset_id: str | None = sb.field(
         description='Stable identifier of the external dataset, usually the dataset repo path without extension.'
@@ -243,13 +243,13 @@ class DatasetPortType(EditableEntity):
             return []
 
     @classmethod
-    def from_binding(cls, binding: DatasetPortBindingDef, node: Node | None = None) -> DatasetPortType:
+    def from_binding(cls, binding: DatasetBindingDef, node: Node | None = None) -> DatasetPortType:
         from datasets.graphql.types import DatasetType
 
         port = DatasetPortType(
             id=sb.ID(str(binding.id)),
             uuid=binding.id if isinstance(binding.id, UUID) else UUID(str(binding.id)),
-            node_ref=NodePortRef(node_id=sb.ID(str(binding.node_ref.node_id)), port_id=binding.node_ref.port_id),
+            port_ref=NodePortRef(node_id=sb.ID(str(binding.port_ref.node_id)), port_id=binding.port_ref.port_id),
             metric=DatasetMetricRefType.from_binding(binding),
             external_dataset_id=binding.external_dataset_id,
             external_metric_id=binding.external_metric_id,
@@ -311,8 +311,8 @@ def _dataset_external_ref_to_gql(external_ref: object) -> DatasetExternalRefType
     )
 
 
-def _external_dataset_id_from_dataset(dataset: DatasetModel | DatasetPortBindingDef) -> str | None:
-    if isinstance(dataset, DatasetPortBindingDef):
+def _external_dataset_id_from_dataset(dataset: DatasetModel | DatasetBindingDef) -> str | None:
+    if isinstance(dataset, DatasetBindingDef):
         external_ref = dataset.dataset_external_ref
         if isinstance(external_ref, dict):
             dataset_id = external_ref.get('dataset_id')

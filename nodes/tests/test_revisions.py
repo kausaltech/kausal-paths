@@ -869,7 +869,7 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
     instanceEditor(instanceId: $instanceId) {
         createEdge(input: $input) {
             __typename
-            ... on NodeEdgeType { fromRef { nodeId portId } toRef { nodeId portId } }
+            ... on NodeEdgeType { fromRef { nodeId portId } portRef { nodeId portId } }
             ... on OperationInfo { messages { kind message } }
         }
     }

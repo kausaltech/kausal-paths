@@ -317,21 +317,41 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     return node
 
 
-def _dataset_port_group_key(port: DatasetPort) -> tuple[str, str]:
+def _dataset_port_group_key(port: DatasetPort) -> tuple[int, str]:
+    """
+    Identify the binding a port belongs to.
+
+    ``dataset_index`` *is* binding identity — it is the position of the binding
+    in the owning node's ``input_dataset_instances``, and several ports share it
+    when one column-less binding expands to a port per metric. The dataset id is
+    part of the key only as a safety net for rows written before
+    ``dataset_index`` existed (migration 0043 has no backfill, so those all have
+    index 0); a re-sync makes it redundant.
+    """
     dataset_id = port.dataset.identifier or str(port.dataset.uuid)
-    spec_json = port.spec.model_dump_json(exclude_defaults=True, exclude_none=True)
-    return (dataset_id, spec_json)
+    return (port.dataset_index, dataset_id)
 
 
 def _serialize_dataset_ports(dataset_ports: list[DatasetPort]) -> list[dict[str, Any]]:
-    grouped: dict[tuple[str, str], list[DatasetPort]] = {}
+    grouped: dict[tuple[int, str], list[DatasetPort]] = {}
     for port in dataset_ports:
         grouped.setdefault(_dataset_port_group_key(port), []).append(port)
 
     input_datasets: list[dict[str, Any]] = []
-    for ports in grouped.values():
+    for (dataset_index, dataset_id), ports in grouped.items():
         first = ports[0]
-        dataset_id = first.dataset.identifier or str(first.dataset.uuid)
+        specs = {port.spec.model_dump_json(exclude_defaults=True, exclude_none=True) for port in ports}
+        if len(specs) > 1:
+            # The spec belongs to the binding, not to the individual port. A
+            # divergence means the DB mirror is stale or was edited per-port;
+            # the first port wins, and a re-sync fixes it.
+            logger.warning(
+                'Node {}: dataset ports for binding {} ({}) have {} differing specs; using the first',
+                first.node.identifier,
+                dataset_index,
+                dataset_id,
+                len(specs),
+            )
         ds_def = first.spec.to_input_dataset(id=dataset_id)
         input_datasets.append(ds_def.model_dump(mode='json', exclude_defaults=True, exclude_none=True))
     return input_datasets

@@ -8,7 +8,7 @@ stored on InstanceConfig.spec and NodeConfig.spec.
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, overload
@@ -19,7 +19,10 @@ from loguru import logger
 from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
 from kausal_common.i18n.pydantic import TranslatedString, get_modeltrans_attrs_from_str, set_i18n_context
 
+from paths.identifiers import identifier_or_none
+
 from nodes.actions.action import ActionNode
+from nodes.constants import VALUE_COLUMN
 from nodes.datasets import DatasetWithFilters, DVCDataset
 from nodes.defs import (
     ActionConfig,
@@ -338,6 +341,7 @@ def _apply_input_port_multi_hints(node: Node, ports: list[InputPortDef], candida
         group_dimensions = list(_effective_input_dimension_ids(node, first.edge))
 
         first.port.id = group_port_id
+        first.port.identifier = identifier_or_none(first.group)
         first.port.multi = True
         first.port.quantity = first.metric.quantity
         first.port.unit = node.unit or first.metric.unit
@@ -383,6 +387,20 @@ def _metric_for_column(node: Node, column: str) -> NodeMetric | None:
     return None
 
 
+def _port_identifier_for_column(column: str) -> str | None:
+    """
+    Derive a port identifier from the bound dataset column, if it makes a usable name.
+
+    A port identifier is meant to be a name a person uses — a formula variable,
+    later on. The generic ``Value`` column says nothing about what the port
+    carries, and legacy wide-DVC columns are not identifier-shaped at all. Those
+    ports stay unnamed rather than filling the namespace with noise.
+    """
+    if column == VALUE_COLUMN:
+        return None
+    return identifier_or_none(column)
+
+
 def _dataset_input_port_for_column(
     node: Node,
     dataset_index: int,
@@ -392,6 +410,7 @@ def _dataset_input_port_for_column(
     metric = _metric_for_column(node, column)
     return InputPortDef(
         id=_dataset_port_id(node, dataset_index, column),
+        identifier=_port_identifier_for_column(column),
         unit=metric.unit if metric is not None else getattr(dataset, 'unit', None),
         quantity=metric.quantity if metric is not None else None,
     )
@@ -454,8 +473,13 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
             edge._to_port_ids.append(str(port_id))
             assert from_metric.id not in edge._from_output_metric_ids
             edge._from_output_metric_ids.append(from_metric.id)
+            if len(from_node.output_metrics) > 1:
+                port_identifier = identifier_or_none(f'{from_node.id}_{from_metric.id}')
+            else:
+                port_identifier = identifier_or_none(from_node.id)
             port = InputPortDef(
                 id=port_id,
+                identifier=port_identifier,
                 quantity=from_metric.quantity,
                 unit=from_metric.unit,
                 # TODO: multi & dimensions? tags? transformations?
@@ -478,7 +502,27 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
             port._edge_metric_id = from_metric.id
             ports.append(port)
     _apply_input_port_multi_hints(node, ports, multi_candidates)
+    _drop_ambiguous_port_identifiers(node.id, ports)
     return ports
+
+
+def _drop_ambiguous_port_identifiers(node_id: str, ports: list[InputPortDef]) -> None:
+    """
+    Clear identifiers that would collide within the node.
+
+    Derived names are not guaranteed unique: two datasets can expose the same
+    column, and two edges can come from the same source node. An unnamed port
+    is better than a mangled or wrongly-shared name, and a name can always be
+    assigned in the editor afterwards.
+    """
+    counts = Counter(port.identifier for port in ports if port.identifier is not None)
+    duplicates = {identifier for identifier, count in counts.items() if count > 1}
+    if not duplicates:
+        return
+    logger.debug('Node {}: dropping ambiguous input port identifiers {}', node_id, sorted(duplicates))
+    for port in ports:
+        if port.identifier in duplicates:
+            port.identifier = None
 
 
 def _export_output_ports(node: Node) -> list[OutputPortDef]:
@@ -495,6 +539,7 @@ def _export_output_ports(node: Node) -> list[OutputPortDef]:
         assert metric.unit is not None
         port = OutputPortDef(
             id=uuid_from_identifiers(node.context.instance, [node.id, metric_id]),
+            identifier=identifier_or_none(metric_id),
             label=_to_ts(metric.label),
             unit=metric.unit,
             quantity=metric.quantity or None,
@@ -517,6 +562,7 @@ def _input_dataset_def_from_instance(ds: DatasetWithFilters) -> InputDatasetDef:
         dropna=ds.dropna,
         min_year=ds.min_year,
         max_year=ds.max_year,
+        interpolate=ds.interpolate,
         unit=ds.unit,
     )
 

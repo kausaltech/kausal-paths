@@ -83,7 +83,7 @@ from paths.utils import (
     get_supported_languages,
 )
 
-from nodes.defs import DatasetPortBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
+from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
 from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.defs.node_defs import NodeKind
@@ -1606,11 +1606,10 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                         node_id=F('from_node__identifier'),
                         port_id=F('from_port'),
                     ),
-                    to_ref=JSONObject(
+                    port_ref=JSONObject(
                         node_id=F('to_node__identifier'),
                         port_id=F('to_port'),
                     ),
-                    to_port=F('to_port'),
                     transformations=JSONArray(),
                     tags=F('tags'),
                 ),
@@ -1623,7 +1622,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
             .annotate(
                 obj=JSONObject(
                     id=F('uuid'),
-                    node_ref=JSONObject(
+                    port_ref=JSONObject(
                         node_id=F('node__identifier'),
                         port_id=F('port_id'),
                     ),
@@ -1992,11 +1991,11 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         return [EdgeBindingDef.model_validate(port) for port in raw]
 
     @property
-    def port_dataset_bindings(self) -> list[DatasetPortBindingDef]:
+    def port_dataset_bindings(self) -> list[DatasetBindingDef]:
         if not hasattr(self, '_annotated_port_dataset_bindings'):
             raise RuntimeError('NodeConfig.port_dataset_bindings requires NodeConfigQuerySet.annotate_ports()')
         raw = self._annotated_port_dataset_bindings or []
-        return [DatasetPortBindingDef.model_validate(port) for port in raw]
+        return [DatasetBindingDef.model_validate(port) for port in raw]
 
 
 class NodeDataset(models.Model):
