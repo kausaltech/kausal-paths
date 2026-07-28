@@ -250,6 +250,23 @@ wall of differences.
 That last artifact is what makes progress through steps 2–4 measurable rather
 than asserted, and it is the reason the whole pipeline has to be scripted.
 
+Two things make the status check worth having rather than decorative:
+
+- **Mark each line `required` or `blocked`.** A `required` line is expected to
+  match and a failure is a regression that fails the run; a `blocked` line is a
+  known open gap, reported with its size but not enforced. Each answered question
+  flips one line from blocked to required, and from then on the check protects
+  the result. Without this split the check is either all-red (useless) or has to
+  be read by a human every time (forgettable).
+- **Key the lines on sector/subsector, not scope.** Scope is the obvious choice
+  and usually will not work: a model loses scope wherever an emission node has no
+  scope dimension, because the assignment happens on the edge into the total; and
+  inventories often report combined `scope 1+2` figures for some sectors. Pick a
+  key that is stable on both sides.
+
+Test the check by breaking something on purpose. A status check that has never
+gone red is not known to work.
+
 ## 10. When the city wants the inventory's errors reproduced
 
 Cities sometimes require the *main* model to carry the inventory's numbers even
