@@ -388,7 +388,7 @@ nodes:
     linear_interpolation: true
     values:
     - year: 2023
-      value: 946
+      value: 1035
     - year: 2030
       value: 216
     - year: 2035
@@ -549,12 +549,12 @@ nodes:
     action impacts pass through.
     Reporting view: deliberately NOT connected to net_emissions, where
     building_heating_emissions is already counted.
-    Known limitation, accepted by Cork: the split is proportional, so an action
+    Known limitation: the split is proportional, so an action
     targeting only residential buildings also shows a non-zero impact on
     commercial and industrial. The total impact is correct — read the totals.
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   is_outcome: true
   input_dimensions: [building_type, sector]
   output_dimensions: [building_type, sector]
