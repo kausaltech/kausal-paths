@@ -110,26 +110,36 @@ def db_instance_config() -> InstanceConfig:
     )
 
 
-def _register_dimensions(ic: InstanceConfig, dim_ids: list[str]) -> None:
+def _register_dimensions(ic: InstanceConfig, dim_ids: list[str], categories: dict[str, list[str]] | None = None) -> None:
     """
     Populate both spec.dimensions and the ORM Dimension/DimensionScope rows.
 
     The DB-sourced config loader validates that every dimension referenced
-    by InstanceSpec.dimensions exists in the ORM, so tests that assign
-    spec.dimensions must create the matching Dimension rows too.
+    by InstanceSpec.dimensions exists in the ORM (categories included), so
+    tests that assign spec.dimensions must create the matching rows too.
     """
     from django.contrib.contenttypes.models import ContentType
 
-    from kausal_common.datasets.models import Dimension, DimensionScope
+    from kausal_common.datasets.models import Dimension, DimensionCategory, DimensionScope
 
+    categories = categories or {}
     assert ic.spec is not None
-    ic.spec.dimensions = [{'id': dim_id, 'label': dim_id.replace('_', ' ').title(), 'categories': []} for dim_id in dim_ids]
+    ic.spec.dimensions = [
+        {
+            'id': dim_id,
+            'label': dim_id.replace('_', ' ').title(),
+            'categories': [{'id': cat_id, 'label': cat_id.title()} for cat_id in categories.get(dim_id, [])],
+        }
+        for dim_id in dim_ids
+    ]
     ic.save(update_fields=['spec'])
 
     ct = ContentType.objects.get_for_model(ic)
     for dim_id in dim_ids:
         dim = Dimension.objects.create(name=dim_id.replace('_', ' ').title())
         DimensionScope.objects.create(dimension=dim, scope_content_type=ct, scope_id=ic.pk, identifier=dim_id)
+        for cat_id in categories.get(dim_id, []):
+            DimensionCategory.objects.create(dimension=dim, identifier=cat_id, label=cat_id.title())
 
 
 @pytest.fixture
@@ -1083,10 +1093,10 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
                 }
                 transformations {
                     __typename
-                    ... on SelectCategoriesType {
+                    ... on FilterDimensionType {
                         dimension categories flatten exclude
                     }
-                    ... on AssignCategoryType {
+                    ... on AssignDimensionType {
                         dimension category
                     }
                     ... on FlattenType {
@@ -1129,7 +1139,8 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
         ),
     )
 
-    # Create
+    # Create; the deprecated legacy input vocabulary is still accepted, but it
+    # is stored and read back in the current one.
     data = gql_client.query_data(
         CREATE_EDGE,
         variables={
@@ -1138,6 +1149,9 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
                 'instanceId': str(db_instance_config.pk),
                 'fromNodeId': 'node_a',
                 'toNodeId': 'node_b',
+                'transformations': [
+                    {'selectCategories': {'dimension': 'sector', 'categories': ['buildings'], 'flatten': True}},
+                ],
             },
         },
     )
@@ -1148,6 +1162,15 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     assert edge['portRef']['nodeId'] == 'node_b'
     assert edge['portRef']['portId'] == str(_port_uuid('input'))
     assert edge['toRef'] == edge['portRef']
+    assert edge['transformations'] == [
+        {
+            '__typename': 'FilterDimensionType',
+            'dimension': 'sector',
+            'categories': ['buildings'],
+            'flatten': True,
+            'exclude': False,
+        },
+    ]
 
     # Delete
     edge_obj = NodeEdge.objects.get(instance=db_instance_config, from_node=nc_a, to_node=nc_b)
@@ -1308,6 +1331,10 @@ query ModelInstanceTest($id: ID!) {
                                     nodeId
                                     portId
                                 }
+                                transformations {
+                                    __typename
+                                    ... on FilterDimensionType { dimension categories flatten }
+                                }
                             }
                             ... on DatasetPortType {
                                 portRef {
@@ -1366,17 +1393,27 @@ def _make_output_port(id: str = 'default', unit: str = 'kt/a', quantity: str = '
 
 
 def test_model_instance_query(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.defs.transform_def import SelectCategoriesTransformation
     from nodes.models import NodeEdge
 
-    source = NodeConfigFactory.create(instance=db_instance_config, identifier='source_node')
-    target = NodeConfigFactory.create(instance=db_instance_config, identifier='queried_node')
+    _register_dimensions(db_instance_config, ['sector'], categories={'sector': ['buildings']})
+    source = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='source_node',
+        spec=_make_node_spec(output_ports=[_make_output_port()]),
+    )
+    target = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='queried_node',
+        spec=_make_node_spec(input_ports=[_make_input_port()], output_ports=[_make_output_port()]),
+    )
     NodeEdge.objects.create(
         instance=db_instance_config,
         from_node=source,
         to_node=target,
         from_port=_port_uuid('default'),
         to_port=_port_uuid('input'),
-        transformations=[],
+        transformations=[SelectCategoriesTransformation(dimension='sector', categories=['buildings'], flatten=True)],
         tags=[],
     )
 
@@ -1397,6 +1434,15 @@ def test_model_instance_query(gql_client: PathsTestClient, db_instance_config: I
     assert node_by_id['source_node']['editor']['layoutMeta']['primaryClass'] == 'GHOSTABLE_CONTEXT_SOURCE'
     assert node_by_id['source_node']['editor']['layoutMeta']['ghostTargets'] == ['queried_node']
     assert node_by_id['queried_node']['editor']['layoutMeta']['primaryClass'] == 'CONTEXT_SOURCE'
+
+    # Edge transformations are visible through the port-binding view, in the
+    # current vocabulary regardless of what the row stores.
+    (port,) = node_by_id['queried_node']['editor']['spec']['inputPorts']
+    (binding,) = port['bindings']
+    assert binding['__typename'] == 'NodeEdgeType'
+    assert binding['transformations'] == [
+        {'__typename': 'FilterDimensionType', 'dimension': 'sector', 'categories': ['buildings'], 'flatten': True},
+    ]
 
 
 def test_model_instance_query_avoids_n_plus_one_for_port_bindings(

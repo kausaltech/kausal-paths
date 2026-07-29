@@ -3,12 +3,11 @@ from __future__ import annotations
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from paths.identifiers import DatasetIdentifier, NodeIdentifier, NodePortIdentifier
 
-from .edge_def import EdgeTransformation
-from .transform_def import PortTransformOp, forecast_from_transformations
+from .transform_def import PortTransformOp, forecast_from_transformations, modernized_transformations
 
 
 class NodePortRef(BaseModel):
@@ -24,17 +23,23 @@ class PortBindingDef(BaseModel):
     Consumers that only care that a port *has* an input — validation, the
     editor, dimension-constraint propagation — work against this base.
 
-    ``transformations`` is deliberately not here yet. Dataset bindings will
-    carry ``list[PortTransformOp]``, but edge transformations still use the
-    legacy ``EdgeTransformation`` vocabulary, which has no home for the port
-    shape declarations that ``FlattenTransformation`` actually encodes. The
-    field moves onto this base once those declarations move onto
-    ``InputPortDef``. See `docs/architecture/dimension-constraints.md`.
+    ``transformations`` is presented in the current vocabulary regardless of
+    what the underlying row stores: legacy edge kinds are rewritten on
+    construction, so consumers of a binding never see two names for one idea.
     """
 
     id: UUID = Field(description='Globally unique identifier of the binding.')
     port_ref: NodePortRef = Field(description='Reference to the node and the input port this binds to.')
     tags: list[str] = Field(default_factory=list)
+    transformations: list[PortTransformOp] = Field(
+        default_factory=list,
+        description="The binding's transform pipeline, in execution order.",
+    )
+
+    @field_validator('transformations', mode='after')
+    @classmethod
+    def _modernize_transformations(cls, value: list[PortTransformOp]) -> list[PortTransformOp]:
+        return modernized_transformations(value)
 
 
 class EdgeBindingDef(PortBindingDef):
@@ -42,7 +47,6 @@ class EdgeBindingDef(PortBindingDef):
 
     kind: Literal['edge'] = 'edge'
     from_ref: NodePortRef = Field(description='Reference to the source node and output port.')
-    transformations: list[EdgeTransformation] = Field(default_factory=list)
 
 
 class DatasetBindingDef(PortBindingDef):
@@ -66,10 +70,6 @@ class DatasetBindingDef(PortBindingDef):
     external_metric_id: str | None = Field(
         default=None,
         description='Stable identifier of the external metric within the dataset.',
-    )
-    transformations: list[PortTransformOp] = Field(
-        default_factory=list,
-        description="The binding's transform pipeline, in execution order.",
     )
 
     @property

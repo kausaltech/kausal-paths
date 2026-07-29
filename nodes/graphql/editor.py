@@ -25,11 +25,6 @@ from paths import gql
 from paths.identifiers import identifier_or_none
 
 from nodes.defs import FormulaConfig, SimpleConfig
-from nodes.defs.edge_def import (
-    AssignCategoryTransformation,
-    FlattenTransformation,
-    SelectCategoriesTransformation,
-)
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.models import InstanceConfig, NodeConfig, NodeKindChoices
@@ -43,6 +38,7 @@ from .types.instance import InstanceType
 from .types.node import AnyNodeType, NodeInterface
 from .types.scenario import ScenarioType
 from .types.spec import InputPortType, OutputPortType
+from .types.transformations import EdgeTransformationInput, edge_transformations_from_input
 
 if TYPE_CHECKING:
     from strawberry import Some
@@ -56,8 +52,8 @@ if TYPE_CHECKING:
 
     from datasets.graphql.editor import DatasetEditorMutation
     from datasets.graphql.types import DataSourceType  # used in lazy strawberry annotations
-    from nodes.defs.edge_def import EdgeTransformation
-    from nodes.graphql.bindings import BindDatasetInput, DatasetBindingEditorMutation
+    from nodes.defs.transform_def import PortTransformOp
+    from nodes.graphql.bindings import BindDatasetInput, PortBindingEditorMutation
     from nodes.graphql.types.graph import DatasetPortType  # used in lazy strawberry annotations
 
 
@@ -203,34 +199,14 @@ def _resolve_source_port(info: gql.Info, from_node: NodeConfig, from_port: str) 
 def _resolve_edge_transformations(
     info: gql.Info,
     raw: list[EdgeTransformationInput] | None,
-) -> list[EdgeTransformation]:
-    """
-    Convert the one-of EdgeTransformationInput list into pydantic objects.
-
-    Mirrors ``EdgeTransformationType`` on the query side; exactly one of
-    ``selectCategories`` / ``assignCategory`` / ``flatten`` must be set per
-    list entry.
-    """
+) -> list[PortTransformOp]:
+    """Convert the one-of EdgeTransformationInput list into pydantic objects, in the current vocabulary."""
     if not raw:
         return []
-    out: list[EdgeTransformation] = []
-    for idx, entry in enumerate(raw):
-        sc = entry.select_categories if is_maybe_set(entry.select_categories) else None
-        ac = entry.assign_category if is_maybe_set(entry.assign_category) else None
-        fl = entry.flatten if is_maybe_set(entry.flatten) else None
-        if sum(v is not None for v in (sc, ac, fl)) != 1:
-            raise GraphQLValidationError(
-                info,
-                f'transformations[{idx}]: exactly one of selectCategories / assignCategory / flatten must be set',
-            )
-        if sc is not None:
-            out.append(sc.value.to_pydantic())
-        elif ac is not None:
-            out.append(ac.value.to_pydantic())
-        else:
-            assert fl is not None
-            out.append(fl.value.to_pydantic())
-    return out
+    try:
+        return edge_transformations_from_input(raw)
+    except ValueError as e:
+        raise GraphQLValidationError(info, str(e)) from None
 
 
 def _validate_edge_ports(info: gql.Info, from_node: NodeConfig, from_port: UUID, to_node: NodeConfig, to_port: UUID) -> None:
@@ -414,39 +390,6 @@ class UpdateNodeInput:
     tags: Maybe[list[str]]
     i18n: Maybe[sb.scalars.JSON]
     config: Maybe[NodeConfigInput]
-
-
-@pydantic_input(model=SelectCategoriesTransformation)
-class SelectCategoriesTransformationInput(StrawberryPydanticType[SelectCategoriesTransformation]):
-    dimension: auto
-    categories: auto
-    flatten: auto
-    exclude: auto
-
-
-@pydantic_input(model=AssignCategoryTransformation)
-class AssignCategoryTransformationInput(StrawberryPydanticType[AssignCategoryTransformation]):
-    dimension: auto
-    category: auto
-
-
-@pydantic_input(model=FlattenTransformation)
-class FlattenTransformationInput(StrawberryPydanticType[FlattenTransformation]):
-    dimension: auto
-
-
-@sb.input(one_of=True)
-class EdgeTransformationInput:
-    """
-    One-of input mirroring ``EdgeTransformationType`` on the query side.
-
-    Exactly one of ``selectCategories`` / ``assignCategory`` / ``flatten``
-    must be provided per list entry.
-    """
-
-    select_categories: Maybe[SelectCategoriesTransformationInput]
-    assign_category: Maybe[AssignCategoryTransformationInput]
-    flatten: Maybe[FlattenTransformationInput]
 
 
 @sb.input
@@ -1081,11 +1024,11 @@ class InstanceEditorMutation:
         )
         return DatasetEditorMutation(dataset=dataset, instance=ic)
 
-    @sb.field(description='Edit a dataset-to-port binding that belongs to this instance')
+    @sb.field(description='Edit an input-port binding (dataset or edge) that belongs to this instance')
     @staticmethod
     def binding_editor(
         info: gql.Info, root: sb.Parent[Me], binding_id: sb.ID
-    ) -> Annotated['DatasetBindingEditorMutation', sb.lazy('nodes.graphql.bindings')]:
+    ) -> Annotated['PortBindingEditorMutation', sb.lazy('nodes.graphql.bindings')]:
         from nodes.graphql.bindings import binding_editor
 
         return binding_editor(info, root.instance, binding_id)

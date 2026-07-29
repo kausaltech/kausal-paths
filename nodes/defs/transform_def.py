@@ -283,6 +283,29 @@ class FlattenTransformation(PortTransformOpBase):
 type EdgeTransformation = SelectCategoriesTransformation | AssignCategoryTransformation | FlattenTransformation
 
 
+type EdgeTransformOp = (
+    FilterDimensionOp
+    | AssignDimensionOp
+    | DropNullsOp
+    | FilterTemporalOp
+    | EnsureUnitOp
+    | SelectCategoriesTransformation
+    | AssignCategoryTransformation
+    | FlattenTransformation
+)
+"""
+What an edge binding may *store*: the edge-applicable current vocabulary plus
+the legacy kinds that existing rows still carry. Narrower than what an edge can
+currently *execute* — the runtime consumes only the dimension ops until
+``_get_output_for_target()`` runs the shared executor — which the mutation
+input types enforce.
+
+A plain union rather than a ``kind``-discriminated ``type`` alias only because
+Django's migration writer can serialize nothing else; the unique ``kind``
+literals still select the member during validation.
+"""
+
+
 type PortTransformOp = Annotated[
     FilterDimensionOp
     | AssignDimensionOp
@@ -338,6 +361,34 @@ def with_forecast_from(transformations: Sequence[PortTransformOp], year: int) ->
             insert_at = index + 1
     ops.insert(insert_at, SetForecastFromOp(year=year))
     return ops
+
+
+def modernized_transformations(transformations: Sequence[PortTransformOp]) -> list[PortTransformOp]:
+    """
+    Rewrite legacy edge kinds into the current vocabulary.
+
+    ``select_categories`` and ``assign_category`` say exactly what
+    ``filter_dimension`` and ``assign_dimension`` say. ``flatten`` is kept
+    as-is: it is a port shape declaration with no operation equivalent, and it
+    leaves this union for ``InputPortDef`` rather than through translation.
+    """
+    out: list[PortTransformOp] = []
+    for op in transformations:
+        match op:
+            case SelectCategoriesTransformation():
+                out.append(
+                    FilterDimensionOp(
+                        dimension=op.dimension,
+                        categories=list(op.categories),
+                        exclude=op.exclude,
+                        flatten=op.flatten,
+                    )
+                )
+            case AssignCategoryTransformation():
+                out.append(AssignDimensionOp(dimension=op.dimension, category=op.category))
+            case _:
+                out.append(op)
+    return out
 
 
 def without_transformations(transformations: Sequence[PortTransformOp], *kinds: str) -> list[PortTransformOp]:

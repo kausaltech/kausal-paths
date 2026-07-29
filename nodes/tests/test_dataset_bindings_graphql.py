@@ -1,9 +1,12 @@
 """
-GraphQL tests for binding datasets to input ports and editing what they do.
+GraphQL tests for input-port bindings: datasets bound to ports and edge bindings.
 
-The workflow these cover, which is the point of the surface: add an input port,
-bind a dataset metric to it, then change the transformations to keep one
-category of a dimension and drop the rest along with the dimension.
+The dataset workflow these cover, which is the point of the surface: add an
+input port, bind a dataset metric to it, then change the transformations to
+keep one category of a dimension and drop the rest along with the dimension.
+The edge tests cover the same ``bindingEditor`` resolving ``NodeEdge`` rows,
+with its own kind-typed update mutation and the legacy vocabulary presented
+and stored in the current one.
 """
 
 from typing import TYPE_CHECKING, Any
@@ -93,7 +96,7 @@ UPDATE_BINDING = gql("""
     mutation UpdateBinding($instanceId: ID!, $bindingId: ID!, $input: UpdateDatasetBindingInput!) {
       instanceEditor(instanceId: $instanceId) {
         bindingEditor(bindingId: $bindingId) {
-          updateBinding(input: $input) {
+          updateDatasetBinding(input: $input) {
             ... on DatasetPortType {
               id
               transformations {
@@ -236,7 +239,7 @@ def test_transformations_are_replaced_as_a_whole_list(gql_client: PathsTestClien
                 ]
             },
         },
-    )['instanceEditor']['bindingEditor']['updateBinding']
+    )['instanceEditor']['bindingEditor']['updateDatasetBinding']
 
     kinds = [t['__typename'] for t in updated['transformations']]
     assert kinds == ['SelectMetricType', 'IndexTemporalType', 'RemapLegacyYearsType', 'FilterDimensionType']
@@ -283,7 +286,7 @@ def test_dropping_the_generated_metric_selection_is_rejected(gql_client: PathsTe
 
 
 def test_edge_vocabulary_is_rejected_on_a_dataset_binding(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
-    """One union in the schema, but applicability still separates the kinds."""
+    """Applicability is the input type's field list: the edge vocabulary cannot even be expressed."""
     NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='consumer',
@@ -308,7 +311,7 @@ def test_edge_vocabulary_is_rejected_on_a_dataset_binding(gql_client: PathsTestC
             'bindingId': binding_id,
             'input': {'transformations': [{'selectCategories': {'dimension': 'sector', 'categories': ['a']}}]},
         },
-        assert_error_message='not valid for a dataset binding',
+        assert_error_message='DatasetTransformationInput',
     )
 
 
@@ -406,3 +409,143 @@ def test_deleting_a_binding_leaves_the_port(gql_client: PathsTestClient, db_inst
     nc.refresh_from_db()
     assert nc.spec is not None
     assert [port.identifier for port in nc.spec.input_ports] == ['heating']
+
+
+# ---------------------------------------------------------------------------
+# Edge bindings through the same bindingEditor
+# ---------------------------------------------------------------------------
+
+UPDATE_EDGE_BINDING = gql("""
+    mutation UpdateEdgeBinding($instanceId: ID!, $bindingId: ID!, $input: UpdateEdgeBindingInput!) {
+      instanceEditor(instanceId: $instanceId) {
+        bindingEditor(bindingId: $bindingId) {
+          updateEdgeBinding(input: $input) {
+            ... on NodeEdgeType {
+              id
+              tags
+              transformations {
+                __typename
+                ... on FilterDimensionType { dimension categories groups flatten exclude }
+                ... on AssignDimensionType { dimension category }
+                ... on FlattenType { dimension }
+              }
+            }
+            ... on OperationInfo { messages { kind message } }
+          }
+        }
+      }
+    }
+""")
+
+
+def _edge_between_two_nodes(ic: InstanceConfig, transformations: list[Any] | None = None):
+    from nodes.models import NodeEdge
+
+    unit = unit_registry.parse_units('kt/a')
+    producer = NodeConfigFactory.create(instance=ic, identifier='producer', spec=_node_spec())
+    consumer = NodeConfigFactory.create(
+        instance=ic,
+        identifier='consumer',
+        spec=_node_spec(input_ports=[InputPortDef(id=_port_id('input'), identifier='heating', unit=unit)]),
+    )
+    return NodeEdge.objects.create(
+        instance=ic,
+        from_node=producer,
+        from_port=_port_id('default'),
+        to_node=consumer,
+        to_port=_port_id('input'),
+        transformations=transformations or [],
+    )
+
+
+def test_edge_transformations_are_updated_through_the_binding_editor(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+):
+    edge = _edge_between_two_nodes(db_instance_config)
+
+    updated = gql_client.query_data(
+        UPDATE_EDGE_BINDING,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'bindingId': str(edge.uuid),
+            'input': {
+                'transformations': [
+                    {'filterDimension': {'dimension': 'sector', 'groups': ['industry'], 'flatten': True}},
+                    {'assignDimension': {'dimension': 'scope', 'category': 'scope1'}},
+                ],
+                'tags': ['difference'],
+            },
+        },
+    )['instanceEditor']['bindingEditor']['updateEdgeBinding']
+
+    assert updated['tags'] == ['difference']
+    assert [t['__typename'] for t in updated['transformations']] == ['FilterDimensionType', 'AssignDimensionType']
+    assert updated['transformations'][0]['groups'] == ['industry']
+
+    edge.refresh_from_db()
+    assert [op.kind for op in edge.transformations] == ['filter_dimension', 'assign_dimension']
+
+
+def test_legacy_edge_rows_are_presented_and_stored_in_the_current_vocabulary(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+):
+    """A tags-only update of a legacy row converges its stored transformations too."""
+    from nodes.defs.transform_def import SelectCategoriesTransformation
+
+    edge = _edge_between_two_nodes(
+        db_instance_config,
+        transformations=[SelectCategoriesTransformation(dimension='sector', categories=['buildings'], flatten=True)],
+    )
+
+    updated = gql_client.query_data(
+        UPDATE_EDGE_BINDING,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'bindingId': str(edge.uuid),
+            'input': {'tags': ['non_additive']},
+        },
+    )['instanceEditor']['bindingEditor']['updateEdgeBinding']
+
+    assert updated['transformations'] == [
+        {
+            '__typename': 'FilterDimensionType',
+            'dimension': 'sector',
+            'categories': ['buildings'],
+            'groups': [],
+            'flatten': True,
+            'exclude': False,
+        },
+    ]
+    edge.refresh_from_db()
+    assert [op.kind for op in edge.transformations] == ['filter_dimension']
+
+
+def test_the_kind_typed_update_mutations_reject_the_other_kind(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    edge = _edge_between_two_nodes(db_instance_config)
+
+    gql_client.query_errors(
+        UPDATE_BINDING,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'bindingId': str(edge.uuid),
+            'input': {'tags': []},
+        },
+        assert_error_message='use updateEdgeBinding',
+    )
+
+
+def test_deleting_an_edge_binding_leaves_the_ports(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import NodeEdge
+
+    edge = _edge_between_two_nodes(db_instance_config)
+
+    gql_client.query_data(
+        DELETE_BINDING,
+        variables={'instanceId': str(db_instance_config.pk), 'bindingId': str(edge.uuid)},
+    )
+
+    assert not NodeEdge.objects.filter(pk=edge.pk).exists()
+    consumer = edge.to_node
+    consumer.refresh_from_db()
+    assert consumer.spec is not None
+    assert [port.identifier for port in consumer.spec.input_ports] == ['heating']

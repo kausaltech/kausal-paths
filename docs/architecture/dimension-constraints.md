@@ -223,13 +223,19 @@ binding's source reference, not a transformation.
 ## Current state and next steps
 
 **Done:**
-- `NodeEdge.transformations` uses structured Pydantic types
-  (`SelectCategoriesTransformation`, `AssignCategoryTransformation`,
-  `FlattenTransformation`) stored via `SchemaField`.
-- Export and import round-trip through these types.
-- `edge_def.py` defines the transformation types.
-- `PortTransformOp` defines the target op vocabulary (dataset side only so
-  far); `PortBindingDef` gives edge and dataset bindings a common base.
+- `PortTransformOp` is the one vocabulary; dataset bindings execute it as a
+  pipeline, and `PortBindingDef` carries `transformations` for both kinds,
+  always presented in the current vocabulary.
+- `NodeEdge.transformations` stores the unified kinds: `select_categories` and
+  `assign_category` were migrated to `filter_dimension` / `assign_dimension`
+  (`0054`), sync emits the new kinds, and the legacy kinds survive only as
+  tolerated input. `flatten` remains stored as the placeholder for a port
+  shape declaration.
+- Editing over GraphQL: `bindingEditor` resolves both kinds;
+  `updateDatasetBinding` / `updateEdgeBinding` / `deleteBinding`, plus
+  `bindDataset` and `createEdge`. Each kind has its own `oneOf` input type,
+  so applicability is the input type's field list, introspectable by the
+  editor UI; `createEdge` still accepts the deprecated legacy fields.
 - Ports may carry an optional human-readable `identifier`.
 
 **Next, in dependency order.** The first three are prerequisites for
@@ -243,12 +249,15 @@ propagation, not independent work:
    may hold both an edge and a dataset — and it retires the
    `(node, dataset_index)` grouping that stands in for binding identity today.
 2. Move the ex-`FlattenTransformation` shape declarations onto
-   `InputPortDef`, then migrate `NodeEdge.transformations` to
-   `PortTransformOp`. These have to happen together — the op vocabulary
-   has no home for a shape declaration.
+   `InputPortDef` and retire the `flatten` kind.
 3. Rewrite `_get_output_for_node()` and `_get_output_for_target()` to
    consume the op pipeline at the consuming port instead of the legacy
-   `from_dimensions` / `to_dimensions` dicts on the producer.
+   `from_dimensions` / `to_dimensions` dicts on the producer. Until then,
+   `_transforms_to_config()` in `instance_from_db.py` is the seam that
+   translates stored transformations back into those dicts, and it bounds
+   what an edge can execute — which is why `EdgeTransformationInput` accepts
+   only the dimension-reshaping kinds for now. This step widens it with
+   `drop_nulls` / `filter_temporal` / `ensure_unit` (additive, non-breaking).
 4. Add node dimension signatures (requires/consumes/produces/transparent)
    to node classes or pipeline definitions.
 5. Implement upstream constraint propagation for the editor's validation

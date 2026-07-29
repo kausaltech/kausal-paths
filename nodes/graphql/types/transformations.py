@@ -1,10 +1,12 @@
 """
 GraphQL surface for a port binding's transformations.
 
-One union and one input type, shared by dataset bindings and edges — the schema
-should not have two vocabularies for the same idea. Which transformations a
-given binding kind may carry is enforced at mutation time by
-``unsupported_transformations_for_binding``, not by having separate types.
+One union on the read side, shared by dataset bindings and edges — the schema
+should not have two vocabularies for the same idea. On the write side there is
+one ``oneOf`` input per binding kind, so the field list *is* the applicability
+contract: the editor learns what an edge may carry from introspection, and an
+inapplicable transformation cannot even be expressed.
+``unsupported_transformations_for_binding`` stays as server-side defense.
 
 Editing is whole-list replacement: transformations have no identity of their
 own, so there is nothing for a granular add/remove/reorder API to address, and
@@ -40,6 +42,7 @@ from nodes.defs.transform_def import (
     SelectMetricOp,
     SetForecastFromOp,
     TagOperationOp,
+    modernized_transformations,
 )
 
 if TYPE_CHECKING:
@@ -264,8 +267,11 @@ class FlattenInput(StrawberryPydanticType[FlattenTransformation]):
     dimension: auto
 
 
-@sb.input(one_of=True, description='Exactly one transformation. Order in the containing list is execution order.')
-class PortTransformationInput:
+@sb.input(
+    one_of=True,
+    description='Exactly one transformation of a dataset binding. Order in the containing list is execution order.',
+)
+class DatasetTransformationInput:
     filter_dimension: Maybe[FilterDimensionInput]
     assign_dimension: Maybe[AssignDimensionInput]
     drop_nulls: Maybe[bool]
@@ -279,12 +285,34 @@ class PortTransformationInput:
     index_temporal: Maybe[bool]
     remap_legacy_years: Maybe[bool]
     tag_operation: Maybe[TagOperationInput]
-    select_categories: Maybe[SelectCategoriesInput]
-    assign_category: Maybe[AssignCategoryInput]
-    flatten: Maybe[FlattenInput]
 
 
-_INPUT_FIELDS = (
+@sb.input(
+    one_of=True,
+    description=(
+        'Exactly one transformation of an edge binding. Order in the containing list is '
+        'execution order. Only the dimension-reshaping transformations are accepted until '
+        'edges execute the shared transform pipeline.'
+    ),
+)
+class EdgeTransformationInput:
+    filter_dimension: Maybe[FilterDimensionInput]
+    assign_dimension: Maybe[AssignDimensionInput]
+    select_categories: Maybe[SelectCategoriesInput] = sb.field(
+        default=UNSET,
+        deprecation_reason='Use filterDimension instead.',
+    )
+    assign_category: Maybe[AssignCategoryInput] = sb.field(
+        default=UNSET,
+        deprecation_reason='Use assignDimension instead.',
+    )
+    flatten: Maybe[FlattenInput] = sb.field(
+        default=UNSET,
+        deprecation_reason='A port shape declaration, not a transformation; it moves onto the input port.',
+    )
+
+
+_DATASET_INPUT_FIELDS = (
     'filter_dimension',
     'assign_dimension',
     'drop_nulls',
@@ -298,6 +326,11 @@ _INPUT_FIELDS = (
     'index_temporal',
     'remap_legacy_years',
     'tag_operation',
+)
+
+_EDGE_INPUT_FIELDS = (
+    'filter_dimension',
+    'assign_dimension',
     'select_categories',
     'assign_category',
     'flatten',
@@ -313,9 +346,9 @@ _PARAMETERLESS: dict[str, Callable[[], PortTransformOp]] = {
 """Transformations with nothing to configure; given as ``true`` rather than an empty object."""
 
 
-def transformation_from_input(value: PortTransformationInput) -> PortTransformOp:
+def _transformation_from_one_of(value: object, field_names: tuple[str, ...]) -> PortTransformOp:
     """Convert one ``oneOf`` input entry into its pydantic transformation."""
-    for field_name in _INPUT_FIELDS:
+    for field_name in field_names:
         entry = getattr(value, field_name, None)
         if entry is None or entry is UNSET:
             continue
@@ -331,3 +364,12 @@ def transformation_from_input(value: PortTransformationInput) -> PortTransformOp
             return parameterless()
         return given.to_pydantic()
     raise ValueError('No transformation given; exactly one field must be set')
+
+
+def dataset_transformations_from_input(entries: list[DatasetTransformationInput]) -> list[PortTransformOp]:
+    return [_transformation_from_one_of(entry, _DATASET_INPUT_FIELDS) for entry in entries]
+
+
+def edge_transformations_from_input(entries: list[EdgeTransformationInput]) -> list[PortTransformOp]:
+    """Convert edge input entries, rewriting the deprecated legacy kinds into the current vocabulary."""
+    return modernized_transformations([_transformation_from_one_of(entry, _EDGE_INPUT_FIELDS) for entry in entries])

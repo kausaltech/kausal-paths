@@ -49,8 +49,8 @@ if TYPE_CHECKING:
         ActionGroup,
         FormulaConfig,
     )
-    from nodes.defs.edge_def import EdgeTransformation
     from nodes.defs.node_defs import NodeSpecExtra
+    from nodes.defs.transform_def import EdgeTransformOp
     from nodes.edges import Edge, EdgeDimension
     from nodes.instance import Instance
     from nodes.models import DatasetPort, InstanceConfig, NodeConfig
@@ -637,16 +637,16 @@ def _resolve_from_port(edge: Edge, from_node: NodeSpec, metric_id: str) -> Outpu
     )
 
 
-def edge_to_transforms(edge: Edge) -> list[EdgeTransformation]:
+def edge_to_transforms(edge: Edge) -> list[EdgeTransformOp]:
     """Convert runtime Edge dimension mappings to a structured transformation pipeline."""
-    from nodes.defs.edge_def import AssignCategoryTransformation, FlattenTransformation, SelectCategoriesTransformation
+    from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp, FlattenTransformation
 
-    transforms: list[EdgeTransformation] = []
+    transforms: list[EdgeTransformOp] = []
 
     for dim_id, ed in edge.from_dimensions.items():
         cat_refs = [cat.id for cat in ed.categories]
         transforms.append(
-            SelectCategoriesTransformation(
+            FilterDimensionOp(
                 dimension=dim_id,
                 categories=cat_refs,
                 flatten=ed.flatten,
@@ -666,7 +666,7 @@ def edge_to_transforms(edge: Edge) -> list[EdgeTransformation]:
             if len(ed.categories) != 1:
                 raise ValueError(f'to_dimensions can have only one category for now (got {len(ed.categories)} for {dim_id})')
             transforms.append(
-                AssignCategoryTransformation(
+                AssignDimensionOp(
                     dimension=dim_id,
                     category=ed.categories[0].id,
                 )

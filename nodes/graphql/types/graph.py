@@ -11,9 +11,8 @@ from paths.graphql_helpers import pass_context
 from nodes.actions.action import ActionNode
 from nodes.context import Context
 from nodes.defs.binding_def import DatasetBindingDef
-from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.instance_defs import ActionGroup
-from nodes.defs.transform_def import PortTransformOp
+from nodes.defs.transform_def import PortTransformOp, modernized_transformations
 from nodes.graphql.types.change_history import EditableEntity
 from nodes.graphql.types.metric import DimensionalMetricType
 
@@ -59,14 +58,14 @@ class NodeEdgeType(EditableEntity):
     _node: sb.Private['Node | None'] = None
     """The target node that this edge feeds into (set when resolving input port bindings)."""
 
-    _transformations: sb.Private[list[EdgeTransformation] | None] = None
+    _transformations: sb.Private[list[PortTransformOp] | None] = None
 
     @sb.field(
         graphql_type=list[PortTransformationType],
         description='Transformations applied to the source output, in execution order.',
     )
     @staticmethod
-    def transformations(root: 'NodeEdgeType') -> list[EdgeTransformation]:
+    def transformations(root: 'NodeEdgeType') -> list[PortTransformOp]:
         return root._transformations or []
 
     @sb.field(graphql_type=list[DimensionalMetricType])
@@ -97,6 +96,7 @@ class NodeEdgeType(EditableEntity):
             tags=binding.tags,
         )
         edge._node = node
+        edge._transformations = list(binding.transformations)
         return edge
 
     @classmethod
@@ -108,7 +108,9 @@ class NodeEdgeType(EditableEntity):
             port_ref=NodePortRef(node_id=sb.ID(str(edge.to_node.identifier)), port_id=edge.to_port),
             tags=edge.tags or [],
         )
-        obj._transformations = list(edge.transformations)
+        # Presented in the current vocabulary regardless of what the row stores,
+        # so clients read back what the mutations accept.
+        obj._transformations = modernized_transformations(edge.transformations)
         return obj
 
     @sb.field(

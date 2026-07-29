@@ -26,7 +26,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
 from django.db.models import F, OuterRef, Q
 from django.db.models.expressions import DatabaseDefault
-from django.db.models.functions import JSONArray, JSONObject
+from django.db.models.functions import JSONObject
 from django.db.models.manager import Manager
 from django.http import HttpRequest
 from django.utils import timezone
@@ -84,9 +84,9 @@ from paths.utils import (
 )
 
 from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
-from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.defs.node_defs import NodeKind
+from nodes.defs.transform_def import EdgeTransformOp
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
     EdgeSnapshot,
@@ -1610,7 +1610,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                         node_id=F('to_node__identifier'),
                         port_id=F('to_port'),
                     ),
-                    transformations=JSONArray(),
+                    transformations=F('transformations'),
                     tags=F('tags'),
                 ),
             )
@@ -2049,7 +2049,7 @@ class NodeEdge(EditableInstanceChild):
         max_length=200,
         help_text='Input port ID on the target node',
     )
-    transformations = SchemaField(schema=list[EdgeTransformation], default=list, blank=True)
+    transformations = SchemaField(schema=list[EdgeTransformOp], default=list, blank=True)
     tags = ArrayField(
         models.CharField(max_length=200),
         default=list,

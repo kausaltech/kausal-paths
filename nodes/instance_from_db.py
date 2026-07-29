@@ -22,7 +22,6 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.constants import VALUE_COLUMN
 from nodes.defs import ActionConfig, FormulaConfig, SimpleConfig
-from nodes.defs.edge_def import AssignCategoryTransformation, SelectCategoriesTransformation
 from nodes.defs.node_defs import NodeKind
 
 if TYPE_CHECKING:
@@ -30,9 +29,9 @@ if TYPE_CHECKING:
 
     from kausal_common.i18n.pydantic import I18nString
 
-    from nodes.defs.edge_def import EdgeTransformation
     from nodes.defs.instance_defs import ActionGroup, InstanceModelSpec
     from nodes.defs.node_defs import NodeSpec
+    from nodes.defs.transform_def import FilterDimensionOp, PortTransformOp
     from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge
     from nodes.scenario import Scenario
     from params.base import Parameter
@@ -403,26 +402,48 @@ if TYPE_CHECKING:
         to_node_identifier: str
 
 
-def _transforms_to_config(transforms: list[EdgeTransformation]) -> dict[str, list[dict[str, Any]]]:
-    """Convert structured EdgeTransformation list to the dict format Edge.from_config expects."""
+def _filter_dimension_to_config(t: FilterDimensionOp) -> dict[str, Any]:
+    d: dict[str, Any] = {'id': t.dimension}
+    if t.categories:
+        d['categories'] = list(t.categories)
+    if t.groups:
+        d['groups'] = list(t.groups)
+    if t.flatten:
+        d['flatten'] = True
+    if t.exclude:
+        d['exclude'] = True
+    return d
+
+
+def _transforms_to_config(transforms: Sequence[PortTransformOp]) -> dict[str, list[dict[str, Any]]]:
+    """
+    Convert a binding's transformations to the dict format Edge.from_config expects.
+
+    This is the seam between the stored vocabulary and the legacy runtime: until
+    ``_get_output_for_target()`` consumes the transform pipeline directly, only
+    what these dicts can express is executable on an edge — which is why the
+    edge mutations accept only the dimension-reshaping transformations.
+    """
+    from nodes.defs.transform_def import (
+        AssignDimensionOp,
+        FilterDimensionOp,
+        FlattenTransformation,
+        modernized_transformations,
+    )
+
     from_dims: list[dict[str, Any]] = []
     to_dims: list[dict[str, Any]] = []
-    from nodes.defs.edge_def import FlattenTransformation
 
-    for t in transforms:
-        if isinstance(t, SelectCategoriesTransformation):
-            d: dict[str, Any] = {'id': t.dimension}
-            if t.categories:
-                d['categories'] = list(t.categories)
-            if t.flatten:
-                d['flatten'] = True
-            if t.exclude:
-                d['exclude'] = True
-            from_dims.append(d)
-        elif isinstance(t, AssignCategoryTransformation):
-            to_dims.append({'id': t.dimension, 'categories': [t.category]})
-        elif isinstance(t, FlattenTransformation):
-            to_dims.append({'id': t.dimension, 'exclude': True, 'flatten': True})
+    for t in modernized_transformations(transforms):
+        match t:
+            case FilterDimensionOp():
+                from_dims.append(_filter_dimension_to_config(t))
+            case AssignDimensionOp():
+                to_dims.append({'id': t.dimension, 'categories': [t.category]})
+            case FlattenTransformation():
+                to_dims.append({'id': t.dimension, 'exclude': True, 'flatten': True})
+            case _:
+                raise ValueError(f'Edge transformation "{t.kind}" is not executable by the legacy edge runtime')
     result: dict[str, list[dict[str, Any]]] = {}
     if from_dims:
         result['from_dimensions'] = from_dims

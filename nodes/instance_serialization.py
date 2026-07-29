@@ -31,9 +31,9 @@ from kausal_common.i18n.pydantic import (
     get_translated_string_from_modeltrans,
 )
 
-from nodes.defs.edge_def import EdgeTransformation
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
+from nodes.defs.transform_def import EdgeTransformOp
 from nodes.page_snapshot import PageSnapshot
 
 if TYPE_CHECKING:
@@ -316,7 +316,7 @@ class EdgeSnapshot(ModelSnapshot):
     to_node: str
     from_port: UUID
     to_port: UUID
-    transformations: list[EdgeTransformation] = Field(default_factory=list)
+    transformations: list[EdgeTransformOp] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
 
     @classmethod
