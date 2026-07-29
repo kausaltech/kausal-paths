@@ -1077,6 +1077,10 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
                     nodeId
                     portId
                 }
+                toRef {
+                    nodeId
+                    portId
+                }
                 transformations {
                     __typename
                     ... on SelectCategoriesType {
@@ -1143,6 +1147,7 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     assert edge['fromRef']['nodeId'] == 'node_a'
     assert edge['portRef']['nodeId'] == 'node_b'
     assert edge['portRef']['portId'] == str(_port_uuid('input'))
+    assert edge['toRef'] == edge['portRef']
 
     # Delete
     edge_obj = NodeEdge.objects.get(instance=db_instance_config, from_node=nc_a, to_node=nc_b)

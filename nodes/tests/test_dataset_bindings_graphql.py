@@ -74,6 +74,7 @@ BIND_DATASET = gql("""
             ... on DatasetPortType {
               id
               portRef { nodeId portId }
+              nodeRef { nodeId portId }
               metric { name }
               transformations {
                 __typename
@@ -163,6 +164,7 @@ def test_add_port_then_bind_a_dataset_metric_to_it(gql_client: PathsTestClient, 
     )['instanceEditor']['nodeEditor']['bindDataset']
 
     assert binding['portRef']['portId'] == port['id']
+    assert binding['nodeRef'] == binding['portRef']
     assert binding['metric']['name'] == 'Energy'
     # A default list is generated, so a client needs no knowledge of the
     # generated markers just to create a working binding.
