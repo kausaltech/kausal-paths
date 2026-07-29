@@ -58,6 +58,19 @@ case-insensitively). These ride through to DVC as literal per-row values but are
 | `Description` | Longer per-row description. Folded into metric metadata. |
 | `UUID` | Stable identifier for the metric × dimension combination, letting a row be tracked across file revisions. Not a dimension; not required. |
 
+**These are per dimension-combination, not per metric.** The upload pivots metrics
+into columns, so a file with three metric rows sharing one set of dimension values
+becomes **one** stored row with **one** `Source`/`Comment` cell — the last one
+wins. If two metrics of the same row need different comments, the format cannot
+express it; split them into separate datasets or fold the distinction into the
+comment text. Give every metric row of a dimension combination the *same*
+`Comment`, as `data/cork/make_kpmg_building_heat.py` does, so the collapse is
+lossless.
+
+On import, `load_dvc_dataset` then attaches that single row comment to **every**
+metric's data point (`load_dvc_dataset.py:344`), so nine rows × three metrics
+yields 27 commented data points.
+
 ### Year columns
 
 Any column whose name is a year (`2018`, `2023`, `2030`…) is a value column, and
@@ -111,16 +124,44 @@ and what it replaced.
 ## 4. Upload
 
 ```bash
-python notebooks/upload_new_dataset.py \
+python -m notebooks.upload_new_dataset \
   --input-csv data/<city>/<file>.csv \
   --output-dvc <namespace> \
   --instance <instance-id> \
   --language en \
+  --source data/<city>/<city>_sources.csv \
   [-d <dataset_name>]      # omit to upload every Dataset group in the file
 ```
 
-`-d` filters to one `Dataset` group. Afterwards, `--pull-datasets` advances the
-YAML commit pointer to the new DVC commit.
+Three things that are easy to get wrong:
+
+- **Run it as a module** (`python -m notebooks.upload_new_dataset`), not as a
+  script path, so the project root is on `sys.path`.
+- **`--instance` takes an *instance* identifier, not a framework one** — e.g.
+  `cork-nzc`, not `nzc`. It is what the dimension and category names in the file
+  are validated against, so the wrong value validates against the wrong
+  dimensions.
+- **`--source` (`--sources-csv`) is not optional in practice.** Without it the
+  `Source` names are still written to `metadata['sources']`, but with
+  `authority`, `url` and `description` all null — the registry is never read. The
+  names survive; the provenance does not.
+
+Full flag list:
+
+| short | long | notes |
+|---|---|---|
+| `-i` | `--input-csv` | required |
+| `-o` | `--output-dvc` | DVC namespace, may be nested (`cork/kpmg`) |
+| `-c` | `--output-csv` | write locally instead of uploading |
+| `-s` | `--csv-separator` | |
+| `-e` | `--encoding` | |
+| `-l` | `--language` | default `en` |
+| `-d` | `--dataset` | filter to one `Dataset` group |
+| `-n` | `--instance` | validates dimensions/categories |
+| — | `--sources-csv` | the source registry; `--source` is an accepted prefix |
+
+Afterwards, `--pull-datasets` advances the YAML commit pointer to the new DVC
+commit.
 
 For flat NZC-style files where every dimension combination lives in one file, use
 `-d plain_csv_wide`, which sets `index_columns` to every column except `Value`,
@@ -149,3 +190,11 @@ plain_csv" for why including `Value` breaks the round trip.
   id, it is loaded instead of the DVC version, so a DVC upload will not be
   visible until the DB record is refreshed or deleted. See
   `data/cork/README.md` §"Procedure for updating cork-nzc DB datasets".
+- **Uploading is not importing.** `upload_new_dataset.py` puts the data in DVC;
+  `Source` and `Comment` become `DataSource` links and `DataPointComment` records
+  only when `load_dvc_dataset` runs. Until then the provenance is in the dataset
+  but invisible in the admin UI — which reads as "the comments were lost".
+
+  ```bash
+  python manage.py load_dvc_dataset <instance> <dataset-id>
+  ```
