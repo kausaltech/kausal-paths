@@ -2,7 +2,7 @@ id: cork-nzc
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a850daa791e9c13fa57b8cef16eb72feffbac0e9
+  commit: eb41e4ba9415421a4a9aad380f511793673fd726
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -294,6 +294,17 @@ dimensions:
   - id: ballyhooly_road
     label: Ballyhooly Road
 
+- id: measures
+  label_en: Measures
+  help_text_en: Which set of measures a projection assumes. Used by the KPMG 
+    Glidepath comparison view; the model's own projections use scenarios 
+    instead.
+  categories:
+  - id: wem
+    label_en: With existing measures
+  - id: wam
+    label_en: With additional measures
+
 - id: sector
   label_en: Sector
   label_fi: Sektori
@@ -336,6 +347,12 @@ dimensions:
     label_en: Public services
   - id: lulucf
     label_en: LULUCF
+  # KPMG reports agriculture as its own sector; the model carries it inside
+  # `other` (cost_type agriculture_afolu). Needed by the KPMG Glidepath
+  # reporting view — see docs/building-use-dimension.md and
+  # data/cork/kpmg_reconciliation.md.
+  - id: agriculture
+    label_en: Agriculture
 
 - id: ghg  # TODO Update the nzc.yaml dimension and drop this.
   label_en: Greenhouse gas
@@ -500,6 +517,126 @@ nodes:
     tags: [ef]
   params:
     formula: energy * ef
+
+- id: kpmg_building_heat_emissions
+  name_en: KPMG building heat emissions by type (inventory)
+  description_en: >
+    Non-electric building emissions per building type as reported in the KPMG
+    2023 BEI. Used only to derive the shares by which the model's own heating
+    emissions are split. The absolute values are on KPMG's fuel basis and are
+    NOT comparable with the model's useful-heat basis: the model's fossil heat
+    is 1023.7 GWh where KPMG's is 1652.1 GWh, and the model's 353.4 g/kWh factor
+    already absorbs that difference. Multiplying model heat energy by the KPMG
+    factor in this dataset understates emissions by 38%.
+    See data/cork/kpmg_reconciliation.md 9.1 and
+    docs/building-use-dimension.md 8.4.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [building_type, sector]
+  output_dimensions: [building_type, sector]
+  input_datasets:
+  - id: cork/kpmg/building_heat_factors
+    column: heat_emissions
+    tags: [extend_values]
+    forecast_from: 2024
+
+- id: building_heat_emissions_by_type
+  name_en: Building heat emissions by building type
+  description_en: >
+    The model's building heating emissions split across building types using
+    KPMG inventory shares, so the total equals the model by construction and all
+    action impacts pass through.
+    Reporting view: deliberately NOT connected to net_emissions, where
+    building_heating_emissions is already counted.
+    Known limitation, accepted by Cork: the split is proportional, so an action
+    targeting only residential buildings also shows a non-zero impact on
+    commercial and industrial. The total impact is correct — read the totals.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+  input_dimensions: [building_type, sector]
+  output_dimensions: [building_type, sector]
+  input_nodes:
+  - id: kpmg_building_heat_emissions
+    tags: [use_as_shares]
+  - id: building_heating_emissions
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions: []
+  params:
+    operations: add,use_as_shares
+
+# -------------- KPMG Glidepath projection (comparison view) --------------
+# KPMG's own 2023-2030 projection, taken as published rather than reimplemented.
+# Their method scales Cork's 2023 sector emissions by EPA national projection
+# indices overlaid with their own transport and residential analyses — it is not
+# built from an emission-factor trajectory, so there is no KPMG grid EF trend to
+# compare against the model's a41_replace_fossil_electricity. See
+# data/cork/kpmg_error_register.md entry 6.
+#
+# These are reporting views for side-by-side display: is_outcome, and NOT
+# connected to net_emissions. The comparison is deliberately between two
+# different kinds of projection — KPMG's top-down national-index one and the
+# model's bottom-up action-based one.
+
+- id: kpmg_glidepath
+  name_en: KPMG Glidepath projection
+  description_en: >
+    <b>NOTE! Select first one or the other set of measures to see sector split.</b></p>
+    KPMG's own projection of Cork's emissions to 2030, taken as published rather
+    than reimplemented, for side-by-side comparison with the model's scenarios.
+    Two variants: with existing measures (WEM) and with additional measures (WAM).
+
+    Method: KPMG scale Cork's 2023 sector emissions by EPA national projection
+    indices, overlaid with their own transport and residential-stock analyses. It
+    is NOT built from an emission-factor trajectory, so there is no KPMG grid
+    factor to compare against the model's a41_replace_fossil_electricity. Their
+    WEM has residential emissions RISING from 365 to 380 kt by 2030, which implies
+    little committed grid decarbonisation — the substantive disagreement with the
+    model.
+
+    Note that WEM is not a no-action baseline: it embeds the measures the EPA
+    national scenario already assumes, including grid decarbonisation and EV
+    uptake. It therefore sits between the model's baseline and its action
+    scenarios, and should not be read as the model's counterfactual.
+
+    Headline comparison for 2030: the model's decarbonisation scenario reaches
+    418 kt, below Cork's CAP target of 479, whereas KPMG's own additional-measures
+    pathway reaches 730 — leaving roughly 251 kt still to find against the same
+    target. Published KPMG totals are 914.83 (WEM) and 730.28 (WAM) against
+    977.95 in 2023.
+
+    The waste sector is excluded from this view. KPMG's Glidepath counts waste
+    scope 1 only (3.80 kt in 2023) where the model counts scope 1 and 3
+    (103.03 kt), so including it would show a 99 kt scope difference as if it were
+    a projection difference. Excluding it makes the comparison like-for-like; add
+    3.80 (WEM 2023) back to reconcile with KPMG's published totals.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+  input_dimensions: [measures, sector]
+  output_dimensions: [measures, sector]
+  input_datasets:
+  - id: cork/kpmg/kpmg_glidepath
+    column: glidepath
+    tags: [extend_values]
+    forecast_from: 2024
+    filters:
+    - column: sector
+      values: [waste]
+      exclude: true
+      drop_col: false
 
 # -------------- Local waste emissions --------------
 
