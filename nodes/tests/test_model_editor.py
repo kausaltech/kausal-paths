@@ -1800,6 +1800,111 @@ def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: 
         assert filter_op.column == 'action'
 
 
+def _column_less_sync_fixture(
+    db_instance_config: InstanceConfig,
+    *,
+    metric_names: list[str],
+    node_columns: list[str],
+):
+    """Build a runtime node + DB dataset pair for exercising the metric-to-port pairing."""
+    from types import SimpleNamespace
+
+    from nodes.datasets import DBDataset
+    from nodes.node import NodeMetric
+
+    dataset = DatasetFactory.create(identifier='pairing_dataset', scope=db_instance_config)
+    for name in metric_names:
+        DatasetMetricFactory.create(schema=dataset.schema, name=name, label=name.title(), unit='t/a')
+
+    context = cast('Context', SimpleNamespace(instance=SimpleNamespace(config=db_instance_config)))
+    ds_instance = DBDataset(
+        id='pairing_dataset',
+        context=context,
+        db_dataset_obj=dataset,
+        transformations=InputDatasetDef(id='pairing_dataset').to_transformations(),
+    )
+    node = cast(
+        'Node',
+        SimpleNamespace(
+            id='pairing_node',
+            context=context,
+            input_dataset_instances=[ds_instance],
+            output_metrics={
+                column: NodeMetric(unit='t/a', quantity='emissions', id=column.lower(), column_id=column)
+                for column in node_columns
+            },
+            edges=[],
+            input_dimensions={},
+        ),
+    )
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='pairing_node',
+        spec=NodeSpec(kind=NodeKind.SIMPLE, type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS)),
+    )
+    return node, nc
+
+
+def test_dataset_port_sync_pairs_a_renamed_metric_to_the_node_column(db_instance_config: InstanceConfig):
+    """
+    A schema metric named differently from the node column must still bind to a real port.
+
+    The port UUID comes from the node-side column (where the metric is
+    delivered); the metric FK names the source. Keying the port by the schema
+    metric name produced bindings pointing at ports absent from the node spec.
+    """
+    from types import SimpleNamespace
+
+    from nodes.models import DatasetPort
+    from nodes.spec_export import _export_input_ports, _update_dataset_ports
+
+    node, nc = _column_less_sync_fixture(db_instance_config, metric_names=['share'], node_columns=['Value'])
+
+    input_ports = _export_input_ports(node)
+    ctx = cast('Context', SimpleNamespace(nodes={'pairing_node': node}))
+    assert _update_dataset_ports(db_instance_config, ctx, {'pairing_node': nc}) == 1
+
+    binding = DatasetPort.objects.get(node=nc)
+    assert binding.metric.name == 'share'
+    assert binding.port_id in {port.id for port in input_ports}
+
+
+def test_dataset_port_sync_drops_unmatched_extra_metrics(db_instance_config: InstanceConfig):
+    """A metric with no defensible port gets no binding, as long as the dataset keeps at least one row."""
+    from types import SimpleNamespace
+
+    from nodes.models import DatasetPort
+    from nodes.spec_export import _update_dataset_ports
+
+    node, nc = _column_less_sync_fixture(
+        db_instance_config, metric_names=['emissions', 'foo', 'bar'], node_columns=['emissions', 'energy']
+    )
+
+    ctx = cast('Context', SimpleNamespace(nodes={'pairing_node': node}))
+    assert _update_dataset_ports(db_instance_config, ctx, {'pairing_node': nc}) == 1
+    assert DatasetPort.objects.get(node=nc).metric.name == 'emissions'
+
+
+def test_dataset_port_sync_keeps_an_unpairable_binding_alive(db_instance_config: InstanceConfig):
+    """
+    When nothing pairs, the rows stay (dangling) rather than disappear.
+
+    ``_serialize_dataset_ports`` rebuilds ``input_datasets`` from these rows,
+    so zero rows would silently remove the dataset from DB-sourced models —
+    worse than an editor binding whose port id is unresolved.
+    """
+    from types import SimpleNamespace
+
+    from nodes.models import DatasetPort
+    from nodes.spec_export import _update_dataset_ports
+
+    node, nc = _column_less_sync_fixture(db_instance_config, metric_names=['foo', 'bar'], node_columns=['emissions', 'energy'])
+
+    ctx = cast('Context', SimpleNamespace(nodes={'pairing_node': node}))
+    assert _update_dataset_ports(db_instance_config, ctx, {'pairing_node': nc}) == 2
+    assert {dp.metric.name for dp in DatasetPort.objects.filter(node=nc)} == {'foo', 'bar'}
+
+
 def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_config: InstanceConfig):
     from nodes.defs.node_defs import DatasetPortSpec
     from nodes.models import DatasetPort

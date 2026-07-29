@@ -380,6 +380,44 @@ def _dataset_port_id(node: Node, dataset_index: int, column: str) -> UUID:
     return uuid_from_identifiers(node.context.instance, [node.id, 'dataset', str(dataset_index), column])
 
 
+def _pair_schema_metrics_to_columns(
+    node: Node,
+    ds_instance: DatasetWithFilters,
+    metric_keys: list[str],
+) -> list[tuple[str, str]]:
+    """
+    Pair a column-less binding's dataset schema metrics with node columns.
+
+    Returns ``(port_column, metric_key)`` pairs: which input port delivers
+    which source metric. Name matches pair first (case-insensitively, since
+    schema metrics are lowercase identifiers while node columns are often
+    TitleCase, e.g. ``fuel`` feeding ``Fuel``); a lone leftover on both sides
+    pairs too, since a single remaining metric can only feed the single
+    remaining column. Anything still unmatched gets no binding — inventing a
+    mapping would be worse than omitting it, and a dangling binding worse
+    than a missing one.
+    """
+    columns = _dataset_binding_columns_for_node(node, ds_instance)
+    pairs: list[tuple[str, str]] = []
+    remaining_metrics = list(metric_keys)
+    remaining_columns = list(columns)
+    for column in columns:
+        match = next((metric for metric in remaining_metrics if metric.lower() == column.lower()), None)
+        if match is not None:
+            pairs.append((column, match))
+            remaining_metrics.remove(match)
+            remaining_columns.remove(column)
+    if len(remaining_metrics) == 1 and len(remaining_columns) == 1:
+        pairs.append((remaining_columns[0], remaining_metrics[0]))
+        remaining_metrics.clear()
+    if remaining_metrics:
+        logger.warning(
+            'Dataset %s on node %s: no input port column for schema metrics %s; they get no binding'
+            % (ds_instance.id, node.id, remaining_metrics),
+        )
+    return pairs
+
+
 def _metric_for_column(node: Node, column: str) -> NodeMetric | None:
     for metric in node.output_metrics.values():
         if str(metric.column_id) == column:
@@ -399,6 +437,45 @@ def _port_identifier_for_column(column: str) -> str | None:
     if column == VALUE_COLUMN:
         return None
     return identifier_or_none(column)
+
+
+def _binding_pairs_for_dataset(
+    node: Node,
+    ds_instance: DatasetWithFilters,
+    dataset_obj: DatasetModel,
+    metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric],
+) -> list[tuple[str, str]]:
+    """
+    Return the ``(port_column, metric_key)`` pairs a dataset binds through.
+
+    For column-less bindings the node consumes the full frame, and the dataset
+    schema may name its metrics differently from the node's columns (e.g.
+    metric ``share`` feeding the generic ``Value`` column). The pairing keeps
+    the two concepts distinct: the port UUID is always derived from the
+    node-side column — the same key ``_export_dataset_input_ports`` uses — so
+    a binding always points at a port that exists in the node spec, while the
+    metric names the source.
+    """
+    if ds_instance.column is not None:
+        return [(ds_instance.column, ds_instance.column)]
+    assert dataset_obj.schema is not None
+    schema_metrics = [name for (schema_pk, name) in metrics_by_schema_and_name if schema_pk == dataset_obj.schema.pk]
+    if not schema_metrics:
+        return [(column, column) for column in _dataset_binding_columns_for_node(node, ds_instance)]
+    pairs = _pair_schema_metrics_to_columns(node, ds_instance, schema_metrics)
+    if not pairs:
+        # No defensible pairing at all — but these rows are what
+        # `_serialize_dataset_ports` rebuilds `input_datasets` from, so
+        # dropping every row would remove the dataset from the model on
+        # DB-sourced instances. Keep rows keyed by the schema metric names:
+        # their port ids dangle (and are warned about), which is a lesser
+        # evil than losing the input.
+        logger.warning(
+            'Dataset %s on node %s: keeping bindings with unresolved port ids so the input dataset survives'
+            % (ds_instance.id, node.id),
+        )
+        pairs = [(name, name) for name in schema_metrics]
+    return pairs
 
 
 def _dataset_input_port_for_column(
@@ -754,29 +831,22 @@ def _resolve_dataset_ports(
 
     ports: list[DatasetPort] = []
     spec = DatasetPortSpec.from_input_dataset(_input_dataset_def_from_instance(ds_instance))
-    metric_columns = _dataset_binding_columns_for_node(node, ds_instance)
-    if ds_instance.column is None:
-        # Column-less bindings: the node consumes the full frame. Bind to every
-        # metric the dataset actually exposes so ports stay accurate even when
-        # the node renames columns post-load (e.g. HsyNode translating Finnish
-        # metric labels). Falling back to the node's output_metric column_ids
-        # fails whenever the dataset schema uses different names.
-        schema_metrics = [name for (schema_pk, name) in metrics_by_schema_and_name if schema_pk == dataset_obj.schema.pk]
-        if schema_metrics:
-            metric_columns = schema_metrics
-    for column in metric_columns:
-        metric = metrics_by_schema_and_name.get((dataset_obj.schema.pk, column))
+    pairs = _binding_pairs_for_dataset(node, ds_instance, dataset_obj, metrics_by_schema_and_name)
+    for port_column, metric_key in pairs:
+        metric = metrics_by_schema_and_name.get((dataset_obj.schema.pk, metric_key))
         if metric is None:
             if ds_instance.column is not None:
-                raise ValueError(f'No metric {column} in dataset {ds_instance.id} for node {node.id}')
-            logger.debug('No metric %s in dataset %s for node %s; skipping dataset-port binding', column, ds_instance.id, node.id)
+                raise ValueError(f'No metric {metric_key} in dataset {ds_instance.id} for node {node.id}')
+            logger.debug(
+                'No metric %s in dataset %s for node %s; skipping dataset-port binding', metric_key, ds_instance.id, node.id
+            )
             continue
 
         ports.append(
             DatasetPort(
                 instance=ic,
                 node=nc,
-                port_id=_dataset_port_id(node, idx, column),
+                port_id=_dataset_port_id(node, idx, port_column),
                 dataset=dataset_obj,
                 metric=metric,
                 spec=spec,
