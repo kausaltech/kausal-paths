@@ -1182,6 +1182,112 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     assert not NodeEdge.objects.filter(pk=edge_obj.pk).exists()
 
 
+def _two_nodes_with_bindable_port(ic: InstanceConfig) -> None:
+    unit = unit_registry.parse_units('kt/a')
+    NodeConfigFactory.create(
+        instance=ic,
+        identifier='node_a',
+        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')]),
+    )
+    NodeConfigFactory.create(
+        instance=ic,
+        identifier='node_b',
+        spec=_make_node_spec(
+            input_ports=[InputPortDef(id=_port_uuid('input'), unit=unit, quantity='emissions', multi=False)],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+        ),
+    )
+
+
+def test_create_edge_replace_requires_an_explicit_to_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    _two_nodes_with_bindable_port(db_instance_config)
+
+    gql_client.query_errors(
+        CREATE_EDGE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'instanceId': str(db_instance_config.pk),
+                'fromNodeId': 'node_a',
+                'toNodeId': 'node_b',
+                'replace': True,
+            },
+        },
+        assert_error_message='requires an explicit `toPort`',
+    )
+
+
+def test_create_edge_replace_displaces_the_existing_edge(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import NodeEdge
+
+    unit = unit_registry.parse_units('kt/a')
+    _two_nodes_with_bindable_port(db_instance_config)
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='node_c',
+        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('other'), unit=unit, quantity='emissions')]),
+    )
+    nodes = {nc.identifier: nc for nc in db_instance_config.nodes.all()}
+    old_edge = NodeEdge.objects.create(
+        instance=db_instance_config,
+        from_node=nodes['node_a'],
+        from_port=_port_uuid('default'),
+        to_node=nodes['node_b'],
+        to_port=_port_uuid('input'),
+    )
+
+    edge = gql_client.query_data(
+        CREATE_EDGE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'instanceId': str(db_instance_config.pk),
+                'fromNodeId': 'node_c',
+                'toNodeId': 'node_b',
+                'toPort': str(_port_uuid('input')),
+                'replace': True,
+            },
+        },
+    )['instanceEditor']['createEdge']
+
+    assert edge['fromRef']['nodeId'] == 'node_c'
+    assert not NodeEdge.objects.filter(pk=old_edge.pk).exists()
+    assert NodeEdge.objects.filter(to_node=nodes['node_b'], to_port=_port_uuid('input')).count() == 1
+
+
+def test_create_edge_replace_displaces_a_dataset_binding(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import DatasetPort, NodeEdge
+
+    _two_nodes_with_bindable_port(db_instance_config)
+    nodes = {nc.identifier: nc for nc in db_instance_config.nodes.all()}
+    dataset = DatasetFactory.create(identifier='occupant')
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='Energy')
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=nodes['node_b'],
+        port_id=_port_uuid('input'),
+        dataset=dataset,
+        metric=metric,
+    )
+
+    gql_client.query_data(
+        CREATE_EDGE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'instanceId': str(db_instance_config.pk),
+                'fromNodeId': 'node_a',
+                'toNodeId': 'node_b',
+                'toPort': str(_port_uuid('input')),
+                'replace': True,
+            },
+        },
+    )
+
+    assert not DatasetPort.objects.filter(node=nodes['node_b']).exists()
+    assert NodeEdge.objects.filter(to_node=nodes['node_b'], to_port=_port_uuid('input')).count() == 1
+
+
 def test_delete_edge_cannot_cross_instance_boundary(client, db_instance_config: InstanceConfig):
     from paths.tests.graphql import PathsTestClient
 

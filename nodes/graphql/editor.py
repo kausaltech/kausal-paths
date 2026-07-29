@@ -209,7 +209,15 @@ def _resolve_edge_transformations(
         raise GraphQLValidationError(info, str(e)) from None
 
 
-def _validate_edge_ports(info: gql.Info, from_node: NodeConfig, from_port: UUID, to_node: NodeConfig, to_port: UUID) -> None:
+def _validate_edge_ports(
+    info: gql.Info,
+    from_node: NodeConfig,
+    from_port: UUID,
+    to_node: NodeConfig,
+    to_port: UUID,
+    *,
+    allow_occupied: bool = False,
+) -> None:
     from nodes.models import DatasetPort, NodeEdge
 
     source_port = _get_output_port(from_node, from_port)
@@ -258,7 +266,7 @@ def _validate_edge_ports(info: gql.Info, from_node: NodeConfig, from_port: UUID,
             + f'{target_port.unit.dimensionality}',
         )
 
-    if not target_port.multi:
+    if not target_port.multi and not allow_occupied:
         has_edge_binding = NodeEdge.objects.filter(to_node=to_node, to_port=to_port).exists()
         has_dataset_binding = DatasetPort.objects.filter(node=to_node, port_id=to_port).exists()
         if has_edge_binding or has_dataset_binding:
@@ -400,6 +408,15 @@ class CreateEdgeInput:
     from_port: str = 'output'
     to_port: str | None = None
     transformations: list[EdgeTransformationInput] | None = None
+    replace: bool = sb.field(
+        default=False,
+        description=(
+            'Atomically displace whatever occupies the target port — an edge or a dataset binding — '
+            'instead of rejecting the edge. Validation runs first, so a rejected edge leaves the old '
+            'binding untouched. Requires an explicit `toPort` (an auto-selected port is never occupied) '
+            'and is not valid for `multi` ports.'
+        ),
+    )
 
 
 @sb.input
@@ -1037,7 +1054,7 @@ class InstanceEditorMutation:
     @staticmethod
     def create_edge(info: gql.Info, input: CreateEdgeInput) -> NodeEdgeType:
         from nodes.change_ops import gql_change_operation, record_change
-        from nodes.models import NodeConfig, NodeEdge
+        from nodes.models import DatasetPort, NodeConfig, NodeEdge
 
         ic = _get_instance_config(info, input.instance_id)
         if ic.config_source != 'database':
@@ -1053,14 +1070,45 @@ class InstanceEditorMutation:
         source_port = _get_output_port(from_node, from_port)
         assert source_port is not None  # _resolve_source_port validated it
 
-        with gql_change_operation(info, ic, action='edge.create'):
+        displaced_edges: list[NodeEdge] = []
+        displaced_rows: list[DatasetPort] = []
+        if input.replace:
+            from nodes.graphql.bindings import _port_occupants
+
+            if input.to_port is None:
+                raise GraphQLValidationError(
+                    info,
+                    '`replace` requires an explicit `toPort`: an auto-selected or auto-created port is never occupied',
+                )
+            # With an explicit toPort, target-port resolution only parses and
+            # validates — no port is created — so it is safe outside the
+            # change operation.
+            explicit_to_port = _resolve_or_create_target_port(info, to_node, input.to_port, source_port)
+            displaced_edges, displaced_rows = _port_occupants(info, to_node, explicit_to_port)
+
+        replacing = bool(displaced_edges or displaced_rows)
+        action = 'edge.replace' if replacing else 'edge.create'
+        with gql_change_operation(info, ic, action=action):
             # Target-port resolution may append a new input port to
             # ``to_node`` when ``to_port`` is null; that write must happen
             # inside the change_operation so the resulting ``node.update``
             # entry groups with this edge.create operation.
             to_port = _resolve_or_create_target_port(info, to_node, input.to_port, source_port)
-            _validate_edge_ports(info, from_node, from_port, to_node, to_port)
+            _validate_edge_ports(info, from_node, from_port, to_node, to_port, allow_occupied=input.replace)
             transformations = _resolve_edge_transformations(info, input.transformations)
+            # All validation has passed; only now may the old binding go, so a
+            # rejected edge never leaves the port unbound.
+            for displaced_edge in displaced_edges:
+                record_change(displaced_edge, action='edge.delete', before=displaced_edge.serializable_data(), after=None)
+                displaced_edge.delete()
+            for displaced_row in displaced_rows:
+                record_change(
+                    displaced_row,
+                    action='node.dataset_binding.delete',
+                    before=displaced_row.serializable_data(),
+                    after=None,
+                )
+                displaced_row.delete()
             edge = NodeEdge.objects.create(
                 instance=ic,
                 from_node=from_node,
