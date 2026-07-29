@@ -66,6 +66,14 @@ class BindDatasetInput:
     transformations: Maybe[list[DatasetTransformationInput]] = sb.field(
         description='Transformations to apply. When omitted, a working default list is generated.',
     )
+    replace: bool = sb.field(
+        default=False,
+        description=(
+            'Atomically displace whatever occupies the port — an edge or a dataset binding — '
+            'instead of rejecting the bind. Validation runs first, so a rejected bind leaves '
+            'the old binding untouched. Not valid for `multi` ports; delete a specific binding there.'
+        ),
+    )
 
 
 @sb.input(description='Change what a dataset binding carries or does.')
@@ -193,6 +201,30 @@ def _check_port_has_capacity(info: gql.Info, nc: NodeConfig, port_id: UUID) -> N
         raise GraphQLValidationError(info, f'Input port "{port_id}" already has an edge bound to it')
     if DatasetPort.objects.filter(node=nc, port_id=port_id).exists():
         raise GraphQLValidationError(info, f'Input port "{port_id}" already has a dataset bound to it')
+
+
+def _port_occupants(info: gql.Info, nc: NodeConfig, port_id: UUID) -> tuple[list[NodeEdge], list[DatasetPort]]:
+    """
+    Return what a replacing bind displaces from the port.
+
+    Only for non-``multi`` ports, where "replace" is unambiguous: the port holds
+    exactly one binding. On a ``multi`` port the caller must delete a specific
+    binding instead. Dataset rows are collected per port, not per binding group:
+    a fanned-out column-less binding spans ports, and replacing this port must
+    not unbind its siblings.
+    """
+    from nodes.graphql.editor import _get_input_port
+
+    port = _get_input_port(nc, port_id)
+    assert port is not None
+    if port.multi:
+        raise GraphQLValidationError(
+            info,
+            f'Input port "{port_id}" accepts multiple bindings, so `replace` is ambiguous; delete a specific binding instead',
+        )
+    edges = list(NodeEdge.objects.filter(to_node=nc, to_port=port_id))
+    rows = list(DatasetPort.objects.filter(node=nc, port_id=port_id))
+    return edges, rows
 
 
 def _check_metric_fits_port(info: gql.Info, nc: NodeConfig, port_id: UUID, metric: DatasetMetric) -> None:
@@ -420,7 +452,12 @@ def bind_dataset(info: gql.Info, ic: InstanceConfig, nc: NodeConfig, input: Bind
     from nodes.models import DatasetPort
 
     port_id = _resolve_port(info, nc, str(input.port_id))
-    _check_port_has_capacity(info, nc, port_id)
+    displaced_edges: list[NodeEdge] = []
+    displaced_rows: list[DatasetPort] = []
+    if input.replace:
+        displaced_edges, displaced_rows = _port_occupants(info, nc, port_id)
+    else:
+        _check_port_has_capacity(info, nc, port_id)
     dataset = _resolve_dataset(info, ic, str(input.dataset_id))
 
     metric = None
@@ -438,7 +475,22 @@ def bind_dataset(info: gql.Info, ic: InstanceConfig, nc: NodeConfig, input: Bind
         transformations = _default_transformations(metric_column)
     _validate_transformations(info, transformations, metric_column=metric_column)
 
-    with gql_change_operation(info, ic, action='node.dataset_binding.create'):
+    replacing = bool(displaced_edges or displaced_rows)
+    action = 'node.dataset_binding.replace' if replacing else 'node.dataset_binding.create'
+    with gql_change_operation(info, ic, action=action):
+        # All validation has passed; only now may the old binding go, so a
+        # rejected bind never leaves the port unbound.
+        for edge in displaced_edges:
+            record_change(edge, action='edge.delete', before=edge.serializable_data(), after=None)
+            edge.delete()
+        for displaced in displaced_rows:
+            record_change(
+                displaced,
+                action='node.dataset_binding.delete',
+                before=displaced.serializable_data(),
+                after=None,
+            )
+            displaced.delete()
         row = DatasetPort.objects.create(
             instance=ic,
             node=nc,

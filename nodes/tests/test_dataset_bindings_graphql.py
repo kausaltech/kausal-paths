@@ -415,6 +415,116 @@ def test_deleting_a_binding_leaves_the_port(gql_client: PathsTestClient, db_inst
 
 
 # ---------------------------------------------------------------------------
+# Replacing bindings atomically with bindDataset(replace: true)
+# ---------------------------------------------------------------------------
+
+
+def test_replace_swaps_the_dataset_on_an_occupied_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import DatasetPort
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='consumer',
+        spec=_node_spec(
+            input_ports=[
+                InputPortDef(id=_port_id('input'), identifier='heating', unit=unit_registry.parse_units('kt/a'), multi=False)
+            ]
+        ),
+    )
+    _dataset_with_metric(db_instance_config, identifier='old_data')
+    new_dataset, _ = _dataset_with_metric(db_instance_config, identifier='new_data')
+
+    variables: dict[str, Any] = {
+        'instanceId': str(db_instance_config.pk),
+        'nodeId': 'consumer',
+        'input': {'portId': 'heating', 'datasetId': 'old_data', 'metricId': 'Energy'},
+    }
+    gql_client.query_data(BIND_DATASET, variables=variables)
+
+    variables['input'] = {'portId': 'heating', 'datasetId': 'new_data', 'metricId': 'Energy', 'replace': True}
+    binding = gql_client.query_data(BIND_DATASET, variables=variables)['instanceEditor']['nodeEditor']['bindDataset']
+
+    assert binding['portRef']['portId'] == str(_port_id('input'))
+    rows = list(DatasetPort.objects.filter(node=nc))
+    assert len(rows) == 1
+    assert rows[0].dataset == new_dataset
+
+
+def test_replace_displaces_an_edge_binding(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    """Edge-to-dataset replacement is one atomic call; two mutations would leave the port observably unbound."""
+    from nodes.models import DatasetPort, NodeEdge
+
+    edge = _edge_between_two_nodes(db_instance_config)
+    _dataset_with_metric(db_instance_config)
+
+    gql_client.query_data(
+        BIND_DATASET,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': 'consumer',
+            'input': {'portId': 'heating', 'datasetId': 'heating', 'metricId': 'Energy', 'replace': True},
+        },
+    )
+
+    assert not NodeEdge.objects.filter(pk=edge.pk).exists()
+    assert DatasetPort.objects.filter(node=edge.to_node, port_id=_port_id('input')).count() == 1
+
+
+def test_replace_on_a_multi_port_is_rejected(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='consumer',
+        spec=_node_spec(
+            input_ports=[
+                InputPortDef(id=_port_id('input'), identifier='heating', unit=unit_registry.parse_units('kt/a'), multi=True)
+            ]
+        ),
+    )
+    _dataset_with_metric(db_instance_config)
+
+    gql_client.query_errors(
+        BIND_DATASET,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': 'consumer',
+            'input': {'portId': 'heating', 'datasetId': 'heating', 'metricId': 'Energy', 'replace': True},
+        },
+        assert_error_message='`replace` is ambiguous',
+    )
+
+
+def test_a_rejected_replace_leaves_the_old_binding(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    """Validation runs before anything is deleted, so a failed bind cannot strand the port."""
+    from nodes.models import DatasetPort
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='consumer',
+        spec=_node_spec(
+            input_ports=[
+                InputPortDef(id=_port_id('input'), identifier='heating', unit=unit_registry.parse_units('kt/a'), multi=False)
+            ]
+        ),
+    )
+    old_dataset, _ = _dataset_with_metric(db_instance_config, identifier='old_data')
+    _dataset_with_metric(db_instance_config, identifier='wrong_unit', metric='Area', unit='m**2')
+
+    variables: dict[str, Any] = {
+        'instanceId': str(db_instance_config.pk),
+        'nodeId': 'consumer',
+        'input': {'portId': 'heating', 'datasetId': 'old_data', 'metricId': 'Energy'},
+    }
+    gql_client.query_data(BIND_DATASET, variables=variables)
+
+    variables['input'] = {'portId': 'heating', 'datasetId': 'wrong_unit', 'metricId': 'Area', 'replace': True}
+    gql_client.query_errors(BIND_DATASET, variables=variables, assert_error_message='not compatible with port unit')
+
+    rows = list(DatasetPort.objects.filter(node=nc))
+    assert len(rows) == 1
+    assert rows[0].dataset == old_dataset
+
+
+# ---------------------------------------------------------------------------
 # Edge bindings through the same bindingEditor
 # ---------------------------------------------------------------------------
 
