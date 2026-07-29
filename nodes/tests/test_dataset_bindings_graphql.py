@@ -81,7 +81,7 @@ BIND_DATASET = gql("""
               metric { name }
               transformations {
                 __typename
-                ... on SelectMetricType { kind }
+                ... on PortTransformation { kind isSystemManaged }
                 ... on FilterDimensionType { dimension categories flatten }
               }
             }
@@ -100,10 +100,11 @@ UPDATE_BINDING = gql("""
             ... on DatasetPortType {
               id
               tags
+              metric { name }
               transformations {
                 __typename
+                ... on PortTransformation { kind isSystemManaged }
                 ... on FilterDimensionType { dimension categories flatten }
-                ... on SelectMetricType { kind }
               }
             }
             ... on OperationInfo { messages { kind message } }
@@ -171,11 +172,12 @@ def test_add_port_then_bind_a_dataset_metric_to_it(gql_client: PathsTestClient, 
     assert binding['nodeRef'] == binding['portRef']
     assert binding['metric']['name'] == 'Energy'
     # A default list is generated, so a client needs no knowledge of the
-    # generated markers just to create a working binding.
-    assert [t['__typename'] for t in binding['transformations']] == [
-        'SelectMetricType',
-        'IndexTemporalType',
-        'RemapLegacyYearsType',
+    # generated markers just to create a working binding — and the interface
+    # tells it uniformly which entries to render read-only.
+    assert [(t['kind'], t['isSystemManaged']) for t in binding['transformations']] == [
+        ('select_metric', True),
+        ('index_temporal', True),
+        ('remap_legacy_years', True),
     ]
 
 
@@ -412,6 +414,151 @@ def test_deleting_a_binding_leaves_the_port(gql_client: PathsTestClient, db_inst
     nc.refresh_from_db()
     assert nc.spec is not None
     assert [port.identifier for port in nc.spec.input_ports] == ['heating']
+
+
+# ---------------------------------------------------------------------------
+# Metric validation on bind and update
+# ---------------------------------------------------------------------------
+
+
+def test_omitted_metric_id_still_validates_the_unit(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    """The sole-metric convenience path must not skip the unit-fit check."""
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='consumer',
+        spec=_node_spec(
+            input_ports=[InputPortDef(id=_port_id('input'), identifier='heating', unit=unit_registry.parse_units('kt/a'))]
+        ),
+    )
+    _dataset_with_metric(db_instance_config, metric='Area', unit='m**2')
+
+    gql_client.query_errors(
+        BIND_DATASET,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': 'consumer',
+            'input': {'portId': 'heating', 'datasetId': 'heating'},
+        },
+        assert_error_message='not compatible with port unit',
+    )
+
+
+def test_explicit_null_metric_id_is_rejected_cleanly(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    """Pin the schema-level contract: Maybe[ID] rejects explicit null before any resolver runs."""
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='consumer',
+        spec=_node_spec(
+            input_ports=[InputPortDef(id=_port_id('input'), identifier='heating', unit=unit_registry.parse_units('kt/a'))]
+        ),
+    )
+    _dataset_with_metric(db_instance_config)
+
+    gql_client.query_errors(
+        BIND_DATASET,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': 'consumer',
+            'input': {'portId': 'heating', 'datasetId': 'heating', 'metricId': None},
+        },
+        assert_error_message='cannot be explicitly set to null',
+    )
+
+
+def _bound_binding_id(gql_client: PathsTestClient, ic: InstanceConfig) -> str:
+    return gql_client.query_data(
+        BIND_DATASET,
+        variables={
+            'instanceId': str(ic.pk),
+            'nodeId': 'consumer',
+            'input': {'portId': 'heating', 'datasetId': 'heating', 'metricId': 'Energy'},
+        },
+    )['instanceEditor']['nodeEditor']['bindDataset']['id']
+
+
+def test_changing_the_metric_updates_the_column_and_checks_the_unit(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+):
+    from nodes.models import DatasetPort
+
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='consumer',
+        spec=_node_spec(
+            input_ports=[InputPortDef(id=_port_id('input'), identifier='heating', unit=unit_registry.parse_units('kt/a'))]
+        ),
+    )
+    dataset, _ = _dataset_with_metric(db_instance_config)
+    DatasetMetricFactory.create(schema=dataset.schema, name='Emissions', label='Emissions', unit='t/a')
+    DatasetMetricFactory.create(schema=dataset.schema, name='Area', label='Area', unit='m**2')
+    binding_id = _bound_binding_id(gql_client, db_instance_config)
+
+    # A metric whose unit cannot supply the port is rejected on update too,
+    # not only at bind time.
+    gql_client.query_errors(
+        UPDATE_BINDING,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'bindingId': binding_id,
+            'input': {'metricId': 'Area'},
+        },
+        assert_error_message='not compatible with port unit',
+    )
+
+    updated = gql_client.query_data(
+        UPDATE_BINDING,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'bindingId': binding_id,
+            'input': {'metricId': 'Emissions'},
+        },
+    )['instanceEditor']['bindingEditor']['updateDatasetBinding']
+
+    assert updated['metric']['name'] == 'Emissions'
+    row = DatasetPort.objects.get(uuid=binding_id)
+    assert row.metric.name == 'Emissions'
+    # The column follows the new metric.
+    assert row.spec.column == 'Emissions'
+
+
+def test_metric_of_a_fanned_out_binding_cannot_be_changed(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    """A column-less binding has one row per metric; stamping one metric on all rows would corrupt it."""
+    from nodes.models import DatasetPort
+
+    unit = unit_registry.parse_units('kt/a')
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='consumer',
+        spec=_node_spec(
+            input_ports=[
+                InputPortDef(id=_port_id('input'), identifier='heating', unit=unit),
+                InputPortDef(id=_port_id('input2'), identifier='cooling', unit=unit),
+            ]
+        ),
+    )
+    dataset, metric_a = _dataset_with_metric(db_instance_config)
+    metric_b = DatasetMetricFactory.create(schema=dataset.schema, name='Emissions', label='Emissions', unit='t/a')
+    rows = [
+        DatasetPort.objects.create(
+            instance=db_instance_config,
+            node=nc,
+            port_id=port_id,
+            dataset=dataset,
+            metric=metric,
+            dataset_index=0,
+        )
+        for port_id, metric in ((_port_id('input'), metric_a), (_port_id('input2'), metric_b))
+    ]
+
+    gql_client.query_errors(
+        UPDATE_BINDING,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'bindingId': str(rows[0].uuid),
+            'input': {'metricId': 'Emissions'},
+        },
+        assert_error_message='cannot be changed',
+    )
 
 
 # ---------------------------------------------------------------------------

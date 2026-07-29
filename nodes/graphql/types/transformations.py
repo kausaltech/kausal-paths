@@ -51,8 +51,26 @@ if TYPE_CHECKING:
 # --- Output types -----------------------------------------------------------
 
 
+@sb.interface(
+    name='PortTransformation',
+    description='Common surface of every transformation in a binding pipeline.',
+)
+class PortTransformationInterface:
+    kind: str = sb.field(description='Discriminator; matches the corresponding mutation input field.')
+
+    @sb.field(
+        description=(
+            'Whether this entry is a generated stage marker. Clients should render these '
+            'read-only and pass them back unchanged when replacing the list.'
+        ),
+    )
+    @staticmethod
+    def is_system_managed(root: 'PortTransformOp') -> bool:
+        return root.kind in SYSTEM_MANAGED_KINDS
+
+
 @pydantic_type(model=FilterDimensionOp)
-class FilterDimensionType(StrawberryPydanticType[FilterDimensionOp]):
+class FilterDimensionType(StrawberryPydanticType[FilterDimensionOp], PortTransformationInterface):
     dimension: auto
     groups: auto
     categories: auto
@@ -61,24 +79,24 @@ class FilterDimensionType(StrawberryPydanticType[FilterDimensionOp]):
 
 
 @pydantic_type(model=AssignDimensionOp)
-class AssignDimensionType(StrawberryPydanticType[AssignDimensionOp]):
+class AssignDimensionType(StrawberryPydanticType[AssignDimensionOp], PortTransformationInterface):
     dimension: auto
     category: auto
 
 
 @pydantic_type(model=DropNullsOp)
-class DropNullsType(StrawberryPydanticType[DropNullsOp]):
-    kind: str = sb.field(description='Discriminator; the type name identifies this transformation too.')
+class DropNullsType(StrawberryPydanticType[DropNullsOp], PortTransformationInterface):
+    kind: str = sb.field(description='Discriminator; matches the corresponding mutation input field.')
 
 
 @pydantic_type(model=FilterTemporalOp)
-class FilterTemporalType(StrawberryPydanticType[FilterTemporalOp]):
+class FilterTemporalType(StrawberryPydanticType[FilterTemporalOp], PortTransformationInterface):
     min_year: auto
     max_year: auto
 
 
 @pydantic_type(model=FilterColumnOp)
-class FilterColumnType(StrawberryPydanticType[FilterColumnOp]):
+class FilterColumnType(StrawberryPydanticType[FilterColumnOp], PortTransformationInterface):
     column: auto
     value: auto
     values: auto
@@ -89,50 +107,50 @@ class FilterColumnType(StrawberryPydanticType[FilterColumnOp]):
 
 
 @pydantic_type(model=RenameColumnOp)
-class RenameColumnType(StrawberryPydanticType[RenameColumnOp]):
+class RenameColumnType(StrawberryPydanticType[RenameColumnOp], PortTransformationInterface):
     column: auto
     new_name: auto
 
 
 @pydantic_type(model=RenameItemOp)
-class RenameItemType(StrawberryPydanticType[RenameItemOp]):
+class RenameItemType(StrawberryPydanticType[RenameItemOp], PortTransformationInterface):
     column: auto
     old_item: auto
     new_item: auto
 
 
 @pydantic_type(model=SetForecastFromOp)
-class SetForecastFromType(StrawberryPydanticType[SetForecastFromOp]):
+class SetForecastFromType(StrawberryPydanticType[SetForecastFromOp], PortTransformationInterface):
     year: auto
 
 
 @pydantic_type(model=EnsureUnitOp)
-class EnsureUnitType(StrawberryPydanticType[EnsureUnitOp]):
+class EnsureUnitType(StrawberryPydanticType[EnsureUnitOp], PortTransformationInterface):
     unit: auto
 
 
 @pydantic_type(model=SelectMetricOp)
-class SelectMetricType(StrawberryPydanticType[SelectMetricOp]):
-    kind: str = sb.field(description='Discriminator; the type name identifies this transformation too.')
+class SelectMetricType(StrawberryPydanticType[SelectMetricOp], PortTransformationInterface):
+    kind: str = sb.field(description='Discriminator; matches the corresponding mutation input field.')
 
 
 @pydantic_type(model=IndexTemporalOp)
-class IndexTemporalType(StrawberryPydanticType[IndexTemporalOp]):
-    kind: str = sb.field(description='Discriminator; the type name identifies this transformation too.')
+class IndexTemporalType(StrawberryPydanticType[IndexTemporalOp], PortTransformationInterface):
+    kind: str = sb.field(description='Discriminator; matches the corresponding mutation input field.')
 
 
 @pydantic_type(model=RemapLegacyYearsOp)
-class RemapLegacyYearsType(StrawberryPydanticType[RemapLegacyYearsOp]):
-    kind: str = sb.field(description='Discriminator; the type name identifies this transformation too.')
+class RemapLegacyYearsType(StrawberryPydanticType[RemapLegacyYearsOp], PortTransformationInterface):
+    kind: str = sb.field(description='Discriminator; matches the corresponding mutation input field.')
 
 
 @pydantic_type(model=TagOperationOp)
-class TagOperationType(StrawberryPydanticType[TagOperationOp]):
+class TagOperationType(StrawberryPydanticType[TagOperationOp], PortTransformationInterface):
     tag: auto
 
 
 @pydantic_type(model=SelectCategoriesTransformation)
-class SelectCategoriesType(StrawberryPydanticType[SelectCategoriesTransformation]):
+class SelectCategoriesType(StrawberryPydanticType[SelectCategoriesTransformation], PortTransformationInterface):
     dimension: auto
     categories: auto
     flatten: auto
@@ -140,13 +158,13 @@ class SelectCategoriesType(StrawberryPydanticType[SelectCategoriesTransformation
 
 
 @pydantic_type(model=AssignCategoryTransformation)
-class AssignCategoryType(StrawberryPydanticType[AssignCategoryTransformation]):
+class AssignCategoryType(StrawberryPydanticType[AssignCategoryTransformation], PortTransformationInterface):
     dimension: auto
     category: auto
 
 
 @pydantic_type(model=FlattenTransformation)
-class FlattenType(StrawberryPydanticType[FlattenTransformation]):
+class FlattenType(StrawberryPydanticType[FlattenTransformation], PortTransformationInterface):
     dimension: auto
 
 

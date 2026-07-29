@@ -58,10 +58,7 @@ class BindDatasetInput:
     port_id: sb.ID = sb.field(description='Input port to bind to. The port must already exist.')
     dataset_id: sb.ID = sb.field(description='UUID or identifier of the dataset to bind.')
     metric_id: Maybe[sb.ID] = sb.field(
-        description=(
-            'Dataset metric this binding carries. Omit only for a binding that consumes the '
-            'whole frame, which expands to one port per metric the dataset exposes.'
-        ),
+        description='Dataset metric this binding carries. May be omitted only when the dataset exposes exactly one metric.',
     )
     transformations: Maybe[list[DatasetTransformationInput]] = sb.field(
         description='Transformations to apply. When omitted, a working default list is generated.',
@@ -330,8 +327,16 @@ class PortBindingEditorMutation:
         metric_column = spec.column
         metric = None
         if is_maybe_set(input.metric_id):
+            if len(rows) > 1:
+                raise GraphQLValidationError(
+                    info,
+                    'This binding fans out to one row per metric of the dataset, so its metric cannot be changed',
+                )
             metric = _resolve_metric(info, first.dataset, str(input.metric_id.value))
-            metric_column = metric.name or metric_column
+            # The column follows the new metric; keeping the old column would
+            # select what the previous metric carried.
+            metric_column = metric.name or None
+            _check_metric_fits_port(info, first.node, first.port_id, metric)
 
         transformations = list(spec.transformations)
         if is_maybe_set(input.transformations):
@@ -463,11 +468,12 @@ def bind_dataset(info: gql.Info, ic: InstanceConfig, nc: NodeConfig, input: Bind
     metric = None
     metric_column: str | None = None
     if is_maybe_set(input.metric_id):
+        # Explicit null never reaches this point: strawberry rejects it for Maybe[ID].
         metric = _resolve_metric(info, dataset, str(input.metric_id.value))
         metric_column = metric.name
-        _check_metric_fits_port(info, nc, port_id, metric)
     else:
         metric = _sole_metric_or_error(info, dataset)
+    _check_metric_fits_port(info, nc, port_id, metric)
 
     if is_maybe_set(input.transformations):
         transformations = _dataset_transformations(info, input.transformations.value or [])
