@@ -55,13 +55,21 @@ if TYPE_CHECKING:
 
 @sb.input(description='Bind a dataset metric to an existing input port on a node.')
 class BindDatasetInput:
+    # A create-style input: every field resolves to a given value or a default,
+    # so null means the same as omitted and Maybe would be the wrong tool —
+    # there is no existing value for an absent field to leave untouched.
     port_id: sb.ID = sb.field(description='Input port to bind to. The port must already exist.')
     dataset_id: sb.ID = sb.field(description='UUID or identifier of the dataset to bind.')
-    metric_id: Maybe[sb.ID] = sb.field(
+    metric_id: sb.ID | None = sb.field(
+        default=None,
         description='Dataset metric this binding carries. May be omitted only when the dataset exposes exactly one metric.',
     )
-    transformations: Maybe[list[DatasetTransformationInput]] = sb.field(
-        description='Transformations to apply. When omitted, a working default list is generated.',
+    transformations: list[DatasetTransformationInput] | None = sb.field(
+        default=None,
+        description=(
+            'Transformations to apply. When omitted, a working default list is generated; '
+            'an explicit empty list means none, which a metric-named binding rejects.'
+        ),
     )
     replace: bool = sb.field(
         default=False,
@@ -453,7 +461,6 @@ def _to_gql(row: DatasetPort) -> DatasetPortType:
 def bind_dataset(info: gql.Info, ic: InstanceConfig, nc: NodeConfig, input: BindDatasetInput) -> DatasetPortType:
     """Create a dataset binding on an existing input port."""
     from nodes.change_ops import gql_change_operation, record_change
-    from nodes.graphql.editor import is_maybe_set
     from nodes.models import DatasetPort
 
     port_id = _resolve_port(info, nc, str(input.port_id))
@@ -467,16 +474,15 @@ def bind_dataset(info: gql.Info, ic: InstanceConfig, nc: NodeConfig, input: Bind
 
     metric = None
     metric_column: str | None = None
-    if is_maybe_set(input.metric_id):
-        # Explicit null never reaches this point: strawberry rejects it for Maybe[ID].
-        metric = _resolve_metric(info, dataset, str(input.metric_id.value))
+    if input.metric_id is not None:
+        metric = _resolve_metric(info, dataset, str(input.metric_id))
         metric_column = metric.name
     else:
         metric = _sole_metric_or_error(info, dataset)
     _check_metric_fits_port(info, nc, port_id, metric)
 
-    if is_maybe_set(input.transformations):
-        transformations = _dataset_transformations(info, input.transformations.value or [])
+    if input.transformations is not None:
+        transformations = _dataset_transformations(info, input.transformations)
     else:
         transformations = _default_transformations(metric_column)
     _validate_transformations(info, transformations, metric_column=metric_column)

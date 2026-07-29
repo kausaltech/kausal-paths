@@ -443,8 +443,14 @@ def test_omitted_metric_id_still_validates_the_unit(gql_client: PathsTestClient,
     )
 
 
-def test_explicit_null_metric_id_is_rejected_cleanly(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
-    """Pin the schema-level contract: Maybe[ID] rejects explicit null before any resolver runs."""
+def test_nulls_on_bind_mean_the_defaults(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    """
+    On bindDataset, null and omitted both mean "use the default": it is create-style.
+
+    Apollo-style clients null-fill unspecified optional variables, so these
+    fields are plain optionals rather than Maybe — there is no existing value
+    for an absent field to leave untouched.
+    """
     NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='consumer',
@@ -454,15 +460,20 @@ def test_explicit_null_metric_id_is_rejected_cleanly(gql_client: PathsTestClient
     )
     _dataset_with_metric(db_instance_config)
 
-    gql_client.query_errors(
+    binding = gql_client.query_data(
         BIND_DATASET,
         variables={
             'instanceId': str(db_instance_config.pk),
             'nodeId': 'consumer',
-            'input': {'portId': 'heating', 'datasetId': 'heating', 'metricId': None},
+            'input': {'portId': 'heating', 'datasetId': 'heating', 'metricId': None, 'transformations': None},
         },
-        assert_error_message='cannot be explicitly set to null',
-    )
+    )['instanceEditor']['nodeEditor']['bindDataset']
+
+    # Null metricId falls back to the dataset's sole metric; null
+    # transformations get the generated default list — column-less here, so
+    # the whole frame is consumed and no selectMetric marker is needed.
+    assert binding['metric']['name'] == 'Energy'
+    assert [t['kind'] for t in binding['transformations']] == ['index_temporal', 'remap_legacy_years']
 
 
 def _bound_binding_id(gql_client: PathsTestClient, ic: InstanceConfig) -> str:
