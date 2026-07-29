@@ -41,6 +41,12 @@ class PortBindingDef(BaseModel):
     def _modernize_transformations(cls, value: list[PortTransformOp]) -> list[PortTransformOp]:
         return modernized_transformations(value)
 
+    @field_validator('tags', mode='before')
+    @classmethod
+    def _null_tags_as_empty(cls, value: object) -> object:
+        """Treat a missing JSON key, which surfaces as null in DB annotations, as an empty list."""
+        return [] if value is None else value
+
 
 class EdgeBindingDef(PortBindingDef):
     """A source-node binding to one input port on a node."""

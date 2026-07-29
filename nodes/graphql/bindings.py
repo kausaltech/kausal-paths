@@ -18,7 +18,7 @@ the YAML sync observed, and it becomes derivable once nodes stop indexing into
 ``input_dataset_instances``; addressing bindings by uuid survives that.
 """
 
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, cast
 
 import strawberry as sb
 from graphql import GraphQLError
@@ -34,6 +34,7 @@ from nodes.defs.transform_def import (
     modernized_transformations,
     unsupported_transformations_for_binding,
 )
+from nodes.graphql.types.graph import DatasetPortType, NodeEdgeType
 from nodes.graphql.types.transformations import (
     DatasetTransformationInput,
     EdgeTransformationInput,
@@ -49,7 +50,6 @@ if TYPE_CHECKING:
 
     from nodes.defs.node_defs import DatasetPortSpec
     from nodes.defs.transform_def import EdgeTransformOp
-    from nodes.graphql.types.graph import DatasetPortType, NodeEdgeType
     from nodes.models import InstanceConfig, NodeConfig
 
 
@@ -284,7 +284,7 @@ class PortBindingEditorMutation:
         graphql_type=Annotated['DatasetPortType', sb.lazy('nodes.graphql.types.graph')],
     )
     @staticmethod
-    def update_dataset_binding(info: gql.Info, root: sb.Parent[Me], input: UpdateDatasetBindingInput) -> Any:
+    def update_dataset_binding(info: gql.Info, root: sb.Parent[Me], input: UpdateDatasetBindingInput) -> DatasetPortType:
         from nodes.change_ops import gql_change_operation, record_change
         from nodes.graphql.editor import is_maybe_set
 
@@ -337,7 +337,7 @@ class PortBindingEditorMutation:
         graphql_type=Annotated['NodeEdgeType', sb.lazy('nodes.graphql.types.graph')],
     )
     @staticmethod
-    def update_edge_binding(info: gql.Info, root: sb.Parent[Me], input: UpdateEdgeBindingInput) -> Any:
+    def update_edge_binding(info: gql.Info, root: sb.Parent[Me], input: UpdateEdgeBindingInput) -> NodeEdgeType:
         from nodes.change_ops import gql_change_operation, record_change
         from nodes.graphql.editor import is_maybe_set
         from nodes.graphql.types.graph import NodeEdgeType
@@ -392,7 +392,7 @@ class PortBindingEditorMutation:
                 row.delete()
 
 
-def _to_gql(row: DatasetPort) -> Any:
+def _to_gql(row: DatasetPort) -> DatasetPortType:
     """Build the read type for a binding row, matching the instance-level resolver."""
     from datasets.graphql.types import DatasetType
     from nodes.graphql.types.graph import DatasetMetricRefType, DatasetPortType, NodePortRef, _external_dataset_id_from_dataset
@@ -404,6 +404,7 @@ def _to_gql(row: DatasetPort) -> Any:
         metric=DatasetMetricRefType.from_model(row.metric),
         external_dataset_id=_external_dataset_id_from_dataset(row.dataset),
         external_metric_id=row.metric.name,
+        tags=list(row.spec.tags),
     )
     port._dataset = DatasetType.from_model(row.dataset)
     port._transformations = list(row.spec.transformations)
@@ -412,7 +413,7 @@ def _to_gql(row: DatasetPort) -> Any:
     return port
 
 
-def bind_dataset(info: gql.Info, ic: InstanceConfig, nc: NodeConfig, input: BindDatasetInput) -> Any:
+def bind_dataset(info: gql.Info, ic: InstanceConfig, nc: NodeConfig, input: BindDatasetInput) -> DatasetPortType:
     """Create a dataset binding on an existing input port."""
     from nodes.change_ops import gql_change_operation, record_change
     from nodes.graphql.editor import is_maybe_set

@@ -180,6 +180,7 @@ class DatasetPortType(EditableEntity):
         description='Stable identifier of the external dataset, usually the dataset repo path without extension.'
     )
     external_metric_id: str | None = sb.field(description='Stable identifier of the metric within the external dataset.')
+    tags: list[str] = sb.field(description='Legacy semantic tags carried by this binding.')
 
     @sb.field(deprecation_reason='Use portRef instead.')
     @staticmethod
@@ -251,6 +252,7 @@ class DatasetPortType(EditableEntity):
             metric=DatasetMetricRefType.from_binding(binding),
             external_dataset_id=binding.external_dataset_id,
             external_metric_id=binding.external_metric_id,
+            tags=binding.tags,
         )
         dataset_type = DatasetType.from_binding(binding)
         if dataset_type is not None and binding.forecast_from is not None:

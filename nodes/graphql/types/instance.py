@@ -328,6 +328,7 @@ class InstanceEditorFields:
                 metric=DatasetMetricRefType.from_model(dp.metric),
                 external_dataset_id=_external_dataset_id_from_dataset(dp.dataset),
                 external_metric_id=dp.metric.name,
+                tags=list(dp.spec.tags),
             )
             port._dataset = DatasetType.from_model(dp.dataset)
             port._transformations = list(dp.spec.transformations)

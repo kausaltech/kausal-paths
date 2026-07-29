@@ -99,6 +99,7 @@ UPDATE_BINDING = gql("""
           updateDatasetBinding(input: $input) {
             ... on DatasetPortType {
               id
+              tags
               transformations {
                 __typename
                 ... on FilterDimensionType { dimension categories flatten }
@@ -236,7 +237,8 @@ def test_transformations_are_replaced_as_a_whole_list(gql_client: PathsTestClien
                     {'indexTemporal': True},
                     {'remapLegacyYears': True},
                     {'filterDimension': {'dimension': 'building_heat_source', 'categories': ['electricity'], 'flatten': True}},
-                ]
+                ],
+                'tags': ['inventory_only'],
             },
         },
     )['instanceEditor']['bindingEditor']['updateDatasetBinding']
@@ -247,6 +249,7 @@ def test_transformations_are_replaced_as_a_whole_list(gql_client: PathsTestClien
     assert last['dimension'] == 'building_heat_source'
     assert last['categories'] == ['electricity']
     assert last['flatten'] is True
+    assert updated['tags'] == ['inventory_only']
 
 
 def test_dropping_the_generated_metric_selection_is_rejected(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

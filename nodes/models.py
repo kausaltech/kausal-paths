@@ -1633,6 +1633,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                     external_dataset_id=F('dataset__identifier'),
                     external_metric_id=F('metric__name'),
                     transformations=F('spec__transformations'),
+                    tags=F('spec__tags'),
                 ),
             )
             .values('obj')
