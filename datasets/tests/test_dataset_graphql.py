@@ -100,6 +100,8 @@ query InstanceDatasets($instanceId: ID!) {
                 metrics {
                     id
                     name
+                    unit
+                    unitInfo { short dimensionality { dimension value } }
                     previousSibling
                     nextSibling
                 }
@@ -109,6 +111,24 @@ query InstanceDatasets($instanceId: ID!) {
                     value
                     metric { id name }
                     dimensionCategories { uuid label }
+                }
+            }
+        }
+    }
+}
+"""
+
+
+DATASET_PORT_BINDINGS = """
+query DatasetPortBindings($instanceId: ID!) {
+    modelInstance(instanceId: $instanceId) {
+        editor {
+            datasets {
+                id
+                portBindings {
+                    id
+                    tags
+                    transformations { __typename }
                 }
             }
         }
@@ -344,6 +364,47 @@ def test_dataset_metrics_include_sibling_ids(gql_client: PathsTestClient, datase
     assert metrics[1]['nextSibling'] == str(third_metric.uuid)
     assert metrics[2]['previousSibling'] == str(second_metric.uuid)
     assert metrics[2]['nextSibling'] is None
+
+
+def test_dataset_metric_exposes_a_parsed_unit(gql_client: PathsTestClient, dataset_setup):
+    """`unitInfo` gives the UI a full Unit (dimensionality etc.) for port-compatibility checks."""
+    instance_config, dataset, _metric, _category = dataset_setup
+
+    data = gql_client.query_data(
+        INSTANCE_DATASETS,
+        variables={'instanceId': str(instance_config.pk)},
+    )
+
+    datasets = data['modelInstance']['editor']['datasets']
+    result = next(item for item in datasets if item['id'] == str(dataset.uuid))
+    metric = result['metrics'][0]
+    assert metric['unit'] == 't/a'
+    assert metric['unitInfo']['short']
+    dimensionality = {entry['dimension']: entry['value'] for entry in metric['unitInfo']['dimensionality']}
+    assert dimensionality == {'[mass]': 1.0, '[time]': -1.0}
+
+
+def test_dataset_port_bindings_discovery(gql_client: PathsTestClient, dataset_setup):
+    from uuid import uuid4
+
+    from nodes.models import DatasetPort
+    from nodes.tests.factories import NodeConfigFactory
+
+    instance_config, dataset, metric, _category = dataset_setup
+    nc = NodeConfigFactory.create(instance=instance_config, identifier='consumer')
+    dp = DatasetPort.objects.create(instance=instance_config, node=nc, port_id=uuid4(), dataset=dataset, metric=metric)
+
+    data = gql_client.query_data(
+        DATASET_PORT_BINDINGS,
+        variables={'instanceId': str(instance_config.pk)},
+    )
+
+    datasets = data['modelInstance']['editor']['datasets']
+    result = next(item for item in datasets if item['id'] == str(dataset.uuid))
+    (binding,) = result['portBindings']
+    assert binding['id'] == str(dp.uuid)
+    assert binding['tags'] == []
+    assert binding['transformations'] == []
 
 
 def test_dataset_forecast_from(gql_client: PathsTestClient, dataset_setup):

@@ -30,6 +30,8 @@ if TYPE_CHECKING:
         DimensionCategory as DimensionCategoryModel,
     )
 
+    from paths.graphql_types import UnitType  # used in lazy strawberry annotations
+
     from nodes.defs.binding_def import DatasetBindingDef
     from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
@@ -80,9 +82,27 @@ class DatasetMetricType:
     id: sb.ID
     name: str | None = sb.field(description='Column name used in DataFrames.')
     label: str = sb.field(description='Human-readable label.')
-    unit: str
+    unit: str = sb.field(deprecation_reason='Use unitInfo instead.')
     previous_sibling: sb.ID | None
     next_sibling: sb.ID | None
+
+    @sb.field(
+        graphql_type=Annotated['UnitType', sb.lazy('paths.graphql_types')] | None,  # type: ignore[operator]
+        description=(
+            'Parsed unit of the metric, e.g. for checking compatibility with an input port. '
+            'Null when the metric has no unit or its unit string does not parse.'
+        ),
+    )
+    @staticmethod
+    def unit_info(root: 'DatasetMetricType') -> Any:
+        from nodes.units import unit_registry
+
+        if not root.unit:
+            return None
+        try:
+            return unit_registry.parse_units(root.unit)
+        except Exception:
+            return None
 
     @classmethod
     def from_model(
@@ -414,7 +434,9 @@ class DatasetType:
                 metric=None,
                 external_dataset_id=None,
                 external_metric_id=dp.metric.name if dp.metric else None,
+                tags=list(dp.spec.tags),
             )
+            port._transformations = list(dp.spec.transformations)
             result.append(port)
         return result
 
