@@ -22,6 +22,8 @@ from users.models import User
 from users.schema import UserType
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from kausal_common.datasets.models import (
         DataPoint as DataPointModel,
         DatasetMetric as DatasetMetricModel,
@@ -459,13 +461,25 @@ class DatasetType:
         return obj
 
     @classmethod
-    def from_binding(cls, binding: DatasetBindingDef) -> DatasetType | None:
-        """Construct from a DatasetBindingDef, loading the DB model by UUID."""
+    def from_binding(
+        cls,
+        binding: DatasetBindingDef,
+        dataset_models_by_uuid: Mapping[UUID, DatasetModel] | None = None,
+    ) -> DatasetType | None:
+        """Construct from a binding, using a bulk-loaded model map when available."""
         from nodes.graphql.types.graph import _dataset_external_ref_to_gql
 
         if binding.dataset_uuid is None:
             return None
-        model = DatasetModel.objects.filter(uuid=binding.dataset_uuid).select_related('schema').first()
+        if dataset_models_by_uuid is None:
+            model = (
+                DatasetModel.objects
+                .filter(uuid=binding.dataset_uuid)
+                .select_related('schema', 'created_by', 'last_modified_by')
+                .first()
+            )
+        else:
+            model = dataset_models_by_uuid.get(binding.dataset_uuid)
         if model is not None:
             obj = cls.from_model(model)
             if binding.forecast_from is not None:

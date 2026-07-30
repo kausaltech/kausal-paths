@@ -17,6 +17,8 @@ from nodes.graphql.types.change_history import EditableEntity
 from nodes.graphql.types.metric import DimensionalMetricType
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
 
     from nodes.defs.binding_def import EdgeBindingDef
@@ -242,7 +244,12 @@ class DatasetPortType(EditableEntity):
             return []
 
     @classmethod
-    def from_binding(cls, binding: DatasetBindingDef, node: Node | None = None) -> DatasetPortType:
+    def from_binding(
+        cls,
+        binding: DatasetBindingDef,
+        node: Node | None = None,
+        dataset_models_by_uuid: Mapping[UUID, DatasetModel] | None = None,
+    ) -> DatasetPortType:
         from datasets.graphql.types import DatasetType
 
         port = DatasetPortType(
@@ -254,7 +261,7 @@ class DatasetPortType(EditableEntity):
             external_metric_id=binding.external_metric_id,
             tags=binding.tags,
         )
-        dataset_type = DatasetType.from_binding(binding)
+        dataset_type = DatasetType.from_binding(binding, dataset_models_by_uuid=dataset_models_by_uuid)
         if dataset_type is not None and binding.forecast_from is not None:
             dataset_type._forecast_from = binding.forecast_from
         port._dataset = dataset_type

@@ -318,7 +318,17 @@ class InstanceEditorFields:
     @sb.field(graphql_type=list[DatasetPortType])
     @staticmethod
     def dataset_ports(root: 'InstanceEditorFields') -> list[DatasetPortType]:
-        dataset_ports = root._config.dataset_ports.select_related('node', 'dataset', 'metric')
+        dataset_ports = getattr(root._config, '_annotated_dataset_ports', None)
+        if dataset_ports is None:
+            dataset_ports = list(
+                root._config.dataset_ports.select_related(
+                    'node',
+                    'dataset__schema',
+                    'dataset__created_by',
+                    'dataset__last_modified_by',
+                    'metric',
+                )
+            )
         result = []
         for dp in dataset_ports:
             port = DatasetPortType(

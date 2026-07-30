@@ -586,6 +586,7 @@ class InstanceConfig(
     # read". ``_create_from_config`` clears it so hydrate calls that follow
     # a post-publish edit see the current DB state.
     _nodes_for_serialization: list[NodeConfig] | None
+    _annotated_dataset_ports: list[DatasetPort]
     graphql_context: InstanceGraphQLContext | None = None
 
     search_fields = [
@@ -1844,6 +1845,7 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     _node: Node | None
     _annotated_port_edge_bindings: list[dict[str, Any]] | None
     _annotated_port_dataset_bindings: list[dict[str, Any]] | None
+    _annotated_dataset_models_by_uuid: dict[UUID, DatasetModel]
 
     class Meta:
         verbose_name = _('Node')
