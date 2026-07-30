@@ -45,10 +45,10 @@ Every node carries a status:
 
 ```python
 class NodeStatus(Enum):
-    OK          # computed (or will compute) cleanly
+    OK  # computed (or will compute) cleanly
     INCOMPLETE  # not enough inputs wired yet — mid-construction, not an error
-    DEGRADED    # produced output, but from a partial input set
-    FAILED      # construction or compute failed; no usable output
+    DEGRADED  # produced output, but from a partial input set
+    FAILED  # construction or compute failed; no usable output
 ```
 
 `node.status is None` means "not determined yet" — the node has neither

@@ -36,7 +36,7 @@ cloned from the NZC framework template instance via `nodes/instance_serializatio
 **Export** (`MetricSnapshot.from_model`, line ~112):
 
 ```python
-identifier=obj.name or str(obj.uuid),
+identifier = (obj.name or str(obj.uuid),)
 ```
 
 **Import** (`_import_dataset`, line ~557):

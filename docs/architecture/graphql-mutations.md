@@ -116,6 +116,7 @@ Check with `is_maybe_set()` (a `TypeGuard`) and unwrap with `.value`:
 def is_maybe_set[T](maybe: Some[T] | None) -> TypeGuard[Some[T]]:
     return maybe is not None and maybe is not sb.UNSET
 
+
 if is_maybe_set(input.name):
     spec.name = input.name.value
 ```

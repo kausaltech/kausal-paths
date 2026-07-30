@@ -49,15 +49,15 @@ data in place — simpler than coordinating `AddField` + `RunPython` + `RemoveFi
 **Example — `NodeSpec`:**
 ```python
 {
-    "node_class": "nodes.simple.AdditiveNode",
-    "type_config": {"kind": "formula", "formula": "a + b"},
-    "input_ports": [...],
-    "output_ports": [...],
-    "output_metrics": [{"id": "emissions", "unit": "kt/a", "quantity": "emissions"}],
-    "pipeline": [...],
-    "params": [...],
-    "is_outcome": false,
-    "extra": {"historical_values": [...], "tags": [...]}
+    'node_class': 'nodes.simple.AdditiveNode',
+    'type_config': {'kind': 'formula', 'formula': 'a + b'},
+    'input_ports': [...],
+    'output_ports': [...],
+    'output_metrics': [{'id': 'emissions', 'unit': 'kt/a', 'quantity': 'emissions'}],
+    'pipeline': [...],
+    'params': [...],
+    'is_outcome': false,
+    'extra': {'historical_values': [...], 'tags': [...]},
 }
 ```
 
