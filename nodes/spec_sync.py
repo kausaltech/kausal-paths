@@ -96,15 +96,19 @@ def resolve_dataset_port_snapshots(  # noqa: C901
     from nodes.instance_serialization import DatasetPortSnapshot
     from nodes.spec_export import pair_metrics_to_columns
 
-    node_specs: dict[str, NodeSpec] = {}
+    node_specs: dict[UUID, NodeSpec] = {}
+    node_identifiers: dict[UUID, str] = {}
     for n in snapshot.nodes:
         assert n.spec is not None
-        node_specs[n.identifier] = n.spec
+        if n.identifier is None:
+            raise ValueError(f'Node {n.uuid} has no identifier; dataset port IDs still require one')
+        node_specs[n.uuid] = n.spec
+        node_identifiers[n.uuid] = n.identifier
 
     instance_uuid = snapshot.metadata.uuid
 
     # Group parse-side entries into bindings: (node, dataset_index) is binding identity.
-    bindings: dict[tuple[str, int], list[DatasetPortSnapshot]] = {}
+    bindings: dict[tuple[UUID, int], list[DatasetPortSnapshot]] = {}
     for port in snapshot.dataset_ports:
         bindings.setdefault((port.node, port.dataset_index), []).append(port)
 
@@ -140,7 +144,12 @@ def resolve_dataset_port_snapshots(  # noqa: C901
                 DatasetPortSnapshot(
                     node=node_id,
                     dataset=dataset_id,
-                    port_id=_dataset_port_uuid(instance_uuid, node_id, dataset_index, port_column),
+                    port_id=_dataset_port_uuid(
+                        instance_uuid,
+                        node_identifiers[node_id],
+                        dataset_index,
+                        port_column,
+                    ),
                     metric=metric_name,
                     dataset_index=dataset_index,
                     spec=spec,
@@ -217,7 +226,7 @@ def _update_node_config_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_l
         nc.i18n = {**current, **i18n}
 
 
-def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: dict[str, NodeConfig]) -> int:
+def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: dict[UUID, NodeConfig]) -> int:
     from nodes.models import NodeEdge
 
     NodeEdge.objects.filter(instance=ic).delete()
@@ -242,7 +251,7 @@ def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: d
     return len(edge_objs)
 
 
-def _write_dataset_ports(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: dict[str, NodeConfig]) -> int:
+def _write_dataset_ports(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: dict[UUID, NodeConfig]) -> int:
     """Resolve bindings against the DB schemas and write the DatasetPort rows."""
     from kausal_common.datasets.models import DatasetMetric
 
@@ -282,19 +291,21 @@ def _write_dataset_ports(ic: InstanceConfig, snapshot: InstanceSnapshot, node_co
     return len(port_objs)
 
 
-def _upsert_node_configs(ic: InstanceConfig, snapshot: InstanceSnapshot) -> dict[str, NodeConfig]:
+def _upsert_node_configs(ic: InstanceConfig, snapshot: InstanceSnapshot) -> dict[UUID, NodeConfig]:
     from nodes.models import NodeConfig
 
     node_qs = ic.nodes.all().defer('spec')
-    existing_ncs = {nc.identifier: nc for nc in node_qs}
-    node_configs: dict[str, NodeConfig] = {}
+    existing_by_uuid = {nc.uuid: nc for nc in node_qs}
+    existing_by_identifier = {nc.identifier: nc for nc in node_qs}
+    node_configs: dict[UUID, NodeConfig] = {}
+    active_identifiers: set[str] = set()
     for n in snapshot.nodes:
-        nc = existing_ncs.get(n.identifier)
+        if n.identifier is None:
+            raise ValueError(f'Node {n.uuid} has no identifier; DB sync still requires one')
+        nc = existing_by_uuid.get(n.uuid) or existing_by_identifier.get(n.identifier)
         if nc is None:
-            nc = NodeConfig(instance=ic, identifier=n.identifier)
+            nc = NodeConfig(instance=ic, uuid=n.uuid, identifier=n.identifier)
         assert n.spec is not None
-        if not nc.pk or not nc.uuid:
-            nc.uuid = n.spec.uuid
         _update_node_config_from_snapshot(nc, n, snapshot.metadata.primary_language)
         nc.is_stale = False
         nc.save()
@@ -302,9 +313,10 @@ def _upsert_node_configs(ic: InstanceConfig, snapshot: InstanceSnapshot) -> dict
         # which silently reverts SchemaField values.
         NodeConfig.objects.filter(pk=nc.pk).update(spec=n.spec)
         nc.spec = n.spec
-        node_configs[n.identifier] = nc
+        node_configs[n.uuid] = nc
+        active_identifiers.add(n.identifier)
 
-    stale_ids = set(existing_ncs.keys()) - set(node_configs.keys())
+    stale_ids = set(existing_by_identifier) - active_identifiers
     if stale_ids:
         stale_nodes = ic.nodes.filter(identifier__in=stale_ids).defer('spec')
         logger.warning(f'Detected {len(stale_nodes)} stale nodes: {stale_nodes.values_list("identifier", flat=True)}')

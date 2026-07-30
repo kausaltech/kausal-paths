@@ -880,7 +880,7 @@ class InstanceConfig(
             from .instance_serialization import InstanceSnapshot
 
             with set_i18n_context(self.primary_language, self.other_languages or []):
-                snapshot = InstanceSnapshot.model_validate(structured)
+                snapshot = InstanceSnapshot.from_serialized_data(structured)
             instance = InstanceLoader.from_snapshot(snapshot).instance
             self.update_instance_from_configs(instance, node_refs=True)
             return instance

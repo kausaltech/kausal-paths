@@ -18,10 +18,12 @@ carrying types (``DatasetExport``, ``DatasetMetricExport``) keep their
 
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Self, cast
 from uuid import UUID
 
+from django.db.models import F
 from pydantic import BaseModel, Field
 
 from kausal_common.i18n.pydantic import (
@@ -57,7 +59,8 @@ if TYPE_CHECKING:
 #   v2: split identity metadata out of the embedded spec into a dedicated
 #       ``metadata`` field (``InstanceMetadata``); ``spec`` is now the
 #       computation-only ``InstanceModelSpec``.
-SNAPSHOT_SCHEMA_VERSION = 2
+#   v3: node references use UUIDs instead of identifiers.
+SNAPSHOT_SCHEMA_VERSION = 3
 
 
 # ---------------------------------------------------------------------------
@@ -276,7 +279,8 @@ def _label_from_identifier(identifier: str) -> str:
 
 
 class NodeSnapshot(ModelSnapshot):
-    identifier: str
+    uuid: UUID
+    identifier: str | None = None
     name: TranslatedString | None = None
     short_description: TranslatedString | None = None
     description: TranslatedString | None = None
@@ -284,19 +288,21 @@ class NodeSnapshot(ModelSnapshot):
     color: str = ''
     order: int | None = None
     is_visible: bool = True
-    indicator_node: str | None = None
-    copy_of: str | None = None  # uuid of the NodeConfig this was copied from
+    indicator_node: UUID | None = None
+    copy_of: UUID | None = None
     spec: NodeSpec | None = None
 
     @classmethod
-    def from_model(cls, obj: NodeConfig) -> Self:
+    def from_model(cls, obj: NodeConfig, primary_language: str | None = None) -> Self:
         indicator_id: int | None = getattr(obj, 'indicator_node_id', None)
-        indicator_identifier: str | None = None
+        indicator_uuid: UUID | None = None
         if indicator_id:
             indicator = getattr(obj, 'indicator_node', None)
-            indicator_identifier = indicator.identifier if indicator else None
-        primary_language: str = obj.instance.primary_language
+            indicator_uuid = indicator.uuid if indicator else None
+        if primary_language is None:
+            primary_language = obj.instance.primary_language
         return cls(
+            uuid=obj.uuid,
             identifier=obj.identifier,
             name=_ts_from_modeltrans(obj, 'name', primary_language),
             short_description=_ts_from_modeltrans(obj, 'short_description', primary_language),
@@ -305,15 +311,15 @@ class NodeSnapshot(ModelSnapshot):
             color=obj.color,
             order=obj.order,
             is_visible=obj.is_visible,
-            indicator_node=indicator_identifier,
-            copy_of=str(obj.copy_of.uuid) if obj.copy_of else None,
+            indicator_node=indicator_uuid,
+            copy_of=obj.copy_of.uuid if obj.copy_of else None,
             spec=obj.spec,
         )
 
 
 class EdgeSnapshot(ModelSnapshot):
-    from_node: str
-    to_node: str
+    from_node: UUID
+    to_node: UUID
     from_port: UUID
     to_port: UUID
     transformations: list[EdgeTransformOp] = Field(default_factory=list)
@@ -321,9 +327,11 @@ class EdgeSnapshot(ModelSnapshot):
 
     @classmethod
     def from_model(cls, obj: NodeEdge) -> Self:
+        from_node = getattr(obj, '_from_node_uuid', None)
+        to_node = getattr(obj, '_to_node_uuid', None)
         return cls(
-            from_node=obj.from_node.identifier,
-            to_node=obj.to_node.identifier,
+            from_node=from_node if from_node is not None else obj.from_node.uuid,
+            to_node=to_node if to_node is not None else obj.to_node.uuid,
             from_port=obj.from_port,
             to_port=obj.to_port,
             transformations=obj.transformations or [],
@@ -332,7 +340,7 @@ class EdgeSnapshot(ModelSnapshot):
 
 
 class DatasetPortSnapshot(ModelSnapshot):
-    node: str
+    node: UUID
     dataset: str
     port_id: UUID
     metric: str
@@ -355,7 +363,7 @@ class DatasetPortSnapshot(ModelSnapshot):
         if latest_rev is not None:
             dataset_revision_id = latest_rev
         return cls(
-            node=obj.node.identifier,
+            node=obj.node.uuid,
             dataset=obj.dataset.identifier or str(obj.dataset.uuid),
             port_id=obj.port_id,
             metric=obj.metric.name or str(obj.metric.uuid),
@@ -369,9 +377,9 @@ class InstanceSnapshot(BaseModel):
     """
     Structural state of an instance; unit of revisioning.
 
-    Contains metadata + spec + nodes + edges + dataset ports. Dataset
-    references are identifier-pinned; dataset bodies live in ``DatasetExport``
-    alongside (see ``InstanceExport``).
+    Contains metadata + spec + nodes + edges + dataset ports.
+    Node references are UUID-pinned. Dataset references remain identifier-pinned;
+    dataset bodies live in ``DatasetExport`` alongside (see ``InstanceExport``).
     """
 
     schema_version: int = SNAPSHOT_SCHEMA_VERSION
@@ -386,6 +394,39 @@ class InstanceSnapshot(BaseModel):
     dataset_ports: list[DatasetPortSnapshot] = Field(default_factory=list)
 
     model_config = {'arbitrary_types_allowed': True}
+
+    @classmethod
+    def from_serialized_data(cls, data: dict[str, Any]) -> Self:
+        """Load persisted snapshot data, upgrading identifier-based v1/v2 node references."""
+        schema_version = data.get('schema_version', 1)
+        if schema_version >= 3:
+            return cls.model_validate(data)
+
+        data = deepcopy(data)
+        nodes = data.get('nodes', [])
+        node_uuids: dict[str, UUID] = {}
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            node_uuid = node.get('uuid') or (node.get('spec') or {}).get('uuid')
+            identifier = node.get('identifier')
+            if node_uuid is None or identifier is None:
+                raise ValueError('Legacy node snapshots require an identifier and spec UUID')
+            node['uuid'] = node_uuid
+            node_uuids[identifier] = UUID(str(node_uuid))
+
+        for node in nodes:
+            indicator = node.get('indicator_node')
+            if indicator is not None:
+                node['indicator_node'] = node_uuids[indicator]
+        for edge in data.get('edges', []):
+            edge['from_node'] = node_uuids[edge['from_node']]
+            edge['to_node'] = node_uuids[edge['to_node']]
+        for port in data.get('dataset_ports', []):
+            port['node'] = node_uuids[port['node']]
+
+        data['schema_version'] = 3
+        return cls.model_validate(data)
 
 
 class InstanceExport(BaseModel):
@@ -511,10 +552,13 @@ def build_instance_snapshot(ic: InstanceConfig) -> InstanceSnapshot:
         msg = f'Instance {ic.identifier} has no spec — run sync_instance_to_db first'
         raise ValueError(msg)
 
-    node_qs = ic.nodes.get_queryset().for_serialization().select_related('instance', 'indicator_node', 'copy_of')
-    nodes = [NodeSnapshot.from_model(nc) for nc in node_qs]
+    node_qs = ic.nodes.get_queryset().active().with_spec().select_related('indicator_node', 'copy_of').order_by('order', 'pk')
+    nodes = [NodeSnapshot.from_model(nc, primary_language=ic.primary_language) for nc in node_qs]
 
-    edge_qs = NodeEdge.objects.filter(instance=ic).select_related('from_node', 'to_node')
+    edge_qs = NodeEdge.objects.filter(instance=ic).annotate(
+        _from_node_uuid=F('from_node__uuid'),
+        _to_node_uuid=F('to_node__uuid'),
+    )
     edges = [EdgeSnapshot.from_model(e) for e in edge_qs]
 
     port_qs = _dataset_port_qs_for(ic)
@@ -537,6 +581,17 @@ def _dataset_port_qs_for(ic: InstanceConfig) -> QuerySet[DatasetPort]:
         DatasetPort.objects
         .filter(instance=ic)
         .select_related('node', 'dataset', 'metric')
+        .only(
+            'dataset_index',
+            'port_id',
+            'spec',
+            'node__uuid',
+            'dataset__identifier',
+            'dataset__uuid',
+            'dataset__latest_revision_id',
+            'metric__name',
+            'metric__uuid',
+        )
         .order_by('node__identifier', 'dataset_index', 'metric__order', 'port_id')
     )
 
@@ -1128,7 +1183,7 @@ def import_instance_datasets(
     return imported
 
 
-def import_instance_nodes(ic: InstanceConfig, export: InstanceExport) -> dict[str, NodeConfig]:
+def import_instance_nodes(ic: InstanceConfig, export: InstanceExport) -> dict[UUID, NodeConfig]:
     """
     Create NodeConfig rows for ``ic`` from the snapshot's nodes.
 
@@ -1136,7 +1191,7 @@ def import_instance_nodes(ic: InstanceConfig, export: InstanceExport) -> dict[st
     ``description``/``goal``/``color``/``order``/``is_visible`` — plus ``spec``
     and ``indicator_node`` links) from ``export.instance.nodes``, *without*
     touching the instance-level spec or ``config_source``. Node references are
-    identifier-keyed in the snapshot, so no pk remapping is needed.
+    UUID-keyed in the snapshot, so no pk remapping is needed.
 
     Used by yaml-mode copies so admin-authored node fields (which the YAML
     can't express) are carried over, instead of rebuilding rows from the YAML
@@ -1148,7 +1203,7 @@ def import_instance_nodes(ic: InstanceConfig, export: InstanceExport) -> dict[st
 def import_instance_edges_and_ports(
     ic: InstanceConfig,
     export: InstanceExport,
-    nodes_by_id: dict[str, NodeConfig],
+    nodes_by_uuid: dict[UUID, NodeConfig],
     datasets_by_id: dict[str, DatasetModel],
 ) -> None:
     """
@@ -1156,15 +1211,15 @@ def import_instance_edges_and_ports(
 
     Companion to :func:`import_instance_nodes` for callers that build the DB
     mirror piecemeal (yaml-mode copies) rather than through the full
-    :func:`import_instance`. Edges and ports are matched by node/dataset
-    *identifier*, so references that don't resolve in ``ic`` (e.g. a DVC dataset
+    :func:`import_instance`. Edges and ports are matched by node UUID and dataset
+    identifier, so references that don't resolve in ``ic`` (e.g. a DVC dataset
     not materialised in the DB) are skipped rather than erroring. Does not touch
     ``config_source`` or the instance spec — these tables are dormant for
     ``config_source='yaml'`` (the runtime loads the YAML) but are read by the
     Trailhead editor, so a copy should mirror whatever the source has.
     """
-    _import_edges(ic, export, nodes_by_id)
-    _import_dataset_ports(ic, export, nodes_by_id, datasets_by_id)
+    _import_edges(ic, export, nodes_by_uuid)
+    _import_dataset_ports(ic, export, nodes_by_uuid, datasets_by_id)
 
 
 def _apply_translated(
@@ -1192,13 +1247,15 @@ def _apply_translated(
 def _import_nodes(
     ic: InstanceConfig,
     export: InstanceExport,
-) -> dict[str, NodeConfig]:
-    """Create NodeConfig objects. Returns identifier → NodeConfig map."""
+) -> dict[UUID, NodeConfig]:
+    """Create NodeConfig objects. Returns UUID → NodeConfig map."""
     from nodes.models import NodeConfig
 
     primary_lang = ic.primary_language
-    nodes_by_id: dict[str, NodeConfig] = {}
+    nodes_by_uuid: dict[UUID, NodeConfig] = {}
     for n in export.instance.nodes:
+        if n.identifier is None:
+            raise ValueError(f'Node {n.uuid} has no identifier; the legacy runtime still requires one')
         fields: dict[str, Any] = {}
         i18n_dict: dict[str, str] = {}
         _apply_translated(fields, i18n_dict, n.name, 'name', primary_lang)
@@ -1217,15 +1274,16 @@ def _import_nodes(
         )
         # Write spec via queryset.update() to bypass ClusterableModel.save()
         if n.spec is not None:
-            NodeConfig.objects.filter(pk=nc.pk).update(spec=n.spec)
-            nc.spec = n.spec
-        nodes_by_id[n.identifier] = nc
+            node_spec = n.spec.model_copy(update={'uuid': nc.uuid})
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=node_spec)
+            nc.spec = node_spec
+        nodes_by_uuid[n.uuid] = nc
 
     # Resolve indicator_node references
     for n in export.instance.nodes:
-        if n.indicator_node and n.indicator_node in nodes_by_id:
-            nc = nodes_by_id[n.identifier]
-            indicator = nodes_by_id[n.indicator_node]
+        if n.indicator_node and n.indicator_node in nodes_by_uuid:
+            nc = nodes_by_uuid[n.uuid]
+            indicator = nodes_by_uuid[n.indicator_node]
             NodeConfig.objects.filter(pk=nc.pk).update(indicator_node=indicator)
 
     # Resolve copy_of references by uuid (restore fidelity; the source node may
@@ -1235,21 +1293,21 @@ def _import_nodes(
             continue
         src = NodeConfig.objects.filter(uuid=n.copy_of).first()
         if src is not None:
-            NodeConfig.objects.filter(pk=nodes_by_id[n.identifier].pk).update(copy_of=src)
+            NodeConfig.objects.filter(pk=nodes_by_uuid[n.uuid].pk).update(copy_of=src)
 
-    return nodes_by_id
+    return nodes_by_uuid
 
 
 def _import_edges(
     ic: InstanceConfig,
     export: InstanceExport,
-    nodes_by_id: dict[str, NodeConfig],
+    nodes_by_uuid: dict[UUID, NodeConfig],
 ) -> None:
     from nodes.models import NodeEdge
 
     for e in export.instance.edges:
-        from_node = nodes_by_id.get(e.from_node)
-        to_node = nodes_by_id.get(e.to_node)
+        from_node = nodes_by_uuid.get(e.from_node)
+        to_node = nodes_by_uuid.get(e.to_node)
         if from_node is None or to_node is None:
             continue
         NodeEdge.objects.create(
@@ -1266,13 +1324,13 @@ def _import_edges(
 def _import_dataset_ports(
     ic: InstanceConfig,
     export: InstanceExport,
-    nodes_by_id: dict[str, NodeConfig],
+    nodes_by_uuid: dict[UUID, NodeConfig],
     datasets_by_id: dict[str, DatasetModel],
 ) -> None:
     from nodes.models import DatasetPort
 
     for p in export.instance.dataset_ports:
-        node = nodes_by_id.get(p.node)
+        node = nodes_by_uuid.get(p.node)
         dataset = datasets_by_id.get(p.dataset)
         if node is None or dataset is None:
             continue
@@ -1353,10 +1411,10 @@ def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config
     datasets_by_id = {ds.identifier: ds for ds in datasets if ds.identifier is not None}
 
     # Nodes
-    nodes_by_id = _import_nodes(ic, export)
+    nodes_by_uuid = _import_nodes(ic, export)
 
     # Edges
-    _import_edges(ic, export, nodes_by_id)
+    _import_edges(ic, export, nodes_by_uuid)
 
     # Dataset ports
-    _import_dataset_ports(ic, export, nodes_by_id, datasets_by_id)
+    _import_dataset_ports(ic, export, nodes_by_uuid, datasets_by_id)

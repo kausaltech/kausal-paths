@@ -28,6 +28,7 @@ from nodes.defs.node_defs import NodeKind
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from uuid import UUID
 
     from kausal_common.i18n.pydantic import I18nString
 
@@ -157,13 +158,17 @@ def _serialize_instance_metadata(snapshot: InstanceSnapshot) -> dict[str, Any]:
 
 def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> None:
     node_snapshots = snapshot.nodes
-    specs_by_identifier: dict[str, NodeSpec] = {}
+    specs_by_uuid: dict[UUID, NodeSpec] = {}
+    identifiers_by_uuid: dict[UUID, str] = {}
     for n in node_snapshots:
-        assert n.spec is not None, f'Node {n.identifier!r} has no spec'
-        specs_by_identifier[n.identifier] = n.spec
+        assert n.spec is not None, f'Node {n.uuid} has no spec'
+        if n.identifier is None:
+            raise ValueError(f'Node {n.uuid} has no identifier; the legacy runtime still requires one')
+        specs_by_uuid[n.uuid] = n.spec
+        identifiers_by_uuid[n.uuid] = n.identifier
 
-    _output_edges, input_edges = _build_edge_maps(snapshot.edges, specs_by_identifier)
-    dataset_ports_by_node: defaultdict[str, list[DatasetPortSnapshot]] = defaultdict(list)
+    _output_edges, input_edges = _build_edge_maps(snapshot.edges, specs_by_uuid, identifiers_by_uuid)
+    dataset_ports_by_node: defaultdict[UUID, list[DatasetPortSnapshot]] = defaultdict(list)
     for port in sorted(snapshot.dataset_ports, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
         dataset_ports_by_node[port.node].append(port)
 
@@ -172,10 +177,10 @@ def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> 
     for n in node_snapshots:
         node_dict = _serialize_node_config(
             n,
-            input_nodes=input_edges.get(n.identifier, []),
-            dataset_ports=dataset_ports_by_node.get(n.identifier, []),
+            input_nodes=input_edges.get(n.uuid, []),
+            dataset_ports=dataset_ports_by_node.get(n.uuid, []),
         )
-        spec = specs_by_identifier[n.identifier]
+        spec = specs_by_uuid[n.uuid]
         if spec.type_config.kind == NodeKind.ACTION:
             actions_list.append(node_dict)
         else:
@@ -191,6 +196,8 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     dataset_ports: list[DatasetPortSnapshot],
 ) -> dict[str, Any]:
     assert n.spec is not None
+    if n.identifier is None:
+        raise ValueError(f'Node {n.uuid} has no identifier; the legacy runtime still requires one')
     spec: NodeSpec = n.spec
     node: dict[str, Any] = {'id': spec.identifier or n.identifier}
 
@@ -447,25 +454,26 @@ def _transforms_to_config(transforms: Sequence[PortTransformOp]) -> dict[str, li
 
 def _build_edge_maps(  # noqa: C901, PLR0912
     edges: Sequence[EdgeSnapshot],
-    specs_by_identifier: dict[str, NodeSpec],
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
-    output_edges: dict[str, list[dict[str, Any]]] = {}
-    input_edges_with_order: defaultdict[str, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
+    specs_by_uuid: dict[UUID, NodeSpec],
+    identifiers_by_uuid: dict[UUID, str],
+) -> tuple[dict[UUID, list[dict[str, Any]]], dict[UUID, list[dict[str, Any]]]]:
+    output_edges: dict[UUID, list[dict[str, Any]]] = {}
+    input_edges_with_order: defaultdict[UUID, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
 
-    edge_metrics: defaultdict[str, defaultdict[str, list[tuple[str, EdgeSnapshot]]]] = defaultdict(lambda: defaultdict(list))
+    edge_metrics: defaultdict[UUID, defaultdict[UUID, list[tuple[str, EdgeSnapshot]]]] = defaultdict(lambda: defaultdict(list))
 
     for edge in edges:
-        from_spec = specs_by_identifier[edge.from_node]
+        from_spec = specs_by_uuid[edge.from_node]
         from_port = from_spec.output_port_by_id[edge.from_port]
         column_id = from_port.column_id or VALUE_COLUMN
         edge_metrics[edge.from_node][edge.to_node].append((column_id, edge))
 
     for from_node_id, to_nodes in edge_metrics.items():
-        from_spec = specs_by_identifier[from_node_id]
+        from_spec = specs_by_uuid[from_node_id]
         from_is_multi_metric = len(from_spec.output_ports) > 1
         for to_node_id, metric_tuples in to_nodes.items():
-            from_entry: dict[str, Any] = {'id': from_node_id}
-            to_entry: dict[str, Any] = {'id': to_node_id}
+            from_entry: dict[str, Any] = {'id': identifiers_by_uuid[from_node_id]}
+            to_entry: dict[str, Any] = {'id': identifiers_by_uuid[to_node_id]}
 
             metrics_entry: list[str] = []
             _, first_edge = metric_tuples[0]
@@ -501,7 +509,7 @@ def _build_edge_maps(  # noqa: C901, PLR0912
                         entry['to_dimensions'] = config['to_dimensions']
 
             output_edges.setdefault(from_node_id, []).append(to_entry)
-            to_spec = specs_by_identifier[to_node_id]
+            to_spec = specs_by_uuid[to_node_id]
             input_port_order = {port.id: idx for idx, port in enumerate(to_spec.input_ports)}
             input_edges_with_order[to_node_id].append((
                 input_port_order.get(first_edge.to_port, len(input_port_order)),
