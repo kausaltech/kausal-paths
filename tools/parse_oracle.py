@@ -126,6 +126,27 @@ def parse_side_snapshot(
         return InstanceSnapshot.model_validate(snapshot.model_dump(mode='json'))
 
 
+def full_sync_side_snapshot(instance_id: str) -> InstanceSnapshot:
+    """
+    Snapshot from the parse-only sync's full DB effects, via a rolled-back run.
+
+    This exercises the entire write half (metadata columns, node rows,
+    dimensions, placeholders, edges, dataset ports), not just the parse.
+    """
+    from nodes.spec_sync import sync_parsed_instance_to_db
+
+    result: list[InstanceSnapshot] = []
+    try:
+        with transaction.atomic():
+            sync_parsed_instance_to_db(instance_id, promote_forecast_defaults=False)
+            ic = InstanceConfig.objects.get(identifier=instance_id)
+            result.append(build_instance_snapshot(ic))
+            raise _RollbackError()  # noqa: TRY301
+    except _RollbackError:
+        pass
+    return result[0]
+
+
 _LANG_KEY_RE = re.compile(r'^[a-z]{2,3}(-[A-Z]{2})?$')
 
 
@@ -164,6 +185,7 @@ def compare_snapshots(  # noqa: C901
     db_snap: InstanceSnapshot,
     parse_snap: InstanceSnapshot,
     schemas: dict[str, Any] | None = None,
+    persisted_node_identifiers: set[str] | None = None,
 ) -> tuple[list[str], list[str]]:
     problems: list[str] = []
     warnings: list[str] = []
@@ -188,7 +210,13 @@ def compare_snapshots(  # noqa: C901
         a_spec, b_spec = a.spec, b.spec
         assert a_spec is not None
         assert b_spec is not None
-        diff(f'node {ident} spec', _dump(a_spec), _dump(b_spec))
+        dump_a, dump_b = _dump(a_spec), _dump(b_spec)
+        if persisted_node_identifiers is not None and ident not in persisted_node_identifiers:
+            # Neither side's uuid persisted (both rolled-back runs invented
+            # one for a row missing from the live DB); ignore it.
+            dump_a.pop('uuid', None)
+            dump_b.pop('uuid', None)
+        diff(f'node {ident} spec', dump_a, dump_b)
 
     def edge_key(e: Any) -> tuple[Any, ...]:
         return (e.from_node, e.to_node, str(e.from_port), str(e.to_port))
@@ -233,11 +261,16 @@ def instance_ids_from_db() -> list[str]:
     return [i for i in ids if Path(f'configs/{i}.yaml').exists()]
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--instance', action='append', help='Instance id(s); default: all non-framework')
     parser.add_argument('--refresh', action='store_true', help='Re-run the runtime export instead of using the cache')
     parser.add_argument('--fail-fast', action='store_true')
+    parser.add_argument(
+        '--full-sync',
+        action='store_true',
+        help='Compare full DB effects of the parse-only sync (rolled back) instead of the in-memory parse',
+    )
     args = parser.parse_args()
 
     instance_ids = args.instance or instance_ids_from_db()
@@ -252,15 +285,21 @@ def main() -> int:
                 raise
             continue
         db_snap, instance_uuid, node_uuids, schemas = export_result
+        persisted_node_identifiers: set[str] | None = None
         try:
-            parse_snap = parse_side_snapshot(instance_id, instance_uuid, node_uuids, schemas)
+            if args.full_sync:
+                ic = InstanceConfig.objects.filter(identifier=instance_id).first()
+                persisted_node_identifiers = set(ic.nodes.values_list('identifier', flat=True)) if ic is not None else set()
+                parse_snap = full_sync_side_snapshot(instance_id)
+            else:
+                parse_snap = parse_side_snapshot(instance_id, instance_uuid, node_uuids, schemas)
         except Exception as e:
             print(f'[PARSE-ERROR] {instance_id}: {type(e).__name__}: {e}')
             failures += 1
             if args.fail_fast:
                 raise
             continue
-        problems, warnings = compare_snapshots(db_snap, parse_snap, schemas)
+        problems, warnings = compare_snapshots(db_snap, parse_snap, schemas, persisted_node_identifiers)
         for w in warnings:
             print(f'    [warn] {instance_id}: {w}')
         if problems:
