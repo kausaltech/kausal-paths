@@ -25,13 +25,16 @@ dimensions:
 - id: heating_type
   label_en: Heating type
   label_de: Heizungstyp
+  label_fi: Lämmitystapa
   categories:
   - id: district_heating
     label_en: District heating
     label_de: Fernwärme
+    label_fi: Kaukolämpö
   - id: local_heating
     label_en: Local heating
     label_de: Nahwärme
+    label_fi: Aluelämpö
 
 - id: pollutant
   label_fi: Saaste
@@ -411,7 +414,7 @@ nodes:
   description_fi: Altistuminen ilmansaasteille pitkäaikaisena keskimääräisenä pitoisuutena
     hengitysvyöhykkeellä. Altistus kohdennetaan mallin tarkastelemaan väestöön, vaikka osa
     altistumisesta ja siten myös terveysvaikutuksista tapahtuu tarkastelualueen ulkopuolella.
-  decription_en: Exposure to air pollution as a long-term average concentration in the
+  description_en: Exposure to air pollution as a long-term average concentration in the
     breathing zone. The exposure is attributed to the modeled population although a part of
     the exposure and thus health effects occur outside the modeled area.
   description_de: Luftschadstoffexposition als langfristige Durchschnittskonzentration in der

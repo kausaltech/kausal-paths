@@ -24,12 +24,15 @@ dimensions:
   - id: '0'
     label_en: '0'
     label_de: '0'
+    label_fi: '0'
   - id: '1'
     label_en: '1'
     label_de: '1'
+    label_fi: '1'
   - id: '2'
     label_en: '2'
     label_de: '2'
+    label_fi: '2'
   - id: thl
     label_en: THL model
     label_de: THL-Modell
