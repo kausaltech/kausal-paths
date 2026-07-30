@@ -1559,7 +1559,7 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
     dataset = DatasetFactory.create(identifier='test_dataset')
     metric = DatasetMetricFactory.create(schema=dataset.schema, name='test_metric')
 
-    node_count = 12
+    node_count = 15
     for idx in range(node_count):
         NodeConfigFactory.create(
             instance=db_instance_config,
@@ -1613,6 +1613,12 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
     assert data['modelInstance']['editor']['datasetPorts'][0]['metric']['name'] == 'test_metric'
     assert data['modelInstance']['editor']['datasetPorts'][0]['externalDatasetId'] == 'test_dataset'
     assert data['modelInstance']['editor']['datasetPorts'][0]['externalMetricId'] == 'test_metric'
+    per_binding_dataset_queries = [
+        query
+        for query in query_ctx.captured_queries
+        if 'FROM "datasets_dataset"' in query['sql'] and 'WHERE "datasets_dataset"."uuid" =' in query['sql']
+    ]
+    assert per_binding_dataset_queries == []
     assert len(query_ctx) <= 20
 
 

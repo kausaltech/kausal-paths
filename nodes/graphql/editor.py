@@ -70,11 +70,23 @@ def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
 def _resolve_model_instance(ic: InstanceConfig) -> InstanceType:
     instance = ic._initialize_instance(node_refs=True)
     node_configs = ic.nodes_for_serialization
+    dataset_ports = list(
+        ic.dataset_ports.select_related(
+            'node',
+            'dataset__schema',
+            'dataset__created_by',
+            'dataset__last_modified_by',
+            'metric',
+        )
+    )
+    datasets_by_uuid = {port.dataset.uuid: port.dataset for port in dataset_ports}
+    ic._annotated_dataset_ports = dataset_ports
     node_config_by_identifier = {nc.identifier: nc for nc in node_configs}
     instance._annotated_node_configs_by_identifier = node_config_by_identifier  # type: ignore[attr-defined]
     for node_id, node in instance.context.nodes.items():
         nc = node_config_by_identifier.get(node_id)
         if nc is not None:
+            nc._annotated_dataset_models_by_uuid = datasets_by_uuid
             node.db_obj = nc
     return InstanceType.from_model(ic, instance=instance)
 

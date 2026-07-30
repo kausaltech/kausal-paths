@@ -143,7 +143,11 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
             sb_edge = NodeEdgeType.from_binding(edge, node=node)
             edges_by_id.setdefault(edge.port_ref.port_id, []).append(sb_edge)
         for dataset in dataset_bindings:
-            sb_dataset = DatasetPortType.from_binding(dataset, node=node)
+            sb_dataset = DatasetPortType.from_binding(
+                dataset,
+                node=node,
+                dataset_models_by_uuid=getattr(nc, '_annotated_dataset_models_by_uuid', None),
+            )
             assert sb_dataset.port_ref.node_id == spec.identifier
             edges_by_id.setdefault(dataset.port_ref.port_id, []).append(sb_dataset)
         for port in spec.input_ports:
