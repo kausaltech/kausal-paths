@@ -158,7 +158,9 @@ def test_serializable_data_includes_structured_snapshot(empty_db_instance: Insta
     ms = data['model_snapshot']
     assert ms['schema_version'] == SNAPSHOT_SCHEMA_VERSION
     assert 'structured' in ms
-    assert 'hydrate_dict' in ms
+    # The serialized config dict is no longer written; restore goes through
+    # the structured snapshot (hydrate_dict remains readable in old revisions).
+    assert 'hydrate_dict' not in ms
     # Structured should validate as InstanceSnapshot
     reloaded = InstanceSnapshot.model_validate(ms['structured'])
     assert reloaded.schema_version == SNAPSHOT_SCHEMA_VERSION

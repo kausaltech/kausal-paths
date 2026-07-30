@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from nodes.context import Context
     from nodes.datasets import Dataset
     from nodes.instance import Instance
+    from nodes.instance_serialization import InstanceSnapshot
     from nodes.node import Node
     from nodes.units import Unit
     from params import Parameter
@@ -1198,6 +1199,20 @@ class InstanceLoader:
             yaml_file_path=Path(yaml_path) if yaml_path else None,
             fw_config=fw_config,
         )
+
+    @classmethod
+    def from_snapshot(cls, snapshot: InstanceSnapshot, tolerate_node_failures: bool = False) -> Self:
+        """
+        Build the runtime from an ``InstanceSnapshot`` (specs, not YAML dicts).
+
+        Transitional: the build half still consumes YAML-shaped dicts
+        internally, so the snapshot goes through the shim
+        (``nodes/instance_from_db.py``) first. The shim is private to the
+        loader; no other code should convert specs back to dicts.
+        """
+        from nodes.instance_from_db import snapshot_to_config_dict
+
+        return cls(config=snapshot_to_config_dict(snapshot), tolerate_node_failures=tolerate_node_failures)
 
     @classmethod
     def from_yaml(
