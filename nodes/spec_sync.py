@@ -11,15 +11,18 @@ against captured schema state (the parse oracle does this).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
 from uuid import UUID, uuid3
 
 from loguru import logger
 
 if TYPE_CHECKING:
+    from kausal_common.i18n.pydantic import TranslatedString
+
     from nodes.defs.node_defs import NodeSpec
-    from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot
-    from nodes.models import InstanceConfig
+    from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot
+    from nodes.models import InstanceConfig, NodeConfig
 
 
 @dataclass
@@ -148,3 +151,234 @@ def resolve_dataset_port_snapshots(  # noqa: C901
 
 def _dataset_port_uuid(instance_uuid: UUID, node_id: str, dataset_index: int, column: str) -> UUID:
     return uuid3(instance_uuid, ':'.join([node_id, 'dataset', str(dataset_index), column]))
+
+
+# ---------------------------------------------------------------------------
+# Full parse-only sync: YAML → snapshot → DB rows (no runtime)
+# ---------------------------------------------------------------------------
+
+
+def _apply_metadata_columns(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
+    """Write identity metadata onto the InstanceConfig columns (mirror of the export-path version)."""
+    from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
+
+    meta = snapshot.metadata
+    name_val, i18n = get_modeltrans_attrs_from_str(cast('str | TranslatedString', meta.name), 'name', meta.primary_language)
+    ic.name = name_val
+    ic.owner = ''
+    if meta.owner:
+        owner_val, owner_i18n = get_modeltrans_attrs_from_str(
+            cast('str | TranslatedString', meta.owner), 'owner', meta.primary_language
+        )
+        ic.owner = owner_val
+        i18n.update(owner_i18n)
+    ic.i18n = {**(ic.i18n or {}), **i18n}
+    ic.primary_language = meta.primary_language
+    ic.other_languages = list(meta.other_languages)
+
+
+def _sync_dimensions_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
+    """Mirror ``InstanceConfig.sync_dimensions`` from the spec's dimension configs."""
+    from nodes.dimensions import Dimension
+
+    for dim_config in snapshot.spec.dimensions:
+        dim = Dimension.model_validate(dim_config)
+        ic.sync_dimension(dim, update_existing=True)
+
+
+def _update_node_config_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_language: str) -> None:
+    """
+    Mirror ``NodeConfig.update_from_node(node, update_relations=False, skip_descriptions=True)``.
+
+    Fields are only set when currently unset (no overwrite); the i18n dict is
+    merged (including description translations, which the field loop skips —
+    reproducing the runtime path exactly).
+    """
+    from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
+
+    i18n: dict[str, str] = {}
+    attributes: dict[str, object] = {'identifier': n.identifier}
+    if n.name is not None:
+        val, tr = get_modeltrans_attrs_from_str(n.name, 'name', primary_language)
+        i18n.update(tr)
+        attributes['name'] = val
+    if n.description is not None:
+        # Node.description maps to NodeConfig.short_description.
+        _val, tr = get_modeltrans_attrs_from_str(n.description, 'short_description', primary_language, strict=False)
+        i18n.update(tr)
+    if n.color:
+        attributes['color'] = n.color
+
+    for key, value in attributes.items():
+        if getattr(nc, key, None) is None:
+            setattr(nc, key, value)
+    if i18n:
+        current = dict(nc.i18n) if nc.i18n else {}
+        nc.i18n = {**current, **i18n}
+
+
+def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: dict[str, NodeConfig]) -> int:
+    from nodes.models import NodeEdge
+
+    NodeEdge.objects.filter(instance=ic).delete()
+    edge_objs = []
+    for edge in snapshot.edges:
+        from_nc = node_configs.get(edge.from_node)
+        to_nc = node_configs.get(edge.to_node)
+        if from_nc is None or to_nc is None:
+            raise ValueError(f'Edge references unknown node: {edge.from_node} -> {edge.to_node}')
+        edge_objs.append(
+            NodeEdge(
+                instance=ic,
+                from_node=from_nc,
+                from_port=edge.from_port,
+                to_node=to_nc,
+                to_port=edge.to_port,
+                transformations=list(edge.transformations),
+                tags=list(edge.tags),
+            )
+        )
+    NodeEdge.objects.bulk_create(edge_objs)
+    return len(edge_objs)
+
+
+def _write_dataset_ports(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: dict[str, NodeConfig]) -> int:
+    """Resolve bindings against the DB schemas and write the DatasetPort rows."""
+    from kausal_common.datasets.models import DatasetMetric
+
+    from nodes.models import DatasetPort
+    from nodes.spec_export import _get_db_datasets
+
+    DatasetPort.objects.filter(instance=ic).delete()
+    schemas = collect_dataset_schema_info(ic)
+    resolved = resolve_dataset_port_snapshots(snapshot, schemas)
+    if not resolved:
+        return 0
+
+    db_datasets = _get_db_datasets(ic)
+    schema_pks = {ds.schema.pk for ds in db_datasets.values() if ds.schema is not None}
+    metric_by_identity: dict[tuple[int, str], DatasetMetric] = {}
+    for metric in DatasetMetric.objects.filter(schema__pk__in=schema_pks):
+        identity = metric.name or str(metric.uuid)
+        metric_by_identity[(metric.schema.pk, identity)] = metric
+
+    port_objs: list[DatasetPort] = []
+    for port in resolved:
+        dataset_obj = db_datasets[port.dataset]
+        assert dataset_obj.schema is not None
+        metric = metric_by_identity[(dataset_obj.schema.pk, port.metric)]
+        port_objs.append(
+            DatasetPort(
+                instance=ic,
+                node=node_configs[port.node],
+                port_id=port.port_id,
+                dataset=dataset_obj,
+                metric=metric,
+                spec=port.spec,
+                dataset_index=port.dataset_index,
+            )
+        )
+    DatasetPort.objects.bulk_create(port_objs)
+    return len(port_objs)
+
+
+def _upsert_node_configs(ic: InstanceConfig, snapshot: InstanceSnapshot) -> dict[str, NodeConfig]:
+    from nodes.models import NodeConfig
+
+    node_qs = ic.nodes.all().defer('spec')
+    existing_ncs = {nc.identifier: nc for nc in node_qs}
+    node_configs: dict[str, NodeConfig] = {}
+    for n in snapshot.nodes:
+        nc = existing_ncs.get(n.identifier)
+        if nc is None:
+            nc = NodeConfig(instance=ic, identifier=n.identifier)
+        assert n.spec is not None
+        if not nc.pk or not nc.uuid:
+            nc.uuid = n.spec.uuid
+        _update_node_config_from_snapshot(nc, n, snapshot.metadata.primary_language)
+        nc.is_stale = False
+        nc.save()
+        # Write spec via queryset.update() to bypass ClusterableModel.save()
+        # which silently reverts SchemaField values.
+        NodeConfig.objects.filter(pk=nc.pk).update(spec=n.spec)
+        nc.spec = n.spec
+        node_configs[n.identifier] = nc
+
+    stale_ids = set(existing_ncs.keys()) - set(node_configs.keys())
+    if stale_ids:
+        stale_nodes = ic.nodes.filter(identifier__in=stale_ids).defer('spec')
+        logger.warning(f'Detected {len(stale_nodes)} stale nodes: {stale_nodes.values_list("identifier", flat=True)}')
+        stale_nodes.update(is_stale=True)
+        delete_nodes = stale_nodes.filter(pages__isnull=True, created_by__isnull=True)
+        for stale_node in delete_nodes:
+            logger.info(f'Stale node {stale_node.identifier} was automatically created, removing')
+            stale_node.delete()
+    return node_configs
+
+
+def sync_parsed_instance_to_db(
+    instance_id: str,
+    yaml_path: str | Path | None = None,
+    *,
+    promote_forecast_defaults: bool = True,
+) -> None:
+    """
+    Parse an instance's YAML into specs and sync them to the DB — no runtime init.
+
+    This is the parse-only replacement for ``nodes.spec_export.sync_instance_to_db``
+    (which still exists as the runtime-derived baseline the parse oracle
+    compares against).
+    """
+    from django.db import transaction
+
+    from kausal_common.i18n.pydantic import set_i18n_context
+
+    from nodes.dataset_placeholders import sync_dataset_placeholders_from_snapshot
+    from nodes.instance_loader import InstanceYAMLConfig
+    from nodes.instance_parser import parse_instance_snapshot
+    from nodes.models import InstanceConfig
+    from nodes.spec_export import _promote_dataset_forecast_defaults
+
+    if yaml_path is None:
+        yaml_path = Path(f'configs/{instance_id}.yaml').resolve()
+    else:
+        yaml_path = Path(yaml_path).resolve()
+    if not yaml_path.exists():
+        raise FileNotFoundError(f'YAML file not found: {yaml_path}')
+
+    yaml_conf = InstanceYAMLConfig.load_for_entrypoint(yaml_path)
+    data = yaml_conf.data
+    assert data is not None
+
+    with transaction.atomic():
+        ic, _created = InstanceConfig.objects.get_or_create(identifier=data['id'])
+        node_uuids = {nc.identifier: nc.uuid for nc in ic.nodes.all().defer('spec')}
+        snapshot = parse_instance_snapshot(data, instance_uuid=ic.uuid, node_uuids=node_uuids)
+        snapshot.spec.features.use_datasets_from_db = True
+
+        with set_i18n_context(snapshot.metadata.primary_language, list(snapshot.metadata.other_languages)):
+            _apply_metadata_columns(ic, snapshot)
+            ic.spec = snapshot.spec
+            ic.config_source = 'database'
+            ic.invalidate_cache(save=False)
+            ic.save()
+
+            _sync_dimensions_from_snapshot(ic, snapshot)
+            node_configs = _upsert_node_configs(ic, snapshot)
+            edge_count = _write_edges(ic, snapshot, node_configs)
+            created_placeholder_ids = sync_dataset_placeholders_from_snapshot(ic, snapshot)
+            dataset_port_count = _write_dataset_ports(ic, snapshot, node_configs)
+            promoted = _promote_dataset_forecast_defaults(ic) if promote_forecast_defaults else 0
+
+    logger.info(
+        (
+            'Synced {id} (parse-only): {nodes} nodes, {edges} edges, {placeholders} dataset placeholders created, '
+            '{ports} dataset ports, {forecast_defaults} dataset forecast defaults promoted'
+        ),
+        id=instance_id,
+        nodes=len(node_configs),
+        edges=edge_count,
+        placeholders=len(created_placeholder_ids),
+        ports=dataset_port_count,
+        forecast_defaults=promoted,
+    )

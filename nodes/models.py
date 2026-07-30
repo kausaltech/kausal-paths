@@ -1263,16 +1263,13 @@ class InstanceConfig(
         self,
         dataset_dim: DatasetDimensionModel,
         scope: DimensionScope,
+        dim: NodeDimension,
         update_existing=False,
         delete_stale=False,
-        instance: Instance | None = None,
     ):
         found_cats = set()
-        if instance is None:
-            instance = self.get_instance()
-        default_lang = instance.default_language
+        default_lang = self.primary_language
         assert scope.identifier is not None
-        dim = instance.context.dimensions[scope.identifier]
 
         from datasets.defs import DimensionCategorySpec
 
@@ -1314,7 +1311,6 @@ class InstanceConfig(
         dim: NodeDimension,
         update_existing=False,
         delete_stale=False,
-        instance: Instance | None = None,
     ) -> DatasetDimensionModel:
         from datasets.defs import DimensionSpec
 
@@ -1345,9 +1341,9 @@ class InstanceConfig(
         self.sync_categories(
             dataset_dim=dim_obj,
             scope=scope,
+            dim=dim,
             update_existing=update_existing,
             delete_stale=delete_stale,
-            instance=instance,
         )
         return dim_obj
 
@@ -1356,7 +1352,7 @@ class InstanceConfig(
             instance = self.get_instance()
         found_dims = set()
         for dim in instance.context.dimensions.values():
-            obj = self.sync_dimension(dim, update_existing=update_existing, delete_stale=delete_stale, instance=instance)
+            obj = self.sync_dimension(dim, update_existing=update_existing, delete_stale=delete_stale)
             found_dims.add(obj)
 
         if delete_stale:
