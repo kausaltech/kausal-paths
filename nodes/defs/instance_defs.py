@@ -192,6 +192,8 @@ class InstanceModelSpec(I18nBaseModel):
     action_groups: list[ActionGroup] = Field(default_factory=list)
     scenarios: list[Scenario] = Field(default_factory=list)
     theme_identifier: str | None = None
+    sample_size: int = 0
+    """Sample only every Nth year in computations (0 = no sampling)."""
     # Raw dimension configs — will be properly modeled later
     dimensions: list[dict[str, Any]] = Field(default_factory=list)
 

@@ -777,7 +777,6 @@ class InstanceConfig(
         exist for admin-side revision diffs and for
         ``from_serializable_data`` to look up the live row by pk.
         """
-        from .instance_from_db import serialize_instance_to_dict
         from .instance_serialization import SNAPSHOT_SCHEMA_VERSION, build_instance_snapshot
 
         data: dict[str, Any] = {
@@ -789,7 +788,6 @@ class InstanceConfig(
             data['model_snapshot'] = {
                 'schema_version': SNAPSHOT_SCHEMA_VERSION,
                 'structured': build_instance_snapshot(self).model_dump(mode='json'),
-                'hydrate_dict': serialize_instance_to_dict(self),
             }
         return data
 
@@ -874,8 +872,20 @@ class InstanceConfig(
         if rev is None:
             return None
         content = rev.content or {}
-        snapshot = content.get('model_snapshot') or {}
-        hydrate_dict = snapshot.get('hydrate_dict')
+        snapshot_data = content.get('model_snapshot') or {}
+        structured = snapshot_data.get('structured')
+        if structured is not None:
+            from kausal_common.i18n.pydantic import set_i18n_context
+
+            from .instance_serialization import InstanceSnapshot
+
+            with set_i18n_context(self.primary_language, self.other_languages or []):
+                snapshot = InstanceSnapshot.model_validate(structured)
+            instance = InstanceLoader.from_snapshot(snapshot).instance
+            self.update_instance_from_configs(instance, node_refs=True)
+            return instance
+        # Legacy revisions carry only the serialized config dict.
+        hydrate_dict = snapshot_data.get('hydrate_dict')
         if hydrate_dict is None:
             # Revision predates the snapshot restructure; fall back to draft.
             return None
@@ -903,10 +913,12 @@ class InstanceConfig(
                     return instance
                 # Fall through to the draft path if no published revision exists.
 
-            from .instance_from_db import serialize_instance_to_dict
+            from .instance_from_db import _check_dimension_orm_coverage
+            from .instance_serialization import build_instance_snapshot
 
-            config = serialize_instance_to_dict(self)
-            loader = InstanceLoader(config=config, tolerate_node_failures=tolerate_node_failures)
+            _check_dimension_orm_coverage(self)
+            snapshot = build_instance_snapshot(self)
+            loader = InstanceLoader.from_snapshot(snapshot, tolerate_node_failures=tolerate_node_failures)
             instance = loader.instance
             self.update_instance_from_configs(instance, node_refs=True)
             return instance

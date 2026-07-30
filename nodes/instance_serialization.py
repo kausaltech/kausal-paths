@@ -511,7 +511,7 @@ def build_instance_snapshot(ic: InstanceConfig) -> InstanceSnapshot:
         msg = f'Instance {ic.identifier} has no spec — run sync_instance_to_db first'
         raise ValueError(msg)
 
-    node_qs = ic.nodes.get_queryset().for_serialization().select_related('indicator_node', 'copy_of')
+    node_qs = ic.nodes.get_queryset().for_serialization().select_related('instance', 'indicator_node', 'copy_of')
     nodes = [NodeSnapshot.from_model(nc) for nc in node_qs]
 
     edge_qs = NodeEdge.objects.filter(instance=ic).select_related('from_node', 'to_node')
@@ -533,7 +533,12 @@ def build_instance_snapshot(ic: InstanceConfig) -> InstanceSnapshot:
 def _dataset_port_qs_for(ic: InstanceConfig) -> QuerySet[DatasetPort]:
     from nodes.models import DatasetPort
 
-    return DatasetPort.objects.filter(instance=ic).select_related('node', 'dataset', 'metric')
+    return (
+        DatasetPort.objects
+        .filter(instance=ic)
+        .select_related('node', 'dataset', 'metric')
+        .order_by('node__identifier', 'dataset_index', 'metric__order', 'port_id')
+    )
 
 
 def _dataset_export_key(ds: DatasetModel) -> str:

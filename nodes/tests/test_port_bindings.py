@@ -38,6 +38,7 @@ from nodes.defs.transform_def import (
     unsupported_transformations_for_binding,
 )
 from nodes.instance_from_db import _serialize_dataset_ports
+from nodes.instance_serialization import DatasetPortSnapshot
 from nodes.spec_export import _drop_ambiguous_port_identifiers, _port_identifier_for_column
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
@@ -373,7 +374,7 @@ def test_two_bindings_of_one_dataset_stay_separate_when_specs_match(db_instance_
         for index in (0, 1)
     ]
 
-    input_datasets = _serialize_dataset_ports(ports)
+    input_datasets = _serialize_dataset_ports([DatasetPortSnapshot.from_model(p) for p in ports])
 
     assert len(input_datasets) == 2
     assert [ds['id'] for ds in input_datasets] == ['shared', 'shared']
@@ -400,7 +401,7 @@ def test_ports_of_one_binding_collapse_to_a_single_input_dataset(db_instance_con
         for name in ('emissions', 'energy')
     ]
 
-    input_datasets = _serialize_dataset_ports(ports)
+    input_datasets = _serialize_dataset_ports([DatasetPortSnapshot.from_model(p) for p in ports])
 
     assert len(input_datasets) == 1
     assert input_datasets[0]['id'] == 'multi_metric'
@@ -438,7 +439,7 @@ def test_diverging_specs_within_one_binding_warn_and_keep_the_first(db_instance_
     warnings: list[str] = []
     sink_id = logger.add(warnings.append, level='WARNING')
     try:
-        input_datasets = _serialize_dataset_ports(ports)
+        input_datasets = _serialize_dataset_ports([DatasetPortSnapshot.from_model(p) for p in ports])
     finally:
         logger.remove(sink_id)
 

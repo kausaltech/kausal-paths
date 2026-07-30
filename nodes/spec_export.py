@@ -129,6 +129,7 @@ def export_instance_spec(instance: Instance) -> InstanceModelSpec:
         action_groups=action_groups,
         scenarios=scenarios,
         theme_identifier=instance.theme_identifier,
+        sample_size=ctx.sample_size,
     )
 
 
@@ -380,11 +381,7 @@ def _dataset_port_id(node: Node, dataset_index: int, column: str) -> UUID:
     return uuid_from_identifiers(node.context.instance, [node.id, 'dataset', str(dataset_index), column])
 
 
-def _pair_schema_metrics_to_columns(
-    node: Node,
-    ds_instance: DatasetWithFilters,
-    metric_keys: list[str],
-) -> list[tuple[str, str]]:
+def pair_metrics_to_columns(columns: list[str], metric_keys: list[str], *, log_ctx: str) -> list[tuple[str, str]]:
     """
     Pair a column-less binding's dataset schema metrics with node columns.
 
@@ -397,7 +394,6 @@ def _pair_schema_metrics_to_columns(
     mapping would be worse than omitting it, and a dangling binding worse
     than a missing one.
     """
-    columns = _dataset_binding_columns_for_node(node, ds_instance)
     pairs: list[tuple[str, str]] = []
     remaining_metrics = list(metric_keys)
     remaining_columns = list(columns)
@@ -411,11 +407,17 @@ def _pair_schema_metrics_to_columns(
         pairs.append((remaining_columns[0], remaining_metrics[0]))
         remaining_metrics.clear()
     if remaining_metrics:
-        logger.warning(
-            'Dataset %s on node %s: no input port column for schema metrics %s; they get no binding'
-            % (ds_instance.id, node.id, remaining_metrics),
-        )
+        logger.warning('%s: no input port column for schema metrics %s; they get no binding' % (log_ctx, remaining_metrics))
     return pairs
+
+
+def _pair_schema_metrics_to_columns(
+    node: Node,
+    ds_instance: DatasetWithFilters,
+    metric_keys: list[str],
+) -> list[tuple[str, str]]:
+    columns = _dataset_binding_columns_for_node(node, ds_instance)
+    return pair_metrics_to_columns(columns, metric_keys, log_ctx=f'Dataset {ds_instance.id} on node {node.id}')
 
 
 def _metric_for_column(node: Node, column: str) -> NodeMetric | None:
@@ -988,11 +990,19 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
     return promoted
 
 
-def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -> None:
+def sync_instance_to_db(
+    instance_id: str,
+    yaml_path: str | Path | None = None,
+    *,
+    promote_forecast_defaults: bool = True,
+) -> None:
     """
     Load an instance from YAML and sync its spec to the DB.
 
     If yaml_path is not given, tries configs/{instance_id}.yaml.
+    ``promote_forecast_defaults=False`` keeps binding-level forecast years
+    on the DatasetPort specs (used by the parse oracle, which compares
+    against pre-promotion state).
     """
     from django.db import transaction
 
@@ -1058,7 +1068,7 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
         created_placeholder_ids = sync_instance_dataset_placeholders(ic, ctx)
 
         dataset_port_count = _update_dataset_ports(ic, ctx, node_configs)
-        promoted_forecast_defaults = _promote_dataset_forecast_defaults(ic)
+        promoted_forecast_defaults = _promote_dataset_forecast_defaults(ic) if promote_forecast_defaults else 0
 
     logger.info(
         (
