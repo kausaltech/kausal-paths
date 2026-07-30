@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
-from uuid import UUID, uuid3, uuid4
+from uuid import UUID, uuid3
 
 from kausal_common.i18n.pydantic import TranslatedString
 
@@ -196,6 +196,7 @@ class InstanceConfigParser:
         self.config = config
         self.instance_uuid = instance_uuid
         self.node_uuids = node_uuids or {}
+        self._resolved_node_uuids: dict[str, UUID] = {}
         self.default_language: str = config['default_language']
         self.other_languages: list[str] = config.get('supported_languages', [])
         self._terms = InstanceTerms()
@@ -209,6 +210,17 @@ class InstanceConfigParser:
 
     def _uuid_from_identifiers(self, identifiers: Sequence[str]) -> UUID:
         return uuid3(self.instance_uuid, ':'.join(identifiers))
+
+    def _node_uuid(self, identifier: str, authored_uuid: str | UUID | None = None) -> UUID:
+        node_uuid = self._resolved_node_uuids.get(identifier)
+        if node_uuid is None:
+            node_uuid = (
+                UUID(str(authored_uuid))
+                if authored_uuid is not None
+                else self.node_uuids.get(identifier) or self._uuid_from_identifiers([identifier])
+            )
+            self._resolved_node_uuids[identifier] = node_uuid
+        return node_uuid
 
     # -- top level ------------------------------------------------------------
 
@@ -1146,7 +1158,7 @@ class InstanceConfigParser:
         short_name = _make_trans_string(config, 'short_name')
         description = _make_trans_string(config, 'description')
 
-        uuid = self.node_uuids.get(parsed.identifier) or uuid4()
+        uuid = self._node_uuid(parsed.identifier, config.get('uuid'))
         spec = NodeSpec(
             uuid=uuid,
             kind=type_config.kind,
@@ -1172,6 +1184,7 @@ class InstanceConfigParser:
             extra=self._parse_node_extra(parsed),
         )
         return NodeSnapshot(
+            uuid=uuid,
             identifier=parsed.identifier,
             name=_to_ts(name),
             description=_to_ts(description),
@@ -1201,8 +1214,8 @@ class InstanceConfigParser:
                         )
                     snapshots.append(
                         EdgeSnapshot(
-                            from_node=edge.from_node,
-                            to_node=edge.to_node,
+                            from_node=self._node_uuid(edge.from_node),
+                            to_node=self._node_uuid(edge.to_node),
                             from_port=from_port.id,
                             to_port=to_port_id,
                             transformations=self._edge_to_transforms(edge),
@@ -1256,7 +1269,7 @@ class InstanceConfigParser:
                 spec = DatasetPortSpec.from_input_dataset(ds_def.model_copy(update={'output_dimensions': None}))
                 snapshots.extend(
                     DatasetPortSnapshot(
-                        node=node.identifier,
+                        node=self._node_uuid(node.identifier),
                         dataset=ds_def.id,
                         port_id=self._uuid_from_identifiers([node.identifier, 'dataset', str(idx), column]),
                         metric=column,

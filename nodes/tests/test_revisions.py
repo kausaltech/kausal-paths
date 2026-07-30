@@ -5,10 +5,13 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-from nodes.defs.node_defs import DatasetPortSpec, InputDatasetDef
+from nodes.defs.node_defs import DatasetPortSpec, InputDatasetDef, NodeSpec
 from nodes.instance_serialization import (
     SNAPSHOT_SCHEMA_VERSION,
     DatasetPortSnapshot,
@@ -17,7 +20,8 @@ from nodes.instance_serialization import (
     NodeSnapshot,
     build_instance_snapshot,
 )
-from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
+from nodes.models import NodeEdge
+from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 
 if TYPE_CHECKING:
     from nodes.models import InstanceConfig
@@ -54,10 +58,13 @@ def test_instance_snapshot_json_round_trip():
     spec = InstanceModelSpec(
         years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030),
     )
+    node_1_uuid = uuid.uuid4()
+    node_2_uuid = uuid.uuid4()
     snap = InstanceSnapshot(
         spec=spec,
         nodes=[
             NodeSnapshot(
+                uuid=node_1_uuid,
                 identifier='n1',
                 name=TranslatedString('Node 1', default_language='en'),
                 color='#abc',
@@ -66,15 +73,15 @@ def test_instance_snapshot_json_round_trip():
         ],
         edges=[
             EdgeSnapshot(
-                from_node='n1',
-                to_node='n2',
+                from_node=node_1_uuid,
+                to_node=node_2_uuid,
                 from_port=uuid.UUID('33191571-e9c8-45ac-b624-cc0a04341d37'),
                 to_port=uuid.UUID('796076a8-426b-4068-ac57-e3e333d0ef0a'),
             )
         ],
         dataset_ports=[
             DatasetPortSnapshot(
-                node='n1',
+                node=node_1_uuid,
                 dataset='ds',
                 port_id=uuid.UUID('6c8b0551-7ccf-472b-94db-26f513d706dc'),
                 metric='m',
@@ -87,7 +94,7 @@ def test_instance_snapshot_json_round_trip():
 
     reloaded = InstanceSnapshot.model_validate(dumped)
     assert reloaded.nodes[0].identifier == 'n1'
-    assert reloaded.edges[0].from_node == 'n1'
+    assert reloaded.edges[0].from_node == node_1_uuid
     assert reloaded.dataset_ports[0].spec.forecast_from == 2025
     assert reloaded.schema_version == SNAPSHOT_SCHEMA_VERSION
 
@@ -104,6 +111,7 @@ def test_i18n_spec_assignment_stays_dict_serializable():
         copied = spec.model_copy(update={'name': 'Copied'})
 
     snap = NodeSnapshot(
+        uuid=uuid.uuid4(),
         identifier='n1',
         name=TranslatedString(en='Renamed'),
         color='#abc',
@@ -121,6 +129,43 @@ def test_instance_snapshot_schema_version_default():
     spec = InstanceModelSpec(years=YearsSpec(target=2030))
     snap = InstanceSnapshot(spec=spec)
     assert snap.schema_version == SNAPSHOT_SCHEMA_VERSION
+
+
+def test_instance_snapshot_upgrades_legacy_identifier_references():
+    node_uuid = uuid.uuid4()
+    legacy = {
+        'schema_version': 2,
+        'spec': InstanceModelSpec(years=YearsSpec(target=2030)).model_dump(mode='json'),
+        'nodes': [
+            {
+                'identifier': 'n1',
+                'spec': NodeSpec(uuid=node_uuid, identifier='n1').model_dump(mode='json'),
+            }
+        ],
+        'edges': [
+            {
+                'from_node': 'n1',
+                'to_node': 'n1',
+                'from_port': str(uuid.uuid4()),
+                'to_port': str(uuid.uuid4()),
+            }
+        ],
+        'dataset_ports': [
+            {
+                'node': 'n1',
+                'dataset': 'ds',
+                'port_id': str(uuid.uuid4()),
+                'metric': 'value',
+            }
+        ],
+    }
+
+    snapshot = InstanceSnapshot.from_serialized_data(legacy)
+
+    assert snapshot.schema_version == SNAPSHOT_SCHEMA_VERSION
+    assert snapshot.nodes[0].uuid == node_uuid
+    assert snapshot.edges[0].from_node == node_uuid
+    assert snapshot.dataset_ports[0].node == node_uuid
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +190,29 @@ def test_build_instance_snapshot_round_trip_through_json(empty_db_instance: Inst
     dump_1 = InstanceSnapshot.model_validate(snap.model_dump(mode='json')).model_dump(mode='json')
     dump_2 = InstanceSnapshot.model_validate(dump_1).model_dump(mode='json')
     assert dump_1 == dump_2
+
+
+def test_build_instance_snapshot_does_not_hydrate_related_specs(empty_db_instance: InstanceConfig):
+    source = NodeConfigFactory.create(instance=empty_db_instance, identifier='source')
+    target = NodeConfigFactory.create(instance=empty_db_instance, identifier='target')
+    NodeEdge.objects.create(
+        instance=empty_db_instance,
+        from_node=source,
+        to_node=target,
+        from_port=uuid.uuid4(),
+        to_port=uuid.uuid4(),
+    )
+
+    with CaptureQueriesContext(connection) as queries:
+        snapshot = build_instance_snapshot(empty_db_instance)
+
+    assert [(edge.from_node, edge.to_node) for edge in snapshot.edges] == [(source.uuid, target.uuid)]
+    node_sql = next(query['sql'] for query in queries if 'FROM "nodes_nodeconfig"' in query['sql'])
+    edge_sql = next(query['sql'] for query in queries if 'FROM "nodes_nodeedge"' in query['sql'])
+    port_sql = next(query['sql'] for query in queries if 'FROM "nodes_datasetport"' in query['sql'])
+    assert 'JOIN "nodes_instanceconfig"' not in node_sql
+    assert '"nodes_nodeconfig"."spec"' not in edge_sql
+    assert '"nodes_nodeconfig"."spec"' not in port_sql
 
 
 # ---------------------------------------------------------------------------
@@ -512,7 +580,7 @@ def test_poc_delete_node_cascades_under_single_operation(
     edge_entry = next(e for e in entries if e.action == 'node.edges.delete')
     assert edge_entry.data['target_uuid'] == str(edge.uuid)
     assert edge_entry.data['after'] is None
-    assert edge_entry.data['before']['from_node'] == 'src'
+    assert edge_entry.data['before']['from_node'] == str(nc_a.uuid)
 
     # Node is actually gone
     assert not NodeConfig.objects.filter(pk=src_pk).exists()
@@ -954,7 +1022,7 @@ def test_poc_create_edge_emits_change_operation(gql_client, empty_db_instance: I
     assert len(entries) == 1
     assert entries[0].action == 'edge.create'
     assert entries[0].data['before'] is None
-    assert entries[0].data['after']['from_node'] == src.identifier
+    assert entries[0].data['after']['from_node'] == str(src.uuid)
     assert NodeEdge.objects.filter(instance=empty_db_instance).count() == 1
 
 
@@ -981,7 +1049,7 @@ def test_poc_delete_edge_emits_change_operation(gql_client, empty_db_instance: I
     entry = InstanceModelLogEntry.objects.filter(operation=op).first()
     assert entry is not None
     assert entry.action == 'edge.delete'
-    assert entry.data['before']['from_node'] == src.identifier
+    assert entry.data['before']['from_node'] == str(src.uuid)
     assert entry.data['after'] is None
 
 

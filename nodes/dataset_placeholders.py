@@ -34,6 +34,7 @@ from nodes.units import unit_registry
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from uuid import UUID
 
     import dvc_pandas
 
@@ -570,7 +571,7 @@ def _output_port_unit(node_spec: NodeSpec | None, column: str) -> Unit | None:
 class _SnapshotBinding:
     """One node-to-dataset binding, collapsed from the snapshot's per-column port rows."""
 
-    node: str
+    node: UUID
     dataset: str
     spec: DatasetPortSpec
 
@@ -583,7 +584,7 @@ def _snapshot_bindings(snapshot: InstanceSnapshot) -> list[_SnapshotBinding]:
     identified by (node, dataset_index), so the rows collapse back into the
     bindings the runtime iterates over.
     """
-    bindings: dict[tuple[str, int], _SnapshotBinding] = {}
+    bindings: dict[tuple[UUID, int], _SnapshotBinding] = {}
     for port in snapshot.dataset_ports:
         key = (port.node, port.dataset_index)
         if key in bindings:
@@ -602,7 +603,7 @@ class _SnapshotUnitHints:
     """
 
     def __init__(self, snapshot: InstanceSnapshot) -> None:
-        self._node_specs: dict[str, NodeSpec | None] = {n.identifier: n.spec for n in snapshot.nodes}
+        self._node_specs: dict[UUID, NodeSpec | None] = {n.uuid: n.spec for n in snapshot.nodes}
         self._by_dataset: dict[str, list[_SnapshotBinding]] = {}
         for binding in _snapshot_bindings(snapshot):
             self._by_dataset.setdefault(binding.dataset, []).append(binding)

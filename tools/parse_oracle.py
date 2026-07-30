@@ -31,7 +31,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from django.db import transaction
@@ -65,7 +65,7 @@ def export_side_snapshot(instance_id: str, *, refresh: bool) -> tuple[InstanceSn
     if not refresh and cache_fn.exists():
         cached = json.loads(cache_fn.read_text())
         if 'schemas' in cached:
-            snapshot = InstanceSnapshot.model_validate(cached['snapshot'])
+            snapshot = InstanceSnapshot.from_serialized_data(cached['snapshot'])
             node_uuids = {k: UUID(v) for k, v in cached['node_uuids'].items()}
             return snapshot, UUID(cached['instance_uuid']), node_uuids, cached['schemas']
 
@@ -200,8 +200,10 @@ def compare_snapshots(  # noqa: C901
     diff('metadata', _dump(db_snap.metadata), _dump(parse_snap.metadata), into=warnings)
     diff('spec', _dump(db_snap.spec), _dump(parse_snap.spec))
 
-    db_nodes = {n.identifier: n for n in db_snap.nodes}
-    parse_nodes = {n.identifier: n for n in parse_snap.nodes}
+    assert all(n.identifier is not None for n in db_snap.nodes)
+    assert all(n.identifier is not None for n in parse_snap.nodes)
+    db_nodes = {cast('str', n.identifier): n for n in db_snap.nodes}
+    parse_nodes = {cast('str', n.identifier): n for n in parse_snap.nodes}
     for ident in sorted(db_nodes.keys() | parse_nodes.keys()):
         a, b = db_nodes.get(ident), parse_nodes.get(ident)
         if a is None or b is None:
