@@ -298,7 +298,7 @@ def _upsert_node_configs(ic: InstanceConfig, snapshot: InstanceSnapshot) -> dict
     existing_by_uuid = {nc.uuid: nc for nc in node_qs}
     existing_by_identifier = {nc.identifier: nc for nc in node_qs}
     node_configs: dict[UUID, NodeConfig] = {}
-    active_identifiers: set[str] = set()
+    touched_pks: set[int] = set()
     for n in snapshot.nodes:
         if n.identifier is None:
             raise ValueError(f'Node {n.uuid} has no identifier; DB sync still requires one')
@@ -314,11 +314,14 @@ def _upsert_node_configs(ic: InstanceConfig, snapshot: InstanceSnapshot) -> dict
         NodeConfig.objects.filter(pk=nc.pk).update(spec=n.spec)
         nc.spec = n.spec
         node_configs[n.uuid] = nc
-        active_identifiers.add(n.identifier)
+        touched_pks.add(nc.pk)
 
-    stale_ids = set(existing_by_identifier) - active_identifiers
-    if stale_ids:
-        stale_nodes = ic.nodes.filter(identifier__in=stale_ids).defer('spec')
+    # Stale = existing rows the snapshot didn't touch. Keyed by pk, not
+    # identifier: a snapshot node can match an existing row by uuid while
+    # carrying a new identifier (authored-uuid rename), and the row keeps its
+    # old identifier — which must not make the row it belongs to stale.
+    stale_nodes = ic.nodes.exclude(pk__in=touched_pks).defer('spec')
+    if stale_nodes.exists():
         logger.warning(f'Detected {len(stale_nodes)} stale nodes: {stale_nodes.values_list("identifier", flat=True)}')
         stale_nodes.update(is_stale=True)
         delete_nodes = stale_nodes.filter(pages__isnull=True, created_by__isnull=True)
