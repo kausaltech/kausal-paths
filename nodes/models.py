@@ -433,8 +433,8 @@ class InstanceConfig(
     """Metadata for one Paths computational model instance."""
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
-    name = models.CharField(max_length=150, verbose_name=_('name'), unique=True)
-    owner = models.CharField(
+    name = models.CharField[str, str](max_length=150, verbose_name=_('name'), unique=True)
+    owner = models.CharField[str, str](
         blank=True,
         default='',
         max_length=200,
@@ -442,7 +442,7 @@ class InstanceConfig(
         help_text=_('Display name of the organization that owns this instance.'),
     )
     owner_i18n: str | None
-    lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
+    lead_title = models.CharField[str, str](blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_title_i18n: str
     lead_paragraph = RichTextField[str | None, str | None](null=True, blank=True, verbose_name=_('Lead paragraph'))
     lead_paragraph_i18n: str | None

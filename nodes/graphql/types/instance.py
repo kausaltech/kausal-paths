@@ -516,13 +516,14 @@ class InstanceType:
 
     @classmethod
     def from_model(cls, ic: InstanceConfig, instance: Instance | None = None) -> Self:
+        instance_owner = str(instance.owner) if instance else None
         return cls(
             _config=ic,
             _instance=instance,
             id=sb.ID(ic.identifier),
             uuid=ic.uuid,
             name=getattr(ic, 'name_i18n', None) or ic.name,
-            owner=ic.owner_i18n or ic.owner or None,
+            owner=ic.owner_i18n or ic.owner or instance_owner or None,
             default_language=ic.default_language,
             supported_languages=ic.supported_languages,
             base_path='',
