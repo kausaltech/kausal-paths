@@ -262,25 +262,38 @@ dimensions:
 
 - id: building_type
   label_en: Building type
+  help_text_en: Colours group by use — residential blues, commercial oranges,
+    industrial green — with lightness steps inside each group so the members stay
+    distinguishable. Residential steps run light to dark with increasing density
+    (detached to apartment).
   categories:
   - id: detached_house
     label_en: Detached house
+    color: '#59a6ff'
   - id: semi_detached_house
     label_en: Semi-detached/ end of terrace house
+    color: '#3d8aea'
   - id: terraced_house
     label_en: Terraced house
+    color: '#206fcc'
   - id: apartment
     label_en: Apartment
+    color: '#0055af'
   - id: commercial
     label_en: Commercial
+    color: '#ff7e4c'
   - id: office
     label_en: Office
+    color: '#e76530'
   - id: church
     label_en: Church
+    color: '#cb4b0b'
   - id: garage
     label_en: Garage
+    color: '#af2f00'
   - id: industrial
     label_en: Industrial
+    color: '#009f6c'
 
 - id: project
   label: Project
@@ -388,7 +401,7 @@ nodes:
     linear_interpolation: true
     values:
     - year: 2023
-      value: 1035
+      value: 978
     - year: 2030
       value: 216
     - year: 2035
@@ -517,6 +530,14 @@ nodes:
     tags: [ef]
   params:
     formula: energy * ef
+  output_nodes:
+  # Supplies the building-type shares for building_emissions. All-carrier
+  # (548.3 kt incl. electricity), matching the basis of what it splits.
+  - id: building_emissions
+    tags: [use_as_shares]
+    from_dimensions:
+    - id: sector
+      flatten: true
 
 - id: kpmg_building_heat_emissions
   name_en: KPMG building heat emissions by type (inventory)
@@ -532,7 +553,7 @@ nodes:
     docs/building-use-dimension.md 8.4.
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [building_type, sector]
   output_dimensions: [building_type, sector]
   input_datasets:
@@ -540,6 +561,10 @@ nodes:
     column: heat_emissions
     tags: [extend_values]
     forecast_from: 2024
+  # NB deliberately does NOT feed building_emissions as shares: that node's total
+  # includes electricity, and heat-only shares would push commercial's large
+  # electricity use into residential (85.8/14.2 instead of KPMG's 66.6/33.4).
+  # building_emissions takes its shares from building_emissions_by_type_inventory.
 
 - id: building_heat_emissions_by_type
   name_en: Building heat emissions by building type
@@ -575,6 +600,145 @@ nodes:
     to_dimensions: []
   params:
     operations: add,use_as_shares
+
+- id: building_heating_emissions
+  name_en: Building heating emissions
+  name_fi: Rakennusten lämmityksen päästöt
+  description_en: Building heating emissions exclude emissions from electricity,
+    which are calculated elsewhere.
+  description_fi: Rakennusten lämmityksen päästöihin eivät sisälly sähkön 
+    päästöt, jotka lasketaan muualla.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [heating_type, fuel_type, pollutant, scope]
+  output_dimensions: [heating_type, fuel_type, pollutant, scope]
+  input_nodes:
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: heating_type
+    - id: scope
+    - id: fuel_type
+  - id: heating_emission_factor
+    to_dimensions:
+    - id: pollutant
+    - id: heating_type
+    - id: fuel_type
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    - id: heating_type
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: sector
+      categories: [buildings]
+    - id: scope
+  params:
+    operations: multiply
+
+- id: building_emissions
+  name_en: Building emissions
+  name_fi: Rakennusten päästöt
+  description_en: This module (all nodes upstream) is based on the excel sheets 
+    3.0 - 3.4 Building & heat levers.
+  description_fi: Tämä moduuli (kaikki ylävirtasolmut) perustuu 
+    excel-taulukoihin 3.0 - 3.4 Rakennusten ja lämmityksen vipuvaikutukset.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [building_type, sector, ghg, scope]
+  output_dimensions: [building_type, sector, ghg, scope]
+  color: '#4E79A7'
+  output_nodes:
+  - id: residential_emissions
+    from_dimensions:
+    - id: building_type
+      categories: [detached_house, semi_detached_house, terraced_house, apartment]
+  - id: commercial_and_industry_emissions
+    from_dimensions:
+    - id: building_type
+      categories: [detached_house, semi_detached_house, terraced_house, apartment]
+      exclude: true
+  params:
+    operations: add,use_as_shares
+
+- id: residential_emissions
+  name_en: Residential emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [building_type, sector, ghg, scope]
+  output_dimensions: [building_type, sector, ghg, scope]
+  color: '#4E79A7'
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: building_type
+      flatten: true
+
+- id: commercial_and_industry_emissions
+  name_en: Commercial and industry emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [building_type, sector, ghg, scope]
+  output_dimensions: [building_type, sector, ghg, scope]
+  color: '#4E79A7'
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: building_type
+      flatten: true
+
+- id: waste_emissions
+  name_en: Waste emissions outside city boundaries
+  name_fi: Jätepäästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#B07AA1'
+  input_dimensions: [waste_type, waste_treatment, pollutant]
+  output_dimensions: [waste_type, waste_treatment, pollutant]
+  input_nodes:
+  - id: waste_management_amount
+    tags: [non_additive]
+    to_dimensions:
+    - id: waste_type
+    - id: waste_treatment
+  # Collected waste is scope 3 (80.0 kt). KPMG's Glidepath counts waste scope 1
+  # only, so this is deliberately NOT part of the reported "other" sector, and
+  # the node is left unconnected. Uncomment to move to a scope 1+3 basis.
+  # output_nodes:
+  # - id: other_emissions
+  #   from_dimensions:
+  #   - id: pollutant
+  #     categories: [co2]
+  #     flatten: true
+  #   - id: waste_treatment
+  #     flatten: true
+  #   - id: waste_type
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: scope
+  #     categories: [scope3]
+  #   - id: ghg
+  #     categories: [co2e]
+  #   - id: sector
+  #     categories: [waste]
 
 # -------------- KPMG Glidepath projection (comparison view) --------------
 # KPMG's own 2023-2030 projection, taken as published rather than reimplemented.
@@ -707,7 +871,7 @@ nodes:
   input_nodes:
   - id: local_waste_emissions
   output_nodes:
-  - id: net_emissions
+  - id: other_emissions
     to_dimensions:
     - id: ghg
     - id: scope
@@ -736,7 +900,7 @@ nodes:
 # total (55.9126 + 6.883 = 62.7957). It is there for reference only.
 
 - id: public_services_emissions
-  name_en: Public services emissions (KPMG BEI)
+  name_en: Public services emissions
   description_en: >
     Public sector emissions as reported in the KPMG 2023 BEI: public services
     excluding Cork City Council (the 2018 BEI figure uplifted by a national
@@ -796,7 +960,7 @@ nodes:
     tags: [extend_values]
     forecast_from: 2024
   output_nodes:
-  - id: net_emissions
+  - id: other_emissions
     to_dimensions:
     - id: ghg
     - id: scope
@@ -823,7 +987,7 @@ nodes:
     tags: [extend_values]
     forecast_from: 2024
   output_nodes:
-  - id: net_emissions
+  - id: other_emissions
     to_dimensions:
     - id: ghg
     - id: scope
@@ -848,12 +1012,27 @@ nodes:
     tags: [extend_values]
     forecast_from: 2024
   output_nodes:
-  - id: net_emissions
+  - id: other_emissions
     to_dimensions:
     - id: ghg
     - id: scope
     - id: sector
       categories: [lulucf]
+
+- id: other_emissions
+  name_en: Other emissions (waste, LULUCF)
+  description_en: >
+    Cork inventory "other" sector: the in-boundary landfill and the civic amenity
+    site (both waste scope 1) plus LULUCF. This matches KPMG's Glidepath, which
+    counts waste scope 1 only — collected waste and water services are scope 3 and
+    KPMG excludes them from the headline total.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, ghg, scope]
+  output_dimensions: [sector, ghg, scope]
+  output_nodes:
+  - id: net_emissions
 
 - id: active_mobility_distance
   name_en: Active mobility distance
@@ -1718,6 +1897,8 @@ nodes:
       categories: [scope2]
     - id: ghg
       categories: [co2e]
+    - id: sector
+      categories: [electricity]
   - id: freight_transport_emissions
     from_dimensions:
     - id: sector
@@ -1882,7 +2063,7 @@ nodes:
   input_datasets:
   - id: cork/off_road_emissions
   output_nodes:
-  - id: net_emissions
+  - id: all_transport_emissions
     from_dimensions:
     - id: transport_mode
       flatten: true
@@ -1895,7 +2076,7 @@ nodes:
       categories: [transport]
 
 - id: freight_transport_emissions
-  name_en: Freight transport emissions
+  name_en: On-road freight transport emissions
   name_fi: Rahtiliikenteen päästöt
   type: generic.GenericNode
   quantity: emissions
@@ -1915,7 +2096,7 @@ nodes:
     - id: scope
       categories: [scope1]
   output_nodes:
-  - id: road_transport_emissions
+  - id: all_transport_emissions
     from_dimensions:
     - id: transport_mode
       flatten: true
@@ -1932,7 +2113,7 @@ nodes:
       categories: [transport]
 
 - id: transport_emissions
-  name_en: Transport emissions
+  name_en: On-road passenger transport emissions
   name_fi: Liikenteen päästöt
   type: simple.EmissionFactorActivity
   quantity: emissions
@@ -1962,7 +2143,7 @@ nodes:
       categories: [scope1]
     - id: energy_carrier
   output_nodes:
-  - id: road_transport_emissions
+  - id: all_transport_emissions
     # NB: nzc.yaml excludes energy_carrier=electricity here, because there
     # transport_emissions feeds net_emissions directly and EV charging emissions
     # arrive via the electricity module instead. Cork's wiring is different:
@@ -1980,8 +2161,8 @@ nodes:
     - id: ghg
     - id: scope
 
-- id: road_transport_emissions
-  name_en: Road transport emissions
+- id: all_transport_emissions
+  name_en: Transport emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
