@@ -168,22 +168,14 @@ def _dataset_port_uuid(instance_uuid: UUID, node_id: str, dataset_index: int, co
 
 
 def _apply_metadata_columns(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
-    """Write identity metadata onto the InstanceConfig columns (mirror of the export-path version)."""
-    from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
-
+    """Seed identity metadata while preserving values already authored in the DB."""
     meta = snapshot.metadata
-    name_val, i18n = get_modeltrans_attrs_from_str(cast('str | TranslatedString', meta.name), 'name', meta.primary_language)
-    ic.name = name_val
-    ic.owner = ''
-    if meta.owner:
-        owner_val, owner_i18n = get_modeltrans_attrs_from_str(
-            cast('str | TranslatedString', meta.owner), 'owner', meta.primary_language
-        )
-        ic.owner = owner_val
-        i18n.update(owner_i18n)
-    ic.i18n = {**(ic.i18n or {}), **i18n}
-    ic.primary_language = meta.primary_language
-    ic.other_languages = list(meta.other_languages)
+    ic.update_identity_metadata(
+        name=cast('str | TranslatedString', meta.name),
+        owner=cast('str | TranslatedString | None', meta.owner),
+        primary_language=meta.primary_language,
+        other_languages=list(meta.other_languages),
+    )
 
 
 def _sync_dimensions_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:

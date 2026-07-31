@@ -17,7 +17,7 @@ from uuid import uuid3, uuid4
 from loguru import logger
 
 from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
-from kausal_common.i18n.pydantic import TranslatedString, get_modeltrans_attrs_from_str, set_i18n_context
+from kausal_common.i18n.pydantic import TranslatedString, set_i18n_context
 
 from paths.identifiers import identifier_or_none
 
@@ -78,20 +78,17 @@ def _to_ts(val: I18nString | None) -> TranslatedString | None:
 
 def _apply_instance_metadata_columns(ic: InstanceConfig, instance: Instance) -> None:
     """
-    Write identity metadata from a runtime Instance onto the InstanceConfig columns.
+    Seed identity metadata from a runtime Instance onto the InstanceConfig columns.
 
     Identity (name, owner, languages) lives on the columns now, not in the spec.
+    Existing DB-authored name and owner values take precedence.
     """
-    name_val, i18n = get_modeltrans_attrs_from_str(instance.name, 'name', instance.default_language)
-    ic.name = name_val
-    ic.owner = ''
-    if instance.owner:
-        owner_val, owner_i18n = get_modeltrans_attrs_from_str(instance.owner, 'owner', instance.default_language)
-        ic.owner = owner_val
-        i18n.update(owner_i18n)
-    ic.i18n = {**(ic.i18n or {}), **i18n}
-    ic.primary_language = instance.default_language
-    ic.other_languages = [lang for lang in instance.supported_languages if lang != instance.default_language]
+    ic.update_identity_metadata(
+        name=instance.name,
+        owner=instance.owner,
+        primary_language=instance.default_language,
+        other_languages=instance.supported_languages,
+    )
 
 
 def export_instance_spec(instance: Instance) -> InstanceModelSpec:

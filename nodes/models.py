@@ -103,6 +103,7 @@ if TYPE_CHECKING:
 
     from loguru import Logger
 
+    from kausal_common.i18n.pydantic import I18nString, TranslatedString
     from kausal_common.models.permission_policy import (
         BaseObjectAction,
         ObjectSpecificAction,
@@ -734,6 +735,39 @@ class InstanceConfig(
             if node is None:
                 continue
             node_config.update_node_from_config(node, keep_ref=node_refs)
+
+    def update_identity_metadata(
+        self,
+        *,
+        name: I18nString,
+        owner: I18nString | None,
+        primary_language: str,
+        other_languages: list[str],
+    ) -> None:
+        """
+        Seed YAML identity fields without overwriting DB-authored content.
+
+        The configured language set still follows YAML because it determines
+        how modeltrans interprets and exposes the stored translations.
+        """
+        for field_name, field_val in (('name', name), ('owner', owner)):
+            if field_val is None:
+                continue
+            current_i18n = self.i18n or {}
+            has_value = bool(getattr(self, field_name)) or any(
+                key.startswith(f'{field_name}_') and value for key, value in current_i18n.items()
+            )
+            if has_value:
+                continue
+
+            val, field_i18n = get_modeltrans_attrs_from_str(
+                cast('str | TranslatedString', field_val), field_name, primary_language
+            )
+            setattr(self, field_name, val)
+            self.i18n = {**current_i18n, **field_i18n}
+
+        self.primary_language = primary_language
+        self.other_languages = [lang for lang in other_languages if lang != primary_language]
 
     def update_from_instance(self, instance: Instance, overwrite=False):
         """Update identity/content metadata columns from the instance but do not call save()."""

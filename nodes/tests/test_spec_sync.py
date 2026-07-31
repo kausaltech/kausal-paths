@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
+from kausal_common.i18n.pydantic import TranslatedString
+
+from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import NodeSpec
 from nodes.instance_serialization import InstanceSnapshot, NodeSnapshot
 from nodes.models import NodeConfig
-from nodes.spec_sync import _upsert_node_configs
+from nodes.spec_sync import _apply_metadata_columns, _upsert_node_configs
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 
 pytestmark = pytest.mark.django_db
@@ -31,6 +33,61 @@ def _snapshot_with_node(ic, *, uuid, identifier: str) -> InstanceSnapshot:
         spec=ic.spec,
         nodes=[NodeSnapshot(uuid=uuid, identifier=identifier, spec=spec)],
     )
+
+
+def test_metadata_sync_preserves_db_authored_name_and_owner(db_instance):
+    db_instance.name = 'Database name'
+    db_instance.owner = 'Database owner'
+    db_instance.i18n = {
+        'name_fi': 'Tietokannan nimi',
+        'owner_fi': 'Tietokannan omistaja',
+    }
+    snapshot = InstanceSnapshot(
+        metadata=InstanceMetadata(
+            name=TranslatedString(en='YAML name', fi='YAML-nimi'),
+            owner=TranslatedString(en='YAML owner', fi='YAML-omistaja'),
+            primary_language='en',
+            other_languages=['fi'],
+        ),
+        spec=db_instance.spec,
+    )
+
+    _apply_metadata_columns(db_instance, snapshot)
+
+    assert db_instance.name == 'Database name'
+    assert db_instance.owner == 'Database owner'
+    assert db_instance.i18n == {
+        'name_fi': 'Tietokannan nimi',
+        'owner_fi': 'Tietokannan omistaja',
+    }
+    assert db_instance.primary_language == 'en'
+    assert db_instance.other_languages == ['fi']
+
+
+def test_metadata_sync_seeds_blank_name_and_owner(db_instance):
+    db_instance.name = ''
+    db_instance.owner = ''
+    db_instance.i18n = {}
+    snapshot = InstanceSnapshot(
+        metadata=InstanceMetadata(
+            name=TranslatedString(en='YAML name', fi='YAML-nimi'),
+            owner=TranslatedString(en='YAML owner', fi='YAML-omistaja'),
+            primary_language='en',
+            other_languages=['en', 'fi'],
+        ),
+        spec=db_instance.spec,
+    )
+
+    _apply_metadata_columns(db_instance, snapshot)
+
+    assert db_instance.name == 'YAML name'
+    assert db_instance.owner == 'YAML owner'
+    assert db_instance.i18n == {
+        'name_fi': 'YAML-nimi',
+        'owner_fi': 'YAML-omistaja',
+    }
+    assert db_instance.primary_language == 'en'
+    assert db_instance.other_languages == ['fi']
 
 
 def test_uuid_matched_rename_does_not_mark_row_stale(db_instance):
