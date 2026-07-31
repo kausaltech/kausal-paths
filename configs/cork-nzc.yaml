@@ -179,6 +179,9 @@ params:
   is_customizable: false
 
 action_groups:
+- id: technical_testing
+  name: Technical testing
+  color: '#898781'
 - id: project
   name: Project-level actions
   color: '#b375c2'
@@ -674,7 +677,9 @@ nodes:
       categories: [detached_house, semi_detached_house, terraced_house, apartment]
       exclude: true
   params:
-    operations: add,use_as_shares
+    # `multiply` is last so the technical-testing calibration action scales the
+    # finished total rather than interfering with the shares split.
+    operations: add,use_as_shares,multiply
 
 - id: residential_emissions
   name_en: Residential emissions
@@ -2263,6 +2268,45 @@ nodes:
       categories: [old_no_renovations]
 
 actions:
+
+# -------------- Technical testing --------------
+# Not climate actions. Diagnostics kept in the model to demonstrate a point, and
+# expected to be removed once they have served it.
+
+- id: calibrate_buildings_to_inventory
+  name_en: Calibrate building emissions to the KPMG inventory
+  description_en: >
+    TECHNICAL TESTING — not a climate action.
+
+    Scales building emissions by 1.0872 so they match the KPMG BEI exactly
+    (504.5 to 548.5 kt for 2023). Enable it to demonstrate that exact agreement
+    with the inventory is achievable, and to show what achieving it requires.
+
+    What it requires is the point. The 44 kt difference is methodological, not
+    missing emissions: the inventory estimates how much energy Cork's buildings
+    should use from floor area times benchmark intensities, while the model uses
+    measured energy statistics scaled to the city. Benchmark methods give the
+    higher answer — the inventory implies about 19,100 kWh per dwelling per year.
+    So this action does not correct an error; it multiplies the model's measured
+    basis up onto the inventory's modelled basis.
+
+    The cost of leaving it enabled is that every building action's saving is then
+    calculated off a baseline roughly 9% too high, and every per-square-metre cost
+    with it. That is why it is a demonstration rather than a setting.
+
+    See data/cork/cork_note_remaining_differences.md section 1.
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: dimensionless
+  group: technical_testing
+  # A multiplier's no-effect value is 1, not AdditiveAction's default of 0 —
+  # without this, disabling the action multiplies building emissions by zero.
+  no_effect_value: 1.0
+  historical_values: [[2023, 1.087185]]
+  output_nodes:
+  - id: building_emissions
+    tags: [non_additive, extend_values]
+    to_dimensions: []
 
 # --------------- Project-level actions ----------
 
