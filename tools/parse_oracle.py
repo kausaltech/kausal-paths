@@ -181,7 +181,18 @@ def _dump(obj: Any) -> Any:
     return _strip_empty_langs(obj.model_dump(mode='json'))
 
 
-def compare_snapshots(  # noqa: C901
+def _node_metadata_parts(node: Any) -> tuple[dict[str, Any], dict[str, Any]]:
+    identity = {'uuid': str(node.uuid), 'identifier': node.identifier}
+    display = _strip_empty_langs(
+        node.model_dump(
+            mode='json',
+            include={'name', 'short_name', 'short_description', 'color', 'order', 'is_visible'},
+        )
+    )
+    return identity, display
+
+
+def compare_snapshots(  # noqa: C901, PLR0915
     db_snap: InstanceSnapshot,
     parse_snap: InstanceSnapshot,
     schemas: dict[str, Any] | None = None,
@@ -212,12 +223,18 @@ def compare_snapshots(  # noqa: C901
         a_spec, b_spec = a.spec, b.spec
         assert a_spec is not None
         assert b_spec is not None
+        identity_a, display_a = _node_metadata_parts(a)
+        identity_b, display_b = _node_metadata_parts(b)
         dump_a, dump_b = _dump(a_spec), _dump(b_spec)
         if persisted_node_identifiers is not None and ident not in persisted_node_identifiers:
             # Neither side's uuid persisted (both rolled-back runs invented
             # one for a row missing from the live DB); ignore it.
-            dump_a.pop('uuid', None)
-            dump_b.pop('uuid', None)
+            identity_a.pop('uuid')
+            identity_b.pop('uuid')
+        diff(f'node {ident} identity', identity_a, identity_b)
+        # Existing DB-authored display metadata intentionally wins over YAML
+        # during sync; report drift without making parse fidelity fail.
+        diff(f'node {ident} display metadata', display_a, display_b, into=warnings)
         diff(f'node {ident} spec', dump_a, dump_b)
 
     def edge_key(e: Any) -> tuple[Any, ...]:

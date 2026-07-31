@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, cast
 from uuid import UUID, uuid3
 
 from loguru import logger
+from markdown_it import MarkdownIt
 
 if TYPE_CHECKING:
     from kausal_common.i18n.pydantic import TranslatedString
@@ -23,6 +24,9 @@ if TYPE_CHECKING:
     from nodes.defs.node_defs import NodeSpec
     from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig, NodeConfig
+
+
+_MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
 
 @dataclass
@@ -187,35 +191,41 @@ def _sync_dimensions_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapsho
         ic.sync_dimension(dim, update_existing=True)
 
 
-def _update_node_config_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_language: str) -> None:
+def _seed_node_metadata_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_language: str) -> None:
     """
-    Mirror ``NodeConfig.update_from_node(node, update_relations=False, skip_descriptions=True)``.
+    Seed an uninitialized NodeConfig from snapshot metadata.
 
-    Fields are only set when currently unset (no overwrite); the i18n dict is
-    merged (including description translations, which the field loop skips —
-    reproducing the runtime path exactly).
+    This covers both new rows and legacy rows whose NULL computation spec
+    proves that they have not yet adopted YAML metadata. Once initialized,
+    existing ORM metadata is authoritative.
     """
     from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
 
     i18n: dict[str, str] = {}
-    attributes: dict[str, object] = {'identifier': n.identifier}
-    if n.name is not None:
-        val, tr = get_modeltrans_attrs_from_str(n.name, 'name', primary_language)
+    attributes: dict[str, object] = {
+        'color': n.color,
+        'order': n.order,
+        'is_visible': n.is_visible,
+    }
+    for field_name, value in (
+        ('name', n.name),
+        ('short_name', n.short_name),
+        ('short_description', n.short_description),
+        ('description', n.description),
+        ('goal', n.goal),
+    ):
+        if value is None:
+            continue
+        val, tr = get_modeltrans_attrs_from_str(value, field_name, primary_language, strict=False)
+        if field_name == 'short_description':
+            val = _MARKDOWN.render(val)
+            tr = {key: _MARKDOWN.render(translated) for key, translated in tr.items()}
         i18n.update(tr)
-        attributes['name'] = val
-    if n.description is not None:
-        # Node.description maps to NodeConfig.short_description.
-        _val, tr = get_modeltrans_attrs_from_str(n.description, 'short_description', primary_language, strict=False)
-        i18n.update(tr)
-    if n.color:
-        attributes['color'] = n.color
+        attributes[field_name] = val
 
     for key, value in attributes.items():
-        if getattr(nc, key, None) is None:
-            setattr(nc, key, value)
-    if i18n:
-        current = dict(nc.i18n) if nc.i18n else {}
-        nc.i18n = {**current, **i18n}
+        setattr(nc, key, value)
+    nc.i18n = i18n
 
 
 def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: dict[UUID, NodeConfig]) -> int:
@@ -286,7 +296,10 @@ def _write_dataset_ports(ic: InstanceConfig, snapshot: InstanceSnapshot, node_co
 def _upsert_node_configs(ic: InstanceConfig, snapshot: InstanceSnapshot) -> dict[UUID, NodeConfig]:
     from nodes.models import NodeConfig
 
-    node_qs = ic.nodes.all().defer('spec')
+    # A NULL spec marks a legacy row that has never been bootstrapped from
+    # YAML. Keep spec loaded so the first sync can seed its metadata too;
+    # once a computation spec exists, ORM metadata remains authoritative.
+    node_qs = NodeConfig.objects.with_spec().filter(instance=ic)
     existing_by_uuid = {nc.uuid: nc for nc in node_qs}
     existing_by_identifier = {nc.identifier: nc for nc in node_qs}
     node_configs: dict[UUID, NodeConfig] = {}
@@ -297,8 +310,9 @@ def _upsert_node_configs(ic: InstanceConfig, snapshot: InstanceSnapshot) -> dict
         nc = existing_by_uuid.get(n.uuid) or existing_by_identifier.get(n.identifier)
         if nc is None:
             nc = NodeConfig(instance=ic, uuid=n.uuid, identifier=n.identifier)
+        if nc.spec is None:
+            _seed_node_metadata_from_snapshot(nc, n, snapshot.metadata.primary_language)
         assert n.spec is not None
-        _update_node_config_from_snapshot(nc, n, snapshot.metadata.primary_language)
         nc.is_stale = False
         nc.save()
         # Write spec via queryset.update() to bypass ClusterableModel.save()

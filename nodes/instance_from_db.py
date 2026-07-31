@@ -199,14 +199,12 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     if n.identifier is None:
         raise ValueError(f'Node {n.uuid} has no identifier; the legacy runtime still requires one')
     spec: NodeSpec = n.spec
-    node: dict[str, Any] = {'id': spec.identifier or n.identifier}
+    node: dict[str, Any] = {'id': n.identifier}
 
-    if spec.name:
-        node.update(_ts_to_yaml('name', spec.name))
-    elif n.name:
+    if n.name:
         node.update(_ts_to_yaml('name', n.name))
-    if spec.short_name:
-        node.update(_ts_to_yaml('short_name', spec.short_name))
+    if n.short_name:
+        node.update(_ts_to_yaml('short_name', n.short_name))
 
     # Python class path
     kind_config = spec.type_config
@@ -217,22 +215,14 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     else:
         raise TypeError(f'Unknown node type config: {type(kind_config)}')
     # Display fields
-    if spec.color:
-        node['color'] = spec.color
-    elif n.color:
+    if n.color:
         node['color'] = n.color
-    if spec.order is not None:
-        node['order'] = spec.order
-    elif n.order is not None:
+    if n.order is not None:
         node['order'] = n.order
-    if spec.is_visible is False:
+    if not n.is_visible:
         node['is_visible'] = False
-    elif not n.is_visible:
-        node['is_visible'] = False
-    if spec.description:
-        node['description'] = spec.description
-    elif n.description:
-        node['description'] = n.description
+    if n.short_description:
+        node['description'] = n.short_description
 
     # Spec-derived fields
     if spec.is_outcome:

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import uuid
 from enum import StrEnum
 from functools import cached_property
-from typing import Annotated, Any, Literal, cast
-from uuid import UUID
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from kausal_common.i18n.pydantic import I18nBaseModel, I18nString, TranslatedString
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
 from paths.identifiers import DatasetIdentifier, MetricIdentifier, MixedCaseIdentifier
 from paths.refs import ActionGroupRef, DimensionRef, NodeRef, QuantityKindRef
@@ -39,6 +37,9 @@ from .transform_def import (
     unit_from_transformations,
     without_transformations,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 
 class ColumnDatasetFilterDef(BaseModel):
@@ -433,24 +434,22 @@ class NodeSpecExtra(BaseModel):
 
 
 class NodeSpec(I18nBaseModel):
-    """Computation schema for a node, stored as a SchemaField on NodeConfig."""
+    """
+    Computation schema for a node, stored as a SchemaField on NodeConfig.
 
-    uuid: UUID = Field(default_factory=uuid.uuid4)
-    identifier: str = ''
-    name: I18nString = ''
-    short_name: str | TranslatedString | None = None
+    Identity and display metadata lives on ``NodeConfig`` and is projected via
+    ``NodeSnapshot``. The node kind is encoded by the discriminated
+    ``type_config`` union rather than stored separately.
     """
-    Short display label used when this node stands in for a category, for example
-    when an additive node disaggregates its output by input node.
-    """
-    description: I18nString | None = None
-    """Short description for the node (in markdown format)"""
-    kind: NodeKind = NodeKind.FORMULA
-    color: str | None = None
-    order: int | None = None
-    is_visible: bool = True
+
+    model_config = ConfigDict(extra='forbid')
 
     type_config: TypeConfig = Field(default_factory=lambda: SimpleConfig(node_class='simple.AdditiveNode'))
+
+    @property
+    def kind(self) -> NodeKind:
+        """The node kind, derived from the type-config discriminator."""
+        return self.type_config.kind
 
     # Inputs
     input_ports: list[InputPortDef] = Field(default_factory=list)
@@ -505,6 +504,6 @@ class NodeSpec(I18nBaseModel):
                 if port.identifier is None:
                     continue
                 if port.identifier in seen:
-                    raise ValueError(f'Duplicate {direction} port identifier {port.identifier!r} on node {self.identifier!r}')
+                    raise ValueError(f'Duplicate {direction} port identifier {port.identifier!r}')
                 seen.add(port.identifier)
         return self

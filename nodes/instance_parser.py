@@ -1160,15 +1160,6 @@ class InstanceConfigParser:
 
         uuid = self._node_uuid(parsed.identifier, config.get('uuid'))
         spec = NodeSpec(
-            uuid=uuid,
-            kind=type_config.kind,
-            identifier=parsed.identifier,
-            name=_to_ts(name) or '',
-            short_name=_to_ts(short_name),
-            description=_to_ts(description),
-            color=config.get('color'),
-            order=None,
-            is_visible=True,
             type_config=type_config,
             input_ports=parsed.input_ports,
             output_ports=parsed.output_ports,
@@ -1187,7 +1178,8 @@ class InstanceConfigParser:
             uuid=uuid,
             identifier=parsed.identifier,
             name=_to_ts(name),
-            description=_to_ts(description),
+            short_name=_to_ts(short_name),
+            short_description=_to_ts(description),
             color=config.get('color') or '',
             order=config.get('order'),
             is_visible=config.get('is_visible', True),

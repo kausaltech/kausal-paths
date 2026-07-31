@@ -3,11 +3,12 @@
 This document records the key design decisions made during the Trailhead
 refactoring (DB-backed model configuration with visual editor and versioning).
 
-## 1. Single `spec` JSONField per model instead of many columns
+## 1. Computation-only `spec` JSONField alongside identity columns
 
 **Decision:** Store the computation schema for `InstanceConfig` and `NodeConfig`
-in a single `SchemaField` (from `django_pydantic_field`) validated by a Pydantic
-model, rather than spreading it across dozens of individual Django model fields.
+in a `SchemaField` (from `django_pydantic_field`) validated by a Pydantic model.
+Identity, display, CMS, and relational state stays in Django model fields; it is
+not duplicated inside the computation spec.
 
 **Why:**
 - The schema is in active flux during Trailhead development. Each column change
@@ -23,17 +24,18 @@ model, rather than spreading it across dozens of individual Django model fields.
   queryability is not sacrificed.
 
 **What stays as Django fields:**
-- Identity: `identifier`, `instance` (FK), `name`, i18n fields
-- Display/CMS: `color`, `order`, `is_visible`, `body` (StreamField), descriptions
+- Identity: `uuid`, `identifier`, `instance` (FK), `name`, i18n fields
+- Display/CMS: `short_name`, `color`, `order`, `is_visible`, `body`
+  (StreamField), descriptions
 - Relational: `indicator_node` (FK to self)
-- Node type: `node_type` (determines Python class — fundamental to what a node *is*)
 
 **What goes into `spec`:**
-- `NodeSpec`: type-specific config, ports, output metrics, pipeline, params, `is_outcome`
+- `NodeSpec`: discriminated type config, ports, pipeline, params, goals,
+  visualizations, and computation flags such as `is_outcome`
 - `InstanceSpec`: year boundaries, dataset repo, features, params, action groups, scenarios, dimensions
 
-**Schema changes** are handled via `RunPython` migrations that reshape the JSON
-data in place — simpler than coordinating `AddField` + `RunPython` + `RemoveField`.
+Persisted snapshots project both parts explicitly: `NodeSnapshot` carries ORM
+identity/display metadata and embeds the computation-only `NodeSpec`.
 
 ## 2. Namespaced `spec` structure
 
@@ -65,15 +67,16 @@ data in place — simpler than coordinating `AddField` + `RunPython` + `RemoveFi
 
 **Decision:** `NodeSpec.type_config` is a discriminated union
 (`FormulaConfig | ActionConfig | SimpleConfig`) keyed on a `kind` field,
-while `node_type` stays as a Django field on `NodeConfig`.
+and is the sole stored source for node kind.
 
 **Why:**
 - Node types share 90% of their schema (outputs, params, ports). The differences
   are small (`formula` for formula nodes, `decision_level` for actions).
 - The `kind` discriminator inside the JSON makes the defs self-contained — you
   can validate the JSON without looking at the Django model.
-- `node_type` on the Django model is kept because it determines the Python class
-  and is fundamental to the node's identity.
+- `NodeSpec.kind` is a read-only convenience property derived from
+  `type_config.kind`; neither `NodeSpec.kind` nor `NodeConfig.node_type` is
+  stored separately.
 
 ## 4. Parameter classes as Pydantic BaseModel (not dataclasses)
 
@@ -141,21 +144,29 @@ to populate the `i18n` dict for a set of languages.
 - When a parameter is bound to a `Context`, `resolve_languages()` can be
   called with the instance's supported languages to populate all translations.
 
-## 8. Runtime-to-DB export via introspection (not YAML re-parsing)
+## 8. YAML-to-DB synchronization
 
-**Decision:** The `sync_instance_to_db` command loads a YAML instance via the
-normal `InstanceLoader` path, then introspects the live runtime objects
-(Instance, Node, Context, Scenario, etc.) to build `InstanceSpec` and `NodeSpec`.
+**Decision:** `sync_instance_to_db` parses YAML directly into an
+`InstanceSnapshot`, then writes its computation graph to the database. The
+legacy runtime-introspection exporter remains available explicitly through
+`--runtime-export` while parity work continues.
 
 **Why:**
-- The runtime objects are already validated and fully resolved — no need to
-  re-parse YAML dicts and manually map fields.
-- Edge dimensions, dataset configs, and parameters are all available in their
-  final form on the runtime objects.
-- Single source of truth: if the YAML loader works, the data is correct.
+- Parsing is independent of runtime node initialization and computation.
+- The snapshot is the shared contract for YAML parsing, persistence, revisions,
+  and import/export.
+- Existing `NodeConfig` metadata remains authoritative after initialization.
+  A legacy row with `spec IS NULL` is explicitly treated as uninitialized: its
+  first YAML sync seeds both metadata and computation spec. Later syncs update
+  computation while preserving ORM-authored display metadata.
+- The metadata-split migration materializes values from legacy non-null specs
+  before pruning them; the null-spec bootstrap covers production rows that had
+  never stored a spec.
 
 **Key files:**
-- `nodes/spec_export.py` — builds InstanceSpec/NodeSpec from live objects
+- `nodes/instance_parser.py` — parses YAML into an `InstanceSnapshot`
+- `nodes/spec_sync.py` — writes parsed snapshots to the database
+- `nodes/spec_export.py` — legacy runtime-introspection exporter
 - `nodes/instance_from_db.py` — serializes DB specs back to config dicts for InstanceLoader
 - `nodes/management/commands/sync_instance_to_db.py` — management command
 

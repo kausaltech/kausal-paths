@@ -60,7 +60,9 @@ if TYPE_CHECKING:
 #       ``metadata`` field (``InstanceMetadata``); ``spec`` is now the
 #       computation-only ``InstanceModelSpec``.
 #   v3: node references use UUIDs instead of identifiers.
-SNAPSHOT_SCHEMA_VERSION = 3
+#   v4: node identity/display metadata lives only on ``NodeSnapshot``;
+#       ``NodeSpec`` contains computation configuration only.
+SNAPSHOT_SCHEMA_VERSION = 4
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +284,7 @@ class NodeSnapshot(ModelSnapshot):
     uuid: UUID
     identifier: str | None = None
     name: TranslatedString | None = None
+    short_name: TranslatedString | None = None
     short_description: TranslatedString | None = None
     description: TranslatedString | None = None
     goal: TranslatedString | None = None
@@ -305,6 +308,7 @@ class NodeSnapshot(ModelSnapshot):
             uuid=obj.uuid,
             identifier=obj.identifier,
             name=_ts_from_modeltrans(obj, 'name', primary_language),
+            short_name=_ts_from_modeltrans(obj, 'short_name', primary_language),
             short_description=_ts_from_modeltrans(obj, 'short_description', primary_language),
             description=_ts_from_modeltrans(obj, 'description', primary_language),
             goal=_ts_from_modeltrans(obj, 'goal', primary_language),
@@ -315,6 +319,47 @@ class NodeSnapshot(ModelSnapshot):
             copy_of=obj.copy_of.uuid if obj.copy_of else None,
             spec=obj.spec,
         )
+
+
+def _upgrade_node_metadata_v4(nodes: list[Any]) -> None:
+    metadata_keys = {'uuid', 'identifier', 'name', 'short_name', 'description', 'color', 'order', 'is_visible'}
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        spec = node.get('spec')
+        if not isinstance(spec, dict):
+            continue
+        if node.get('short_name') is None and spec.get('short_name') is not None:
+            node['short_name'] = spec['short_name']
+        if node.get('short_description') is None and spec.get('description') is not None:
+            node['short_description'] = spec['description']
+        for key in metadata_keys:
+            spec.pop(key, None)
+        # ``kind`` duplicated the discriminator already stored in type_config.
+        spec.pop('kind', None)
+
+
+def _upgrade_node_references_v3(data: dict[str, Any], nodes: list[Any]) -> None:
+    node_uuids: dict[str, UUID] = {}
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        node_uuid = node.get('uuid') or (node.get('spec') or {}).get('uuid')
+        identifier = node.get('identifier')
+        if node_uuid is None or identifier is None:
+            raise ValueError('Legacy node snapshots require an identifier and spec UUID')
+        node['uuid'] = node_uuid
+        node_uuids[identifier] = UUID(str(node_uuid))
+
+    for node in nodes:
+        indicator = node.get('indicator_node')
+        if indicator is not None:
+            node['indicator_node'] = node_uuids[indicator]
+    for edge in data.get('edges', []):
+        edge['from_node'] = node_uuids[edge['from_node']]
+        edge['to_node'] = node_uuids[edge['to_node']]
+    for port in data.get('dataset_ports', []):
+        port['node'] = node_uuids[port['node']]
 
 
 class EdgeSnapshot(ModelSnapshot):
@@ -397,35 +442,20 @@ class InstanceSnapshot(BaseModel):
 
     @classmethod
     def from_serialized_data(cls, data: dict[str, Any]) -> Self:
-        """Load persisted snapshot data, upgrading identifier-based v1/v2 node references."""
+        """Load persisted snapshot data, upgrading older node metadata and references."""
         schema_version = data.get('schema_version', 1)
-        if schema_version >= 3:
+        if schema_version >= SNAPSHOT_SCHEMA_VERSION:
             return cls.model_validate(data)
 
         data = deepcopy(data)
         nodes = data.get('nodes', [])
-        node_uuids: dict[str, UUID] = {}
-        for node in nodes:
-            if not isinstance(node, dict):
-                continue
-            node_uuid = node.get('uuid') or (node.get('spec') or {}).get('uuid')
-            identifier = node.get('identifier')
-            if node_uuid is None or identifier is None:
-                raise ValueError('Legacy node snapshots require an identifier and spec UUID')
-            node['uuid'] = node_uuid
-            node_uuids[identifier] = UUID(str(node_uuid))
 
-        for node in nodes:
-            indicator = node.get('indicator_node')
-            if indicator is not None:
-                node['indicator_node'] = node_uuids[indicator]
-        for edge in data.get('edges', []):
-            edge['from_node'] = node_uuids[edge['from_node']]
-            edge['to_node'] = node_uuids[edge['to_node']]
-        for port in data.get('dataset_ports', []):
-            port['node'] = node_uuids[port['node']]
+        if schema_version < 3:
+            _upgrade_node_references_v3(data, nodes)
+        if schema_version < 4:
+            _upgrade_node_metadata_v4(nodes)
 
-        data['schema_version'] = 3
+        data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
         return cls.model_validate(data)
 
 
@@ -1259,6 +1289,7 @@ def _import_nodes(
         fields: dict[str, Any] = {}
         i18n_dict: dict[str, str] = {}
         _apply_translated(fields, i18n_dict, n.name, 'name', primary_lang)
+        _apply_translated(fields, i18n_dict, n.short_name, 'short_name', primary_lang)
         _apply_translated(fields, i18n_dict, n.short_description, 'short_description', primary_lang)
         _apply_translated(fields, i18n_dict, n.description, 'description', primary_lang)
         _apply_translated(fields, i18n_dict, n.goal, 'goal', primary_lang)
@@ -1274,9 +1305,8 @@ def _import_nodes(
         )
         # Write spec via queryset.update() to bypass ClusterableModel.save()
         if n.spec is not None:
-            node_spec = n.spec.model_copy(update={'uuid': nc.uuid})
-            NodeConfig.objects.filter(pk=nc.pk).update(spec=node_spec)
-            nc.spec = node_spec
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=n.spec)
+            nc.spec = n.spec
         nodes_by_uuid[n.uuid] = nc
 
     # Resolve indicator_node references

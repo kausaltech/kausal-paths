@@ -99,29 +99,24 @@ def test_instance_snapshot_json_round_trip():
     assert reloaded.schema_version == SNAPSHOT_SCHEMA_VERSION
 
 
-def test_i18n_spec_assignment_stays_dict_serializable():
-    """Post-validation i18n field assignment must not reintroduce compact strings."""
-    from kausal_common.i18n.pydantic import TranslatedString, set_i18n_context
-
-    from nodes.defs.node_defs import NodeSpec
-
-    with set_i18n_context('en', []):
-        spec = NodeSpec(name='Original')
-        spec.name = 'Renamed'
-        copied = spec.model_copy(update={'name': 'Copied'})
+def test_i18n_node_metadata_stays_dict_serializable():
+    """Node display metadata remains losslessly JSON serializable."""
+    from kausal_common.i18n.pydantic import TranslatedString
 
     snap = NodeSnapshot(
         uuid=uuid.uuid4(),
         identifier='n1',
         name=TranslatedString(en='Renamed'),
+        short_name=TranslatedString(en='Short', fi='Lyhyt'),
         color='#abc',
         is_visible=True,
-        spec=spec,
+        spec=NodeSpec(),
     )
 
     dumped = snap.model_dump(mode='json')
-    assert dumped['spec']['name'] == {'en': 'Renamed'}
-    assert copied.model_dump(mode='json')['name'] == {'en': 'Copied'}
+    assert dumped['name'] == {'en': 'Renamed'}
+    assert dumped['short_name'] == {'en': 'Short', 'fi': 'Lyhyt'}
+    assert 'name' not in dumped['spec']
 
 
 def test_instance_snapshot_schema_version_default():
@@ -139,7 +134,11 @@ def test_instance_snapshot_upgrades_legacy_identifier_references():
         'nodes': [
             {
                 'identifier': 'n1',
-                'spec': NodeSpec(uuid=node_uuid, identifier='n1').model_dump(mode='json'),
+                'spec': {
+                    **NodeSpec().model_dump(mode='json'),
+                    'uuid': str(node_uuid),
+                    'identifier': 'n1',
+                },
             }
         ],
         'edges': [
@@ -166,6 +165,45 @@ def test_instance_snapshot_upgrades_legacy_identifier_references():
     assert snapshot.nodes[0].uuid == node_uuid
     assert snapshot.edges[0].from_node == node_uuid
     assert snapshot.dataset_ports[0].node == node_uuid
+
+
+def test_instance_snapshot_upgrades_v3_node_metadata():
+    node_uuid = uuid.uuid4()
+    legacy = {
+        'schema_version': 3,
+        'spec': InstanceModelSpec(years=YearsSpec(target=2030)).model_dump(mode='json'),
+        'nodes': [
+            {
+                'uuid': str(node_uuid),
+                'identifier': 'n1',
+                'name': {'en': 'Outer name'},
+                'description': {'en': 'Long CMS description'},
+                'spec': {
+                    **NodeSpec().model_dump(mode='json'),
+                    'uuid': str(node_uuid),
+                    'identifier': 'stale-id',
+                    'name': {'en': 'Stale name'},
+                    'short_name': {'en': 'Short'},
+                    'description': {'en': 'Runtime description'},
+                    'color': '#def',
+                    'order': 5,
+                    'is_visible': False,
+                    'kind': 'simple',
+                },
+            }
+        ],
+    }
+
+    snapshot = InstanceSnapshot.from_serialized_data(legacy)
+    node = snapshot.nodes[0]
+
+    assert node.identifier == 'n1'
+    assert str(node.name) == 'Outer name'
+    assert str(node.short_name) == 'Short'
+    assert str(node.short_description) == 'Runtime description'
+    assert str(node.description) == 'Long CMS description'
+    assert node.spec is not None
+    assert not ({'uuid', 'identifier', 'name', 'short_name', 'description', 'kind'} & node.spec.model_fields_set)
 
 
 # ---------------------------------------------------------------------------
@@ -519,7 +557,7 @@ def test_poc_delete_node_cascades_under_single_operation(
 ):
     """node.delete produces one operation bundling the node entry + cascade entries."""
     # Create two nodes + an edge between them (via ORM — simpler for the PoC)
-    from nodes.defs.node_defs import NodeKind, NodeSpec as NodeSpecDef
+    from nodes.defs.node_defs import NodeSpec as NodeSpecDef
     from nodes.defs.port_def import OutputPortDef
     from nodes.models import InstanceChangeOperation, InstanceModelLogEntry, NodeConfig
     from nodes.units import unit_registry
@@ -532,7 +570,6 @@ def test_poc_delete_node_cascades_under_single_operation(
         identifier='src',
         name='Src',
         spec=NodeSpecDef(
-            kind=NodeKind.FORMULA,
             output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
         ),
     )
@@ -541,7 +578,6 @@ def test_poc_delete_node_cascades_under_single_operation(
         identifier='dst',
         name='Dst',
         spec=NodeSpecDef(
-            kind=NodeKind.FORMULA,
             output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
         ),
     )
@@ -967,7 +1003,7 @@ mutation CreateCats($instanceId: ID!, $input: [CreateDimensionCategoryInput!]!) 
 
 def _build_edge_endpoints(db_instance: InstanceConfig):
     """Create two formula nodes with compatible single-port outputs; return (src, dst)."""
-    from nodes.defs.node_defs import NodeKind, NodeSpec as NodeSpecDef
+    from nodes.defs.node_defs import NodeSpec as NodeSpecDef
     from nodes.defs.port_def import InputPortDef, OutputPortDef
     from nodes.models import NodeConfig
     from nodes.tests.test_model_editor import _port_uuid as _pu
@@ -979,7 +1015,6 @@ def _build_edge_endpoints(db_instance: InstanceConfig):
         identifier='edge_src',
         name='Src',
         spec=NodeSpecDef(
-            kind=NodeKind.FORMULA,
             output_ports=[
                 OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions'),
             ],
@@ -990,7 +1025,6 @@ def _build_edge_endpoints(db_instance: InstanceConfig):
         identifier='edge_dst',
         name='Dst',
         spec=NodeSpecDef(
-            kind=NodeKind.FORMULA,
             input_ports=[InputPortDef(id=_pu('input'), unit=unit, quantity='emissions')],
             output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
         ),
@@ -1058,7 +1092,7 @@ def test_create_edge_auto_creates_matching_target_port(
     empty_db_instance: InstanceConfig,
 ):
     """When toPort is null on a multi-port target, a new input port is created."""
-    from nodes.defs.node_defs import NodeKind, NodeSpec as NodeSpecDef
+    from nodes.defs.node_defs import NodeSpec as NodeSpecDef
     from nodes.defs.port_def import InputPortDef, OutputPortDef
     from nodes.models import (
         InstanceChangeOperation,
@@ -1082,7 +1116,6 @@ def test_create_edge_auto_creates_matching_target_port(
     src = _make_node(
         'auto_src',
         NodeSpecDef(
-            kind=NodeKind.FORMULA,
             output_ports=[
                 OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions'),
             ],
@@ -1094,7 +1127,6 @@ def test_create_edge_auto_creates_matching_target_port(
     dst = _make_node(
         'auto_dst',
         NodeSpecDef(
-            kind=NodeKind.FORMULA,
             input_ports=[existing_port_a, existing_port_b],
             output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
         ),
@@ -1103,7 +1135,6 @@ def test_create_edge_auto_creates_matching_target_port(
     other = _make_node(
         'auto_other',
         NodeSpecDef(
-            kind=NodeKind.FORMULA,
             output_ports=[
                 OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions'),
             ],
@@ -1358,7 +1389,7 @@ def test_published_source_uses_snapshot_after_publish(empty_db_instance: Instanc
     captures state at publish time; subsequent draft writes don't leak to
     the published surface.
     """
-    from nodes.defs.node_defs import NodeKind, NodeSpec as NodeSpecDef
+    from nodes.defs.node_defs import NodeSpec as NodeSpecDef
     from nodes.defs.port_def import OutputPortDef
     from nodes.models import NodeConfig, PreferredInstanceSource
     from nodes.tests.test_model_editor import _port_uuid as _pu
@@ -1370,7 +1401,6 @@ def test_published_source_uses_snapshot_after_publish(empty_db_instance: Instanc
         identifier='pub_baseline',
         name='Pub baseline',
         spec=NodeSpecDef(
-            kind=NodeKind.FORMULA,
             output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
         ),
     )
@@ -1383,7 +1413,6 @@ def test_published_source_uses_snapshot_after_publish(empty_db_instance: Instanc
         identifier='draft_only',
         name='Draft only',
         spec=NodeSpecDef(
-            kind=NodeKind.FORMULA,
             output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
         ),
     )
@@ -1399,7 +1428,7 @@ def test_published_source_uses_snapshot_after_publish(empty_db_instance: Instanc
 
 def test_default_source_serves_draft_tables(empty_db_instance: InstanceConfig):
     """Backwards compat: no-arg _create_from_config keeps today's draft behavior."""
-    from nodes.defs.node_defs import NodeKind, NodeSpec as NodeSpecDef
+    from nodes.defs.node_defs import NodeSpec as NodeSpecDef
     from nodes.defs.port_def import OutputPortDef
     from nodes.models import NodeConfig
     from nodes.tests.test_model_editor import _port_uuid as _pu
@@ -1411,7 +1440,6 @@ def test_default_source_serves_draft_tables(empty_db_instance: InstanceConfig):
         identifier='default_node',
         name='Default',
         spec=NodeSpecDef(
-            kind=NodeKind.FORMULA,
             output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
         ),
     )

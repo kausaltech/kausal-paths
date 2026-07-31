@@ -12,7 +12,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, overload
-from uuid import uuid3, uuid4
+from uuid import uuid3
 
 from loguru import logger
 
@@ -130,8 +130,8 @@ def export_instance_spec(instance: Instance) -> InstanceModelSpec:
     )
 
 
-def export_node_spec(node: Node, nc: NodeConfig) -> NodeSpec:
-    """Build a NodeSpec from a live Node."""
+def export_node_spec(node: Node) -> NodeSpec:
+    """Build the computation-only NodeSpec from a live Node."""
     type_config = _export_type_config(node)
     input_ports = _export_input_ports(node)
     output_ports = _export_output_ports(node)
@@ -143,22 +143,8 @@ def export_node_spec(node: Node, nc: NodeConfig) -> NodeSpec:
     input_dim_ids = [d for d, dim in node.input_dimensions.items() if not dim.is_internal] if node.input_dimensions else []
     output_dim_ids = [d for d, dim in node.output_dimensions.items() if not dim.is_internal] if node.output_dimensions else []
 
-    uuid = nc.uuid
-    if not nc.pk or not uuid:
-        uuid = uuid4()
-        nc.uuid = uuid
-
     goals = node.goals.model_copy() if node.goals is not None else NodeGoals()
     return NodeSpec(
-        uuid=uuid,
-        kind=type_config.kind,
-        identifier=node.id,
-        name=_to_ts(node.name),
-        short_name=_to_ts(node.short_name),
-        description=_to_ts(node.description),
-        color=(node.db_obj.color if node.db_obj is not None and node.db_obj.color else None) or node.color,
-        order=node.db_obj.order if node.db_obj is not None else None,
-        is_visible=node.db_obj.is_visible if node.db_obj is not None else True,
         type_config=type_config,
         input_ports=input_ports,
         output_ports=output_ports,
@@ -708,9 +694,7 @@ def _resolve_from_port(edge: Edge, from_node: NodeSpec, metric_id: str) -> Outpu
         if port._metric_id == metric_id:
             return port
 
-    raise ValueError(
-        f'No port found for node {from_node.identifier} edge {edge.input_node.id}:{edge.output_node.id} metric {metric_id}'
-    )
+    raise ValueError(f'No port found for edge {edge.input_node.id}:{edge.output_node.id} metric {metric_id}')
 
 
 def edge_to_transforms(edge: Edge) -> list[EdgeTransformOp]:
@@ -783,8 +767,8 @@ def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, Node
                         break
                 else:
                     raise ValueError(
-                        f'No input port found for node {to_spec.identifier} for edge from '
-                        + f'{from_spec.identifier}, metric {from_metric_id}'
+                        f'No input port found for node {to_nc.identifier} for edge from '
+                        + f'{from_nc.identifier}, metric {from_metric_id}'
                     )
                 edge_obj = NodeEdge(
                     instance=ic,
@@ -1038,8 +1022,8 @@ def sync_instance_to_db(
             nc = existing_ncs.get(node_id)
             if nc is None:
                 nc = NodeConfig(instance=ic, identifier=node_id)
-            nc.update_from_node(node, update_relations=False, skip_descriptions=True)
-            spec = export_node_spec(node, nc)
+            nc.update_from_node(node, overwrite=node_id not in existing_ncs, update_relations=False)
+            spec = export_node_spec(node)
             nc.is_stale = False
             nc.save()
             # Write spec via queryset.update() to bypass ClusterableModel.save()

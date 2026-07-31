@@ -16,7 +16,7 @@ import pytest
 from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
 
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-from nodes.defs.node_defs import NodeKind, NodeSpec, SimpleConfig
+from nodes.defs.node_defs import NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
 from nodes.units import unit_registry
@@ -60,7 +60,6 @@ def db_instance_config() -> InstanceConfig:
 def _node_spec(**overrides: Any) -> NodeSpec:
     unit = unit_registry.parse_units('kt/a')
     defaults: dict[str, Any] = {
-        'kind': NodeKind.SIMPLE,
         'type_config': SimpleConfig(node_class=SIMPLE_NODE_CLASS),
         'input_ports': [],
         'output_ports': [OutputPortDef(id=_port_id('default'), unit=unit, quantity='emissions')],

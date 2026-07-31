@@ -216,26 +216,25 @@ def _input_port(identifier: str | None) -> InputPortDef:
 
 
 def test_port_identifiers_are_optional():
-    spec = NodeSpec(identifier='node', input_ports=[_input_port(None), _input_port(None)])
+    spec = NodeSpec(input_ports=[_input_port(None), _input_port(None)])
 
     assert spec.input_port_by_identifier == {}
 
 
 def test_port_identifiers_index_the_ports_that_have_them():
     named = _input_port('electricity')
-    spec = NodeSpec(identifier='node', input_ports=[named, _input_port(None)])
+    spec = NodeSpec(input_ports=[named, _input_port(None)])
 
     assert spec.input_port_by_identifier == {'electricity': named}
 
 
 def test_duplicate_input_port_identifiers_are_rejected():
     with pytest.raises(ValueError, match="Duplicate input port identifier 'fuel'"):
-        NodeSpec(identifier='node', input_ports=[_input_port('fuel'), _input_port('fuel')])
+        NodeSpec(input_ports=[_input_port('fuel'), _input_port('fuel')])
 
 
 def test_input_and_output_ports_have_separate_identifier_namespaces():
     spec = NodeSpec(
-        identifier='node',
         input_ports=[_input_port('energy')],
         output_ports=[OutputPortDef(id=uuid4(), identifier='energy', unit=unit_registry.parse_units('TJ/a'))],
     )

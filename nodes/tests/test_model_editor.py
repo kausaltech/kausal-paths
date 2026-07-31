@@ -18,7 +18,6 @@ from nodes.defs.instance_defs import ActionGroup, InstanceModelSpec, Normalizati
 from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.defs.transform_def import FilterColumnOp, forecast_from_transformations
-from nodes.models import NodeKindChoices
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
 from nodes.units import unit_registry
 
@@ -65,7 +64,6 @@ def _make_node_spec(**overrides: Any) -> NodeSpec:
     """Create a NodeSpec with a real node_class so InstanceLoader can hydrate it."""
     unit = unit_registry.parse_units('kt/a')
     defaults: dict[str, Any] = {
-        'kind': NodeKind.SIMPLE,
         'type_config': SimpleConfig(node_class=SIMPLE_NODE_CLASS),
         'output_ports': [OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
     }
@@ -778,13 +776,12 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
 
     nc = NodeConfig.objects.get(pk=nc.pk)
     assert nc.spec is not None
-    assert nc.node_type == NodeKindChoices.ACTION
     assert nc.description == 'Carbon capture update'
+    assert nc.short_description == 'Carbon capture update'
+    assert nc.short_name == 'CCS'
     assert nc.spec.kind == NodeKind.ACTION
     assert isinstance(nc.spec.type_config, ActionConfig)
     assert nc.spec.type_config.group == 'energy'
-    assert str(nc.spec.short_name) == 'CCS'
-    assert str(nc.spec.description) == 'Carbon capture update'
     assert nc.spec.node_group == 'transport'
     assert nc.spec.allow_nulls is True
     assert nc.spec.minimum_year == 2024
@@ -841,29 +838,23 @@ def test_instance_metadata_projects_from_columns(db_instance_config: InstanceCon
     assert str(meta.name) == db_instance_config.name
 
 
-def test_node_spec_syncs_identity_fields_on_save(db_instance_config: InstanceConfig):
-    nc = NodeConfigFactory.create(instance=db_instance_config, identifier='spec_identity', name='Spec Identity')
-    nc.refresh_from_db()
-    assert nc.spec is not None
-    assert nc.spec.uuid == nc.uuid
-    assert nc.spec.identifier == nc.identifier
-    assert str(nc.spec.name) == nc.name
-
-
-def test_node_spec_syncs_display_fields_on_save(db_instance_config: InstanceConfig):
+def test_node_metadata_does_not_mutate_spec_on_save(db_instance_config: InstanceConfig):
     nc = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='spec_display',
         name='Spec Display',
+        short_name='Short display',
         color='#123456',
         order=7,
         is_visible=False,
     )
+    assert nc.spec is not None
+    original_spec = nc.spec.model_dump(mode='json')
+    nc.name = 'Changed display'
+    nc.save()
     nc.refresh_from_db()
     assert nc.spec is not None
-    assert nc.spec.color == '#123456'
-    assert nc.spec.order == 7
-    assert nc.spec.is_visible is False
+    assert nc.spec.model_dump(mode='json') == original_spec
 
 
 def test_runtime_rebuild_preserves_action_group_and_zero_no_effect_value(db_instance_config: InstanceConfig):
@@ -877,7 +868,6 @@ def test_runtime_rebuild_preserves_action_group_and_zero_no_effect_value(db_inst
         identifier='runtime_action',
         name='Runtime Action',
         spec=NodeSpec(
-            kind=NodeKind.ACTION,
             type_config=ActionConfig(
                 node_class=ACTION_NODE_CLASS,
                 decision_level=DecisionLevel.MUNICIPALITY,
@@ -902,7 +892,6 @@ def test_runtime_rebuild_preserves_action_parent_link(db_instance_config: Instan
         identifier='parent_action',
         name='Parent Action',
         spec=NodeSpec(
-            kind=NodeKind.ACTION,
             type_config=ActionConfig(node_class=PARENT_ACTION_NODE_CLASS, decision_level=DecisionLevel.MUNICIPALITY),
             output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
         ),
@@ -912,7 +901,6 @@ def test_runtime_rebuild_preserves_action_parent_link(db_instance_config: Instan
         identifier='child_action',
         name='Child Action',
         spec=NodeSpec(
-            kind=NodeKind.ACTION,
             type_config=ActionConfig(
                 node_class=ACTION_NODE_CLASS, decision_level=DecisionLevel.MUNICIPALITY, parent='parent_action'
             ),
@@ -1646,7 +1634,6 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
         identifier='multi_metric_action',
         name='Multi metric action',
         spec=NodeSpec(
-            kind=NodeKind.ACTION,
             type_config=ActionConfig(
                 node_class=ACTION_NODE_CLASS,
                 decision_level=DecisionLevel.MUNICIPALITY,
@@ -1713,7 +1700,6 @@ def test_dataset_ports_rebuild_uses_dataset_forecast_default(db_instance_config:
         instance=db_instance_config,
         identifier='uses_forecast_default',
         spec=NodeSpec(
-            kind=NodeKind.SIMPLE,
             type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS),
             input_ports=[_make_input_port(id='emissions', unit='t/a', quantity='emissions')],
             output_ports=[
@@ -1784,7 +1770,6 @@ def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: 
         instance=db_instance_config,
         identifier='multi_metric_action',
         spec=NodeSpec(
-            kind=NodeKind.ACTION,
             type_config=ActionConfig(
                 node_class=ACTION_NODE_CLASS,
                 decision_level=DecisionLevel.MUNICIPALITY,
@@ -1846,7 +1831,7 @@ def _column_less_sync_fixture(
     nc = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='pairing_node',
-        spec=NodeSpec(kind=NodeKind.SIMPLE, type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS)),
+        spec=NodeSpec(type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS)),
     )
     return node, nc
 

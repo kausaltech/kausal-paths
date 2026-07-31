@@ -1611,8 +1611,10 @@ class Node:
 
     def as_node_config_attributes(self):
         """Return a dict that can be used to set corresponding fields of NodeConfig."""
-        attributes: dict[str, str | dict[str, str]] = {
+        attributes: dict[str, str | int | bool | dict[str, str] | None] = {
             'identifier': self.id,
+            'order': self.order,
+            'is_visible': self.is_visible,
         }
 
         i18n = {}
@@ -1627,6 +1629,7 @@ class Node:
             attributes[field_name] = val
 
         set_from_translated_str(self.name, 'name')
+        set_from_translated_str(self.short_name, 'short_name')
         # Node's description is called `short_description` in NodeConfig and there is no equivalent for
         # NodeConfig's `long_description` in Node
         set_from_translated_str(self.description, 'short_description', strict=False)

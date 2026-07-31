@@ -27,7 +27,7 @@ from paths.identifiers import identifier_or_none
 from nodes.defs import FormulaConfig, SimpleConfig
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
-from nodes.models import InstanceConfig, NodeConfig, NodeKindChoices
+from nodes.models import InstanceConfig, NodeConfig
 from nodes.node import Node
 from nodes.units import unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
@@ -372,6 +372,7 @@ class CreateNodeInput:
     is_visible: bool = True
     is_outcome: bool = False
     short_name: str | None = None
+    short_description: str | None = None
     description: str | None = None
     node_group: sb.ID | None = None
     allow_nulls: bool = False
@@ -397,6 +398,7 @@ class UpdateNodeInput:
     is_visible: Maybe[bool]
     is_outcome: Maybe[bool]
     short_name: Maybe[str]
+    short_description: Maybe[str]
     description: Maybe[str]
     node_group: Maybe[sb.ID]
     allow_nulls: Maybe[bool]
@@ -703,22 +705,25 @@ def _parse_params(info: gql.Info, raw: Any, type_config: Any, kind: NodeKind) ->
     return params
 
 
-def _apply_node_db_field_updates(spec: NodeSpec, input: UpdateNodeInput, updates: dict[str, object]) -> None:
+def _apply_node_db_field_updates(input: UpdateNodeInput, updates: dict[str, object]) -> None:
     if is_maybe_set(input.name):
-        spec.name = input.name.value
         updates['name'] = input.name.value
+    if is_maybe_set(input.short_name):
+        updates['short_name'] = input.short_name.value
     if is_maybe_set(input.color):
-        spec.color = input.color.value
         updates['color'] = input.color.value
     if is_maybe_set(input.order):
-        spec.order = input.order.value
         updates['order'] = input.order.value
     if is_maybe_set(input.is_visible):
-        spec.is_visible = input.is_visible.value
         updates['is_visible'] = input.is_visible.value
+    if is_maybe_set(input.short_description):
+        updates['short_description'] = input.short_description.value
     if is_maybe_set(input.description):
-        spec.description = input.description.value
         updates['description'] = input.description.value
+        # Compatibility for clients written while description was also copied
+        # into NodeSpec.description. An explicit shortDescription wins.
+        if not is_maybe_set(input.short_description):
+            updates['short_description'] = input.description.value
     if is_maybe_set(input.i18n):
         updates['i18n'] = input.i18n.value or {}
 
@@ -726,8 +731,6 @@ def _apply_node_db_field_updates(spec: NodeSpec, input: UpdateNodeInput, updates
 def _apply_node_spec_field_updates(spec: NodeSpec, input: UpdateNodeInput) -> None:
     if is_maybe_set(input.is_outcome):
         spec.is_outcome = input.is_outcome.value
-    if is_maybe_set(input.short_name):
-        spec.short_name = input.short_name.value
     if is_maybe_set(input.node_group):
         spec.node_group = input.node_group.value
     if is_maybe_set(input.allow_nulls):
@@ -746,19 +749,13 @@ def _apply_node_type_update(
     info: gql.Info,
     spec: NodeSpec,
     input: UpdateNodeInput,
-    updates: dict[str, object],
 ) -> None:
-    if is_maybe_set(input.kind):
-        if input.kind.value != spec.kind and not is_maybe_set(input.config):
-            raise GraphQLValidationError(info, 'config must be provided when changing node kind')
-        spec.kind = input.kind.value
-        updates['node_type'] = NodeKindChoices(spec.kind.value)
+    if is_maybe_set(input.kind) and input.kind.value != spec.kind and not is_maybe_set(input.config):
+        raise GraphQLValidationError(info, 'config must be provided when changing node kind')
 
     if is_maybe_set(input.config):
         kind = _kind_from_config(info, input.config.value) if not is_maybe_set(input.kind) else input.kind.value
-        spec.kind = kind
         spec.type_config = _type_config_for_kind(info, kind, input.config.value).to_pydantic()
-        updates['node_type'] = NodeKindChoices(kind.value)
 
 
 def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, input: UpdateNodeInput) -> None:
@@ -794,9 +791,9 @@ def _apply_update_node_input(
     input: UpdateNodeInput,
     updates: dict[str, object],
 ) -> None:
-    _apply_node_db_field_updates(spec, input, updates)
+    _apply_node_db_field_updates(input, updates)
     _apply_node_spec_field_updates(spec, input)
-    _apply_node_type_update(info, spec, input, updates)
+    _apply_node_type_update(info, spec, input)
     _apply_node_port_updates(info, nc, spec, input)
     _apply_node_data_updates(info, spec, input)
 
@@ -968,10 +965,7 @@ class InstanceEditorMutation:
             raise GraphQLValidationError(info, 'At least one outputPort or outputMetric must be provided')
 
         spec = NodeSpec(
-            kind=input.kind,
             type_config=type_config.to_pydantic(),
-            short_name=input.short_name,
-            description=input.description,
             is_outcome=input.is_outcome,
             node_group=input.node_group,
             allow_nulls=input.allow_nulls,
@@ -992,11 +986,12 @@ class InstanceEditorMutation:
             nc = ic.nodes.create(
                 identifier=input.identifier,
                 name=input.name or input.identifier,
+                short_name=input.short_name,
+                short_description=input.short_description if input.short_description is not None else input.description,
                 color=input.color or '',
                 order=input.order,
                 is_visible=input.is_visible,
                 description=input.description,
-                node_type=NodeKindChoices(input.kind.value),
                 i18n=input.i18n or {},
                 spec=spec,
             )

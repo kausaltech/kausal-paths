@@ -42,7 +42,6 @@ from wagtail.search import index
 import sentry_sdk
 from asgiref.sync import async_to_sync, sync_to_async
 from channels.layers import get_channel_layer
-from django_choices_field import TextChoicesField
 from django_pydantic_field import SchemaField
 from loguru import logger
 from wagtail_color_panel.fields import ColorField
@@ -58,7 +57,7 @@ from kausal_common.datasets.models import (
 )
 from kausal_common.deployment.http import get_request_wildcard_domains
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
+from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
@@ -85,7 +84,6 @@ from paths.utils import (
 
 from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
 from nodes.defs.instance_defs import InstanceFeatures
-from nodes.defs.node_defs import NodeKind
 from nodes.defs.transform_def import EdgeTransformOp
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
@@ -1713,15 +1711,8 @@ class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeC
 del _NodeConfigManager
 
 
-class NodeKindChoices(models.TextChoices):
-    FORMULA = NodeKind.FORMULA.value, _('Formula')
-    PIPELINE = NodeKind.PIPELINE.value, _('Pipeline')
-    ACTION = NodeKind.ACTION.value, _('Action')
-    SIMPLE = NodeKind.SIMPLE.value, _('Simple')
-
-
 def make_empty_node_spec() -> NodeSpec:
-    return NodeSpec(kind=NodeKind.FORMULA)
+    return NodeSpec()
 
 
 class EditableInstanceChild(
@@ -1783,7 +1774,8 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     identifier = IdentifierField(max_length=200)
     is_stale = models.BooleanField(default=False, help_text='Whether the node is stale and should be deleted')
     name = models.CharField(max_length=200, null=True, blank=True)
-    order = models.PositiveIntegerField(
+    short_name = models.CharField(max_length=200, null=True, blank=True)
+    order = models.IntegerField(
         null=True,
         blank=True,
         verbose_name=_('Order'),
@@ -1841,22 +1833,17 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
 
-    # --- DB-sourced node fields (model editor) ---
-    node_type = TextChoicesField(
-        choices_enum=NodeKindChoices,  # pyright: ignore[reportCallIssue]
-        default=NodeKindChoices.FORMULA,
-    )
-
     spec = SchemaField(schema=NodeSpec, null=True, blank=True)
 
     # Audit timestamps (``created_at`` / ``last_modified_at``) + user FKs
     # come from ``UserModifiableModel`` via ``EditableInstanceChild``.
 
     i18n = TranslationField(
-        fields=('name', 'short_description', 'description', 'goal'),
+        fields=('name', 'short_name', 'short_description', 'description', 'goal'),
         default_language_field='instance__primary_language',
     )
     name_i18n: str | None
+    short_name_i18n: str | None
     short_description_i18n: str | None
     description_i18n: str | None
     goal_i18n: str | None
@@ -1925,7 +1912,7 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
 
         conf = node.as_node_config_attributes()
         i18n = conf.pop('i18n', None)
-        for k, v in node.as_node_config_attributes().items():
+        for k, v in conf.items():
             if overwrite or getattr(self, k, None) is None:
                 if skip_descriptions and k in ['short_description', 'description']:
                     continue
@@ -1936,7 +1923,12 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
             if not self.i18n:
                 self.i18n = {}
             assert isinstance(self.i18n, dict)
-            self.i18n |= cast('dict[str, str]', i18n)
+            translated = cast('dict[str, str]', i18n)
+            if overwrite:
+                self.i18n |= translated
+            else:
+                for key, value in translated.items():
+                    self.i18n.setdefault(key, value)
 
         if overwritten:
             self.instance.log.info('Overwrote contents in node %s' % str(node))
@@ -2011,17 +2003,6 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
 
         if not isinstance(self.uuid, uuid.UUID):
             self.uuid = uuid.uuid4()
-
-        # Skip spec sync when spec is deferred: accessing self.spec on a deferred instance
-        # triggers refresh_from_db which reloads ALL fields from DB (due to defer+only
-        # interaction in NodeConfigManager), silently overwriting any unsaved field changes.
-        if 'spec' not in self.get_deferred_fields() and (spec := self.spec) is not None:
-            spec.uuid = self.uuid
-            spec.identifier = self.identifier
-            spec.name = get_translated_string_from_modeltrans(self, 'name', self.instance.primary_language)
-            spec.color = self.color or None
-            spec.order = self.order
-            spec.is_visible = self.is_visible
 
         return super().save(**kwargs)
 
