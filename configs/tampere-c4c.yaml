@@ -2084,10 +2084,6 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
-
-
-
-
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
