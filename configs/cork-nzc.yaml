@@ -179,6 +179,9 @@ params:
   is_customizable: false
 
 action_groups:
+- id: technical_testing
+  name: Technical testing
+  color: '#898781'
 - id: project
   name: Project-level actions
   color: '#b375c2'
@@ -401,7 +404,7 @@ nodes:
     linear_interpolation: true
     values:
     - year: 2023
-      value: 978
+      value: 950
     - year: 2030
       value: 216
     - year: 2035
@@ -674,7 +677,9 @@ nodes:
       categories: [detached_house, semi_detached_house, terraced_house, apartment]
       exclude: true
   params:
-    operations: add,use_as_shares
+    # `multiply` is last so the technical-testing calibration action scales the
+    # finished total rather than interfering with the shares split.
+    operations: add,use_as_shares,multiply
 
 - id: residential_emissions
   name_en: Residential emissions
@@ -1023,9 +1028,14 @@ nodes:
   name_en: Other emissions (waste, LULUCF)
   description_en: >
     Cork inventory "other" sector: the in-boundary landfill and the civic amenity
-    site (both waste scope 1) plus LULUCF. This matches KPMG's Glidepath, which
-    counts waste scope 1 only — collected waste and water services are scope 3 and
-    KPMG excludes them from the headline total.
+    site (both waste scope 1), water services (scope 3), and LULUCF.
+
+    Collected waste is the one waste source deliberately left out — it is scope 3
+    and 80.0 kt, large enough that including it would swamp the comparison with
+    KPMG's Glidepath, which counts waste scope 1 only. See waste_emissions, whose
+    output edge is commented out for that reason. Water services are scope 3 too
+    but only 19.3 kt, and they are part of the reported BEI total, so they are
+    counted here.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -1426,8 +1436,10 @@ nodes:
 # dataset, which carries five potential dimension columns (transport_mode, transport_pollutant,
 # energy_carrier, fuel_type, building_energy_class) even though any given metric column only uses
 # a subset of them. Every input_datasets entry below explicitly drops whichever of those five
-# columns it doesn't need (a bare `filters: - column: <dim>`, no value, drops that column -- see
-# nodes/datasets.py:_column_filter) so the node's actual dimensions match what it declares.
+# columns it doesn't need (a bare `filters: - column: <dim>`, no value, drops that column: with no
+# value/values/ref there is no mask to filter on, and `drop_col` defaults to true -- see
+# FilterColumnOp and _filter_column in nodes/transforms.py) so the node's actual dimensions match
+# what it declares.
 
 - id: arup_freight_vehicle_count
   name_en: Freight vehicle count (Arup preprocessing)
@@ -2264,6 +2276,45 @@ nodes:
 
 actions:
 
+# -------------- Technical testing --------------
+# Not climate actions. Diagnostics kept in the model to demonstrate a point, and
+# expected to be removed once they have served it.
+
+- id: calibrate_buildings_to_inventory
+  name_en: Calibrate building emissions to the KPMG inventory
+  description_en: >
+    TECHNICAL TESTING — not a climate action.
+
+    Scales building emissions by 1.0872 so they match the KPMG BEI exactly
+    (504.5 to 548.5 kt for 2023). Enable it to demonstrate that exact agreement
+    with the inventory is achievable, and to show what achieving it requires.
+
+    What it requires is the point. The 44 kt difference is methodological, not
+    missing emissions: the inventory estimates how much energy Cork's buildings
+    should use from floor area times benchmark intensities, while the model uses
+    measured energy statistics scaled to the city. Benchmark methods give the
+    higher answer — the inventory implies about 19,100 kWh per dwelling per year.
+    So this action does not correct an error; it multiplies the model's measured
+    basis up onto the inventory's modelled basis.
+
+    The cost of leaving it enabled is that every building action's saving is then
+    calculated off a baseline roughly 9% too high, and every per-square-metre cost
+    with it. That is why it is a demonstration rather than a setting.
+
+    See Cork BEI Review.pdf section A2.
+  type: simple.AdditiveAction
+  quantity: fraction
+  unit: dimensionless
+  group: technical_testing
+  # A multiplier's no-effect value is 1, not AdditiveAction's default of 0 —
+  # without this, disabling the action multiplies building emissions by zero.
+  no_effect_value: 1.0
+  historical_values: [[2023, 1.087185]]
+  output_nodes:
+  - id: building_emissions
+    tags: [non_additive, extend_values]
+    to_dimensions: []
+
 # --------------- Project-level actions ----------
 
 - id: be_1_retrofit_social_housing
@@ -2450,6 +2501,8 @@ scenarios:
     value: false
   - id: measure_data_baseline_year_only
     value: true
+  - id: calibrate_buildings_to_inventory.enabled
+    value: false
 
 - id: default
   default: true
@@ -2465,6 +2518,8 @@ scenarios:
     value: true
   - id: flaring_of_local_waste_methane.enabled
     value: true
+  - id: calibrate_buildings_to_inventory.enabled
+    value: false
 
 - id: decarbonisation
   name_en: Decarbonisation scenario
@@ -2475,6 +2530,8 @@ scenarios:
     value: false
   - id: measure_data_baseline_year_only
     value: true
+  - id: calibrate_buildings_to_inventory.enabled
+    value: false
 
 - id: progress_tracking
   name_en: Progress tracking
@@ -2488,4 +2545,6 @@ scenarios:
     value: false
   - id: a51_increase_waste_recycling.enabled  # This is needed so that DatasetDifferenceAction works correctly.
     value: true
+  - id: calibrate_buildings_to_inventory.enabled
+    value: false
 
