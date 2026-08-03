@@ -230,6 +230,32 @@ def test_build_instance_snapshot_round_trip_through_json(empty_db_instance: Inst
     assert dump_1 == dump_2
 
 
+def test_node_layout_round_trips_through_instance_export(empty_db_instance: InstanceConfig):
+    from nodes.instance_serialization import export_instance, import_instance
+    from nodes.models import NodeLayout, NodeLayoutSource
+
+    source_node = NodeConfigFactory.create(instance=empty_db_instance, identifier='positioned')
+    NodeLayout.objects.create(
+        node=source_node,
+        x=12.5,
+        y=-8.25,
+        source=NodeLayoutSource.USER,
+    )
+    export = export_instance(empty_db_instance)
+    target_instance = InstanceFactory.create()
+    target = InstanceConfigFactory.create(
+        identifier=target_instance.id,
+        instance=target_instance,
+        config_source='database',
+    )
+
+    import_instance(target, export)
+
+    copied = NodeLayout.objects.select_related('node').get(node__instance=target)
+    assert copied.node.identifier == 'positioned'
+    assert (copied.x, copied.y, copied.source) == (12.5, -8.25, NodeLayoutSource.USER)
+
+
 def test_build_instance_snapshot_does_not_hydrate_related_specs(empty_db_instance: InstanceConfig):
     source = NodeConfigFactory.create(instance=empty_db_instance, identifier='source')
     target = NodeConfigFactory.create(instance=empty_db_instance, identifier='target')

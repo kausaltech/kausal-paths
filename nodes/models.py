@@ -42,6 +42,7 @@ from wagtail.search import index
 import sentry_sdk
 from asgiref.sync import async_to_sync, sync_to_async
 from channels.layers import get_channel_layer
+from django_choices_field import TextChoicesField
 from django_pydantic_field import SchemaField
 from loguru import logger
 from wagtail_color_panel.fields import ColorField
@@ -109,6 +110,7 @@ if TYPE_CHECKING:
     from kausal_common.models.types import (
         FK,
         M2M,
+        OneToOne,
         RevMany,
         RevManyQS,
         RevOne,
@@ -1685,7 +1687,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         )
 
     def for_serialization(self) -> Self:
-        return self.active().with_spec().annotate_ports()
+        return self.active().with_spec().select_related('layout').annotate_ports()
 
 
 _NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)
@@ -1848,6 +1850,7 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     description_i18n: str | None
     goal_i18n: str | None
     indicates_nodes: RevMany[NodeConfig]
+    layout: RevOne[NodeConfig, NodeLayout]
 
     search_fields = [
         index.AutocompleteField('identifier'),
@@ -2022,6 +2025,35 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
             raise RuntimeError('NodeConfig.port_dataset_bindings requires NodeConfigQuerySet.annotate_ports()')
         raw = self._annotated_port_dataset_bindings or []
         return [DatasetBindingDef.model_validate(port) for port in raw]
+
+
+class NodeLayoutSource(models.TextChoices):
+    AUTO = 'auto', _('Auto')
+    USER = 'user', _('User')
+
+
+class NodeLayout(UserModifiableModel):
+    """Shared model-editor position for one node card."""
+
+    node: OneToOne[NodeConfig] = models.OneToOneField(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='layout',
+    )
+    x = models.FloatField()
+    y = models.FloatField()
+    source = TextChoicesField(
+        choices_enum=NodeLayoutSource,  # pyright: ignore[reportCallIssue]
+        default=NodeLayoutSource.AUTO,
+    )
+
+    class Meta:
+        verbose_name = _('Node layout')
+        verbose_name_plural = _('Node layouts')
+        ordering = ['node']
+
+    def __str__(self) -> str:
+        return f'{self.node.identifier}: ({self.x}, {self.y})'
 
 
 class NodeDataset(models.Model):

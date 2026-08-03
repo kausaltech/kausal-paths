@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any, Self, cast
+from typing import TYPE_CHECKING, Any, Literal, Self, cast
 from uuid import UUID
 
 from django.db.models import F
@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     )
 
     from frameworks.models import FrameworkConfig
-    from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge
+    from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge, NodeLayout
 
 
 # Current schema version for ``InstanceSnapshot`` and ``InstanceExport``.
@@ -62,7 +62,8 @@ if TYPE_CHECKING:
 #   v3: node references use UUIDs instead of identifiers.
 #   v4: node identity/display metadata lives only on ``NodeSnapshot``;
 #       ``NodeSpec`` contains computation configuration only.
-SNAPSHOT_SCHEMA_VERSION = 4
+#   v5: optional shared model-editor layout stored on each ``NodeSnapshot``.
+SNAPSHOT_SCHEMA_VERSION = 5
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +281,16 @@ def _label_from_identifier(identifier: str) -> str:
     return identifier.replace('_', ' ').replace('-', ' ').title()
 
 
+class NodeLayoutSnapshot(ModelSnapshot):
+    x: float
+    y: float
+    source: Literal['auto', 'user'] = 'auto'
+
+    @classmethod
+    def from_model(cls, obj: NodeLayout) -> Self:
+        return cls(x=obj.x, y=obj.y, source=cast("Literal['auto', 'user']", obj.source))
+
+
 class NodeSnapshot(ModelSnapshot):
     uuid: UUID
     identifier: str | None = None
@@ -294,6 +305,7 @@ class NodeSnapshot(ModelSnapshot):
     indicator_node: UUID | None = None
     copy_of: UUID | None = None
     spec: NodeSpec | None = None
+    layout: NodeLayoutSnapshot | None = None
 
     @classmethod
     def from_model(cls, obj: NodeConfig, primary_language: str | None = None) -> Self:
@@ -304,6 +316,7 @@ class NodeSnapshot(ModelSnapshot):
             indicator_uuid = indicator.uuid if indicator else None
         if primary_language is None:
             primary_language = obj.instance.primary_language
+        layout = getattr(obj, 'layout', None)
         return cls(
             uuid=obj.uuid,
             identifier=obj.identifier,
@@ -318,6 +331,7 @@ class NodeSnapshot(ModelSnapshot):
             indicator_node=indicator_uuid,
             copy_of=obj.copy_of.uuid if obj.copy_of else None,
             spec=obj.spec,
+            layout=NodeLayoutSnapshot.from_model(layout) if layout is not None else None,
         )
 
 
@@ -582,7 +596,9 @@ def build_instance_snapshot(ic: InstanceConfig) -> InstanceSnapshot:
         msg = f'Instance {ic.identifier} has no spec — run sync_instance_to_db first'
         raise ValueError(msg)
 
-    node_qs = ic.nodes.get_queryset().active().with_spec().select_related('indicator_node', 'copy_of').order_by('order', 'pk')
+    node_qs = (
+        ic.nodes.get_queryset().active().with_spec().select_related('indicator_node', 'copy_of', 'layout').order_by('order', 'pk')
+    )
     nodes = [NodeSnapshot.from_model(nc, primary_language=ic.primary_language) for nc in node_qs]
 
     edge_qs = NodeEdge.objects.filter(instance=ic).annotate(
@@ -1279,7 +1295,7 @@ def _import_nodes(
     export: InstanceExport,
 ) -> dict[UUID, NodeConfig]:
     """Create NodeConfig objects. Returns UUID → NodeConfig map."""
-    from nodes.models import NodeConfig
+    from nodes.models import NodeConfig, NodeLayout, NodeLayoutSource
 
     primary_lang = ic.primary_language
     nodes_by_uuid: dict[UUID, NodeConfig] = {}
@@ -1308,6 +1324,14 @@ def _import_nodes(
             NodeConfig.objects.filter(pk=nc.pk).update(spec=n.spec)
             nc.spec = n.spec
         nodes_by_uuid[n.uuid] = nc
+
+        if n.layout is not None:
+            NodeLayout.objects.create(
+                node=nc,
+                x=n.layout.x,
+                y=n.layout.y,
+                source=NodeLayoutSource(n.layout.source),
+            )
 
     # Resolve indicator_node references
     for n in export.instance.nodes:

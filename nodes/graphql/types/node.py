@@ -37,6 +37,7 @@ from nodes.scenario import Scenario, ScenarioKind
 from params import Parameter
 
 from .graph import ActionGroupType, NodeEdgeType
+from .layout import NodeLayoutType
 from .metric import (
     DimensionalFlowType,
     DimensionalMetricType,
@@ -252,6 +253,14 @@ class NodeEditorFields:
     @staticmethod
     def layout_meta(root: 'NodeEditorFields') -> NodeGraphLayoutMeta:
         return root._node.context.node_graph_classifier.for_node(root._node.id)
+
+    @sb.field
+    @staticmethod
+    def layout(root: 'NodeEditorFields') -> NodeLayoutType | None:
+        nc = root._node.db_obj
+        if nc is None:
+            return None
+        return getattr(nc, 'layout', None)
 
     @sb.field
     @staticmethod

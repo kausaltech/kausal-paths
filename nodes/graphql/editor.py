@@ -5,6 +5,7 @@ Provides queries and mutations for reading and editing DB-sourced
 model instances (NodeConfig, NodeEdge, ActionGroup, Scenario).
 """
 
+import math
 from typing import TYPE_CHECKING, Annotated, Any, TypeGuard, cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
@@ -19,7 +20,7 @@ from kausal_common.strawberry.errors import GraphQLValidationError, NotFoundErro
 from kausal_common.strawberry.helpers import get_or_error
 from kausal_common.strawberry.ordering import SiblingPositionInputMixin
 from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_input
-from kausal_common.users import user_or_none
+from kausal_common.users import user_or_bust, user_or_none
 
 from paths import gql
 from paths.identifiers import identifier_or_none
@@ -27,7 +28,7 @@ from paths.identifiers import identifier_or_none
 from nodes.defs import FormulaConfig, SimpleConfig
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
-from nodes.models import InstanceConfig, NodeConfig
+from nodes.models import InstanceConfig, NodeConfig, NodeLayout, NodeLayoutSource
 from nodes.node import Node
 from nodes.units import unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
@@ -35,6 +36,7 @@ from params.param import BoolParameter, NumberParameter, StringParameter
 from .types.dimension import DimensionType
 from .types.graph import NodeEdgeType
 from .types.instance import InstanceType
+from .types.layout import NodeLayoutType, UpdateNodeLayoutsResult
 from .types.node import AnyNodeType, NodeInterface
 from .types.scenario import ScenarioType
 from .types.spec import InputPortType, OutputPortType
@@ -412,6 +414,14 @@ class UpdateNodeInput:
     tags: Maybe[list[str]]
     i18n: Maybe[sb.scalars.JSON]
     config: Maybe[NodeConfigInput]
+
+
+@sb.input
+class UpdateNodeLayoutInput:
+    node_id: sb.ID
+    x: float
+    y: float
+    source: NodeLayoutSource = NodeLayoutSource.USER
 
 
 @sb.input
@@ -1026,6 +1036,56 @@ class InstanceEditorMutation:
         ic = root.instance
         nc = InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True)
         return NodeEditorMutation(instance=ic, node=nc)
+
+    @gql.mutation(
+        description='Update shared node-card positions without creating model revisions or change-log operations.',
+        graphql_type=UpdateNodeLayoutsResult,
+    )
+    @staticmethod
+    def update_node_layouts(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: list[UpdateNodeLayoutInput],
+    ) -> UpdateNodeLayoutsResult:
+        user = user_or_bust(info.context.user)
+        if len({str(item.node_id) for item in input}) != len(input):
+            raise GraphQLValidationError(info, 'Each node may occur only once in a layout update')
+        if any(not math.isfinite(item.x) or not math.isfinite(item.y) for item in input):
+            raise GraphQLValidationError(info, 'Node layout coordinates must be finite numbers')
+
+        layouts: list[NodeLayout] = []
+        ic = root.instance
+        with transaction.atomic():
+            locked_ic = InstanceConfig.objects.select_for_update().get(pk=ic.pk)
+            if not locked_ic.gql_action_allowed(info, 'change'):
+                raise PermissionDeniedError(info, 'Model editor access denied')
+
+            for item in input:
+                node = InstanceEditorMutation._lookup_node(info, locked_ic, str(item.node_id))
+                values = {
+                    'x': item.x,
+                    'y': item.y,
+                    'source': item.source,
+                    'last_modified_by': user,
+                }
+                layout, _created = NodeLayout.objects.update_or_create(
+                    node=node,
+                    defaults=values,
+                    create_defaults={**values, 'created_by': user},
+                )
+                layouts.append(layout)
+
+        return UpdateNodeLayoutsResult(layouts=cast('list[NodeLayoutType]', layouts))
+
+    @gql.mutation(description='Clear shared node-card positions so the editor can compute a fresh automatic layout.')
+    @staticmethod
+    def clear_node_layouts(info: gql.Info, root: sb.Parent[Me]) -> None:
+        ic = root.instance
+        with transaction.atomic():
+            locked_ic = InstanceConfig.objects.select_for_update().get(pk=ic.pk)
+            if not locked_ic.gql_action_allowed(info, 'change'):
+                raise PermissionDeniedError(info, 'Model editor access denied')
+            NodeLayout.objects.filter(node__instance=locked_ic).delete()
 
     @sb.field(description='Edit a DB-backed dataset that belongs to this instance')
     @staticmethod

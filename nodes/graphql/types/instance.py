@@ -28,7 +28,7 @@ from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
 from nodes.graphql.types.dimension import DimensionType
 from nodes.instance import Instance
-from nodes.models import InstanceConfig
+from nodes.models import InstanceConfig, NodeLayout
 from nodes.node import Node
 from nodes.normalization import Normalization
 from nodes.quantities import get_registry as get_quantity_registry
@@ -45,6 +45,7 @@ from .graph import (
     NodePortRef,
     _external_dataset_id_from_dataset,
 )
+from .layout import NodeLayoutType
 from .node import QuantityKindType
 from .spec import InstanceSpecType, YearsDefType
 
@@ -438,6 +439,19 @@ class InstanceEditorFields:
             action_ids=[sb.ID(node_id) for node_id in classifier.actions],
             outcome_ids=[sb.ID(node_id) for node_id in classifier.outcomes],
             main_graph_node_ids=[sb.ID(node_id) for node_id in classifier.main_graph_node_ids],
+        )
+
+    @sb.field
+    @staticmethod
+    def node_layouts(root: 'InstanceEditorFields') -> list[NodeLayoutType]:
+        return cast(
+            'list[NodeLayoutType]',
+            list(
+                NodeLayout.objects
+                .filter(node__instance=root._config)
+                .select_related('node', 'created_by', 'last_modified_by')
+                .order_by('node__identifier')
+            ),
         )
 
 

@@ -154,6 +154,130 @@ def gql_client(client, db_instance_config: InstanceConfig) -> PathsTestClient:
     return tc
 
 
+UPDATE_NODE_LAYOUTS = """
+mutation UpdateNodeLayouts($instanceId: ID!, $input: [UpdateNodeLayoutInput!]!) {
+    instanceEditor(instanceId: $instanceId) {
+        updateNodeLayouts(input: $input) {
+            ... on UpdateNodeLayoutsResult {
+                layouts {
+                    nodeId
+                    x
+                    y
+                    source
+                    createdBy { id }
+                    lastModifiedBy { id }
+                }
+            }
+            ... on OperationInfo { messages { kind message } }
+        }
+    }
+}
+"""
+
+CLEAR_NODE_LAYOUTS = """
+mutation ClearNodeLayouts($instanceId: ID!) {
+    instanceEditor(instanceId: $instanceId) {
+        clearNodeLayouts { messages { kind message } }
+    }
+}
+"""
+
+
+def test_update_node_layouts_is_shared_editor_metadata_without_change_operation(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+) -> None:
+    from nodes.models import NodeLayout, NodeLayoutSource
+
+    first = NodeConfigFactory.create(instance=db_instance_config, identifier='first', spec=_make_node_spec())
+    second = NodeConfigFactory.create(instance=db_instance_config, identifier='second', spec=_make_node_spec())
+    previous_revision_id = db_instance_config.latest_revision_id
+    previous_head = db_instance_config.draft_head_token
+
+    data = gql_client.query_data(
+        UPDATE_NODE_LAYOUTS,
+        variables={
+            'instanceId': db_instance_config.identifier,
+            'input': [
+                {'nodeId': str(first.uuid), 'x': 12.5, 'y': -3.25, 'source': 'USER'},
+                {'nodeId': second.identifier, 'x': 100.0, 'y': 200.0, 'source': 'AUTO'},
+            ],
+        },
+    )
+
+    result = data['instanceEditor']['updateNodeLayouts']
+    assert [(layout['nodeId'], layout['x'], layout['y'], layout['source']) for layout in result['layouts']] == [
+        ('first', 12.5, -3.25, 'USER'),
+        ('second', 100.0, 200.0, 'AUTO'),
+    ]
+    first_layout = NodeLayout.objects.get(node=first)
+    assert first_layout.source == NodeLayoutSource.USER
+    assert first_layout.created_by_id is not None
+    assert first_layout.last_modified_by_id == first_layout.created_by_id
+    db_instance_config.refresh_from_db()
+    assert db_instance_config.latest_revision_id == previous_revision_id
+    assert db_instance_config.draft_head_token == previous_head
+
+
+def test_node_layout_is_readable_per_node_and_in_bulk(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+) -> None:
+    from nodes.models import NodeLayout, NodeLayoutSource
+
+    node = NodeConfigFactory.create(instance=db_instance_config, identifier='positioned', spec=_make_node_spec())
+    NodeLayout.objects.create(node=node, x=1.5, y=2.5, source=NodeLayoutSource.USER)
+    from nodes.models import _pytest_instances
+
+    _pytest_instances.pop(db_instance_config.identifier, None)
+
+    with CaptureQueriesContext(connection) as queries:
+        data = gql_client.query_data(
+            """
+            query NodeLayouts {
+                instance {
+                    editor {
+                        nodeLayouts { nodeId x y source }
+                    }
+                    nodes(id: ["positioned"]) {
+                        id
+                        editor { layout { nodeId x y source } }
+                    }
+                }
+            }
+            """,
+        )
+
+    expected = {'nodeId': 'positioned', 'x': 1.5, 'y': 2.5, 'source': 'USER'}
+    assert data['instance']['editor']['nodeLayouts'] == [expected]
+    assert data['instance']['nodes'][0]['editor']['layout'] == expected
+    per_node_layout_queries = [
+        query['sql']
+        for query in queries.captured_queries
+        if 'FROM "nodes_nodelayout"' in query['sql'] and 'WHERE "nodes_nodelayout"."node_id" =' in query['sql']
+    ]
+    assert per_node_layout_queries == []
+
+
+def test_clear_node_layouts_bypasses_model_change_tracking(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+) -> None:
+    from nodes.models import NodeLayout
+
+    node = NodeConfigFactory.create(instance=db_instance_config, identifier='positioned', spec=_make_node_spec())
+    NodeLayout.objects.create(node=node, x=1.0, y=2.0)
+    previous_head = db_instance_config.draft_head_token
+
+    gql_client.query_data(
+        CLEAR_NODE_LAYOUTS,
+        variables={'instanceId': db_instance_config.identifier},
+    )
+
+    assert not NodeLayout.objects.filter(node__instance=db_instance_config).exists()
+    assert db_instance_config.draft_head_token == previous_head
+
+
 # ---------------------------------------------------------------------------
 # create_node
 # ---------------------------------------------------------------------------
