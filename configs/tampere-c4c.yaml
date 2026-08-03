@@ -1669,7 +1669,6 @@ nodes:
   output_nodes:
   - id: bus_emissions
   - id: motorcycle_emissions
-  - id: car_emissions
   - id: truck_emissions
   - id: van_emissions
   - id: onroad_emissions_impacts
@@ -1904,8 +1903,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
-  input_dimensions: [vehicle_type, scope]
-  output_dimensions: [vehicle_type, scope]
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
   input_datasets:
   - id: tampere/onroad_transportation
     column: mileage
@@ -1914,38 +1913,144 @@ nodes:
     filters:
     - column: sector
       value: ii11
-    - column: ghg
     - dimension: vehicle_type
       categories: [passenger_cars]
     - column: energy_carrier
+    - column: ghg
     - column: road_type
-  output_nodes:
-  - id: car_emissions
+    - column: scope
+
+- id: car_propulsion_mix
+  name: Passenger car propulsion mix
+  name_en: Passenger car propulsion mix
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: vkm/vkm
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_datasets:
+  - id: tampere/onroad_transportation
+    column: propulsion_fraction
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: vehicle_type
+      categories: [passenger_cars]
+    - column: ghg
+    - column: road_type
+    - column: sector
+
+- id: car_kilometers_by_propulsion
+  name: Passenger car kilometers by propulsion
+  name_en: Passenger car kilometers by propulsion
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: car_kilometers
+    tags: [non_additive]
     to_dimensions:
     - id: vehicle_type
-    - id: scope
+  - id: car_propulsion_mix
+
+- id: car_electricity_factor
+  name: Passenger car electricity consumption per kilometer
+  name_en: Passenger car electricity consumption per kilometer
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/vkm
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_datasets:
+  - id: tampere/onroad_transportation
+    column: energy_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: vehicle_type
+      categories: [passenger_cars]
+    - column: ghg
+    - column: road_type
+    - column: sector
+
+- id: car_electricity_consumption
+  name: Passenger car electricity consumption
+  name_en: Passenger car electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: car_kilometers_by_propulsion
+  - id: car_electricity_factor
+
+- id: car_fuel_emission_factors
+  name: Passenger car fuel emission factors
+  name_en: Passenger car fuel emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g_co2e/vkm
+  input_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  output_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  input_datasets:
+  - id: tampere/onroad_transportation
+    column: emission_factor_by_energy_carrier
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: vehicle_type
+      categories: [passenger_cars]
+    - column: road_type
+    - column: sector
 
 - id: car_emissions
   name: Henkilöautoliikenteen päästöt
   name_en: Passenger car emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
-  input_dimensions: [vehicle_type, ghg, scope]
-  output_dimensions: [vehicle_type, ghg, scope]
-  output_nodes:
-  - id: car_emissions_total
+  input_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  output_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  params:
+    formula: (kilometers_by_fuel * fuel_emission_factors) + (electricity_consumption * electricity_emission_factor)
+  input_nodes:
+  - id: car_kilometers_by_propulsion
+    tags: [kilometers_by_fuel]
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: vehicle_type
+  - id: car_fuel_emission_factors
+    tags: [fuel_emission_factors]
+  - id: car_electricity_consumption
+    tags: [electricity_consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: vehicle_type
+  - id: other_electricity_emission_factors
+    tags: [electricity_emission_factor]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
 
 - id: car_emissions_total
   name: Henkilöautoliikenteen kokonaispäästöt
   name_en: Total passenger car emissions
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
+  params:
+    formula: emissions + (mileage_2015 * emission_factor) + emissions_by_energy_carrier
   input_datasets:
   - id: tampere/onroad_transportation
+    tags: [emissions]
     column: emissions
     dropna: true
     forecast_from: 2024
@@ -1956,7 +2061,33 @@ nodes:
       categories: [passenger_cars]
     - column: energy_carrier
     - column: road_type
+  - id: tampere/onroad_transportation
+    tags: [mileage_2015]
+    column: mileage
+    dropna: true
+    max_year: 2015
+    filters:
+    - column: sector
+      value: ii11
+    - dimension: vehicle_type
+      categories: [passenger_cars]
+    - column: energy_carrier
+    - column: ghg
+    - column: road_type
+    - column: scope
   input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: onroad_transportation_emission_factors
+    tags: [emission_factor]
+  - id: car_emissions
+    tags: [emissions_by_energy_carrier]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+
+
+
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
@@ -4151,8 +4282,8 @@ actions:
   group: transportation
   unit: Mvkm/a
   quantity: mileage
-  input_dimensions: [action, vehicle_type, scope]
-  output_dimensions: [action, vehicle_type, scope]
+  input_dimensions: [action, vehicle_type]
+  output_dimensions: [action, vehicle_type]
   input_datasets:
   - id: tampere/transportation_actions
     column: mileage
@@ -4164,6 +4295,7 @@ actions:
     - column: owner
     - column: ghg
     - column: cost_type
+    - column: scope
   output_nodes:
   - id: car_kilometers
     from_dimensions:
@@ -4171,11 +4303,7 @@ actions:
       flatten: true
     to_dimensions:
     - id: vehicle_type
-    - id: scope
   - id: transport_kilometer_impacts
-    from_dimensions:
-    - id: scope
-      flatten: true
     to_dimensions:
     - id: action
     - id: vehicle_type
@@ -4185,8 +4313,8 @@ actions:
   name_en: Promoting walking and cycling
   type: simple.AdditiveAction
   group: transportation
-  input_dimensions: [action, cost_type, owner, vehicle_type, scope]
-  output_dimensions: [action, cost_type, owner, vehicle_type, scope]
+  input_dimensions: [action, cost_type, owner, vehicle_type]
+  output_dimensions: [action, cost_type, owner, vehicle_type]
   params:
     allow_null_categories: true
   input_datasets:
@@ -4197,6 +4325,7 @@ actions:
     - dimension: action
       categories: [promoting_walking_and_cycling]
     - column: ghg
+    - column: scope
   output_metrics:
   - id: mileage
     unit: Mvkm/a
@@ -4219,15 +4348,12 @@ actions:
       flatten: true
     to_dimensions:
     - id: vehicle_type
-    - id: scope
   - id: transport_kilometer_impacts
     metrics: [mileage]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
-      flatten: true
-    - id: scope
       flatten: true
     to_dimensions:
     - id: action
@@ -4242,8 +4368,6 @@ actions:
       exclude: true
     - id: vehicle_type
       flatten: true
-    - id: scope
-      flatten: true
     to_dimensions:
     - id: cost_type
     - id: owner
@@ -4252,8 +4376,6 @@ actions:
     tags: [make_nonnegative]
     from_dimensions:
     - id: vehicle_type
-      flatten: true
-    - id: scope
       flatten: true
     to_dimensions:
     - id: action
@@ -4265,8 +4387,6 @@ actions:
     from_dimensions:
     - id: vehicle_type
       flatten: true
-    - id: scope
-      flatten: true
     to_dimensions:
     - id: action
     - id: cost_type
@@ -4277,8 +4397,6 @@ actions:
     - id: cost_type
       categories: [investment]
     - id: vehicle_type
-      flatten: true
-    - id: scope
       flatten: true
     to_dimensions:
     - id: action
@@ -4295,8 +4413,6 @@ actions:
       flatten: true
     - id: vehicle_type
       flatten: true
-    - id: scope
-      flatten: true
   - id: promoting_walking_and_cycling_currency
     metrics: [currency]
     from_dimensions:
@@ -4308,8 +4424,6 @@ actions:
       flatten: true
     - id: vehicle_type
       flatten: true
-    - id: scope
-      flatten: true
 
 - id: parking_policy_to_support_sustainable_mobility
   name: Kestävää liikkumista tukeva pysäköintipolitiikka
@@ -4318,8 +4432,8 @@ actions:
   group: transportation
   unit: Mvkm/a
   quantity: mileage
-  input_dimensions: [action, vehicle_type, scope]
-  output_dimensions: [action, vehicle_type, scope]
+  input_dimensions: [action, vehicle_type]
+  output_dimensions: [action, vehicle_type]
   input_datasets:
   - id: tampere/transportation_actions
     column: mileage
@@ -4331,6 +4445,7 @@ actions:
     - column: owner
     - column: ghg
     - column: cost_type
+    - column: scope
   output_nodes:
   - id: car_kilometers
     from_dimensions:
@@ -4338,11 +4453,7 @@ actions:
       flatten: true
     to_dimensions:
     - id: vehicle_type
-    - id: scope
   - id: transport_kilometer_impacts
-    from_dimensions:
-    - id: scope
-      flatten: true
     to_dimensions:
     - id: action
     - id: vehicle_type
@@ -4386,9 +4497,10 @@ actions:
       flatten: true
     - id: vehicle_type
       categories: [passenger_cars]
+    - id: scope
+      flatten: true
     to_dimensions:
     - id: vehicle_type
-    - id: scope
   - id: tram_kilometers
     metrics: [mileage]
     from_dimensions:
