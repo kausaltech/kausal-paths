@@ -1659,23 +1659,9 @@ nodes:
 
 # ----- III Waste, Biogas Production & IPPU
 
-- id: waste_ippu_emissions
-  name_en: Waste & IPPU Emissions
-  name_da: Materialer og Ressourcer
-  color: '#59A14F'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: sector
-      flatten: true
-
 - id: waste_emissions
   name_en: Waste Emissions
+  color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1687,10 +1673,14 @@ nodes:
     forecast_from: 2026
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: waste_ippu_emissions
+  - id: net_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
 
 - id: ippu_emissions
   name_en: Industrial Process & Product Use Emissions
+  color: '#76B7B2'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1702,14 +1692,17 @@ nodes:
     forecast_from: 2026
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: waste_ippu_emissions
+  - id: net_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
 
 # ----- V AFOLU
 
 - id: afolu_emissions
   name_en: Agriculture, Forestry & Other Land Use Emissions
   name_da: Natur og Landbrug
-  color: '#B07AA1'
+  color: '#59A14F'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
