@@ -2012,7 +2012,7 @@ nodes:
 actions:
 # ----- Energy
 - id: carbon_capture_and_storage
-  name_en: Carbon Capture and Storage
+  name_en: Carbon Capture and Storage (CCS) for the Combined Heat and Power (CHP) Plant
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, energy_usage, cost_type, sector, ghg]
@@ -2063,8 +2063,7 @@ actions:
       flatten: true
 
 - id: energy_efficiency_improvements
-  name_en: Energy Efficiency Improvements
-  name_da: Energieffektiviseringer
+  name_en: Energy Efficiency Improvements in Residential and Commercial Buildings
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
@@ -2112,8 +2111,7 @@ actions:
       flatten: true
 
 - id: energy_efficient_municipal_buildings
-  name_en: Energy Efficient Municipal Buildings
-  name_da: Energieffektive kommunale bygninger
+  name_en: Energy Efficiency Improvements in Climaville Municipal Buildings
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
@@ -2180,8 +2178,7 @@ actions:
       flatten: true
 
 - id: expansion_of_renewable_energy
-  name_en: Expansion of Renewable Energy
-  name_da: Udbygning af vedvarende energi
+  name_en: 'Renewable Energy Development: New Wind and Solar Infrastructure'
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector]
@@ -2228,8 +2225,7 @@ actions:
       flatten: true
 
 - id: green_district_heating_of_the_future
-  name_en: Green District Heating of the Future
-  name_da: Fremtidens fjernvarme
+  name_en: Climaville's 'Next-Generation Green District Heating' Intiative
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector]
@@ -2273,8 +2269,7 @@ actions:
       flatten: true
 
 - id: sustainable_municipal_facilities
-  name_en: Sustainable Municipal Facilities
-  name_da: Kommunale bæredygtige anlæg
+  name_en: Sustainable Construction and Municipal Facilities
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector, ghg]
@@ -2312,8 +2307,7 @@ actions:
       flatten: true
 
 - id: zero_emission_municipal_machinery_and_driving
-  name_en: Zero-emission Municipal Machinery and Driving
-  name_da: Kommunale emissionsfrie maskiner
+  name_en: Zero-Emission Municipal Machinery
   group: energy
   type: simple.AdditiveAction
   quantity: emissions
@@ -2335,8 +2329,7 @@ actions:
 
 # ----- Transportation
 - id: optimized_and_emission_free_municipal_fleet
-  name_en: Optimized and Emission Free Municipal Fleet
-  name_da: Kommunal emissionsfri kørsel
+  name_en: Zero-Emission and Optimized Municipal Vehicle Fleet
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
@@ -2373,8 +2366,7 @@ actions:
       flatten: true
 
 - id: sustainable_air_and_maritime_transport
-  name_en: Sustainable Air and Maritime Transport
-  name_da: Bæredygtig skibs- og luftfart
+  name_en: Sustainable Fuel and Electrification in Air and Maritime Transportation
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
@@ -2418,8 +2410,7 @@ actions:
       flatten: true
 
 - id: sustainable_soil_management
-  name_en: Sustainable Soil Management
-  name_da: Bæredygtig jordhåndtering
+  name_en: Sustainable Surplus Soil Transportation
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
