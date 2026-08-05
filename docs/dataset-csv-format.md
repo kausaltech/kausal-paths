@@ -49,27 +49,53 @@ without them, `Source` would be read as a dimension called "Source".
 
 `RESERVED_ROW_COLUMNS = {'source', 'comment', 'description'}` (matched
 case-insensitively). These ride through to DVC as literal per-row values but are
-**never** treated as dimensions.
+**never** treated as dimensions. In new files use `Source` and `Comment` only;
+`description` remains in the set for backward compatibility with
+`plain_csv_wide` files that predate this rule.
 
 | column | meaning |
 |---|---|
-| `Source` | One or more names from the sources registry (§2), joined by `'; '`. `load_dvc_dataset` splits on the same separator and creates one `DatasetSourceReference` per name. |
-| `Comment` | Free text attached to the data point. This is where a value's rationale, a superseded value, or a known-error note belongs. |
-| `Description` | Longer per-row description. Folded into metric metadata. |
+| `Source` | One or more names from the sources registry (§2), joined by `SOURCE_NAME_SEPARATOR` (`'; '`). `load_dvc_dataset` splits on the same separator and creates one `DatasetSourceReference` per name. |
+| `Comment` | Free text attached to the data point. This is where a value's rationale, a superseded value, a source-cell reference, or a known-error note belongs. Several notes about one data point are joined by `COMMENT_SEPARATOR` (`' ;; '`) and become separate `DataPointComment` records. |
+| `Description` | **Deprecated — never use alongside `Comment`.** `upload_new_dataset` drops it in `clean_dataframe()` before writing to DVC, folding it into the dataset-level description instead, so per-row `Description` text does not survive. Both `upload_new_dataset` (in `validate_required_columns`) and `load_dvc_dataset` raise if a file carries both columns, rather than discarding one silently. |
 | `UUID` | Stable identifier for the metric × dimension combination, letting a row be tracked across file revisions. Not a dimension; not required. |
 
-**These are per dimension-combination, not per metric.** The upload pivots metrics
-into columns, so a file with three metric rows sharing one set of dimension values
-becomes **one** stored row with **one** `Source`/`Comment` cell — the last one
-wins. If two metrics of the same row need different comments, the format cannot
-express it; split them into separate datasets or fold the distinction into the
-comment text. Give every metric row of a dimension combination the *same*
-`Comment`, as `data/cork/make_kpmg_building_heat.py` does, so the collapse is
-lossless.
+#### Several notes on one data point
 
-On import, `load_dvc_dataset` then attaches that single row comment to **every**
-metric's data point (`load_dvc_dataset.py:344`), so nine rows × three metrics
-yields 27 commented data points.
+`COMMENT_SEPARATOR` is `' ;; '`, defined in both `upload_new_dataset.py` and
+`load_dvc_dataset.py`. It is deliberately **not** `'; '` like the source
+separator: source names are short identifiers, but comments are prose and prose
+contains semicolons — 162 of the 12,899 comment cells already under `data/`
+contain `'; '` mid-sentence, and splitting on it would fragment them.
+
+This is a separate concern from CSV quoting. Quoting is what lets a *field*
+contain commas, semicolons and newlines at all, and it applies automatically;
+but a quoted field is still one string, and CSV has no notion of structure
+*within* a field. Delivering N notes in one cell needs an in-cell convention
+whatever the quoting does.
+
+#### Granularity: per dimension-combination *and* per metric
+
+`Source` and `Comment` are part of the pivot index
+(`pivot_by_compound_id`: `dim_cols` is every column except `Quantity`, `Value`
+and `metric_col`). Two consequences:
+
+- **Metric-specific comments are preserved.** If two metric rows share a
+  dimension combination but carry *different* comments, they do not collapse
+  into one stored row — they stay as two rows, each with the other metric's
+  column null. On load, each metric's data point gets its own comment.
+- **Identical comments collapse**, as intended: metric rows sharing a dimension
+  combination *and* a comment become one stored row, and `load_dvc_dataset`
+  attaches that comment to every non-null metric's data point in the row. Nine
+  rows × three metrics then yields 27 commented data points.
+
+So giving every metric row of a dimension combination the same `Comment` (as
+`data/cork/make_kpmg_building_heat.py` does) keeps the stored table dense; giving
+them different comments costs sparsity but loses nothing.
+
+For **year-specific** comments and sources, use the long format (§"Long format"
+below) — in wide format one `Comment` cell necessarily spans every year column
+of its row.
 
 ### Year columns
 
@@ -82,6 +108,37 @@ relative-year offsets in the NZC framework — see
 Leave a year cell blank where there is no observation; blanks are dropped, not
 zero-filled. **A blank and a zero mean different things** — a zero is an
 assertion that the value is zero.
+
+### Long format
+
+A file may instead carry explicit `Year` and `Value` columns rather than one
+column per year. `convert_to_standard_format` returns such a file unchanged
+(it only unpivots when no `Year` column exists), and `Year` then behaves as an
+ordinary index column in the pivot.
+
+```csv
+Dataset,Metric,Quantity,Year,Value,Unit,Sector,Source,Comment
+T,Energy,energy,2020,10,GWh/a,A,S1,metered
+T,Energy,energy,2021,11,GWh/a,A,S2,estimated from the 2020 reading
+```
+
+Column *order* is free — the pipeline keys on names throughout — so put `Year`
+and `Value` next to `Quantity` as above rather than at the end of the row. The
+fact then reads as one phrase (quantity, year, value, unit) instead of being
+pushed past every dimension column and the comment prose.
+
+**Use it when `Source` or `Comment` must vary by year.** In wide format one
+comment cell necessarily applies to every year column of its row; in long format
+the year is part of the row, so provenance can differ per (dimension
+combination, metric, year). The example above stores as two rows, each keeping
+its own source and comment.
+
+The cost is the same sparsity described above: every distinct
+(dimensions, year, source, comment) tuple is its own stored row, so a dataset
+whose metrics have year-varying comments gets one row per metric rather than one
+row per dimension combination. Values and metadata all survive; the parquet is
+just wider and more null-filled. Prefer wide format when provenance is uniform
+across years, which is the common case.
 
 ## 2. The sources registry
 
@@ -177,11 +234,23 @@ plain_csv" for why including `Value` breaks the round trip.
   collide with reserved names by accident.
   **Dimensions are unchecked without --instance** However, if the upload_new_dataset command does not have `--instance` defined, dimensions and categories are uploaded as is, without checking anything. This approach is depreciated and useful only for a dataset that is never meant to be loaded to DB.
 - **One unit per metric.** Convert before writing the CSV, not after.
+- **A metric name must not collide with a dimension column name.** Both end up
+  as columns of the pivoted frame, keyed by `to_snake_case`, so a `Metric` of
+  `Livestock` alongside a `Livestock` dimension raises
+  `DuplicateError: column 'livestock' is duplicate` — and only *after* earlier
+  datasets in the same file have already been written. Rename the metric.
 - **Blank ≠ zero.** See §1.
 - **Comments are the home for adopted-error documentation.** When a model must
   reproduce a source's mistake, the `Comment` cell is where the correct value and
   the reasoning go; see
   [`nzp-kpmg`-style error registers](matching-a-model-to-an-inventory.md#10-when-the-city-wants-the-inventorys-errors-reproduced).
+  It is also where the `source_ref` (`workbook!sheet!cell`) belongs — there is no
+  separate column for it, and `Description` will not carry it (§1). Join it to
+  the other notes with `COMMENT_SEPARATOR`.
+- **`Comment`, never `Comment` + `Description`.** Two comment columns in one
+  file is an error, not a merge. `upload_new_dataset` raises up front, because
+  that is where the per-row `Description` text would otherwise be dropped;
+  `load_dvc_dataset` raises too, for datasets that reach it by another path.
 - **Prefer a dataset over inline YAML `historical_values`.** Values with
   provenance belong in a dataset where the `Source`/`Comment` machinery applies
   and the admin UI can show them; `historical_values` in a config file carries
