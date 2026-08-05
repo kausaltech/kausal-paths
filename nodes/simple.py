@@ -405,6 +405,119 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         return df
 
 
+class DataAvailabilityNode(AdditiveNode):
+    """
+    Report where the input dataset has a value, as 1.0 (value present) and 0.0 (no value).
+
+    The test is made on the dataset as it arrives from its source, before interpolation or
+    extension can fill in the missing years, so the output describes what the data actually
+    covers rather than what the pipeline is able to fabricate. Interpolation configured on
+    the bindings (``interpolate: true`` or ``input_dataset_processors: [LinearInterpolation]``)
+    is therefore switched off for this node's datasets.
+
+    The output covers the whole model year range (``minimum_historical_year`` ..
+    ``model_end_year``) for every dimension category combination that occurs in the dataset;
+    cells outside the data's own span are 0.0. The combinations are the ones the data uses,
+    not the cross product of each dimension's categories, so that a dataset whose categories
+    are ragged (a category of one dimension going together with only some categories of
+    another) is not reported as permanently incomplete. Each metric column of the dataset becomes a
+    0/1 column of its own. When the dataset has a single metric column, it is renamed to the
+    node's own metric column, so the usual ``unit: dimensionless`` node definition is enough;
+    a multi-metric dataset needs matching ``output_metrics`` on the node.
+    """
+
+    explanation = _("""This is a Data Availability Node. Instead of using the values of its input dataset, it
+reports whether a value exists in each cell: 1.0 where the dataset has a value and 0.0 where it does not.
+The check is made on the original data, before interpolation or extension fill in the missing years.
+The output covers the whole model period; the years and categories that the dataset does not reach are 0.0.""")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # The node reports what the source data covers, so gap-filling must not run before
+        # the check. The dataset instances belong to this node alone, so this affects nobody
+        # else (and the dataset cache key follows `interpolate`, so it stays separate too).
+        for ds in self.input_dataset_instances:
+            ds.interpolate = False
+
+    def compute(self) -> ppl.PathsDataFrame:
+        from nodes.datasets import FixedDataset
+
+        if self.input_nodes:
+            raise NodeError(
+                self,
+                'DataAvailabilityNode only inspects its input dataset; it has %d input nodes. Combine '
+                'availability flags in a downstream node instead (e.g. with the min/max edge tags).' % len(self.input_nodes),
+            )
+        for ds in self.input_dataset_instances:
+            if isinstance(ds, FixedDataset) and ds.use_interpolation:
+                raise NodeError(
+                    self,
+                    "Dataset '%s' is interpolated already when it is built, so the gaps of the original data "
+                    'cannot be seen any more. Remove the LinearInterpolation dataset processor.' % ds.id,
+                )
+        df = self.get_input_dataset_pl(required=True)
+        return self.check_availability(df)
+
+    def check_availability(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """Convert the values of the raw dataset into 1.0 (value exists) and 0.0 (no value)."""
+        metric_cols = df.metric_cols
+        if not metric_cols:
+            raise NodeError(self, 'The input dataset has no metric columns whose availability could be tested.')
+        if len(metric_cols) == 1:
+            out_cols = [self.get_default_output_metric().column_id]
+        else:
+            out_cols = list(metric_cols)
+        declared = {metric.column_id: metric.unit for metric in self.output_metrics.values()}
+        units = {col: declared.get(col, self.context.unit_registry.parse_units('dimensionless')) for col in out_cols}
+        with_dimension = {col: str(unit) for col, unit in units.items() if not unit.dimensionless}
+        if with_dimension:
+            raise NodeError(
+                self,
+                'The output columns tell whether a value exists, so their units must be dimensionless: %s.'
+                % ', '.join("'%s' is '%s'" % item for item in with_dimension.items()),
+            )
+
+        # Missing data is mostly missing *rows*, not null cells, so the years and the
+        # dimension category combinations have to be materialised before they can be
+        # reported as zeros. Projecting wide gives one column per combination that the
+        # dataset actually uses; joining the model timeline onto it then turns every
+        # absent year into nulls, which the presence test below reads as 'no value'.
+        # (Crossing the categories of each dimension separately instead would invent
+        # cells that the dataset never means to have -- the BISKO district heating data
+        # uses different energy carriers for fuel input than for heat output -- and those
+        # would look like missing data forever.)
+        wide = df.drop(FORECAST_COLUMN) if FORECAST_COLUMN in df.columns else df
+        wide = wide.paths.to_wide()
+        years = pl.DataFrame({YEAR_COLUMN: range(self.context.instance.minimum_historical_year, self.get_end_year() + 1)})
+        years_pdf = ppl.to_ppdf(
+            years.with_columns(pl.col(YEAR_COLUMN).cast(df.schema[YEAR_COLUMN])),
+            ppl.DataFrameMeta(units={}, primary_keys=[YEAR_COLUMN]),
+        )
+        wide = years_pdf.paths.join_over_index(wide)
+
+        # A null cell has no value; for float columns NaN counts as no value, too.
+        # (`is_not_nan()` is null for null cells, but the `is_not_null()` term makes the
+        # conjunction false there anyway.)
+        flags: list[pl.Expr] = []
+        for col in wide.metric_cols:
+            has_value = pl.col(col).is_not_null()
+            if wide.schema[col].is_float():
+                has_value = has_value & pl.col(col).is_not_nan()
+            flags.append(has_value.cast(pl.Float64).alias(col))
+        out = wide.with_columns(flags).paths.to_narrow()
+
+        max_hist_year = self.context.instance.maximum_historical_year
+        is_forecast = pl.lit(value=False) if max_hist_year is None else pl.col(YEAR_COLUMN) > max_hist_year
+        out = out.with_columns(is_forecast.alias(FORECAST_COLUMN)).sort(out.primary_keys)
+
+        for col_id, out_col in zip(metric_cols, out_cols, strict=True):
+            if out_col != col_id:
+                out = out.rename({col_id: out_col})
+            out = out.set_unit(out_col, 'dimensionless', force=True)
+            out = out.ensure_unit(out_col, units[out_col])
+        return out
+
+
 class SubtractiveNode(Node):  # FIXME Remove, when you clean Longmont.
     explanation = _(
         'This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it.',

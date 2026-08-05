@@ -1767,3 +1767,55 @@ nodes:
   params:
   - id: formula
     value: drop_nans(sum_dim(sum_dim(quality * energy, sector),energy_carrier) / sum_dim(sum_dim(energy, sector), energy_carrier))
+
+# Data availability: does the district heating dataset actually contain the values it
+# should? DataAvailabilityNode ignores the values of its dataset and reports 1 where a
+# value exists and 0 where it does not. The check is made on the data as it comes from the
+# source, before interpolation or extension fill in the missing years, so it shows the true
+# coverage of the data. The first node keeps the detail of the dataset; the second one
+# summarises it into one number per year. The same pair can be built for any other dataset.
+
+- id: district_heating_energy_use_availability
+  name_de: Datenverfügbarkeit des Fernwärmeenergieverbrauchs
+  name_en: District heating energy use data availability
+  description_de: Zeigt, für welche Energieträger und Jahre der Datensatz zum
+    Fernwärmeenergieverbrauch tatsächlich einen Wert enthält (1 = Wert vorhanden,
+    0 = kein Wert). Geprüft wird der ursprüngliche Datensatz, bevor fehlende Jahre
+    durch Interpolation ergänzt werden. Mit diesem Knoten finden Sie die Lücken,
+    die noch gefüllt werden müssen.
+  description_en: Shows for which energy carriers and years the district heating
+    energy use dataset actually contains a value (1 = value exists, 0 = no value).
+    The check is made on the original dataset, before the missing years are filled in
+    by interpolation. Use this node to find the gaps that still need to be filled.
+  type: simple.DataAvailabilityNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/district_heating_energy_use
+    filters:
+    - column: upstream_included
+      value: 'yes'
+
+- id: has_all_district_heating_energy_use_data
+  name_de: Sind alle Fernwärmeenergieverbrauchsdaten vorhanden?
+  name_en: Has all district heating energy use data?
+  description_de: Fasst die Datenverfügbarkeit zu einer Zahl pro Jahr zusammen.
+    1 bedeutet, dass jeder Energieträger des Datensatzes für dieses Jahr einen Wert
+    hat, 0 bedeutet, dass mindestens einer fehlt. Welche Werte fehlen, zeigt der
+    Knoten Datenverfügbarkeit des Fernwärmeenergieverbrauchs.
+  description_en: Summarises the data availability into one number per year. 1 means
+    that every energy carrier of the dataset has a value for that year, 0 means that
+    at least one of them is missing. To see which values are missing, look at the
+    district heating energy use data availability node.
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_dimensions: [energy_carrier, per_what_energy]
+  input_nodes:
+  - id: district_heating_energy_use_availability
+    tags: [availability]
+  params:
+  - id: formula
+    value: prod_dim(prod_dim(availability, energy_carrier), per_what_energy)
