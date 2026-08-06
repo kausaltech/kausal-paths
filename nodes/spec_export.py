@@ -755,13 +755,16 @@ def _resolve_dataset_ports(
     db_datasets: dict[str, DatasetModel],
     metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric],
 ) -> list[DatasetPort]:
-    from nodes.datasets import DBDataset
+    from nodes.datasets import DBDataset, SerializedDBDataset
     from nodes.models import DatasetPort
 
     # Resolve the Dataset model object depending on the dataset type.
     if isinstance(ds_instance, DBDataset):
         dataset_obj = ds_instance.db_dataset_obj
         assert dataset_obj is not None
+    elif isinstance(ds_instance, SerializedDBDataset):
+        assert ds_instance.payload_ref is not None
+        dataset_obj = DatasetModel.objects.select_related('schema').get(pk=ds_instance.payload_ref.dataset_pk)
     elif isinstance(ds_instance, DVCDataset):
         dataset_obj = db_datasets.get(ds_instance.id)
     else:
