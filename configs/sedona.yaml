@@ -1,0 +1,902 @@
+# City of Sedona, Arizona -- community greenhouse gas inventory.
+#
+# A node-for-node reconstruction of the city's inventory workbook
+# (GHG_Community_Emissions_Inventories.xlsx), covering 2020-2024. The workbook
+# builds the inventory from six sheets of activity data supplied by the utilities,
+# the airport, the water companies, ADOT and the waste haulers; the datasets below
+# are shaped the same way, so adding an inventory year means appending this year's
+# figures to the same tables the city already assembles by hand.
+#
+# TO ADD AN INVENTORY YEAR
+#   1. Append the year's rows to the CSVs in data/sedona/ and re-upload them.
+#   2. Bump `maximum_historical_year` and `emission_forecast_from` by one.
+# `target_year` and `model_end_year` stay at 2030 until the inventory reaches it.
+# There is no forecast method here: 2025-2030 is the last inventory year held flat,
+# which is what an inventory-only model should show until a projection is added.
+#
+# YEARS NOT COVERED
+#   2018 was reported through ICLEI on a different methodology, has no
+#   water/wastewater activity data, and its published electricity figures are
+#   hard-coded rather than computed. 2019 was never inventoried. Both are outside
+#   this model; the workbook keeps them for continuity of the published series.
+#
+# WHERE THIS MODEL DEPARTS FROM THE PUBLISHED TOTAL
+#   'Emissions Summary'!E25:G25 carries a hard-coded 1 (2021) and 2 (2022, 2023)
+#   on the commercial solid-waste line. Nothing in the underlying Solid Waste
+#   Emissions sheet produces those values and no activity data supports them, so
+#   they are not reproduced. The model therefore comes in 1-2 t below the published
+#   total in those three years and matches exactly in 2020 and 2024. Everything else
+#   agrees to within about 1 ppm, the residue of the workbook rounding a tonne to
+#   2204.62 lb where pint uses 2204.6226.
+#
+# THE LARGEST OPEN QUESTION IN THE INVENTORY
+#   In 2024 the heavy-truck share of 0.0769 is applied twice -- once as gasoline
+#   ('On-Road Data'!G25) and once as diesel ('On-Road Data'!G31) -- so the same
+#   heavy-truck mileage is charged under both fuels. That is worth roughly
+#   17,500 t CO2e, about 12% of the 2024 total, and is most of why 2024
+#   transportation jumps 26% over 2023. It is reproduced here because it is what
+#   the city published, but it should be resolved before the next inventory.
+#
+# Two further quirks are reproduced deliberately and documented on the nodes that
+# carry them: vehicle fuel economy frozen at the 2018 column for 2020-2023
+# (`vehicle_fuel_economy`), and wastewater electricity charged a zero grid factor
+# in 2023-24 (`grid_emission_factor`).
+
+id: sedona
+default_language: en
+supported_languages: []
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: e1ea98505efa59ce6ccc1c74a2efc7203cc396df
+  dvc_remote: kausal-s3
+name: Sedona Community Greenhouse Gas Inventory
+owner_en: City of Sedona
+theme_identifier: default
+
+reference_year: 2020
+minimum_historical_year: 2020
+maximum_historical_year: 2024
+emission_forecast_from: 2025
+target_year: 2030
+model_end_year: 2030
+
+# The workbook's header says "Mt CO2e" but its figures are metric tonnes -- the
+# 2024 total is 148,005, not 148 million. t_co2e rather than t: these are
+# CO2-equivalent masses, and t_co2e is a distinct pint dimension, so a tonne of
+# methane cannot be silently added to a tonne of CO2e.
+emission_unit: t_co2e/a
+
+emission_sectors:
+- id: net_emissions
+  name: Total community emissions
+  is_outcome: true
+
+- id: electricity_emissions
+  name: Electricity
+  part_of: net_emissions
+
+- id: natural_gas_emissions
+  name: Natural gas
+  part_of: net_emissions
+
+- id: transportation_emissions
+  name: Transportation
+  part_of: net_emissions
+
+- id: water_wastewater_emissions
+  name: Water and wastewater
+  part_of: net_emissions
+
+- id: solid_waste_emissions
+  name: Solid waste
+  part_of: net_emissions
+
+pages:
+- id: home
+  name: Sedona community greenhouse gas inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Sedona community greenhouse gas emissions
+  lead_paragraph: >
+    Community-scale greenhouse gas inventory for the City of Sedona, Arizona,
+    2020-2024, reconstructed from the city's inventory workbook. Emissions are
+    built up from the activity data the city collects each year -- electricity and
+    gas billed inside the city limits, vehicle miles travelled, aviation fuel
+    uplifted at Sedona Airport, water and wastewater pumping, and solid waste
+    tonnage.
+
+scenarios:
+- id: baseline
+  name: Observed inventory
+  default: true
+
+dimensions:
+
+- id: consumer_sector
+  label_en: Customer class
+  categories:
+  - id: residential
+    order: 1
+    label_en: Residential
+  - id: commercial
+    order: 2
+    label_en: Commercial
+  - id: industrial
+    order: 3
+    label_en: Industrial
+
+# Unisource bills gas on its own set of service types, which do not line up with
+# the APS customer classes, so they are a separate dimension rather than a reuse
+# of consumer_sector. Large Commercial has been zero since 2020; it carried the
+# whole commercial load in the 2018 reporting.
+- id: gas_service_type
+  label_en: Gas service type
+  categories:
+  - id: residential
+    order: 1
+    label_en: Residential
+  - id: small_commercial
+    order: 2
+    label_en: Small commercial
+  - id: large_commercial
+    order: 3
+    label_en: Large commercial
+  - id: small_public_authority
+    order: 4
+    label_en: Small public authority
+
+- id: energy_carrier
+  label_en: Fuel
+  categories:
+  - id: gasoline
+    order: 1
+    label_en: Gasoline
+  - id: diesel
+    order: 2
+    label_en: Diesel
+  - id: aviation_gasoline
+    order: 3
+    label_en: Aviation gasoline (AvGas 100LL)
+  - id: jet_fuel
+    order: 4
+    label_en: Jet fuel (Jet A)
+
+- id: vehicle_type
+  label_en: Vehicle type
+  categories:
+  - id: passenger_cars
+    order: 1
+    label_en: Passenger cars
+  - id: light_trucks
+    order: 2
+    label_en: Light trucks, vans and large SUVs
+  - id: heavy_trucks
+    order: 3
+    label_en: Heavy trucks
+  - id: motorcycles
+    order: 4
+    label_en: Motorcycles
+
+- id: greenhouse_gas
+  label_en: Greenhouse gas
+  categories:
+  - id: co2
+    order: 1
+    label_en: CO2
+  - id: ch4
+    order: 2
+    label_en: CH4
+  - id: n2o
+    order: 3
+    label_en: N2O
+
+# Everyone charged the AZNM grid factor. `community` is the APS retail load inside
+# ZIP 86336; the other three are metered separately and reported by their operators,
+# which is why their consumption is netted out of the commercial class.
+- id: electricity_user
+  label_en: Electricity user
+  categories:
+  - id: community
+    order: 1
+    label_en: Community (APS retail customers)
+  - id: oak_creek_water
+    order: 2
+    label_en: Oak Creek Water Company
+  - id: arizona_water
+    order: 3
+    label_en: Arizona Water Company
+  - id: wastewater_treatment
+    order: 4
+    label_en: Wastewater treatment plant
+
+- id: waste_source
+  label_en: Waste source
+  categories:
+  - id: residential
+    order: 1
+    label_en: Residential
+  - id: tourist
+    order: 2
+    label_en: Visitors
+  - id: commercial
+    order: 3
+    label_en: Commercial
+
+nodes:
+
+# ===========================================================================
+# Shared factors
+# ===========================================================================
+
+- id: global_warming_potential
+  name: Global warming potential
+  description: >
+    100-year GWPs, 1 / 28 / 265 for CO2 / CH4 / N2O. Every non-CO2 gas in the
+    model is converted to CO2-equivalent here, so switching to a later IPCC
+    assessment is a change to one dataset column.
+  type: generic.GenericNode
+  quantity: ratio
+  unit: t_co2e/t
+  input_dimensions: [greenhouse_gas]
+  output_dimensions: [greenhouse_gas]
+  input_datasets:
+  - id: sedona/stationary_emission_factors
+    column: global_warming_potential
+    forecast_from: 2025
+
+- id: grid_emission_factor
+  name: Grid emission factor
+  description: >
+    AZNM (WECC Southwest) total output CO2e from eGRID, in the vintage the
+    workbook applied to each year. The lag is not consistent -- 2020 and 2021
+    share eGRID2020, then each year takes the release published the year before.
+    <b>The wastewater plant is charged zero in 2023 and 2024</b>: the workbook's
+    formulas for those years point at EFs!$BE$39 and EFs!$BW$39, empty cells below
+    the eGRID tables. Reproduced rather than corrected; restoring the factor would
+    add about 870 t CO2e in 2023 and 630 t in 2024.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: lb*CO2e/MWh
+  input_dimensions: [electricity_user]
+  output_dimensions: [electricity_user]
+  input_datasets:
+  - id: sedona/grid_emission_factors
+    column: grid_emission_factor
+    forecast_from: 2025
+
+# ===========================================================================
+# Electricity
+# ===========================================================================
+
+- id: aps_electricity_consumption
+  name: APS billed electricity
+  description: >
+    Retail kWh billed by Arizona Public Service in ZIP 86336, as reported. ZIP
+    86351 (Village of Oak Creek) is served by the same utility but lies outside
+    the city limits and is excluded from the inventory entirely.
+  type: generic.GenericNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [consumer_sector]
+  output_dimensions: [consumer_sector]
+  input_datasets:
+  - id: sedona/electricity_consumption
+    column: electricity_consumption
+    forecast_from: 2025
+
+- id: excluded_electricity
+  name: Electricity excluded from the community total
+  description: >
+    The city's APS Green Power Partnership block, net of the share already
+    attributed to the wastewater plant. It appears in 2023 only; no equivalent
+    adjustment was made in any other year.
+  type: generic.GenericNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [consumer_sector]
+  output_dimensions: [consumer_sector]
+  input_datasets:
+  - id: sedona/electricity_consumption
+    column: excluded_electricity
+    forecast_from: 2025
+
+- id: water_utility_electricity_consumption
+  name: Water and wastewater electricity
+  description: >
+    Electricity drawn by the two water companies and the wastewater treatment
+    plant. These loads sit inside the APS commercial class as billed, so they are
+    subtracted from it below and charged under water and wastewater instead --
+    otherwise they would be counted twice.
+  type: generic.GenericNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [electricity_user]
+  output_dimensions: [electricity_user]
+  input_datasets:
+  - id: sedona/water_wastewater
+    column: water_utility_electricity_consumption
+    forecast_from: 2025
+
+- id: community_electricity_consumption
+  name: Community electricity consumption
+  description: >
+    APS billed electricity less the water and wastewater load and, in 2023, the
+    Green Power Partnership block. This is the figure the grid factor is applied
+    to.
+  type: generic.GenericNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [consumer_sector]
+  output_dimensions: [consumer_sector]
+  input_nodes:
+  - id: aps_electricity_consumption
+  - id: excluded_electricity
+    tags: [arithmetic_inverse]
+  - id: water_utility_electricity_consumption
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: electricity_user
+      flatten: true
+    to_dimensions:
+    - id: consumer_sector
+      categories: [commercial]
+
+- id: community_electricity_emissions
+  name: Community electricity emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [consumer_sector]
+  output_dimensions: [consumer_sector]
+  input_nodes:
+  - id: community_electricity_consumption
+  - id: grid_emission_factor
+    tags: [non_additive]
+    from_dimensions:
+    - id: electricity_user
+      categories: [community]
+      flatten: true
+    to_dimensions: []
+  output_nodes:
+  - id: electricity_emissions
+    from_dimensions:
+    - id: consumer_sector
+      flatten: true
+
+# ===========================================================================
+# Natural gas
+# ===========================================================================
+
+- id: natural_gas_consumption
+  name: Natural gas consumption
+  description: >
+    Therms billed by Unisource Energy Services to premises inside the city limits.
+    2022 repeats 2021 exactly -- Unisource did not respond to that year's data
+    request, and the workbook carried the prior year forward.
+  type: generic.GenericNode
+  quantity: energy
+  unit: therm/a
+  input_dimensions: [gas_service_type]
+  output_dimensions: [gas_service_type]
+  input_datasets:
+  - id: sedona/natural_gas_consumption
+    column: natural_gas_consumption
+    forecast_from: 2025
+
+- id: natural_gas_emission_factor
+  name: Natural gas combustion emission factor
+  description: >
+    EPA factors per MMBtu burned: 53.06 kg CO2, 4.7 g CH4, 0.1 g N2O. The workbook
+    applies the residential factors to every Unisource service type, including the
+    commercial ones, so one per-gas series covers all four.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: kg/MMBtu
+  input_dimensions: [greenhouse_gas]
+  output_dimensions: [greenhouse_gas]
+  input_datasets:
+  - id: sedona/stationary_emission_factors
+    column: natural_gas_emission_factor
+    forecast_from: 2025
+
+- id: natural_gas_combustion_emissions
+  name: Natural gas combustion emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [gas_service_type, greenhouse_gas]
+  output_dimensions: [gas_service_type, greenhouse_gas]
+  input_nodes:
+  - id: natural_gas_consumption
+    to_dimensions:
+    - id: gas_service_type
+  - id: natural_gas_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gas
+  - id: global_warming_potential
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gas
+  output_nodes:
+  - id: natural_gas_emissions
+    from_dimensions:
+    - id: gas_service_type
+      flatten: true
+    - id: greenhouse_gas
+      flatten: true
+
+# ===========================================================================
+# On-road transportation
+# ===========================================================================
+
+- id: total_vehicle_miles
+  name: Total vehicle miles travelled
+  description: >
+    Annual VMT inside the city limits, derived from ADOT AADT GIS files. 2022
+    repeats 2021: when the AADT files are not refreshed for a year, the workbook
+    carries the prior year forward.
+  type: generic.GenericNode
+  quantity: vehicle_mileage
+  unit: VMT/a
+  input_datasets:
+  - id: sedona/vehicle_miles_traveled
+    column: total_vehicle_miles
+    forecast_from: 2025
+
+- id: vehicle_share
+  name: Fleet composition
+  description: >
+    Share of total mileage by fuel and vehicle type, from Arizona vehicle
+    registration statistics. <b>In 2024 the heavy-truck share of 0.0769 is applied
+    to both the gasoline and the diesel row</b>, so that mileage is counted twice
+    --
+    see the note at the top of this file.
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets:
+  - id: sedona/vehicle_fleet
+    column: vehicle_share
+    forecast_from: 2025
+
+- id: vehicle_mileage
+  name: Vehicle mileage by fuel and type
+  type: generic.GenericNode
+  quantity: vehicle_mileage
+  unit: VMT/a
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_nodes:
+  # Tagged explicitly because this node's unit is VMT/a too: without the tag the
+  # loader classifies a unit-compatible input as additive and tries to add the
+  # undimensioned total into the dimensioned share.
+  - id: total_vehicle_miles
+    tags: [non_additive]
+    to_dimensions: []
+  - id: vehicle_share
+    tags: [non_additive]
+
+- id: vehicle_fuel_economy
+  name: Vehicle fuel economy
+  description: >
+    <b>These are the 2018 figures for 2020-2023.</b> The workbook's MPG table does
+    hold year-specific values, but the emission formulas reference the absolute
+    cells $B$36-$B$39 -- the 2018 column -- in every year up to 2023, and were only
+    repointed at the current year for 2024. Solving each published emission figure
+    back for the fuel economy it implies confirms it: every 2020-2023 series
+    returns the 2018 value to four decimals. The unused 2020-22 table values are
+    about 3.8% higher, so the published inventory overstates gasoline car CO2 by
+    roughly that much in those years. The table's own per-year series travels with
+    the dataset as `vehicle_fuel_economy_reported`; switching to it is a one-line
+    change to the column below.
+  type: generic.GenericNode
+  quantity: factor
+  unit: MPG
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets:
+  - id: sedona/vehicle_fleet
+    column: vehicle_fuel_economy
+    forecast_from: 2025
+
+- id: vehicle_fuel_consumption
+  name: Vehicle fuel consumption
+  description: Mileage divided by fuel economy. The inventory has no fuel-sales
+    figure to check this against -- ADOT fuel deliveries were used through 2021
+    but abandoned as unreliable.
+  type: formula.FormulaNode
+  quantity: fuel_consumption
+  unit: gal/a
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  params:
+    formula: vehicle_mileage / vehicle_fuel_economy
+  input_nodes:
+  - id: vehicle_mileage
+  - id: vehicle_fuel_economy
+
+- id: vehicle_fuel_combustion_emission_factor
+  name: Vehicle fuel combustion emission factor
+  description: CO2 per gallon burned -- 8.78 kg for gasoline, 10.21 for diesel.
+    Carries zero for CH4 and N2O, which are charged per mile instead.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: kg/gal
+  input_dimensions: [energy_carrier, vehicle_type, greenhouse_gas]
+  output_dimensions: [energy_carrier, vehicle_type, greenhouse_gas]
+  input_datasets:
+  - id: sedona/vehicle_emission_factors
+    column: fuel_combustion_emission_factor
+    forecast_from: 2025
+
+- id: vehicle_mileage_emission_factor
+  name: Vehicle mileage emission factor
+  description: >
+    CH4 and N2O per mile driven. The EPA tabulates these against distance rather
+    than fuel, which is why on-road emissions are built from two factors on two
+    different activity bases rather than one.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/VMT
+  input_dimensions: [energy_carrier, vehicle_type, greenhouse_gas]
+  output_dimensions: [energy_carrier, vehicle_type, greenhouse_gas]
+  input_datasets:
+  - id: sedona/vehicle_emission_factors
+    column: mileage_emission_factor
+    forecast_from: 2025
+
+- id: vehicle_fuel_combustion_emissions
+  name: Vehicle fuel combustion emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, vehicle_type, greenhouse_gas]
+  output_dimensions: [energy_carrier, vehicle_type, greenhouse_gas]
+  input_nodes:
+  - id: vehicle_fuel_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: vehicle_fuel_combustion_emission_factor
+    tags: [non_additive]
+  - id: global_warming_potential
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gas
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: greenhouse_gas
+      flatten: true
+
+- id: vehicle_mileage_emissions
+  name: Vehicle non-CO2 emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, vehicle_type, greenhouse_gas]
+  output_dimensions: [energy_carrier, vehicle_type, greenhouse_gas]
+  input_nodes:
+  - id: vehicle_mileage
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+  - id: vehicle_mileage_emission_factor
+    tags: [non_additive]
+  - id: global_warming_potential
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gas
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: greenhouse_gas
+      flatten: true
+
+# ===========================================================================
+# Aviation
+# ===========================================================================
+
+- id: aviation_fuel_consumption
+  name: Aviation fuel uplifted
+  description: Fuel sold at Sedona Airport, all of it treated as in-boundary.
+  type: generic.GenericNode
+  quantity: fuel_consumption
+  unit: gal/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: sedona/aviation_fuel
+    column: aviation_fuel_consumption
+    forecast_from: 2025
+
+- id: aviation_emission_factor
+  name: Aviation emission factor
+  description: >
+    Per gallon uplifted. AvGas moves in 2024, when the workbook switches to the
+    Climate Registry's updated row and N2O rises from 0.107 to 0.11 g/gal.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: kg/gal
+  input_dimensions: [energy_carrier, greenhouse_gas]
+  output_dimensions: [energy_carrier, greenhouse_gas]
+  input_datasets:
+  - id: sedona/aviation_emission_factors
+    column: aviation_emission_factor
+    forecast_from: 2025
+
+- id: aviation_emissions
+  name: Aviation emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, greenhouse_gas]
+  output_dimensions: [energy_carrier, greenhouse_gas]
+  input_nodes:
+  - id: aviation_fuel_consumption
+    to_dimensions:
+    - id: energy_carrier
+  - id: aviation_emission_factor
+    tags: [non_additive]
+  - id: global_warming_potential
+    tags: [non_additive]
+    to_dimensions:
+    - id: greenhouse_gas
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: greenhouse_gas
+      flatten: true
+
+# ===========================================================================
+# Water and wastewater
+# ===========================================================================
+
+- id: water_utility_electricity_emissions
+  name: Water and wastewater electricity emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [electricity_user]
+  output_dimensions: [electricity_user]
+  input_nodes:
+  - id: water_utility_electricity_consumption
+  - id: grid_emission_factor
+    tags: [non_additive]
+    from_dimensions:
+    - id: electricity_user
+      categories: [oak_creek_water, arizona_water, wastewater_treatment]
+  output_nodes:
+  - id: water_wastewater_emissions
+    from_dimensions:
+    - id: electricity_user
+      flatten: true
+
+- id: denitrification_emissions
+  name: Wastewater denitrification emissions
+  description: >
+    Process N2O from nitrification/denitrification at the treatment plant. This is
+    the one figure in the inventory that is not computed from activity data -- it
+    is taken directly from the EPA Local Greenhouse Gas Inventory Tool, and the
+    workbook flags it as a probable undercount because population is its only
+    input.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [electricity_user]
+  output_dimensions: [electricity_user]
+  input_datasets:
+  - id: sedona/water_wastewater
+    column: denitrification_emissions
+    forecast_from: 2025
+  output_nodes:
+  - id: water_wastewater_emissions
+    from_dimensions:
+    - id: electricity_user
+      flatten: true
+
+# ===========================================================================
+# Solid waste
+# ===========================================================================
+#
+# Two methodologies sit side by side. Through 2023 the inventory estimated tonnage
+# from population and a per-capita rate; for 2024 the haulers supplied measured
+# front-load weights and the workbook zeroed the per-capita rates rather than
+# deleting the branch. Both branches are modelled, and each is zero in the years
+# the other applies -- so the methodology switch needs no special-casing, and
+# whichever the city can supply next year simply starts producing numbers again.
+
+- id: resident_population
+  name: Resident population
+  type: generic.GenericNode
+  quantity: population
+  unit: cap
+  input_datasets:
+  - id: sedona/population_and_tourism
+    column: resident_population
+    forecast_from: 2025
+
+- id: tourist_visits
+  name: Visitor arrivals
+  type: generic.GenericNode
+  quantity: population
+  unit: cap/a
+  input_datasets:
+  - id: sedona/population_and_tourism
+    column: tourist_visits
+    forecast_from: 2025
+
+- id: tourist_length_of_stay
+  name: Average length of stay
+  type: generic.GenericNode
+  quantity: number
+  unit: d
+  input_datasets:
+  - id: sedona/population_and_tourism
+    column: tourist_length_of_stay
+    forecast_from: 2025
+
+- id: accounting_days
+  name: Days per accounting year
+  description: >
+    The literal 365 the workbook multiplies and divides by. Carried as data rather
+    than left to unit conversion because a Julian year is 365.25 days, and that
+    0.07% would show up as about 3 t CO2e a year in this sector.
+  type: generic.GenericNode
+  quantity: number
+  unit: d/a
+  input_datasets:
+  - id: sedona/population_and_tourism
+    column: accounting_days
+    forecast_from: 2025
+
+- id: tourist_equivalent_population
+  name: Visitor-equivalent resident population
+  description: >
+    Arrivals spread over the year by their average stay -- about 23,000 people in
+    2020 against a resident population of 9,700. Sedona's waste inventory is
+    dominated by this number.
+  type: formula.FormulaNode
+  quantity: population
+  unit: cap
+  params:
+    formula: tourist_visits / accounting_days * tourist_length_of_stay
+  input_nodes:
+  - id: tourist_visits
+  - id: accounting_days
+  - id: tourist_length_of_stay
+
+- id: served_population
+  name: Population generating waste
+  type: generic.GenericNode
+  quantity: population
+  unit: cap
+  input_dimensions: [waste_source]
+  output_dimensions: [waste_source]
+  input_nodes:
+  - id: resident_population
+    to_dimensions:
+    - id: waste_source
+      categories: [residential]
+  - id: tourist_equivalent_population
+    to_dimensions:
+    - id: waste_source
+      categories: [tourist]
+
+- id: per_capita_waste_generation
+  name: Per capita waste generation
+  description: >
+    4.9 lb per person per day, applied to residents and visitors alike, from a
+    Hawaiian tourism study. Zero from 2024, when measured hauler weights replaced
+    the estimate.
+  type: generic.GenericNode
+  quantity: per_capita
+  unit: lb/cap/d
+  input_dimensions: [waste_source]
+  output_dimensions: [waste_source]
+  input_datasets:
+  - id: sedona/solid_waste
+    column: per_capita_waste_generation
+    forecast_from: 2025
+
+- id: generated_solid_waste
+  name: Estimated solid waste generated
+  type: generic.GenericNode
+  quantity: mass
+  unit: short_ton/a
+  input_dimensions: [waste_source]
+  output_dimensions: [waste_source]
+  input_nodes:
+  - id: served_population
+  - id: per_capita_waste_generation
+    tags: [non_additive]
+    from_dimensions:
+    - id: waste_source
+      categories: [residential, tourist]
+  - id: accounting_days
+    tags: [non_additive]
+    to_dimensions: []
+
+- id: measured_solid_waste
+  name: Measured solid waste collected
+  description: >
+    Front-load weights reported by the two haulers serving ZIP 86336 -- Waste
+    Management and Taylor Waste -- first collected for 2024. They are not split by
+    resident versus visitor origin, which is why the 2024 inventory reports
+    residential and commercial waste where earlier years report residential and
+    visitor waste.
+  type: generic.GenericNode
+  quantity: mass
+  unit: short_ton/a
+  input_dimensions: [waste_source]
+  output_dimensions: [waste_source]
+  input_datasets:
+  - id: sedona/solid_waste
+    column: measured_waste_tonnage
+    forecast_from: 2025
+
+- id: waste_emission_factor
+  name: Solid waste emission factor
+  description: 0.52 t CO2e per short ton of mixed MSW landfilled, EPA. The Gray
+    Wolf landfill has never supplied data, so no site-specific factor or methane
+    capture credit is available.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/short_ton
+  input_dimensions: [waste_source]
+  output_dimensions: [waste_source]
+  input_datasets:
+  - id: sedona/waste_emission_factors
+    column: waste_emission_factor
+    forecast_from: 2025
+
+- id: generated_waste_emissions
+  name: Estimated solid waste emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [waste_source]
+  output_dimensions: [waste_source]
+  input_nodes:
+  - id: generated_solid_waste
+  - id: waste_emission_factor
+    tags: [non_additive]
+    from_dimensions:
+    - id: waste_source
+      categories: [residential, tourist]
+  output_nodes:
+  - id: solid_waste_emissions
+    from_dimensions:
+    - id: waste_source
+      flatten: true
+
+- id: measured_waste_emissions
+  name: Measured solid waste emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [waste_source]
+  output_dimensions: [waste_source]
+  input_nodes:
+  - id: measured_solid_waste
+  - id: waste_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: solid_waste_emissions
+    from_dimensions:
+    - id: waste_source
+      flatten: true
