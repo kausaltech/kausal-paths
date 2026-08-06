@@ -84,11 +84,6 @@ class SimpleNode(Node):
             description=_('Multiplier to implement after operation and before additions'),
             is_customizable=False,
         ),
-        StringParameter(
-            local_id='slice_category_at_edge',
-            description=_('A category is sliced at edge before offering as input to another node'),
-            is_customizable=False,
-        ),
         StringParameter(  # FIXME Is this the same functionality as variant?
             local_id='filter_categories',
             description=_('Categories to filter in format dimension:category,category2'),

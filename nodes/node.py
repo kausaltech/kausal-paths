@@ -1008,7 +1008,7 @@ class Node:
 
         return df
 
-    def _get_output_for_target(  # noqa: C901, PLR0912, PLR0915
+    def _get_output_for_target(  # noqa: C901, PLR0912
         self,
         df: ppl.PathsDataFrame,
         target_node: Node,
@@ -1021,14 +1021,6 @@ class Node:
             raise NodeError(self, 'No connection to target node %s' % target_node.id)
 
         df = self._get_output_for_node(df, edge)
-
-        # Slice a dimension if the parameter is given.
-        params = self.get_parameter_value_str('slice_category_at_edge', required=False)
-        if params:
-            param_arr = params.split(',')
-            assert len(param_arr) == 1
-            param_arr = param_arr[0].split(':')
-            df = df.filter(pl.col(params[0]).eq(params[1]))
 
         # Drop dim columns that are entirely null before from/to_dimensions processing.
         # Multi-metric nodes with different dimensional spans use null to mark
