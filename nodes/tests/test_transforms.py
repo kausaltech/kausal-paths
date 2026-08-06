@@ -43,7 +43,7 @@ def _env(reference_year: int = 2020, target_year: int = 2030) -> PipelineEnv:
     """Build a minimal environment; only the year-remapping op reads the instance."""
     context = cast(
         'Context',
-        SimpleNamespace(instance=SimpleNamespace(reference_year=reference_year, target_year=target_year)),
+        SimpleNamespace(instance=SimpleNamespace(reference_year=reference_year, target_year=target_year), dimensions={}),
     )
     return PipelineEnv(context=context)
 
@@ -213,6 +213,26 @@ def test_filtering_everything_away_is_an_error():
 
     with pytest.raises(Exception, match='Nothing left after filter_dimension'):
         _run(df, [FilterDimensionOp(dimension='sector', categories=['nonexistent'])])
+
+
+def test_operations_pass_an_already_empty_frame_through():
+    """
+    Only the operation that empties a frame is a configuration error.
+
+    Metric selection can legitimately empty a frame before dimension ops run;
+    the edge runtime relies on assignment passing that emptiness through.
+    """
+    from nodes.defs.transform_def import AssignDimensionOp
+
+    df = to_ppdf(
+        pl.DataFrame({YEAR_COLUMN: [2020], 'sector': ['a'], VALUE_COLUMN: [1.0]}).filter(pl.lit(False)),  # noqa: FBT003
+        DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kt/a')}, primary_keys=[YEAR_COLUMN, 'sector']),
+    )
+
+    result = _run(df, [AssignDimensionOp(dimension='ghg', category='co2')])
+
+    assert len(result) == 0
+    assert 'ghg' in result.dim_ids
 
 
 def test_dataset_level_forecast_default_enters_the_pipeline():

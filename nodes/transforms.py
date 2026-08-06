@@ -49,9 +49,12 @@ from nodes.defs.transform_def import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from nodes.context import Context
     from nodes.datasets import Dataset
     from nodes.defs.transform_def import PortTransformOp
+    from nodes.node import Node
 
 
 class PipelineError(Exception):
@@ -69,22 +72,35 @@ class PipelineEnv:
     ``dataset`` is optional and only used by the legacy stage markers — for
     tag-operation identity, and to raise ``DatasetError`` instead of a bare
     ``PipelineError`` where callers already handle it.
+
+    ``node`` marks an edge binding: it is the *source* node whose output the
+    pipeline reshapes. Errors then raise ``NodeError`` against it, and the
+    dimension ops follow the legacy edge semantics (no NaN pruning before a
+    flatten-sum, and tolerance for a dimension the node declares but that was
+    dropped from the frame as all-null).
     """
 
     context: Context
     dataset: Dataset | None = None
     metric_column: str | None = None
+    node: Node | None = None
 
     @property
     def source_id(self) -> str:
-        return self.dataset.id if self.dataset is not None else '<unknown>'
+        if self.dataset is not None:
+            return self.dataset.id
+        if self.node is not None:
+            return self.node.id
+        return '<unknown>'
 
     def error(self, msg: str) -> Exception:
         """Build the failure for this source, so callers can ``raise`` it."""
-        from nodes.exceptions import DatasetError
+        from nodes.exceptions import DatasetError, NodeError
 
         if self.dataset is not None:
             return DatasetError(self.dataset, msg)
+        if self.node is not None:
+            return NodeError(self.node, msg)
         return PipelineError(msg)
 
     def fail(self, msg: str) -> NoReturn:
@@ -93,7 +109,7 @@ class PipelineEnv:
 
 def apply_port_transformations(
     df: ppl.PathsDataFrame,
-    transformations: list[PortTransformOp],
+    transformations: Sequence[PortTransformOp],
     env: PipelineEnv,
 ) -> ppl.PathsDataFrame:
     """Run the transformations against the frame, in order."""
@@ -149,8 +165,14 @@ def _guard_not_empty(
     op: PortTransformOp,
     env: PipelineEnv,
 ) -> ppl.PathsDataFrame:
-    """Fail when an operation filtered everything away: that is a configuration error, not a result."""
-    if len(df) == 0:
+    """
+    Fail when an operation filtered everything away: that is a configuration error, not a result.
+
+    An operation that *received* an empty frame removed nothing — emptiness
+    flows through. Edges rely on this: metric selection can legitimately
+    empty a frame before the dimension ops run.
+    """
+    if len(df) == 0 and len(before) > 0:
         logger.error('Nothing left after {} on {}; input was:\n{}', op.kind, env.source_id, before)
         env.fail(f'Nothing left after {op.kind}. See the original frame in the log.')
     return df
@@ -294,6 +316,13 @@ def _filter_column(df: ppl.PathsDataFrame, op: FilterColumnOp, env: PipelineEnv)
 
 def _filter_dimension(df: ppl.PathsDataFrame, op: FilterDimensionOp, env: PipelineEnv) -> ppl.PathsDataFrame:
     dim_id = op.dimension
+    if dim_id not in df.dim_ids:
+        if env.node is not None and dim_id in env.node.output_dimensions:
+            # The node declares the dimension, but it was dropped from the frame
+            # as all-null (multi-metric nodes mark inapplicable dimensions with
+            # null) — filtering and flattening are no-ops.
+            return df
+        env.fail(f"Dimension '{dim_id}' not found in the frame. Available dimensions: {', '.join(df.dim_ids)}")
     if op.groups:
         dim = env.context.dimensions[dim_id]
         grp_s = dim.ids_to_groups(dim.series_to_ids_pl(df[dim_id]))
@@ -304,7 +333,9 @@ def _filter_dimension(df: ppl.PathsDataFrame, op: FilterDimensionOp, env: Pipeli
             expr = pl.col(dim_id).is_null() | ~expr
         df = df.filter(expr)
     if op.flatten:
-        if VALUE_COLUMN in df.columns:
+        # Edge pipelines sum as-is for parity with the legacy edge runtime;
+        # dataset pipelines prune NaN values first.
+        if env.node is None and VALUE_COLUMN in df.columns:
             df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
         df = df.paths.sum_over_dims(dim_id)
     return df
@@ -320,7 +351,11 @@ def _assign_dimension(df: ppl.PathsDataFrame, op: AssignDimensionOp, env: Pipeli
             env.fail(f'Cannot assign dimension {dim_id}: the frame already has it')
         if cat_id not in dim.cat_map:
             env.fail(f'Category {cat_id} not found in dimension {dim_id}')
-    return df.with_columns(pl.lit(cat_id).alias(dim_id)).add_to_index(dim_id)
+    lit = pl.lit(cat_id)
+    if env.node is not None:
+        # Parity with the legacy edge runtime, which created the column as Categorical.
+        lit = lit.cast(pl.Categorical)
+    return df.with_columns(lit.alias(dim_id)).add_to_index(dim_id)
 
 
 def _rename_column(df: ppl.PathsDataFrame, op: RenameColumnOp, env: PipelineEnv) -> ppl.PathsDataFrame:
