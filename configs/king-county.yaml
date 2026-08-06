@@ -48,6 +48,25 @@ emission_sectors:
 - id: net_emissions
   name: Net emissions
   is_outcome: true
+  goals:
+  - is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2007
+      value: 23.232
+    - year: 2025
+      value: 19.909824 # 14.3% reduction from 2007
+    - year: 2030
+      value: 11.616 # 50% reduction from 2007
+    - year: 2035
+      value: 8.712 # 62.5% reduction from 2007
+    - year: 2040
+      value: 5.808 # 75% reduction from 2007
+    - year: 2045
+      value: 3.4848 # 85% reduction from 2007
+    - year: 2050
+      value: 1.1616 # 95% reduction from 2007
+
 
 - id: built_environment_emissions
   name: Built environment emissions
