@@ -50,7 +50,6 @@ if TYPE_CHECKING:
         FormulaConfig,
     )
     from nodes.defs.node_defs import NodeSpecExtra
-    from nodes.defs.transform_def import EdgeTransformOp
     from nodes.edges import Edge, EdgeDimension
     from nodes.instance import Instance
     from nodes.models import DatasetPort, InstanceConfig, NodeConfig
@@ -697,44 +696,6 @@ def _resolve_from_port(edge: Edge, from_node: NodeSpec, metric_id: str) -> Outpu
     raise ValueError(f'No port found for edge {edge.input_node.id}:{edge.output_node.id} metric {metric_id}')
 
 
-def edge_to_transforms(edge: Edge) -> list[EdgeTransformOp]:
-    """Convert runtime Edge dimension mappings to a structured transformation pipeline."""
-    from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp, FlattenTransformation
-
-    transforms: list[EdgeTransformOp] = []
-
-    for dim_id, ed in edge.from_dimensions.items():
-        cat_refs = [cat.id for cat in ed.categories]
-        transforms.append(
-            FilterDimensionOp(
-                dimension=dim_id,
-                categories=cat_refs,
-                flatten=ed.flatten,
-                exclude=ed.exclude,
-            )
-        )
-
-    if edge.to_dimensions:
-        for dim_id, ed in edge.to_dimensions.items():
-            if not ed.categories:
-                if ed.flatten:
-                    # Flatten a dimension that the downstream node doesn't want.
-                    transforms.append(FlattenTransformation(dimension=dim_id))
-                # Entries with no categories and no flatten are pure shape
-                # declarations — skip for now.
-                continue
-            if len(ed.categories) != 1:
-                raise ValueError(f'to_dimensions can have only one category for now (got {len(ed.categories)} for {dim_id})')
-            transforms.append(
-                AssignDimensionOp(
-                    dimension=dim_id,
-                    category=ed.categories[0].id,
-                )
-            )
-
-    return transforms
-
-
 # ---------------------------------------------------------------------------
 # Full sync: runtime → DB
 # ---------------------------------------------------------------------------
@@ -776,7 +737,7 @@ def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, Node
                     from_port=from_port.id,
                     to_node=to_nc,
                     to_port=to_port.id,
-                    transformations=edge_to_transforms(edge),
+                    transformations=edge.to_transforms(),
                     tags=list(edge.tags) if edge.tags else [],
                 )
                 edge_objs.append(edge_obj)

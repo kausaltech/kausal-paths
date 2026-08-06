@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any
 from nodes.exceptions import NodeError
 
 if TYPE_CHECKING:
+    from nodes.defs.transform_def import EdgeTransformOp
+
     from .context import Context
     from .dimensions import Dimension, DimensionCategory
     from .node import Node
@@ -74,6 +76,43 @@ class Edge:
         if self.to_dimensions is not None:
             self.to_dimensions = self.to_dimensions.copy()
         self.metrics = self.metrics.copy()
+
+    def to_transforms(self) -> list[EdgeTransformOp]:
+        """Convert the edge's dimension mappings to a structured transformation pipeline."""
+        from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp, FlattenTransformation
+
+        transforms: list[EdgeTransformOp] = []
+
+        for dim_id, ed in self.from_dimensions.items():
+            cat_refs = [cat.id for cat in ed.categories]
+            transforms.append(
+                FilterDimensionOp(
+                    dimension=dim_id,
+                    categories=cat_refs,
+                    flatten=ed.flatten,
+                    exclude=ed.exclude,
+                )
+            )
+
+        if self.to_dimensions:
+            for dim_id, ed in self.to_dimensions.items():
+                if not ed.categories:
+                    if ed.flatten:
+                        # Flatten a dimension that the downstream node doesn't want.
+                        transforms.append(FlattenTransformation(dimension=dim_id))
+                    # Entries with no categories and no flatten are pure shape
+                    # declarations — skip for now.
+                    continue
+                if len(ed.categories) != 1:
+                    raise ValueError(f'to_dimensions can have only one category for now (got {len(ed.categories)} for {dim_id})')
+                transforms.append(
+                    AssignDimensionOp(
+                        dimension=dim_id,
+                        category=ed.categories[0].id,
+                    )
+                )
+
+        return transforms
 
     @classmethod
     def from_config(cls, config: dict | str, node: Node, is_output: bool, context: Context) -> Edge:
