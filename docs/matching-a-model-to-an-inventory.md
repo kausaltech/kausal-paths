@@ -6,17 +6,25 @@ Paths model if the model reproduces that inventory. The inventory is authoritati
 to them regardless of how it was built, and often regardless of whether it is
 right.
 
-**This document** is the general method for getting there: how to compare a model
-against an inventory in enough detail that every difference can be named, and how
-to close each difference with the right mechanism.
+**This document** answers "what exactly is the gap?": how to compare a model
+against an inventory in enough detail that every difference can be named, ranked,
+and assigned a fix — plus the machinery needed when the city wants the inventory
+reproduced including its mistakes (§10).
 
-**Relationship to [`nzp-city-inventory-compliance-pattern.md`](nzp-city-inventory-compliance-pattern.md):**
-that document classifies differences into three buckets (emission factor,
-activity, boundary) and prescribes the *model mechanism* for each — dataset
-override, observed-anchor ratio correction, named residual. It answers "what do I
-do about this gap?". This document answers the question that comes first: "what
-exactly is the gap?" — and adds the machinery needed when the city wants the
-inventory reproduced including its mistakes.
+**Scope.** This applies when a model **already exists** — typically a framework
+instance — and has to be reconciled against a separately-produced inventory. Two
+independent estimates, and the work is explaining the difference between them.
+
+| You have | Read |
+|---|---|
+| A model that must reproduce a city inventory | **This document** |
+| A diagnosed gap in an NZP-based model, needing a mechanism | [`nzp-city-inventory-compliance-pattern.md`](nzp-city-inventory-compliance-pattern.md) — three buckets (factor, activity, boundary) and the model mechanism for each |
+| City workbooks and no model at all | [`building-a-model-from-city-workbooks.md`](building-a-model-from-city-workbooks.md) — the greenfield build, and the shared technique for reading a consultant workbook (§3) |
+
+The greenfield case is a different problem, not a subset of this one: there is only
+one estimate, so nothing to decompose, and the failure mode is a model that
+matches the headline while being wrong underneath rather than one that visibly
+disagrees.
 
 ---
 
@@ -70,7 +78,8 @@ Settle these before extracting anything; each one changes what gets extracted.
   wrong row can put a whole sector's worth of emissions into the "gap".
 - **GWP set.** Confirm the inventory's CH₄ and N₂O factors and their vintage.
   A mismatch is a systematic multiplier on every CH₄/N₂O-dominated sector.
-  Often verifiable by reverse-engineering (see §5.3) rather than by asking.
+  Often verifiable by reverse-engineering the applied factor rather than by
+  asking — see §5.
 - **Acceptance test.** Which model node's value must equal which inventory
   figure, and to what tolerance. Without a named target list, steps 2–4 have no
   stopping condition.
@@ -110,69 +119,33 @@ status, source_ref, note
 
 ## 5. Step 1a — the inventory-side ledger
 
-### 5.1 Where to look
+**Reading the workbook is documented once, elsewhere.** Workbook anatomy, the
+extractor validations, reverse-engineering the applied factor, and the traps —
+placeholder zeros, one ledger row per applied factor, structure that changes
+between years, restated rows, spreadsheet total rows, competing estimates of the
+same sector, the granularity floor — are the same job whether you are reading a
+workbook to compare it against a model or to build one from it. See
+[`building-a-model-from-city-workbooks.md`](building-a-model-from-city-workbooks.md)
+§3 (reading the ledger) and §6.1 (what the extractor must validate).
 
-Consultant workbooks are usually better structured than they appear. Look for:
-an index sheet describing every numbered sheet; a sheet 1 "overall summary"
-carrying energy demand *and* emissions together; per-category breakdown sheets;
-and a conversion-factors sheet. Between the energy summary and the emissions
-summary you generally get a full category × carrier matrix for both, which is
-exactly the ledger's shape.
+Two of those points carry extra weight here. **Reverse-engineering the applied
+factor** does double duty in a comparison: it produces §4's `ef_value` column
+*and* the inventory-internal consistency check the pattern doc requires before the
+inventory is treated as ground truth. And **separating inventory inconsistencies
+from extraction bugs** decides who owns each failure — conflating them either
+buries real findings or blocks your work on someone else's error.
 
-Non-energy sectors use the same schema with a different activity unit — tonnes of
-waste, head of livestock, hectares, population for per-capita factors.
+Three things are specific to the comparison case:
 
-### 5.2 Validations to build into the extractor
-
-These double as the inventory-internal consistency check the pattern doc asks for
-before treating the inventory as ground truth:
-
-- `emissions == activity × EF` per row
-- per-category sheets sum to their summary sheet; summaries sum to the headline
-- implied factors reconcile against the workbook's own factor table
-- the same quantity reported in two places agrees
-
-Separate **genuine inventory inconsistencies** from **extraction bugs** in the
-output. A check that fails because the workbook disagrees with itself is a
-finding; a check that fails because the script mis-read a cell is a defect. Tag
-them differently and don't let the former fail the run.
-
-### 5.3 Reverse-engineering the applied factor
-
-This is the single most productive technique in the whole exercise. Divide
-reported emissions by reported activity, per cell, and compare the result across
-categories and against the factor table. It routinely settles methodology
-questions that would otherwise need a data request, and it localises errors to
-individual cells.
-
-What it finds, in rough order of frequency:
-
-- **A factor set that is uniform where you expected variation** (or vice versa),
-  telling you how the consultant actually weighted a blend.
-- **One cell using the wrong fuel's factor** — a copy/paste error, identifiable
-  because the implied factor exactly equals another carrier's.
-- **The baseline and the projections using different factor sets**, which means
-  the glidepath is not consistent with the inventory it starts from.
-- **The GWP set**, confirmable to four significant figures from any single
-  CH₄ line.
-
-### 5.4 Pitfalls
-
-- **Spreadsheet total rows.** Pivot sheets end with a `Grand Total` row, often
-  followed by the same value restated in other units. All of these have numeric
-  cells in the data column. Filter on a per-record key (an id column) rather than
-  on "is this cell a number", and validate summed totals against the workbook's
-  own headline — a factor-of-two error in an implied EF is the symptom.
-- **Two competing estimates of the same sector.** Where a workbook contains both
-  a bottom-up and a top-down estimate, the published total may take the *level*
-  from one and the *breakdown* from the other. The reported emissions then cannot
-  be reproduced as activity × EF from any activity figure in the workbook, and no
-  amount of model work will make both match. Record both, and say so.
-- **Category labels that differ between sheets** for the same category. Match by
-  position and assert the ordering.
-- **Granularity floor.** A category that is 90%+ one bucket cannot support a
-  breakdown comparison however much the city wants one. Establish the real floor
-  early and set expectations.
+- **The unpublished alternative is often the explanation.** When building a model
+  from a workbook you take the published estimate and move on; when explaining a
+  gap, the estimate the consultant computed and discarded frequently *is* the
+  model's number. That is what §4's `status` column is for.
+- **Extract at the granularity the crosswalk needs**, which may be finer than the
+  model currently carries — see the dimension-extension prerequisite in §3.
+- **Capture the prose.** Assumption text, method notes and caveat cells are where
+  most of the diagnosis lives, and they are what turn a numeric difference into a
+  named one.
 
 ## 6. Step 1b — the model-side ledger
 

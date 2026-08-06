@@ -271,6 +271,24 @@ full rationale. In brief:
 python load_nodes.py -i <instance-id> --node <node-id>
 ```
 
+#### Building or reconciling a city model
+
+Three documents, split by which artifact you start from — read the matching one
+rather than reconstructing the method:
+
+- **City workbooks, no model yet** →
+  [`docs/building-a-model-from-city-workbooks.md`](docs/building-a-model-from-city-workbooks.md).
+  Also the single home for *reading a consultant workbook* (§3) and the
+  extractor validations (§6.1), which the other two delegate to.
+- **A model that must reproduce a city inventory** →
+  [`docs/matching-a-model-to-an-inventory.md`](docs/matching-a-model-to-an-inventory.md).
+- **A diagnosed gap in an NZP model, needing a mechanism** →
+  [`docs/nzp-city-inventory-compliance-pattern.md`](docs/nzp-city-inventory-compliance-pattern.md).
+
+The first is written against a real build, anonymised as "Test City" — a public
+repo is not the place to publish the list of problems found in a named city's
+inventory. Keep it that way when adding examples.
+
 ### Trailhead Migration
 
 @docs/trailhead/tools.md
