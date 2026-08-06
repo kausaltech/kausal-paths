@@ -28,6 +28,7 @@ from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
 from nodes.graphql.types.dimension import DimensionType
 from nodes.instance import Instance
+from nodes.instance_serialization import InstanceSnapshot
 from nodes.models import InstanceConfig, NodeLayout
 from nodes.node import Node
 from nodes.normalization import Normalization
@@ -138,6 +139,8 @@ def _instance_admin_allowed(ic: InstanceConfig, info: gql.Info) -> bool:
 
 
 def _node_is_publicly_visible(node: Node) -> bool:
+    if node.source_snapshot is not None:
+        return node.source_snapshot.is_visible
     nc = node.db_obj
     if nc is not None:
         return nc.is_visible
@@ -515,6 +518,7 @@ class InstanceModelType:
 class InstanceType:
     _config: sb.Private[InstanceConfig]
     _instance: sb.Private[Instance | None] = None
+    _snapshot: sb.Private[InstanceSnapshot | None] = None
 
     id: sb.ID
     uuid: UUID
@@ -530,10 +534,31 @@ class InstanceType:
 
     @classmethod
     def from_model(cls, ic: InstanceConfig, instance: Instance | None = None) -> Self:
+        snapshot = instance.source_snapshot if instance is not None else None
+        if snapshot is not None:
+            metadata = snapshot.metadata
+            return cls(
+                _config=ic,
+                _instance=instance,
+                _snapshot=snapshot,
+                id=sb.ID(metadata.identifier),
+                uuid=metadata.uuid,
+                name=str(metadata.name),
+                owner=str(metadata.owner) if metadata.owner is not None else None,
+                default_language=metadata.primary_language,
+                supported_languages=[metadata.primary_language, *metadata.other_languages],
+                base_path='',
+                identifier=metadata.identifier,
+                is_locked=ic.is_locked,
+                lead_title=str(metadata.lead_title) if metadata.lead_title is not None else '',
+                lead_paragraph=str(metadata.lead_paragraph) if metadata.lead_paragraph is not None else None,
+            )
+
         instance_owner = str(instance.owner) if instance else None
         return cls(
             _config=ic,
             _instance=instance,
+            _snapshot=None,
             id=sb.ID(ic.identifier),
             uuid=ic.uuid,
             name=getattr(ic, 'name_i18n', None) or ic.name,
@@ -554,6 +579,8 @@ class InstanceType:
 
     @property
     def spec(self) -> InstanceModelSpec:
+        if self._snapshot is not None:
+            return self._snapshot.spec
         return self._config.ensure_spec()
 
     @sb.field
@@ -594,6 +621,8 @@ class InstanceType:
 
     @sb.field
     def theme_identifier(self) -> str | None:
+        if self._snapshot is not None:
+            return self._snapshot.spec.theme_identifier or 'default'
         return self._config.theme_identifier
 
     @sb.field
@@ -623,6 +652,9 @@ class InstanceType:
         description='UUID of the instance this one was copied from, if any.',
     )
     def copy_of(self) -> UUID | None:
+        if self._snapshot is not None:
+            return UUID(self._snapshot.copy_of) if self._snapshot.copy_of is not None else None
+
         from nodes.models import InstanceConfig as _InstanceConfig
 
         if self._config.copy_of_id is None:

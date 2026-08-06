@@ -256,6 +256,33 @@ def test_node_layout_round_trips_through_instance_export(empty_db_instance: Inst
     assert (copied.x, copied.y, copied.source) == (12.5, -8.25, NodeLayoutSource.USER)
 
 
+def test_revisioned_content_round_trips_through_instance_export(empty_db_instance: InstanceConfig):
+    from nodes.instance_serialization import export_instance, import_instance
+
+    empty_db_instance.lead_title = 'Source lead'
+    empty_db_instance.lead_paragraph = '<p>Source paragraph</p>'
+    empty_db_instance.save(update_fields=['lead_title', 'lead_paragraph'])
+    source_node = NodeConfigFactory.create(instance=empty_db_instance, identifier='content-node')
+    source_node.body = [{'type': 'paragraph', 'value': '<p>Source body</p>'}]
+    source_node.save(update_fields=['body'])
+
+    export = export_instance(empty_db_instance)
+    target_instance = InstanceFactory.create()
+    target = InstanceConfigFactory.create(
+        identifier=target_instance.id,
+        instance=target_instance,
+        config_source='database',
+    )
+
+    import_instance(target, export)
+
+    target.refresh_from_db()
+    assert target.lead_title == 'Source lead'
+    assert target.lead_paragraph == '<p>Source paragraph</p>'
+    copied_node = target.nodes.get(identifier='content-node')
+    assert 'Source body' in str(copied_node.body)
+
+
 def test_build_instance_snapshot_does_not_hydrate_related_specs(empty_db_instance: InstanceConfig):
     source = NodeConfigFactory.create(instance=empty_db_instance, identifier='source')
     target = NodeConfigFactory.create(instance=empty_db_instance, identifier='target')
@@ -1548,3 +1575,245 @@ def _make_fake_ctx(*, preview_mode, user):
             return AnonymousUser()
 
     return _FakeCtx()
+
+
+# ---------------------------------------------------------------------------
+# Phase 0: published serving reads snapshot metadata, not live draft rows
+# ---------------------------------------------------------------------------
+
+
+def _make_publishable_node(ic: InstanceConfig, identifier: str, name: str, **kwargs):
+    from nodes.defs.node_defs import NodeSpec as NodeSpecDef
+    from nodes.defs.port_def import OutputPortDef
+    from nodes.models import NodeConfig
+    from nodes.tests.test_model_editor import _port_uuid as _pu
+    from nodes.units import unit_registry
+
+    return NodeConfig.objects.create(
+        instance=ic,
+        identifier=identifier,
+        name=name,
+        spec=NodeSpecDef(
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
+        ),
+        **kwargs,
+    )
+
+
+def test_published_metadata_ignores_draft_edits(empty_db_instance: InstanceConfig):
+    """
+    Draft metadata edits are invisible to PUBLISHED readers.
+
+    Public resolvers read the selected NodeSnapshot. The live NodeConfig is
+    attached only to the draft/editor runtime.
+    """
+    from nodes.models import NodeConfig, PreferredInstanceSource
+
+    nc = _make_publishable_node(empty_db_instance, 'meta_node', 'Published name')
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    NodeConfig.objects.filter(pk=nc.pk).update(name='Draft rename', is_visible=False, order=7)
+
+    published = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    node = published.context.nodes['meta_node']
+    assert node.db_obj is None
+    assert node.source_snapshot is not None
+    assert str(node.source_snapshot.name) == 'Published name'
+    assert node.source_snapshot.is_visible is True
+    assert node.source_snapshot.order is None
+    assert node.source_snapshot.uuid == nc.uuid
+    # The node's spec comes from the revision snapshot, not the draft row.
+    assert node.has_spec
+
+    draft = empty_db_instance._create_from_config(source=PreferredInstanceSource.DRAFT)
+    draft_node = draft.context.nodes['meta_node']
+    assert draft_node.db_obj is not None
+    assert draft_node.db_obj.pk == nc.pk
+    assert draft_node.db_obj.name_i18n == 'Draft rename'
+    assert draft_node.source_snapshot is not None
+    assert str(draft_node.source_snapshot.name) == 'Draft rename'
+
+
+def test_instance_graphql_content_comes_from_selected_snapshot(gql_client, empty_db_instance: InstanceConfig):
+    """Instance content follows the selected snapshot; operational state remains live."""
+    from nodes.models import _pytest_instances
+
+    empty_db_instance.name = 'Published instance'
+    empty_db_instance.owner = 'Published owner'
+    empty_db_instance.lead_title = 'Published lead'
+    empty_db_instance.lead_paragraph = '<p>Published paragraph</p>'
+    assert empty_db_instance.spec is not None
+    empty_db_instance.spec = empty_db_instance.spec.model_copy(update={'theme_identifier': 'published-theme'})
+    empty_db_instance.save(
+        update_fields=['name', 'owner', 'lead_title', 'lead_paragraph', 'spec'],
+    )
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    empty_db_instance.name = 'Draft instance'
+    empty_db_instance.owner = 'Draft owner'
+    empty_db_instance.lead_title = 'Draft lead'
+    empty_db_instance.lead_paragraph = '<p>Draft paragraph</p>'
+    assert empty_db_instance.spec is not None
+    empty_db_instance.spec = empty_db_instance.spec.model_copy(update={'theme_identifier': 'draft-theme'})
+    empty_db_instance.save(
+        update_fields=['name', 'owner', 'lead_title', 'lead_paragraph', 'spec'],
+    )
+    _pytest_instances.pop(empty_db_instance.identifier, None)
+
+    query = f"""
+    query Q @instance(identifier: "{empty_db_instance.identifier}", preview: PUBLISHED) {{
+        instance {{
+            name
+            owner
+            leadTitle
+            leadParagraph
+            themeIdentifier
+        }}
+    }}
+    """
+    published = gql_client.query_data(query)['instance']
+    assert published == {
+        'name': 'Published instance',
+        'owner': 'Published owner',
+        'leadTitle': 'Published lead',
+        'leadParagraph': '<p>Published paragraph</p>',
+        'themeIdentifier': 'published-theme',
+    }
+
+    draft = gql_client.query_data(query.replace('preview: PUBLISHED', 'preview: DRAFT'))['instance']
+    assert draft == {
+        'name': 'Draft instance',
+        'owner': 'Draft owner',
+        'leadTitle': 'Draft lead',
+        'leadParagraph': '<p>Draft paragraph</p>',
+        'themeIdentifier': 'draft-theme',
+    }
+
+
+def test_published_body_survives_draft_edits(empty_db_instance: InstanceConfig):
+    """StreamField body rides in the snapshot; draft body edits don't leak."""
+    from nodes.models import PreferredInstanceSource
+
+    nc = _make_publishable_node(empty_db_instance, 'body_node', 'Body node')
+    nc.body = [{'type': 'paragraph', 'value': '<p>Published body</p>'}]
+    nc.save(update_fields=['body'])
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    nc.body = [{'type': 'paragraph', 'value': '<p>Draft body</p>'}]
+    nc.save(update_fields=['body'])
+
+    published = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    node = published.context.nodes['body_node']
+    assert node.db_obj is None
+    assert node.source_snapshot is not None
+    assert 'Published body' in str(node.source_snapshot.body)
+    assert 'Draft body' not in str(node.source_snapshot.body)
+
+
+def test_pre_v6_revision_content_is_completed_at_load_boundary(empty_db_instance: InstanceConfig):
+    """Fields absent from old snapshots get their explicit compatibility fallback once."""
+    from copy import deepcopy
+
+    from wagtail.models import Revision
+
+    from nodes.models import PreferredInstanceSource
+
+    nc = _make_publishable_node(empty_db_instance, 'legacy_content', 'Legacy content')
+    empty_db_instance.lead_title = 'Initially published lead'
+    empty_db_instance.lead_paragraph = '<p>Initially published paragraph</p>'
+    empty_db_instance.save(update_fields=['lead_title', 'lead_paragraph'])
+    nc.body = [{'type': 'paragraph', 'value': '<p>Initially published body</p>'}]
+    nc.save(update_fields=['body'])
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    assert empty_db_instance.live_revision_id is not None
+    live_revision = empty_db_instance.live_revision
+    assert live_revision is not None
+    content = deepcopy(live_revision.content)
+    structured = content['model_snapshot']['structured']
+    structured['schema_version'] = 5
+    structured['metadata'].pop('lead_title')
+    structured['metadata'].pop('lead_paragraph')
+    structured['nodes'][0].pop('body')
+    Revision.objects.filter(pk=empty_db_instance.live_revision_id).update(content=content)
+
+    empty_db_instance.lead_title = 'Legacy fallback lead'
+    empty_db_instance.lead_paragraph = '<p>Legacy fallback paragraph</p>'
+    empty_db_instance.save(update_fields=['lead_title', 'lead_paragraph'])
+    nc.body = [{'type': 'paragraph', 'value': '<p>Legacy fallback body</p>'}]
+    nc.save(update_fields=['body'])
+    empty_db_instance.refresh_from_db()
+
+    published = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    assert published.source_snapshot is not None
+    assert str(published.source_snapshot.metadata.lead_title) == 'Legacy fallback lead'
+    assert str(published.source_snapshot.metadata.lead_paragraph) == '<p>Legacy fallback paragraph</p>'
+    node_snapshot = published.context.nodes['legacy_content'].source_snapshot
+    assert node_snapshot is not None
+    assert 'Legacy fallback body' in str(node_snapshot.body)
+
+
+def test_published_indicator_node_uses_snapshot_reference(empty_db_instance: InstanceConfig):
+    """Published indicator references remain UUID-pinned snapshot state."""
+    from nodes.models import PreferredInstanceSource
+
+    target = _make_publishable_node(empty_db_instance, 'indicator_target', 'Target')
+    _make_publishable_node(empty_db_instance, 'pointing', 'Pointing', indicator_node=target)
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    published = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    pointing = published.context.nodes['pointing']
+    indicator = published.context.nodes['indicator_target']
+    assert pointing.db_obj is None
+    assert pointing.source_snapshot is not None
+    assert indicator.source_snapshot is not None
+    assert pointing.source_snapshot.indicator_node == indicator.source_snapshot.uuid
+    assert published.source_nodes_by_uuid[indicator.source_snapshot.uuid] is indicator
+
+
+def test_published_editor_and_history_guarded(gql_client, empty_db_instance: InstanceConfig):
+    """Editor fields and change history are draft-row governance: absent on PUBLISHED."""
+    from nodes.models import _pytest_instances
+
+    _make_publishable_node(empty_db_instance, 'guarded', 'Guarded')
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    # The factory registers a pre-built empty Instance that short-circuits
+    # request-path hydration; drop it so the query hydrates from the DB.
+    _pytest_instances.pop(empty_db_instance.identifier, None)
+
+    query = f"""
+    query Q @instance(identifier: "{empty_db_instance.identifier}", preview: PUBLISHED) {{
+        nodes {{
+            identifier
+            name
+            editor {{ nodeType }}
+            changeHistory {{ uuid }}
+        }}
+    }}
+    """
+    data = gql_client.query_data(query)
+    (node_data,) = [n for n in data['nodes'] if n['identifier'] == 'guarded']
+    assert node_data['name'] == 'Guarded'
+    assert node_data['editor'] is None
+    assert node_data['changeHistory'] == []
+
+    # Same query on DRAFT: the superuser gets editor fields from live rows.
+    draft_query = query.replace('preview: PUBLISHED', 'preview: DRAFT')
+    data = gql_client.query_data(draft_query)
+    (node_data,) = [n for n in data['nodes'] if n['identifier'] == 'guarded']
+    assert node_data['editor'] is not None
+
+
+def test_publish_instance_bumps_cache_invalidated_at(empty_db_instance: InstanceConfig):
+    """Publishing must invalidate cached anonymous GraphQL results."""
+    before = empty_db_instance.cache_invalidated_at
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+    assert empty_db_instance.cache_invalidated_at > before

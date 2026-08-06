@@ -84,7 +84,7 @@ from paths.utils import (
 )
 
 from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
-from nodes.defs.instance_defs import InstanceFeatures
+from nodes.defs.instance_defs import InstanceFeatures, InstanceMetadata
 from nodes.defs.transform_def import EdgeTransformOp
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
@@ -119,9 +119,7 @@ if TYPE_CHECKING:
 
     from frameworks.models import FrameworkConfig
     from nodes.dimensions import Dimension as NodeDimension
-    from nodes.instance_serialization import (
-        ModelSnapshot,
-    )
+    from nodes.instance_serialization import InstanceSnapshot, ModelSnapshot
     from nodes.node import Node
     from pages.config import OutcomePage as OutcomePageConfig
     from pages.models import ActionListPage, InstanceSiteContent
@@ -888,11 +886,33 @@ class InstanceConfig(
         """Serialize the current model state and publish as a Wagtail revision."""
         revision = self.save_revision(user=user)
         self.publish(revision, user=user)
+        # Anonymous GraphQL results are cached keyed on cache_invalidated_at;
+        # publishing changes what those requests serve, so bump it.
+        self.invalidate_cache()
 
     def revert_to_published(self) -> None:
         """Restore draft state from the published revision snapshot."""
         # TODO: Rewrite for spec-based storage
         raise NotImplementedError('revert_to_published needs rewriting for spec-based storage')
+
+    def _complete_legacy_snapshot_content(self, snapshot: InstanceSnapshot) -> None:
+        """
+        Fill fields that pre-v6 revisions never persisted.
+
+        Historical values do not exist for these fields, so the only
+        backwards-compatible value is the current row value. Keeping this
+        one-time compatibility read at the revision boundary prevents public
+        GraphQL resolvers from acquiring live-row fallbacks of their own.
+        """
+        current_metadata = InstanceMetadata.from_model(self)
+        snapshot.metadata.lead_title = current_metadata.lead_title
+        snapshot.metadata.lead_paragraph = current_metadata.lead_paragraph
+
+        bodies_by_uuid = {
+            node.uuid: list(node.body.raw_data) if node.body else None for node in self.nodes.get_queryset().only('uuid', 'body')
+        }
+        for node_snapshot in snapshot.nodes:
+            node_snapshot.body = bodies_by_uuid.get(node_snapshot.uuid)
 
     def _create_from_published_revision(self, node_refs: bool = False) -> Instance | None:
         """
@@ -914,12 +934,20 @@ class InstanceConfig(
 
             from .instance_serialization import InstanceSnapshot
 
-            with set_i18n_context(self.primary_language, self.other_languages or []):
+            source_schema_version = structured.get('schema_version', 1)
+            raw_metadata = structured.get('metadata') or {}
+            primary_language = raw_metadata.get('primary_language', self.primary_language)
+            other_languages = raw_metadata.get('other_languages', self.other_languages or [])
+            with set_i18n_context(primary_language, other_languages):
                 snapshot = InstanceSnapshot.from_serialized_data(structured)
+                if source_schema_version < 6:
+                    self._complete_legacy_snapshot_content(snapshot)
             instance = InstanceLoader.from_snapshot(snapshot).instance
-            self.update_instance_from_configs(instance, node_refs=True)
+            instance.bind_source_snapshot(snapshot)
             return instance
-        # Legacy revisions carry only the serialized config dict.
+        # Legacy revisions carry only the serialized config dict. They predate
+        # the structured snapshot, so published metadata still comes from the
+        # live rows here (known draft-leak; fixed by republishing).
         hydrate_dict = snapshot_data.get('hydrate_dict')
         if hydrate_dict is None:
             # Revision predates the snapshot restructure; fall back to draft.
@@ -955,6 +983,7 @@ class InstanceConfig(
             snapshot = build_instance_snapshot(self)
             loader = InstanceLoader.from_snapshot(snapshot, tolerate_node_failures=tolerate_node_failures)
             instance = loader.instance
+            instance.bind_source_snapshot(snapshot)
             self.update_instance_from_configs(instance, node_refs=True)
             return instance
 

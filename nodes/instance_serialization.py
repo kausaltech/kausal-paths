@@ -63,7 +63,8 @@ if TYPE_CHECKING:
 #   v4: node identity/display metadata lives only on ``NodeSnapshot``;
 #       ``NodeSpec`` contains computation configuration only.
 #   v5: optional shared model-editor layout stored on each ``NodeSnapshot``.
-SNAPSHOT_SCHEMA_VERSION = 5
+#   v6: instance lead title/paragraph and node StreamField body are revisioned.
+SNAPSHOT_SCHEMA_VERSION = 6
 
 
 # ---------------------------------------------------------------------------
@@ -304,6 +305,10 @@ class NodeSnapshot(ModelSnapshot):
     is_visible: bool = True
     indicator_node: UUID | None = None
     copy_of: UUID | None = None
+    body: list[Any] | None = None
+    """Raw StreamField data of ``NodeConfig.body``. Admin-authored only, so
+    parse-side snapshots never carry it; row-side snapshots preserve it so
+    published serving doesn't lose (or leak drafts of) body content."""
     spec: NodeSpec | None = None
     layout: NodeLayoutSnapshot | None = None
 
@@ -330,6 +335,7 @@ class NodeSnapshot(ModelSnapshot):
             is_visible=obj.is_visible,
             indicator_node=indicator_uuid,
             copy_of=obj.copy_of.uuid if obj.copy_of else None,
+            body=list(obj.body.raw_data) if obj.body else None,
             spec=obj.spec,
             layout=NodeLayoutSnapshot.from_model(layout) if layout is not None else None,
         )
@@ -1316,6 +1322,7 @@ def _import_nodes(
             color=n.color,
             order=n.order,
             is_visible=n.is_visible,
+            body=n.body or [],
             i18n=i18n_dict,
             **fields,
         )
@@ -1442,6 +1449,18 @@ def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config
         )
         ic.owner = owner_val
         i18n.update(owner_i18n)
+    for field_name, value in (
+        ('lead_title', meta.lead_title),
+        ('lead_paragraph', meta.lead_paragraph),
+    ):
+        if value is None:
+            continue
+        primary_val, translations = get_modeltrans_attrs_from_str(
+            cast('str | TranslatedString', value), field_name, ic.primary_language, strict=False
+        )
+        setattr(ic, field_name, primary_val)
+        i18n.update(translations)
+        update_fields.append(field_name)
     ic.i18n = i18n
     update_fields += ['owner', 'i18n']
     ic.save(update_fields=update_fields)

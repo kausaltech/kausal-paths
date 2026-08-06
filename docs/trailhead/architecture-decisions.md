@@ -37,6 +37,29 @@ not duplicated inside the computation spec.
 Persisted snapshots project both parts explicitly: `NodeSnapshot` carries ORM
 identity/display metadata and embeds the computation-only `NodeSpec`.
 
+### Snapshot-backed GraphQL reads
+
+For DB-sourced instances, the selected `InstanceSnapshot` is retained on the
+runtime `Instance`, and each runtime node receives its corresponding
+`NodeSnapshot`. Public GraphQL content resolvers read this selected snapshot
+state for both draft and published requests. The calculation fields continue
+to use the runtime `Instance`/`Node` objects built from that same snapshot.
+
+Live ORM objects have a narrower role:
+
+- `InstanceConfig` remains authoritative for routing, permissions, hostnames,
+  users, locking/publication state, and Wagtail content with its own lifecycle.
+- `NodeConfig` is attached only on the draft path and is used by editor and
+  change-history fields.
+
+Published serving never fabricates unsaved ORM objects from snapshot data.
+This keeps source selection explicit and prevents public resolvers from
+silently falling through to draft rows. Snapshot schema v6 includes instance
+lead title/paragraph and node StreamField body so those public content fields
+are closed over the selected revision too. Pre-v6 revisions never stored those
+fields; their current row values are copied into the in-memory snapshot once at
+the legacy revision boundary. Republishing removes that compatibility fallback.
+
 ## 2. Namespaced `spec` structure
 
 **Decision:** The `spec` JSONField is namespaced (nested objects), not flat.

@@ -149,6 +149,8 @@ def _serialize_instance_metadata(snapshot: InstanceSnapshot) -> dict[str, Any]:
         'sample_size': spec.sample_size,
         **_ts_to_yaml('owner', meta.owner),
         **_ts_to_yaml('name', meta.name),
+        **_ts_to_yaml('lead_title', meta.lead_title),
+        **_ts_to_yaml('lead_paragraph', meta.lead_paragraph),
         **(
             {'dataset_repo': {'url': repo.url, 'commit': repo.commit, 'dvc_remote': repo.dvc_remote}} if repo and repo.url else {}
         ),
