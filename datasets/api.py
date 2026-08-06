@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, override
 
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import ObjectDoesNotExist
+from django.db.models import ObjectDoesNotExist, Q
 from rest_framework import exceptions, serializers
 from rest_framework.routers import DefaultRouter
 
@@ -32,10 +32,15 @@ from kausal_common.datasets.models import (
     DatasetSourceReference,
     DataSource,
 )
+from kausal_common.users import user_or_bust
 
+from nodes.dataset_materialization import dataset_change, datasets_change, refresh_dataset_materialization
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from rest_framework.response import Response
     from rest_framework.routers import SimpleRouter
     from rest_framework.views import APIView
 
@@ -57,6 +62,24 @@ class DataPointCommentViewSet(BaseDataPointCommentViewSet):
     @override
     def get_permissions(self):
         return [DataPointCommentPermission()]
+
+    @override
+    def perform_create(self, serializer):
+        dataset = Dataset.objects.get(uuid=self.kwargs['dataset_uuid'])
+        with dataset_change(dataset, user=user_or_bust(self.request.user)):
+            super().perform_create(serializer)
+
+    @override
+    def perform_update(self, serializer):
+        dataset = Dataset.objects.get(uuid=self.kwargs['dataset_uuid'])
+        with dataset_change(dataset, user=user_or_bust(self.request.user)):
+            super().perform_update(serializer)
+
+    @override
+    def perform_destroy(self, instance):
+        dataset = Dataset.objects.get(uuid=self.kwargs['dataset_uuid'])
+        with dataset_change(dataset, user=user_or_bust(self.request.user)):
+            super().perform_destroy(instance)
 
 
 class DatasetSourceReferencePermission(NestedResourcePermissionPolicyDRFPermission[DatasetSourceReference, Dataset, Dataset]):
@@ -91,11 +114,47 @@ class DataPointSourceReferenceViewSet(BaseDataPointSourceReferenceViewSet):
     def get_permissions(self):
         return [DataPointSourceReferencePermission()]
 
+    @override
+    def perform_create(self, serializer):
+        dataset = Dataset.objects.get(uuid=self.kwargs['dataset_uuid'])
+        with dataset_change(dataset, user=user_or_bust(self.request.user)):
+            super().perform_create(serializer)
+
+    @override
+    def perform_update(self, serializer):
+        dataset = Dataset.objects.get(uuid=self.kwargs['dataset_uuid'])
+        with dataset_change(dataset, user=user_or_bust(self.request.user)):
+            super().perform_update(serializer)
+
+    @override
+    def perform_destroy(self, instance):
+        dataset = Dataset.objects.get(uuid=self.kwargs['dataset_uuid'])
+        with dataset_change(dataset, user=user_or_bust(self.request.user)):
+            super().perform_destroy(instance)
+
 
 class DatasetSourceReferenceViewSet(BaseDatasetSourceReferenceViewSet):
     @override
     def get_permissions(self):
         return [DatasetSourceReferencePermission()]
+
+    @override
+    def perform_create(self, serializer):
+        dataset = Dataset.objects.get(uuid=self.kwargs['dataset_uuid'])
+        with dataset_change(dataset, user=user_or_bust(self.request.user)):
+            super().perform_create(serializer)
+
+    @override
+    def perform_update(self, serializer):
+        dataset = Dataset.objects.get(uuid=self.kwargs['dataset_uuid'])
+        with dataset_change(dataset, user=user_or_bust(self.request.user)):
+            super().perform_update(serializer)
+
+    @override
+    def perform_destroy(self, instance):
+        dataset = Dataset.objects.get(uuid=self.kwargs['dataset_uuid'])
+        with dataset_change(dataset, user=user_or_bust(self.request.user)):
+            super().perform_destroy(instance)
 
 
 class DataPointPermission(NestedResourcePermissionPolicyDRFPermission[DataPoint, Dataset, Dataset]):
@@ -114,6 +173,18 @@ class DataPointViewSet(BaseDataPointViewSet):
     @override
     def get_permissions(self):
         return [DataPointPermission()]
+
+    @override
+    def _with_locked_dataset(self, callback: Callable[[], Response]) -> Response:
+        if hasattr(self, '_locked_dataset'):
+            return callback()
+        dataset = Dataset.objects.get(uuid=self.kwargs['dataset_uuid'])
+        with dataset_change(dataset, user=user_or_bust(self.request.user)) as locked_dataset:
+            self._locked_dataset = locked_dataset
+            try:
+                return callback()
+            finally:
+                del self._locked_dataset
 
 
 class DatasetMetricPermission(NestedResourcePermissionPolicyDRFPermission[DatasetMetric, None, DatasetSchema]):
@@ -156,6 +227,12 @@ class DatasetSchemaViewSet(BaseDatasetSchemaViewSet):
             raise exceptions.NotFound(detail=message, code=code)
         raise exceptions.PermissionDenied(detail=message, code=code)
 
+    @override
+    def perform_update(self, serializer):
+        datasets = Dataset.objects.filter(schema=serializer.instance).order_by('pk')
+        with datasets_change(datasets, user=user_or_bust(self.request.user)):
+            super().perform_update(serializer)
+
 
 class DatasetPermission(PermissionPolicyDRFPermission[Dataset, DatasetSchema]):
     class Meta:
@@ -173,6 +250,21 @@ class DatasetViewSet(BaseDatasetViewSet):
     @override
     def get_permissions(self):
         return [DatasetPermission()]
+
+    @override
+    def perform_create(self, serializer):
+        from django.db import transaction
+
+        user = user_or_bust(self.request.user)
+        with transaction.atomic():
+            dataset = serializer.save(created_by=user, last_modified_by=user)
+            refresh_dataset_materialization(dataset, user=user)
+
+    @override
+    def perform_update(self, serializer):
+        dataset = serializer.instance
+        with dataset_change(dataset, user=user_or_bust(self.request.user)):
+            super().perform_update(serializer)
 
 
 class DatasetCommentPermission(NestedResourcePermissionPolicyDRFPermission[DataPointComment, None, Dataset]):
@@ -221,6 +313,20 @@ class DataSourceViewSet(BaseDataSourceViewSet):
     @override
     def get_permissions(self):
         return [DataSourcePermission()]
+
+    @override
+    def perform_update(self, serializer):
+        datasets = (
+            Dataset.objects
+            .filter(
+                Q(source_references__data_source=serializer.instance)
+                | Q(data_points__source_references__data_source=serializer.instance)
+            )
+            .distinct()
+            .order_by('pk')
+        )
+        with datasets_change(datasets, user=user_or_bust(self.request.user)):
+            super().perform_update(serializer)
 
 
 class DimensionCategoryViewSet(BaseDimensionCategoryViewSet):

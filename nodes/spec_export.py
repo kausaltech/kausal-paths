@@ -931,12 +931,20 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
     """
     from collections import defaultdict
 
-    from nodes.models import DatasetPort
+    from nodes.dataset_materialization import refresh_dataset_materialization
+    from nodes.models import DatasetMaterialization, DatasetPort
 
     ports_by_dataset: dict[int, list[DatasetPort]] = defaultdict(list)
     ports = DatasetPort.objects.filter(instance=ic).select_related('dataset').order_by('dataset_id')
     for port in ports:
         ports_by_dataset[port.dataset_id].append(port)
+
+    materializations = {
+        materialization.dataset_id: materialization
+        for materialization in DatasetMaterialization.objects.select_for_update().filter(
+            dataset_id__in=ports_by_dataset,
+        )
+    }
 
     promoted = 0
     for dataset_ports in ports_by_dataset.values():
@@ -947,26 +955,29 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
         if dataset_ports[0].dataset.is_external_placeholder:
             continue
 
-        years = {port.spec.forecast_from for port in dataset_ports if port.spec.forecast_from is not None}
-        if len(years) != 1:
-            continue
-
-        year = years.pop()
         dataset = dataset_ports[0].dataset
-        spec = dict(dataset.spec or {})
-        if spec.get('forecast_from') != year:
-            spec['forecast_from'] = year
-            dataset.spec = spec
-            dataset.save(update_fields=['spec'])
-            promoted += 1
+        years = {port.spec.forecast_from for port in dataset_ports if port.spec.forecast_from is not None}
+        if len(years) == 1:
+            year = years.pop()
+            spec = dict(dataset.spec or {})
+            if spec.get('forecast_from') != year:
+                spec['forecast_from'] = year
+                dataset.spec = spec
+                dataset.save(update_fields=['spec'])
+                promoted += 1
 
-        changed_ports: list[DatasetPort] = []
-        for port in dataset_ports:
-            if port.spec.forecast_from == year:
-                port.spec = port.spec.without_forecast_from()
-                changed_ports.append(port)
-        if changed_ports:
-            DatasetPort.objects.bulk_update(changed_ports, ['spec'])
+            changed_ports: list[DatasetPort] = []
+            for port in dataset_ports:
+                if port.spec.forecast_from == year:
+                    port.spec = port.spec.without_forecast_from()
+                    changed_ports.append(port)
+            if changed_ports:
+                DatasetPort.objects.bulk_update(changed_ports, ['spec'])
+
+        forecast_from = (dataset.spec or {}).get('forecast_from')
+        materialization = materializations.get(dataset.pk)
+        if forecast_from is not None and (materialization is None or materialization.forecast_from != forecast_from):
+            refresh_dataset_materialization(dataset)
 
     return promoted
 

@@ -2021,12 +2021,14 @@ def test_dataset_port_sync_keeps_an_unpairable_binding_alive(db_instance_config:
 
 
 def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_config: InstanceConfig):
+    from nodes.dataset_materialization import materialize_dataset
     from nodes.defs.node_defs import DatasetPortSpec
-    from nodes.models import DatasetPort
+    from nodes.models import DatasetMaterialization, DatasetPort
     from nodes.spec_export import _promote_dataset_forecast_defaults
 
     promoted_dataset = DatasetFactory.create(identifier='promoted', scope=db_instance_config)
     promoted_metric = DatasetMetricFactory.create(schema=promoted_dataset.schema, name='value', label='Value', unit='kt/a')
+    original_materialization = materialize_dataset(promoted_dataset)
     conflict_dataset = DatasetFactory.create(identifier='conflict', scope=db_instance_config)
     conflict_metric = DatasetMetricFactory.create(schema=conflict_dataset.schema, name='value', label='Value', unit='kt/a')
 
@@ -2077,6 +2079,22 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
     promoted_ports = DatasetPort.objects.filter(dataset=promoted_dataset)
     assert all(port.spec.forecast_from is None for port in promoted_ports)
     assert sorted((port.spec.forecast_from or 0) for port in DatasetPort.objects.filter(dataset=conflict_dataset)) == [2024, 2025]
+
+    materialization = DatasetMaterialization.objects.get(dataset=promoted_dataset)
+    assert materialization.generation == original_materialization.generation + 1
+    assert materialization.forecast_from == 2025
+    assert materialization.content['forecast_from'] == 2025
+
+    # Repair materializations left inconsistent by syncs that predate the atomic refresh.
+    materialization.forecast_from = None
+    materialization.content['forecast_from'] = None
+    materialization.save(update_fields=['forecast_from', 'content'])
+
+    assert _promote_dataset_forecast_defaults(db_instance_config) == 0
+    materialization.refresh_from_db()
+    assert materialization.generation == original_materialization.generation + 2
+    assert materialization.forecast_from == 2025
+    assert materialization.content['forecast_from'] == 2025
 
 
 def test_dataset_port_forecast_from_not_promoted_for_external_placeholder(db_instance_config: InstanceConfig):

@@ -23,6 +23,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Literal, Self, cast
 from uuid import UUID
 
+from django.db import transaction
 from django.db.models import F
 from pydantic import BaseModel, Field
 
@@ -64,7 +65,8 @@ if TYPE_CHECKING:
 #       ``NodeSpec`` contains computation configuration only.
 #   v5: optional shared model-editor layout stored on each ``NodeSnapshot``.
 #   v6: instance lead title/paragraph and node StreamField body are revisioned.
-SNAPSHOT_SCHEMA_VERSION = 6
+#   v7: published DB datasets have a normalized immutable revision manifest.
+SNAPSHOT_SCHEMA_VERSION = 7
 
 
 # ---------------------------------------------------------------------------
@@ -438,6 +440,15 @@ class DatasetPortSnapshot(ModelSnapshot):
         )
 
 
+class DatasetRevisionPinSnapshot(BaseModel):
+    dataset_uuid: UUID
+    identifier: str | None = None
+    revision_id: int
+    content_hash: str
+    generation: int
+    forecast_from: int | None = None
+
+
 class InstanceSnapshot(BaseModel):
     """
     Structural state of an instance; unit of revisioning.
@@ -457,6 +468,7 @@ class InstanceSnapshot(BaseModel):
     nodes: list[NodeSnapshot] = Field(default_factory=list)
     edges: list[EdgeSnapshot] = Field(default_factory=list)
     dataset_ports: list[DatasetPortSnapshot] = Field(default_factory=list)
+    dataset_revisions: list[DatasetRevisionPinSnapshot] = Field(default_factory=list)
 
     model_config = {'arbitrary_types_allowed': True}
 
@@ -589,7 +601,10 @@ def _export_dataset_data_safe(ds: DatasetModel) -> dict[str, Any] | None:
     return _export_dataset_data(ds)
 
 
-def build_instance_snapshot(ic: InstanceConfig) -> InstanceSnapshot:
+def build_instance_snapshot(
+    ic: InstanceConfig,
+    dataset_revision_pins: dict[int, DatasetRevisionPinSnapshot] | None = None,
+) -> InstanceSnapshot:
     """
     Structural snapshot of a DB-sourced InstanceConfig.
 
@@ -614,7 +629,13 @@ def build_instance_snapshot(ic: InstanceConfig) -> InstanceSnapshot:
     edges = [EdgeSnapshot.from_model(e) for e in edge_qs]
 
     port_qs = _dataset_port_qs_for(ic)
-    dataset_ports = [DatasetPortSnapshot.from_model(p) for p in port_qs]
+    dataset_ports: list[DatasetPortSnapshot] = []
+    for port in port_qs:
+        snapshot = DatasetPortSnapshot.from_model(port)
+        if dataset_revision_pins is not None:
+            pin = dataset_revision_pins.get(port.dataset_id)
+            snapshot.dataset_revision = pin.revision_id if pin is not None else None
+        dataset_ports.append(snapshot)
 
     return InstanceSnapshot(
         metadata=InstanceMetadata.from_model(ic),
@@ -623,6 +644,7 @@ def build_instance_snapshot(ic: InstanceConfig) -> InstanceSnapshot:
         nodes=nodes,
         edges=edges,
         dataset_ports=dataset_ports,
+        dataset_revisions=list(dataset_revision_pins.values()) if dataset_revision_pins is not None else [],
     )
 
 
@@ -758,6 +780,7 @@ def _import_dimensions(
     return cat_lookup
 
 
+@transaction.atomic
 def _import_dataset(
     ic: InstanceConfig,
     ds_snapshot: DatasetSnapshot,
@@ -847,6 +870,11 @@ def _import_dataset(
 
     # Recreate source references and comments (data points must exist first).
     _import_dataset_provenance(ic, ic_ct, ds_snapshot, dataset, dp_map)
+
+    if not dataset.is_external_placeholder:
+        from nodes.dataset_materialization import refresh_dataset_materialization
+
+        refresh_dataset_materialization(dataset)
 
     return dataset
 

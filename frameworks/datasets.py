@@ -9,7 +9,7 @@ from pint import DimensionalityError
 from common import polars as ppl
 from frameworks.models import MeasureDataPoint
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.datasets import DVCDataset, GenericDataset
+from nodes.datasets import DatasetPayloadRef, DatasetPayloadStore, DVCDataset, GenericDataset
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DBDatasetModel
@@ -211,6 +211,8 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 class FrameworkMeasureDVCDataset2(DVCDataset):
     measure_data_point_years: list[int] = field(default_factory=list)
     db_dataset_obj: DBDatasetModel | None = field(default=None)
+    payload_ref: DatasetPayloadRef | None = field(default=None)
+    payload_store: DatasetPayloadStore | None = field(default=None)
 
     @classmethod
     def from_def(  # type: ignore[override]
@@ -219,21 +221,30 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         context: Context,
         *,
         db_dataset_obj: DBDatasetModel | None = None,
+        payload_ref: DatasetPayloadRef | None = None,
+        payload_store: DatasetPayloadStore | None = None,
     ) -> Self:
         obj = super().from_def(ds_def, context)
         obj.db_dataset_obj = db_dataset_obj
+        obj.payload_ref = payload_ref
+        obj.payload_store = payload_store
         return obj
 
     @override
     def load_internal(self) -> ppl.PathsDataFrame:
-        if self.db_dataset_obj is None:
+        if self.payload_ref is None and self.db_dataset_obj is None:
             return super().load_internal()
         cached = self.cache_get()
         if cached is not None:
             return cached
-        from nodes.datasets import DBDataset
+        if self.payload_ref is not None:
+            assert self.payload_store is not None
+            df = self.payload_store.get_dataframe(self.payload_ref).copy()
+        else:
+            from nodes.datasets import DBDataset
 
-        df = DBDataset.deserialize_df(self.db_dataset_obj)
+            assert self.db_dataset_obj is not None
+            df = DBDataset.deserialize_df(self.db_dataset_obj)
         df = self._filter_and_process_df(df)
         df = self.post_process(df)
         if self.cache_key:
@@ -248,6 +259,12 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
 
     def hash_data(self) -> dict[str, Any]:
         data = super().hash_data()
+        if self.payload_ref is not None:
+            data.update({
+                'dataset_uuid': self.payload_ref.dataset_uuid,
+                'generation': self.payload_ref.generation,
+                'content_hash': self.payload_ref.content_hash,
+            })
         if self.context.framework_config_data:
             data['framework_config_updated'] = str(self.context.framework_config_data.last_modified_at)
         return data

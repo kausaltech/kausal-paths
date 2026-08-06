@@ -29,6 +29,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
+from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.dataset_placeholders import make_external_dataset_ref, sync_dataset_placeholder
 from nodes.datasets import JSONDataset
 from nodes.models import InstanceConfig
@@ -131,7 +132,8 @@ class Command(BaseCommand):
         )
         parser.add_argument('--force', action='store_true')
 
-    def sync_dataset(  # noqa: C901
+    @transaction.atomic
+    def sync_dataset(  # noqa: C901, PLR0915
         self,
         instance_config: InstanceConfig,
         ctx: Context,
@@ -243,6 +245,7 @@ class Command(BaseCommand):
             column_dimensions=column_dimensions,
             sources_meta=dvc_metadata.get('sources'),
         )
+        refresh_dataset_materialization(dataset)
 
     def create_dataset_schema(
         self,

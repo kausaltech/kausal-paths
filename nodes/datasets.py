@@ -904,6 +904,136 @@ class JSONDataset(Dataset):
         return d
 
 
+@dataclass(frozen=True)
+class DatasetPayloadRef:
+    """Lightweight pointer to a serialized dataset payload."""
+
+    payload_id: int
+    dataset_pk: int
+    dataset_uuid: str
+    identifier: str
+    content_hash: str
+    generation: int | None
+    forecast_from: int | None
+
+
+class DatasetPayloadStore(ABC):
+    """Lazy bulk loader shared by current and revision-backed datasets."""
+
+    def __init__(self, refs: list[DatasetPayloadRef]) -> None:
+        self.refs = refs
+        self._contents: dict[int, dict[str, Any]] | None = None
+        self._dataframes: dict[int, ppl.PathsDataFrame] = {}
+
+    @abstractmethod
+    def _load_contents(self) -> dict[int, dict[str, Any]]:
+        raise NotImplementedError
+
+    def get_content(self, ref: DatasetPayloadRef) -> dict[str, Any]:
+        if self._contents is None:
+            self._contents = self._load_contents()
+        try:
+            return self._contents[ref.payload_id]
+        except KeyError as exc:
+            raise RuntimeError(f'Missing serialized payload {ref.payload_id} for dataset {ref.identifier}') from exc
+
+    def get_dataframe(self, ref: DatasetPayloadRef) -> ppl.PathsDataFrame:
+        cached = self._dataframes.get(ref.payload_id)
+        if cached is not None:
+            return cached
+        content = self.get_content(ref)
+        data = content.get('data')
+        if data is None:
+            raise RuntimeError(f'Dataset {ref.identifier} has no serialized dataframe payload')
+        df = JSONDataset.deserialize_df(data)
+        self._dataframes[ref.payload_id] = df
+        return df
+
+
+class CurrentDatasetPayloadStore(DatasetPayloadStore):
+    def _load_contents(self) -> dict[int, dict[str, Any]]:
+        from nodes.models import DatasetMaterialization
+
+        payload_ids = {ref.payload_id for ref in self.refs}
+        rows = DatasetMaterialization.objects.filter(pk__in=payload_ids).values_list('pk', 'content')
+        contents = dict(rows)
+        missing = payload_ids - contents.keys()
+        if missing:
+            raise RuntimeError(f'Missing current dataset materializations: {sorted(missing)}')
+        return contents
+
+
+class RevisionDatasetPayloadStore(DatasetPayloadStore):
+    def _load_contents(self) -> dict[int, dict[str, Any]]:
+        from wagtail.models import Revision
+
+        payload_ids = {ref.payload_id for ref in self.refs}
+        rows = Revision.objects.filter(pk__in=payload_ids).values_list('pk', 'content')
+        contents = dict(rows)
+        missing = payload_ids - contents.keys()
+        if missing:
+            raise RuntimeError(f'Missing published dataset revisions: {sorted(missing)}')
+        return contents
+
+
+@dataclass
+class SerializedDBDataset(DatasetWithFilters):
+    """DB dataset loaded from a current or immutable serialized payload."""
+
+    payload_ref: DatasetPayloadRef | None = None
+    payload_store: DatasetPayloadStore | None = None
+
+    @classmethod
+    def from_def(
+        cls,
+        ds_def: InputDatasetDef,
+        context: Context,
+        *,
+        payload_ref: DatasetPayloadRef,
+        payload_store: DatasetPayloadStore,
+    ) -> Self:
+        from nodes.defs.transform_def import with_forecast_from
+
+        kwargs = super().kwargs_from_def(ds_def)
+        if kwargs['forecast_from'] is None and payload_ref.forecast_from is not None:
+            kwargs['forecast_from'] = payload_ref.forecast_from
+            kwargs['transformations'] = with_forecast_from(kwargs['transformations'], payload_ref.forecast_from)
+        return cls(
+            id=ds_def.id,
+            context=context,
+            **kwargs,
+            payload_ref=payload_ref,
+            payload_store=payload_store,
+        )
+
+    @override
+    def load_internal(self) -> ppl.PathsDataFrame:
+        if self.df is not None:
+            return self.df
+        assert self.payload_ref is not None
+        assert self.payload_store is not None
+        df = self.payload_store.get_dataframe(self.payload_ref).copy()
+        df = self._filter_and_process_df(df)
+        df = self.post_process(df)
+        self.df = df
+        return df
+
+    def hash_data(self) -> dict[str, Any]:
+        assert self.payload_ref is not None
+        return {
+            'dataset_uuid': self.payload_ref.dataset_uuid,
+            'generation': self.payload_ref.generation,
+            'content_hash': self.payload_ref.content_hash,
+        }
+
+    def get_unit(self) -> Unit:
+        df = self.load_internal()
+        meta = df.get_meta()
+        if len(meta.units) == 1:
+            return next(iter(meta.units.values()))
+        raise Exception('Dataset %s does not have a single unit' % self.id)
+
+
 @dataclass
 class DBDataset(DatasetWithFilters):
     """Dataset that is loaded from the admin UI's Dataset model."""
