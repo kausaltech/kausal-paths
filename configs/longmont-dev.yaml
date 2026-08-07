@@ -1190,10 +1190,12 @@ nodes:
   name: Building natural gas use, business as usual
   name_es-US: Consumo de gas natural en edificios, sin intervención
   description: 'Building natural gas demand if the city took no action at all:
-    floor area x business-as-usual energy use intensity. <ul><li>bau(t) = floor_area(t)
-    * (eui_baseline(t) + trend(t))</li></ul> eui_baseline is the observed intensity
-    from the inventory; trend is the autonomous (non-city-driven) change. Each building
-    action''s saving is computed against this node and subtracted downstream in
+    floor area x the observed energy use intensity. <ul><li>bau(t) = floor_area(t)
+    * eui_baseline(t)</li></ul> eui_baseline is the intensity observed in the
+    inventory, held flat through the forecast: business as usual means the city
+    stops updating its building code, so there is no autonomous intensity
+    improvement and demand grows only with floor area. Each building action''s
+    saving is computed against this node and subtracted downstream in
     building_natural_gas_use_pre_electrification, matching the original consultant
     spreadsheet''s structure.'
   type: formula.FormulaNode
@@ -1210,10 +1212,8 @@ nodes:
   input_nodes:
   - id: building_square_footage_by_building_class
     tags: [floor_area]
-  - id: energy_use_intensity_trend_natural_gas
-    tags: [trend, extend_both_ways]
   params:
-    formula: floor_area * (eui + trend)
+    formula: floor_area * eui
 
 - id: natural_gas_saved_by_updated_building_code
   name: Natural gas saved by the updated building code
@@ -1361,10 +1361,12 @@ nodes:
   name: Building electricity use, business as usual
   name_es-US: Consumo de electricidad en edificios, sin intervención
   description: 'Building electricity demand if the city took no action at all: floor
-    area x business-as-usual energy use intensity. <ul><li>bau(t) = floor_area(t) *
-    (eui_baseline(t) + trend(t))</li></ul> eui_baseline is the observed intensity from
-    the inventory; trend is the autonomous (non-city-driven) change. Each building
-    action''s saving is computed against this node and subtracted downstream in
+    area x the observed energy use intensity. <ul><li>bau(t) = floor_area(t) *
+    eui_baseline(t)</li></ul> eui_baseline is the intensity observed in the
+    inventory, held flat through the forecast: business as usual means the city
+    stops updating its building code, so there is no autonomous intensity
+    improvement and demand grows only with floor area. Each building action''s saving
+    is computed against this node and subtracted downstream in
     building_electricity_use.'
   type: formula.FormulaNode
   quantity: energy
@@ -1380,10 +1382,8 @@ nodes:
   input_nodes:
   - id: building_square_footage_by_building_class
     tags: [floor_area]
-  - id: energy_use_intensity_trend_electricity
-    tags: [trend]
   params:
-    formula: floor_area * (eui + trend)
+    formula: floor_area * eui
 
 - id: electricity_saved_by_updated_building_code
   name: Electricity saved by the updated building code
@@ -3194,52 +3194,6 @@ nodes:
     - id: emission_sectors
   params:
     formula: cumulative(flow * improvement)
-
-- id: energy_use_intensity_trend_natural_gas
-  name: Energy use intensity trend (natural gas)
-  name_es-US: Tendencia de la intensidad del uso de la energía (gas natural)
-  description: This action describes the assumed improvement in the energy use 
-    intensity for the baseline scenario, i.e. changes that will occur anyway 
-    without any activity from the city.
-  description_es-US: Esta acción describe la mejora supuesta en la intensidad 
-    del uso de la energía para el escenario de referencia, es decir, los cambios
-    que se producirán de todos modos sin intervención alguna por parte de la 
-    ciudad.
-  type: generic.GenericNode
-  quantity: consumption_factor
-  unit: thm/ft**2/a
-  output_dimensions: [emission_sectors]
-  input_datasets:
-  - id: longmont/energy_use_intensity_improvements
-    column: natural_gas
-    tags: [cleaned, extend_both_ways]
-    filters:
-    - column: action
-      value: none
-    forecast_from: 2025
-
-- id: energy_use_intensity_trend_electricity
-  name: Energy use intensity trend (electricity)
-  name_es-US: Tendencia de la intensidad del uso de la energía (electricidad)
-  description: This action describes the assumed improvement in the energy use 
-    intensity for the baseline scenario, i.e. changes that will occur anyway 
-    without any activity from the city.
-  description_es-US: Esta acción describe la mejora supuesta en la intensidad 
-    del uso de la energía para el escenario de referencia, es decir, los cambios
-    que se producirán de todos modos sin intervención alguna por parte de la 
-    ciudad.
-  type: generic.GenericNode
-  quantity: consumption_factor
-  unit: kWh/ft**2/a
-  output_dimensions: [emission_sectors]
-  input_datasets:
-  - id: longmont/energy_use_intensity_improvements
-    column: electricity
-    tags: [cleaned, extend_both_ways]
-    filters:
-    - column: action
-      value: none
-    forecast_from: 2025
 
 # Trends beyond the city's own control.
 
