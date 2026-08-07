@@ -6,6 +6,11 @@ Data in Paths flows downstream through edges. Dimensional shape
 requirements flow upstream: an outcome node declares which dimensions
 it expects, and those requirements propagate back through the graph,
 modified by each node's signature and each edge's transformations.
+Some shapes are also derived forward from connected inputs, so the full
+picture is a bidirectional fixpoint (see
+[Edit-time inference is bidirectional](#edit-time-inference-is-bidirectional)),
+and the same constraint walk covers units and quantities, not only
+dimensions.
 
 This document captures the vocabulary and the design direction.
 
@@ -103,8 +108,88 @@ The target state is therefore:
    - An `AssignDimension` means the upstream node does *not* need to
      have that dimension — it's added in transit.
 
+   Constraints are not only dimension-level. A `FilterDimension` with
+   `categories` requires those categories to exist upstream and narrows
+   what flows downstream to that subset; propagation can carry category
+   sets where they are known (chained filters that select disjoint sets
+   are a detectable configuration error). Category-level propagation is
+   a refinement of the dimension-level walk, not a separate mechanism.
+
 4. The propagated requirement at an input port is a function of:
    downstream shape + node signature + edge transforms.
+
+
+### Edit-time inference is bidirectional
+
+The walk above is downstream-to-upstream from outcome nodes. That alone
+is not enough for the editor, for two reasons.
+
+**Some output shapes are derived forward.** A multiplicative node's
+output dimensions are the union of its connected inputs (and its output
+unit is their product — see [Units and quantities](#units-and-quantities-constrain-the-same-way)).
+Such an output port has a *computed* shape that changes as connections
+are made, and the change re-propagates downstream. The signature facets
+express this: `produces` can be a function of the connected inputs, not
+only a static declaration.
+
+**Constraints emerge on partial graphs.** The editor needs answers while
+the graph is being built, before any outcome-node requirement reaches
+the node under construction:
+
+- Connecting the first input to an additive node pins a shape; every
+  subsequent connection must match it (after its edge transforms), and
+  the editor should say so at connect time, not at first computation.
+- Each further connection to a multiplicative node extends the output
+  union, which may invalidate or newly satisfy constraints downstream.
+
+Propagation is therefore a fixpoint over both directions rather than a
+single upstream pass: forward derivation of computed output shapes,
+backward propagation of requirements, iterated until stable. On the
+graphs Paths works with this converges trivially (shapes only grow or
+stay fixed along either direction), but the implementation should be
+written as a fixpoint, not as one walk with special cases.
+
+Two consequences for the editor:
+
+- **Port compatibility is answerable at connect time**: "which output
+  ports can legally bind here" is a query against the current fixpoint,
+  and a new connection that contradicts a pinned shape fails validation
+  on the binding being created — with the conflicting constraint's
+  origin (which connection pinned it) in the error.
+- **Computed shapes must be recomputed, never stored** into authored
+  fields (see [Authored vs computed declarations](#authored-vs-computed-declarations));
+  an edit that removes the first input of an additive node legitimately
+  *unpins* its shape.
+
+
+### Units and quantities constrain the same way
+
+A port's shape is really **dimensions × unit × quantity**. Ports already
+carry the latter two (`OutputPortDef.unit` is required;
+`InputPortDef.unit` and `quantity` are optional), and the same
+propagation walk applies to all three facets:
+
+- **Additive**: inputs and output must be unit-*compatible* (convertible,
+  not identical — pint conversion at the boundary is fine) and share a
+  quantity kind.
+- **Multiplicative**: the output unit is the product of the input units;
+  the output quantity follows from the input quantities where the
+  quantity algebra knows the combination (energy × emission factor →
+  emissions).
+- **Flatten-sum** preserves unit and quantity; `AssignDimension` and
+  category filters touch neither.
+- **`ensure_unit`** is the unit analog of an edge dimension adapter: an
+  explicit conversion declared on the binding.
+
+Quantity kinds are coarser than units and catch errors units cannot:
+two `dimensionless` ports may still be incompatible because one is a
+share of buildings and the other a ratio of prices. Where quantities are
+declared, they constrain; where not, only units do.
+
+Validation reports each facet separately — "dimensions match but units
+are incompatible" and "units match but quantities differ" are distinct,
+actionable errors. The fixpoint carries the triple; there is no separate
+unit-propagation machinery.
 
 
 ### Structural dimensions only
@@ -141,13 +226,15 @@ refuse non-structural dimensions rather than silently summing them.
 Stored dimension fields on ports are **authored** data. Propagation
 results are **computed** and must not be written back over them.
 
-This is not yet true in the code: `_export_input_ports()` fills in
-`required_dimensions` *and* `supported_dimensions` on every port from
-observed runtime dimensions, which stores computed data in authored
-fields — the drifting-registry failure that
-[`metric-dataframe.md`](metric-dataframe.md) warns against. The same
-applies to `DatasetPortSpec.output_dimensions`, a manual override of what
-the dataset schema plus the op pipeline should derive.
+This is not yet fully true in the code: the multi-port grouping in
+`_apply_input_port_multi_hints()` still fills `required_dimensions` and
+`supported_dimensions` on the group's port from observed runtime
+dimensions, which stores computed data in authored fields — the
+drifting-registry failure that [`metric-dataframe.md`](metric-dataframe.md)
+warns against. (The blanket per-port fill this section used to describe is
+gone; only the multi-group path remains.) The same applies to
+`DatasetPortSpec.output_dimensions`, a manual override of what the dataset
+schema plus the op pipeline should derive.
 
 Rules going forward:
 
@@ -237,6 +324,12 @@ binding's source reference, not a transformation.
   so applicability is the input type's field list, introspectable by the
   editor UI; `createEdge` still accepts the deprecated legacy fields.
 - Ports may carry an optional human-readable `identifier`.
+- The runtime executes the typed op pipeline at the edge boundary
+  (`6d798054`): `_get_output_for_target()` derives ops via
+  `Edge.to_transforms()` and runs the shared executor, with `flatten`
+  excluded from execution (it only feeds the output-shape assertion).
+  Execution still happens on the producing node, fed from the legacy
+  dicts — the consuming-port half of step 3 below remains.
 
 **Next, in dependency order.** The first three are prerequisites for
 propagation, not independent work:
@@ -250,14 +343,18 @@ propagation, not independent work:
    `(node, dataset_index)` grouping that stands in for binding identity today.
 2. Move the ex-`FlattenTransformation` shape declarations onto
    `InputPortDef` and retire the `flatten` kind.
-3. Rewrite `_get_output_for_node()` and `_get_output_for_target()` to
-   consume the op pipeline at the consuming port instead of the legacy
-   `from_dimensions` / `to_dimensions` dicts on the producer. Until then,
-   `_transforms_to_config()` in `instance_from_db.py` is the seam that
-   translates stored transformations back into those dicts, and it bounds
-   what an edge can execute — which is why `EdgeTransformationInput` accepts
-   only the dimension-reshaping kinds for now. This step widens it with
-   `drop_nulls` / `filter_temporal` / `ensure_unit` (additive, non-breaking).
+3. Consume the op pipeline **at the consuming port** from the stored
+   binding. `_get_output_for_target()` already executes the typed ops
+   through the shared executor, but derives them from the producer-side
+   `from_dimensions` / `to_dimensions` dicts, and
+   `_get_output_for_node()`'s metric selection and node-column filter are
+   still outside the pipeline. Until the stored binding feeds the runtime
+   directly, `_transforms_to_config()` in `instance_from_db.py` is the seam
+   that translates stored transformations back into those dicts, and it
+   bounds what an edge can execute — which is why `EdgeTransformationInput`
+   accepts only the dimension-reshaping kinds for now. This step widens it
+   with `drop_nulls` / `filter_temporal` / `ensure_unit` (additive,
+   non-breaking).
 4. Add node dimension signatures (requires/consumes/produces/transparent)
    to node classes or pipeline definitions.
 5. Implement upstream constraint propagation for the editor's validation
