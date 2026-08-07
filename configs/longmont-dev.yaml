@@ -14,7 +14,7 @@ default_language: en
 supported_languages: [es-US]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8a14717f83f78908ae2fd0c578cd23b797ed864a
+  commit: 4ba778c5d5f7f8a9e625d85e3f23285b2be22cb8
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -1217,41 +1217,85 @@ nodes:
 
 - id: natural_gas_saved_by_updated_building_code
   name: Natural gas saved by the updated building code
-  description: The Mthm/a of gas demand removed from building_natural_gas_use_bau by
-    updated_building_code. Equal to the business-as-usual demand times the cumulative
-    intensity reduction the action has achieved so far
-    (updated_building_code_eui_reduction).
+  description: 'The Mthm/a of demand removed from the business-as-usual level by
+    updated_building_code, computed the way the consultant spreadsheet computes it (Building Energy
+    Model, the "Annual change" rows): <ul><li>saving(t) = eui x SUM over t''<=t of [
+    area_under_code(t'') x improvement(t'') ]</li></ul> Each year''s newly compliant
+    floor area is priced at that year''s achievable improvement and keeps it, so floor
+    area is never retroactively re-priced at a later code vintage. No division and no
+    epsilon guard is involved.'
   type: formula.FormulaNode
   quantity: energy
   unit: Mthm/a
   input_dimensions: [building_energy_class, emission_sectors]
   output_dimensions: [building_energy_class, emission_sectors]
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: natural_gas
+    forecast_from: 2025
+    tags: [eui, extend_both_ways]
+    output_dimensions: [emission_sectors]
   input_nodes:
-  - id: building_natural_gas_use_bau
-    tags: [bau]
-  - id: updated_building_code_eui_reduction
-    tags: [reduction]
+  - id: floor_area_renovated_to_code
+    tags: [renovated]
+    to_dimensions:
+    - id: emission_sectors
+    - id: building_energy_class
+      categories: [existing]
+  - id: floor_area_built_to_code
+    tags: [built]
+    to_dimensions:
+    - id: emission_sectors
+    - id: building_energy_class
+      categories: [new]
+  - id: energy_use_intensity_improvement
+    tags: [improvement]
+    from_dimensions:
+    - id: action
+      categories: [updated_building_code]
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
   params:
-    formula: bau * reduction
+    formula: eui * cumulative(zero_fill(renovated + built) * improvement)
 
 - id: natural_gas_saved_by_develop_beyond_building_code
   name: Natural gas saved by developing beyond the building code
-  description: The Mthm/a of gas demand removed from building_natural_gas_use_bau by
-    develop_beyond_building_code, over and above what updated_building_code already
-    saves (see develop_beyond_building_code_eui_reduction). Only new construction is
-    affected.
+  description: 'The Mthm/a of demand removed from the business-as-usual level by
+    develop_beyond_building_code, computed the way the consultant spreadsheet computes it (Building Energy
+    Model, the "Annual change" rows): <ul><li>saving(t) = eui x SUM over t''<=t of [
+    area_under_code(t'') x improvement(t'') ]</li></ul> Each year''s newly compliant
+    floor area is priced at that year''s achievable improvement and keeps it, so floor
+    area is never retroactively re-priced at a later code vintage. No division and no
+    epsilon guard is involved.'
   type: formula.FormulaNode
   quantity: energy
   unit: Mthm/a
   input_dimensions: [building_energy_class, emission_sectors]
   output_dimensions: [building_energy_class, emission_sectors]
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: natural_gas
+    forecast_from: 2025
+    tags: [eui, extend_both_ways]
+    output_dimensions: [emission_sectors]
   input_nodes:
-  - id: building_natural_gas_use_bau
-    tags: [bau]
-  - id: develop_beyond_building_code_eui_reduction
-    tags: [reduction]
+  - id: floor_area_built_beyond_code
+    tags: [built_beyond]
+    to_dimensions:
+    - id: emission_sectors
+    - id: building_energy_class
+      categories: [new]
+  - id: energy_use_intensity_improvement
+    tags: [improvement]
+    from_dimensions:
+    - id: action
+      categories: [develop_beyond_building_code]
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
   params:
-    formula: bau * reduction
+    formula: eui * cumulative(zero_fill(built_beyond) * improvement)
 
 - id: building_natural_gas_use_pre_electrification
   name: Building natural gas use (before building electrification)
@@ -1387,41 +1431,85 @@ nodes:
 
 - id: electricity_saved_by_updated_building_code
   name: Electricity saved by the updated building code
-  description: The GWh/a of electricity demand removed from building_electricity_use_bau
-    by updated_building_code. Equal to the business-as-usual demand times the cumulative
-    intensity reduction the action has achieved so far
-    (updated_building_code_eui_reduction).
+  description: 'The GWh/a of demand removed from the business-as-usual level by
+    updated_building_code, computed the way the consultant spreadsheet computes it (Building Energy
+    Model, the "Annual change" rows): <ul><li>saving(t) = eui x SUM over t''<=t of [
+    area_under_code(t'') x improvement(t'') ]</li></ul> Each year''s newly compliant
+    floor area is priced at that year''s achievable improvement and keeps it, so floor
+    area is never retroactively re-priced at a later code vintage. No division and no
+    epsilon guard is involved.'
   type: formula.FormulaNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [building_energy_class, emission_sectors]
   output_dimensions: [building_energy_class, emission_sectors]
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
+    forecast_from: 2025
+    tags: [eui, cleaned, extend_both_ways]
+    output_dimensions: [emission_sectors]
   input_nodes:
-  - id: building_electricity_use_bau
-    tags: [bau]
-  - id: updated_building_code_eui_reduction
-    tags: [reduction]
+  - id: floor_area_renovated_to_code
+    tags: [renovated]
+    to_dimensions:
+    - id: emission_sectors
+    - id: building_energy_class
+      categories: [existing]
+  - id: floor_area_built_to_code
+    tags: [built]
+    to_dimensions:
+    - id: emission_sectors
+    - id: building_energy_class
+      categories: [new]
+  - id: energy_use_intensity_improvement
+    tags: [improvement]
+    from_dimensions:
+    - id: action
+      categories: [updated_building_code]
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
   params:
-    formula: bau * reduction
+    formula: eui * cumulative(zero_fill(renovated + built) * improvement)
 
 - id: electricity_saved_by_develop_beyond_building_code
   name: Electricity saved by developing beyond the building code
-  description: The GWh/a of electricity demand removed from building_electricity_use_bau
-    by develop_beyond_building_code, over and above what updated_building_code already
-    saves (see develop_beyond_building_code_eui_reduction). Only new construction is
-    affected.
+  description: 'The GWh/a of demand removed from the business-as-usual level by
+    develop_beyond_building_code, computed the way the consultant spreadsheet computes it (Building Energy
+    Model, the "Annual change" rows): <ul><li>saving(t) = eui x SUM over t''<=t of [
+    area_under_code(t'') x improvement(t'') ]</li></ul> Each year''s newly compliant
+    floor area is priced at that year''s achievable improvement and keeps it, so floor
+    area is never retroactively re-priced at a later code vintage. No division and no
+    epsilon guard is involved.'
   type: formula.FormulaNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [building_energy_class, emission_sectors]
   output_dimensions: [building_energy_class, emission_sectors]
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: electricity
+    forecast_from: 2025
+    tags: [eui, cleaned, extend_both_ways]
+    output_dimensions: [emission_sectors]
   input_nodes:
-  - id: building_electricity_use_bau
-    tags: [bau]
-  - id: develop_beyond_building_code_eui_reduction
-    tags: [reduction]
+  - id: floor_area_built_beyond_code
+    tags: [built_beyond]
+    to_dimensions:
+    - id: emission_sectors
+    - id: building_energy_class
+      categories: [new]
+  - id: energy_use_intensity_improvement
+    tags: [improvement]
+    from_dimensions:
+    - id: action
+      categories: [develop_beyond_building_code]
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
   params:
-    formula: bau * reduction
+    formula: eui * cumulative(zero_fill(built_beyond) * improvement)
 
 - id: building_electricity_use
   name: Building electricity use
@@ -3130,70 +3218,56 @@ nodes:
   params:
     operations: get_single_dataset,extend_to_history
 
-- id: updated_building_code_eui_reduction
-  name: Energy use intensity reduction from the updated building code
-  description: "How much lower the energy use intensity is, relative to business as\
-    \ usual, because of updated_building_code -- cumulative, so it retains what earlier\
-    \ years achieved:<ul> <li>reduction(t) = SUM over t'<=t of [ flow(t') * improvement(t')\
-    \ ]</li></ul> flow(t') is the share of floor area brought under the code in year\
-    \ t' and improvement(t') is the intensity saving achievable with the code in force\
-    \ that year, so floor area keeps the code vintage it was built or renovated to\
-    \ rather than being retroactively re-priced at a later year's rate.\nBoth affected\
-    \ populations come from the action's own flow in the longmont/building_actions\
-    \ dataset: the existing stock is renovated at a yearly rate ('Existing building\
-    \ stock', 1%/a from 2025), and new construction complies with the code as it is\
-    \ built ('Building stock to be built', a 90% compliance rate). The consultant\
-    \ spreadsheet applies one shared new-construction compliance rate (Model\
-    \ Inputs!$B30) to this action and to develop_beyond_building_code alike -- Building\
-    \ Energy Model rows 69-75 and 111-119 use an identical affected-square-footage\
-    \ formula -- so the same 90% appears in both actions' rows. Keeping each action's\
-    \ own copy matters for impact attribution: if the city stops adopting the IECC,\
-    \ new construction is built to the old code, and disabling this action has to\
-    \ remove that saving too."
+- id: floor_area_renovated_to_code
+  name: Floor area renovated up to the current building code
+  description: "The existing floor area brought up to the current IECC each year:\
+    \ renovation_rate(t) x existing_stock(t). A per-year rate (ft2/a), which is what\
+    \ the savings nodes cumulate. Fed by updated_building_code's renovation_rate\
+    \ metric, so it goes to zero when that action is disabled."
   type: formula.FormulaNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [building_energy_class, emission_sectors]
-  output_dimensions: [building_energy_class, emission_sectors]
+  quantity: floor_area
+  unit: ft^2/a
+  output_dimensions: [emission_sectors]
   input_nodes:
-  - id: updated_building_code
-    tags: [flow]
-  - id: energy_use_intensity_improvement
-    tags: [improvement]
-    from_dimensions:
-    - id: action
-      categories: [updated_building_code]
-      flatten: true
-    to_dimensions:
-    - id: emission_sectors
+  - id: building_square_footage_old
+    tags: [existing_stock]
   params:
-    formula: cumulative(flow * improvement)
+    formula: renovation_rate * existing_stock
 
-- id: develop_beyond_building_code_eui_reduction
-  name: Energy use intensity reduction from developing beyond the building code
-  description: The additional intensity reduction from develop_beyond_building_code,
-    on top of what updated_building_code already achieves for the same new
-    construction. Same cumulative, vintage-retaining form as
-    updated_building_code_eui_reduction -- see that node for the mechanism. Only the
-    new building stock is affected; the existing stock has no flow in the dataset.
+- id: floor_area_built_to_code
+  name: Floor area newly built to the current building code
+  description: "The new floor area built to the IECC in force that year:\
+    \ compliance(t) x difference(new_stock)(t). difference() gives the floor area added\
+    \ in that single year, so each year's construction is credited at that year's code\
+    \ and keeps it -- this is what fixes the frozen-2025-vintage defect. Fed by\
+    \ updated_building_code's new_compliance metric, so it goes to zero when that\
+    \ action is disabled."
   type: formula.FormulaNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [building_energy_class, emission_sectors]
-  output_dimensions: [building_energy_class, emission_sectors]
+  quantity: floor_area
+  unit: ft^2/a
+  output_dimensions: [emission_sectors]
   input_nodes:
-  - id: develop_beyond_building_code
-    tags: [flow]
-  - id: energy_use_intensity_improvement
-    tags: [improvement]
-    from_dimensions:
-    - id: action
-      categories: [develop_beyond_building_code]
-      flatten: true
-    to_dimensions:
-    - id: emission_sectors
+  - id: building_square_footage_new
+    tags: [new_stock]
   params:
-    formula: cumulative(flow * improvement)
+    formula: compliance * difference(new_stock)
+
+- id: floor_area_built_beyond_code
+  name: Floor area newly built beyond the current building code
+  description: The new floor area built beyond the IECC in force that year -- same
+    population and same shared 90% compliance rate as floor_area_built_to_code (see
+    that node); the two actions differ in the improvement achieved, not in the floor
+    area affected. Fed by develop_beyond_building_code, so it goes to zero when that
+    action is disabled.
+  type: formula.FormulaNode
+  quantity: floor_area
+  unit: ft^2/a
+  output_dimensions: [emission_sectors]
+  input_nodes:
+  - id: building_square_footage_new
+    tags: [new_stock]
+  params:
+    formula: compliance * difference(new_stock)
 
 # Trends beyond the city's own control.
 
@@ -3272,16 +3346,43 @@ actions:
     de energía (EUI, por sus siglas en inglés) causada por esta acción.</p> <p>Seguimiento
     de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-5">Estrategia
     del Plan de Sustentabilidad BI-5</a></li></ul></p>'
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%/a'
+  type: simple.AdditiveAction
   group: buildings
   output_dimensions: [building_energy_class, emission_sectors]
+  output_metrics:
+  - id: renovation_rate
+    quantity: fraction
+    unit: '%/a'
+    column_id: updated_building_code_renovation_rate
+  - id: new_compliance
+    quantity: fraction
+    unit: '%'
+    column_id: updated_building_code_new_compliance
   input_datasets:
   - id: longmont/building_actions
-    column: updated_building_code
-  params:
-    operations: get_single_dataset
+    tags: [extend_all]
+    forecast_from: 2025
+    filters:
+    - column: develop_beyond_building_code_new_compliance
+    - column: benchmark_energy_use_electricity
+    - column: benchmark_energy_use_natural_gas
+    - column: replace_natural_gas_residential
+    - column: replace_natural_gas_commercial
+  output_nodes:
+  - id: floor_area_renovated_to_code
+    metrics: [updated_building_code_renovation_rate]
+    tags: [renovation_rate]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [existing]
+      flatten: true
+  - id: floor_area_built_to_code
+    metrics: [updated_building_code_new_compliance]
+    tags: [compliance]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [new]
+      flatten: true
 
 - id: develop_beyond_building_code
   name: Develop beyond building code
@@ -3302,14 +3403,21 @@ actions:
     del Plan de Sustentabilidad BI-6</a></li></ul></p>'
   type: simple.GenericAction
   quantity: fraction
-  unit: '%/a'
+  unit: '%'
   group: buildings
   output_dimensions: [building_energy_class, emission_sectors]
   input_datasets:
   - id: longmont/building_actions
-    column: develop_beyond_building_code
+    column: develop_beyond_building_code_new_compliance
   params:
     operations: get_single_dataset
+  output_nodes:
+  - id: floor_area_built_beyond_code
+    tags: [compliance]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [new]
+      flatten: true
 
 - id: benchmark_energy_use
   name: Report and benchmark energy use in commercial buildings
@@ -3344,8 +3452,9 @@ actions:
     tags: [extend_all]
     forecast_from: 2025
     filters:
-    - column: updated_building_code
-    - column: develop_beyond_building_code
+    - column: updated_building_code_renovation_rate
+    - column: updated_building_code_new_compliance
+    - column: develop_beyond_building_code_new_compliance
     - column: replace_natural_gas_residential
     - column: replace_natural_gas_commercial
   output_nodes:
