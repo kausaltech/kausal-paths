@@ -19,7 +19,8 @@ This document captures the vocabulary and the design direction.
 
 ### Node dimension signature
 
-Every node (or pipeline step) has a dimension signature with four facets:
+Every node (or pipeline step) has a shape signature relating its ports. For a
+one-input/one-output dimension transformation, the relation has four facets:
 
 | Facet | Meaning | Example |
 |---|---|---|
@@ -31,11 +32,17 @@ Every node (or pipeline step) has a dimension signature with four facets:
 `consumes` is always a subset of `requires`. `produces` is disjoint
 from `requires`.
 
+Additive and multiplicative nodes also need a relation across several ports;
+their signatures are equality and union/product rules respectively. The
+concrete rule model is described under [Node shape rules](#node-shape-rules).
+
 For datasets, only `produces` applies — a dataset declares the shape
 of what it emits.
 
-For outcome nodes, `requires` is set explicitly by the user (e.g.
-"I want `sector` in the final output").
+For outcome nodes, the requested result shape is set explicitly by the user
+(e.g. “I want `sector` in the final output”). That is an output-port
+declaration, not the node signature's `requires` facet; the signature relates
+the declared output back to the node's inputs.
 
 
 ### Dimension transformations on edges
@@ -145,9 +152,10 @@ the node under construction:
 Propagation is therefore a fixpoint over both directions rather than a
 single upstream pass: forward derivation of computed output shapes,
 backward propagation of requirements, iterated until stable. On the
-graphs Paths works with this converges trivially (shapes only grow or
-stay fixed along either direction), but the implementation should be
-written as a fixpoint, not as one walk with special cases.
+graphs Paths works with this converges trivially: information only tightens
+during one evaluation (required lower bounds grow and allowed upper bounds
+shrink). The implementation should still be written as a fixpoint, not as one
+walk with special cases.
 
 Two consequences for the editor:
 
@@ -214,7 +222,7 @@ refuse non-structural dimensions rather than silently summing them.
 | What | Where | Static or computed? |
 |---|---|---|
 | Node class dimension rules | Node class or pipeline definition | Static (per class/pipeline) |
-| Outcome node required dims | `InputPortDef.required_dimensions` | Static (user-configured) |
+| Outcome node required dims | `OutputPortDef.dimensions` | Static (user-configured) |
 | Port shape declarations (ex-`FlattenTransformation`) | `InputPortDef` | Static (user-configured) |
 | Binding transformations | `PortBindingDef.transformations` on the **consuming** port | Static (user-configured) |
 | Input port effective requirement | Computed from downstream | Computed at validation/editor time |
@@ -238,15 +246,419 @@ schema plus the op pipeline should derive.
 
 Rules going forward:
 
-- `InputPortDef.required_dimensions` is authored, and meaningful for
-  outcome nodes and explicit shape declarations. Everywhere else the
-  requirement is computed.
+- The current `InputPortDef.required_dimensions` (eventually
+  `dimensions.required`) is authored, and meaningful for explicit
+  consuming-port shape declarations. An outcome's requested result shape is
+  instead authored on its output port; the node signature carries it back to
+  the inputs. Everywhere else the input requirement is computed.
 - Propagation results are exposed as a separate derived field (for
   example `effectiveRequiredDimensions` in GraphQL), never by overwriting
   the authored one.
 - No mutation may accept computed dimension sets as input.
   `DatasetPortSpec.output_dimensions` stays read-only and is retired once
   schema + ops can derive it.
+
+
+## Proposed data model
+
+There are four different kinds of state here. Keeping them separate is more
+important than the exact class names:
+
+| Layer | Representation | Persisted? |
+|---|---|---|
+| Authored port declarations | Pydantic values inside `NodeSpec` | Yes, in `NodeConfig.spec` |
+| Node shape algebra | Node-class or pipeline rules | No duplicate copy in the database |
+| Input bindings and transformations | One ORM row per binding | Yes |
+| Effective shapes, provenance and conflicts | Constraint-engine values | No; derived for the current graph |
+
+In particular, there should be no `DimensionConstraint` Django model. A
+constraint is invalidated by ordinary graph edits and is cheap to recompute.
+Persisting it would create a cache-coherency problem and, worse, a second
+authored-looking source of truth.
+
+
+### Authored port declarations
+
+The current fields have two ambiguous empty values:
+
+- `OutputPortDef.dimensions=[]` can mean either “scalar output” or “not known
+  yet”.
+- `InputPortDef.supported_dimensions=[]` can mean either “no dimensions are
+  supported” or “there is no upper bound”.
+
+The constraint engine needs those states to be distinct. Model dimension sets
+as lower and upper bounds: `required` dimensions must occur; `allowed=None`
+means there is no upper bound; an exact set has the same `required` and
+`allowed` members. Thus an exact scalar is `required=[]`, `allowed=[]`, while a
+wholly unconstrained port is `required=[]`, `allowed=None`.
+
+One possible Pydantic shape is:
+
+```python
+class DimensionSetSpec(BaseModel):
+    required: UniqueList[DimensionRef] = Field(default_factory=list)
+    allowed: UniqueList[DimensionRef] | None = None
+
+    @classmethod
+    def exact(cls, dimensions: list[DimensionRef]) -> Self:
+        return cls(required=dimensions, allowed=dimensions)
+
+
+class InputPortDef(I18nBaseModel):
+    id: UUID
+    identifier: NodePortIdentifier | None = None
+    dimensions: DimensionSetSpec = Field(default_factory=DimensionSetSpec)
+    unit: Unit | None = None
+    quantity: QuantityKindRef | None = None
+    multi: bool = False
+
+
+class OutputPortDef(I18nBaseModel):
+    id: UUID
+    identifier: NodePortIdentifier | None = None
+    # None has no authored declaration; exact([]) is an authored scalar.
+    dimensions: DimensionSetSpec | None = None
+    unit: Unit | None = None
+    quantity: QuantityKindRef | None = None
+```
+
+`OutputPortDef.unit` becomes optional for the same reason as dimensions: a
+multiplicative output can derive its unit from its inputs. It remains required
+by validation for node rules that do not derive it.
+
+This does not require an immediate JSON migration. The first implementation
+can translate the current fields at the boundary:
+
+```text
+required_dimensions != []      -> dimensions.required
+supported_dimensions != []     -> dimensions.allowed
+OutputPortDef.dimensions != []  -> DimensionSetSpec.exact(...)
+```
+
+The empty `supported_dimensions` and output `dimensions` cases need deliberate
+migration rules; their meanings cannot be recovered from the values alone. The
+safe defaults are unbounded input dimensions and no authored output
+declaration, with node classes that are genuinely scalar-only declaring an
+exact empty set.
+
+Port UUIDs are durable instance-local identity and are what bindings refer to.
+Port identifiers are the structural names used by node-class rules and
+formulas. A class-declared port therefore needs an identifier even though it
+remains optional during the migration of anonymous YAML-derived ports. An
+anonymous port can still be executed, but it cannot participate in a
+class-level signature until it is given a structural name.
+
+
+### Node shape rules
+
+The four signature facets are sufficient for a one-input/one-output
+transformation, but they do not say how several ports relate. Additive and
+multiplicative nodes need relations between named ports. Represent the common
+algebras explicitly rather than storing a Python callback name in `NodeSpec`:
+
+```python
+class EqualShapeRule(BaseModel):
+    kind: Literal['equal'] = 'equal'
+    inputs: list[NodePortIdentifier]
+    output: NodePortIdentifier
+    # Dimensions are equal; units are convertible; quantities are equal.
+
+
+class ProductShapeRule(BaseModel):
+    kind: Literal['product'] = 'product'
+    inputs: list[NodePortIdentifier]
+    output: NodePortIdentifier
+    # Output dimensions are the union, units the product, and quantity is
+    # obtained from the quantity algebra when one is registered.
+
+
+class DimensionSignatureRule(BaseModel):
+    kind: Literal['dimension_signature'] = 'dimension_signature'
+    input: NodePortIdentifier
+    output: NodePortIdentifier
+    requires: UniqueList[DimensionRef] = Field(default_factory=list)
+    consumes: UniqueList[DimensionRef] = Field(default_factory=list)
+    produces: UniqueList[DimensionRef] = Field(default_factory=list)
+    transparent: bool = True
+
+
+type PortShapeRule = EqualShapeRule | ProductShapeRule | DimensionSignatureRule
+```
+
+The node class exposes a list of these rules. A pipeline compiles its steps to
+the same rule list. `NodeSpec` stores the selected node type or authored
+pipeline, not a copied result of that compilation. This prevents class
+semantics and stored signature JSON from drifting apart.
+
+The three rules cover the initial implementation:
+
+- additive nodes use `equal`;
+- multiplicative nodes use `product`;
+- GWP, reducers and disaggregation use `dimension_signature`.
+
+Nodes with genuinely different algebra may implement the same constraint-rule
+protocol in Python. That escape hatch should return constraints and derived
+facts; it must not mutate port declarations. If custom rules become common,
+add another declarative union member based on the repeated algebra rather than
+persisting arbitrary callback names.
+
+`consumes ⊆ requires` and `requires ∩ produces = ∅` are construction-time
+invariants of `DimensionSignatureRule`. A non-transparent rule also places an
+upper bound on its output: dimensions not required or produced do not pass.
+
+
+### One input-binding table
+
+`NodeEdge` and `DatasetPort` are two storage forms for one domain concept: a
+source bound to a consuming input port. They should converge on one model so
+ordering, transformations, tags and constraint provenance have one identity:
+
+```python
+class NodeInputPortBinding(EditableInstanceChild):
+    instance = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='input_bindings',
+    )
+    node = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='input_bindings',
+    )
+    port_id = models.UUIDField()
+    position = models.PositiveIntegerField(default=0)
+
+    # Exactly one source branch is populated.
+    source_node = models.ForeignKey(
+        NodeConfig,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='output_bindings',
+    )
+    source_port_id = models.UUIDField(null=True, blank=True)
+    dataset = models.ForeignKey(
+        Dataset,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='node_input_bindings',
+    )
+    metric = models.ForeignKey(
+        DatasetMetric,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='node_input_bindings',
+    )
+
+    transformations = SchemaField(
+        schema=list[PortTransformOp],
+        default=list,
+        blank=True,
+    )
+    tags = ArrayField(models.CharField(max_length=200), default=list, blank=True)
+
+    class Meta:
+        constraints = (
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        source_node__isnull=False,
+                        source_port_id__isnull=False,
+                        dataset__isnull=True,
+                        metric__isnull=True,
+                    )
+                    | Q(
+                        source_node__isnull=True,
+                        source_port_id__isnull=True,
+                        dataset__isnull=False,
+                        metric__isnull=False,
+                    )
+                ),
+                name='node_input_binding_has_one_source',
+            ),
+            models.UniqueConstraint(
+                fields=('node', 'port_id', 'position'),
+                name='node_input_binding_position_is_unique',
+            ),
+        )
+```
+
+The source kind is derived from which branch is populated rather than stored as
+a redundant discriminator. Domain validation additionally enforces facts the
+database cannot see through `NodeSpec` JSON:
+
+- `node` and `source_node` belong to `instance`;
+- `port_id` names an input port and `source_port_id` an output port;
+- a non-`multi` port has at most one binding, at position zero;
+- positions on a `multi` port are contiguous after a write;
+- the dataset metric belongs to the selected dataset's schema;
+- every transformation applies to the selected source kind.
+
+`position` replaces `DatasetPort.dataset_index` and also orders edge bindings.
+That matters because one multi-port may contain both kinds and because
+floating-point addition makes iteration order observable. The binding UUID,
+not `(node, port, position)`, is its durable identity; reordering does not make
+a new binding.
+
+The model deliberately keeps port references as UUID fields instead of foreign
+keys because ports remain embedded in `NodeSpec`. Normalizing ports into ORM
+rows solely to obtain an FK would split one authored node specification across
+two revision mechanisms. Referential checks belong in the aggregate write
+service that updates a node spec or its bindings atomically.
+
+The nullable ORM branches should not leak into snapshots or the runtime. Those
+use a discriminated source value:
+
+```python
+class NodePortSource(BaseModel):
+    kind: Literal['node'] = 'node'
+    node_id: UUID
+    port_id: UUID
+
+
+class DatasetMetricSource(BaseModel):
+    kind: Literal['dataset'] = 'dataset'
+    # Natural references keep portable exports restore-stable, matching the
+    # current dataset snapshot boundary.
+    dataset: str
+    metric: str
+
+
+type InputBindingSource = NodePortSource | DatasetMetricSource
+
+
+class InputBindingSnapshot(ModelSnapshot):
+    node_id: UUID
+    port_id: UUID
+    position: int
+    source: InputBindingSource = Field(discriminator='kind')
+    transformations: list[PortTransformOp] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+```
+
+`EdgeBindingDef` and `DatasetBindingDef` may remain as convenient narrowed
+runtime views, but both are constructed from this one persisted shape. The ORM
+resolves the dataset and metric strings to its FKs; unlike graph-internal node
+and port references, these are intentionally natural keys at the portable
+snapshot boundary.
+
+A staged migration is safer than replacing both tables at once:
+
+1. Create `NodeInputPortBinding` and dual-read it behind the existing
+   `PortBindingDef` projection.
+2. Backfill `NodeEdge` rows, preserving their UUIDs and deterministic current
+   iteration order; backfill `DatasetPort` rows using `dataset_index` as the
+   initial `position`.
+3. Move the snapshot to `input_bindings: list[InputBindingSnapshot]` in a new
+   schema version, with an upgrader for `edges` plus `dataset_ports`.
+4. Make GraphQL writes target the new table and validate the complete node
+   aggregate in one transaction.
+5. Remove the old tables only after the native snapshot loader consumes the
+   unified binding directly.
+
+During steps 1–4, dataset-only compatibility data still present in
+`DatasetPortSpec` needs an explicit adapter. `column` is replaced by the metric
+FK, `interpolate` becomes an ordered op, `input_dataset` is resolved into the
+dataset source reference, and `output_dimensions` is removed after derivation
+works. Do not copy those fields onto the common model: that would make the
+transitional encoding permanent.
+
+
+### Computed constraint values
+
+The solver needs bounds, not only a concrete set. A small immutable value model
+is enough:
+
+```python
+@dataclass(frozen=True)
+class SetBounds[T]:
+    required: frozenset[T] = frozenset()
+    allowed: frozenset[T] | None = None
+
+
+@dataclass(frozen=True)
+class ValueShape:
+    dimensions: SetBounds[DimensionRef]
+    categories: Mapping[DimensionRef, SetBounds[DimensionCategoryRef]]
+    unit: Unit | None
+    quantity: QuantityKindRef | None
+
+
+@dataclass(frozen=True)
+class PortKey:
+    node_id: UUID
+    port_id: UUID
+    direction: Literal['input', 'output']
+
+
+@dataclass(frozen=True)
+class ConstraintOrigin:
+    kind: Literal['declaration', 'node_rule', 'binding', 'transformation', 'dataset_schema']
+    node_id: UUID | None = None
+    port_id: UUID | None = None
+    binding_id: UUID | None = None
+    transformation_index: int | None = None
+
+
+@dataclass(frozen=True)
+class ConstraintConflict:
+    code: str
+    facet: Literal['dimensions', 'categories', 'unit', 'quantity']
+    origins: tuple[ConstraintOrigin, ...]
+    message: str
+```
+
+`allowed=None` means unknown/unbounded, not an empty set. Combining independent
+requirements unions their lower bounds and intersects known upper bounds. A
+conflict exists when the resulting required set is not a subset of the allowed
+set. Category bounds use the same operation within a dimension. This gives the
+fixpoint a monotone representation and makes chained filters that select
+disjoint categories the same kind of contradiction as incompatible dimension
+sets. Separate downstream branches may require disjoint categories without a
+conflict: their requirements union at the shared producer.
+
+Units merge differently from set bounds. Two known units satisfy an equality
+rule when they are convertible; the solver retains the consuming port's
+preferred unit for boundary conversion rather than requiring identical unit
+strings. A product rule derives a new unit, and `ensure_unit` replaces the
+representative unit after checking convertibility. Quantities use exact kind
+equality except where the registered quantity algebra derives a product.
+
+Origins attach to individual facts inside the solver, even though the compact
+example above shows them only on conflicts. A transformation is addressed by
+stable binding UUID plus list index: transformations are intentionally
+whole-list values and do not need their own persistent identity.
+
+The in-memory graph is keyed by `PortKey`. GraphQL projects it into derived
+types such as:
+
+```graphql
+type EffectivePortShape {
+  requiredDimensions: [Dimension!]!
+  allowedDimensions: [Dimension!]
+  unit: String
+  quantity: QuantityKind
+  conflicts: [PortConstraintConflict!]!
+}
+```
+
+This result may be memoized by an instance revision or a deterministic graph
+hash, but such a memo is a disposable cache. It is never included in
+`NodeSnapshot`, accepted by a mutation, or restored as authored state.
+
+
+### Reference identity
+
+Constraint provenance should use node, port and binding UUIDs. The current
+`DimensionRef` and `DimensionCategoryRef` identifier vocabulary can remain at
+the authored YAML/`NodeSpec` boundary for the first implementation; the solver
+resolves it once against the instance dimension registry. This proposal does
+not make identifiers into a new durable graph identity. If dimensions later
+become renameable editor objects, their existing ORM UUIDs should become the
+stored references through an explicit snapshot-version migration rather than
+by silently changing the meaning of `DimensionRef`.
 
 
 ### Transformations attach to the consuming port
@@ -259,8 +671,8 @@ filters execute inside dataset loading. Neither runs at the port.
 
 Propagation also needs port identity that is authored and stable. Ports
 are currently derived at export time and their ids are hashed from
-`(node, direction, key)`, so they are regenerated on every sync and
-nothing downstream can attach computed state to them.
+`(node, direction, key)`, so a structural edit can regenerate them on sync and
+stored bindings cannot safely treat them as durable authored identity.
 
 
 ## Unification with dataset transforms
