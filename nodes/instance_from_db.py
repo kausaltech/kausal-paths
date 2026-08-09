@@ -407,7 +407,11 @@ def _filter_dimension_to_config(t: FilterDimensionOp) -> dict[str, Any]:
     return d
 
 
-def _transforms_to_config(transforms: Sequence[PortTransformOp]) -> dict[str, list[dict[str, Any]]]:
+def _transforms_to_config(
+    transforms: Sequence[PortTransformOp],
+    *,
+    required_dimensions: Sequence[str] = (),
+) -> dict[str, list[dict[str, Any]]]:
     """
     Convert a binding's transformations to the dict format Edge.from_config expects.
 
@@ -426,14 +430,20 @@ def _transforms_to_config(transforms: Sequence[PortTransformOp]) -> dict[str, li
     from_dims: list[dict[str, Any]] = []
     to_dims: list[dict[str, Any]] = []
 
+    # Pre-step-2 snapshots carry bare ``to_dimensions`` declarations as
+    # FlattenTransformation entries. Preserve that immutable-history format at
+    # this compatibility boundary while all newly built snapshots source the
+    # declaration from InputPortDef.required_dimensions.
+    legacy_declared_dimensions = [t.dimension for t in transforms if isinstance(t, FlattenTransformation)]
+    declared_dimensions = list(dict.fromkeys([*required_dimensions, *legacy_declared_dimensions]))
+    to_dims.extend({'id': dimension, 'exclude': True, 'flatten': True} for dimension in declared_dimensions)
+
     for t in modernized_transformations(transforms):
         match t:
             case FilterDimensionOp():
                 from_dims.append(_filter_dimension_to_config(t))
             case AssignDimensionOp():
                 to_dims.append({'id': t.dimension, 'categories': [t.category]})
-            case FlattenTransformation():
-                to_dims.append({'id': t.dimension, 'exclude': True, 'flatten': True})
             case _:
                 raise ValueError(f'Edge transformation "{t.kind}" is not executable by the legacy edge runtime')
     result: dict[str, list[dict[str, Any]]] = {}
@@ -491,17 +501,20 @@ def _build_edge_maps(  # noqa: C901, PLR0912
             if tags:
                 for entry in (from_entry, to_entry):
                     entry['tags'] = tags
-            if transforms:
-                config = _transforms_to_config(transforms)
+            to_spec = specs_by_uuid[to_node_id]
+            to_port = to_spec.input_port_by_id[first_edge.to_port]
+            if transforms or to_port.required_dimensions:
+                config = _transforms_to_config(
+                    transforms,
+                    required_dimensions=to_port.required_dimensions,
+                )
                 if 'from_dimensions' in config:
                     for entry in (from_entry, to_entry):
                         entry['from_dimensions'] = config['from_dimensions']
                 if 'to_dimensions' in config:
                     for entry in (from_entry, to_entry):
                         entry['to_dimensions'] = config['to_dimensions']
-
             output_edges.setdefault(from_node_id, []).append(to_entry)
-            to_spec = specs_by_uuid[to_node_id]
             input_port_order = {port.id: idx for idx, port in enumerate(to_spec.input_ports)}
             input_edges_with_order[to_node_id].append((
                 input_port_order.get(first_edge.to_port, len(input_port_order)),

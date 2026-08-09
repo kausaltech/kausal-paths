@@ -61,7 +61,11 @@ def test_edge_transforms_round_trip_through_config_dict():
         FlattenTransformation(dimension='energy_carrier'),
     ]
 
-    config = {'id': target.id, **_transforms_to_config(ops)}
+    config = {
+        'id': target.id,
+        **_transforms_to_config(ops, required_dimensions=['energy_carrier']),
+    }
     edge = Edge.from_config(config, node=source, is_output=True, context=context)
 
-    assert edge.to_transforms() == ops
+    assert edge.to_transforms() == ops[:-1]
+    assert set(edge.to_dimensions or ()) == {'ghg', 'energy_carrier'}

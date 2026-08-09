@@ -58,6 +58,7 @@ if typing.TYPE_CHECKING:
 
     from common.cache import CacheResult
     from nodes.defs.node_defs import NodeKind, NodeSpec
+    from nodes.defs.port_def import InputPortDeclaration, OutputPortDeclaration
     from nodes.gpc import DatasetNode
     from nodes.instance_loader import ConfigLocation
     from nodes.instance_serialization import NodeSnapshot
@@ -328,6 +329,10 @@ class Node:
 
     default_unit: ClassVar[str]
     'Default unit for the node class (defined as a class variable)'
+
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = ()
+    output_port_declarations: ClassVar[tuple[OutputPortDeclaration, ...]] = ()
+    """Semantic role declarations shared by future get_input() and shape_rules()."""
 
     quantity: str | None
     """Physical quantity of the node's output (e.g. "energy" or "emissions")"""

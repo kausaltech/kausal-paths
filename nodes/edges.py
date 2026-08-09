@@ -79,7 +79,7 @@ class Edge:
 
     def to_transforms(self) -> list[EdgeTransformOp]:
         """Convert the edge's dimension mappings to a structured transformation pipeline."""
-        from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp, FlattenTransformation
+        from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp
 
         transforms: list[EdgeTransformOp] = []
 
@@ -97,11 +97,8 @@ class Edge:
         if self.to_dimensions:
             for dim_id, ed in self.to_dimensions.items():
                 if not ed.categories:
-                    if ed.flatten:
-                        # Flatten a dimension that the downstream node doesn't want.
-                        transforms.append(FlattenTransformation(dimension=dim_id))
-                    # Entries with no categories and no flatten are pure shape
-                    # declarations — skip for now.
+                    # A bare to-dimension is a declaration on the consuming
+                    # port. It has no executable edge operation.
                     continue
                 if len(ed.categories) != 1:
                     raise ValueError(f'to_dimensions can have only one category for now (got {len(ed.categories)} for {dim_id})')

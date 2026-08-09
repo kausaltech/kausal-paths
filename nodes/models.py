@@ -1776,10 +1776,12 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                 obj=JSONObject(
                     id=F('uuid'),
                     from_ref=JSONObject(
+                        node_uuid=F('from_node__uuid'),
                         node_id=F('from_node__identifier'),
                         port_id=F('from_port'),
                     ),
                     port_ref=JSONObject(
+                        node_uuid=F('to_node__uuid'),
                         node_id=F('to_node__identifier'),
                         port_id=F('to_port'),
                     ),
@@ -1796,6 +1798,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                 obj=JSONObject(
                     id=F('uuid'),
                     port_ref=JSONObject(
+                        node_uuid=F('node__uuid'),
                         node_id=F('node__identifier'),
                         port_id=F('port_id'),
                     ),

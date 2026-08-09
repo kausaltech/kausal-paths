@@ -11,7 +11,16 @@ from .transform_def import PortTransformOp, forecast_from_transformations, moder
 
 
 class NodePortRef(BaseModel):
+    node_uuid: UUID | None = None
+    """
+    Canonical node identity.
+
+    Optional only while the pre-InstanceGraph ORM projection still supplies
+    identifier-only references in a few internal callers. Graph construction
+    requires this value and emits UUID-only references.
+    """
     node_id: NodeIdentifier
+    """Deprecated compatibility label; never use as durable graph identity."""
     port_id: NodePortIdentifier
 
 

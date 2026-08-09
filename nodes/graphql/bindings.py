@@ -445,7 +445,11 @@ def _to_gql(row: DatasetPort) -> DatasetPortType:
     port = DatasetPortType(
         id=sb.ID(str(row.uuid)),
         uuid=row.uuid,
-        port_ref=NodePortRef(node_id=sb.ID(str(row.node.identifier)), port_id=row.port_id),
+        port_ref=NodePortRef(
+            node_uuid=row.node.uuid,
+            node_id=sb.ID(str(row.node.identifier)),
+            port_id=row.port_id,
+        ),
         metric=DatasetMetricRefType.from_model(row.metric),
         external_dataset_id=_external_dataset_id_from_dataset(row.dataset),
         external_metric_id=row.metric.name,

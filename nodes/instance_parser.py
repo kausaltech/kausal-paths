@@ -46,6 +46,7 @@ from nodes.instance_serialization import (
 )
 from nodes.units import Unit, unit_registry
 from nodes.visualizations import NodeVisualizations
+from nodes.yaml_port_refs import YamlPortReferenceCatalog
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -192,10 +193,12 @@ class InstanceConfigParser:
         *,
         instance_uuid: UUID,
         node_uuids: dict[str, UUID] | None = None,
+        port_references: YamlPortReferenceCatalog | None = None,
     ) -> None:
         self.config = config
         self.instance_uuid = instance_uuid
         self.node_uuids = node_uuids or {}
+        self.port_references = port_references or YamlPortReferenceCatalog()
         self._resolved_node_uuids: dict[str, UUID] = {}
         self.default_language: str = config['default_language']
         self.other_languages: list[str] = config.get('supported_languages', [])
@@ -870,8 +873,13 @@ class InstanceConfigParser:
         ports: list[OutputPortDef] = []
         for metric_id, metric in parsed.output_metrics.items():
             assert metric.unit is not None
+            fallback_id = self._uuid_from_identifiers([parsed.identifier, metric_id])
             port = OutputPortDef(
-                id=self._uuid_from_identifiers([parsed.identifier, metric_id]),
+                id=self.port_references.output_port_id(
+                    self._node_uuid(parsed.identifier, parsed.config.get('uuid')),
+                    (str(metric_id), str(metric.column_id)),
+                    fallback_id,
+                ),
                 identifier=identifier_or_none(metric_id),
                 label=_to_ts(metric.label),
                 unit=metric.unit,
@@ -913,9 +921,16 @@ class InstanceConfigParser:
             for column in self._dataset_binding_columns(parsed, ds_def):
                 metric = self._metric_for_column(parsed, column)
                 identifier = None if column == VALUE_COLUMN else identifier_or_none(column)
+                fallback_id = self._uuid_from_identifiers([parsed.identifier, 'dataset', str(idx), column])
                 ports.append(
                     InputPortDef(
-                        id=self._uuid_from_identifiers([parsed.identifier, 'dataset', str(idx), column]),
+                        id=self.port_references.dataset_port_id(
+                            self._node_uuid(parsed.identifier, parsed.config.get('uuid')),
+                            ds_def.id,
+                            idx,
+                            column,
+                            fallback_id,
+                        ),
                         identifier=identifier,
                         unit=metric.unit if metric is not None else ds_def.unit,
                         quantity=metric.quantity if metric is not None else None,
@@ -939,7 +954,7 @@ class InstanceConfigParser:
             return None
         if any(tag in node_class.additive_multi_input_excluded_tags for tag in edge.tags):
             return None
-        return 'additive'
+        return str(node_class.additive_port.instance_identifier)
 
     def _is_compatible_unit(self, unit_a: Unit | None, unit_b: Unit | None, node_id: str) -> bool:
         assert unit_a is not None, f'Unit is missing in node {node_id}. Is it multimetric?'
@@ -980,7 +995,12 @@ class InstanceConfigParser:
             if not self._is_multi_candidate_group_compatible(parsed, group_candidates):
                 continue
             first = group_candidates[0]
-            group_port_id = self._uuid_from_identifiers([parsed.identifier, 'input-group', group])
+            fallback_id = self._uuid_from_identifiers([parsed.identifier, 'input-group', group])
+            group_port_id = self.port_references.input_role_id(
+                self._node_uuid(parsed.identifier, parsed.config.get('uuid')),
+                group,
+                fallback_id,
+            )
             group_dimensions = list(self._effective_input_dimension_ids(parsed, first.edge))
 
             first.port.id = group_port_id
@@ -994,7 +1014,7 @@ class InstanceConfigParser:
             ports_to_remove = {candidate.old_port_id for candidate in group_candidates[1:]}
             for candidate in group_candidates:
                 candidate.edge.replace_to_port_id(candidate.old_port_id, group_port_id)
-            ports[:] = [port for port in ports if port.id not in ports_to_remove]
+            ports[:] = [port for port in ports if port is first.port or port.id not in ports_to_remove]
 
     def _build_input_ports(self, parsed: _ParsedNode) -> list[InputPortDef]:  # noqa: C901
         """Mirror ``_export_input_ports``."""
@@ -1021,7 +1041,14 @@ class InstanceConfigParser:
                     raise InstanceParseError(f'Metric {edge_metric_id} not found in {from_parsed.identifier}')
                 assert from_metric.id not in seen_metric_ids
                 seen_metric_ids.add(from_metric.id)
-                port_id = self._uuid_from_identifiers([from_parsed.identifier, parsed.identifier, 'edge', from_metric.id])
+                fallback_id = self._uuid_from_identifiers([from_parsed.identifier, parsed.identifier, 'edge', from_metric.id])
+                from_port = next(port for port in from_parsed.output_ports if port._metric_id == from_metric.id)
+                port_id = self.port_references.edge_port_id(
+                    self._node_uuid(parsed.identifier, parsed.config.get('uuid')),
+                    self._node_uuid(from_parsed.identifier, from_parsed.config.get('uuid')),
+                    from_port.id,
+                    fallback_id,
+                )
                 edge.port_pairs.append((from_metric.id, port_id))
                 if len(from_parsed.output_metrics) > 1:
                     port_identifier = identifier_or_none(f'{from_parsed.identifier}_{from_metric.id}')
@@ -1032,6 +1059,9 @@ class InstanceConfigParser:
                     identifier=port_identifier,
                     quantity=from_metric.quantity,
                     unit=from_metric.unit,
+                    required_dimensions=[
+                        dim_id for dim_id, dimension in (edge.to_dimensions or {}).items() if not dimension.categories
+                    ],
                 )
                 group = self._multiplicity_hint(parsed, edge)
                 if group is not None:
@@ -1220,7 +1250,7 @@ class InstanceConfigParser:
 
     def _edge_to_transforms(self, edge: _ParsedEdge) -> list[EdgeTransformOp]:
         """Mirror ``edge_to_transforms``."""
-        from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp, FlattenTransformation
+        from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp
 
         transforms: list[EdgeTransformOp] = []
         for dim_id, ed in edge.from_dimensions.items():
@@ -1235,8 +1265,6 @@ class InstanceConfigParser:
         if edge.to_dimensions:
             for dim_id, ed in edge.to_dimensions.items():
                 if not ed.categories:
-                    if ed.flatten:
-                        transforms.append(FlattenTransformation(dimension=dim_id))
                     continue
                 if len(ed.categories) != 1:
                     raise InstanceParseError(
@@ -1265,7 +1293,13 @@ class InstanceConfigParser:
                     DatasetPortSnapshot(
                         node=self._node_uuid(node.identifier),
                         dataset=ds_def.id,
-                        port_id=self._uuid_from_identifiers([node.identifier, 'dataset', str(idx), column]),
+                        port_id=self.port_references.dataset_port_id(
+                            self._node_uuid(node.identifier, node.config.get('uuid')),
+                            ds_def.id,
+                            idx,
+                            column,
+                            self._uuid_from_identifiers([node.identifier, 'dataset', str(idx), column]),
+                        ),
                         metric=column,
                         dataset_index=idx,
                         spec=spec,
@@ -1280,7 +1314,13 @@ def parse_instance_snapshot(
     *,
     instance_uuid: UUID,
     node_uuids: dict[str, UUID] | None = None,
+    port_references: YamlPortReferenceCatalog | None = None,
 ) -> InstanceSnapshot:
     """Parse a merged YAML config dict into an InstanceSnapshot without building a runtime."""
-    parser = InstanceConfigParser(config, instance_uuid=instance_uuid, node_uuids=node_uuids)
+    parser = InstanceConfigParser(
+        config,
+        instance_uuid=instance_uuid,
+        node_uuids=node_uuids,
+        port_references=port_references,
+    )
     return parser.parse()

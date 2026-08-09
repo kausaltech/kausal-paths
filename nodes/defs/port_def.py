@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -14,6 +15,28 @@ from nodes.units import Unit
 
 if TYPE_CHECKING:
     from nodes.node import Node
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class InputPortDeclaration:
+    """Class-level semantic input role shared by computation and shape rules."""
+
+    role: MixedCaseIdentifier
+    identifier: MixedCaseIdentifier | None = None
+    multi: bool = False
+    required: bool = True
+
+    @property
+    def instance_identifier(self) -> MixedCaseIdentifier:
+        return self.identifier or self.role
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OutputPortDeclaration:
+    """Class-level semantic output role mapped to an instance port identifier."""
+
+    role: MixedCaseIdentifier
+    identifier: MixedCaseIdentifier
 
 
 class InputPortDef(I18nBaseModel):

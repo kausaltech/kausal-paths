@@ -390,4 +390,7 @@ def dataset_transformations_from_input(entries: list[DatasetTransformationInput]
 
 def edge_transformations_from_input(entries: list[EdgeTransformationInput]) -> list[PortTransformOp]:
     """Convert edge input entries, rewriting the deprecated legacy kinds into the current vocabulary."""
-    return modernized_transformations([_transformation_from_one_of(entry, _EDGE_INPUT_FIELDS) for entry in entries])
+    transformations = [_transformation_from_one_of(entry, _EDGE_INPUT_FIELDS) for entry in entries]
+    if any(isinstance(transformation, FlattenTransformation) for transformation in transformations):
+        raise ValueError('`flatten` is a consuming-port shape declaration, not an edge transformation')
+    return modernized_transformations(transformations)

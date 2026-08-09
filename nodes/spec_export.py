@@ -334,7 +334,7 @@ def _apply_input_port_multi_hints(node: Node, ports: list[InputPortDef], candida
         ports_to_remove = {candidate.old_port_id for candidate in group_candidates[1:]}
         for candidate in group_candidates:
             _replace_edge_to_port_id(candidate.edge, candidate.old_port_id, group_port_id)
-        ports[:] = [port for port in ports if port.id not in ports_to_remove]
+        ports[:] = [port for port in ports if port is first.port or port.id not in ports_to_remove]
 
 
 def _dataset_binding_columns_for_node(node: Node, ds_instance: DatasetWithFilters) -> list[str]:
@@ -543,9 +543,11 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
                 identifier=port_identifier,
                 quantity=from_metric.quantity,
                 unit=from_metric.unit,
+                required_dimensions=[
+                    dim_id for dim_id, dimension in (edge.to_dimensions or {}).items() if not getattr(dimension, 'categories', ())
+                ],
                 # TODO: multi & dimensions? tags? transformations?
                 # supported_dimensions=src.supported_dimensions,
-                # required_dimensions=src.required_dimensions,
             )
             hint = node.input_port_multiplicity_hint(edge=edge, metric=from_metric)
             if hint.multi:

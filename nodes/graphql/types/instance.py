@@ -338,7 +338,11 @@ class InstanceEditorFields:
             port = DatasetPortType(
                 id=sb.ID(str(dp.uuid)),
                 uuid=dp.uuid,
-                port_ref=NodePortRef(node_id=sb.ID(str(dp.node.identifier)), port_id=dp.port_id),
+                port_ref=NodePortRef(
+                    node_uuid=dp.node.uuid,
+                    node_id=sb.ID(str(dp.node.identifier)),
+                    port_id=dp.port_id,
+                ),
                 metric=DatasetMetricRefType.from_model(dp.metric),
                 external_dataset_id=_external_dataset_id_from_dataset(dp.dataset),
                 external_metric_id=dp.metric.name,

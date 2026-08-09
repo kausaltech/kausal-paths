@@ -1192,14 +1192,17 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
             ... on OperationInfo { messages { kind message } }
             ... on NodeEdgeType {
                 fromRef {
+                    nodeUuid
                     nodeId
                     portId
                 }
                 portRef {
+                    nodeUuid
                     nodeId
                     portId
                 }
                 toRef {
+                    nodeUuid
                     nodeId
                     portId
                 }
@@ -1271,7 +1274,9 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     edge = editor['createEdge']
     assert edge['__typename'] == 'NodeEdgeType'
     assert edge['fromRef']['nodeId'] == 'node_a'
+    assert edge['fromRef']['nodeUuid'] == str(nc_a.uuid)
     assert edge['portRef']['nodeId'] == 'node_b'
+    assert edge['portRef']['nodeUuid'] == str(nc_b.uuid)
     assert edge['portRef']['portId'] == str(_port_uuid('input'))
     assert edge['toRef'] == edge['portRef']
     assert edge['transformations'] == [
@@ -1292,6 +1297,48 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     )
     assert data['instanceEditor']['deleteEdge'] is None
     assert not NodeEdge.objects.filter(pk=edge_obj.pk).exists()
+
+
+def test_create_edge_accepts_uuid_only_references(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import NodeEdge
+
+    unit = unit_registry.parse_units('kt/a')
+    source_port_id = _port_uuid('canonical-output')
+    target_port_id = _port_uuid('canonical-input')
+    source = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='canonical_source',
+        spec=_make_node_spec(output_ports=[OutputPortDef(id=source_port_id, unit=unit, quantity='emissions')]),
+    )
+    target = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='canonical_target',
+        spec=_make_node_spec(
+            input_ports=[InputPortDef(id=target_port_id, unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('canonical-target-output'), unit=unit, quantity='emissions')],
+        ),
+    )
+
+    edge = gql_client.query_data(
+        CREATE_EDGE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'instanceId': str(db_instance_config.pk),
+                'fromRef': {'nodeUuid': str(source.uuid), 'portId': str(source_port_id)},
+                'portRef': {'nodeUuid': str(target.uuid), 'portId': str(target_port_id)},
+            },
+        },
+    )['instanceEditor']['createEdge']
+
+    assert edge['fromRef']['nodeUuid'] == str(source.uuid)
+    assert edge['portRef']['nodeUuid'] == str(target.uuid)
+    assert NodeEdge.objects.filter(
+        from_node=source,
+        from_port=source_port_id,
+        to_node=target,
+        to_port=target_port_id,
+    ).exists()
 
 
 def _two_nodes_with_bindable_port(ic: InstanceConfig) -> None:

@@ -279,29 +279,17 @@ authored-looking source of truth.
 
 ### Authored port declarations
 
-The current fields have two ambiguous empty values:
+The current `OutputPortDef.dimensions=[]` value is ambiguous: it can mean
+either “scalar output” or “not known yet”. The constraint engine must represent
+an exact known produced set separately from an unknown produced set. That is a
+property of its derived facts, not a reason to invent authored upper-bound
+semantics for `supported_dimensions`.
 
-- `OutputPortDef.dimensions=[]` can mean either “scalar output” or “not known
-  yet”.
-- `InputPortDef.supported_dimensions=[]` can mean either “no dimensions are
-  supported” or “there is no upper bound”.
-
-The constraint engine needs those states to be distinct. Model dimension sets
-as lower and upper bounds: `required` dimensions must occur; `allowed=None`
-means there is no upper bound; an exact set has the same `required` and
-`allowed` members. Thus an exact scalar is `required=[]`, `allowed=[]`, while a
-wholly unconstrained port is `required=[]`, `allowed=None`.
-
-One possible Pydantic shape is:
+One possible authored Pydantic shape is:
 
 ```python
 class DimensionSetSpec(BaseModel):
     required: UniqueList[DimensionRef] = Field(default_factory=list)
-    allowed: UniqueList[DimensionRef] | None = None
-
-    @classmethod
-    def exact(cls, dimensions: list[DimensionRef]) -> Self:
-        return cls(required=dimensions, allowed=dimensions)
 
 
 class InputPortDef(I18nBaseModel):
@@ -316,8 +304,8 @@ class InputPortDef(I18nBaseModel):
 class OutputPortDef(I18nBaseModel):
     id: UUID
     identifier: NodePortIdentifier | None = None
-    # None has no authored declaration; exact([]) is an authored scalar.
-    dimensions: DimensionSetSpec | None = None
+    # None has no authored declaration; [] is an authored scalar.
+    dimensions: UniqueList[DimensionRef] | None = None
     unit: Unit | None = None
     quantity: QuantityKindRef | None = None
 ```
@@ -331,15 +319,18 @@ can translate the current fields at the boundary:
 
 ```text
 required_dimensions != []      -> dimensions.required
-supported_dimensions != []     -> dimensions.allowed
-OutputPortDef.dimensions != []  -> DimensionSetSpec.exact(...)
+OutputPortDef.dimensions != []  -> dimensions
 ```
 
-The empty `supported_dimensions` and output `dimensions` cases need deliberate
-migration rules; their meanings cannot be recovered from the values alone. The
-safe defaults are unbounded input dimensions and no authored output
-declaration, with node classes that are genuinely scalar-only declaring an
-exact empty set.
+The empty output `dimensions` case needs a deliberate migration rule because
+its meaning cannot be recovered from the value alone. The safe default is no
+authored output declaration, with node classes that are genuinely scalar-only
+declaring an exact empty set. `supported_dimensions` is removed after auditing
+the generated multi-port values; it is not translated into a new field.
+
+Internally the solver uses `known: frozenset[UUID] | None`, where `None` is
+unknown and an empty set is an exact scalar. Consumer requirements remain a
+separate lower-bound set. Neither fact is written back into the authored port.
 
 Port UUIDs are durable instance-local identity and are what bindings refer to.
 Port identifiers are the structural names used by node-class rules and
