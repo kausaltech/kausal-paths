@@ -21,6 +21,8 @@ if TYPE_CHECKING:
         Framework,
     )
     from frameworks.object_cache import FrameworkCache
+    from nodes.instance_graph import InstanceGraph
+    from nodes.instance_graph_cache import ResolvedInstanceSource
     from nodes.models import InstanceConfig
     from pages.models import ActionListPage, PathsPage
     from users.models import User
@@ -102,6 +104,7 @@ class PathsObjectCache:
 
     frameworks: FrameworkCache = field(init=False)
     instance_caches: dict[int, InstanceSpecificCache] = field(default_factory=dict)
+    instance_graphs: dict[ResolvedInstanceSource, InstanceGraph] = field(default_factory=dict)
 
     def __post_init__(self):
         from frameworks.object_cache import FrameworkCache

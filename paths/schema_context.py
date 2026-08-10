@@ -30,6 +30,9 @@ if TYPE_CHECKING:
     from paths.schema import PreviewMode
 
     from nodes.instance import Instance
+    from nodes.instance_graph import InstanceGraph
+    from nodes.instance_graph_cache import LoadedInstanceSnapshot, ResolvedInstanceSource
+    from nodes.instance_serialization import InstanceSnapshot
     from nodes.models import InstanceConfig, InstanceConfigQuerySet, PreferredInstanceSource
 
 logger = logger.bind(markup=True)
@@ -44,14 +47,33 @@ class InstanceRuntimeKey:
 
 @dataclass
 class InstanceRequestResources:
-    """Request-owned lazy runtime instances and their managed lifecycles."""
+    """Request-owned lazy snapshots, graphs, runtimes, and managed lifecycles."""
 
     default_config: InstanceConfig | None
     default_source: PreferredInstanceSource | None
     default_tolerate_node_failures: bool
     stack: ExitStack
     extension: ActivateInstanceContextExtension
+    object_cache: PathsObjectCache
     instances: dict[InstanceRuntimeKey, Instance] = field(default_factory=dict)
+    instance_refreshes: set[tuple[int, PreferredInstanceSource]] = field(default_factory=set)
+    snapshots: dict[ResolvedInstanceSource, LoadedInstanceSnapshot] = field(default_factory=dict)
+
+    def resolve_source(
+        self,
+        config: InstanceConfig | None = None,
+        source: PreferredInstanceSource | None = None,
+    ) -> tuple[InstanceConfig, PreferredInstanceSource]:
+        config = config or self.default_config
+        if config is None:
+            raise GraphQLError(
+                "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
+            )
+        is_default = self.default_config is not None and config.pk == self.default_config.pk
+        if source is None:
+            source = self.default_source if is_default else self._draft_source()
+        assert source is not None
+        return config, source
 
     @contextmanager
     def _instance_context(
@@ -86,15 +108,8 @@ class InstanceRequestResources:
         tolerate_node_failures: bool | None = None,
         refresh: bool = False,
     ) -> Instance:
-        config = config or self.default_config
-        if config is None:
-            raise GraphQLError(
-                "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
-            )
+        config, source = self.resolve_source(config, source)
         is_default = self.default_config is not None and config.pk == self.default_config.pk
-        if source is None:
-            source = self.default_source if is_default else self._draft_source()
-        assert source is not None
         if tolerate_node_failures is None:
             tolerate_node_failures = self.default_tolerate_node_failures if is_default else False
 
@@ -103,6 +118,8 @@ class InstanceRequestResources:
             source=source,
             tolerate_node_failures=tolerate_node_failures,
         )
+        refresh_key = (config.pk, source)
+        refresh = refresh or refresh_key in self.instance_refreshes
         instance = None if refresh else self.instances.get(key)
         if instance is not None:
             return instance
@@ -116,7 +133,88 @@ class InstanceRequestResources:
                 self._instance_context(config, source, tolerate_node_failures, refresh),
             )
         self.instances[key] = instance
+        self.instance_refreshes.discard(refresh_key)
         return instance
+
+    def invalidate_instance(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+    ) -> None:
+        """Discard request-local runtimes so the next accessor rebuilds lazily."""
+        config, source = self.resolve_source(config, source)
+        stale_keys = [key for key in self.instances if key.instance_pk == config.pk and key.source == source]
+        for key in stale_keys:
+            del self.instances[key]
+        self.instance_refreshes.add((config.pk, source))
+
+    def require_graph(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+        refresh: bool = False,
+    ) -> InstanceGraph:
+        from nodes.instance_graph_cache import get_instance_graph, resolve_instance_source
+
+        config, source = self.resolve_source(config, source)
+        resolved_source = resolve_instance_source(config, source)
+        return get_instance_graph(
+            config,
+            source,
+            object_cache=self.object_cache,
+            refresh=refresh,
+            snapshot_loader=lambda: self._require_loaded_snapshot(
+                config,
+                resolved_source,
+                refresh=refresh,
+            ),
+            resolved_source=resolved_source,
+        )
+
+    def _require_loaded_snapshot(
+        self,
+        config: InstanceConfig,
+        source: ResolvedInstanceSource,
+        *,
+        refresh: bool = False,
+    ) -> LoadedInstanceSnapshot:
+        from nodes.instance_graph_cache import load_instance_snapshot
+
+        loaded = None if refresh else self.snapshots.get(source)
+        if loaded is None:
+            loaded = load_instance_snapshot(config, source)
+            self.snapshots[source] = loaded
+        return loaded
+
+    def require_snapshot(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+        refresh: bool = False,
+    ) -> InstanceSnapshot:
+        from nodes.instance_graph_cache import resolve_instance_source
+
+        config, source = self.resolve_source(config, source)
+        resolved_source = resolve_instance_source(config, source)
+        return self._require_loaded_snapshot(config, resolved_source, refresh=refresh).snapshot
+
+    def snapshot_for_instance_type(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+    ) -> InstanceSnapshot | None:
+        """Return selected revision content when presentation must follow a snapshot."""
+        from nodes.instance_graph_cache import resolve_instance_source
+
+        config, source = self.resolve_source(config, source)
+        resolved_source = resolve_instance_source(config, source)
+        if resolved_source.kind != 'database-published':
+            return None
+        return self._require_loaded_snapshot(config, resolved_source).snapshot
 
     @staticmethod
     def _draft_source() -> PreferredInstanceSource:
@@ -175,6 +273,56 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
             tolerate_node_failures=tolerate_node_failures,
             refresh=refresh,
         )
+
+    def require_instance_graph(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+        refresh: bool = False,
+    ) -> InstanceGraph:
+        if self.instance_resources is None:
+            raise GraphQLError(
+                "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
+            )
+        return self.instance_resources.require_graph(config, source=source, refresh=refresh)
+
+    def invalidate_runtime_instance(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+    ) -> None:
+        if self.instance_resources is None:
+            raise GraphQLError(
+                "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
+            )
+        self.instance_resources.invalidate_instance(config, source=source)
+
+    def require_instance_snapshot(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+        refresh: bool = False,
+    ) -> InstanceSnapshot:
+        if self.instance_resources is None:
+            raise GraphQLError(
+                "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
+            )
+        return self.instance_resources.require_snapshot(config, source=source, refresh=refresh)
+
+    def instance_snapshot_for_type(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+    ) -> InstanceSnapshot | None:
+        if self.instance_resources is None:
+            raise GraphQLError(
+                "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
+            )
+        return self.instance_resources.snapshot_for_instance_type(config, source=source)
 
 
 class PathsSchemaExtension(SchemaExtension[PathsGraphQLContext]):
@@ -508,6 +656,7 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
                 default_tolerate_node_failures=ctx.tolerate_node_failures,
                 stack=stack,
                 extension=self,
+                object_cache=ctx.cache,
             )
             try:
                 yield

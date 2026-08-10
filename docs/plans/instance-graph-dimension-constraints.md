@@ -646,12 +646,12 @@ load; the output-shape assertion fires exactly where it did before.
 ### 3. Establish UUID contracts and stable port identity
 
 - Change graph-level `NodePortRef.node_id` to UUID.
-- Defer the snapshot schema bump: the decisions require the *graph* to be
-  UUID-keyed, not the persisted snapshot, and the step-4 builder resolves
-  current string dimension/category/dataset/metric references through the
-  same injected catalog that adapts the legacy binding arrays. Persist UUID
-  references in one schema change together with the unified binding list
-  (step 9), once the graph shape has stabilized.
+- Persist the structural UUID catalog in snapshot v8. Published pins had a
+  dataset UUID but did not retain metric, dimension, or category UUIDs, so
+  resolving every graph against the current catalog would let published
+  semantics drift after a rename. The edge and dataset-port arrays remain as
+  the explicit legacy shape until the unified binding migration in step 9;
+  the step-4 builder normalizes them into graph bindings.
 - Make port UUID preservation explicit in parser/sync: authored UUID, then
   stored UUID matched by structural role, then deterministic UUID only for
   first creation.
@@ -672,8 +672,20 @@ both pass.
 - Add child binding, indexes, graph validation, NetworkX projection, and
   topological ordering as derived cached properties.
 - Add versioned dump/load and L1/L2 caching.
-- Route one metadata-only GraphQL path through `InstanceGraph` to prove the
-  boundary before moving all callers.
+- Expose request-owned lazy snapshot/graph accessors to GraphQL. Do not build
+  `InstanceGraph` for fields that can be resolved from `InstanceConfig` or the
+  selected published snapshot merely to prove the boundary.
+
+Implementation note (2026-08-10): the request's `PathsObjectCache` is the L1
+and Django's configured cache is the shared L2. `InstanceRequestResources`
+selects and request-caches snapshots; a graph L2 miss consumes that same
+snapshot lazily. The root `instance` field uses live `InstanceConfig` metadata
+for draft/YAML and the selected snapshot for published revisions, while
+`instance.model` remains the explicit runtime boundary. Published v8 snapshots
+are self-contained, while old published snapshots and YAML use the persisted
+catalog only inside the compatibility adapter. The first graph-specific
+GraphQL field should use `InstanceType.graph()` when it is introduced rather
+than making metadata queries hydrate the graph eagerly.
 
 **Gate:** round-trip equality holds, derived values are absent from serialized
 bytes, cache invalidation follows the selected draft/revision/YAML source, and

@@ -20,6 +20,21 @@ a distribution when step 4 adds graph construction and caching. Query count,
 serialized size, and the zero-payload-query invariant are the durable parts of
 this baseline.
 
+## Step-4 graph measurement — 2026-08-10
+
+The same `espoo` draft, measured through a forced graph-cache refresh after
+adding the structural UUID catalogs:
+
+| Nodes | Bindings | Dimensions | Datasets | Queries | Build time | JSON size | Payload/datapoint queries |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 135 | 272 | 19 | 32 | 10 | 79.0 ms | 550,257 bytes | 0 |
+
+This is again one warm-process observation, not a latency budget. The seven
+additional metadata queries load the dimension/category and dataset/schema/
+metric catalogs; query count is independent of datapoint count. The local
+draft currently reports 38 stale dataset-port references as structured graph
+diagnostics rather than making the incomplete editor graph unreadable.
+
 ## Generated dimension-field inventory
 
 The 55 existing parse-oracle snapshots contained 599 grouped multi-ports with

@@ -413,6 +413,55 @@ def test_instance_admin_can_read_model_editor_fields(client, db_instance_config:
     assert node['editor']['spec']['outputPorts'][0]['id'] == str(_port_uuid('default'))
 
 
+def test_model_instance_metadata_does_not_create_runtime(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_require_instance(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError('modelInstance metadata must not create a runtime Instance')
+
+    monkeypatch.setattr('paths.schema_context.PathsGraphQLContext.require_instance', fail_require_instance)
+
+    data = gql_client.query_data(
+        """
+        query ModelInstanceMetadata($instanceId: ID!) {
+            modelInstance(instanceId: $instanceId) {
+                identifier
+                editor { configSource }
+            }
+        }
+        """,
+        variables={'instanceId': str(db_instance_config.pk)},
+    )
+
+    assert data['modelInstance'] == {
+        'identifier': db_instance_config.identifier,
+        'editor': {'configSource': 'database'},
+    }
+
+
+def test_model_instance_runtime_uses_draft_when_request_defaults_to_published(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+) -> None:
+    db_instance_config.publish_instance()
+    NodeConfigFactory.create(instance=db_instance_config, identifier='draft_only', spec=_make_node_spec())
+
+    data = gql_client.query_data(
+        """
+        query DraftModelInstance($instanceId: ID!) {
+            modelInstance(instanceId: $instanceId) {
+                nodes { identifier }
+            }
+        }
+        """,
+        variables={'instanceId': str(db_instance_config.pk)},
+    )
+
+    assert data['modelInstance']['nodes'] == [{'identifier': 'draft_only'}]
+
+
 NODE_STATUS_FIELDS = gql("""
 query NodeStatusFields($instanceId: ID!) {
     modelInstance(instanceId: $instanceId) {

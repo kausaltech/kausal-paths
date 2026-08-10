@@ -1,7 +1,12 @@
-from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any
+from contextlib import ExitStack, contextmanager
+from typing import TYPE_CHECKING, Any, cast
+
+from django.core.cache import cache
 
 import pytest
+
+from paths.context import PathsObjectCache
+from paths.schema_context import InstanceRequestResources
 
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 
@@ -45,6 +50,29 @@ def test_instance_scoped_query_does_not_eagerly_create_runtime(
     assert data['unit']['short']
 
 
+def test_instance_metadata_query_uses_neither_graph_nor_runtime(
+    instance_gql_client: tuple[PathsTestClient, InstanceConfig],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from nodes.models import InstanceConfig
+
+    gql_client, config = instance_gql_client
+
+    def fail_enter_instance_context(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError('instance metadata must not create a runtime Instance')
+
+    monkeypatch.setattr(InstanceConfig, 'enter_instance_context', fail_enter_instance_context)
+
+    def fail_require_instance_graph(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError('instance metadata must not build an InstanceGraph')
+
+    monkeypatch.setattr('paths.schema_context.PathsGraphQLContext.require_instance_graph', fail_require_instance_graph)
+
+    data = gql_client.query_data('{ instance { id uuid targetYear } }')
+
+    assert data['instance']['id'] == config.identifier
+
+
 def test_runtime_instance_is_created_once_per_request(
     instance_gql_client: tuple[PathsTestClient, InstanceConfig],
     monkeypatch: pytest.MonkeyPatch,
@@ -69,3 +97,44 @@ def test_runtime_instance_is_created_once_per_request(
     assert data['instance']['id']
     assert data['nodes'] == []
     assert enter_count == 1
+
+
+def test_published_snapshot_is_reused_when_graph_is_built(
+    instance_gql_client: tuple[PathsTestClient, InstanceConfig],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from nodes import instance_graph_cache
+    from nodes.models import PreferredInstanceSource
+
+    _gql_client, config = instance_gql_client
+    config.config_source = 'database'
+    config.save(update_fields=['config_source'])
+    config.publish_instance()
+    config.refresh_from_db()
+    source = instance_graph_cache.resolve_instance_source(config, PreferredInstanceSource.PUBLISHED)
+    cache.delete(source.cache_key)
+
+    original_loader = instance_graph_cache.load_instance_snapshot
+    load_count = 0
+
+    def counted_loader(*args: Any, **kwargs: Any):
+        nonlocal load_count
+        load_count += 1
+        return original_loader(*args, **kwargs)
+
+    monkeypatch.setattr(instance_graph_cache, 'load_instance_snapshot', counted_loader)
+    resources = InstanceRequestResources(
+        default_config=config,
+        default_source=PreferredInstanceSource.PUBLISHED,
+        default_tolerate_node_failures=False,
+        stack=ExitStack(),
+        extension=cast('Any', None),
+        object_cache=PathsObjectCache(),
+    )
+
+    snapshot = resources.snapshot_for_instance_type()
+    graph = resources.require_graph()
+
+    assert snapshot is not None
+    assert graph.metadata == snapshot.metadata
+    assert load_count == 1
