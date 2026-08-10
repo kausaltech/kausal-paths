@@ -59,6 +59,7 @@ if TYPE_CHECKING:
 
     from frameworks.models import FrameworkConfig
     from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge, NodeLayout
+    from nodes.node import Node
 
 
 # Current schema version for ``InstanceSnapshot`` and ``InstanceExport``.
@@ -349,6 +350,75 @@ class NodeSnapshot(ModelSnapshot):
             layout=NodeLayoutSnapshot.from_model(layout) if layout is not None else None,
         )
 
+    @classmethod
+    def from_runtime_node(cls, obj: Node, uuid: UUID, primary_language: str) -> Self:
+        """Capture the YAML/runtime-owned metadata before applying ORM overrides."""
+
+        def translated(value: str | TranslatedString | None) -> TranslatedString | None:
+            if value is None or isinstance(value, TranslatedString):
+                return value
+            return TranslatedString(value, default_language=primary_language)
+
+        return cls(
+            uuid=uuid,
+            identifier=obj.id,
+            name=translated(obj.name),
+            short_name=translated(obj.short_name),
+            short_description=translated(obj.description),
+            color=obj.color or '',
+            order=obj.order,
+            is_visible=obj.is_visible,
+            spec=obj._spec,
+        )
+
+
+def _merge_translated_metadata(
+    source: TranslatedString | None,
+    stored: TranslatedString | None,
+) -> TranslatedString | None:
+    """Merge translations with non-empty ORM values taking precedence."""
+    if stored is None:
+        return source
+    if source is None:
+        return stored
+    translations = dict(source.i18n)
+    translations.update(stored.i18n)
+    return TranslatedString(
+        default_language=stored.default_language or source.default_language,
+        **translations,
+    )
+
+
+def reconcile_node_snapshot_metadata(
+    source: NodeSnapshot,
+    node_config: NodeConfig,
+    primary_language: str,
+) -> NodeSnapshot:
+    """
+    Overlay ORM-owned metadata on a YAML/runtime node snapshot.
+
+    Empty optional ORM values retain the YAML fallback used by the legacy
+    runtime. Boolean visibility is never treated as missing, so an authored
+    ``False`` survives the transition to DB-backed snapshots.
+    """
+    stored = NodeSnapshot.from_model(node_config, primary_language=primary_language)
+    return source.model_copy(
+        update={
+            'name': _merge_translated_metadata(source.name, stored.name),
+            'short_name': _merge_translated_metadata(source.short_name, stored.short_name),
+            'short_description': _merge_translated_metadata(source.short_description, stored.short_description),
+            'description': _merge_translated_metadata(source.description, stored.description),
+            'goal': _merge_translated_metadata(source.goal, stored.goal),
+            'color': stored.color or source.color,
+            'order': stored.order if stored.order is not None else source.order,
+            'is_visible': stored.is_visible,
+            'indicator_node': stored.indicator_node,
+            'copy_of': stored.copy_of,
+            'body': stored.body,
+            'layout': stored.layout,
+        },
+    )
+
 
 def _upgrade_node_metadata_v4(nodes: list[Any]) -> None:
     metadata_keys = {'uuid', 'identifier', 'name', 'short_name', 'description', 'color', 'order', 'is_visible'}
@@ -506,6 +576,31 @@ class InstanceSnapshot(BaseModel):
 
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
         return cls.model_validate(data)
+
+
+def reconcile_snapshot_node_metadata(
+    snapshot: InstanceSnapshot,
+    node_configs: Iterable[NodeConfig],
+) -> InstanceSnapshot:
+    """Return the desired snapshot after applying authoritative ORM metadata."""
+    by_uuid = {node.uuid: node for node in node_configs}
+    by_identifier = {node.identifier: node for node in node_configs}
+    nodes: list[NodeSnapshot] = []
+    for source in snapshot.nodes:
+        node_config = by_uuid.get(source.uuid)
+        if node_config is None and source.identifier is not None:
+            node_config = by_identifier.get(source.identifier)
+        if node_config is None:
+            nodes.append(source)
+            continue
+        nodes.append(
+            reconcile_node_snapshot_metadata(
+                source,
+                node_config,
+                primary_language=snapshot.metadata.primary_language,
+            )
+        )
+    return snapshot.model_copy(update={'nodes': nodes})
 
 
 class InstanceExport(BaseModel):

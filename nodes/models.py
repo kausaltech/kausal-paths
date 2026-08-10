@@ -734,10 +734,27 @@ class InstanceConfig(
         return None
 
     def update_instance_from_configs(self, instance: Instance, node_refs: bool = False):
+        bind_reconciled_snapshots = instance.source_snapshot is None
+        if bind_reconciled_snapshots:
+            instance.source_nodes_by_uuid = {}
         for node_config in self.nodes_for_serialization:
             node = instance.context.nodes.get(node_config.identifier)
             if node is None:
                 continue
+            if bind_reconciled_snapshots:
+                from .instance_serialization import NodeSnapshot, reconcile_node_snapshot_metadata
+
+                source_snapshot = NodeSnapshot.from_runtime_node(
+                    node,
+                    uuid=node_config.uuid,
+                    primary_language=self.primary_language,
+                )
+                node.source_snapshot = reconcile_node_snapshot_metadata(
+                    source_snapshot,
+                    node_config,
+                    primary_language=self.primary_language,
+                )
+                instance.source_nodes_by_uuid[node_config.uuid] = node
             node_config.update_node_from_config(node, keep_ref=node_refs)
 
     def update_identity_metadata(
@@ -1822,7 +1839,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         )
 
     def for_serialization(self) -> Self:
-        return self.active().with_spec().select_related('layout').annotate_ports()
+        return self.active().with_spec().select_related('indicator_node', 'copy_of', 'layout').annotate_ports()
 
 
 _NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)

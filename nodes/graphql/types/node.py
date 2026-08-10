@@ -299,8 +299,6 @@ def _get_node_uuid_with_fallback(root: 'Node') -> UUID:  # noqa: UP037
 @sb.interface
 class NodeInterface:
     id: sb.ID
-    short_name: str | None
-    order: int | None
     unit: UnitType | None
     quantity: str | None
 
@@ -375,6 +373,23 @@ class NodeInterface:
         if nc is not None and nc.name_i18n:
             return nc.name_i18n
         return str(root.name)
+
+    @sb.field
+    @staticmethod
+    def short_name(root: 'Node') -> str | None:
+        if root.source_snapshot is not None and root.source_snapshot.short_name is not None:
+            return str(root.source_snapshot.short_name)
+        nc = root.db_obj
+        if nc is not None and nc.short_name_i18n:
+            return nc.short_name_i18n
+        return str(root.short_name) if root.short_name is not None else None
+
+    @sb.field
+    @staticmethod
+    def order(root: 'Node') -> int | None:
+        if root.source_snapshot is not None:
+            return root.source_snapshot.order
+        return root.order
 
     @sb.field
     @staticmethod
