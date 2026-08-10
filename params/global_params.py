@@ -240,6 +240,11 @@ class UseMileage(BoolGlobalParameter):
     id = 'use_mileage'
 
 
+class UseOwnMileage(BoolGlobalParameter):
+    name = _("Use the city's own mileage data rather than national default values")
+    id = 'use_own_mileage'
+
+
 class UseNationalValues(BoolGlobalParameter):
     name = _('Use national values rather than local values')
     id = 'use_national_values'

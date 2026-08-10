@@ -11,7 +11,7 @@ theme_identifier: default
 target_year: 2025
 model_end_year: 2025
 reference_year: 1990
-minimum_historical_year: 2010
+minimum_historical_year: 1990
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
@@ -62,11 +62,23 @@ params:
   is_visible: true
   is_customizable: true
 - id: use_mileage
-  label_en: Use BISKO mileage statistics rather than own energy data for 
+  label_en: Use BISKO mileage statistics rather than own energy data for
     transport
-  label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen 
+  label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen
     Energieverbrauchsdaten für den Transport.
   value: true
+  is_visible: true
+  is_customizable: true
+# Separate from use_mileage, which chooses between the mileage route and the city's own
+# energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
+# or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
+# regularly updated traffic data, so this is a real alternative rather than a workaround.
+- id: use_own_mileage
+  label_en: Use the city's own mileage data rather than the BISKO municipality
+    defaults
+  label_de: Eigene Fahrleistungsdaten der Kommune anstelle der gemeindefeinen
+    BISKO-Default-Werte verwenden
+  value: false
   is_visible: true
   is_customizable: true
 - id: use_local_values # FIXME Make connection to district heating emission factors dataset.

@@ -100,7 +100,11 @@ dimensions:
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil
-    aliases: [CNG_fossil, CNGfoss]
+    # 'CNG' is how the ifeu transport workbooks label this fuel in every sheet. Without the
+    # alias the label did not resolve consistently: bisko/emission_factor stored it as
+    # cng_fossil while bisko/energy_factor and bisko/energy_shares stored it as natural_gas,
+    # so the multiply in transport_emissions dropped all CNG energy.
+    aliases: [CNG, CNG_fossil, CNGfoss]
     color: '#154360'
     order: 11
   - id: natural_gas_turbine
@@ -1322,13 +1326,25 @@ nodes:
 - id: vehicle_kilometers_ifeu
   name_en: Road transport activity by road type according to IFEU
   name_de: Verkehr Aktivität nach Straßentyp nach IFEU
+  description_en: |
+    Municipality-level default road mileage (Fahrleistung) derived by IFEU from GRETA/TREMOD,
+    for every German municipality. Motorcycles, cars, light commercial vehicles, trucks and
+    buses are given separately for motorway, rural and urban roads. From 2022 the source also
+    reports line buses (FL_Lbus) and tram/metro (FL_SSU) as separate totals; line buses are a
+    subset of the bus figure and must not be added to it.
+  description_de: |
+    Gemeindefeine Default-Fahrleistungen, von IFEU aus GRETA/TREMOD abgeleitet, für alle
+    deutschen Gemeinden. Motorisierte Zweiräder, Pkw, leichte Nutzfahrzeuge, Lkw und Busse
+    werden getrennt für Autobahn, Außerorts und Innerorts angegeben. Ab 2022 weist die Quelle
+    zusätzlich Linienbusse (FL_Lbus) und Straßen-/Stadt-/U-Bahnen (FL_SSU) als Summen aus;
+    Linienbusse sind eine Teilmenge der Busse und dürfen nicht hinzuaddiert werden.
   type: formula.FormulaNode
   quantity: mileage
   unit: Mvkm/a
   input_dimensions: [vehicle_type, road_type]
   output_dimensions: [vehicle_type, road_type]
   input_datasets:
-  - id: bisko/gemeindefeine_fahrleistungen_strassenverkehr # FIXME This datasets results in much lower energy use than KSP.
+  - id: bisko/gemeindefeine_fahrleistungen_strassenverkehr
     tags: [mileage]
     column: mileage
     filters:
@@ -1343,6 +1359,20 @@ nodes:
 - id: vehicle_kilometers
   name_en: Vehicle kilometers
   name_de: Fahrleistung
+  description_en: |
+    Road mileage used for the balance. By default the BISKO municipality-level default values
+    from IFEU are used, which cover every motorised road vehicle class on motorway, rural and
+    urban roads. A city that has its own traffic model can switch to its own data with the
+    'use own mileage' setting; BISKO recommends this in the long run, but note that the KSP
+    export only covers urban roads and only the modes for which a vehicle occupancy factor
+    exists, so the switch narrows the balance.
+  description_de: |
+    Für die Bilanz verwendete Fahrleistung. Standardmäßig werden die gemeindefeinen
+    BISKO-Default-Werte von IFEU genutzt, die alle motorisierten Straßenfahrzeugklassen auf
+    Autobahn, Außerorts und Innerorts abdecken. Eine Kommune mit eigenem Verkehrsmodell kann
+    über die Einstellung „eigene Fahrleistung verwenden“ auf eigene Daten umschalten; BISKO
+    empfiehlt dies langfristig, jedoch umfasst der KSP-Export nur Innerorts und nur die
+    Verkehrsmittel, für die ein Besetzungsgrad vorliegt, sodass die Bilanz dadurch schmaler wird.
   type: formula.FormulaNode
   quantity: mileage
   unit: Mvkm/a
@@ -1360,8 +1390,11 @@ nodes:
   params:
   - id: formula
     value: select_port(condition, ksp, ifeu)
+  # Was hard-coded to true, so the BISKO default mileage was never reachable and every
+  # road vehicle except cars and motorcycles fell out of the balance (the KSP path only
+  # survives for modes that have both a pkm figure and an occupancy factor).
   - id: condition
-    value: true
+    ref: use_own_mileage
 
 - id: other_transport_energy
   name_en: Other transport energy
@@ -1424,9 +1457,6 @@ nodes:
     - id: energy_carrier
   - id: road_transport_energy_bisko
     tags: [road_bisko]
-    from_dimensions:
-    - id: road_type
-      flatten: true
   params:
   - id: formula
     value: select_port(condition, (other_bisko + road_bisko), own)
@@ -1490,9 +1520,25 @@ nodes:
 #     - id: vehicle_type
 #     - id: road_type
 
-- id: road_transport_energy_bisko # FIXME Contains data for rail_vehicles (SSU). Should it be included?
-  name_en: Road transport energy
-  name_de: Straßenverkehrsenergie
+# The two BISKO factor tables use the road-type category 'total' ('alle' in the source) to
+# mean "one factor that applies to every road category", not "a fourth road category". Cars,
+# motorcycles, light commercial vehicles and trucks get a factor per road category; the public
+# road passenger modes (line buses, coaches, tram/metro) get a single road-type-independent
+# factor. Treating 'total' as an ordinary category made the mileage and the factors miss each
+# other for the public modes, so buses and tram produced no energy at all. Hence two nodes.
+
+- id: road_transport_energy_by_road_type
+  name_en: Road transport energy by road type
+  name_de: Straßenverkehrsenergie nach Straßentyp
+  description_en: |
+    End energy of the road vehicle classes whose specific consumption depends on the road
+    category: motorcycles, cars, light commercial vehicles and trucks, on motorway, rural and
+    urban roads. This is the road typing BISKO asks for (criterion 2.3).
+  description_de: |
+    Endenergie der Straßenfahrzeugklassen, deren spezifischer Verbrauch von der
+    Straßenkategorie abhängt: motorisierte Zweiräder, Pkw, leichte Nutzfahrzeuge und Lkw, auf
+    Autobahn, Außerorts und Innerorts. Dies ist die von BISKO verlangte verbrauchsrelevante
+    Straßentypisierung (Prüfschritt 2.3).
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
@@ -1500,23 +1546,124 @@ nodes:
   output_dimensions: [vehicle_type, road_type, energy_carrier]
   input_nodes:
   - id: transport_energy_factors
+    from_dimensions:
+    - id: road_type
+      categories: [total]
+      exclude: true
     to_dimensions:
     - id: vehicle_type
     - id: road_type
     - id: energy_carrier
   - id: transport_energy_shares
+    from_dimensions:
+    - id: road_type
+      categories: [total]
+      exclude: true
     to_dimensions:
     - id: vehicle_type
     - id: road_type
     - id: energy_carrier
   - id: vehicle_kilometers
+    from_dimensions:
+    - id: road_type
+      categories: [total]
+      exclude: true
     to_dimensions:
     - id: vehicle_type
     - id: road_type
 
+- id: public_road_transport_energy
+  name_en: Public road passenger transport energy
+  name_de: Energieverbrauch öffentlicher Straßenpersonenverkehr
+  description_en: |
+    End energy of the public road passenger modes, whose BISKO consumption factors are given
+    once for all road categories, so the mileage is summed over road categories before the
+    multiplication.<br/>
+    Two caveats from the source data. The municipality-level default mileage reports one figure
+    for all buses; BISKO publishes no split between line buses and coaches, so the whole bus
+    mileage is valued with the line-bus consumption factors. Coach factors are about 15 per cent
+    lower, so bus energy is slightly overestimated where coaches are a large share. Separately,
+    tram/metro has a consumption factor but no fuel-share row in the BISKO shares dataset, so it
+    contributes nothing until that row is added.
+  description_de: |
+    Endenergie des öffentlichen Straßenpersonenverkehrs, dessen BISKO-Verbrauchsfaktoren einmal
+    für alle Straßenkategorien angegeben sind; die Fahrleistung wird daher vor der
+    Multiplikation über die Straßenkategorien summiert.<br/>
+    Zwei Einschränkungen aus den Quelldaten: Die gemeindefeinen Default-Fahrleistungen weisen
+    einen Wert für alle Busse aus; BISKO veröffentlicht keine Aufteilung zwischen Linien- und
+    Reisebussen, daher wird die gesamte Busfahrleistung mit den Linienbus-Verbrauchsfaktoren
+    bewertet. Reisebusfaktoren liegen etwa 15 Prozent niedriger, sodass die Busenergie bei
+    hohem Reisebusanteil leicht überschätzt wird. Zudem liegt für Straßen-/Stadt-/U-Bahnen ein
+    Verbrauchsfaktor, aber keine Energieträgeranteilszeile vor, sodass dieser Verkehrsmittel
+    erst nach Ergänzung dieser Zeile beiträgt.
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy_factors
+    from_dimensions:
+    - id: road_type
+      categories: [total]
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transport_energy_shares
+    from_dimensions:
+    - id: road_type
+      categories: [total]
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  # 'local_buses' (FL_Lbus, 2022 onwards) is a subset of 'buses' (FL_Bus) in the same source
+  # sheet; including both would double-count line buses for 2022-2023.
+  # Only 'local_buses' has to be named here. Every other vehicle class is selected
+  # automatically by the multiply: the classes whose factors are road-type specific have no
+  # entry at road_type 'total', so they drop out of this branch and are handled by
+  # road_transport_energy_by_road_type instead.
+  - id: vehicle_kilometers
+    from_dimensions:
+    - id: vehicle_type
+      categories: [local_buses]
+      exclude: true
+    - id: road_type
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+
+- id: road_transport_energy_bisko
+  name_en: Road transport energy
+  name_de: Straßenverkehrsenergie
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: road_transport_energy_by_road_type
+    from_dimensions:
+    - id: road_type
+      flatten: true
+  - id: public_road_transport_energy
+
 - id: transport_emission_factors
   name_en: Transport emission factors
   name_de: Verkehrsemissionsfaktoren
+  description_en: |
+    Well-to-wheel emission factors per unit of final energy for transport fuels, from IFEU.
+    Electricity is not part of the fuel table: BISKO requires the national grid mix
+    (Bundesstrommix) for all electrically driven transport, so the electricity factor is taken
+    from the same national series used in the stationary sectors rather than being defined
+    separately here.
+  description_de: |
+    Well-to-Wheel-Emissionsfaktoren pro Endenergieeinheit für Verkehrskraftstoffe, von IFEU.
+    Strom ist nicht Teil der Kraftstofftabelle: BISKO verlangt für den gesamten elektrisch
+    betriebenen Verkehr den Bundesstrommix, daher wird der Stromemissionsfaktor aus derselben
+    nationalen Zeitreihe übernommen, die auch im stationären Bereich verwendet wird, und nicht
+    hier separat definiert.
   type: generic.GenericNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -1525,17 +1672,16 @@ nodes:
   input_datasets:
   - id: bisko/emission_factor # must use the well-to-wheel EF for BISKO-conformity. Some cities want to know also well-to-tank, so will be implemented at some point.
     column: Well-to-wheel
-  # input_nodes:
-  # - id: transport_fuel_emission_factor
-  #   tags: [fuel_factor]
-  # - id: emission_factors
-  #   tags: [electricity_factor]
-  #   from_dimensions:
-  #   - id: energy_carrier
-  #     categories: [electricity]
-  #   - id: sector
-  #     categories: [transport]
-  #     flatten: true
+  input_nodes:
+  # BISKO criterion 4.2: the Bundesstrommix must be applied to electrically driven
+  # transport (electric cars, rail, tram). bisko/emission_factor has no electricity row,
+  # so without this input the multiply in transport_emissions dropped every kWh of
+  # driving electricity and electric transport came out emission-free. The category is
+  # disjoint from the fuel categories in the dataset, so the 'add' operation unions them.
+  - id: end_energy_emission_factors
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
 
 - id: fraction_of_biodiesel
   name_en: Fraction of biodiesel
