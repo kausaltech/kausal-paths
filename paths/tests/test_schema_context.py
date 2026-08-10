@@ -73,6 +73,95 @@ def test_instance_metadata_query_uses_neither_graph_nor_runtime(
     assert data['instance']['id'] == config.identifier
 
 
+def test_blank_yaml_metadata_fields_fall_back_to_snapshot(
+    instance_gql_client: tuple[PathsTestClient, InstanceConfig],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from nodes.defs import InstanceMetadata, InstanceModelSpec
+    from nodes.instance_serialization import InstanceSnapshot
+
+    gql_client, config = instance_gql_client
+    config.config_source = 'yaml'
+    config.owner = ''
+    config.lead_title = ''
+    config.lead_paragraph = ''
+    config.save(update_fields=['config_source', 'owner', 'lead_title', 'lead_paragraph'])
+    snapshot = InstanceSnapshot(
+        metadata=InstanceMetadata(
+            uuid=config.uuid,
+            identifier=config.identifier,
+            owner='YAML owner',
+            lead_title='YAML lead',
+            lead_paragraph='YAML paragraph',
+        ),
+        spec=InstanceModelSpec(),
+    )
+    monkeypatch.setattr(
+        'paths.schema_context.PathsGraphQLContext.require_instance_snapshot',
+        lambda *_args, **_kwargs: snapshot,
+    )
+
+    data = gql_client.query_data('{ instance { owner leadTitle leadParagraph } }')
+
+    assert data['instance'] == {
+        'owner': 'YAML owner',
+        'leadTitle': 'YAML lead',
+        'leadParagraph': 'YAML paragraph',
+    }
+
+
+def test_persisted_yaml_metadata_fields_do_not_load_snapshot(
+    instance_gql_client: tuple[PathsTestClient, InstanceConfig],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gql_client, config = instance_gql_client
+    config.config_source = 'yaml'
+    config.owner = 'Database owner'
+    config.lead_title = 'Database lead'
+    config.lead_paragraph = 'Database paragraph'
+    config.save(update_fields=['config_source', 'owner', 'lead_title', 'lead_paragraph'])
+
+    def fail_require_snapshot(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError('persisted YAML metadata must take precedence over the YAML snapshot')
+
+    monkeypatch.setattr(
+        'paths.schema_context.PathsGraphQLContext.require_instance_snapshot',
+        fail_require_snapshot,
+    )
+
+    data = gql_client.query_data('{ instance { owner leadTitle leadParagraph } }')
+
+    assert data['instance'] == {
+        'owner': 'Database owner',
+        'leadTitle': 'Database lead',
+        'leadParagraph': 'Database paragraph',
+    }
+
+
+def test_blank_database_metadata_fields_do_not_build_snapshot(
+    instance_gql_client: tuple[PathsTestClient, InstanceConfig],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gql_client, config = instance_gql_client
+    config.config_source = 'database'
+    config.owner = ''
+    config.lead_title = ''
+    config.lead_paragraph = ''
+    config.save(update_fields=['config_source', 'owner', 'lead_title', 'lead_paragraph'])
+
+    def fail_require_snapshot(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError('blank DB draft metadata must not build a snapshot')
+
+    monkeypatch.setattr(
+        'paths.schema_context.PathsGraphQLContext.require_instance_snapshot',
+        fail_require_snapshot,
+    )
+
+    data = gql_client.query_data('{ instance { owner leadTitle leadParagraph } }')
+
+    assert data['instance'] == {'owner': None, 'leadTitle': '', 'leadParagraph': None}
+
+
 def test_runtime_instance_is_created_once_per_request(
     instance_gql_client: tuple[PathsTestClient, InstanceConfig],
     monkeypatch: pytest.MonkeyPatch,

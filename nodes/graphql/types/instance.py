@@ -22,7 +22,7 @@ from paths.graphql_types import UnitType
 
 from datasets.graphql import DatasetType
 from frameworks.models import FrameworkConfig
-from nodes.defs import InstanceModelSpec
+from nodes.defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
@@ -555,14 +555,11 @@ class InstanceType:
     id: sb.ID
     uuid: UUID
     name: str
-    owner: str | None
     default_language: str
     supported_languages: list[str]
     base_path: str
     identifier: str
     is_locked: bool
-    lead_title: str
-    lead_paragraph: str | None
 
     @classmethod
     def from_model(
@@ -580,14 +577,11 @@ class InstanceType:
                 id=sb.ID(metadata.identifier),
                 uuid=metadata.uuid,
                 name=str(metadata.name),
-                owner=str(metadata.owner) if metadata.owner is not None else None,
                 default_language=metadata.primary_language,
                 supported_languages=[metadata.primary_language, *metadata.other_languages],
                 base_path='',
                 identifier=metadata.identifier,
                 is_locked=ic.is_locked,
-                lead_title=str(metadata.lead_title) if metadata.lead_title is not None else '',
-                lead_paragraph=str(metadata.lead_paragraph) if metadata.lead_paragraph is not None else None,
             )
 
         return cls(
@@ -597,14 +591,11 @@ class InstanceType:
             id=sb.ID(ic.identifier),
             uuid=ic.uuid,
             name=getattr(ic, 'name_i18n', None) or ic.name,
-            owner=ic.owner_i18n or ic.owner or None,
             default_language=ic.default_language,
             supported_languages=ic.supported_languages,
             base_path='',
             identifier=ic.identifier,
             is_locked=ic.is_locked,
-            lead_title=ic.lead_title_i18n or '',
-            lead_paragraph=ic.lead_paragraph_i18n,
         )
 
     @property
@@ -616,11 +607,56 @@ class InstanceType:
     def snapshot(self, info: gql.Info) -> InstanceSnapshot:
         return self._snapshot or info.context.require_instance_snapshot(self._config, source=self._source)
 
+    def fallback_metadata(self, info: gql.Info) -> InstanceMetadata | None:
+        if self._snapshot is not None:
+            return self._snapshot.metadata
+        if self._config.config_source == 'database':
+            # A DB draft snapshot cannot add information to these live-row
+            # fields and is expensive to build merely to confirm an empty value.
+            return None
+        # YAML-backed rows can have blank legacy metadata columns even though
+        # the YAML defines the value. Remove this fallback when YAML-sourced
+        # instance support finally goes the way of the dodo.
+        return self.snapshot(info).metadata
+
     def graph(self, info: gql.Info) -> InstanceGraph:
         return info.context.require_instance_graph(self._config, source=self._source)
 
     def instance(self, info: gql.Info) -> Instance:
         return info.context.require_instance(self._config, source=self._source)
+
+    @sb.field
+    def owner(self, info: gql.Info) -> str | None:
+        if self._snapshot is not None:
+            owner = self._snapshot.metadata.owner
+            return str(owner) if owner is not None else None
+        owner = self._config.owner_i18n or self._config.owner
+        if owner:
+            return owner
+        metadata = self.fallback_metadata(info)
+        return str(metadata.owner) if metadata is not None and metadata.owner is not None else None
+
+    @sb.field
+    def lead_title(self, info: gql.Info) -> str:
+        if self._snapshot is not None:
+            lead_title = self._snapshot.metadata.lead_title
+            return str(lead_title) if lead_title is not None else ''
+        lead_title = self._config.lead_title_i18n
+        if lead_title:
+            return lead_title
+        metadata = self.fallback_metadata(info)
+        return str(metadata.lead_title) if metadata is not None and metadata.lead_title is not None else ''
+
+    @sb.field
+    def lead_paragraph(self, info: gql.Info) -> str | None:
+        if self._snapshot is not None:
+            lead_paragraph = self._snapshot.metadata.lead_paragraph
+            return str(lead_paragraph) if lead_paragraph is not None else None
+        lead_paragraph = self._config.lead_paragraph_i18n
+        if lead_paragraph:
+            return lead_paragraph
+        metadata = self.fallback_metadata(info)
+        return str(metadata.lead_paragraph) if metadata is not None and metadata.lead_paragraph is not None else None
 
     @sb.field
     def years(self) -> YearsDefType:
