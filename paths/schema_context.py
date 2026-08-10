@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.utils import translation
@@ -35,11 +35,101 @@ if TYPE_CHECKING:
 logger = logger.bind(markup=True)
 
 
+@dataclass(frozen=True)
+class InstanceRuntimeKey:
+    instance_pk: int
+    source: PreferredInstanceSource
+    tolerate_node_failures: bool
+
+
+@dataclass
+class InstanceRequestResources:
+    """Request-owned lazy runtime instances and their managed lifecycles."""
+
+    default_config: InstanceConfig | None
+    default_source: PreferredInstanceSource | None
+    default_tolerate_node_failures: bool
+    stack: ExitStack
+    extension: ActivateInstanceContextExtension
+    instances: dict[InstanceRuntimeKey, Instance] = field(default_factory=dict)
+
+    @contextmanager
+    def _instance_context(
+        self,
+        config: InstanceConfig,
+        source: PreferredInstanceSource,
+        tolerate_node_failures: bool,
+        force_reinitialize: bool,
+    ) -> Generator[Instance]:
+        instance: Instance | None = None
+        try:
+            with (
+                config.enter_instance_context(
+                    source=source,
+                    tolerate_node_failures=tolerate_node_failures,
+                    force_reinitialize=force_reinitialize,
+                ) as instance,
+                instance.lock,
+                instance.context.run(),
+            ):
+                self.extension.activate_instance(instance)
+                yield instance
+        finally:
+            if instance is not None:
+                instance.clean()
+
+    def require_instance(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+        tolerate_node_failures: bool | None = None,
+        refresh: bool = False,
+    ) -> Instance:
+        config = config or self.default_config
+        if config is None:
+            raise GraphQLError(
+                "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
+            )
+        is_default = self.default_config is not None and config.pk == self.default_config.pk
+        if source is None:
+            source = self.default_source if is_default else self._draft_source()
+        assert source is not None
+        if tolerate_node_failures is None:
+            tolerate_node_failures = self.default_tolerate_node_failures if is_default else False
+
+        key = InstanceRuntimeKey(
+            instance_pk=config.pk,
+            source=source,
+            tolerate_node_failures=tolerate_node_failures,
+        )
+        instance = None if refresh else self.instances.get(key)
+        if instance is not None:
+            return instance
+
+        perf = self.extension.get_context().graphql_perf
+        with (
+            perf.exec_node(GraphQLPerfNode('get instance "%s"' % config.identifier)),
+            is_query_with_instance_context.set(True),
+        ):
+            instance = self.stack.enter_context(
+                self._instance_context(config, source, tolerate_node_failures, refresh),
+            )
+        self.instances[key] = instance
+        return instance
+
+    @staticmethod
+    def _draft_source() -> PreferredInstanceSource:
+        from nodes.models import PreferredInstanceSource
+
+        return PreferredInstanceSource.DRAFT
+
+
 @dataclass
 class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](GraphQLContext):
     instance_config: InstanceConfig | None = None
-    instance: InstanceType = field(init=False)
     cache: PathsObjectCache = field(init=False)
+    instance_resources: InstanceRequestResources | None = field(init=False, default=None, repr=False)
 
     # Populated by DetermineInstanceContextExtension from @instance / @context
     # directive arguments. Consumed by editing mutations for optimistic
@@ -60,7 +150,31 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
         if cache is None:
             cache = PathsObjectCache(user=user)
         self.cache = cache
-        self.instance = None  # type: ignore[assignment]
+
+    @property
+    def instance(self) -> InstanceType:
+        if self.instance_resources is None or self.instance_resources.default_config is None:
+            return cast('InstanceType', None)
+        return cast('InstanceType', self.instance_resources.require_instance())
+
+    def require_instance(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+        tolerate_node_failures: bool | None = None,
+        refresh: bool = False,
+    ) -> Instance:
+        if self.instance_resources is None:
+            raise GraphQLError(
+                "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
+            )
+        return self.instance_resources.require_instance(
+            config,
+            source=source,
+            tolerate_node_failures=tolerate_node_failures,
+            refresh=refresh,
+        )
 
 
 class PathsSchemaExtension(SchemaExtension[PathsGraphQLContext]):
@@ -374,35 +488,31 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
         return PreferredInstanceSource.DRAFT
 
     @contextmanager
-    def instance_context(self, _operation: OperationDefinitionNode):
-        from .context import paths_object_cache
-
-        context = None
+    def request_context(self, _operation: OperationDefinitionNode):
         ctx = self.get_context()
         perf = ctx.graphql_perf
         ic = ctx.instance_config
-        assert ic is not None
-        assert ctx.graphql_query_language is not None
-        source = self._resolve_preview_source(ic, ctx)
-        object_cache = PathsObjectCache(user=ctx.get_user())
+        source = self._resolve_preview_source(ic, ctx) if ic is not None else None
         with ExitStack() as stack:
-            with perf.exec_node(GraphQLPerfNode('prepare instance "%s"' % ic.identifier)):
-                stack.enter_context(self.activate_language(ctx.graphql_query_language))
-                stack.enter_context(paths_object_cache.activate(object_cache))
-                with (
-                    perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)),
-                    is_query_with_instance_context.set(True),
-                ):
-                    instance = stack.enter_context(
-                        ic.enter_instance_context(source=source, tolerate_node_failures=ctx.tolerate_node_failures),
-                    )
-                    ctx.instance = instance
-                context = instance.context
-                stack.enter_context(instance.lock)
-                stack.enter_context(context.run())
-                self.activate_instance(instance)
-            yield
-        instance.clean()
+            stack.enter_context(paths_object_cache.activate(ctx.cache))
+            if ic is not None:
+                assert ctx.graphql_query_language is not None
+                with perf.exec_node(GraphQLPerfNode('prepare instance "%s"' % ic.identifier)):
+                    stack.enter_context(self.activate_language(ctx.graphql_query_language))
+                    stack.enter_context(sentry_sdk.new_scope())
+                    stack.enter_context(logger.contextualize(instance=ic.identifier))
+                    self.set_instance_scope()
+            ctx.instance_resources = InstanceRequestResources(
+                default_config=ic,
+                default_source=source,
+                default_tolerate_node_failures=ctx.tolerate_node_failures,
+                stack=stack,
+                extension=self,
+            )
+            try:
+                yield
+            finally:
+                ctx.instance_resources = None
 
     def on_execute(self) -> Generator[None]:
         doc = self.execution_context.graphql_document
@@ -410,13 +520,12 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
             op = get_first_operation(doc)
         else:
             op = None
-        exec_ctx = self.get_context()
 
-        if not op or self.execution_context.result or exec_ctx.instance_config is None:
+        if not op or self.execution_context.result:
             yield
             return
 
-        with self.instance_context(op):
+        with self.request_context(op):
             yield
 
 

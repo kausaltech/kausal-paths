@@ -230,15 +230,18 @@ def _collect_quantity_kind_unit_usage(instance: Instance) -> dict[str, list[Quan
     }
 
 
+def _require_runtime_instance(
+    info: gql.Info,
+    config: InstanceConfig,
+    instance: Instance | None,
+) -> Instance:
+    return instance if instance is not None else info.context.require_instance(config)
+
+
 @sb.type(name='InstanceEditor')
 class InstanceEditorFields:
     _config: sb.Private[InstanceConfig]
     _instance: sb.Private[Instance | None] = None
-
-    def runtime_instance(self) -> Instance:
-        if self._instance is None:
-            self._instance = self._config.get_instance()
-        return self._instance
 
     @sb.field
     @staticmethod
@@ -424,8 +427,9 @@ class InstanceEditorFields:
         description='All registered quantity kinds, with units already used in this instance ordered by frequency.',
     )
     @staticmethod
-    def quantity_kinds(root: 'InstanceEditorFields') -> list[InstanceQuantityKindType]:
-        units_by_quantity = _collect_quantity_kind_unit_usage(root.runtime_instance())
+    def quantity_kinds(root: 'InstanceEditorFields', info: gql.Info) -> list[InstanceQuantityKindType]:
+        instance = _require_runtime_instance(info, root._config, root._instance)
+        units_by_quantity = _collect_quantity_kind_unit_usage(instance)
         return [
             InstanceQuantityKindType(
                 kind=QuantityKindType.from_kind(kind),
@@ -436,8 +440,9 @@ class InstanceEditorFields:
 
     @sb.field
     @staticmethod
-    def graph_layout(root: 'InstanceEditorFields') -> GraphLayout:
-        classifier = root.runtime_instance().context.node_graph_classifier
+    def graph_layout(root: 'InstanceEditorFields', info: gql.Info) -> GraphLayout:
+        instance = _require_runtime_instance(info, root._config, root._instance)
+        classifier = instance.context.node_graph_classifier
         return GraphLayout(
             thresholds=classifier.thresholds,
             core_node_ids=[sb.ID(node_id) for node_id in classifier.core_nodes],
@@ -576,11 +581,6 @@ class InstanceType:
             lead_paragraph=ic.lead_paragraph_i18n,
         )
 
-    def runtime_instance(self) -> Instance:
-        if self._instance is None:
-            self._instance = self._config.get_instance()
-        return self._instance
-
     @property
     def spec(self) -> InstanceModelSpec:
         if self._snapshot is not None:
@@ -641,8 +641,9 @@ class InstanceType:
         graphql_type=InstanceModelType,
         description='Runtime computation model for fields that require hydrating the calculation graph.',
     )
-    def model(self) -> InstanceModelType:
-        return InstanceModelType(_instance=self.runtime_instance())
+    def model(self, info: gql.Info) -> InstanceModelType:
+        instance = _require_runtime_instance(info, self._config, self._instance)
+        return InstanceModelType(_instance=instance)
 
     @sb.field(graphql_type=InstanceHostname | None)
     def hostname(self, hostname: str) -> InstanceHostname | None:
@@ -699,8 +700,8 @@ class InstanceType:
         return InstanceEditorFields(_config=self._config, _instance=self._instance)
 
     @sb.field(deprecation_reason='Use model.goals instead.')
-    def goals(self, id: sb.ID | None = None) -> list[InstanceGoalEntry]:
-        return self.model().goals(id)
+    def goals(self, info: gql.Info, id: sb.ID | None = None) -> list[InstanceGoalEntry]:
+        return self.model(info).goals(id)
 
     @grapple_field
     def action_list_page(self) -> ActionListPage | None:
@@ -715,7 +716,7 @@ class InstanceType:
         deprecation_reason='Use model.nodes instead.',
     )
     def nodes(self, info: gql.Info, id: list[sb.ID] | None = None) -> list[Node]:
-        return self.model().nodes(info, id)
+        return self.model(info).nodes(info, id)
 
 
 @sb.type

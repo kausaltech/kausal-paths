@@ -427,6 +427,12 @@ query Me($frameworkId: ID) {
 }
 """
 
+EDITABLE_MODEL_QUERY = """
+query Me {
+  me { editableInstances { identifier model { nodes { id } } } }
+}
+"""
+
 
 def test_editable_instances_includes_owned_and_admin_instances(
     gql_client: PathsTestClient,
@@ -447,6 +453,22 @@ def test_editable_instances_includes_owned_and_admin_instances(
     assert managed_instance.identifier in identifiers
     editable_instance = next(i for i in data['me']['editableInstances'] if i['identifier'] == managed_instance.identifier)
     assert editable_instance['editor']['configSource'] == managed_instance.config_source
+
+
+def test_editable_instance_model_uses_managed_runtime_without_primary_instance(
+    gql_client: PathsTestClient,
+    client: Client,
+    managed_instance: InstanceConfig,
+    owner_user: User,
+):
+    client.force_login(owner_user)
+
+    data = gql_client.query_data(EDITABLE_MODEL_QUERY)
+
+    editable_instance = next(
+        instance for instance in data['me']['editableInstances'] if instance['identifier'] == managed_instance.identifier
+    )
+    assert editable_instance['model']['nodes'] == []
 
 
 def test_editable_instances_filters_by_framework(

@@ -69,8 +69,14 @@ def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
     return ic
 
 
-def _resolve_model_instance(ic: InstanceConfig) -> InstanceType:
-    instance = ic._initialize_instance(node_refs=True)
+def _resolve_model_instance(info: gql.Info, ic: InstanceConfig, *, refresh: bool = False) -> InstanceType:
+    from nodes.models import PreferredInstanceSource
+
+    instance = info.context.require_instance(
+        ic,
+        source=PreferredInstanceSource.DRAFT,
+        refresh=refresh,
+    )
     node_configs = ic.nodes_for_serialization
     dataset_ports = list(
         ic.dataset_ports.select_related(
@@ -93,13 +99,19 @@ def _resolve_model_instance(ic: InstanceConfig) -> InstanceType:
     return InstanceType.from_model(ic, instance=instance)
 
 
-def _resolve_runtime_node(ic: InstanceConfig, node_id: int) -> Node:
+def _resolve_runtime_node(info: gql.Info, ic: InstanceConfig, node_id: int) -> Node:
+    from nodes.models import PreferredInstanceSource
+
     try:
         nc = NodeConfig.objects.select_related('instance').get(pk=node_id)
     except NodeConfig.DoesNotExist:
         raise GraphQLError('Node not found') from None
 
-    instance = nc.instance._initialize_instance(node_refs=True)
+    instance = info.context.require_instance(
+        nc.instance,
+        source=PreferredInstanceSource.DRAFT,
+        refresh=True,
+    )
     node = instance.context.nodes.get(nc.identifier)
     if node is None:
         raise GraphQLError(f'Node "{node_id}" not found in runtime instance "{ic.identifier}"')
@@ -571,7 +583,7 @@ class ModelEditorQuery:
     @staticmethod
     def model_instance(info: gql.Info, instance_id: sb.ID) -> InstanceType:
         ic = _get_instance_config(info, instance_id)
-        return _resolve_model_instance(ic)
+        return _resolve_model_instance(info, ic, refresh=True)
 
 
 def is_maybe_set[T](maybe: Some[T] | None) -> TypeGuard[Some[T]]:
@@ -876,7 +888,7 @@ class NodeEditorMutation:
             nc.refresh_from_db()
             record_change(nc, action='node.update', before=before, after=nc.serializable_data())
 
-        return _resolve_runtime_node(nc.instance, nc.pk)
+        return _resolve_runtime_node(info, nc.instance, nc.pk)
 
     @gql.mutation(description='Delete this node')
     @staticmethod
@@ -1048,7 +1060,7 @@ class InstanceEditorMutation:
             )
             record_change(nc, action='node.create', before=None, after=nc.serializable_data())
 
-        return _resolve_runtime_node(ic, nc.pk)
+        return _resolve_runtime_node(info, ic, nc.pk)
 
     @gql.mutation(
         description='Update an existing node',
@@ -1629,7 +1641,7 @@ class InstanceEditorMutation:
         user = getattr(info.context, 'user', None)
         ic.publish_instance(user=user)
         ic.refresh_from_db()
-        return _resolve_model_instance(ic)
+        return _resolve_model_instance(info, ic, refresh=True)
 
     @sb.mutation(description='Revert draft to the last published revision')
     @staticmethod
@@ -1640,7 +1652,7 @@ class InstanceEditorMutation:
 
         with transaction.atomic():
             ic.revert_to_published()
-        return _resolve_model_instance(ic)
+        return _resolve_model_instance(info, ic, refresh=True)
 
     # ------------------------------------------------------------------
     # Data sources
