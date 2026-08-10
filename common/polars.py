@@ -458,14 +458,33 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def diff(self, col: str, n: int = 1) -> PathsDataFrame:
+        """
+        Compute the change of `col` over `n` years.
+
+        The first `n` years (the last `|n|` if `n` is negative) have no year to
+        compare against, so their change is zero by definition. Those rows are
+        kept, so that the time scope of the output equals that of the input.
+        Cells that are null in the input stay null and get dropped.
+        """
         meta = self.get_meta()
         time_unit = unit_registry.parse_units(TIME_INTERVAL)
         meta.units[col] = cast('Unit', meta.units[col] / time_unit)
 
         df = self.paths.to_wide()
+        row_idx = pl.int_range(pl.len(), dtype=pl.Int64)
+        no_year_to_compare = row_idx < n if n >= 0 else row_idx >= pl.len() + n
         for df_col in df.columns:
             if col + '@' in df_col or col == df_col:
-                df = df.with_columns(pl.col(df_col).diff(n))
+                dtype = df.schema[df_col]
+                df = df.with_columns(
+                    pl
+                    .when(pl.col(df_col).is_null())
+                    .then(pl.lit(None, dtype=dtype))
+                    .when(no_year_to_compare)
+                    .then(pl.lit(0).cast(dtype))
+                    .otherwise(pl.col(df_col).diff(n))
+                    .alias(df_col),
+                )
             else:
                 continue
         df = df.paths.to_narrow().drop_nulls()
