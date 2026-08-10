@@ -1692,9 +1692,11 @@ class InstanceEditorMutation:
         data_source_id: sb.ID,
         input: 'UpdateDataSourceInput',
     ) -> Any:
+        from kausal_common.datasets.models import Dataset, DatasetSourceReference
         from kausal_common.users import user_or_bust
 
         from nodes.change_ops import gql_change_operation, record_change
+        from nodes.dataset_materialization import refresh_dataset_materialization
 
         ic = root.instance
         data_source = InstanceEditorMutation._get_data_source(info, ic, data_source_id)
@@ -1704,6 +1706,11 @@ class InstanceEditorMutation:
             raise PermissionDeniedError(info, 'Permission denied') from exc
 
         with gql_change_operation(info, ic, action='dataset.data_source.update'):
+            references = DatasetSourceReference.objects.filter(data_source=data_source).values_list(
+                'dataset_id',
+                'data_point__dataset_id',
+            )
+            affected_dataset_ids = {dataset_id or point_dataset_id for dataset_id, point_dataset_id in references}
             before = InstanceEditorMutation._data_source_snapshot(data_source)
             update_fields: list[str] = []
             if is_maybe_set(input.name):
@@ -1730,6 +1737,8 @@ class InstanceEditorMutation:
                 before=before,
                 after=InstanceEditorMutation._data_source_snapshot(data_source),
             )
+            for dataset in Dataset.objects.filter(pk__in=affected_dataset_ids).order_by('pk'):
+                refresh_dataset_materialization(dataset, user=user)
         return data_source
 
     @gql.mutation(description='Delete a DataSource. Fails if still referenced.')

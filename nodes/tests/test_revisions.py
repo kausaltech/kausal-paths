@@ -256,6 +256,33 @@ def test_node_layout_round_trips_through_instance_export(empty_db_instance: Inst
     assert (copied.x, copied.y, copied.source) == (12.5, -8.25, NodeLayoutSource.USER)
 
 
+def test_revisioned_content_round_trips_through_instance_export(empty_db_instance: InstanceConfig):
+    from nodes.instance_serialization import export_instance, import_instance
+
+    empty_db_instance.lead_title = 'Source lead'
+    empty_db_instance.lead_paragraph = '<p>Source paragraph</p>'
+    empty_db_instance.save(update_fields=['lead_title', 'lead_paragraph'])
+    source_node = NodeConfigFactory.create(instance=empty_db_instance, identifier='content-node')
+    source_node.body = [{'type': 'paragraph', 'value': '<p>Source body</p>'}]
+    source_node.save(update_fields=['body'])
+
+    export = export_instance(empty_db_instance)
+    target_instance = InstanceFactory.create()
+    target = InstanceConfigFactory.create(
+        identifier=target_instance.id,
+        instance=target_instance,
+        config_source='database',
+    )
+
+    import_instance(target, export)
+
+    target.refresh_from_db()
+    assert target.lead_title == 'Source lead'
+    assert target.lead_paragraph == '<p>Source paragraph</p>'
+    copied_node = target.nodes.get(identifier='content-node')
+    assert 'Source body' in str(copied_node.body)
+
+
 def test_build_instance_snapshot_does_not_hydrate_related_specs(empty_db_instance: InstanceConfig):
     source = NodeConfigFactory.create(instance=empty_db_instance, identifier='source')
     target = NodeConfigFactory.create(instance=empty_db_instance, identifier='target')
@@ -726,6 +753,311 @@ def test_dataset_port_snapshot_pins_dataset_revision(empty_db_instance: Instance
     assert data['dataset_revision'] == pinned_rev
 
 
+def _make_materialized_dataset(instance_config: InstanceConfig, identifier: str, value: str):
+    from datetime import date
+    from decimal import Decimal
+
+    from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFactory, DatasetMetricFactory
+
+    from nodes.dataset_materialization import materialize_dataset
+
+    dataset = DatasetFactory.create(identifier=identifier, scope=instance_config)
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='value', label='Value', unit='t/a')
+    point = DataPointFactory.create(dataset=dataset, metric=metric, date=date(2020, 1, 1), value=Decimal(value))
+    materialization = materialize_dataset(dataset)
+    return dataset, metric, point, materialization
+
+
+def _materialized_df_value(content: dict[str, Any]) -> float:
+    from nodes.datasets import JSONDataset
+
+    df = JSONDataset.deserialize_df(content['data'])
+    return float(df['value'][0])
+
+
+def test_publish_pins_current_dataset_materialization(empty_db_instance: InstanceConfig):
+    from nodes.models import DatasetPort, InstanceRevisionDatasetPin, NodeConfig
+
+    dataset, metric, _point, materialization = _make_materialized_dataset(empty_db_instance, 'pinned', '10')
+    node = NodeConfig.objects.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    DatasetPort.objects.create(
+        instance=empty_db_instance,
+        node=node,
+        port_id=uuid.uuid4(),
+        dataset=dataset,
+        metric=metric,
+    )
+
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    pin = InstanceRevisionDatasetPin.objects.select_related('dataset_revision').get(
+        instance_revision_id=empty_db_instance.live_revision_id,
+        dataset=dataset,
+    )
+    dataset.refresh_from_db()
+    assert pin.instance_config == empty_db_instance
+    assert pin.dataset_uuid == dataset.uuid
+    assert pin.dataset_revision_id == dataset.latest_revision_id
+    assert pin.dataset_revision.content == materialization.content
+    assert _materialized_df_value(pin.dataset_revision.content) == 10
+
+    assert empty_db_instance.live_revision is not None
+    structured = empty_db_instance.live_revision.content['model_snapshot']['structured']
+    manifest = structured['dataset_revisions']
+    assert manifest == [
+        {
+            'dataset_uuid': str(dataset.uuid),
+            'identifier': 'pinned',
+            'revision_id': pin.dataset_revision_id,
+            'content_hash': materialization.content_hash,
+            'generation': materialization.generation,
+            'forecast_from': None,
+        }
+    ]
+
+
+def test_published_runtime_rejects_missing_relational_dataset_pin(empty_db_instance: InstanceConfig):
+    from nodes.models import DatasetPort, InstanceRevisionDatasetPin, NodeConfig, PreferredInstanceSource
+
+    dataset, metric, _point, _materialization = _make_materialized_dataset(empty_db_instance, 'missing-pin', '10')
+    node = NodeConfig.objects.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    DatasetPort.objects.create(
+        instance=empty_db_instance,
+        node=node,
+        port_id=uuid.uuid4(),
+        dataset=dataset,
+        metric=metric,
+    )
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+    InstanceRevisionDatasetPin.objects.filter(instance_revision_id=empty_db_instance.live_revision_id).delete()
+
+    with pytest.raises(RuntimeError, match='dataset manifest mismatch'):
+        empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+
+
+def test_published_dataset_payload_is_isolated_from_later_draft_edit(empty_db_instance: InstanceConfig):
+    from decimal import Decimal
+
+    from django.db import transaction
+
+    from nodes.dataset_materialization import refresh_dataset_materialization
+    from nodes.models import DatasetPort, InstanceRevisionDatasetPin, NodeConfig
+
+    dataset, metric, point, _materialization = _make_materialized_dataset(empty_db_instance, 'isolated', '10')
+    node = NodeConfig.objects.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    DatasetPort.objects.create(
+        instance=empty_db_instance,
+        node=node,
+        port_id=uuid.uuid4(),
+        dataset=dataset,
+        metric=metric,
+    )
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+    published_revision = InstanceRevisionDatasetPin.objects.get(
+        instance_revision_id=empty_db_instance.live_revision_id,
+        dataset=dataset,
+    ).dataset_revision
+
+    with transaction.atomic():
+        point.value = Decimal(20)
+        point.save(update_fields=['value'])
+        draft_materialization = refresh_dataset_materialization(dataset)
+
+    published_revision.refresh_from_db()
+    assert _materialized_df_value(published_revision.content) == 10
+    assert _materialized_df_value(draft_materialization.content) == 20
+
+
+def test_draft_and_published_runtime_share_serialized_dataset_path(empty_db_instance: InstanceConfig):
+    from decimal import Decimal
+    from typing import cast
+
+    from django.db import transaction
+
+    from nodes.dataset_materialization import refresh_dataset_materialization
+    from nodes.datasets import DatasetWithFilters, SerializedDBDataset
+    from nodes.defs.node_defs import SimpleConfig
+    from nodes.defs.port_def import InputPortDef, OutputPortDef
+    from nodes.models import DatasetPort, NodeConfig, PreferredInstanceSource
+    from nodes.tests.test_model_editor import SIMPLE_NODE_CLASS, _port_uuid
+    from nodes.units import unit_registry
+
+    assert empty_db_instance.spec is not None
+    empty_db_instance.spec.features.use_datasets_from_db = True
+    empty_db_instance.save(update_fields=['spec'])
+
+    dataset, metric, point, _materialization = _make_materialized_dataset(empty_db_instance, 'runtime', '10')
+    port_id = _port_uuid('runtime-value')
+    node = NodeConfig.objects.create(
+        instance=empty_db_instance,
+        identifier='runtime_node',
+        name='Runtime node',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS),
+            input_ports=[
+                InputPortDef(
+                    id=port_id,
+                    unit=unit_registry.parse_units('t/a'),
+                    quantity='emissions',
+                )
+            ],
+            output_ports=[
+                OutputPortDef(
+                    id=_port_uuid('runtime-output'),
+                    unit=unit_registry.parse_units('t/a'),
+                    quantity='emissions',
+                )
+            ],
+        ),
+    )
+    DatasetPort.objects.create(
+        instance=empty_db_instance,
+        node=node,
+        port_id=port_id,
+        dataset=dataset,
+        metric=metric,
+    )
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    with transaction.atomic():
+        point.value = Decimal(20)
+        point.save(update_fields=['value'])
+        refresh_dataset_materialization(dataset)
+
+    published = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    draft = empty_db_instance._create_from_config(source=PreferredInstanceSource.DRAFT)
+    published_dataset = cast('DatasetWithFilters', published.context.nodes['runtime_node'].input_dataset_instances[0])
+    draft_dataset = cast('DatasetWithFilters', draft.context.nodes['runtime_node'].input_dataset_instances[0])
+    assert isinstance(published_dataset, SerializedDBDataset)
+    assert isinstance(draft_dataset, SerializedDBDataset)
+
+    with CaptureQueriesContext(connection) as published_queries:
+        published_df = published_dataset.get_copy()
+    with CaptureQueriesContext(connection) as draft_queries:
+        draft_df = draft_dataset.get_copy()
+
+    assert float(published_df['value'][0]) == 10
+    assert float(draft_df['value'][0]) == 20
+    assert sum('wagtailcore_revision' in query['sql'].lower() for query in published_queries) == 1
+    assert sum('nodes_datasetmaterialization' in query['sql'].lower() for query in draft_queries) == 1
+    assert not any('datasets_datapoint' in query['sql'].lower() for query in published_queries)
+
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+    republished = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    republished_dataset = cast(
+        'DatasetWithFilters',
+        republished.context.nodes['runtime_node'].input_dataset_instances[0],
+    )
+    assert float(republished_dataset.get_copy()['value'][0]) == 20
+
+
+def test_current_dataset_payload_store_bulk_loads_once(empty_db_instance: InstanceConfig):
+    from nodes.datasets import CurrentDatasetPayloadStore, DatasetPayloadRef
+
+    refs = []
+    for identifier, value in [('one', '1'), ('two', '2')]:
+        dataset, _metric, _point, materialization = _make_materialized_dataset(
+            empty_db_instance,
+            identifier,
+            value,
+        )
+        refs.append(
+            DatasetPayloadRef(
+                payload_id=materialization.pk,
+                dataset_pk=dataset.pk,
+                dataset_uuid=str(dataset.uuid),
+                identifier=identifier,
+                content_hash=materialization.content_hash,
+                generation=materialization.generation,
+                forecast_from=materialization.forecast_from,
+            )
+        )
+
+    store = CurrentDatasetPayloadStore(refs)
+    with CaptureQueriesContext(connection) as queries:
+        assert float(store.get_dataframe(refs[0])['value'][0]) == 1
+        assert float(store.get_dataframe(refs[1])['value'][0]) == 2
+        assert float(store.get_dataframe(refs[0])['value'][0]) == 1
+
+    payload_queries = [query for query in queries if 'nodes_datasetmaterialization' in query['sql'].lower()]
+    assert len(payload_queries) == 1
+
+
+def test_revision_dataset_payload_store_bulk_loads_once(empty_db_instance: InstanceConfig):
+    from nodes.datasets import DatasetPayloadRef, RevisionDatasetPayloadStore
+    from nodes.models import DatasetPort, NodeConfig
+
+    node = NodeConfig.objects.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    for identifier, value in [('published-one', '1'), ('published-two', '2')]:
+        dataset, metric, _point, _materialization = _make_materialized_dataset(
+            empty_db_instance,
+            identifier,
+            value,
+        )
+        DatasetPort.objects.create(
+            instance=empty_db_instance,
+            node=node,
+            port_id=uuid.uuid4(),
+            dataset=dataset,
+            metric=metric,
+        )
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+    assert empty_db_instance.live_revision is not None
+    structured = empty_db_instance.live_revision.content['model_snapshot']['structured']
+    snapshot = InstanceSnapshot.model_validate(structured)
+    refs = [
+        DatasetPayloadRef(
+            payload_id=pin.revision_id,
+            dataset_pk=0,
+            dataset_uuid=str(pin.dataset_uuid),
+            identifier=pin.identifier or str(pin.dataset_uuid),
+            content_hash=pin.content_hash,
+            generation=None,
+            forecast_from=pin.forecast_from,
+        )
+        for pin in snapshot.dataset_revisions
+    ]
+
+    store = RevisionDatasetPayloadStore(refs)
+    with CaptureQueriesContext(connection) as queries:
+        assert sorted(float(store.get_dataframe(ref)['value'][0]) for ref in refs) == [1, 2]
+        assert float(store.get_dataframe(refs[0])['value'][0]) in {1, 2}
+
+    revision_queries = [query for query in queries if 'wagtailcore_revision' in query['sql'].lower()]
+    assert len(revision_queries) == 1
+
+
+def test_pinned_dataset_revision_is_protected_until_instance_is_deleted(empty_db_instance: InstanceConfig):
+    from django.db.models.deletion import ProtectedError
+
+    from nodes.models import DatasetPort, InstanceRevisionDatasetPin, NodeConfig
+
+    dataset, metric, _point, _materialization = _make_materialized_dataset(empty_db_instance, 'retained', '10')
+    node = NodeConfig.objects.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    DatasetPort.objects.create(
+        instance=empty_db_instance,
+        node=node,
+        port_id=uuid.uuid4(),
+        dataset=dataset,
+        metric=metric,
+    )
+    empty_db_instance.publish_instance()
+
+    with pytest.raises(ProtectedError):
+        dataset.delete()
+
+    instance_pk = empty_db_instance.pk
+    empty_db_instance.delete()
+    assert not InstanceRevisionDatasetPin.objects.filter(instance_config_id=instance_pk).exists()
+    dataset.delete()
+
+
 def test_export_instance_includes_schema_scoped_placeholder(empty_db_instance: InstanceConfig):
     from django.contrib.contenttypes.models import ContentType
 
@@ -766,7 +1098,7 @@ def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db
     )
 
     from nodes.instance_serialization import export_instance, import_instance_datasets
-    from nodes.models import DatasetPort, NodeConfig
+    from nodes.models import DatasetMaterialization, DatasetPort, NodeConfig
 
     source = empty_db_instance
     target_instance = InstanceFactory.create()
@@ -827,6 +1159,7 @@ def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db
     )
     assert copied_dataset.data_points.count() == 1
     assert not Dataset.objects.filter(pk=placeholder.pk).exists()
+    assert DatasetMaterialization.objects.filter(dataset=copied_dataset, generation=1).exists()
 
     port.refresh_from_db()
     assert port.dataset == copied_dataset
@@ -1548,3 +1881,245 @@ def _make_fake_ctx(*, preview_mode, user):
             return AnonymousUser()
 
     return _FakeCtx()
+
+
+# ---------------------------------------------------------------------------
+# Phase 0: published serving reads snapshot metadata, not live draft rows
+# ---------------------------------------------------------------------------
+
+
+def _make_publishable_node(ic: InstanceConfig, identifier: str, name: str, **kwargs):
+    from nodes.defs.node_defs import NodeSpec as NodeSpecDef
+    from nodes.defs.port_def import OutputPortDef
+    from nodes.models import NodeConfig
+    from nodes.tests.test_model_editor import _port_uuid as _pu
+    from nodes.units import unit_registry
+
+    return NodeConfig.objects.create(
+        instance=ic,
+        identifier=identifier,
+        name=name,
+        spec=NodeSpecDef(
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
+        ),
+        **kwargs,
+    )
+
+
+def test_published_metadata_ignores_draft_edits(empty_db_instance: InstanceConfig):
+    """
+    Draft metadata edits are invisible to PUBLISHED readers.
+
+    Public resolvers read the selected NodeSnapshot. The live NodeConfig is
+    attached only to the draft/editor runtime.
+    """
+    from nodes.models import NodeConfig, PreferredInstanceSource
+
+    nc = _make_publishable_node(empty_db_instance, 'meta_node', 'Published name')
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    NodeConfig.objects.filter(pk=nc.pk).update(name='Draft rename', is_visible=False, order=7)
+
+    published = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    node = published.context.nodes['meta_node']
+    assert node.db_obj is None
+    assert node.source_snapshot is not None
+    assert str(node.source_snapshot.name) == 'Published name'
+    assert node.source_snapshot.is_visible is True
+    assert node.source_snapshot.order is None
+    assert node.source_snapshot.uuid == nc.uuid
+    # The node's spec comes from the revision snapshot, not the draft row.
+    assert node.has_spec
+
+    draft = empty_db_instance._create_from_config(source=PreferredInstanceSource.DRAFT)
+    draft_node = draft.context.nodes['meta_node']
+    assert draft_node.db_obj is not None
+    assert draft_node.db_obj.pk == nc.pk
+    assert draft_node.db_obj.name_i18n == 'Draft rename'
+    assert draft_node.source_snapshot is not None
+    assert str(draft_node.source_snapshot.name) == 'Draft rename'
+
+
+def test_instance_graphql_content_comes_from_selected_snapshot(gql_client, empty_db_instance: InstanceConfig):
+    """Instance content follows the selected snapshot; operational state remains live."""
+    from nodes.models import _pytest_instances
+
+    empty_db_instance.name = 'Published instance'
+    empty_db_instance.owner = 'Published owner'
+    empty_db_instance.lead_title = 'Published lead'
+    empty_db_instance.lead_paragraph = '<p>Published paragraph</p>'
+    assert empty_db_instance.spec is not None
+    empty_db_instance.spec = empty_db_instance.spec.model_copy(update={'theme_identifier': 'published-theme'})
+    empty_db_instance.save(
+        update_fields=['name', 'owner', 'lead_title', 'lead_paragraph', 'spec'],
+    )
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    empty_db_instance.name = 'Draft instance'
+    empty_db_instance.owner = 'Draft owner'
+    empty_db_instance.lead_title = 'Draft lead'
+    empty_db_instance.lead_paragraph = '<p>Draft paragraph</p>'
+    assert empty_db_instance.spec is not None
+    empty_db_instance.spec = empty_db_instance.spec.model_copy(update={'theme_identifier': 'draft-theme'})
+    empty_db_instance.save(
+        update_fields=['name', 'owner', 'lead_title', 'lead_paragraph', 'spec'],
+    )
+    _pytest_instances.pop(empty_db_instance.identifier, None)
+
+    query = f"""
+    query Q @instance(identifier: "{empty_db_instance.identifier}", preview: PUBLISHED) {{
+        instance {{
+            name
+            owner
+            leadTitle
+            leadParagraph
+            themeIdentifier
+        }}
+    }}
+    """
+    published = gql_client.query_data(query)['instance']
+    assert published == {
+        'name': 'Published instance',
+        'owner': 'Published owner',
+        'leadTitle': 'Published lead',
+        'leadParagraph': '<p>Published paragraph</p>',
+        'themeIdentifier': 'published-theme',
+    }
+
+    draft = gql_client.query_data(query.replace('preview: PUBLISHED', 'preview: DRAFT'))['instance']
+    assert draft == {
+        'name': 'Draft instance',
+        'owner': 'Draft owner',
+        'leadTitle': 'Draft lead',
+        'leadParagraph': '<p>Draft paragraph</p>',
+        'themeIdentifier': 'draft-theme',
+    }
+
+
+def test_published_body_survives_draft_edits(empty_db_instance: InstanceConfig):
+    """StreamField body rides in the snapshot; draft body edits don't leak."""
+    from nodes.models import PreferredInstanceSource
+
+    nc = _make_publishable_node(empty_db_instance, 'body_node', 'Body node')
+    nc.body = [{'type': 'paragraph', 'value': '<p>Published body</p>'}]
+    nc.save(update_fields=['body'])
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    nc.body = [{'type': 'paragraph', 'value': '<p>Draft body</p>'}]
+    nc.save(update_fields=['body'])
+
+    published = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    node = published.context.nodes['body_node']
+    assert node.db_obj is None
+    assert node.source_snapshot is not None
+    assert 'Published body' in str(node.source_snapshot.body)
+    assert 'Draft body' not in str(node.source_snapshot.body)
+
+
+def test_pre_v6_revision_content_is_completed_at_load_boundary(empty_db_instance: InstanceConfig):
+    """Fields absent from old snapshots get their explicit compatibility fallback once."""
+    from copy import deepcopy
+
+    from wagtail.models import Revision
+
+    from nodes.models import PreferredInstanceSource
+
+    nc = _make_publishable_node(empty_db_instance, 'legacy_content', 'Legacy content')
+    empty_db_instance.lead_title = 'Initially published lead'
+    empty_db_instance.lead_paragraph = '<p>Initially published paragraph</p>'
+    empty_db_instance.save(update_fields=['lead_title', 'lead_paragraph'])
+    nc.body = [{'type': 'paragraph', 'value': '<p>Initially published body</p>'}]
+    nc.save(update_fields=['body'])
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    assert empty_db_instance.live_revision_id is not None
+    live_revision = empty_db_instance.live_revision
+    assert live_revision is not None
+    content = deepcopy(live_revision.content)
+    structured = content['model_snapshot']['structured']
+    structured['schema_version'] = 5
+    structured['metadata'].pop('lead_title')
+    structured['metadata'].pop('lead_paragraph')
+    structured['nodes'][0].pop('body')
+    Revision.objects.filter(pk=empty_db_instance.live_revision_id).update(content=content)
+
+    empty_db_instance.lead_title = 'Legacy fallback lead'
+    empty_db_instance.lead_paragraph = '<p>Legacy fallback paragraph</p>'
+    empty_db_instance.save(update_fields=['lead_title', 'lead_paragraph'])
+    nc.body = [{'type': 'paragraph', 'value': '<p>Legacy fallback body</p>'}]
+    nc.save(update_fields=['body'])
+    empty_db_instance.refresh_from_db()
+
+    published = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    assert published.source_snapshot is not None
+    assert str(published.source_snapshot.metadata.lead_title) == 'Legacy fallback lead'
+    assert str(published.source_snapshot.metadata.lead_paragraph) == '<p>Legacy fallback paragraph</p>'
+    node_snapshot = published.context.nodes['legacy_content'].source_snapshot
+    assert node_snapshot is not None
+    assert 'Legacy fallback body' in str(node_snapshot.body)
+
+
+def test_published_indicator_node_uses_snapshot_reference(empty_db_instance: InstanceConfig):
+    """Published indicator references remain UUID-pinned snapshot state."""
+    from nodes.models import PreferredInstanceSource
+
+    target = _make_publishable_node(empty_db_instance, 'indicator_target', 'Target')
+    _make_publishable_node(empty_db_instance, 'pointing', 'Pointing', indicator_node=target)
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    published = empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+    pointing = published.context.nodes['pointing']
+    indicator = published.context.nodes['indicator_target']
+    assert pointing.db_obj is None
+    assert pointing.source_snapshot is not None
+    assert indicator.source_snapshot is not None
+    assert pointing.source_snapshot.indicator_node == indicator.source_snapshot.uuid
+    assert published.source_nodes_by_uuid[indicator.source_snapshot.uuid] is indicator
+
+
+def test_published_editor_and_history_guarded(gql_client, empty_db_instance: InstanceConfig):
+    """Editor fields and change history are draft-row governance: absent on PUBLISHED."""
+    from nodes.models import _pytest_instances
+
+    _make_publishable_node(empty_db_instance, 'guarded', 'Guarded')
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+
+    # The factory registers a pre-built empty Instance that short-circuits
+    # request-path hydration; drop it so the query hydrates from the DB.
+    _pytest_instances.pop(empty_db_instance.identifier, None)
+
+    query = f"""
+    query Q @instance(identifier: "{empty_db_instance.identifier}", preview: PUBLISHED) {{
+        nodes {{
+            identifier
+            name
+            editor {{ nodeType }}
+            changeHistory {{ uuid }}
+        }}
+    }}
+    """
+    data = gql_client.query_data(query)
+    (node_data,) = [n for n in data['nodes'] if n['identifier'] == 'guarded']
+    assert node_data['name'] == 'Guarded'
+    assert node_data['editor'] is None
+    assert node_data['changeHistory'] == []
+
+    # Same query on DRAFT: the superuser gets editor fields from live rows.
+    draft_query = query.replace('preview: PUBLISHED', 'preview: DRAFT')
+    data = gql_client.query_data(draft_query)
+    (node_data,) = [n for n in data['nodes'] if n['identifier'] == 'guarded']
+    assert node_data['editor'] is not None
+
+
+def test_publish_instance_bumps_cache_invalidated_at(empty_db_instance: InstanceConfig):
+    """Publishing must invalidate cached anonymous GraphQL results."""
+    before = empty_db_instance.cache_invalidated_at
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+    assert empty_db_instance.cache_invalidated_at > before

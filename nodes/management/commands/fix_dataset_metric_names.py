@@ -16,9 +16,10 @@ from django.core.management.base import BaseCommand
 
 from rich import print
 
-from kausal_common.datasets.models import DatasetMetric
+from kausal_common.datasets.models import Dataset, DatasetMetric
 
 from common import polars as ppl
+from nodes.dataset_materialization import datasets_change
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
@@ -73,7 +74,7 @@ def fix_metrics_for_dataset(
     normalized_dvc = {_normalize_for_matching(col): col for col in dvc_cols}
 
     metrics = DatasetMetric.objects.filter(schema=dataset.schema)
-    fixed = 0
+    fixes: list[tuple[DatasetMetric, str]] = []
     unfixable: list[str] = []
 
     for metric in metrics:
@@ -87,16 +88,21 @@ def fix_metrics_for_dataset(
             unfixable.append(name)
             continue
 
-        if dry_run:
-            print(f'    [cyan]Would fix[/cyan]: {name!r} -> {matched_col!r}')
-        else:
-            old = name
-            metric.name = matched_col
-            metric.save(update_fields=['name'])
-            print(f'    [green]Fixed[/green]: {old!r} -> {matched_col!r}')
-        fixed += 1
+        fixes.append((metric, matched_col))
 
-    return fixed, len(unfixable), unfixable
+    if dry_run:
+        for metric, matched_col in fixes:
+            print(f'    [cyan]Would fix[/cyan]: {metric.name!r} -> {matched_col!r}')
+    elif fixes:
+        datasets = Dataset.objects.filter(schema=dataset.schema).order_by('pk')
+        with datasets_change(datasets):
+            for metric, matched_col in fixes:
+                old = metric.name
+                metric.name = matched_col
+                metric.save(update_fields=['name'])
+                print(f'    [green]Fixed[/green]: {old!r} -> {matched_col!r}')
+
+    return len(fixes), len(unfixable), unfixable
 
 
 class Command(BaseCommand):

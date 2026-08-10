@@ -84,7 +84,7 @@ from paths.utils import (
 )
 
 from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
-from nodes.defs.instance_defs import InstanceFeatures
+from nodes.defs.instance_defs import InstanceFeatures, InstanceMetadata
 from nodes.defs.transform_def import EdgeTransformOp
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
@@ -119,9 +119,7 @@ if TYPE_CHECKING:
 
     from frameworks.models import FrameworkConfig
     from nodes.dimensions import Dimension as NodeDimension
-    from nodes.instance_serialization import (
-        ModelSnapshot,
-    )
+    from nodes.instance_serialization import InstanceSnapshot, ModelSnapshot
     from nodes.node import Node
     from pages.config import OutcomePage as OutcomePageConfig
     from pages.models import ActionListPage, InstanceSiteContent
@@ -575,6 +573,7 @@ class InstanceConfig(
     datasets: RevMany[DatasetModel]
     edges: RevMany[NodeEdge]
     dataset_ports: RevMany[DatasetPort]
+    dataset_revision_pins: RevMany[InstanceRevisionDatasetPin]
     change_operations: RevMany[InstanceChangeOperation]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
@@ -588,6 +587,7 @@ class InstanceConfig(
     # a post-publish edit see the current DB state.
     _nodes_for_serialization: list[NodeConfig] | None
     _annotated_dataset_ports: list[DatasetPort]
+    _publication_dataset_revision_pins: dict[int, Any] | None = None
     graphql_context: InstanceGraphQLContext | None = None
 
     search_fields = [
@@ -658,6 +658,10 @@ class InstanceConfig(
         affected_schema_ids = exclusive_schema_ids | {
             sid for sid in Dataset.objects.qs.filter(own_scope).values_list('schema_id', flat=True) if sid is not None
         }
+        # Dataset revisions are protected while an instance revision pins them.
+        # This explicit instance FK lets full instance deletion release all pins
+        # before its owned datasets and their generic Wagtail revisions cascade.
+        self.dataset_revision_pins.all().delete()
         # Delete the instance's own datasets: everything directly scoped to it (its own data, even
         # when the schema is shared), plus placeholder datasets whose schema is scoped only to this
         # instance. Placeholders of a schema shared with another scope are left for that scope.
@@ -820,9 +824,10 @@ class InstanceConfig(
             'config_source': self.config_source,
         }
         if self.config_source == 'database':
+            snapshot = build_instance_snapshot(self, self._publication_dataset_revision_pins)
             data['model_snapshot'] = {
                 'schema_version': SNAPSHOT_SCHEMA_VERSION,
-                'structured': build_instance_snapshot(self).model_dump(mode='json'),
+                'structured': snapshot.model_dump(mode='json'),
             }
         return data
 
@@ -885,14 +890,117 @@ class InstanceConfig(
         return latest.uuid if latest is not None else None
 
     def publish_instance(self, user: User | None = None) -> None:
-        """Serialize the current model state and publish as a Wagtail revision."""
-        revision = self.save_revision(user=user)
-        self.publish(revision, user=user)
+        """Atomically publish the model and immutable revisions of its DB datasets."""
+        from wagtail.models import Revision
+
+        from nodes.instance_serialization import DatasetRevisionPinSnapshot
+
+        with transaction.atomic():
+            locked = InstanceConfig.objects.select_for_update().get(pk=self.pk)
+            dataset_ids = list(
+                DatasetPort.objects.filter(instance=locked).order_by().values_list('dataset_id', flat=True).distinct()
+            )
+            datasets = list(
+                DatasetModel.objects
+                .select_for_update()
+                .filter(pk__in=dataset_ids, is_external_placeholder=False)
+                .only('pk', 'uuid', 'identifier', 'last_modified_at', 'latest_revision_id')
+                .order_by('pk')
+            )
+            materializations = {
+                materialization.dataset_id: materialization
+                for materialization in DatasetMaterialization.objects.select_for_update().filter(
+                    dataset_id__in=[dataset.pk for dataset in datasets],
+                )
+            }
+            for dataset in datasets:
+                materialization = materializations.get(dataset.pk)
+                if materialization is None:
+                    raise RuntimeError(f'Dataset {dataset.uuid} has no current materialization')
+                if materialization.source_modified_at != dataset.last_modified_at:
+                    raise RuntimeError(f'Dataset {dataset.uuid} has a stale current materialization')
+
+            dataset_ct = ContentType.objects.get_for_model(DatasetModel, for_concrete_model=False)
+            now = timezone.now()
+            dataset_revisions: list[Revision] = [
+                Revision(
+                    content_type=dataset_ct,
+                    base_content_type=dataset_ct,
+                    object_id=str(dataset.pk),
+                    created_at=now,
+                    user=user,
+                    object_str=dataset.identifier or str(dataset.uuid),
+                    content=materializations[dataset.pk].content,
+                )
+                for dataset in datasets
+            ]
+            Revision.objects.bulk_create(dataset_revisions)
+
+            pins_by_dataset: dict[int, DatasetRevisionPinSnapshot] = {}
+            revisions_by_dataset: dict[int, Revision] = {}
+            for dataset, dataset_revision in zip(datasets, dataset_revisions, strict=True):
+                materialization = materializations[dataset.pk]
+                dataset.latest_revision = dataset_revision
+                revisions_by_dataset[dataset.pk] = dataset_revision
+                pins_by_dataset[dataset.pk] = DatasetRevisionPinSnapshot(
+                    dataset_uuid=dataset.uuid,
+                    identifier=dataset.identifier,
+                    revision_id=dataset_revision.pk,
+                    content_hash=materialization.content_hash,
+                    generation=materialization.generation,
+                    forecast_from=materialization.forecast_from,
+                )
+            if datasets:
+                DatasetModel.objects.bulk_update(datasets, ['latest_revision'])
+
+            locked._publication_dataset_revision_pins = pins_by_dataset
+            try:
+                revision = locked.save_revision(user=user)
+            finally:
+                locked._publication_dataset_revision_pins = None
+
+            InstanceRevisionDatasetPin.objects.bulk_create([
+                InstanceRevisionDatasetPin(
+                    instance_config=locked,
+                    instance_revision=revision,
+                    dataset=dataset,
+                    dataset_revision=revisions_by_dataset[dataset.pk],
+                    dataset_uuid=dataset.uuid,
+                    identifier=dataset.identifier,
+                    forecast_from=materializations[dataset.pk].forecast_from,
+                )
+                for dataset in datasets
+            ])
+            locked.publish(revision, user=user)
+            locked.invalidate_cache()
+
+            self.latest_revision_id = locked.latest_revision_id
+            self.live_revision_id = locked.live_revision_id
+            self.cache_invalidated_at = locked.cache_invalidated_at
 
     def revert_to_published(self) -> None:
         """Restore draft state from the published revision snapshot."""
         # TODO: Rewrite for spec-based storage
         raise NotImplementedError('revert_to_published needs rewriting for spec-based storage')
+
+    def _complete_legacy_snapshot_content(self, snapshot: InstanceSnapshot) -> None:
+        """
+        Fill fields that pre-v6 revisions never persisted.
+
+        Historical values do not exist for these fields, so the only
+        backwards-compatible value is the current row value. Keeping this
+        one-time compatibility read at the revision boundary prevents public
+        GraphQL resolvers from acquiring live-row fallbacks of their own.
+        """
+        current_metadata = InstanceMetadata.from_model(self)
+        snapshot.metadata.lead_title = current_metadata.lead_title
+        snapshot.metadata.lead_paragraph = current_metadata.lead_paragraph
+
+        bodies_by_uuid = {
+            node.uuid: list(node.body.raw_data) if node.body else None for node in self.nodes.get_queryset().only('uuid', 'body')
+        }
+        for node_snapshot in snapshot.nodes:
+            node_snapshot.body = bodies_by_uuid.get(node_snapshot.uuid)
 
     def _create_from_published_revision(self, node_refs: bool = False) -> Instance | None:
         """
@@ -914,12 +1022,33 @@ class InstanceConfig(
 
             from .instance_serialization import InstanceSnapshot
 
-            with set_i18n_context(self.primary_language, self.other_languages or []):
+            source_schema_version = structured.get('schema_version', 1)
+            raw_metadata = structured.get('metadata') or {}
+            primary_language = raw_metadata.get('primary_language', self.primary_language)
+            other_languages = raw_metadata.get('other_languages', self.other_languages or [])
+            with set_i18n_context(primary_language, other_languages):
                 snapshot = InstanceSnapshot.from_serialized_data(structured)
-            instance = InstanceLoader.from_snapshot(snapshot).instance
-            self.update_instance_from_configs(instance, node_refs=True)
+                if source_schema_version < 6:
+                    self._complete_legacy_snapshot_content(snapshot)
+            if source_schema_version >= 7:
+                expected_pins = {(pin.dataset_uuid, pin.revision_id) for pin in snapshot.dataset_revisions}
+                persisted_pins = set(
+                    self.dataset_revision_pins.filter(instance_revision=rev).values_list(
+                        'dataset_uuid',
+                        'dataset_revision_id',
+                    )
+                )
+                if persisted_pins != expected_pins:
+                    raise RuntimeError(
+                        f'Instance revision {rev.pk} dataset manifest mismatch: '
+                        f'snapshot={sorted(map(str, expected_pins))}, persisted={sorted(map(str, persisted_pins))}',
+                    )
+            instance = InstanceLoader.from_snapshot(snapshot, published=source_schema_version >= 7).instance
+            instance.bind_source_snapshot(snapshot)
             return instance
-        # Legacy revisions carry only the serialized config dict.
+        # Legacy revisions carry only the serialized config dict. They predate
+        # the structured snapshot, so published metadata still comes from the
+        # live rows here (known draft-leak; fixed by republishing).
         hydrate_dict = snapshot_data.get('hydrate_dict')
         if hydrate_dict is None:
             # Revision predates the snapshot restructure; fall back to draft.
@@ -955,6 +1084,7 @@ class InstanceConfig(
             snapshot = build_instance_snapshot(self)
             loader = InstanceLoader.from_snapshot(snapshot, tolerate_node_failures=tolerate_node_failures)
             instance = loader.instance
+            instance.bind_source_snapshot(snapshot)
             self.update_instance_from_configs(instance, node_refs=True)
             return instance
 
@@ -2183,6 +2313,81 @@ class DatasetPort(EditableInstanceChild):
 
     def __str__(self) -> str:
         return f'{self.node_id}:{self.port_id} ← {self.dataset_id}'
+
+
+class DatasetMaterialization(models.Model):
+    """Current serialized calculation payload for a DB-backed dataset."""
+
+    dataset: OneToOne[DatasetModel] = models.OneToOneField(
+        DatasetModel,
+        on_delete=models.CASCADE,
+        related_name='paths_materialization',
+    )
+    content = models.JSONField()
+    content_hash = models.CharField(max_length=64)
+    generation = models.PositiveBigIntegerField(default=1)
+    forecast_from = models.IntegerField(null=True, blank=True)
+    source_modified_at = models.DateTimeField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects: ClassVar[Manager[DatasetMaterialization]] = Manager()
+
+    class Meta:
+        ordering = ['dataset_id']
+        verbose_name = _('Dataset materialization')
+        verbose_name_plural = _('Dataset materializations')
+
+    def __str__(self) -> str:
+        return f'{self.dataset_id} @ {self.generation}'
+
+
+class InstanceRevisionDatasetPin(models.Model):
+    """Relational retention manifest for datasets used by an instance revision."""
+
+    instance_config: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='dataset_revision_pins',
+    )
+    instance_revision = models.ForeignKey(
+        'wagtailcore.Revision',
+        on_delete=models.CASCADE,
+        related_name='instance_dataset_pins',
+    )
+    dataset: FK[DatasetModel] = models.ForeignKey(
+        DatasetModel,
+        on_delete=models.PROTECT,
+        related_name='instance_revision_pins',
+    )
+    dataset_revision = models.ForeignKey(
+        'wagtailcore.Revision',
+        on_delete=models.PROTECT,
+        related_name='dataset_revision_pins',
+    )
+    dataset_uuid = models.UUIDField()
+    identifier = models.CharField(max_length=100, null=True, blank=True)
+    forecast_from = models.IntegerField(null=True, blank=True)
+
+    objects: ClassVar[Manager[InstanceRevisionDatasetPin]] = Manager()
+
+    class Meta:
+        ordering = ['instance_revision_id', 'dataset_id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['instance_revision', 'dataset'],
+                name='unique_dataset_pin_per_instance_revision',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['instance_config', 'instance_revision']),
+            models.Index(fields=['dataset_revision']),
+            models.Index(fields=['dataset']),
+        ]
+        verbose_name = _('Instance revision dataset pin')
+        verbose_name_plural = _('Instance revision dataset pins')
+
+    def __str__(self) -> str:
+        return f'{self.instance_revision_id}: {self.identifier or self.dataset_id} → {self.dataset_revision_id}'
 
 
 # --- Change tracking: InstanceChangeOperation + InstanceModelLogEntry ---

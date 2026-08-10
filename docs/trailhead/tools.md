@@ -53,6 +53,55 @@ python tools/debug_instance.py -i espoo --source db --node net_emissions
 ```
 
 
+## load_dvc_dataset
+
+Imports a DVC dataset into the DB as a `Dataset` row. Two phases:
+diagnose, then apply.
+
+```bash
+# Phase 1 -- what exists, and what would change? Writes nothing.
+python manage.py load_dvc_dataset espoo espoo/buildings --plan
+
+# Phase 2 -- apply. Existing rows are refreshed in place (same pk and UUID),
+# so DatasetPort / NodeDataset / revision-pin references stay valid.
+python manage.py load_dvc_dataset espoo espoo/buildings --force
+```
+
+The plan reports the row's pk/UUID, the commit its data came from versus the
+one about to be imported, the data-point count on both sides, and which
+metrics are kept, added or dropped.
+
+### Which commit gets imported
+
+Every run prints the repository and commit it is reading, and where that pin
+came from. `--repo-from` chooses:
+
+- `auto` (default) — the instance's declared `config_source`. For a
+  DB-sourced instance that is the DB spec's pin, which lags the YAML until
+  `sync_instance_to_db` runs.
+- `yaml` — the pin in `configs/<instance>.yaml`.
+- `db` — the pin in the stored `InstanceConfig.spec`.
+
+When the two pins disagree the command warns and names the other one. This
+matters because importing from the wrong commit is otherwise invisible: it
+surfaces much later as `No metric <column> in dataset <id>` from
+`sync_instance_to_db`, which reads the YAML regardless of `config_source`.
+
+### Things that will stop a run
+
+- **A dropped metric that dataset ports still bind.** Refused up front, with
+  the port count, rather than leaving a node bound to input that no longer
+  arrives. Update the model binding or keep the column in the data.
+- **`--all` with `use_datasets_from_db`.** Any identifier that already has a
+  DB row loads as a `DBDataset`, so `ctx.get_all_dvc_dataset_ids()` is empty
+  and `--all` has nothing to do. Name the datasets explicitly.
+
+`--recreate` restores the old delete-and-rebuild behaviour. It mints a new
+UUID, which orphans the dataset references held by published instance
+revisions, and it fails outright when anything references the row under
+`PROTECT` — use it only when you want a genuinely fresh row.
+
+
 ## sync_instance_to_db
 
 Exports runtime node specs from YAML-loaded instances into the DB.

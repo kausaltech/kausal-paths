@@ -456,6 +456,9 @@ class InstanceLoader:
     fw_config: FrameworkConfig | None = None
     config_mtime_hash: str | None = None
     db_datasets: dict[str, DBDatasetModel] = {}
+    db_dataset_refs: dict[str, Any] = {}
+    dataset_payload_store: Any = None
+    supplied_dataset_payload_refs: list[Any] | None = None
 
     _node_classes: dict[str, type[Node]]
     _input_nodes: dict[str, list[dict[str, Any] | str]]
@@ -519,7 +522,7 @@ class InstanceLoader:
             else:
                 ds_def = InputDatasetDef.model_validate(ds)
 
-            ds_obj: DVCDataset | DBDataset | None = None
+            ds_obj: Dataset | None = None
             if issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode):
                 ds_obj = GenericDataset.from_def(ds_def, self.context)
 
@@ -543,9 +546,17 @@ class InstanceLoader:
                 # framework measures where available. That case doesn't arise yet, so
                 # for now the DB dataset simply wins outright.
                 ds_db_obj = None
+                payload_ref = None
                 if self.instance.features.use_datasets_from_db:
                     ds_db_obj = self.db_datasets.get(ds_def.id)
-                ds_obj = FrameworkMeasureDVCDataset2.from_def(ds_def, self.context, db_dataset_obj=ds_db_obj)
+                    payload_ref = self.db_dataset_refs.get(ds_def.id)
+                ds_obj = FrameworkMeasureDVCDataset2.from_def(
+                    ds_def,
+                    self.context,
+                    db_dataset_obj=ds_db_obj,
+                    payload_ref=payload_ref,
+                    payload_store=self.dataset_payload_store,
+                )
             elif self.fw_config is not None:
                 from nodes.gpc import DatasetNode
 
@@ -559,7 +570,18 @@ class InstanceLoader:
                 ds_obj = FrameworkMeasureDVCDataset.from_def(ds_def, self.context)
             elif self.instance.features.use_datasets_from_db:
                 ds_db_obj = self.db_datasets.get(ds_def.id)
-                if ds_db_obj is not None:
+                payload_ref = self.db_dataset_refs.get(ds_def.id)
+                if payload_ref is not None:
+                    from nodes.datasets import SerializedDBDataset
+
+                    assert self.dataset_payload_store is not None
+                    ds_obj = SerializedDBDataset.from_def(
+                        ds_def,
+                        self.context,
+                        payload_ref=payload_ref,
+                        payload_store=self.dataset_payload_store,
+                    )
+                elif ds_db_obj is not None:
                     ds_obj = DBDataset.from_def(ds_def, self.context, db_dataset_obj=ds_db_obj)
 
             if ds_obj is None:
@@ -1201,7 +1223,13 @@ class InstanceLoader:
         )
 
     @classmethod
-    def from_snapshot(cls, snapshot: InstanceSnapshot, tolerate_node_failures: bool = False) -> Self:
+    def from_snapshot(
+        cls,
+        snapshot: InstanceSnapshot,
+        tolerate_node_failures: bool = False,
+        *,
+        published: bool = False,
+    ) -> Self:
         """
         Build the runtime from an ``InstanceSnapshot`` (specs, not YAML dicts).
 
@@ -1212,7 +1240,27 @@ class InstanceLoader:
         """
         from nodes.instance_from_db import snapshot_to_config_dict
 
-        return cls(config=snapshot_to_config_dict(snapshot), tolerate_node_failures=tolerate_node_failures)
+        payload_refs = None
+        if published:
+            from nodes.datasets import DatasetPayloadRef
+
+            payload_refs = [
+                DatasetPayloadRef(
+                    payload_id=pin.revision_id,
+                    dataset_pk=0,
+                    dataset_uuid=str(pin.dataset_uuid),
+                    identifier=pin.identifier or str(pin.dataset_uuid),
+                    content_hash=pin.content_hash,
+                    generation=None,
+                    forecast_from=pin.forecast_from,
+                )
+                for pin in snapshot.dataset_revisions
+            ]
+        return cls(
+            config=snapshot_to_config_dict(snapshot),
+            tolerate_node_failures=tolerate_node_failures,
+            dataset_payload_refs=payload_refs,
+        )
 
     @classmethod
     def from_yaml(
@@ -1241,6 +1289,7 @@ class InstanceLoader:
         fw_config: FrameworkConfig | None = None,
         config_mtime_hash: str | None = None,
         tolerate_node_failures: bool = False,
+        dataset_payload_refs: list[Any] | None = None,
     ):
         from .units import add_unit_translations
 
@@ -1249,6 +1298,7 @@ class InstanceLoader:
         self.config = config
         self.fw_config = fw_config
         self.tolerate_node_failures = tolerate_node_failures
+        self.supplied_dataset_payload_refs = dataset_payload_refs
         self.default_language = config['default_language']
         self.other_languages = config.get('supported_languages', [])
         self.config_mtime_hash = config_mtime_hash
@@ -1267,18 +1317,64 @@ class InstanceLoader:
 
         from nodes.models import InstanceConfig
 
+        if self.supplied_dataset_payload_refs is not None:
+            from nodes.datasets import RevisionDatasetPayloadStore
+
+            self.db_datasets = {}
+            self.db_dataset_refs = {ref.identifier: ref for ref in self.supplied_dataset_payload_refs}
+            self.dataset_payload_store = RevisionDatasetPayloadStore(self.supplied_dataset_payload_refs)
+            return
+
         try:
             ic = self.instance.config
         except InstanceConfig.DoesNotExist:
             self.db_datasets = {}
             return
-        ds_objs = (
+        ds_objs = list(
             DBDatasetModel.objects.qs
             .for_instance_config(ic)
             .filter(is_external_placeholder=False, identifier__isnull=False)
-            .only('uuid', 'identifier', 'last_modified_at')
+            .only('uuid', 'identifier', 'last_modified_at', 'spec')
         )
         self.db_datasets = {cast('str', ds.identifier): ds for ds in ds_objs}
+        from nodes.datasets import CurrentDatasetPayloadStore, DatasetPayloadRef
+        from nodes.models import DatasetMaterialization
+
+        materializations = DatasetMaterialization.objects.filter(dataset_id__in=[ds.pk for ds in ds_objs]).only(
+            'dataset_id',
+            'content_hash',
+            'generation',
+            'forecast_from',
+            'source_modified_at',
+        )
+        by_dataset = {materialization.dataset_id: materialization for materialization in materializations}
+        refs: list[DatasetPayloadRef] = []
+        self.db_dataset_refs = {}
+        for dataset in ds_objs:
+            materialization = by_dataset.get(dataset.pk)
+            if materialization is None:
+                self.logger.warning(
+                    'Dataset %s has no current materialization; using transitional live-row fallback', dataset.identifier
+                )
+                continue
+            if materialization.source_modified_at != dataset.last_modified_at:
+                self.logger.warning(
+                    'Dataset %s has a stale current materialization; using transitional live-row fallback', dataset.identifier
+                )
+                continue
+            assert dataset.identifier is not None
+            ref = DatasetPayloadRef(
+                payload_id=materialization.pk,
+                dataset_pk=dataset.pk,
+                dataset_uuid=str(dataset.uuid),
+                identifier=dataset.identifier,
+                content_hash=materialization.content_hash,
+                generation=materialization.generation,
+                forecast_from=materialization.forecast_from,
+            )
+            refs.append(ref)
+            self.db_dataset_refs[dataset.identifier] = ref
+        self.dataset_payload_store = CurrentDatasetPayloadStore(refs)
 
     def _init_instance(self) -> None:  # noqa: PLR0915
         from nodes.context import Context
@@ -1381,6 +1477,8 @@ class InstanceLoader:
         self._scenario_values = {}
         self._node_visualizations = {}
         self.db_datasets = {}
+        self.db_dataset_refs = {}
+        self.dataset_payload_store = None
         self.setup_validation_graph()
         self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()

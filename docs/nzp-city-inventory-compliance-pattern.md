@@ -10,13 +10,18 @@ NZP action mechanics.
 a 31% gap that turned out to be almost entirely methodological, not missing
 emissions.
 
-**Companion document:**
-[`matching-a-model-to-an-inventory.md`](matching-a-model-to-an-inventory.md)
-covers the step that comes before the routing below — how to build a line-level
-comparison detailed enough to classify each difference into the three buckets,
-and what to do when the city wants the inventory reproduced *including* its
-errors. This document answers "what do I do about this gap?"; that one answers
-"what exactly is the gap?".
+**Companion documents.** This one answers "what do I do about this gap?" — the
+model mechanism for each kind of difference. The steps before it are documented
+elsewhere:
+
+- [`matching-a-model-to-an-inventory.md`](matching-a-model-to-an-inventory.md) —
+  "what exactly is the gap?": the line-level comparison detailed enough to classify
+  each difference into the three buckets below, and what to do when the city wants
+  the inventory reproduced *including* its errors.
+- [`building-a-model-from-city-workbooks.md`](building-a-model-from-city-workbooks.md)
+  — reading a consultant workbook: anatomy, validations, reverse-engineering the
+  applied factor, and the traps. Also the method for the case where there is no
+  framework model to reconcile against at all.
 
 **Design goal:** every step below is expressed as datasets, dataset overrides, or
 node wiring inside the *city's own config file*, using operations already present
@@ -117,15 +122,20 @@ that chain — including cities with no need for the comparison at all.
 ## Step 4 — Check the resulting number against the inventory's own internal logic
 
 Before presenting a corrected figure, verify the city's own inventory dataset is
-internally consistent: row/column sums reconcile, `emissions = activity × EF`
-holds per category, and any single-value average (e.g. a flat EF applied across
-several sub-categories) is understood as *derived from* a weighting scheme (e.g.
-a certificate-count fuel-share survey) rather than itself a primary measurement.
-Reverse-engineering a supplied EF or share by checking whether it reproduces a
-known formula is a fast way to both validate the data and answer open
-methodology questions (in Cork's case, this is how the applied grid EF and the
-county-vs-CIBSE fuel-split question were both resolved without needing a new
-data request).
+internally consistent — row/column sums reconcile, `emissions = activity × EF`
+holds per category, implied factors match the workbook's own factor table. The
+checks and the traps are in
+[`building-a-model-from-city-workbooks.md`](building-a-model-from-city-workbooks.md)
+§3 and §6.1; do not treat an inventory as ground truth before running them.
+
+One point deserves emphasis in this context: **a single-value average is not a
+primary measurement.** A flat EF applied across several sub-categories is derived
+from some weighting scheme — a certificate-count fuel-share survey, a fleet mix, a
+floor-area split — and until you know which, you cannot tell whether it is an
+emission-factor difference (bucket A) or an activity-mix difference (bucket B)
+wearing a factor's clothes. Reverse-engineering the supplied figure to see which
+formula reproduces it settles that: in Cork's case it resolved both the applied
+grid EF and the county-vs-CIBSE fuel-split question without a new data request.
 
 ## Checklist for a new city adopting this pattern
 

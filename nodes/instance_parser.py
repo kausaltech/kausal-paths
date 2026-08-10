@@ -282,6 +282,8 @@ class InstanceConfigParser:
             identifier=config['id'],
             name=name,
             owner=owner,
+            lead_title=_make_trans_string(config, 'lead_title'),
+            lead_paragraph=_make_trans_string(config, 'lead_paragraph'),
             primary_language=self.default_language,
             other_languages=[lang for lang in self.other_languages if lang != self.default_language],
         )

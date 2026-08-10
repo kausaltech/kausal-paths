@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from django.db import transaction
 from django.forms import BaseInlineFormSet, ValidationError
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -18,11 +19,13 @@ from kausal_common.datasets.models import (
     Dimension,
     DimensionScope,
 )
+from kausal_common.users import user_or_bust
 
 from paths.context import realm_context
 
 from admin_site.viewsets import PathsCreateView, PathsEditView, PathsViewSet
 from kausal_paths_extensions.dataset_editor import DatasetViewSet
+from nodes.dataset_materialization import datasets_change
 from users.models import User
 
 if TYPE_CHECKING:
@@ -51,6 +54,14 @@ class DatasetSchemaCreateView(PathsCreateView[DatasetSchema, WagtailAdminModelFo
             if dataset_config.SCHEMA_HAS_SINGLE_DATASET:
                 Dataset.objects.get_or_create(schema=instance, defaults={'scope': default_scope_model_instance})
         return instance
+
+    @transaction.atomic
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        datasets = Dataset.objects.filter(schema=form.instance, is_external_placeholder=False).order_by('pk')
+        with datasets_change(datasets, user=user_or_bust(self.request.user)):
+            pass
+        return response
 
 
 class DatasetSchemaFormWithDimensionFormSet(BaseInlineFormSet):
@@ -166,6 +177,11 @@ class DatasetSchemaMetricFormSet(BaseInlineFormSet):
 class DatasetSchemaEditView(PathsEditView[DatasetSchema]):
     def get_success_url(self):
         return reverse(DatasetViewSet().get_url_name('list'))
+
+    def form_valid(self, form):
+        datasets = Dataset.objects.filter(schema=self.object, is_external_placeholder=False).order_by('pk')
+        with datasets_change(datasets, user=user_or_bust(self.request.user)):
+            return super().form_valid(form)
 
 
 class DatasetSchemaViewSet(PathsViewSet[DatasetSchema]):

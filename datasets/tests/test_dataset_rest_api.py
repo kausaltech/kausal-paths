@@ -18,6 +18,8 @@ from kausal_common.testing.utils import parse_table
 
 from datasets.tests.fixtures import *
 from datasets.tests.utils import AssertIdenticalUUIDs, AssertNewUUID, AssertRemovedUUID
+from nodes.dataset_materialization import materialize_dataset
+from nodes.models import DatasetMaterialization
 
 pytestmark = pytest.mark.django_db()
 
@@ -1945,3 +1947,145 @@ def test_data_point_bulk_update(api_client, dataset_test_data, user_key, data_po
         assert len(data) == len(data_points)
         assert all(d['value'] == 888.88 for d in data)
         assert [d['date'] for d in data] == [item['date'] for item in put_data]
+
+
+def test_rest_bulk_datapoint_write_materializes_once(api_client, dataset_test_data):
+    dataset = dataset_test_data['dataset1']
+    metric = dataset_test_data['metric1']
+    category = dataset_test_data['dimension_category1']
+    api_client.force_authenticate(user=dataset_test_data['superuser'])
+    materialization = materialize_dataset(dataset)
+
+    response = api_client.post(
+        f'/v1/datasets/{dataset.uuid}/data_points/',
+        [
+            {
+                'date': '2098-01-01',
+                'value': 98,
+                'metric': str(metric.uuid),
+                'dimension_categories': [str(category.uuid)],
+            },
+            {
+                'date': '2099-01-01',
+                'value': 99,
+                'metric': str(metric.uuid),
+                'dimension_categories': [str(category.uuid)],
+            },
+        ],
+        format='json',
+    )
+
+    assert response.status_code == 201
+    materialization.refresh_from_db()
+    assert materialization.generation == 2
+
+
+def test_rest_comment_write_refreshes_provenance(api_client, dataset_test_data):
+    data_point = dataset_test_data['data_point1']
+    dataset = data_point.dataset
+    api_client.force_authenticate(user=dataset_test_data['superuser'])
+    materialization = materialize_dataset(dataset)
+
+    response = api_client.post(
+        f'/v1/datasets/{dataset.uuid}/data_points/{data_point.uuid}/comments/',
+        {'text': 'Materialized REST comment'},
+        format='json',
+    )
+
+    assert response.status_code == 201
+    materialization.refresh_from_db()
+    assert materialization.generation == 2
+    assert any(comment['text'] == 'Materialized REST comment' for comment in materialization.content['comments'])
+
+
+def test_rest_source_reference_write_refreshes_provenance(api_client, dataset_test_data):
+    dataset = dataset_test_data['dataset1']
+    data_source = dataset_test_data['data_source1_alternative']
+    api_client.force_authenticate(user=dataset_test_data['superuser'])
+    materialization = materialize_dataset(dataset)
+
+    response = api_client.post(
+        f'/v1/datasets/{dataset.uuid}/sources/',
+        {'data_source': str(data_source.uuid)},
+        format='json',
+    )
+
+    assert response.status_code == 201
+    materialization.refresh_from_db()
+    assert materialization.generation == 2
+    assert any(source['uuid'] == str(data_source.uuid) for source in materialization.content['data_sources'])
+
+
+def test_rest_schema_update_refreshes_all_datasets(api_client, dataset_test_data):
+    schema = dataset_test_data['schema1']
+    first_dataset = dataset_test_data['dataset1']
+    second_instance = dataset_test_data['instance2']
+    content_type = ContentType.objects.get_for_model(type(second_instance))
+    second_dataset = Dataset.objects.create(
+        schema=schema,
+        scope_content_type=content_type,
+        scope_id=second_instance.pk,
+    )
+    first_materialization = materialize_dataset(first_dataset)
+    second_materialization = materialize_dataset(second_dataset)
+    api_client.force_authenticate(user=dataset_test_data['superuser'])
+
+    response = api_client.patch(
+        f'/v1/dataset_schemas/{schema.uuid}/',
+        {'name_en': 'Materialized schema name'},
+        format='json',
+    )
+
+    assert response.status_code == 200
+    first_materialization.refresh_from_db()
+    second_materialization.refresh_from_db()
+    assert first_materialization.generation == 2
+    assert second_materialization.generation == 2
+    assert first_materialization.content['name']['en'] == 'Materialized schema name'
+    assert second_materialization.content['name']['en'] == 'Materialized schema name'
+
+
+def test_rest_data_source_update_refreshes_all_referencing_datasets(api_client, dataset_test_data):
+    data_source = dataset_test_data['data_source1']
+    first_dataset = dataset_test_data['dataset1']
+    second_dataset = dataset_test_data['dataset2']
+    DatasetSourceReference.objects.create(dataset=second_dataset, data_source=data_source)
+    first_materialization = materialize_dataset(first_dataset)
+    second_materialization = materialize_dataset(second_dataset)
+    api_client.force_authenticate(user=dataset_test_data['superuser'])
+
+    response = api_client.patch(
+        f'/v1/data_sources/{data_source.uuid}/',
+        {'name': 'Materialized source name'},
+        format='json',
+    )
+
+    assert response.status_code == 200
+    first_materialization.refresh_from_db()
+    second_materialization.refresh_from_db()
+    assert first_materialization.generation == 2
+    assert second_materialization.generation == 2
+    assert {source['name'] for source in first_materialization.content['data_sources']} == {'Materialized source name'}
+    assert 'Materialized source name' in {source['name'] for source in second_materialization.content['data_sources']}
+
+
+def test_rest_dataset_create_creates_materialization(api_client, dataset_test_data):
+    schema = dataset_test_data['unused_schema2']
+    instance = dataset_test_data['instance2']
+    content_type = ContentType.objects.get_for_model(type(instance))
+    api_client.force_authenticate(user=dataset_test_data['superuser'])
+
+    response = api_client.post(
+        '/v1/datasets/',
+        {
+            'schema': str(schema.uuid),
+            'scope_content_type_id': content_type.pk,
+            'scope_id': instance.pk,
+        },
+        format='json',
+    )
+
+    assert response.status_code == 201
+    dataset = Dataset.objects.get(uuid=response.json()['uuid'])
+    materialization = DatasetMaterialization.objects.get(dataset=dataset)
+    assert materialization.generation == 1

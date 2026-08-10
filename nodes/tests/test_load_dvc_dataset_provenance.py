@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from typing import Any, cast
+
 import polars as pl
 import pytest
 
-from kausal_common.datasets.models import DataPoint, DataPointComment, DatasetMetric, DatasetSourceReference, DataSource
+from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, DatasetMetric, DatasetSourceReference, DataSource
 from kausal_common.datasets.tests.factories import DatasetFactory, DatasetSchemaFactory
 
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.management.commands.load_dvc_dataset import Command
+from nodes.models import DatasetMaterialization
 from nodes.tests.factories import InstanceConfigFactory
 from nodes.units import unit_registry
 
@@ -59,3 +63,27 @@ def test_get_or_create_data_sources_empty():
     instance_config = InstanceConfigFactory.create(name='prov-cmd-2', config_source='database')
     cmd = Command()
     assert cmd.get_or_create_data_sources(instance_config, None) == {}
+
+
+def test_sync_dataset_creates_final_materialization():
+    instance_config = InstanceConfigFactory.create(name='materialized-import', config_source='database')
+    dvc_dataset = SimpleNamespace(
+        df=pl.DataFrame({'Year': [2020, 2021], 'value': [1.0, 2.0]}),
+        units={'value': 'kt'},
+        index_columns=['Year'],
+        metadata={'name': {'en': 'Imported dataset'}, 'metrics': [{'column_id': 'value'}]},
+    )
+    context = SimpleNamespace(
+        dataset_repo_spec=None,
+        dimensions={},
+        instance=SimpleNamespace(default_language='en'),
+        load_dvc_dataset=lambda _dataset_id: dvc_dataset,
+    )
+
+    Command().sync_dataset(instance_config, cast('Any', context), 'test/import')
+
+    dataset = Dataset.objects.get(identifier='test/import')
+    materialization = DatasetMaterialization.objects.get(dataset=dataset)
+    assert materialization.generation == 1
+    assert materialization.content['data'] is not None
+    assert len(materialization.content['data']['data']) == 2

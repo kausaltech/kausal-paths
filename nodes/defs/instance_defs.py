@@ -211,6 +211,8 @@ class InstanceMetadata(I18nBaseModel):
     identifier: str = ''
     name: I18nString = ''
     owner: I18nString | None = None
+    lead_title: I18nString | None = None
+    lead_paragraph: I18nString | None = None
     primary_language: str = 'en'
     other_languages: list[str] = Field(default_factory=list)
 
@@ -218,11 +220,17 @@ class InstanceMetadata(I18nBaseModel):
     def from_model(cls, ic: InstanceConfig) -> InstanceMetadata:
         i18n: dict[str, Any] = getattr(ic, 'i18n', None) or {}
         has_owner = bool(ic.owner) or any(k.startswith('owner_') and v for k, v in i18n.items())
+        has_lead_title = bool(ic.lead_title) or any(k.startswith('lead_title_') and v for k, v in i18n.items())
+        has_lead_paragraph = bool(ic.lead_paragraph) or any(k.startswith('lead_paragraph_') and v for k, v in i18n.items())
         return cls(
             uuid=ic.uuid,
             identifier=ic.identifier,
             name=get_translated_string_from_modeltrans(ic, 'name', ic.primary_language),
             owner=get_translated_string_from_modeltrans(ic, 'owner', ic.primary_language) if has_owner else None,
+            lead_title=(get_translated_string_from_modeltrans(ic, 'lead_title', ic.primary_language) if has_lead_title else None),
+            lead_paragraph=(
+                get_translated_string_from_modeltrans(ic, 'lead_paragraph', ic.primary_language) if has_lead_paragraph else None
+            ),
             primary_language=ic.primary_language,
             other_languages=list(ic.other_languages or []),
         )

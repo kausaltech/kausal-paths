@@ -31,6 +31,7 @@ class Command(BaseCommand):
         parser.add_argument('--all', action='store_true', help='Sync all instances')
         parser.add_argument('--dry-run', action='store_true', help='Load and export but do not save to DB')
         parser.add_argument('--start-after', type=str, help='Instance identifier to start after')
+        parser.add_argument('--skip', dest='skip', metavar='INSTANCE_ID', action='append', help='Instances to skip')
         parser.add_argument(
             '--runtime-export',
             action='store_true',
@@ -71,6 +72,9 @@ class Command(BaseCommand):
             if start_after:
                 if instance_id == start_after:
                     start_after = None
+                continue
+            if options['skip'] and instance_id in options['skip']:
+                self.stdout.write(f'Skipping instance {instance_id}')
                 continue
             self.sync_one_instance(instance_id, dry_run=dry_run, runtime_export=options['runtime_export'])
         if dry_run:

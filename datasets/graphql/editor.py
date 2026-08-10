@@ -28,6 +28,7 @@ from kausal_common.users import user_or_bust
 from paths import gql
 
 from nodes.change_ops import gql_change_operation, record_change
+from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.models import InstanceConfig
 
 from .types import DataPointCommentType, DataPointType, DatasetSourceReferenceType
@@ -130,11 +131,7 @@ class DatasetEditorMutation:
             user = user_or_bust(info.context.user)
         except ValueError as exc:
             raise PermissionDenied('Permission denied') from exc
-        dataset = dataset or root.dataset
-        dataset.last_modified_by = user
-        dataset.last_modified_at = timezone.now()
-        dataset.save(update_fields=['last_modified_by', 'last_modified_at'])
-        dataset.clear_scope_instance_cache()
+        refresh_dataset_materialization(dataset or root.dataset, user=user)
 
     @staticmethod
     def _data_point_snapshot(dp: DataPoint) -> dict[str, Any]:
@@ -228,8 +225,8 @@ class DatasetEditorMutation:
                 before=DatasetEditorMutation._data_point_snapshot(data_point),
                 after=None,
             )
-            DatasetEditorMutation._save_dataset(root, info)
             data_point.delete()
+            DatasetEditorMutation._save_dataset(root, info)
         return None
 
     # ------------------------------------------------------------------
@@ -301,6 +298,7 @@ class DatasetEditorMutation:
                 before=None,
                 after=DatasetEditorMutation._data_point_comment_snapshot(comment),
             )
+            DatasetEditorMutation._save_dataset(root, info)
         return cast('DataPointCommentType', comment)
 
     @gql.mutation(description='Update a comment on a data point', graphql_type=DataPointCommentType)
@@ -343,6 +341,7 @@ class DatasetEditorMutation:
                 before=before,
                 after=DatasetEditorMutation._data_point_comment_snapshot(comment),
             )
+            DatasetEditorMutation._save_dataset(root, info)
         return cast('DataPointCommentType', comment)
 
     @gql.mutation(description='Soft-delete a comment on a data point', graphql_type=OperationInfo | None)
@@ -367,6 +366,7 @@ class DatasetEditorMutation:
                 after=None,
             )
             comment.soft_delete(user)
+            DatasetEditorMutation._save_dataset(root, info)
         return None
 
     @gql.mutation(description='Mark a review comment as resolved', graphql_type=DataPointCommentType)
@@ -398,6 +398,7 @@ class DatasetEditorMutation:
                 before=before,
                 after=DatasetEditorMutation._data_point_comment_snapshot(comment),
             )
+            DatasetEditorMutation._save_dataset(root, info)
         return cast('DataPointCommentType', comment)
 
     @gql.mutation(description='Mark a review comment as unresolved', graphql_type=DataPointCommentType)
@@ -429,6 +430,7 @@ class DatasetEditorMutation:
                 before=before,
                 after=DatasetEditorMutation._data_point_comment_snapshot(comment),
             )
+            DatasetEditorMutation._save_dataset(root, info)
         return cast('DataPointCommentType', comment)
 
     # ------------------------------------------------------------------
@@ -496,6 +498,7 @@ class DatasetEditorMutation:
                 before=None,
                 after=DatasetEditorMutation._source_reference_snapshot(ref),
             )
+            DatasetEditorMutation._save_dataset(root, info)
         return cast('DatasetSourceReferenceType', ref)
 
     @gql.mutation(description='Remove a source reference.', graphql_type=OperationInfo | None)
@@ -521,4 +524,5 @@ class DatasetEditorMutation:
                 after=None,
             )
             ref.delete()
+            DatasetEditorMutation._save_dataset(root, info)
         return None

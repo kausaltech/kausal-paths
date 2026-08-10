@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import date
 from functools import lru_cache
 from typing import TYPE_CHECKING
@@ -29,12 +30,16 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
+from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.dataset_placeholders import make_external_dataset_ref, sync_dataset_placeholder
 from nodes.datasets import JSONDataset
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from nodes.context import Context
+    from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.dimensions import Dimension as DimensionSpec, DimensionCategory as DimensionCategorySpec
     from nodes.units import Unit
 
@@ -56,6 +61,181 @@ COMMENT_SEPARATOR = ' ;; '
 # through to DVC as literal per-row data (excluded from index_columns there) rather than
 # being dimensions or metrics -- read back here into DataSource/DataPointComment links.
 RESERVED_ROW_COLUMNS = {'source', 'comment', 'description'}
+
+
+@dataclass
+class RepoProvenance:
+    """Which DVC commit this run will read from, and which one the other config source names."""
+
+    used_source: str
+    """'yaml' or 'db' -- where the effective pin came from."""
+
+    yaml_commit: str | None
+    db_commit: str | None
+    spec: DatasetRepoSpec | None
+
+    @property
+    def sources_disagree(self) -> bool:
+        return self.yaml_commit is not None and self.db_commit is not None and self.yaml_commit != self.db_commit
+
+
+def _yaml_repo_spec(ic: InstanceConfig) -> DatasetRepoSpec | None:
+    """Read ``dataset_repo`` straight from the instance's YAML entrypoint, without loading the model."""
+    from nodes.defs.instance_defs import DatasetRepoSpec
+    from nodes.instance_loader import InstanceYAMLConfig
+
+    path: Path | None = ic.get_yaml_config_entrypoint()
+    if path is None:
+        return None
+    yaml_conf = InstanceYAMLConfig.load_for_entrypoint(path)
+    repo = (yaml_conf.data or {}).get('dataset_repo')
+    if not repo:
+        return None
+    return DatasetRepoSpec.model_validate(repo)
+
+
+def resolve_repo_provenance(ic: InstanceConfig, ctx: Context, repo_from: str) -> RepoProvenance:
+    """
+    Decide which dataset-repo pin to import from, and record the one we are not using.
+
+    ``ctx`` already carries the pin belonging to the instance's declared ``config_source``
+    (YAML file or DB spec). The point of resolving both is that importing data from a
+    different commit than the model expects is silent: it surfaces later, and far away,
+    as a missing metric. ``repo_from='auto'`` keeps the declared source -- which side is
+    authoritative changes as the model editor takes over -- but a disagreement is always
+    reported.
+    """
+    ctx_spec: DatasetRepoSpec | None = ctx.dataset_repo_spec
+    declared_is_yaml = ic.config_source == 'yaml'
+
+    yaml_spec = ctx_spec if declared_is_yaml else _yaml_repo_spec(ic)
+    db_spec = ctx_spec if not declared_is_yaml else (ic.spec.dataset_repo if ic.spec is not None else None)
+
+    if repo_from == 'yaml':
+        spec, used = yaml_spec, 'yaml'
+    elif repo_from == 'db':
+        spec, used = db_spec, 'db'
+    else:
+        spec, used = ctx_spec, ('yaml' if declared_is_yaml else 'db')
+
+    return RepoProvenance(
+        used_source=used,
+        yaml_commit=yaml_spec.commit if yaml_spec is not None else None,
+        db_commit=db_spec.commit if db_spec is not None else None,
+        spec=spec,
+    )
+
+
+def apply_repo_provenance(ctx: Context, provenance: RepoProvenance) -> None:
+    """Point ``ctx`` at the resolved pin, dropping the cached repo if it was already built."""
+    if provenance.spec is None or provenance.spec is ctx.dataset_repo_spec:
+        return
+    ctx.dataset_repo_spec = provenance.spec
+    ctx.__dict__.pop('dataset_repo', None)
+
+
+@dataclass
+class DatasetPlan:
+    """What a sync would do to one dataset, computed before anything is written."""
+
+    ds_id: str
+    incoming_commit: str | None
+    existing_pk: int | None = None
+    existing_uuid: str | None = None
+    current_commit: str | None = None
+    current_data_points: int = 0
+    incoming_data_points: int = 0
+    kept_metrics: list[str] = field(default_factory=list)
+    added_metrics: list[str] = field(default_factory=list)
+    dropped_metrics: list[tuple[str, int]] = field(default_factory=list)
+    """(metric name, number of dataset ports binding it) for columns no longer in the DVC data."""
+
+    is_placeholder: bool = False
+    schema_shared_with: int = 0
+
+    @property
+    def is_new(self) -> bool:
+        return self.existing_pk is None
+
+    @property
+    def blockers(self) -> list[str]:
+        """
+        Reasons this sync must not proceed.
+
+        A metric that the model still binds cannot lose its column: the node would
+        keep a port pointing at data that no longer arrives. Better to say so here,
+        naming the ports, than to let it surface later as a missing metric during
+        ``sync_instance_to_db`` -- or not at all, as silently empty input.
+        """
+        return [
+            f'metric {name!r} would be dropped but {n} dataset port(s) still bind it' for name, n in self.dropped_metrics if n
+        ]
+
+
+def build_dataset_plan(
+    ds_id: str,
+    dataset: Dataset | None,
+    incoming_metric_cols: list[str],
+    incoming_data_points: int,
+    incoming_commit: str | None,
+) -> DatasetPlan:
+    """Diff the DB state of one dataset against the DVC data about to be imported."""
+    from nodes.models import DatasetPort
+
+    plan = DatasetPlan(
+        ds_id=ds_id,
+        incoming_commit=incoming_commit,
+        incoming_data_points=incoming_data_points,
+        added_metrics=list(incoming_metric_cols),
+    )
+    if dataset is None:
+        return plan
+
+    plan.existing_pk = dataset.pk
+    plan.existing_uuid = str(dataset.uuid)
+    plan.current_commit = (dataset.external_ref or {}).get('commit')
+    plan.current_data_points = dataset.data_points.count()
+    plan.is_placeholder = dataset.is_external_placeholder
+    schema = dataset.schema
+    if schema is None:
+        return plan
+
+    plan.schema_shared_with = schema.datasets.count()
+    existing = {m.name: m for m in schema.metrics.all() if m.name}
+    incoming = set(incoming_metric_cols)
+    plan.kept_metrics = sorted(name for name in existing if name in incoming)
+    plan.added_metrics = sorted(name for name in incoming if name not in existing)
+    plan.dropped_metrics = sorted(
+        (name, DatasetPort.objects.filter(metric=metric).count()) for name, metric in existing.items() if name not in incoming
+    )
+    return plan
+
+
+def print_dataset_plan(plan: DatasetPlan) -> None:
+    """Render one dataset's plan; the same output precedes an apply run and stands alone under --plan."""
+    print(f'[bold]{plan.ds_id}[/bold]')
+    if plan.is_new:
+        print('  row          [green]new[/green]')
+    else:
+        kind = ' (external placeholder)' if plan.is_placeholder else ''
+        print(f'  row          pk={plan.existing_pk} uuid={plan.existing_uuid}{kind}')
+    commit_from = plan.current_commit or 'unrecorded'
+    if plan.is_new:
+        print(f'  commit       {plan.incoming_commit}')
+    elif commit_from == plan.incoming_commit:
+        print(f'  commit       {commit_from} [dim](unchanged)[/dim]')
+    else:
+        print(f'  commit       {commit_from} [yellow]->[/yellow] {plan.incoming_commit}')
+    print(f'  data points  {plan.current_data_points} -> {plan.incoming_data_points}')
+    if plan.kept_metrics:
+        print(f'  metrics kept {", ".join(plan.kept_metrics)}')
+    if plan.added_metrics:
+        print(f'  metrics [green]add[/green]  {", ".join(plan.added_metrics)}')
+    for name, port_count in plan.dropped_metrics:
+        suffix = f' [red](bound by {port_count} dataset port(s))[/red]' if port_count else ''
+        print(f'  metrics [yellow]drop[/yellow] {name}{suffix}')
+    for problem in plan.blockers:
+        print(f'  [red]blocker[/red]      {problem}')
 
 
 def _translated_metadata(values: dict[str, str], default_language: str) -> TranslatedString:
@@ -129,9 +309,33 @@ class Command(BaseCommand):
                 'DIMENSION_ID. Can be used multiple times.'
             ),
         )
-        parser.add_argument('--force', action='store_true')
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            help='Replace the data of datasets that already exist in the DB (the row itself is kept)',
+        )
+        parser.add_argument(
+            '--plan',
+            action='store_true',
+            help='Diagnose only: report what exists and what this run would change, without writing anything',
+        )
+        parser.add_argument(
+            '--repo-from',
+            choices=['auto', 'yaml', 'db'],
+            default='auto',
+            help=(
+                "Which dataset-repo pin to import from: the instance's declared config source (auto, the default), "
+                'the YAML file, or the DB spec.'
+            ),
+        )
+        parser.add_argument(
+            '--recreate',
+            action='store_true',
+            help='With --force, delete and recreate the dataset row instead of refreshing it in place (mints a new UUID)',
+        )
 
-    def sync_dataset(  # noqa: C901
+    @transaction.atomic
+    def sync_dataset(  # noqa: C901, PLR0912, PLR0915
         self,
         instance_config: InstanceConfig,
         ctx: Context,
@@ -139,9 +343,14 @@ class Command(BaseCommand):
         force: bool = False,
         metadata_only: bool = False,
         create_dimensions_from_columns: dict[str, str] | None = None,
+        plan_only: bool = False,
+        recreate: bool = False,
     ):
         create_dimensions_from_columns = create_dimensions_from_columns or {}
         if metadata_only:
+            if plan_only:
+                print(f'{ds_id}: would sync placeholder metadata only')
+                return
             sync_dataset_placeholder(instance_config, ctx, ds_id, force=force, reporter=print)
             return
 
@@ -171,6 +380,24 @@ class Command(BaseCommand):
             raise RuntimeError(f"Multiple datasets with identifier '{identifier}' exist for instance '{instance_config}'.")
         if datasets:
             dataset = datasets[0]
+
+        plan = build_dataset_plan(
+            ds_id=ds_id,
+            dataset=dataset,
+            incoming_metric_cols=list(df_metadata.metric_cols),
+            incoming_data_points=sum(df[col].drop_nulls().len() for col in df_metadata.metric_cols),
+            incoming_commit=(make_external_dataset_ref(ctx, ds_id) or {}).get('commit'),
+        )
+        print_dataset_plan(plan)
+        if plan_only:
+            return
+        if plan.blockers:
+            raise CommandError(
+                f'{ds_id}: refusing to sync -- ' + '; '.join(plan.blockers) + '. Update the model bindings first, '
+                'or keep the column in the DVC data.'
+            )
+
+        if dataset is not None:
             if dataset.is_external_placeholder:
                 print(f"Dataset '{dataset}' with identifier '{identifier}' is an external placeholder. Replacing.")
                 dataset.is_external_placeholder = False
@@ -180,7 +407,11 @@ class Command(BaseCommand):
                 dataset.save(update_fields=['is_external_placeholder', 'scope_content_type', 'scope_id', 'external_ref'])
                 schema = dataset.schema
                 assert schema is not None
-            elif force:
+            elif not force:
+                print(f"Dataset '{dataset}' with identifier '{identifier}' exists for instance '{instance_config}'. Aborting.")
+                print('Pass --force to replace its data.')
+                return
+            elif recreate:
                 schema = dataset.schema
                 assert schema is not None
                 if schema.datasets.count() > 1:
@@ -190,9 +421,19 @@ class Command(BaseCommand):
                 dataset.delete()
                 print(f"Deleting dataset schema '{schema}'")
                 schema.delete()
+                # Both objects are now unsaved (the collector nulls their pks), so drop the
+                # references: the code below recreates them only when they are None.
+                dataset = None
+                schema = None
             else:
-                print(f"Dataset '{dataset}' with identifier '{identifier}' exists for instance '{instance_config}'. Aborting.")
-                return
+                schema = self.refresh_dataset_in_place(
+                    dataset=dataset,
+                    ctx=ctx,
+                    ds_id=ds_id,
+                    plan=plan,
+                    dvc_metadata=dvc_metadata,
+                    default_language=ctx.instance.default_language,
+                )
 
         if schema is None:
             schema = self.create_dataset_schema(
@@ -223,6 +464,15 @@ class Command(BaseCommand):
             for col in df_metadata.metric_cols
             if col not in metrics
         })
+        # A reused metric keeps its row, so a unit change in the DVC data would otherwise be
+        # silently ignored -- the values would land under the old unit.
+        for col in df_metadata.metric_cols:
+            metric = metrics[col]
+            incoming_unit = str(df_metadata.units[col])
+            if metric.pk is not None and metric.unit != incoming_unit:
+                print(f"Metric '{col}': unit {metric.unit} -> {incoming_unit}")
+                metric.unit = incoming_unit
+                metric.save(update_fields=['unit'])
 
         df, column_dimensions = self.sync_dimensions(
             schema=schema,
@@ -243,6 +493,7 @@ class Command(BaseCommand):
             column_dimensions=column_dimensions,
             sources_meta=dvc_metadata.get('sources'),
         )
+        refresh_dataset_materialization(dataset)
 
     def create_dataset_schema(
         self,
@@ -268,6 +519,52 @@ class Command(BaseCommand):
             scope_content_type=ContentType.objects.get_for_model(instance_config),
             scope_id=instance_config.pk,
         )
+        return schema
+
+    def refresh_dataset_in_place(
+        self,
+        dataset: Dataset,
+        ctx: Context,
+        ds_id: str,
+        plan: DatasetPlan,
+        dvc_metadata: dict,
+        default_language: str,
+    ) -> DatasetSchema:
+        """
+        Replace a dataset's contents while keeping the row itself.
+
+        Deleting and recreating the row is the older strategy, and it is destructive in
+        ways that are easy to miss: ``DatasetPort``, ``NodeDataset`` and
+        ``InstanceRevisionDatasetPin`` all reference the row under ``PROTECT``, and the
+        new row gets a fresh UUID, which orphans the dataset references stored in
+        published instance revisions. Keeping the pk and UUID leaves every one of those
+        intact; only the data underneath changes.
+        """
+        schema = dataset.schema
+        assert schema is not None
+
+        deleted, _ = dataset.data_points.all().delete()
+        print(f'Deleted {deleted} row(s) of existing data')
+
+        for name, port_count in plan.dropped_metrics:
+            assert not port_count, 'bound metrics are refused before we get here'
+            if plan.schema_shared_with > 1:
+                print(f"Keeping stale metric '{name}': the schema is shared with other datasets")
+                continue
+            DatasetMetric.objects.filter(schema=schema, name=name).delete()
+            print(f"Deleted stale metric '{name}' (no longer in the DVC data)")
+
+        # Restamp provenance, so the row records the commit its data actually came from.
+        dataset.external_ref = make_external_dataset_ref(ctx, ds_id)
+        dataset.save(update_fields=['external_ref'])
+
+        name_i18n = dvc_metadata.get('name')
+        if name_i18n is not None:
+            _translated_metadata(name_i18n, default_language).set_modeltrans_field(schema, 'name', default_language)
+        description_i18n = dvc_metadata.get('description')
+        if description_i18n:
+            schema.description = description_i18n.get(default_language) or next(iter(description_i18n.values()))
+        schema.save()
         return schema
 
     def get_or_create_data_sources(
@@ -595,20 +892,52 @@ class Command(BaseCommand):
         print(f"Created dimension category '{cat}'")
         return cat
 
-    def handle(self, *args, **options):
+    def report_provenance(self, ic: InstanceConfig, provenance: RepoProvenance) -> None:
+        """Say which commit the data will come from, and flag a disagreement between the two sources."""
+        spec = provenance.spec
+        if spec is None:
+            print('[yellow]No dataset repository configured for this instance[/yellow]')
+            return
+        print(f'Instance   {ic.identifier} (config_source={ic.config_source})')
+        print(f'Repository {spec.url}')
+        print(f'Commit     {spec.commit} [dim](from {provenance.used_source})[/dim]')
+        if provenance.sources_disagree:
+            other = 'db' if provenance.used_source == 'yaml' else 'yaml'
+            other_commit = provenance.db_commit if other == 'db' else provenance.yaml_commit
+            print(
+                f'[yellow]Warning:[/yellow] the {other} config pins a different commit ({other_commit}). '
+                f'Data will be imported from the {provenance.used_source} pin above; '
+                f'pass --repo-from {other} to use the other one.'
+            )
+
+    def handle(self, *args, **options):  # noqa: C901, PLR0912
         instance_id = options['instance'][0]
         ic = InstanceConfig.objects.get(identifier=instance_id)
         ctx = ic.get_instance().context
+
+        provenance = resolve_repo_provenance(ic, ctx, options['repo_from'])
+        apply_repo_provenance(ctx, provenance)
+        self.report_provenance(ic, provenance)
+
         if not options['datasets']:
+            dvc_dataset_ids = sorted(ctx.get_all_dvc_dataset_ids())
+            if not dvc_dataset_ids:
+                # With `use_datasets_from_db`, any identifier that already has a DB row loads as a
+                # DBDataset, so it never appears here. An empty list then means "everything is
+                # already imported", not "this instance has no datasets" -- say so, rather than
+                # silently doing nothing.
+                print(
+                    '[yellow]No DVC-backed datasets found for this instance.[/yellow] '
+                    'If it uses datasets from the DB, every identifier already has a row; '
+                    'name the datasets explicitly to re-import them.'
+                )
+                return
             if not options['all']:
                 print('Available datasets:')
-                dvc_dataset_ids = sorted(ctx.get_all_dvc_dataset_ids())
                 for ds_id in dvc_dataset_ids:
                     print(ds_id)
-                exit()
-            else:
-                dvc_dataset_ids = sorted(ctx.get_all_dvc_dataset_ids())
-                ds_ids = dvc_dataset_ids
+                return
+            ds_ids = dvc_dataset_ids
         else:
             ds_ids = options['datasets']
 
@@ -633,6 +962,7 @@ class Command(BaseCommand):
 
             ds_ids = filtered_ds_ids
 
+        plan_only = options['plan']
         for ds_id in ds_ids:
             with transaction.atomic():
                 self.sync_dataset(
@@ -642,4 +972,12 @@ class Command(BaseCommand):
                     force=options['force'],
                     metadata_only=options['metadata_only'],
                     create_dimensions_from_columns=create_dimensions_from_columns,
+                    plan_only=plan_only,
+                    recreate=options['recreate'],
                 )
+                if plan_only:
+                    # Nothing was written, but a plan run must not leave anything behind even
+                    # if a code path below the diff decided to create something.
+                    transaction.set_rollback(True)
+        if plan_only:
+            print('\n[bold]--plan: nothing was written.[/bold] Re-run with --force to apply.')

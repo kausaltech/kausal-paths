@@ -288,6 +288,8 @@ class NodeEditorFields:
 
 
 def _get_node_uuid_with_fallback(root: 'Node') -> UUID:  # noqa: UP037
+    if root.source_snapshot is not None:
+        return root.source_snapshot.uuid
     nc = root.db_obj
     if nc is None:
         return uuid5(NAMESPACE_URL, f'kausal-paths:{root.context.instance.id}:node:{root.id}')
@@ -313,6 +315,8 @@ class NodeInterface:
     )
     @staticmethod
     def resolve_uuid(root: 'Node') -> UUID | None:
+        if root.source_snapshot is not None:
+            return root.source_snapshot.uuid
         nc = root.db_obj
         return nc.uuid if nc is not None else None
 
@@ -322,6 +326,9 @@ class NodeInterface:
     )
     @staticmethod
     def copy_of(root: 'Node') -> UUID | None:
+        if root.source_snapshot is not None:
+            return root.source_snapshot.copy_of
+
         from nodes.models import NodeConfig
 
         nc = root.db_obj
@@ -344,7 +351,7 @@ class NodeInterface:
         from nodes.models import NodeConfig
 
         nc = root.db_obj
-        if nc is None:
+        if nc is None or nc.pk is None:
             return []
         return fetch_entity_history(NodeConfig, nc.pk, limit=limit, before=before)
 
@@ -362,6 +369,8 @@ class NodeInterface:
     @sb.field
     @staticmethod
     def name(root: 'Node') -> str:
+        if root.source_snapshot is not None and root.source_snapshot.name is not None:
+            return str(root.source_snapshot.name)
         nc = root.db_obj
         if nc is not None and nc.name_i18n:
             return nc.name_i18n
@@ -382,6 +391,8 @@ class NodeInterface:
     @sb.field
     @staticmethod
     def is_visible(root: 'Node') -> bool:
+        if root.source_snapshot is not None:
+            return root.source_snapshot.is_visible
         nc = root.db_obj
         if nc is not None:
             return nc.is_visible
@@ -391,7 +402,7 @@ class NodeInterface:
     @staticmethod
     def editor(root: 'Node', info: gql.Info) -> NodeEditorFields | None:
         nc = root.db_obj
-        if nc is None:
+        if nc is None or nc.pk is None:
             return None
         if not nc.gql_action_allowed(info, 'change', raise_on_denied=False):
             return None
@@ -400,6 +411,8 @@ class NodeInterface:
     @sb.field
     @staticmethod
     def color(root: 'Node') -> str | None:
+        if root.source_snapshot is not None and root.source_snapshot.color:
+            return root.source_snapshot.color
         nc = root.db_obj
         if nc and nc.color:
             return nc.color
@@ -645,6 +658,8 @@ class NodeInterface:
     @grapple_field
     @staticmethod
     def short_description(root: 'Node') -> WagtailRichText | None:
+        if root.source_snapshot is not None and root.source_snapshot.short_description is not None:
+            return expand_db_html(str(root.source_snapshot.short_description))
         nc = root.db_obj
         if nc is not None and nc.short_description_i18n:
             return expand_db_html(nc.short_description_i18n)
@@ -658,6 +673,12 @@ class NodeInterface:
     @pass_context
     @staticmethod
     def description(root: 'Node', context: 'Context') -> str | None:
+        if root.source_snapshot is not None:
+            if root.source_snapshot.description is not None:
+                return expand_db_html(str(root.source_snapshot.description))
+            if context.instance.features.show_explanations:
+                return root.get_explanation()
+            return None
         nc = root.db_obj
         if nc is None or not nc.description_i18n:
             if context.instance.features.show_explanations:
@@ -668,6 +689,13 @@ class NodeInterface:
     @sb.field(graphql_type=list[StreamFieldInterface] | None)
     @staticmethod
     def body(root: 'Node') -> StreamValue | None:
+        if root.source_snapshot is not None:
+            if root.source_snapshot.body is None:
+                return None
+            from nodes.models import NodeConfig
+
+            body_field = NodeConfig._meta.get_field('body')
+            return body_field.to_python(root.source_snapshot.body)
         nc = root.db_obj
         if nc is None or not nc.body:
             return None
@@ -745,6 +773,10 @@ class ActionNodeType(NodeInterface, EditableEntity):  # type: ignore[override]
     @grapple_field
     @staticmethod
     def goal(root: ActionNode) -> WagtailRichText | None:
+        if root.source_snapshot is not None:
+            if root.source_snapshot.goal is None:
+                return None
+            return expand_db_html(str(root.source_snapshot.goal))
         nc = root.db_obj
         if nc is None:
             return None
@@ -756,6 +788,11 @@ class ActionNodeType(NodeInterface, EditableEntity):  # type: ignore[override]
     @sb.field(graphql_type=Optional[Annotated['NodeType', sb.lazy('nodes.graphql.types')]])  # noqa: UP045  # pyright: ignore[reportDeprecated]
     @staticmethod
     def indicator_node(root: ActionNode, info: gql.Info) -> 'Node | None':
+        if root.source_snapshot is not None:
+            indicator_uuid = root.source_snapshot.indicator_node
+            if indicator_uuid is None:
+                return None
+            return root.context.instance.source_nodes_by_uuid.get(indicator_uuid)
         nc = root.db_obj
         if nc is None:
             return None

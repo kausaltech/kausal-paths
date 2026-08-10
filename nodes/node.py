@@ -58,6 +58,7 @@ if typing.TYPE_CHECKING:
     from nodes.defs.node_defs import NodeKind, NodeSpec
     from nodes.gpc import DatasetNode
     from nodes.instance_loader import ConfigLocation
+    from nodes.instance_serialization import NodeSnapshot
     from nodes.visualizations import NodeVisualizations, VisualizationNodeDimension
     from params import Parameter
 
@@ -282,6 +283,9 @@ class Node:
 
     db_obj: NodeConfig | None
     'The Django object for this Node Instance'
+
+    source_snapshot: NodeSnapshot | None
+    'The selected draft or published state from which this node was built.'
 
     _spec: NodeSpec | None
     kind: NodeKind
@@ -550,6 +554,7 @@ class Node:
 
         self.database_id = None
         self.db_obj = None
+        self.source_snapshot = None
         self.name = name
         self.config_location = config_location
         self.node_group = node_group
