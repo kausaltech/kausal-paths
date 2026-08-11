@@ -1,10 +1,10 @@
 from collections import defaultdict
 from functools import cached_property
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from django.utils.module_loading import import_string
-from pydantic import Field, model_validator
+from pydantic import Field, PrivateAttr, model_validator
 
 from kausal_common.i18n.pydantic import I18nString, set_i18n_context
 
@@ -22,15 +22,19 @@ from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec  # noqa
 from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeSpec, PipelineConfig, SimpleConfig
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     import networkx as nx
 
     from nodes.constraints.compile import ShapeRuleCompilation
+    from nodes.constraints.solver import ConstraintProgram, ConstraintSolveResult, GraphOverlay
+    from nodes.dataset_shape import DatasetMetricPair, DatasetShapeProfile
     from nodes.defs.port_def import InputPortDef, OutputPortDef
     from nodes.instance_serialization import InstanceSnapshot
     from nodes.node import Node
 
 
-INSTANCE_GRAPH_FORMAT_VERSION = 3
+INSTANCE_GRAPH_FORMAT_VERSION = 4
 
 
 class InstanceGraphDiagnostic(FrozenGraphModel):
@@ -251,6 +255,68 @@ class InstanceGraph(FrozenGraphModel):
         metric_ids = [metric.id for dataset in self.datasets for metric in dataset.metrics]
         if len(metric_ids) != len(set(metric_ids)):
             raise ValueError('Duplicate dataset metric UUID in InstanceGraph')
+
+    _solve_cache: dict[Any, ConstraintSolveResult] = PrivateAttr(default_factory=dict)
+
+    @cached_property
+    def constraint_program(self) -> ConstraintProgram:
+        """The compiled constraint program for the graph's own bindings. Derived, not serialized."""
+        from nodes.constraints.solver import compile_constraint_program
+
+        with set_i18n_context(self.metadata.primary_language, self.metadata.other_languages):
+            return compile_constraint_program(self)
+
+    def describe_uuid(self, value: UUID) -> str:
+        """Best-effort human-readable label for a graph UUID, for diagnostics only."""
+        dimension = self.dimension_by_id.get(value)
+        if dimension is not None:
+            return dimension.identifier
+        category = self.category_by_id.get(value)
+        if category is not None and category.identifier is not None:
+            return category.identifier
+        node = self.node_by_id.get(value)
+        if node is not None and node.identifier is not None:
+            return node.identifier
+        dataset = self.dataset_by_id.get(value)
+        if dataset is not None and dataset.identifier is not None:
+            return dataset.identifier
+        metric = self.metric_by_id.get(value)
+        if metric is not None and metric.identifier is not None:
+            return metric.identifier
+        return str(value)
+
+    def solve_constraints(
+        self,
+        *,
+        profiles: Mapping[DatasetMetricPair, DatasetShapeProfile] | None = None,
+        overlay: GraphOverlay | None = None,
+    ) -> ConstraintSolveResult:
+        """
+        Solve the constraint program, optionally against a hypothetical binding overlay.
+
+        Results are memoized in-process only, keyed by profile versions and the
+        overlay content: the compiled program and solver are code, so a cache
+        entry must never outlive this hydrated graph object.
+        """
+        from nodes.constraints.solver import compile_constraint_program, solve_constraint_program
+
+        profiles_key = (
+            tuple(sorted((str(pair[0]), str(pair[1]), profile.source_version) for pair, profile in profiles.items()))
+            if profiles
+            else ()
+        )
+        cache_key = (profiles_key, overlay.cache_key() if overlay is not None else None)
+        cached = self._solve_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        if overlay is None:
+            program = self.constraint_program
+        else:
+            with set_i18n_context(self.metadata.primary_language, self.metadata.other_languages):
+                program = compile_constraint_program(self, bindings=overlay.apply(self.bindings))
+        result = solve_constraint_program(program, describe=self.describe_uuid, profiles=profiles)
+        self._solve_cache[cache_key] = result
+        return result
 
     @cached_property
     def shape_rule_compilation(self) -> ShapeRuleCompilation:
@@ -522,15 +588,21 @@ def build_instance_graph(
     bindings: list[AnyPortBindingDef] = []
     positions: defaultdict[tuple[UUID, UUID], int] = defaultdict(int)
 
+    from nodes.defs.transform_def import FlattenTransformation
+
     for edge_index, edge in enumerate(snapshot.edges):
         key = (edge.to_node, edge.to_port)
         binding_id = edge.uuid or uuid5(
             NAMESPACE_URL,
             f'kausal-paths:legacy-edge:{snapshot.metadata.uuid}:{edge.from_node}:{edge.from_port}:{edge.to_node}:{edge.to_port}:{edge_index}',
         )
+        # Legacy bare `to_dimensions` declarations must be recovered here,
+        # before the binding validator's modernization drops them.
+        declared_dimensions = [t.dimension for t in edge.transformations if isinstance(t, FlattenTransformation)]
         bindings.append(
             EdgeBindingDef(
                 id=binding_id,
+                declared_dimensions=declared_dimensions,
                 port_ref=NodePortRef(
                     node_uuid=edge.to_node,
                     node_id=node_identifiers.get(edge.to_node) or str(edge.to_node),

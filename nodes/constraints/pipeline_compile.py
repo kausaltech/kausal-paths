@@ -109,11 +109,13 @@ def compile_pipeline_operations(  # noqa: C901, PLR0912, PLR0915
         result_id = output_port_id if index == output_index else _intermediate_value_id(node_uuid, result_key)
 
         operands: list[OperationInput]
+        inverse_operands: list[OperationInput] = []
         match op:
             case AddOperationSpec() | SubtractOperationSpec() | MultiplyOperationSpec():
                 operands = [op.input, *op.values]
             case DivideOperationSpec():
-                operands = [op.input, op.other]
+                operands = [op.input]
+                inverse_operands = [op.other]
             case IdentityOperationSpec() | ClipOperationSpec():
                 operands = [op.input]
             case _:
@@ -124,16 +126,19 @@ def compile_pipeline_operations(  # noqa: C901, PLR0912, PLR0915
 
         try:
             inputs = tuple(value for value in (resolve_input(operand) for operand in operands) if value is not None)
+            inverse_inputs = tuple(
+                value for value in (resolve_input(operand) for operand in inverse_operands) if value is not None
+            )
         except _UnsupportedInputError as exc:
             notes.append(f'operation {op.kind!r} ({result_key}): {exc.note}')
             if op.result_id is not None:
                 known_results[op.result_id] = result_id
             continue
 
-        if not inputs:
+        if not inputs and not inverse_inputs:
             notes.append(f'operation {op.kind!r} ({result_key}) has only shape-neutral operands')
         elif isinstance(op, (MultiplyOperationSpec, DivideOperationSpec)):
-            rules.append(ProductShapeRule(inputs=inputs, output=result_id))
+            rules.append(ProductShapeRule(inputs=inputs, inverse_inputs=inverse_inputs, output=result_id))
         else:
             rules.append(SameShapeRule(inputs=inputs, output=result_id))
 

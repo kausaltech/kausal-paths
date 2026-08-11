@@ -820,6 +820,68 @@ consumes/produces, assign/filter/flatten transforms, disjoint category filters,
 unit convertibility/product, quantity mismatch, multiple conflicts, and origin
 provenance.
 
+Implementation note (2026-08-11): `nodes/constraints/values.py` (value keys,
+multi-facet facts, monotone merge ops, conflicts) and `solver.py` (program
+compilation + fixpoint); the v1 quantity algebra lives in the existing
+quantity-kind registry (`nodes/quantities.py` + `configs/quantities/
+quantity_kinds.yaml`), which gained `is_scalar_identity` flags and per-factor
+`numerator` references (validated at load) rather than a parallel
+classification module;
+`InstanceGraph.constraint_program` is the cached program and
+`solve_constraints(profiles=…, overlay=…)` the entry point, memoizing results
+in-process only — solver logic is code, so no L2 for solve results. All four
+facets shipped together rather than dimensions-first (the facets share the
+propagation skeleton; sequencing them would have meant re-opening every
+constraint). Decisions taken while validating against all 66 buildable DB
+instances (all solve <100 ms, all converge):
+
+- `ProductShapeRule` gained `inverse_inputs` (divide compiles the divisor
+  there); dimension semantics stay the union, unit semantics become
+  product-over-quotient. A separate quotient rule was rejected as a fourth
+  union member with nothing to say.
+- Authored `required_dimensions` seeds a *lower bound* on the port aggregate;
+  the exact per-edge assertion mirrors the runtime
+  (`_get_output_for_target()`): bare declared entries **plus that binding's
+  own assigned dimensions**, asserted on the delivered value. Reading
+  `required_dimensions` alone as exact reproduced none of espoo's real
+  behavior and produced 7 false `assigned_dimension_missing` conflicts.
+- Legacy bare declarations survive only as `FlattenTransformation` rows in
+  never-re-synced DB rows (framework-instantiated instances) and pinned
+  revisions; `build_instance_graph()` recovers them into
+  `EdgeBindingDef.declared_dimensions` *before* modernization drops them
+  (graph format v4). Without this, CADS-family instances mis-solve.
+- Rules are only trusted where the declaring class's computation is intact:
+  a subclass overriding `compute()`/`_compute()`/`perform_operation()`/
+  `operate_pairwise()` below the `shape_rules` owner compiles to no rules
+  plus an `inherited_shape_rules_skipped` diagnostic, and its multi-port
+  aggregates are not shape-equalized either (legacy specs of such classes
+  group heterogeneous inputs onto one port). Re-declaring `shape_rules` in
+  the subclass is the explicit opt-in. This is the enforcement half of "a
+  rule must not lie" — zuerich's mix-weighted `AdditiveNode` subclasses were
+  the forcing case.
+- `FilterColumnOp` is shape-neutral *except* when its column is one of the
+  bound dataset's declared dimensions (then it filters and, with `drop_col`,
+  removes that dimension — surrey's pattern); a name-matching raw column
+  outside the declared schema stays raw (CADS's pattern).
+- Binding tags: a whitelist of provably shape/unit-preserving registered tag
+  operations passes through; any other registered operation
+  (`geometric_inverse`, `complement`, ratio-family…) makes the binding
+  opaque — facts stop, rather than lie. Unregistered tags select behavior
+  and stay neutral.
+- External placeholders with no declared dimensions are *unknown*, not
+  scalar; dataset metric quantities are unknown in v1 (no quantity field on
+  `DatasetMetricMeta`).
+- Facts keep their **born** origin as they propagate, so a conflict names
+  the two authored sources that disagree, not the propagation step that
+  collided. Category facts are first-writer-wins per (value, dimension) with
+  same-writer recompute allowed — that plus per-rule `rule_index` origins is
+  what makes the fixpoint monotone with two rules writing one output port.
+- Fleet residue after the fixes: 103 `quantity_mismatch` + 84
+  `unit_incompatible` + 1 `dimension_mismatch` across 66 instances — spot
+  checks say genuine vocabulary/model debt (health module units,
+  `fraction`-vs-`mix`, a FormulaNode port authored dimensionless receiving
+  kg/a), i.e. findings, not solver noise. Step 8 decides how they surface.
+
 ### 8. Put validation and derived GraphQL fields on the solver
 
 - Replace ad-hoc edge and dataset binding checks with overlay validation.

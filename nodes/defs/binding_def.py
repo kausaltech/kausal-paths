@@ -86,6 +86,15 @@ class EdgeBindingDef(PortBindingDef):
 
     kind: Literal['edge'] = 'edge'
     from_ref: NodePortRef = Field(description='Reference to the source node and output port.')
+    declared_dimensions: list[str] = Field(
+        default_factory=list,
+        description=(
+            'Dimensions the delivered value is declared to carry, recovered from legacy bare '
+            '`to_dimensions` entries (`FlattenTransformation`) that `modernized_transformations()` drops. '
+            'Snapshots synced since the flatten retirement carry this on `InputPortDef.required_dimensions` '
+            'instead; this field exists for DB rows and pinned revisions that were never re-synced.'
+        ),
+    )
 
     @property
     def source_node(self) -> NodeMeta:

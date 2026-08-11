@@ -37,6 +37,41 @@ class ShapeRuleCompilation:
 
     rules_by_node: Mapping[UUID, tuple[AnyShapeRule, ...]]
     diagnostics: tuple[InstanceGraphDiagnostic, ...]
+    untrusted_node_ids: frozenset[UUID] = frozenset()
+    """
+    Nodes whose class computation is overridden below the ``shape_rules``
+    declaration. Their inherited rules are skipped, and the solver must not
+    apply structural claims that ride on the class contract either — most
+    importantly multi-port aggregate homogeneity, which legacy specs of such
+    classes routinely violate (heterogeneous inputs grouped onto one port).
+    """
+
+
+_SEMANTIC_COMPUTE_METHODS = ('compute', '_compute', 'perform_operation', 'operate_pairwise')
+
+
+def _computation_override_below_rules(node_class: type) -> type | None:
+    """
+    Find a subclass that changes the computation below the ``shape_rules`` declaration.
+
+    A rule describes the algebra of the class that declared it. A subclass
+    that overrides the computation without re-declaring its rules (e.g. a
+    legacy city-specific ``AdditiveNode`` subclass with a custom mix-weighted
+    ``compute()``) inherits rules that may *lie* about its shapes; those
+    compile to nothing plus a diagnostic. Re-declaring ``shape_rules`` in the
+    subclass — even as a plain re-assignment — is the explicit opt-in.
+    """
+    from nodes.node import Node
+
+    rules_owner = next(klass for klass in node_class.__mro__ if 'shape_rules' in klass.__dict__)
+    if rules_owner is Node:
+        return None  # the base declaration is empty; there is nothing to lie about
+    for klass in node_class.__mro__:
+        if klass is rules_owner:
+            return None
+        if any(method in klass.__dict__ for method in _SEMANTIC_COMPUTE_METHODS):
+            return klass
+    return None
 
 
 def _validate_node_rules(graph: InstanceGraph, meta: NodeMeta, rules: Sequence[AnyShapeRule]) -> None:  # noqa: C901
@@ -87,6 +122,7 @@ def compile_shape_rules(graph: InstanceGraph) -> ShapeRuleCompilation:
 
     rules_by_node: dict[UUID, tuple[AnyShapeRule, ...]] = {}
     diagnostics: list[InstanceGraphDiagnostic] = []
+    untrusted_node_ids: set[UUID] = set()
     for meta in graph.nodes:
         try:
             node_class = meta.node_class
@@ -99,6 +135,22 @@ def compile_shape_rules(graph: InstanceGraph) -> ShapeRuleCompilation:
                 )
             )
             rules_by_node[meta.id] = ()
+            continue
+        overriding_class = _computation_override_below_rules(node_class)
+        if overriding_class is not None:
+            rules_owner = next(klass for klass in node_class.__mro__ if 'shape_rules' in klass.__dict__)
+            diagnostics.append(
+                InstanceGraphDiagnostic(
+                    code='inherited_shape_rules_skipped',
+                    message=(
+                        f'{overriding_class.__module__}.{overriding_class.__qualname__} overrides the computation of '
+                        f'{rules_owner.__qualname__} without re-declaring shape_rules; the inherited rules are not trusted'
+                    ),
+                    node_id=meta.id,
+                )
+            )
+            rules_by_node[meta.id] = ()
+            untrusted_node_ids.add(meta.id)
             continue
         try:
             rules = tuple(node_class.shape_rules(meta))
@@ -114,4 +166,8 @@ def compile_shape_rules(graph: InstanceGraph) -> ShapeRuleCompilation:
             continue
         _validate_node_rules(graph, meta, rules)
         rules_by_node[meta.id] = rules
-    return ShapeRuleCompilation(rules_by_node=rules_by_node, diagnostics=tuple(diagnostics))
+    return ShapeRuleCompilation(
+        rules_by_node=rules_by_node,
+        diagnostics=tuple(diagnostics),
+        untrusted_node_ids=frozenset(untrusted_node_ids),
+    )

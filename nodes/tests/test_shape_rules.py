@@ -296,6 +296,69 @@ def test_pipeline_operations_compile_through_intermediates() -> None:
     _validate_node_rules(graph, meta, rules)
 
 
+def test_pipeline_divide_compiles_the_divisor_as_an_inverse_input() -> None:
+    from nodes.pipeline.ops.arithmetic import DivideOperationSpec
+
+    port_a = InputPortDef(id=uuid4(), unit=_unit('t/a'))
+    port_b = InputPortDef(id=uuid4(), unit=_unit('cap'))
+    output_id = uuid4()
+    spec = NodeSpec(
+        input_ports=[port_a, port_b],
+        output_ports=[OutputPortDef(id=output_id, identifier='default', unit=_unit('t/a/cap'))],
+    )
+    rules, notes = compile_pipeline_operations(
+        node_uuid=uuid4(),
+        spec=spec,
+        operations=[DivideOperationSpec(input=PortInputRef(port=port_a.id), other=PortInputRef(port=port_b.id))],
+        output_port_id=output_id,
+    )
+    assert notes == ()
+    assert rules == (ProductShapeRule(inputs=(port_a.id,), inverse_inputs=(port_b.id,), output=output_id),)
+
+    # A scalar divisor is shape-neutral: only the numerator remains.
+    rules, notes = compile_pipeline_operations(
+        node_uuid=uuid4(),
+        spec=spec,
+        operations=[
+            DivideOperationSpec(input=PortInputRef(port=port_a.id), other=ScalarValue(value=2.0, dimensionless=True)),
+        ],
+        output_port_id=output_id,
+    )
+    assert rules == (ProductShapeRule(inputs=(port_a.id,), output=output_id),)
+
+
+def test_product_rule_validates_inverse_inputs_too() -> None:
+    import pydantic
+
+    with pytest.raises(pydantic.ValidationError, match='at least one operand'):
+        ProductShapeRule(output=uuid4())
+
+    target = NodeSnapshot(
+        uuid=uuid4(),
+        identifier='broken',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class='nodes.tests.test_shape_rules.BrokenInverseRuleTestNode'),
+            input_ports=[InputPortDef(id=uuid4(), unit=_unit('t/a'))],
+            output_ports=[OutputPortDef(id=uuid4(), identifier='default', unit=_unit('t/a'))],
+        ),
+    )
+    graph = _build([target], [])
+    with pytest.raises(ShapeRuleError, match=r'unknown input value'):
+        _ = graph.shape_rule_compilation
+
+
+class BrokenInverseRuleTestNode(Node):
+    @classmethod
+    def shape_rules(cls, meta):  # noqa: ANN206
+        return (
+            ProductShapeRule(
+                inputs=(meta.spec.input_ports[0].id,),
+                inverse_inputs=(uuid4(),),
+                output=meta.spec.output_ports[0].id,
+            ),
+        )
+
+
 def test_pipeline_dataset_reference_suppresses_the_rule_with_a_note() -> None:
     port_a = InputPortDef(id=uuid4(), unit=_unit('t/a'))
     output_id = uuid4()

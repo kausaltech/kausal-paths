@@ -65,17 +65,25 @@ class SameShapeRule(ShapeRuleBase):
 
 class ProductShapeRule(ShapeRuleBase):
     """
-    The output is the product of the inputs.
+    The output is the product of the inputs over the product of the inverse inputs.
 
-    Output dimensions are the union of the input dimensions and the output
-    unit is the product of the input units. Products happen across distinct
-    ports only — bindings on one (multi) port are always a homogeneous
-    ``same``-shaped aggregate.
+    Output dimensions are the union over *all* operands — division does not
+    remove a dimension — while the output unit is the product of the
+    ``inputs`` units divided by the product of the ``inverse_inputs`` units.
+    Products happen across distinct ports only — bindings on one (multi) port
+    are always a homogeneous ``same``-shaped aggregate.
     """
 
     kind: Literal['product'] = 'product'
-    inputs: tuple[UUID, ...] = Field(min_length=1)
+    inputs: tuple[UUID, ...] = ()
+    inverse_inputs: tuple[UUID, ...] = ()
     output: UUID
+
+    @model_validator(mode='after')
+    def _validate_operands(self) -> ProductShapeRule:
+        if not self.inputs and not self.inverse_inputs:
+            raise ValueError('ProductShapeRule: at least one operand is required')
+        return self
 
 
 class DimensionTransformRule(ShapeRuleBase):
@@ -119,6 +127,8 @@ type PortShapeRule = Annotated[
 def rule_input_ids(rule: AnyShapeRule) -> tuple[UUID, ...]:
     if isinstance(rule, DimensionTransformRule):
         return (rule.input,)
+    if isinstance(rule, ProductShapeRule):
+        return (*rule.inputs, *rule.inverse_inputs)
     return rule.inputs
 
 
