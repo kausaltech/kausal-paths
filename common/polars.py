@@ -20,7 +20,7 @@ if typing.TYPE_CHECKING:
     import pandas as pd
     from dvc_pandas.dataset import Dataset as DVCDataset
     from polars._plr import PyDataFrame, PyExpr
-    from polars._typing import JoinStrategy, JoinValidation, MaintainOrderJoin
+    from polars._typing import JoinBuildSide, JoinStrategy, JoinValidation, MaintainOrderJoin
     from polars.type_aliases import ColumnNameOrSelector, IntoExpr, IntoExprColumn
     from rich.repr import RichReprResult
 
@@ -280,7 +280,7 @@ class PathsDataFrame(pl.DataFrame):
         )
         return PathsDataFrame._from_pydf(df._df, meta=self.get_meta(), source_df=self)
 
-    def join(
+    def join(  # noqa: PLR0913
         self,
         other: pl.DataFrame | PathsDataFrame,
         on: str | pl.Expr | Sequence[str | pl.Expr] | None = None,
@@ -293,6 +293,7 @@ class PathsDataFrame(pl.DataFrame):
         nulls_equal: bool = False,
         coalesce: bool | None = None,
         maintain_order: MaintainOrderJoin | None = None,
+        build_side: JoinBuildSide = 'auto',
     ) -> pl.DataFrame:
         plain_df = pl.DataFrame._from_pydf(self._df)
         df = plain_df.join(

@@ -106,9 +106,9 @@ concrete `PermissionedModel` subclass lacks a working `permission_policy()`.
 Adds shorthand methods that call the model's policy:
 
 ```python
-qs.viewable_by(user)      # filter_by_perm(user, 'view')
-qs.modifiable_by(user)    # filter_by_perm(user, 'change')
-qs.deletable_by(user)     # filter_by_perm(user, 'delete')
+qs.viewable_by(user)  # filter_by_perm(user, 'view')
+qs.modifiable_by(user)  # filter_by_perm(user, 'change')
+qs.deletable_by(user)  # filter_by_perm(user, 'delete')
 qs.filter_by_perm(user, action)
 ```
 
@@ -123,6 +123,7 @@ class MyModelPermissionPolicy(ModelPermissionPolicy['MyModel', 'ParentModel', 'M
     def __init__(self):
         from .models import MyModel
         from nodes.roles import instance_admin_role, instance_viewer_role
+
         self.admin_role = instance_admin_role
         self.viewer_role = instance_viewer_role
         super().__init__(MyModel)

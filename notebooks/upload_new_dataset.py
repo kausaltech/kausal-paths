@@ -32,6 +32,12 @@ if TYPE_CHECKING:
     from common import polars as ppl
     from nodes.context import Context
 
+# Must match load_dvc_dataset.py's COMMENT_SEPARATOR: a 'Comment' cell may carry several
+# distinct notes about one data point, each becoming its own DataPointComment on load.
+# Not '; ' like SOURCE_NAME_SEPARATOR -- comment cells are prose and already contain
+# semicolons, so splitting on those would fragment single sentences.
+COMMENT_SEPARATOR = ' ;; '
+
 
 def _node_metric_unit_str(m: NodeMetric) -> str:
     """Return unit as string for a NodeMetric (unit may be parsed Unit or default_unit string)."""
@@ -95,6 +101,18 @@ def validate_required_columns(df: pl.DataFrame) -> None:
 
     if missing_columns:
         raise ValueError(f'Missing required columns: {", ".join(missing_columns)}')
+
+    # 'Description' and 'Comment' are not interchangeable and must not coexist:
+    # clean_dataframe() drops 'Description' before the DVC write (its text survives only
+    # as the dataset-level description), so per-row Description prose would be silently
+    # lost while 'Comment' rides through. Fail here rather than discard data quietly.
+    comment_columns = [col for col in df.columns if col.lower() in ('comment', 'description')]
+    if len(comment_columns) > 1:
+        raise ValueError(
+            f'Both {" and ".join(comment_columns)} are present. Use "Comment" only: per-row '
+            f'"Description" text is not written to DVC. Join several notes with '
+            f'COMMENT_SEPARATOR ({COMMENT_SEPARATOR!r}) in one "Comment" cell.'
+        )
 
 
 def determine_metric_column(df: pl.DataFrame) -> str:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated, Literal, overload
 from uuid import UUID
 
-from pydantic import Field, TypeAdapter
+from pydantic import Field, TypeAdapter, ValidationError
 
 """
 Canonical identifier shapes for Paths domain objects.
@@ -45,6 +45,22 @@ QuantityKindIdentifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
 
 MixedCaseIdentifierAdapter = TypeAdapter(MixedCaseIdentifier)
 IdentifierAdapter = TypeAdapter(Identifier)
+
+
+def identifier_or_none(value: str | None) -> MixedCaseIdentifier | None:
+    """
+    Return ``value`` if it is usable as an identifier, else None.
+
+    For deriving optional identifiers from strings that may or may not be
+    identifier-shaped (labels, dataset column headings). Callers that need a
+    valid identifier should use ``validate_identifier`` and let it raise.
+    """
+    if value is None:
+        return None
+    try:
+        return MixedCaseIdentifierAdapter.validate_python(value)
+    except ValidationError:
+        return None
 
 
 @overload

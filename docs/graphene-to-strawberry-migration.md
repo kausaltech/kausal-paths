@@ -61,26 +61,30 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, ...):
     class Meta:
         name = 'Query'
 
+
 # Strawberry root types (merged from multiple @sb.type classes)
 SBQuery = merge_types('Query', (SBNodesQuery,))
 SBMutation = merge_types('Mutation', tuple(SB_MUTATION_TYPES))
 Subscription = merge_types('Subscription', (NodesSubscription,))
+
 
 # Unified root types: inherit from BOTH
 @sb.type
 class Query(GrapheneQuery, SBQuery):
     pass
 
+
 @sb.type
 class Mutation(GrapheneMutations, SBMutation):
     pass
+
 
 # Schema construction
 schema = PathsSchema(
     query=Query,
     mutation=Mutation,
     subscription=Subscription,
-    types=all_types,       # includes strawberry_types set + grapple models
+    types=all_types,  # includes strawberry_types set + grapple models
     directives=[...],
 )
 ```
@@ -175,8 +179,7 @@ class FooType(graphene.ObjectType):
     )
 
     @staticmethod
-    def resolve_items(root, info, category: str | None = None):
-        ...
+    def resolve_items(root, info, category: str | None = None): ...
 ```
 
 Strawberry:
@@ -185,8 +188,7 @@ Strawberry:
 class FooType:
     @sb.field
     @staticmethod
-    def items(root: Foo, info: gql.Info, category: str | None = None) -> list[ItemType]:
-        ...
+    def items(root: Foo, info: gql.Info, category: str | None = None) -> list[ItemType]: ...
 ```
 
 In Strawberry, field arguments come from the resolver's Python signature. The interop
@@ -216,6 +218,7 @@ and swaps them for the corresponding grapple-registered Graphene type automatica
 ```python
 from kausal_common.strawberry.grapple import grapple_field
 
+
 @sb.type
 class FooType:
     @grapple_field
@@ -240,6 +243,7 @@ explicitly:
 
 ```python
 from grapple.types.streamfield import StreamFieldInterface
+
 
 @sb.type
 class FooType:
@@ -317,6 +321,7 @@ class ScenarioKind(enum.Enum):
     DEFAULT = 'default'
     CUSTOM = 'custom'
 
+
 # Use directly in Strawberry type annotations
 @sb.type
 class ScenarioType:
@@ -387,8 +392,7 @@ class UnitType:
 class SBQuery(Query):
     @sb.field(graphql_type=list[NormalizationType])
     @staticmethod
-    def active_normalizations(info: gql.Info) -> list[Normalization]:
-        ...
+    def active_normalizations(info: gql.Info) -> list[Normalization]: ...
 ```
 
 ## Migration Checklist

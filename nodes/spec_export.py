@@ -8,18 +8,21 @@ stored on InstanceConfig.spec and NodeConfig.spec.
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, overload
-from uuid import uuid3, uuid4
+from uuid import uuid3
 
 from loguru import logger
 
 from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
-from kausal_common.i18n.pydantic import TranslatedString, get_modeltrans_attrs_from_str, set_i18n_context
+from kausal_common.i18n.pydantic import TranslatedString, set_i18n_context
+
+from paths.identifiers import identifier_or_none
 
 from nodes.actions.action import ActionNode
+from nodes.constants import VALUE_COLUMN
 from nodes.datasets import DatasetWithFilters, DVCDataset
 from nodes.defs import (
     ActionConfig,
@@ -46,7 +49,6 @@ if TYPE_CHECKING:
         ActionGroup,
         FormulaConfig,
     )
-    from nodes.defs.edge_def import EdgeTransformation
     from nodes.defs.node_defs import NodeSpecExtra
     from nodes.edges import Edge, EdgeDimension
     from nodes.instance import Instance
@@ -75,20 +77,17 @@ def _to_ts(val: I18nString | None) -> TranslatedString | None:
 
 def _apply_instance_metadata_columns(ic: InstanceConfig, instance: Instance) -> None:
     """
-    Write identity metadata from a runtime Instance onto the InstanceConfig columns.
+    Seed identity metadata from a runtime Instance onto the InstanceConfig columns.
 
     Identity (name, owner, languages) lives on the columns now, not in the spec.
+    Existing DB-authored name and owner values take precedence.
     """
-    name_val, i18n = get_modeltrans_attrs_from_str(instance.name, 'name', instance.default_language)
-    ic.name = name_val
-    ic.owner = ''
-    if instance.owner:
-        owner_val, owner_i18n = get_modeltrans_attrs_from_str(instance.owner, 'owner', instance.default_language)
-        ic.owner = owner_val
-        i18n.update(owner_i18n)
-    ic.i18n = {**(ic.i18n or {}), **i18n}
-    ic.primary_language = instance.default_language
-    ic.other_languages = [lang for lang in instance.supported_languages if lang != instance.default_language]
+    ic.update_identity_metadata(
+        name=instance.name,
+        owner=instance.owner,
+        primary_language=instance.default_language,
+        other_languages=instance.supported_languages,
+    )
 
 
 def export_instance_spec(instance: Instance) -> InstanceModelSpec:
@@ -126,11 +125,12 @@ def export_instance_spec(instance: Instance) -> InstanceModelSpec:
         action_groups=action_groups,
         scenarios=scenarios,
         theme_identifier=instance.theme_identifier,
+        sample_size=ctx.sample_size,
     )
 
 
-def export_node_spec(node: Node, nc: NodeConfig) -> NodeSpec:
-    """Build a NodeSpec from a live Node."""
+def export_node_spec(node: Node) -> NodeSpec:
+    """Build the computation-only NodeSpec from a live Node."""
     type_config = _export_type_config(node)
     input_ports = _export_input_ports(node)
     output_ports = _export_output_ports(node)
@@ -142,22 +142,8 @@ def export_node_spec(node: Node, nc: NodeConfig) -> NodeSpec:
     input_dim_ids = [d for d, dim in node.input_dimensions.items() if not dim.is_internal] if node.input_dimensions else []
     output_dim_ids = [d for d, dim in node.output_dimensions.items() if not dim.is_internal] if node.output_dimensions else []
 
-    uuid = nc.uuid
-    if not nc.pk or not uuid:
-        uuid = uuid4()
-        nc.uuid = uuid
-
     goals = node.goals.model_copy() if node.goals is not None else NodeGoals()
     return NodeSpec(
-        uuid=uuid,
-        kind=type_config.kind,
-        identifier=node.id,
-        name=_to_ts(node.name),
-        short_name=_to_ts(node.short_name),
-        description=_to_ts(node.description),
-        color=(node.db_obj.color if node.db_obj is not None and node.db_obj.color else None) or node.color,
-        order=node.db_obj.order if node.db_obj is not None else None,
-        is_visible=node.db_obj.is_visible if node.db_obj is not None else True,
         type_config=type_config,
         input_ports=input_ports,
         output_ports=output_ports,
@@ -338,6 +324,7 @@ def _apply_input_port_multi_hints(node: Node, ports: list[InputPortDef], candida
         group_dimensions = list(_effective_input_dimension_ids(node, first.edge))
 
         first.port.id = group_port_id
+        first.port.identifier = identifier_or_none(first.group)
         first.port.multi = True
         first.port.quantity = first.metric.quantity
         first.port.unit = node.unit or first.metric.unit
@@ -347,7 +334,7 @@ def _apply_input_port_multi_hints(node: Node, ports: list[InputPortDef], candida
         ports_to_remove = {candidate.old_port_id for candidate in group_candidates[1:]}
         for candidate in group_candidates:
             _replace_edge_to_port_id(candidate.edge, candidate.old_port_id, group_port_id)
-        ports[:] = [port for port in ports if port.id not in ports_to_remove]
+        ports[:] = [port for port in ports if port is first.port or port.id not in ports_to_remove]
 
 
 def _dataset_binding_columns_for_node(node: Node, ds_instance: DatasetWithFilters) -> list[str]:
@@ -376,11 +363,103 @@ def _dataset_port_id(node: Node, dataset_index: int, column: str) -> UUID:
     return uuid_from_identifiers(node.context.instance, [node.id, 'dataset', str(dataset_index), column])
 
 
+def pair_metrics_to_columns(columns: list[str], metric_keys: list[str], *, log_ctx: str) -> list[tuple[str, str]]:
+    """
+    Pair a column-less binding's dataset schema metrics with node columns.
+
+    Returns ``(port_column, metric_key)`` pairs: which input port delivers
+    which source metric. Name matches pair first (case-insensitively, since
+    schema metrics are lowercase identifiers while node columns are often
+    TitleCase, e.g. ``fuel`` feeding ``Fuel``); a lone leftover on both sides
+    pairs too, since a single remaining metric can only feed the single
+    remaining column. Anything still unmatched gets no binding — inventing a
+    mapping would be worse than omitting it, and a dangling binding worse
+    than a missing one.
+    """
+    pairs: list[tuple[str, str]] = []
+    remaining_metrics = list(metric_keys)
+    remaining_columns = list(columns)
+    for column in columns:
+        match = next((metric for metric in remaining_metrics if metric.lower() == column.lower()), None)
+        if match is not None:
+            pairs.append((column, match))
+            remaining_metrics.remove(match)
+            remaining_columns.remove(column)
+    if len(remaining_metrics) == 1 and len(remaining_columns) == 1:
+        pairs.append((remaining_columns[0], remaining_metrics[0]))
+        remaining_metrics.clear()
+    if remaining_metrics:
+        logger.warning('%s: no input port column for schema metrics %s; they get no binding' % (log_ctx, remaining_metrics))
+    return pairs
+
+
+def _pair_schema_metrics_to_columns(
+    node: Node,
+    ds_instance: DatasetWithFilters,
+    metric_keys: list[str],
+) -> list[tuple[str, str]]:
+    columns = _dataset_binding_columns_for_node(node, ds_instance)
+    return pair_metrics_to_columns(columns, metric_keys, log_ctx=f'Dataset {ds_instance.id} on node {node.id}')
+
+
 def _metric_for_column(node: Node, column: str) -> NodeMetric | None:
     for metric in node.output_metrics.values():
         if str(metric.column_id) == column:
             return metric
     return None
+
+
+def _port_identifier_for_column(column: str) -> str | None:
+    """
+    Derive a port identifier from the bound dataset column, if it makes a usable name.
+
+    A port identifier is meant to be a name a person uses — a formula variable,
+    later on. The generic ``Value`` column says nothing about what the port
+    carries, and legacy wide-DVC columns are not identifier-shaped at all. Those
+    ports stay unnamed rather than filling the namespace with noise.
+    """
+    if column == VALUE_COLUMN:
+        return None
+    return identifier_or_none(column)
+
+
+def _binding_pairs_for_dataset(
+    node: Node,
+    ds_instance: DatasetWithFilters,
+    dataset_obj: DatasetModel,
+    metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric],
+) -> list[tuple[str, str]]:
+    """
+    Return the ``(port_column, metric_key)`` pairs a dataset binds through.
+
+    For column-less bindings the node consumes the full frame, and the dataset
+    schema may name its metrics differently from the node's columns (e.g.
+    metric ``share`` feeding the generic ``Value`` column). The pairing keeps
+    the two concepts distinct: the port UUID is always derived from the
+    node-side column — the same key ``_export_dataset_input_ports`` uses — so
+    a binding always points at a port that exists in the node spec, while the
+    metric names the source.
+    """
+    if ds_instance.column is not None:
+        return [(ds_instance.column, ds_instance.column)]
+    assert dataset_obj.schema is not None
+    schema_metrics = [name for (schema_pk, name) in metrics_by_schema_and_name if schema_pk == dataset_obj.schema.pk]
+    if not schema_metrics:
+        return [(column, column) for column in _dataset_binding_columns_for_node(node, ds_instance)]
+    pairs = _pair_schema_metrics_to_columns(node, ds_instance, schema_metrics)
+    if not pairs:
+        # No defensible pairing at all — but these rows are what
+        # `_serialize_dataset_ports` rebuilds `input_datasets` from, so
+        # dropping every row would remove the dataset from the model on
+        # DB-sourced instances. Keep rows keyed by the schema metric names:
+        # their port ids dangle (and are warned about), which is a lesser
+        # evil than losing the input.
+        logger.warning(
+            'Dataset %s on node %s: keeping bindings with unresolved port ids so the input dataset survives'
+            % (ds_instance.id, node.id),
+        )
+        pairs = [(name, name) for name in schema_metrics]
+    return pairs
 
 
 def _dataset_input_port_for_column(
@@ -392,6 +471,7 @@ def _dataset_input_port_for_column(
     metric = _metric_for_column(node, column)
     return InputPortDef(
         id=_dataset_port_id(node, dataset_index, column),
+        identifier=_port_identifier_for_column(column),
         unit=metric.unit if metric is not None else getattr(dataset, 'unit', None),
         quantity=metric.quantity if metric is not None else None,
     )
@@ -454,13 +534,20 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
             edge._to_port_ids.append(str(port_id))
             assert from_metric.id not in edge._from_output_metric_ids
             edge._from_output_metric_ids.append(from_metric.id)
+            if len(from_node.output_metrics) > 1:
+                port_identifier = identifier_or_none(f'{from_node.id}_{from_metric.id}')
+            else:
+                port_identifier = identifier_or_none(from_node.id)
             port = InputPortDef(
                 id=port_id,
+                identifier=port_identifier,
                 quantity=from_metric.quantity,
                 unit=from_metric.unit,
+                required_dimensions=[
+                    dim_id for dim_id, dimension in (edge.to_dimensions or {}).items() if not getattr(dimension, 'categories', ())
+                ],
                 # TODO: multi & dimensions? tags? transformations?
                 # supported_dimensions=src.supported_dimensions,
-                # required_dimensions=src.required_dimensions,
             )
             hint = node.input_port_multiplicity_hint(edge=edge, metric=from_metric)
             if hint.multi:
@@ -478,7 +565,27 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
             port._edge_metric_id = from_metric.id
             ports.append(port)
     _apply_input_port_multi_hints(node, ports, multi_candidates)
+    _drop_ambiguous_port_identifiers(node.id, ports)
     return ports
+
+
+def _drop_ambiguous_port_identifiers(node_id: str, ports: list[InputPortDef]) -> None:
+    """
+    Clear identifiers that would collide within the node.
+
+    Derived names are not guaranteed unique: two datasets can expose the same
+    column, and two edges can come from the same source node. An unnamed port
+    is better than a mangled or wrongly-shared name, and a name can always be
+    assigned in the editor afterwards.
+    """
+    counts = Counter(port.identifier for port in ports if port.identifier is not None)
+    duplicates = {identifier for identifier, count in counts.items() if count > 1}
+    if not duplicates:
+        return
+    logger.debug('Node {}: dropping ambiguous input port identifiers {}', node_id, sorted(duplicates))
+    for port in ports:
+        if port.identifier in duplicates:
+            port.identifier = None
 
 
 def _export_output_ports(node: Node) -> list[OutputPortDef]:
@@ -495,6 +602,7 @@ def _export_output_ports(node: Node) -> list[OutputPortDef]:
         assert metric.unit is not None
         port = OutputPortDef(
             id=uuid_from_identifiers(node.context.instance, [node.id, metric_id]),
+            identifier=identifier_or_none(metric_id),
             label=_to_ts(metric.label),
             unit=metric.unit,
             quantity=metric.quantity or None,
@@ -507,16 +615,20 @@ def _export_output_ports(node: Node) -> list[OutputPortDef]:
 
 
 def _input_dataset_def_from_instance(ds: DatasetWithFilters) -> InputDatasetDef:
+    """
+    Describe a loaded dataset binding as a definition, for storing in the DB.
+
+    The runtime already holds the pipeline — converted from the YAML flat fields
+    when the instance loaded — so it is passed straight through rather than
+    reconstructed field by field.
+    """
     return InputDatasetDef(
         id=ds.id,
         tags=ds.tags or [],
         input_dataset=ds.input_dataset if isinstance(ds, DVCDataset) else None,
         column=ds.column,
-        forecast_from=ds.forecast_from,
-        filters=ds.filters or [],
-        dropna=ds.dropna,
-        min_year=ds.min_year,
-        max_year=ds.max_year,
+        transformations=list(ds.transformations),
+        interpolate=ds.interpolate,
         unit=ds.unit,
     )
 
@@ -583,47 +695,7 @@ def _resolve_from_port(edge: Edge, from_node: NodeSpec, metric_id: str) -> Outpu
         if port._metric_id == metric_id:
             return port
 
-    raise ValueError(
-        f'No port found for node {from_node.identifier} edge {edge.input_node.id}:{edge.output_node.id} metric {metric_id}'
-    )
-
-
-def edge_to_transforms(edge: Edge) -> list[EdgeTransformation]:
-    """Convert runtime Edge dimension mappings to a structured transformation pipeline."""
-    from nodes.defs.edge_def import AssignCategoryTransformation, FlattenTransformation, SelectCategoriesTransformation
-
-    transforms: list[EdgeTransformation] = []
-
-    for dim_id, ed in edge.from_dimensions.items():
-        cat_refs = [cat.id for cat in ed.categories]
-        transforms.append(
-            SelectCategoriesTransformation(
-                dimension=dim_id,
-                categories=cat_refs,
-                flatten=ed.flatten,
-                exclude=ed.exclude,
-            )
-        )
-
-    if edge.to_dimensions:
-        for dim_id, ed in edge.to_dimensions.items():
-            if not ed.categories:
-                if ed.flatten:
-                    # Flatten a dimension that the downstream node doesn't want.
-                    transforms.append(FlattenTransformation(dimension=dim_id))
-                # Entries with no categories and no flatten are pure shape
-                # declarations — skip for now.
-                continue
-            if len(ed.categories) != 1:
-                raise ValueError(f'to_dimensions can have only one category for now (got {len(ed.categories)} for {dim_id})')
-            transforms.append(
-                AssignCategoryTransformation(
-                    dimension=dim_id,
-                    category=ed.categories[0].id,
-                )
-            )
-
-    return transforms
+    raise ValueError(f'No port found for edge {edge.input_node.id}:{edge.output_node.id} metric {metric_id}')
 
 
 # ---------------------------------------------------------------------------
@@ -658,8 +730,8 @@ def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, Node
                         break
                 else:
                     raise ValueError(
-                        f'No input port found for node {to_spec.identifier} for edge from '
-                        + f'{from_spec.identifier}, metric {from_metric_id}'
+                        f'No input port found for node {to_nc.identifier} for edge from '
+                        + f'{from_nc.identifier}, metric {from_metric_id}'
                     )
                 edge_obj = NodeEdge(
                     instance=ic,
@@ -667,7 +739,7 @@ def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, Node
                     from_port=from_port.id,
                     to_node=to_nc,
                     to_port=to_port.id,
-                    transformations=edge_to_transforms(edge),
+                    transformations=edge.to_transforms(),
                     tags=list(edge.tags) if edge.tags else [],
                 )
                 edge_objs.append(edge_obj)
@@ -685,13 +757,16 @@ def _resolve_dataset_ports(
     db_datasets: dict[str, DatasetModel],
     metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric],
 ) -> list[DatasetPort]:
-    from nodes.datasets import DBDataset
+    from nodes.datasets import DBDataset, SerializedDBDataset
     from nodes.models import DatasetPort
 
     # Resolve the Dataset model object depending on the dataset type.
     if isinstance(ds_instance, DBDataset):
         dataset_obj = ds_instance.db_dataset_obj
         assert dataset_obj is not None
+    elif isinstance(ds_instance, SerializedDBDataset):
+        assert ds_instance.payload_ref is not None
+        dataset_obj = DatasetModel.objects.select_related('schema').get(pk=ds_instance.payload_ref.dataset_pk)
     elif isinstance(ds_instance, DVCDataset):
         dataset_obj = db_datasets.get(ds_instance.id)
     else:
@@ -705,29 +780,22 @@ def _resolve_dataset_ports(
 
     ports: list[DatasetPort] = []
     spec = DatasetPortSpec.from_input_dataset(_input_dataset_def_from_instance(ds_instance))
-    metric_columns = _dataset_binding_columns_for_node(node, ds_instance)
-    if ds_instance.column is None:
-        # Column-less bindings: the node consumes the full frame. Bind to every
-        # metric the dataset actually exposes so ports stay accurate even when
-        # the node renames columns post-load (e.g. HsyNode translating Finnish
-        # metric labels). Falling back to the node's output_metric column_ids
-        # fails whenever the dataset schema uses different names.
-        schema_metrics = [name for (schema_pk, name) in metrics_by_schema_and_name if schema_pk == dataset_obj.schema.pk]
-        if schema_metrics:
-            metric_columns = schema_metrics
-    for column in metric_columns:
-        metric = metrics_by_schema_and_name.get((dataset_obj.schema.pk, column))
+    pairs = _binding_pairs_for_dataset(node, ds_instance, dataset_obj, metrics_by_schema_and_name)
+    for port_column, metric_key in pairs:
+        metric = metrics_by_schema_and_name.get((dataset_obj.schema.pk, metric_key))
         if metric is None:
             if ds_instance.column is not None:
-                raise ValueError(f'No metric {column} in dataset {ds_instance.id} for node {node.id}')
-            logger.debug('No metric %s in dataset %s for node %s; skipping dataset-port binding', column, ds_instance.id, node.id)
+                raise ValueError(f'No metric {metric_key} in dataset {ds_instance.id} for node {node.id}')
+            logger.debug(
+                'No metric %s in dataset %s for node %s; skipping dataset-port binding', metric_key, ds_instance.id, node.id
+            )
             continue
 
         ports.append(
             DatasetPort(
                 instance=ic,
                 node=nc,
-                port_id=_dataset_port_id(node, idx, column),
+                port_id=_dataset_port_id(node, idx, port_column),
                 dataset=dataset_obj,
                 metric=metric,
                 spec=spec,
@@ -829,12 +897,20 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
     """
     from collections import defaultdict
 
-    from nodes.models import DatasetPort
+    from nodes.dataset_materialization import refresh_dataset_materialization
+    from nodes.models import DatasetMaterialization, DatasetPort
 
     ports_by_dataset: dict[int, list[DatasetPort]] = defaultdict(list)
     ports = DatasetPort.objects.filter(instance=ic).select_related('dataset').order_by('dataset_id')
     for port in ports:
         ports_by_dataset[port.dataset_id].append(port)
+
+    materializations = {
+        materialization.dataset_id: materialization
+        for materialization in DatasetMaterialization.objects.select_for_update().filter(
+            dataset_id__in=ports_by_dataset,
+        )
+    }
 
     promoted = 0
     for dataset_ports in ports_by_dataset.values():
@@ -845,35 +921,46 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
         if dataset_ports[0].dataset.is_external_placeholder:
             continue
 
-        years = {port.spec.forecast_from for port in dataset_ports if port.spec.forecast_from is not None}
-        if len(years) != 1:
-            continue
-
-        year = years.pop()
         dataset = dataset_ports[0].dataset
-        spec = dict(dataset.spec or {})
-        if spec.get('forecast_from') != year:
-            spec['forecast_from'] = year
-            dataset.spec = spec
-            dataset.save(update_fields=['spec'])
-            promoted += 1
+        years = {port.spec.forecast_from for port in dataset_ports if port.spec.forecast_from is not None}
+        if len(years) == 1:
+            year = years.pop()
+            spec = dict(dataset.spec or {})
+            if spec.get('forecast_from') != year:
+                spec['forecast_from'] = year
+                dataset.spec = spec
+                dataset.save(update_fields=['spec'])
+                promoted += 1
 
-        changed_ports: list[DatasetPort] = []
-        for port in dataset_ports:
-            if port.spec.forecast_from == year:
-                port.spec = port.spec.model_copy(update={'forecast_from': None})
-                changed_ports.append(port)
-        if changed_ports:
-            DatasetPort.objects.bulk_update(changed_ports, ['spec'])
+            changed_ports: list[DatasetPort] = []
+            for port in dataset_ports:
+                if port.spec.forecast_from == year:
+                    port.spec = port.spec.without_forecast_from()
+                    changed_ports.append(port)
+            if changed_ports:
+                DatasetPort.objects.bulk_update(changed_ports, ['spec'])
+
+        forecast_from = (dataset.spec or {}).get('forecast_from')
+        materialization = materializations.get(dataset.pk)
+        if forecast_from is not None and (materialization is None or materialization.forecast_from != forecast_from):
+            refresh_dataset_materialization(dataset)
 
     return promoted
 
 
-def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -> None:
+def sync_instance_to_db(
+    instance_id: str,
+    yaml_path: str | Path | None = None,
+    *,
+    promote_forecast_defaults: bool = True,
+) -> None:
     """
     Load an instance from YAML and sync its spec to the DB.
 
     If yaml_path is not given, tries configs/{instance_id}.yaml.
+    ``promote_forecast_defaults=False`` keeps binding-level forecast years
+    on the DatasetPort specs (used by the parse oracle, which compares
+    against pre-promotion state).
     """
     from django.db import transaction
 
@@ -912,8 +999,8 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
             nc = existing_ncs.get(node_id)
             if nc is None:
                 nc = NodeConfig(instance=ic, identifier=node_id)
-            nc.update_from_node(node, update_relations=False, skip_descriptions=True)
-            spec = export_node_spec(node, nc)
+            nc.update_from_node(node, overwrite=node_id not in existing_ncs, update_relations=False)
+            spec = export_node_spec(node)
             nc.is_stale = False
             nc.save()
             # Write spec via queryset.update() to bypass ClusterableModel.save()
@@ -939,7 +1026,7 @@ def sync_instance_to_db(instance_id: str, yaml_path: str | Path | None = None) -
         created_placeholder_ids = sync_instance_dataset_placeholders(ic, ctx)
 
         dataset_port_count = _update_dataset_ports(ic, ctx, node_configs)
-        promoted_forecast_defaults = _promote_dataset_forecast_defaults(ic)
+        promoted_forecast_defaults = _promote_dataset_forecast_defaults(ic) if promote_forecast_defaults else 0
 
     logger.info(
         (

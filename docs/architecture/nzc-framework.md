@@ -79,7 +79,7 @@ The bridge from framework config to model instance is
 It builds the path:
 
 ```python
-configs/{framework.identifier}.yaml
+configs / {framework.identifier}.yaml
 ```
 
 For NZC, this is `configs/nzc.yaml`. The `InstanceLoader` receives the current

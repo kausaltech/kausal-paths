@@ -6,7 +6,6 @@ from rest_framework import exceptions
 
 from kausal_common.api.bulk import BulkModelViewSet
 from kausal_common.api.utils import register_view
-from kausal_common.model_images import ModelWithImageViewMixin
 from kausal_common.people.api import PersonSerializer as BasePersonSerializer
 from kausal_common.users import user_or_none
 
@@ -33,7 +32,7 @@ class PersonSerializer(BasePersonSerializer):
 
 
 @register_view
-class PersonViewSet(ModelWithImageViewMixin, BulkModelViewSet):
+class PersonViewSet(BulkModelViewSet[Person]):
     queryset = Person.objects.all()
     serializer_class = PersonSerializer
 

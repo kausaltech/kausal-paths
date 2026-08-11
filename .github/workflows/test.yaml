@@ -11,15 +11,15 @@ on:
         required: true
         type: string
       build_id:
-        description: 'Unique ID for the build'
+        description: "Unique ID for the build"
         required: true
         type: string
       s3_endpoint:
-        description: 'S3 endpoint URL where to upload test artifacts'
+        description: "S3 endpoint URL where to upload test artifacts"
         required: false
         type: string
       s3_bucket:
-        description: 'S3 bucket'
+        description: "S3 bucket"
         required: false
         type: string
 
@@ -78,7 +78,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           TEST_RESULTS_DIR: /tmp/pytest-results
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pytest-results
           path: /tmp/pytest-results
@@ -90,30 +90,32 @@ jobs:
     needs: run-tests
     if: always()
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: pytest-results
           path: /tmp/pytest-results
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: /tmp/pytest-results/pytest-junit.xml
+          report_type: test_results
           url: https://codecoverage.kausal.dev
           flags: unittests
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: /tmp/pytest-results/pytest-coverage.xml
+          report_type: coverage
           url: https://codecoverage.kausal.dev
           recurse_submodules: true
           flags: unittests

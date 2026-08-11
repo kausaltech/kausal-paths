@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   # commit: f1a7f7cd69a10d5fb1c7f95eeea6cb65f7add0f3
-  commit: 9e9c2483ba4459868b35f3a763a0b97c30753cae # Commit before DB -> DVC update.
+  commit: 8963394f6bc0de09d57d648ef251b28f7a4b7227 # Commit before DB -> DVC update.
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030, Luonnos 2026
 name_en: Carbon-neutral Espoo 2030, Draft 2026
@@ -2466,7 +2466,7 @@ actions:
     2035-skenaarion mukainen kehitys.</p> <p>Lämmitystapamuutoksissa 
     öljylämmitteisistä rakennuksista oletetaan siirryttävän muihin 
     lämmitysmuotoihin seuraavasti.</p> <ul><li>Pien- ja rivitalot 100 % 
-    lämpöpumppuihin.</li <li>Kerrostaloissa, palvelurakennuksissa ja 
+    lämpöpumppuihin.</li> <li>Kerrostaloissa, palvelurakennuksissa ja 
     teollisuusrakennuksissa 50 % lämpöpumppuhin ja 50 % kaukolämpöön.</li></ul>
   description_en: <p>In the Finland 2035 scenario, oil heating is assumed to be 
     abandoned in residential and service buildings by 95 percent by 2030, and 

@@ -13,7 +13,7 @@ from nodes.actions.action import ActionNode
 from nodes.actions.simple import AdditiveAction
 from nodes.context import Context
 from nodes.datasets import FixedDataset
-from nodes.defs.node_defs import NodeKind, NodeSpec, SimpleConfig
+from nodes.defs.node_defs import NodeSpec, SimpleConfig
 from nodes.defs.port_def import OutputPortDef
 from nodes.instance import Instance
 from nodes.models import InstanceConfig, NodeConfig, make_empty_instance_spec
@@ -129,7 +129,6 @@ class NodeConfigFactory(DjangoModelFactory[NodeConfig]):
     short_description = 'short description'
     description = 'description'
     spec = NodeSpec(
-        kind=NodeKind.SIMPLE,
         type_config=SimpleConfig(node_class='nodes.simple.SimpleNode'),
         output_ports=[OutputPortDef(id=_port_id('default'), unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
     )

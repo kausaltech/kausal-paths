@@ -326,15 +326,18 @@ for the dataset-body-carrying case:
 ```python
 class InstanceSnapshot(BaseModel):
     """Instance state, dataset references only. Unit of revisioning."""
+
     schema_version: int = 1
-    spec: InstanceSpec          # already contains scenarios, action_groups,
-                                # params, pages, normalizations, dimensions
+    spec: InstanceSpec  # already contains scenarios, action_groups,
+    # params, pages, normalizations, dimensions
     nodes: list[NodeSnapshot]
     edges: list[EdgeSnapshot]
     dataset_ports: list[DatasetPortSnapshot]
 
+
 class InstanceExport(BaseModel):
     """Self-contained instance + dataset bodies. Unit of sync/portability."""
+
     schema_version: int = 1
     instance: InstanceSnapshot
     datasets: list[DatasetExport]
@@ -500,8 +503,7 @@ existing mutations still work unchanged.
            return self.snapshot_model.from_model(self).model_dump(mode='json')
 
        @classmethod
-       def from_serializable_data(cls, data: dict, *, ic: InstanceConfig) -> Self:
-           ...
+       def from_serializable_data(cls, data: dict, *, ic: InstanceConfig) -> Self: ...
 
        def __init_subclass__(cls, **kwargs):
            super().__init_subclass__(**kwargs)
@@ -524,24 +526,33 @@ existing mutations still work unchanged.
    ```python
    class InstanceChangeOperation(UUIDIdentifiedModel):
        instance_config = models.ForeignKey(
-           InstanceConfig, on_delete=models.CASCADE,
+           InstanceConfig,
+           on_delete=models.CASCADE,
            related_name='change_operations',
        )
        user = models.ForeignKey(
-           settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-           null=True, blank=True,
+           settings.AUTH_USER_MODEL,
+           on_delete=models.SET_NULL,
+           null=True,
+           blank=True,
        )
-       action = models.CharField(max_length=100)       # e.g. 'node.delete'
-       source = models.CharField(                      # trigger transport
+       action = models.CharField(max_length=100)  # e.g. 'node.delete'
+       source = models.CharField(  # trigger transport
            max_length=20,
-           choices=[('graphql', 'GraphQL'), ('rest', 'REST'),
-                    ('admin', 'Wagtail admin'), ('cli', 'CLI'),
-                    ('migration', 'Data migration')],
+           choices=[
+               ('graphql', 'GraphQL'),
+               ('rest', 'REST'),
+               ('admin', 'Wagtail admin'),
+               ('cli', 'CLI'),
+               ('migration', 'Data migration'),
+           ],
        )
        created_at = models.DateTimeField(auto_now_add=True)
        superseded_by = models.ForeignKey(
-           'self', on_delete=models.SET_NULL,
-           null=True, blank=True,
+           'self',
+           on_delete=models.SET_NULL,
+           null=True,
+           blank=True,
            related_name='supersedes',
        )
 
@@ -557,7 +568,8 @@ existing mutations still work unchanged.
    ```python
    class InstanceModelLogEntry(UUIDIdentifiedModel, ModelLogEntry):
        operation = models.ForeignKey(
-           InstanceChangeOperation, on_delete=models.CASCADE,
+           InstanceChangeOperation,
+           on_delete=models.CASCADE,
            related_name='log_entries',
        )
        # Wagtail's BaseLogEntry already provides:
@@ -575,8 +587,10 @@ existing mutations still work unchanged.
 4. **`change_operation()` context manager** in `nodes/change_ops.py`:
    ```python
    _current_op: ContextVar[InstanceChangeOperation | None] = ContextVar(
-       'current_change_operation', default=None,
+       'current_change_operation',
+       default=None,
    )
+
 
    @contextmanager
    def change_operation(
@@ -589,13 +603,17 @@ existing mutations still work unchanged.
            # Serializes concurrent mutations against the same instance
            InstanceConfig.objects.select_for_update().filter(pk=ic.pk).first()
            op = InstanceChangeOperation.objects.create(
-               instance_config=ic, user=user, action=action, source=source,
+               instance_config=ic,
+               user=user,
+               action=action,
+               source=source,
            )
            token = _current_op.set(op)
            try:
                yield op
            finally:
                _current_op.reset(token)
+
 
    def get_current_operation() -> InstanceChangeOperation:
        op = _current_op.get()

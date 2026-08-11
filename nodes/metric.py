@@ -76,7 +76,7 @@ class Metric:
         self.split_values = None
 
     @staticmethod
-    def from_node(node: Node, goal_id: str | None = None) -> None | Metric:  # noqa: C901, PLR0912
+    def from_node(node: Node, goal_id: str | None = None) -> Metric | None:  # noqa: C901, PLR0912
         import polars as pl
 
         from common import polars as ppl
@@ -552,7 +552,7 @@ class DimensionalFlow:
     links: list[FlowLinks]
 
     @classmethod
-    def from_action_node(cls, node: ActionNode) -> None | DimensionalFlow:  # noqa: C901, PLR0915
+    def from_action_node(cls, node: ActionNode) -> DimensionalFlow | None:  # noqa: C901, PLR0915
         import polars as pl
 
         from .actions.shift import ShiftAction
@@ -583,7 +583,7 @@ class DimensionalFlow:
 
         flow_nodes: dict[str, FlowNode] = {}
 
-        def get_flow_node(row: dict[str, Any], is_source: bool) -> FlowNode:
+        def get_flow_node(row: dict[str, Any], is_source: bool) -> FlowNode:  # noqa: C901
             path_parts = []
             label_parts = []
 
@@ -621,6 +621,14 @@ class DimensionalFlow:
                 val_col = node.get_default_output_metric().column_id
                 if sdf_exprs:
                     sdf = sdf.filter(functools.reduce(lambda a, b: a & b, sdf_exprs))  # pyright: ignore[reportUnknownLambdaType]
+                # The source node (e.g. a ShiftAction's output_nodes[0]) may carry dimensions the
+                # shift itself never mentions in its source/dest categories (`dims` above comes from
+                # the shift's own dims, via df.primary_keys). Sum those out here so one row per year
+                # remains; this only affects this flow-diagram value, not the source node's own output
+                # or any actual effect computation elsewhere.
+                extra_dims = [dim_id for dim_id in sdf.dim_ids if dim_id not in dim_cats]
+                if extra_dims:
+                    sdf = sdf.paths.sum_over_dims(extra_dims)
                 sdf = sdf.select([YEAR_COLUMN, val_col])
                 assert not sdf.paths.index_has_duplicates()
                 assert flow_node_id not in source_values

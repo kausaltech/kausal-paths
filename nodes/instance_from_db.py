@@ -1,11 +1,14 @@
 """
-Serialize DB-stored specs to the dict format InstanceLoader expects.
+The loader's build-side shim: InstanceSnapshot to loader-consumable dicts.
 
-Reads InstanceConfig.spec and NodeConfig.spec (Pydantic models stored via
-SchemaField) and converts them to the same dict structure that YAML config
-parsing produces, so the existing InstanceLoader machinery can consume it.
+This is transitional (stage 1 of the loader inversion): the loader's build
+half still consumes YAML-shaped dicts internally, so spec bundles are
+converted back into dicts here. Each subsystem of the loader will migrate to
+consuming the specs directly, at which point its portion of this module is
+deleted.
 
-Edges and DatasetPorts are still read from their Django models.
+DB-sourced instances get their snapshot from ``build_instance_snapshot``;
+this module has no ORM access of its own.
 """
 
 from __future__ import annotations
@@ -13,7 +16,6 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, cast
 
-from django.db.models import F
 from django.utils.functional import Promise
 
 from loguru import logger
@@ -22,18 +24,24 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.constants import VALUE_COLUMN
 from nodes.defs import ActionConfig, FormulaConfig, SimpleConfig
-from nodes.defs.edge_def import AssignCategoryTransformation, SelectCategoriesTransformation
 from nodes.defs.node_defs import NodeKind
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from uuid import UUID
 
     from kausal_common.i18n.pydantic import I18nString
 
-    from nodes.defs.edge_def import EdgeTransformation
-    from nodes.defs.instance_defs import ActionGroup, InstanceModelSpec
+    from nodes.defs.instance_defs import ActionGroup
     from nodes.defs.node_defs import NodeSpec
-    from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge
+    from nodes.defs.transform_def import FilterDimensionOp, PortTransformOp
+    from nodes.instance_serialization import (
+        DatasetPortSnapshot,
+        EdgeSnapshot,
+        InstanceSnapshot,
+        NodeSnapshot,
+    )
+    from nodes.models import InstanceConfig
     from nodes.scenario import Scenario
     from params.base import Parameter
 
@@ -53,10 +61,17 @@ def _ts_to_yaml(field: str, val: I18nString | None) -> dict[str, str]:
 
 
 def serialize_instance_to_dict(ic: InstanceConfig) -> dict[str, Any]:
-    """Convert a DB-sourced InstanceConfig and its related models into a YAML-equivalent dict."""
-    spec = ic.spec
-    assert spec is not None, f'InstanceConfig {ic.identifier!r} has no spec'
-    config = _serialize_instance_metadata(ic, spec)
+    """Convert a DB-sourced InstanceConfig into a YAML-equivalent dict, via its snapshot."""
+    from nodes.instance_serialization import build_instance_snapshot
+
+    _check_dimension_orm_coverage(ic)
+    return snapshot_to_config_dict(build_instance_snapshot(ic))
+
+
+def snapshot_to_config_dict(snapshot: InstanceSnapshot) -> dict[str, Any]:
+    """Convert an InstanceSnapshot into the YAML-equivalent dict the loader consumes."""
+    spec = snapshot.spec
+    config = _serialize_instance_metadata(snapshot)
     config['action_groups'] = [_serialize_action_group(ag) for ag in spec.action_groups]
     config['scenarios'] = [_serialize_scenario(s) for s in spec.scenarios]
     config['terms'] = spec.terms.model_dump(exclude_none=True)
@@ -65,14 +80,14 @@ def serialize_instance_to_dict(ic: InstanceConfig) -> dict[str, Any]:
     config['impact_overviews'] = [overview.model_dump(exclude_none=True) for overview in spec.impact_overviews]
     config['normalizations'] = [normalization.model_dump(exclude_none=True) for normalization in spec.normalizations]
 
-    _add_nodes_and_edges(ic, config)
-    config['dimensions'] = _resolve_dimensions(ic, spec)
+    _add_nodes_and_edges(snapshot, config)
+    config['dimensions'] = spec.dimensions
     return config
 
 
-def _resolve_dimensions(ic: InstanceConfig, spec: InstanceModelSpec) -> list[dict[str, Any]]:
+def _check_dimension_orm_coverage(ic: InstanceConfig) -> None:
     """
-    Build the dimensions config and check the ORM covers spec.dimensions.
+    Check the ORM covers spec.dimensions.
 
     Transitional: during the migration from `InstanceSpec.dimensions` to the
     ORM Dimension/DimensionCategory tables (plus their `spec` JSONFields),
@@ -80,6 +95,8 @@ def _resolve_dimensions(ic: InstanceConfig, spec: InstanceModelSpec) -> list[dic
     runtime needs. The computation model fails when a dim or cat is missing;
     extras or cosmetic diffs (labels, colors, aliases) only cause log noise.
     """
+    spec = ic.spec
+    assert spec is not None, f'InstanceConfig {ic.identifier!r} has no spec'
     orm_cats_by_dim = _orm_category_ids_by_dim(ic)
     missing: list[str] = []
     for dim_dict in spec.dimensions:
@@ -98,8 +115,6 @@ def _resolve_dimensions(ic: InstanceConfig, spec: InstanceModelSpec) -> list[dic
             logger.error('Dimension ORM gap for {id}: {line}', id=ic.identifier, line=line)
         raise AssertionError(f'Dimension ORM missing entries for instance {ic.identifier!r}: {missing}')
 
-    return spec.dimensions
-
 
 def _orm_category_ids_by_dim(ic: InstanceConfig) -> dict[str, set[str]]:
     from kausal_common.datasets.models import DimensionScope
@@ -112,17 +127,14 @@ def _orm_category_ids_by_dim(ic: InstanceConfig) -> dict[str, set[str]]:
     return result
 
 
-def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceModelSpec) -> dict[str, Any]:
-    from nodes.defs.instance_defs import InstanceMetadata
-
-    # Identity metadata is the responsibility of the InstanceConfig columns;
-    # the spec carries only the computation definition.
-    meta = InstanceMetadata.from_model(ic)
+def _serialize_instance_metadata(snapshot: InstanceSnapshot) -> dict[str, Any]:
+    meta = snapshot.metadata
+    spec = snapshot.spec
     years = spec.years
     repo = spec.dataset_repo
 
     config: dict[str, Any] = {
-        'id': meta.identifier or ic.identifier,
+        'id': meta.identifier,
         'uuid': meta.uuid,
         'default_language': meta.primary_language,
         'supported_languages': meta.other_languages,
@@ -134,8 +146,11 @@ def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceModelSpec) ->
         'features': spec.features.model_dump(),
         'params': [_param_to_dict(p) for p in cast('Sequence[Parameter]', spec.params)],
         'theme_identifier': spec.theme_identifier,
+        'sample_size': spec.sample_size,
         **_ts_to_yaml('owner', meta.owner),
         **_ts_to_yaml('name', meta.name),
+        **_ts_to_yaml('lead_title', meta.lead_title),
+        **_ts_to_yaml('lead_paragraph', meta.lead_paragraph),
         **(
             {'dataset_repo': {'url': repo.url, 'commit': repo.commit, 'dvc_remote': repo.dvc_remote}} if repo and repo.url else {}
         ),
@@ -143,35 +158,31 @@ def _serialize_instance_metadata(ic: InstanceConfig, spec: InstanceModelSpec) ->
     return config
 
 
-def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> list[NodeConfig]:
-    node_configs = ic.nodes_for_serialization
-    edges = list(ic.edges.annotate(from_node_identifier=F('from_node__identifier'), to_node_identifier=F('to_node__identifier')))
-    dataset_ports = list(
-        ic.dataset_ports.select_related('node', 'dataset', 'metric').order_by(
-            'node__identifier',
-            'dataset_index',
-            'metric__order',
-            'port_id',
-        )
-    )
+def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> None:
+    node_snapshots = snapshot.nodes
+    specs_by_uuid: dict[UUID, NodeSpec] = {}
+    identifiers_by_uuid: dict[UUID, str] = {}
+    for n in node_snapshots:
+        assert n.spec is not None, f'Node {n.uuid} has no spec'
+        if n.identifier is None:
+            raise ValueError(f'Node {n.uuid} has no identifier; the legacy runtime still requires one')
+        specs_by_uuid[n.uuid] = n.spec
+        identifiers_by_uuid[n.uuid] = n.identifier
 
-    nodes_by_identifier: dict[str, NodeConfig] = {nc.identifier: nc for nc in node_configs}
-
-    _output_edges, input_edges = _build_edge_maps(cast('list[EdgeWithNodeIdentifiers]', edges), nodes_by_identifier)
-    dataset_ports_by_node: defaultdict[str, list[DatasetPort]] = defaultdict(list)
-    for port in dataset_ports:
-        dataset_ports_by_node[port.node.identifier].append(port)
+    _output_edges, input_edges = _build_edge_maps(snapshot.edges, specs_by_uuid, identifiers_by_uuid)
+    dataset_ports_by_node: defaultdict[UUID, list[DatasetPortSnapshot]] = defaultdict(list)
+    for port in sorted(snapshot.dataset_ports, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
+        dataset_ports_by_node[port.node].append(port)
 
     nodes_list: list[dict[str, Any]] = []
     actions_list: list[dict[str, Any]] = []
-    for nc in node_configs:
+    for n in node_snapshots:
         node_dict = _serialize_node_config(
-            nc,
-            input_nodes=input_edges.get(nc.identifier, []),
-            dataset_ports=dataset_ports_by_node.get(nc.identifier, []),
+            n,
+            input_nodes=input_edges.get(n.uuid, []),
+            dataset_ports=dataset_ports_by_node.get(n.uuid, []),
         )
-        spec = nc.spec
-        assert spec is not None
+        spec = specs_by_uuid[n.uuid]
         if spec.type_config.kind == NodeKind.ACTION:
             actions_list.append(node_dict)
         else:
@@ -180,26 +191,22 @@ def _add_nodes_and_edges(ic: InstanceConfig, config: dict[str, Any]) -> list[Nod
     config['nodes'] = nodes_list
     config['actions'] = actions_list
 
-    return node_configs
-
 
 def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
-    nc: NodeConfig,
+    n: NodeSnapshot,
     input_nodes: list[dict[str, Any]],
-    dataset_ports: list[DatasetPort],
+    dataset_ports: list[DatasetPortSnapshot],
 ) -> dict[str, Any]:
-    assert nc.spec is not None
-    spec: NodeSpec = nc.spec
-    node: dict[str, Any] = {'id': spec.identifier or nc.identifier}
+    assert n.spec is not None
+    if n.identifier is None:
+        raise ValueError(f'Node {n.uuid} has no identifier; the legacy runtime still requires one')
+    spec: NodeSpec = n.spec
+    node: dict[str, Any] = {'id': n.identifier}
 
-    if spec.name:
-        node.update(_ts_to_yaml('name', spec.name))
-    elif nc.name:
-        node['name'] = nc.name
-    if nc.i18n:
-        node.update(nc.i18n)
-    if spec.short_name:
-        node.update(_ts_to_yaml('short_name', spec.short_name))
+    if n.name:
+        node.update(_ts_to_yaml('name', n.name))
+    if n.short_name:
+        node.update(_ts_to_yaml('short_name', n.short_name))
 
     # Python class path
     kind_config = spec.type_config
@@ -210,22 +217,14 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     else:
         raise TypeError(f'Unknown node type config: {type(kind_config)}')
     # Display fields
-    if spec.color:
-        node['color'] = spec.color
-    elif nc.color:
-        node['color'] = nc.color
-    if spec.order is not None:
-        node['order'] = spec.order
-    elif nc.order is not None:
-        node['order'] = nc.order
-    if spec.is_visible is False:
+    if n.color:
+        node['color'] = n.color
+    if n.order is not None:
+        node['order'] = n.order
+    if not n.is_visible:
         node['is_visible'] = False
-    elif not nc.is_visible:
-        node['is_visible'] = False
-    if spec.description:
-        node['description'] = spec.description
-    elif nc.short_description:
-        node['description'] = nc.description
+    if n.short_description:
+        node['description'] = n.short_description
 
     # Spec-derived fields
     if spec.is_outcome:
@@ -308,7 +307,7 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
         for key, val in extra.other.items():
             node.setdefault(key, val)
 
-    # Edges (from Django models)
+    # Edges (from the snapshot)
     # Use incoming edges here so the target node's input port order survives
     # the DB round-trip for order-sensitive nodes like MultiplicativeNode.
     if input_nodes:
@@ -317,21 +316,40 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     return node
 
 
-def _dataset_port_group_key(port: DatasetPort) -> tuple[str, str]:
-    dataset_id = port.dataset.identifier or str(port.dataset.uuid)
-    spec_json = port.spec.model_dump_json(exclude_defaults=True, exclude_none=True)
-    return (dataset_id, spec_json)
+def _dataset_port_group_key(port: DatasetPortSnapshot) -> tuple[int, str]:
+    """
+    Identify the binding a port belongs to.
+
+    ``dataset_index`` *is* binding identity — it is the position of the binding
+    in the owning node's ``input_dataset_instances``, and several ports share it
+    when one column-less binding expands to a port per metric. The dataset id is
+    part of the key only as a safety net for rows written before
+    ``dataset_index`` existed (migration 0043 has no backfill, so those all have
+    index 0); a re-sync makes it redundant.
+    """
+    return (port.dataset_index, port.dataset)
 
 
-def _serialize_dataset_ports(dataset_ports: list[DatasetPort]) -> list[dict[str, Any]]:
-    grouped: dict[tuple[str, str], list[DatasetPort]] = {}
+def _serialize_dataset_ports(dataset_ports: list[DatasetPortSnapshot]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[int, str], list[DatasetPortSnapshot]] = {}
     for port in dataset_ports:
         grouped.setdefault(_dataset_port_group_key(port), []).append(port)
 
     input_datasets: list[dict[str, Any]] = []
-    for ports in grouped.values():
+    for (dataset_index, dataset_id), ports in grouped.items():
         first = ports[0]
-        dataset_id = first.dataset.identifier or str(first.dataset.uuid)
+        specs = {port.spec.model_dump_json(exclude_defaults=True, exclude_none=True) for port in ports}
+        if len(specs) > 1:
+            # The spec belongs to the binding, not to the individual port. A
+            # divergence means the DB mirror is stale or was edited per-port;
+            # the first port wins, and a re-sync fixes it.
+            logger.warning(
+                'Node {}: dataset ports for binding {} ({}) have {} differing specs; using the first',
+                first.node,
+                dataset_index,
+                dataset_id,
+                len(specs),
+            )
         ds_def = first.spec.to_input_dataset(id=dataset_id)
         input_datasets.append(ds_def.model_dump(mode='json', exclude_defaults=True, exclude_none=True))
     return input_datasets
@@ -372,37 +390,62 @@ def _serialize_scenario(scenario: Scenario) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Edge and dataset helpers (unchanged — these read from Django models)
+# Edge helpers
 # ---------------------------------------------------------------------------
 
 
-if TYPE_CHECKING:
+def _filter_dimension_to_config(t: FilterDimensionOp) -> dict[str, Any]:
+    d: dict[str, Any] = {'id': t.dimension}
+    if t.categories:
+        d['categories'] = list(t.categories)
+    if t.groups:
+        d['groups'] = list(t.groups)
+    if t.flatten:
+        d['flatten'] = True
+    if t.exclude:
+        d['exclude'] = True
+    return d
 
-    class EdgeWithNodeIdentifiers(NodeEdge):
-        from_node_identifier: str
-        to_node_identifier: str
 
+def _transforms_to_config(
+    transforms: Sequence[PortTransformOp],
+    *,
+    required_dimensions: Sequence[str] = (),
+) -> dict[str, list[dict[str, Any]]]:
+    """
+    Convert a binding's transformations to the dict format Edge.from_config expects.
 
-def _transforms_to_config(transforms: list[EdgeTransformation]) -> dict[str, list[dict[str, Any]]]:
-    """Convert structured EdgeTransformation list to the dict format Edge.from_config expects."""
+    This is the seam between the stored vocabulary and the legacy runtime: until
+    ``_get_output_for_target()`` consumes the transform pipeline directly, only
+    what these dicts can express is executable on an edge — which is why the
+    edge mutations accept only the dimension-reshaping transformations.
+    """
+    from nodes.defs.transform_def import (
+        AssignDimensionOp,
+        FilterDimensionOp,
+        FlattenTransformation,
+        modernized_transformations,
+    )
+
     from_dims: list[dict[str, Any]] = []
     to_dims: list[dict[str, Any]] = []
-    from nodes.defs.edge_def import FlattenTransformation
 
-    for t in transforms:
-        if isinstance(t, SelectCategoriesTransformation):
-            d: dict[str, Any] = {'id': t.dimension}
-            if t.categories:
-                d['categories'] = list(t.categories)
-            if t.flatten:
-                d['flatten'] = True
-            if t.exclude:
-                d['exclude'] = True
-            from_dims.append(d)
-        elif isinstance(t, AssignCategoryTransformation):
-            to_dims.append({'id': t.dimension, 'categories': [t.category]})
-        elif isinstance(t, FlattenTransformation):
-            to_dims.append({'id': t.dimension, 'exclude': True, 'flatten': True})
+    # Pre-step-2 snapshots carry bare ``to_dimensions`` declarations as
+    # FlattenTransformation entries. Preserve that immutable-history format at
+    # this compatibility boundary while all newly built snapshots source the
+    # declaration from InputPortDef.required_dimensions.
+    legacy_declared_dimensions = [t.dimension for t in transforms if isinstance(t, FlattenTransformation)]
+    declared_dimensions = list(dict.fromkeys([*required_dimensions, *legacy_declared_dimensions]))
+    to_dims.extend({'id': dimension, 'exclude': True, 'flatten': True} for dimension in declared_dimensions)
+
+    for t in modernized_transformations(transforms):
+        match t:
+            case FilterDimensionOp():
+                from_dims.append(_filter_dimension_to_config(t))
+            case AssignDimensionOp():
+                to_dims.append({'id': t.dimension, 'categories': [t.category]})
+            case _:
+                raise ValueError(f'Edge transformation "{t.kind}" is not executable by the legacy edge runtime')
     result: dict[str, list[dict[str, Any]]] = {}
     if from_dims:
         result['from_dimensions'] = from_dims
@@ -412,30 +455,27 @@ def _transforms_to_config(transforms: list[EdgeTransformation]) -> dict[str, lis
 
 
 def _build_edge_maps(  # noqa: C901, PLR0912
-    edges: Sequence[EdgeWithNodeIdentifiers],
-    nodes_by_identifier: dict[str, NodeConfig],
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
-    output_edges: dict[str, list[dict[str, Any]]] = {}
-    input_edges_with_order: defaultdict[str, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
+    edges: Sequence[EdgeSnapshot],
+    specs_by_uuid: dict[UUID, NodeSpec],
+    identifiers_by_uuid: dict[UUID, str],
+) -> tuple[dict[UUID, list[dict[str, Any]]], dict[UUID, list[dict[str, Any]]]]:
+    output_edges: dict[UUID, list[dict[str, Any]]] = {}
+    input_edges_with_order: defaultdict[UUID, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
 
-    edge_metrics: defaultdict[str, defaultdict[str, list[tuple[str, EdgeWithNodeIdentifiers]]]] = defaultdict(
-        lambda: defaultdict(list)
-    )
+    edge_metrics: defaultdict[UUID, defaultdict[UUID, list[tuple[str, EdgeSnapshot]]]] = defaultdict(lambda: defaultdict(list))
 
     for edge in edges:
-        from_spec = nodes_by_identifier[edge.from_node_identifier].spec
-        assert from_spec is not None
+        from_spec = specs_by_uuid[edge.from_node]
         from_port = from_spec.output_port_by_id[edge.from_port]
         column_id = from_port.column_id or VALUE_COLUMN
-        edge_metrics[edge.from_node_identifier][edge.to_node_identifier].append((column_id, edge))
+        edge_metrics[edge.from_node][edge.to_node].append((column_id, edge))
 
     for from_node_id, to_nodes in edge_metrics.items():
-        from_spec = nodes_by_identifier[from_node_id].spec
-        assert from_spec is not None
+        from_spec = specs_by_uuid[from_node_id]
         from_is_multi_metric = len(from_spec.output_ports) > 1
         for to_node_id, metric_tuples in to_nodes.items():
-            from_entry: dict[str, Any] = {'id': from_node_id}
-            to_entry: dict[str, Any] = {'id': to_node_id}
+            from_entry: dict[str, Any] = {'id': identifiers_by_uuid[from_node_id]}
+            to_entry: dict[str, Any] = {'id': identifiers_by_uuid[to_node_id]}
 
             metrics_entry: list[str] = []
             _, first_edge = metric_tuples[0]
@@ -461,18 +501,20 @@ def _build_edge_maps(  # noqa: C901, PLR0912
             if tags:
                 for entry in (from_entry, to_entry):
                     entry['tags'] = tags
-            if transforms:
-                config = _transforms_to_config(transforms)
+            to_spec = specs_by_uuid[to_node_id]
+            to_port = to_spec.input_port_by_id[first_edge.to_port]
+            if transforms or to_port.required_dimensions:
+                config = _transforms_to_config(
+                    transforms,
+                    required_dimensions=to_port.required_dimensions,
+                )
                 if 'from_dimensions' in config:
                     for entry in (from_entry, to_entry):
                         entry['from_dimensions'] = config['from_dimensions']
                 if 'to_dimensions' in config:
                     for entry in (from_entry, to_entry):
                         entry['to_dimensions'] = config['to_dimensions']
-
             output_edges.setdefault(from_node_id, []).append(to_entry)
-            to_spec = nodes_by_identifier[to_node_id].spec
-            assert to_spec is not None
             input_port_order = {port.id: idx for idx, port in enumerate(to_spec.input_ports)}
             input_edges_with_order[to_node_id].append((
                 input_port_order.get(first_edge.to_port, len(input_port_order)),

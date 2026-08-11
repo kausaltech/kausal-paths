@@ -39,7 +39,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        from frameworks.models import FrameworkConfig, FrameworkDimension, FrameworkDimensionCategory  # noqa: TC001
+        from frameworks.models import FrameworkConfig, FrameworkDimension, FrameworkDimensionCategory
 
         dry_run: bool = options['dry_run']
         limit_to: list[str] = options['instances']

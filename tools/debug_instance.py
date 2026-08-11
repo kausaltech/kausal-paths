@@ -45,7 +45,7 @@ import json
 import sys
 import textwrap
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from common.cache import CacheKind
 from nodes.instance_loader import InstanceLoader
@@ -77,54 +77,49 @@ def _load_from_db(instance_id: str) -> Instance:
     return ic.get_instance()
 
 
-def _get_config_dict(instance_id: str, source: str) -> dict[str, Any]:
-    """Get the raw config dict for diffing."""
-    if source == 'db':
-        from nodes.instance_from_db import serialize_instance_to_dict
-
-        ic = InstanceConfig.objects.get(identifier=instance_id)
-        return serialize_instance_to_dict(ic)
-
-    import yaml
-
-    config_path = Path(f'configs/{instance_id}.yaml').resolve()
-    if not config_path.exists():
-        for p in Path('configs').glob(f'{instance_id}*.yaml'):
-            config_path = p.resolve()
-            break
-    with config_path.open() as f:
-        return yaml.safe_load(f)
-
-
-def _find_node_in_config(config: dict[str, Any], node_id: str) -> dict[str, Any] | None:
-    for n in config.get('nodes', []) + config.get('actions', []):
-        if n.get('id') == node_id:
-            return dict(n)
-    return None
-
-
 def _diff_node(instance_id: str, node_id: str) -> None:
+    """
+    Diff a node's *spec* between a fresh YAML parse and the stored DB spec.
+
+    The YAML side is what ``parse_instance_snapshot`` produces from the current
+    config file; the DB side is the stored ``NodeConfig.spec``. A diff means
+    the DB mirror is stale (re-sync) or the parse changed.
+    """
     from deepdiff import DeepDiff
 
-    yaml_config = _get_config_dict(instance_id, 'yaml')
-    db_config = _get_config_dict(instance_id, 'db')
+    from nodes.instance_loader import InstanceYAMLConfig
+    from nodes.instance_parser import parse_instance_snapshot
+    from nodes.yaml_port_refs import build_yaml_port_reference_catalog
 
-    yaml_node = _find_node_in_config(yaml_config, node_id)
-    db_node = _find_node_in_config(db_config, node_id)
+    ic = InstanceConfig.objects.get(identifier=instance_id)
+    config_path = Path(f'configs/{instance_id}.yaml').resolve()
+    yaml_conf = InstanceYAMLConfig.load_for_entrypoint(config_path)
+    assert yaml_conf.data is not None
+    node_uuids = {nc.identifier: nc.uuid for nc in ic.nodes.all().defer('spec')}
+    snapshot = parse_instance_snapshot(
+        yaml_conf.data,
+        instance_uuid=ic.uuid,
+        node_uuids=node_uuids,
+        port_references=build_yaml_port_reference_catalog(ic),
+    )
 
-    if yaml_node is None:
-        print(f'Node {node_id} not found in YAML config')
+    yaml_spec = next((n.spec for n in snapshot.nodes if n.identifier == node_id), None)
+    nc = ic.nodes.filter(identifier=node_id).first()
+    db_spec = nc.spec if nc is not None else None
+
+    if yaml_spec is None:
+        print(f'Node {node_id} not found in YAML parse')
         return
-    if db_node is None:
-        print(f'Node {node_id} not found in DB config')
+    if db_spec is None:
+        print(f'Node {node_id} has no spec in the DB')
         return
 
-    diff = DeepDiff(yaml_node, db_node, ignore_order=True, verbose_level=2)
+    diff = DeepDiff(db_spec.model_dump(mode='json'), yaml_spec.model_dump(mode='json'), verbose_level=2)
     if not diff:
-        print(f'Node {node_id}: YAML and DB configs are identical')
+        print(f'Node {node_id}: YAML-parsed and DB specs are identical')
         return
 
-    print(f'Node {node_id}: differences (yaml → db)')
+    print(f'Node {node_id}: spec differences (db → yaml parse)')
     if not is_pretty_terminal():
         print(diff.pretty())
     else:
@@ -220,9 +215,9 @@ def main():
         return
 
     if args.sync:
-        from nodes.spec_export import sync_instance_to_db
+        from nodes.spec_sync import sync_parsed_instance_to_db
 
-        sync_instance_to_db(args.instance)
+        sync_parsed_instance_to_db(args.instance)
         args.source = 'db'
 
     _run_instance(args)

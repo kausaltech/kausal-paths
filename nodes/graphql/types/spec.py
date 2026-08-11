@@ -51,6 +51,7 @@ class OutputMetricType(StrawberryPydanticType[OutputMetricDef]):
 @pydantic_type(model=InputPortDef)
 class InputPortType(StrawberryPydanticType[InputPortDef]):
     id: auto
+    identifier: auto
     label: auto
     quantity: auto
     unit: auto
@@ -63,6 +64,7 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
     def from_def(cls, spec: InputPortDef, bindings: list[InputPortBinding]) -> InputPortType:
         return InputPortType(
             id=spec.id,
+            identifier=spec.identifier,
             label=spec.label,
             quantity=spec.quantity,
             unit=spec.unit,
@@ -76,6 +78,7 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
 @pydantic_type(model=OutputPortDef)
 class OutputPortType(StrawberryPydanticType[OutputPortDef]):
     id: auto
+    identifier: auto
     label: auto
     quantity: auto
     unit: auto
@@ -103,6 +106,7 @@ class OutputPortType(StrawberryPydanticType[OutputPortDef]):
     def from_def(cls, spec: OutputPortDef, edges: list[NodeEdgeType], node: Node | None) -> OutputPortType:
         port = OutputPortType(
             id=spec.id,
+            identifier=spec.identifier,
             label=spec.label,
             quantity=spec.quantity,
             unit=spec.unit,

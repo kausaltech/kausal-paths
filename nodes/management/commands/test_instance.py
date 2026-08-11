@@ -26,6 +26,7 @@ from kausal_common.logging.errors import print_exception
 from kausal_common.logging.warnings import register_warning_handler
 from kausal_common.perf.perf_context import estimate_size_bytes
 
+from frameworks.models import Framework
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.datasets import JSONDataset
 from nodes.exceptions import NodeError
@@ -185,6 +186,11 @@ class CheckState(BaseModel):
 
     def has_instance(self, instance_id: str) -> bool:
         return any(details.instance_id == instance_id for details in self.instance_details)
+
+    def has_failed_instance(self, instance_id: str) -> bool:
+        if instance_id in self.failed_instances:
+            return True
+        return any(details.instance_id == instance_id and details.failure_at is not None for details in self.instance_details)
 
     def mark_failed(self, instance_id: str, reason: InstanceFailReason):
         self.checked_instances.add(instance_id)
@@ -366,6 +372,12 @@ class Command(BaseCommand):
             type=int,
             default=0,
             help='Maximum number of instances to check (0 means no limit)',
+        )
+        parser.add_argument(
+            '--framework',
+            type=str,
+            choices=list(Framework.objects.values_list('identifier', flat=True)),
+            help='Limit to instances associated with the given framework identifier',
         )
 
     def load_state(self) -> CheckState:
@@ -934,6 +946,8 @@ class Command(BaseCommand):
             check_time_ms = int((time.time() - now) * 1000)
             details = instance_details.get_node_details(node)
             if fail_reason and self.compare:
+                if self.state.has_failed_instance(ctx.instance.id):
+                    continue
                 # Returns False (failure) if the same node succeeded in the previous run
                 if not details:
                     continue
@@ -950,10 +964,44 @@ class Command(BaseCommand):
             statuses.append(fail_reason)
         return not any(statuses) and not failed
 
+    @staticmethod
+    def log_action_impact_error(
+        impact_logger: loguru.Logger,
+        ctx: Context,
+        action: ActionNode,
+        node: Node,
+        err: Exception,
+        *,
+        reference_instance_failed: bool,
+        unexpected: bool = False,
+    ) -> None:
+        if reference_instance_failed:
+            impact_logger.error(
+                'Action impact failed for {instance_id}:{action_id}->{node_id}, '
+                'but the reference instance also failed; not printing traceback',
+                instance_id=ctx.instance.id,
+                action_id=action.id,
+                node_id=node.id,
+            )
+            return
+
+        if err.__cause__:
+            print_exception(err.__cause__)
+        else:
+            print_exception(err)
+        impact_logger.error(
+            '{prefix}error getting action impact for {instance_id}:{action_id}->{node_id}',
+            prefix='Unexpected ' if unexpected else '',
+            instance_id=ctx.instance.id,
+            action_id=action.id,
+            node_id=node.id,
+        )
+
     def run_action_impacts(self, logger: loguru.Logger, ctx: Context) -> bool:  # noqa: C901
         if ctx.active_scenario.id == 'baseline':
             return True
 
+        reference_instance_failed = self.compare and self.state.has_failed_instance(ctx.instance.id)
         actions = sorted((action for action in ctx.get_actions() if action.is_enabled()), key=lambda action: action.id)
         if not actions:
             return True
@@ -979,26 +1027,28 @@ class Command(BaseCommand):
                 try:
                     fail_reason = self.handle_action_impact_output(impact_logger, action, node)
                 except NodeError as err:
-                    if err.__cause__:
-                        print_exception(err.__cause__)
-                    else:
-                        print_exception(err)
-                    impact_logger.error(
-                        'Error getting action impact for {instance_id}:{action_id}->{node_id}',
-                        instance_id=ctx.instance.id,
-                        action_id=action.id,
-                        node_id=node.id,
+                    self.log_action_impact_error(
+                        impact_logger,
+                        ctx,
+                        action,
+                        node,
+                        err,
+                        reference_instance_failed=reference_instance_failed,
                     )
                 except Exception as err:
-                    print_exception(err)
-                    impact_logger.error(
-                        'Unexpected error getting action impact for {instance_id}:{action_id}->{node_id}',
-                        instance_id=ctx.instance.id,
-                        action_id=action.id,
-                        node_id=node.id,
+                    self.log_action_impact_error(
+                        impact_logger,
+                        ctx,
+                        action,
+                        node,
+                        err,
+                        reference_instance_failed=reference_instance_failed,
+                        unexpected=True,
                     )
 
                 if fail_reason and self.compare:
+                    if reference_instance_failed:
+                        continue
                     self.nr_fails += 1
                     if self.maxfail > 0 and self.nr_fails < self.maxfail:
                         failed = True
@@ -1052,7 +1102,7 @@ class Command(BaseCommand):
         except Exception as e:
             logger.error('Error initializing instance %s' % instance_id)
             print_exception(e)
-            if self.compare and instance_details.failure_at == 'init':
+            if self.compare and self.state.has_failed_instance(instance_id):
                 return True
             self.state.mark_failed(instance_id, 'init')
             self.save_state()
@@ -1168,7 +1218,12 @@ class Command(BaseCommand):
             if self.compare:
                 instance_ids = self.state.checked_instances
             else:
-                instance_ids = list(InstanceConfig.objects.all().order_by('identifier').values_list('identifier', flat=True))
+                qs = InstanceConfig.objects.all().order_by('identifier').values_list('identifier', flat=True)
+                if options['framework']:
+                    qs = qs.filter(framework_config__framework__identifier=options['framework'])
+                else:
+                    qs = qs.filter(framework_config__isnull=True)
+                instance_ids = list(qs)
 
         start_from = options['start_from']
 
@@ -1184,8 +1239,6 @@ class Command(BaseCommand):
                 continue
 
             ic = InstanceConfig.objects.get(identifier=iid)
-            # if ic.has_framework_config():
-            #     continue
             succeeded = self.check_instance(ic)
             if not succeeded:
                 self.nr_fails += 1

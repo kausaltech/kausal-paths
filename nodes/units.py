@@ -300,9 +300,18 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     # usage.
     del unit_registry._units['kt']
     del unit_registry._units['ton']  # The default is 2000 pounds and we don't want to accidentally use that.
+    # Redefining `ton` above silently drags pint's `short_ton` and `US_ton` with it, because both
+    # are aliases of `ton` rather than independent definitions -- so anyone writing `short_ton`
+    # expecting a US short ton would get a tonne, a 10.2% error. Drop the stale aliases (including
+    # their case-insensitive entries) so the name is free, then define the real thing below.
+    for _stale in ('short_ton', 'US_ton'):
+        del unit_registry._units[_stale]
+        unit_registry._units_casei.get(_stale.lower(), set()).discard(_stale)
     DEFINITIONS = """
     kt = kilotonne
     ton = tonne
+    # US short ton, used by US inventories for waste tonnage. Distinct from `ton`, which is metric.
+    short_ton = 2e3 * pound = ST
     # Mega-kilometers is often used for mileage
     Mkm = gigameters
     EUR = [currency] = €
@@ -455,6 +464,7 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'g_co2e', 'long': _('grams CO₂e'), 'short': 'gCO₂e'},
         {'unit': 't_co2e', 'long': _('tonnes CO₂e'), 'short': 'tCO₂e'},
         {'unit': 'kt_co2e', 'long': _('ktCO₂e'), 'short': 'ktCO₂e'},
+        {'unit': 'megat_co2e', 'long': _('Megatonne CO₂e'), 'short': 'MtCO₂e'},
         {'unit': 'metric_ton', 'long': _('tonnes'), 'short': 't'},
         {'unit': 'megametric_ton', 'long': _('megatonnes'), 'short': _('Mt')},
         {'unit': 't_ha', 'long': _('1000 hectares'), 'short': '1000 ha'},

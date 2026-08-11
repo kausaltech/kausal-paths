@@ -147,16 +147,16 @@ Multiple datasets can share one CSV file by using different values in the
 import openpyxl, polars as pl
 from pathlib import Path
 
-XLSX = Path(__file__).parent / "Customer File.xlsx"
-OUT  = Path(__file__).parent / "topic.csv"
+XLSX = Path(__file__).parent / 'Customer File.xlsx'
+OUT = Path(__file__).parent / 'topic.csv'
 
 wb = openpyxl.load_workbook(XLSX, data_only=True)
-ws = wb["Sheet name"]
+ws = wb['Sheet name']
 rows = list(ws.iter_rows(values_only=True))
 
 # Extract ranges, build records, write CSV
 # ...
-df.write_csv(OUT, null_value="")
+df.write_csv(OUT, null_value='')
 ```
 
 ---

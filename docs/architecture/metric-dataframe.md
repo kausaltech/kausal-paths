@@ -179,6 +179,10 @@ Examples:
 - data quality score
 - provenance or derivation details
 
+Forecast status becoming a qualifier has one immediate consequence for
+dataset input pipelines: the `set_forecast_from` operation *sets a
+qualifier field on a metric*. It does not add a `Forecast` column.
+
 For multi-metric frames, qualifiers should be per-metric rather than
 implicitly row-level. For example:
 
@@ -226,6 +230,23 @@ Examples:
 - interpolation status belongs in a qualifier
 
 
+## Ports and MDF
+
+A node input or output port carries **exactly one metric**. So the value
+at a port is an MDF with exactly one entry in `columns.metrics`, that
+metric's qualifier column if it has one, and its dimension columns.
+
+This matters for the qualifier design: the ambiguity that motivates
+per-metric qualifiers ("one metric in this row is interpolated, another is
+not") cannot arise at a port boundary. It arises only inside node bodies,
+where a frame may legitimately carry several metrics at once. Per-metric
+qualifiers are therefore what makes node-internal frames well-defined,
+while port boundaries stay trivially unambiguous.
+
+See [`dimension-constraints.md`](dimension-constraints.md) for the port
+and binding model this refers to.
+
+
 ## Aggregation and Collapse
 
 We should distinguish two kinds of behavior:
@@ -242,6 +263,12 @@ Examples:
   by ordinary summation; they need statistical reducers
 - decomposition dimensions such as `action_id` should only be collapsed by
   explicit attribution/decomposition-aware operations
+
+The same split governs dimension requirements: node dimension signatures
+and port requirements range over **structural** dimensions only. Temporal
+axes are always present, and ensemble and decomposition axes are
+transparent by construction. See
+[`dimension-constraints.md`](dimension-constraints.md).
 
 ### 2. Qualifier merge and reduction rules
 

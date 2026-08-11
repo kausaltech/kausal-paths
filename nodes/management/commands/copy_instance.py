@@ -478,10 +478,10 @@ class Command(BaseCommand):
     def _copy_db(self, ic_src: InstanceConfig, dest: str, options: dict[str, Any]) -> None:
         # 1. The export reads the source's DB mirror; make sure one exists.
         if options['sync_source']:
-            from nodes.spec_export import sync_instance_to_db
+            from nodes.spec_sync import sync_parsed_instance_to_db
 
             self.stdout.write(self.style.WARNING(f"Syncing source '{ic_src.identifier}' DB mirror from YAML…"))
-            sync_instance_to_db(ic_src.identifier)
+            sync_parsed_instance_to_db(ic_src.identifier)
             ic_src.refresh_from_db()
         elif not ic_src.nodes.exists():
             sid = ic_src.identifier

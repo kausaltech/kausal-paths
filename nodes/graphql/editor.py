@@ -5,6 +5,7 @@ Provides queries and mutations for reading and editing DB-sourced
 model instances (NodeConfig, NodeEdge, ActionGroup, Scenario).
 """
 
+import math
 from typing import TYPE_CHECKING, Annotated, Any, TypeGuard, cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
@@ -19,19 +20,15 @@ from kausal_common.strawberry.errors import GraphQLValidationError, NotFoundErro
 from kausal_common.strawberry.helpers import get_or_error
 from kausal_common.strawberry.ordering import SiblingPositionInputMixin
 from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_input
-from kausal_common.users import user_or_none
+from kausal_common.users import user_or_bust, user_or_none
 
 from paths import gql
+from paths.identifiers import identifier_or_none
 
 from nodes.defs import FormulaConfig, SimpleConfig
-from nodes.defs.edge_def import (
-    AssignCategoryTransformation,
-    FlattenTransformation,
-    SelectCategoriesTransformation,
-)
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
-from nodes.models import InstanceConfig, NodeConfig, NodeKindChoices
+from nodes.models import InstanceConfig, NodeConfig, NodeLayout, NodeLayoutSource
 from nodes.node import Node
 from nodes.units import unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
@@ -39,9 +36,11 @@ from params.param import BoolParameter, NumberParameter, StringParameter
 from .types.dimension import DimensionType
 from .types.graph import NodeEdgeType
 from .types.instance import InstanceType
+from .types.layout import NodeLayoutType, UpdateNodeLayoutsResult
 from .types.node import AnyNodeType, NodeInterface
 from .types.scenario import ScenarioType
 from .types.spec import InputPortType, OutputPortType
+from .types.transformations import EdgeTransformationInput, edge_transformations_from_input
 
 if TYPE_CHECKING:
     from strawberry import Some
@@ -55,7 +54,9 @@ if TYPE_CHECKING:
 
     from datasets.graphql.editor import DatasetEditorMutation
     from datasets.graphql.types import DataSourceType  # used in lazy strawberry annotations
-    from nodes.defs.edge_def import EdgeTransformation
+    from nodes.defs.transform_def import PortTransformOp
+    from nodes.graphql.bindings import BindDatasetInput, PortBindingEditorMutation
+    from nodes.graphql.types.graph import DatasetPortType  # used in lazy strawberry annotations
 
 
 def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
@@ -68,25 +69,27 @@ def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
     return ic
 
 
-def _resolve_model_instance(ic: InstanceConfig) -> InstanceType:
-    instance = ic._initialize_instance(node_refs=True)
-    node_configs = ic.nodes_for_serialization
-    node_config_by_identifier = {nc.identifier: nc for nc in node_configs}
-    instance._annotated_node_configs_by_identifier = node_config_by_identifier  # type: ignore[attr-defined]
-    for node_id, node in instance.context.nodes.items():
-        nc = node_config_by_identifier.get(node_id)
-        if nc is not None:
-            node.db_obj = nc
-    return InstanceType.from_model(ic, instance=instance)
+def _resolve_model_instance(info: gql.Info, ic: InstanceConfig, *, refresh: bool = False) -> InstanceType:
+    from nodes.models import PreferredInstanceSource
+
+    if refresh:
+        info.context.invalidate_runtime_instance(ic, source=PreferredInstanceSource.DRAFT)
+    return InstanceType.from_model(ic, source=PreferredInstanceSource.DRAFT)
 
 
-def _resolve_runtime_node(ic: InstanceConfig, node_id: int) -> Node:
+def _resolve_runtime_node(info: gql.Info, ic: InstanceConfig, node_id: int) -> Node:
+    from nodes.models import PreferredInstanceSource
+
     try:
         nc = NodeConfig.objects.select_related('instance').get(pk=node_id)
     except NodeConfig.DoesNotExist:
         raise GraphQLError('Node not found') from None
 
-    instance = nc.instance._initialize_instance(node_refs=True)
+    instance = info.context.require_instance(
+        nc.instance,
+        source=PreferredInstanceSource.DRAFT,
+        refresh=True,
+    )
     node = instance.context.nodes.get(nc.identifier)
     if node is None:
         raise GraphQLError(f'Node "{node_id}" not found in runtime instance "{ic.identifier}"')
@@ -200,37 +203,25 @@ def _resolve_source_port(info: gql.Info, from_node: NodeConfig, from_port: str) 
 def _resolve_edge_transformations(
     info: gql.Info,
     raw: list[EdgeTransformationInput] | None,
-) -> list[EdgeTransformation]:
-    """
-    Convert the one-of EdgeTransformationInput list into pydantic objects.
-
-    Mirrors ``EdgeTransformationType`` on the query side; exactly one of
-    ``selectCategories`` / ``assignCategory`` / ``flatten`` must be set per
-    list entry.
-    """
+) -> list[PortTransformOp]:
+    """Convert the one-of EdgeTransformationInput list into pydantic objects, in the current vocabulary."""
     if not raw:
         return []
-    out: list[EdgeTransformation] = []
-    for idx, entry in enumerate(raw):
-        sc = entry.select_categories if is_maybe_set(entry.select_categories) else None
-        ac = entry.assign_category if is_maybe_set(entry.assign_category) else None
-        fl = entry.flatten if is_maybe_set(entry.flatten) else None
-        if sum(v is not None for v in (sc, ac, fl)) != 1:
-            raise GraphQLValidationError(
-                info,
-                f'transformations[{idx}]: exactly one of selectCategories / assignCategory / flatten must be set',
-            )
-        if sc is not None:
-            out.append(sc.value.to_pydantic())
-        elif ac is not None:
-            out.append(ac.value.to_pydantic())
-        else:
-            assert fl is not None
-            out.append(fl.value.to_pydantic())
-    return out
+    try:
+        return edge_transformations_from_input(raw)
+    except ValueError as e:
+        raise GraphQLValidationError(info, str(e)) from None
 
 
-def _validate_edge_ports(info: gql.Info, from_node: NodeConfig, from_port: UUID, to_node: NodeConfig, to_port: UUID) -> None:
+def _validate_edge_ports(
+    info: gql.Info,
+    from_node: NodeConfig,
+    from_port: UUID,
+    to_node: NodeConfig,
+    to_port: UUID,
+    *,
+    allow_occupied: bool = False,
+) -> None:
     from nodes.models import DatasetPort, NodeEdge
 
     source_port = _get_output_port(from_node, from_port)
@@ -279,7 +270,7 @@ def _validate_edge_ports(info: gql.Info, from_node: NodeConfig, from_port: UUID,
             + f'{target_port.unit.dimensionality}',
         )
 
-    if not target_port.multi:
+    if not target_port.multi and not allow_occupied:
         has_edge_binding = NodeEdge.objects.filter(to_node=to_node, to_port=to_port).exists()
         has_dataset_binding = DatasetPort.objects.filter(node=to_node, port_id=to_port).exists()
         if has_edge_binding or has_dataset_binding:
@@ -311,6 +302,7 @@ class ActionConfigInput(StrawberryPydanticType[ActionConfig]):
 @sb.input
 class InputPortInput:
     id: UUID | None = None
+    identifier: str | None = None
     label: str | None = None
     quantity: str | None = None
     unit: str | None = None
@@ -322,6 +314,7 @@ class InputPortInput:
 @sb.input
 class OutputPortInput:
     id: UUID | None = None
+    identifier: str | None = None
     label: str | None = None
     quantity: str | None = None
     unit: str
@@ -371,6 +364,7 @@ class CreateNodeInput:
     is_visible: bool = True
     is_outcome: bool = False
     short_name: str | None = None
+    short_description: str | None = None
     description: str | None = None
     node_group: sb.ID | None = None
     allow_nulls: bool = False
@@ -396,6 +390,7 @@ class UpdateNodeInput:
     is_visible: Maybe[bool]
     is_outcome: Maybe[bool]
     short_name: Maybe[str]
+    short_description: Maybe[str]
     description: Maybe[str]
     node_group: Maybe[sb.ID]
     allow_nulls: Maybe[bool]
@@ -411,47 +406,72 @@ class UpdateNodeInput:
     config: Maybe[NodeConfigInput]
 
 
-@pydantic_input(model=SelectCategoriesTransformation)
-class SelectCategoriesTransformationInput(StrawberryPydanticType[SelectCategoriesTransformation]):
-    dimension: auto
-    categories: auto
-    flatten: auto
-    exclude: auto
+@sb.input
+class UpdateNodeLayoutInput:
+    node_id: sb.ID
+    x: float
+    y: float
+    source: NodeLayoutSource = NodeLayoutSource.USER
 
 
-@pydantic_input(model=AssignCategoryTransformation)
-class AssignCategoryTransformationInput(StrawberryPydanticType[AssignCategoryTransformation]):
-    dimension: auto
-    category: auto
-
-
-@pydantic_input(model=FlattenTransformation)
-class FlattenTransformationInput(StrawberryPydanticType[FlattenTransformation]):
-    dimension: auto
-
-
-@sb.input(one_of=True)
-class EdgeTransformationInput:
-    """
-    One-of input mirroring ``EdgeTransformationType`` on the query side.
-
-    Exactly one of ``selectCategories`` / ``assignCategory`` / ``flatten``
-    must be provided per list entry.
-    """
-
-    select_categories: Maybe[SelectCategoriesTransformationInput]
-    assign_category: Maybe[AssignCategoryTransformationInput]
-    flatten: Maybe[FlattenTransformationInput]
+@sb.input
+class NodePortRefInput:
+    node_uuid: UUID
+    port_id: UUID
 
 
 @sb.input
 class CreateEdgeInput:
     instance_id: sb.ID
-    from_node_id: str
-    to_node_id: str
-    from_port: str = 'output'
-    to_port: str | None = None
+    from_ref: NodePortRefInput | None = None
+    port_ref: NodePortRefInput | None = None
+    from_node_id: str | None = sb.field(default=None, deprecation_reason='Use fromRef instead.')
+    to_node_id: str | None = sb.field(default=None, deprecation_reason='Use portRef instead.')
+    from_port: str | None = sb.field(default=None, deprecation_reason='Use fromRef instead.')
+    to_port: str | None = sb.field(default=None, deprecation_reason='Use portRef instead.')
     transformations: list[EdgeTransformationInput] | None = None
+    replace: bool = sb.field(
+        default=False,
+        description=(
+            'Atomically displace whatever occupies the target port — an edge or a dataset binding — '
+            'instead of rejecting the edge. Validation runs first, so a rejected edge leaves the old '
+            'binding untouched. Requires an explicit `toPort` (an auto-selected port is never occupied) '
+            'and is not valid for `multi` ports.'
+        ),
+    )
+
+
+def _resolve_create_edge_refs(
+    info: gql.Info,
+    ic: InstanceConfig,
+    input: CreateEdgeInput,
+) -> tuple[NodeConfig, NodeConfig, str, str | None]:
+    """Resolve one complete canonical or legacy edge-reference form."""
+    has_canonical = input.from_ref is not None or input.port_ref is not None
+    has_legacy = any(value is not None for value in (input.from_node_id, input.to_node_id, input.from_port, input.to_port))
+    if has_canonical and has_legacy:
+        raise GraphQLValidationError(info, 'Supply either `fromRef`/`portRef` or the deprecated edge fields, not both')
+    if has_canonical:
+        if input.from_ref is None or input.port_ref is None:
+            raise GraphQLValidationError(info, 'Canonical edge references require both `fromRef` and `portRef`')
+        try:
+            from_node = NodeConfig.objects.get(instance=ic, uuid=input.from_ref.node_uuid)
+            to_node = NodeConfig.objects.get(instance=ic, uuid=input.port_ref.node_uuid)
+        except NodeConfig.DoesNotExist:
+            raise GraphQLError('Source or target node not found') from None
+        return from_node, to_node, str(input.from_ref.port_id), str(input.port_ref.port_id)
+
+    if input.from_node_id is None or input.to_node_id is None:
+        raise GraphQLValidationError(
+            info,
+            'Edge creation requires both `fromRef`/`portRef` or both deprecated node ID fields',
+        )
+    try:
+        from_node = NodeConfig.objects.get(instance=ic, identifier=input.from_node_id)
+        to_node = NodeConfig.objects.get(instance=ic, identifier=input.to_node_id)
+    except NodeConfig.DoesNotExist:
+        raise GraphQLError('Source or target node not found') from None
+    return from_node, to_node, input.from_port or 'output', input.to_port
 
 
 @sb.input
@@ -541,7 +561,7 @@ class ModelEditorQuery:
     @staticmethod
     def model_instance(info: gql.Info, instance_id: sb.ID) -> InstanceType:
         ic = _get_instance_config(info, instance_id)
-        return _resolve_model_instance(ic)
+        return _resolve_model_instance(info, ic, refresh=True)
 
 
 def is_maybe_set[T](maybe: Some[T] | None) -> TypeGuard[Some[T]]:
@@ -553,9 +573,10 @@ def _generated_port_id(node_identifier: str, direction: str, key: str) -> UUID:
 
 
 def _input_port_to_def(node_identifier: str, index: int, port: InputPortInput) -> InputPortDef:
-    key = port.label or port.quantity or str(index)
+    key = port.identifier or port.label or port.quantity or str(index)
     return InputPortDef(
         id=port.id or _generated_port_id(node_identifier, 'input', key),
+        identifier=port.identifier or identifier_or_none(port.label or port.quantity),
         label=port.label,
         quantity=port.quantity,
         unit=unit_registry.parse_units(port.unit) if port.unit is not None else None,
@@ -566,9 +587,10 @@ def _input_port_to_def(node_identifier: str, index: int, port: InputPortInput) -
 
 
 def _output_port_to_def(node_identifier: str, index: int, port: OutputPortInput) -> OutputPortDef:
-    key = port.column_id or port.label or port.quantity or str(index)
+    key = port.identifier or port.column_id or port.label or port.quantity or str(index)
     return OutputPortDef(
         id=port.id or _generated_port_id(node_identifier, 'output', key),
+        identifier=port.identifier or identifier_or_none(port.column_id or port.label or port.quantity),
         label=port.label,
         quantity=port.quantity,
         unit=unit_registry.parse_units(port.unit),
@@ -582,6 +604,7 @@ def _output_metric_to_port_def(node_identifier: str, metric: OutputMetricInput, 
     column_id = metric.column_id or metric.id
     return OutputPortDef(
         id=metric.port_id or _generated_port_id(node_identifier, 'output', metric.id),
+        identifier=identifier_or_none(metric.id),
         label=metric.label,
         quantity=metric.quantity,
         unit=unit_registry.parse_units(metric.unit),
@@ -723,22 +746,25 @@ def _parse_params(info: gql.Info, raw: Any, type_config: Any, kind: NodeKind) ->
     return params
 
 
-def _apply_node_db_field_updates(spec: NodeSpec, input: UpdateNodeInput, updates: dict[str, object]) -> None:
+def _apply_node_db_field_updates(input: UpdateNodeInput, updates: dict[str, object]) -> None:
     if is_maybe_set(input.name):
-        spec.name = input.name.value
         updates['name'] = input.name.value
+    if is_maybe_set(input.short_name):
+        updates['short_name'] = input.short_name.value
     if is_maybe_set(input.color):
-        spec.color = input.color.value
         updates['color'] = input.color.value
     if is_maybe_set(input.order):
-        spec.order = input.order.value
         updates['order'] = input.order.value
     if is_maybe_set(input.is_visible):
-        spec.is_visible = input.is_visible.value
         updates['is_visible'] = input.is_visible.value
+    if is_maybe_set(input.short_description):
+        updates['short_description'] = input.short_description.value
     if is_maybe_set(input.description):
-        spec.description = input.description.value
         updates['description'] = input.description.value
+        # Compatibility for clients written while description was also copied
+        # into NodeSpec.description. An explicit shortDescription wins.
+        if not is_maybe_set(input.short_description):
+            updates['short_description'] = input.description.value
     if is_maybe_set(input.i18n):
         updates['i18n'] = input.i18n.value or {}
 
@@ -746,8 +772,6 @@ def _apply_node_db_field_updates(spec: NodeSpec, input: UpdateNodeInput, updates
 def _apply_node_spec_field_updates(spec: NodeSpec, input: UpdateNodeInput) -> None:
     if is_maybe_set(input.is_outcome):
         spec.is_outcome = input.is_outcome.value
-    if is_maybe_set(input.short_name):
-        spec.short_name = input.short_name.value
     if is_maybe_set(input.node_group):
         spec.node_group = input.node_group.value
     if is_maybe_set(input.allow_nulls):
@@ -766,19 +790,13 @@ def _apply_node_type_update(
     info: gql.Info,
     spec: NodeSpec,
     input: UpdateNodeInput,
-    updates: dict[str, object],
 ) -> None:
-    if is_maybe_set(input.kind):
-        if input.kind.value != spec.kind and not is_maybe_set(input.config):
-            raise GraphQLValidationError(info, 'config must be provided when changing node kind')
-        spec.kind = input.kind.value
-        updates['node_type'] = NodeKindChoices(spec.kind.value)
+    if is_maybe_set(input.kind) and input.kind.value != spec.kind and not is_maybe_set(input.config):
+        raise GraphQLValidationError(info, 'config must be provided when changing node kind')
 
     if is_maybe_set(input.config):
         kind = _kind_from_config(info, input.config.value) if not is_maybe_set(input.kind) else input.kind.value
-        spec.kind = kind
         spec.type_config = _type_config_for_kind(info, kind, input.config.value).to_pydantic()
-        updates['node_type'] = NodeKindChoices(kind.value)
 
 
 def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, input: UpdateNodeInput) -> None:
@@ -814,9 +832,9 @@ def _apply_update_node_input(
     input: UpdateNodeInput,
     updates: dict[str, object],
 ) -> None:
-    _apply_node_db_field_updates(spec, input, updates)
+    _apply_node_db_field_updates(input, updates)
     _apply_node_spec_field_updates(spec, input)
-    _apply_node_type_update(info, spec, input, updates)
+    _apply_node_type_update(info, spec, input)
     _apply_node_port_updates(info, nc, spec, input)
     _apply_node_data_updates(info, spec, input)
 
@@ -848,7 +866,7 @@ class NodeEditorMutation:
             nc.refresh_from_db()
             record_change(nc, action='node.update', before=before, after=nc.serializable_data())
 
-        return _resolve_runtime_node(nc.instance, nc.pk)
+        return _resolve_runtime_node(info, nc.instance, nc.pk)
 
     @gql.mutation(description='Delete this node')
     @staticmethod
@@ -918,6 +936,20 @@ class NodeEditorMutation:
 
         return new_port
 
+    @gql.mutation(
+        description='Bind a dataset metric to an existing input port on this node',
+        graphql_type=Annotated['DatasetPortType', sb.lazy('nodes.graphql.types.graph')],
+    )
+    @staticmethod
+    def bind_dataset(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: Annotated['BindDatasetInput', sb.lazy('nodes.graphql.bindings')],
+    ) -> Any:
+        from nodes.graphql.bindings import bind_dataset
+
+        return bind_dataset(info, root.instance, root.node, input)
+
     @gql.mutation(description='Append a new output port to this node', graphql_type=OutputPortType)
     @staticmethod
     def add_output_port(info: gql.Info, root: sb.Parent[Me], input: OutputPortInput) -> OutputPortDef:
@@ -974,10 +1006,7 @@ class InstanceEditorMutation:
             raise GraphQLValidationError(info, 'At least one outputPort or outputMetric must be provided')
 
         spec = NodeSpec(
-            kind=input.kind,
             type_config=type_config.to_pydantic(),
-            short_name=input.short_name,
-            description=input.description,
             is_outcome=input.is_outcome,
             node_group=input.node_group,
             allow_nulls=input.allow_nulls,
@@ -998,17 +1027,18 @@ class InstanceEditorMutation:
             nc = ic.nodes.create(
                 identifier=input.identifier,
                 name=input.name or input.identifier,
+                short_name=input.short_name,
+                short_description=input.short_description if input.short_description is not None else input.description,
                 color=input.color or '',
                 order=input.order,
                 is_visible=input.is_visible,
                 description=input.description,
-                node_type=NodeKindChoices(input.kind.value),
                 i18n=input.i18n or {},
                 spec=spec,
             )
             record_change(nc, action='node.create', before=None, after=nc.serializable_data())
 
-        return _resolve_runtime_node(ic, nc.pk)
+        return _resolve_runtime_node(info, ic, nc.pk)
 
     @gql.mutation(
         description='Update an existing node',
@@ -1038,6 +1068,56 @@ class InstanceEditorMutation:
         nc = InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True)
         return NodeEditorMutation(instance=ic, node=nc)
 
+    @gql.mutation(
+        description='Update shared node-card positions without creating model revisions or change-log operations.',
+        graphql_type=UpdateNodeLayoutsResult,
+    )
+    @staticmethod
+    def update_node_layouts(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: list[UpdateNodeLayoutInput],
+    ) -> UpdateNodeLayoutsResult:
+        user = user_or_bust(info.context.user)
+        if len({str(item.node_id) for item in input}) != len(input):
+            raise GraphQLValidationError(info, 'Each node may occur only once in a layout update')
+        if any(not math.isfinite(item.x) or not math.isfinite(item.y) for item in input):
+            raise GraphQLValidationError(info, 'Node layout coordinates must be finite numbers')
+
+        layouts: list[NodeLayout] = []
+        ic = root.instance
+        with transaction.atomic():
+            locked_ic = InstanceConfig.objects.select_for_update().get(pk=ic.pk)
+            if not locked_ic.gql_action_allowed(info, 'change'):
+                raise PermissionDeniedError(info, 'Model editor access denied')
+
+            for item in input:
+                node = InstanceEditorMutation._lookup_node(info, locked_ic, str(item.node_id))
+                values = {
+                    'x': item.x,
+                    'y': item.y,
+                    'source': item.source,
+                    'last_modified_by': user,
+                }
+                layout, _created = NodeLayout.objects.update_or_create(
+                    node=node,
+                    defaults=values,
+                    create_defaults={**values, 'created_by': user},
+                )
+                layouts.append(layout)
+
+        return UpdateNodeLayoutsResult(layouts=cast('list[NodeLayoutType]', layouts))
+
+    @gql.mutation(description='Clear shared node-card positions so the editor can compute a fresh automatic layout.')
+    @staticmethod
+    def clear_node_layouts(info: gql.Info, root: sb.Parent[Me]) -> None:
+        ic = root.instance
+        with transaction.atomic():
+            locked_ic = InstanceConfig.objects.select_for_update().get(pk=ic.pk)
+            if not locked_ic.gql_action_allowed(info, 'change'):
+                raise PermissionDeniedError(info, 'Model editor access denied')
+            NodeLayout.objects.filter(node__instance=locked_ic).delete()
+
     @sb.field(description='Edit a DB-backed dataset that belongs to this instance')
     @staticmethod
     def dataset_editor(
@@ -1059,34 +1139,70 @@ class InstanceEditorMutation:
         )
         return DatasetEditorMutation(dataset=dataset, instance=ic)
 
+    @sb.field(description='Edit an input-port binding (dataset or edge) that belongs to this instance')
+    @staticmethod
+    def binding_editor(
+        info: gql.Info, root: sb.Parent[Me], binding_id: sb.ID
+    ) -> Annotated['PortBindingEditorMutation', sb.lazy('nodes.graphql.bindings')]:
+        from nodes.graphql.bindings import binding_editor
+
+        return binding_editor(info, root.instance, binding_id)
+
     @gql.mutation(description='Create a new edge between nodes')
     @staticmethod
     def create_edge(info: gql.Info, input: CreateEdgeInput) -> NodeEdgeType:
         from nodes.change_ops import gql_change_operation, record_change
-        from nodes.models import NodeConfig, NodeEdge
+        from nodes.models import DatasetPort, NodeEdge
 
         ic = _get_instance_config(info, input.instance_id)
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
-        try:
-            from_node = NodeConfig.objects.get(instance=ic, identifier=input.from_node_id)
-            to_node = NodeConfig.objects.get(instance=ic, identifier=input.to_node_id)
-        except NodeConfig.DoesNotExist:
-            raise GraphQLError('Source or target node not found') from None
+        from_node, to_node, requested_from_port, requested_to_port = _resolve_create_edge_refs(info, ic, input)
 
-        from_port = _resolve_source_port(info, from_node, input.from_port)
+        from_port = _resolve_source_port(info, from_node, requested_from_port)
         source_port = _get_output_port(from_node, from_port)
         assert source_port is not None  # _resolve_source_port validated it
 
-        with gql_change_operation(info, ic, action='edge.create'):
+        displaced_edges: list[NodeEdge] = []
+        displaced_rows: list[DatasetPort] = []
+        if input.replace:
+            from nodes.graphql.bindings import _port_occupants
+
+            if requested_to_port is None:
+                raise GraphQLValidationError(
+                    info,
+                    '`replace` requires an explicit `toPort`: an auto-selected or auto-created port is never occupied',
+                )
+            # With an explicit toPort, target-port resolution only parses and
+            # validates — no port is created — so it is safe outside the
+            # change operation.
+            explicit_to_port = _resolve_or_create_target_port(info, to_node, requested_to_port, source_port)
+            displaced_edges, displaced_rows = _port_occupants(info, to_node, explicit_to_port)
+
+        replacing = bool(displaced_edges or displaced_rows)
+        action = 'edge.replace' if replacing else 'edge.create'
+        with gql_change_operation(info, ic, action=action):
             # Target-port resolution may append a new input port to
             # ``to_node`` when ``to_port`` is null; that write must happen
             # inside the change_operation so the resulting ``node.update``
             # entry groups with this edge.create operation.
-            to_port = _resolve_or_create_target_port(info, to_node, input.to_port, source_port)
-            _validate_edge_ports(info, from_node, from_port, to_node, to_port)
+            to_port = _resolve_or_create_target_port(info, to_node, requested_to_port, source_port)
+            _validate_edge_ports(info, from_node, from_port, to_node, to_port, allow_occupied=input.replace)
             transformations = _resolve_edge_transformations(info, input.transformations)
+            # All validation has passed; only now may the old binding go, so a
+            # rejected edge never leaves the port unbound.
+            for displaced_edge in displaced_edges:
+                record_change(displaced_edge, action='edge.delete', before=displaced_edge.serializable_data(), after=None)
+                displaced_edge.delete()
+            for displaced_row in displaced_rows:
+                record_change(
+                    displaced_row,
+                    action='node.dataset_binding.delete',
+                    before=displaced_row.serializable_data(),
+                    after=None,
+                )
+                displaced_row.delete()
             edge = NodeEdge.objects.create(
                 instance=ic,
                 from_node=from_node,
@@ -1503,7 +1619,7 @@ class InstanceEditorMutation:
         user = getattr(info.context, 'user', None)
         ic.publish_instance(user=user)
         ic.refresh_from_db()
-        return _resolve_model_instance(ic)
+        return _resolve_model_instance(info, ic, refresh=True)
 
     @sb.mutation(description='Revert draft to the last published revision')
     @staticmethod
@@ -1514,7 +1630,7 @@ class InstanceEditorMutation:
 
         with transaction.atomic():
             ic.revert_to_published()
-        return _resolve_model_instance(ic)
+        return _resolve_model_instance(info, ic, refresh=True)
 
     # ------------------------------------------------------------------
     # Data sources
@@ -1603,9 +1719,11 @@ class InstanceEditorMutation:
         data_source_id: sb.ID,
         input: 'UpdateDataSourceInput',
     ) -> Any:
+        from kausal_common.datasets.models import Dataset, DatasetSourceReference
         from kausal_common.users import user_or_bust
 
         from nodes.change_ops import gql_change_operation, record_change
+        from nodes.dataset_materialization import refresh_dataset_materialization
 
         ic = root.instance
         data_source = InstanceEditorMutation._get_data_source(info, ic, data_source_id)
@@ -1615,6 +1733,11 @@ class InstanceEditorMutation:
             raise PermissionDeniedError(info, 'Permission denied') from exc
 
         with gql_change_operation(info, ic, action='dataset.data_source.update'):
+            references = DatasetSourceReference.objects.filter(data_source=data_source).values_list(
+                'dataset_id',
+                'data_point__dataset_id',
+            )
+            affected_dataset_ids = {dataset_id or point_dataset_id for dataset_id, point_dataset_id in references}
             before = InstanceEditorMutation._data_source_snapshot(data_source)
             update_fields: list[str] = []
             if is_maybe_set(input.name):
@@ -1641,6 +1764,8 @@ class InstanceEditorMutation:
                 before=before,
                 after=InstanceEditorMutation._data_source_snapshot(data_source),
             )
+            for dataset in Dataset.objects.filter(pk__in=affected_dataset_ids).order_by('pk'):
+                refresh_dataset_materialization(dataset, user=user)
         return data_source
 
     @gql.mutation(description='Delete a DataSource. Fails if still referenced.')

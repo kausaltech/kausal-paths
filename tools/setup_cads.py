@@ -22,7 +22,7 @@ from wagtail.models import Locale, Page
 from frameworks.models import Framework, FrameworkConfig
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.models import InstanceConfig, InstanceHostname
-from nodes.spec_export import sync_instance_to_db
+from nodes.spec_sync import sync_parsed_instance_to_db
 from orgs.models import Organization
 from pages.models import InstanceRootPage
 
@@ -428,7 +428,7 @@ def main() -> None:
         init_framework_instance(fw, landing_ic)
         template_ic = InstanceConfig.objects.get(identifier=TEMPLATE_INSTANCE_IDENTIFIER)
         if not template_ic.spec or not template_ic.spec.dimensions:
-            sync_instance_to_db(template_ic.identifier)
+            sync_parsed_instance_to_db(template_ic.identifier)
         init_framework_instance(fw, template_ic)
     enable_user_management_on_cads_instances(fw)
     set_instance_hostnames(fw)

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import re
 import uuid
 from dataclasses import dataclass
@@ -79,14 +77,13 @@ class FrameworkQuerySet(PathsQuerySet['Framework']):
     pass
 
 
-_FrameworkManager = models.Manager.from_queryset(FrameworkQuerySet)
+if TYPE_CHECKING:
 
+    class FrameworkManager(ModelManager['Framework', FrameworkQuerySet]):
+        """Model manager for Framework."""
 
-class FrameworkManager(ModelManager['Framework', FrameworkQuerySet], _FrameworkManager):  # pyright: ignore
-    """Model manager for Framework."""
-
-
-del _FrameworkManager
+else:
+    FrameworkManager = ModelManager.from_queryset(FrameworkQuerySet)
 
 
 class MinMaxDefaultInt(BaseModel):
@@ -482,14 +479,13 @@ class MeasureTemplateQuerySet(PathsQuerySet['MeasureTemplate']):
     pass
 
 
-_MeasureTemplateManager = models.Manager.from_queryset(MeasureTemplateQuerySet)
+if TYPE_CHECKING:
 
+    class MeasureTemplateManager(ModelManager['MeasureTemplate', MeasureTemplateQuerySet]):
+        """Model manager for MeasureTemplate."""
 
-class MeasureTemplateManager(ModelManager['MeasureTemplate', MeasureTemplateQuerySet], _MeasureTemplateManager):  # pyright: ignore
-    """Model manager for MeasureTemplate."""
-
-
-del _MeasureTemplateManager
+else:
+    MeasureTemplateManager = ModelManager.from_queryset(MeasureTemplateQuerySet)
 
 
 class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedModel, UUIDIdentifiedModel):
@@ -614,22 +610,18 @@ class MeasureTemplateDefaultDataPointQuerySet(PathsQuerySet['MeasureTemplateDefa
     pass
 
 
-_MeasureTemplateDefaultDataPointManager = cast(
-    'models.Manager[MeasureTemplateDefaultDataPoint]', models.Manager.from_queryset(MeasureTemplateDefaultDataPointQuerySet)
-)
+if TYPE_CHECKING:
+
+    class MeasureTemplateDefaultDataPointManager(
+        ModelManager['MeasureTemplateDefaultDataPoint', MeasureTemplateDefaultDataPointQuerySet],
+    ):
+        """Model manager for MeasureTemplateDefaultDataPoint."""
+
+else:
+    MeasureTemplateDefaultDataPointManager = ModelManager.from_queryset(MeasureTemplateDefaultDataPointQuerySet)
 
 
-class MeasureTemplateDefaultDataPointManager(
-    ModelManager['MeasureTemplateDefaultDataPoint', MeasureTemplateDefaultDataPointQuerySet],
-    _MeasureTemplateDefaultDataPointManager,  # type: ignore[misc, valid-type]
-):
-    """Model manager for MeasureTemplateDefaultDataPoint."""
-
-
-del _MeasureTemplateDefaultDataPointManager
-
-
-class MeasureTemplateDefaultDataPoint(CacheablePathsModel['MeasureTemplateDefaultDataPointCache'], models.Model):
+class MeasureTemplateDefaultDataPoint(CacheablePathsModel['MeasureTemplateDefaultDataPointCache']):
     """
     Represents a default (fallback) value for a measure template.
 
@@ -686,14 +678,13 @@ class FrameworkConfigQuerySet(PathsQuerySet['FrameworkConfig']):
     pass
 
 
-_FrameworkConfigManager = cast('models.Manager[FrameworkConfig]', models.Manager.from_queryset(FrameworkConfigQuerySet))
+if TYPE_CHECKING:
 
+    class FrameworkConfigManager(ModelManager['FrameworkConfig', FrameworkConfigQuerySet]):
+        """Model manager for FrameworkConfig."""
 
-class FrameworkConfigManager(ModelManager['FrameworkConfig', FrameworkConfigQuerySet], _FrameworkConfigManager):  # type: ignore[misc, valid-type]
-    """Model manager for FrameworkConfig."""
-
-
-del _FrameworkConfigManager
+else:
+    FrameworkConfigManager = ModelManager.from_queryset(FrameworkConfigQuerySet)
 
 
 class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModifiableModel, UUIDIdentifiedModel, models.Model):
@@ -893,7 +884,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
                 if previous[1] == specificity:
                     logger.warning(
                         'Duplicate equally specific default datapoint for template '
-                        f'{measure_template.uuid} year {default_data_point.year} in framework {self.framework.identifier}',
+                        + f'{measure_template.uuid} year {default_data_point.year} in framework {self.framework.identifier}',
                     )
                 continue
             selected_defaults[key] = (default_data_point, specificity)
@@ -1180,14 +1171,13 @@ class MeasureQuerySet(PathsQuerySet['Measure']):
     pass
 
 
-_MeasureManager = models.Manager.from_queryset(MeasureQuerySet)
+if TYPE_CHECKING:
 
+    class MeasureManager(ModelManager['Measure', MeasureQuerySet]):
+        """Model manager for Measure."""
 
-class MeasureManager(ModelManager['Measure', MeasureQuerySet], _MeasureManager):  # pyright: ignore
-    """Model manager for Measure."""
-
-
-del _MeasureManager
+else:
+    MeasureManager = ModelManager.from_queryset(MeasureQuerySet)
 
 
 class Measure(CacheablePathsModel['FrameworkConfigCacheData'], models.Model):
@@ -1249,14 +1239,13 @@ class MeasureDataPointQuerySet(PathsQuerySet['MeasureDataPoint']):
     pass
 
 
-_MeasureDataPointManager = models.Manager.from_queryset(MeasureDataPointQuerySet)
+if TYPE_CHECKING:
 
+    class MeasureDataPointManager(ModelManager['MeasureDataPoint', MeasureDataPointQuerySet]):
+        """Model manager for MeasureDataPoint."""
 
-class MeasureDataPointManager(ModelManager['MeasureDataPoint', MeasureDataPointQuerySet], _MeasureDataPointManager):  # pyright: ignore
-    """Model manager for MeasureDataPoint."""
-
-
-del _MeasureDataPointManager
+else:
+    MeasureDataPointManager = ModelManager.from_queryset(MeasureDataPointQuerySet)
 
 
 class MeasureDataPoint(CacheablePathsModel[None], models.Model):

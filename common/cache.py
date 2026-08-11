@@ -594,7 +594,7 @@ class Cache(AbstractContextManager['Cache']):
         res.obj = obj
         return True
 
-    def _get_from_ext_cache(self, res: CacheResult, expiry: int) -> None | bytes:
+    def _get_from_ext_cache(self, res: CacheResult, expiry: int) -> bytes | None:
         if self.ext_cache is None:
             return None
 

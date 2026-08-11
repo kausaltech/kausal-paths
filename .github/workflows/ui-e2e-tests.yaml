@@ -3,45 +3,45 @@ on:
   workflow_call:
     inputs:
       product_id:
-        description: 'Product ID (watch/paths)'
+        description: "Product ID (watch/paths)"
         required: true
         type: string
       instance_identifiers:
-        description: 'Comma separated list of instance identifiers'
+        description: "Comma separated list of instance identifiers"
         required: false
         type: string
-        default: 'sunnydale,espoo,zuerich,nzc'
+        default: "sunnydale,espoo,zuerich,nzc"
       ui_repo:
-        description: 'UI GitHub repo'
+        description: "UI GitHub repo"
         required: true
         type: string
       ui_repo_ref:
-        description: 'UI source revision'
+        description: "UI source revision"
         required: true
         type: string
       ui_image:
-        description: 'UI image to test (full path including registry, repo and tag)'
+        description: "UI image to test (full path including registry, repo and tag)"
         required: true
         type: string
       ui_npm_registry_server:
-        description: 'npm registry URL for the UI image'
+        description: "npm registry URL for the UI image"
         required: false
         type: string
         default: https://npm.kausal.tech
       backend_image:
-        description: 'Backend image tag to test (full path including registry, repo and tag)'
+        description: "Backend image tag to test (full path including registry, repo and tag)"
         required: true
         type: string
       build_id:
-        description: 'Unique ID for the backend build'
+        description: "Unique ID for the backend build"
         required: true
         type: string
       s3_endpoint:
-        description: 'S3 endpoint URL where to upload test artifacts'
+        description: "S3 endpoint URL where to upload test artifacts"
         required: false
         type: string
       s3_bucket:
-        description: 'S3 bucket'
+        description: "S3 bucket"
         required: false
         type: string
 
@@ -57,7 +57,7 @@ on:
 
     outputs:
       test_report_url:
-        description: 'URL to e2e test report'
+        description: "URL to e2e test report"
         value: ${{ jobs.e2e_test.outputs.test_report_url }}
 
 env:
@@ -77,7 +77,7 @@ jobs:
           DEPLOYMENT_TYPE: ci
           PATHS_BACKEND_URL: http://localhost:8000
           TEST_INSTANCE_IDENTIFIERS: ${{ inputs.instance_identifiers }}
-          TEST_PAGE_BASE_URL: 'http://{instanceId}.localhost:3001'
+          TEST_PAGE_BASE_URL: "http://{instanceId}.localhost:3001"
           AUTH_SECRET: abcd
           AUTH_TRUST_HOST: true
           HOSTNAME: 0.0.0.0
@@ -114,13 +114,13 @@ jobs:
       coverage_uploaded: ${{ steps.upload-coverage.outcome == 'success' }}
 
     container:
-      image: harbor.kausal.tech/library/playwright:v1.59.1
+      image: harbor.kausal.tech/library/playwright:v1.62.0
     env:
       CI: 1
       PATHS_BACKEND_URL: http://localhost:8000
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ inputs.ui_repo }}
           ref: ${{ inputs.ui_repo_ref }}
@@ -201,7 +201,7 @@ jobs:
         working-directory: ./e2e-tests
         shell: bash
 
-      - uses: daun/playwright-report-summary@v3
+      - uses: daun/playwright-report-summary@v4
         if: always()
         with:
           report-file: ./e2e-tests/test-results.json
@@ -210,7 +210,7 @@ jobs:
       - name: Upload coverage report as artifact
         if: always() && !cancelled()
         id: upload-coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
           path: ./e2e-tests/coverage-data/coverage.xml
@@ -222,19 +222,19 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && !cancelled() && needs.e2e_test.outputs.coverage_uploaded == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Download coverage report artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: backend-coverage
           path: ./coverage-data
 
       - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage-data/coverage.xml

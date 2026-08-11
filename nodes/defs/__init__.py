@@ -1,4 +1,4 @@
-from .binding_def import DatasetPortBindingDef, EdgeBindingDef
+from .binding_def import AnyPortBindingDef, DatasetBindingDef, EdgeBindingDef, PortBindingDef
 from .edge_def import AssignCategoryTransformation, EdgeTransformation, FlattenTransformation, SelectCategoriesTransformation
 from .instance_defs import (
     ActionGroup,
@@ -23,8 +23,9 @@ from .port_def import InputPortDef, OutputPortDef
 __all__ = [
     'ActionConfig',
     'ActionGroup',
+    'AnyPortBindingDef',
     'AssignCategoryTransformation',
-    'DatasetPortBindingDef',
+    'DatasetBindingDef',
     'DatasetPortSpec',
     'DatasetRepoSpec',
     'EdgeBindingDef',
@@ -39,6 +40,7 @@ __all__ = [
     'NodeSpec',
     'OutputMetricDef',
     'OutputPortDef',
+    'PortBindingDef',
     'SelectCategoriesTransformation',
     'SimpleConfig',
     'TypeConfig',

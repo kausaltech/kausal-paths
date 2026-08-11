@@ -31,16 +31,26 @@ class Command(BaseCommand):
         parser.add_argument('--all', action='store_true', help='Sync all instances')
         parser.add_argument('--dry-run', action='store_true', help='Load and export but do not save to DB')
         parser.add_argument('--start-after', type=str, help='Instance identifier to start after')
+        parser.add_argument('--skip', dest='skip', metavar='INSTANCE_ID', action='append', help='Instances to skip')
+        parser.add_argument(
+            '--runtime-export',
+            action='store_true',
+            help='Use the legacy runtime-based export (full instance init) instead of the parse-only sync',
+        )
 
-    def sync_one_instance(self, instance_id: str, dry_run: bool = False) -> None:
+    def sync_one_instance(self, instance_id: str, dry_run: bool = False, *, runtime_export: bool = False) -> None:
         from nodes.spec_export import sync_instance_to_db
+        from nodes.spec_sync import sync_parsed_instance_to_db
 
         self.stdout.write(f'Syncing instance {instance_id}')
 
         try:
             with transaction.atomic():
                 try:
-                    sync_instance_to_db(instance_id)
+                    if runtime_export:
+                        sync_instance_to_db(instance_id)
+                    else:
+                        sync_parsed_instance_to_db(instance_id)
                 except FileNotFoundError as e:
                     self.stderr.write(self.style.ERROR(f'Error loading YAML for {instance_id}: {e}'))
                     return
@@ -63,7 +73,10 @@ class Command(BaseCommand):
                 if instance_id == start_after:
                     start_after = None
                 continue
-            self.sync_one_instance(instance_id, dry_run=dry_run)
+            if options['skip'] and instance_id in options['skip']:
+                self.stdout.write(f'Skipping instance {instance_id}')
+                continue
+            self.sync_one_instance(instance_id, dry_run=dry_run, runtime_export=options['runtime_export'])
         if dry_run:
             self.stdout.write(self.style.SUCCESS('Dry run complete — no changes made.'))
             return

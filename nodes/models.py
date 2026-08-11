@@ -26,7 +26,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
 from django.db.models import F, OuterRef, Q
 from django.db.models.expressions import DatabaseDefault
-from django.db.models.functions import JSONArray, JSONObject
+from django.db.models.functions import JSONObject
+from django.db.models.manager import Manager
 from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, gettext_lazy as _, override
@@ -57,7 +58,7 @@ from kausal_common.datasets.models import (
 )
 from kausal_common.deployment.http import get_request_wildcard_domains
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
+from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
@@ -82,10 +83,9 @@ from paths.utils import (
     get_supported_languages,
 )
 
-from nodes.defs import DatasetPortBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
-from nodes.defs.edge_def import EdgeTransformation
-from nodes.defs.instance_defs import InstanceFeatures
-from nodes.defs.node_defs import NodeKind
+from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
+from nodes.defs.instance_defs import InstanceFeatures, InstanceMetadata
+from nodes.defs.transform_def import EdgeTransformOp
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
     EdgeSnapshot,
@@ -102,6 +102,7 @@ if TYPE_CHECKING:
 
     from loguru import Logger
 
+    from kausal_common.i18n.pydantic import I18nString, TranslatedString
     from kausal_common.models.permission_policy import (
         BaseObjectAction,
         ObjectSpecificAction,
@@ -109,6 +110,7 @@ if TYPE_CHECKING:
     from kausal_common.models.types import (
         FK,
         M2M,
+        OneToOne,
         RevMany,
         RevManyQS,
         RevOne,
@@ -117,9 +119,7 @@ if TYPE_CHECKING:
 
     from frameworks.models import FrameworkConfig
     from nodes.dimensions import Dimension as NodeDimension
-    from nodes.instance_serialization import (
-        ModelSnapshot,
-    )
+    from nodes.instance_serialization import InstanceSnapshot, ModelSnapshot
     from nodes.node import Node
     from pages.config import OutcomePage as OutcomePageConfig
     from pages.models import ActionListPage, InstanceSiteContent
@@ -175,7 +175,7 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
         return self.filter(query_pk_or_uuid_or_identifier(id_or_identifier))
 
 
-_InstanceConfigManager = cast('models.Manager[InstanceConfig]', models.Manager).from_queryset(InstanceConfigQuerySet)
+_InstanceConfigManager = cast('Manager[InstanceConfig]', Manager).from_queryset(InstanceConfigQuerySet)
 
 
 class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # type: ignore[valid-type,misc]
@@ -431,8 +431,8 @@ class InstanceConfig(
     """Metadata for one Paths computational model instance."""
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
-    name = models.CharField(max_length=150, verbose_name=_('name'), unique=True)
-    owner = models.CharField(
+    name = models.CharField[str, str](max_length=150, verbose_name=_('name'), unique=True)
+    owner = models.CharField[str, str](
         blank=True,
         default='',
         max_length=200,
@@ -440,7 +440,7 @@ class InstanceConfig(
         help_text=_('Display name of the organization that owns this instance.'),
     )
     owner_i18n: str | None
-    lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
+    lead_title = models.CharField[str, str](blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_title_i18n: str
     lead_paragraph = RichTextField[str | None, str | None](null=True, blank=True, verbose_name=_('Lead paragraph'))
     lead_paragraph_i18n: str | None
@@ -573,6 +573,7 @@ class InstanceConfig(
     datasets: RevMany[DatasetModel]
     edges: RevMany[NodeEdge]
     dataset_ports: RevMany[DatasetPort]
+    dataset_revision_pins: RevMany[InstanceRevisionDatasetPin]
     change_operations: RevMany[InstanceChangeOperation]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
@@ -585,6 +586,8 @@ class InstanceConfig(
     # read". ``_create_from_config`` clears it so hydrate calls that follow
     # a post-publish edit see the current DB state.
     _nodes_for_serialization: list[NodeConfig] | None
+    _annotated_dataset_ports: list[DatasetPort]
+    _publication_dataset_revision_pins: dict[int, Any] | None = None
     graphql_context: InstanceGraphQLContext | None = None
 
     search_fields = [
@@ -655,6 +658,10 @@ class InstanceConfig(
         affected_schema_ids = exclusive_schema_ids | {
             sid for sid in Dataset.objects.qs.filter(own_scope).values_list('schema_id', flat=True) if sid is not None
         }
+        # Dataset revisions are protected while an instance revision pins them.
+        # This explicit instance FK lets full instance deletion release all pins
+        # before its owned datasets and their generic Wagtail revisions cascade.
+        self.dataset_revision_pins.all().delete()
         # Delete the instance's own datasets: everything directly scoped to it (its own data, even
         # when the schema is shared), plus placeholder datasets whose schema is scoped only to this
         # instance. Placeholders of a schema shared with another scope are left for that scope.
@@ -733,6 +740,39 @@ class InstanceConfig(
                 continue
             node_config.update_node_from_config(node, keep_ref=node_refs)
 
+    def update_identity_metadata(
+        self,
+        *,
+        name: I18nString,
+        owner: I18nString | None,
+        primary_language: str,
+        other_languages: list[str],
+    ) -> None:
+        """
+        Seed YAML identity fields without overwriting DB-authored content.
+
+        The configured language set still follows YAML because it determines
+        how modeltrans interprets and exposes the stored translations.
+        """
+        for field_name, field_val in (('name', name), ('owner', owner)):
+            if field_val is None:
+                continue
+            current_i18n = self.i18n or {}
+            has_value = bool(getattr(self, field_name)) or any(
+                key.startswith(f'{field_name}_') and value for key, value in current_i18n.items()
+            )
+            if has_value:
+                continue
+
+            val, field_i18n = get_modeltrans_attrs_from_str(
+                cast('str | TranslatedString', field_val), field_name, primary_language
+            )
+            setattr(self, field_name, val)
+            self.i18n = {**current_i18n, **field_i18n}
+
+        self.primary_language = primary_language
+        self.other_languages = [lang for lang in other_languages if lang != primary_language]
+
     def update_from_instance(self, instance: Instance, overwrite=False):
         """Update identity/content metadata columns from the instance but do not call save()."""
 
@@ -776,7 +816,6 @@ class InstanceConfig(
         exist for admin-side revision diffs and for
         ``from_serializable_data`` to look up the live row by pk.
         """
-        from .instance_from_db import serialize_instance_to_dict
         from .instance_serialization import SNAPSHOT_SCHEMA_VERSION, build_instance_snapshot
 
         data: dict[str, Any] = {
@@ -785,10 +824,10 @@ class InstanceConfig(
             'config_source': self.config_source,
         }
         if self.config_source == 'database':
+            snapshot = build_instance_snapshot(self, self._publication_dataset_revision_pins)
             data['model_snapshot'] = {
                 'schema_version': SNAPSHOT_SCHEMA_VERSION,
-                'structured': build_instance_snapshot(self).model_dump(mode='json'),
-                'hydrate_dict': serialize_instance_to_dict(self),
+                'structured': snapshot.model_dump(mode='json'),
             }
         return data
 
@@ -851,14 +890,117 @@ class InstanceConfig(
         return latest.uuid if latest is not None else None
 
     def publish_instance(self, user: User | None = None) -> None:
-        """Serialize the current model state and publish as a Wagtail revision."""
-        revision = self.save_revision(user=user)
-        self.publish(revision, user=user)
+        """Atomically publish the model and immutable revisions of its DB datasets."""
+        from wagtail.models import Revision
+
+        from nodes.instance_serialization import DatasetRevisionPinSnapshot
+
+        with transaction.atomic():
+            locked = InstanceConfig.objects.select_for_update().get(pk=self.pk)
+            dataset_ids = list(
+                DatasetPort.objects.filter(instance=locked).order_by().values_list('dataset_id', flat=True).distinct()
+            )
+            datasets = list(
+                DatasetModel.objects
+                .select_for_update()
+                .filter(pk__in=dataset_ids, is_external_placeholder=False)
+                .only('pk', 'uuid', 'identifier', 'last_modified_at', 'latest_revision_id')
+                .order_by('pk')
+            )
+            materializations = {
+                materialization.dataset_id: materialization
+                for materialization in DatasetMaterialization.objects.select_for_update().filter(
+                    dataset_id__in=[dataset.pk for dataset in datasets],
+                )
+            }
+            for dataset in datasets:
+                materialization = materializations.get(dataset.pk)
+                if materialization is None:
+                    raise RuntimeError(f'Dataset {dataset.uuid} has no current materialization')
+                if materialization.source_modified_at != dataset.last_modified_at:
+                    raise RuntimeError(f'Dataset {dataset.uuid} has a stale current materialization')
+
+            dataset_ct = ContentType.objects.get_for_model(DatasetModel, for_concrete_model=False)
+            now = timezone.now()
+            dataset_revisions: list[Revision] = [
+                Revision(
+                    content_type=dataset_ct,
+                    base_content_type=dataset_ct,
+                    object_id=str(dataset.pk),
+                    created_at=now,
+                    user=user,
+                    object_str=dataset.identifier or str(dataset.uuid),
+                    content=materializations[dataset.pk].content,
+                )
+                for dataset in datasets
+            ]
+            Revision.objects.bulk_create(dataset_revisions)
+
+            pins_by_dataset: dict[int, DatasetRevisionPinSnapshot] = {}
+            revisions_by_dataset: dict[int, Revision] = {}
+            for dataset, dataset_revision in zip(datasets, dataset_revisions, strict=True):
+                materialization = materializations[dataset.pk]
+                dataset.latest_revision = dataset_revision
+                revisions_by_dataset[dataset.pk] = dataset_revision
+                pins_by_dataset[dataset.pk] = DatasetRevisionPinSnapshot(
+                    dataset_uuid=dataset.uuid,
+                    identifier=dataset.identifier,
+                    revision_id=dataset_revision.pk,
+                    content_hash=materialization.content_hash,
+                    generation=materialization.generation,
+                    forecast_from=materialization.forecast_from,
+                )
+            if datasets:
+                DatasetModel.objects.bulk_update(datasets, ['latest_revision'])
+
+            locked._publication_dataset_revision_pins = pins_by_dataset
+            try:
+                revision = locked.save_revision(user=user)
+            finally:
+                locked._publication_dataset_revision_pins = None
+
+            InstanceRevisionDatasetPin.objects.bulk_create([
+                InstanceRevisionDatasetPin(
+                    instance_config=locked,
+                    instance_revision=revision,
+                    dataset=dataset,
+                    dataset_revision=revisions_by_dataset[dataset.pk],
+                    dataset_uuid=dataset.uuid,
+                    identifier=dataset.identifier,
+                    forecast_from=materializations[dataset.pk].forecast_from,
+                )
+                for dataset in datasets
+            ])
+            locked.publish(revision, user=user)
+            locked.invalidate_cache()
+
+            self.latest_revision_id = locked.latest_revision_id
+            self.live_revision_id = locked.live_revision_id
+            self.cache_invalidated_at = locked.cache_invalidated_at
 
     def revert_to_published(self) -> None:
         """Restore draft state from the published revision snapshot."""
         # TODO: Rewrite for spec-based storage
         raise NotImplementedError('revert_to_published needs rewriting for spec-based storage')
+
+    def _complete_legacy_snapshot_content(self, snapshot: InstanceSnapshot) -> None:
+        """
+        Fill fields that pre-v6 revisions never persisted.
+
+        Historical values do not exist for these fields, so the only
+        backwards-compatible value is the current row value. Keeping this
+        one-time compatibility read at the revision boundary prevents public
+        GraphQL resolvers from acquiring live-row fallbacks of their own.
+        """
+        current_metadata = InstanceMetadata.from_model(self)
+        snapshot.metadata.lead_title = current_metadata.lead_title
+        snapshot.metadata.lead_paragraph = current_metadata.lead_paragraph
+
+        bodies_by_uuid = {
+            node.uuid: list(node.body.raw_data) if node.body else None for node in self.nodes.get_queryset().only('uuid', 'body')
+        }
+        for node_snapshot in snapshot.nodes:
+            node_snapshot.body = bodies_by_uuid.get(node_snapshot.uuid)
 
     def _create_from_published_revision(self, node_refs: bool = False) -> Instance | None:
         """
@@ -873,8 +1015,41 @@ class InstanceConfig(
         if rev is None:
             return None
         content = rev.content or {}
-        snapshot = content.get('model_snapshot') or {}
-        hydrate_dict = snapshot.get('hydrate_dict')
+        snapshot_data = content.get('model_snapshot') or {}
+        structured = snapshot_data.get('structured')
+        if structured is not None:
+            from kausal_common.i18n.pydantic import set_i18n_context
+
+            from .instance_serialization import InstanceSnapshot
+
+            source_schema_version = structured.get('schema_version', 1)
+            raw_metadata = structured.get('metadata') or {}
+            primary_language = raw_metadata.get('primary_language', self.primary_language)
+            other_languages = raw_metadata.get('other_languages', self.other_languages or [])
+            with set_i18n_context(primary_language, other_languages):
+                snapshot = InstanceSnapshot.from_serialized_data(structured)
+                if source_schema_version < 6:
+                    self._complete_legacy_snapshot_content(snapshot)
+            if source_schema_version >= 7:
+                expected_pins = {(pin.dataset_uuid, pin.revision_id) for pin in snapshot.dataset_revisions}
+                persisted_pins = set(
+                    self.dataset_revision_pins.filter(instance_revision=rev).values_list(
+                        'dataset_uuid',
+                        'dataset_revision_id',
+                    )
+                )
+                if persisted_pins != expected_pins:
+                    raise RuntimeError(
+                        f'Instance revision {rev.pk} dataset manifest mismatch: '
+                        f'snapshot={sorted(map(str, expected_pins))}, persisted={sorted(map(str, persisted_pins))}',
+                    )
+            instance = InstanceLoader.from_snapshot(snapshot, published=source_schema_version >= 7).instance
+            instance.bind_source_snapshot(snapshot)
+            return instance
+        # Legacy revisions carry only the serialized config dict. They predate
+        # the structured snapshot, so published metadata still comes from the
+        # live rows here (known draft-leak; fixed by republishing).
+        hydrate_dict = snapshot_data.get('hydrate_dict')
         if hydrate_dict is None:
             # Revision predates the snapshot restructure; fall back to draft.
             return None
@@ -902,11 +1077,14 @@ class InstanceConfig(
                     return instance
                 # Fall through to the draft path if no published revision exists.
 
-            from .instance_from_db import serialize_instance_to_dict
+            from .instance_from_db import _check_dimension_orm_coverage
+            from .instance_serialization import build_instance_snapshot
 
-            config = serialize_instance_to_dict(self)
-            loader = InstanceLoader(config=config, tolerate_node_failures=tolerate_node_failures)
+            _check_dimension_orm_coverage(self)
+            snapshot = build_instance_snapshot(self)
+            loader = InstanceLoader.from_snapshot(snapshot, tolerate_node_failures=tolerate_node_failures)
             instance = loader.instance
+            instance.bind_source_snapshot(snapshot)
             self.update_instance_from_configs(instance, node_refs=True)
             return instance
 
@@ -966,8 +1144,9 @@ class InstanceConfig(
         self,
         source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
         tolerate_node_failures: bool = False,
+        force_reinitialize: bool = False,
     ):
-        if self.identifier in _pytest_instances:
+        if not force_reinitialize and self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
             instance = self._initialize_instance(node_refs=True, source=source, tolerate_node_failures=tolerate_node_failures)
@@ -989,8 +1168,9 @@ class InstanceConfig(
         self,
         source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
         tolerate_node_failures: bool = False,
+        force_reinitialize: bool = False,
     ):
-        if self.identifier in _pytest_instances:
+        if not force_reinitialize and self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
             instance = await sync_to_async(self._initialize_instance)(
@@ -1250,16 +1430,13 @@ class InstanceConfig(
         self,
         dataset_dim: DatasetDimensionModel,
         scope: DimensionScope,
+        dim: NodeDimension,
         update_existing=False,
         delete_stale=False,
-        instance: Instance | None = None,
     ):
         found_cats = set()
-        if instance is None:
-            instance = self.get_instance()
-        default_lang = instance.default_language
+        default_lang = self.primary_language
         assert scope.identifier is not None
-        dim = instance.context.dimensions[scope.identifier]
 
         from datasets.defs import DimensionCategorySpec
 
@@ -1301,7 +1478,6 @@ class InstanceConfig(
         dim: NodeDimension,
         update_existing=False,
         delete_stale=False,
-        instance: Instance | None = None,
     ) -> DatasetDimensionModel:
         from datasets.defs import DimensionSpec
 
@@ -1332,9 +1508,9 @@ class InstanceConfig(
         self.sync_categories(
             dataset_dim=dim_obj,
             scope=scope,
+            dim=dim,
             update_existing=update_existing,
             delete_stale=delete_stale,
-            instance=instance,
         )
         return dim_obj
 
@@ -1343,7 +1519,7 @@ class InstanceConfig(
             instance = self.get_instance()
         found_dims = set()
         for dim in instance.context.dimensions.values():
-            obj = self.sync_dimension(dim, update_existing=update_existing, delete_stale=delete_stale, instance=instance)
+            obj = self.sync_dimension(dim, update_existing=update_existing, delete_stale=delete_stale)
             found_dims.add(obj)
 
         if delete_stale:
@@ -1364,7 +1540,7 @@ class InstanceConfig(
         instance = self.get_instance()
         ctx = instance.context
         root_nodes = ctx.get_outcome_nodes()
-        pks = [node.database_id for node in root_nodes]
+        pks = [node.database_id for node in root_nodes if node.database_id is not None]
         return list(self.nodes.filter(pk__in=pks))
 
     def _create_instance_root_page(self) -> Page:
@@ -1526,7 +1702,7 @@ class InstanceConfig(
         return logger.bind(instance=self.identifier, markup=True)
 
 
-class InstanceHostnameManager(models.Manager['InstanceHostname']):
+class InstanceHostnameManager(Manager['InstanceHostname']):
     def get_by_natural_key(self, instance_identifier, hostname, base_path):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance, hostname=hostname, base_path=base_path)
@@ -1558,7 +1734,7 @@ class InstanceHostname(models.Model):
         return self.instance.natural_key() + (self.hostname, self.base_path)
 
 
-class InstanceTokenManager(models.Manager['InstanceToken']):
+class InstanceTokenManager(Manager['InstanceToken']):
     def get_by_natural_key(self, instance_identifier, token, created_at):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance, token=token, created_at=created_at)
@@ -1602,15 +1778,16 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                 obj=JSONObject(
                     id=F('uuid'),
                     from_ref=JSONObject(
+                        node_uuid=F('from_node__uuid'),
                         node_id=F('from_node__identifier'),
                         port_id=F('from_port'),
                     ),
-                    to_ref=JSONObject(
+                    port_ref=JSONObject(
+                        node_uuid=F('to_node__uuid'),
                         node_id=F('to_node__identifier'),
                         port_id=F('to_port'),
                     ),
-                    to_port=F('to_port'),
-                    transformations=JSONArray(),
+                    transformations=F('transformations'),
                     tags=F('tags'),
                 ),
             )
@@ -1622,7 +1799,8 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
             .annotate(
                 obj=JSONObject(
                     id=F('uuid'),
-                    node_ref=JSONObject(
+                    port_ref=JSONObject(
+                        node_uuid=F('node__uuid'),
                         node_id=F('node__identifier'),
                         port_id=F('port_id'),
                     ),
@@ -1632,7 +1810,8 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                     dataset_external_ref=F('dataset__external_ref'),
                     external_dataset_id=F('dataset__identifier'),
                     external_metric_id=F('metric__name'),
-                    forecast_from=F('spec__forecast_from'),
+                    transformations=F('spec__transformations'),
+                    tags=F('spec__tags'),
                 ),
             )
             .values('obj')
@@ -1643,7 +1822,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         )
 
     def for_serialization(self) -> Self:
-        return self.active().with_spec().annotate_ports()
+        return self.active().with_spec().select_related('layout').annotate_ports()
 
 
 _NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)
@@ -1669,15 +1848,8 @@ class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeC
 del _NodeConfigManager
 
 
-class NodeKindChoices(models.TextChoices):
-    FORMULA = NodeKind.FORMULA.value, _('Formula')
-    PIPELINE = NodeKind.PIPELINE.value, _('Pipeline')
-    ACTION = NodeKind.ACTION.value, _('Action')
-    SIMPLE = NodeKind.SIMPLE.value, _('Simple')
-
-
 def make_empty_node_spec() -> NodeSpec:
-    return NodeSpec(kind=NodeKind.FORMULA)
+    return NodeSpec()
 
 
 class EditableInstanceChild(
@@ -1739,7 +1911,8 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     identifier = IdentifierField(max_length=200)
     is_stale = models.BooleanField(default=False, help_text='Whether the node is stale and should be deleted')
     name = models.CharField(max_length=200, null=True, blank=True)
-    order = models.PositiveIntegerField(
+    short_name = models.CharField(max_length=200, null=True, blank=True)
+    order = models.IntegerField(
         null=True,
         blank=True,
         verbose_name=_('Order'),
@@ -1797,26 +1970,22 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
 
-    # --- DB-sourced node fields (model editor) ---
-    node_type = TextChoicesField(
-        choices_enum=NodeKindChoices,  # pyright: ignore[reportCallIssue]
-        default=NodeKindChoices.FORMULA,
-    )
-
     spec = SchemaField(schema=NodeSpec, null=True, blank=True)
 
     # Audit timestamps (``created_at`` / ``last_modified_at``) + user FKs
     # come from ``UserModifiableModel`` via ``EditableInstanceChild``.
 
     i18n = TranslationField(
-        fields=('name', 'short_description', 'description', 'goal'),
+        fields=('name', 'short_name', 'short_description', 'description', 'goal'),
         default_language_field='instance__primary_language',
     )
     name_i18n: str | None
+    short_name_i18n: str | None
     short_description_i18n: str | None
     description_i18n: str | None
     goal_i18n: str | None
     indicates_nodes: RevMany[NodeConfig]
+    layout: RevOne[NodeConfig, NodeLayout]
 
     search_fields = [
         index.AutocompleteField('identifier'),
@@ -1835,6 +2004,7 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     _node: Node | None
     _annotated_port_edge_bindings: list[dict[str, Any]] | None
     _annotated_port_dataset_bindings: list[dict[str, Any]] | None
+    _annotated_dataset_models_by_uuid: dict[UUID, DatasetModel]
 
     class Meta:
         verbose_name = _('Node')
@@ -1880,7 +2050,7 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
 
         conf = node.as_node_config_attributes()
         i18n = conf.pop('i18n', None)
-        for k, v in node.as_node_config_attributes().items():
+        for k, v in conf.items():
             if overwrite or getattr(self, k, None) is None:
                 if skip_descriptions and k in ['short_description', 'description']:
                     continue
@@ -1891,7 +2061,12 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
             if not self.i18n:
                 self.i18n = {}
             assert isinstance(self.i18n, dict)
-            self.i18n |= cast('dict[str, str]', i18n)
+            translated = cast('dict[str, str]', i18n)
+            if overwrite:
+                self.i18n |= translated
+            else:
+                for key, value in translated.items():
+                    self.i18n.setdefault(key, value)
 
         if overwritten:
             self.instance.log.info('Overwrote contents in node %s' % str(node))
@@ -1967,17 +2142,6 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         if not isinstance(self.uuid, uuid.UUID):
             self.uuid = uuid.uuid4()
 
-        # Skip spec sync when spec is deferred: accessing self.spec on a deferred instance
-        # triggers refresh_from_db which reloads ALL fields from DB (due to defer+only
-        # interaction in NodeConfigManager), silently overwriting any unsaved field changes.
-        if 'spec' not in self.get_deferred_fields() and (spec := self.spec) is not None:
-            spec.uuid = self.uuid
-            spec.identifier = self.identifier
-            spec.name = get_translated_string_from_modeltrans(self, 'name', self.instance.primary_language)
-            spec.color = self.color or None
-            spec.order = self.order
-            spec.is_visible = self.is_visible
-
         return super().save(**kwargs)
 
     def natural_key(self):
@@ -1991,11 +2155,40 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         return [EdgeBindingDef.model_validate(port) for port in raw]
 
     @property
-    def port_dataset_bindings(self) -> list[DatasetPortBindingDef]:
+    def port_dataset_bindings(self) -> list[DatasetBindingDef]:
         if not hasattr(self, '_annotated_port_dataset_bindings'):
             raise RuntimeError('NodeConfig.port_dataset_bindings requires NodeConfigQuerySet.annotate_ports()')
         raw = self._annotated_port_dataset_bindings or []
-        return [DatasetPortBindingDef.model_validate(port) for port in raw]
+        return [DatasetBindingDef.model_validate(port) for port in raw]
+
+
+class NodeLayoutSource(models.TextChoices):
+    AUTO = 'auto', _('Auto')
+    USER = 'user', _('User')
+
+
+class NodeLayout(UserModifiableModel):
+    """Shared model-editor position for one node card."""
+
+    node: OneToOne[NodeConfig] = models.OneToOneField(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='layout',
+    )
+    x = models.FloatField()
+    y = models.FloatField()
+    source = TextChoicesField(
+        choices_enum=NodeLayoutSource,  # pyright: ignore[reportCallIssue]
+        default=NodeLayoutSource.AUTO,
+    )
+
+    class Meta:
+        verbose_name = _('Node layout')
+        verbose_name_plural = _('Node layouts')
+        ordering = ['node']
+
+    def __str__(self) -> str:
+        return f'{self.node.identifier}: ({self.x}, {self.y})'
 
 
 class NodeDataset(models.Model):
@@ -2049,15 +2242,15 @@ class NodeEdge(EditableInstanceChild):
         max_length=200,
         help_text='Input port ID on the target node',
     )
-    transformations = SchemaField(schema=list[EdgeTransformation], default=list, blank=True)
+    transformations = SchemaField(schema=list[EdgeTransformOp], default=list, blank=True)
     tags = ArrayField(
         models.CharField(max_length=200),
         default=list,
         blank=True,
     )
 
-    objects: ClassVar[models.Manager[NodeEdge]] = models.Manager()
-    _default_manager: ClassVar[models.Manager[NodeEdge]]
+    objects: ClassVar[Manager[NodeEdge]] = Manager()
+    _default_manager: ClassVar[Manager[NodeEdge]]
 
     from_node_id: int  # for type checkers
     to_node_id: int
@@ -2115,8 +2308,8 @@ class DatasetPort(EditableInstanceChild):
     dataset_id: int
     metric_id: int
 
-    objects: ClassVar[models.Manager[DatasetPort]] = models.Manager()
-    _default_manager: ClassVar[models.Manager[DatasetPort]]
+    objects: ClassVar[Manager[DatasetPort]] = Manager()
+    _default_manager: ClassVar[Manager[DatasetPort]]
 
     class Meta:
         ordering = ['node', 'dataset_index', 'metric__order']
@@ -2125,6 +2318,81 @@ class DatasetPort(EditableInstanceChild):
 
     def __str__(self) -> str:
         return f'{self.node_id}:{self.port_id} ← {self.dataset_id}'
+
+
+class DatasetMaterialization(models.Model):
+    """Current serialized calculation payload for a DB-backed dataset."""
+
+    dataset: OneToOne[DatasetModel] = models.OneToOneField(
+        DatasetModel,
+        on_delete=models.CASCADE,
+        related_name='paths_materialization',
+    )
+    content = models.JSONField()
+    content_hash = models.CharField(max_length=64)
+    generation = models.PositiveBigIntegerField(default=1)
+    forecast_from = models.IntegerField(null=True, blank=True)
+    source_modified_at = models.DateTimeField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects: ClassVar[Manager[DatasetMaterialization]] = Manager()
+
+    class Meta:
+        ordering = ['dataset_id']
+        verbose_name = _('Dataset materialization')
+        verbose_name_plural = _('Dataset materializations')
+
+    def __str__(self) -> str:
+        return f'{self.dataset_id} @ {self.generation}'
+
+
+class InstanceRevisionDatasetPin(models.Model):
+    """Relational retention manifest for datasets used by an instance revision."""
+
+    instance_config: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='dataset_revision_pins',
+    )
+    instance_revision = models.ForeignKey(
+        'wagtailcore.Revision',
+        on_delete=models.CASCADE,
+        related_name='instance_dataset_pins',
+    )
+    dataset: FK[DatasetModel] = models.ForeignKey(
+        DatasetModel,
+        on_delete=models.PROTECT,
+        related_name='instance_revision_pins',
+    )
+    dataset_revision = models.ForeignKey(
+        'wagtailcore.Revision',
+        on_delete=models.PROTECT,
+        related_name='dataset_revision_pins',
+    )
+    dataset_uuid = models.UUIDField()
+    identifier = models.CharField(max_length=100, null=True, blank=True)
+    forecast_from = models.IntegerField(null=True, blank=True)
+
+    objects: ClassVar[Manager[InstanceRevisionDatasetPin]] = Manager()
+
+    class Meta:
+        ordering = ['instance_revision_id', 'dataset_id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['instance_revision', 'dataset'],
+                name='unique_dataset_pin_per_instance_revision',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['instance_config', 'instance_revision']),
+            models.Index(fields=['dataset_revision']),
+            models.Index(fields=['dataset']),
+        ]
+        verbose_name = _('Instance revision dataset pin')
+        verbose_name_plural = _('Instance revision dataset pins')
+
+    def __str__(self) -> str:
+        return f'{self.instance_revision_id}: {self.identifier or self.dataset_id} → {self.dataset_revision_id}'
 
 
 # --- Change tracking: InstanceChangeOperation + InstanceModelLogEntry ---
@@ -2187,7 +2455,7 @@ class InstanceChangeOperation(UUIDIdentifiedModel):
         help_text='Set when this operation has been undone by another operation.',
     )
 
-    objects: ClassVar[models.Manager[InstanceChangeOperation]] = models.Manager()
+    objects: ClassVar[Manager[InstanceChangeOperation]] = Manager()
 
     class Meta:
         ordering = ['-created_at']
@@ -2242,7 +2510,7 @@ class InstanceModelLogEntry(UUIDIdentifiedModel):
     data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    objects: ClassVar[models.Manager[InstanceModelLogEntry]] = models.Manager()
+    objects: ClassVar[Manager[InstanceModelLogEntry]] = Manager()
 
     class Meta:
         ordering = ['-id']

@@ -1,0 +1,2475 @@
+# King County, Washington -- greenhouse gas inventory and SCAP wedge model.
+#
+# The graph reproduces the 2023 community-scale inventory source by source, projects
+# it forward on the growth drivers the county's wedge workbook uses, and carries all
+# 25 SCAP policy wedges as actions. Where the inventory reports emissions with no
+# activity basis (refrigerants, off-road equipment, industrial process, marine and
+# rail, wastewater, tree sequestration -- about 13% of gross) the emission node reads
+# the reported series directly, so only an emissions-level action can act on those.
+#
+# The dimensions below are the ones the extracted data uses, so that
+#   python -m notebooks.upload_new_dataset --instance king-county ...
+# can map each CSV cell onto a category id (upload_new_dataset snake-cases the
+# column name, then Dimension.series_to_ids_pl resolves the cell against the
+# category's id, label and aliases).
+#
+# Category ids and labels are chosen for the model; where the workbook's own
+# string differs it is kept as an `aliases` entry, so the extractor's output maps
+# without the config having to adopt spellings like 'City of Seattle - (WA)'.
+#
+# Data, provenance and the findings register: data/king_county/README.md
+
+id: king-county
+default_language: en
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 42dd8e5f9eceb9fe12475dc9881271d7364fb6ff
+  dvc_remote: kausal-s3
+name: King County Greenhouse Gas Inventory
+owner: King County
+theme_identifier: us-kingcounty
+
+# 2007 is the baseline the county's targets are set against, but it is not an
+# inventory year: every 2007 line is 2008 scaled by the service-population ratio.
+# See finding F1 in data/king_county/README.md.
+reference_year: 2007
+minimum_historical_year: 2007
+maximum_historical_year: 2023
+emission_forecast_from: 2024
+target_year: 2050
+model_end_year: 2050
+
+# The inventory reports tonnes CO2e. `t_co2e` rather than `t` throughout: the
+# figures are CO2-equivalent, not the physical mass of the gases, and t_co2e is a
+# distinct pint dimension so the two cannot be silently added.
+emission_unit: Mt_co2e/a
+
+emission_sectors:
+- id: net_emissions
+  name: Net emissions
+  is_outcome: true
+  goals:
+  - is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2007
+      value: 23.232
+    - year: 2025
+      value: 19.909824 # 14.3% reduction from 2007
+    - year: 2030
+      value: 11.616 # 50% reduction from 2007
+    - year: 2035
+      value: 8.712 # 62.5% reduction from 2007
+    - year: 2040
+      value: 5.808 # 75% reduction from 2007
+    - year: 2045
+      value: 3.4848 # 85% reduction from 2007
+    - year: 2050
+      value: 1.1616 # 95% reduction from 2007
+
+
+- id: built_environment_emissions
+  name: Built environment emissions
+  part_of: net_emissions
+
+- id: transportation_emissions
+  name: Transportation and other mobile source emissions
+  part_of: net_emissions
+
+- id: solid_waste_emissions
+  name: Solid waste and wastewater emissions
+  part_of: net_emissions
+
+- id: land_use_emissions
+  name: Land use emissions
+  part_of: net_emissions
+
+# Refrigerants are their own reporting sector in the inventory, not part of the built
+# environment. A sector node of their own is what lets the hydrofluorocarbon wedge
+# attach to a sector like every other action, rather than straight to net emissions
+# where it would bypass the sector breakdown.
+- id: refrigerant_sector_emissions
+  name: Refrigerant emissions
+  part_of: net_emissions
+
+# The inventory publishes a gross total and a net total, with sequestration as its
+# own reporting sector rather than a credit against land use. Kept separate here for
+# the same reason: net_emissions is then the published net figure, and the gross
+# total stays readable as the sum of the other four sectors.
+- id: sequestration_emissions
+  name: Sequestration
+  part_of: net_emissions
+
+pages:
+- id: home
+  name: King County emission scenarios
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: King County greenhouse gas emissions
+  lead_paragraph: >
+    Community-scale geographic greenhouse gas inventory for King County, with the
+    2025 Strategic Climate Action Plan wedge analysis projected to 2050.
+
+scenarios:
+# With every wedge off, the model is the county's no-action forecast: the inventory
+# projected on its growth drivers with no policy acting on it.
+- id: baseline
+  name: No action
+
+# The workbook's middle trajectory: what happens if state and federal policy lands
+# and King County itself does nothing further. It is the ten wedges below rows 9-23
+# of 'Wedge Detailed Results' switched off -- note that two KC SCAP wedges stay ON,
+# because the workbook counts them inside this scenario (finding F18).
+- id: federal_and_state_action
+  name: Federal and state action only
+  all_actions_enabled: true
+  params:
+  - id: aviation_industry.enabled
+    value: false
+  - id: regional_marine_rail_and_ferry.enabled
+    value: false
+  - id: zero_emission_appliance_standard.enabled
+    value: false
+  - id: residential_point_of_sale.enabled
+    value: false
+  - id: vision_2050_scenario_2.enabled
+    value: false
+  - id: vision_2050_scenario_3.enabled
+    value: false
+  - id: advanced_clean_fleets.enabled
+    value: false
+  - id: circular_economy_salvaged_lumber_and_reuse.enabled
+    value: false
+  - id: wa_organics_management_law.enabled
+    value: false
+  - id: reduce_wastewater_methane_gas.enabled
+    value: false
+
+- id: default
+  default: true
+  name: Strategic Climate Action Plan
+  all_actions_enabled: true
+
+# The workbook's own grouping of the wedges, by who has to act. Rows 9-23 of 'Wedge
+# Detailed Results' -- everything down to the 'federal and state action only'
+# scenario line -- are what that scenario consists of, which is why two KC SCAP
+# wedges sit among the state and federal ones (see finding F18).
+action_groups:
+- id: state_federal
+  name: State and federal policy
+  color: '#4E79A7'
+- id: state_federal_local
+  name: State and federal policy with local implementation
+  color: '#76B7B2'
+- id: kc_scap
+  name: King County Strategic Climate Action Plan
+  color: '#E15759'
+- id: local_partner
+  name: Local partner action
+  color: '#F28E2B'
+
+dimensions:
+
+- id: sector
+  label_en: Sector
+  categories:
+  - id: built_environment
+    order: 1
+    label_en: Built environment
+  - id: land_use
+    order: 5
+    label_en: Land use
+  - id: refrigerants
+    order: 4
+    label_en: Refrigerants
+  - id: sequestration
+    order: 6
+    label_en: Sequestration
+  - id: solid_waste_and_wastewater
+    order: 3
+    label_en: Solid waste and wastewater
+  - id: transportation
+    order: 2
+    label_en: Transportation and other mobile sources
+
+- id: emission_source
+  label_en: Emission source
+  categories:
+  - id: agriculture
+    label_en: Agriculture
+  - id: aviation
+    label_en: Aviation
+  - id: electricity
+    label_en: Electricity
+  - id: fuel_oil
+    label_en: Fuel oil
+  - id: industrial_processes
+    label_en: Industrial processes
+  - id: marine_vessels_and_rail
+    label_en: Marine vessels and rail
+  - id: natural_gas
+    label_en: Natural gas
+  - id: off_road_equipment
+    label_en: Off-road equipment
+  - id: on_road_vehicles
+    label_en: On-road vehicles
+  - id: propane
+    label_en: Propane
+  - id: refrigerants
+    label_en: Refrigerants
+  - id: solid_waste_disposal_sequestration
+    label_en: Solid waste disposal sequestration
+  - id: solid_waste_generation_and_disposal
+    label_en: Solid waste generation and disposal
+  - id: tree_loss
+    label_en: Tree loss
+  - id: tree_sequestration
+    label_en: Tree sequestration
+  - id: wastewater_process_emissions
+    label_en: Wastewater process emissions
+
+- id: consumer_sector
+  label_en: Consumer sector
+  categories:
+  - id: commercial
+    order: 2
+    label_en: Commercial
+  - id: industrial
+    order: 3
+    label_en: Industrial
+  - id: residential
+    order: 1
+    label_en: Residential
+
+- id: utility
+  label_en: Utility
+  categories:
+  - id: milton_light_and_power
+    label_en: Milton Light and Power
+    aliases: [City of Milton - (WA)]
+  - id: seattle_city_light
+    label_en: Seattle City Light
+    aliases: [City of Seattle - (WA)]
+  - id: puget_sound_energy
+    label_en: Puget Sound Energy
+    aliases: [Puget Sound Energy Inc]
+  - id: pse_green_power
+    label_en: Puget Sound Energy – Green Power
+    aliases: [Puget Sound Energy Inc - Green Power]
+  - id: pse_green_program
+    label_en: Puget Sound Energy – Green Program
+    aliases: [Puget Sound Energy Inc - Green Program]
+  - id: transmission_and_distribution
+    label_en: Transmission and distribution
+    aliases: [T&D]
+  - id: tanner_electric
+    label_en: Tanner Electric Cooperative
+    aliases: [Tanner Electric Coop]
+
+- id: energy_carrier
+  label_en: Energy carrier
+  categories:
+  - id: aviation_gasoline
+    label_en: Aviation gasoline
+  - id: biodiesel
+    label_en: Biodiesel
+  - id: cng
+    label_en: Compressed natural gas
+    aliases: [CNG]
+  - id: diesel
+    label_en: Diesel
+  - id: electricity
+    label_en: Electricity
+  - id: ethanol
+    label_en: Ethanol
+  - id: fuel_oil
+    label_en: Fuel oil
+  - id: gasoline
+    label_en: Gasoline
+  - id: jet_fuel
+    label_en: Jet fuel
+  - id: natural_gas
+    label_en: Natural gas
+  - id: propane
+    label_en: Propane
+  - id: renewable_diesel
+    label_en: Renewable diesel
+    aliases: [Renewable Diesel]
+
+- id: vehicle_type
+  label_en: Vehicle type
+  categories:
+  - id: heavy_duty_vehicles
+    order: 3
+    label_en: Heavy Duty Vehicles
+  - id: light_duty_vehicles
+    order: 1
+    label_en: Light Duty Vehicles
+  - id: medium_duty_vehicles
+    order: 2
+    label_en: Medium Duty Vehicles
+  - id: transit_buses
+    order: 4
+    label_en: Transit Buses
+
+- id: vehicle_class
+  label_en: Vehicle class
+  categories:
+  - id: freight_and_service_vehicles
+    order: 2
+    label_en: Freight and service vehicles
+  - id: passenger_vehicles
+    order: 1
+    label_en: Passenger vehicles
+  - id: transit_vehicles
+    order: 3
+    label_en: Transit vehicles
+
+- id: equipment_sector
+  label_en: Off-road equipment sector
+  categories:
+  - id: agriculture
+    label_en: Agriculture
+  - id: airport_support
+    label_en: Airport support
+    aliases: [Airport Support]
+  - id: commercial
+    label_en: Commercial
+  - id: construction
+    label_en: Construction
+  - id: industrial
+    label_en: Industrial
+  - id: lawn_and_garden
+    label_en: Lawn and garden
+    aliases: [Lawn/Garden]
+  - id: logging
+    label_en: Logging
+  - id: oil_field
+    label_en: Oil field
+    aliases: [Oil Field]
+  - id: pleasure_craft
+    label_en: Pleasure craft
+    aliases: [Pleasure Craft]
+  - id: railroad
+    label_en: Railroad
+  - id: recreational
+    label_en: Recreational
+
+- id: airport
+  label_en: Airport
+  categories:
+  - id: auburn_municipal
+    label_en: Auburn Municipal Airport
+  - id: bandera_creek
+    label_en: Bandera Creek Airport
+  - id: boeing_field
+    label_en: King County International Airport / Boeing Field
+    aliases: [King County International Airport/Boeing Field]
+  - id: seatac
+    label_en: Seattle–Tacoma International Airport
+    aliases: [SeaTac_King County]
+  - id: skykomish_state
+    label_en: Skykomish State Airport
+  - id: renton_municipal
+    label_en: Renton Municipal / Will Rogers–Wiley Post Memorial
+    aliases: [Will Rogers Wiley Post Memorial SPB/Renton Municipal]
+
+- id: material_type
+  label_en: Material type
+  categories:
+  - id: construction_materials
+    label_en: Construction Materials
+  - id: electronics
+    label_en: Electronics
+  - id: food_waste
+    label_en: Food Waste
+  - id: glass
+    label_en: Glass
+  - id: metals
+    label_en: Metals
+  - id: non_compostable
+    label_en: Non-compostable
+    aliases: [Non-Compostable]
+  - id: other_mixed_materials
+    label_en: Other / mixed materials
+    aliases: [Other/Mixed Materials]
+  - id: paper
+    label_en: Paper
+  - id: plastics
+    label_en: Plastics
+  - id: yard_trimmings
+    label_en: Yard Trimmings
+
+- id: waste_treatment
+  label_en: Waste treatment
+  categories:
+  - id: compost
+    order: 2
+    label_en: Compost
+  - id: landfill
+    order: 1
+    label_en: Landfill
+
+- id: livestock
+  label_en: Livestock
+  categories:
+  - id: beef_cows
+    label_en: Beef cows
+  - id: broilers
+    label_en: Broilers
+  - id: dairy_cows
+    label_en: Dairy cows
+  - id: goats
+    label_en: Goats
+  - id: horses
+    label_en: Horses
+  - id: layers
+    label_en: Layers
+  - id: sheep
+    label_en: Sheep
+  - id: swine
+    label_en: Swine
+  - id: turkeys
+    label_en: Turkeys
+
+- id: emission_process
+  label_en: Emission process
+  categories:
+  - id: enteric_fermentation
+    label_en: Enteric fermentation
+  - id: ferries
+    label_en: Ferries
+  - id: rail
+    label_en: Freight and passenger rail
+  - id: manure_management
+    label_en: Manure management
+  - id: maritime_ogv
+    label_en: Maritime ocean-going vessels
+    aliases: [Maritime OGV]
+  - id: soil_management
+    label_en: Soil management
+
+- id: building_size
+  label_en: Building size
+  categories:
+  - id: over_20000_sqft
+    order: 2
+    label_en: Over 20,000 sq ft
+    aliases: ['> 20,000 sq ft']
+  - id: over_220000_sqft
+    order: 5
+    label_en: Over 220,000 sq ft
+    aliases: ['> 220,000 sq ft']
+  - id: over_50000_sqft
+    order: 3
+    label_en: Over 50,000 sq ft
+    aliases: ['> 50,000 sq ft']
+  - id: over_90000_sqft
+    order: 4
+    label_en: Over 90,000 sq ft
+    aliases: ['> 90,000 sq ft']
+  - id: up_to_20000_sqft
+    order: 1
+    label_en: 20,000 sq ft or less
+    aliases: ['≤ 20,000 sq ft']
+
+- id: action
+  label_en: Action
+  categories:
+  - id: advanced_clean_fleets
+    label_en: Advanced Clean Fleets
+  - id: aviation_industry
+    label_en: Aviation industry
+  - id: circular_economy_salvaged_lumber_and_reuse
+    label_en: Circular Economy Salvaged Lumber and Reuse
+  - id: decarbonize_aviation_fuels
+    label_en: Decarbonize aviation fuels
+  - id: decarbonize_offroad_equipment
+    label_en: Decarbonize offroad equipment
+  - id: divert_materials
+    label_en: Divert materials (including C&D)
+    aliases: [Divert materials (includes C&D)]
+  - id: electrify_existing_buildings
+    label_en: Electrify existing buildings
+  - id: electrify_freight_and_service_vehicles
+    label_en: Electrify freight and service vehicles
+    aliases: [Electrify freight/service vehicles]
+  - id: electrify_new_buildings
+    label_en: Electrify new buildings
+  - id: electrify_passenger_vehicles
+    label_en: Electrify passenger vehicles
+  - id: electrify_transit_vehicles
+    label_en: Electrify transit vehicles
+  - id: federal_vehicle_regulations_on_road_vehicles
+    label_en: Federal Vehicle Regulations - On-Road Vehicles
+  - id: funded_existing_building_retrofits
+    label_en: Funded existing building retrofits
+  - id: improve_soil_management
+    label_en: Improve soil management
+  - id: increase_local_solar
+    label_en: Increase local solar
+  - id: reduce_wastewater_methane_gas
+    label_en: Reduce Wastewater Methane Gas
+  - id: reduce_air_travel
+    label_en: Reduce air travel
+  - id: reduce_energy_use_in_existing_buildings
+    label_en: Reduce energy use in existing buildings
+  - id: reduce_industrial_emissions
+    label_en: Reduce industrial emissions
+  - id: reduce_passenger_vehicle_travel
+    label_en: Reduce passenger vehicle travel
+  - id: reduce_tree_loss
+    label_en: Reduce tree loss
+  - id: regional_marine_rail_and_ferry
+    label_en: Regional marine, rail and ferry transport
+    aliases: ['Regional marine, rail, and ferry transport']
+  - id: residential_point_of_sale
+    label_en: Residential point of sale
+  - id: seattle_benchmark_performance_standards
+    label_en: Seattle Benchmark Performance Standards
+  - id: vision_2050_scenario_1
+    label_en: Vision 2050 - Scenario 1
+  - id: vision_2050_scenario_2
+    label_en: Vision 2050 - Scenario 2
+  - id: vision_2050_scenario_3
+    label_en: Vision 2050 - Scenario 3
+  - id: wa_clean_buildings_act
+    label_en: WA Clean Buildings Act
+  - id: wa_clean_energy_transformation_act
+    label_en: WA Clean Energy Transformation Act
+  - id: wa_clean_fuel_standards_on_road_vehicles
+    label_en: WA Clean Fuel Standards - On-Road Vehicles
+  - id: wa_clean_fuel_standards_other_transportation
+    label_en: WA Clean Fuel Standards - Other Transportation
+  - id: wa_climate_commitment_act_built_environment
+    label_en: WA Climate Commitment Act - Built Environment
+  - id: wa_climate_commitment_act_industrial
+    label_en: WA Climate Commitment Act - Industrial
+  - id: wa_climate_commitment_act_on_road_vehicles
+    label_en: WA Climate Commitment Act - On-Road Vehicles
+  - id: wa_climate_commitment_act_other_transportation
+    label_en: WA Climate Commitment Act - Other Transportation
+  - id: wa_energy_code
+    label_en: WA Energy Code
+  - id: wa_hydrofluorocarbon_policies
+    label_en: WA Hydrofluorocarbon Policies
+  - id: wa_organics_management_law
+    label_en: WA Organics Management Law (HB 1799 and HB 2301)
+    aliases: [WA Organics Management Law (HB1799 and HB2301)]
+  - id: wa_zero_emission_vehicle_standards
+    label_en: WA Zero Emission Vehicle Standards
+  - id: zero_emission_appliance_standard
+    label_en: Zero-emission appliance standard
+    aliases: [Zero-Emission Applicance Standard]
+
+- id: policy_level
+  label_en: Policy level
+  categories:
+  - id: kc_scap
+    order: 3
+    label_en: King County SCAP
+    aliases: [KC SCAP]
+  - id: local_partner
+    order: 4
+    label_en: Local partner
+  - id: state_federal
+    order: 1
+    label_en: State / federal
+    aliases: [State/federal]
+  - id: state_federal_local
+    order: 2
+    label_en: State / federal with local implementation
+    aliases: [State/federal - local]
+
+- id: projection
+  label_en: Projection
+  categories:
+  - id: federal_and_state_action
+    order: 3
+    label_en: Federal and state action only
+  - id: historical
+    order: 1
+    label_en: Historical
+  - id: no_action
+    order: 2
+    label_en: No action
+
+# ---------------------------------------------------------------------------
+# Nodes
+#
+# The graph follows the workbooks' arithmetic but as an explicit causal chain:
+# an activity node and an emission-factor node multiply into an emission node,
+# so an action can act on either side. Where the inventory reports emissions
+# with no activity basis (refrigerants, off-road equipment, industrial process,
+# marine and rail, wastewater, tree sequestration -- about 13% of gross) the
+# emission node reads the reported series directly; only an emissions-level
+# action can act on those.
+#
+# Units are the inventory's own throughout (kWh, therms, US gallons, VMT, US
+# short tons, acres, metric tonnes CO2e); see data/king_county/README.md §4.
+# ---------------------------------------------------------------------------
+nodes:
+
+# --- Growth drivers ---------------------------------------------------------
+# The no-action projection is each activity's latest observed value times its
+# driver's growth since that year. `ratio_to_max_hist_year` is exactly that ratio:
+# it returns 1.0 for every year up to maximum_historical_year (2023), so attaching a
+# driver leaves the inventory untouched and only shapes the forecast.
+#
+# Almost everything grows with service population. Building energy is the exception:
+# residential demand follows population and commercial and industrial demand follow
+# employment, so its driver varies by consumer sector *within* a node. A
+# `to_dimensions` edge can assign only one category, so that assignment cannot be
+# written here -- it is resolved per sector and carrier in the Growth drivers
+# dataset, read out of the workbook's own Growth Factor column.
+#
+# Drivers are only attached where the workbook tags one. Tree loss, industrial
+# process, agriculture and tree sequestration carry no tag and are held flat, which
+# is what the published no-action series does.
+- id: service_population
+  name: Service population
+  description: Population plus employment. The growth driver the county's 
+    forecast uses for transport, waste, aviation, refrigerants and everything 
+    else outside building energy, and the basis of the 2007 back-cast.
+  type: generic.GenericNode
+  quantity: population
+  unit: pcs
+  input_datasets:
+  - id: king-county/growth_factors
+    column: service_population
+    forecast_from: 2024
+
+- id: electricity_growth_driver
+  name: Electricity demand growth driver
+  description: Population for residential demand, employment for commercial and 
+    industrial.
+  type: generic.GenericNode
+  quantity: population
+  unit: pcs
+  input_dimensions: [consumer_sector]
+  output_dimensions: [consumer_sector]
+  input_datasets:
+  - id: king-county/growth_drivers
+    column: activity_growth_driver
+    filters:
+    - dimension: energy_carrier
+      categories: [electricity]
+      flatten: true
+    forecast_from: 2024
+
+- id: natural_gas_growth_driver
+  name: Natural gas demand growth driver
+  description: Population for residential demand, employment for commercial and 
+    industrial.
+  type: generic.GenericNode
+  quantity: population
+  unit: pcs
+  input_dimensions: [consumer_sector]
+  output_dimensions: [consumer_sector]
+  input_datasets:
+  - id: king-county/growth_drivers
+    column: activity_growth_driver
+    filters:
+    - dimension: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+    forecast_from: 2024
+
+- id: other_fuel_growth_driver
+  name: Fuel oil and propane demand growth driver
+  description: Fuel oil follows population for residential and employment for 
+    commercial demand. Propane follows population in every sector -- the 
+    workbook's activity rows say population while its emission rows say 
+    employment, and it is the activity rows that get projected. See finding F16.
+  type: generic.GenericNode
+  quantity: population
+  unit: pcs
+  input_dimensions: [consumer_sector, energy_carrier]
+  output_dimensions: [consumer_sector, energy_carrier]
+  input_datasets:
+  - id: king-county/growth_drivers
+    column: activity_growth_driver
+    filters:
+    - dimension: energy_carrier
+      categories: [fuel_oil, propane]
+    forecast_from: 2024
+
+# --- Built environment: electricity ----------------------------------------
+- id: electricity_consumption
+  name: Electricity consumption
+  type: generic.GenericNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [utility, consumer_sector]
+  output_dimensions: [utility, consumer_sector]
+  input_datasets:
+  - id: king-county/electricity_consumption
+    column: electricity_consumption
+    # The dataset carries a single-valued energy_carrier column; the node is
+    # already electricity-specific, so it is dropped rather than modelled.
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: electricity_growth_driver
+    tags: [ratio_to_max_hist_year]
+    to_dimensions:
+    - id: consumer_sector
+
+- id: electricity_emission_factor
+  name: Electricity emission factor
+  description: Utility-specific grid factor. Puget Sound Energy Green Program 
+    carries a zero factor while Green Power carries the full grid factor; see 
+    finding F3.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/kWh
+  input_dimensions: [utility]
+  output_dimensions: [utility]
+  input_datasets:
+  - id: king-county/emission_factors
+    column: electricity_emission_factor
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: electricity_emissions
+  name: Electricity emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [utility, consumer_sector]
+  output_dimensions: [utility, consumer_sector]
+  input_nodes:
+  - id: electricity_consumption
+  - id: electricity_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: built_environment_emissions
+    from_dimensions:
+    - id: utility
+      flatten: true
+    - id: consumer_sector
+      flatten: true
+
+# --- Built environment: natural gas ----------------------------------------
+- id: natural_gas_consumption
+  name: Natural gas consumption
+  type: generic.GenericNode
+  quantity: energy
+  unit: therm/a
+  input_dimensions: [consumer_sector]
+  output_dimensions: [consumer_sector]
+  input_datasets:
+  - id: king-county/natural_gas_consumption
+    column: delivered_natural_gas
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+    - dimension: utility
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: natural_gas_growth_driver
+    tags: [ratio_to_max_hist_year]
+    to_dimensions:
+    - id: consumer_sector
+
+- id: natural_gas_emission_factor
+  name: Natural gas emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/therm
+  input_datasets:
+  - id: king-county/emission_factors
+    column: natural_gas_emission_factor
+    filters:
+    - dimension: utility
+      categories: [puget_sound_energy]
+      flatten: true
+    - dimension: energy_carrier
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: natural_gas_emissions
+  name: Natural gas combustion emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [consumer_sector]
+  output_dimensions: [consumer_sector]
+  input_nodes:
+  - id: natural_gas_consumption
+  - id: natural_gas_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: built_environment_emissions
+    from_dimensions:
+    - id: consumer_sector
+      flatten: true
+
+- id: natural_gas_td_losses
+  name: Natural gas transmission and distribution losses
+  description: The same therms as delivered gas; the inventory applies a second 
+    factor to them for leakage. See finding F2 on which factor that is.
+  type: generic.GenericNode
+  quantity: energy
+  unit: therm/a
+  input_dimensions: [consumer_sector]
+  output_dimensions: [consumer_sector]
+  input_datasets:
+  - id: king-county/natural_gas_consumption
+    column: natural_gas_td_losses
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+    - dimension: utility
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  # Service population, not the sector-specific driver that delivered gas uses:
+  # the workbook tags the T&D row that way even though the therms are the same.
+  - id: service_population
+    tags: [ratio_to_max_hist_year]
+    to_dimensions: []
+
+- id: natural_gas_td_emission_factor
+  name: Natural gas T&D emission factor
+  description: The factor the inventory actually applied, derived from reported 
+    emissions and therms. The forecast sheet tabulates a different value (F2).
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/therm
+  input_datasets:
+  - id: king-county/emission_factors
+    column: natural_gas_td_emission_factor_derived
+    filters:
+    - dimension: utility
+      categories: [puget_sound_energy]
+      flatten: true
+    - dimension: energy_carrier
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: natural_gas_td_emissions
+  name: Natural gas T&D emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [consumer_sector]
+  output_dimensions: [consumer_sector]
+  input_nodes:
+  - id: natural_gas_td_losses
+  - id: natural_gas_td_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: built_environment_emissions
+    from_dimensions:
+    - id: consumer_sector
+      flatten: true
+
+# --- Built environment: fuel oil and propane -------------------------------
+- id: other_fuel_consumption
+  name: Fuel oil and propane consumption
+  type: generic.GenericNode
+  quantity: fuel_consumption
+  unit: gal/a
+  input_dimensions: [consumer_sector, energy_carrier]
+  output_dimensions: [consumer_sector, energy_carrier]
+  input_datasets:
+  - id: king-county/other_fuel_consumption
+    column: fuel_consumption
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: other_fuel_growth_driver
+    tags: [ratio_to_max_hist_year]
+    to_dimensions:
+    - id: consumer_sector
+    - id: energy_carrier
+
+- id: liquid_fuel_emission_factor
+  name: Liquid fuel emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/gal
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: king-county/emission_factors
+    column: liquid_fuel_emission_factor
+    filters:
+    - dimension: utility
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: other_fuel_emissions
+  name: Fuel oil and propane emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [consumer_sector, energy_carrier]
+  output_dimensions: [consumer_sector, energy_carrier]
+  input_nodes:
+  - id: other_fuel_consumption
+  - id: liquid_fuel_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: built_environment_emissions
+    from_dimensions:
+    - id: consumer_sector
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: industrial_process_emissions
+  name: Industrial process emissions
+  description: Reported facility emissions from EPA FLIGHT. No activity basis, 
+    so only an emissions-level action can act on this.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_datasets:
+  - id: king-county/emissions_without_activity_basis
+    column: emissions
+    filters:
+    - dimension: emission_source
+      categories: [industrial_processes]
+      flatten: true
+    - dimension: sector
+      flatten: true
+    - dimension: energy_carrier
+      flatten: true
+    - dimension: equipment_sector
+      flatten: true
+    - dimension: emission_process
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [built_environment_emissions]
+
+# --- Transportation: on-road vehicles --------------------------------------
+# Causal chain: vehicle-miles x fuel intensity = fuel, fuel x factor = emissions.
+# Fuel intensity is the reciprocal of the implied per-vehicle-type fuel economy;
+# the workbook's own class-level economy does not reconcile at type level (F10).
+- id: vehicle_mileage
+  name: Vehicle mileage
+  description: >
+    Vehicle-miles by vehicle type and fuel. <b>The 2020 values are unreliable at
+    vehicle-type level</b> (finding F11). That year's inventory reports three
+    vehicle-type/fuel combinations twice, drops heavy-duty diesel to 45,221 t_co2e
+    against 790,100 in 2023 while labelling it a passenger vehicle, and adds a
+    heavy-duty gasoline line of 372,923,653 VMT that every other year reports as
+    zero. The 2020 <i>total</i> is sound - the rows sum to 5,152,133 t_co2e against
+    the published 5,152,108 - so nothing is missing or double-counted overall; only
+    the attribution within the year is wrong. It looks like an un-collapsed pivot
+    or a bad join in that year's processing. The heavy-duty gasoline series is kept
+    where the inventory puts it, but the dataset writes an explicit zero for 2022
+    and
+    2023 - which is what the inventory reports in every year from 2008 to 2019 - so
+    that the 2020 value is not carried forward as the current fleet. Without that
+    it
+    put about 270,000 t_co2e into 2023 and every forecast year.
+  type: generic.GenericNode
+  quantity: vehicle_mileage
+  unit: VMT/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  input_datasets:
+  - id: king-county/on_road_vehicles
+    column: vehicle_mileage
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: service_population
+    tags: [ratio_to_max_hist_year]
+    to_dimensions: []
+
+- id: vehicle_fuel_economy
+  name: Vehicle fuel economy
+  description: Fuel economy implied by the inventory, per vehicle type. The 
+    workbook's own class-level figures do not reconcile at vehicle-type level; 
+    see finding F10.
+  type: generic.GenericNode
+  quantity: factor
+  unit: VMT/gal
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  input_datasets:
+  - id: king-county/fuel_economy
+    column: fuel_economy_implied
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: vehicle_fuel_consumption
+  name: Vehicle fuel consumption
+  type: formula.FormulaNode
+  quantity: fuel_consumption
+  unit: gal/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  params:
+    formula: vehicle_mileage / vehicle_fuel_economy
+  input_nodes:
+  - id: vehicle_mileage
+  - id: vehicle_fuel_economy
+
+- id: vehicle_fuel_emission_factor
+  name: Vehicle fuel emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/gal
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: king-county/emission_factors
+    column: vehicle_fuel_emission_factor
+    filters:
+    - dimension: utility
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: on_road_emissions
+  name: On-road vehicle emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  input_nodes:
+  - id: vehicle_fuel_consumption
+  - id: vehicle_fuel_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_class
+      flatten: true
+
+# --- Transportation: battery-electric on-road vehicles ---------------------
+# Separate from the liquid-fuel chain: activity converts to kWh, not gallons,
+# so it needs its own fuel-economy metric and the grid factor.
+- id: electric_vehicle_fuel_economy
+  name: Electric vehicle fuel economy
+  type: generic.GenericNode
+  quantity: factor
+  unit: VMT/kWh
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  input_datasets:
+  - id: king-county/fuel_economy
+    column: electric_fuel_economy_implied
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: electric_vehicle_electricity_consumption
+  name: Electric vehicle electricity consumption
+  type: formula.FormulaNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  params:
+    formula: vehicle_mileage / electric_vehicle_fuel_economy
+  input_nodes:
+  - id: vehicle_mileage
+  - id: electric_vehicle_fuel_economy
+
+- id: vehicle_electricity_emission_factor
+  name: Vehicle electricity emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/kWh
+  input_datasets:
+  - id: king-county/emission_factors
+    column: vehicle_electricity_emission_factor
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+    - dimension: utility
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: electric_vehicle_emissions
+  name: Electric vehicle emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  input_nodes:
+  - id: electric_vehicle_electricity_consumption
+  - id: vehicle_electricity_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_class
+      flatten: true
+
+# --- Transportation: transit vehicles --------------------------------------
+# Transit activity is reported as fuel, not mileage, so it bypasses fuel
+# economy entirely (the workbook's transit "mpg" of ~1.0 is a pass-through).
+- id: transit_fuel_consumption
+  name: Transit fuel consumption
+  type: generic.GenericNode
+  quantity: fuel_consumption
+  unit: gal/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  input_datasets:
+  - id: king-county/on_road_vehicles
+    column: fuel_consumption
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: service_population
+    tags: [ratio_to_max_hist_year]
+    to_dimensions: []
+
+- id: transit_fuel_emissions
+  name: Transit fuel emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  input_nodes:
+  - id: transit_fuel_consumption
+  - id: transit_fuel_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_class
+      flatten: true
+
+- id: transit_fuel_emission_factor
+  name: Transit fuel emission factor
+  description: The factors the inventory actually applied to transit fuel, 
+    derived from reported emissions and gallons. They are not the published 
+    vehicle fuel factors for the same carriers - transit diesel is charged 
+    0.010219 t_co2e/gal against a published 0.010887, transit gasoline 0.008780 
+    against 0.009132, and renewable diesel has no published factor at all. Those
+    three account for the whole 5,699 t_co2e by which the published factors 
+    overstate the 2023 transit total; this is the residual finding F10 
+    identifies.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/gal
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: king-county/emission_factors
+    column: transit_fuel_emission_factor_derived
+    filters:
+    - dimension: utility
+      flatten: true
+    - dimension: vehicle_class
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transit_electricity_consumption
+  name: Transit electricity consumption
+  type: generic.GenericNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  input_datasets:
+  - id: king-county/on_road_vehicles
+    column: electricity_consumption
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: service_population
+    tags: [ratio_to_max_hist_year]
+    to_dimensions: []
+
+- id: transit_electricity_emission_factor
+  name: Transit electricity emission factor
+  description: The factor the inventory actually applied to trolleybus and 
+    battery-bus electricity, derived from reported emissions and kWh. It is 7/6 
+    of the tabulated vehicle electricity factor, which does reproduce 
+    passenger-EV emissions exactly - so the two vehicle classes are charged 
+    different grid factors. See finding F12.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/kWh
+  input_datasets:
+  - id: king-county/emission_factors
+    column: transit_electricity_emission_factor_derived
+    filters:
+    - dimension: energy_carrier
+      flatten: true
+    - dimension: utility
+      flatten: true
+    - dimension: vehicle_class
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transit_electricity_emissions
+  name: Transit electricity emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  input_nodes:
+  - id: transit_electricity_consumption
+  - id: transit_electricity_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_class
+      flatten: true
+
+# --- Transportation: aviation ----------------------------------------------
+- id: aviation_fuel_consumption
+  name: Aviation fuel consumption
+  type: generic.GenericNode
+  quantity: fuel_consumption
+  unit: gal/a
+  input_dimensions: [energy_carrier, airport]
+  output_dimensions: [energy_carrier, airport]
+  input_datasets:
+  - id: king-county/aviation_fuel_consumption
+    column: fuel_consumption
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: service_population
+    tags: [ratio_to_max_hist_year]
+    to_dimensions: []
+
+- id: aviation_fuel_emission_factor
+  name: Aviation fuel emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/gal
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: king-county/emission_factors
+    column: aviation_fuel_emission_factor
+    filters:
+    - dimension: utility
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_emissions
+  name: Aviation emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [energy_carrier, airport]
+  output_dimensions: [energy_carrier, airport]
+  input_nodes:
+  - id: aviation_fuel_consumption
+  - id: aviation_fuel_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: airport
+      flatten: true
+
+# --- Transportation: off-road and marine (emissions only) ------------------
+- id: off_road_equipment_emissions
+  name: Off-road equipment emissions
+  description: MOVES 4.0 model output. No activity basis in the inventory, so 
+    only an emissions-level action can act on this.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [equipment_sector, energy_carrier]
+  output_dimensions: [equipment_sector, energy_carrier]
+  input_datasets:
+  - id: king-county/emissions_without_activity_basis
+    column: emissions
+    filters:
+    - dimension: emission_source
+      categories: [off_road_equipment]
+      flatten: true
+    - dimension: sector
+      flatten: true
+    - dimension: emission_process
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: service_population
+    tags: [ratio_to_max_hist_year]
+    to_dimensions: []
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: equipment_sector
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: marine_and_rail_emissions
+  name: Marine vessel and rail emissions
+  description: Ocean-going vessels and freight and passenger rail, reported with
+    no activity basis and projected on service population. Ferries are modelled 
+    separately because the workbook holds them flat.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [emission_process]
+  output_dimensions: [emission_process]
+  input_datasets:
+  - id: king-county/emissions_without_activity_basis
+    column: emissions
+    filters:
+    - dimension: emission_source
+      categories: [marine_vessels_and_rail]
+      flatten: true
+    # A dimension filter cannot exclude, only select; a column filter can.
+    - column: emission_process
+      values: [ferries]
+      exclude: true
+      drop_col: false
+    - dimension: sector
+      flatten: true
+    - dimension: energy_carrier
+      flatten: true
+    - dimension: equipment_sector
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: service_population
+    tags: [ratio_to_max_hist_year]
+    to_dimensions: []
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: emission_process
+      flatten: true
+
+- id: ferry_emissions
+  name: Ferry emissions
+  description: Split out from the other marine and rail modes because the wedge 
+    workbook assigns it no growth driver and holds it flat at 41,445 t_co2e 
+    through 2050, while tagging rail and ocean-going vessels with service 
+    population. Whether that is a deliberate assumption about Washington State 
+    Ferries or an omission is worth asking Cascadia; it is reproduced here 
+    either way.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_datasets:
+  - id: king-county/emissions_without_activity_basis
+    column: emissions
+    filters:
+    - dimension: emission_process
+      categories: [ferries]
+      flatten: true
+    - dimension: emission_source
+      categories: [marine_vessels_and_rail]
+      flatten: true
+    - dimension: sector
+      flatten: true
+    - dimension: energy_carrier
+      flatten: true
+    - dimension: equipment_sector
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+# --- Solid waste and wastewater --------------------------------------------
+# One tonnage, four factor applications. The inventory charges the same tonnes
+# landfill methane (or compost fugitive), transport, and stored carbon as a
+# negative, so `waste_disposal` feeds four emission nodes rather than one. Only all
+# four together give the published 421,306 t of gross waste emissions and -319,916 t
+# of disposal sequestration for 2023; a disposal-only chain overstates the gross by
+# a factor of three.
+#
+# The tonnage is summed over consumer sectors in the dataset: the inventory splits
+# it residential/commercial for 2022 and 2023 only, so a sector-resolved series
+# would cover two of eight inventory years and overlap the unsplit one as soon as
+# the latter is carried forward.
+- id: waste_disposal
+  name: Waste disposal
+  description: Short tons landfilled and composted, by material. The same 
+    tonnage carries the disposal, transport and stored-carbon factors.
+  type: generic.GenericNode
+  quantity: mass
+  unit: short_ton/a
+  input_dimensions: [material_type, waste_treatment]
+  output_dimensions: [material_type, waste_treatment]
+  input_datasets:
+  - id: king-county/waste_disposal
+    column: waste_tonnage
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: service_population
+    tags: [ratio_to_max_hist_year]
+    to_dimensions: []
+
+- id: waste_disposal_emission_factor
+  name: Landfill disposal emission factor
+  description: Landfill methane, per material. Glass, metals, electronics and 
+    plastics carry no factor - the inventory assigns them no landfill methane at
+    all, so they drop out of this product rather than contributing zero.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/short_ton
+  input_dimensions: [material_type, waste_treatment]
+  output_dimensions: [material_type, waste_treatment]
+  input_datasets:
+  - id: king-county/waste_emission_factors
+    column: waste_disposal_emission_factor
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: waste_fugitive_emission_factor
+  name: Compost fugitive emission factor
+  description: Fugitive methane and nitrous oxide from composting, per material.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/short_ton
+  input_dimensions: [material_type, waste_treatment]
+  output_dimensions: [material_type, waste_treatment]
+  input_datasets:
+  - id: king-county/waste_emission_factors
+    column: waste_fugitive_emission_factor
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: waste_transport_emission_factor
+  name: Waste transport emission factor
+  description: Hauling emissions per ton, charged on landfilled and composted 
+    tonnage alike and independent of material.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/short_ton
+  input_dimensions: [waste_treatment]
+  output_dimensions: [waste_treatment]
+  input_datasets:
+  - id: king-county/waste_emission_factors
+    column: waste_transport_emission_factor
+    filters:
+    - dimension: material_type
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: waste_sequestration_emission_factor
+  name: Waste stored carbon factor
+  description: Carbon that stays stored in the landfill, and soil carbon built 
+    by applying compost - both negative. Tabulated nowhere in the forecast 
+    workbook, so derived from reported sequestration and tonnes, and held flat 
+    thereafter.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/short_ton
+  input_dimensions: [material_type, waste_treatment]
+  output_dimensions: [material_type, waste_treatment]
+  input_datasets:
+  - id: king-county/waste_emission_factors
+    column: waste_sequestration_emission_factor
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: waste_disposal_emissions
+  name: Landfill disposal emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [material_type, waste_treatment]
+  output_dimensions: [material_type, waste_treatment]
+  input_nodes:
+  - id: waste_disposal
+  - id: waste_disposal_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: solid_waste_emissions
+    from_dimensions:
+    - id: material_type
+      flatten: true
+    - id: waste_treatment
+      flatten: true
+
+- id: waste_fugitive_emissions
+  name: Compost fugitive emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [material_type, waste_treatment]
+  output_dimensions: [material_type, waste_treatment]
+  input_nodes:
+  - id: waste_disposal
+  - id: waste_fugitive_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: solid_waste_emissions
+    from_dimensions:
+    - id: material_type
+      flatten: true
+    - id: waste_treatment
+      flatten: true
+
+- id: waste_transport_emissions
+  name: Waste transport emissions
+  description: The non-compostable fraction of the compost stream is excluded. 
+    It is real tonnage - 16,830 short tons in 2023 - that the inventory charges 
+    nothing at all, and the tabulated compost transport factor is the weighted 
+    average over the other four materials, so charging it that average would add
+    396 t that the inventory does not report. The workbook's own Total compost 
+    tonnage row excludes it too.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [material_type, waste_treatment]
+  output_dimensions: [material_type, waste_treatment]
+  input_nodes:
+  - id: waste_disposal
+    from_dimensions:
+    - id: material_type
+      categories: [non_compostable]
+      exclude: true
+  - id: waste_transport_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: waste_treatment
+  output_nodes:
+  - id: solid_waste_emissions
+    from_dimensions:
+    - id: material_type
+      flatten: true
+    - id: waste_treatment
+      flatten: true
+
+- id: waste_sequestration_emissions
+  name: Waste disposal sequestration
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [material_type, waste_treatment]
+  output_dimensions: [material_type, waste_treatment]
+  input_nodes:
+  - id: waste_disposal
+  - id: waste_sequestration_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: sequestration_emissions
+    from_dimensions:
+    - id: material_type
+      flatten: true
+    - id: waste_treatment
+      flatten: true
+
+- id: wastewater_emissions
+  name: Wastewater process emissions
+  description: Reported by King County wastewater treatment facilities; no 
+    activity basis.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_datasets:
+  - id: king-county/emissions_without_activity_basis
+    column: emissions
+    filters:
+    - dimension: emission_source
+      categories: [wastewater_process_emissions]
+      flatten: true
+    - dimension: sector
+      flatten: true
+    - dimension: energy_carrier
+      flatten: true
+    - dimension: equipment_sector
+      flatten: true
+    - dimension: emission_process
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: service_population
+    tags: [ratio_to_max_hist_year]
+    to_dimensions: []
+  output_nodes: [solid_waste_emissions]
+
+# --- Refrigerants -----------------------------------------------------------
+- id: refrigerant_emissions
+  name: Refrigerant emissions
+  description: EPA national inventory scaled to the county by population; no 
+    activity basis.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_datasets:
+  - id: king-county/emissions_without_activity_basis
+    column: emissions
+    filters:
+    - dimension: emission_source
+      categories: [refrigerants]
+      flatten: true
+    - dimension: sector
+      flatten: true
+    - dimension: energy_carrier
+      flatten: true
+    - dimension: equipment_sector
+      flatten: true
+    - dimension: emission_process
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: service_population
+    tags: [ratio_to_max_hist_year]
+    to_dimensions: []
+  output_nodes: [refrigerant_sector_emissions]
+
+# --- Land use ---------------------------------------------------------------
+- id: tree_cover_loss
+  name: Tree cover loss
+  type: generic.GenericNode
+  quantity: area
+  unit: acre/a
+  input_datasets:
+  - id: king-county/land_use_activity
+    column: tree_cover_loss
+    filters:
+    - dimension: emission_source
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: tree_loss_emission_factor
+  name: Tree loss emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/acre
+  input_datasets:
+  - id: king-county/land_use_emission_factors
+    column: tree_loss_emission_factor
+    filters:
+    - dimension: emission_source
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: tree_loss_emissions
+  name: Tree loss emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_nodes:
+  - id: tree_cover_loss
+  - id: tree_loss_emission_factor
+    tags: [non_additive]
+  output_nodes: [land_use_emissions]
+
+# --- Land use: agriculture --------------------------------------------------
+# Livestock head and managed acres are stocks, not rates, so the per-year sits on
+# the factor: t_co2e/pcs/a and t_co2e/acre/a. The workbook holds both flat across
+# the forecast, so neither carries a growth driver.
+- id: livestock_population
+  name: Livestock population
+  description: Head of livestock, reported for 2022 and 2023 only. The same head
+    count feeds both enteric fermentation and manure management.
+  type: generic.GenericNode
+  quantity: number
+  unit: pcs
+  input_dimensions: [livestock]
+  output_dimensions: [livestock]
+  input_datasets:
+  - id: king-county/agriculture_activity
+    column: livestock_population
+    filters:
+    - dimension: emission_process
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: livestock_emission_factor
+  name: Livestock emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/pcs/a
+  input_dimensions: [livestock, emission_process]
+  output_dimensions: [livestock, emission_process]
+  input_datasets:
+  - id: king-county/agriculture_emission_factors
+    column: livestock_emission_factor
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: livestock_emissions
+  name: Livestock emissions
+  description: Enteric fermentation and manure management. Poultry carry no 
+    enteric factor, which is a real zero rather than missing data.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [livestock, emission_process]
+  output_dimensions: [livestock, emission_process]
+  input_nodes:
+  - id: livestock_population
+    to_dimensions:
+    - id: livestock
+  - id: livestock_emission_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: land_use_emissions
+    from_dimensions:
+    - id: livestock
+      flatten: true
+    - id: emission_process
+      flatten: true
+
+- id: managed_soil_area
+  name: Managed soil area
+  description: >
+    Acres under agricultural soil management. <b>The series stops at 2022</b>: the
+    2023 row's activity cell holds 2022's emissions figure (10,207.79) rather than
+    an
+    area, appearing as both the activity and the emissions value and implying a
+    factor of exactly 1.000 t_co2e/acre where the workbook tabulates 0.5324876. 2022
+    is 19,170 acres x 0.5324877 = 10,207.79 t, the value that was copied. Holding
+    2022 forward therefore reproduces King County's published 2023 agriculture total
+    - which is itself carrying 2022's soil emissions. See finding F13.
+  type: generic.GenericNode
+  quantity: area
+  unit: acre
+  input_datasets:
+  - id: king-county/agriculture_activity
+    column: managed_soil_area
+    filters:
+    - dimension: emission_process
+      flatten: true
+    - dimension: livestock
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: soil_management_emission_factor
+  name: Soil management emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/acre/a
+  input_datasets:
+  - id: king-county/agriculture_emission_factors
+    column: soil_management_emission_factor
+    filters:
+    - dimension: emission_process
+      categories: [soil_management]
+      flatten: true
+    - dimension: livestock
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+
+- id: soil_management_emissions
+  name: Soil management emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_nodes:
+  - id: managed_soil_area
+  - id: soil_management_emission_factor
+    tags: [non_additive]
+  output_nodes: [land_use_emissions]
+
+# --- Sequestration ----------------------------------------------------------
+# Waste disposal sequestration is built from tonnage above. Tree sequestration has
+# no activity basis at all, so only an emissions-level action can act on it.
+- id: tree_sequestration
+  name: Tree sequestration
+  description: >
+    Carbon sequestered by the county's tree canopy, reported as emissions with no
+    activity basis. Held flat across the forecast, which is what the wedge
+    workbook's Total Sequestration and Tree Sequestration summary rows do - though
+    its detail row one line below them instead drops to zero from 2024 on. Neither
+    figure enters the published no-action total, which is gross of sequestration,
+    so
+    the disagreement is invisible in the headline numbers; but the two rows say
+    different things about whether the county keeps its 5.2 Mt/a. See finding F15.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_datasets:
+  - id: king-county/emissions_without_activity_basis
+    column: emissions
+    filters:
+    - dimension: emission_source
+      categories: [tree_sequestration]
+      flatten: true
+    - dimension: sector
+      flatten: true
+    - dimension: energy_carrier
+      flatten: true
+    - dimension: equipment_sector
+      flatten: true
+    - dimension: emission_process
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [sequestration_emissions]
+
+# ---------------------------------------------------------------------------
+# Actions: the 25 SCAP policy wedges
+#
+# Each wedge is a published annual reduction series for 2024-2050, subtracted from
+# the sector it acts on (multiplier -1; the extractor writes an explicit zero at
+# 2023 so every action has a defined baseline in the year the forecast branches).
+#
+# These are reduction curves, not mechanisms. Toggling "WA Zero Emission Vehicle
+# Standards" subtracts a fixed series; it does not shift the fleet's fuel mix, and
+# the wedges do not interact -- switching two on subtracts both in full even where
+# they act on the same emissions. That is the deliberate first step agreed for this
+# model, not the endpoint: it reproduces the county's published numbers exactly and
+# makes the whole policy set visible, and the wedges that deserve real mechanisms can
+# then be rebuilt from the 'Built Env' and 'Transp' calculation sheets.
+#
+# The reductions are NOT summed with the 'SCAP measure reductions' dataset, which
+# re-cuts the same abatement by measure rather than by policy and disagrees with it
+# (finding F7).
+# ---------------------------------------------------------------------------
+actions:
+
+- id: wa_clean_energy_transformation_act
+  name: WA Clean Energy Transformation Act
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_clean_energy_transformation_act]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [built_environment_emissions]
+
+- id: wa_energy_code
+  name: WA Energy Code
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_energy_code]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [built_environment_emissions]
+
+- id: wa_clean_buildings_act
+  name: WA Clean Buildings Act
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal_local
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_clean_buildings_act]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [built_environment_emissions]
+
+- id: seattle_benchmark_performance_standards
+  name: Seattle Benchmark Performance Standards
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal_local
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [seattle_benchmark_performance_standards]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [built_environment_emissions]
+
+- id: wa_climate_commitment_act_built_environment
+  name: WA Climate Commitment Act - Built Environment
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal_local
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_climate_commitment_act_built_environment]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [built_environment_emissions]
+
+- id: funded_existing_building_retrofits
+  name: Funded existing building retrofits
+  description: >
+    Zero in every year of the saved workbook state. This is one of the county's own
+    levers, so the zero is either a toggle left off or a wedge not yet quantified;
+    see
+    finding F6.
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: kc_scap
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [funded_existing_building_retrofits]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [built_environment_emissions]
+
+- id: federal_vehicle_regulations_on_road_vehicles
+  name: Federal Vehicle Regulations - On-Road Vehicles
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [federal_vehicle_regulations_on_road_vehicles]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: wa_clean_fuel_standards_on_road_vehicles
+  name: WA Clean Fuel Standards - On-Road Vehicles
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal_local
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_clean_fuel_standards_on_road_vehicles]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: wa_zero_emission_vehicle_standards
+  name: WA Zero Emission Vehicle Standards
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_zero_emission_vehicle_standards]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: wa_climate_commitment_act_on_road_vehicles
+  name: WA Climate Commitment Act - On-Road Vehicles
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal_local
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_climate_commitment_act_on_road_vehicles]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: vision_2050_scenario_1
+  name: Vision 2050 - Scenario 1
+  description: >
+    Tagged as a King County SCAP measure, but the workbook counts it inside the "federal
+    and state action only" scenario: rows 9-23 sum to exactly the gap between the
+    no-
+    action and federal-and-state trajectories, and this is one of them. See finding
+    F18.
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: kc_scap
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [vision_2050_scenario_1]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: wa_clean_fuel_standards_other_transportation
+  name: WA Clean Fuel Standards - Other Transportation
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal_local
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_clean_fuel_standards_other_transportation]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: wa_climate_commitment_act_other_transportation
+  name: WA Climate Commitment Act - Other Transportation
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal_local
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_climate_commitment_act_other_transportation]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: wa_hydrofluorocarbon_policies
+  name: WA Hydrofluorocarbon Policies
+  description: >
+    Acts on refrigerants, which the inventory reports as its own sector with no activity
+    basis, so this attaches directly to net emissions.
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_hydrofluorocarbon_policies]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [refrigerant_sector_emissions]
+
+- id: wa_climate_commitment_act_industrial
+  name: WA Climate Commitment Act - Industrial
+  description: >
+    Acts on industrial process emissions, which the inventory groups under the built
+    environment.
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: state_federal
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_climate_commitment_act_industrial]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [built_environment_emissions]
+
+- id: aviation_industry
+  name: Aviation industry
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: local_partner
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [aviation_industry]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: regional_marine_rail_and_ferry
+  name: Regional marine, rail and ferry transport
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: local_partner
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [regional_marine_rail_and_ferry]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: zero_emission_appliance_standard
+  name: Zero-emission appliance standard
+  description: >
+    Zero in every year of the saved workbook state (F6).
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: kc_scap
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [zero_emission_appliance_standard]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [built_environment_emissions]
+
+- id: residential_point_of_sale
+  name: Residential point of sale
+  description: >
+    Zero in every year of the saved workbook state (F6).
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: kc_scap
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [residential_point_of_sale]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [built_environment_emissions]
+
+- id: vision_2050_scenario_2
+  name: Vision 2050 - Scenario 2
+  description: >
+    Zero in every year of the saved workbook state. Scenarios 1, 2 and 3 are alternative
+    land-use futures, so they are not meant to be additive - only scenario 1 is
+    populated (F6).
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: kc_scap
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [vision_2050_scenario_2]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: vision_2050_scenario_3
+  name: Vision 2050 - Scenario 3
+  description: >
+    Zero in every year of the saved workbook state. Alternative to scenario 1, not
+    additive with it (F6).
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: kc_scap
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [vision_2050_scenario_3]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: advanced_clean_fleets
+  name: Advanced Clean Fleets
+  description: >
+    The only wedge that turns negative: -306,209 t_co2e at 2040 and -695,385 at 2050,
+    so
+    switching it on increases emissions in those years. The workbook does not explain
+    the sign. Finding F7 notes that the SCAP measure re-cut gives "Electrify
+    freight/service vehicles" +849 kt at 2050 against this row's -695 kt.
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: kc_scap
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [advanced_clean_fleets]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [transportation_emissions]
+
+- id: circular_economy_salvaged_lumber_and_reuse
+  name: Circular Economy Salvaged Lumber and Reuse
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: kc_scap
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [circular_economy_salvaged_lumber_and_reuse]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [solid_waste_emissions]
+
+- id: wa_organics_management_law
+  name: WA Organics Management Law (HB 1799 and HB 2301)
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: kc_scap
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [wa_organics_management_law]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [solid_waste_emissions]
+
+- id: reduce_wastewater_methane_gas
+  name: Reduce Wastewater Methane Gas
+  type: simple.GenericAction
+  quantity: emissions
+  unit: Mt_co2e/a
+  group: kc_scap
+  params:
+  - id: multiplier
+    value: -1
+    unit: dimensionless
+  input_datasets:
+  - id: king-county/wedge_emission_reductions
+    column: emission_reduction
+    filters:
+    - dimension: action
+      categories: [reduce_wastewater_methane_gas]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes: [solid_waste_emissions]
+

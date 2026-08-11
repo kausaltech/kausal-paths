@@ -15,9 +15,9 @@ from nodes.actions.parent import ParentActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceModelSpec, NormalizationSpec, YearsSpec
-from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, SimpleConfig
+from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
-from nodes.models import NodeKindChoices
+from nodes.defs.transform_def import FilterColumnOp, forecast_from_transformations
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
 from nodes.units import unit_registry
 
@@ -64,7 +64,6 @@ def _make_node_spec(**overrides: Any) -> NodeSpec:
     """Create a NodeSpec with a real node_class so InstanceLoader can hydrate it."""
     unit = unit_registry.parse_units('kt/a')
     defaults: dict[str, Any] = {
-        'kind': NodeKind.SIMPLE,
         'type_config': SimpleConfig(node_class=SIMPLE_NODE_CLASS),
         'output_ports': [OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
     }
@@ -109,26 +108,36 @@ def db_instance_config() -> InstanceConfig:
     )
 
 
-def _register_dimensions(ic: InstanceConfig, dim_ids: list[str]) -> None:
+def _register_dimensions(ic: InstanceConfig, dim_ids: list[str], categories: dict[str, list[str]] | None = None) -> None:
     """
     Populate both spec.dimensions and the ORM Dimension/DimensionScope rows.
 
     The DB-sourced config loader validates that every dimension referenced
-    by InstanceSpec.dimensions exists in the ORM, so tests that assign
-    spec.dimensions must create the matching Dimension rows too.
+    by InstanceSpec.dimensions exists in the ORM (categories included), so
+    tests that assign spec.dimensions must create the matching rows too.
     """
     from django.contrib.contenttypes.models import ContentType
 
-    from kausal_common.datasets.models import Dimension, DimensionScope
+    from kausal_common.datasets.models import Dimension, DimensionCategory, DimensionScope
 
+    categories = categories or {}
     assert ic.spec is not None
-    ic.spec.dimensions = [{'id': dim_id, 'label': dim_id.replace('_', ' ').title(), 'categories': []} for dim_id in dim_ids]
+    ic.spec.dimensions = [
+        {
+            'id': dim_id,
+            'label': dim_id.replace('_', ' ').title(),
+            'categories': [{'id': cat_id, 'label': cat_id.title()} for cat_id in categories.get(dim_id, [])],
+        }
+        for dim_id in dim_ids
+    ]
     ic.save(update_fields=['spec'])
 
     ct = ContentType.objects.get_for_model(ic)
     for dim_id in dim_ids:
         dim = Dimension.objects.create(name=dim_id.replace('_', ' ').title())
         DimensionScope.objects.create(dimension=dim, scope_content_type=ct, scope_id=ic.pk, identifier=dim_id)
+        for cat_id in categories.get(dim_id, []):
+            DimensionCategory.objects.create(dimension=dim, identifier=cat_id, label=cat_id.title())
 
 
 @pytest.fixture
@@ -143,6 +152,130 @@ def gql_client(client, db_instance_config: InstanceConfig) -> PathsTestClient:
     tc = PathsTestClient(client)
     tc.set_instance(db_instance_config)
     return tc
+
+
+UPDATE_NODE_LAYOUTS = """
+mutation UpdateNodeLayouts($instanceId: ID!, $input: [UpdateNodeLayoutInput!]!) {
+    instanceEditor(instanceId: $instanceId) {
+        updateNodeLayouts(input: $input) {
+            ... on UpdateNodeLayoutsResult {
+                layouts {
+                    nodeId
+                    x
+                    y
+                    source
+                    createdBy { id }
+                    lastModifiedBy { id }
+                }
+            }
+            ... on OperationInfo { messages { kind message } }
+        }
+    }
+}
+"""
+
+CLEAR_NODE_LAYOUTS = """
+mutation ClearNodeLayouts($instanceId: ID!) {
+    instanceEditor(instanceId: $instanceId) {
+        clearNodeLayouts { messages { kind message } }
+    }
+}
+"""
+
+
+def test_update_node_layouts_is_shared_editor_metadata_without_change_operation(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+) -> None:
+    from nodes.models import NodeLayout, NodeLayoutSource
+
+    first = NodeConfigFactory.create(instance=db_instance_config, identifier='first', spec=_make_node_spec())
+    second = NodeConfigFactory.create(instance=db_instance_config, identifier='second', spec=_make_node_spec())
+    previous_revision_id = db_instance_config.latest_revision_id
+    previous_head = db_instance_config.draft_head_token
+
+    data = gql_client.query_data(
+        UPDATE_NODE_LAYOUTS,
+        variables={
+            'instanceId': db_instance_config.identifier,
+            'input': [
+                {'nodeId': str(first.uuid), 'x': 12.5, 'y': -3.25, 'source': 'USER'},
+                {'nodeId': second.identifier, 'x': 100.0, 'y': 200.0, 'source': 'AUTO'},
+            ],
+        },
+    )
+
+    result = data['instanceEditor']['updateNodeLayouts']
+    assert [(layout['nodeId'], layout['x'], layout['y'], layout['source']) for layout in result['layouts']] == [
+        ('first', 12.5, -3.25, 'USER'),
+        ('second', 100.0, 200.0, 'AUTO'),
+    ]
+    first_layout = NodeLayout.objects.get(node=first)
+    assert first_layout.source == NodeLayoutSource.USER
+    assert first_layout.created_by_id is not None
+    assert first_layout.last_modified_by_id == first_layout.created_by_id
+    db_instance_config.refresh_from_db()
+    assert db_instance_config.latest_revision_id == previous_revision_id
+    assert db_instance_config.draft_head_token == previous_head
+
+
+def test_node_layout_is_readable_per_node_and_in_bulk(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+) -> None:
+    from nodes.models import NodeLayout, NodeLayoutSource
+
+    node = NodeConfigFactory.create(instance=db_instance_config, identifier='positioned', spec=_make_node_spec())
+    NodeLayout.objects.create(node=node, x=1.5, y=2.5, source=NodeLayoutSource.USER)
+    from nodes.models import _pytest_instances
+
+    _pytest_instances.pop(db_instance_config.identifier, None)
+
+    with CaptureQueriesContext(connection) as queries:
+        data = gql_client.query_data(
+            """
+            query NodeLayouts {
+                instance {
+                    editor {
+                        nodeLayouts { nodeId x y source }
+                    }
+                    nodes(id: ["positioned"]) {
+                        id
+                        editor { layout { nodeId x y source } }
+                    }
+                }
+            }
+            """,
+        )
+
+    expected = {'nodeId': 'positioned', 'x': 1.5, 'y': 2.5, 'source': 'USER'}
+    assert data['instance']['editor']['nodeLayouts'] == [expected]
+    assert data['instance']['nodes'][0]['editor']['layout'] == expected
+    per_node_layout_queries = [
+        query['sql']
+        for query in queries.captured_queries
+        if 'FROM "nodes_nodelayout"' in query['sql'] and 'WHERE "nodes_nodelayout"."node_id" =' in query['sql']
+    ]
+    assert per_node_layout_queries == []
+
+
+def test_clear_node_layouts_bypasses_model_change_tracking(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+) -> None:
+    from nodes.models import NodeLayout
+
+    node = NodeConfigFactory.create(instance=db_instance_config, identifier='positioned', spec=_make_node_spec())
+    NodeLayout.objects.create(node=node, x=1.0, y=2.0)
+    previous_head = db_instance_config.draft_head_token
+
+    gql_client.query_data(
+        CLEAR_NODE_LAYOUTS,
+        variables={'instanceId': db_instance_config.identifier},
+    )
+
+    assert not NodeLayout.objects.filter(node__instance=db_instance_config).exists()
+    assert db_instance_config.draft_head_token == previous_head
 
 
 # ---------------------------------------------------------------------------
@@ -278,6 +411,55 @@ def test_instance_admin_can_read_model_editor_fields(client, db_instance_config:
     node = data['modelInstance']['nodes'][0]
     assert node['identifier'] == 'editable_node'
     assert node['editor']['spec']['outputPorts'][0]['id'] == str(_port_uuid('default'))
+
+
+def test_model_instance_metadata_does_not_create_runtime(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_require_instance(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError('modelInstance metadata must not create a runtime Instance')
+
+    monkeypatch.setattr('paths.schema_context.PathsGraphQLContext.require_instance', fail_require_instance)
+
+    data = gql_client.query_data(
+        """
+        query ModelInstanceMetadata($instanceId: ID!) {
+            modelInstance(instanceId: $instanceId) {
+                identifier
+                editor { configSource }
+            }
+        }
+        """,
+        variables={'instanceId': str(db_instance_config.pk)},
+    )
+
+    assert data['modelInstance'] == {
+        'identifier': db_instance_config.identifier,
+        'editor': {'configSource': 'database'},
+    }
+
+
+def test_model_instance_runtime_uses_draft_when_request_defaults_to_published(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+) -> None:
+    db_instance_config.publish_instance()
+    NodeConfigFactory.create(instance=db_instance_config, identifier='draft_only', spec=_make_node_spec())
+
+    data = gql_client.query_data(
+        """
+        query DraftModelInstance($instanceId: ID!) {
+            modelInstance(instanceId: $instanceId) {
+                nodes { identifier }
+            }
+        }
+        """,
+        variables={'instanceId': str(db_instance_config.pk)},
+    )
+
+    assert data['modelInstance']['nodes'] == [{'identifier': 'draft_only'}]
 
 
 NODE_STATUS_FIELDS = gql("""
@@ -767,13 +949,12 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
 
     nc = NodeConfig.objects.get(pk=nc.pk)
     assert nc.spec is not None
-    assert nc.node_type == NodeKindChoices.ACTION
     assert nc.description == 'Carbon capture update'
+    assert nc.short_description == 'Carbon capture update'
+    assert nc.short_name == 'CCS'
     assert nc.spec.kind == NodeKind.ACTION
     assert isinstance(nc.spec.type_config, ActionConfig)
     assert nc.spec.type_config.group == 'energy'
-    assert str(nc.spec.short_name) == 'CCS'
-    assert str(nc.spec.description) == 'Carbon capture update'
     assert nc.spec.node_group == 'transport'
     assert nc.spec.allow_nulls is True
     assert nc.spec.minimum_year == 2024
@@ -830,29 +1011,23 @@ def test_instance_metadata_projects_from_columns(db_instance_config: InstanceCon
     assert str(meta.name) == db_instance_config.name
 
 
-def test_node_spec_syncs_identity_fields_on_save(db_instance_config: InstanceConfig):
-    nc = NodeConfigFactory.create(instance=db_instance_config, identifier='spec_identity', name='Spec Identity')
-    nc.refresh_from_db()
-    assert nc.spec is not None
-    assert nc.spec.uuid == nc.uuid
-    assert nc.spec.identifier == nc.identifier
-    assert str(nc.spec.name) == nc.name
-
-
-def test_node_spec_syncs_display_fields_on_save(db_instance_config: InstanceConfig):
+def test_node_metadata_does_not_mutate_spec_on_save(db_instance_config: InstanceConfig):
     nc = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='spec_display',
         name='Spec Display',
+        short_name='Short display',
         color='#123456',
         order=7,
         is_visible=False,
     )
+    assert nc.spec is not None
+    original_spec = nc.spec.model_dump(mode='json')
+    nc.name = 'Changed display'
+    nc.save()
     nc.refresh_from_db()
     assert nc.spec is not None
-    assert nc.spec.color == '#123456'
-    assert nc.spec.order == 7
-    assert nc.spec.is_visible is False
+    assert nc.spec.model_dump(mode='json') == original_spec
 
 
 def test_runtime_rebuild_preserves_action_group_and_zero_no_effect_value(db_instance_config: InstanceConfig):
@@ -866,7 +1041,6 @@ def test_runtime_rebuild_preserves_action_group_and_zero_no_effect_value(db_inst
         identifier='runtime_action',
         name='Runtime Action',
         spec=NodeSpec(
-            kind=NodeKind.ACTION,
             type_config=ActionConfig(
                 node_class=ACTION_NODE_CLASS,
                 decision_level=DecisionLevel.MUNICIPALITY,
@@ -891,7 +1065,6 @@ def test_runtime_rebuild_preserves_action_parent_link(db_instance_config: Instan
         identifier='parent_action',
         name='Parent Action',
         spec=NodeSpec(
-            kind=NodeKind.ACTION,
             type_config=ActionConfig(node_class=PARENT_ACTION_NODE_CLASS, decision_level=DecisionLevel.MUNICIPALITY),
             output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
         ),
@@ -901,7 +1074,6 @@ def test_runtime_rebuild_preserves_action_parent_link(db_instance_config: Instan
         identifier='child_action',
         name='Child Action',
         spec=NodeSpec(
-            kind=NodeKind.ACTION,
             type_config=ActionConfig(
                 node_class=ACTION_NODE_CLASS, decision_level=DecisionLevel.MUNICIPALITY, parent='parent_action'
             ),
@@ -1069,22 +1241,29 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
             ... on OperationInfo { messages { kind message } }
             ... on NodeEdgeType {
                 fromRef {
+                    nodeUuid
+                    nodeId
+                    portId
+                }
+                portRef {
+                    nodeUuid
                     nodeId
                     portId
                 }
                 toRef {
+                    nodeUuid
                     nodeId
                     portId
                 }
                 transformations {
                     __typename
-                    ... on SelectCategoriesTransformationType {
+                    ... on FilterDimensionType {
                         dimension categories flatten exclude
                     }
-                    ... on AssignCategoryTransformationType {
+                    ... on AssignDimensionType {
                         dimension category
                     }
-                    ... on FlattenTransformationType {
+                    ... on FlattenType {
                         dimension
                     }
                 }
@@ -1124,7 +1303,8 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
         ),
     )
 
-    # Create
+    # Create; the deprecated legacy input vocabulary is still accepted, but it
+    # is stored and read back in the current one.
     data = gql_client.query_data(
         CREATE_EDGE,
         variables={
@@ -1133,6 +1313,9 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
                 'instanceId': str(db_instance_config.pk),
                 'fromNodeId': 'node_a',
                 'toNodeId': 'node_b',
+                'transformations': [
+                    {'selectCategories': {'dimension': 'sector', 'categories': ['buildings'], 'flatten': True}},
+                ],
             },
         },
     )
@@ -1140,8 +1323,20 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     edge = editor['createEdge']
     assert edge['__typename'] == 'NodeEdgeType'
     assert edge['fromRef']['nodeId'] == 'node_a'
-    assert edge['toRef']['nodeId'] == 'node_b'
-    assert edge['toRef']['portId'] == str(_port_uuid('input'))
+    assert edge['fromRef']['nodeUuid'] == str(nc_a.uuid)
+    assert edge['portRef']['nodeId'] == 'node_b'
+    assert edge['portRef']['nodeUuid'] == str(nc_b.uuid)
+    assert edge['portRef']['portId'] == str(_port_uuid('input'))
+    assert edge['toRef'] == edge['portRef']
+    assert edge['transformations'] == [
+        {
+            '__typename': 'FilterDimensionType',
+            'dimension': 'sector',
+            'categories': ['buildings'],
+            'flatten': True,
+            'exclude': False,
+        },
+    ]
 
     # Delete
     edge_obj = NodeEdge.objects.get(instance=db_instance_config, from_node=nc_a, to_node=nc_b)
@@ -1151,6 +1346,154 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     )
     assert data['instanceEditor']['deleteEdge'] is None
     assert not NodeEdge.objects.filter(pk=edge_obj.pk).exists()
+
+
+def test_create_edge_accepts_uuid_only_references(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import NodeEdge
+
+    unit = unit_registry.parse_units('kt/a')
+    source_port_id = _port_uuid('canonical-output')
+    target_port_id = _port_uuid('canonical-input')
+    source = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='canonical_source',
+        spec=_make_node_spec(output_ports=[OutputPortDef(id=source_port_id, unit=unit, quantity='emissions')]),
+    )
+    target = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='canonical_target',
+        spec=_make_node_spec(
+            input_ports=[InputPortDef(id=target_port_id, unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('canonical-target-output'), unit=unit, quantity='emissions')],
+        ),
+    )
+
+    edge = gql_client.query_data(
+        CREATE_EDGE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'instanceId': str(db_instance_config.pk),
+                'fromRef': {'nodeUuid': str(source.uuid), 'portId': str(source_port_id)},
+                'portRef': {'nodeUuid': str(target.uuid), 'portId': str(target_port_id)},
+            },
+        },
+    )['instanceEditor']['createEdge']
+
+    assert edge['fromRef']['nodeUuid'] == str(source.uuid)
+    assert edge['portRef']['nodeUuid'] == str(target.uuid)
+    assert NodeEdge.objects.filter(
+        from_node=source,
+        from_port=source_port_id,
+        to_node=target,
+        to_port=target_port_id,
+    ).exists()
+
+
+def _two_nodes_with_bindable_port(ic: InstanceConfig) -> None:
+    unit = unit_registry.parse_units('kt/a')
+    NodeConfigFactory.create(
+        instance=ic,
+        identifier='node_a',
+        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')]),
+    )
+    NodeConfigFactory.create(
+        instance=ic,
+        identifier='node_b',
+        spec=_make_node_spec(
+            input_ports=[InputPortDef(id=_port_uuid('input'), unit=unit, quantity='emissions', multi=False)],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+        ),
+    )
+
+
+def test_create_edge_replace_requires_an_explicit_to_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    _two_nodes_with_bindable_port(db_instance_config)
+
+    gql_client.query_errors(
+        CREATE_EDGE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'instanceId': str(db_instance_config.pk),
+                'fromNodeId': 'node_a',
+                'toNodeId': 'node_b',
+                'replace': True,
+            },
+        },
+        assert_error_message='requires an explicit `toPort`',
+    )
+
+
+def test_create_edge_replace_displaces_the_existing_edge(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import NodeEdge
+
+    unit = unit_registry.parse_units('kt/a')
+    _two_nodes_with_bindable_port(db_instance_config)
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='node_c',
+        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('other'), unit=unit, quantity='emissions')]),
+    )
+    nodes = {nc.identifier: nc for nc in db_instance_config.nodes.all()}
+    old_edge = NodeEdge.objects.create(
+        instance=db_instance_config,
+        from_node=nodes['node_a'],
+        from_port=_port_uuid('default'),
+        to_node=nodes['node_b'],
+        to_port=_port_uuid('input'),
+    )
+
+    edge = gql_client.query_data(
+        CREATE_EDGE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'instanceId': str(db_instance_config.pk),
+                'fromNodeId': 'node_c',
+                'toNodeId': 'node_b',
+                'toPort': str(_port_uuid('input')),
+                'replace': True,
+            },
+        },
+    )['instanceEditor']['createEdge']
+
+    assert edge['fromRef']['nodeId'] == 'node_c'
+    assert not NodeEdge.objects.filter(pk=old_edge.pk).exists()
+    assert NodeEdge.objects.filter(to_node=nodes['node_b'], to_port=_port_uuid('input')).count() == 1
+
+
+def test_create_edge_replace_displaces_a_dataset_binding(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import DatasetPort, NodeEdge
+
+    _two_nodes_with_bindable_port(db_instance_config)
+    nodes = {nc.identifier: nc for nc in db_instance_config.nodes.all()}
+    dataset = DatasetFactory.create(identifier='occupant')
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='Energy')
+    DatasetPort.objects.create(
+        instance=db_instance_config,
+        node=nodes['node_b'],
+        port_id=_port_uuid('input'),
+        dataset=dataset,
+        metric=metric,
+    )
+
+    gql_client.query_data(
+        CREATE_EDGE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'instanceId': str(db_instance_config.pk),
+                'fromNodeId': 'node_a',
+                'toNodeId': 'node_b',
+                'toPort': str(_port_uuid('input')),
+                'replace': True,
+            },
+        },
+    )
+
+    assert not DatasetPort.objects.filter(node=nodes['node_b']).exists()
+    assert NodeEdge.objects.filter(to_node=nodes['node_b'], to_port=_port_uuid('input')).count() == 1
 
 
 def test_delete_edge_cannot_cross_instance_boundary(client, db_instance_config: InstanceConfig):
@@ -1235,12 +1578,12 @@ query ModelInstanceTest($id: ID!) {
                 fromRef {
                     nodeId
                 }
-                toRef {
+                portRef {
                     nodeId
                 }
             }
             datasetPorts {
-                nodeRef {
+                portRef {
                     nodeId
                     portId
                 }
@@ -1298,13 +1641,17 @@ query ModelInstanceTest($id: ID!) {
                                     nodeId
                                     portId
                                 }
-                                toRef {
+                                portRef {
                                     nodeId
                                     portId
                                 }
+                                transformations {
+                                    __typename
+                                    ... on FilterDimensionType { dimension categories flatten }
+                                }
                             }
                             ... on DatasetPortType {
-                                nodeRef {
+                                portRef {
                                     nodeId
                                     portId
                                 }
@@ -1337,7 +1684,7 @@ query ModelInstanceTest($id: ID!) {
                                 nodeId
                                 portId
                             }
-                            toRef {
+                            portRef {
                                 nodeId
                                 portId
                             }
@@ -1360,17 +1707,27 @@ def _make_output_port(id: str = 'default', unit: str = 'kt/a', quantity: str = '
 
 
 def test_model_instance_query(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.defs.transform_def import SelectCategoriesTransformation
     from nodes.models import NodeEdge
 
-    source = NodeConfigFactory.create(instance=db_instance_config, identifier='source_node')
-    target = NodeConfigFactory.create(instance=db_instance_config, identifier='queried_node')
+    _register_dimensions(db_instance_config, ['sector'], categories={'sector': ['buildings']})
+    source = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='source_node',
+        spec=_make_node_spec(output_ports=[_make_output_port()]),
+    )
+    target = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='queried_node',
+        spec=_make_node_spec(input_ports=[_make_input_port()], output_ports=[_make_output_port()]),
+    )
     NodeEdge.objects.create(
         instance=db_instance_config,
         from_node=source,
         to_node=target,
         from_port=_port_uuid('default'),
         to_port=_port_uuid('input'),
-        transformations=[],
+        transformations=[SelectCategoriesTransformation(dimension='sector', categories=['buildings'], flatten=True)],
         tags=[],
     )
 
@@ -1392,6 +1749,15 @@ def test_model_instance_query(gql_client: PathsTestClient, db_instance_config: I
     assert node_by_id['source_node']['editor']['layoutMeta']['ghostTargets'] == ['queried_node']
     assert node_by_id['queried_node']['editor']['layoutMeta']['primaryClass'] == 'CONTEXT_SOURCE'
 
+    # Edge transformations are visible through the port-binding view, in the
+    # current vocabulary regardless of what the row stores.
+    (port,) = node_by_id['queried_node']['editor']['spec']['inputPorts']
+    (binding,) = port['bindings']
+    assert binding['__typename'] == 'NodeEdgeType'
+    assert binding['transformations'] == [
+        {'__typename': 'FilterDimensionType', 'dimension': 'sector', 'categories': ['buildings'], 'flatten': True},
+    ]
+
 
 def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
     gql_client: PathsTestClient, db_instance_config: InstanceConfig
@@ -1401,7 +1767,7 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
     dataset = DatasetFactory.create(identifier='test_dataset')
     metric = DatasetMetricFactory.create(schema=dataset.schema, name='test_metric')
 
-    node_count = 12
+    node_count = 15
     for idx in range(node_count):
         NodeConfigFactory.create(
             instance=db_instance_config,
@@ -1455,6 +1821,12 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
     assert data['modelInstance']['editor']['datasetPorts'][0]['metric']['name'] == 'test_metric'
     assert data['modelInstance']['editor']['datasetPorts'][0]['externalDatasetId'] == 'test_dataset'
     assert data['modelInstance']['editor']['datasetPorts'][0]['externalMetricId'] == 'test_metric'
+    per_binding_dataset_queries = [
+        query
+        for query in query_ctx.captured_queries
+        if 'FROM "datasets_dataset"' in query['sql'] and 'WHERE "datasets_dataset"."uuid" =' in query['sql']
+    ]
+    assert per_binding_dataset_queries == []
     assert len(query_ctx) <= 20
 
 
@@ -1469,9 +1841,12 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
     dataset = DatasetFactory.create(identifier='multi_metric_actions', scope=db_instance_config)
     emissions_metric = DatasetMetricFactory.create(schema=dataset.schema, name='emissions', label='Emissions', unit='t/a')
     energy_metric = DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='TJ/a')
-    binding_spec = DatasetPortSpec(
-        forecast_from=2024,
-        filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+    binding_spec = DatasetPortSpec.from_input_dataset(
+        InputDatasetDef(
+            id='multi_metric_actions',
+            forecast_from=2024,
+            filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+        )
     )
 
     nc = NodeConfigFactory.create(
@@ -1479,7 +1854,6 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
         identifier='multi_metric_action',
         name='Multi metric action',
         spec=NodeSpec(
-            kind=NodeKind.ACTION,
             type_config=ActionConfig(
                 node_class=ACTION_NODE_CLASS,
                 decision_level=DecisionLevel.MUNICIPALITY,
@@ -1527,12 +1901,10 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
     ds = cast('DatasetWithFilters', action.input_dataset_instances[0])
     assert ds.id == 'multi_metric_actions'
     assert ds.column is None
-    assert ds.forecast_from == 2024
-    assert ds.filters is not None
-    filter_def = ds.filters[0]
-    assert isinstance(filter_def, ColumnDatasetFilterDef)
-    assert filter_def.column == 'action'
-    assert filter_def.value == 'multi_metric_action'
+    assert forecast_from_transformations(ds.transformations) == 2024
+    filter_op = next(op for op in ds.transformations if isinstance(op, FilterColumnOp))
+    assert filter_op.column == 'action'
+    assert filter_op.value == 'multi_metric_action'
 
 
 def test_dataset_ports_rebuild_uses_dataset_forecast_default(db_instance_config: InstanceConfig):
@@ -1548,7 +1920,6 @@ def test_dataset_ports_rebuild_uses_dataset_forecast_default(db_instance_config:
         instance=db_instance_config,
         identifier='uses_forecast_default',
         spec=NodeSpec(
-            kind=NodeKind.SIMPLE,
             type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS),
             input_ports=[_make_input_port(id='emissions', unit='t/a', quantity='emissions')],
             output_ports=[
@@ -1594,7 +1965,11 @@ def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: 
         id='sync_multi_metric_actions',
         context=context,
         db_dataset_obj=dataset,
-        filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+        transformations=InputDatasetDef(
+            id='sync_multi_metric_actions',
+            forecast_from=2024,
+            filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+        ).to_transformations(),
         forecast_from=2024,
     )
     node = cast(
@@ -1615,7 +1990,6 @@ def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: 
         instance=db_instance_config,
         identifier='multi_metric_action',
         spec=NodeSpec(
-            kind=NodeKind.ACTION,
             type_config=ActionConfig(
                 node_class=ACTION_NODE_CLASS,
                 decision_level=DecisionLevel.MUNICIPALITY,
@@ -1633,18 +2007,124 @@ def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: 
     assert {binding.port_id for binding in bindings} == {port.id for port in input_ports}
     assert all(binding.spec.forecast_from == 2024 for binding in bindings)
     for binding in bindings:
-        filter_def = binding.spec.filters[0]
-        assert isinstance(filter_def, ColumnDatasetFilterDef)
-        assert filter_def.column == 'action'
+        filter_op = next(op for op in binding.spec.transformations if isinstance(op, FilterColumnOp))
+        assert filter_op.column == 'action'
+
+
+def _column_less_sync_fixture(
+    db_instance_config: InstanceConfig,
+    *,
+    metric_names: list[str],
+    node_columns: list[str],
+):
+    """Build a runtime node + DB dataset pair for exercising the metric-to-port pairing."""
+    from types import SimpleNamespace
+
+    from nodes.datasets import DBDataset
+    from nodes.node import NodeMetric
+
+    dataset = DatasetFactory.create(identifier='pairing_dataset', scope=db_instance_config)
+    for name in metric_names:
+        DatasetMetricFactory.create(schema=dataset.schema, name=name, label=name.title(), unit='t/a')
+
+    context = cast('Context', SimpleNamespace(instance=SimpleNamespace(config=db_instance_config)))
+    ds_instance = DBDataset(
+        id='pairing_dataset',
+        context=context,
+        db_dataset_obj=dataset,
+        transformations=InputDatasetDef(id='pairing_dataset').to_transformations(),
+    )
+    node = cast(
+        'Node',
+        SimpleNamespace(
+            id='pairing_node',
+            context=context,
+            input_dataset_instances=[ds_instance],
+            output_metrics={
+                column: NodeMetric(unit='t/a', quantity='emissions', id=column.lower(), column_id=column)
+                for column in node_columns
+            },
+            edges=[],
+            input_dimensions={},
+        ),
+    )
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='pairing_node',
+        spec=NodeSpec(type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS)),
+    )
+    return node, nc
+
+
+def test_dataset_port_sync_pairs_a_renamed_metric_to_the_node_column(db_instance_config: InstanceConfig):
+    """
+    A schema metric named differently from the node column must still bind to a real port.
+
+    The port UUID comes from the node-side column (where the metric is
+    delivered); the metric FK names the source. Keying the port by the schema
+    metric name produced bindings pointing at ports absent from the node spec.
+    """
+    from types import SimpleNamespace
+
+    from nodes.models import DatasetPort
+    from nodes.spec_export import _export_input_ports, _update_dataset_ports
+
+    node, nc = _column_less_sync_fixture(db_instance_config, metric_names=['share'], node_columns=['Value'])
+
+    input_ports = _export_input_ports(node)
+    ctx = cast('Context', SimpleNamespace(nodes={'pairing_node': node}))
+    assert _update_dataset_ports(db_instance_config, ctx, {'pairing_node': nc}) == 1
+
+    binding = DatasetPort.objects.get(node=nc)
+    assert binding.metric.name == 'share'
+    assert binding.port_id in {port.id for port in input_ports}
+
+
+def test_dataset_port_sync_drops_unmatched_extra_metrics(db_instance_config: InstanceConfig):
+    """A metric with no defensible port gets no binding, as long as the dataset keeps at least one row."""
+    from types import SimpleNamespace
+
+    from nodes.models import DatasetPort
+    from nodes.spec_export import _update_dataset_ports
+
+    node, nc = _column_less_sync_fixture(
+        db_instance_config, metric_names=['emissions', 'foo', 'bar'], node_columns=['emissions', 'energy']
+    )
+
+    ctx = cast('Context', SimpleNamespace(nodes={'pairing_node': node}))
+    assert _update_dataset_ports(db_instance_config, ctx, {'pairing_node': nc}) == 1
+    assert DatasetPort.objects.get(node=nc).metric.name == 'emissions'
+
+
+def test_dataset_port_sync_keeps_an_unpairable_binding_alive(db_instance_config: InstanceConfig):
+    """
+    When nothing pairs, the rows stay (dangling) rather than disappear.
+
+    ``_serialize_dataset_ports`` rebuilds ``input_datasets`` from these rows,
+    so zero rows would silently remove the dataset from DB-sourced models —
+    worse than an editor binding whose port id is unresolved.
+    """
+    from types import SimpleNamespace
+
+    from nodes.models import DatasetPort
+    from nodes.spec_export import _update_dataset_ports
+
+    node, nc = _column_less_sync_fixture(db_instance_config, metric_names=['foo', 'bar'], node_columns=['emissions', 'energy'])
+
+    ctx = cast('Context', SimpleNamespace(nodes={'pairing_node': node}))
+    assert _update_dataset_ports(db_instance_config, ctx, {'pairing_node': nc}) == 2
+    assert {dp.metric.name for dp in DatasetPort.objects.filter(node=nc)} == {'foo', 'bar'}
 
 
 def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_config: InstanceConfig):
+    from nodes.dataset_materialization import materialize_dataset
     from nodes.defs.node_defs import DatasetPortSpec
-    from nodes.models import DatasetPort
+    from nodes.models import DatasetMaterialization, DatasetPort
     from nodes.spec_export import _promote_dataset_forecast_defaults
 
     promoted_dataset = DatasetFactory.create(identifier='promoted', scope=db_instance_config)
     promoted_metric = DatasetMetricFactory.create(schema=promoted_dataset.schema, name='value', label='Value', unit='kt/a')
+    original_materialization = materialize_dataset(promoted_dataset)
     conflict_dataset = DatasetFactory.create(identifier='conflict', scope=db_instance_config)
     conflict_metric = DatasetMetricFactory.create(schema=conflict_dataset.schema, name='value', label='Value', unit='kt/a')
 
@@ -1659,7 +2139,7 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
         port_id=_port_uuid('input_a'),
         dataset=promoted_dataset,
         metric=promoted_metric,
-        spec=DatasetPortSpec(forecast_from=2025),
+        spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
     )
     DatasetPort.objects.create(
         instance=db_instance_config,
@@ -1674,7 +2154,7 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
         port_id=_port_uuid('input_c'),
         dataset=conflict_dataset,
         metric=conflict_metric,
-        spec=DatasetPortSpec(forecast_from=2024),
+        spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2024)),
     )
     DatasetPort.objects.create(
         instance=db_instance_config,
@@ -1682,7 +2162,7 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
         port_id=_port_uuid('input_d'),
         dataset=conflict_dataset,
         metric=conflict_metric,
-        spec=DatasetPortSpec(forecast_from=2025),
+        spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
     )
 
     assert _promote_dataset_forecast_defaults(db_instance_config) == 1
@@ -1695,6 +2175,22 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
     promoted_ports = DatasetPort.objects.filter(dataset=promoted_dataset)
     assert all(port.spec.forecast_from is None for port in promoted_ports)
     assert sorted((port.spec.forecast_from or 0) for port in DatasetPort.objects.filter(dataset=conflict_dataset)) == [2024, 2025]
+
+    materialization = DatasetMaterialization.objects.get(dataset=promoted_dataset)
+    assert materialization.generation == original_materialization.generation + 1
+    assert materialization.forecast_from == 2025
+    assert materialization.content['forecast_from'] == 2025
+
+    # Repair materializations left inconsistent by syncs that predate the atomic refresh.
+    materialization.forecast_from = None
+    materialization.content['forecast_from'] = None
+    materialization.save(update_fields=['forecast_from', 'content'])
+
+    assert _promote_dataset_forecast_defaults(db_instance_config) == 0
+    materialization.refresh_from_db()
+    assert materialization.generation == original_materialization.generation + 2
+    assert materialization.forecast_from == 2025
+    assert materialization.content['forecast_from'] == 2025
 
 
 def test_dataset_port_forecast_from_not_promoted_for_external_placeholder(db_instance_config: InstanceConfig):
@@ -1719,7 +2215,7 @@ def test_dataset_port_forecast_from_not_promoted_for_external_placeholder(db_ins
         port_id=_port_uuid('input_a'),
         dataset=placeholder_dataset,
         metric=placeholder_metric,
-        spec=DatasetPortSpec(forecast_from=2025),
+        spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
     )
 
     assert _promote_dataset_forecast_defaults(db_instance_config) == 0
@@ -1984,7 +2480,7 @@ def test_create_edge_allows_second_binding_for_multi_port(gql_client: PathsTestC
     edge = data['instanceEditor']['createEdge']
     assert edge['__typename'] == 'NodeEdgeType'
     assert edge['fromRef']['nodeId'] == 'src_b'
-    assert edge['toRef']['portId'] == str(_port_uuid('input'))
+    assert edge['portRef']['portId'] == str(_port_uuid('input'))
 
 
 def test_delete_node_roundtrip(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

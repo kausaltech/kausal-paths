@@ -10,18 +10,15 @@ from paths.graphql_helpers import pass_context
 
 from nodes.actions.action import ActionNode
 from nodes.context import Context
-from nodes.defs.binding_def import DatasetPortBindingDef
-from nodes.defs.edge_def import (
-    AssignCategoryTransformation,
-    EdgeTransformation,
-    FlattenTransformation,
-    SelectCategoriesTransformation,
-)
+from nodes.defs.binding_def import DatasetBindingDef
 from nodes.defs.instance_defs import ActionGroup
+from nodes.defs.transform_def import PortTransformOp, modernized_transformations
 from nodes.graphql.types.change_history import EditableEntity
 from nodes.graphql.types.metric import DimensionalMetricType
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
 
     from nodes.defs.binding_def import EdgeBindingDef
@@ -30,6 +27,7 @@ if TYPE_CHECKING:
     from nodes.models import NodeEdge
     from nodes.node import Node
 
+from nodes.graphql.types.transformations import PortTransformationType
 from nodes.metric import DimensionalMetric
 
 
@@ -41,57 +39,36 @@ class InstanceHostname:
 
 @sb.type
 class NodePortRef:
-    node_id: sb.ID
+    node_uuid: UUID
     port_id: UUID
-
-
-@pydantic_type(SelectCategoriesTransformation)
-class SelectCategoriesTransformationType:
-    """Filter or select categories within a dimension, optionally flattening."""
-
-    dimension: sb.auto
-    categories: sb.auto
-    flatten: sb.auto
-    exclude: sb.auto
-
-
-@pydantic_type(AssignCategoryTransformation)
-class AssignCategoryTransformationType:
-    """Assign a fixed category to a (possibly new) dimension."""
-
-    dimension: sb.auto
-    category: sb.auto
-
-
-@pydantic_type(FlattenTransformation)
-class FlattenTransformationType:
-    """Flatten (sum over) a dimension."""
-
-    dimension: sb.auto
-
-
-EdgeTransformationType = Annotated[
-    SelectCategoriesTransformationType | AssignCategoryTransformationType | FlattenTransformationType,
-    sb.union('EdgeTransformationUnion'),
-]
+    node_id: sb.ID = sb.field(deprecation_reason='Use nodeUuid instead.')
 
 
 @sb.type
 class NodeEdgeType(EditableEntity):
     id: sb.ID
     uuid: UUID
-    from_ref: NodePortRef
-    to_ref: NodePortRef
+    from_ref: NodePortRef = sb.field(description='Reference to the source node and output port.')
+    port_ref: NodePortRef = sb.field(description='Reference to the node and input port this edge binds to.')
     tags: list[str]
+
+    @sb.field(deprecation_reason='Use portRef instead.')
+    @staticmethod
+    def to_ref(root: 'NodeEdgeType') -> NodePortRef:
+        """Compatibility alias for the target port reference."""
+        return root.port_ref
 
     _node: sb.Private['Node | None'] = None
     """The target node that this edge feeds into (set when resolving input port bindings)."""
 
-    _transformations: sb.Private[list[EdgeTransformation] | None] = None
+    _transformations: sb.Private[list[PortTransformOp] | None] = None
 
-    @sb.field(graphql_type=list[EdgeTransformationType])
+    @sb.field(
+        graphql_type=list[PortTransformationType],
+        description='Transformations applied to the source output, in execution order.',
+    )
     @staticmethod
-    def transformations(root: 'NodeEdgeType') -> list[EdgeTransformation]:
+    def transformations(root: 'NodeEdgeType') -> list[PortTransformOp]:
         return root._transformations or []
 
     @sb.field(graphql_type=list[DimensionalMetricType])
@@ -114,14 +91,25 @@ class NodeEdgeType(EditableEntity):
 
     @classmethod
     def from_binding(cls, binding: EdgeBindingDef, node: Node | None = None) -> NodeEdgeType:
+        if binding.from_ref.node_uuid is None or binding.port_ref.node_uuid is None:
+            raise ValueError('GraphQL port references require canonical node UUIDs')
         edge = NodeEdgeType(
             id=sb.ID(str(binding.id)),
             uuid=binding.id if isinstance(binding.id, UUID) else UUID(str(binding.id)),
-            from_ref=NodePortRef(node_id=sb.ID(str(binding.from_ref.node_id)), port_id=binding.from_ref.port_id),
-            to_ref=NodePortRef(node_id=sb.ID(str(binding.to_ref.node_id)), port_id=binding.to_ref.port_id),
+            from_ref=NodePortRef(
+                node_uuid=binding.from_ref.node_uuid,
+                node_id=sb.ID(str(binding.from_ref.node_id)),
+                port_id=binding.from_ref.port_id,
+            ),
+            port_ref=NodePortRef(
+                node_uuid=binding.port_ref.node_uuid,
+                node_id=sb.ID(str(binding.port_ref.node_id)),
+                port_id=binding.port_ref.port_id,
+            ),
             tags=binding.tags,
         )
         edge._node = node
+        edge._transformations = list(binding.transformations)
         return edge
 
     @classmethod
@@ -129,11 +117,21 @@ class NodeEdgeType(EditableEntity):
         obj = NodeEdgeType(
             id=sb.ID(str(edge.uuid)),
             uuid=edge.uuid,
-            from_ref=NodePortRef(node_id=sb.ID(str(edge.from_node.identifier)), port_id=edge.from_port),
-            to_ref=NodePortRef(node_id=sb.ID(str(edge.to_node.identifier)), port_id=edge.to_port),
+            from_ref=NodePortRef(
+                node_uuid=edge.from_node.uuid,
+                node_id=sb.ID(str(edge.from_node.identifier)),
+                port_id=edge.from_port,
+            ),
+            port_ref=NodePortRef(
+                node_uuid=edge.to_node.uuid,
+                node_id=sb.ID(str(edge.to_node.identifier)),
+                port_id=edge.to_port,
+            ),
             tags=edge.tags or [],
         )
-        obj._transformations = list(edge.transformations)
+        # Presented in the current vocabulary regardless of what the row stores,
+        # so clients read back what the mutations accept.
+        obj._transformations = modernized_transformations(edge.transformations)
         return obj
 
     @sb.field(
@@ -173,7 +171,7 @@ class DatasetMetricRefType:
     label: str = sb.field(description='Human-readable label of the metric.')
 
     @classmethod
-    def from_binding(cls, binding: DatasetPortBindingDef) -> DatasetMetricRefType | None:
+    def from_binding(cls, binding: DatasetBindingDef) -> DatasetMetricRefType | None:
         if binding.metric_uuid is None:
             return None
         return DatasetMetricRefType(
@@ -191,23 +189,45 @@ class DatasetMetricRefType:
         )
 
 
-@pydantic_type(DatasetPortBindingDef)
+@pydantic_type(DatasetBindingDef)
 class DatasetPortType(EditableEntity):
     """Binding of an external dataset metric to one node input port."""
 
     id: sb.ID = sb.field(description='Globally unique identifier of this dataset-port binding.')
     uuid: UUID
-    node_ref: NodePortRef = sb.field(description='Reference to the node that owns the bound input port.')
+    port_ref: NodePortRef = sb.field(description='Reference to the node and input port this dataset binds to.')
     metric: DatasetMetricRefType | None = sb.field(description='Dataset metric object bound to this port.')
     external_dataset_id: str | None = sb.field(
         description='Stable identifier of the external dataset, usually the dataset repo path without extension.'
     )
     external_metric_id: str | None = sb.field(description='Stable identifier of the metric within the external dataset.')
+    tags: list[str] = sb.field(description='Legacy semantic tags carried by this binding.')
+
+    @sb.field(deprecation_reason='Use portRef instead.')
+    @staticmethod
+    def node_ref(root: 'DatasetPortType') -> NodePortRef:
+        """Compatibility alias for the bound input port reference."""
+        return root.port_ref
 
     _node: sb.Private['Node | None'] = None
     """The node that owns the bound input port (set when resolving input port bindings)."""
 
     _dataset: sb.Private[Any] = None
+
+    _transformations: sb.Private[list[PortTransformOp] | None] = None
+
+    @sb.field(
+        graphql_type=list[PortTransformationType],
+        description=(
+            'Transformations applied to the dataset, in execution order. '
+            'Editing replaces the whole list; entries whose kind is one of '
+            '`select_metric`, `index_temporal` or `remap_legacy_years` are generated '
+            'and should be passed back unchanged.'
+        ),
+    )
+    @staticmethod
+    def transformations(root: 'DatasetPortType') -> list[PortTransformOp]:
+        return root._transformations or []
 
     @sb.field(graphql_type=Annotated['DatasetType', sb.lazy('datasets.graphql.types')] | None)  # type: ignore[name-defined]  # noqa: F821
     @staticmethod
@@ -243,22 +263,35 @@ class DatasetPortType(EditableEntity):
             return []
 
     @classmethod
-    def from_binding(cls, binding: DatasetPortBindingDef, node: Node | None = None) -> DatasetPortType:
+    def from_binding(
+        cls,
+        binding: DatasetBindingDef,
+        node: Node | None = None,
+        dataset_models_by_uuid: Mapping[UUID, DatasetModel] | None = None,
+    ) -> DatasetPortType:
         from datasets.graphql.types import DatasetType
 
+        if binding.port_ref.node_uuid is None:
+            raise ValueError('GraphQL port references require canonical node UUIDs')
         port = DatasetPortType(
             id=sb.ID(str(binding.id)),
             uuid=binding.id if isinstance(binding.id, UUID) else UUID(str(binding.id)),
-            node_ref=NodePortRef(node_id=sb.ID(str(binding.node_ref.node_id)), port_id=binding.node_ref.port_id),
+            port_ref=NodePortRef(
+                node_uuid=binding.port_ref.node_uuid,
+                node_id=sb.ID(str(binding.port_ref.node_id)),
+                port_id=binding.port_ref.port_id,
+            ),
             metric=DatasetMetricRefType.from_binding(binding),
             external_dataset_id=binding.external_dataset_id,
             external_metric_id=binding.external_metric_id,
+            tags=binding.tags,
         )
-        dataset_type = DatasetType.from_binding(binding)
+        dataset_type = DatasetType.from_binding(binding, dataset_models_by_uuid=dataset_models_by_uuid)
         if dataset_type is not None and binding.forecast_from is not None:
             dataset_type._forecast_from = binding.forecast_from
         port._dataset = dataset_type
         port._node = node
+        port._transformations = list(binding.transformations)
         return port
 
     @sb.field(
@@ -311,8 +344,8 @@ def _dataset_external_ref_to_gql(external_ref: object) -> DatasetExternalRefType
     )
 
 
-def _external_dataset_id_from_dataset(dataset: DatasetModel | DatasetPortBindingDef) -> str | None:
-    if isinstance(dataset, DatasetPortBindingDef):
+def _external_dataset_id_from_dataset(dataset: DatasetModel | DatasetBindingDef) -> str | None:
+    if isinstance(dataset, DatasetBindingDef):
         external_ref = dataset.dataset_external_ref
         if isinstance(external_ref, dict):
             dataset_id = external_ref.get('dataset_id')

@@ -14,6 +14,7 @@ from nodes.defs.instance_defs import InstanceFeatures, InstanceTerms
 if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
+    from uuid import UUID
 
     from loguru import Logger
     from rich.repr import RichReprResult
@@ -23,6 +24,8 @@ if TYPE_CHECKING:
     from nodes.context import Context
     from nodes.defs.instance_defs import ActionGroup
     from nodes.goals import NodeGoalsEntry
+    from nodes.instance_serialization import InstanceSnapshot
+    from nodes.node import Node
     from pages.config import OutcomePage
 
     from .excel_results import InstanceResultExcel
@@ -113,6 +116,12 @@ class Instance:
     lock: threading.Lock = field(init=False)
     """Lock for thread-safe operations."""
 
+    source_snapshot: InstanceSnapshot | None = field(init=False, default=None, repr=False)
+    """The selected draft or published state from which this runtime was built."""
+
+    source_nodes_by_uuid: dict[UUID, Node] = field(init=False, default_factory=dict, repr=False)
+    """Runtime-node index for UUID references in the selected snapshot."""
+
     @property
     def target_year(self) -> int:
         return self.context.target_year
@@ -150,6 +159,19 @@ class Instance:
 
     def set_context(self, context: Context):
         self.context = context
+
+    def bind_source_snapshot(self, snapshot: InstanceSnapshot) -> None:
+        """Attach the immutable source state to this runtime and its nodes."""
+        self.source_snapshot = snapshot
+        self.source_nodes_by_uuid = {}
+        for node_snapshot in snapshot.nodes:
+            if node_snapshot.identifier is None:
+                continue
+            node = self.context.nodes.get(node_snapshot.identifier)
+            if node is not None:
+                node.source_snapshot = node_snapshot
+                node._spec = node_snapshot.spec
+                self.source_nodes_by_uuid[node_snapshot.uuid] = node
 
     def update_dataset_repo_commit(self, commit_id: str):
         from ruamel.yaml import YAML as RuamelYAML  # noqa: N811
@@ -224,6 +246,8 @@ class Instance:
 
         self.log.debug('Cleaning instance')
         self.context.clean()
+        self.source_nodes_by_uuid = {}
+        self.source_snapshot = None
         self.context.instance = None  # type: ignore
         self.config = None  # type: ignore
         self.fw_config = None

@@ -22,6 +22,8 @@ from users.models import User
 from users.schema import UserType
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from kausal_common.datasets.models import (
         DataPoint as DataPointModel,
         DatasetMetric as DatasetMetricModel,
@@ -30,7 +32,9 @@ if TYPE_CHECKING:
         DimensionCategory as DimensionCategoryModel,
     )
 
-    from nodes.defs.binding_def import DatasetPortBindingDef
+    from paths.graphql_types import UnitType  # used in lazy strawberry annotations
+
+    from nodes.defs.binding_def import DatasetBindingDef
     from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
     from nodes.metric import DimensionalMetric
@@ -80,9 +84,27 @@ class DatasetMetricType:
     id: sb.ID
     name: str | None = sb.field(description='Column name used in DataFrames.')
     label: str = sb.field(description='Human-readable label.')
-    unit: str
+    unit: str = sb.field(deprecation_reason='Use unitInfo instead.')
     previous_sibling: sb.ID | None
     next_sibling: sb.ID | None
+
+    @sb.field(
+        graphql_type=Annotated['UnitType', sb.lazy('paths.graphql_types')] | None,  # type: ignore[operator]
+        description=(
+            'Parsed unit of the metric, e.g. for checking compatibility with an input port. '
+            'Null when the metric has no unit or its unit string does not parse.'
+        ),
+    )
+    @staticmethod
+    def unit_info(root: 'DatasetMetricType') -> Any:
+        from nodes.units import unit_registry
+
+        if not root.unit:
+            return None
+        try:
+            return unit_registry.parse_units(root.unit)
+        except Exception:
+            return None
 
     @classmethod
     def from_model(
@@ -410,11 +432,17 @@ class DatasetType:
             port = DatasetPortType(
                 id=sb.ID(str(dp.uuid)),
                 uuid=dp.uuid,
-                node_ref=NodePortRef(node_id=sb.ID(str(dp.node.identifier)), port_id=dp.port_id),
+                port_ref=NodePortRef(
+                    node_uuid=dp.node.uuid,
+                    node_id=sb.ID(str(dp.node.identifier)),
+                    port_id=dp.port_id,
+                ),
                 metric=None,
                 external_dataset_id=None,
                 external_metric_id=dp.metric.name if dp.metric else None,
+                tags=list(dp.spec.tags),
             )
+            port._transformations = list(dp.spec.transformations)
             result.append(port)
         return result
 
@@ -437,13 +465,25 @@ class DatasetType:
         return obj
 
     @classmethod
-    def from_binding(cls, binding: DatasetPortBindingDef) -> DatasetType | None:
-        """Construct from a DatasetPortBindingDef, loading the DB model by UUID."""
+    def from_binding(
+        cls,
+        binding: DatasetBindingDef,
+        dataset_models_by_uuid: Mapping[UUID, DatasetModel] | None = None,
+    ) -> DatasetType | None:
+        """Construct from a binding, using a bulk-loaded model map when available."""
         from nodes.graphql.types.graph import _dataset_external_ref_to_gql
 
         if binding.dataset_uuid is None:
             return None
-        model = DatasetModel.objects.filter(uuid=binding.dataset_uuid).select_related('schema').first()
+        if dataset_models_by_uuid is None:
+            model = (
+                DatasetModel.objects
+                .filter(uuid=binding.dataset_uuid)
+                .select_related('schema', 'created_by', 'last_modified_by')
+                .first()
+            )
+        else:
+            model = dataset_models_by_uuid.get(binding.dataset_uuid)
         if model is not None:
             obj = cls.from_model(model)
             if binding.forecast_from is not None:

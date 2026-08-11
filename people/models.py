@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import uuid
-from typing import TYPE_CHECKING, ClassVar, cast, override
+from typing import TYPE_CHECKING, ClassVar, override
 
 from django.db import models
 from django.db.models import Q
@@ -57,11 +57,9 @@ class PersonQuerySet(MultilingualQuerySet['Person'], PermissionedQuerySet['Perso
 
 
 if TYPE_CHECKING:
-    _PersonManager = models.Manager.from_queryset(PersonQuerySet)
 
-    class PersonManager(MLModelManager['Person', PersonQuerySet], _PersonManager): ...  # pyright: ignore
+    class PersonManager(MLModelManager['Person', PersonQuerySet]): ...
 
-    del _PersonManager
 else:
     PersonManager = MLModelManager.from_queryset(PersonQuerySet)
 
@@ -182,14 +180,16 @@ class PersonGroupQuerySet(PathsQuerySet['PersonGroup']):
     pass
 
 
-_PersonGroupManager = cast('models.Manager[PersonGroup]', models.Manager).from_queryset(PersonGroupQuerySet)
+if TYPE_CHECKING:
+
+    class _PersonGroupManager(ModelManager['PersonGroup', PersonGroupQuerySet]): ...
+
+else:
+    _PersonGroupManager = ModelManager.from_queryset(PersonGroupQuerySet)
 
 
-class PersonGroupManager(ModelManager['PersonGroup', PersonGroupQuerySet], _PersonGroupManager):  # type: ignore[valid-type, misc]
+class PersonGroupManager(_PersonGroupManager):
     """Model manager for PersonGroup."""
-
-
-del _PersonGroupManager
 
 
 class PersonGroup(PathsModel, ClusterableModel):
@@ -248,12 +248,12 @@ if TYPE_CHECKING:
     class DatasetSchemaGroupPermission(ObjectGroupPermissionBase[DatasetSchema]):
         object: FK[DatasetSchema] = ForeignKey(DatasetSchema, on_delete=models.CASCADE, related_name='group_permissions')
 
-        objects: ClassVar[models.Manager[DatasetSchemaGroupPermission]] = models.Manager()
+        _default_manager: ClassVar[models.Manager[DatasetSchemaGroupPermission]]
 
     class DatasetSchemaPersonPermission(ObjectPersonPermissionBase[DatasetSchema]):
         object: FK[DatasetSchema] = ForeignKey(DatasetSchema, on_delete=models.CASCADE, related_name='person_permissions')
 
-        objects: ClassVar[models.Manager[DatasetSchemaPersonPermission]] = models.Manager()
+        _default_manager: ClassVar[models.Manager[DatasetSchemaPersonPermission]]
 
 else:
     # Create permission membership models here, in the `people` app, since they will be part of this app. If you call

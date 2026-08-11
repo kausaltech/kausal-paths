@@ -5,7 +5,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from django.contrib.contenttypes.models import ContentType
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 import polars as pl
@@ -29,6 +29,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
+from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.dataset_placeholders import make_external_dataset_ref, sync_dataset_placeholder
 from nodes.datasets import JSONDataset
 from nodes.models import InstanceConfig
@@ -41,6 +42,16 @@ if TYPE_CHECKING:
 # Must match notebooks/upload_new_dataset.py's SOURCE_NAME_SEPARATOR: a 'Source' cell may
 # join multiple citation names when a value was derived from more than one.
 SOURCE_NAME_SEPARATOR = '; '
+
+# A 'Comment' cell may likewise carry several distinct notes about one data point -- a
+# source-cell reference, the inventory's own wording, an adopted-error note -- each of
+# which should become its own DataPointComment.
+#
+# Deliberately NOT '; ', unlike SOURCE_NAME_SEPARATOR. Source names are short identifiers;
+# comments are prose, and prose contains semicolons: 162 of the 12,899 comment cells
+# already in data/ contain '; ' inside a single sentence, and splitting on it would
+# fragment them. ' ;; ' cannot occur by accident in ordinary text.
+COMMENT_SEPARATOR = ' ;; '
 
 # Must match notebooks/upload_new_dataset.py's RESERVED_ROW_COLUMNS: columns that ride
 # through to DVC as literal per-row data (excluded from index_columns there) rather than
@@ -121,7 +132,8 @@ class Command(BaseCommand):
         )
         parser.add_argument('--force', action='store_true')
 
-    def sync_dataset(  # noqa: C901
+    @transaction.atomic
+    def sync_dataset(  # noqa: C901, PLR0915
         self,
         instance_config: InstanceConfig,
         ctx: Context,
@@ -233,6 +245,7 @@ class Command(BaseCommand):
             column_dimensions=column_dimensions,
             sources_meta=dvc_metadata.get('sources'),
         )
+        refresh_dataset_materialization(dataset)
 
     def create_dataset_schema(
         self,
@@ -293,6 +306,13 @@ class Command(BaseCommand):
             else:
                 print(f"Source '{name}' not found in dvc_metadata['sources']; skipping.")
 
+    def create_data_point_comments(self, data_point: DataPoint, comment_cell: str) -> None:
+        """Create one DataPointComment per note in comment_cell (COMMENT_SEPARATOR-joined for >1)."""
+        for part in comment_cell.split(COMMENT_SEPARATOR):
+            text = part.strip()
+            if text:
+                DataPointComment.objects.create(data_point=data_point, text=text)
+
     def create_data_points(
         self,
         instance_config: InstanceConfig,
@@ -312,8 +332,18 @@ class Command(BaseCommand):
         # this management command did.
         # 'Source'/'Comment' (or, for plain_csv_wide, 'Description') are reserved per-row columns:
         # not dimensions, read back here into DataSource/DataPointComment links.
+        #
+        # Only one comment column is read. A file carrying both 'Comment' and 'Description'
+        # would silently lose one, so that is rejected rather than resolved by column order;
+        # put every note in 'Comment', COMMENT_SEPARATOR-joined.
         source_col = next((c for c in df.columns if c.lower() == 'source'), None)
-        comment_col = next((c for c in df.columns if c.lower() in ('comment', 'description')), None)
+        comment_cols = [c for c in df.columns if c.lower() in ('comment', 'description')]
+        if len(comment_cols) > 1:
+            raise CommandError(
+                f'Dataset carries more than one comment column ({", ".join(comment_cols)}). '
+                f"Use 'Comment' only, joining several notes with '{COMMENT_SEPARATOR}'."
+            )
+        comment_col = comment_cols[0] if comment_cols else None
         num_created = 0
         for row in table['data']:
             year_val = row['Year']
@@ -342,7 +372,7 @@ class Command(BaseCommand):
                 if source_col and row.get(source_col):
                     self.link_data_point_sources(data_point, row[source_col], data_sources)
                 if comment_col and row.get(comment_col):
-                    DataPointComment.objects.create(data_point=data_point, text=row[comment_col])
+                    self.create_data_point_comments(data_point, row[comment_col])
         print(f'Created {num_created} data points')
 
     def rename_value_columns(self, df: ppl.PathsDataFrame):
