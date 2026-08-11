@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 330e2256ecb14e51b5769628f2a9b9f5dda766f2
+  commit: 5e3006e49c8ecf3337f0812b7abc87f047fc8adf
   dvc_remote: kausal-s3
 name_de: Augsburg CO₂-Zukunfts-Rechner
 name_en: Augsburg CO₂-Future Calculator
@@ -645,7 +645,9 @@ result_excels:
   node_ids:
   - weather_correction
   - final_energy_use
+  - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
   - final_energy_use_data_quality
+  - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type
   # - municipal_fleet_energy
   - historical_emissions
@@ -653,6 +655,7 @@ result_excels:
   - electricity_production_emission_factors
   - emission_factors_without_fuel_data
   - emission_factors_for_district_heating_by_generic_fuel
+  - transport_emission_factors      # the certifier could not find these listed
   - vehicle_kilometers_ifeu
   - other_transport_energy
 

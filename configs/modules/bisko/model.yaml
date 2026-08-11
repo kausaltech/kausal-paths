@@ -329,19 +329,36 @@ dimensions:
     color: '#303030'
     order: 26
 
+# Two granularities coexist here, because two sources report at two levels: the
+# KSP Datenerfassung (Daten kommunale Einrichtungen) merges schools with day-care
+# centres and lumps everything else into `other_infrastructure`, while a
+# GHG-Protocol administration balance reports per property group. Categories for
+# both are declared so each source can be written at the level it actually has.
+#
+# `schools_kitas` therefore OVERLAPS `schools` + `day_care_centres`. Never mix the
+# two levels within one dataset -- that double-counts. Pick the level the source
+# reports at, and aggregate afterwards if a coarser view is wanted.
+#
+# Aggregating over this dimension is safe at any point: every emission factor node
+# in this module is dimensioned on `energy_carrier` (some also on
+# `per_what_energy`) and none on `municipal_facility_type`, so factors broadcast
+# across facility type and activity x factor gives the same total whether the
+# aggregation happens before or after the multiply.
 - id: municipal_facility_type
   label_en: Municipal facility type
   label_de: Art der kommunalen Einrichtung
-  help_text: Sub-categories of municipal facilities as in KSP Datenerfassung 
-    (Daten kommunale Einrichtungen).
+  help_text: Municipal facility groups. Coarse categories follow the KSP
+    Datenerfassung (Daten kommunale Einrichtungen); the finer property groups
+    follow GHG-Protocol administration balances.
   categories:
+  # --- KSP Datenerfassung level ---
   - id: street_lighting
     label_en: Street lighting
     label_de: Straßenbeleuchtung
   - id: administrative_buildings
     label_en: Municipal administrative buildings
     label_de: Kommunale Verwaltungsgebäude
-    aliases: [kommunale_verwaltungsgebaude]
+    aliases: [kommunale_verwaltungsgebaude, verwaltungen]
   - id: schools_kitas
     label_en: Schools and day-care centres
     label_de: Schulen und Kindertagesstätten
@@ -349,6 +366,30 @@ dimensions:
   - id: other_infrastructure
     label_en: Other municipal buildings and infrastructure
     label_de: Sonstige kommunale Gebäude und Infrastruktur
+  # --- Administration-balance property groups (finer than the above) ---
+  - id: fire_and_civil_protection
+    label_en: Fire brigades and civil protection
+    label_de: Feuerwehren und Zivilschutz
+    aliases: [feuerwehren_zivilschutz]
+  - id: schools
+    label_en: Schools
+    label_de: Schulen
+  - id: day_care_centres
+    label_en: Day-care centres
+    label_de: Kindertagesstätten
+    aliases: [kitas]
+  - id: cultural_facilities
+    label_en: Cultural facilities
+    label_de: Kultureinrichtungen
+  - id: childrens_youth_and_social_facilities
+    label_en: Children's, youth and social facilities
+    label_de: Kinder-, Jugend- und Sozialeinrichtungen
+  - id: youth_centres
+    label_en: Youth centres
+    label_de: Jugendhäuser
+  - id: parks_and_environment_buildings
+    label_en: Parks and environment department buildings
+    label_de: Gebäude des Grün- und Umweltamtes
 
 - id: per_what_energy
   label_en: Per what energy
@@ -796,6 +837,42 @@ nodes:
       drop_col: false
   input_nodes:
   - id: weather_correction
+
+- id: total_final_energy_use
+  name_en: Final energy use by sector
+  name_de: Endenergieverbrauch nach Sektoren
+  description_en: |
+    Final energy use of all five BISKO sectors by energy carrier: the four stationary sectors
+    from the city's own energy data, plus transport, whose energy is summed over the vehicle
+    types. BISKO requires the energy balance — not only the greenhouse gas balance — to be
+    shown by sector and by energy carrier, transport included (criterion 2.1).<br/>
+    Municipal facilities are reported as their own sector here. If the city's figure for
+    commerce, trade and services still contains them, they are counted twice; BISKO requires
+    them to be subtracted from that sector.
+  description_de: |
+    Endenergieverbrauch aller fünf BISKO-Sektoren nach Energieträgern: die vier stationären
+    Sektoren aus den eigenen Energiedaten der Kommune sowie der Verkehr, dessen Energie über
+    die Fahrzeugtypen summiert wird. BISKO verlangt, dass nicht nur die Treibhausgasbilanz,
+    sondern auch die Energiebilanz nach Sektoren und Energieträgern dargestellt wird, und zwar
+    einschließlich des Verkehrs (Prüfschritt 2.1).<br/>
+    Kommunale Einrichtungen werden hier als eigener Sektor ausgewiesen. Sind sie im Wert der
+    Kommune für Gewerbe, Handel, Dienstleistungen noch enthalten, werden sie doppelt gezählt;
+    BISKO verlangt, sie dort abzuziehen.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+  - id: transport_energy
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
 
 - id: final_energy_use_data_quality
   name_de: Endenergie Datenqualität

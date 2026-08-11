@@ -5,7 +5,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 330e2256ecb14e51b5769628f2a9b9f5dda766f2
+  commit: 5e3006e49c8ecf3337f0812b7abc87f047fc8adf
   dvc_remote: kausal-s3
 name_de: Maßnahmenplan Klimaneutralität München
 name_en: Munich Climate Dashboard
