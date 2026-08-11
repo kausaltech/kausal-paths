@@ -1,0 +1,250 @@
+dimensions:
+
+- id: wz_code
+  label_en: Economic sector (WZ2008)
+  label_de: Wirtschaftszweig (WZ2008)
+  help_text: German Federal Statistical Office (Destatis) economic activity
+    classification WZ2008, at the 2-digit division level. Currently only
+    covers divisions 05-33 (mining and manufacturing); more divisions can be
+    added as more sector-split data becomes available.
+  categories:
+  - id: wz08_05
+    label_en: Mining of coal and lignite
+    label_de: Kohlenbergbau
+  - id: wz08_06
+    label_en: Extraction of crude petroleum and natural gas
+    label_de: Gewinnung von Erdöl und Erdgas
+  - id: wz08_07
+    label_en: Mining of metal ores
+    label_de: Erzbergbau
+  - id: wz08_08
+    label_en: Other mining and quarrying
+    label_de: Gewinnung von Steinen und Erden, sonstiger Bergbau
+  - id: wz08_09
+    label_en: Mining support service activities
+    label_de: Dienstleistungen f.d.Bergbau u.Gewinnung v.Steinen
+  - id: wz08_10
+    label_en: Manufacture of food products
+    label_de: Herstellung von Nahrungs- und Futtermitteln
+  - id: wz08_11
+    label_en: Manufacture of beverages
+    label_de: Getränkeherstellung
+  - id: wz08_12
+    label_en: Manufacture of tobacco products
+    label_de: Tabakverarbeitung
+  - id: wz08_13
+    label_en: Manufacture of textiles
+    label_de: Herstellung von Textilien
+  - id: wz08_14
+    label_en: Manufacture of wearing apparel
+    label_de: Herstellung von Bekleidung
+  - id: wz08_15
+    label_en: Manufacture of leather and related products
+    label_de: Herstellung von Leder, Lederwaren und Schuhen
+  - id: wz08_16
+    label_en: Manufacture of wood and products of wood and cork, except furniture
+    label_de: H.v. Holz-, Flecht-, Korb-u.Korkwaren (ohne Möbel)
+  - id: wz08_17
+    label_en: Manufacture of paper and paper products
+    label_de: Herstellung von Papier, Pappe und Waren daraus
+  - id: wz08_18
+    label_en: Printing and reproduction of recorded media
+    label_de: H.v. Druckerz., Vervielf.v.Ton-,Bild-,Datenträgern
+  - id: wz08_19
+    label_en: Manufacture of coke and refined petroleum products
+    label_de: Kokerei und Mineralölverarbeitung
+  - id: wz08_20
+    label_en: Manufacture of chemicals and chemical products
+    label_de: Herstellung von chemischen Erzeugnissen
+  - id: wz08_21
+    label_en: Manufacture of basic pharmaceutical products and preparations
+    label_de: Herstellung von pharmazeutischen Erzeugnissen
+  - id: wz08_22
+    label_en: Manufacture of rubber and plastic products
+    label_de: Herstellung von Gummi- und Kunststoffwaren
+  - id: wz08_23
+    label_en: Manufacture of other non-metallic mineral products
+    label_de: H.v.Glas,-waren,Keramik,Verarb. v.Steinen u.Erden
+  - id: wz08_24
+    label_en: Manufacture of basic metals
+    label_de: Metallerzeugung und -bearbeitung
+  - id: wz08_25
+    label_en: Manufacture of fabricated metal products, except machinery
+    label_de: Herstellung von Metallerzeugnissen
+  - id: wz08_26
+    label_en: Manufacture of computer, electronic and optical products
+    label_de: H.v. DV-Geräten, elektron. u. opt. Erzeugnissen
+  - id: wz08_27
+    label_en: Manufacture of electrical equipment
+    label_de: Herstellung von elektrischen Ausrüstungen
+  - id: wz08_28
+    label_en: Manufacture of machinery and equipment n.e.c.
+    label_de: Maschinenbau
+  - id: wz08_29
+    label_en: Manufacture of motor vehicles, trailers and semi-trailers
+    label_de: Herstellung von Kraftwagen und Kraftwagenteilen
+  - id: wz08_30
+    label_en: Manufacture of other transport equipment
+    label_de: Sonstiger Fahrzeugbau
+  - id: wz08_31
+    label_en: Manufacture of furniture
+    label_de: Herstellung von Möbeln
+  - id: wz08_32
+    label_en: Other manufacturing
+    label_de: Herstellung von sonstigen Waren
+  - id: wz08_33
+    label_en: Repair and installation of machinery and equipment
+    label_de: Reparatur u.Installation von Masch.u.Ausrüstungen
+
+nodes:
+
+# ----- DE-wide leaf data, by wz_code (Destatis) -----
+# Not yet wired into the rest of the model; provides the DE-average per-employee
+# and per-revenue ratios that a city-specific module can later multiply by its
+# own local employee counts (e.g. Mainz's GHD/Industrie electricity split).
+
+- id: sector_electricity_consumption
+  name_en: Electricity consumption by sector (DE)
+  name_de: Stromverbrauch nach Wirtschaftszweig (DE)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [wz_code]
+  output_dimensions: [wz_code]
+  input_datasets:
+  - id: bisko/electricity_consumption_by_sector
+    column: energy
+    forecast_from: 2025
+
+- id: sector_gas_consumption
+  name_en: Gas consumption by sector (DE)
+  name_de: Erdgasverbrauch nach Wirtschaftszweig (DE)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [wz_code]
+  output_dimensions: [wz_code]
+  input_datasets:
+  - id: bisko/gas_consumption_by_sector
+    column: energy
+    forecast_from: 2025
+
+- id: sector_employees
+  name_en: Employees by sector (DE)
+  name_de: Beschäftigte nach Wirtschaftszweig (DE)
+  type: simple.AdditiveNode
+  quantity: employees
+  unit: employee
+  input_dimensions: [wz_code]
+  output_dimensions: [wz_code]
+  input_datasets:
+  - id: bisko/employees_by_sector
+    column: employees
+    forecast_from: 2026
+
+- id: sector_establishments
+  name_en: Establishments by sector (DE)
+  name_de: Betriebe nach Wirtschaftszweig (DE)
+  type: simple.AdditiveNode
+  quantity: number
+  unit: dimensionless
+  input_dimensions: [wz_code]
+  output_dimensions: [wz_code]
+  input_datasets:
+  - id: bisko/establishments_by_sector
+    column: number
+    forecast_from: 2026
+
+- id: sector_revenue
+  name_en: Revenue by sector (DE)
+  name_de: Umsatz nach Wirtschaftszweig (DE)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  input_dimensions: [wz_code]
+  output_dimensions: [wz_code]
+  input_datasets:
+  - id: bisko/revenue_by_sector
+    column: currency
+    forecast_from: 2026
+
+# ----- DE-average ratios, by wz_code -----
+
+- id: sector_electricity_consumption_per_employee
+  name_en: Electricity consumption per employee by sector (DE average)
+  name_de: Stromverbrauch pro Beschäftigten nach Wirtschaftszweig (DE-Durchschnitt)
+  type: formula.FormulaNode
+  quantity: energy_factor
+  unit: MWh/a/employee
+  input_dimensions: [wz_code]
+  output_dimensions: [wz_code]
+  input_nodes:
+  - id: sector_electricity_consumption
+  - id: sector_employees
+  params:
+    formula: sector_electricity_consumption / sector_employees
+
+- id: sector_gas_consumption_per_employee
+  name_en: Gas consumption per employee by sector (DE average)
+  name_de: Erdgasverbrauch pro Beschäftigten nach Wirtschaftszweig (DE-Durchschnitt)
+  type: formula.FormulaNode
+  quantity: energy_factor
+  unit: MWh/a/employee
+  input_dimensions: [wz_code]
+  output_dimensions: [wz_code]
+  input_nodes:
+  - id: sector_gas_consumption
+  - id: sector_employees
+  params:
+    formula: sector_gas_consumption / sector_employees
+
+- id: sector_revenue_per_employee
+  name_en: Revenue per employee by sector (DE average)
+  name_de: Umsatz pro Beschäftigten nach Wirtschaftszweig (DE-Durchschnitt)
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: kEUR/a/employee
+  input_dimensions: [wz_code]
+  output_dimensions: [wz_code]
+  input_nodes:
+  - id: sector_revenue
+  - id: sector_employees
+  params:
+    formula: sector_revenue / sector_employees
+
+# ----- Local (city-specific) leaf data and derived consumption, by wz_code -----
+# 'bisko/local_employees_by_sector' is a generic placeholder id: cities that
+# include this module supply their own local employee counts via
+# dataset_replacements (see mainz-bisko.yaml for the Mainz replacement).
+
+- id: sector_employees_local
+  name_en: Employees by sector (local)
+  name_de: Beschäftigte nach Wirtschaftszweig (lokal)
+  type: simple.AdditiveNode
+  quantity: employees
+  unit: employee
+  input_dimensions: [wz_code]
+  output_dimensions: [wz_code]
+  input_datasets:
+  - id: bisko/local_employees_by_sector
+    column: employees
+    forecast_from: 2025
+
+- id: sector_electricity_consumption_local
+  name_en: Electricity consumption by sector (local, estimated from employees)
+  name_de: Stromverbrauch nach Wirtschaftszweig (lokal, geschätzt anhand Beschäftigter)
+  description_en: Local employees by sector multiplied by the DE-average
+    electricity consumption per employee by sector. Matches years and
+    wz_code categories between the two inputs; years present in the local
+    employee data but missing from the DE ratio for a given sector are
+    dropped rather than guessed.
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [wz_code]
+  output_dimensions: [wz_code]
+  input_nodes:
+  - id: sector_employees_local
+    tags: [non_additive]
+  - id: sector_electricity_consumption_per_employee
+    tags: [non_additive]

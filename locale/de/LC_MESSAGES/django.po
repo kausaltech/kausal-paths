@@ -1893,6 +1893,15 @@ msgid "cap"
 msgstr "Einw."
 
 #: nodes/units.py
+msgid "employees"
+msgstr "Beschäftigte"
+
+#: nodes/units.py
+msgctxt "employee short"
+msgid "MA"
+msgstr "MA"
+
+#: nodes/units.py
 msgid "euro cents"
 msgstr "Eurocent"
 

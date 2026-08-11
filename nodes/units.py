@@ -327,6 +327,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     @alias pkm = pkt = p_km
     MPG = VMT / gallon = miles_per_gallon
     job = [employment] = fte = full_time_equivalent
+    employee = [employees] = employees
     million_square_meters = 1e6 * meter ** 2 = Msqm
     thousand_square_meters = 1e3 * meter ** 2 = ksqm
     thousand_hectares = 1e7 * meter ** 2 = t_ha
@@ -428,6 +429,7 @@ def add_unit_translations():  # noqa: C901
 
     unit_definitions: list[UnitDefinition] = [
         {'unit': 'capita', 'long': _('capita'), 'short': pgettext_lazy('capita short', 'cap')},
+        {'unit': 'employee', 'long': _('employees'), 'short': pgettext_lazy('employee short', 'MA')},
         {'unit': 'kt', 'long': kt_str, 'short': kt_str},
         {'unit': 'centiEUR', 'long': _('euro cents'), 'short': 'ct'},
         {'unit': 'EUR', 'long': _('euros'), 'short': '€'},

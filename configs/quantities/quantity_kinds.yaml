@@ -194,6 +194,13 @@ population:
   qudt: quantitykind:Population
   is_stackable: true
 
+employees:
+  label:
+    en: Employees
+    de: Beschäftigte
+  icon: "👷"
+  is_stackable: true
+
 floor_area:
   label:
     en: Floor area
