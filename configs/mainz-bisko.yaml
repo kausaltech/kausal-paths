@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5e3006e49c8ecf3337f0812b7abc87f047fc8adf
+  commit: 3a15c35d79c620d69c24f761d1ec6433d8e51c22
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
@@ -75,19 +75,11 @@ params:
 # or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
 # regularly updated traffic data, so this is a real alternative rather than a workaround.
 - id: use_own_mileage
-  label_en: Use the city's own mileage data rather than the BISKO municipality
+  label_en: Use the city's own mileage data rather than the BISKO municipality 
     defaults
-  label_de: Eigene Fahrleistungsdaten der Kommune anstelle der gemeindefeinen
+  label_de: Eigene Fahrleistungsdaten der Kommune anstelle der gemeindefeinen 
     BISKO-Default-Werte verwenden
   value: false
-  is_visible: true
-  is_customizable: true
-- id: use_local_values # FIXME Make connection to district heating emission factors dataset.
-  label_en: Use local rather than national district heating emission factors 
-    (BISKO)
-  label_de: Verwenden Sie lokale statt nationale Fernwärmeemissionsfaktoren 
-    (BISKO).
-  value: true
   is_visible: true
   is_customizable: true
 
@@ -130,7 +122,9 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Treibhausgasbilanz und -prognosen
-  lead_paragraph: Historische Treibhausgasemissionen der Stadt Bayreuth und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+  lead_paragraph: Historische Treibhausgasemissionen der Stadt Mainz und 
+    Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen 
+    erfolgreich umgesetzt".
 
 scenarios:
 

@@ -1850,7 +1850,7 @@ nodes:
     tags: [weather]
   - id: has_national_electricity_emission_factors
     tags: [electricity]
-  - id: has_local_district_heating_emission_factors
+  - id: has_district_heating_by_exergetic_allocation
     tags: [district_heating]
   - id: has_quality_a_data_for_grid_based_energy
     tags: [grid_energy]
@@ -1885,19 +1885,122 @@ nodes:
   - id: condition
     ref: use_national_values
 
-- id: has_local_district_heating_emission_factors
-  name_en: Has local district heating emission factors?
-  name_de: Hat lokale Fernwärmeemissionsfaktoren?
-  description_en: BISKO inventory must use local district heating emission 
-    factors.
-  description_de: BISKO-Inventar muss lokale Fernwärmeemissionsfaktoren 
-    verwenden.
-  type: generic.ConstantNode
+- id: district_heating_emission_factor_ceiling
+  name_en: District heating emission factor ceiling (Coal CHP)
+  name_de: Obergrenze Fernwärmeemissionsfaktor (Kohle KWK)
+  description_en: The highest BISKO Table 5 variant, Coal CHP. BISKO names it as the value to
+    fall back on whenever no single generation technology reaches 80 per cent of heat
+    production, so it is the ceiling a conforming district heating factor cannot exceed.
+  description_de: Die höchste BISKO-Variante aus Tabelle 5, Kohle KWK. BISKO nennt sie als
+    Rückfallwert, wenn keine Erzeugungsvariante 80 Prozent der Wärmeerzeugung erreicht; sie ist
+    damit die Obergrenze, die ein konformer Fernwärmeemissionsfaktor nicht überschreiten darf.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_nodes:
+  - id: emission_factors_for_district_heating_by_generic_fuel
+    from_dimensions:
+    - id: energy_carrier
+      categories: [hard_coal]
+      flatten: true
+    - id: per_what_energy
+      flatten: true
+
+- id: district_heating_emission_factor_floor
+  name_en: District heating emission factor floor (Biomass CHP)
+  name_de: Untergrenze Fernwärmeemissionsfaktor (Biomasse KWK)
+  description_en: The lowest BISKO Table 5 variant, Biomass CHP. A district heating factor below
+    it cannot have come from any of the generation variants the standard provides.
+  description_de: Die niedrigste BISKO-Variante aus Tabelle 5, Biomasse KWK. Ein
+    Fernwärmeemissionsfaktor darunter kann aus keiner der im Standard vorgesehenen
+    Erzeugungsvarianten stammen.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_nodes:
+  - id: emission_factors_for_district_heating_by_generic_fuel
+    from_dimensions:
+    - id: energy_carrier
+      categories: [biomass_chp]
+      flatten: true
+    - id: per_what_energy
+      flatten: true
+
+- id: has_district_heating_by_exergetic_allocation
+  name_en: Are district heating emissions allocated exergetically?
+  name_de: Werden die Fernwärmeemissionen exergetisch alloziert?
+  description_en: |
+    BISKO criterion 6 requires the coupled products of combined heat and power to be split by
+    the exergetic (Carnot) method. The split itself happens inside the combined heat and power
+    action, which runs with <code>method: bisko</code> — but that is invisible in the balance,
+    so this node makes it explicit and testable.<br/>
+    The test is on the effective factor of the heat actually delivered — the emissions of the
+    district heating branch divided by its heat output. That factor must lie inside the envelope
+    of the BISKO Table 5 variants, bounded by Coal CHP above and Biomass CHP below. Every value
+    in that table was derived by exergetic allocation, and BISKO names Coal CHP as the fallback
+    ceiling whenever no single generation technology reaches 80 per cent of heat production, so a
+    factor outside the envelope cannot have come from a BISKO-sanctioned route.<br/>
+    Two limits worth knowing. The node reports 0 when there is no district heating heat output to
+    divide by, which is the correct answer for a conformity gate — an unevidenced route is not a
+    conforming one — but it means 0 can indicate missing data rather than a wrong method. And a
+    value inside the envelope is not proof that the exergetic calculation produced it; the test
+    catches an out-of-range factor, not a plausible but wrongly derived one.
+  description_de: |
+    BISKO-Kriterium 6 verlangt, dass die Koppelprodukte der Kraft-Wärme-Kopplung nach der
+    exergetischen Methode (Carnot-Methode) aufgeteilt werden. Die Aufteilung selbst erfolgt in
+    der KWK-Aktion, die mit <code>method: bisko</code> rechnet — das ist in der Bilanz jedoch
+    nicht sichtbar, weshalb dieser Knoten es explizit und prüfbar macht.<br/>
+    Geprüft wird der effektive Faktor der tatsächlich gelieferten Wärme — die Emissionen des
+    Fernwärmezweigs geteilt durch dessen Wärmeabgabe. Dieser Faktor muss innerhalb der Spannweite
+    der BISKO-Varianten aus Tabelle 5 liegen, begrenzt durch Kohle KWK oben und Biomasse KWK
+    unten. Alle Werte dieser Tabelle wurden exergetisch berechnet, und BISKO nennt Kohle KWK als
+    Rückfallwert, wenn keine Erzeugungsvariante 80 Prozent der Wärmeerzeugung erreicht; ein Faktor
+    außerhalb der Spannweite kann daher nicht aus einem BISKO-konformen Verfahren stammen.<br/>
+    Zwei Einschränkungen: Der Knoten liefert 0, wenn keine Wärmeabgabe vorliegt, durch die geteilt
+    werden könnte. Für ein Konformitätskriterium ist das die richtige Antwort — ein nicht
+    belegbares Verfahren ist kein konformes —, bedeutet aber, dass 0 auch auf fehlende Daten und
+    nicht auf eine falsche Methode hinweisen kann. Und ein Wert innerhalb der Spannweite ist kein
+    Beweis dafür, dass er exergetisch berechnet wurde.
+  type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
+  input_nodes:
+  # district_heating_fuel_emission_factors is the node the CHP allocation actually flows into
+  # (it multiplies the fuel factors by combined_heat_and_power_chp_fraction), so it is the
+  # subject that can reveal a changed allocation. end_energy_emission_factors would not: it is
+  # the ifeu Fernwärme series and does not depend on the allocation at all.
+  # The effective factor of the heat actually delivered: emissions of the district heating
+  # branch divided by its heat output. Flattening the per-fuel factors would sum them, which
+  # is meaningless -- a network's factor is the emissions-weighted average, not a total.
+  - id: district_heating_emissions
+    tags: [emissions]
+    from_dimensions:
+    - id: per_what_energy
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  - id: district_heating_energy_use
+    tags: [heat]
+    from_dimensions:
+    - id: per_what_energy
+      categories: [heat_output]
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  # The bounds come from BISKO Table 5 itself rather than being written in as numbers, so they
+  # follow the annual update of the table. This is also the only live consumer of that node.
+  - id: district_heating_emission_factor_ceiling
+    tags: [ceiling]
+  - id: district_heating_emission_factor_floor
+    tags: [floor]
   params:
-  - id: condition
-    ref: use_local_values
+  - id: formula
+    # Multiplied rather than divided, so a year with no heat output cannot raise a
+    # divide-by-zero, and zero_fill so years before the district heating data begins
+    # read as "not evidenced" (0) instead of null. A null here fails the baseline
+    # validation and takes down the whole /graph view, as duesseldorf-bisko showed:
+    # it starts in 1987 while the district heating series starts in 1990.
+    value: zero_fill((emissions <= heat * ceiling) * (emissions >= heat * floor))
 
 - id: quality_criteria
   name_en: Quality criteria

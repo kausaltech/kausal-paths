@@ -110,14 +110,6 @@ params:
   value: false
   is_visible: true
   is_customizable: true
-- id: use_local_values # FIXME Make connection to district heating emission factors dataset.
-  label_en: Use local rather than national district heating emission factors 
-    (BISKO)
-  label_de: Verwenden Sie lokale statt nationale Fernwärmeemissionsfaktoren 
-    (BISKO).
-  value: true
-  is_visible: true
-  is_customizable: true
 
 
 #//////  Dimensions  ///////////////////////////////////////////////////////////////////////////////////////////////////
