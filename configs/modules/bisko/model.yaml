@@ -252,7 +252,11 @@ dimensions:
   - id: electricity
     label_en: Electricity
     label_de: Strom
-    aliases: [strom]
+    # 'Fahrstrom' used to map to a separate driving_electricity category, which meant the KSP
+    # transport branch lost its electricity in the multiply against the BISKO fuel factors
+    # (those label it 'Strom'). BISKO applies the Bundesstrommix to all electricity, so one
+    # carrier is correct and the Fahrstrom labels resolve here.
+    aliases: [strom, fahrstrom, strom_fahrstrom, St]
     color: '#1565C0'
     order: 46
   - id: heating_electricity
@@ -261,12 +265,6 @@ dimensions:
     aliases: [heizstrom]
     color: '#6A1B9A'
     order: 30
-  - id: driving_electricity
-    label_en: Driving electricity
-    label_de: Fahrstrom
-    aliases: [fahrstrom, strom_fahrstrom, St]
-    color: '#0D3A80'
-    order: 19
   # --- Electricity generation (order 40-42): amber / blue-teal ---
   - id: photovoltaic
     label_en: Photovoltaic
@@ -414,10 +412,34 @@ dimensions:
     label_en: Baseline
     label_de: Baseline
 
+# Ids, labels and aliases are kept identical to the `scope` dimension in
+# configs/frameworks/standard_dims.yaml, so a dataset written for one validates
+# against the other. Declared here for every BISKO city: the territorial balance
+# itself does not split by scope, but the GHG-Protocol administration balance
+# (Verwaltungsbilanz) does, and several cities want the split regardless.
+- id: scope
+  label_en: Scope
+  label_de: Bilanzierungsbereich
+  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
+    3: Indirect emissions.'
+  categories:
+  - id: scope1
+    label_en: Scope 1
+    label_de: Scope 1
+    aliases: [scope_1]
+  - id: scope2
+    label_en: Scope 2
+    label_de: Scope 2
+    aliases: [scope_2]
+  - id: scope3
+    label_en: Scope 3
+    label_de: Scope 3
+    aliases: [scope_3]
+
 - id: sector
   label_en: Sector
   label_de: Sektoren
-  help_text: Sectors as categorised in the Mission City Climate City Contracts 
+  help_text: Sectors as categorised in the Mission City Climate City Contracts
     (CCC) and BISKO.
   categories:
   - id: transport
@@ -583,14 +605,14 @@ dimensions:
   - id: trains
     label_en: Trains
     label_de: Züge
-  - id: rail_vehicles
-    label_en: Tram and metro
-    label_de: Schienenfahrzeuge
-    aliases: [SSU, 'Stadt- , Straßen- und U-Bahn', VL_SSU]
+  # BISKO's 'Straßen-, Stadt- und U-Bahnen' (SSU in the mileage sheet, Tram in the
+  # consumption factor sheet) is one mode. It used to resolve to two categories, so the
+  # mileage and the factors never met and tram/metro dropped out of road transport
+  # entirely. 'tram' is the survivor because it is shared with two dozen other configs.
   - id: tram
-    label_en: Tram
-    label_de: Straßenbahn
-    aliases: [Tram]
+    label_en: Tram and metro
+    label_de: Straßen-, Stadt- und U-Bahn
+    aliases: [Tram, SSU, 'Stadt- , Straßen- und U-Bahn', VL_SSU]
   - id: local_trains
     label_en: Local trains
     label_de: Schienenpersonennahverkehr
@@ -1317,9 +1339,6 @@ nodes:
   - id: bisko/vehicle_energy
     column: Value
     tags: [energy]
-    filters:
-    - rename_item: vehicle_type|long_distance_buses
-      value: coach_buses
   params:
     formula: extend_all(energy)
 
@@ -1463,7 +1482,7 @@ nodes:
   - id: condition
     ref: use_mileage
 
-- id: transport_energy_factors # FIXME Does not contain values for rail_vehicles although they exist in road_transport_energy
+- id: transport_energy_factors
   name_en: Transport energy factors
   name_de: Verkehrsenergiefaktoren
   description_de: Spezifische Endenergieverbrauchsfaktoren im Straßenverkehr 
@@ -1479,7 +1498,7 @@ nodes:
   - id: bisko/energy_factor # kWh/vkm, usable for every city (BISKO Standard)
     column: Value
 
-- id: transport_energy_shares # FIXME Does not contain values for rail_vehicles although they exist in road_transport_energy
+- id: transport_energy_shares
   name_en: Transport energy shares
   name_de: Verkehrsenergieanteile
   type: generic.GenericNode

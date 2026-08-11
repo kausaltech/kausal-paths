@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 697e07ab8027b1a22e27ed8292b0330391554ce4
+  commit: 330e2256ecb14e51b5769628f2a9b9f5dda766f2
   dvc_remote: kausal-s3
 name_de: Reutlingen THG-Bilanzierungstool
 name_en: Reutlingen GHG-Inventory Tool
@@ -74,6 +74,18 @@ params:
   label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen 
     Energieverbrauchsdaten für den Transport.
   value: true
+  is_visible: true
+  is_customizable: true
+# Separate from use_mileage, which chooses between the mileage route and the city's own
+# energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
+# or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
+# regularly updated traffic data, so this is a real alternative rather than a workaround.
+- id: use_own_mileage
+  label_en: Use the city's own mileage data rather than the BISKO municipality
+    defaults
+  label_de: Eigene Fahrleistungsdaten der Kommune anstelle der gemeindefeinen
+    BISKO-Default-Werte verwenden
+  value: false
   is_visible: true
   is_customizable: true
 - id: use_local_values # FIXME Make connection to district heating emission factors dataset.
