@@ -6,8 +6,9 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from django.utils.module_loading import import_string
 from pydantic import Field, model_validator
 
-from kausal_common.i18n.pydantic import I18nString  # noqa: TC002
+from kausal_common.i18n.pydantic import I18nString, set_i18n_context
 
+from nodes.constraints.rules import MissingPortRoleError
 from nodes.defs.binding_def import AnyPortBindingDef, DatasetBindingDef, EdgeBindingDef, NodePortRef
 from nodes.defs.graph import (
     DatasetMeta,
@@ -23,12 +24,13 @@ from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeSpec, Pipeline
 if TYPE_CHECKING:
     import networkx as nx
 
+    from nodes.constraints.compile import ShapeRuleCompilation
     from nodes.defs.port_def import InputPortDef, OutputPortDef
     from nodes.instance_serialization import InstanceSnapshot
     from nodes.node import Node
 
 
-INSTANCE_GRAPH_FORMAT_VERSION = 1
+INSTANCE_GRAPH_FORMAT_VERSION = 3
 
 
 class InstanceGraphDiagnostic(FrozenGraphModel):
@@ -66,21 +68,136 @@ class NodeMeta(InstanceGraphBoundModel):
     def bindings_for_port(self, port_id: UUID) -> tuple[AnyPortBindingDef, ...]:
         return self.graph.bindings_by_input.get((self.id, port_id), ())
 
-    def require_input_port(self, role: str) -> InputPortDef:
-        declaration = next((item for item in self.node_class.input_port_declarations if item.role == role), None)
-        identifier = declaration.instance_identifier if declaration is not None else role
+    def _has_declaration_identifier_match(self, port: InputPortDef) -> bool:
+        if port.identifier is None:
+            return False
+        return any(declaration.instance_identifier == port.identifier for declaration in self.node_class.input_port_declarations)
+
+    @cached_property
+    def _port_role_inference(self) -> tuple[dict[UUID, str], tuple[InstanceGraphDiagnostic, ...]]:
+        """
+        Legacy role classification, delegated to the node class.
+
+        Derived state, recomputed per hydrated graph: the class hook
+        (``Node.infer_legacy_port_roles()``) sees only candidate ports —
+        authored roles and declaration-identifier matches are filtered out
+        here — and every inferred role must exist in the class declarations.
+        Goes away once persisted ports carry explicit roles.
+        """
+        from nodes.constraints.rules import ShapeRuleError
+
         try:
-            return self.spec.input_port_by_identifier[identifier]
-        except KeyError:
-            raise ValueError(f'Node {self.id} has no input port for role {role!r}') from None
+            node_class = self.node_class
+        except ImportError:
+            return {}, ()  # a broken class path gets its diagnostic from rule compilation
+        candidates = tuple(
+            port for port in self.spec.input_ports if port.role is None and not self._has_declaration_identifier_match(port)
+        )
+        if not candidates:
+            return {}, ()
+        metadata = self.graph.metadata
+        # The hook may import runtime modules that construct i18n values.
+        with set_i18n_context(metadata.primary_language, metadata.other_languages):
+            result = node_class.infer_legacy_port_roles(self, candidates)
+
+        candidate_ids = {port.id for port in candidates}
+        declared_roles = {declaration.role for declaration in node_class.input_port_declarations}
+        roles: dict[UUID, str] = {}
+        diagnostics: list[InstanceGraphDiagnostic] = []
+        for item in result.inferred:
+            if item.port_id not in candidate_ids:
+                raise ShapeRuleError(
+                    f'{self.node_class_path} (node {self.identifier or self.id}): '
+                    f'inferred a role for non-candidate port {item.port_id}'
+                )
+            if item.role not in declared_roles:
+                raise ShapeRuleError(
+                    f'{self.node_class_path} (node {self.identifier or self.id}): '
+                    f'inferred undeclared role {item.role!r} for port {item.port_id}'
+                )
+            roles[item.port_id] = item.role
+            diagnostics.append(
+                InstanceGraphDiagnostic(
+                    code='inferred_port_role',
+                    message=f'Input port {item.port_id} classified as {item.role!r} from {item.basis}',
+                    node_id=self.id,
+                    port_id=item.port_id,
+                )
+            )
+        diagnostics.extend(
+            InstanceGraphDiagnostic(
+                code='unclassified_port_role',
+                message=f'Input port {refusal.port_id}: {refusal.reason}',
+                node_id=self.id,
+                port_id=refusal.port_id,
+            )
+            for refusal in result.unclassified
+        )
+        return roles, tuple(diagnostics)
+
+    @property
+    def inferred_port_roles(self) -> dict[UUID, str]:
+        return self._port_role_inference[0]
+
+    @property
+    def port_role_diagnostics(self) -> tuple[InstanceGraphDiagnostic, ...]:
+        return self._port_role_inference[1]
+
+    def role_for_input_port(self, port: InputPortDef) -> str | None:
+        """
+        Resolve one input port's semantic role.
+
+        Precedence: the authored ``InputPortDef.role``, then the derived
+        legacy classification, then matching the port identifier against the
+        class declaration's instance identifier (covers snapshots synced
+        before roles were persisted).
+        """
+        if port.role is not None:
+            return port.role
+        inferred = self.inferred_port_roles.get(port.id)
+        if inferred is not None:
+            return inferred
+        if port.identifier is not None:
+            for declaration in self.node_class.input_port_declarations:
+                if declaration.instance_identifier == port.identifier:
+                    return declaration.role
+        return None
+
+    def role_for_output_port(self, port: OutputPortDef) -> str | None:
+        if port.role is not None:
+            return port.role
+        if port.identifier is not None:
+            for declaration in self.node_class.output_port_declarations:
+                if declaration.identifier == port.identifier:
+                    return declaration.role
+        return None
+
+    def input_ports_for_role(self, role: str) -> tuple[InputPortDef, ...]:
+        return tuple(port for port in self.spec.input_ports if self.role_for_input_port(port) == role)
+
+    def input_port_ids_for_roles(self, *roles: str) -> tuple[UUID, ...]:
+        """Port UUIDs whose role is any of the given roles, in spec port order."""
+        wanted = set(roles)
+        return tuple(port.id for port in self.spec.input_ports if self.role_for_input_port(port) in wanted)
+
+    def require_input_port(self, role: str) -> InputPortDef:
+        ports = self.input_ports_for_role(role)
+        if len(ports) == 1:
+            return ports[0]
+        if not ports:
+            raise MissingPortRoleError(self.id, 'input', role)
+        raise ValueError(f'Node {self.id} has {len(ports)} input ports for role {role!r}; use input_ports_for_role()')
 
     def require_output_port(self, role: str) -> OutputPortDef:
-        declaration = next((item for item in self.node_class.output_port_declarations if item.role == role), None)
-        identifier = declaration.identifier if declaration is not None else role
-        try:
-            return self.spec.output_port_by_identifier[identifier]
-        except KeyError:
-            raise ValueError(f'Node {self.id} has no output port for role {role!r}') from None
+        ports = tuple(port for port in self.spec.output_ports if self.role_for_output_port(port) == role)
+        if len(ports) == 1:
+            return ports[0]
+        if len(ports) > 1:
+            raise ValueError(f'Node {self.id} has {len(ports)} output ports for role {role!r}')
+        declarations = self.node_class.output_port_declarations
+        if len(declarations) == 1 and declarations[0].role == role and len(self.spec.output_ports) == 1:
+            return self.spec.output_ports[0]
+        raise MissingPortRoleError(self.id, 'output', role)
 
 
 GraphBinding = Annotated[AnyPortBindingDef, Field(discriminator='kind')]
@@ -136,8 +253,28 @@ class InstanceGraph(FrozenGraphModel):
             raise ValueError('Duplicate dataset metric UUID in InstanceGraph')
 
     @cached_property
+    def shape_rule_compilation(self) -> ShapeRuleCompilation:
+        """
+        Compiled shape rules for every node, with per-node diagnostics.
+
+        Derived state: imports node classes lazily and validates each declared
+        rule against this graph. Structurally invalid rules raise
+        ``ShapeRuleError``; nodes whose legacy ports lack roles compile to no
+        rules and a diagnostic.
+        """
+        from nodes.constraints.compile import compile_shape_rules
+
+        # Rule compilation imports runtime node modules lazily; some of them
+        # construct i18n Pydantic values at import time and need a language
+        # context, exactly like the loaders that import them today.
+        with set_i18n_context(self.metadata.primary_language, self.metadata.other_languages):
+            return compile_shape_rules(self)
+
+    @cached_property
     def diagnostics(self) -> tuple[InstanceGraphDiagnostic, ...]:  # noqa: C901, PLR0912
-        diagnostics: list[InstanceGraphDiagnostic] = []
+        diagnostics: list[InstanceGraphDiagnostic] = [
+            diagnostic for node in self.nodes for diagnostic in node.port_role_diagnostics
+        ]
         for binding in self.bindings:
             target = binding.port_ref
             if target.node_uuid is None:
@@ -283,6 +420,17 @@ class InstanceGraph(FrozenGraphModel):
     @cached_property
     def dimension_by_id(self) -> dict[UUID, DimensionMeta]:
         return {dimension.id: dimension for dimension in self.dimensions}
+
+    @cached_property
+    def dimension_by_identifier(self) -> dict[str, DimensionMeta]:
+        return {dimension.identifier: dimension for dimension in self.dimensions}
+
+    def require_dimension(self, identifier: str) -> DimensionMeta:
+        """Resolve a dimension role selector to graph identity, for use in ``shape_rules()``."""
+        try:
+            return self.dimension_by_identifier[identifier]
+        except KeyError:
+            raise ValueError(f'Instance {self.instance_id} has no dimension {identifier!r}') from None
 
     @cached_property
     def category_by_id(self) -> dict[UUID, DimensionCategoryMeta]:

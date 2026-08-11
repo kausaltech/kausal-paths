@@ -90,9 +90,9 @@ For example:
 ```python
 @classmethod
 def shape_rules(cls, meta: NodeMeta) -> tuple[PortShapeRule, ...]:
-    factors = meta.require_input_port('factors')
+    factors = meta.input_port_ids_for_roles('factors')
     output = meta.require_output_port('output')
-    return (ProductShapeRule(inputs=(factors.id,), output=output.id),)
+    return (ProductShapeRule(inputs=factors, output=output.id),)
 ```
 
 If port identifiers later become optional in persisted data, class-declared
@@ -384,36 +384,49 @@ return (
 
 For a multi-port, `SameShapeRule` constrains every delivered binding value,
 the port aggregate, and the output to the same dimensions; units must be
-convertible and quantities equal. Imputation is a separate explicit port/rule
-when supported, not a tag exception hidden inside equality.
+convertible and quantities equal. Imputation is a separate explicit `impute`
+multi port (declared on `AdditiveNode` as of 2026-08-11), not a tag exception
+hidden inside equality — its values overlay the result and therefore share
+the output shape, so it joins the same rule.
 
 ### MultiplicativeNode
 
-Migrate the node to explicit roles:
+Migrate the node to explicit roles (decision 2026-08-11, revising the earlier
+multi-factor-port sketch):
 
-- `factors`: multi input whose aggregate follows product algebra;
+- `factors`: **repeatable** single ports — each factor is its own port
+  instance carrying its own unit, quantity and dimension expectations. The
+  product happens *across* these ports;
 - `additive`: optional multi input equal to the computed result shape;
 - `impute`: optional multi input equal to the final output shape;
 - `output`: output port.
+
+This gives the two multiplicities exactly one meaning each: a **multi** port
+(one port, many bindings) is always a homogeneous ``same``-shaped aggregate,
+while a **repeatable** role holds heterogeneous instances. Products only ever
+happen across distinct ports; the earlier "multi-port product over delivered
+bindings" definition is retired. Declarations carry ``min_count`` /
+``default_count`` (factors: min 1, default 2; additive: min 0, default 1) so
+node creation and the editor's add-port affordances read the same catalog.
 
 Its initial rules are conceptually:
 
 ```python
 return (
     ProductShapeRule(
-        inputs=(meta.require_input_port('factors').id,),
+        inputs=meta.input_port_ids_for_roles('factors'),
         output=meta.require_output_port('output').id,
     ),
     SameShapeRule(
-        inputs=tuple(meta.optional_input_port_ids('additive', 'impute')),
+        inputs=meta.input_port_ids_for_roles('additive', 'impute'),
         output=meta.require_output_port('output').id,
     ),
 )
 ```
 
-The solver defines a multi-port product as the product of each delivered
-binding: output dimensions are their union and output unit is their unit
-product. Additive and imputation values match the output shape.
+Additive and imputation values match the output shape. Two rules constraining
+one output port is legitimate; only intermediates need a unique producing
+rule.
 
 During migration only, graph construction may classify legacy bindings from
 `impute` / `non_additive` tags and current output-unit compatibility. Keep that
@@ -421,6 +434,34 @@ adapter at snapshot-to-graph construction and emit diagnostics. Do not put the
 heuristic in `shape_rules()`: changing a unit must not silently change a
 binding's computational role. Remove the adapter once persisted ports have
 explicit roles.
+
+### Formula and pipeline nodes (decided 2026-08-11)
+
+Class declarations describe *class-fixed* algebra; `FormulaNode` and the
+upcoming `PipelineNode` have *instance-authored* algebra, and their ports are
+authored artifacts rather than role instances:
+
+- The identifier is load-bearing — it is the variable the formula references —
+  so `role` stays `None` and no generic `operand` role is invented. Each
+  port's semantics come from usage, recovered by compilation. The legacy
+  inference hook correctly does nothing for these classes.
+- `shape_rules(meta)` compiles the authored artifact: the pipeline compiler
+  already exists, and formula-AST compilation emits the same rule union
+  (`convert_gwp()` is the natural first real producer of
+  `DimensionTransformRule`).
+- `multi` is a per-port authoring decision; several multi ports are fine —
+  each is its own homogeneous aggregate, products still happen only across
+  ports.
+- Editor affordance is a class capability flag (`supports_authored_ports`
+  or similar) offered alongside the declaration catalog: "add input port"
+  with user-supplied identifier and multi toggle. Add-then-reference is the
+  expected flow — an unreferenced port is a benign draft diagnostic, while a
+  formula variable with no port is a publication-blocking conflict.
+- Renaming: pipeline operation refs are already port UUIDs, so
+  `PipelineNode` ports rename freely; formula text references names, so a
+  rename must atomically rewrite the formula (inside the step-9 aggregate
+  write) or be refused. Storing formulas in a resolved UUID-referencing form
+  is the eventual fix, not v1.
 
 ## Solver model
 
@@ -728,6 +769,40 @@ profiles do not observe live draft data, and unknown differs from known empty.
 **Gate:** compiled rules contain UUIDs only, invalid class rules fail with the
 node class and port role in the error, and unit changes do not reclassify an
 explicit binding role.
+
+Implementation note (2026-08-11): rules, compilation and the pipeline
+compiler live in `nodes/constraints/` (`rules.py`, `compile.py`,
+`pipeline_compile.py`); `InstanceGraph.shape_rule_compilation` is the cached
+entry point. Ports gained a persisted `role` field — the durable link to
+class semantics, so identifiers stay freely renameable — emitted by both
+`spec_export` and the parser mirror; `InputPortDeclaration` gained
+`repeatable` / `min_count` / `default_count` / i18n `label` (see the revised
+MultiplicativeNode section: multi = homogeneous aggregate, repeatable =
+heterogeneous instances). The legacy classification is class-owned:
+`Node.infer_legacy_port_roles(meta, candidates)`, implemented per class from
+binding tags and unit compatibility (`Unit.is_compatible_with`), with
+`NodeMeta` computing the candidates (authored roles and
+declaration-identifier matches filtered out, so the heuristic can never
+override them), validating inferred roles against the class declarations,
+and formatting uniform `inferred_port_role` / `unclassified_port_role`
+diagnostics. Classification is *derived* state recomputed per hydrated graph
+— this revises the earlier "keep the adapter at snapshot-to-graph
+construction" line, whose intent (heuristic outside `shape_rules()`, unit
+changes never reclassify explicit roles) is preserved; graph format bumped
+to v3. Deviations from the step text: no
+consumes/produces node class ships — the co2e conversions are conditional
+inside `compute()` and a rule must not lie about conditionality, so
+`DimensionTransformRule` is validated via a test-only class and real
+coverage arrives with flatten transformation constraints in step 7; pipeline
+compilation targets the canonical operation specs (authored `PipelineConfig`
+is still a stub), chaining rules through deterministic intermediate UUIDs.
+Missing role ports are `missing_role_port` diagnostics, not errors. Step 8
+work queued from this session: expose the declaration catalog to the editor
+(per-role add-port affordances from `role`/`multi`/`repeatable`/counts/label
+against instantiated ports) and default-port creation in the node-create
+mutation (two factors + one additive for a new MultiplicativeNode). Lazy
+node-class imports during build/compile run inside the instance's i18n
+context — some runtime modules construct i18n values at import time.
 
 ### 7. Implement the fixpoint solver
 

@@ -182,6 +182,7 @@ class _InputPortMultiCandidate:
     edge: _ParsedEdge
     metric: NodeMetric
     group: str
+    role: str | None = None
 
 
 class InstanceConfigParser:
@@ -870,6 +871,9 @@ class InstanceConfigParser:
 
     def _build_output_ports(self, parsed: _ParsedNode) -> list[OutputPortDef]:
         """Mirror ``_export_output_ports``."""
+        role_by_metric_id = {
+            declaration.identifier: declaration.role for declaration in parsed.node_class.output_port_declarations
+        }
         ports: list[OutputPortDef] = []
         for metric_id, metric in parsed.output_metrics.items():
             assert metric.unit is not None
@@ -881,6 +885,7 @@ class InstanceConfigParser:
                     fallback_id,
                 ),
                 identifier=identifier_or_none(metric_id),
+                role=role_by_metric_id.get(metric_id),
                 label=_to_ts(metric.label),
                 unit=metric.unit,
                 quantity=metric.quantity or None,
@@ -943,8 +948,8 @@ class InstanceConfigParser:
             return tuple(edge.to_dimensions.keys())
         return tuple(parsed.input_dimensions)
 
-    def _multiplicity_hint(self, parsed: _ParsedNode, edge: _ParsedEdge) -> str | None:
-        """Mirror ``AdditiveNode.input_port_multiplicity_hint`` from class metadata."""
+    def _multiplicity_hint(self, parsed: _ParsedNode, edge: _ParsedEdge) -> tuple[str, str] | None:
+        """Mirror ``AdditiveNode.input_port_multiplicity_hint`` from class metadata: ``(group, role)``."""
         from nodes.simple import AdditiveNode
 
         node_class = parsed.node_class
@@ -954,7 +959,7 @@ class InstanceConfigParser:
             return None
         if any(tag in node_class.additive_multi_input_excluded_tags for tag in edge.tags):
             return None
-        return str(node_class.additive_port.instance_identifier)
+        return str(node_class.additive_port.instance_identifier), str(node_class.additive_port.role)
 
     def _is_compatible_unit(self, unit_a: Unit | None, unit_b: Unit | None, node_id: str) -> bool:
         assert unit_a is not None, f'Unit is missing in node {node_id}. Is it multimetric?'
@@ -1005,6 +1010,7 @@ class InstanceConfigParser:
 
             first.port.id = group_port_id
             first.port.identifier = identifier_or_none(group)
+            first.port.role = identifier_or_none(first.role) if first.role is not None else None
             first.port.multi = True
             first.port.quantity = first.metric.quantity
             first.port.unit = parsed.unit or first.metric.unit
@@ -1063,10 +1069,13 @@ class InstanceConfigParser:
                         dim_id for dim_id, dimension in (edge.to_dimensions or {}).items() if not dimension.categories
                     ],
                 )
-                group = self._multiplicity_hint(parsed, edge)
-                if group is not None:
+                hint = self._multiplicity_hint(parsed, edge)
+                if hint is not None:
+                    group, role = hint
                     multi_candidates.append(
-                        _InputPortMultiCandidate(port=port, old_port_id=port_id, edge=edge, metric=from_metric, group=group)
+                        _InputPortMultiCandidate(
+                            port=port, old_port_id=port_id, edge=edge, metric=from_metric, group=group, role=role
+                        )
                     )
                 port._from_node = edge.from_node
                 port._edge_metric_id = from_metric.id

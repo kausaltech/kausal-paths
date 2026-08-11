@@ -11,7 +11,9 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
-from nodes.defs.port_def import InputPortDeclaration, OutputPortDeclaration
+from nodes.constraints.port_roles import PortRoleInferenceResult
+from nodes.constraints.rules import AnyShapeRule, MissingPortRoleError, ProductShapeRule, SameShapeRule
+from nodes.defs.port_def import InputPortDeclaration, InputPortDef, OutputPortDeclaration
 from nodes.units import Quantity
 from params.param import BoolParameter, NumberParameter, StringParameter
 
@@ -31,6 +33,7 @@ if TYPE_CHECKING:
 
     from nodes.datasets import Dataset
     from nodes.edges import Edge
+    from nodes.instance_graph import NodeMeta
     from nodes.pipeline.ir import PipelinePortBinding
     from nodes.pipeline.ops import AnyOperationSpec
     from params.base import Parameter
@@ -201,10 +204,41 @@ Input nodes tagged 'impute' are excluded from the addition; their values overlay
 afterwards instead, replacing it wherever the tagged node has a value and leaving the rest untouched.""")
     export_additive_input_ports_as_multi: ClassVar[bool] = False
     additive_multi_input_excluded_tags: ClassVar[frozenset[str]] = frozenset({'non_additive'})
-    additive_port = InputPortDeclaration(role='additive', multi=True)
-    output_port = OutputPortDeclaration(role='output', identifier='default')
-    input_port_declarations = (additive_port,)
+    additive_port = InputPortDeclaration(role='additive', multi=True, label=_('Additive inputs'))
+    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
+    input_port_declarations = (additive_port, impute_port)
     output_port_declarations = (output_port,)
+
+    @classmethod
+    def shape_rules(cls, meta: NodeMeta) -> tuple[AnyShapeRule, ...]:
+        output = meta.require_output_port('output')
+        inputs = meta.input_port_ids_for_roles('additive', 'impute')
+        if not inputs:
+            return ()
+        return (SameShapeRule(inputs=inputs, output=output.id),)
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        try:
+            output_unit = meta.require_output_port('output').unit
+        except MissingPortRoleError:
+            output_unit = None
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            if 'impute' in tags:
+                result.classify(port, 'impute', "binding tag 'impute'")
+            elif 'non_additive' in tags:
+                result.refuse(port, "tag 'non_additive' excludes it from addition")
+            elif port.unit is None or output_unit is None:
+                result.refuse(port, 'cannot classify without both port and output units')
+            elif port.unit.is_compatible_with(output_unit):
+                result.classify(port, 'additive', f'unit {port.unit} being compatible with output {output_unit}')
+            else:
+                result.refuse(port, f'unit {port.unit} is incompatible with output {output_unit} on an additive node')
+        return result
+
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
         BoolParameter(local_id='drop_nans', is_customizable=False),
@@ -234,7 +268,11 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
             return InputPortMultiplicityHint()
         if any(tag in self.additive_multi_input_excluded_tags for tag in edge.tags):
             return InputPortMultiplicityHint()
-        return InputPortMultiplicityHint(multi=True, group=str(self.additive_port.instance_identifier))
+        return InputPortMultiplicityHint(
+            multi=True,
+            group=str(self.additive_port.instance_identifier),
+            role=str(self.additive_port.role),
+        )
 
     def lower_to_pipeline_ir(self):
         from nodes.pipeline import AddOperationSpec, IdentityOperationSpec, InputNodeBinding, PipelineNodeIR, PortInputRef
@@ -491,12 +529,50 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         ),
     ]
     operation_label = 'multiplication'
-    factors_port = InputPortDeclaration(role='factors', multi=True)
-    additive_port = InputPortDeclaration(role='additive', multi=True, required=False)
-    impute_port = InputPortDeclaration(role='impute', multi=True, required=False)
-    output_port = OutputPortDeclaration(role='output', identifier='default')
+    factors_port = InputPortDeclaration(role='factors', repeatable=True, min_count=1, default_count=2, label=_('Factor'))
+    additive_port = InputPortDeclaration(role='additive', multi=True, min_count=0, default_count=1, label=_('Additive inputs'))
+    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
     input_port_declarations = (factors_port, additive_port, impute_port)
     output_port_declarations = (output_port,)
+
+    @classmethod
+    def shape_rules(cls, meta: NodeMeta) -> tuple[AnyShapeRule, ...]:
+        output = meta.require_output_port('output')
+        rules: list[AnyShapeRule] = []
+        factors = meta.input_port_ids_for_roles('factors')
+        if factors:
+            rules.append(ProductShapeRule(inputs=factors, output=output.id))
+        same_shaped = meta.input_port_ids_for_roles('additive', 'impute')
+        if same_shaped:
+            rules.append(SameShapeRule(inputs=same_shaped, output=output.id))
+        return tuple(rules)
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        from nodes.defs.binding_def import DatasetBindingDef
+
+        result = PortRoleInferenceResult()
+        try:
+            output_unit = meta.require_output_port('output').unit
+        except MissingPortRoleError:
+            output_unit = None
+        for port in candidates:
+            bindings = meta.bindings_for_port(port.id)
+            tags = {tag for binding in bindings for tag in binding.tags}
+            if 'impute' in tags:
+                result.classify(port, 'impute', "binding tag 'impute'")
+            elif 'non_additive' in tags:
+                result.classify(port, 'factors', "binding tag 'non_additive'")
+            elif any(isinstance(binding, DatasetBindingDef) for binding in bindings):
+                result.refuse(port, 'dataset-bound port on a multiplicative node has no explicit role')
+            elif port.unit is None or output_unit is None:
+                result.refuse(port, 'cannot classify without both port and output units')
+            elif port.unit.is_compatible_with(output_unit):
+                result.classify(port, 'additive', f'unit {port.unit} being compatible with output {output_unit}')
+            else:
+                result.classify(port, 'factors', f'unit {port.unit} being incompatible with output {output_unit}')
+        return result
 
     def lower_to_pipeline_ir(self):
         from nodes.pipeline import InputNodeBinding, MultiplyOperationSpec, PipelineNodeIR, PortInputRef

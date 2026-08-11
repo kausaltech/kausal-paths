@@ -57,9 +57,12 @@ if typing.TYPE_CHECKING:
     from paths.identifiers import MixedCaseIdentifier, NodeIdentifier
 
     from common.cache import CacheResult
+    from nodes.constraints.port_roles import PortRoleInferenceResult
+    from nodes.constraints.rules import AnyShapeRule
     from nodes.defs.node_defs import NodeKind, NodeSpec
-    from nodes.defs.port_def import InputPortDeclaration, OutputPortDeclaration
+    from nodes.defs.port_def import InputPortDeclaration, InputPortDef, OutputPortDeclaration
     from nodes.gpc import DatasetNode
+    from nodes.instance_graph import NodeMeta
     from nodes.instance_loader import ConfigLocation
     from nodes.instance_serialization import NodeSnapshot
     from nodes.visualizations import NodeVisualizations, VisualizationNodeDimension
@@ -265,6 +268,8 @@ class InputPortMultiplicityHint:
 
     multi: bool = False
     group: str | None = None
+    role: str | None = None
+    """The class port role the grouped multi port carries, persisted as ``InputPortDef.role``."""
 
 
 class Node:
@@ -1366,6 +1371,46 @@ class Node:
         dataset: Dataset | None = None,  # pyright: ignore[reportUnusedParameter]
     ) -> InputPortMultiplicityHint:
         return InputPortMultiplicityHint()
+
+    @classmethod
+    def shape_rules(cls, meta: NodeMeta) -> tuple[AnyShapeRule, ...]:  # pyright: ignore[reportUnusedParameter]  # noqa: ARG003
+        """
+        Declare how this class's port shapes relate, resolved for one node.
+
+        Role selectors are resolved against ``meta`` (which owns its graph
+        reference); the returned rules contain UUIDs only. The default is no
+        rules: the solver leaves undeclared relations unconstrained rather
+        than guessing. Raise nothing here for per-node incompleteness —
+        ``NodeMeta.require_input_port()`` and friends already raise
+        ``MissingPortRoleError``, which compilation records as a diagnostic.
+        """
+        return ()
+
+    @classmethod
+    def infer_legacy_port_roles(
+        cls,
+        meta: NodeMeta,  # pyright: ignore[reportUnusedParameter]  # noqa: ARG003
+        candidates: Sequence[InputPortDef],  # pyright: ignore[reportUnusedParameter]  # noqa: ARG003
+    ) -> PortRoleInferenceResult:
+        """
+        Classify legacy anonymous ports into this class's declared input roles.
+
+        Migration-only: specs synced before explicit roles carry one anonymous
+        port per binding; the class that knows its input algebra maps them onto
+        its roles here. Implementing this for a *new* node class is always
+        wrong — new classes declare roles at port creation — and the hook dies
+        once persisted ports carry explicit roles.
+
+        ``candidates`` holds only ports without an authored role or a
+        declaration-identifier match, so an authored role can never be
+        overridden. Implementations may navigate ``meta.bindings_for_port()``
+        and the *output* role helpers, but must not call the input role
+        helpers (``input_ports_for_role()`` and friends) — role resolution is
+        what this hook computes, and re-entering it is a class bug.
+        """
+        from nodes.constraints.port_roles import PortRoleInferenceResult
+
+        return PortRoleInferenceResult()
 
     def is_compatible_unit(self, unit_a: str | Unit | None, unit_b: str | Unit | None):
         assert unit_a is not None, f'Unit is missing in node {self.id}. Is it multimetric?'
