@@ -57,7 +57,10 @@ def refresh_dataset_materialization(
         dataset.last_modified_at = timezone.now()
         dataset.save(update_fields=['last_modified_by', 'last_modified_at'])
 
+    from nodes.dataset_shape import build_observed_metric_shapes, dump_observed_metric_shapes
+
     content = serialize_dataset(dataset)
+    shape_profiles = dump_observed_metric_shapes(build_observed_metric_shapes(dataset))
     content_hash = hash_dataset_content(content)
     existing = DatasetMaterialization.objects.select_for_update().filter(dataset=dataset).first()
     generation = existing.generation + 1 if existing is not None else 1
@@ -67,6 +70,7 @@ def refresh_dataset_materialization(
             'content': content,
             'content_hash': content_hash,
             'generation': generation,
+            'shape_profiles': shape_profiles,
             'forecast_from': (dataset.spec or {}).get('forecast_from'),
             'source_modified_at': dataset.last_modified_at,
         },
@@ -79,6 +83,42 @@ def materialize_dataset(dataset: Dataset, *, user: User | None = None) -> Datase
     """Standalone atomic entry point used by backfills and non-editor writers."""
     with transaction.atomic():
         return refresh_dataset_materialization(dataset, user=user, touch=False)
+
+
+def materialization_is_fresh(dataset: Dataset, materialization: DatasetMaterialization) -> bool:
+    return materialization.source_modified_at == dataset.last_modified_at and materialization.shape_profiles is not None
+
+
+def ensure_dataset_materializations(datasets: Iterable[Dataset]) -> dict[int, DatasetMaterialization]:
+    """Return fresh materializations, repairing missing or stale derived state atomically."""
+    datasets_by_pk = {dataset.pk: dataset for dataset in datasets if not dataset.is_external_placeholder}
+    if not datasets_by_pk:
+        return {}
+
+    materializations = {
+        materialization.dataset_id: materialization
+        for materialization in DatasetMaterialization.objects.filter(dataset_id__in=datasets_by_pk)
+    }
+    stale_ids = {
+        dataset_id
+        for dataset_id, dataset in datasets_by_pk.items()
+        if (materialization := materializations.get(dataset_id)) is None or not materialization_is_fresh(dataset, materialization)
+    }
+    if not stale_ids:
+        return materializations
+
+    with transaction.atomic():
+        locked = list(Dataset.objects.select_for_update().filter(pk__in=stale_ids).order_by('pk'))
+        locked_materializations = {
+            materialization.dataset_id: materialization
+            for materialization in DatasetMaterialization.objects.select_for_update().filter(dataset_id__in=stale_ids)
+        }
+        for dataset in locked:
+            materialization = locked_materializations.get(dataset.pk)
+            if materialization is None or not materialization_is_fresh(dataset, materialization):
+                materialization = refresh_dataset_materialization(dataset, touch=False)
+            materializations[dataset.pk] = materialization
+    return materializations
 
 
 @contextmanager
@@ -100,7 +140,7 @@ def dataset_change(dataset: Dataset, *, user: User | None = None) -> Iterator[Da
 
 
 def validate_materialization(dataset: Dataset, materialization: DatasetMaterialization) -> None:
-    if materialization.source_modified_at != dataset.last_modified_at:
+    if not materialization_is_fresh(dataset, materialization):
         raise StaleDatasetMaterializationError(
             f'Dataset {dataset.uuid} materialization is stale: '
             f'{materialization.source_modified_at.isoformat()} != {dataset.last_modified_at.isoformat()}',

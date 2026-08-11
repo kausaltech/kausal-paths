@@ -283,7 +283,7 @@ class FlattenTransformation(PortTransformOpBase):
 type EdgeTransformation = SelectCategoriesTransformation | AssignCategoryTransformation | FlattenTransformation
 
 
-type EdgeTransformOp = (
+EdgeTransformOp = (
     FilterDimensionOp
     | AssignDimensionOp
     | DropNullsOp
@@ -300,8 +300,10 @@ currently *execute* — the runtime consumes only the dimension ops until
 ``_get_output_for_target()`` runs the shared executor — which the mutation
 input types enforce.
 
-A plain union rather than a ``kind``-discriminated ``type`` alias only because
-Django's migration writer can serialize nothing else; the unique ``kind``
+A plain union assignment rather than a ``kind``-discriminated ``type`` alias
+because Django's migration writer can serialize nothing else. In Python 3.14,
+``type EdgeTransformOp = ...`` creates an iterable ``TypeAliasType`` that the
+writer recursively expands as ``Unpack[EdgeTransformOp]``. The unique ``kind``
 literals still select the member during validation.
 """
 

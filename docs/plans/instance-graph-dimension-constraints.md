@@ -699,6 +699,17 @@ construction performs no dataset payload/datapoint query.
 - Bulk-load only bound dataset/metric pairs involved in validation.
 - Represent external placeholder coverage as unknown without accessing DVC.
 
+Implementation note (2026-08-10): exact UUID-based observed facts are computed
+from relational datapoints when a `DatasetMaterialization` is refreshed and
+stored beside, but separately from, its dataframe payload. Publication copies
+those facts to `InstanceRevisionDatasetPin`, so profile reads never load the
+payload and published validation cannot observe draft rows. Missing or stale
+current materializations are repaired through one shared freshness service used
+by profiles and runtime loading; this replaces the runtime's transitional
+live-row fallback. Legacy publication pins without recorded facts remain
+unknown rather than being reconstructed from pivoted JSON, where an absent cell
+and a real null-valued datapoint are indistinguishable.
+
 **Gate:** profile query count is constant with dataset count, published
 profiles do not observe live draft data, and unknown differs from known empty.
 

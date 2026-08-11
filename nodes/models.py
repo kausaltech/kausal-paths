@@ -930,12 +930,13 @@ class InstanceConfig(
                     dataset_id__in=[dataset.pk for dataset in datasets],
                 )
             }
+            from nodes.dataset_materialization import materialization_is_fresh, refresh_dataset_materialization
+
             for dataset in datasets:
                 materialization = materializations.get(dataset.pk)
-                if materialization is None:
-                    raise RuntimeError(f'Dataset {dataset.uuid} has no current materialization')
-                if materialization.source_modified_at != dataset.last_modified_at:
-                    raise RuntimeError(f'Dataset {dataset.uuid} has a stale current materialization')
+                if materialization is None or not materialization_is_fresh(dataset, materialization):
+                    materialization = refresh_dataset_materialization(dataset, touch=False)
+                    materializations[dataset.pk] = materialization
 
             dataset_ct = ContentType.objects.get_for_model(DatasetModel, for_concrete_model=False)
             now = timezone.now()
@@ -985,6 +986,7 @@ class InstanceConfig(
                     dataset_uuid=dataset.uuid,
                     identifier=dataset.identifier,
                     forecast_from=materializations[dataset.pk].forecast_from,
+                    shape_profiles=materializations[dataset.pk].shape_profiles,
                 )
                 for dataset in datasets
             ])
@@ -2348,6 +2350,7 @@ class DatasetMaterialization(models.Model):
     content = models.JSONField()
     content_hash = models.CharField(max_length=64)
     generation = models.PositiveBigIntegerField(default=1)
+    shape_profiles = models.JSONField(null=True)
     forecast_from = models.IntegerField(null=True, blank=True)
     source_modified_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)
@@ -2389,6 +2392,7 @@ class InstanceRevisionDatasetPin(models.Model):
     dataset_uuid = models.UUIDField()
     identifier = models.CharField(max_length=100, null=True, blank=True)
     forecast_from = models.IntegerField(null=True, blank=True)
+    shape_profiles = models.JSONField(null=True)
 
     objects: ClassVar[Manager[InstanceRevisionDatasetPin]] = Manager()
 

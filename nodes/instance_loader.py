@@ -1334,34 +1334,19 @@ class InstanceLoader:
             DBDatasetModel.objects.qs
             .for_instance_config(ic)
             .filter(is_external_placeholder=False, identifier__isnull=False)
-            .only('uuid', 'identifier', 'last_modified_at', 'spec')
+            .only('uuid', 'identifier', 'last_modified_at', 'spec', 'is_external_placeholder')
         )
         self.db_datasets = {cast('str', ds.identifier): ds for ds in ds_objs}
+        from nodes.dataset_materialization import ensure_dataset_materializations
         from nodes.datasets import CurrentDatasetPayloadStore, DatasetPayloadRef
-        from nodes.models import DatasetMaterialization
 
-        materializations = DatasetMaterialization.objects.filter(dataset_id__in=[ds.pk for ds in ds_objs]).only(
-            'dataset_id',
-            'content_hash',
-            'generation',
-            'forecast_from',
-            'source_modified_at',
-        )
-        by_dataset = {materialization.dataset_id: materialization for materialization in materializations}
+        by_dataset = ensure_dataset_materializations(ds_objs)
         refs: list[DatasetPayloadRef] = []
         self.db_dataset_refs = {}
         for dataset in ds_objs:
             materialization = by_dataset.get(dataset.pk)
             if materialization is None:
-                self.logger.warning(
-                    'Dataset %s has no current materialization; using transitional live-row fallback', dataset.identifier
-                )
-                continue
-            if materialization.source_modified_at != dataset.last_modified_at:
-                self.logger.warning(
-                    'Dataset %s has a stale current materialization; using transitional live-row fallback', dataset.identifier
-                )
-                continue
+                raise RuntimeError(f'Dataset {dataset.uuid} could not be materialized')
             assert dataset.identifier is not None
             ref = DatasetPayloadRef(
                 payload_id=materialization.pk,
