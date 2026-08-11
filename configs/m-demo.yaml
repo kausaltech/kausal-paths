@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 909a934f279d51078fd57ac7336ea972576cc6ce
+  commit: 697e07ab8027b1a22e27ed8292b0330391554ce4
   dvc_remote: kausal-s3
 name_de: Stadt M Klimaschutz-Monitor Treibhausgasinventar
 name_en: City M Climate Protection Monitor Greenhouse Gas Inventory
@@ -21,6 +21,39 @@ features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
   show_explanations: true
+
+include:
+- file: modules/health/air_pollution_exposure.yaml
+  # Intermodular nodes: transport_co2_for_health, power_plant_emissions_for_health
+  # Overridden below to use this instance's own real transport/district-heating emissions.
+  node_group: Health
+  allow_override: true
+- file: modules/health/attribution_and_cost.yaml
+  node_group: Health
+  allow_override: true
+
+result_excels:
+- base_excel_url: null
+  name_de: Ergebnisse Stadt M
+  name_en: City M results
+  node_ids:
+  - net_emissions
+  - aggregate_net_emissions
+  - i_stationary_total_emissions
+  - i4_energy_total_emissions
+  - ii_transportation_total_emissions
+  - total_cost
+  - aggregate_total_cost
+  - aggregate_total_cost_wo_impl
+  - aggregated_implementation_cost
+  - population
+  - transport_co2_for_health
+  - power_plant_emissions_for_health
+  - air_pollution_exposure
+  - disease_burden_attributed_to_exposure
+  - health_costs_attributed_to_exposure
+  - discounted_health_costs
+
 params:
 - id: weather_correction
   label_de: Wetterkorrektur durchführen?
@@ -28,6 +61,11 @@ params:
   value: true
   is_customizable: true
   is_visible: true
+- id: discount_rate
+  label_de: Diskontierungssatz
+  label_en: Discount rate
+  value: 3.5
+  unit: '%'
 
 action_groups:
 
@@ -135,6 +173,15 @@ dimensions:
   - id: health
     label_de: Health
     label_en: Health
+  - id: air_pollution_everywhere # Move to response?
+    label_de: Air pollution everywhere
+    label_en: Air pollution everywhere
+  - id: physical_activity
+    label_de: Physical activity
+    label_en: Physical activity
+  - id: work_days_lost
+    label_de: Work days lost
+    label_en: Work days lost
   - id: co2_cost
     label_de: CO2 Cost
     label_en: CO2 Cost
@@ -556,6 +603,40 @@ emission_sectors:
       value: 0.0
 
 nodes:
+
+# Health module intermodular nodes: overridden here to use this instance's own
+# real emissions instead of the module's example placeholder datasets.
+- id: transport_co2_for_health
+  name_en: Transport CO2 emissions for health calculation
+  name_de: Verkehrs-CO2-Emissionen für Gesundheitsberechnung
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: energietrager
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+
+- id: power_plant_emissions_for_health
+  name_en: District heating emissions for health module
+  name_de: Fernwärmeemissionen für das Gesundheitsmodul
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: i12_residential_grid_energy_total_emissions
+    from_dimensions:
+    - id: energietrager
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
 
 - id: co2_unit_price
   name_en: CO2 unit price
