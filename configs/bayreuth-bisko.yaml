@@ -10,10 +10,10 @@ name_en: Bayreuth Greenhouse Gas Monitor
 owner: Bayreuth Stadt
 theme_identifier: de-bayreuth
 target_year: 2040
-model_end_year: 2050
-reference_year: 2008
+model_end_year: 2040
+reference_year: 2010
 minimum_historical_year: 1990
-maximum_historical_year: 2024
+maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
   baseline_visible_in_graphs: true
@@ -616,7 +616,7 @@ params:
   label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren 
     (BISKO).
   value: false
-  is_visible: true
+  is_visible: false
   is_customizable: true
 - id: use_mileage
   label_en: Use BISKO mileage statistics rather than own energy data for 
@@ -624,7 +624,7 @@ params:
   label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen 
     Energieverbrauchsdaten für den Transport.
   value: false
-  is_visible: true
+  is_visible: false
   is_customizable: true
 - id: use_local_values # FIXME Make connection to district heating emission factors dataset.
   label_en: Use local rather than national district heating emission factors 
@@ -632,7 +632,7 @@ params:
   label_de: Verwenden Sie lokale statt nationale Fernwärmeemissionsfaktoren 
     (BISKO).
   value: false
-  is_visible: true
+  is_visible: false
   is_customizable: true
 
 #//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -785,7 +785,11 @@ nodes:
     - year: 2019
       value: 696.41147
     - year: 2021
-      value: 664.732782
+      value: 664.732781953755
+    - year: 2024
+      value: 557.080
+    - year: 2030
+      value: 358.44735
     - year: 2040
       value: 0
 
@@ -820,10 +824,14 @@ nodes:
       value: 327.3133909
     - year: 2021
       value: 329.3667852
+    #- year: 2023
+    #  value: 300.057226056727
+    - year: 2024
+      value: 245.807746524465
     - year: 2030
-      value: 198.8110272
+      value: 122.161851195943
     - year: 2040
-      value: 0
+      value: 26.395273719222
 
 - id: electricity_emissions
   name_de: Strom Emissionen
@@ -852,9 +860,13 @@ nodes:
       value: 215.8875557
     - year: 2021
       value: 186.7211469
+    #- year: 2023
+    #  value: 156.285599976166
+    - year: 2024
+      value: 165.38917439488
     - year: 2030
-      value: 59.47332172
-    - year: 2039
+      value: 106.770246445229
+    - year: 2040
       value: 0
 
 - id: transport_emissions
@@ -897,10 +909,12 @@ nodes:
       value: 153.2105234
     - year: 2021
       value: 148.6448498
+    - year: 2024
+      value: 145.88265671488
     - year: 2030
-      value: 91.57501005
-    - year: 2038
-      value: 0
+      value: 129.515252358829
+    - year: 2040
+      value: 0.997659614111337
 
 
 
@@ -953,44 +967,93 @@ actions:
     column: default
     forecast_from: 2025
 
-- id: emission_reduction_action
-  name_en: Emission reduction action
-  name_de: Emissionreduktionsmaßnahme
+- id: emission_reduction_heating_natural_gas
+  name_en: Emission reduction action - heating (natural gas)
+  name_de: Emissionsreduktionsmaßnahme – Wärme (Erdgas)
+  # Reduction is split across the 3 fossil/high-emission heating carriers
+  # only (natural gas, heating oil, district/local heating -- ~98% of
+  # heating_emissions), proportional to their 2024 baseline shares. The
+  # already-low-carbon carriers (biomass, solar thermal, environmental
+  # heat, ...) are left on their own trend, since a heating decarbonization
+  # program targets fossil heating, not existing renewables. This also
+  # means no single real carrier is ever forced below zero.
   type: simple.AdditiveAction
-  quantity: fraction
+  quantity: emissions
   unit: kt_co2e/a
-  input_dimensions: [sector]
-  output_dimensions: [sector]
+  historical_values: [[1990, 0.0]]
+  forecast_values: [[2023, 0.0], [2030, -76.351161], [2040, -92.723343]]
   input_dataset_processors: [LinearInterpolation]
-  input_datasets:
-  - id: bayreuth/emission_reduction_action
-    forecast_from: 2024
-    column: action
-    tags: [extend_all]
   output_nodes:
   - id: heating_emissions
-    tags: [splittee] # FIXME Make splitter work in FormulaNode
-    from_dimensions:
+    to_dimensions:
     - id: sector
       categories: [heating]
-    to_dimensions:
-    - id: sector
     - id: energy_carrier
       categories: [natural_gas]
-  - id: electricity_emissions
-    from_dimensions:
-    - id: sector
-      categories: [electricity]
+
+- id: emission_reduction_heating_oil
+  name_en: Emission reduction action - heating (heating oil)
+  name_de: Emissionsreduktionsmaßnahme – Wärme (Heizöl)
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[1990, 0.0]]
+  forecast_values: [[2023, 0.0], [2030, -28.855236], [2040, -35.042741]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: heating_emissions
     to_dimensions:
     - id: sector
+      categories: [heating]
+    - id: energy_carrier
+      categories: [heating_oil]
+
+- id: emission_reduction_heating_district
+  name_en: Emission reduction action - heating (district/local heating)
+  name_de: Emissionsreduktionsmaßnahme – Wärme (Fern-/Nahwärme)
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[1990, 0.0]]
+  forecast_values: [[2023, 0.0], [2030, -7.969062], [2040, -9.677889]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: heating_emissions
+    to_dimensions:
+    - id: sector
+      categories: [heating]
+    - id: energy_carrier
+      categories: [district_and_local_heating]
+
+- id: emission_reduction_electricity
+  name_en: Emission reduction action - electricity
+  name_de: Emissionsreduktionsmaßnahme – Strom
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[1990, 0.0]]
+  forecast_values: [[2024, 0.0], [2040, -105.28]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: electricity_emissions
+    to_dimensions:
+    - id: sector
+      categories: [electricity]
     - id: energy_carrier
       categories: [electricity]
+
+- id: emission_reduction_transport
+  name_en: Emission reduction action - transport
+  name_de: Emissionsreduktionsmaßnahme – Verkehr
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: kt_co2e/a
+  historical_values: [[1990, 0.0]]
+  forecast_values: [[2023, 0.0], [2030, -7],[2040, -94.558731]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
   - id: transport_emissions
     tags: [splittee]
-    from_dimensions:
-    - id: sector
-      categories: [transport]
-      flatten: true
 
 #//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1018,7 +1081,7 @@ scenarios:
 - id: default
   default: true
   all_actions_enabled: true
-  name_de: Integriertes Klimaschutzkonzept
-  name_en: Integrated Climate Protection Concept
+  name_de: Ambitionierter Klimaschutz
+  name_en: Ambitious Climate Protection
 
 
