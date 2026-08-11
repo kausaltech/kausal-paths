@@ -1,17 +1,17 @@
 id: mainz-bisko  # defines which instance is updated
 default_language: de
-supported_languages: [en]
+supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a8e9584d8a313025877793f4ceabac8fcf865ace
+  commit: 9a31a5739e59ecdbfd0bc6b60df0293ec2975534
   dvc_remote: kausal-s3
-name_de: Mainz Klima-Monitor-BISKO
-name_en: Mainz Climate Monitor BISKO
+name_de: Mainz Klimabilanz-Monitor
+name_en: Mainz Climate Inventory Monitor
 owner: Mainz Stadt
 theme_identifier: de-mainz
 target_year: 2035
 model_end_year: 2050
-reference_year: 1990
+reference_year: 2010
 minimum_historical_year: 1990
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
@@ -21,9 +21,70 @@ features:
   show_explanations: true
   show_category_warnings: true
 
+dimensions:
+
+- id: electricity_raw_category
+  label_en: Electricity raw category (EKA-RLP)
+  label_de: Strom-Rohkategorie (EKA-RLP)
+  help_text: Raw Strom categories as delivered by EKA-RLP, before splitting
+    GHD+Industrie and folding extra categories into the 4 BISKO sectors.
+  categories:
+  - id: private_households
+    label_en: Private households
+    label_de: Private Haushalte
+  - id: ghd_industry_combined
+    label_en: GHD+industry combined
+    label_de: GHD+Industrie kombiniert
+  - id: municipal_facilities
+    label_en: Municipal facilities
+    label_de: Kommunale Liegenschaften
+  - id: street_lighting
+    label_en: Street lighting
+    label_de: Straßenbeleuchtung
+  - id: heat_pumps
+    label_en: Heat pumps
+    label_de: Wärmepumpen
+  - id: heat_storage
+    label_en: Heat storage
+    label_de: Wärmespeicher
+  - id: agriculture_forestry
+    label_en: Agriculture and forestry
+    label_de: Land- und Forstwirtschaft
+  - id: own_operations
+    label_en: Own operations
+    label_de: Eigene Betriebe
+
+- id: gas_raw_category
+  label_en: Gas raw category (EKA-RLP)
+  label_de: Erdgas-Rohkategorie (EKA-RLP)
+  help_text: Raw Erdgas categories as delivered by EKA-RLP. Private Haushalte,
+    GHD, Industrie and Kommunale Liegenschaften map 1:1 to BISKO sectors already;
+    Land- und Forstwirtschaft and Eigene Betriebe currently have no data in the
+    source but are kept as separate categories (mirroring the Strom structure)
+    so future deliveries can populate them without any node changes.
+  categories:
+  - id: private_households
+    label_en: Private households
+    label_de: Private Haushalte
+  - id: ghd
+    label_en: Commerce/trade/services (GHD)
+    label_de: GHD
+  - id: industry
+    label_en: Industry
+    label_de: Industrie
+  - id: municipal_facilities
+    label_en: Municipal facilities
+    label_de: Kommunale Liegenschaften
+  - id: agriculture_forestry
+    label_en: Agriculture and forestry
+    label_de: Land- und Forstwirtschaft
+  - id: own_operations
+    label_en: Own operations
+    label_de: Eigene Betriebe
+
 include:
 - file: modules/bisko/model.yaml
-  allow_override: false
+  allow_override: true
   dataset_replacements:
   - from: bisko/final_energy
     to: mainz/final_energy
@@ -33,6 +94,47 @@ include:
     to: mainz/passenger_kilometers
   - from: bisko/vehicle_energy
     to: mainz/vehicle_energy
+- file: modules/bisko/GERMANY_commerce_and_industry_statistics.yaml
+  node_group: Electricity industry/GHD split
+  allow_override: false
+  dataset_replacements:
+  - from: bisko/local_employees_by_sector
+    to: mainz/local_employees_by_sector
+
+#//////  Pages  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+pages:
+- id: home
+  name_de: Mainz Treibhausgasbilanz
+  name_en: Mainz Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Treibhausgasbilanz und -prognosen
+  lead_paragraph: Historische Treibhausgasemissionen der Stadt Bayreuth und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+
+
+#//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
+result_excels:
+- base_excel_url: 
+    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+  name_de: Stadtspezifische Werte aus BISKO-Datensätzen und anderen Quellen
+  name_en: City-specific values from BISKO datasets and elsewhere
+  node_ids:
+  - weather_correction
+  - final_energy_use
+  - final_energy_use_data_quality
+  # - final_municipal_facilities_energy_use_by_type
+  # - municipal_fleet_energy
+  - historical_emissions
+  - end_energy_emission_factors
+  - electricity_production_emission_factors
+  - emission_factors_without_fuel_data
+  - emission_factors_for_district_heating_by_generic_fuel
+  - vehicle_kilometers_ifeu
+  - other_transport_energy
+
+
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -65,40 +167,418 @@ params:
 - id: use_mileage
   label_en: Use BISKO mileage statistics rather than own energy data for 
     transport
-  label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen 
-    Energieverbrauchsdaten für den Transport.
+  label_de: Nutzen Sie die ifeu-Transportstatistiken anstatt der eigenen 
+    Energieverbrauchsdaten für den Transport (BISKO).
   value: true
   is_visible: true
   is_customizable: true
 - id: use_local_values # FIXME Make connection to district heating emission factors dataset.
   label_en: Use local rather than national district heating emission factors 
     (BISKO)
-  label_de: Verwenden Sie lokale statt nationale Fernwärmeemissionsfaktoren 
+  label_de: Verwenden Sie lokale statt nationaler Fernwärmeemissionsfaktoren 
     (BISKO).
   value: true
   is_visible: true
   is_customizable: true
 
 
-#//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
-result_excels:
-- base_excel_url: 
-    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
-  name_de: Stadtspezifische Werte aus BISKO-Datensätzen und anderen Quellen
-  name_en: City-specific values from BISKO datasets and elsewhere
-  node_ids:
-  - weather_correction
-  - final_energy_use
-  - final_energy_use_data_quality
-  # - final_municipal_facilities_energy_use_by_type
-  # - municipal_fleet_energy
-  - historical_emissions
-  - end_energy_emission_factors
-  - electricity_production_emission_factors
-  - emission_factors_without_fuel_data
-  - emission_factors_for_district_heating_by_generic_fuel
-  - vehicle_kilometers_ifeu
-  - other_transport_energy
+#//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+nodes:
+
+- id: net_emissions
+  name_de: Netto-Emissionen
+  name_en: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  is_outcome: true
+  goals: # Node copied here to make goals possible.
+  - label_de: Klimaneutralität 2035
+    label_en: Climate neutrality 2035
+    default: true
+    linear_interpolation: true
+    auto_start: true
+    is_main_goal: true
+    values:
+    - year: 2035
+      value: 0
+
+
+# ----- Erdgas Endenergie: Rohdaten (EKA-RLP), 2014-2024 -----
+# Same structure as Strom below: private_households and industry map 1:1 to
+# BISKO sectors and are referenced directly where needed; ghd and
+# municipal_facilities still need Land- und Forstwirtschaft / Eigene Betriebe
+# folded in. Both extra categories are currently empty in the source (no rows
+# in the dataset at all) but structurally present in gas_raw_category, so a
+# future delivery can populate them without any node changes.
+
+- id: gas_endenergie_raw
+  name_de: Erdgas Endenergie (Rohdaten)
+  name_en: Natural gas final energy (raw)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [gas_raw_category]
+  output_dimensions: [gas_raw_category]
+  input_datasets:
+  - id: mainz/gas_endenergie_raw
+    column: energy
+    forecast_from: 2025
+
+- id: gas_endenergie_private_households_final
+  name_de: Erdgas Private Haushalte
+  name_en: Natural gas private households (final)
+  description_en: Direct 1:1 passthrough (no extra category folds into private
+    households for gas) times the Heizwert/Brennwert conversion factor. A
+    distinct node is still needed because it shares its source
+    (gas_endenergie_raw) with the other gas nodes below, and a node can't be
+    wired into the same consumer twice.
+  description_de: Direkte 1:1-Weitergabe (für Erdgas fließt keine Zusatzkategorie
+    in Private Haushalte ein) multipliziert mit dem Heizwert/Brennwert-
+    Umrechnungsfaktor. Ein eigener Knoten ist trotzdem nötig, da die Quelle
+    (gas_endenergie_raw) mit den anderen Erdgas-Knoten geteilt wird und ein
+    Knoten nicht zweimal in denselben Konsumenten eingebunden werden kann.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_nodes:
+  - id: gas_endenergie_raw
+    from_dimensions:
+    - id: gas_raw_category
+      categories: [private_households]
+      flatten: true
+  - id: gas_heizwert_brennwert_ratio
+  params:
+    formula: gas_endenergie_raw * gas_heizwert_brennwert_ratio
+
+- id: gas_endenergie_industry_final
+  name_de: Erdgas Industrie
+  name_en: Natural gas industry (final)
+  description_en: Direct 1:1 passthrough (no extra category folds into industry
+    for gas) times the Heizwert/Brennwert conversion factor; see private
+    households above for why a distinct node is needed.
+  description_de: Direkte 1:1-Weitergabe (für Erdgas fließt keine Zusatzkategorie
+    in Industrie ein) multipliziert mit dem Heizwert/Brennwert-
+    Umrechnungsfaktor; siehe Private Haushalte oben zur Begründung des eigenen
+    Knotens.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_nodes:
+  - id: gas_endenergie_raw
+    from_dimensions:
+    - id: gas_raw_category
+      categories: [industry]
+      flatten: true
+  - id: gas_heizwert_brennwert_ratio
+  params:
+    formula: gas_endenergie_raw * gas_heizwert_brennwert_ratio
+
+- id: gas_endenergie_ghd_final
+  name_de: Erdgas GHD
+  name_en: Natural gas GHD (final)
+  description_en: Raw GHD plus agriculture/forestry (currently no data for the
+    latter, so this is a no-op until a future delivery adds it), times the
+    Heizwert/Brennwert conversion factor.
+  description_de: Rohwert GHD zzgl. Land- und Forstwirtschaft (aktuell keine
+    Daten dafür, daher bislang ohne Effekt, bis eine künftige Lieferung diese
+    Kategorie befüllt), multipliziert mit dem Heizwert/Brennwert-
+    Umrechnungsfaktor.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_nodes:
+  - id: gas_endenergie_raw
+    from_dimensions:
+    - id: gas_raw_category
+      categories: [ghd, agriculture_forestry]
+  - id: gas_heizwert_brennwert_ratio
+  params:
+    formula: sum_dim(gas_endenergie_raw, gas_raw_category) * gas_heizwert_brennwert_ratio
+
+- id: gas_endenergie_municipal_facilities_final
+  name_de: Erdgas Kommunale Liegenschaften
+  name_en: Natural gas municipal facilities (final)
+  description_en: Raw municipal facilities plus own operations (currently no data
+    for the latter, so this is a no-op until a future delivery adds it), times
+    the Heizwert/Brennwert conversion factor.
+  description_de: Rohwert Kommunale Liegenschaften zzgl. Eigene Betriebe (aktuell
+    keine Daten dafür, daher bislang ohne Effekt, bis eine künftige Lieferung
+    diese Kategorie befüllt), multipliziert mit dem Heizwert/Brennwert-
+    Umrechnungsfaktor.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_nodes:
+  - id: gas_endenergie_raw
+    from_dimensions:
+    - id: gas_raw_category
+      categories: [municipal_facilities, own_operations]
+  - id: gas_heizwert_brennwert_ratio
+  params:
+    formula: sum_dim(gas_endenergie_raw, gas_raw_category) * gas_heizwert_brennwert_ratio
+
+- id: gas_heizwert_brennwert_ratio
+  name_de: Erdgas Heizwert/Brennwert Umrechnungsfaktor
+  name_en: Natural gas Heizwert/Brennwert conversion factor
+  description_en: Constant ~0.901 for all years. Converts the raw Erdgas sector
+    values (delivered on a Brennwert/gross calorific value basis) to Heizwert/net
+    calorific value, the basis normally used in energy/emissions statistics.
+    Multiplied in at the point each raw category is folded into its final BISKO
+    sector value (see the 4 "Erdgas ..." nodes above).
+  description_de: Konstant ~0,901 für alle Jahre. Rechnet die rohen Erdgas-
+    Sektorwerte (geliefert auf Brennwert-Basis) auf Heizwert um, die in
+    Energie-/Emissionsstatistiken übliche Basis. Wird an der Stelle
+    eingerechnet, an der jede Rohkategorie in ihren finalen BISKO-Sektorwert
+    einfließt (siehe die 4 "Erdgas ..."-Knoten oben).
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: dimensionless
+  input_datasets:
+  - id: mainz/gas_heizwert_brennwert_ratio
+    column: ratio
+    forecast_from: 2025
+
+
+# ----- Strom Endenergie: Rohdaten (EKA-RLP), 2014-2024 -----
+# One node per metric (energy, quality), dimensioned by electricity_raw_category
+# (8 categories: 3 direct BISKO sectors, 1 combined GHD+I still to be split, and
+# 4 extra categories still to be folded into BISKO sectors further down).
+
+- id: electricity_endenergie_raw
+  name_de: Strom Endenergie (Rohdaten)
+  name_en: Electricity final energy (raw)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [electricity_raw_category]
+  output_dimensions: [electricity_raw_category]
+  input_datasets:
+  - id: mainz/electricity_endenergie_raw
+    column: energy
+    forecast_from: 2025
+
+
+# ----- Strom Endenergie: Finale BISKO-Sektorwerte (Zusatzkategorien eingerechnet) -----
+# sector_electricity_consumption_local (electricity_industry_ghd_split.yaml module,
+# summed over wz_code) IS the local industry electricity estimate directly - no
+# separate "split factor"/"industry split" node needed, since multiplying combined
+# raw by (sector_electricity_consumption_local / combined raw) is algebraically
+# just sector_electricity_consumption_local again. GHD is combined raw minus that
+# same quantity, plus agriculture/forestry. Only available from 2019 onward
+# (sector_electricity_consumption_local has no earlier data), so GHD is masked to
+# that range via a self-existence trick (a value divided by itself).
+
+- id: electricity_endenergie_private_households_final
+  name_de: Strom Private Haushalte
+  name_en: Electricity private households (final)
+  description_en: Raw private households plus heat pumps and heat storage.
+  description_de: Rohwert Private Haushalte zzgl. Wärmepumpen und Wärmespeicher.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_nodes:
+  - id: electricity_endenergie_raw
+    from_dimensions:
+    - id: electricity_raw_category
+      categories: [private_households, heat_pumps, heat_storage]
+  params:
+    formula: sum_dim(electricity_endenergie_raw, electricity_raw_category)
+
+- id: electricity_endenergie_ghd_final
+  name_de: Strom GHD
+  name_en: Electricity GHD (final)
+  description_en: Combined GHD+industry raw total plus agriculture/forestry, minus
+    the WZ-code-based local industry estimate (sector_electricity_consumption_local,
+    summed over wz_code). Masked to sector_electricity_consumption_local's year
+    range (2019+) via a self-existence trick (value divided by itself), since the
+    formula's addition/subtraction would otherwise treat it as 0 for earlier years
+    and overstate GHD by the full combined amount.
+  description_de: Kombinierte GHD+Industrie-Rohsumme zzgl. Land- und
+    Forstwirtschaft, abzüglich der WZ-code-basierten lokalen Industrieschätzung
+    (sector_electricity_consumption_local, summiert über wz_code). Maskiert auf
+    den Jahresbereich von sector_electricity_consumption_local (ab 2019) via
+    Selbst-Existenz-Trick (Wert geteilt durch sich selbst), da Addition/Subtraktion
+    einen fehlenden Operanden sonst als 0 behandeln und GHD um den vollen
+    kombinierten Betrag überschätzen würden.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_nodes:
+  - id: electricity_endenergie_raw
+    from_dimensions:
+    - id: electricity_raw_category
+      categories: [ghd_industry_combined, agriculture_forestry]
+  - id: sector_electricity_consumption_local
+  params:
+    formula: (sum_dim(electricity_endenergie_raw, electricity_raw_category) - sum_dim(sector_electricity_consumption_local, wz_code)) * sum_dim(sector_electricity_consumption_local, wz_code) / sum_dim(sector_electricity_consumption_local, wz_code)
+
+- id: electricity_endenergie_municipal_facilities_final
+  name_de: Strom Kommunale Liegenschaften
+  name_en: Electricity municipal facilities (final)
+  description_en: Raw municipal facilities plus street lighting and own operations.
+  description_de: Rohwert Kommunale Liegenschaften zzgl. Straßenbeleuchtung und
+    Eigene Betriebe.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_nodes:
+  - id: electricity_endenergie_raw
+    from_dimensions:
+    - id: electricity_raw_category
+      categories: [municipal_facilities, street_lighting, own_operations]
+  params:
+    formula: sum_dim(electricity_endenergie_raw, electricity_raw_category)
+
+
+# ----- Strom & Erdgas Endenergie: reale Daten in (sector, energy_carrier) einsortiert -----
+# Places the "Strom ... (final)" nodes and gas_endenergie_raw into their BISKO
+# sector x energy_carrier cell (value and quality, in parallel). Categories/years
+# not covered (e.g. GHD/Industrie Strom vor 2019, oder andere Energieträger) are
+# simply absent here, so final_energy_use's/final_energy_use_data_quality's
+# coalesce falls back to the dataset for those cells.
+
+- id: electricity_gas_endenergie_local
+  name_de: Leitungsgebundene Endenergie
+  name_en: Electricity & gas final energy (local, real data)
+  description_en: Combines the EKA-RLP-derived Strom/Erdgas nodes into their BISKO
+    sector x energy_carrier cell, to be coalesced into final_energy_use in place of
+    the dataset values for the years/sectors/carriers they cover.
+  description_de: Fasst die aus EKA-RLP abgeleiteten Strom-/Erdgas-Knoten in ihre
+    BISKO-Sektor x Energieträger-Zelle zusammen, um sie in final_energy_use anstelle
+    der Datensatzwerte für die abgedeckten Jahre/Sektoren/Energieträger einzusetzen.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: electricity_endenergie_private_households_final
+    to_dimensions:
+    - id: sector
+      categories: [private_households]
+    - id: energy_carrier
+      categories: [electricity]
+  - id: electricity_endenergie_municipal_facilities_final
+    to_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
+    - id: energy_carrier
+      categories: [electricity]
+  - id: electricity_endenergie_ghd_final
+    to_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+    - id: energy_carrier
+      categories: [electricity]
+  - id: sector_electricity_consumption_local
+    from_dimensions:
+    - id: wz_code
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [industry]
+    - id: energy_carrier
+      categories: [electricity]
+  - id: gas_endenergie_private_households_final
+    to_dimensions:
+    - id: sector
+      categories: [private_households]
+    - id: energy_carrier
+      categories: [natural_gas]
+  - id: gas_endenergie_industry_final
+    to_dimensions:
+    - id: sector
+      categories: [industry]
+    - id: energy_carrier
+      categories: [natural_gas]
+  - id: gas_endenergie_ghd_final
+    to_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+    - id: energy_carrier
+      categories: [natural_gas]
+  - id: gas_endenergie_municipal_facilities_final
+    to_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
+    - id: energy_carrier
+      categories: [natural_gas]
+
+- id: electricity_gas_endenergie_local_quality
+  name_de: Leitungsgebundene Endenergie Datenqualität
+  name_en: Electricity & gas final energy data quality (local, real data)
+  description_en: All EKA-RLP-derived data is uniformly grade B (0.5) - rather than
+    tracking quality through a parallel node per value node, this derives quality
+    directly from electricity_gas_endenergie_local's own domain (value divided by
+    itself = 1 wherever it has data, times the constant grade). If a future source
+    has non-uniform quality, this would need to become a real per-source pipeline
+    again (mirroring the value side) instead of one constant.
+  description_de: Alle aus EKA-RLP abgeleiteten Daten sind einheitlich Qualität B
+    (0,5) - anstatt die Qualität durch einen parallelen Knoten pro Wertknoten zu
+    verfolgen, wird sie hier direkt aus der Domäne von electricity_gas_endenergie_local
+    abgeleitet (Wert durch sich selbst geteilt = 1 überall wo Daten vorhanden sind,
+    multipliziert mit der konstanten Note). Falls eine zukünftige Quelle
+    uneinheitliche Qualität hat, müsste dies wieder eine echte Pipeline pro Quelle
+    werden (analog zur Wertseite) statt einer Konstante.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: electricity_gas_endenergie_local
+  params:
+    formula: electricity_gas_endenergie_local / electricity_gas_endenergie_local * 0.5
+
+- id: final_energy_use
+  name_de: Endenergie
+  name_en: Final energy use
+  type: generic.CoalesceNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: bisko/final_energy
+    tags: [non_additive]
+    column: Value
+    filters:
+    - column: energy_carrier
+      value: not_defined
+      exclude: true
+      drop_col: false
+  input_nodes:
+  - id: weather_correction
+  - id: electricity_gas_endenergie_local
+    tags: [primary]
+  params:
+  - id: operations
+    value: get_single_dataset,coalesce,multiply
+
+- id: final_energy_use_data_quality
+  name_de: Endenergie Datenqualität
+  name_en: Final energy use data quality
+  type: generic.CoalesceNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: bisko/final_energy  # is automatically created by upload_new_dataset.py when uploading to DVC
+    column: quality
+  input_nodes:
+  - id: electricity_gas_endenergie_local_quality
+    tags: [primary]
+  params:
+  - id: operations
+    value: get_single_dataset,coalesce
+
+
+#//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 action_groups:
 
@@ -107,15 +587,9 @@ action_groups:
   name_de: Kombination aus Wärme und Strom
   color: '#007C78'
 
-pages:
-- id: home
-  name_de: Mainz Treibhausgasbilanz
-  name_en: Mainz Greenhouse Gas Inventory
-  path: /
-  type: emission
-  outcome_node: net_emissions
-  lead_title: Treibhausgasbilanz und -prognosen
-  lead_paragraph: Historische Treibhausgasemissionen der Stadt Bayreuth und Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen erfolgreich umgesetzt".
+
+
+#//////  Scenarios  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 scenarios:
 
