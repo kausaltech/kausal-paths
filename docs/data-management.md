@@ -192,6 +192,38 @@ dataset_repo:
   dvc_remote: kausal-s3
 ```
 
+### Refreshing the DB row (usually required)
+
+Uploading puts data in DVC; it does not make the model see it. Most instances
+carry at least some **DB datasets that shadow their DVC counterpart** — where a
+`DBDatasetModel` row exists for a dataset id, that row is loaded *instead of* the
+DVC version. This is deliberate: it is what lets a dataset be edited in the admin
+UI and what `use_datasets_from_db: true` selects. It also means a fresh upload
+stays invisible until the DB row is refreshed from DVC:
+
+```bash
+# Diagnose first: what would change? Writes nothing.
+python manage.py load_dvc_dataset <instance> <city>/<dataset-id> --plan
+
+# Apply. Refreshes in place -- same pk and UUID -- so DatasetPort,
+# NodeDataset and revision-pin references stay valid.
+python manage.py load_dvc_dataset <instance> <city>/<dataset-id> --force
+```
+
+**Refresh one dataset at a time.** Naming the dataset explicitly is the normal
+workflow, not a workaround: the plan output is only readable per dataset, and
+`--all` deliberately finds nothing once the ids have DB rows (they load as
+`DBDataset`, so `get_all_dvc_dataset_ids()` is empty) — the command says so
+rather than silently doing nothing.
+
+Provenance also arrives at this step, not at upload: `Source` and `Comment`
+cells become `DataSource` links and `DataPointComment` records only when
+`load_dvc_dataset` runs. Before that they are in the parquet but invisible in
+the admin UI, which reads as "the comments were lost".
+
+Mechanics in full — which commit gets imported, what stops a run, `--recreate` —
+are in [`trailhead/tools.md`](trailhead/tools.md#load_dvc_dataset).
+
 ---
 
 ## Step 8 — Wire datasets to nodes and verify
