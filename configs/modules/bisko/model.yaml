@@ -1834,14 +1834,49 @@ nodes:
 - id: is_bisko_compliant
   name_en: Are the inventories BISKO compliant?
   name_de: Sind die Inventare BISKO-konform?
-  description_en: Test for the BISKO compliance criteria (1 = compliant, 0 = 
-    non-compliant):<ul><li>No weather correction</li> <li>Local emission factors
-    for district heating</li><li>National emission factors for 
-    electricity</li><li>Grid-based energy data have quality A</li></ul>
-  description_de: Test für die BISKO-Konformitätskriterien (1 = konform, 0 = 
-    nicht-konform):<ul><li>Keine Wetterkorrektur</li> <li>Lokale 
-    Emissionsfaktoren für Fernwärme</li><li>Nationale Emissionsfaktoren für 
-    Strom</li><li>Gitterbasierte Energiedaten haben Qualität A</li></ul>
+  description_en: |
+    Tests the BISKO conformity criteria (1 = conforming, 0 = not conforming). The seven criteria
+    of the BISKO method paper map onto these tests:
+    <ol>
+      <li><b>End-energy-based territorial principle</b> — entries exist for the mandatory
+        grid-bound carriers, the mandatory non-grid-bound carriers, and the rail, water and air
+        transport modes. The entry may be zero, but it has to exist.</li>
+      <li><b>Split by sector and energy carrier</b> — structural; the balance is reported by
+        both, transport included.</li>
+      <li><b>Emission factors with equivalents and upstream chains</b> — the national BISKO
+        factors are in use rather than city-edited ones.</li>
+      <li><b>National grid mix for electricity</b> — same test as criterion 3, since one switch
+        governs both.</li>
+      <li><b>No weather correction.</b></li>
+      <li><b>Exergetic allocation</b> of combined heat and power.</li>
+      <li><b>Data quality</b> — the grid-bound carriers reach quality A.</li>
+    </ol>
+    Criterion 2 is a property of the model's structure rather than of a city's data, so it has no
+    runtime test. Municipal facilities and the municipal fleet are deliberately excluded from the
+    presence tests: BISKO recommends them but states that their absence must not make the balance
+    non-conforming.
+  description_de: |
+    Prüft die BISKO-Konformitätskriterien (1 = konform, 0 = nicht konform). Die sieben Kriterien
+    des BISKO-Methodenpapiers werden wie folgt abgebildet:
+    <ol>
+      <li><b>Endenergiebasiertes Territorialprinzip</b> — für die verpflichtenden
+        leitungsgebundenen und nicht-leitungsgebundenen Energieträger sowie für Schienen-,
+        Schiffs- und Flugverkehr liegen Einträge vor. Der Eintrag darf null sein, muss aber
+        vorhanden sein.</li>
+      <li><b>Aufteilung nach Sektoren und Energieträgern</b> — strukturell; die Bilanz wird nach
+        beiden ausgewiesen, einschließlich Verkehr.</li>
+      <li><b>Emissionsfaktoren mit Äquivalenten und Vorketten</b> — es werden die nationalen
+        BISKO-Faktoren und keine von der Kommune geänderten verwendet.</li>
+      <li><b>Bundesstrommix für Strom</b> — derselbe Test wie Kriterium 3, da ein Schalter beide
+        steuert.</li>
+      <li><b>Keine Witterungskorrektur.</b></li>
+      <li><b>Exergetische Allokation</b> der Kraft-Wärme-Kopplung.</li>
+      <li><b>Datengüte</b> — die leitungsgebundenen Energieträger erreichen Güte A.</li>
+    </ol>
+    Kriterium 2 ist eine Eigenschaft der Modellstruktur und nicht der Daten einer Kommune und hat
+    daher keinen Laufzeittest. Kommunale Einrichtungen und der kommunale Fuhrpark sind von den
+    Vorhandenseinstests bewusst ausgenommen: BISKO empfiehlt sie, hält aber fest, dass ihr Fehlen
+    die Bilanz nicht nicht-konform machen darf.
   type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
@@ -1854,8 +1889,19 @@ nodes:
     tags: [district_heating]
   - id: has_quality_a_data_for_grid_based_energy
     tags: [grid_energy]
+  # Criterion 1: the flag must not be raised on data nobody supplied. has_all_district_heating_
+  # energy_use_data is deliberately NOT among these -- BISKO permits a default district heating
+  # factor when the fuel input is unknown, so requiring that detail would refuse conformity to
+  # balances the standard accepts. It stays a diagnostic.
+  - id: has_all_grid_bound_energy_data
+    tags: [grid_bound]
+  - id: has_all_non_grid_bound_energy_data
+    tags: [non_grid_bound]
+  - id: has_all_other_transport_data
+    tags: [other_transport]
   params:
-    formula: weather * electricity * district_heating * grid_energy
+    formula: weather * electricity * district_heating * grid_energy * grid_bound
+      * non_grid_bound * other_transport
 
 - id: has_no_weather_correction
   name_en: Has no weather correction?
@@ -1934,8 +1980,11 @@ nodes:
     the exergetic (Carnot) method. The split itself happens inside the combined heat and power
     action, which runs with <code>method: bisko</code> — but that is invisible in the balance,
     so this node makes it explicit and testable.<br/>
-    The test is on the effective factor of the heat actually delivered — the emissions of the
-    district heating branch divided by its heat output. That factor must lie inside the envelope
+    The test is on the factor the balance actually applies — district heating emissions divided by
+    district heating consumption, both taken from the balance itself rather than from the detailed
+    fuel-input branch. That branch is empty for most cities, and the balance then falls back to the
+    Coal CHP default, which BISKO permits; measuring the branch would have failed those cities and
+    passed a city with no data at all. That factor must lie inside the envelope
     of the BISKO Table 5 variants, bounded by Coal CHP above and Biomass CHP below. Every value
     in that table was derived by exergetic allocation, and BISKO names Coal CHP as the fallback
     ceiling whenever no single generation technology reaches 80 per cent of heat production, so a
@@ -1972,20 +2021,21 @@ nodes:
   # The effective factor of the heat actually delivered: emissions of the district heating
   # branch divided by its heat output. Flattening the per-fuel factors would sum them, which
   # is meaningless -- a network's factor is the emissions-weighted average, not a total.
-  - id: district_heating_emissions
+  - id: stationary_emissions
     tags: [emissions]
     from_dimensions:
-    - id: per_what_energy
-      flatten: true
     - id: energy_carrier
+      categories: [district_heating]
       flatten: true
-  - id: district_heating_energy_use
+    - id: sector
+      flatten: true
+  - id: final_energy_use
     tags: [heat]
     from_dimensions:
-    - id: per_what_energy
-      categories: [heat_output]
-      flatten: true
     - id: energy_carrier
+      categories: [district_heating]
+      flatten: true
+    - id: sector
       flatten: true
   # The bounds come from BISKO Table 5 itself rather than being written in as numbers, so they
   # follow the annual update of the table. This is also the only live consumer of that node.
@@ -2119,6 +2169,159 @@ nodes:
 # source, before interpolation or extension fill in the missing years, so it shows the true
 # coverage of the data. The first node keeps the detail of the dataset; the second one
 # summarises it into one number per year. The same pair can be built for any other dataset.
+
+# BISKO wants a conformity flag that cannot be raised on data nobody has supplied. Protocol
+# steps 1.1, 1.2, 1.4 and 1.5 all say the same thing: the balance may only be declared conforming
+# once entries exist for the mandatory energy carriers and transport modes. The entry may be zero
+# -- BISKO says so explicitly -- so the test is whether a value exists at all, which is what
+# DataAvailabilityNode reports, reading the dataset before interpolation invents the missing years.
+#
+# Each group reduces the same way: max_dim over the dimension BISKO does not require a breakdown
+# of, then prod_dim over the one it does. Grid-bound carriers are mandatory "mindestens auf Ebene
+# der Gesamtkommune", so a carrier counts as supplied when any sector has it -- which also keeps
+# the municipal-facilities sector from blocking conformity, something protocol step 2.1 explicitly
+# forbids.
+
+- id: final_energy_use_availability
+  name_en: Final energy use data availability
+  name_de: Datenverfügbarkeit des Endenergieverbrauchs
+  description_en: Shows for which sector, energy carrier and year the city's own energy dataset
+    actually contains a value (1 = a value exists, 0 = none). The check is made on the original
+    data, before interpolation fills in the missing years, so it shows what the city has really
+    supplied. Use it to find the cells that still need to be filled.
+  description_de: Zeigt, für welchen Sektor, Energieträger und welches Jahr der Energiedatensatz
+    der Kommune tatsächlich einen Wert enthält (1 = Wert vorhanden, 0 = keiner). Geprüft wird der
+    ursprüngliche Datensatz, bevor fehlende Jahre durch Interpolation ergänzt werden, sodass
+    sichtbar wird, was die Kommune wirklich geliefert hat. So finden Sie die noch zu füllenden
+    Zellen.
+  type: simple.DataAvailabilityNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  # Only the energy column. DataAvailabilityNode turns every metric column of its dataset into a
+  # flag column of its own, and bisko/final_energy also carries 'quality' -- without this the node
+  # would emit two metrics and the downstream multiply would refuse them. Whether a data-quality
+  # grade was entered is BISKO criterion 7.1 and deserves its own node, not a second column here.
+  - id: bisko/final_energy
+    column: Value
+    filters:
+    # The four BISKO consumption sectors, named rather than taken as-is: a city's own energy
+    # export can carry extra columns that are not BISKO sectors at all (muenchen's has a
+    # 'Sonja_sektor'), and an unknown category makes the whole node fail rather than be ignored.
+    - dimension: sector
+      categories: [private_households, commerce_trade_services, industry,
+        municipal_facilities]
+
+- id: other_transport_energy_availability
+  name_en: Rail, water and air transport data availability
+  name_de: Datenverfügbarkeit Schienen-, Schiffs- und Flugverkehr
+  description_en: Shows for which vehicle type, energy carrier and year the consumption data for
+    rail, inland waterway and commercial air transport actually contains a value. The certifier
+    recorded these as missing from the datasets, so this node makes their coverage visible.
+  description_de: Zeigt, für welches Verkehrsmittel, welchen Energieträger und welches Jahr die
+    Verbrauchsdaten für Schienen-, Binnenschiff- und gewerblichen Flugverkehr tatsächlich einen
+    Wert enthalten. Die Prüfstelle hat diese als in den Datensätzen fehlend vermerkt; dieser
+    Knoten macht ihre Abdeckung sichtbar.
+  type: simple.DataAvailabilityNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: bisko/other_transport_energy
+    column: energy
+    filters:
+    - column: district
+    - column: ags
+      ref: ags_number
+    - column: municipality
+      ref: municipality_name
+
+- id: has_all_grid_bound_energy_data
+  name_en: Has all grid-bound energy data?
+  name_de: Sind alle Daten zu leitungsgebundenen Energieträgern vorhanden?
+  description_en: 1 when electricity, natural gas and district heating each have a value for that
+    year somewhere in the city's energy data, 0 when any of them is missing entirely. BISKO makes
+    these three mandatory, at least for the municipality as a whole; the value may be zero, but it
+    has to have been entered. Use final_energy_use_availability to see which cell is empty.
+  description_de: 1, wenn Strom, Erdgas und Fernwärme für dieses Jahr jeweils irgendwo in den
+    Energiedaten der Kommune einen Wert haben, 0, wenn einer davon vollständig fehlt. BISKO
+    schreibt diese drei mindestens für die Gesamtkommune verpflichtend vor; der Wert darf null
+    sein, muss aber eingetragen sein. Welche Zelle leer ist, zeigt
+    final_energy_use_availability.
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use_availability
+    tags: [availability]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity, natural_gas, district_heating]
+  params:
+  - id: formula
+    value: prod_dim(max_dim(availability, sector), energy_carrier)
+
+- id: has_all_non_grid_bound_energy_data
+  name_en: Has all non-grid-bound energy data?
+  name_de: Sind alle Daten zu nicht-leitungsgebundenen Energieträgern vorhanden?
+  description_en: |
+    1 when heating oil, biomass, solar thermal and environmental heat (heat pumps) each have a
+    value for that year, 0 when any is missing entirely. BISKO requires an entry for all four;
+    data quality does not matter for them, but absence does.<br/>
+    Note that a pre-filled zero counts as an entry, because BISKO allows an entered zero. That
+    makes this test only as strong as the data behind it. While the template ships zeros rather
+    than empty cells for these carriers, the node cannot distinguish a city that reported zero
+    from one that has never looked.
+  description_de: |
+    1, wenn Heizöl, Biomasse, Solarthermie und Umweltwärme (Wärmepumpen) für dieses Jahr jeweils
+    einen Wert haben, 0, wenn einer vollständig fehlt. BISKO verlangt für alle vier einen
+    Eintrag; die Datengüte spielt dabei keine Rolle, das Fehlen schon.<br/>
+    Eine voreingetragene Null gilt als Eintrag, da BISKO eine eingetragene Null zulässt. Solange
+    die Vorlage für diese Energieträger Nullen statt leerer Zellen ausliefert, kann dieser Knoten
+    eine Kommune, die null gemeldet hat, nicht von einer unterscheiden, die noch nie hingesehen
+    hat.
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use_availability
+    tags: [availability]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [heating_oil, biomass, solar_thermal, environmental_heat]
+  params:
+  - id: formula
+    value: prod_dim(max_dim(availability, sector), energy_carrier)
+
+- id: has_all_other_transport_data
+  name_en: Has all rail, water and air transport data?
+  name_de: Sind alle Daten zu Schienen-, Schiffs- und Flugverkehr vorhanden?
+  description_en: 1 when local, long-distance and freight rail, inland waterway shipping and
+    commercial air transport each have consumption data for that year, 0 when any is missing.
+    BISKO requires all of them; the certifier recorded them as absent from the datasets.
+  description_de: 1, wenn Schienenpersonennah-, Schienenpersonenfern- und Schienengüterverkehr,
+    Binnenschifffahrt und gewerblicher Flugverkehr für dieses Jahr jeweils Verbrauchsdaten haben,
+    0, wenn eines fehlt. BISKO verlangt alle; die Prüfstelle hat sie als in den Datensätzen
+    fehlend vermerkt.
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: other_transport_energy_availability
+    tags: [availability]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [local_trains, long_distance_trains, cargo_trains,
+        inland_waterway_shipping, air_transport]
+  params:
+  - id: formula
+    value: prod_dim(max_dim(availability, energy_carrier), vehicle_type)
 
 - id: district_heating_energy_use_availability
   name_de: Datenverfügbarkeit des Fernwärmeenergieverbrauchs
