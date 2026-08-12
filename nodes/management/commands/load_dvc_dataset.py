@@ -29,7 +29,7 @@ from kausal_common.datasets.models import (
 from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
-from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, RESERVED_ROW_COLUMNS, YEAR_COLUMN
 from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.dataset_placeholders import make_external_dataset_ref, sync_dataset_placeholder
 from nodes.datasets import JSONDataset
@@ -57,10 +57,9 @@ SOURCE_NAME_SEPARATOR = '; '
 # fragment them. ' ;; ' cannot occur by accident in ordinary text.
 COMMENT_SEPARATOR = ' ;; '
 
-# Must match notebooks/upload_new_dataset.py's RESERVED_ROW_COLUMNS: columns that ride
-# through to DVC as literal per-row data (excluded from index_columns there) rather than
-# being dimensions or metrics -- read back here into DataSource/DataPointComment links.
-RESERVED_ROW_COLUMNS = {'source', 'comment', 'description'}
+# RESERVED_ROW_COLUMNS comes from nodes.constants, which is also what `upload_new_dataset`
+# writes by and what `DVCDataset` drops on load. It used to be copied here and there with a
+# "must match" comment; one definition is what actually makes them match.
 
 
 @dataclass

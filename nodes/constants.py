@@ -12,6 +12,16 @@ VALUE_COLUMN = 'Value'
 NODE_COLUMN = 'Node'
 SCENARIO_COLUMN = 'ScenarioName'
 
+# Per-row provenance that rides through to DVC as literal column values but is never a
+# dimension, a metric or an index column. `upload_new_dataset` keeps these out of the
+# parquet's index_columns, `load_dvc_dataset` reads them back into DataSource and
+# DataPointComment links, and `DVCDataset` drops them on load so that a dataset read
+# from DVC has the same columns as the same dataset read from the database.
+#
+# Matched case-insensitively, because the CSV spells them capitalised (`Source`,
+# `Comment`) and the parquet lowercases them.
+RESERVED_ROW_COLUMNS = frozenset({'source', 'comment', 'description'})
+
 # Impact constants
 IMPACT_COLUMN = 'Impact'
 # Probability iterations for Monte Carlo

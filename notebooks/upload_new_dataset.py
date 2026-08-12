@@ -24,7 +24,7 @@ from dvc_pandas import Dataset, DatasetMeta, Repository  # noqa: E402
 
 from kausal_common.i18n.pydantic import TranslatedString  # noqa: E402
 
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
+from nodes.constants import RESERVED_ROW_COLUMNS, VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
 from nodes.node import NodeMetric  # noqa: E402
 from notebooks.notebook_support import get_context  # noqa: E402
 
@@ -247,10 +247,10 @@ def extract_description(df: pl.DataFrame) -> str | None:
     return description
 
 
-# Columns that ride through to DVC as literal per-row values (like 'UUID') but must never
-# be treated as dimension/index columns: they're read back by load_dvc_dataset into
-# DataSource/DataPointComment links, not dimension categories.
-RESERVED_ROW_COLUMNS = {'source', 'comment', 'description'}
+# RESERVED_ROW_COLUMNS (imported above) names the columns that ride through to DVC as
+# literal per-row values but must never be treated as dimension/index columns: they are
+# read back by load_dvc_dataset into DataSource/DataPointComment links, and dropped again
+# by DVCDataset on load so that DVC and the database yield the same frame.
 
 
 def load_sources_registry(path: str) -> dict[str, dict[str, str | None]]:

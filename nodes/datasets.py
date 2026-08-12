@@ -27,7 +27,13 @@ from nodes.calc import extend_last_historical_value_pl
 from nodes.exceptions import DatasetError
 from nodes.units import Unit, unit_registry
 
-from .constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .constants import (
+    FORECAST_COLUMN,
+    RESERVED_ROW_COLUMNS,
+    UNCERTAINTY_COLUMN,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
+)
 
 if TYPE_CHECKING:
     import dvc_pandas
@@ -500,7 +506,34 @@ class DVCDataset(DatasetWithFilters):
 
     @measure_dataset_call('dataset.dvc.convert')
     def _convert_dvc_dataset(self, dvc_ds: dvc_pandas.Dataset) -> ppl.PathsDataFrame:
-        return ppl.from_dvc_dataset(dvc_ds)
+        df = ppl.from_dvc_dataset(dvc_ds)
+        return self._drop_reserved_columns(df)
+
+    @staticmethod
+    def _drop_reserved_columns(df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """
+        Drop per-row provenance columns, so DVC and the database yield the same frame.
+
+        `Source` and `Comment` travel to DVC as ordinary columns, because the parquet has
+        nowhere else to put them; `load_dvc_dataset` reads them back into `DataSource` and
+        `DataPointComment` records. The database path therefore never surfaces them, while
+        the DVC path did -- so the same dataset had two extra string columns depending on
+        which source the instance was configured for, and node code that survived one
+        could fail on the other.
+
+        Only columns that are neither an index nor a metric are dropped. A dataset that
+        genuinely has a dimension called `source` keeps it: `upload_new_dataset` excludes
+        the reserved names from `index_columns`, so anything still in `primary_keys` under
+        one of those names got there deliberately and is not provenance.
+        """
+        droppable = [
+            col
+            for col in df.columns
+            if col.lower() in RESERVED_ROW_COLUMNS and col not in df.primary_keys and col not in df.metric_cols
+        ]
+        if not droppable:
+            return df
+        return df.drop(droppable)
 
     @override
     def load_internal(self) -> ppl.PathsDataFrame:
