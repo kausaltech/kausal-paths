@@ -21,7 +21,7 @@ from frameworks.models import (
     Section,
 )
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
-from nodes.models import InstanceConfig
+from nodes.models import InstanceConfig, InstanceHostname
 from nodes.tests.factories import InstanceConfigFactory
 from pages.models import ActionListPage, InstanceRootPage
 from users.models import User
@@ -343,6 +343,66 @@ def test_framework_config_instance_uses_config_backed_graphql_type(
     assert data['framework']['configs'] == [
         {'instance': {'id': 'test-city', 'identifier': 'test-city', 'name': 'Test City'}},
     ]
+
+
+def test_framework_config_instances_do_not_cause_n_plus_one_queries(
+    client: Client,
+    framework: Framework,
+) -> None:
+    configs = []
+    for index in range(10):
+        instance_config = InstanceConfigFactory.create(identifier=f'city-{index}', name=f'City {index}')
+        configs.append(FrameworkConfigFactory.create(framework=framework, instance_config=instance_config))
+    root_instance = InstanceConfigFactory.create(identifier='framework-landing', name='Framework landing')
+    framework.root_instance = root_instance
+    framework.use_instance_subdomains = False
+    framework.save(update_fields=['root_instance', 'use_instance_subdomains'])
+    InstanceHostname.objects.create(instance=root_instance, hostname='landing.example.com')
+    gql_client = _framework_admin_gql_client(client, framework)
+
+    with CaptureQueriesContext(connection) as query_ctx:
+        data = gql_client.query_data(
+            gql("""
+            query FrameworkConfigs(
+                $identifier: ID!
+                $clientUrl: String
+                $_locale: String!
+                $_identifier: ID!
+                $_hostname: String!
+            ) @locale(lang: $_locale) @instance(identifier: $_identifier, hostname: $_hostname) {
+                framework(identifier: $identifier) {
+                    id
+                    configs {
+                        id
+                        organizationName
+                        viewUrl(clientUrl: $clientUrl)
+                        instance {
+                            id
+                            identifier
+                            name
+                            __typename
+                        }
+                        __typename
+                    }
+                    __typename
+                }
+            }
+            """),
+            variables={
+                'identifier': framework.identifier,
+                'clientUrl': 'https://landing.example.com/',
+                '_locale': 'en',
+                '_identifier': root_instance.identifier,
+                '_hostname': 'landing.example.com',
+            },
+        )
+
+    returned_configs = data['framework']['configs']
+    configs_by_identifier = {config['instance']['identifier']: config for config in returned_configs}
+    assert len(returned_configs) == 10
+    assert configs_by_identifier['city-0']['viewUrl'] == f'https://landing.example.com/{configs[0].instance_config.uuid}'
+    assert configs_by_identifier['city-1']['viewUrl'] == f'https://landing.example.com/{configs[1].instance_config.uuid}'
+    assert len(query_ctx) <= 13
 
 
 def test_framework_sections_resolve_influencing_measure_templates_without_n_plus_one(

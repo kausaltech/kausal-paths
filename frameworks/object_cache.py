@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
-from django.db.models import F
+from django.db.models import F, Q
 
 from kausal_common.models.object_cache import ModelObjectCache, ObjectCacheGroup
 
@@ -197,6 +197,10 @@ class FrameworkConfigCache(ModelObjectCache[FrameworkConfig, FrameworkConfigQuer
 
     def add_obj(self, obj: FrameworkConfig) -> None:
         obj.cache = FrameworkConfigCacheData(self.parent.cache, obj, self.user)
+        obj.framework = self.parent
+        ic = self.parent.cache.instance_configs.get(obj.instance_config_id)
+        assert ic is not None
+        obj.instance_config = ic
         super().add_obj(obj)
 
 
@@ -204,6 +208,15 @@ class InstanceConfigCache(ModelObjectCache[InstanceConfig, InstanceConfigQuerySe
     @property
     def model(self):
         return InstanceConfig
+
+    def get_base_qs(
+        self, qs: InstanceConfigQuerySet | None = None, action: ObjectSpecificAction = 'view'
+    ) -> InstanceConfigQuerySet:
+        qs = super().get_base_qs(qs, action).prefetch_related('hostnames')
+        return qs
+
+    def filter_by_parent(self, qs: InstanceConfigQuerySet) -> InstanceConfigQuerySet:
+        return qs.filter(Q(framework_config__framework=self.parent) | Q(pk=self.parent.root_instance_id))
 
     def add_obj(self, obj: InstanceConfig) -> None:
         del obj.cache

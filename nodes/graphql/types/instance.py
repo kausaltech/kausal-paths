@@ -639,6 +639,19 @@ class InstanceType:
     def instance(self, info: gql.Info) -> Instance:
         return info.context.require_instance(self._config, source=self._source)
 
+    @sb.field(description='Display title for the instance.')
+    def site_title(self) -> str:
+        instance_name = self.name
+        ic = self._config
+        if not ic.has_framework_config():
+            return instance_name
+
+        fw = ic.cache.object_cache.for_framework_id(ic.framework_config.framework_id)
+        assert fw is not None
+        if ic.pk == fw.root_instance_id:
+            return instance_name
+        return f'{fw.name}: {instance_name}'
+
     @sb.field
     def owner(self, info: gql.Info) -> str | None:
         if self._snapshot is not None:

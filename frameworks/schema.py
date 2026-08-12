@@ -329,7 +329,9 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     def resolve_instance(root: FrameworkConfig, info: GQLInfo) -> InstanceType:
         from nodes.graphql.types.instance import InstanceType
 
-        return InstanceType.from_model(root.instance_config)
+        ic = root.cache.fw_cache.instance_configs.get(root.instance_config_id)
+        assert ic is not None
+        return InstanceType.from_model(ic)
 
     @staticmethod
     def resolve_organization_slug(root: FrameworkConfig, info: GQLInfo) -> str | None:

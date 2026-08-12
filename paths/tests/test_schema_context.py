@@ -8,14 +8,14 @@ import pytest
 from paths.context import PathsObjectCache
 from paths.schema_context import InstanceRequestResources
 
+from frameworks.models import Framework, FrameworkConfig
+from nodes.models import InstanceConfig
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
     from paths.tests.graphql import PathsTestClient
-
-    from nodes.models import InstanceConfig
 
 
 pytestmark = pytest.mark.django_db
@@ -71,6 +71,47 @@ def test_instance_metadata_query_uses_neither_graph_nor_runtime(
     data = gql_client.query_data('{ instance { id uuid targetYear } }')
 
     assert data['instance']['id'] == config.identifier
+
+
+@pytest.mark.parametrize(
+    ('framework_name', 'instance_name', 'is_root_instance', 'expected_title'),
+    [
+        (None, 'Standalone', False, 'Standalone'),
+        ('CADS', 'Framework landing', True, 'Framework landing'),
+        ('CADS', 'Riga', False, 'CADS: Riga'),
+        ('CADS', 'CADS', False, 'CADS: CADS'),
+    ],
+)
+def test_instance_site_title(
+    instance_gql_client: tuple[PathsTestClient, InstanceConfig],
+    framework_name: str | None,
+    instance_name: str,
+    is_root_instance: bool,
+    expected_title: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gql_client, config = instance_gql_client
+
+    def fail_enter_instance_context(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError('siteTitle must not create a runtime Instance')
+
+    monkeypatch.setattr(InstanceConfig, 'enter_instance_context', fail_enter_instance_context)
+    config.name = instance_name
+    config.save(update_fields=['name'])
+    if framework_name is not None:
+        framework = Framework.objects.create(identifier='test-framework', name=framework_name)
+        FrameworkConfig.objects.create(framework=framework, instance_config=config, baseline_year=2020)
+        if is_root_instance:
+            framework.root_instance = config
+        else:
+            root_config = InstanceConfigFactory.create(name='Framework landing')
+            framework.root_instance = root_config
+            FrameworkConfig.objects.create(framework=framework, instance_config=root_config, baseline_year=2020)
+        framework.save(update_fields=['root_instance'])
+
+    data = gql_client.query_data('{ instance { frameworkConfig { id } siteTitle } }')
+
+    assert data['instance']['siteTitle'] == expected_title
 
 
 def test_blank_yaml_metadata_fields_fall_back_to_snapshot(
