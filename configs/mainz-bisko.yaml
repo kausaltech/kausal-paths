@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3a15c35d79c620d69c24f761d1ec6433d8e51c22
+  commit: f7c0ba796a5c5ecfad73363d206db98d0a423eaa
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
@@ -33,6 +33,18 @@ include:
     to: mainz/passenger_kilometers
   - from: bisko/vehicle_energy
     to: mainz/vehicle_energy
+
+# The GHG-Protocol administration balance. A parallel outcome tree with its own page --
+# it is deliberately not summed into `net_emissions`, because municipal building energy
+# is already in the territorial balance and its Scope 3 half lies outside the BISKO
+# boundary. See the module's own header.
+- file: modules/bisko/municipal_balance.yaml
+  allow_override: false
+  dataset_replacements:
+  - from: bisko/municipal_balance_activity
+    to: mainz/municipal_balance_activity
+  - from: bisko/municipal_balance_emission_factors
+    to: mainz/municipal_balance_emission_factors
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -88,7 +100,7 @@ params:
 - id: municipal_facilities_included_in_commerce
   label_en: Is the consumption of municipal facilities included in the commerce,
     trade and services sector?
-  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
+  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor 
     GHD/Sonstiges enthalten?
   value: true
   is_visible: true
@@ -137,6 +149,26 @@ pages:
   lead_paragraph: Historische Treibhausgasemissionen der Stadt Mainz und 
     Prognosen für die Szenarien "Business as Usual" und "Klimschutzmaßnahmen 
     erfolgreich umgesetzt".
+
+# The administration balance gets its own page rather than a branch of the home page:
+# it answers a different question against a different boundary, and the two totals must
+# never be read as parts of one sum. See modules/bisko/municipal_balance.yaml.
+# The path stays German: ids and filenames are for us, but a URL is one of the few
+# things the city's own users actually see.
+- id: municipal_balance
+  name_de: Treibhausgasbilanz der Stadtverwaltung
+  name_en: City Administration Greenhouse Gas Inventory
+  path: /verwaltungsbilanz
+  type: emission
+  outcome_node: municipal_balance_emissions
+  lead_title: Treibhausgasbilanz der Stadtverwaltung Mainz
+  lead_paragraph: Emissionen der Stadtverwaltung selbst nach dem GHG Protocol 
+    Corporate Standard, gegliedert nach Bilanzkategorie, Liegenschaftsgruppe und
+    Scope. Grundlage sind die Daten der Vorgängerbilanz für 2019 bis 2021. Diese
+    Bilanz ist nicht Bestandteil der territorialen BISKO-Bilanz und darf nicht 
+    zu ihr addiert werden - die Energie der kommunalen Liegenschaften ist dort 
+    bereits enthalten, und die Scope-3-Anteile liegen außerhalb der 
+    territorialen Bilanzgrenze.
 
 scenarios:
 
