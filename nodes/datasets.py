@@ -19,6 +19,7 @@ import polars as pl
 from numpy.random import default_rng  # TODO Could call Generator to give hints about rng attributes but requires code change
 from numpy.typing import NDArray
 
+from kausal_common.deployment import get_deployment_build_id
 from kausal_common.logging.errors import capture_error
 from kausal_common.perf.perf_context import PerfKind, estimate_size_bytes
 
@@ -158,7 +159,13 @@ class Dataset(ABC):
         if class_hash is None:
             class_hash = type(self).get_class_hash()
             type(self)._class_hash = class_hash
-        d = {'id': self.id, 'interpolate': self.interpolate, 'class_hash': class_hash.hex()}
+        d = {'id': self.id, 'interpolate': self.interpolate}
+        if build_id := get_deployment_build_id():
+            d['build_id'] = build_id
+        else:
+            # Development workers share file mtimes, unlike a process-local namespace.
+            # Transformation implementations are versioned by their operation classes.
+            d['class_hash'] = class_hash.hex()
         d.update(self.hash_data())
         h = hashlib.md5(orjson.dumps(d, option=orjson.OPT_SORT_KEYS), usedforsecurity=False).digest()
         self.hash = h
@@ -270,6 +277,16 @@ class DatasetWithFilters(Dataset, ABC):
             yield 'column', self.column
         if self.transformations:
             yield 'transformations', len(self.transformations)
+
+    def pipeline_hash_data(self) -> dict[str, Any]:
+        """Return the complete recipe and runtime inputs used to materialize this binding."""
+        return {
+            'column': self.column,
+            'unit': str(self.unit) if self.unit is not None else None,
+            'forecast_from': self.forecast_from,
+            'output_dimensions': self.output_dimensions,
+            'transformations': [op.cache_hash_data(self.context) for op in self.transformations],
+        }
 
     @measure_dataset_call('dataset.filter', capture_df_result=True, capture_df_arg=True)
     def _filter_and_process_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
@@ -537,25 +554,14 @@ class DVCDataset(DatasetWithFilters):
         raise DatasetError(self, 'Dataset %s does not have the value column' % self.id)
 
     def hash_data(self) -> dict[str, Any]:
-        # 'transformations' covers what 'filters', 'forecast_from', 'dropna' and the
-        # year limits used to contribute separately.
-        extra_fields = [
-            'input_dataset',
-            'column',
-            'transformations',
-            'interpolate',
-        ]
-        d = {}
-        for f in extra_fields:
-            value = getattr(self, f)
-            if f == 'transformations':
-                value = [op.model_dump(mode='json') for op in value]
-            d[f] = value
-
+        source = {
+            'input_dataset': self.input_dataset,
+            'dvc_id': self.input_dataset or self.id,
+        }
         if self.context.dataset_repo_spec is not None:
-            d['commit_id'] = self.context.dataset_repo_spec.commit
-        d['dvc_id'] = self.input_dataset or self.id
-        return d
+            source['repository_url'] = self.context.dataset_repo_spec.url
+            source['commit_id'] = self.context.dataset_repo_spec.commit
+        return {'source': source, 'pipeline': self.pipeline_hash_data()}
 
 
 @dataclass
@@ -1021,9 +1027,12 @@ class SerializedDBDataset(DatasetWithFilters):
     def hash_data(self) -> dict[str, Any]:
         assert self.payload_ref is not None
         return {
-            'dataset_uuid': self.payload_ref.dataset_uuid,
-            'generation': self.payload_ref.generation,
-            'content_hash': self.payload_ref.content_hash,
+            'source': {
+                'dataset_uuid': self.payload_ref.dataset_uuid,
+                'generation': self.payload_ref.generation,
+                'content_hash': self.payload_ref.content_hash,
+            },
+            'pipeline': self.pipeline_hash_data(),
         }
 
     def get_unit(self) -> Unit:
@@ -1093,7 +1102,10 @@ class DBDataset(DatasetWithFilters):
     def hash_data(self) -> dict[str, Any]:
         obj = self.db_dataset_obj
         assert obj is not None
-        return dict(obj_pk=obj.pk, updated_at=str(obj.last_modified_at))
+        return {
+            'source': {'obj_pk': obj.pk, 'updated_at': str(obj.last_modified_at)},
+            'pipeline': self.pipeline_hash_data(),
+        }
 
     def get_unit(self) -> Unit:
         df = self.load_internal()

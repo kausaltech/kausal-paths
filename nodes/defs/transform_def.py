@@ -28,6 +28,8 @@ from nodes.units import Unit
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from nodes.context import Context
+
 type PortBindingKind = Literal['edge', 'dataset']
 
 EDGE_AND_DATASET: frozenset[PortBindingKind] = frozenset({'edge', 'dataset'})
@@ -39,6 +41,9 @@ class PortTransformOpBase(BaseModel):
     """Common base for port transformations."""
 
     model_config = ConfigDict(extra='forbid')
+
+    cache_version: ClassVar[int] = 1
+    """Bump when this operation's implementation changes its materialized output."""
 
     applies_to: ClassVar[frozenset[PortBindingKind]] = EDGE_AND_DATASET
     """Binding kinds that may carry this operation."""
@@ -56,6 +61,13 @@ class PortTransformOpBase(BaseModel):
         data['kind'] = getattr(self, 'kind')  # noqa: B009  (declared on the subclasses)
         return data
 
+    def cache_hash_data(self, context: Context) -> dict[str, Any]:
+        """Describe the authored operation and runtime inputs that determine its output."""
+        return {
+            'version': self.cache_version,
+            'operation': self.model_dump(mode='json'),
+        }
+
 
 class FilterDimensionOp(PortTransformOpBase):
     """
@@ -72,6 +84,13 @@ class FilterDimensionOp(PortTransformOpBase):
     exclude: bool = False
     flatten: bool = False
 
+    def cache_hash_data(self, context: Context) -> dict[str, Any]:
+        data = super().cache_hash_data(context)
+        if self.groups:
+            dimension = context.dimensions[self.dimension]
+            data['dimension'] = dimension.calculate_hash().hex()
+        return data
+
 
 class AssignDimensionOp(PortTransformOpBase):
     """Tag every row with a fixed category in a dimension the input doesn't have."""
@@ -79,6 +98,12 @@ class AssignDimensionOp(PortTransformOpBase):
     kind: Literal['assign_dimension'] = 'assign_dimension'
     dimension: DimensionRef
     category: DimensionCategoryRef
+
+    def cache_hash_data(self, context: Context) -> dict[str, Any]:
+        data = super().cache_hash_data(context)
+        dimension = context.dimensions.get(self.dimension)
+        data['dimension'] = dimension.calculate_hash().hex() if dimension is not None else None
+        return data
 
 
 class DropNullsOp(PortTransformOpBase):
@@ -118,6 +143,13 @@ class FilterColumnOp(PortTransformOpBase):
     drop_col: bool = True
     exclude: bool = False
     flatten: bool = False
+
+    def cache_hash_data(self, context: Context) -> dict[str, Any]:
+        data = super().cache_hash_data(context)
+        if self.ref is not None:
+            parameter = context.get_parameter(self.ref, required=True)
+            data['parameter'] = parameter.calculate_hash()
+        return data
 
 
 class RenameColumnOp(PortTransformOpBase):
@@ -215,6 +247,15 @@ class RemapLegacyYearsOp(PortTransformOpBase):
 
     kind: Literal['remap_legacy_years'] = 'remap_legacy_years'
 
+    def cache_hash_data(self, context: Context) -> dict[str, Any]:
+        data = super().cache_hash_data(context)
+        instance = context.instance
+        data['timeline'] = {
+            'reference_year': instance.reference_year,
+            'target_year': instance.target_year,
+        }
+        return data
+
 
 class TagOperationOp(PortTransformOpBase):
     """
@@ -229,6 +270,22 @@ class TagOperationOp(PortTransformOpBase):
 
     kind: Literal['tag_operation'] = 'tag_operation'
     tag: str
+
+    def cache_hash_data(self, context: Context) -> dict[str, Any]:
+        """Hash the Context surface available to registered dataframe operations."""
+        data = super().cache_hash_data(context)
+        instance = context.instance
+        data['timeline'] = {
+            'reference_year': instance.reference_year,
+            'target_year': instance.target_year,
+            'model_end_year': instance.model_end_year,
+            'minimum_historical_year': instance.minimum_historical_year,
+            'maximum_historical_year': instance.maximum_historical_year,
+        }
+        data['dimensions'] = {
+            dimension_id: dimension.calculate_hash().hex() for dimension_id, dimension in sorted(context.dimensions.items())
+        }
+        return data
 
 
 # --- Legacy edge vocabulary -------------------------------------------------
