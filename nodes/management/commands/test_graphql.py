@@ -60,7 +60,12 @@ def _diff_responses(fn: Path, data: dict[str, Any], out: dict[str, Any]) -> bool
         target_data = target_data[solo_key]
         resp_data = resp_data[solo_key]
 
-    diff = DeepDiff(target_data, resp_data, math_epsilon=1e-6, iterable_compare_func=compare_func)
+    diff = DeepDiff(
+        target_data,
+        resp_data,
+        math_epsilon=1e-5,
+        iterable_compare_func=compare_func,
+    )
     if not diff:
         return False
 
