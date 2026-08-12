@@ -755,6 +755,14 @@ class InstanceConfig(
                     primary_language=self.primary_language,
                 )
                 instance.source_nodes_by_uuid[node_config.uuid] = node
+                # Metrics and other runtime consumers read these fields directly,
+                # so they must see the same reconciled metadata as GraphQL fields.
+                node.name = node.source_snapshot.name or node.name
+                node.short_name = node.source_snapshot.short_name
+                node.description = node.source_snapshot.short_description
+                node.color = node.source_snapshot.color or None
+                node.order = node.source_snapshot.order
+                node.is_visible = node.source_snapshot.is_visible
             node_config.update_node_from_config(node, keep_ref=node_refs)
 
     def update_identity_metadata(
