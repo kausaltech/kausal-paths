@@ -729,7 +729,7 @@ def test_dataset_save_revision_updates_latest_revision():
 def test_dataset_port_snapshot_pins_dataset_revision(empty_db_instance: InstanceConfig):
     from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
 
-    from nodes.models import DatasetPort, NodeConfig
+    from nodes.models import DatasetPort
 
     ds = DatasetFactory.create()
     metric = DatasetMetricFactory.create(schema=ds.schema, name='m1', label='M', unit='kt/a')
@@ -737,7 +737,7 @@ def test_dataset_port_snapshot_pins_dataset_revision(empty_db_instance: Instance
     ds.refresh_from_db()
     pinned_rev = ds.latest_revision_id
 
-    nc = NodeConfig.objects.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    nc = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
     import uuid as _uuid
 
     port = DatasetPort.objects.create(
@@ -776,10 +776,10 @@ def _materialized_df_value(content: dict[str, Any]) -> float:
 
 
 def test_publish_pins_current_dataset_materialization(empty_db_instance: InstanceConfig):
-    from nodes.models import DatasetPort, InstanceRevisionDatasetPin, NodeConfig
+    from nodes.models import DatasetPort, InstanceRevisionDatasetPin
 
     dataset, metric, _point, materialization = _make_materialized_dataset(empty_db_instance, 'pinned', '10')
-    node = NodeConfig.objects.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
     DatasetPort.objects.create(
         instance=empty_db_instance,
         node=node,
@@ -818,10 +818,10 @@ def test_publish_pins_current_dataset_materialization(empty_db_instance: Instanc
 
 
 def test_published_runtime_rejects_missing_relational_dataset_pin(empty_db_instance: InstanceConfig):
-    from nodes.models import DatasetPort, InstanceRevisionDatasetPin, NodeConfig, PreferredInstanceSource
+    from nodes.models import DatasetPort, InstanceRevisionDatasetPin, PreferredInstanceSource
 
     dataset, metric, _point, _materialization = _make_materialized_dataset(empty_db_instance, 'missing-pin', '10')
-    node = NodeConfig.objects.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
     DatasetPort.objects.create(
         instance=empty_db_instance,
         node=node,
@@ -843,10 +843,10 @@ def test_published_dataset_payload_is_isolated_from_later_draft_edit(empty_db_in
     from django.db import transaction
 
     from nodes.dataset_materialization import refresh_dataset_materialization
-    from nodes.models import DatasetPort, InstanceRevisionDatasetPin, NodeConfig
+    from nodes.models import DatasetPort, InstanceRevisionDatasetPin
 
     dataset, metric, point, _materialization = _make_materialized_dataset(empty_db_instance, 'isolated', '10')
-    node = NodeConfig.objects.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
     DatasetPort.objects.create(
         instance=empty_db_instance,
         node=node,
@@ -990,9 +990,9 @@ def test_current_dataset_payload_store_bulk_loads_once(empty_db_instance: Instan
 
 def test_revision_dataset_payload_store_bulk_loads_once(empty_db_instance: InstanceConfig):
     from nodes.datasets import DatasetPayloadRef, RevisionDatasetPayloadStore
-    from nodes.models import DatasetPort, NodeConfig
+    from nodes.models import DatasetPort
 
-    node = NodeConfig.objects.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
     for identifier, value in [('published-one', '1'), ('published-two', '2')]:
         dataset, metric, _point, _materialization = _make_materialized_dataset(
             empty_db_instance,
@@ -1036,10 +1036,10 @@ def test_revision_dataset_payload_store_bulk_loads_once(empty_db_instance: Insta
 def test_pinned_dataset_revision_is_protected_until_instance_is_deleted(empty_db_instance: InstanceConfig):
     from django.db.models.deletion import ProtectedError
 
-    from nodes.models import DatasetPort, InstanceRevisionDatasetPin, NodeConfig
+    from nodes.models import DatasetPort, InstanceRevisionDatasetPin
 
     dataset, metric, _point, _materialization = _make_materialized_dataset(empty_db_instance, 'retained', '10')
-    node = NodeConfig.objects.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
     DatasetPort.objects.create(
         instance=empty_db_instance,
         node=node,

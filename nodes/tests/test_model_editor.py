@@ -18,7 +18,7 @@ from nodes.defs.instance_defs import ActionGroup, InstanceModelSpec, Normalizati
 from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.defs.transform_def import FilterColumnOp, forecast_from_transformations
-from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
+from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id, register_dimensions
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
@@ -108,36 +108,7 @@ def db_instance_config() -> InstanceConfig:
     )
 
 
-def _register_dimensions(ic: InstanceConfig, dim_ids: list[str], categories: dict[str, list[str]] | None = None) -> None:
-    """
-    Populate both spec.dimensions and the ORM Dimension/DimensionScope rows.
-
-    The DB-sourced config loader validates that every dimension referenced
-    by InstanceSpec.dimensions exists in the ORM (categories included), so
-    tests that assign spec.dimensions must create the matching rows too.
-    """
-    from django.contrib.contenttypes.models import ContentType
-
-    from kausal_common.datasets.models import Dimension, DimensionCategory, DimensionScope
-
-    categories = categories or {}
-    assert ic.spec is not None
-    ic.spec.dimensions = [
-        {
-            'id': dim_id,
-            'label': dim_id.replace('_', ' ').title(),
-            'categories': [{'id': cat_id, 'label': cat_id.title()} for cat_id in categories.get(dim_id, [])],
-        }
-        for dim_id in dim_ids
-    ]
-    ic.save(update_fields=['spec'])
-
-    ct = ContentType.objects.get_for_model(ic)
-    for dim_id in dim_ids:
-        dim = Dimension.objects.create(name=dim_id.replace('_', ' ').title())
-        DimensionScope.objects.create(dimension=dim, scope_content_type=ct, scope_id=ic.pk, identifier=dim_id)
-        for cat_id in categories.get(dim_id, []):
-            DimensionCategory.objects.create(dimension=dim, identifier=cat_id, label=cat_id.title())
+_register_dimensions = register_dimensions
 
 
 @pytest.fixture
@@ -1239,6 +1210,14 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
         createEdge(input: $input) {
             __typename
             ... on OperationInfo { messages { kind message } }
+            ... on ConstraintViolations {
+                conflicts {
+                    code
+                    message
+                    value { kind nodeUuid portId direction bindingId }
+                    origins { kind nodeUuid portId bindingId }
+                }
+            }
             ... on NodeEdgeType {
                 fromRef {
                     nodeUuid
@@ -1287,6 +1266,10 @@ mutation DeleteEdge($instanceId: ID!, $edgeId: ID!) {
 
 def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     from nodes.models import NodeEdge
+
+    # The edge's filter references the dimension, and the solver-backed
+    # validator rejects references to dimensions the instance does not have.
+    _register_dimensions(db_instance_config, ['sector'], {'sector': ['buildings']})
 
     unit = unit_registry.parse_units('kt/a')
     nc_a = NodeConfigFactory.create(
@@ -2372,7 +2355,7 @@ def test_create_edge_rejects_quantity_mismatch(gql_client: PathsTestClient, db_i
         ),
     )
 
-    gql_client.query_errors(
+    data = gql_client.query_data(
         CREATE_EDGE,
         variables={
             'instanceId': str(db_instance_config.pk),
@@ -2382,8 +2365,14 @@ def test_create_edge_rejects_quantity_mismatch(gql_client: PathsTestClient, db_i
                 'toNodeId': 'dst',
             },
         },
-        assert_error_message='Quantity mismatch',
     )
+    result = data['instanceEditor']['createEdge']
+    assert result['__typename'] == 'ConstraintViolations'
+    codes = {conflict['code'] for conflict in result['conflicts']}
+    assert 'quantity_mismatch' in codes
+    from nodes.models import NodeEdge
+
+    assert not NodeEdge.objects.filter(instance=db_instance_config).exists()
 
 
 def test_create_edge_rejects_second_binding_for_non_multi_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -2499,3 +2488,274 @@ def test_delete_node_roundtrip(gql_client: PathsTestClient, db_instance_config: 
 
     ctx = _rebuild_from_db(db_instance_config)
     assert 'ephemeral' not in ctx.nodes
+
+
+# ---------------------------------------------------------------------------
+# Step 8: solver-backed validation, derived fields, and the role catalog
+# ---------------------------------------------------------------------------
+
+MULTIPLICATIVE_NODE_CLASS = 'nodes.simple.MultiplicativeNode'
+
+CONSTRAINT_CONFLICTS = gql("""
+query ConstraintConflicts {
+    instance {
+        editor {
+            constraintConflicts {
+                code
+                message
+                value { kind nodeUuid portId direction bindingId }
+                origins { kind nodeUuid portId bindingId }
+            }
+        }
+    }
+}
+""")
+
+NODE_CONSTRAINT_FIELDS = gql("""
+query NodeConstraintFields($instanceId: ID!) {
+    modelInstance(instanceId: $instanceId) {
+        nodes {
+            identifier
+            editor {
+                spec {
+                    constraintConflicts { code }
+                    inputPorts {
+                        identifier
+                        role
+                        effectiveShape {
+                            dimensionUuids
+                            unit { standard }
+                            quantity
+                        }
+                    }
+                    outputPorts {
+                        identifier
+                        effectiveShape { dimensionUuids }
+                    }
+                    inputPortDeclarations {
+                        role
+                        multi
+                        repeatable
+                        minCount
+                        defaultCount
+                        instantiatedPortIds
+                    }
+                    supportsAuthoredPorts
+                }
+            }
+        }
+    }
+}
+""")
+
+
+def _quantity_mismatch_pair(ic: InstanceConfig) -> None:
+    """Wire an emissions source straight into an energy-expecting port, bypassing validation."""
+    from nodes.models import NodeEdge
+
+    unit = unit_registry.parse_units('kt/a')
+    src = NodeConfigFactory.create(
+        instance=ic,
+        identifier='mismatch_src',
+        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')]),
+    )
+    dst = NodeConfigFactory.create(
+        instance=ic,
+        identifier='mismatch_dst',
+        spec=_make_node_spec(
+            input_ports=[InputPortDef(id=_port_uuid('input'), identifier='input', unit=unit, quantity='energy')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='energy')],
+        ),
+    )
+    NodeEdge.objects.create(
+        instance=ic,
+        from_node=src,
+        from_port=_port_uuid('default'),
+        to_node=dst,
+        to_port=_port_uuid('input'),
+    )
+
+
+def test_draft_constraint_conflicts_are_inspectable(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    _quantity_mismatch_pair(db_instance_config)
+
+    data = gql_client.query_data(CONSTRAINT_CONFLICTS)
+    conflicts = data['instance']['editor']['constraintConflicts']
+    codes = {conflict['code'] for conflict in conflicts}
+    assert 'quantity_mismatch' in codes
+    # Origins carry UUID provenance for the editor to highlight.
+    mismatch = next(conflict for conflict in conflicts if conflict['code'] == 'quantity_mismatch')
+    assert any(origin['nodeUuid'] or origin['bindingId'] for origin in mismatch['origins'])
+
+
+def test_node_level_conflicts_and_effective_shapes(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    _register_dimensions(db_instance_config, ['sector'], {'sector': ['industry']})
+    _quantity_mismatch_pair(db_instance_config)
+
+    data = gql_client.query_data(NODE_CONSTRAINT_FIELDS, variables={'instanceId': str(db_instance_config.pk)})
+    node = next(entry for entry in data['modelInstance']['nodes'] if entry['identifier'] == 'mismatch_dst')
+    spec = node['editor']['spec']
+    assert 'quantity_mismatch' in {conflict['code'] for conflict in spec['constraintConflicts']}
+    (port,) = spec['inputPorts']
+    shape = port['effectiveShape']
+    assert shape is not None
+    assert shape['unit']['standard'] == 'kt/a'
+    assert spec['supportsAuthoredPorts'] is False
+
+
+def test_input_port_declaration_catalog(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    unit = unit_registry.parse_units('kt/a')
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='product',
+        spec=_make_node_spec(
+            type_config=SimpleConfig(node_class=MULTIPLICATIVE_NODE_CLASS),
+            input_ports=[InputPortDef(id=_port_uuid('factor1'), identifier='factor', role='factors')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+        ),
+    )
+
+    data = gql_client.query_data(NODE_CONSTRAINT_FIELDS, variables={'instanceId': str(db_instance_config.pk)})
+    node = next(entry for entry in data['modelInstance']['nodes'] if entry['identifier'] == 'product')
+    declarations = {entry['role']: entry for entry in node['editor']['spec']['inputPortDeclarations']}
+    assert set(declarations) == {'factors', 'additive', 'impute'}
+    factors = declarations['factors']
+    assert factors['repeatable'] is True
+    assert factors['minCount'] == 1
+    assert factors['defaultCount'] == 2
+    assert factors['instantiatedPortIds'] == [str(_port_uuid('factor1'))]
+    assert declarations['additive']['multi'] is True
+
+
+def test_create_node_instantiates_default_declared_ports(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import NodeConfig
+
+    gql_client.query_data(
+        CREATE_NODE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'identifier': 'product_node',
+                'name': 'Product Node',
+                'kind': 'SIMPLE',
+                'config': {'simple': {'nodeClass': MULTIPLICATIVE_NODE_CLASS}},
+                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions'}],
+            },
+        },
+    )
+    nc = NodeConfig.objects.get(instance=db_instance_config, identifier='product_node')
+    assert nc.spec is not None
+    ports = [(str(port.identifier), str(port.role), port.multi) for port in nc.spec.input_ports]
+    assert ports == [
+        ('factors', 'factors', False),
+        ('factors2', 'factors', False),
+        ('additive', 'additive', True),
+    ]
+
+
+def test_connect_instantiates_a_declared_factor_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import NodeConfig, NodeEdge
+
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='ef',
+        spec=_make_node_spec(
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit_registry.parse_units('kg/vkm'))],
+        ),
+    )
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='mileage',
+        spec=_make_node_spec(
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit_registry.parse_units('vkm/a'))],
+        ),
+    )
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='product',
+        spec=_make_node_spec(
+            type_config=SimpleConfig(node_class=MULTIPLICATIVE_NODE_CLASS),
+            input_ports=[
+                InputPortDef(
+                    id=_port_uuid('factor1'),
+                    identifier='factor',
+                    role='factors',
+                    unit=unit_registry.parse_units('kg/vkm'),
+                ),
+            ],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit_registry.parse_units('kg/a'))],
+        ),
+    )
+
+    def connect(from_node: str) -> dict[str, Any]:
+        return gql_client.query_data(
+            CREATE_EDGE,
+            variables={
+                'instanceId': str(db_instance_config.pk),
+                'input': {
+                    'instanceId': str(db_instance_config.pk),
+                    'fromNodeId': from_node,
+                    'toNodeId': 'product',
+                },
+            },
+        )['instanceEditor']['createEdge']
+
+    # First connection lands on the existing sole factor port.
+    first = connect('ef')
+    assert first['__typename'] == 'NodeEdgeType'
+    assert first['portRef']['portId'] == str(_port_uuid('factor1'))
+
+    # The sole port is now occupied: the second connection instantiates a
+    # fresh port of the repeatable `factors` role instead of being rejected.
+    second = connect('mileage')
+    assert second['__typename'] == 'NodeEdgeType'
+    assert second['portRef']['portId'] != str(_port_uuid('factor1'))
+
+    nc = NodeConfig.objects.get(instance=db_instance_config, identifier='product')
+    assert nc.spec is not None
+    new_port = nc.spec.input_ports[-1]
+    assert str(new_port.role) == 'factors'
+    assert str(new_port.identifier) == 'factors'
+    assert NodeEdge.objects.filter(to_node=nc, to_port=new_port.id).exists()
+
+
+PUBLISH_INSTANCE = gql("""
+mutation PublishInstance($instanceId: ID!) {
+    instanceEditor(instanceId: $instanceId) {
+        publishModelInstance(instanceId: $instanceId) {
+            __typename
+            ... on InstanceType { identifier }
+            ... on ConstraintViolations { conflicts { code } }
+            ... on OperationInfo { messages { kind message } }
+        }
+    }
+}
+""")
+
+
+def test_publication_is_blocked_by_constraint_conflicts(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    _quantity_mismatch_pair(db_instance_config)
+
+    result = gql_client.query_data(
+        PUBLISH_INSTANCE,
+        variables={'instanceId': str(db_instance_config.pk)},
+    )['instanceEditor']['publishModelInstance']
+    assert result['__typename'] == 'ConstraintViolations'
+    assert 'quantity_mismatch' in {conflict['code'] for conflict in result['conflicts']}
+    db_instance_config.refresh_from_db()
+    assert db_instance_config.live_revision_id is None
+
+
+def test_publication_succeeds_once_the_conflict_is_gone(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import NodeEdge
+
+    _quantity_mismatch_pair(db_instance_config)
+    NodeEdge.objects.filter(instance=db_instance_config).delete()
+
+    result = gql_client.query_data(
+        PUBLISH_INSTANCE,
+        variables={'instanceId': str(db_instance_config.pk)},
+    )['instanceEditor']['publishModelInstance']
+    assert result['__typename'] == 'InstanceType'
+    db_instance_config.refresh_from_db()
+    assert db_instance_config.live_revision_id is not None

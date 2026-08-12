@@ -19,7 +19,7 @@ from nodes.defs.graph import (
     InstanceGraphBoundModel,
 )
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec  # noqa: TC001
-from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeSpec, PipelineConfig, SimpleConfig
+from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeSpec, PipelineConfig, SimpleConfig, TypeConfig
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -535,7 +535,10 @@ class InstanceGraph(FrozenGraphModel):
 
 
 def node_class_path(spec: NodeSpec) -> str:
-    config = spec.type_config
+    return type_config_class_path(spec.type_config)
+
+
+def type_config_class_path(config: TypeConfig) -> str:
     if isinstance(config, (SimpleConfig, ActionConfig)):
         if config.node_class.startswith('nodes.'):
             return config.node_class
@@ -545,6 +548,16 @@ def node_class_path(spec: NodeSpec) -> str:
         return 'nodes.formula.FormulaNode'
     assert isinstance(config, PipelineConfig)
     return 'nodes.pipeline.compat.PipelineCompatibleNode'
+
+
+def node_class_for_type_config(config: TypeConfig) -> type[Node]:
+    """Import the runtime class a type config names, lazily like ``NodeMeta.node_class``."""
+    return import_string(type_config_class_path(config))
+
+
+def node_class_for_spec(spec: NodeSpec) -> type[Node]:
+    """Import the runtime class a spec names, lazily like ``NodeMeta.node_class``."""
+    return node_class_for_type_config(spec.type_config)
 
 
 def build_instance_graph(

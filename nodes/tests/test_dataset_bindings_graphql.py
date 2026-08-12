@@ -13,12 +13,17 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
+from kausal_common.datasets.tests.factories import (
+    DataPointFactory,
+    DatasetFactory,
+    DatasetMetricFactory,
+    DatasetSchemaDimensionFactory,
+)
 
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
-from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id
+from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id, register_dimensions
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
@@ -73,6 +78,7 @@ BIND_DATASET = gql("""
       instanceEditor(instanceId: $instanceId) {
         nodeEditor(nodeId: $nodeId) {
           bindDataset(input: $input) {
+            __typename
             ... on DatasetPortType {
               id
               portRef { nodeId portId }
@@ -84,6 +90,7 @@ BIND_DATASET = gql("""
                 ... on FilterDimensionType { dimension categories flatten }
               }
             }
+            ... on ConstraintViolations { conflicts { code message } }
             ... on OperationInfo { messages { kind message } }
           }
         }
@@ -96,6 +103,7 @@ UPDATE_BINDING = gql("""
       instanceEditor(instanceId: $instanceId) {
         bindingEditor(bindingId: $bindingId) {
           updateDatasetBinding(input: $input) {
+            __typename
             ... on DatasetPortType {
               id
               tags
@@ -106,6 +114,7 @@ UPDATE_BINDING = gql("""
                 ... on FilterDimensionType { dimension categories flatten }
               }
             }
+            ... on ConstraintViolations { conflicts { code message } }
             ... on OperationInfo { messages { kind message } }
           }
         }
@@ -210,6 +219,14 @@ def test_transformations_are_replaced_as_a_whole_list(gql_client: PathsTestClien
     That is a single `filterDimension` with `flatten`: selecting one category and
     summing over the dimension leaves the value unchanged and the column gone.
     """
+    # The filter added below only makes sense against a dataset that carries
+    # the dimension: the solver-backed validator rejects filtering a
+    # dimension the delivered value cannot have.
+    dimensions = register_dimensions(
+        db_instance_config,
+        ['building_heat_source'],
+        {'building_heat_source': ['electricity']},
+    )
     NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='consumer',
@@ -217,7 +234,16 @@ def test_transformations_are_replaced_as_a_whole_list(gql_client: PathsTestClien
             input_ports=[InputPortDef(id=_port_id('input'), identifier='heating', unit=unit_registry.parse_units('kt/a'))]
         ),
     )
-    _dataset_with_metric(db_instance_config)
+    dataset, metric = _dataset_with_metric(db_instance_config)
+    heat_source = dimensions['building_heat_source']
+    DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=heat_source)
+    # Observed coverage must include the kept category: a filter that keeps
+    # no observed category is a solver conflict (known-empty, not unknown).
+    DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        dimension_categories=[heat_source.categories.get(identifier='electricity')],
+    )
     binding_id = gql_client.query_data(
         BIND_DATASET,
         variables={
@@ -244,6 +270,7 @@ def test_transformations_are_replaced_as_a_whole_list(gql_client: PathsTestClien
         },
     )['instanceEditor']['bindingEditor']['updateDatasetBinding']
 
+    assert updated['__typename'] == 'DatasetPortType', updated
     kinds = [t['__typename'] for t in updated['transformations']]
     assert kinds == ['SelectMetricType', 'IndexTemporalType', 'RemapLegacyYearsType', 'FilterDimensionType']
     last = updated['transformations'][-1]
@@ -357,15 +384,19 @@ def test_binding_a_metric_whose_unit_does_not_fit_the_port_is_rejected(
     )
     _dataset_with_metric(db_instance_config, metric='Area', unit='m**2')
 
-    gql_client.query_errors(
+    result = gql_client.query_data(
         BIND_DATASET,
         variables={
             'instanceId': str(db_instance_config.pk),
             'nodeId': 'consumer',
             'input': {'portId': 'heating', 'datasetId': 'heating', 'metricId': 'Area'},
         },
-        assert_error_message='not compatible with port unit',
-    )
+    )['instanceEditor']['nodeEditor']['bindDataset']
+    assert result['__typename'] == 'ConstraintViolations'
+    assert 'unit_incompatible' in {conflict['code'] for conflict in result['conflicts']}
+    from nodes.models import DatasetPort
+
+    assert not DatasetPort.objects.filter(instance=db_instance_config).exists()
 
 
 def test_binding_to_a_port_that_does_not_exist_is_rejected(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -431,15 +462,16 @@ def test_omitted_metric_id_still_validates_the_unit(gql_client: PathsTestClient,
     )
     _dataset_with_metric(db_instance_config, metric='Area', unit='m**2')
 
-    gql_client.query_errors(
+    result = gql_client.query_data(
         BIND_DATASET,
         variables={
             'instanceId': str(db_instance_config.pk),
             'nodeId': 'consumer',
             'input': {'portId': 'heating', 'datasetId': 'heating'},
         },
-        assert_error_message='not compatible with port unit',
-    )
+    )['instanceEditor']['nodeEditor']['bindDataset']
+    assert result['__typename'] == 'ConstraintViolations'
+    assert 'unit_incompatible' in {conflict['code'] for conflict in result['conflicts']}
 
 
 def test_nulls_on_bind_mean_the_defaults(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -505,15 +537,18 @@ def test_changing_the_metric_updates_the_column_and_checks_the_unit(
 
     # A metric whose unit cannot supply the port is rejected on update too,
     # not only at bind time.
-    gql_client.query_errors(
+    rejected = gql_client.query_data(
         UPDATE_BINDING,
         variables={
             'instanceId': str(db_instance_config.pk),
             'bindingId': binding_id,
             'input': {'metricId': 'Area'},
         },
-        assert_error_message='not compatible with port unit',
-    )
+    )['instanceEditor']['bindingEditor']['updateDatasetBinding']
+    assert rejected['__typename'] == 'ConstraintViolations'
+    assert 'unit_incompatible' in {conflict['code'] for conflict in rejected['conflicts']}
+    row = DatasetPort.objects.get(uuid=binding_id)
+    assert row.metric.name == 'Energy'
 
     updated = gql_client.query_data(
         UPDATE_BINDING,
@@ -674,7 +709,9 @@ def test_a_rejected_replace_leaves_the_old_binding(gql_client: PathsTestClient, 
     gql_client.query_data(BIND_DATASET, variables=variables)
 
     variables['input'] = {'portId': 'heating', 'datasetId': 'wrong_unit', 'metricId': 'Area', 'replace': True}
-    gql_client.query_errors(BIND_DATASET, variables=variables, assert_error_message='not compatible with port unit')
+    result = gql_client.query_data(BIND_DATASET, variables=variables)['instanceEditor']['nodeEditor']['bindDataset']
+    assert result['__typename'] == 'ConstraintViolations'
+    assert 'unit_incompatible' in {conflict['code'] for conflict in result['conflicts']}
 
     rows = list(DatasetPort.objects.filter(node=nc))
     assert len(rows) == 1
@@ -690,6 +727,7 @@ UPDATE_EDGE_BINDING = gql("""
       instanceEditor(instanceId: $instanceId) {
         bindingEditor(bindingId: $bindingId) {
           updateEdgeBinding(input: $input) {
+            __typename
             ... on NodeEdgeType {
               id
               tags
@@ -700,6 +738,7 @@ UPDATE_EDGE_BINDING = gql("""
                 ... on FlattenType { dimension }
               }
             }
+            ... on ConstraintViolations { conflicts { code message } }
             ... on OperationInfo { messages { kind message } }
           }
         }
@@ -731,6 +770,9 @@ def _edge_between_two_nodes(ic: InstanceConfig, transformations: list[Any] | Non
 def test_edge_transformations_are_updated_through_the_binding_editor(
     gql_client: PathsTestClient, db_instance_config: InstanceConfig
 ):
+    # The transformations below reference these dimensions, and the
+    # solver-backed validator rejects references the instance does not have.
+    register_dimensions(db_instance_config, ['sector', 'scope'], {'scope': ['scope1']})
     edge = _edge_between_two_nodes(db_instance_config)
 
     updated = gql_client.query_data(

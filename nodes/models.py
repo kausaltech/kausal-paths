@@ -906,6 +906,20 @@ class InstanceConfig(
         latest = self.change_operations.only('uuid').order_by('-created_at').first()
         return latest.uuid if latest is not None else None
 
+    def validate_draft_constraints(self) -> None:
+        """
+        Run strict whole-graph constraint validation on the current draft.
+
+        Raises ``InstanceConstraintError`` carrying the complete conflict set;
+        used as the publication gate and before strict computation contexts.
+        """
+        from nodes.constraints.validation import require_valid_instance_constraints
+        from nodes.instance_graph_cache import get_instance_graph, resolve_instance_source
+
+        source = resolve_instance_source(self, PreferredInstanceSource.DRAFT)
+        graph = get_instance_graph(self, PreferredInstanceSource.DRAFT, resolved_source=source)
+        require_valid_instance_constraints(self, graph, source)
+
     def publish_instance(self, user: User | None = None) -> None:
         """Atomically publish the model and immutable revisions of its DB datasets."""
         from wagtail.models import Revision
@@ -937,6 +951,13 @@ class InstanceConfig(
                 if materialization is None or not materialization_is_fresh(dataset, materialization):
                     materialization = refresh_dataset_materialization(dataset, touch=False)
                     materializations[dataset.pk] = materialization
+
+            # Publication is the strictness boundary: a draft may carry
+            # structural constraint conflicts and stay inspectable, but a
+            # conflicted graph never becomes a published revision. Runs after
+            # the materialization refresh so shape profiles read the same
+            # observed facts the revision will pin.
+            locked.validate_draft_constraints()
 
             dataset_ct = ContentType.objects.get_for_model(DatasetModel, for_concrete_model=False)
             now = timezone.now()

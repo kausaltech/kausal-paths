@@ -894,6 +894,65 @@ instances (all solve <100 ms, all converge):
 rejected replacements leave the old binding intact; draft conflicts are
 inspectable; invalid graphs cannot publish.
 
+Implementation note (2026-08-11): the application service is
+`nodes/constraints/validation.py`. A candidate edit is a `BindingChange`
+(`add_bindings` / `remove_binding_ids` / `add_input_ports` / `add_datasets`)
+validated by **baseline diff**: solve the current graph, solve with the change
+applied, and only conflicts absent from the baseline reject — pre-existing
+model debt never blocks an unrelated edit, which also settles how the step-7
+fleet residue surfaces (decision 2026-08-11: publication is strict on *all*
+conflicts, viable because no instance has published yet; drafts stay
+inspectable via the new read fields). Additions the overlay deliberately
+cannot express — a planned input port, a dataset absent from the bound-only
+catalog — go through `graph_with_additions()`, an independent hypothetical
+graph built by the same serialized round-trip the L2 cache uses, so cached
+`NodeMeta` values are never cloned or rebound. Other decisions taken:
+
+- Whole-graph solves are request-memoized on `InstanceRequestResources`
+  keyed by `ResolvedInstanceSource` (`require_constraint_solve()`), so
+  per-port `effectiveShape` resolvers share one solve and one profile load.
+- Rejections are data, not errors: mutations return a `ConstraintViolations`
+  union member carrying typed conflicts (strawberry-django flattens a
+  declared union before appending `OperationInfo`, so
+  `CreateEdgePayload = NodeEdgeType | ConstraintViolations | OperationInfo`).
+  `createEdge`, `bindDataset`, `updateDatasetBinding`, `updateEdgeBinding`
+  and `publishModelInstance` all use it; binding updates validate as
+  remove-plus-re-add under the same binding UUID. Occupancy of a non-multi
+  port stays a hard `GraphQLValidationError`: it is structural capacity, not
+  shape. `_validate_edge_ports()` and `_check_metric_fits_port()` are gone.
+- Read surface: `InstanceEditor.constraintConflicts`,
+  `NodeSpecType.constraintConflicts` (filtered by node involvement through
+  conflict values and origins), `effectiveShape` + `role` on both port
+  types, `NodeSpecType.inputPortDeclarations` (the role catalog with
+  instantiated port ids) and `supportsAuthoredPorts` (ClassVar; true on
+  `FormulaNode` — deliberately not on `PipelineCompatibleNode`, which is a
+  legacy lowering mixin, so the flag waits for the real authored
+  `PipelineNode`).
+- Connect-time planning replaced the mirror-port auto-create:
+  `_plan_target_port()` *plans* without writing (the port is persisted only
+  after validation passes, inside the change operation), instantiating a
+  declared role — repeatable roles always, missing non-repeatable roles
+  unless their `default_count` is 0 (`impute` is authoring-only) — and
+  falling back to the source-mirroring port only for declaration-less
+  classes. The single-input-port convenience now applies only when that
+  port has capacity, so a one-factor `MultiplicativeNode` grows a second
+  factor instead of rejecting. `createNode` without `inputPorts`
+  instantiates every declaration at its default count (explicit `[]` opts
+  out); `InputPortInput` gained `role` and its `supportedDimensions` is
+  deprecated and ignored.
+- Publication: `InstanceConfig.validate_draft_constraints()` runs inside
+  `publish_instance()` after the materialization refresh (profiles read the
+  same observed facts the revision pins) and raises
+  `InstanceConstraintError`; shape-rule *diagnostics* (missing/inferred
+  roles) do not block. The strict-computation-context hook is deferred to
+  step 10 with the loader work.
+- Solver strictness findings the old checks missed, confirmed as findings
+  rather than noise: filters referencing dimensions the instance lacks,
+  filters on dimensions the bound dataset cannot carry, and
+  `disjoint_category_filter` on datasets whose observed coverage is known
+  empty (note: a bind-then-fill workflow on a fresh, empty dataset will hit
+  that last one; revisit its severity if it bites editors in practice).
+
 ### 9. Converge persisted bindings
 
 - Add the unified binding model and aggregate write service.

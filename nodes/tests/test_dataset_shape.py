@@ -23,7 +23,7 @@ from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.instance_graph import InstanceGraph
 from nodes.instance_graph_cache import ResolvedInstanceSource
 from nodes.models import DatasetMaterialization
-from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
+from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -174,7 +174,7 @@ def test_profile_query_count_is_constant_with_dataset_count() -> None:
 
 
 def test_published_profile_uses_pinned_shape_not_live_rows() -> None:
-    from nodes.models import DatasetPort, InstanceRevisionDatasetPin, NodeConfig
+    from nodes.models import DatasetPort, InstanceRevisionDatasetPin
 
     config = _config()
     category = DimensionCategoryFactory.create(identifier='pinned')
@@ -188,7 +188,7 @@ def test_published_profile_uses_pinned_shape_not_live_rows() -> None:
         dimension_categories=[category],
     )
     materialize_dataset(dataset)
-    node = NodeConfig.objects.create(instance=config, identifier='owner', name='Owner')
+    node = NodeConfigFactory.create(instance=config, identifier='owner', name='Owner')
     DatasetPort.objects.create(instance=config, node=node, port_id=uuid4(), dataset=dataset, metric=metric)
     config.publish_instance()
     config.refresh_from_db()

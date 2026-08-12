@@ -339,6 +339,15 @@ class Node:
     output_port_declarations: ClassVar[tuple[OutputPortDeclaration, ...]] = ()
     """Semantic role declarations shared by future get_input() and shape_rules()."""
 
+    supports_authored_ports: ClassVar[bool] = False
+    """
+    Whether the editor may add free-form input ports on instances of this class.
+
+    True for classes whose algebra is instance-authored (formula, pipeline):
+    their ports are authored artifacts referenced by the formula/operations,
+    not instances of class-declared roles.
+    """
+
     quantity: str | None
     """Physical quantity of the node's output (e.g. "energy" or "emissions")"""
 

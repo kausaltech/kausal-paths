@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
     from paths.schema import PreviewMode
 
+    from nodes.constraints.solver import ConstraintSolveResult
     from nodes.instance import Instance
     from nodes.instance_graph import InstanceGraph
     from nodes.instance_graph_cache import LoadedInstanceSnapshot, ResolvedInstanceSource
@@ -58,6 +59,7 @@ class InstanceRequestResources:
     instances: dict[InstanceRuntimeKey, Instance] = field(default_factory=dict)
     instance_refreshes: set[tuple[int, PreferredInstanceSource]] = field(default_factory=set)
     snapshots: dict[ResolvedInstanceSource, LoadedInstanceSnapshot] = field(default_factory=dict)
+    constraint_solves: dict[ResolvedInstanceSource, ConstraintSolveResult] = field(default_factory=dict)
 
     def resolve_source(
         self,
@@ -173,6 +175,32 @@ class InstanceRequestResources:
             resolved_source=resolved_source,
         )
 
+    def require_constraint_solve(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+    ) -> ConstraintSolveResult:
+        """
+        Solve the selected source's constraint program with dataset shape profiles.
+
+        Request-memoized by resolved source: field resolvers across many
+        ports and nodes share one solve, and any draft edit changes the
+        resolved version, so a stale result is never served.
+        """
+        from nodes.constraints.validation import solve_instance_constraints
+        from nodes.instance_graph_cache import resolve_instance_source
+
+        config, source = self.resolve_source(config, source)
+        resolved_source = resolve_instance_source(config, source)
+        cached = self.constraint_solves.get(resolved_source)
+        if cached is not None:
+            return cached
+        graph = self.require_graph(config, source=source)
+        result = solve_instance_constraints(config, graph, resolved_source)
+        self.constraint_solves[resolved_source] = result
+        return result
+
     def _require_loaded_snapshot(
         self,
         config: InstanceConfig,
@@ -286,6 +314,18 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
                 "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
             )
         return self.instance_resources.require_graph(config, source=source, refresh=refresh)
+
+    def require_constraint_solve(
+        self,
+        config: InstanceConfig | None = None,
+        *,
+        source: PreferredInstanceSource | None = None,
+    ) -> ConstraintSolveResult:
+        if self.instance_resources is None:
+            raise GraphQLError(
+                "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
+            )
+        return self.instance_resources.require_constraint_solve(config, source=source)
 
     def invalidate_runtime_instance(
         self,

@@ -807,6 +807,39 @@ def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
     return dimensions
 
 
+def dataset_meta_from_model(
+    dataset: DatasetModel,
+    *,
+    primary_language: str,
+    pinned_revision_id: int | None = None,
+) -> DatasetMeta:
+    """Build the graph catalog entry for one dataset, exactly as snapshots record it."""
+    schema = dataset.schema
+    if schema is None:
+        raise ValueError(f'Dataset {dataset.uuid} has no schema')
+    metrics = tuple(
+        DatasetMetricMeta(
+            id=metric.uuid,
+            identifier=metric.name,
+            label=_ts_from_modeltrans(metric, 'label', primary_language),
+            unit=metric.unit,
+            order=metric.order,
+        )
+        for metric in schema.metrics.all()
+    )
+    declared_dimension_ids = tuple(schema_dimension.dimension.uuid for schema_dimension in schema.dimensions.all())
+    return DatasetMeta(
+        id=dataset.uuid,
+        identifier=dataset.identifier,
+        schema_id=schema.uuid,
+        metrics=metrics,
+        declared_dimension_ids=declared_dimension_ids,
+        is_external_placeholder=dataset.is_external_placeholder,
+        external_ref=dataset.external_ref,
+        revision_id=pinned_revision_id if pinned_revision_id is not None else dataset.latest_revision_id,
+    )
+
+
 def _dataset_catalog_for(
     ic: InstanceConfig,
     *,
@@ -824,31 +857,12 @@ def _dataset_catalog_for(
     )
     result: list[DatasetMeta] = []
     for dataset in datasets:
-        schema = dataset.schema
-        if schema is None:
-            raise ValueError(f'Dataset {dataset.uuid} has no schema')
-        metrics = tuple(
-            DatasetMetricMeta(
-                id=metric.uuid,
-                identifier=metric.name,
-                label=_ts_from_modeltrans(metric, 'label', ic.primary_language),
-                unit=metric.unit,
-                order=metric.order,
-            )
-            for metric in schema.metrics.all()
-        )
-        declared_dimension_ids = tuple(schema_dimension.dimension.uuid for schema_dimension in schema.dimensions.all())
         pin = dataset_revision_pins.get(dataset.pk) if dataset_revision_pins is not None else None
         result.append(
-            DatasetMeta(
-                id=dataset.uuid,
-                identifier=dataset.identifier,
-                schema_id=schema.uuid,
-                metrics=metrics,
-                declared_dimension_ids=declared_dimension_ids,
-                is_external_placeholder=dataset.is_external_placeholder,
-                external_ref=dataset.external_ref,
-                revision_id=pin.revision_id if pin is not None else dataset.latest_revision_id,
+            dataset_meta_from_model(
+                dataset,
+                primary_language=ic.primary_language,
+                pinned_revision_id=pin.revision_id if pin is not None else None,
             )
         )
     return result
