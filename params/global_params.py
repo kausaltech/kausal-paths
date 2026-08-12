@@ -245,6 +245,11 @@ class UseOwnMileage(BoolGlobalParameter):
     id = 'use_own_mileage'
 
 
+class MunicipalFacilitiesIncludedInCommerce(BoolGlobalParameter):
+    name = _('Is the consumption of municipal facilities included in the commerce, trade and services sector?')
+    id = 'municipal_facilities_included_in_commerce'
+
+
 class UseNationalValues(BoolGlobalParameter):
     name = _('Use national values rather than local values')
     id = 'use_national_values'

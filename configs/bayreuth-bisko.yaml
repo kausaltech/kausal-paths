@@ -633,6 +633,21 @@ params:
   value: false
   is_visible: true
   is_customizable: true
+# Bayreuth's four BISKO sectors are disjoint as delivered, so there is nothing to subtract. The
+# dataset carries two breakdowns of the same energy: by BISKO sector and by electricity/heating.
+# For 2023 industry + households + GHD + municipal facilities = 1,317,879 MWh and
+# electricity + heating = 1,317,879 MWh exactly, which is only possible if the 27.4 GWh of
+# municipal facilities sits outside the GHD figure rather than inside it.
+# The correction is also unwired here: final_energy_use below flattens the sector column away and
+# rebuilds the axis from sector_index, so the model has no BISKO sector split to correct.
+- id: municipal_facilities_included_in_commerce
+  label_en: Is the consumption of municipal facilities included in the commerce,
+    trade and services sector?
+  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
+    GHD/Sonstiges enthalten?
+  value: false
+  is_visible: true
+  is_customizable: false
 
 #//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
 result_excels:
@@ -644,6 +659,7 @@ result_excels:
   - weather_correction
   - final_energy_use
   - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
+  - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
   - final_energy_use_data_quality
   - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type

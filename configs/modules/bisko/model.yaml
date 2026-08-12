@@ -390,6 +390,15 @@ dimensions:
   - id: parks_and_environment_buildings
     label_en: Parks and environment department buildings
     label_de: Gebäude des Grün- und Umweltamtes
+  # --- Not a property group ---
+  # The administration balance books fleet fuel, business travel, commuting,
+  # procurement and postal transport against the authority as a whole, because no
+  # property owns them. Distinct from a blank cell, which says the dimension does
+  # not apply to the row at all.
+  - id: cross_cutting
+    label_en: Cross-cutting (no single property)
+    label_de: Übergreifend
+    aliases: [uebergreifend]
 
 - id: per_what_energy
   label_en: Per what energy
@@ -680,6 +689,211 @@ dimensions:
   - id: none
     label_en: None (stationary energy, no vehicle)
     label_de: Kein Fahrzeug (stationäre Energie)
+  # Mowers, sweepers, chainsaws and the like. Not road vehicles, but they burn a
+  # measurable share of a municipal fleet's fuel and are reported separately in
+  # GHG-Protocol administration balances, so they need their own category rather
+  # than being folded into 'undefined'.
+  - id: working_machines
+    label_en: Working machines and equipment
+    label_de: Arbeitsgeräte
+    aliases: [Arbeitsgeraete]
+
+# ---------------------------------------------------------------------------
+# GHG-Protocol administration balance (Verwaltungsbilanz)
+# ---------------------------------------------------------------------------
+# The two dimensions below exist only for the city-administration sub-inventory.
+# The territorial BISKO balance does not use them, so every territorial dataset
+# leaves them blank.
+#
+# `ghg_category` is the reporting structure the balance is published in -- the ten
+# worksheets of a GHG-Protocol corporate inventory. It is not derivable from
+# `emission_source`: business travel and commuting share every mode, and only this
+# dimension separates them.
+- id: ghg_category
+  label_en: GHG inventory category
+  label_de: Bilanzkategorie
+  help_text: Reporting categories of a GHG-Protocol corporate (city
+    administration) inventory, following the UBA guide "Treibhausgasneutrale
+    Verwaltung".
+  categories:
+  - id: heat
+    label_en: Heat
+    label_de: Wärme
+    aliases: ['1 Wärme']
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: ['2 Strom']
+  - id: fleet
+    label_en: Vehicle fleet
+    label_de: Fuhrpark
+    aliases: ['3 Fuhrpark']
+  - id: fugitive_gases
+    label_en: Fugitive gases
+    label_de: Flüchtige Gase
+    aliases: ['4 Flüchtige Gase']
+  - id: business_travel
+    label_en: Business travel
+    label_de: Dienstreisen
+    aliases: ['5 Dienstreisen']
+  - id: commuting
+    label_en: Employee commuting
+    label_de: Arbeitswege
+    aliases: ['6 Arbeitswege']
+  - id: procurement
+    label_en: Procurement
+    label_de: Beschaffung
+    aliases: ['7 Beschaffung']
+  - id: transport_and_distribution
+    label_en: Transport and distribution
+    label_de: Transport
+    aliases: ['8 Transport']
+  - id: waste_and_water
+    label_en: Waste and water
+    label_de: Abfall und Wasser
+    aliases: ['9 Abfall']
+  - id: events
+    label_en: Events
+    label_de: Veranstaltungen
+    aliases: ['9 Veranstaltungen']
+
+# What was consumed, for the rows that are not energy. Energy rows use
+# `energy_carrier` instead and leave this blank, so that municipal energy in the
+# administration balance stays directly comparable with the `municipal_facilities`
+# sector of the territorial balance.
+#
+# Categories are named after the emission factor they select, not after a physical
+# object: 'toilet_paper_recycled_jumbo' exists because the factor per jumbo roll
+# differs from the factor per standard roll. Several therefore share the unit
+# `pcs` while counting entirely different things -- see the note on `pcs` in
+# data/mainz/extract_verwaltung.py. Summing across this dimension is meaningless;
+# multiply by the factor first, then sum the emissions.
+- id: emission_source
+  label_en: Emission source
+  label_de: Emissionsquelle
+  help_text: Non-energy activities of a GHG-Protocol administration inventory,
+    each selecting one emission factor.
+  categories:
+  # --- Refrigerants (Scope 1) ---
+  - id: refrigerant_r134a
+    label_en: Refrigerant R-134a
+    label_de: Kältemittel R-134A
+  - id: refrigerant_r404a
+    label_en: Refrigerant R-404A
+    label_de: Kältemittel R-404A
+  - id: refrigerant_r513a
+    label_en: Refrigerant R-513A
+    label_de: Kältemittel R-513A
+  # --- Travel modes (business travel and commuting) ---
+  - id: car_average
+    label_en: Car, average fleet mix
+    label_de: PKW-Mix
+  - id: car_electric
+    label_en: Car, electric
+    label_de: PKW-Elektro
+  - id: train_long_distance
+    label_en: Train, long distance
+    label_de: Bahn Fernverkehr
+  - id: train_local
+    label_en: Train, local
+    label_de: Bahn Nahverkehr
+  - id: public_transport
+    label_en: Public transport (bus, tram, metro)
+    label_de: ÖPNV (S-/U-Bahn/Bus)
+  - id: flight_domestic
+    label_en: Flight, domestic
+    label_de: Flüge national
+  - id: flight_europe_economy
+    label_en: Flight, Europe, economy class
+    label_de: Flüge Europa Economy Class
+  - id: flight_international_economy
+    label_en: Flight, intercontinental, economy class
+    label_de: Flüge international Economy Class
+  # --- Procurement: paper ---
+  # Office paper is reported twice over, once as a sheet count and once as a weight,
+  # each with its own factor. They are kept apart because they are separate
+  # measurements of possibly overlapping purchases, not one measurement in two units;
+  # see PAPER_MEASURED_TWICE in data/mainz/extract_verwaltung.py.
+  - id: office_paper_virgin_sheets
+    label_en: Office paper, virgin fibre, by sheet
+    label_de: Frischfaser Papier (Blatt)
+  - id: office_paper_recycled_sheets
+    label_en: Office paper, recycled fibre, by sheet
+    label_de: Recycling Papier (Blatt)
+  - id: office_paper_virgin_weight
+    label_en: Office paper, virgin fibre, by weight
+    label_de: Frischfaser Papier (Gewicht)
+  - id: office_paper_recycled_weight
+    label_en: Office paper, recycled fibre, by weight
+    label_de: Recycling Papier (Gewicht)
+  - id: paper_towel_virgin
+    label_en: Paper towels, virgin fibre
+    label_de: Papierhandtuch (Frischfaser)
+  - id: paper_towel_recycled
+    label_en: Paper towels, recycled fibre
+    label_de: Papierhandtuch (Recycling)
+  - id: toilet_paper_virgin_standard
+    label_en: Toilet paper, virgin fibre, standard roll
+    label_de: Toilettenpapier (Frischfaser, Normalgröße)
+  - id: toilet_paper_virgin_jumbo
+    label_en: Toilet paper, virgin fibre, jumbo roll
+    label_de: Toilettenpapier (Frischfaser, Jumbogröße)
+  - id: toilet_paper_recycled_standard
+    label_en: Toilet paper, recycled fibre, standard roll
+    label_de: Toilettenpapier (Recycling, Normalgröße)
+  - id: toilet_paper_recycled_jumbo
+    label_en: Toilet paper, recycled fibre, jumbo roll
+    label_de: Toilettenpapier (Recycling, Jumbogröße)
+  - id: kitchen_roll_virgin
+    label_en: Kitchen roll, virgin fibre
+    label_de: Küchenrolle (Frischfaser)
+  - id: kitchen_roll_recycled
+    label_en: Kitchen roll, recycled fibre
+    label_de: Küchenrolle (Recycling)
+  # --- Procurement: catering ---
+  - id: meal_hot_mixed
+    label_en: Hot meal, mixed diet
+    label_de: Warme Mahlzeit - Mischkost
+  - id: meal_hot_vegetarian
+    label_en: Hot meal, vegetarian
+    label_de: Warme Mahlzeit - Vegetarisch
+  - id: meal_hot_meat_or_fish
+    label_en: Hot meal, with meat or fish
+    label_de: Warme Mahlzeit - mit Fleisch oder Fisch
+  - id: meal_cold
+    label_en: Cold meal, breakfast or finger food
+    label_de: Kalte Mahlzeit/Frühstück/Fingerfood
+  # --- Procurement: water ---
+  - id: drinking_water
+    label_en: Drinking water
+    label_de: Frischwasser
+  # --- Transport and distribution ---
+  - id: letters
+    label_en: Letters posted
+    label_de: Briefe
+  - id: parcels
+    label_en: Parcels posted
+    label_de: Pakete
+  # --- Waste and wastewater ---
+  - id: wastewater
+    label_en: Wastewater discharged
+    label_de: Abwasser
+  - id: waste_recycling
+    label_en: Waste, recycling
+    label_de: Abfall, Recycling
+  - id: waste_residual_incineration
+    label_en: Waste, residual, incinerated
+    label_de: Haushalts(-ähnlicher) Restmüll, Verbrennung
+  - id: waste_biowaste_composting
+    label_en: Biowaste, composted
+    label_de: Biomüll, Kompostierung
+  # --- Events ---
+  # The workbook holds only the finished emissions figure for this one; the
+  # underlying attendee-travel detail is on its own worksheet and was never
+  # summarised into an activity quantity.
+  - id: major_events
+    label_en: Major events (total)
+    label_de: Großveranstaltungen (Gesamt)
 
 # Propulsion/Fuel Types (Antriebsart):
 #   Elektro = Electric (for electrified rail) 
@@ -821,6 +1035,21 @@ nodes:
 - id: final_energy_use
   name_de: Endenergie
   name_en: Final energy use
+  description_en: |
+    Final energy use of the four stationary BISKO sectors by energy carrier, as delivered by the
+    city, with one correction: the consumption of municipal facilities is removed from commerce,
+    trade and services when the city has declared that its figure for that sector still contains
+    it (see <i>Municipal facility energy included in commerce</i>). Weather correction, which
+    BISKO does not permit, is applied to both sides of that subtraction, so the sector value is
+    (commerce &minus; municipal facilities) &times; correction factor.
+  description_de: |
+    Endenergieverbrauch der vier stationären BISKO-Sektoren nach Energieträgern, wie von der
+    Kommune geliefert, mit einer Korrektur: Der Verbrauch der kommunalen Einrichtungen wird vom
+    Sektor Gewerbe, Handel, Dienstleistungen abgezogen, wenn die Kommune erklärt hat, dass er in
+    dessen Wert noch enthalten ist (siehe <i>Endenergie der kommunalen Einrichtungen im
+    GHD-Wert</i>). Die von BISKO nicht zugelassene Witterungsbereinigung wird auf beide Seiten
+    dieser Subtraktion angewendet, der Sektorwert ist also
+    (GHD &minus; kommunale Einrichtungen) &times; Korrekturfaktor.
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
@@ -837,6 +1066,74 @@ nodes:
       drop_col: false
   input_nodes:
   - id: weather_correction
+  - id: municipal_facilities_energy_in_commerce
+    tags: [additive, arithmetic_inverse]
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [commerce_trade_services]
+
+- id: municipal_facilities_energy_in_commerce
+  name_de: Endenergie der kommunalen Einrichtungen im GHD-Wert
+  name_en: Municipal facility energy included in commerce
+  description_en: |
+    The energy consumption of municipal facilities that the city's figure for commerce, trade and
+    services also contains. It is subtracted from that sector so that the same kilowatt-hour is
+    not counted twice, once in its own BISKO sector and once in commerce, trade and services
+    (Prüfschritt 2.1).<br/>
+    Utilities usually report municipal consumption inside the commerce/trade/services residual,
+    because that sector is what remains after households and industry have been identified, while
+    BISKO asks for municipal facilities as a sector of their own. Whether a particular city's
+    delivery has that overlap cannot be read from the numbers, so it is declared per city with
+    the parameter <i>Is the consumption of municipal facilities included in the commerce, trade
+    and services sector?</i>. When the declaration is <i>no</i> — the city's energy management
+    reports its facilities separately and the utility has already excluded them — this node is
+    identically zero and nothing is subtracted. It is therefore a view of the correction, not a
+    view of municipal consumption.
+  description_de: |
+    Der Energieverbrauch der kommunalen Einrichtungen, der im Wert der Kommune für Gewerbe,
+    Handel, Dienstleistungen ebenfalls enthalten ist. Er wird von diesem Sektor abgezogen, damit
+    dieselbe Kilowattstunde nicht zweimal gezählt wird, einmal im eigenen BISKO-Sektor und einmal
+    in GHD/Sonstiges (Prüfschritt 2.1).<br/>
+    Energieversorger weisen kommunale Verbräuche meist innerhalb des GHD-Restwerts aus, weil
+    dieser Sektor das ist, was nach Abgrenzung von Haushalten und Industrie übrig bleibt, während
+    BISKO die kommunalen Einrichtungen als eigenen Sektor verlangt. Ob die Datenlieferung einer
+    Kommune diese Überschneidung enthält, lässt sich den Zahlen nicht entnehmen und wird deshalb
+    je Kommune mit dem Parameter <i>Sind die Verbräuche der kommunalen Einrichtungen im Sektor
+    GHD/Sonstiges enthalten?</i> erklärt. Lautet die Erklärung <i>nein</i> — das kommunale
+    Energiemanagement erfasst die Liegenschaften getrennt und der Versorger hat sie bereits
+    herausgerechnet —, ist dieser Knoten identisch null und es wird nichts abgezogen. Er zeigt
+    also die Korrektur, nicht den kommunalen Verbrauch.
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: bisko/final_energy
+    column: Value
+    filters:
+    - column: energy_carrier
+      value: not_defined
+      exclude: true
+      drop_col: false
+    - column: sector
+      value: municipal_facilities
+  input_nodes:
+  # The commerce factor, not the municipal one: the quantity being removed is part of the
+  # commerce figure and has to be removed on the same scale that figure is reported on.
+  - id: weather_correction
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,multiply,do_correction
+  - id: do_correction
+    ref: municipal_facilities_included_in_commerce
+  - id: no_correction_value
+    value: 0
 
 - id: total_final_energy_use
   name_en: Final energy use by sector
@@ -846,18 +1143,20 @@ nodes:
     from the city's own energy data, plus transport, whose energy is summed over the vehicle
     types. BISKO requires the energy balance — not only the greenhouse gas balance — to be
     shown by sector and by energy carrier, transport included (criterion 2.1).<br/>
-    Municipal facilities are reported as their own sector here. If the city's figure for
-    commerce, trade and services still contains them, they are counted twice; BISKO requires
-    them to be subtracted from that sector.
+    Municipal facilities are reported as their own sector here, and their consumption has already
+    been removed from commerce, trade and services where the city declared that its figure for
+    that sector contains it, so nothing is counted twice. See
+    <i>Municipal facility energy included in commerce</i> for the size of that correction.
   description_de: |
     Endenergieverbrauch aller fünf BISKO-Sektoren nach Energieträgern: die vier stationären
     Sektoren aus den eigenen Energiedaten der Kommune sowie der Verkehr, dessen Energie über
     die Fahrzeugtypen summiert wird. BISKO verlangt, dass nicht nur die Treibhausgasbilanz,
     sondern auch die Energiebilanz nach Sektoren und Energieträgern dargestellt wird, und zwar
     einschließlich des Verkehrs (Prüfschritt 2.1).<br/>
-    Kommunale Einrichtungen werden hier als eigener Sektor ausgewiesen. Sind sie im Wert der
-    Kommune für Gewerbe, Handel, Dienstleistungen noch enthalten, werden sie doppelt gezählt;
-    BISKO verlangt, sie dort abzuziehen.
+    Kommunale Einrichtungen werden hier als eigener Sektor ausgewiesen, und ihr Verbrauch wurde
+    bereits aus Gewerbe, Handel, Dienstleistungen herausgerechnet, sofern die Kommune erklärt hat,
+    dass er im Wert dieses Sektors enthalten ist; es wird also nichts doppelt gezählt. Die Höhe
+    dieser Korrektur zeigt <i>Endenergie der kommunalen Einrichtungen im GHD-Wert</i>.
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a

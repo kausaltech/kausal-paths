@@ -110,6 +110,17 @@ params:
   value: false
   is_visible: true
   is_customizable: true
+# Augsburg's municipal-facility column is zero throughout, so this has no effect on the balance
+# today. Left at the BISKO default so a later delivery carrying real facility data is treated
+# correctly without a config change.
+- id: municipal_facilities_included_in_commerce
+  label_en: Is the consumption of municipal facilities included in the commerce,
+    trade and services sector?
+  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
+    GHD/Sonstiges enthalten?
+  value: true
+  is_visible: true
+  is_customizable: false
 
 
 #//////  Dimensions  ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -638,6 +649,7 @@ result_excels:
   - weather_correction
   - final_energy_use
   - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
+  - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
   - final_energy_use_data_quality
   - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type

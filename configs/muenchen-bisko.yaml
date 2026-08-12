@@ -113,6 +113,17 @@ params:
   value: false
   is_visible: true
   is_customizable: true
+# Munich's municipal-facility column is zero throughout, so this has no effect on the balance.
+# Note that Munich overrides both final_energy_use and the correction node below, because its
+# energy comes from muenchen/endenergie rather than from the module's dataset.
+- id: municipal_facilities_included_in_commerce
+  label_en: Is the consumption of municipal facilities included in the commerce,
+    trade and services sector?
+  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
+    GHD/Sonstiges enthalten?
+  value: true
+  is_visible: true
+  is_customizable: false
 - id: discount_rate
   label: Discount rate
   value: 3.5
@@ -1192,6 +1203,47 @@ nodes:
       drop_col: false
   input_nodes:
   - id: weather_correction
+  - id: municipal_facilities_energy_in_commerce
+    tags: [additive, arithmetic_inverse]
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [commerce_trade_services]
+
+# Overridden only to read the same source as final_energy_use above: the module's node reads
+# bisko/final_energy, which dataset_replacements sends to muenchen/final_energy, while Munich's
+# energy actually comes from muenchen/endenergie. The municipal-facility column is zero in both,
+# so this changes no number today; it keeps the correction attached to the data in use.
+- id: municipal_facilities_energy_in_commerce
+  name_de: Endenergie der kommunalen Einrichtungen im GHD-Wert
+  name_en: Municipal facility energy included in commerce
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: muenchen/endenergie
+    filters:
+    - column: energy_carrier
+      value: not_defined
+      exclude: true
+      drop_col: false
+    - column: sector
+      value: municipal_facilities
+  input_nodes:
+  - id: weather_correction
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,multiply,do_correction
+  - id: do_correction
+    ref: municipal_facilities_included_in_commerce
+  - id: no_correction_value
+    value: 0
 
 - id: final_energy_use_data_quality
   name_de: Endenergie Datenqualität

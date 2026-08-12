@@ -81,6 +81,19 @@ params:
   value: false
   is_visible: true
   is_customizable: true
+# Düsseldorf's energy management delivers its facilities separately, so there is nothing to
+# subtract: doing it anyway would drive GHD negative in 124 carrier-years. Biogas is the clearest
+# case — the GHD figure is zero for the whole series while the facilities consume 57–60 GWh a year
+# (a sewage-gas CHP that was never part of the commerce residual) — and district heating,
+# environmental heat, local heating, biomass and heating oil all go negative in some years too.
+- id: municipal_facilities_included_in_commerce
+  label_en: Is the consumption of municipal facilities included in the commerce,
+    trade and services sector?
+  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
+    GHD/Sonstiges enthalten?
+  value: false
+  is_visible: true
+  is_customizable: false
 
 
 #//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,6 +106,7 @@ result_excels:
   - weather_correction
   - final_energy_use
   - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
+  - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
   - final_energy_use_data_quality
   - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type
