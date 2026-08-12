@@ -10,6 +10,7 @@ from django.test.utils import CaptureQueriesContext
 
 import pytest
 
+from kausal_common.i18n.pydantic import TranslatedString
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import DatasetPortSpec, InputDatasetDef, NodeSpec
 from nodes.instance_serialization import (
@@ -127,7 +128,7 @@ def test_i18n_node_metadata_stays_dict_serializable():
 def test_node_snapshot_short_description_preserves_wagtail_html():
     snap = NodeSnapshot(
         uuid=uuid.uuid4(),
-        short_description={'en': '<p>A <a linktype="page" id="12">page</a></p>\n'},
+        short_description=TranslatedString(en='<p>A <a linktype="page" id="12">page</a></p>\n', default_language='en'),
     )
 
     assert snap.short_description is not None
