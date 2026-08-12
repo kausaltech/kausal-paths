@@ -427,6 +427,10 @@ def sync_parsed_instance_to_db(
             )
             promoted = _promote_dataset_forecast_defaults(ic) if promote_forecast_defaults else 0
 
+            from nodes.input_bindings import sync_input_bindings
+
+            sync_input_bindings(ic)
+
     logger.info(
         (
             'Synced {id} (parse-only): {nodes} nodes, {edges} edges, {placeholders} dataset placeholders created, '

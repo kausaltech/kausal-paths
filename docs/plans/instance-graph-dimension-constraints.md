@@ -966,6 +966,51 @@ graph built by the same serialized round-trip the L2 cache uses, so cached
 position order; binding UUID survives reorder; old revisions upgrade; rejected
 aggregate writes are atomic.
 
+Implementation note (2026-08-12, first half — model, backfill, dual-read):
+`NodeInputPortBinding` exists as a **derived mirror**; `NodeEdge` /
+`DatasetPort` remain authoritative until the write paths move. Decisions:
+
+- `ordered_binding_snapshots()` (`instance_serialization.py`) is the single
+  ordering authority: `build_instance_graph()`, the mirror service
+  (`nodes/input_bindings.py:sync_input_bindings`) and the backfill migration
+  all assign positions through it, so graph and ORM projections cannot
+  disagree. Per port, edges come first in snapshot-queryset order (the old
+  implicit `NodeEdge.Meta.ordering`, now spelled explicitly in
+  `edge_qs_for()` **plus a pk tiebreak** — a determinism hardening for
+  parallel edges between the same ports), then dataset ports in the
+  established `(node, dataset_index, port, metric)` sort.
+- Binding identity is the legacy row UUID, preserved across rebuilds; a
+  reorder or unrelated delete renumbers positions densely but never changes
+  a surviving binding's UUID or row pk (`sync_input_bindings` diffs against
+  desired state; the position uniqueness constraint is deferred to commit).
+  The fanned-out column-less dataset binding stays one row per metric —
+  each row is its own binding on its own port, so no arbitrary group UUID
+  was minted. The *group* identity (today `(node, dataset, dataset_index)`,
+  used by `binding_editor`) still needs an explicit answer when writes move
+  in the second half.
+- Write boundaries: the outermost `change_operation` exit resyncs when the
+  operation recorded changes to `NodeEdge` / `DatasetPort` / `NodeConfig`
+  (node deletes cascade bindings without per-row records — that is why
+  `NodeConfig` is in the trigger set); command-level writers call
+  `sync_input_bindings` directly (`spec_sync`, runtime `spec_export` sync,
+  `import_instance`, `import_instance_edges_and_ports`, `setup_cads`).
+  Tests that create legacy rows directly must call it too before reading
+  the projection.
+- Dual-read: `NodeConfigQuerySet.annotate_ports()` now serves the
+  `PortBindingDef` projection from the mirror — ORM-projected defs carry
+  real `position` values for the first time. The instance-level GraphQL
+  resolvers (`NodeEdgeType` / `DatasetPortType` lists) still read the
+  legacy tables; they move with the write paths.
+- Backfill migration (0061) uses historical models for all ORM access and
+  imports only the pure ordering/snapshot helpers. Verified on the dev DB:
+  0 graph-vs-mirror position mismatches on all buildable instances, and a
+  post-migration `sync_input_bindings` pass over all 402 local instances
+  changed 0 rows (migration ≡ service).
+
+Remaining for step 9: snapshot upgrade to one discriminated binding list,
+moving GraphQL/sync/copy/revision/change-history writes onto the unified
+table (authority flip), and the group-identity decision above.
+
 ### 10. Make InstanceGraph the Context factory input
 
 - Add `InstanceGraph.create_context(options, payload_store)` as a thin delegate

@@ -953,7 +953,7 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
     return promoted
 
 
-def sync_instance_to_db(
+def sync_instance_to_db(  # noqa: PLR0915
     instance_id: str,
     yaml_path: str | Path | None = None,
     *,
@@ -1032,6 +1032,10 @@ def sync_instance_to_db(
 
         dataset_port_count = _update_dataset_ports(ic, ctx, node_configs)
         promoted_forecast_defaults = _promote_dataset_forecast_defaults(ic) if promote_forecast_defaults else 0
+
+        from nodes.input_bindings import sync_input_bindings
+
+        sync_input_bindings(ic)
 
     logger.info(
         (

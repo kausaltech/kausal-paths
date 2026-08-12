@@ -85,10 +85,11 @@ from paths.utils import (
 
 from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
 from nodes.defs.instance_defs import InstanceFeatures, InstanceMetadata
-from nodes.defs.transform_def import EdgeTransformOp
+from nodes.defs.transform_def import EdgeTransformOp, StoredPortTransformOp
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
     EdgeSnapshot,
+    InputBindingSnapshot,
     NodeSnapshot,
 )
 from orgs.models import Organization
@@ -573,6 +574,7 @@ class InstanceConfig(
     datasets: RevMany[DatasetModel]
     edges: RevMany[NodeEdge]
     dataset_ports: RevMany[DatasetPort]
+    input_bindings: RevMany[NodeInputPortBinding]
     dataset_revision_pins: RevMany[InstanceRevisionDatasetPin]
     change_operations: RevMany[InstanceChangeOperation]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
@@ -1819,22 +1821,32 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         return self.defer(None)
 
     def annotate_ports(self) -> Self:
+        """
+        Attach the node's port bindings as ``PortBindingDef``-shaped JSON.
+
+        Served from the unified ``NodeInputPortBinding`` mirror, which the
+        write boundaries keep in sync with the still-authoritative
+        ``NodeEdge`` / ``DatasetPort`` tables. This is the projection behind
+        ``port_edge_bindings`` / ``port_dataset_bindings``.
+        """
         edge_bindings = (
-            NodeEdge.objects
-            .filter(Q(to_node=OuterRef('pk')) | Q(from_node=OuterRef('pk')))
+            NodeInputPortBinding.objects
+            .filter(Q(node=OuterRef('pk')) | Q(source_node=OuterRef('pk')), source_node__isnull=False)
+            .order_by('node_id', 'port_id', 'position')
             .annotate(
                 obj=JSONObject(
                     id=F('uuid'),
                     from_ref=JSONObject(
-                        node_uuid=F('from_node__uuid'),
-                        node_id=F('from_node__identifier'),
-                        port_id=F('from_port'),
+                        node_uuid=F('source_node__uuid'),
+                        node_id=F('source_node__identifier'),
+                        port_id=F('source_port_id'),
                     ),
                     port_ref=JSONObject(
-                        node_uuid=F('to_node__uuid'),
-                        node_id=F('to_node__identifier'),
-                        port_id=F('to_port'),
+                        node_uuid=F('node__uuid'),
+                        node_id=F('node__identifier'),
+                        port_id=F('port_id'),
                     ),
+                    position=F('position'),
                     transformations=F('transformations'),
                     tags=F('tags'),
                 ),
@@ -1842,8 +1854,9 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
             .values('obj')
         )
         dataset_bindings = (
-            DatasetPort.objects
-            .filter(node=OuterRef('pk'))
+            NodeInputPortBinding.objects
+            .filter(node=OuterRef('pk'), dataset__isnull=False)
+            .order_by('port_id', 'position')
             .annotate(
                 obj=JSONObject(
                     id=F('uuid'),
@@ -1852,14 +1865,15 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                         node_id=F('node__identifier'),
                         port_id=F('port_id'),
                     ),
+                    position=F('position'),
                     dataset_uuid=F('dataset__uuid'),
                     metric_uuid=F('metric__uuid'),
                     dataset_is_external_placeholder=F('dataset__is_external_placeholder'),
                     dataset_external_ref=F('dataset__external_ref'),
                     external_dataset_id=F('dataset__identifier'),
                     external_metric_id=F('metric__name'),
-                    transformations=F('spec__transformations'),
-                    tags=F('spec__tags'),
+                    transformations=F('transformations'),
+                    tags=F('tags'),
                 ),
             )
             .values('obj')
@@ -2034,6 +2048,10 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     goal_i18n: str | None
     indicates_nodes: RevMany[NodeConfig]
     layout: RevOne[NodeConfig, NodeLayout]
+    incoming_edges: RevMany[NodeEdge]
+    outgoing_edges: RevMany[NodeEdge]
+    input_bindings: RevMany[NodeInputPortBinding]
+    output_bindings: RevMany[NodeInputPortBinding]
 
     search_fields = [
         index.AutocompleteField('identifier'),
@@ -2368,6 +2386,121 @@ class DatasetPort(EditableInstanceChild):
         return f'{self.node_id}:{self.port_id} ← {self.dataset_id}'
 
 
+class NodeInputPortBinding(EditableInstanceChild):
+    """
+    One value delivered to a node input port — edge- or dataset-sourced.
+
+    The unified persisted form of ``NodeEdge`` and ``DatasetPort`` (see
+    docs/architecture/dimension-constraints.md, "One input-binding table").
+    ``position`` orders bindings within one port across both source kinds,
+    which matters because a ``multi`` port may hold both and floating-point
+    addition makes delivery order observable.
+
+    Transitional: writes still target the legacy tables, and
+    ``nodes.input_bindings.sync_input_bindings()`` rebuilds these rows at
+    every write boundary, preserving the legacy row UUIDs as binding
+    identity. Reads go through ``NodeConfigQuerySet.annotate_ports()``.
+    """
+
+    snapshot_model: ClassVar[type[ModelSnapshot]] = InputBindingSnapshot
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='input_bindings',
+    )
+    node: FK[NodeConfig] = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='input_bindings',
+    )
+    port_id = models.UUIDField[UUID, UUID](
+        help_text='Input port ID on the node (must match a port in node.input_ports)',
+    )
+    position = models.PositiveIntegerField(
+        default=0,
+        help_text='Stable order among values delivered to the input port, shared across source kinds.',
+    )
+
+    # Exactly one source branch is populated.
+    source_node: FK[NodeConfig | None] = models.ForeignKey(
+        NodeConfig,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='output_bindings',
+    )
+    source_port_id = models.UUIDField[UUID | None, UUID | None](
+        null=True,
+        blank=True,
+        help_text='Output port ID on the source node',
+    )
+    dataset: FK[DatasetModel | None] = models.ForeignKey(
+        DatasetModel,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='node_input_bindings',
+    )
+    metric: FK[DatasetMetric | None] = models.ForeignKey(
+        DatasetMetric,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='node_input_bindings',
+    )
+
+    transformations = SchemaField(schema=list[StoredPortTransformOp], default=list, blank=True)
+    tags = ArrayField(
+        models.CharField(max_length=200),
+        default=list,
+        blank=True,
+    )
+
+    objects: ClassVar[Manager[NodeInputPortBinding]] = Manager()
+    _default_manager: ClassVar[Manager[NodeInputPortBinding]]
+
+    # for type checkers
+    node_id: int
+    source_node_id: int | None
+    dataset_id: int | None
+    metric_id: int | None
+
+    class Meta:
+        ordering = ['node', 'port_id', 'position']
+        verbose_name = _('Node input binding')
+        verbose_name_plural = _('Node input bindings')
+        constraints = (
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        source_node__isnull=False,
+                        source_port_id__isnull=False,
+                        dataset__isnull=True,
+                        metric__isnull=True,
+                    )
+                    | Q(
+                        source_node__isnull=True,
+                        source_port_id__isnull=True,
+                        dataset__isnull=False,
+                        metric__isnull=False,
+                    )
+                ),
+                name='node_input_binding_has_one_source',
+            ),
+            models.UniqueConstraint(
+                fields=('node', 'port_id', 'position'),
+                name='node_input_binding_position_is_unique',
+                deferrable=models.Deferrable.DEFERRED,
+            ),
+        )
+
+    def __str__(self) -> str:
+        if self.source_node_id is not None:
+            return f'{self.node_id}:{self.port_id}[{self.position}] ← node {self.source_node_id}'
+        return f'{self.node_id}:{self.port_id}[{self.position}] ← dataset {self.dataset_id}'
+
+
 class DatasetMaterialization(models.Model):
     """Current serialized calculation payload for a DB-backed dataset."""
 
@@ -2486,6 +2619,10 @@ class InstanceChangeOperation(UUIDIdentifiedModel):
         related_name='+',
     )
     user_id: int | None
+    # In-memory only: model classes recorded through ``record_change`` during
+    # this operation, so the write-boundary hook knows whether the
+    # input-binding mirror may be affected.
+    _touched_models: set[type[models.Model]]
     action = models.CharField(
         max_length=100,
         help_text="Top-level action that triggered the operation, e.g. 'node.delete'.",
