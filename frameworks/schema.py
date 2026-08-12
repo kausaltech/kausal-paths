@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
     from frameworks.models import FrameworkDimensionCategory, NodeDimensionSelection
     from nodes.context import Context
-    from nodes.instance import Instance
+    from nodes.graphql.types.instance import InstanceType
     from nodes.node import Node
     from nodes.units import Unit
 
@@ -326,8 +326,10 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
         return ic.identifier
 
     @staticmethod
-    def resolve_instance(root: FrameworkConfig, info: GQLInfo) -> Instance:
-        return root.instance_config.get_instance(node_refs=True)
+    def resolve_instance(root: FrameworkConfig, info: GQLInfo) -> InstanceType:
+        from nodes.graphql.types.instance import InstanceType
+
+        return InstanceType.from_model(root.instance_config)
 
     @staticmethod
     def resolve_organization_slug(root: FrameworkConfig, info: GQLInfo) -> str | None:

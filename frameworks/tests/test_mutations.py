@@ -308,6 +308,43 @@ def test_framework_query_exposes_frameworks(
     assert selected['name'] == framework.name
 
 
+def test_framework_config_instance_uses_config_backed_graphql_type(
+    client: Client,
+    framework: Framework,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance_config = InstanceConfigFactory.create(identifier='test-city', name='Test City')
+    FrameworkConfigFactory.create(framework=framework, instance_config=instance_config)
+
+    def fail_get_instance(*args: object, **kwargs: object) -> None:
+        raise AssertionError('Framework config instance fields must not hydrate the runtime instance')
+
+    monkeypatch.setattr(InstanceConfig, '_get_instance', fail_get_instance)
+    monkeypatch.setattr(InstanceConfig, 'get_instance', fail_get_instance)
+    gql_client = _framework_admin_gql_client(client, framework)
+
+    data = gql_client.query_data(
+        gql("""
+        query FrameworkConfigInstances($identifier: ID!) {
+            framework(identifier: $identifier) {
+                configs {
+                    instance {
+                        id
+                        identifier
+                        name
+                    }
+                }
+            }
+        }
+        """),
+        variables={'identifier': framework.identifier},
+    )
+
+    assert data['framework']['configs'] == [
+        {'instance': {'id': 'test-city', 'identifier': 'test-city', 'name': 'Test City'}},
+    ]
+
+
 def test_framework_sections_resolve_influencing_measure_templates_without_n_plus_one(
     gql_client: PathsTestClient,
     framework: Framework,
