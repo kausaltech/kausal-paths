@@ -25,7 +25,9 @@ from uuid import UUID
 
 from django.db import transaction
 from django.db.models import F
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from markdown_it import MarkdownIt
 
 from kausal_common.i18n.pydantic import (
     I18nBaseModel,
@@ -75,6 +77,8 @@ if TYPE_CHECKING:
 #   v7: published DB datasets have a normalized immutable revision manifest.
 #   v8: structural dimension and dataset catalogs carry canonical UUIDs.
 SNAPSHOT_SCHEMA_VERSION = 8
+
+_MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
 
 # ---------------------------------------------------------------------------
@@ -308,6 +312,7 @@ class NodeSnapshot(ModelSnapshot):
     name: TranslatedString | None = None
     short_name: TranslatedString | None = None
     short_description: TranslatedString | None = None
+    """Translated Wagtail database HTML, normalized from authored Markdown at the snapshot boundary."""
     description: TranslatedString | None = None
     goal: TranslatedString | None = None
     color: str = ''
@@ -321,6 +326,17 @@ class NodeSnapshot(ModelSnapshot):
     published serving doesn't lose (or leak drafts of) body content."""
     spec: NodeSpec | None = None
     layout: NodeLayoutSnapshot | None = None
+
+    @field_validator('short_description')
+    @classmethod
+    def render_short_description(cls, value: TranslatedString | None) -> TranslatedString | None:
+        """Keep every snapshot producer on the RichTextField-compatible HTML contract."""
+        if value is None:
+            return None
+        return TranslatedString(
+            default_language=value.default_language,
+            **{language: _MARKDOWN.render(text) for language, text in value.i18n.items()},
+        )
 
     @classmethod
     def from_model(cls, obj: NodeConfig, primary_language: str | None = None) -> Self:

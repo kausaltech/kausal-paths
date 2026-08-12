@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, cast
 from uuid import uuid3
 
 from loguru import logger
-from markdown_it import MarkdownIt
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -27,9 +26,6 @@ if TYPE_CHECKING:
     from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig, NodeConfig
     from nodes.yaml_port_refs import YamlPortReferenceCatalog
-
-
-_MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
 
 @dataclass
@@ -233,9 +229,6 @@ def _seed_node_metadata_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_l
         if value is None:
             continue
         val, tr = get_modeltrans_attrs_from_str(value, field_name, primary_language, strict=False)
-        if field_name == 'short_description':
-            val = _MARKDOWN.render(val)
-            tr = {key: _MARKDOWN.render(translated) for key, translated in tr.items()}
         i18n.update(tr)
         attributes[field_name] = val
 

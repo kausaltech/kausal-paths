@@ -36,6 +36,10 @@ not duplicated inside the computation spec.
 
 Persisted snapshots project both parts explicitly: `NodeSnapshot` carries ORM
 identity/display metadata and embeds the computation-only `NodeSpec`.
+Rich-text metadata in a snapshot uses Wagtail database HTML. In particular,
+YAML-authored Markdown descriptions are rendered when constructing
+`NodeSnapshot.short_description`; snapshot consumers must not depend on the
+configuration source to interpret the field.
 
 ### Snapshot-backed GraphQL reads
 

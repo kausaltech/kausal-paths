@@ -5,6 +5,7 @@ from django.utils.translation import get_language
 
 import pytest
 
+from nodes.defs.instance_defs import ActionGroup
 from nodes.metric import Metric
 from nodes.tests.factories import ActionNodeFactory, NodeConfigFactory, NodeFactory
 from nodes.units import unit_registry
@@ -52,6 +53,48 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
         }
     }
     assert data == expected
+
+
+def test_action_group_membership_uses_stable_group_id(
+    graphql_client_query_data,
+    action_node,
+    instance,
+    instance_config,
+):
+    runtime_group = ActionGroup(id='energy', name='Energy')
+    action_node.group = runtime_group
+    instance.action_groups = [runtime_group]
+
+    spec = instance_config.ensure_spec().model_copy(deep=True)
+    spec.action_groups = [ActionGroup(id='energy', name='Energy')]
+    instance_config.spec = spec
+    instance_config.save(update_fields=['spec'])
+
+    data = graphql_client_query_data(
+        """
+        query {
+          instance {
+            actionGroups {
+              id
+              actions {
+                id
+              }
+            }
+          }
+        }
+        """
+    )
+
+    assert data == {
+        'instance': {
+            'actionGroups': [
+                {
+                    'id': 'energy',
+                    'actions': [{'id': action_node.id}],
+                }
+            ]
+        }
+    }
 
 
 def test_forecast_metric_type(

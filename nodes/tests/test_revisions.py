@@ -108,6 +108,7 @@ def test_i18n_node_metadata_stays_dict_serializable():
         identifier='n1',
         name=TranslatedString(en='Renamed'),
         short_name=TranslatedString(en='Short', fi='Lyhyt'),
+        short_description=TranslatedString(en='**Description**', fi='**Kuvaus**'),
         color='#abc',
         is_visible=True,
         spec=NodeSpec(),
@@ -116,7 +117,21 @@ def test_i18n_node_metadata_stays_dict_serializable():
     dumped = snap.model_dump(mode='json')
     assert dumped['name'] == {'en': 'Renamed'}
     assert dumped['short_name'] == {'en': 'Short', 'fi': 'Lyhyt'}
+    assert dumped['short_description'] == {
+        'en': '<p><strong>Description</strong></p>\n',
+        'fi': '<p><strong>Kuvaus</strong></p>\n',
+    }
     assert 'name' not in dumped['spec']
+
+
+def test_node_snapshot_short_description_preserves_wagtail_html():
+    snap = NodeSnapshot(
+        uuid=uuid.uuid4(),
+        short_description={'en': '<p>A <a linktype="page" id="12">page</a></p>\n'},
+    )
+
+    assert snap.short_description is not None
+    assert snap.short_description.i18n == {'en': '<p>A <a linktype="page" id="12">page</a></p>\n'}
 
 
 def test_instance_snapshot_schema_version_default():
@@ -200,7 +215,7 @@ def test_instance_snapshot_upgrades_v3_node_metadata():
     assert node.identifier == 'n1'
     assert str(node.name) == 'Outer name'
     assert str(node.short_name) == 'Short'
-    assert str(node.short_description) == 'Runtime description'
+    assert str(node.short_description) == '<p>Runtime description</p>\n'
     assert str(node.description) == 'Long CMS description'
     assert node.spec is not None
     assert not ({'uuid', 'identifier', 'name', 'short_name', 'description', 'kind'} & node.spec.model_fields_set)

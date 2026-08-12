@@ -326,7 +326,7 @@ class ActionGroupType:
     @pass_context
     @staticmethod
     def actions(root: ActionGroup, context: Context) -> list[ActionNode]:
-        return [act for act in context.get_actions() if act.group == root]
+        return [act for act in context.get_actions() if act.group is not None and act.group.id == root.id]
 
 
 def _dataset_external_ref_to_gql(external_ref: object) -> DatasetExternalRefType | None:
