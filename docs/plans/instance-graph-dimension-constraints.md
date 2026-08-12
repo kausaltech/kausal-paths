@@ -1011,6 +1011,20 @@ Remaining for step 9: snapshot upgrade to one discriminated binding list,
 moving GraphQL/sync/copy/revision/change-history writes onto the unified
 table (authority flip), and the group-identity decision above.
 
+Implementation note (2026-08-12, canonical edge order fix): DB-sourced
+GraphQL outputs diverged from the same instance's YAML baseline (permuted
+sector `metricDim` categories/values, `upstreamNodes` order). Root cause:
+`build_instance_snapshot` read edges in `NodeEdge.Meta.ordering`
+(source-node pk) while the authored order is creation order — the parser
+mirrors the YAML runtime's edge-creation sequence and sync bulk-creates in
+that sequence, so pk order *is* the authored order. `edge_qs_for()` (and the
+0061 backfill) now order by pk; graph format bumped to v5; mirror re-synced
+fleet-wide (29 instances, 501 rows — binding UUIDs unchanged by design).
+This had to land **before** the step-9 authority flip: positions captured
+under Meta ordering would have baked the corrupted order in as authored
+truth. Query-store baselines recorded from DB-sourced serving under the old
+order may need re-recording; baselines recorded from YAML serving now match.
+
 ### 10. Make InstanceGraph the Context factory input
 
 - Add `InstanceGraph.create_context(options, payload_store)` as a thin delegate

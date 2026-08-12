@@ -24,7 +24,8 @@ def backfill_input_bindings(apps, schema_editor):
             NodeEdge.objects
             .filter(instance=ic)
             .select_related('from_node', 'to_node')
-            .order_by('from_node_id', 'to_node_id', 'to_port', 'pk')
+            # Creation order = authored order; must match edge_qs_for().
+            .order_by('pk')
         )
         port_rows = list(DatasetPort.objects.filter(instance=ic).select_related('node', 'dataset', 'metric'))
         if not edge_rows and not port_rows:

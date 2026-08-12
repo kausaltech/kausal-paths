@@ -70,8 +70,9 @@ def test_mirror_interleaves_edges_before_dataset_rows_on_a_shared_port(ic: Insta
     source_b = NodeConfigFactory.create(instance=ic, identifier='source_b')
     port_id = uuid4()
 
-    # Created dataset-first and b-before-a: canonical order must not depend on
-    # creation order — edges come first, ordered by source node pk.
+    # Created dataset-first and b-before-a: edges come first regardless of the
+    # dataset row predating them, in their creation order — the authored order
+    # the YAML runtime observes — not in source-node pk order.
     row = _make_dataset_port(ic, target, port_id)
     edge_b = NodeEdge.objects.create(
         instance=ic, from_node=source_b, from_port=uuid4(), to_node=target, to_port=port_id, tags=['b']
@@ -84,13 +85,13 @@ def test_mirror_interleaves_edges_before_dataset_rows_on_a_shared_port(ic: Insta
     assert changed == 3
 
     bindings = list(NodeInputPortBinding.objects.filter(instance=ic).order_by('position'))
-    assert [b.uuid for b in bindings] == [edge_a.uuid, edge_b.uuid, row.uuid]
+    assert [b.uuid for b in bindings] == [edge_b.uuid, edge_a.uuid, row.uuid]
     assert [b.position for b in bindings] == [0, 1, 2]
 
-    assert bindings[0].source_node_id == source_a.pk
-    assert bindings[0].source_port_id == edge_a.from_port
+    assert bindings[0].source_node_id == source_b.pk
+    assert bindings[0].source_port_id == edge_b.from_port
     assert bindings[0].dataset_id is None
-    assert bindings[0].tags == ['a']
+    assert bindings[0].tags == ['b']
 
     assert bindings[2].source_node_id is None
     assert bindings[2].dataset_id == row.dataset_id

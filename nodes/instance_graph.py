@@ -33,7 +33,9 @@ if TYPE_CHECKING:
     from nodes.node import Node
 
 
-INSTANCE_GRAPH_FORMAT_VERSION = 4
+# v5: canonical edge order is creation (pk) order, not NodeEdge.Meta ordering;
+#     binding positions built from a snapshot change accordingly.
+INSTANCE_GRAPH_FORMAT_VERSION = 5
 
 
 class InstanceGraphDiagnostic(FrozenGraphModel):

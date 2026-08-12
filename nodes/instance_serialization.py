@@ -982,13 +982,17 @@ def _dataset_catalog_for(
 
 def edge_qs_for(ic: InstanceConfig) -> QuerySet[NodeEdge]:
     """
-    Edges in canonical snapshot order.
+    Edges in canonical snapshot order: creation (pk) order.
 
-    The explicit ``order_by`` spells out ``NodeEdge.Meta.ordering`` (which
-    snapshots have always relied on) plus a ``pk`` tiebreak so parallel edges
-    between the same ports serialize deterministically. Position assignment
-    (``ordered_binding_snapshots``) and the ``NodeInputPortBinding`` mirror
-    both depend on this order.
+    Creation order is the authored order — the parser mirrors the YAML
+    runtime's edge-creation sequence and the sync writes rows in that
+    sequence, so pk order is what the YAML runtime observes; editor-created
+    edges append at the end. ``NodeEdge.Meta.ordering`` (source-node pk)
+    must not be used here: it reorders inputs by an accident of node
+    creation and made DB-sourced sector breakdowns and additive summation
+    order diverge from the same instance served from YAML. Position
+    assignment (``ordered_binding_snapshots``) and the
+    ``NodeInputPortBinding`` mirror both depend on this order.
     """
     from nodes.models import NodeEdge
 
@@ -999,7 +1003,7 @@ def edge_qs_for(ic: InstanceConfig) -> QuerySet[NodeEdge]:
             _from_node_uuid=F('from_node__uuid'),
             _to_node_uuid=F('to_node__uuid'),
         )
-        .order_by('from_node_id', 'to_node_id', 'to_port', 'pk')
+        .order_by('pk')
     )
 
 
