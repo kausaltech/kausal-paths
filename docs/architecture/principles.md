@@ -90,3 +90,46 @@ deleted without touching any other code.
 distinguish "this works because it's correct" from "this works because the
 compat shim caught it." Migration bugs hide until production, and the compat
 code outlives the migration because nobody is sure it's safe to remove.
+
+
+## 6. Keep change-sensitive knowledge with the behavior it describes
+
+The module that owns variable behavior should also own the description of
+that behavior's semantic dependencies and identity. Consumers may compose
+those descriptions, but should not reconstruct them by importing concrete
+implementations and branching on their types.
+
+A type switch in a consumer often creates a shadow implementation: a second,
+necessarily incomplete account of what each implementation reads and does.
+Adding or changing an implementation then requires a coordinated edit in a
+module with no structural connection to the change. Correctness depends on
+someone remembering that hidden coupling.
+
+Prefer an explicit semantic projection on the abstraction. For example, a
+transformation can declare the authored configuration and contextual values
+that determine its materialized output. The pipeline composes those
+declarations in order, while the cache remains responsible for serialization,
+hashing, and storage. The transformation does not need to know about Redis,
+and the cache does not need to know how a `FilterColumnOp` works.
+
+**Example:** Dataset pipeline caching originally inspected concrete
+transformation classes in `DatasetWithFilters` to infer which parameters,
+timeline values, and dimensions belonged in the cache key. A change to an
+operation could silently leave that parallel model stale. Moving the
+materialization identity to the operation makes the dependency explicit and
+keeps the change with its semantic owner; the dataset layer only composes the
+result.
+
+**Review test:** If this class changes, which other modules must its author
+remember to inspect? Imports used primarily for `isinstance` chains or type
+switches are a warning that a consequence of the behavior lives outside its
+owner.
+
+**Boundary:** This does not mean pushing every downstream concern into the
+behavioral class. It should expose semantic facts or dependencies, not cache
+keys, hash algorithms, log formats, or storage policy. Each consumer still
+owns its mechanism.
+
+**Why:** Things that must change together should be owned together. Things
+that merely compose should depend on an explicit contract, not knowledge of
+one another's internals.
