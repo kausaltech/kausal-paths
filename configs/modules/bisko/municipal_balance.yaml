@@ -664,11 +664,12 @@ nodes:
 # energy rows are keyed by `energy_carrier` and everything else by `emission_source`.
 # One node covering the whole balance would collapse rows that are not the same row.
 #
-# A single Datengüte for the whole administration balance would also need weighting by
-# *emissions* rather than by consumption, since kilowatt-hours, passenger-kilometres and
-# hot meals are not commensurable and BISKO's consumption weighting has nothing to weigh
-# them on. That is a real question, not a missing node; it is not needed for the
-# 2019-2021 deliverable and is recorded in data/mainz/README.md instead.
+# A whole-balance Datengüte is not wanted and is not missing. Nothing requires one, and
+# it would have to be weighted by *emissions* rather than by consumption, since
+# kilowatt-hours, passenger-kilometres and hot meals are not commensurable and BISKO's
+# consumption weighting has nothing to weigh them on. Settled 12 Aug 2026: building
+# energy only. A per-branch or per-category breakdown is easy to add later if the city
+# asks for one -- each branch already knows the dimensions that make its rows unique.
 #
 # Building energy is the branch where the grade is both meaningful and directly
 # comparable with the territorial balance's `final_energy_use_data_quality`.
