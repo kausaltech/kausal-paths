@@ -35,7 +35,9 @@ from nodes.constants import (
     ensure_known_quantity,
     get_quantity_icon,
 )
+from nodes.defs.transform_def import FlattenTransformation
 from nodes.goals import NodeGoals
+from nodes.transforms import PipelineEnv, apply_port_transformations
 
 from .datasets import JSONDataset
 from .edges import Edge
@@ -56,6 +58,7 @@ if typing.TYPE_CHECKING:
 
     from common.cache import CacheResult
     from nodes.defs.node_defs import NodeKind, NodeSpec
+    from nodes.defs.port_def import InputPortDeclaration, OutputPortDeclaration
     from nodes.gpc import DatasetNode
     from nodes.instance_loader import ConfigLocation
     from nodes.instance_serialization import NodeSnapshot
@@ -326,6 +329,10 @@ class Node:
 
     default_unit: ClassVar[str]
     'Default unit for the node class (defined as a class variable)'
+
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = ()
+    output_port_declarations: ClassVar[tuple[OutputPortDeclaration, ...]] = ()
+    """Semantic role declarations shared by future get_input() and shape_rules()."""
 
     quantity: str | None
     """Physical quantity of the node's output (e.g. "energy" or "emissions")"""
@@ -1008,7 +1015,7 @@ class Node:
 
         return df
 
-    def _get_output_for_target(  # noqa: C901, PLR0912, PLR0915
+    def _get_output_for_target(
         self,
         df: ppl.PathsDataFrame,
         target_node: Node,
@@ -1022,67 +1029,28 @@ class Node:
 
         df = self._get_output_for_node(df, edge)
 
-        # Slice a dimension if the parameter is given.
-        params = self.get_parameter_value_str('slice_category_at_edge', required=False)
-        if params:
-            param_arr = params.split(',')
-            assert len(param_arr) == 1
-            param_arr = param_arr[0].split(':')
-            df = df.filter(pl.col(params[0]).eq(params[1]))
-
-        # Drop dim columns that are entirely null before from/to_dimensions processing.
+        # Drop dim columns that are entirely null before the edge pipeline runs.
         # Multi-metric nodes with different dimensional spans use null to mark
         # dimensions not applicable to a given metric; those must be pruned so
-        # from_dimensions filtering and to_dimensions validation see the correct
+        # dimension filtering and the output-dimension assertion see the correct
         # (narrowed) dimension set.
         for dim_col in list(df.dim_ids):
             if df[dim_col].null_count() == df[dim_col].len():
                 df = df.drop(dim_col)
 
-        if edge.from_dimensions:
-            meta = df.get_meta()
-            if not meta.dim_ids:
-                raise NodeError(self, 'No dimensions in node output')
-            for dim_id, edge_dim in edge.from_dimensions.items():
-                cat_ids = [cat.id for cat in edge_dim.categories]
-                if dim_id not in meta.dim_ids:
-                    if dim_id not in self.output_dimensions:
-                        raise NodeError(self, 'Dimension %s not declared in node output dimensions' % dim_id)
-                    # Dimension is declared but was dropped as all-null for this metric — flatten is a no-op.
-                    continue
-                filter_expr = pl.col(dim_id).is_in(cat_ids)
-                if edge_dim.exclude:
-                    filter_expr = pl.col(dim_id).is_null() | ~filter_expr
-                df = df.filter(filter_expr)
-                if len(df) == 0:
-                    raise NodeError(self, 'No rows left after filtering by %s' % dim_id)
-                if edge_dim.flatten:
-                    meta = df.get_meta()
-                    df = df.paths.sum_over_dims([dim_id])
+        try:
+            ops = edge.to_transforms()
+        except ValueError as e:
+            raise NodeError(self, str(e)) from e
+        # `flatten` ops are port shape declarations, not executable operations;
+        # they only contribute to the output-dimension assertion below.
+        exec_ops = [op for op in ops if not isinstance(op, FlattenTransformation)]
+        if exec_ops:
+            env = PipelineEnv(context=self.context, node=self)
+            df = apply_port_transformations(df, exec_ops, env)
 
         if edge.to_dimensions is not None:
-            new_cols = []
-            meta = df.get_meta()
             output_dimensions = set(edge.to_dimensions.keys())
-            for dim_id, edge_dim in edge.to_dimensions.items():
-                nr_cats = len(edge_dim.categories)
-                if not nr_cats:
-                    continue
-                if nr_cats > 1:
-                    raise NodeError(self, 'to_dimensions can have only one category for now')
-                if dim_id in df.columns:
-                    raise NodeError(self, 'attempting to assign a category to an existing dimension')
-                cat = edge_dim.categories[0]
-                new_cols.append((dim_id, cat.id))
-
-            if new_cols:
-                meta = df.get_meta()
-                exprs = [pl.lit(cat).cast(pl.Categorical).alias(dim_id) for dim_id, cat in new_cols]
-                df = df.with_columns(exprs)
-                for dim_id, _ in new_cols:
-                    meta.primary_keys.append(dim_id)
-                df = ppl.to_ppdf(df=df, meta=meta)
-
             if set(df.dim_ids) != output_dimensions:
                 raise NodeError(
                     self,
@@ -1093,23 +1061,6 @@ class Node:
                         output_dimensions,
                     ),
                 )
-        else:
-            output_dimensions = set(target_node.input_dimensions.keys())
-
-        meta = df.get_meta()
-        # if set(meta.dim_ids) != output_dimensions and not skip_dim_test: # TODO Consider testing this in node validation
-        #     print(df)
-        #     out_dims = ', '.join(meta.dim_ids)
-        #     target_in_dims = ', '.join(output_dimensions)
-        #     warnings.warn( # Changed from NodeError to print because blocks useful generic operations.
-        #         # self,
-        #         'Dimensions of output [%s] do not match the input dimensions of %s [%s]'
-        #         % (
-        #             out_dims,
-        #             target_node.id,
-        #             target_in_dims,
-        #         ),
-        #     )
 
         return df
 

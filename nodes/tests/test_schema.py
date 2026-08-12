@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from django.utils import timezone
 from django.utils.translation import get_language
 
 import pytest
@@ -17,6 +18,7 @@ pytestmark = pytest.mark.django_db
 
 
 def test_instance_type(graphql_client_query_data, instance, instance_config):
+    years = instance_config.ensure_spec().years
     data = graphql_client_query_data(
         """
         query {
@@ -40,11 +42,11 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
             '__typename': 'InstanceType',
             'id': instance.id,
             'name': instance.name,
-            'targetYear': instance.context.target_year,
-            'modelEndYear': instance.context.model_end_year,
-            'referenceYear': instance.reference_year,
-            'minimumHistoricalYear': instance.minimum_historical_year,
-            'maximumHistoricalYear': instance.maximum_historical_year,
+            'targetYear': years.target,
+            'modelEndYear': years.model_end or years.target or timezone.now().year,
+            'referenceYear': years.reference,
+            'minimumHistoricalYear': years.min_historical or years.reference or timezone.now().year,
+            'maximumHistoricalYear': years.max_historical,
             'leadTitle': instance_config.lead_title,
             'leadParagraph': instance_config.lead_paragraph,
         }

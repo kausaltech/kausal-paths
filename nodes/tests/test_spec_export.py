@@ -7,7 +7,7 @@ import pytest
 from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.node import Node
-from nodes.simple import AdditiveNode, SectorEmissions
+from nodes.simple import AdditiveNode, MultiplicativeNode, SectorEmissions
 from nodes.spec_export import _export_input_ports
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from nodes.units import unit_registry
@@ -30,11 +30,29 @@ def _make_node(context, cls=Node, identifier: str = 'node', unit: str = 'kt/a', 
 
 
 @pytest.mark.django_db
+def test_generic_node_port_roles_have_one_shared_typed_namespace():
+    assert AdditiveNode.input_port_declarations == (AdditiveNode.additive_port,)
+    assert AdditiveNode.additive_port.role == 'additive'
+    assert AdditiveNode.output_port.role == 'output'
+    assert AdditiveNode.output_port.identifier == 'default'
+
+    assert MultiplicativeNode.input_port_declarations == (
+        MultiplicativeNode.factors_port,
+        MultiplicativeNode.additive_port,
+        MultiplicativeNode.impute_port,
+    )
+    assert MultiplicativeNode.factors_port.required is True
+    assert MultiplicativeNode.additive_port.required is False
+    assert MultiplicativeNode.impute_port.required is False
+
+
+@pytest.mark.django_db
 def test_export_marks_plain_additive_input_ports_as_multi():
     context = _make_context()
     source_a = _make_node(context, identifier='source_a')
     source_b = _make_node(context, identifier='source_b')
     target = _make_node(context, AdditiveNode, identifier='target')
+    target.input_dimensions['sector'] = cast('Any', object())
     target.add_input_node(source_a)
     target.add_input_node(source_b)
 
@@ -42,6 +60,7 @@ def test_export_marks_plain_additive_input_ports_as_multi():
 
     assert len(ports) == 1
     assert ports[0].multi is True
+    assert ports[0].required_dimensions == ports[0].supported_dimensions == ['sector']
     assert target.edges[0]._to_port_ids == target.edges[1]._to_port_ids == [str(ports[0].id)]
 
 

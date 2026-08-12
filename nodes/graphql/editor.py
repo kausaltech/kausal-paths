@@ -69,37 +69,27 @@ def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
     return ic
 
 
-def _resolve_model_instance(ic: InstanceConfig) -> InstanceType:
-    instance = ic._initialize_instance(node_refs=True)
-    node_configs = ic.nodes_for_serialization
-    dataset_ports = list(
-        ic.dataset_ports.select_related(
-            'node',
-            'dataset__schema',
-            'dataset__created_by',
-            'dataset__last_modified_by',
-            'metric',
-        )
-    )
-    datasets_by_uuid = {port.dataset.uuid: port.dataset for port in dataset_ports}
-    ic._annotated_dataset_ports = dataset_ports
-    node_config_by_identifier = {nc.identifier: nc for nc in node_configs}
-    instance._annotated_node_configs_by_identifier = node_config_by_identifier  # type: ignore[attr-defined]
-    for node_id, node in instance.context.nodes.items():
-        nc = node_config_by_identifier.get(node_id)
-        if nc is not None:
-            nc._annotated_dataset_models_by_uuid = datasets_by_uuid
-            node.db_obj = nc
-    return InstanceType.from_model(ic, instance=instance)
+def _resolve_model_instance(info: gql.Info, ic: InstanceConfig, *, refresh: bool = False) -> InstanceType:
+    from nodes.models import PreferredInstanceSource
+
+    if refresh:
+        info.context.invalidate_runtime_instance(ic, source=PreferredInstanceSource.DRAFT)
+    return InstanceType.from_model(ic, source=PreferredInstanceSource.DRAFT)
 
 
-def _resolve_runtime_node(ic: InstanceConfig, node_id: int) -> Node:
+def _resolve_runtime_node(info: gql.Info, ic: InstanceConfig, node_id: int) -> Node:
+    from nodes.models import PreferredInstanceSource
+
     try:
         nc = NodeConfig.objects.select_related('instance').get(pk=node_id)
     except NodeConfig.DoesNotExist:
         raise GraphQLError('Node not found') from None
 
-    instance = nc.instance._initialize_instance(node_refs=True)
+    instance = info.context.require_instance(
+        nc.instance,
+        source=PreferredInstanceSource.DRAFT,
+        refresh=True,
+    )
     node = instance.context.nodes.get(nc.identifier)
     if node is None:
         raise GraphQLError(f'Node "{node_id}" not found in runtime instance "{ic.identifier}"')
@@ -425,12 +415,20 @@ class UpdateNodeLayoutInput:
 
 
 @sb.input
+class NodePortRefInput:
+    node_uuid: UUID
+    port_id: UUID
+
+
+@sb.input
 class CreateEdgeInput:
     instance_id: sb.ID
-    from_node_id: str
-    to_node_id: str
-    from_port: str = 'output'
-    to_port: str | None = None
+    from_ref: NodePortRefInput | None = None
+    port_ref: NodePortRefInput | None = None
+    from_node_id: str | None = sb.field(default=None, deprecation_reason='Use fromRef instead.')
+    to_node_id: str | None = sb.field(default=None, deprecation_reason='Use portRef instead.')
+    from_port: str | None = sb.field(default=None, deprecation_reason='Use fromRef instead.')
+    to_port: str | None = sb.field(default=None, deprecation_reason='Use portRef instead.')
     transformations: list[EdgeTransformationInput] | None = None
     replace: bool = sb.field(
         default=False,
@@ -441,6 +439,39 @@ class CreateEdgeInput:
             'and is not valid for `multi` ports.'
         ),
     )
+
+
+def _resolve_create_edge_refs(
+    info: gql.Info,
+    ic: InstanceConfig,
+    input: CreateEdgeInput,
+) -> tuple[NodeConfig, NodeConfig, str, str | None]:
+    """Resolve one complete canonical or legacy edge-reference form."""
+    has_canonical = input.from_ref is not None or input.port_ref is not None
+    has_legacy = any(value is not None for value in (input.from_node_id, input.to_node_id, input.from_port, input.to_port))
+    if has_canonical and has_legacy:
+        raise GraphQLValidationError(info, 'Supply either `fromRef`/`portRef` or the deprecated edge fields, not both')
+    if has_canonical:
+        if input.from_ref is None or input.port_ref is None:
+            raise GraphQLValidationError(info, 'Canonical edge references require both `fromRef` and `portRef`')
+        try:
+            from_node = NodeConfig.objects.get(instance=ic, uuid=input.from_ref.node_uuid)
+            to_node = NodeConfig.objects.get(instance=ic, uuid=input.port_ref.node_uuid)
+        except NodeConfig.DoesNotExist:
+            raise GraphQLError('Source or target node not found') from None
+        return from_node, to_node, str(input.from_ref.port_id), str(input.port_ref.port_id)
+
+    if input.from_node_id is None or input.to_node_id is None:
+        raise GraphQLValidationError(
+            info,
+            'Edge creation requires both `fromRef`/`portRef` or both deprecated node ID fields',
+        )
+    try:
+        from_node = NodeConfig.objects.get(instance=ic, identifier=input.from_node_id)
+        to_node = NodeConfig.objects.get(instance=ic, identifier=input.to_node_id)
+    except NodeConfig.DoesNotExist:
+        raise GraphQLError('Source or target node not found') from None
+    return from_node, to_node, input.from_port or 'output', input.to_port
 
 
 @sb.input
@@ -530,7 +561,7 @@ class ModelEditorQuery:
     @staticmethod
     def model_instance(info: gql.Info, instance_id: sb.ID) -> InstanceType:
         ic = _get_instance_config(info, instance_id)
-        return _resolve_model_instance(ic)
+        return _resolve_model_instance(info, ic, refresh=True)
 
 
 def is_maybe_set[T](maybe: Some[T] | None) -> TypeGuard[Some[T]]:
@@ -835,7 +866,7 @@ class NodeEditorMutation:
             nc.refresh_from_db()
             record_change(nc, action='node.update', before=before, after=nc.serializable_data())
 
-        return _resolve_runtime_node(nc.instance, nc.pk)
+        return _resolve_runtime_node(info, nc.instance, nc.pk)
 
     @gql.mutation(description='Delete this node')
     @staticmethod
@@ -1007,7 +1038,7 @@ class InstanceEditorMutation:
             )
             record_change(nc, action='node.create', before=None, after=nc.serializable_data())
 
-        return _resolve_runtime_node(ic, nc.pk)
+        return _resolve_runtime_node(info, ic, nc.pk)
 
     @gql.mutation(
         description='Update an existing node',
@@ -1121,19 +1152,15 @@ class InstanceEditorMutation:
     @staticmethod
     def create_edge(info: gql.Info, input: CreateEdgeInput) -> NodeEdgeType:
         from nodes.change_ops import gql_change_operation, record_change
-        from nodes.models import DatasetPort, NodeConfig, NodeEdge
+        from nodes.models import DatasetPort, NodeEdge
 
         ic = _get_instance_config(info, input.instance_id)
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
-        try:
-            from_node = NodeConfig.objects.get(instance=ic, identifier=input.from_node_id)
-            to_node = NodeConfig.objects.get(instance=ic, identifier=input.to_node_id)
-        except NodeConfig.DoesNotExist:
-            raise GraphQLError('Source or target node not found') from None
+        from_node, to_node, requested_from_port, requested_to_port = _resolve_create_edge_refs(info, ic, input)
 
-        from_port = _resolve_source_port(info, from_node, input.from_port)
+        from_port = _resolve_source_port(info, from_node, requested_from_port)
         source_port = _get_output_port(from_node, from_port)
         assert source_port is not None  # _resolve_source_port validated it
 
@@ -1142,7 +1169,7 @@ class InstanceEditorMutation:
         if input.replace:
             from nodes.graphql.bindings import _port_occupants
 
-            if input.to_port is None:
+            if requested_to_port is None:
                 raise GraphQLValidationError(
                     info,
                     '`replace` requires an explicit `toPort`: an auto-selected or auto-created port is never occupied',
@@ -1150,7 +1177,7 @@ class InstanceEditorMutation:
             # With an explicit toPort, target-port resolution only parses and
             # validates — no port is created — so it is safe outside the
             # change operation.
-            explicit_to_port = _resolve_or_create_target_port(info, to_node, input.to_port, source_port)
+            explicit_to_port = _resolve_or_create_target_port(info, to_node, requested_to_port, source_port)
             displaced_edges, displaced_rows = _port_occupants(info, to_node, explicit_to_port)
 
         replacing = bool(displaced_edges or displaced_rows)
@@ -1160,7 +1187,7 @@ class InstanceEditorMutation:
             # ``to_node`` when ``to_port`` is null; that write must happen
             # inside the change_operation so the resulting ``node.update``
             # entry groups with this edge.create operation.
-            to_port = _resolve_or_create_target_port(info, to_node, input.to_port, source_port)
+            to_port = _resolve_or_create_target_port(info, to_node, requested_to_port, source_port)
             _validate_edge_ports(info, from_node, from_port, to_node, to_port, allow_occupied=input.replace)
             transformations = _resolve_edge_transformations(info, input.transformations)
             # All validation has passed; only now may the old binding go, so a
@@ -1592,7 +1619,7 @@ class InstanceEditorMutation:
         user = getattr(info.context, 'user', None)
         ic.publish_instance(user=user)
         ic.refresh_from_db()
-        return _resolve_model_instance(ic)
+        return _resolve_model_instance(info, ic, refresh=True)
 
     @sb.mutation(description='Revert draft to the last published revision')
     @staticmethod
@@ -1603,7 +1630,7 @@ class InstanceEditorMutation:
 
         with transaction.atomic():
             ic.revert_to_published()
-        return _resolve_model_instance(ic)
+        return _resolve_model_instance(info, ic, refresh=True)
 
     # ------------------------------------------------------------------
     # Data sources

@@ -103,12 +103,20 @@ def parse_side_snapshot(
     instance_id: str, instance_uuid: UUID, node_uuids: dict[str, UUID], schemas: dict[str, Any]
 ) -> InstanceSnapshot:
     from nodes.spec_sync import DatasetSchemaInfo, resolve_dataset_port_snapshots
+    from nodes.yaml_port_refs import build_yaml_port_reference_catalog
 
     config_path = Path(f'configs/{instance_id}.yaml').resolve()
     yaml_conf = InstanceYAMLConfig.load_for_entrypoint(config_path)
     data = yaml_conf.data
     assert data is not None
-    snapshot = parse_instance_snapshot(data, instance_uuid=instance_uuid, node_uuids=node_uuids)
+    ic = InstanceConfig.objects.get(identifier=instance_id)
+    port_references = build_yaml_port_reference_catalog(ic)
+    snapshot = parse_instance_snapshot(
+        data,
+        instance_uuid=instance_uuid,
+        node_uuids=node_uuids,
+        port_references=port_references,
+    )
     # The sync write-half forces this feature on; mirror it so the comparison
     # targets parse fidelity, not write-half policy.
     snapshot.spec.features.use_datasets_from_db = True
@@ -117,7 +125,11 @@ def parse_side_snapshot(
         k: DatasetSchemaInfo(metric_keys=v['metric_keys'], metric_names=v['metric_names'], forecast_from=v.get('forecast_from'))
         for k, v in schemas.items()
     }
-    snapshot.dataset_ports = resolve_dataset_port_snapshots(snapshot, schema_info)
+    snapshot.dataset_ports = resolve_dataset_port_snapshots(
+        snapshot,
+        schema_info,
+        port_references=port_references,
+    )
     # Materialize lazy translation promises under the instance's languages,
     # the same way SchemaField storage did for the DB side.
     from kausal_common.i18n.pydantic import set_i18n_context

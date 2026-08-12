@@ -89,13 +89,19 @@ def _diff_node(instance_id: str, node_id: str) -> None:
 
     from nodes.instance_loader import InstanceYAMLConfig
     from nodes.instance_parser import parse_instance_snapshot
+    from nodes.yaml_port_refs import build_yaml_port_reference_catalog
 
     ic = InstanceConfig.objects.get(identifier=instance_id)
     config_path = Path(f'configs/{instance_id}.yaml').resolve()
     yaml_conf = InstanceYAMLConfig.load_for_entrypoint(config_path)
     assert yaml_conf.data is not None
     node_uuids = {nc.identifier: nc.uuid for nc in ic.nodes.all().defer('spec')}
-    snapshot = parse_instance_snapshot(yaml_conf.data, instance_uuid=ic.uuid, node_uuids=node_uuids)
+    snapshot = parse_instance_snapshot(
+        yaml_conf.data,
+        instance_uuid=ic.uuid,
+        node_uuids=node_uuids,
+        port_references=build_yaml_port_reference_catalog(ic),
+    )
 
     yaml_spec = next((n.spec for n in snapshot.nodes if n.identifier == node_id), None)
     nc = ic.nodes.filter(identifier=node_id).first()

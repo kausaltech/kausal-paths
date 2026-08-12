@@ -1144,8 +1144,9 @@ class InstanceConfig(
         self,
         source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
         tolerate_node_failures: bool = False,
+        force_reinitialize: bool = False,
     ):
-        if self.identifier in _pytest_instances:
+        if not force_reinitialize and self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
             instance = self._initialize_instance(node_refs=True, source=source, tolerate_node_failures=tolerate_node_failures)
@@ -1167,8 +1168,9 @@ class InstanceConfig(
         self,
         source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
         tolerate_node_failures: bool = False,
+        force_reinitialize: bool = False,
     ):
-        if self.identifier in _pytest_instances:
+        if not force_reinitialize and self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
             instance = await sync_to_async(self._initialize_instance)(
@@ -1776,10 +1778,12 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                 obj=JSONObject(
                     id=F('uuid'),
                     from_ref=JSONObject(
+                        node_uuid=F('from_node__uuid'),
                         node_id=F('from_node__identifier'),
                         port_id=F('from_port'),
                     ),
                     port_ref=JSONObject(
+                        node_uuid=F('to_node__uuid'),
                         node_id=F('to_node__identifier'),
                         port_id=F('to_port'),
                     ),
@@ -1796,6 +1800,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                 obj=JSONObject(
                     id=F('uuid'),
                     port_ref=JSONObject(
+                        node_uuid=F('node__uuid'),
                         node_id=F('node__identifier'),
                         port_id=F('port_id'),
                     ),

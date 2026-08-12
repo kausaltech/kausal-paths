@@ -34,10 +34,14 @@ logger = logger.bind(name='nodes.schema')
 @sb.type
 class Query:
     @sb.field(graphql_type=InstanceType)
-    @pass_context
-    def instance(self, context: 'Context') -> InstanceType:
-        config = context.instance.config
-        return InstanceType.from_model(config, instance=context.instance)
+    def instance(self, info: gql.Info) -> InstanceType:
+        config = info.context.instance_config
+        if config is None:
+            raise GraphQLError(
+                "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
+            )
+        snapshot = info.context.instance_snapshot_for_type(config)
+        return InstanceType.from_model(config, snapshot=snapshot)
 
     @sb.field(graphql_type=list[NodeInterface])
     @pass_context

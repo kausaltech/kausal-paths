@@ -11,6 +11,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
+from nodes.defs.port_def import InputPortDeclaration, OutputPortDeclaration
 from nodes.units import Quantity
 from params.param import BoolParameter, NumberParameter, StringParameter
 
@@ -82,11 +83,6 @@ class SimpleNode(Node):
         NumberParameter(  # FIXME Make sure that the treatment is systematic in all node classes.
             local_id='multiplier',
             description=_('Multiplier to implement after operation and before additions'),
-            is_customizable=False,
-        ),
-        StringParameter(
-            local_id='slice_category_at_edge',
-            description=_('A category is sliced at edge before offering as input to another node'),
             is_customizable=False,
         ),
         StringParameter(  # FIXME Is this the same functionality as variant?
@@ -205,6 +201,10 @@ Input nodes tagged 'impute' are excluded from the addition; their values overlay
 afterwards instead, replacing it wherever the tagged node has a value and leaving the rest untouched.""")
     export_additive_input_ports_as_multi: ClassVar[bool] = False
     additive_multi_input_excluded_tags: ClassVar[frozenset[str]] = frozenset({'non_additive'})
+    additive_port = InputPortDeclaration(role='additive', multi=True)
+    output_port = OutputPortDeclaration(role='output', identifier='default')
+    input_port_declarations = (additive_port,)
+    output_port_declarations = (output_port,)
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
         BoolParameter(local_id='drop_nans', is_customizable=False),
@@ -234,7 +234,7 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
             return InputPortMultiplicityHint()
         if any(tag in self.additive_multi_input_excluded_tags for tag in edge.tags):
             return InputPortMultiplicityHint()
-        return InputPortMultiplicityHint(multi=True, group='additive')
+        return InputPortMultiplicityHint(multi=True, group=str(self.additive_port.instance_identifier))
 
     def lower_to_pipeline_ir(self):
         from nodes.pipeline import AddOperationSpec, IdentityOperationSpec, InputNodeBinding, PipelineNodeIR, PortInputRef
@@ -604,6 +604,12 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         ),
     ]
     operation_label = 'multiplication'
+    factors_port = InputPortDeclaration(role='factors', multi=True)
+    additive_port = InputPortDeclaration(role='additive', multi=True, required=False)
+    impute_port = InputPortDeclaration(role='impute', multi=True, required=False)
+    output_port = OutputPortDeclaration(role='output', identifier='default')
+    input_port_declarations = (factors_port, additive_port, impute_port)
+    output_port_declarations = (output_port,)
 
     def lower_to_pipeline_ir(self):
         from nodes.pipeline import InputNodeBinding, MultiplyOperationSpec, PipelineNodeIR, PortInputRef

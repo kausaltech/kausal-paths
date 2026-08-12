@@ -13,17 +13,20 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
-from uuid import UUID, uuid3
+from uuid import uuid3
 
 from loguru import logger
 from markdown_it import MarkdownIt
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from kausal_common.i18n.pydantic import TranslatedString
 
     from nodes.defs.node_defs import NodeSpec
     from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig, NodeConfig
+    from nodes.yaml_port_refs import YamlPortReferenceCatalog
 
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
@@ -84,9 +87,11 @@ def _binding_columns(spec_column: str | None, node_spec: NodeSpec) -> list[str]:
     return columns
 
 
-def resolve_dataset_port_snapshots(  # noqa: C901
+def resolve_dataset_port_snapshots(  # noqa: C901, PLR0912
     snapshot: InstanceSnapshot,
     schemas: dict[str, DatasetSchemaInfo],
+    *,
+    port_references: YamlPortReferenceCatalog | None = None,
 ) -> list[DatasetPortSnapshot]:
     """
     Resolve the parse-side dataset-port entries against the dataset schemas.
@@ -101,15 +106,11 @@ def resolve_dataset_port_snapshots(  # noqa: C901
     from nodes.spec_export import pair_metrics_to_columns
 
     node_specs: dict[UUID, NodeSpec] = {}
-    node_identifiers: dict[UUID, str] = {}
     for n in snapshot.nodes:
         assert n.spec is not None
         if n.identifier is None:
             raise ValueError(f'Node {n.uuid} has no identifier; dataset port IDs still require one')
         node_specs[n.uuid] = n.spec
-        node_identifiers[n.uuid] = n.identifier
-
-    instance_uuid = snapshot.metadata.uuid
 
     # Group parse-side entries into bindings: (node, dataset_index) is binding identity.
     bindings: dict[tuple[UUID, int], list[DatasetPortSnapshot]] = {}
@@ -144,16 +145,31 @@ def resolve_dataset_port_snapshots(  # noqa: C901
                     raise ValueError(f'No metric {metric_key} in dataset {dataset_id} for node {node_id}')
                 logger.debug('No metric %s in dataset %s for node %s; skipping binding' % (metric_key, dataset_id, node_id))
                 continue
+            source_port = next((port for port in ports if port.metric == port_column), None)
+            if source_port is not None:
+                port_id = source_port.port_id
+            else:
+                node_identifier = next(node.identifier for node in snapshot.nodes if node.uuid == node_id)
+                assert node_identifier is not None
+                fallback_id = _dataset_port_uuid(snapshot.metadata.uuid, node_identifier, dataset_index, port_column)
+                port_id = (
+                    port_references.dataset_port_id(
+                        node_id,
+                        dataset_id,
+                        dataset_index,
+                        port_column,
+                        fallback_id,
+                        allow_group_fallback=True,
+                        fail_on_ambiguous=True,
+                    )
+                    if port_references is not None
+                    else fallback_id
+                )
             resolved.append(
                 DatasetPortSnapshot(
                     node=node_id,
                     dataset=dataset_id,
-                    port_id=_dataset_port_uuid(
-                        instance_uuid,
-                        node_identifiers[node_id],
-                        dataset_index,
-                        port_column,
-                    ),
+                    port_id=port_id,
                     metric=metric_name,
                     dataset_index=dataset_index,
                     spec=spec,
@@ -253,7 +269,13 @@ def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: d
     return len(edge_objs)
 
 
-def _write_dataset_ports(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: dict[UUID, NodeConfig]) -> int:
+def _write_dataset_ports(
+    ic: InstanceConfig,
+    snapshot: InstanceSnapshot,
+    node_configs: dict[UUID, NodeConfig],
+    *,
+    port_references: YamlPortReferenceCatalog,
+) -> int:
     """Resolve bindings against the DB schemas and write the DatasetPort rows."""
     from kausal_common.datasets.models import DatasetMetric
 
@@ -262,7 +284,7 @@ def _write_dataset_ports(ic: InstanceConfig, snapshot: InstanceSnapshot, node_co
 
     DatasetPort.objects.filter(instance=ic).delete()
     schemas = collect_dataset_schema_info(ic)
-    resolved = resolve_dataset_port_snapshots(snapshot, schemas)
+    resolved = resolve_dataset_port_snapshots(snapshot, schemas, port_references=port_references)
     if not resolved:
         return 0
 
@@ -374,7 +396,15 @@ def sync_parsed_instance_to_db(
     with transaction.atomic():
         ic, _created = InstanceConfig.objects.get_or_create(identifier=data['id'])
         node_uuids = {nc.identifier: nc.uuid for nc in ic.nodes.all().defer('spec')}
-        snapshot = parse_instance_snapshot(data, instance_uuid=ic.uuid, node_uuids=node_uuids)
+        from nodes.yaml_port_refs import build_yaml_port_reference_catalog
+
+        port_references = build_yaml_port_reference_catalog(ic)
+        snapshot = parse_instance_snapshot(
+            data,
+            instance_uuid=ic.uuid,
+            node_uuids=node_uuids,
+            port_references=port_references,
+        )
         snapshot.spec.features.use_datasets_from_db = True
 
         with set_i18n_context(snapshot.metadata.primary_language, list(snapshot.metadata.other_languages)):
@@ -388,7 +418,12 @@ def sync_parsed_instance_to_db(
             node_configs = _upsert_node_configs(ic, snapshot)
             edge_count = _write_edges(ic, snapshot, node_configs)
             created_placeholder_ids = sync_dataset_placeholders_from_snapshot(ic, snapshot)
-            dataset_port_count = _write_dataset_ports(ic, snapshot, node_configs)
+            dataset_port_count = _write_dataset_ports(
+                ic,
+                snapshot,
+                node_configs,
+                port_references=port_references,
+            )
             promoted = _promote_dataset_forecast_defaults(ic) if promote_forecast_defaults else 0
 
     logger.info(

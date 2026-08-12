@@ -39,8 +39,9 @@ class InstanceHostname:
 
 @sb.type
 class NodePortRef:
-    node_id: sb.ID
+    node_uuid: UUID
     port_id: UUID
+    node_id: sb.ID = sb.field(deprecation_reason='Use nodeUuid instead.')
 
 
 @sb.type
@@ -90,11 +91,21 @@ class NodeEdgeType(EditableEntity):
 
     @classmethod
     def from_binding(cls, binding: EdgeBindingDef, node: Node | None = None) -> NodeEdgeType:
+        if binding.from_ref.node_uuid is None or binding.port_ref.node_uuid is None:
+            raise ValueError('GraphQL port references require canonical node UUIDs')
         edge = NodeEdgeType(
             id=sb.ID(str(binding.id)),
             uuid=binding.id if isinstance(binding.id, UUID) else UUID(str(binding.id)),
-            from_ref=NodePortRef(node_id=sb.ID(str(binding.from_ref.node_id)), port_id=binding.from_ref.port_id),
-            port_ref=NodePortRef(node_id=sb.ID(str(binding.port_ref.node_id)), port_id=binding.port_ref.port_id),
+            from_ref=NodePortRef(
+                node_uuid=binding.from_ref.node_uuid,
+                node_id=sb.ID(str(binding.from_ref.node_id)),
+                port_id=binding.from_ref.port_id,
+            ),
+            port_ref=NodePortRef(
+                node_uuid=binding.port_ref.node_uuid,
+                node_id=sb.ID(str(binding.port_ref.node_id)),
+                port_id=binding.port_ref.port_id,
+            ),
             tags=binding.tags,
         )
         edge._node = node
@@ -106,8 +117,16 @@ class NodeEdgeType(EditableEntity):
         obj = NodeEdgeType(
             id=sb.ID(str(edge.uuid)),
             uuid=edge.uuid,
-            from_ref=NodePortRef(node_id=sb.ID(str(edge.from_node.identifier)), port_id=edge.from_port),
-            port_ref=NodePortRef(node_id=sb.ID(str(edge.to_node.identifier)), port_id=edge.to_port),
+            from_ref=NodePortRef(
+                node_uuid=edge.from_node.uuid,
+                node_id=sb.ID(str(edge.from_node.identifier)),
+                port_id=edge.from_port,
+            ),
+            port_ref=NodePortRef(
+                node_uuid=edge.to_node.uuid,
+                node_id=sb.ID(str(edge.to_node.identifier)),
+                port_id=edge.to_port,
+            ),
             tags=edge.tags or [],
         )
         # Presented in the current vocabulary regardless of what the row stores,
@@ -252,10 +271,16 @@ class DatasetPortType(EditableEntity):
     ) -> DatasetPortType:
         from datasets.graphql.types import DatasetType
 
+        if binding.port_ref.node_uuid is None:
+            raise ValueError('GraphQL port references require canonical node UUIDs')
         port = DatasetPortType(
             id=sb.ID(str(binding.id)),
             uuid=binding.id if isinstance(binding.id, UUID) else UUID(str(binding.id)),
-            port_ref=NodePortRef(node_id=sb.ID(str(binding.port_ref.node_id)), port_id=binding.port_ref.port_id),
+            port_ref=NodePortRef(
+                node_uuid=binding.port_ref.node_uuid,
+                node_id=sb.ID(str(binding.port_ref.node_id)),
+                port_id=binding.port_ref.port_id,
+            ),
             metric=DatasetMetricRefType.from_binding(binding),
             external_dataset_id=binding.external_dataset_id,
             external_metric_id=binding.external_metric_id,

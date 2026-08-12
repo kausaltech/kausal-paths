@@ -22,14 +22,14 @@ from paths.graphql_types import UnitType
 
 from datasets.graphql import DatasetType
 from frameworks.models import FrameworkConfig
-from nodes.defs import InstanceModelSpec
+from nodes.defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
 from nodes.graphql.types.dimension import DimensionType
 from nodes.instance import Instance
 from nodes.instance_serialization import InstanceSnapshot
-from nodes.models import InstanceConfig, NodeLayout
+from nodes.models import InstanceConfig, NodeLayout, PreferredInstanceSource
 from nodes.node import Node
 from nodes.normalization import Normalization
 from nodes.quantities import get_registry as get_quantity_registry
@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from nodes.context import Context
     from nodes.graphql.types.change_history import InstanceChangeOperationType
     from nodes.graphql.types.node import NodeInterface, NodeType
+    from nodes.instance_graph import InstanceGraph
     from nodes.models import InstanceInvitation
     from users.graphql.mutations import InstanceInvitationType  # used in lazy strawberry annotation
     from users.schema import UserType  # used in lazy strawberry annotation
@@ -233,12 +234,7 @@ def _collect_quantity_kind_unit_usage(instance: Instance) -> dict[str, list[Quan
 @sb.type(name='InstanceEditor')
 class InstanceEditorFields:
     _config: sb.Private[InstanceConfig]
-    _instance: sb.Private[Instance | None] = None
-
-    def runtime_instance(self) -> Instance:
-        if self._instance is None:
-            self._instance = self._config.get_instance()
-        return self._instance
+    _source: sb.Private[PreferredInstanceSource | None] = None
 
     @sb.field
     @staticmethod
@@ -338,7 +334,11 @@ class InstanceEditorFields:
             port = DatasetPortType(
                 id=sb.ID(str(dp.uuid)),
                 uuid=dp.uuid,
-                port_ref=NodePortRef(node_id=sb.ID(str(dp.node.identifier)), port_id=dp.port_id),
+                port_ref=NodePortRef(
+                    node_uuid=dp.node.uuid,
+                    node_id=sb.ID(str(dp.node.identifier)),
+                    port_id=dp.port_id,
+                ),
                 metric=DatasetMetricRefType.from_model(dp.metric),
                 external_dataset_id=_external_dataset_id_from_dataset(dp.dataset),
                 external_metric_id=dp.metric.name,
@@ -420,8 +420,9 @@ class InstanceEditorFields:
         description='All registered quantity kinds, with units already used in this instance ordered by frequency.',
     )
     @staticmethod
-    def quantity_kinds(root: 'InstanceEditorFields') -> list[InstanceQuantityKindType]:
-        units_by_quantity = _collect_quantity_kind_unit_usage(root.runtime_instance())
+    def quantity_kinds(root: 'InstanceEditorFields', info: gql.Info) -> list[InstanceQuantityKindType]:
+        instance = info.context.require_instance(root._config, source=root._source)
+        units_by_quantity = _collect_quantity_kind_unit_usage(instance)
         return [
             InstanceQuantityKindType(
                 kind=QuantityKindType.from_kind(kind),
@@ -432,8 +433,9 @@ class InstanceEditorFields:
 
     @sb.field
     @staticmethod
-    def graph_layout(root: 'InstanceEditorFields') -> GraphLayout:
-        classifier = root.runtime_instance().context.node_graph_classifier
+    def graph_layout(root: 'InstanceEditorFields', info: gql.Info) -> GraphLayout:
+        instance = info.context.require_instance(root._config, source=root._source)
+        classifier = instance.context.node_graph_classifier
         return GraphLayout(
             thresholds=classifier.thresholds,
             core_node_ids=[sb.ID(node_id) for node_id in classifier.core_nodes],
@@ -461,6 +463,34 @@ class InstanceEditorFields:
 @sb.type(name='InstanceModel')
 class InstanceModelType:
     _instance: sb.Private[Instance]
+    _config: sb.Private[InstanceConfig]
+    _editor_nodes_prepared: sb.Private[bool] = False
+
+    def _prepare_editor_nodes(self) -> None:
+        if self._editor_nodes_prepared:
+            return
+
+        node_configs = self._config.nodes_for_serialization
+        dataset_ports = getattr(self._config, '_annotated_dataset_ports', None)
+        if dataset_ports is None:
+            dataset_ports = list(
+                self._config.dataset_ports.select_related(
+                    'node',
+                    'dataset__schema',
+                    'dataset__created_by',
+                    'dataset__last_modified_by',
+                    'metric',
+                )
+            )
+            self._config._annotated_dataset_ports = dataset_ports
+        datasets_by_uuid = {port.dataset.uuid: port.dataset for port in dataset_ports}
+        node_config_by_identifier = {nc.identifier: nc for nc in node_configs}
+        for node_id, node in self._instance.context.nodes.items():
+            nc = node_config_by_identifier.get(node_id)
+            if nc is not None:
+                nc._annotated_dataset_models_by_uuid = datasets_by_uuid
+                node.db_obj = nc
+        self._editor_nodes_prepared = True
 
     @sb.field
     def goals(self, id: sb.ID | None = None) -> list[InstanceGoalEntry]:
@@ -497,7 +527,9 @@ class InstanceModelType:
 
     @sb.field(graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.schema')]])
     def nodes(self, info: gql.Info, id: list[sb.ID] | None = None) -> list[Node]:
-        can_edit = _instance_editor_allowed(self._instance.config, info)
+        can_edit = _instance_editor_allowed(self._config, info)
+        if can_edit:
+            self._prepare_editor_nodes()
         if id is not None:
             nodes: list[Node] = []
             for obj_id in id:
@@ -517,65 +549,54 @@ class InstanceModelType:
 @sb.type
 class InstanceType:
     _config: sb.Private[InstanceConfig]
-    _instance: sb.Private[Instance | None] = None
     _snapshot: sb.Private[InstanceSnapshot | None] = None
+    _source: sb.Private[PreferredInstanceSource | None] = None
 
     id: sb.ID
     uuid: UUID
     name: str
-    owner: str | None
     default_language: str
     supported_languages: list[str]
     base_path: str
     identifier: str
     is_locked: bool
-    lead_title: str
-    lead_paragraph: str | None
 
     @classmethod
-    def from_model(cls, ic: InstanceConfig, instance: Instance | None = None) -> Self:
-        snapshot = instance.source_snapshot if instance is not None else None
+    def from_model(
+        cls,
+        ic: InstanceConfig,
+        snapshot: InstanceSnapshot | None = None,
+        source: PreferredInstanceSource | None = None,
+    ) -> Self:
         if snapshot is not None:
             metadata = snapshot.metadata
             return cls(
                 _config=ic,
-                _instance=instance,
                 _snapshot=snapshot,
+                _source=source,
                 id=sb.ID(metadata.identifier),
                 uuid=metadata.uuid,
                 name=str(metadata.name),
-                owner=str(metadata.owner) if metadata.owner is not None else None,
                 default_language=metadata.primary_language,
                 supported_languages=[metadata.primary_language, *metadata.other_languages],
                 base_path='',
                 identifier=metadata.identifier,
                 is_locked=ic.is_locked,
-                lead_title=str(metadata.lead_title) if metadata.lead_title is not None else '',
-                lead_paragraph=str(metadata.lead_paragraph) if metadata.lead_paragraph is not None else None,
             )
 
-        instance_owner = str(instance.owner) if instance else None
         return cls(
             _config=ic,
-            _instance=instance,
             _snapshot=None,
+            _source=source,
             id=sb.ID(ic.identifier),
             uuid=ic.uuid,
             name=getattr(ic, 'name_i18n', None) or ic.name,
-            owner=ic.owner_i18n or ic.owner or instance_owner or None,
             default_language=ic.default_language,
             supported_languages=ic.supported_languages,
             base_path='',
             identifier=ic.identifier,
             is_locked=ic.is_locked,
-            lead_title=ic.lead_title_i18n or '',
-            lead_paragraph=ic.lead_paragraph_i18n,
         )
-
-    def runtime_instance(self) -> Instance:
-        if self._instance is None:
-            self._instance = self._config.get_instance()
-        return self._instance
 
     @property
     def spec(self) -> InstanceModelSpec:
@@ -583,40 +604,84 @@ class InstanceType:
             return self._snapshot.spec
         return self._config.ensure_spec()
 
+    def snapshot(self, info: gql.Info) -> InstanceSnapshot:
+        return self._snapshot or info.context.require_instance_snapshot(self._config, source=self._source)
+
+    def fallback_metadata(self, info: gql.Info) -> InstanceMetadata | None:
+        if self._snapshot is not None:
+            return self._snapshot.metadata
+        if self._config.config_source == 'database':
+            # A DB draft snapshot cannot add information to these live-row
+            # fields and is expensive to build merely to confirm an empty value.
+            return None
+        # YAML-backed rows can have blank legacy metadata columns even though
+        # the YAML defines the value. Remove this fallback when YAML-sourced
+        # instance support finally goes the way of the dodo.
+        return self.snapshot(info).metadata
+
+    def graph(self, info: gql.Info) -> InstanceGraph:
+        return info.context.require_instance_graph(self._config, source=self._source)
+
+    def instance(self, info: gql.Info) -> Instance:
+        return info.context.require_instance(self._config, source=self._source)
+
+    @sb.field
+    def owner(self, info: gql.Info) -> str | None:
+        if self._snapshot is not None:
+            owner = self._snapshot.metadata.owner
+            return str(owner) if owner is not None else None
+        owner = self._config.owner_i18n or self._config.owner
+        if owner:
+            return owner
+        metadata = self.fallback_metadata(info)
+        return str(metadata.owner) if metadata is not None and metadata.owner is not None else None
+
+    @sb.field
+    def lead_title(self, info: gql.Info) -> str:
+        if self._snapshot is not None:
+            lead_title = self._snapshot.metadata.lead_title
+            return str(lead_title) if lead_title is not None else ''
+        lead_title = self._config.lead_title_i18n
+        if lead_title:
+            return lead_title
+        metadata = self.fallback_metadata(info)
+        return str(metadata.lead_title) if metadata is not None and metadata.lead_title is not None else ''
+
+    @sb.field
+    def lead_paragraph(self, info: gql.Info) -> str | None:
+        if self._snapshot is not None:
+            lead_paragraph = self._snapshot.metadata.lead_paragraph
+            return str(lead_paragraph) if lead_paragraph is not None else None
+        lead_paragraph = self._config.lead_paragraph_i18n
+        if lead_paragraph:
+            return lead_paragraph
+        metadata = self.fallback_metadata(info)
+        return str(metadata.lead_paragraph) if metadata is not None and metadata.lead_paragraph is not None else None
+
     @sb.field
     def years(self) -> YearsDefType:
         return cast('YearsDefType', self.spec.years)
 
     @sb.field
     def target_year(self) -> int | None:
-        if self._instance is not None:
-            return self._instance.context.target_year
         return self.spec.years.target
 
     @sb.field
     def model_end_year(self) -> int:
-        if self._instance is not None:
-            return self._instance.context.model_end_year
         years = self.spec.years
         return years.model_end or years.target or timezone.now().year
 
     @sb.field
     def reference_year(self) -> int | None:
-        if self._instance is not None:
-            return self._instance.reference_year
         return self.spec.years.reference
 
     @sb.field
     def minimum_historical_year(self) -> int:
-        if self._instance is not None:
-            return self._instance.minimum_historical_year
         years = self.spec.years
         return years.min_historical or years.reference or timezone.now().year
 
     @sb.field
     def maximum_historical_year(self) -> int | None:
-        if self._instance is not None:
-            return self._instance.maximum_historical_year
         return self.spec.years.max_historical
 
     @sb.field
@@ -637,8 +702,8 @@ class InstanceType:
         graphql_type=InstanceModelType,
         description='Runtime computation model for fields that require hydrating the calculation graph.',
     )
-    def model(self) -> InstanceModelType:
-        return InstanceModelType(_instance=self.runtime_instance())
+    def model(self, info: gql.Info) -> InstanceModelType:
+        return InstanceModelType(_instance=self.instance(info), _config=self._config)
 
     @sb.field(graphql_type=InstanceHostname | None)
     def hostname(self, hostname: str) -> InstanceHostname | None:
@@ -692,11 +757,11 @@ class InstanceType:
     def editor(self, info: gql.Info) -> InstanceEditorFields | None:
         if not _instance_editor_allowed(self._config, info):
             return None
-        return InstanceEditorFields(_config=self._config, _instance=self._instance)
+        return InstanceEditorFields(_config=self._config, _source=self._source)
 
     @sb.field(deprecation_reason='Use model.goals instead.')
-    def goals(self, id: sb.ID | None = None) -> list[InstanceGoalEntry]:
-        return self.model().goals(id)
+    def goals(self, info: gql.Info, id: sb.ID | None = None) -> list[InstanceGoalEntry]:
+        return self.model(info).goals(id)
 
     @grapple_field
     def action_list_page(self) -> ActionListPage | None:
@@ -711,7 +776,7 @@ class InstanceType:
         deprecation_reason='Use model.nodes instead.',
     )
     def nodes(self, info: gql.Info, id: list[sb.ID] | None = None) -> list[Node]:
-        return self.model().nodes(info, id)
+        return self.model(info).nodes(info, id)
 
 
 @sb.type

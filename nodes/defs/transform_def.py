@@ -368,9 +368,10 @@ def modernized_transformations(transformations: Sequence[PortTransformOp]) -> li
     Rewrite legacy edge kinds into the current vocabulary.
 
     ``select_categories`` and ``assign_category`` say exactly what
-    ``filter_dimension`` and ``assign_dimension`` say. ``flatten`` is kept
-    as-is: it is a port shape declaration with no operation equivalent, and it
-    leaves this union for ``InputPortDef`` rather than through translation.
+    ``filter_dimension`` and ``assign_dimension`` say. Legacy ``flatten``
+    entries are declarations, not operations, so they are deliberately
+    omitted. Snapshot/runtime adapters that still need their declared
+    dimension must extract it before calling this function.
     """
     out: list[PortTransformOp] = []
     for op in transformations:
@@ -386,6 +387,8 @@ def modernized_transformations(transformations: Sequence[PortTransformOp]) -> li
                 )
             case AssignCategoryTransformation():
                 out.append(AssignDimensionOp(dimension=op.dimension, category=op.category))
+            case FlattenTransformation():
+                continue
             case _:
                 out.append(op)
     return out

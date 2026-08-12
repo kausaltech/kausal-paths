@@ -4,8 +4,8 @@ Serialize and deserialize DB-sourced instance configurations.
 Two related Pydantic models define the serialization layers:
 
 - ``InstanceSnapshot`` — structural state of an instance (spec + nodes +
-  edges + dataset ports). Dataset references are pinned by identifier;
-  dataset *bodies* are not included. This is the unit of revisioning.
+  edges + dataset ports), plus the UUID catalogs needed to resolve those
+  references without loading dataset bodies. This is the unit of revisioning.
 - ``InstanceExport`` — ``InstanceSnapshot`` plus the dataset bodies as
   ``DatasetExport`` objects. Used for portable export/import (e.g. when
   cloning a framework template into a new instance).
@@ -34,6 +34,12 @@ from kausal_common.i18n.pydantic import (
     get_translated_string_from_modeltrans,
 )
 
+from nodes.defs.graph import (
+    DatasetMeta,
+    DatasetMetricMeta,
+    DimensionCategoryMeta,
+    DimensionMeta,
+)
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
 from nodes.defs.transform_def import EdgeTransformOp
@@ -66,7 +72,8 @@ if TYPE_CHECKING:
 #   v5: optional shared model-editor layout stored on each ``NodeSnapshot``.
 #   v6: instance lead title/paragraph and node StreamField body are revisioned.
 #   v7: published DB datasets have a normalized immutable revision manifest.
-SNAPSHOT_SCHEMA_VERSION = 7
+#   v8: structural dimension and dataset catalogs carry canonical UUIDs.
+SNAPSHOT_SCHEMA_VERSION = 8
 
 
 # ---------------------------------------------------------------------------
@@ -385,6 +392,7 @@ def _upgrade_node_references_v3(data: dict[str, Any], nodes: list[Any]) -> None:
 
 
 class EdgeSnapshot(ModelSnapshot):
+    uuid: UUID | None = None
     from_node: UUID
     to_node: UUID
     from_port: UUID
@@ -397,6 +405,7 @@ class EdgeSnapshot(ModelSnapshot):
         from_node = getattr(obj, '_from_node_uuid', None)
         to_node = getattr(obj, '_to_node_uuid', None)
         return cls(
+            uuid=obj.uuid,
             from_node=from_node if from_node is not None else obj.from_node.uuid,
             to_node=to_node if to_node is not None else obj.to_node.uuid,
             from_port=obj.from_port,
@@ -407,10 +416,13 @@ class EdgeSnapshot(ModelSnapshot):
 
 
 class DatasetPortSnapshot(ModelSnapshot):
+    uuid: UUID | None = None
     node: UUID
     dataset: str
+    dataset_uuid: UUID | None = None
     port_id: UUID
     metric: str
+    metric_uuid: UUID | None = None
     # Position of this binding in the node's input_dataset_instances list;
     # preserves ordering when a node has multiple dataset inputs.
     dataset_index: int = 0
@@ -430,10 +442,13 @@ class DatasetPortSnapshot(ModelSnapshot):
         if latest_rev is not None:
             dataset_revision_id = latest_rev
         return cls(
+            uuid=obj.uuid,
             node=obj.node.uuid,
             dataset=obj.dataset.identifier or str(obj.dataset.uuid),
+            dataset_uuid=obj.dataset.uuid,
             port_id=obj.port_id,
             metric=obj.metric.name or str(obj.metric.uuid),
+            metric_uuid=obj.metric.uuid,
             dataset_index=obj.dataset_index,
             spec=obj.spec,
             dataset_revision=dataset_revision_id,
@@ -454,8 +469,8 @@ class InstanceSnapshot(BaseModel):
     Structural state of an instance; unit of revisioning.
 
     Contains metadata + spec + nodes + edges + dataset ports.
-    Node references are UUID-pinned. Dataset references remain identifier-pinned;
-    dataset bodies live in ``DatasetExport`` alongside (see ``InstanceExport``).
+    Structural references and their dimension/dataset catalogs are UUID-pinned.
+    Dataset bodies live in ``DatasetExport`` alongside (see ``InstanceExport``).
     """
 
     schema_version: int = SNAPSHOT_SCHEMA_VERSION
@@ -469,6 +484,8 @@ class InstanceSnapshot(BaseModel):
     edges: list[EdgeSnapshot] = Field(default_factory=list)
     dataset_ports: list[DatasetPortSnapshot] = Field(default_factory=list)
     dataset_revisions: list[DatasetRevisionPinSnapshot] = Field(default_factory=list)
+    dimensions: list[DimensionMeta] = Field(default_factory=list)
+    datasets: list[DatasetMeta] = Field(default_factory=list)
 
     model_config = {'arbitrary_types_allowed': True}
 
@@ -608,8 +625,8 @@ def build_instance_snapshot(
     """
     Structural snapshot of a DB-sourced InstanceConfig.
 
-    Dataset references are pinned by identifier; dataset bodies are not
-    included. Use ``export_instance`` when the bodies are also needed.
+    Structural references are pinned by UUID; dataset bodies are not included.
+    Use ``export_instance`` when the bodies are also needed.
     """
     from nodes.models import NodeEdge
 
@@ -637,6 +654,13 @@ def build_instance_snapshot(
             snapshot.dataset_revision = pin.revision_id if pin is not None else None
         dataset_ports.append(snapshot)
 
+    dimensions = _dimension_catalog_for(ic)
+    datasets = _dataset_catalog_for(
+        ic,
+        dataset_ids={port.dataset_id for port in port_qs},
+        dataset_revision_pins=dataset_revision_pins,
+    )
+
     return InstanceSnapshot(
         metadata=InstanceMetadata.from_model(ic),
         spec=ic.spec,
@@ -645,7 +669,94 @@ def build_instance_snapshot(
         edges=edges,
         dataset_ports=dataset_ports,
         dataset_revisions=list(dataset_revision_pins.values()) if dataset_revision_pins is not None else [],
+        dimensions=dimensions,
+        datasets=datasets,
     )
+
+
+def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
+    from kausal_common.datasets.models import DimensionScope
+
+    scopes = (
+        DimensionScope.objects
+        .for_instance_config(ic)
+        .select_related('dimension')
+        .prefetch_related('dimension__categories')
+        .order_by('order')
+    )
+    dimensions: list[DimensionMeta] = []
+    for scope in scopes:
+        dimension = scope.dimension
+        if scope.identifier is None:
+            raise ValueError(f'Dimension {dimension.uuid} has no identifier in instance {ic.identifier}')
+        categories = tuple(
+            DimensionCategoryMeta(
+                id=category.uuid,
+                identifier=category.identifier,
+                label=_ts_from_modeltrans(category, 'label', ic.primary_language),
+                order=category.order,
+                spec=dict(category.spec or {}),
+            )
+            for category in dimension.categories.all()
+        )
+        dimensions.append(
+            DimensionMeta(
+                id=dimension.uuid,
+                identifier=scope.identifier,
+                label=_ts_from_modeltrans(dimension, 'name', ic.primary_language),
+                order=scope.order,
+                spec=dict(dimension.spec or {}),
+                categories=categories,
+            )
+        )
+    return dimensions
+
+
+def _dataset_catalog_for(
+    ic: InstanceConfig,
+    *,
+    dataset_ids: set[int],
+    dataset_revision_pins: dict[int, DatasetRevisionPinSnapshot] | None,
+) -> list[DatasetMeta]:
+    from kausal_common.datasets.models import Dataset as DatasetModel
+
+    datasets = (
+        DatasetModel.objects
+        .filter(pk__in=dataset_ids)
+        .select_related('schema')
+        .prefetch_related('schema__metrics', 'schema__dimensions__dimension')
+        .order_by('pk')
+    )
+    result: list[DatasetMeta] = []
+    for dataset in datasets:
+        schema = dataset.schema
+        if schema is None:
+            raise ValueError(f'Dataset {dataset.uuid} has no schema')
+        metrics = tuple(
+            DatasetMetricMeta(
+                id=metric.uuid,
+                identifier=metric.name,
+                label=_ts_from_modeltrans(metric, 'label', ic.primary_language),
+                unit=metric.unit,
+                order=metric.order,
+            )
+            for metric in schema.metrics.all()
+        )
+        declared_dimension_ids = tuple(schema_dimension.dimension.uuid for schema_dimension in schema.dimensions.all())
+        pin = dataset_revision_pins.get(dataset.pk) if dataset_revision_pins is not None else None
+        result.append(
+            DatasetMeta(
+                id=dataset.uuid,
+                identifier=dataset.identifier,
+                schema_id=schema.uuid,
+                metrics=metrics,
+                declared_dimension_ids=declared_dimension_ids,
+                is_external_placeholder=dataset.is_external_placeholder,
+                external_ref=dataset.external_ref,
+                revision_id=pin.revision_id if pin is not None else dataset.latest_revision_id,
+            )
+        )
+    return result
 
 
 def _dataset_port_qs_for(ic: InstanceConfig) -> QuerySet[DatasetPort]:
@@ -656,6 +767,7 @@ def _dataset_port_qs_for(ic: InstanceConfig) -> QuerySet[DatasetPort]:
         .filter(instance=ic)
         .select_related('node', 'dataset', 'metric')
         .only(
+            'uuid',
             'dataset_index',
             'port_id',
             'spec',
