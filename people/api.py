@@ -81,7 +81,7 @@ class PersonViewSet(BulkModelViewSet[Person]):
         )
 
     def get_serializer_context(self):
-        context = super().get_serializer_context()
+        context = dict(super().get_serializer_context())
         instance = self.get_instance()
         if instance is None:
             return context

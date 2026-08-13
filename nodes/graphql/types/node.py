@@ -18,7 +18,7 @@ from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_t
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths import gql
-from paths.graphql_helpers import get_instance_context, pass_context
+from paths.graphql_helpers import get_instance_context, graphql_error_nodes, pass_context
 from paths.graphql_types import UnitType
 
 from nodes import visualizations as viz
@@ -561,7 +561,7 @@ class NodeInterface:
             try:
                 to_node = root.context.get_node(until_node)
             except KeyError:
-                raise GraphQLError('Node %s not found' % until_node, info.field_nodes) from None
+                raise GraphQLError('Node %s not found' % until_node, graphql_error_nodes(info)) from None
         else:
             to_node = None
         return root.get_downstream_nodes(max_depth=max_depth, only_outcome=only_outcome, until_node=to_node)
@@ -620,14 +620,14 @@ class NodeInterface:
             try:
                 goal = instance.get_goals(goal_id=goal_id)
             except Exception:
-                raise GraphQLError('Goal not found', info.field_nodes) from None
+                raise GraphQLError('Goal not found', graphql_error_nodes(info)) from None
         else:
             goal = None
 
         target_node: 'Node'
         if target_node_id is not None:
             if target_node_id not in context.nodes:
-                raise GraphQLError('Node %s not found' % target_node_id, info.field_nodes)
+                raise GraphQLError('Node %s not found' % target_node_id, graphql_error_nodes(info))
             source_node = root
             target_node = context.get_node(target_node_id)
         elif upstream_node is not None:
@@ -639,7 +639,7 @@ class NodeInterface:
         else:
             outcome_nodes = context.get_outcome_nodes()
             if not len(outcome_nodes):
-                raise GraphQLError('No default target node available', info.field_nodes)
+                raise GraphQLError('No default target node available', graphql_error_nodes(info))
             source_node = root
             target_node = outcome_nodes[0]
 

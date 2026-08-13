@@ -239,7 +239,10 @@ class DatasetPermission(PermissionPolicyDRFPermission[Dataset, DatasetSchema]):
         model = Dataset
 
     def get_create_context_from_api_view(self, view: APIView) -> DatasetSchema:
-        schema_uuid = view.request.data['schema']
+        data = view.request.data
+        if not isinstance(data, dict):
+            raise serializers.ValidationError('Expected an object')
+        schema_uuid = data['schema']
         try:
             return DatasetSchema.objects.get(uuid=schema_uuid)
         except DatasetSchema.DoesNotExist as e:
@@ -290,9 +293,12 @@ class DataSourcePermission(PermissionPolicyDRFPermission[DataSource, InstanceCon
         model = DataSource
 
     def get_create_context_from_api_view(self, view: APIView) -> InstanceConfig:
-        content_type_app = view.request.data.get('content_type_app', None)
-        content_type_model = view.request.data.get('content_type_model', None)
-        object_id = view.request.data.get('object_id', None)
+        data = view.request.data
+        if not isinstance(data, dict):
+            raise serializers.ValidationError('Expected an object')
+        content_type_app = data.get('content_type_app')
+        content_type_model = data.get('content_type_model')
+        object_id = data.get('object_id')
 
         try:
             content_type = ContentType.objects.get(app_label=content_type_app, model=content_type_model)
