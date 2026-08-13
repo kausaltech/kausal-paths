@@ -169,9 +169,9 @@ def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> 
         specs_by_uuid[n.uuid] = n.spec
         identifiers_by_uuid[n.uuid] = n.identifier
 
-    _output_edges, input_edges = _build_edge_maps(snapshot.edges, specs_by_uuid, identifiers_by_uuid)
+    _output_edges, input_edges = _build_edge_maps(snapshot.edge_bindings, specs_by_uuid, identifiers_by_uuid)
     dataset_ports_by_node: defaultdict[UUID, list[DatasetPortSnapshot]] = defaultdict(list)
-    for port in sorted(snapshot.dataset_ports, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
+    for port in sorted(snapshot.dataset_bindings, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
         dataset_ports_by_node[port.node].append(port)
 
     nodes_list: list[dict[str, Any]] = []

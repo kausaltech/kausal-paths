@@ -267,12 +267,13 @@ class InstanceConfigParser:
         edges = self._build_edge_snapshots()
         dataset_ports = self._build_dataset_port_snapshots()
 
+        # Positions stay unassigned: this is the pre-resolution parse-side
+        # snapshot, and the dataset fan-out at sync changes binding cardinality.
         return InstanceSnapshot(
             metadata=metadata,
             spec=spec,
             nodes=node_snapshots,
-            edges=edges,
-            dataset_ports=dataset_ports,
+            bindings=[*edges, *dataset_ports],
         )
 
     # -- metadata & instance spec ---------------------------------------------

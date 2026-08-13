@@ -602,14 +602,14 @@ def build_instance_graph(
     bindings: list[AnyPortBindingDef] = []
 
     from nodes.defs.transform_def import FlattenTransformation
-    from nodes.instance_serialization import DatasetPortSnapshot, ordered_binding_snapshots
+    from nodes.instance_serialization import DatasetPortSnapshot
 
-    # ``ordered_binding_snapshots`` is the shared ordering authority: the
-    # ``NodeInputPortBinding`` mirror assigns positions through the same
-    # function, so graph and ORM projections can never disagree on order.
+    # v9 snapshots store positions assigned by ``ordered_binding_snapshots``
+    # (the shared ordering authority the ``NodeInputPortBinding`` mirror also
+    # uses); older snapshots get the same assignment computed on upgrade.
     edge_index = 0
     port_index = 0
-    for item, position in ordered_binding_snapshots(snapshot.edges, snapshot.dataset_ports):
+    for item, position in snapshot.bindings_with_positions():
         if isinstance(item, DatasetPortSnapshot):
             port = item
             dataset = None

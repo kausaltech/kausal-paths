@@ -125,11 +125,20 @@ def parse_side_snapshot(
         k: DatasetSchemaInfo(metric_keys=v['metric_keys'], metric_names=v['metric_names'], forecast_from=v.get('forecast_from'))
         for k, v in schemas.items()
     }
-    snapshot.dataset_ports = resolve_dataset_port_snapshots(
+    resolved_ports = resolve_dataset_port_snapshots(
         snapshot,
         schema_info,
         port_references=port_references,
     )
+    # Assign positions post-resolution so the oracle also compares position
+    # parity against the DB side's stored assignment.
+    from nodes.instance_serialization import ordered_binding_snapshots
+
+    bindings = []
+    for item, position in ordered_binding_snapshots(snapshot.edge_bindings, resolved_ports):
+        item.position = position
+        bindings.append(item)
+    snapshot.bindings = bindings
     # Materialize lazy translation promises under the instance's languages,
     # the same way SchemaField storage did for the DB side.
     from kausal_common.i18n.pydantic import set_i18n_context
@@ -252,8 +261,8 @@ def compare_snapshots(  # noqa: C901, PLR0915
     def edge_key(e: Any) -> tuple[Any, ...]:
         return (e.from_node, e.to_node, str(e.from_port), str(e.to_port))
 
-    db_edges = {edge_key(e): _dump(e) for e in db_snap.edges}
-    parse_edges = {edge_key(e): _dump(e) for e in parse_snap.edges}
+    db_edges = {edge_key(e): _dump(e) for e in db_snap.edge_bindings}
+    parse_edges = {edge_key(e): _dump(e) for e in parse_snap.edge_bindings}
     for key in sorted(db_edges.keys() | parse_edges.keys()):
         a, b = db_edges.get(key), parse_edges.get(key)
         if a is None or b is None:
@@ -265,13 +274,21 @@ def compare_snapshots(  # noqa: C901, PLR0915
         # above for non-persisted rows.
         a.pop('uuid', None)
         b.pop('uuid', None)
+        # Edge positions are not comparable either: the runtime-export
+        # baseline writes edges grouped by source node (ctx iteration), not
+        # in the target-side creation order the YAML runtime delivers values
+        # in, so per-port positions skew on shared ports. The parse side is
+        # the authoritative order; graph-vs-mirror parity is tested in
+        # test_input_bindings.
+        a.pop('position', None)
+        b.pop('position', None)
         diff(f'edge {key}', a, b)
 
     def port_key(p: Any) -> tuple[Any, ...]:
         return (p.node, p.dataset, str(p.port_id))
 
-    db_ports = {port_key(p): p for p in db_snap.dataset_ports}
-    parse_ports = {port_key(p): p for p in parse_snap.dataset_ports}
+    db_ports = {port_key(p): p for p in db_snap.dataset_bindings}
+    parse_ports = {port_key(p): p for p in parse_snap.dataset_bindings}
     for key in sorted(db_ports.keys() | parse_ports.keys()):
         pa, pb = db_ports.get(key), parse_ports.get(key)
         if pa is None or pb is None:
@@ -279,6 +296,8 @@ def compare_snapshots(  # noqa: C901, PLR0915
             continue
         if pa.dataset_index != pb.dataset_index:
             problems.append(f'dataset port {key}: dataset_index {pa.dataset_index} != {pb.dataset_index}')
+        if pa.position != pb.position:
+            problems.append(f'dataset port {key}: position {pa.position} != {pb.position}')
         if pa.metric != pb.metric:
             problems.append(f'dataset port {key}: metric {pa.metric!r} != {pb.metric!r}')
         spec_a, spec_b = pa.spec, pb.spec

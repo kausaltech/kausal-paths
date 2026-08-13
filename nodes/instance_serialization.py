@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any, Literal, Self, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Self, cast
 from uuid import UUID
 
 from django.db import transaction
@@ -76,7 +76,9 @@ if TYPE_CHECKING:
 #   v6: instance lead title/paragraph and node StreamField body are revisioned.
 #   v7: published DB datasets have a normalized immutable revision manifest.
 #   v8: structural dimension and dataset catalogs carry canonical UUIDs.
-SNAPSHOT_SCHEMA_VERSION = 8
+#   v9: one discriminated ``bindings`` list with stored per-port positions
+#       replaces the ``edges`` + ``dataset_ports`` arrays.
+SNAPSHOT_SCHEMA_VERSION = 9
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -478,7 +480,12 @@ def _upgrade_node_references_v3(data: dict[str, Any], nodes: list[Any]) -> None:
 
 
 class EdgeSnapshot(ModelSnapshot):
+    kind: Literal['edge'] = 'edge'
     uuid: UUID | None = None
+    # Stable order among values delivered to the target port, shared with
+    # dataset bindings. Assigned at snapshot production; ``None`` only on
+    # transient pre-resolution (parse-side) snapshots.
+    position: int | None = None
     from_node: UUID
     to_node: UUID
     from_port: UUID
@@ -502,7 +509,10 @@ class EdgeSnapshot(ModelSnapshot):
 
 
 class DatasetPortSnapshot(ModelSnapshot):
+    kind: Literal['dataset'] = 'dataset'
     uuid: UUID | None = None
+    # See ``EdgeSnapshot.position`` — one order across both binding kinds.
+    position: int | None = None
     node: UUID
     dataset: str
     dataset_uuid: UUID | None = None
@@ -539,6 +549,21 @@ class DatasetPortSnapshot(ModelSnapshot):
             spec=obj.spec,
             dataset_revision=dataset_revision_id,
         )
+
+
+type BindingSnapshot = EdgeSnapshot | DatasetPortSnapshot
+"""One entry of ``InstanceSnapshot.bindings``, discriminated by ``kind``."""
+
+
+def _upgrade_bindings_v9(data: dict[str, Any]) -> None:
+    """Merge the legacy ``edges`` + ``dataset_ports`` arrays into one positioned binding list."""
+    edges = [EdgeSnapshot.model_validate(e) for e in data.pop('edges', [])]
+    ports = [DatasetPortSnapshot.model_validate(p) for p in data.pop('dataset_ports', [])]
+    bindings: list[BindingSnapshot] = []
+    for item, position in ordered_binding_snapshots(edges, ports):
+        item.position = position
+        bindings.append(item)
+    data['bindings'] = bindings
 
 
 class NodePortSource(BaseModel):
@@ -742,7 +767,8 @@ class InstanceSnapshot(BaseModel):
     """
     Structural state of an instance; unit of revisioning.
 
-    Contains metadata + spec + nodes + edges + dataset ports.
+    Contains metadata + spec + nodes + input bindings (edge- and
+    dataset-sourced, one discriminated list in stored ``position`` order).
     Structural references and their dimension/dataset catalogs are UUID-pinned.
     Dataset bodies live in ``DatasetExport`` alongside (see ``InstanceExport``).
     """
@@ -755,13 +781,35 @@ class InstanceSnapshot(BaseModel):
     spec: InstanceModelSpec
     copy_of: str | None = None  # uuid of the InstanceConfig this was copied from
     nodes: list[NodeSnapshot] = Field(default_factory=list)
-    edges: list[EdgeSnapshot] = Field(default_factory=list)
-    dataset_ports: list[DatasetPortSnapshot] = Field(default_factory=list)
+    bindings: list[Annotated[BindingSnapshot, Field(discriminator='kind')]] = Field(default_factory=list)
     dataset_revisions: list[DatasetRevisionPinSnapshot] = Field(default_factory=list)
     dimensions: list[DimensionMeta] = Field(default_factory=list)
     datasets: list[DatasetMeta] = Field(default_factory=list)
 
     model_config = {'arbitrary_types_allowed': True}
+
+    @property
+    def edge_bindings(self) -> list[EdgeSnapshot]:
+        return [b for b in self.bindings if isinstance(b, EdgeSnapshot)]
+
+    @property
+    def dataset_bindings(self) -> list[DatasetPortSnapshot]:
+        return [b for b in self.bindings if isinstance(b, DatasetPortSnapshot)]
+
+    def bindings_with_positions(self) -> list[tuple[BindingSnapshot, int]]:
+        """
+        Bindings with per-port positions.
+
+        Persisted snapshots (v9+) store positions; transient pre-resolution
+        snapshots (parse side, before dataset fan-out) do not, and get the
+        canonical assignment computed on demand.
+        """
+        stored: list[tuple[BindingSnapshot, int]] = []
+        for binding in self.bindings:
+            if binding.position is None:
+                return ordered_binding_snapshots(self.edge_bindings, self.dataset_bindings)
+            stored.append((binding, binding.position))
+        return stored
 
     @classmethod
     def from_serialized_data(cls, data: dict[str, Any]) -> Self:
@@ -777,6 +825,8 @@ class InstanceSnapshot(BaseModel):
             _upgrade_node_references_v3(data, nodes)
         if schema_version < 4:
             _upgrade_node_metadata_v4(nodes)
+        if schema_version < 9:
+            _upgrade_bindings_v9(data)
 
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
         return cls.model_validate(data)
@@ -947,6 +997,11 @@ def build_instance_snapshot(
             snapshot.dataset_revision = pin.revision_id if pin is not None else None
         dataset_ports.append(snapshot)
 
+    bindings: list[BindingSnapshot] = []
+    for item, position in ordered_binding_snapshots(edges, dataset_ports):
+        item.position = position
+        bindings.append(item)
+
     dimensions = _dimension_catalog_for(ic)
     datasets = _dataset_catalog_for(
         ic,
@@ -959,8 +1014,7 @@ def build_instance_snapshot(
         spec=ic.spec,
         copy_of=str(ic.copy_of.uuid) if ic.copy_of else None,
         nodes=nodes,
-        edges=edges,
-        dataset_ports=dataset_ports,
+        bindings=bindings,
         dataset_revisions=list(dataset_revision_pins.values()) if dataset_revision_pins is not None else [],
         dimensions=dimensions,
         datasets=datasets,
@@ -1843,7 +1897,8 @@ def _import_edges(
 ) -> None:
     from nodes.models import NodeEdge
 
-    for e in export.instance.edges:
+    # Iteration order matters: pk (creation) order is the authored order.
+    for e in export.instance.edge_bindings:
         from_node = nodes_by_uuid.get(e.from_node)
         to_node = nodes_by_uuid.get(e.to_node)
         if from_node is None or to_node is None:
@@ -1867,7 +1922,7 @@ def _import_dataset_ports(
 ) -> None:
     from nodes.models import DatasetPort
 
-    for p in export.instance.dataset_ports:
+    for p in export.instance.dataset_bindings:
         node = nodes_by_uuid.get(p.node)
         dataset = datasets_by_id.get(p.dataset)
         if node is None or dataset is None:
