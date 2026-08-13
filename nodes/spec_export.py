@@ -709,10 +709,14 @@ def _resolve_from_port(edge: Edge, from_node: NodeSpec, metric_id: str) -> Outpu
 
 
 def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, NodeConfig]) -> int:
-    # Recreate edges
+    from nodes.instance_serialization import edge_match_keys, existing_edge_identities, match_preserved_uuids
+
+    # Recreate edges. Rebuilding keeps pk order equal to authored order, but
+    # the row UUID is the durable binding identity and must survive the rewrite.
+    existing = existing_edge_identities(ic)
     NodeEdge.objects.filter(instance=ic).delete()
     edge_count = 0
-    edge_objs = []
+    edge_rows: list[dict[str, Any]] = []
     for node in ctx.nodes.values():
         for edge in node.edges:
             if edge.input_node.id != node.id:
@@ -738,17 +742,25 @@ def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, Node
                         f'No input port found for node {to_nc.identifier} for edge from '
                         + f'{from_nc.identifier}, metric {from_metric_id}'
                     )
-                edge_obj = NodeEdge(
-                    instance=ic,
-                    from_node=from_nc,
-                    from_port=from_port.id,
-                    to_node=to_nc,
-                    to_port=to_port.id,
-                    transformations=edge.to_transforms(),
-                    tags=list(edge.tags) if edge.tags else [],
+                edge_rows.append(
+                    dict(
+                        instance=ic,
+                        from_node=from_nc,
+                        from_port=from_port.id,
+                        to_node=to_nc,
+                        to_port=to_port.id,
+                        transformations=edge.to_transforms(),
+                        tags=list(edge.tags) if edge.tags else [],
+                    )
                 )
-                edge_objs.append(edge_obj)
             edge_count += 1
+    match_keys = [
+        edge_match_keys(row['from_node'].uuid, row['from_port'], row['to_node'].uuid, row['to_port']) for row in edge_rows
+    ]
+    edge_objs = [
+        NodeEdge(**row, **({'uuid': matched_uuid} if matched_uuid is not None else {}))
+        for row, matched_uuid in zip(edge_rows, match_preserved_uuids(existing, match_keys), strict=True)
+    ]
     NodeEdge.objects.bulk_create(edge_objs)
     return edge_count
 
@@ -761,9 +773,9 @@ def _resolve_dataset_ports(
     ds_instance: DatasetWithFilters,
     db_datasets: dict[str, DatasetModel],
     metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric],
-) -> list[DatasetPort]:
+) -> list[dict[str, Any]]:
+    """Resolve one input dataset into ``DatasetPort`` row kwargs (rows are built by the caller)."""
     from nodes.datasets import DBDataset, SerializedDBDataset
-    from nodes.models import DatasetPort
 
     # Resolve the Dataset model object depending on the dataset type.
     if isinstance(ds_instance, DBDataset):
@@ -783,7 +795,7 @@ def _resolve_dataset_ports(
     if dataset_obj.schema is None:
         raise ValueError(f'Cannot create dataset port: schema={dataset_obj.schema} for {ds_instance.id} on node {node.id}')
 
-    ports: list[DatasetPort] = []
+    rows: list[dict[str, Any]] = []
     spec = DatasetPortSpec.from_input_dataset(_input_dataset_def_from_instance(ds_instance))
     pairs = _binding_pairs_for_dataset(node, ds_instance, dataset_obj, metrics_by_schema_and_name)
     for port_column, metric_key in pairs:
@@ -796,8 +808,8 @@ def _resolve_dataset_ports(
             )
             continue
 
-        ports.append(
-            DatasetPort(
+        rows.append(
+            dict(
                 instance=ic,
                 node=nc,
                 port_id=_dataset_port_id(node, idx, port_column),
@@ -807,7 +819,7 @@ def _resolve_dataset_ports(
                 dataset_index=idx,
             )
         )
-    return ports
+    return rows
 
 
 def _get_db_datasets(ic: InstanceConfig) -> dict[str, DatasetModel]:
@@ -858,8 +870,16 @@ def _dataset_metric_binding_key(metric: DatasetMetric) -> str:
 def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[str, NodeConfig]) -> int:
     """Create DatasetPort objects linking datasets to node input ports."""
     from nodes.datasets import FixedDataset
+    from nodes.instance_serialization import (
+        dataset_port_match_keys,
+        existing_dataset_port_identities,
+        match_preserved_uuids,
+    )
     from nodes.models import DatasetPort
 
+    # Rebuilding keeps pk order deterministic, but the row UUID is the
+    # durable binding identity and must survive the rewrite.
+    existing = existing_dataset_port_identities(ic)
     DatasetPort.objects.filter(instance=ic).delete()
 
     db_datasets = _get_db_datasets(ic)
@@ -872,7 +892,7 @@ def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[s
     for metric in DatasetMetric.objects.filter(schema__pk__in=all_schema_pks):
         metrics_by_schema_and_name[(metric.schema.pk, _dataset_metric_binding_key(metric))] = metric
 
-    port_objs: list[DatasetPort] = []
+    rows: list[dict[str, Any]] = []
     for node in ctx.nodes.values():
         nc = node_configs.get(node.id)
         if nc is None:
@@ -883,9 +903,15 @@ def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[s
                 continue
             if not isinstance(ds_instance, DatasetWithFilters):
                 continue
-            ports = _resolve_dataset_ports(ic, nc, node, idx, ds_instance, db_datasets, metrics_by_schema_and_name)
-            port_objs.extend(ports)
+            rows.extend(_resolve_dataset_ports(ic, nc, node, idx, ds_instance, db_datasets, metrics_by_schema_and_name))
 
+    match_keys = [
+        dataset_port_match_keys(row['node'].uuid, row['dataset'].pk, row['dataset_index'], row['metric'].pk) for row in rows
+    ]
+    port_objs = [
+        DatasetPort(**row, **({'uuid': matched_uuid} if matched_uuid is not None else {}))
+        for row, matched_uuid in zip(rows, match_preserved_uuids(existing, match_keys), strict=True)
+    ]
     DatasetPort.objects.bulk_create(port_objs)
     return len(port_objs)
 
