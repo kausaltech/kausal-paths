@@ -158,7 +158,14 @@ def _serialize_instance_metadata(snapshot: InstanceSnapshot) -> dict[str, Any]:
     return config
 
 
-def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> None:
+def snapshot_nodes_to_config_dicts(snapshot: InstanceSnapshot) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """
+    Convert a snapshot's nodes into loader-consumable ``nodes`` / ``actions`` dict lists.
+
+    The node-scope remainder of the config-dict shim: the instance level is
+    built natively from the typed snapshot, but node/action/edge construction
+    still consumes YAML-shaped dicts until it migrates to ``NodeMeta``.
+    """
     node_snapshots = snapshot.nodes
     specs_by_uuid: dict[UUID, NodeSpec] = {}
     identifiers_by_uuid: dict[UUID, str] = {}
@@ -188,8 +195,11 @@ def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> 
         else:
             nodes_list.append(node_dict)
 
-    config['nodes'] = nodes_list
-    config['actions'] = actions_list
+    return nodes_list, actions_list
+
+
+def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> None:
+    config['nodes'], config['actions'] = snapshot_nodes_to_config_dicts(snapshot)
 
 
 def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915

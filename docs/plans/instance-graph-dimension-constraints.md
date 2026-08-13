@@ -1080,6 +1080,42 @@ serialize the legacy arrays.
   `Context`.
 - Route YAML through snapshot then graph as the loader-inversion plan lands.
 
+Staging decision (2026-08-13, with Juha): step 10 lands **before** the
+step-9 authority flip — killing the config-dict path first means the flip
+never needs a reverse mirror reconstructing `dataset_index` /
+`DatasetPortSpec.column` from unified rows. Within step 10, compare-gated
+stages, each shippable:
+
+1. **Instance-level native construction.** `from_snapshot()` stops calling
+   `snapshot_to_config_dict()`; `_init_instance_from_snapshot()` builds
+   Instance/Context and dimensions, global params, scenarios, impact
+   overviews, normalizations from typed `InstanceMetadata` +
+   `InstanceModelSpec` (they are all already typed on the spec). Setup
+   methods branch on `self.snapshot`. The shim shrinks to node scope:
+   `self.config` carries only the `nodes` / `actions` dict lists (consumed
+   by setup_nodes/actions, the validation graph, and edge stash). Notable
+   dict-path semantics to reproduce: lead_title/lead_paragraph come from
+   the *home page* in `spec.pages` (the top-level metadata copy is written
+   but never read); action-group `order` is enumeration order; a missing
+   `reference_year` raises. Framework-configured instances never go through
+   `from_snapshot` (they load YAML + fw_config), so the snapshot path
+   carries no fwc branches.
+2. **Node-scope native construction.** Nodes/actions built from
+   `NodeMeta`/`NodeSpec` (`make_node` twin consuming typed specs); datasets
+   from `DatasetBindingDef` + `DatasetPortSpec`; node params typed;
+   validation graph gets a typed adapter or its dict input built from
+   specs.
+3. **Bindings native.** Edges constructed from graph bindings in stored
+   position order; `Edge.from_config` / `EdgeDimension` retired from the
+   snapshot path; the loader-plan step-1 leftovers (metric selection into
+   the executor) fold in here as needed.
+4. **YAML through the same path** (loader plan step 3):
+   `from_yaml()` = parse → snapshot → native build; delete
+   `snapshot_to_config_dict()` and the config-dict branches.
+
+Gate for each stage: old-vs-new runtime parity over all buildable DB
+instances (structure + computed outputs), plus the standard suites.
+
 **Gate:** draft, published, and YAML calculation share graph construction;
 metadata-only queries never create `Context`; calculation parity and existing
 dataset revision isolation tests pass.
