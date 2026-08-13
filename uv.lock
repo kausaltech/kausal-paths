@@ -2858,15 +2858,15 @@ prod = [
 
 [[package]]
 name = "kausal-paths-extensions"
-version = "0.7.8"
+version = "0.8.0"
 source = { registry = "https://pypi.kausal.tech/" }
 dependencies = [
     { name = "django" },
     { name = "pygithub" },
 ]
-sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.7.8.tar.gz", hash = "sha256:cb95ea5d5490f0c1b66dbddeadd23866deb126c25c8ab44da77e82077952b587" }
+sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.0.tar.gz", hash = "sha256:0c3f0940b5a0b0bfae24fedfa63b1d559dddc127eaec6065107a84283ad86232" }
 wheels = [
-    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.7.8-py3-none-any.whl", hash = "sha256:54db3448b5b8fa2bd97c3129bfcdd69b49e5f7a4c71adf3047af34ad484bc9f4" },
+    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.0-py3-none-any.whl", hash = "sha256:b17139f5c6def879ea07e006f7861a5cc792fb22e4e2d9e14afb750f495197ea" },
 ]
 
 [[package]]
