@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5e3006e49c8ecf3337f0812b7abc87f047fc8adf
+  commit: 2b0642d24e3fca3cae622627b5f60ae1c268872b
   dvc_remote: kausal-s3
 name_de: Augsburg CO₂-Zukunfts-Rechner
 name_en: Augsburg CO₂-Future Calculator

@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f7c0ba796a5c5ecfad73363d206db98d0a423eaa
+  commit: 2b0642d24e3fca3cae622627b5f60ae1c268872b
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
