@@ -6,11 +6,22 @@ import uuid
 
 import pytest
 
+from kausal_common.datasets.tests.factories import DatasetFactory
 from kausal_common.i18n.pydantic import TranslatedString
 
-from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec, YearsSpec
-from nodes.defs.node_defs import NodeSpec
-from nodes.instance_serialization import InstanceSnapshot, NodeSnapshot, reconcile_snapshot_node_metadata
+from nodes.defs.instance_defs import InstanceFeatures, InstanceMetadata, InstanceModelSpec, YearsSpec
+from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
+from nodes.instance_export_sync import (
+    apply_load_nodes_instance_export_sync,
+    plan_load_nodes_instance_export_sync,
+)
+from nodes.instance_serialization import (
+    DatasetPortSnapshot,
+    InstanceExport,
+    InstanceSnapshot,
+    NodeSnapshot,
+    reconcile_snapshot_node_metadata,
+)
 from nodes.models import NodeConfig
 from nodes.spec_sync import _apply_metadata_columns, _upsert_node_configs
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
@@ -249,3 +260,166 @@ def test_yaml_runtime_nodes_use_reconciled_metadata_snapshots(instance_config, i
     assert node.source_snapshot.color == 'pink'
     assert node.source_snapshot.is_visible is False
     assert instance.source_nodes_by_uuid[row.uuid] is node
+    assert str(node.name) == 'Database name'
+    assert str(node.short_name) == 'DB short name'
+    assert node.color == 'pink'
+    assert node.order is None
+    assert node.is_visible is False
+
+
+def test_load_nodes_export_sync_preview_and_apply_yaml_metadata(instance_config):
+    row = NodeConfigFactory.create(
+        instance=instance_config,
+        identifier='node',
+        name='Database name',
+        short_name='Database short name',
+        short_description='<p>Database description</p>',
+        color='#000000',
+        order=9,
+        is_visible=False,
+        i18n={'name_fi': 'Tietokannan nimi'},
+    )
+    export = InstanceExport(
+        instance=InstanceSnapshot(
+            metadata=InstanceMetadata(primary_language='en', other_languages=['fi']),
+            spec=InstanceModelSpec(),
+            nodes=[
+                NodeSnapshot(
+                    uuid=row.uuid,
+                    identifier='node',
+                    name=TranslatedString(en='YAML name', fi='YAML-nimi'),
+                    short_name=TranslatedString(en='YAML short name'),
+                    short_description=TranslatedString(en='YAML description'),
+                    color='#123456',
+                    order=-1,
+                    is_visible=True,
+                    spec=NodeSpec(),
+                )
+            ],
+        )
+    )
+
+    preserve_plan = plan_load_nodes_instance_export_sync(
+        instance_config,
+        export,
+        update_existing=True,
+        overwrite=False,
+        skip_descriptions=False,
+        delete_stale_nodes=False,
+    )
+    assert preserve_plan.to_dict()['summary'] == {'nodesCreated': 0, 'nodesUpdated': 0, 'nodesDeleted': 0}
+
+    overwrite_plan = plan_load_nodes_instance_export_sync(
+        instance_config,
+        export,
+        update_existing=True,
+        overwrite=True,
+        skip_descriptions=True,
+        delete_stale_nodes=False,
+    )
+    assert overwrite_plan.to_dict()['summary'] == {'nodesCreated': 0, 'nodesUpdated': 1, 'nodesDeleted': 0}
+    paths = {change.path for change in overwrite_plan.changes[0].fields}
+    assert paths == {'name', 'short_name', 'color', 'order', 'is_visible', 'i18n.name_fi'}
+    row.refresh_from_db()
+    assert row.name == 'Database name'
+
+    result = apply_load_nodes_instance_export_sync(
+        instance_config,
+        export,
+        update_existing=True,
+        overwrite=True,
+        skip_descriptions=True,
+        delete_stale_nodes=False,
+    )
+
+    assert result.plan.to_dict() == overwrite_plan.to_dict()
+    row.refresh_from_db()
+    assert row.name == 'YAML name'
+    assert row.short_name == 'YAML short name'
+    assert row.short_description == '<p>Database description</p>'
+    assert row.color == '#123456'
+    assert row.order == -1
+    assert row.is_visible is True
+    assert row.i18n == {'name_fi': 'YAML-nimi'}
+    assert instance_config.config_source == 'yaml'
+
+
+def test_load_nodes_export_sync_creates_and_deletes_nodes(instance_config):
+    stale = NodeConfigFactory.create(instance=instance_config, identifier='stale')
+    new_uuid = uuid.uuid4()
+    export = InstanceExport(
+        instance=InstanceSnapshot(
+            metadata=InstanceMetadata(primary_language='en'),
+            spec=InstanceModelSpec(),
+            nodes=[
+                NodeSnapshot(
+                    uuid=new_uuid,
+                    identifier='new',
+                    name=TranslatedString(en='New node'),
+                    spec=NodeSpec(),
+                )
+            ],
+        )
+    )
+
+    result = apply_load_nodes_instance_export_sync(
+        instance_config,
+        export,
+        update_existing=True,
+        overwrite=False,
+        skip_descriptions=False,
+        delete_stale_nodes=True,
+    )
+
+    assert result.plan.to_dict()['summary'] == {'nodesCreated': 1, 'nodesUpdated': 0, 'nodesDeleted': 1}
+    assert not NodeConfig.objects.filter(pk=stale.pk).exists()
+    created = NodeConfig.objects.get(instance=instance_config, uuid=new_uuid)
+    assert created.identifier == 'new'
+    assert created.name == 'New node'
+
+
+def test_load_nodes_export_sync_updates_legacy_db_dataset_relations(instance_config):
+    dataset = DatasetFactory.create(identifier='input', scope=instance_config)
+    stale_dataset = DatasetFactory.create(identifier='stale-input', scope=instance_config)
+    row = NodeConfigFactory.create(instance=instance_config, identifier='node')
+    row.datasets.add(stale_dataset)
+    export = InstanceExport(
+        instance=InstanceSnapshot(
+            metadata=InstanceMetadata(primary_language='en'),
+            spec=InstanceModelSpec(features=InstanceFeatures(use_datasets_from_db=True)),
+            nodes=[NodeSnapshot(uuid=row.uuid, identifier='node', name=TranslatedString(en='Node'), spec=NodeSpec())],
+            dataset_ports=[
+                DatasetPortSnapshot(
+                    node=row.uuid,
+                    dataset='input',
+                    port_id=uuid.uuid4(),
+                    metric='Value',
+                    spec=DatasetPortSpec(),
+                )
+            ],
+        )
+    )
+
+    plan = plan_load_nodes_instance_export_sync(
+        instance_config,
+        export,
+        update_existing=True,
+        overwrite=False,
+        skip_descriptions=False,
+        delete_stale_nodes=False,
+    )
+
+    dataset_change = next(change for change in plan.changes[0].fields if change.path == 'datasets')
+    assert dataset_change.before == ['stale-input']
+    assert dataset_change.after == ['input']
+
+    apply_load_nodes_instance_export_sync(
+        instance_config,
+        export,
+        update_existing=True,
+        overwrite=False,
+        skip_descriptions=False,
+        delete_stale_nodes=False,
+    )
+
+    assert list(row.datasets.values_list('pk', flat=True)) == [dataset.pk]

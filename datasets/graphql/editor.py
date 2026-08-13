@@ -78,6 +78,22 @@ class UpdateDataPointInput:
     dimension_category_ids: Maybe[list[UUID]]
 
 
+@sb.input
+class UpdateDataPointItemInput:
+    data_point_id: sb.ID
+    input: UpdateDataPointInput
+
+
+@sb.type
+class DataPointsMutationResult:
+    data_points: list[DataPointType]
+
+
+@sb.type
+class DeleteDataPointsResult:
+    deleted_data_point_ids: list[sb.ID]
+
+
 def _is_maybe_set[T](maybe: Some[T] | None) -> TypeGuard[Some[T]]:
     return maybe is not None and maybe is not sb.UNSET
 
@@ -147,9 +163,19 @@ class DatasetEditorMutation:
             'dimension_category_uuids': [str(cat.uuid) for cat in dp.dimension_categories.all()],
         }
 
-    @gql.mutation(description='Create a data point', graphql_type=DataPointType)
     @staticmethod
-    def create_data_point(info: gql.Info, root: sb.Parent[Me], input: CreateDataPointInput) -> DataPointType:
+    def _require_batch(input: list[Any]) -> None:
+        if not input:
+            raise ValidationError('At least one data point is required')
+
+    @staticmethod
+    def _require_unique_data_point_ids(data_point_ids: list[sb.ID]) -> None:
+        if len({str(data_point_id) for data_point_id in data_point_ids}) != len(data_point_ids):
+            raise ValidationError('Each data point may occur only once in a batch')
+
+    @staticmethod
+    def _create_data_points(info: gql.Info, root: Me, input: list[CreateDataPointInput]) -> list[DataPoint]:
+        DatasetEditorMutation._require_batch(input)
         dataset = root.dataset
         if not DataPoint.gql_create_allowed(info, cast('Any', dataset)):
             raise PermissionDenied('Permission denied for create')
@@ -158,27 +184,106 @@ class DatasetEditorMutation:
             user = user_or_bust(info.context.user)
         except ValueError as exc:
             raise PermissionDenied('Permission denied') from exc
+
+        created: list[DataPoint] = []
         with transaction.atomic():
             dataset = Dataset.objects.select_for_update().get(pk=dataset.pk)
-            serializer = DataPointSerializer(
-                data=DatasetEditorMutation._serialize_input(input),
-                context=DatasetEditorMutation._serializer_context(root),
-            )
-            if not serializer.is_valid():
-                _raise_serializer_errors(serializer)
-
             with gql_change_operation(info, root.instance, action='dataset.datapoint.create'):
-                data_point = serializer.save(dataset=dataset, last_modified_by=user)
+                for item in input:
+                    serializer = DataPointSerializer(
+                        data=DatasetEditorMutation._serialize_input(item),
+                        context=DatasetEditorMutation._serializer_context(root),
+                    )
+                    if not serializer.is_valid():
+                        _raise_serializer_errors(serializer)
+
+                    data_point = serializer.save(dataset=dataset, last_modified_by=user)
+                    record_change(
+                        data_point,
+                        action='dataset.datapoint.create',
+                        before=None,
+                        after=DatasetEditorMutation._data_point_snapshot(data_point),
+                    )
+                    created.append(data_point)
                 DatasetEditorMutation._save_dataset(root, info, dataset=dataset)
-                record_change(
-                    data_point,
-                    action='dataset.datapoint.create',
-                    before=None,
-                    after=DatasetEditorMutation._data_point_snapshot(data_point),
-                )
+        return created
+
+    @gql.mutation(description='Create data points', graphql_type=DataPointsMutationResult)
+    @staticmethod
+    def create_data_points(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: list[CreateDataPointInput],
+    ) -> DataPointsMutationResult:
+        created = DatasetEditorMutation._create_data_points(info, root, input)
+        return DataPointsMutationResult(data_points=[DataPointType.from_model(data_point) for data_point in created])
+
+    @gql.mutation(
+        description='Create a data point',
+        graphql_type=DataPointType,
+        deprecation_reason='Use createDataPoints instead.',
+    )
+    @staticmethod
+    def create_data_point(info: gql.Info, root: sb.Parent[Me], input: CreateDataPointInput) -> DataPointType:
+        data_point = DatasetEditorMutation._create_data_points(info, root, [input])[0]
         return DataPointType.from_model(data_point)
 
-    @gql.mutation(description='Update a data point', graphql_type=DataPointType)
+    @staticmethod
+    def _update_data_points(info: gql.Info, root: Me, input: list[UpdateDataPointItemInput]) -> list[DataPoint]:
+        DatasetEditorMutation._require_batch(input)
+        DatasetEditorMutation._require_unique_data_point_ids([item.data_point_id for item in input])
+        try:
+            user = user_or_bust(info.context.user)
+        except ValueError as exc:
+            raise PermissionDenied('Permission denied') from exc
+
+        updated_data_points: list[DataPoint] = []
+        with transaction.atomic():
+            dataset = Dataset.objects.select_for_update().get(pk=root.dataset.pk)
+            with gql_change_operation(info, root.instance, action='dataset.datapoint.update'):
+                for item in input:
+                    data_point = get_or_error(
+                        info,
+                        dataset.data_points.get_queryset(),
+                        uuid=str(item.data_point_id),
+                        for_action='change',
+                    )
+                    serializer = DataPointSerializer(
+                        data_point,
+                        data=DatasetEditorMutation._serialize_input(item.input),
+                        partial=True,
+                        context=DatasetEditorMutation._serializer_context(root),
+                    )
+                    if not serializer.is_valid():
+                        _raise_serializer_errors(serializer)
+
+                    before = DatasetEditorMutation._data_point_snapshot(data_point)
+                    updated = serializer.save(last_modified_by=user)
+                    record_change(
+                        updated,
+                        action='dataset.datapoint.update',
+                        before=before,
+                        after=DatasetEditorMutation._data_point_snapshot(updated),
+                    )
+                    updated_data_points.append(updated)
+                DatasetEditorMutation._save_dataset(root, info, dataset=dataset)
+        return updated_data_points
+
+    @gql.mutation(description='Update data points', graphql_type=DataPointsMutationResult)
+    @staticmethod
+    def update_data_points(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: list[UpdateDataPointItemInput],
+    ) -> DataPointsMutationResult:
+        updated = DatasetEditorMutation._update_data_points(info, root, input)
+        return DataPointsMutationResult(data_points=[DataPointType.from_model(data_point) for data_point in updated])
+
+    @gql.mutation(
+        description='Update a data point',
+        graphql_type=DataPointType,
+        deprecation_reason='Use updateDataPoints instead.',
+    )
     @staticmethod
     def update_data_point(
         info: gql.Info,
@@ -186,47 +291,61 @@ class DatasetEditorMutation:
         data_point_id: sb.ID,
         input: UpdateDataPointInput,
     ) -> DataPointType:
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
-        with transaction.atomic():
-            dataset = Dataset.objects.select_for_update().get(pk=root.dataset.pk)
-            data_point = get_or_error(info, dataset.data_points.get_queryset(), uuid=str(data_point_id), for_action='change')
-            serializer = DataPointSerializer(
-                data_point,
-                data=DatasetEditorMutation._serialize_input(input),
-                partial=True,
-                context=DatasetEditorMutation._serializer_context(root),
-            )
-            if not serializer.is_valid():
-                _raise_serializer_errors(serializer)
-
-            with gql_change_operation(info, root.instance, action='dataset.datapoint.update'):
-                before = DatasetEditorMutation._data_point_snapshot(data_point)
-                updated = serializer.save(last_modified_by=user)
-                DatasetEditorMutation._save_dataset(root, info, dataset=dataset)
-                record_change(
-                    updated,
-                    action='dataset.datapoint.update',
-                    before=before,
-                    after=DatasetEditorMutation._data_point_snapshot(updated),
-                )
+        updated = DatasetEditorMutation._update_data_points(
+            info,
+            root,
+            [UpdateDataPointItemInput(data_point_id=data_point_id, input=input)],
+        )[0]
         return DataPointType.from_model(updated)
 
-    @gql.mutation(description='Delete a data point', graphql_type=OperationInfo | None)
+    @staticmethod
+    def _delete_data_points(info: gql.Info, root: Me, data_point_ids: list[sb.ID]) -> list[sb.ID]:
+        DatasetEditorMutation._require_batch(data_point_ids)
+        DatasetEditorMutation._require_unique_data_point_ids(data_point_ids)
+        deleted_ids: list[sb.ID] = []
+        with transaction.atomic():
+            dataset = Dataset.objects.select_for_update().get(pk=root.dataset.pk)
+            data_points = [
+                get_or_error(
+                    info,
+                    dataset.data_points.get_queryset(),
+                    uuid=str(data_point_id),
+                    for_action='delete',
+                )
+                for data_point_id in data_point_ids
+            ]
+            with gql_change_operation(info, root.instance, action='dataset.datapoint.delete'):
+                for data_point in data_points:
+                    deleted_ids.append(sb.ID(str(data_point.uuid)))
+                    record_change(
+                        data_point,
+                        action='dataset.datapoint.delete',
+                        before=DatasetEditorMutation._data_point_snapshot(data_point),
+                        after=None,
+                    )
+                    data_point.delete()
+                DatasetEditorMutation._save_dataset(root, info, dataset=dataset)
+        return deleted_ids
+
+    @gql.mutation(description='Delete data points', graphql_type=DeleteDataPointsResult)
+    @staticmethod
+    def delete_data_points(
+        root: sb.Parent[Me],
+        info: gql.Info,
+        data_point_ids: list[sb.ID],
+    ) -> DeleteDataPointsResult:
+        return DeleteDataPointsResult(
+            deleted_data_point_ids=DatasetEditorMutation._delete_data_points(info, root, data_point_ids)
+        )
+
+    @gql.mutation(
+        description='Delete a data point',
+        graphql_type=OperationInfo | None,
+        deprecation_reason='Use deleteDataPoints instead.',
+    )
     @staticmethod
     def delete_data_point(root: sb.Parent[Me], info: gql.Info, data_point_id: sb.ID) -> OperationInfo | None:
-        data_point = get_or_error(info, root.dataset.data_points.get_queryset(), uuid=str(data_point_id), for_action='delete')
-        with gql_change_operation(info, root.instance, action='dataset.datapoint.delete'):
-            record_change(
-                data_point,
-                action='dataset.datapoint.delete',
-                before=DatasetEditorMutation._data_point_snapshot(data_point),
-                after=None,
-            )
-            data_point.delete()
-            DatasetEditorMutation._save_dataset(root, info)
+        DatasetEditorMutation._delete_data_points(info, root, [data_point_id])
         return None
 
     # ------------------------------------------------------------------

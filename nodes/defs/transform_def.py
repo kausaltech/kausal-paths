@@ -386,6 +386,33 @@ type PortTransformOp = Annotated[
 ]
 
 
+StoredPortTransformOp = (
+    FilterDimensionOp
+    | AssignDimensionOp
+    | DropNullsOp
+    | FilterTemporalOp
+    | FilterColumnOp
+    | RenameColumnOp
+    | RenameItemOp
+    | SetForecastFromOp
+    | EnsureUnitOp
+    | SelectMetricOp
+    | IndexTemporalOp
+    | RemapLegacyYearsOp
+    | TagOperationOp
+    | SelectCategoriesTransformation
+    | AssignCategoryTransformation
+    | FlattenTransformation
+)
+"""
+The members of ``PortTransformOp`` as a plain union assignment, for ORM
+``SchemaField`` columns storing the full pipeline vocabulary. Like
+``EdgeTransformOp``, this exists because Django's migration writer can
+serialize a plain union but not a ``type`` alias; the unique ``kind``
+literals still select the member during validation.
+"""
+
+
 def forecast_from_transformations(transformations: Sequence[PortTransformOp]) -> int | None:
     """Return the year the pipeline starts marking values as forecast, if any."""
     for op in transformations:

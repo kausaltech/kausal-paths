@@ -1046,9 +1046,43 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         port_str = f':{port}' if port else ''
         return f'{scheme}://{hostname}{port_str}{path}'
 
-    def get_view_url(self, request: ViewURLRequest | None = None, client_url: str | None = None) -> str | None:
+    def _get_view_url_from_parts(self, client_parts: tuple[str, str, int | None], request: ViewURLRequest | None) -> str | None:
         from nodes.models import get_instance_identifier_from_wildcard_domain
 
+        fw = self.framework
+        ic = self.instance_config
+        scheme, hostname, port = client_parts
+        _, wildcard_hostname = get_instance_identifier_from_wildcard_domain(
+            hostname,
+            request=None,
+            wildcard_domains=self._request_wildcard_domains(request) or None,
+        )
+        if wildcard_hostname and fw.use_instance_subdomains:
+            return self._format_url(scheme, f'{ic.identifier}.{wildcard_hostname}', port)
+
+        if fw.use_instance_subdomains or fw.root_instance_id is None:
+            return None
+
+        if fw.has_cache():
+            root_instance = fw.cache.instance_configs.get(fw.root_instance_id)
+        else:
+            root_instance = fw.root_instance
+        assert root_instance is not None
+        for hn in root_instance.hostnames.all():
+            if hn.hostname == hostname:
+                explicit_match = True
+                break
+        else:
+            explicit_match = False
+        if (
+            hostname == fw.public_base_fqdn
+            or explicit_match
+            or (wildcard_hostname is not None and hostname == f'{root_instance.identifier}.{wildcard_hostname}')
+        ):
+            return self._format_url(scheme, hostname, port, f'/{ic.uuid}')
+        return None
+
+    def get_view_url(self, request: ViewURLRequest | None = None, client_url: str | None = None) -> str | None:
         fw = self.framework
         if not fw.public_base_fqdn:
             return None
@@ -1056,27 +1090,9 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         ic = self.instance_config
         client_parts = self._get_client_url_parts(request, client_url=client_url)
         if client_parts is not None:
-            scheme, hostname, port = client_parts
-            _, wildcard_hostname = get_instance_identifier_from_wildcard_domain(
-                hostname,
-                request=None,
-                wildcard_domains=self._request_wildcard_domains(request) or None,
-            )
-            if wildcard_hostname and fw.use_instance_subdomains:
-                return self._format_url(scheme, f'{ic.identifier}.{wildcard_hostname}', port)
-
-            root_instance = fw.root_instance
-            if (
-                root_instance is not None
-                and not fw.use_instance_subdomains
-                and (
-                    hostname == fw.public_base_fqdn
-                    or root_instance.hostnames.filter(hostname=hostname).exists()
-                    or (wildcard_hostname is not None and hostname == f'{root_instance.identifier}.{wildcard_hostname}')
-                )
-            ):
-                return self._format_url(scheme, hostname, port, f'/{ic.uuid}')
-
+            url = self._get_view_url_from_parts(client_parts, request)
+            if url is not None:
+                return url
         if fw.use_instance_subdomains:
             return 'https://%s.%s' % (ic.identifier, fw.public_base_fqdn)
         return 'https://%s/%s' % (fw.public_base_fqdn, ic.uuid)

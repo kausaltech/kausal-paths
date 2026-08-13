@@ -1,4 +1,3 @@
-from collections import defaultdict
 from functools import cached_property
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import NAMESPACE_URL, UUID, uuid5
@@ -34,7 +33,9 @@ if TYPE_CHECKING:
     from nodes.node import Node
 
 
-INSTANCE_GRAPH_FORMAT_VERSION = 4
+# v5: canonical edge order is creation (pk) order, not NodeEdge.Meta ordering;
+#     binding positions built from a snapshot change accordingly.
+INSTANCE_GRAPH_FORMAT_VERSION = 5
 
 
 class InstanceGraphDiagnostic(FrozenGraphModel):
@@ -599,16 +600,64 @@ def build_instance_graph(
         node_identifiers[node.uuid] = node.identifier
 
     bindings: list[AnyPortBindingDef] = []
-    positions: defaultdict[tuple[UUID, UUID], int] = defaultdict(int)
 
     from nodes.defs.transform_def import FlattenTransformation
+    from nodes.instance_serialization import DatasetPortSnapshot, ordered_binding_snapshots
 
-    for edge_index, edge in enumerate(snapshot.edges):
-        key = (edge.to_node, edge.to_port)
+    # ``ordered_binding_snapshots`` is the shared ordering authority: the
+    # ``NodeInputPortBinding`` mirror assigns positions through the same
+    # function, so graph and ORM projections can never disagree on order.
+    edge_index = 0
+    port_index = 0
+    for item, position in ordered_binding_snapshots(snapshot.edges, snapshot.dataset_ports):
+        if isinstance(item, DatasetPortSnapshot):
+            port = item
+            dataset = None
+            if port.dataset_uuid is not None:
+                dataset = datasets_by_id.get(port.dataset_uuid)
+            if dataset is None:
+                dataset = datasets_by_identifier.get(port.dataset)
+            if dataset is None:
+                raise ValueError(f'Dataset port {port.uuid} references unresolved dataset {port.dataset!r}')
+
+            metric = dataset.metric_by_id.get(port.metric_uuid) if port.metric_uuid is not None else None
+            if metric is None:
+                metric = next((m for m in dataset.metrics if m.identifier == port.metric), None)
+            if metric is None:
+                raise ValueError(f'Dataset port {port.uuid} references unresolved metric {port.metric!r}')
+
+            binding_id = port.uuid or uuid5(
+                NAMESPACE_URL,
+                f'kausal-paths:legacy-dataset-binding:{snapshot.metadata.uuid}:{port.node}:{port.port_id}:{port.dataset}:{port.metric}:{port.dataset_index}:{port_index}',
+            )
+            port_index += 1
+            bindings.append(
+                DatasetBindingDef(
+                    id=binding_id,
+                    port_ref=NodePortRef(
+                        node_uuid=port.node,
+                        node_id=node_identifiers.get(port.node) or str(port.node),
+                        port_id=port.port_id,
+                    ),
+                    position=position,
+                    tags=list(port.spec.tags),
+                    transformations=list(port.spec.transformations),
+                    dataset_uuid=dataset.id,
+                    metric_uuid=metric.id,
+                    dataset_is_external_placeholder=dataset.is_external_placeholder,
+                    dataset_external_ref=dataset.external_ref,
+                    external_dataset_id=dataset.identifier,
+                    external_metric_id=metric.identifier,
+                )
+            )
+            continue
+
+        edge = item
         binding_id = edge.uuid or uuid5(
             NAMESPACE_URL,
             f'kausal-paths:legacy-edge:{snapshot.metadata.uuid}:{edge.from_node}:{edge.from_port}:{edge.to_node}:{edge.to_port}:{edge_index}',
         )
+        edge_index += 1
         # Legacy bare `to_dimensions` declarations must be recovered here,
         # before the binding validator's modernization drops them.
         declared_dimensions = [t.dimension for t in edge.transformations if isinstance(t, FlattenTransformation)]
@@ -626,57 +675,11 @@ def build_instance_graph(
                     node_id=node_identifiers.get(edge.from_node) or str(edge.from_node),
                     port_id=edge.from_port,
                 ),
-                position=positions[key],
+                position=position,
                 tags=list(edge.tags),
                 transformations=list(edge.transformations),
             )
         )
-        positions[key] += 1
-
-    sorted_ports = sorted(
-        snapshot.dataset_ports,
-        key=lambda item: (item.node, item.dataset_index, str(item.port_id), item.metric),
-    )
-    for port_index, port in enumerate(sorted_ports):
-        dataset = None
-        if port.dataset_uuid is not None:
-            dataset = datasets_by_id.get(port.dataset_uuid)
-        if dataset is None:
-            dataset = datasets_by_identifier.get(port.dataset)
-        if dataset is None:
-            raise ValueError(f'Dataset port {port.uuid} references unresolved dataset {port.dataset!r}')
-
-        metric = dataset.metric_by_id.get(port.metric_uuid) if port.metric_uuid is not None else None
-        if metric is None:
-            metric = next((item for item in dataset.metrics if item.identifier == port.metric), None)
-        if metric is None:
-            raise ValueError(f'Dataset port {port.uuid} references unresolved metric {port.metric!r}')
-
-        key = (port.node, port.port_id)
-        binding_id = port.uuid or uuid5(
-            NAMESPACE_URL,
-            f'kausal-paths:legacy-dataset-binding:{snapshot.metadata.uuid}:{port.node}:{port.port_id}:{port.dataset}:{port.metric}:{port.dataset_index}:{port_index}',
-        )
-        bindings.append(
-            DatasetBindingDef(
-                id=binding_id,
-                port_ref=NodePortRef(
-                    node_uuid=port.node,
-                    node_id=node_identifiers.get(port.node) or str(port.node),
-                    port_id=port.port_id,
-                ),
-                position=positions[key],
-                tags=list(port.spec.tags),
-                transformations=list(port.spec.transformations),
-                dataset_uuid=dataset.id,
-                metric_uuid=metric.id,
-                dataset_is_external_placeholder=dataset.is_external_placeholder,
-                dataset_external_ref=dataset.external_ref,
-                external_dataset_id=dataset.identifier,
-                external_metric_id=metric.identifier,
-            )
-        )
-        positions[key] += 1
 
     return InstanceGraph(
         instance_id=snapshot.metadata.uuid,

@@ -38,17 +38,24 @@ def _instance_or_bust(info: InfoType) -> Instance:
     if (instance := getattr(info.context, 'instance', None)) is None:
         raise GraphQLError(
             "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
-            info.field_nodes,
+            graphql_error_nodes(info),
         )
     if instance is None:
         raise GraphQLError(
             "Instance is not set in the context. Use the 'instance' directive or HTTP headers.",
-            info.field_nodes,
+            graphql_error_nodes(info),
         )
     return instance
 
 
 type InfoType = GQLInstanceInfo | SBInfo | StrawberryInfo[PathsGraphQLContext[Any]]
+
+
+def graphql_error_nodes(info: InfoType):
+    """Return graphql-core AST nodes from Graphene or Strawberry resolver info."""
+    raw_info: Any = getattr(info, '_raw_info', info)
+    return raw_info.field_nodes
+
 
 type AnyResolver[**P, R, I: InfoType] = Callable[Concatenate[Any, I, P], R]
 

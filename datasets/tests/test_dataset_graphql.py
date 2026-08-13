@@ -90,6 +90,73 @@ mutation DeleteDataPoint($instanceId: ID!, $datasetId: ID!, $dataPointId: ID!) {
 """
 
 
+CREATE_DATA_POINTS = """
+mutation CreateDataPoints($instanceId: ID!, $datasetId: ID!, $input: [CreateDataPointInput!]!) {
+    instanceEditor(instanceId: $instanceId) {
+        datasetEditor(datasetId: $datasetId) {
+            createDataPoints(input: $input) {
+                __typename
+                ... on DataPointsMutationResult {
+                    dataPoints {
+                        id
+                        date
+                        value
+                        metric { id name }
+                        dimensionCategories { uuid label }
+                    }
+                }
+                ... on OperationInfo {
+                    messages { kind message field code }
+                }
+            }
+        }
+    }
+}
+"""
+
+
+UPDATE_DATA_POINTS = """
+mutation UpdateDataPoints($instanceId: ID!, $datasetId: ID!, $input: [UpdateDataPointItemInput!]!) {
+    instanceEditor(instanceId: $instanceId) {
+        datasetEditor(datasetId: $datasetId) {
+            updateDataPoints(input: $input) {
+                __typename
+                ... on DataPointsMutationResult {
+                    dataPoints {
+                        id
+                        date
+                        value
+                    }
+                }
+                ... on OperationInfo {
+                    messages { kind message field code }
+                }
+            }
+        }
+    }
+}
+"""
+
+
+DELETE_DATA_POINTS = """
+mutation DeleteDataPoints($instanceId: ID!, $datasetId: ID!, $dataPointIds: [ID!]!) {
+    instanceEditor(instanceId: $instanceId) {
+        datasetEditor(datasetId: $datasetId) {
+            deleteDataPoints(dataPointIds: $dataPointIds) {
+                __typename
+                ... on DeleteDataPointsResult {
+                    deletedDataPointIds
+                }
+                ... on OperationInfo {
+                    messages { kind message field code }
+                }
+            }
+        }
+    }
+}
+"""
+
+
 INSTANCE_DATASETS = """
 query InstanceDatasets($instanceId: ID!) {
     modelInstance(instanceId: $instanceId) {
@@ -214,6 +281,83 @@ def test_create_data_point(gql_client: PathsTestClient, dataset_setup):
     assert DataPoint.objects.filter(uuid=data_point['id'], dataset=dataset).exists()
 
 
+def test_create_data_points(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+
+    data = gql_client.query_data(
+        CREATE_DATA_POINTS,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': [
+                {
+                    'date': '2024-01-01',
+                    'value': 100.0,
+                    'metricId': str(metric.uuid),
+                    'dimensionCategoryIds': [str(category.uuid)],
+                },
+                {
+                    'date': '2025-01-01',
+                    'value': 200.0,
+                    'metricId': str(metric.uuid),
+                    'dimensionCategoryIds': [str(category.uuid)],
+                },
+            ],
+        },
+    )
+
+    result = data['instanceEditor']['datasetEditor']['createDataPoints']
+    assert result['__typename'] == 'DataPointsMutationResult'
+    assert [point['date'] for point in result['dataPoints']] == ['2024-01-01', '2025-01-01']
+    assert DataPoint.objects.filter(dataset=dataset).count() == 2
+
+
+def test_create_data_points_coerces_single_input_to_list(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+
+    data = gql_client.query_data(
+        CREATE_DATA_POINTS,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': {
+                'date': '2024-01-01',
+                'value': 100.0,
+                'metricId': str(metric.uuid),
+                'dimensionCategoryIds': [str(category.uuid)],
+            },
+        },
+    )
+
+    result = data['instanceEditor']['datasetEditor']['createDataPoints']
+    assert result['__typename'] == 'DataPointsMutationResult'
+    assert len(result['dataPoints']) == 1
+
+
+def test_create_data_points_is_atomic(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    duplicate = {
+        'date': '2024-01-01',
+        'value': 100.0,
+        'metricId': str(metric.uuid),
+        'dimensionCategoryIds': [str(category.uuid)],
+    }
+
+    data = gql_client.query_data(
+        CREATE_DATA_POINTS,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': [duplicate, duplicate],
+        },
+    )
+
+    result = data['instanceEditor']['datasetEditor']['createDataPoints']
+    assert result['__typename'] == 'OperationInfo'
+    assert result['messages'][0]['kind'] == 'VALIDATION'
+    assert not DataPoint.objects.filter(dataset=dataset).exists()
+
+
 def test_create_data_point_rejects_duplicate_with_no_dimension_categories(gql_client: PathsTestClient, dataset_setup):
     instance_config, dataset, metric, _category = dataset_setup
     DataPointFactory.create(
@@ -272,6 +416,37 @@ def test_update_data_point(gql_client: PathsTestClient, dataset_setup):
     assert data_point.value is None
 
 
+def test_update_data_points(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, category = dataset_setup
+    first = DataPointFactory.create(dataset=dataset, metric=metric, date=date(2024, 1, 1), value=Decimal('100.0'))
+    second = DataPointFactory.create(dataset=dataset, metric=metric, date=date(2025, 1, 1), value=Decimal('200.0'))
+
+    data = gql_client.query_data(
+        UPDATE_DATA_POINTS,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': [
+                {'dataPointId': str(first.uuid), 'input': {'value': 125.0}},
+                {
+                    'dataPointId': str(second.uuid),
+                    'input': {'value': None, 'dimensionCategoryIds': [str(category.uuid)]},
+                },
+            ],
+        },
+    )
+
+    result = data['instanceEditor']['datasetEditor']['updateDataPoints']
+    assert result['__typename'] == 'DataPointsMutationResult'
+    assert [point['id'] for point in result['dataPoints']] == [str(first.uuid), str(second.uuid)]
+    assert [point['value'] for point in result['dataPoints']] == [125.0, None]
+    first.refresh_from_db()
+    second.refresh_from_db()
+    assert first.value == Decimal('125.0')
+    assert second.value is None
+    assert list(second.dimension_categories.all()) == [category]
+
+
 def test_update_data_point_rejects_duplicate_coordinates(gql_client: PathsTestClient, dataset_setup):
     instance_config, dataset, metric, category = dataset_setup
     existing = DataPointFactory.create(
@@ -318,6 +493,28 @@ def test_delete_data_point(gql_client: PathsTestClient, dataset_setup):
 
     assert data['instanceEditor']['datasetEditor']['deleteDataPoint'] is None
     assert not DataPoint.objects.filter(pk=data_point.pk).exists()
+
+
+def test_delete_data_points(gql_client: PathsTestClient, dataset_setup):
+    instance_config, dataset, metric, _category = dataset_setup
+    first = DataPointFactory.create(dataset=dataset, metric=metric, date=date(2024, 1, 1))
+    second = DataPointFactory.create(dataset=dataset, metric=metric, date=date(2025, 1, 1))
+
+    data = gql_client.query_data(
+        DELETE_DATA_POINTS,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'dataPointIds': [str(first.uuid), str(second.uuid)],
+        },
+    )
+
+    result = data['instanceEditor']['datasetEditor']['deleteDataPoints']
+    assert result == {
+        '__typename': 'DeleteDataPointsResult',
+        'deletedDataPointIds': [str(first.uuid), str(second.uuid)],
+    }
+    assert not DataPoint.objects.filter(pk__in=[first.pk, second.pk]).exists()
 
 
 def test_create_data_point_validation_error_returns_operation_info(gql_client: PathsTestClient, dataset_setup):

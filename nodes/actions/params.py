@@ -90,7 +90,7 @@ class ShiftEntry(BaseModel):
             level_list.append(extra_level)
             assert extra_level_values is not None
             cat_list.append(set(extra_level_values))
-        index = pd.MultiIndex(cat_list, names=level_list)  # type: ignore[arg-type]
+        index = pd.MultiIndex.from_product(cat_list, names=level_list)
         return index
 
 
@@ -172,7 +172,7 @@ class ReduceFlow(BaseModel):
             level_list.append(extra_level)
             assert extra_level_values is not None
             cat_list.append(set(extra_level_values))
-        index = pd.MultiIndex(cat_list, names=level_list)  # type: ignore[arg-type]
+        index = pd.MultiIndex.from_product(cat_list, names=level_list)
         return index
 
 

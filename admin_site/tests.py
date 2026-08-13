@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from typing import Never
+from urllib.parse import parse_qs, urlparse
 
+from django.test import override_settings
 from django.urls import reverse
 
 import pytest
+from pytest_django.asserts import assertContains
 from social_core.backends.base import BaseAuth
 
 from paths.const import INSTANCE_SUPER_ADMIN_ROLE
@@ -31,6 +34,32 @@ class DummyClusterResponse:
 
     def json(self) -> dict[str, str]:
         return {'method': 'azure_ad'}
+
+
+def test_admin_login_uses_post_form_for_social_auth(client):
+    response = client.get(reverse('wagtailadmin_login'))
+
+    assert response.status_code == 200
+    assertContains(response, '<form id="social-login-form" method="post" hidden>')
+    assertContains(response, '<input type="hidden" name="csrfmiddlewaretoken"', count=2)
+    assertContains(response, '<input type="hidden" name="next" />')
+    assertContains(response, '<input type="hidden" name="email" />')
+    assertContains(response, "$('.login-form').attr('action', '/auth/complete/password/');")
+
+
+@override_settings(SOCIAL_AUTH_AZURE_AD_KEY='client-id', SOCIAL_AUTH_AZURE_AD_SECRET='client-secret')  # noqa: S106
+def test_azure_ad_auth_entry_requires_post_and_forwards_email(client):
+    url = reverse('social:begin', args=['azure_ad'])
+
+    assert client.get(url).status_code == 405
+
+    response = client.post(url, {'next': '/admin/', 'email': 'user@example.com'})
+
+    assert response.status_code == 302
+    assert response['Location'].startswith('https://login.microsoftonline.com/organizations/oauth2/authorize?')
+    query = parse_qs(urlparse(response['Location']).query)
+    assert query['login_hint'] == ['user@example.com']
+    assert client.session['next'] == '/admin/'
 
 
 def test_check_login_method_redirects_to_user_cluster(client, monkeypatch, settings) -> None:

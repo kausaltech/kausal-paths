@@ -24,6 +24,7 @@ from kausal_common.testing.schema import TestModeMutations
 
 from paths import gql
 from paths.context import realm_context
+from paths.graphql_helpers import graphql_error_nodes
 from paths.graphql_types import UnitType
 from paths.schema_context import PathsGraphQLContext
 from paths.utils import validate_unit
@@ -131,7 +132,7 @@ class CommonQuery:
         try:
             unit = validate_unit(value)
         except ValidationError:
-            raise GraphQLError(_('Invalid unit'), info.field_nodes) from None
+            raise GraphQLError(_('Invalid unit'), graphql_error_nodes(info)) from None
         return unit
 
     @sb.field(graphql_type=list[OrganizationNode])

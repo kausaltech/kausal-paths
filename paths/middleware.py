@@ -25,20 +25,12 @@ if TYPE_CHECKING:
 
 
 class RequestMiddleware(MiddlewareMixin):
-    def __init__(self, get_response) -> None:
-        super().__init__(get_response)
-
     def create_object_cache(self, request: HttpRequest):
         req = cast('PathsRequest', request)
         req.cache = PathsObjectCache(req.user)
 
-    async def __acall__(self, request: HttpRequest):
+    def process_request(self, request: HttpRequest) -> None:
         self.create_object_cache(request)
-        return self.get_response(request)
-
-    def __call__(self, request: HttpRequest):
-        self.create_object_cache(request)
-        return self.get_response(request)
 
 
 class AdminMiddleware:

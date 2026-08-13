@@ -272,6 +272,11 @@ so the authored form should live there too.
 
 ### 5. Add three-way YAML/DB coexistence
 
+The artifact, structured preview, transactional apply, API, and staged
+three-way design now live in
+[`instance-export-sync-preview.md`](instance-export-sync-preview.md). The summary below
+records this plan's dependency on stable snapshot identity.
+
 Use kubectl-apply semantics:
 
 - base: last successfully synced snapshot;

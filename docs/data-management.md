@@ -85,6 +85,25 @@ Run `load_nodes.py` to list datasets in use:
 ./load_nodes.py -i <instance-id>
 ```
 
+For YAML-backed instances, `--update-nodes` compiles the YAML directly into an
+`InstanceExport` and synchronizes its node metadata into `NodeConfig`; it no
+longer reads the values back from the already-overlaid runtime nodes. Existing
+flags retain their meanings:
+
+```bash
+# Preview a structured, read-only JSON diff
+./load_nodes.py -i <instance-id> --update-nodes --overwrite --dry-run
+
+# Apply the same YAML-authored NodeConfig changes
+./load_nodes.py -i <instance-id> --update-nodes --overwrite
+```
+
+Omit `--overwrite` to fill only missing fields. `--skip-descriptions` excludes
+description updates, and `--delete-stale-nodes` includes nodes absent from the
+YAML as deletions. This compatibility workflow leaves `config_source`
+unchanged and does not synchronize dataset contents; it only maintains legacy
+relations to DB datasets that already exist.
+
 To inspect the structure of a specific existing dataset, use a Python
 snippet:
 

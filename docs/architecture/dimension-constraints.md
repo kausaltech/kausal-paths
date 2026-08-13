@@ -575,7 +575,11 @@ resolves the dataset and metric strings to its FKs; unlike graph-internal node
 and port references, these are intentionally natural keys at the portable
 snapshot boundary.
 
-A staged migration is safer than replacing both tables at once:
+A staged migration is safer than replacing both tables at once (stages 1–2
+landed 2026-08-12: the table exists as a derived mirror, kept fresh at the
+write boundaries by `nodes/input_bindings.py:sync_input_bindings()`, and
+`annotate_ports()` reads it; the legacy tables stay authoritative until
+stage 4):
 
 1. Create `NodeInputPortBinding` and dual-read it behind the existing
    `PortBindingDef` projection.

@@ -18,6 +18,7 @@ from nodes.defs.instance_defs import ActionGroup, InstanceModelSpec, Normalizati
 from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.defs.transform_def import FilterColumnOp, forecast_from_transformations
+from nodes.input_bindings import sync_input_bindings
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id, register_dimensions
 from nodes.units import unit_registry
 
@@ -1713,6 +1714,9 @@ def test_model_instance_query(gql_client: PathsTestClient, db_instance_config: I
         transformations=[SelectCategoriesTransformation(dimension='sector', categories=['buildings'], flatten=True)],
         tags=[],
     )
+    # Direct ORM writes bypass the write boundaries that keep the unified
+    # input-binding mirror fresh; the port-binding view reads the mirror.
+    sync_input_bindings(db_instance_config)
 
     data = gql_client.query_data(
         MODEL_INSTANCE_QUERY,

@@ -7,7 +7,7 @@ import strawberry as sb
 from graphql.error import GraphQLError
 
 from paths import gql
-from paths.graphql_helpers import get_instance_context
+from paths.graphql_helpers import get_instance_context, graphql_error_nodes
 
 from . import BoolParameter, NumberParameter, Parameter, StringParameter, ValidationError
 
@@ -44,7 +44,7 @@ def _get_parameter_or_error(info: gql.Info, id: str) -> Parameter[Any, Any]:
     try:
         return context.get_parameter(id)
     except KeyError:
-        raise GraphQLError(f'Parameter {id} does not exist', info.field_nodes) from None
+        raise GraphQLError(f'Parameter {id} does not exist', graphql_error_nodes(info)) from None
 
 
 def _get_parameter_value_for_mutation(
@@ -69,17 +69,17 @@ def _get_parameter_value_for_mutation(
         raise Exception(msg)
 
     if value is None:
-        raise GraphQLError(f"You must specify '{attr_name}' for '{param.global_id}'", info.field_nodes)
+        raise GraphQLError(f"You must specify '{attr_name}' for '{param.global_id}'", graphql_error_nodes(info))
 
     del parameter_values[klass]
     for other_value, _ in parameter_values.values():
         if other_value is not None:
-            raise GraphQLError('Only one type of value allowed', info.field_nodes)
+            raise GraphQLError('Only one type of value allowed', graphql_error_nodes(info))
 
     try:
         return param.clean(value)
     except ValidationError as e:
-        raise GraphQLError(str(e), info.field_nodes) from e
+        raise GraphQLError(str(e), graphql_error_nodes(info)) from e
 
 
 @sb.interface
@@ -209,7 +209,7 @@ class SBMutation:
         param = _get_parameter_or_error(info, str(id))
 
         if not param.is_customizable:
-            raise GraphQLError(f'Parameter {id} is not customizable', info.field_nodes)
+            raise GraphQLError(f'Parameter {id} is not customizable', graphql_error_nodes(info))
 
         value = _get_parameter_value_for_mutation(
             info,
@@ -251,7 +251,7 @@ class SBMutation:
         context = get_instance_context(info).instance.context
         scenario = context.scenarios.get(str(id))
         if scenario is None:
-            raise GraphQLError(f"Scenario '{id}' not found", info.field_nodes)
+            raise GraphQLError(f"Scenario '{id}' not found", graphql_error_nodes(info))
 
         assert context.setting_storage is not None
 

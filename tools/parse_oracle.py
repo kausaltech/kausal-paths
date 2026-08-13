@@ -259,6 +259,12 @@ def compare_snapshots(  # noqa: C901, PLR0915
         if a is None or b is None:
             problems.append(f'edge {key}: only in {"parse" if a is None else "db"} side')
             continue
+        # Edge uuids are never comparable identity here: the export sync
+        # recreates rows inside the rolled-back transaction (inventing fresh
+        # uuids) and parse assigns none. Same normalization as node identity
+        # above for non-persisted rows.
+        a.pop('uuid', None)
+        b.pop('uuid', None)
         diff(f'edge {key}', a, b)
 
     def port_key(p: Any) -> tuple[Any, ...]:

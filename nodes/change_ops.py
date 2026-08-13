@@ -202,7 +202,23 @@ def change_operation(
             yield op
         finally:
             _current_op.reset(token)
+        _resync_input_bindings_if_touched(ic, op)
         ic.invalidate_cache()
+
+
+def _resync_input_bindings_if_touched(ic: InstanceConfig, op: InstanceChangeOperation) -> None:
+    """
+    Refresh the ``NodeInputPortBinding`` mirror after binding-affecting operations.
+
+    This is the single write-boundary hook for all mutations that go through
+    ``change_operation``; command-level writers (sync, import, copy) call
+    ``sync_input_bindings`` themselves.
+    """
+    from nodes.input_bindings import models_affect_input_bindings, sync_input_bindings
+
+    touched = getattr(op, '_touched_models', None)
+    if touched and models_affect_input_bindings(touched):
+        sync_input_bindings(ic)
 
 
 @contextmanager
@@ -260,6 +276,14 @@ def record_change(
     * both present     → update
     """
     op = get_current_operation()
+
+    # Track which model classes the operation touched, so the write-boundary
+    # hook can tell whether the input-binding mirror may be affected.
+    touched = getattr(op, '_touched_models', None)
+    if touched is None:
+        touched = set()
+        op._touched_models = touched
+    touched.add(type(obj))
 
     if target_uuid is None:
         # UUIDIdentifiedModel.uuid is the canonical choice; fall back to pk
