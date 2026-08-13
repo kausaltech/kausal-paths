@@ -274,6 +274,8 @@ SOCIAL_AUTH_AZURE_AD_SECRET = env.str('AZURE_AD_CLIENT_SECRET')
 
 SOCIAL_AUTH_PASSWORD_FORM_URL = '/admin/login/'  # noqa: S105
 
+SESSION_ENGINE = 'kausal_common.sessions.backends.db'
+
 SOCIAL_AUTH_PIPELINE = (
     'kausal_common.auth.pipeline.log_login_attempt',
     # Get the information we can about the user and return it in a simple
