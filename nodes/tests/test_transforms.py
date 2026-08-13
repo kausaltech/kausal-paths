@@ -309,3 +309,15 @@ def test_flat_key_translation_leaves_yaml_shaped_configs_alone():
     config = {'id': 'some/dataset', 'forecast_from': 2025, 'filters': [{'column': 'action', 'value': 'x'}]}
 
     assert _flat_keys_from_transformations(config) is config
+
+
+def test_node_edge_transformations_are_migration_serializable() -> None:
+    from django.db.migrations.writer import MigrationWriter
+
+    from nodes.models import NodeEdge
+
+    serialized, imports = MigrationWriter.serialize(NodeEdge._meta.get_field('transformations'))
+
+    assert 'FilterDimensionOp' in serialized
+    assert 'PydanticSchemaField' in serialized
+    assert 'import django_pydantic_field.fields' in imports

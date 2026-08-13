@@ -217,6 +217,7 @@ class _InputPortMultiCandidate:
     edge: Edge
     metric: NodeMetric
     group: str
+    role: str | None = None
 
 
 def _effective_input_dimension_ids(node: Node, edge: Edge) -> tuple[str, ...]:
@@ -325,6 +326,7 @@ def _apply_input_port_multi_hints(node: Node, ports: list[InputPortDef], candida
 
         first.port.id = group_port_id
         first.port.identifier = identifier_or_none(first.group)
+        first.port.role = identifier_or_none(first.role) if first.role is not None else None
         first.port.multi = True
         first.port.quantity = first.metric.quantity
         first.port.unit = node.unit or first.metric.unit
@@ -559,6 +561,7 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
                         edge=edge,
                         metric=from_metric,
                         group=group,
+                        role=hint.role,
                     )
                 )
             port._from_node = edge.input_node.id
@@ -597,12 +600,14 @@ def _export_output_ports(node: Node) -> list[OutputPortDef]:
     if isinstance(class_metrics, dict):
         class_metric_ids = set(class_metrics.keys())
 
+    role_by_metric_id = {declaration.identifier: declaration.role for declaration in type(node).output_port_declarations}
     ports: list[OutputPortDef] = []
     for metric_id, metric in node.output_metrics.items():
         assert metric.unit is not None
         port = OutputPortDef(
             id=uuid_from_identifiers(node.context.instance, [node.id, metric_id]),
             identifier=identifier_or_none(metric_id),
+            role=role_by_metric_id.get(metric_id),
             label=_to_ts(metric.label),
             unit=metric.unit,
             quantity=metric.quantity or None,

@@ -10,7 +10,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import NodeSpec
-from nodes.instance_serialization import InstanceSnapshot, NodeSnapshot
+from nodes.instance_serialization import InstanceSnapshot, NodeSnapshot, reconcile_snapshot_node_metadata
 from nodes.models import NodeConfig
 from nodes.spec_sync import _apply_metadata_columns, _upsert_node_configs
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
@@ -173,3 +173,79 @@ def test_legacy_row_without_spec_is_bootstrapped_from_snapshot(db_instance):
     assert row.order == -1
     assert row.is_visible is False
     assert row.spec == NodeSpec()
+
+
+def test_sync_reconciles_authoritative_node_metadata_before_upsert(db_instance):
+    row = NodeConfigFactory.create(
+        instance=db_instance,
+        name='Database name',
+        short_name='DB short name',
+        color='',
+        order=None,
+        is_visible=False,
+        spec=None,
+        i18n={'name_fi': 'Tietokannan nimi'},
+    )
+    source = InstanceSnapshot(
+        metadata=InstanceMetadata(primary_language='en', other_languages=['fi']),
+        spec=db_instance.spec,
+        nodes=[
+            NodeSnapshot(
+                uuid=row.uuid,
+                identifier=row.identifier,
+                name=TranslatedString(en='YAML name', fi='YAML-nimi'),
+                short_name=TranslatedString(en='YAML short name', fi='YAML-lyhytnimi'),
+                color='#123456',
+                order=-1,
+                is_visible=True,
+                spec=NodeSpec(),
+            )
+        ],
+    )
+
+    snapshot = reconcile_snapshot_node_metadata(source, [row])
+    reconciled = snapshot.nodes[0]
+
+    assert reconciled.name is not None
+    assert reconciled.name.i18n == {'en': 'Database name', 'fi': 'Tietokannan nimi'}
+    assert reconciled.short_name is not None
+    assert reconciled.short_name.i18n == {'en': 'DB short name', 'fi': 'YAML-lyhytnimi'}
+    assert reconciled.color == '#123456'
+    assert reconciled.order == -1
+    assert reconciled.is_visible is False
+
+    _upsert_node_configs(db_instance, snapshot, [row])
+
+    row = NodeConfig.objects.with_spec().get(pk=row.pk)
+    assert row.name == 'Database name'
+    assert row.short_name == 'DB short name'
+    assert row.i18n == {'name_fi': 'Tietokannan nimi', 'short_name_fi': 'YAML-lyhytnimi'}
+    assert row.color == '#123456'
+    assert row.order == -1
+    assert row.is_visible is False
+    assert row.spec == NodeSpec()
+
+
+def test_yaml_runtime_nodes_use_reconciled_metadata_snapshots(instance_config, instance, node):
+    node.short_name = TranslatedString(en='YAML short name')
+    node.is_visible = True
+    row = NodeConfigFactory.create(
+        instance=instance_config,
+        identifier=node.id,
+        name='Database name',
+        short_name='DB short name',
+        color='',
+        order=None,
+        is_visible=False,
+        spec=None,
+    )
+
+    instance_config.update_instance_from_configs(instance, node_refs=True)
+
+    assert node.source_snapshot is not None
+    assert node.source_snapshot.uuid == row.uuid
+    assert str(node.source_snapshot.name) == 'Database name'
+    assert str(node.source_snapshot.short_name) == 'DB short name'
+    assert node.source_snapshot.color == 'pink'
+    assert node.source_snapshot.is_visible is False
+    assert instance.source_nodes_by_uuid[row.uuid] is node

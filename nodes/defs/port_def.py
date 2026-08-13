@@ -14,21 +14,57 @@ from paths.refs import DimensionRef, NodeRef, QuantityKindRef, UniqueList
 from nodes.units import Unit
 
 if TYPE_CHECKING:
+    from django.utils.functional import Promise
+
     from nodes.node import Node
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class InputPortDeclaration:
-    """Class-level semantic input role shared by computation and shape rules."""
+    """
+    Class-level semantic input role shared by computation and shape rules.
+
+    Two kinds of multiplicity, each meaning exactly one thing:
+
+    * ``multi`` — one port instance accepting many bindings. The delivered
+      values form a *homogeneous* aggregate: every binding is shape-equal
+      and the values are summed.
+    * ``repeatable`` — many port instances of this role. Each instance is
+      *heterogeneous*: it carries its own unit, quantity and dimension
+      expectations (e.g. each factor of a product).
+
+    ``label`` is the default UI presentation for the role ("Factor",
+    "Additive inputs") — what an add-port affordance shows before a port
+    exists. An instantiated port's own label/identifier specializes it.
+    """
 
     role: MixedCaseIdentifier
     identifier: MixedCaseIdentifier | None = None
+    label: str | Promise | None = None
     multi: bool = False
-    required: bool = True
+    repeatable: bool = False
+    min_count: int = 1
+    """Minimum number of port instances of this role for a valid node."""
+    default_count: int | None = None
+    """Port instances created by default at node creation; defaults to ``min_count``."""
+
+    def __post_init__(self) -> None:
+        if self.multi and self.repeatable:
+            raise ValueError(f'Port role {self.role!r}: multi and repeatable are mutually exclusive')
+        if self.min_count < 0:
+            raise ValueError(f'Port role {self.role!r}: min_count must be non-negative')
+        if self.default_count is not None and self.default_count < self.min_count:
+            raise ValueError(f'Port role {self.role!r}: default_count may not be below min_count')
+        if not self.repeatable and max(self.min_count, self.default_count or 0) > 1:
+            raise ValueError(f'Port role {self.role!r}: only a repeatable role may have more than one instance')
 
     @property
     def instance_identifier(self) -> MixedCaseIdentifier:
         return self.identifier or self.role
+
+    @property
+    def effective_default_count(self) -> int:
+        return self.default_count if self.default_count is not None else self.min_count
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -37,6 +73,7 @@ class OutputPortDeclaration:
 
     role: MixedCaseIdentifier
     identifier: MixedCaseIdentifier
+    label: str | Promise | None = None
 
 
 class InputPortDef(I18nBaseModel):
@@ -52,6 +89,15 @@ class InputPortDef(I18nBaseModel):
     key was an index or a label with spaces).
     """
     label: I18nString | None = None
+    role: MixedCaseIdentifier | None = None
+    """
+    Semantic role linking this port to its class-level ``InputPortDeclaration``.
+
+    Unlike ``identifier`` (a human/formula name, freely renameable), the role is
+    fixed class vocabulary: shape rules and computation resolve ports through it.
+    Not unique within the node — every instance of a repeatable role carries the
+    same role string.
+    """
     quantity: QuantityKindRef | None = None
     unit: Unit | None = None
     multi: bool = False
@@ -83,6 +129,8 @@ class OutputPortDef(I18nBaseModel):
     ``column_id`` when only the latter is known.
     """
     label: I18nString | None = None
+    role: MixedCaseIdentifier | None = None
+    """Semantic role linking this port to its class-level ``OutputPortDeclaration``."""
     quantity: QuantityKindRef | None = None
     unit: Unit
     column_id: MixedCaseIdentifier | None = None

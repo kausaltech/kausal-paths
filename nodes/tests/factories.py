@@ -199,3 +199,47 @@ class CustomScenarioFactory(ScenarioFactory[CustomScenario]):
         model = CustomScenario
 
     base_scenario = SubFactory[Any, Scenario](ScenarioFactory)
+
+
+def register_dimensions(
+    ic: InstanceConfig,
+    dim_ids: list[str],
+    categories: dict[str, list[str]] | None = None,
+) -> dict[str, Any]:
+    """
+    Populate both spec.dimensions and the ORM Dimension/DimensionScope rows.
+
+    The DB-sourced config loader validates that every dimension referenced
+    by InstanceSpec.dimensions exists in the ORM (categories included), so
+    tests that assign spec.dimensions must create the matching rows too.
+    The solver-backed binding validator likewise rejects transformations
+    referencing dimensions the instance does not have.
+
+    Returns the created ``Dimension`` rows by identifier, so a test can
+    attach the same dimension to a dataset schema.
+    """
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dimension, DimensionCategory, DimensionScope
+
+    categories = categories or {}
+    assert ic.spec is not None
+    ic.spec.dimensions = [
+        {
+            'id': dim_id,
+            'label': dim_id.replace('_', ' ').title(),
+            'categories': [{'id': cat_id, 'label': cat_id.title()} for cat_id in categories.get(dim_id, [])],
+        }
+        for dim_id in dim_ids
+    ]
+    ic.save(update_fields=['spec'])
+
+    ct = ContentType.objects.get_for_model(ic)
+    dimensions: dict[str, Dimension] = {}
+    for dim_id in dim_ids:
+        dim = Dimension.objects.create(name=dim_id.replace('_', ' ').title())
+        DimensionScope.objects.create(dimension=dim, scope_content_type=ct, scope_id=ic.pk, identifier=dim_id)
+        for cat_id in categories.get(dim_id, []):
+            DimensionCategory.objects.create(dimension=dim, identifier=cat_id, label=cat_id.title())
+        dimensions[dim_id] = dim
+    return dimensions

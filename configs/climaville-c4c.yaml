@@ -24,17 +24,17 @@ impact_overviews:
 - graph_type: cost_efficiency
   cost_node: net_costs
   effect_node: net_emissions
-  indicator_unit: DKK/t
-  cost_unit: DKK
+  indicator_unit: EUR/t
+  cost_unit: EUR
   effect_unit: t
   plot_limit_for_indicator: 10000
   label: Cost Efficiency
 
 - graph_type: cost_benefit
   effect_node: net_costs
-  indicator_unit: MDKK
+  indicator_unit: MEUR
   outcome_dimension: cost_type
-  label_en: Cost-benefit
+  label_en: Cost-Benefit
   label_da: Kost-nytte
 
 action_groups:
@@ -1951,7 +1951,7 @@ nodes:
   color: '#4E79A7'
   type: simple.AdditiveNode
   quantity: currency
-  unit: DKK/a
+  unit: EUR/a
   input_dimensions: [cost_type, sector]
   output_dimensions: [cost_type, sector]
   output_nodes:
@@ -1962,7 +1962,7 @@ nodes:
   color: '#E15759'
   type: simple.AdditiveNode
   quantity: currency
-  unit: DKK/a
+  unit: EUR/a
   input_dimensions: [cost_type, sector]
   output_dimensions: [cost_type, sector]
   output_nodes:
@@ -1973,7 +1973,7 @@ nodes:
   color: '#59A14F'
   type: simple.AdditiveNode
   quantity: currency
-  unit: DKK/a
+  unit: EUR/a
   input_dimensions: [cost_type, sector]
   output_dimensions: [cost_type, sector]
   output_nodes:
@@ -1984,7 +1984,7 @@ nodes:
   color: '#F28E2B'
   type: simple.AdditiveNode
   quantity: currency
-  unit: DKK/a
+  unit: EUR/a
   input_dimensions: [cost_type, sector]
   output_dimensions: [cost_type, sector]
   output_nodes:
@@ -1995,7 +1995,7 @@ nodes:
   color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: currency
-  unit: DKK/a
+  unit: EUR/a
   input_dimensions: [cost_type, sector]
   output_dimensions: [cost_type, sector]
   output_nodes:
@@ -2005,7 +2005,7 @@ nodes:
   name_en: Net Costs
   type: simple.AdditiveNode
   quantity: currency
-  unit: DKK/a
+  unit: EUR/a
   input_dimensions: [cost_type, sector]
   output_dimensions: [cost_type, sector]
 
@@ -2033,7 +2033,7 @@ actions:
     unit: TJ/a
     quantity: energy
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: chp_emissions
@@ -2082,7 +2082,7 @@ actions:
     unit: TJ/a
     quantity: energy
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: chp_district_heat_energy_consumption
@@ -2130,7 +2130,7 @@ actions:
     unit: TJ/a
     quantity: energy
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: chp_district_heat_energy_consumption
@@ -2201,7 +2201,7 @@ actions:
     unit: ha
     quantity: area
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: renewable_electricity_generation
@@ -2245,7 +2245,7 @@ actions:
     unit: TJ/a
     quantity: energy
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: chp_district_heat_energy_consumption
@@ -2288,7 +2288,7 @@ actions:
     unit: t/a
     quantity: emissions
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: energy_emissions
@@ -2347,7 +2347,7 @@ actions:
     unit: km/a
     quantity: mileage
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: onroad_transport_vehicle_mileage
@@ -2384,12 +2384,14 @@ actions:
     unit: TJ/a
     quantity: energy
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: waterborne_transport_energy_consumption
     metrics: [energy]
     from_dimensions:
+    - id: vehicle_type
+      categories: [ferry]
     - id: cost_type
       flatten: true
     - id: sector
@@ -2397,6 +2399,8 @@ actions:
   - id: aviation_energy_consumption
     metrics: [energy]
     from_dimensions:
+    - id: vehicle_type
+      categories: [aviation]
     - id: cost_type
       flatten: true
     - id: sector
@@ -2428,7 +2432,7 @@ actions:
     unit: km/a
     quantity: mileage
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: onroad_transport_vehicle_mileage
@@ -2468,7 +2472,7 @@ actions:
     unit: '%'
     quantity: fraction
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: onroad_transport_passenger_car_mileage_reduction_zez
@@ -2504,7 +2508,7 @@ actions:
     unit: t/a
     quantity: emissions
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: waste_emissions
@@ -2539,7 +2543,7 @@ actions:
     unit: t/a
     quantity: emissions
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: ippu_emissions
@@ -2577,7 +2581,7 @@ actions:
     unit: ha
     quantity: area
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: livestock_emissions
@@ -2634,7 +2638,7 @@ actions:
     unit: t/a
     quantity: emissions
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: cultivation_emissions
@@ -2670,7 +2674,7 @@ actions:
     unit: ha
     quantity: area
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: land_areas
@@ -2703,7 +2707,7 @@ actions:
     unit: ha
     quantity: area
   - id: currency
-    unit: DKK/a
+    unit: EUR/a
     quantity: currency
   output_nodes:
   - id: land_areas

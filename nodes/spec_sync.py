@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, cast
 from uuid import uuid3
 
 from loguru import logger
-from markdown_it import MarkdownIt
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -27,9 +26,6 @@ if TYPE_CHECKING:
     from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig, NodeConfig
     from nodes.yaml_port_refs import YamlPortReferenceCatalog
-
-
-_MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
 
 @dataclass
@@ -233,9 +229,6 @@ def _seed_node_metadata_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_l
         if value is None:
             continue
         val, tr = get_modeltrans_attrs_from_str(value, field_name, primary_language, strict=False)
-        if field_name == 'short_description':
-            val = _MARKDOWN.render(val)
-            tr = {key: _MARKDOWN.render(translated) for key, translated in tr.items()}
         i18n.update(tr)
         attributes[field_name] = val
 
@@ -315,15 +308,19 @@ def _write_dataset_ports(
     return len(port_objs)
 
 
-def _upsert_node_configs(ic: InstanceConfig, snapshot: InstanceSnapshot) -> dict[UUID, NodeConfig]:
+def _upsert_node_configs(
+    ic: InstanceConfig,
+    snapshot: InstanceSnapshot,
+    existing_node_configs: list[NodeConfig] | None = None,
+) -> dict[UUID, NodeConfig]:
     from nodes.models import NodeConfig
 
-    # A NULL spec marks a legacy row that has never been bootstrapped from
-    # YAML. Keep spec loaded so the first sync can seed its metadata too;
-    # once a computation spec exists, ORM metadata remains authoritative.
-    node_qs = NodeConfig.objects.with_spec().filter(instance=ic)
-    existing_by_uuid = {nc.uuid: nc for nc in node_qs}
-    existing_by_identifier = {nc.identifier: nc for nc in node_qs}
+    if existing_node_configs is None:
+        existing_node_configs = list(
+            NodeConfig.objects.with_spec().filter(instance=ic).select_related('indicator_node', 'copy_of', 'layout')
+        )
+    existing_by_uuid = {nc.uuid: nc for nc in existing_node_configs}
+    existing_by_identifier = {nc.identifier: nc for nc in existing_node_configs}
     node_configs: dict[UUID, NodeConfig] = {}
     touched_pks: set[int] = set()
     for n in snapshot.nodes:
@@ -332,8 +329,7 @@ def _upsert_node_configs(ic: InstanceConfig, snapshot: InstanceSnapshot) -> dict
         nc = existing_by_uuid.get(n.uuid) or existing_by_identifier.get(n.identifier)
         if nc is None:
             nc = NodeConfig(instance=ic, uuid=n.uuid, identifier=n.identifier)
-        if nc.spec is None:
-            _seed_node_metadata_from_snapshot(nc, n, snapshot.metadata.primary_language)
+        _seed_node_metadata_from_snapshot(nc, n, snapshot.metadata.primary_language)
         assert n.spec is not None
         nc.is_stale = False
         nc.save()
@@ -379,7 +375,8 @@ def sync_parsed_instance_to_db(
     from nodes.dataset_placeholders import sync_dataset_placeholders_from_snapshot
     from nodes.instance_loader import InstanceYAMLConfig
     from nodes.instance_parser import parse_instance_snapshot
-    from nodes.models import InstanceConfig
+    from nodes.instance_serialization import reconcile_snapshot_node_metadata
+    from nodes.models import InstanceConfig, NodeConfig
     from nodes.spec_export import _promote_dataset_forecast_defaults
 
     if yaml_path is None:
@@ -395,7 +392,10 @@ def sync_parsed_instance_to_db(
 
     with transaction.atomic():
         ic, _created = InstanceConfig.objects.get_or_create(identifier=data['id'])
-        node_uuids = {nc.identifier: nc.uuid for nc in ic.nodes.all().defer('spec')}
+        existing_node_configs = list(
+            NodeConfig.objects.with_spec().filter(instance=ic).select_related('indicator_node', 'copy_of', 'layout')
+        )
+        node_uuids = {nc.identifier: nc.uuid for nc in existing_node_configs}
         from nodes.yaml_port_refs import build_yaml_port_reference_catalog
 
         port_references = build_yaml_port_reference_catalog(ic)
@@ -406,6 +406,7 @@ def sync_parsed_instance_to_db(
             port_references=port_references,
         )
         snapshot.spec.features.use_datasets_from_db = True
+        snapshot = reconcile_snapshot_node_metadata(snapshot, existing_node_configs)
 
         with set_i18n_context(snapshot.metadata.primary_language, list(snapshot.metadata.other_languages)):
             _apply_metadata_columns(ic, snapshot)
@@ -415,7 +416,7 @@ def sync_parsed_instance_to_db(
             ic.save()
 
             _sync_dimensions_from_snapshot(ic, snapshot)
-            node_configs = _upsert_node_configs(ic, snapshot)
+            node_configs = _upsert_node_configs(ic, snapshot, existing_node_configs)
             edge_count = _write_edges(ic, snapshot, node_configs)
             created_placeholder_ids = sync_dataset_placeholders_from_snapshot(ic, snapshot)
             dataset_port_count = _write_dataset_ports(

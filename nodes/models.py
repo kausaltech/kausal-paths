@@ -734,10 +734,27 @@ class InstanceConfig(
         return None
 
     def update_instance_from_configs(self, instance: Instance, node_refs: bool = False):
+        bind_reconciled_snapshots = instance.source_snapshot is None
+        if bind_reconciled_snapshots:
+            instance.source_nodes_by_uuid = {}
         for node_config in self.nodes_for_serialization:
             node = instance.context.nodes.get(node_config.identifier)
             if node is None:
                 continue
+            if bind_reconciled_snapshots:
+                from .instance_serialization import NodeSnapshot, reconcile_node_snapshot_metadata
+
+                source_snapshot = NodeSnapshot.from_runtime_node(
+                    node,
+                    uuid=node_config.uuid,
+                    primary_language=self.primary_language,
+                )
+                node.source_snapshot = reconcile_node_snapshot_metadata(
+                    source_snapshot,
+                    node_config,
+                    primary_language=self.primary_language,
+                )
+                instance.source_nodes_by_uuid[node_config.uuid] = node
             node_config.update_node_from_config(node, keep_ref=node_refs)
 
     def update_identity_metadata(
@@ -889,6 +906,20 @@ class InstanceConfig(
         latest = self.change_operations.only('uuid').order_by('-created_at').first()
         return latest.uuid if latest is not None else None
 
+    def validate_draft_constraints(self) -> None:
+        """
+        Run strict whole-graph constraint validation on the current draft.
+
+        Raises ``InstanceConstraintError`` carrying the complete conflict set;
+        used as the publication gate and before strict computation contexts.
+        """
+        from nodes.constraints.validation import require_valid_instance_constraints
+        from nodes.instance_graph_cache import get_instance_graph, resolve_instance_source
+
+        source = resolve_instance_source(self, PreferredInstanceSource.DRAFT)
+        graph = get_instance_graph(self, PreferredInstanceSource.DRAFT, resolved_source=source)
+        require_valid_instance_constraints(self, graph, source)
+
     def publish_instance(self, user: User | None = None) -> None:
         """Atomically publish the model and immutable revisions of its DB datasets."""
         from wagtail.models import Revision
@@ -913,12 +944,20 @@ class InstanceConfig(
                     dataset_id__in=[dataset.pk for dataset in datasets],
                 )
             }
+            from nodes.dataset_materialization import materialization_is_fresh, refresh_dataset_materialization
+
             for dataset in datasets:
                 materialization = materializations.get(dataset.pk)
-                if materialization is None:
-                    raise RuntimeError(f'Dataset {dataset.uuid} has no current materialization')
-                if materialization.source_modified_at != dataset.last_modified_at:
-                    raise RuntimeError(f'Dataset {dataset.uuid} has a stale current materialization')
+                if materialization is None or not materialization_is_fresh(dataset, materialization):
+                    materialization = refresh_dataset_materialization(dataset, touch=False)
+                    materializations[dataset.pk] = materialization
+
+            # Publication is the strictness boundary: a draft may carry
+            # structural constraint conflicts and stay inspectable, but a
+            # conflicted graph never becomes a published revision. Runs after
+            # the materialization refresh so shape profiles read the same
+            # observed facts the revision will pin.
+            locked.validate_draft_constraints()
 
             dataset_ct = ContentType.objects.get_for_model(DatasetModel, for_concrete_model=False)
             now = timezone.now()
@@ -968,6 +1007,7 @@ class InstanceConfig(
                     dataset_uuid=dataset.uuid,
                     identifier=dataset.identifier,
                     forecast_from=materializations[dataset.pk].forecast_from,
+                    shape_profiles=materializations[dataset.pk].shape_profiles,
                 )
                 for dataset in datasets
             ])
@@ -1822,7 +1862,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         )
 
     def for_serialization(self) -> Self:
-        return self.active().with_spec().select_related('layout').annotate_ports()
+        return self.active().with_spec().select_related('indicator_node', 'copy_of', 'layout').annotate_ports()
 
 
 _NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)
@@ -2331,6 +2371,7 @@ class DatasetMaterialization(models.Model):
     content = models.JSONField()
     content_hash = models.CharField(max_length=64)
     generation = models.PositiveBigIntegerField(default=1)
+    shape_profiles = models.JSONField(null=True)
     forecast_from = models.IntegerField(null=True, blank=True)
     source_modified_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)
@@ -2372,6 +2413,7 @@ class InstanceRevisionDatasetPin(models.Model):
     dataset_uuid = models.UUIDField()
     identifier = models.CharField(max_length=100, null=True, blank=True)
     forecast_from = models.IntegerField(null=True, blank=True)
+    shape_profiles = models.JSONField(null=True)
 
     objects: ClassVar[Manager[InstanceRevisionDatasetPin]] = Manager()
 

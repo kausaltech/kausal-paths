@@ -37,6 +37,7 @@ from nodes.units import Unit
 from pages.models import ActionListPage
 from users.models import User
 
+from .constraints import ConstraintConflictType
 from .graph import (
     ActionGroupType,
     DatasetMetricRefType,
@@ -288,6 +289,19 @@ class InstanceEditorFields:
     def edges(root: 'InstanceEditorFields') -> list[NodeEdgeType]:
         edges = root._config.edges.select_related('from_node', 'to_node')
         return [NodeEdgeType.from_node_edge(edge) for edge in edges]
+
+    @sb.field(
+        graphql_type=list[ConstraintConflictType],
+        description=(
+            'All structural constraint conflicts in the selected graph. '
+            'Resolved from instance metadata without hydrating the computation model; '
+            'a draft with conflicts stays inspectable but cannot be published.'
+        ),
+    )
+    @staticmethod
+    def constraint_conflicts(root: 'InstanceEditorFields', info: gql.Info) -> list[ConstraintConflictType]:
+        result = info.context.require_constraint_solve(root._config, source=root._source)
+        return [ConstraintConflictType.from_conflict(conflict) for conflict in result.conflicts]
 
     @sb.field(
         graphql_type=list[Annotated['InstanceChangeOperationType', sb.lazy('nodes.graphql.types.change_history')]],

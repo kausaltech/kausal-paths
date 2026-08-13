@@ -25,7 +25,9 @@ from uuid import UUID
 
 from django.db import transaction
 from django.db.models import F
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from markdown_it import MarkdownIt
 
 from kausal_common.i18n.pydantic import (
     I18nBaseModel,
@@ -59,6 +61,7 @@ if TYPE_CHECKING:
 
     from frameworks.models import FrameworkConfig
     from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge, NodeLayout
+    from nodes.node import Node
 
 
 # Current schema version for ``InstanceSnapshot`` and ``InstanceExport``.
@@ -74,6 +77,8 @@ if TYPE_CHECKING:
 #   v7: published DB datasets have a normalized immutable revision manifest.
 #   v8: structural dimension and dataset catalogs carry canonical UUIDs.
 SNAPSHOT_SCHEMA_VERSION = 8
+
+_MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
 
 # ---------------------------------------------------------------------------
@@ -307,6 +312,7 @@ class NodeSnapshot(ModelSnapshot):
     name: TranslatedString | None = None
     short_name: TranslatedString | None = None
     short_description: TranslatedString | None = None
+    """Translated Wagtail database HTML, normalized from authored Markdown at the snapshot boundary."""
     description: TranslatedString | None = None
     goal: TranslatedString | None = None
     color: str = ''
@@ -320,6 +326,17 @@ class NodeSnapshot(ModelSnapshot):
     published serving doesn't lose (or leak drafts of) body content."""
     spec: NodeSpec | None = None
     layout: NodeLayoutSnapshot | None = None
+
+    @field_validator('short_description')
+    @classmethod
+    def render_short_description(cls, value: TranslatedString | None) -> TranslatedString | None:
+        """Keep every snapshot producer on the RichTextField-compatible HTML contract."""
+        if value is None:
+            return None
+        return TranslatedString(
+            default_language=value.default_language,
+            **{language: _MARKDOWN.render(text) for language, text in value.i18n.items()},
+        )
 
     @classmethod
     def from_model(cls, obj: NodeConfig, primary_language: str | None = None) -> Self:
@@ -348,6 +365,75 @@ class NodeSnapshot(ModelSnapshot):
             spec=obj.spec,
             layout=NodeLayoutSnapshot.from_model(layout) if layout is not None else None,
         )
+
+    @classmethod
+    def from_runtime_node(cls, obj: Node, uuid: UUID, primary_language: str) -> Self:
+        """Capture the YAML/runtime-owned metadata before applying ORM overrides."""
+
+        def translated(value: str | TranslatedString | None) -> TranslatedString | None:
+            if value is None or isinstance(value, TranslatedString):
+                return value
+            return TranslatedString(value, default_language=primary_language)
+
+        return cls(
+            uuid=uuid,
+            identifier=obj.id,
+            name=translated(obj.name),
+            short_name=translated(obj.short_name),
+            short_description=translated(obj.description),
+            color=obj.color or '',
+            order=obj.order,
+            is_visible=obj.is_visible,
+            spec=obj._spec,
+        )
+
+
+def _merge_translated_metadata(
+    source: TranslatedString | None,
+    stored: TranslatedString | None,
+) -> TranslatedString | None:
+    """Merge translations with non-empty ORM values taking precedence."""
+    if stored is None:
+        return source
+    if source is None:
+        return stored
+    translations = dict(source.i18n)
+    translations.update(stored.i18n)
+    return TranslatedString(
+        default_language=stored.default_language or source.default_language,
+        **translations,
+    )
+
+
+def reconcile_node_snapshot_metadata(
+    source: NodeSnapshot,
+    node_config: NodeConfig,
+    primary_language: str,
+) -> NodeSnapshot:
+    """
+    Overlay ORM-owned metadata on a YAML/runtime node snapshot.
+
+    Empty optional ORM values retain the YAML fallback used by the legacy
+    runtime. Boolean visibility is never treated as missing, so an authored
+    ``False`` survives the transition to DB-backed snapshots.
+    """
+    stored = NodeSnapshot.from_model(node_config, primary_language=primary_language)
+    return source.model_copy(
+        update={
+            'name': _merge_translated_metadata(source.name, stored.name),
+            'short_name': _merge_translated_metadata(source.short_name, stored.short_name),
+            'short_description': _merge_translated_metadata(source.short_description, stored.short_description),
+            'description': _merge_translated_metadata(source.description, stored.description),
+            'goal': _merge_translated_metadata(source.goal, stored.goal),
+            'color': stored.color or source.color,
+            'order': stored.order if stored.order is not None else source.order,
+            'is_visible': stored.is_visible,
+            'indicator_node': stored.indicator_node,
+            'copy_of': stored.copy_of,
+            'body': stored.body,
+            'layout': stored.layout,
+        },
+    )
 
 
 def _upgrade_node_metadata_v4(nodes: list[Any]) -> None:
@@ -506,6 +592,31 @@ class InstanceSnapshot(BaseModel):
 
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
         return cls.model_validate(data)
+
+
+def reconcile_snapshot_node_metadata(
+    snapshot: InstanceSnapshot,
+    node_configs: Iterable[NodeConfig],
+) -> InstanceSnapshot:
+    """Return the desired snapshot after applying authoritative ORM metadata."""
+    by_uuid = {node.uuid: node for node in node_configs}
+    by_identifier = {node.identifier: node for node in node_configs}
+    nodes: list[NodeSnapshot] = []
+    for source in snapshot.nodes:
+        node_config = by_uuid.get(source.uuid)
+        if node_config is None and source.identifier is not None:
+            node_config = by_identifier.get(source.identifier)
+        if node_config is None:
+            nodes.append(source)
+            continue
+        nodes.append(
+            reconcile_node_snapshot_metadata(
+                source,
+                node_config,
+                primary_language=snapshot.metadata.primary_language,
+            )
+        )
+    return snapshot.model_copy(update={'nodes': nodes})
 
 
 class InstanceExport(BaseModel):
@@ -712,6 +823,39 @@ def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
     return dimensions
 
 
+def dataset_meta_from_model(
+    dataset: DatasetModel,
+    *,
+    primary_language: str,
+    pinned_revision_id: int | None = None,
+) -> DatasetMeta:
+    """Build the graph catalog entry for one dataset, exactly as snapshots record it."""
+    schema = dataset.schema
+    if schema is None:
+        raise ValueError(f'Dataset {dataset.uuid} has no schema')
+    metrics = tuple(
+        DatasetMetricMeta(
+            id=metric.uuid,
+            identifier=metric.name,
+            label=_ts_from_modeltrans(metric, 'label', primary_language),
+            unit=metric.unit,
+            order=metric.order,
+        )
+        for metric in schema.metrics.all()
+    )
+    declared_dimension_ids = tuple(schema_dimension.dimension.uuid for schema_dimension in schema.dimensions.all())
+    return DatasetMeta(
+        id=dataset.uuid,
+        identifier=dataset.identifier,
+        schema_id=schema.uuid,
+        metrics=metrics,
+        declared_dimension_ids=declared_dimension_ids,
+        is_external_placeholder=dataset.is_external_placeholder,
+        external_ref=dataset.external_ref,
+        revision_id=pinned_revision_id if pinned_revision_id is not None else dataset.latest_revision_id,
+    )
+
+
 def _dataset_catalog_for(
     ic: InstanceConfig,
     *,
@@ -729,31 +873,12 @@ def _dataset_catalog_for(
     )
     result: list[DatasetMeta] = []
     for dataset in datasets:
-        schema = dataset.schema
-        if schema is None:
-            raise ValueError(f'Dataset {dataset.uuid} has no schema')
-        metrics = tuple(
-            DatasetMetricMeta(
-                id=metric.uuid,
-                identifier=metric.name,
-                label=_ts_from_modeltrans(metric, 'label', ic.primary_language),
-                unit=metric.unit,
-                order=metric.order,
-            )
-            for metric in schema.metrics.all()
-        )
-        declared_dimension_ids = tuple(schema_dimension.dimension.uuid for schema_dimension in schema.dimensions.all())
         pin = dataset_revision_pins.get(dataset.pk) if dataset_revision_pins is not None else None
         result.append(
-            DatasetMeta(
-                id=dataset.uuid,
-                identifier=dataset.identifier,
-                schema_id=schema.uuid,
-                metrics=metrics,
-                declared_dimension_ids=declared_dimension_ids,
-                is_external_placeholder=dataset.is_external_placeholder,
-                external_ref=dataset.external_ref,
-                revision_id=pin.revision_id if pin is not None else dataset.latest_revision_id,
+            dataset_meta_from_model(
+                dataset,
+                primary_language=ic.primary_language,
+                pinned_revision_id=pin.revision_id if pin is not None else None,
             )
         )
     return result

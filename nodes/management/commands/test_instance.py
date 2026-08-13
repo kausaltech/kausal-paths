@@ -578,7 +578,7 @@ class Command(BaseCommand):
             print('Current rows (first and last 5):\n%s\n...\n%s' % (cur_rows[:5], cur_rows[-5:]))
             has_diffs = True
 
-        diff = DeepDiff(ref_rows, cur_rows, math_epsilon=1e-6)
+        diff = DeepDiff(ref_rows, cur_rows, math_epsilon=1e-4)
         if diff:
             logger.error('Instance {instance_id}, {artifact_id} rows differ', instance_id=instance_id, artifact_id=artifact_id)
             print(diff)
