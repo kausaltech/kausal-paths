@@ -160,6 +160,7 @@ KNOWN_QUANTITIES = (
         'distance',
         'elasticity',
         'quality_of_data',
+        'temperature',
     }
 )
 

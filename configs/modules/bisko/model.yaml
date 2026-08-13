@@ -698,39 +698,6 @@ dimensions:
     label_de: Arbeitsgeräte
     aliases: [Arbeitsgeraete]
 
-action_groups:
-
-- id: combined_heat_and_power
-  name_en: Combined heat and power
-  name_de: Kombination aus Wärme und Strom
-  color: '#007C78'
-
-actions:
-
-- id: combined_heat_and_power_chp_fraction
-  name_en: Combined heat and power CHP fraction
-  name_de: Kombination aus Wärme und Strom CHP Anteil
-  type: simple.ChpAction
-  quantity: fraction
-  unit: '%'
-  group: combined_heat_and_power
-  output_dimensions: [energy_carrier]
-  params:
-  - id: method
-    value: bisko
-  - id: electricity_fraction
-    value: 0.3
-    min_value: 0.0
-    max_value: 1.0
-  - id: t_supply
-    value: 373
-    min_value: 303
-    max_value: 393
-  - id: enabled
-    value: true
-    is_visible: true
-    is_customizable: false
-
 #//////  Nodes  ////////////////////////////////////////////////////////////////////////////////////////////////////
 nodes:
 
@@ -1442,28 +1409,67 @@ nodes:
   - id: condition
     ref: use_national_values
 
-- id: combined_heat_and_power_ef
-  name_en: Combined heat and power emission factor
-  name_de: Emissionsfaktor für Kombination aus Wärme und Strom
-  type: generic.ChpNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
+- id: combined_heat_and_power_chp_fraction
+  name_en: Combined heat and power allocation fractions
+  name_de: Aufteilungsfaktoren der Kraft-Wärme-Kopplung
+  description_en: |
+    A combined heat and power plant burns one lot of fuel and sells two products, so its emissions
+    have to be divided between them. BISKO criterion 6 prescribes how: the exergetic (Carnot)
+    method, which weights each product by the work it could do rather than by its energy content,
+    with the return temperature of the network fixed at 283 K. This moves the larger share of the
+    emissions onto electricity, because heat delivered at 373 K can do far less work than the same
+    quantity of electricity. This node computes the two fractions, which always sum to 1; the
+    district heating one is what
+    <code>district_heating_fuel_emission_factors</code> multiplies the fuel factors by. The
+    electricity fraction is computed but deliberately unused: BISKO requires the national
+    electricity factor rather than a locally derived one.<br/>
+    The node type is <code>BiskoChpNode</code>, which fixes the method and the return temperature
+    in code. They cannot be changed here or in a scenario, so the conformity is a property of the
+    model rather than of a setting somebody might edit.<br/>
+    What is city-specific is the electricity fraction of the plant's output and the supply
+    temperature of the network, and both move from year to year as the plant is dispatched
+    differently.
+  description_de: |
+    Ein Heizkraftwerk verbrennt einen Brennstoff und verkauft zwei Produkte, seine Emissionen
+    müssen also zwischen beiden aufgeteilt werden. BISKO-Kriterium 6 schreibt vor, wie: nach der
+    exergetischen Methode (Carnot-Methode), die jedes Produkt nach seinem Arbeitsvermögen und
+    nicht nach seinem Energieinhalt gewichtet, mit einer auf 283 K festgelegten Rücklauftemperatur.
+    Dadurch entfällt der größere Teil der Emissionen auf den Strom, denn Wärme mit 373 K kann
+    weit weniger Arbeit leisten als dieselbe Menge Strom. Dieser Knoten berechnet die beiden
+    Faktoren, die sich stets zu 1 addieren; mit dem Fernwärmefaktor multipliziert
+    <code>district_heating_fuel_emission_factors</code> die Brennstofffaktoren. Der Stromfaktor
+    wird berechnet, aber bewusst nicht verwendet: BISKO verlangt den nationalen und nicht einen
+    lokal abgeleiteten Stromfaktor.<br/>
+    Der Knotentyp ist <code>BiskoChpNode</code>, der die Methode und die Rücklauftemperatur im Code
+    festlegt. Sie sind weder hier noch in einem Szenario änderbar, die Konformität ist also eine
+    Eigenschaft des Modells und nicht einer Einstellung, die jemand bearbeiten könnte.<br/>
+    Stadtspezifisch sind der Stromanteil an der Erzeugung und die Vorlauftemperatur des Netzes, und
+    beide ändern sich von Jahr zu Jahr mit der Fahrweise der Anlage.
+  type: generic.BiskoChpNode
+  quantity: fraction
+  unit: '%'
   output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: emission_factors_for_district_heating_by_generic_fuel
-    from_dimensions:
-    - id: energy_carrier
-      categories: [natural_gas_turbine]
-      flatten: true
-    - id: per_what_energy
-      flatten: true
-  params:
-    method: bisko
-    electricity_fraction: 0.3
-    t_supply: 373
-    t_return: 283
-    # electricity_reference_efficiency: 0.4 # Only needed to efficiency method (commonly used in Finland)
-    # heat_reference_efficiency: 0.9
+  # Annual data, when the city has it, replaces the two parameters below. Either give the series
+  # as a dataset with one metric column per input:
+  input_datasets:
+  - id: bisko/chp_parameters   # metric columns: electricity_fraction (dimensionless), t_supply (K)
+  # or compute one of them from nodes that already exist, tagging the edge with the input's name:
+  #   input_nodes:
+  #   - id: chp_electricity_output_share
+  #     tags: [electricity_fraction]
+  # Whatever is not supplied as a series falls back to the parameter of the same name. Series are
+  # interpolated over internal gaps and held constant outside the years they cover.
+  # params:
+  # - id: electricity_fraction
+  #   value: 0.3
+  #   min_value: 0.0
+  #   max_value: 1.0
+  #   is_customizable: true
+  # - id: t_supply
+  #   value: 373
+  #   min_value: 303
+  #   max_value: 393
+  #   is_customizable: true
 
 #//////  Transport  /////////////////////////////////////////////////////////////////////////////////
 
@@ -2074,9 +2080,11 @@ nodes:
   name_de: Werden die Fernwärmeemissionen exergetisch alloziert?
   description_en: |
     BISKO criterion 6 requires the coupled products of combined heat and power to be split by
-    the exergetic (Carnot) method. The split itself happens inside the combined heat and power
-    action, which runs with <code>method: bisko</code> — but that is invisible in the balance,
-    so this node makes it explicit and testable.<br/>
+    the exergetic (Carnot) method. The split itself happens in
+    <code>combined_heat_and_power_chp_fraction</code>, a <code>BiskoChpNode</code>, whose type
+    fixes the method and the 283 K return temperature in code. That settles which method the
+    model applies, but it says nothing about the numbers fed into it, and neither is visible in
+    the balance — so this node tests the result.<br/>
     The test is on the factor the balance actually applies — district heating emissions divided by
     district heating consumption, both taken from the balance itself rather than from the detailed
     fuel-input branch. That branch is empty for most cities, and the balance then falls back to the
@@ -2094,8 +2102,10 @@ nodes:
   description_de: |
     BISKO-Kriterium 6 verlangt, dass die Koppelprodukte der Kraft-Wärme-Kopplung nach der
     exergetischen Methode (Carnot-Methode) aufgeteilt werden. Die Aufteilung selbst erfolgt in
-    der KWK-Aktion, die mit <code>method: bisko</code> rechnet — das ist in der Bilanz jedoch
-    nicht sichtbar, weshalb dieser Knoten es explizit und prüfbar macht.<br/>
+    <code>combined_heat_and_power_chp_fraction</code>, einem <code>BiskoChpNode</code>, dessen Typ
+    die Methode und die Rücklauftemperatur von 283 K im Code festlegt. Damit steht fest, welche
+    Methode das Modell anwendet, über die eingespeisten Zahlen sagt es jedoch nichts, und beides
+    ist in der Bilanz nicht sichtbar — deshalb prüft dieser Knoten das Ergebnis.<br/>
     Geprüft wird der effektive Faktor der tatsächlich gelieferten Wärme — die Emissionen des
     Fernwärmezweigs geteilt durch dessen Wärmeabgabe. Dieser Faktor muss innerhalb der Spannweite
     der BISKO-Varianten aus Tabelle 5 liegen, begrenzt durch Kohle KWK oben und Biomasse KWK

@@ -161,11 +161,6 @@ result_excels:
 
 action_groups:
 
-- id: combined_heat_and_power
-  name_en: Combined heat and power
-  name_de: Kombination aus Wärme und Strom
-  color: '#007C78'
-
 - id: electricity
   name_de: Strom
   name_en: Electricity

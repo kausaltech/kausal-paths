@@ -663,14 +663,6 @@ result_excels:
   - vehicle_kilometers_ifeu
   - other_transport_energy
 
-action_groups:
-
-- id: combined_heat_and_power
-  name_en: Combined heat and power
-  name_de: Kombination aus Wärme und Strom
-  color: '#007C78'
-
-
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 # copied from bisko --> model.yaml  for changing colors
 # in order how they appear on homepage

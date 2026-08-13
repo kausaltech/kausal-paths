@@ -15,7 +15,7 @@ from kausal_common.perf.perf_context import PerfKind, estimate_size_bytes
 from common import polars as ppl
 from common.polars import PathsDataFrame
 from nodes.actions.action import ActionNode
-from nodes.calc import extend_last_historical_value_pl
+from nodes.calc import extend_last_historical_value_pl, extend_to_history_pl
 from nodes.node import NodeMetric
 from nodes.units import Quantity, Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
@@ -1785,103 +1785,340 @@ class GenerationCapacityNode(GenericNode):
         self.OPERATIONS['generation_capacity'] = self._operation_generation_capacity
 
 
+BISKO_T_RETURN = 283.0
+"""District heating return temperature (K) that BISKO fixes for the exergetic split."""
+
+
 class ChpNode(GenericNode):
+    """
+    Split the emissions of a combined heat and power plant between its two products.
+
+    Outputs allocation fractions on an ``energy_carrier`` dimension with categories
+    ``electricity`` and ``district_heating``, summing to 1 in every year. Multiply
+    them with the plant's average fuel emission factor to get carrier-specific
+    factors.
+
+    The allocation follows the GHG Protocol CHP guidance,
+
+        a_i = z_i * f_i / sum_i(z_i * f_i),
+
+    where ``f_electricity`` is the electricity share of the energy produced,
+    ``f_heat = 1 - f_electricity``, and ``z_i`` weights the two products according
+    to the chosen ``method``:
+
+    - ``energy_content``: products are equal per unit of energy, z_i = 1.
+    - ``work_potential`` (Carnot / exergetic): products are equal per unit of work
+      they could do, z_electricity = 1 and z_heat = 1 - t_return / t_supply. This
+      moves emissions toward electricity.
+    - ``bisko``: ``work_potential`` with the return temperature fixed at 283 K by
+      the standard. Prefer :class:`BiskoChpNode` over setting this by hand.
+    - ``efficiency``: what each product would have emitted if produced separately,
+      z_i = 1 / n_i for reference efficiencies n_i (typically 0.4 electricity,
+      0.9 heat).
+
+    A plant's operating point moves from year to year, so ``electricity_fraction``,
+    ``t_supply`` and ``t_return`` are resolved per year, each independently from the
+    first source that supplies it:
+
+    1. an input node tagged with the input's name,
+    2. a metric column of that name in the input dataset,
+    3. the constant parameter of that name.
+
+    Sources 1 and 2 carry annual data; they are interpolated across internal gaps,
+    held constant back to the start of history, and held constant forward to the
+    model end year (those forward years marked as forecast). Source 3 is the
+    fallback for a city that has only a single representative value, and gives the
+    same flat series in every year.
+
+    Values may be given in any compatible unit: ``electricity_fraction`` is
+    converted to dimensionless (so a series in per cent works), temperatures to K.
+    A parameter value carries no unit and is read in the canonical unit.
+    """
+
+    METHODS: ClassVar[frozenset[str]] = frozenset({'energy_content', 'work_potential', 'bisko', 'efficiency'})
+
+    ANNUAL_INPUTS: ClassVar[dict[str, str]] = {
+        'electricity_fraction': 'dimensionless',
+        't_supply': 'K',
+        't_return': 'K',
+    }
+    """Inputs that may be given as an annual series, and the unit each is converted to."""
+
+    METHOD_INPUTS: ClassVar[dict[str, frozenset[str]]] = {
+        'energy_content': frozenset({'electricity_fraction'}),
+        'work_potential': frozenset({'electricity_fraction', 't_supply', 't_return'}),
+        'bisko': frozenset({'electricity_fraction', 't_supply'}),
+        'efficiency': frozenset({'electricity_fraction'}),
+    }
+    """Which annual inputs each method needs. Anything else supplied is unused."""
+
+    FIXED_METHOD: ClassVar[str | None] = None
+    """Set by a subclass that pins the method; then ``method`` is not a parameter."""
+
     allowed_parameters = [
         *GenericNode.allowed_parameters,
         StringParameter(local_id='method', label=_('Emission splitting method')),
         NumberParameter(local_id='electricity_fraction', label=_('Fraction of electricity in the output energy')),
-        NumberParameter(local_id='t_supply', label=_('Temperature (in K) of district heating supply slow')),
+        NumberParameter(local_id='t_supply', label=_('Temperature (in K) of district heating supply flow')),
         NumberParameter(local_id='t_return', label=_('Temperature (in K) of district heating return flow')),
         NumberParameter(local_id='electricity_reference_efficiency', label=_('Efficiency of producing electricity separately')),
         NumberParameter(local_id='heat_reference_efficiency', label=_('Efficiency of producing heat separately')),
     ]
-    DEFAULT_OPERATIONS = 'add,chp_ef_split'
+    DEFAULT_OPERATIONS = 'chp_fractions'
 
-    def _operation_chp_ef_split(self, df: PathsDataFrame | None) -> OperationReturn:
-        if df is None:
-            raise NodeError(self, 'Node must receive average CHP fuel emission factors.')
-
-        if 'energy_carrier' in df.dim_ids:
-            raise NodeError(self, 'Input emission factors contain dimension energy_carrier but it must be averaged over it.')
-
-        methods = {
-            'energy_content': self._energy_method,
-            'work_potential': self._exergetic_method,
-            'bisko': self._bisko_method,
-            'efficiency': self._efficiency_method,
-        }
+    def _resolve_method(self) -> str:
+        if self.FIXED_METHOD is not None:
+            return self.FIXED_METHOD
         method = self.get_parameter_value_str('method', required=True)
-        metfun = methods.get(method)
-        if metfun is None:
-            raise NodeError(self, f'Parameter method got value {method} but must be one of: {methods.keys()}.')
-
-        df = metfun(df)  # Add z factors
-
-        f_el = self.get_parameter_value_float('electricity_fraction', required=True)
-        df = df.with_columns([pl.lit(f_el).alias('f_el'), pl.lit(1.0 - f_el).alias('f_heat')])
-        df = df.with_columns([
-            (pl.col('z_el') * pl.col('f_el') / (pl.col('z_el') * pl.col('f_el') + pl.col('z_heat') * pl.col('f_heat'))).alias(
-                'a_el'
+        if method not in self.METHODS:
+            raise NodeError(
+                self,
+                "Parameter 'method' got value %r; must be one of: %s." % (method, ', '.join(sorted(self.METHODS))),
             )
-        ])
-        df = df.with_columns([(pl.lit(1.0) - pl.col('a_el')).alias('a_heat')])
+        return method
 
-        drops = ['f_el', 'f_heat', 'z_el', 'z_heat', 'a_el', 'a_heat']
+    def _dataset_series(self) -> tuple[PathsDataFrame, list[str]] | None:
+        """Read the annual series carried by the input dataset, if there is one."""
+        ds = self.get_input_dataset_pl(required=False)
+        if ds is None:
+            return None
+        if ds.dim_ids:
+            raise NodeError(
+                self,
+                'The CHP parameter dataset must be indexed by year alone; got dimension(s) %s. '
+                'Filter or flatten them away before they reach this node.' % ', '.join(sorted(ds.dim_ids)),
+            )
+        known = [col for col in ds.metric_cols if col in self.ANNUAL_INPUTS]
+        if not known:
+            raise NodeError(
+                self,
+                'The CHP parameter dataset has no usable metric column. Expected one or more of %s, got %s.'
+                % (', '.join(sorted(self.ANNUAL_INPUTS)), ', '.join(ds.metric_cols) or 'none'),
+            )
+        return self._as_series_frame(ds, known), known
+
+    def _node_series(self, name: str, already_supplied: set[str]) -> PathsDataFrame | None:
+        """Read the annual series for `name` from an input node tagged with it, if there is one."""
+        nodes = self.get_input_nodes(tag=name)
+        if not nodes:
+            return None
+        if len(nodes) > 1:
+            raise NodeError(self, "Several input nodes tagged '%s'; expected at most one." % name)
+        if name in already_supplied:
+            raise NodeError(
+                self,
+                "'%s' is supplied both by an input node and by the input dataset; keep only one of them." % name,
+            )
+        node = nodes[0]
+        ndf = node.get_output_pl(target_node=self)
+        if ndf.dim_ids:
+            raise NodeError(
+                self,
+                "Input node '%s' supplying '%s' must have no dimensions; got %s."
+                % (node.id, name, ', '.join(sorted(ndf.dim_ids))),
+            )
+        return self._as_series_frame(ndf.rename({VALUE_COLUMN: name}), [name])
+
+    def _annual_inputs(self) -> tuple[PathsDataFrame | None, set[str]]:
+        """Collect the annual series given by the input dataset and by tagged input nodes."""
+        parts: list[PathsDataFrame] = []
+        supplied: set[str] = set()
+
+        from_dataset = self._dataset_series()
+        if from_dataset is not None:
+            frame, names = from_dataset
+            parts.append(frame)
+            supplied.update(names)
+
+        for name in self.ANNUAL_INPUTS:
+            frame = self._node_series(name, supplied)
+            if frame is None:
+                continue
+            parts.append(frame)
+            supplied.add(name)
+
+        if not parts:
+            return None, supplied
+
+        out = parts[0]
+        for part in parts[1:]:
+            out = out.paths.join_over_index(part, how='outer')
+        forecast_cols = [col for col in out.columns if col.endswith('__forecast')]
+        out = out.with_columns(
+            pl.any_horizontal([pl.col(col).fill_null(value=False) for col in forecast_cols]).alias(FORECAST_COLUMN)
+        ).drop(forecast_cols)
+        return out, supplied
+
+    def _as_series_frame(self, df: PathsDataFrame, cols: list[str]) -> PathsDataFrame:
+        """Reduce a source to Year + the named series, with its forecast flag kept under a unique name."""
+        for col in cols:
+            df = df.ensure_unit(col, self.ANNUAL_INPUTS[col])
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+        # Each source keeps its own forecast flag through the join; they are OR-ed afterwards.
+        flag = '%s__forecast' % cols[0]
+        return df.select([YEAR_COLUMN, *cols, pl.col(FORECAST_COLUMN).alias(flag)])
+
+    def _year_frame(self, annual: PathsDataFrame | None) -> PathsDataFrame:
+        """Put the annual inputs on the model's year span, or build a bare span if there are none."""
+        instance = self.context.instance
+        end_year = instance.model_end_year
+        start_year = min(instance.reference_year, instance.minimum_historical_year)
+
+        if annual is None:
+            last_hist = instance.maximum_historical_year or start_year
+            years = range(start_year, end_year + 1)
+            out = PathsDataFrame({YEAR_COLUMN: years})
+            out._units = {}
+            out._primary_keys = [YEAR_COLUMN]
+            return out.with_columns((pl.col(YEAR_COLUMN) > pl.lit(last_hist)).alias(FORECAST_COLUMN))
+
+        out = annual.paths._add_missing_years(annual, self.context)  # interpolate internal gaps
+        out = extend_to_history_pl(out, start_year)  # hold the earliest observation back to the start
+        return extend_last_historical_value_pl(out, end_year)  # hold the latest one forward, as forecast
+
+    def _add_constant_inputs(self, df: PathsDataFrame, names: set[str]) -> PathsDataFrame:
+        """Fill the inputs that were not given as a series from their constant parameter."""
+        for name in sorted(names):
+            raw = self.get_parameter_value(name, required=False, units=False)
+            if raw is None:
+                raise NodeError(
+                    self,
+                    "The '%s' method needs %r, which is not supplied. Give it as an input node tagged '%s', "
+                    'as a metric column of the input dataset, or as the constant parameter %r.'
+                    % (self._resolve_method(), name, name, name),
+                )
+            assert isinstance(raw, (int, float))
+            df = df.with_columns(pl.lit(float(raw)).alias(name)).set_unit(name, self.ANNUAL_INPUTS[name])
+        return df
+
+    def _z_factors(self, df: PathsDataFrame, method: str) -> PathsDataFrame:
+        """Add the method-specific weights z_el and z_heat."""
+        if method == 'energy_content':
+            return df.with_columns([pl.lit(1.0).alias('z_el'), pl.lit(1.0).alias('z_heat')])
+        if method in ('work_potential', 'bisko'):
+            t_return = pl.lit(BISKO_T_RETURN) if method == 'bisko' else pl.col('t_return')
+            bad = df.filter(pl.col('t_supply') <= t_return)
+            if bad.height:
+                raise NodeError(
+                    self,
+                    'The district heating supply temperature must exceed the return temperature, otherwise the '
+                    'exergetic split has no heat to allocate. It does not in year(s) %s.'
+                    % ', '.join(str(y) for y in bad[YEAR_COLUMN].unique().sort()),
+                )
+            return df.with_columns([
+                pl.lit(1.0).alias('z_el'),
+                (pl.lit(1.0) - t_return / pl.col('t_supply')).alias('z_heat'),
+            ])
+        n_el = self.get_parameter_value_float('electricity_reference_efficiency', required=True)
+        n_heat = self.get_parameter_value_float('heat_reference_efficiency', required=True)
+        if n_el <= 0 or n_heat <= 0:
+            raise NodeError(self, 'Reference efficiencies must be positive; got %s and %s.' % (n_el, n_heat))
+        return df.with_columns([pl.lit(1.0 / n_el).alias('z_el'), pl.lit(1.0 / n_heat).alias('z_heat')])
+
+    def _operation_chp_fractions(self, df: PathsDataFrame | None) -> OperationReturn:
+        if df is not None:
+            raise NodeError(self, "Operation 'chp_fractions' must be the only operation.")
+
+        method = self._resolve_method()
+        needed = self.METHOD_INPUTS[method]
+        annual, supplied = self._annual_inputs()
+
+        unused = supplied - needed
+        if method == 'bisko' and 't_return' in unused:
+            raise NodeError(
+                self,
+                'BISKO fixes the district heating return temperature at %.0f K, so the t_return series supplied '
+                "here would be silently ignored. Remove it, or use method 'work_potential' to set the return "
+                'temperature yourself.' % BISKO_T_RETURN,
+            )
+        if unused:
+            self.logger.warning(
+                "Input(s) %s are not used by the '%s' allocation method and are ignored.",
+                ', '.join(sorted(unused)),
+                method,
+            )
+
+        out = self._year_frame(annual)
+        out = self._add_constant_inputs(out, set(needed) - supplied)
+        out = out.drop([col for col in unused if col in out.columns])
+
+        bad = out.filter((pl.col('electricity_fraction') < 0.0) | (pl.col('electricity_fraction') > 1.0))
+        if bad.height:
+            raise NodeError(
+                self,
+                'The electricity fraction must be between 0 and 1. It is not in year(s) %s.'
+                % ', '.join(str(y) for y in bad[YEAR_COLUMN].unique().sort()),
+            )
+
+        out = self._z_factors(out, method)
+        out = out.with_columns([
+            (pl.col('z_el') * pl.col('electricity_fraction')).alias('w_el'),
+            (pl.col('z_heat') * (pl.lit(1.0) - pl.col('electricity_fraction'))).alias('w_heat'),
+        ])
+        bad = out.filter((pl.col('w_el') + pl.col('w_heat')) <= 0.0)
+        if bad.height:
+            raise NodeError(
+                self,
+                'Both weighted product shares are zero in year(s) %s, so the allocation is undefined. This means '
+                'the plant is reported as producing neither electricity nor usable heat.'
+                % ', '.join(str(y) for y in bad[YEAR_COLUMN].unique().sort()),
+            )
+        out = out.with_columns((pl.col('w_el') / (pl.col('w_el') + pl.col('w_heat'))).alias('a_el'))
+
+        drops = [*self.ANNUAL_INPUTS, 'z_el', 'z_heat', 'w_el', 'w_heat', 'a_el']
+        drops = [col for col in drops if col in out.columns]
         df_el = (
-            df
-            .with_columns([pl.col(VALUE_COLUMN) * pl.col('a_el'), pl.lit('electricity').alias('energy_carrier')])
+            out
+            .with_columns([pl.col('a_el').alias(VALUE_COLUMN), pl.lit('electricity').alias('energy_carrier')])
+            .set_unit(VALUE_COLUMN, 'dimensionless')
             .drop(drops)
             .add_to_index('energy_carrier')
         )
         df_heat = (
-            df
-            .with_columns([pl.col(VALUE_COLUMN) * pl.col('a_heat'), pl.lit('district_heating').alias('energy_carrier')])
+            out
+            .with_columns([
+                (pl.lit(1.0) - pl.col('a_el')).alias(VALUE_COLUMN),
+                pl.lit('district_heating').alias('energy_carrier'),
+            ])
+            .set_unit(VALUE_COLUMN, 'dimensionless')
             .drop(drops)
             .add_to_index('energy_carrier')
         )
-        df = df_el.paths.concat_vertical(df_heat)
-
-        return df
-
-    def _energy_method(self, df: PathsDataFrame) -> PathsDataFrame:
-        df = df.with_columns([
-            pl.lit(1.0).alias('z_el'),
-            pl.lit(1.0).alias('z_heat'),
-        ])
-        return df
-
-    def _exergetic_method(self, df: PathsDataFrame) -> PathsDataFrame:
-        t_supply = self.get_parameter_value_float('t_supply', required=True)
-        t_return = self.get_parameter_value_float('t_return', required=True)
-        z_heat = 1 - t_return / t_supply
-        df = df.with_columns([
-            pl.lit(1.0).alias('z_el'),
-            pl.lit(z_heat).alias('z_heat'),
-        ])
-        return df
-
-    def _bisko_method(self, df: PathsDataFrame) -> PathsDataFrame:
-        t_supply = self.get_parameter_value_float('t_supply', required=True)
-        t_return = 283
-        z_heat = 1 - t_return / t_supply
-        df = df.with_columns([
-            pl.lit(1.0).alias('z_el'),
-            pl.lit(z_heat).alias('z_heat'),
-        ])
-        return df
-
-    def _efficiency_method(self, df: PathsDataFrame) -> PathsDataFrame:
-        n_el = self.get_parameter_value_float('electricity_reference_efficiency', required=True)
-        n_heat = self.get_parameter_value_float('heat_reference_efficiency', required=True)
-        df = df.with_columns([
-            pl.lit(1.0 / n_el).alias('z_el'),
-            pl.lit(1.0 / n_heat).alias('z_heat'),
-        ])
-        return df
+        return df_el.paths.concat_vertical(df_heat)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.OPERATIONS['chp_ef_split'] = self._operation_chp_ef_split
+        self.OPERATIONS['chp_fractions'] = self._operation_chp_fractions
+
+
+class BiskoChpNode(ChpNode):
+    """
+    A :class:`ChpNode` pinned to the allocation that BISKO prescribes.
+
+    BISKO criterion 6 requires the coupled products of combined heat and power to be
+    split by the exergetic (Carnot) method, with the district heating return
+    temperature fixed at 283 K. Both are properties of the standard rather than of
+    the city, so this class fixes them: ``method``, ``t_return`` and the reference
+    efficiencies are not parameters here, and setting any of them in the config is a
+    load-time error rather than a silently different balance. What genuinely varies
+    between cities and between years -- the electricity fraction and the supply
+    temperature -- is supplied exactly as in :class:`ChpNode`.
+
+    Using this class instead of ``ChpNode`` with ``method: bisko`` puts the
+    conformity in the model structure, where a certifier can see it and no scenario
+    can change it. It is evidence about the method, not about the numbers: whether
+    the resulting factor is credible is what
+    ``has_district_heating_by_exergetic_allocation`` tests.
+    """
+
+    FIXED_METHOD = 'bisko'
+
+    allowed_parameters = [
+        p
+        for p in ChpNode.allowed_parameters
+        if p.local_id not in ('method', 't_return', 'electricity_reference_efficiency', 'heat_reference_efficiency')
+    ]
 
 
 class ConstantNode(GenericNode):

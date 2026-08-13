@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5e3006e49c8ecf3337f0812b7abc87f047fc8adf
+  commit: 2b0642d24e3fca3cae622627b5f60ae1c268872b
   dvc_remote: kausal-s3
 name: Klima-Monitor Treibhausgasinventar
 owner: Kausal Ltd
@@ -120,13 +120,6 @@ result_excels:
   - vehicle_kilometers_ifeu
   - other_transport_energy
 
-action_groups:
-
-- id: combined_heat_and_power
-  name_en: Combined heat and power
-  name_de: Kombination aus Wärme und Strom
-  color: '#007C78'
-
 pages:
 
 - id: home
@@ -144,9 +137,6 @@ scenarios:
   name: Business as Usual
   # name_en: Business as Usual
   all_actions_enabled: false
-  params:
-  - id: combined_heat_and_power_chp_fraction.enabled
-    value: true
 
 - id: default
   default: true

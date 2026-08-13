@@ -678,6 +678,29 @@ result_excels:
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 nodes:
+# Overrides the module's node, which carries the full description of the method. Only the two
+# city-specific values differ: Bayreuth's electricity fraction and supply temperature, carried
+# over from the configuration that expressed them as action parameters. Replace them with a
+# dataset of annual values once the utility supplies one -- see the module node for how.
+- id: combined_heat_and_power_chp_fraction
+  name_en: Combined heat and power allocation fractions
+  name_de: Aufteilungsfaktoren der Kraft-Wärme-Kopplung
+  type: generic.BiskoChpNode
+  quantity: fraction
+  unit: '%'
+  output_dimensions: [energy_carrier]
+  params:
+  - id: electricity_fraction
+    value: 0.38
+    min_value: 0.3
+    max_value: 0.45
+    is_customizable: true
+  - id: t_supply
+    value: 363
+    min_value: 333
+    max_value: 393
+    is_customizable: true
+
 - id: sector_index   # Translates BISKO categories to Wärme/Strom/Verkehr sectors. TRUE for any allowed combi of sector and energy carrier
   name_de: Sektor Index
   name_en: Sector index
@@ -924,39 +947,7 @@ nodes:
 
 #//////  Actions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-action_groups:
-
-- id: combined_heat_and_power
-  name_en: Combined heat and power
-  name_de: Kombination aus Wärme und Strom
-  color: '#007C78'
-
 actions:
-
-- id: combined_heat_and_power_chp_fraction
-  name_en: Combined heat and power CHP fraction
-  name_de: Kombination aus Wärme und Strom CHP Anteil
-  type: simple.ChpAction
-  quantity: fraction
-  unit: '%'
-  group: combined_heat_and_power
-  output_dimensions: [energy_carrier]
-  params:
-  - id: method
-    value: bisko
-  - id: electricity_fraction
-    value: 0.38
-    min_value: 0.3
-    max_value: 0.45
-  - id: t_supply
-    value: 363
-    min_value: 333
-    max_value: 393
-  - id: enabled
-    value: true
-    is_visible: true
-    is_customizable: true
-
 
 - id: historical_actions
   name_en: Historical actions
