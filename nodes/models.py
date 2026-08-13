@@ -2338,9 +2338,6 @@ class NodeEdge(EditableInstanceChild):
         blank=True,
     )
 
-    objects: ClassVar[Manager[NodeEdge]] = Manager()
-    _default_manager: ClassVar[Manager[NodeEdge]]
-
     from_node_id: int  # for type checkers
     to_node_id: int
 
@@ -2396,9 +2393,6 @@ class DatasetPort(EditableInstanceChild):
     node_id: int
     dataset_id: int
     metric_id: int
-
-    objects: ClassVar[Manager[DatasetPort]] = Manager()
-    _default_manager: ClassVar[Manager[DatasetPort]]
 
     class Meta:
         ordering = ['node', 'dataset_index', 'metric__order']
@@ -2480,9 +2474,6 @@ class NodeInputPortBinding(EditableInstanceChild):
         blank=True,
     )
 
-    objects: ClassVar[Manager[NodeInputPortBinding]] = Manager()
-    _default_manager: ClassVar[Manager[NodeInputPortBinding]]
-
     # for type checkers
     node_id: int
     source_node_id: int | None
@@ -2540,8 +2531,6 @@ class DatasetMaterialization(models.Model):
     source_modified_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects: ClassVar[Manager[DatasetMaterialization]] = Manager()
-
     class Meta:
         ordering = ['dataset_id']
         verbose_name = _('Dataset materialization')
@@ -2578,8 +2567,6 @@ class InstanceRevisionDatasetPin(models.Model):
     identifier = models.CharField(max_length=100, null=True, blank=True)
     forecast_from = models.IntegerField(null=True, blank=True)
     shape_profiles = models.JSONField(null=True)
-
-    objects: ClassVar[Manager[InstanceRevisionDatasetPin]] = Manager()
 
     class Meta:
         ordering = ['instance_revision_id', 'dataset_id']
@@ -2665,8 +2652,6 @@ class InstanceChangeOperation(UUIDIdentifiedModel):
         help_text='Set when this operation has been undone by another operation.',
     )
 
-    objects: ClassVar[Manager[InstanceChangeOperation]] = Manager()
-
     class Meta:
         ordering = ['-created_at']
         indexes = [
@@ -2719,8 +2704,6 @@ class InstanceModelLogEntry(UUIDIdentifiedModel):
     )
     data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    objects: ClassVar[Manager[InstanceModelLogEntry]] = Manager()
 
     class Meta:
         ordering = ['-id']
