@@ -196,7 +196,7 @@ def _target_dataset_ids_by_node(ic: InstanceConfig, export: InstanceExport) -> d
     )
     result: dict[UUID, list[str]] = {}
     ordered_ports = sorted(
-        export.instance.dataset_ports,
+        export.instance.dataset_bindings,
         key=lambda port: (str(port.node), port.dataset_index, str(port.port_id)),
     )
     for port in ordered_ports:

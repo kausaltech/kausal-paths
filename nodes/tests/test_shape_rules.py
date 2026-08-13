@@ -60,7 +60,7 @@ def _build(nodes: list[NodeSnapshot], edges: list[EdgeSnapshot], dimensions: tup
             metadata=InstanceMetadata(uuid=uuid4(), identifier='shape-test', name='Shape test'),
             spec=InstanceModelSpec(),
             nodes=nodes,
-            edges=edges,
+            bindings=list(edges),
             dimensions=list(dimensions),
         )
     )

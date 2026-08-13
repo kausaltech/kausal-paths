@@ -1048,6 +1048,27 @@ binding groups get **no durable identity** — each per-metric row is its own
 binding; the aggregate write service may carry a non-durable grouping key
 for the editor surface.
 
+Design note (2026-08-13, snapshot binding-list upgrade): snapshot v9 makes
+`InstanceSnapshot.bindings` one discriminated list, but its union members
+are the *existing* `EdgeSnapshot` / `DatasetPortSnapshot` classes (gaining
+`kind` discriminators and an explicit `position`), not `InputBindingSnapshot`.
+Rationale: the legacy classes carry YAML-era semantics the config-dict
+runtime path still needs (`dataset_index` grouping, pre-resolution metric
+strings, the full `DatasetPortSpec`) — folding those into
+`InputBindingSnapshot` as optional fields would pollute the clean target
+shape with transitional debt. Instead the debt stays in the classes that
+die with the config-dict path (steps 10–11), and `InputBindingSnapshot`
+remains the row-level and eventual list-level form the authority flip
+converges on. Positions are assigned by `ordered_binding_snapshots()` at
+snapshot production and *stored*; `build_instance_graph()` trusts stored
+positions for v9 snapshots. Parse-side (pre-resolution) snapshots leave
+positions unassigned — the fanned-out expansion at resolution changes
+cardinality, so positions are only meaningful post-resolution. The pure
+`from_serialized_data` upgrader wraps legacy arrays into the union and
+assigns positions; dataset/metric UUID recovery for pre-v8 pins stays in
+the existing catalog-injected compatibility adapter. New snapshots never
+serialize the legacy arrays.
+
 ### 10. Make InstanceGraph the Context factory input
 
 - Add `InstanceGraph.create_context(options, payload_store)` as a thin delegate

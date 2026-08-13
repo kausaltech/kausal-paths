@@ -112,7 +112,7 @@ def resolve_dataset_port_snapshots(  # noqa: C901, PLR0912
 
     # Group parse-side entries into bindings: (node, dataset_index) is binding identity.
     bindings: dict[tuple[UUID, int], list[DatasetPortSnapshot]] = {}
-    for port in snapshot.dataset_ports:
+    for port in snapshot.dataset_bindings:
         bindings.setdefault((port.node, port.dataset_index), []).append(port)
 
     resolved: list[DatasetPortSnapshot] = []
@@ -245,15 +245,15 @@ def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: d
 
     # Recreating the rows keeps pk order equal to authored order, but the row
     # UUID is the durable binding identity and must survive the rewrite.
-    authored_uuids = {edge.uuid for edge in snapshot.edges if edge.uuid is not None}
+    authored_uuids = {edge.uuid for edge in snapshot.edge_bindings if edge.uuid is not None}
     existing = [item for item in existing_edge_identities(ic) if item[1] not in authored_uuids]
     NodeEdge.objects.filter(instance=ic).delete()
     preserved = match_preserved_uuids(
         existing,
-        [edge_match_keys(edge.from_node, edge.from_port, edge.to_node, edge.to_port) for edge in snapshot.edges],
+        [edge_match_keys(edge.from_node, edge.from_port, edge.to_node, edge.to_port) for edge in snapshot.edge_bindings],
     )
     edge_objs = []
-    for edge, matched_uuid in zip(snapshot.edges, preserved, strict=True):
+    for edge, matched_uuid in zip(snapshot.edge_bindings, preserved, strict=True):
         from_nc = node_configs.get(edge.from_node)
         to_nc = node_configs.get(edge.to_node)
         if from_nc is None or to_nc is None:

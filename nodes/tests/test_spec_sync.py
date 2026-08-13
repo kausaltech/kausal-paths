@@ -388,7 +388,7 @@ def test_load_nodes_export_sync_updates_legacy_db_dataset_relations(instance_con
             metadata=InstanceMetadata(primary_language='en'),
             spec=InstanceModelSpec(features=InstanceFeatures(use_datasets_from_db=True)),
             nodes=[NodeSnapshot(uuid=row.uuid, identifier='node', name=TranslatedString(en='Node'), spec=NodeSpec())],
-            dataset_ports=[
+            bindings=[
                 DatasetPortSnapshot(
                     node=row.uuid,
                     dataset='input',
@@ -473,7 +473,7 @@ def _edge_snapshot_instance(db_instance):
     from_port, to_port = uuid.uuid4(), uuid.uuid4()
     snapshot = InstanceSnapshot(
         spec=db_instance.spec,
-        edges=[
+        bindings=[
             EdgeSnapshot(
                 from_node=source.uuid,
                 to_node=target.uuid,
@@ -511,8 +511,8 @@ def test_write_edges_preserves_uuid_when_payload_changes(db_instance):
     _write_edges(db_instance, snapshot, node_configs)
     original = NodeEdge.objects.get(instance=db_instance)
 
-    snapshot.edges[0].tags = ['b']
-    snapshot.edges[0].transformations = [AssignDimensionOp(dimension='sector', category='transport')]
+    snapshot.edge_bindings[0].tags = ['b']
+    snapshot.edge_bindings[0].transformations = [AssignDimensionOp(dimension='sector', category='transport')]
     _write_edges(db_instance, snapshot, node_configs)
 
     rewritten = NodeEdge.objects.get(instance=db_instance)
@@ -528,7 +528,7 @@ def test_write_edges_preserves_uuid_across_port_change(db_instance):
     _write_edges(db_instance, snapshot, node_configs)
     original = NodeEdge.objects.get(instance=db_instance)
 
-    snapshot.edges[0].to_port = uuid.uuid4()
+    snapshot.edge_bindings[0].to_port = uuid.uuid4()
     _write_edges(db_instance, snapshot, node_configs)
 
     assert NodeEdge.objects.get(instance=db_instance).uuid == original.uuid, 'loose pass survives a port change'
@@ -545,12 +545,12 @@ def test_write_edges_mints_fresh_uuid_for_new_edges_only(db_instance):
 
     third = NodeConfigFactory.create(instance=db_instance, identifier='third')
     node_configs[third.uuid] = third
-    snapshot.edges.append(
+    snapshot.bindings.append(
         EdgeSnapshot(
             from_node=third.uuid,
-            to_node=snapshot.edges[0].to_node,
+            to_node=snapshot.edge_bindings[0].to_node,
             from_port=uuid.uuid4(),
-            to_port=snapshot.edges[0].to_port,
+            to_port=snapshot.edge_bindings[0].to_port,
         )
     )
     _write_edges(db_instance, snapshot, node_configs)
@@ -591,7 +591,7 @@ def test_write_dataset_ports_preserves_uuids_across_resync(db_instance):
     snapshot = InstanceSnapshot(
         spec=db_instance.spec,
         nodes=[NodeSnapshot(uuid=node.uuid, identifier=node.identifier, spec=NodeSpec())],
-        dataset_ports=[
+        bindings=[
             DatasetPortSnapshot(
                 node=node.uuid,
                 dataset='ds_input',
@@ -615,7 +615,7 @@ def test_write_dataset_ports_preserves_uuids_across_resync(db_instance):
     assert second.pk != first.pk
 
     # A dataset_index change (dataset reordering) still preserves identity via the loose pass.
-    snapshot.dataset_ports[0].dataset_index = 1
+    snapshot.dataset_bindings[0].dataset_index = 1
     catalog = build_yaml_port_reference_catalog(db_instance)
     _write_dataset_ports(db_instance, snapshot, {node.uuid: node}, port_references=catalog)
     assert DatasetPort.objects.get(instance=db_instance).uuid == first.uuid
