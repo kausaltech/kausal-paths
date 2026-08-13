@@ -1449,27 +1449,19 @@ nodes:
   quantity: fraction
   unit: '%'
   output_dimensions: [energy_carrier]
-  # Annual data, when the city has it, replaces the two parameters below. Either give the series
-  # as a dataset with one metric column per input:
+  # One annual row per input. The shared dataset holds placeholders (0.3 and 373 K in every
+  # year); a city replaces it with its own via dataset_replacements once the utility delivers,
+  # and city admins can edit the values in the admin UI. Series are interpolated over internal
+  # gaps and held constant outside the years they cover.
   input_datasets:
   - id: bisko/chp_parameters   # metric columns: electricity_fraction (dimensionless), t_supply (K)
-  # or compute one of them from nodes that already exist, tagging the edge with the input's name:
+  # Either input may instead come from a node that already exists, by tagging the edge with the
+  # input's name — useful where the electricity fraction is derivable rather than reported:
   #   input_nodes:
   #   - id: chp_electricity_output_share
   #     tags: [electricity_fraction]
-  # Whatever is not supplied as a series falls back to the parameter of the same name. Series are
-  # interpolated over internal gaps and held constant outside the years they cover.
-  # params:
-  # - id: electricity_fraction
-  #   value: 0.3
-  #   min_value: 0.0
-  #   max_value: 1.0
-  #   is_customizable: true
-  # - id: t_supply
-  #   value: 373
-  #   min_value: 303
-  #   max_value: 393
-  #   is_customizable: true
+  # And anything the dataset does not carry falls back to the parameter of the same name, which
+  # is how bayreuth-bisko supplies its two values without a dataset.
 
 #//////  Transport  /////////////////////////////////////////////////////////////////////////////////
 
@@ -1951,7 +1943,9 @@ nodes:
       <li><b>National grid mix for electricity</b> — same test as criterion 3, since one switch
         governs both.</li>
       <li><b>No weather correction.</b></li>
-      <li><b>Exergetic allocation</b> of combined heat and power.</li>
+      <li><b>Exergetic allocation</b> of combined heat and power — the prescribed method is
+        in force and did allocate something, and the resulting district heating factor is
+        inside the BISKO Table 5 range.</li>
       <li><b>Data quality</b> — the grid-bound carriers reach quality A.</li>
     </ol>
     Criterion 2 is a property of the model's structure rather than of a city's data, so it has no
@@ -1973,7 +1967,9 @@ nodes:
       <li><b>Bundesstrommix für Strom</b> — derselbe Test wie Kriterium 3, da ein Schalter beide
         steuert.</li>
       <li><b>Keine Witterungskorrektur.</b></li>
-      <li><b>Exergetische Allokation</b> der Kraft-Wärme-Kopplung.</li>
+      <li><b>Exergetische Allokation</b> der Kraft-Wärme-Kopplung — die vorgeschriebene
+        Methode ist in Kraft und hat auch etwas verteilt, und der resultierende
+        Fernwärmefaktor liegt innerhalb der Spannweite von BISKO-Tabelle 5.</li>
       <li><b>Datengüte</b> — die leitungsgebundenen Energieträger erreichen Güte A.</li>
     </ol>
     Kriterium 2 ist eine Eigenschaft der Modellstruktur und nicht der Daten einer Kommune und hat
@@ -1988,8 +1984,14 @@ nodes:
     tags: [weather]
   - id: has_national_electricity_emission_factors
     tags: [electricity]
+  # Criterion 6 in two parts: the method itself, and a plausibility check on the factor it
+  # produces. The first is the criterion; the second is kept in the gate because it is what
+  # catches the template's own inconsistent district heating data. Demote it to a diagnostic
+  # by dropping it from the formula below if that is ever the wrong trade.
   - id: has_district_heating_by_exergetic_allocation
     tags: [district_heating]
+  - id: has_district_heating_factor_within_bisko_variants
+    tags: [district_heating_factor]
   - id: has_quality_a_data_for_grid_based_energy
     tags: [grid_energy]
   # Criterion 1: the flag must not be raised on data nobody supplied. has_all_district_heating_
@@ -2003,8 +2005,8 @@ nodes:
   - id: has_all_other_transport_data
     tags: [other_transport]
   params:
-    formula: weather * electricity * district_heating * grid_energy * grid_bound
-      * non_grid_bound * other_transport
+    formula: weather * electricity * district_heating * district_heating_factor
+      * grid_energy * grid_bound * non_grid_bound * other_transport
 
 - id: has_no_weather_correction
   name_en: Has no weather correction?
@@ -2080,54 +2082,105 @@ nodes:
   name_de: Werden die Fernwärmeemissionen exergetisch alloziert?
   description_en: |
     BISKO criterion 6 requires the coupled products of combined heat and power to be split by
-    the exergetic (Carnot) method. The split itself happens in
-    <code>combined_heat_and_power_chp_fraction</code>, a <code>BiskoChpNode</code>, whose type
-    fixes the method and the 283 K return temperature in code. That settles which method the
-    model applies, but it says nothing about the numbers fed into it, and neither is visible in
-    the balance — so this node tests the result.<br/>
-    The test is on the factor the balance actually applies — district heating emissions divided by
-    district heating consumption, both taken from the balance itself rather than from the detailed
-    fuel-input branch. That branch is empty for most cities, and the balance then falls back to the
-    Coal CHP default, which BISKO permits; measuring the branch would have failed those cities and
-    passed a city with no data at all. That factor must lie inside the envelope
-    of the BISKO Table 5 variants, bounded by Coal CHP above and Biomass CHP below. Every value
-    in that table was derived by exergetic allocation, and BISKO names Coal CHP as the fallback
-    ceiling whenever no single generation technology reaches 80 per cent of heat production, so a
-    factor outside the envelope cannot have come from a BISKO-sanctioned route.<br/>
-    Two limits worth knowing. The node reports 0 when there is no district heating heat output to
-    divide by, which is the correct answer for a conformity gate — an unevidenced route is not a
-    conforming one — but it means 0 can indicate missing data rather than a wrong method. And a
-    value inside the envelope is not proof that the exergetic calculation produced it; the test
-    catches an out-of-range factor, not a plausible but wrongly derived one.
+    the exergetic (Carnot) method, with the district heating return temperature fixed at 283 K.
+    This node answers that question directly, and it is the only one of the conformity tests
+    that can: it asks the allocation node itself which method it applies, rather than trying to
+    infer the method from the numbers that came out of it.<br/>
+    Two conditions have to hold together. The method must be the prescribed one — for
+    <code>combined_heat_and_power_chp_fraction</code>, a <code>BiskoChpNode</code>, it is fixed
+    in code and no scenario can change it. And the allocation must have had something to
+    allocate: the answer is 0 in any year where the district heating emissions of the balance
+    are zero or missing, because a method applied to an empty balance evidences nothing.<br/>
+    The emissions tested are the ones the balance reports, not those of the detailed fuel-input
+    branch. That branch is empty for nearly every BISKO city — the balance falls back to the
+    Coal CHP default factor, which BISKO permits — so gating on it would report non-conformity
+    everywhere.<br/>
+    What this node does <i>not</i> test is whether the electricity fraction and supply
+    temperature fed into the split are plausible. That is a separate question, and
+    <code>has_district_heating_factor_within_bisko_variants</code> asks it.
   description_de: |
     BISKO-Kriterium 6 verlangt, dass die Koppelprodukte der Kraft-Wärme-Kopplung nach der
-    exergetischen Methode (Carnot-Methode) aufgeteilt werden. Die Aufteilung selbst erfolgt in
-    <code>combined_heat_and_power_chp_fraction</code>, einem <code>BiskoChpNode</code>, dessen Typ
-    die Methode und die Rücklauftemperatur von 283 K im Code festlegt. Damit steht fest, welche
-    Methode das Modell anwendet, über die eingespeisten Zahlen sagt es jedoch nichts, und beides
-    ist in der Bilanz nicht sichtbar — deshalb prüft dieser Knoten das Ergebnis.<br/>
-    Geprüft wird der effektive Faktor der tatsächlich gelieferten Wärme — die Emissionen des
-    Fernwärmezweigs geteilt durch dessen Wärmeabgabe. Dieser Faktor muss innerhalb der Spannweite
-    der BISKO-Varianten aus Tabelle 5 liegen, begrenzt durch Kohle KWK oben und Biomasse KWK
-    unten. Alle Werte dieser Tabelle wurden exergetisch berechnet, und BISKO nennt Kohle KWK als
-    Rückfallwert, wenn keine Erzeugungsvariante 80 Prozent der Wärmeerzeugung erreicht; ein Faktor
-    außerhalb der Spannweite kann daher nicht aus einem BISKO-konformen Verfahren stammen.<br/>
-    Zwei Einschränkungen: Der Knoten liefert 0, wenn keine Wärmeabgabe vorliegt, durch die geteilt
-    werden könnte. Für ein Konformitätskriterium ist das die richtige Antwort — ein nicht
-    belegbares Verfahren ist kein konformes —, bedeutet aber, dass 0 auch auf fehlende Daten und
-    nicht auf eine falsche Methode hinweisen kann. Und ein Wert innerhalb der Spannweite ist kein
-    Beweis dafür, dass er exergetisch berechnet wurde.
+    exergetischen Methode (Carnot-Methode) aufgeteilt werden, mit einer auf 283 K festgelegten
+    Rücklauftemperatur. Dieser Knoten beantwortet genau diese Frage, und er ist der einzige der
+    Konformitätstests, der das kann: Er fragt den Allokationsknoten selbst, welche Methode er
+    anwendet, statt die Methode aus den Ergebniszahlen zu erschließen.<br/>
+    Zwei Bedingungen müssen zusammen erfüllt sein. Die Methode muss die vorgeschriebene sein —
+    bei <code>combined_heat_and_power_chp_fraction</code>, einem <code>BiskoChpNode</code>, ist
+    sie im Code festgelegt und durch kein Szenario änderbar. Und die Allokation muss etwas zu
+    verteilen gehabt haben: In Jahren, in denen die Fernwärmeemissionen der Bilanz null oder
+    nicht vorhanden sind, lautet die Antwort 0, denn eine auf eine leere Bilanz angewandte
+    Methode belegt nichts.<br/>
+    Geprüft werden die Emissionen, die die Bilanz ausweist, und nicht die des detaillierten
+    Brennstoffeinsatzzweigs. Dieser Zweig ist für nahezu jede BISKO-Kommune leer — die Bilanz
+    greift auf den von BISKO erlaubten Kohle-KWK-Standardfaktor zurück —, sodass eine Prüfung
+    daran überall Nichtkonformität melden würde.<br/>
+    Nicht geprüft wird, ob der Stromanteil und die Vorlauftemperatur, die in die Aufteilung
+    eingehen, plausibel sind. Das ist eine eigene Frage, die
+    <code>has_district_heating_factor_within_bisko_variants</code> stellt.
+  type: generic.BiskoExergeticAllocationNode
+  quantity: probability
+  unit: dimensionless
+  input_nodes:
+  # The allocation node is asked directly which method it applies -- the only test in this set
+  # that inspects the method rather than inferring it from the result.
+  - id: combined_heat_and_power_chp_fraction
+    tags: [allocation]
+  # The balance's district heating emissions, not the detailed fuel-input branch: that branch is
+  # empty for nearly every city, so gating on it would fail them all.
+  - id: stationary_emissions
+    tags: [emissions]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+      flatten: true
+    - id: sector
+      flatten: true
+
+- id: has_district_heating_factor_within_bisko_variants
+  name_en: Is the district heating factor within the BISKO Table 5 range?
+  name_de: Liegt der Fernwärmefaktor innerhalb der Spannweite von BISKO-Tabelle 5?
+  description_en: |
+    A plausibility test on the district heating emission factor the balance actually applies —
+    district heating emissions divided by district heating consumption, both taken from the
+    balance itself. That factor must lie inside the envelope of the BISKO Table 5 variants,
+    bounded by Coal CHP above and Biomass CHP below. Every value in that table was derived by
+    exergetic allocation, and BISKO names Coal CHP as the fallback ceiling whenever no single
+    generation technology reaches 80 per cent of heat production, so a factor outside the
+    envelope cannot have come from a BISKO-sanctioned route.<br/>
+    This used to be the criterion 6 test, on the reasoning that an out-of-range factor cannot
+    have been produced exergetically. It is kept because it does catch real inconsistencies —
+    it is what flags the template's own district heating data — but it was answering the wrong
+    question: the method is now asked about directly in
+    <code>has_district_heating_by_exergetic_allocation</code>, and a factor inside the envelope
+    was never proof that an exergetic calculation produced it.<br/>
+    The node reports 0 when there is no heat output to divide by, so a 0 here can mean missing
+    data rather than an implausible factor.
+  description_de: |
+    Eine Plausibilitätsprüfung des Fernwärmeemissionsfaktors, den die Bilanz tatsächlich anwendet
+    — die Fernwärmeemissionen geteilt durch den Fernwärmeverbrauch, beide aus der Bilanz selbst.
+    Dieser Faktor muss innerhalb der Spannweite der BISKO-Varianten aus Tabelle 5 liegen,
+    begrenzt durch Kohle KWK oben und Biomasse KWK unten. Alle Werte dieser Tabelle wurden
+    exergetisch berechnet, und BISKO nennt Kohle KWK als Rückfallwert, wenn keine
+    Erzeugungsvariante 80 Prozent der Wärmeerzeugung erreicht; ein Faktor außerhalb der
+    Spannweite kann daher nicht aus einem BISKO-konformen Verfahren stammen.<br/>
+    Früher war dies die Prüfung für Kriterium 6, mit der Begründung, ein Faktor außerhalb der
+    Spannweite könne nicht exergetisch entstanden sein. Sie bleibt erhalten, weil sie
+    tatsächliche Inkonsistenzen aufdeckt — sie ist es, die die Fernwärmedaten der Vorlage
+    beanstandet —, doch sie beantwortete die falsche Frage: Nach der Methode wird nun direkt in
+    <code>has_district_heating_by_exergetic_allocation</code> gefragt, und ein Faktor innerhalb
+    der Spannweite war noch nie ein Beweis dafür, dass eine exergetische Berechnung ihn erzeugt
+    hat.<br/>
+    Der Knoten liefert 0, wenn keine Wärmeabgabe vorliegt, durch die geteilt werden könnte; eine
+    0 kann hier also auf fehlende Daten und nicht auf einen unplausiblen Faktor hinweisen.
   type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
   input_nodes:
-  # district_heating_fuel_emission_factors is the node the CHP allocation actually flows into
-  # (it multiplies the fuel factors by combined_heat_and_power_chp_fraction), so it is the
-  # subject that can reveal a changed allocation. end_energy_emission_factors would not: it is
-  # the ifeu Fernwärme series and does not depend on the allocation at all.
-  # The effective factor of the heat actually delivered: emissions of the district heating
-  # branch divided by its heat output. Flattening the per-fuel factors would sum them, which
-  # is meaningless -- a network's factor is the emissions-weighted average, not a total.
+  # The effective factor of the heat actually delivered: the district heating emissions of the
+  # balance divided by its district heating consumption. Both come from the balance rather than
+  # from the detailed fuel-input branch, which is empty for nearly every city. Flattening the
+  # per-fuel factors instead would sum them, which is meaningless -- a network's factor is the
+  # emissions-weighted average, not a total.
   - id: stationary_emissions
     tags: [emissions]
     from_dimensions:
