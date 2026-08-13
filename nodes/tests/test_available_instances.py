@@ -126,6 +126,77 @@ features:
     assert instance_config.yaml_mtime_hash is not None
 
 
+def test_available_instances_refreshes_stale_yaml_spec(graphql_client_query_data, monkeypatch, settings, tmp_path):
+    hostname = 'stale.example.test'
+    configs_dir = tmp_path / 'configs'
+    configs_dir.mkdir()
+    settings.BASE_DIR = tmp_path
+    (configs_dir / 'stale-instance.yaml').write_text(
+        """id: stale-instance
+default_language: fi
+supported_languages: [en]
+name: Stale Instance
+owner: Kausal
+target_year: 2035
+reference_year: 1990
+minimum_historical_year: 1990
+maximum_historical_year: 2024
+model_end_year: 2050
+theme_identifier: current-theme
+features:
+  requires_authentication: true
+""",
+        encoding='utf8',
+    )
+    instance_config = InstanceConfigFactory.create(
+        identifier='stale-instance',
+        name='Stale Instance',
+        config_source='yaml',
+        yaml_mtime_hash='stale-hash',
+    )
+    assert instance_config.spec is not None
+    instance_config.spec.years.reference = 2010
+    instance_config.spec.years.model_end = 2035
+    instance_config.spec.theme_identifier = 'stale-theme'
+    instance_config.spec.features = InstanceFeatures(requires_authentication=False)
+    instance_config.save(update_fields=['spec'])
+    InstanceHostname.objects.create(instance=instance_config, hostname=hostname)
+
+    def fail_get_instance(self, *args, **kwargs):
+        raise AssertionError('availableInstances must not hydrate the computation instance')
+
+    monkeypatch.setattr(InstanceConfig, 'get_instance', fail_get_instance)
+
+    data = graphql_client_query_data(
+        """
+        query AvailableInstances($hostname: String!) {
+          availableInstances(hostname: $hostname) {
+            identifier
+            requiresAuthentication
+            themeIdentifier
+          }
+        }
+        """,
+        variables={'hostname': hostname},
+    )
+
+    assert data == {
+        'availableInstances': [
+            {
+                'identifier': 'stale-instance',
+                'requiresAuthentication': True,
+                'themeIdentifier': 'current-theme',
+            }
+        ]
+    }
+    instance_config.refresh_from_db()
+    assert instance_config.config_source == 'yaml'
+    assert instance_config.yaml_mtime_hash not in (None, 'stale-hash')
+    assert instance_config.spec is not None
+    assert instance_config.spec.years.reference == 1990
+    assert instance_config.spec.years.model_end == 2050
+
+
 def test_available_instances_expands_path_routed_framework_from_root_hostname(client, settings):
     settings.HOSTNAME_INSTANCE_DOMAINS = ['localhost']
     root_config = InstanceConfigFactory.create(identifier='cads-landing', name='CADS')

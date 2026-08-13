@@ -590,6 +590,9 @@ class InstanceConfig(
     _nodes_for_serialization: list[NodeConfig] | None
     _annotated_dataset_ports: list[DatasetPort]
     _publication_dataset_revision_pins: dict[int, Any] | None = None
+    # Avoid revalidating the same YAML materialization for every field resolved
+    # from one model object. A newly loaded row validates against disk again.
+    _verified_yaml_spec_hash: str | None = None
     graphql_context: InstanceGraphQLContext | None = None
 
     search_fields = [
@@ -1292,24 +1295,34 @@ class InstanceConfig(
         return spec, primary_language, other_languages, mtime_hash
 
     def ensure_spec(self, update_self: bool = True, save: bool = True) -> InstanceModelSpec:
-        if self.spec is not None:
-            return self.spec
-
         if self.config_source == 'yaml':
+            if self.spec is not None and self._verified_yaml_spec_hash == self.yaml_mtime_hash:
+                return self.spec
+
             yaml_ret = self._get_spec_from_yaml()
             if yaml_ret is None:
+                if self.spec is not None:
+                    return self.spec
                 raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
 
-            if not save and not update_self:
-                return yaml_ret[0]
-
             spec, primary_language, other_languages, yaml_mtime_hash = yaml_ret
+            if self.spec is not None and self.yaml_mtime_hash == yaml_mtime_hash:
+                self._verified_yaml_spec_hash = yaml_mtime_hash
+                return self.spec
+
+            if not save and not update_self:
+                return spec
+
             self.spec = spec
             self.yaml_mtime_hash = yaml_mtime_hash
+            self._verified_yaml_spec_hash = yaml_mtime_hash
             self.primary_language = primary_language
             self.other_languages = other_languages
             if save:
                 self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash'])
+            return self.spec
+
+        if self.spec is not None:
             return self.spec
 
         # Database-sourced: identity metadata already lives on the columns,
