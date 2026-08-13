@@ -33,7 +33,7 @@ from params.discover import discover_global_parameters
 from .excel_results import InstanceResultExcel
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
     from uuid import UUID
 
     from ruamel.yaml import CommentedMap
@@ -46,8 +46,9 @@ if TYPE_CHECKING:
     from nodes.context import Context
     from nodes.datasets import Dataset
     from nodes.defs.node_defs import NodeSpec
+    from nodes.edges import Edge
     from nodes.instance import Instance
-    from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot
+    from nodes.instance_serialization import DatasetPortSnapshot, EdgeSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.node import Node, NodeMetric
     from nodes.scenario import Scenario
     from nodes.units import Unit
@@ -470,8 +471,7 @@ class InstanceLoader:
     _subactions: dict[str, list[str]]
     _scenario_values: dict[str, list[tuple[Parameter, Any]]]
     _node_visualizations: dict[str, list[dict[str, Any]]]
-    # Snapshot-path binding stashes (see _init_instance_from_snapshot).
-    _snapshot_input_edges: dict[UUID, list[dict[str, Any] | str]]
+    # Snapshot-path dataset-binding stash (see _stash_snapshot_bindings).
     _snapshot_dataset_ports: dict[UUID, list[DatasetPortSnapshot]]
 
     @staticmethod
@@ -1039,7 +1039,9 @@ class InstanceLoader:
         )
         if node.id in self._input_nodes or node.id in self._output_nodes:
             raise Exception('Node %s is already configured' % node.id)
-        self._input_nodes[node.id] = self._snapshot_input_edges.get(n.uuid, [])
+        # Edges are constructed natively from snapshot bindings in
+        # _setup_edges_from_snapshot; nothing is stashed for Edge.from_config.
+        self._input_nodes[node.id] = []
         self._output_nodes[node.id] = []
 
         if spec.params:
@@ -1186,10 +1188,163 @@ class InstanceLoader:
 
             self.context.add_node(node)
 
+    def _require_dimension(self, dim_id: str, node: Node) -> Any:
+        dim = self.context.dimensions.get(dim_id)
+        if dim is None:
+            raise NodeError(node, 'dimension %s not found' % dim_id)
+        return dim
+
+    def _edge_dimensions_from_transforms(
+        self,
+        transforms: list[Any],
+        required_dimensions: Sequence[str],
+        node: Node,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """
+        Typed transforms into runtime ``EdgeDimension`` maps (from_dims, to_dims).
+
+        Mirrors ``_transforms_to_config`` + ``EdgeDimension.from_config``: the
+        target port's declared dimensions (plus legacy ``FlattenTransformation``
+        rows preserved in pre-step-2 snapshots) become bare exclude+flatten
+        declarations, filters resolve categories and groups, and assigns pin
+        one category.
+        """
+        from nodes.defs.transform_def import (
+            AssignDimensionOp,
+            FilterDimensionOp,
+            FlattenTransformation,
+            modernized_transformations,
+        )
+        from nodes.edges import EdgeDimension
+
+        legacy_declared = [t.dimension for t in transforms if isinstance(t, FlattenTransformation)]
+        declared = list(dict.fromkeys([*required_dimensions, *legacy_declared]))
+        to_dims: dict[str, EdgeDimension] = {}
+        for dim_id in declared:
+            self._require_dimension(dim_id, node)
+            to_dims[dim_id] = EdgeDimension(categories=[], exclude=True, flatten=True)
+
+        from_dims: dict[str, EdgeDimension] = {}
+        for t in modernized_transformations(transforms):
+            match t:
+                case FilterDimensionOp():
+                    dim = self._require_dimension(t.dimension, node)
+                    cat_ids = list(t.categories)
+                    for gid in t.groups or ():
+                        cat_ids += [cat.id for cat in dim.get_cats_for_group(gid)]
+                    if not cat_ids:
+                        # A filter with no category selection is a bare
+                        # flatten declaration, exactly as the dict round-trip
+                        # produced regardless of the stored flatten flag.
+                        from_dims[t.dimension] = EdgeDimension(categories=[], exclude=True, flatten=True)
+                    else:
+                        from_dims[t.dimension] = EdgeDimension(
+                            categories=[dim.get(cat_id) for cat_id in cat_ids],
+                            exclude=bool(t.exclude),
+                            flatten=bool(t.flatten),
+                        )
+                case AssignDimensionOp():
+                    dim = self._require_dimension(t.dimension, node)
+                    to_dims[t.dimension] = EdgeDimension(categories=[dim.get(t.category)], exclude=False, flatten=False)
+                case _:
+                    raise ValueError(f'Edge transformation "{t.kind}" is not executable by the legacy edge runtime')
+        return from_dims, to_dims
+
+    def _setup_edges_from_snapshot(self) -> None:
+        """Construct runtime edges from snapshot bindings, grouped per node pair like the dict path."""
+        from collections import defaultdict
+
+        from nodes.constants import VALUE_COLUMN
+
+        snapshot = self.snapshot
+        assert snapshot is not None
+        specs_by_uuid: dict[UUID, NodeSpec] = {}
+        identifiers_by_uuid: dict[UUID, str] = {}
+        for n in snapshot.nodes:
+            assert n.spec is not None
+            assert n.identifier is not None
+            specs_by_uuid[n.uuid] = n.spec
+            identifiers_by_uuid[n.uuid] = n.identifier
+
+        # One runtime Edge per (from, to) pair; parallel bindings deliver the
+        # source's metrics. Grouping preserves binding order.
+        groups: dict[tuple[UUID, UUID], list[tuple[str, EdgeSnapshot]]] = {}
+        for e in snapshot.edge_bindings:
+            from_port = specs_by_uuid[e.from_node].output_port_by_id[e.from_port]
+            groups.setdefault((e.from_node, e.to_node), []).append((from_port.column_id or VALUE_COLUMN, e))
+
+        # Per target, edge groups apply in the target's input-port declaration
+        # order (stable within a port: binding order).
+        per_target: defaultdict[UUID, list[tuple[int, tuple[UUID, UUID]]]] = defaultdict(list)
+        for (from_id, to_id), tuples in groups.items():
+            to_spec = specs_by_uuid[to_id]
+            port_order = {port.id: idx for idx, port in enumerate(to_spec.input_ports)}
+            first = tuples[0][1]
+            per_target[to_id].append((port_order.get(first.to_port, len(port_order)), (from_id, to_id)))
+
+        ctx = self.context
+        uuid_by_identifier = {identifier: node_id for node_id, identifier in identifiers_by_uuid.items()}
+        for node in ctx.nodes.values():
+            to_id = uuid_by_identifier.get(node.id)
+            if to_id is None:
+                continue
+            for _port_idx, (from_id, group_to_id) in sorted(per_target.get(to_id, []), key=lambda item: item[0]):
+                tuples = groups[(from_id, group_to_id)]
+                try:
+                    edge = self._make_edge_from_group(from_id, group_to_id, tuples, specs_by_uuid, identifiers_by_uuid)
+                    node.add_edge(edge)
+                    edge.input_node.add_edge(edge)
+                except Exception as e:
+                    self._init_failure(node, 'Invalid input edge: %s' % e, cause=e)
+
+    def _make_edge_from_group(
+        self,
+        from_id: UUID,
+        to_id: UUID,
+        tuples: list[tuple[str, EdgeSnapshot]],
+        specs_by_uuid: dict[UUID, NodeSpec],
+        identifiers_by_uuid: dict[UUID, str],
+    ) -> Edge:
+        from nodes.edges import Edge
+
+        first = tuples[0][1]
+        transforms = first.transformations
+        tags = first.tags
+        metrics: list[str] = []
+        for column_id, e in tuples:
+            if transforms:
+                assert e.transformations == transforms
+            if tags:
+                assert tuple(e.tags) == tuple(tags)
+            metrics.append(column_id)
+
+        input_node = self.context.get_node(identifiers_by_uuid[from_id])
+        output_node = self.context.get_node(identifiers_by_uuid[to_id])
+        to_port = specs_by_uuid[to_id].input_port_by_id[first.to_port]
+        from_dims, to_dims = self._edge_dimensions_from_transforms(
+            list(transforms),
+            to_port.required_dimensions,
+            output_node,
+        )
+        # Only deliver explicit `metrics` when the source is multi-metric; for
+        # single-output nodes an empty list keeps the pass-through code path.
+        from_is_multi_metric = len(specs_by_uuid[from_id].output_ports) > 1
+        return Edge(
+            input_node=input_node,
+            output_node=output_node,
+            tags=list(tags),
+            from_dimensions=from_dims,
+            to_dimensions=to_dims or None,
+            metrics=metrics if from_is_multi_metric else [],
+        )
+
     def _setup_edges(self) -> None:
         from nodes.edges import Edge
 
         ctx = self.context
+        if self.snapshot is not None:
+            self._setup_edges_from_snapshot()
+            return
         for node in ctx.nodes.values():
             for ec in self._output_nodes.get(node.id, []):
                 try:
@@ -1856,26 +2011,9 @@ class InstanceLoader:
         self._finish_init()
 
     def _stash_snapshot_bindings(self, snapshot: InstanceSnapshot) -> None:
-        """
-        Precompute per-node binding stashes for node construction.
-
-        Edges remain dict-shaped (consumed by ``Edge.from_config``) until
-        binding construction goes native; dataset ports are grouped the same
-        way the config-dict shim grouped them.
-        """
+        """Group dataset bindings per node for construction, the same way the config-dict shim grouped them."""
         from collections import defaultdict
 
-        from nodes.instance_from_db import _build_edge_maps
-
-        specs_by_uuid: dict[UUID, NodeSpec] = {}
-        identifiers_by_uuid: dict[UUID, str] = {}
-        for n in snapshot.nodes:
-            assert n.spec is not None
-            assert n.identifier is not None
-            specs_by_uuid[n.uuid] = n.spec
-            identifiers_by_uuid[n.uuid] = n.identifier
-        _output_edges, input_edges = _build_edge_maps(snapshot.edge_bindings, specs_by_uuid, identifiers_by_uuid)
-        self._snapshot_input_edges = {node_id: list(edges) for node_id, edges in input_edges.items()}
         ports_by_node: defaultdict[UUID, list[DatasetPortSnapshot]] = defaultdict(list)
         for port in sorted(snapshot.dataset_bindings, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
             ports_by_node[port.node].append(port)
