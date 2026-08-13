@@ -145,6 +145,7 @@ TAG_DESCRIPTIONS = {
     'splittee': _('The node is used as the values to redistribute into a new dimension.'),
     'splitter': _('The node is used as the distribution source for a new dimension.'),
     'split_evenly_to_cats': _('Distribute the total evenly across all categories of a dimension.'),
+    'template': _('The dataset declaring the category combinations that are required to exist.'),
     'truncate_before_start': _('Truncate values before the reference year. There may be some from data'),
     'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
     'use_as_shares': _('Treat this input as fractional shares (dimensionless) to scale another quantity.'),
@@ -227,6 +228,25 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         or in a scenario. What does vary between cities and between years -- the electricity fraction
         of the plant's output and the supply temperature of the network -- is given per year, from a
         dataset, from an input node, or as a single parameter value.
+        """
+        )
+    ),
+    'BiskoExergeticAllocationNode': NodeInfo(
+        _(
+            """
+        Reports whether combined heat and power is allocated the way BISKO criterion 6 requires
+        (1 = yes, 0 = no). Two conditions must hold in the same year.
+
+        First, the prescribed method has to be in force: the exergetic (Carnot) split with the
+        district heating return temperature fixed at 283 K. This node asks the allocation node
+        itself which method it applies, rather than guessing from the numbers that came out of it.
+
+        Second, the allocation must have had something to allocate. In a year where the district
+        heating emissions of the balance are zero or missing, the answer is 0, because a method
+        applied to an empty balance is not evidence that the method was used.
+
+        The node says nothing about whether the electricity fraction and supply temperature fed
+        into the split are plausible. That is a separate test.
         """
         )
     ),

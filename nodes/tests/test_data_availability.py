@@ -14,6 +14,7 @@ from nodes.exceptions import NodeError
 from nodes.simple import DataAvailabilityNode
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from nodes.units import unit_registry
+from params.param import BoolParameter
 
 if TYPE_CHECKING:
     from common.polars import PathsDataFrame
@@ -263,3 +264,177 @@ def test_input_nodes_are_rejected():
 
     with pytest.raises(NodeError, match='only inspects its input dataset'):
         node.compute()
+
+
+def _template_dataset(context: Context, combinations: list[tuple[str, ...]], dim_ids: list[str], year: int = 2011) -> Dataset:
+    """Build a template dataset declaring which dimension category combinations have to exist."""
+    columns: dict[str, Any] = {YEAR_COLUMN: [year] * len(combinations)}
+    for index, dim_id in enumerate(dim_ids):
+        columns[dim_id] = [combination[index] for combination in combinations]
+    columns[VALUE_COLUMN] = [1.0] * len(combinations)
+    columns[FORECAST_COLUMN] = [False] * len(combinations)
+    meta = DataFrameMeta(
+        units={VALUE_COLUMN: unit_registry.parse_units('dimensionless')},
+        primary_keys=[YEAR_COLUMN, *dim_ids],
+    )
+    ds = _FixedRawDataset(id='template', context=context, tags=['template'])
+    ds.raw_df = to_ppdf(pl.DataFrame(columns), meta)
+    return ds
+
+
+def _carrier_data(context: Context, carriers: list[str], year: int = 2011) -> Dataset:
+    df = pl.DataFrame({
+        YEAR_COLUMN: [year] * len(carriers),
+        'carrier': carriers,
+        VALUE_COLUMN: [5.0] * len(carriers),
+        FORECAST_COLUMN: [False] * len(carriers),
+    })
+    meta = DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kWh')}, primary_keys=[YEAR_COLUMN, 'carrier'])
+    return _make_dataset(context, to_ppdf(df, meta))
+
+
+def _by_cell(df: PathsDataFrame) -> dict[tuple[int, str], float]:
+    return {(row[YEAR_COLUMN], row['carrier']): row[VALUE_COLUMN] for row in df.to_dicts()}
+
+
+def test_a_required_combination_missing_from_the_data_is_reported_as_zero():
+    """Without a template it would vanish from the output instead, and a downstream flag would lose the term."""
+    context = _make_context('availability-template')
+    node = _make_node(
+        context,
+        [
+            _carrier_data(context, ['electricity', 'natural_gas']),  # the city deleted every district heating row
+            _template_dataset(context, [('electricity',), ('natural_gas',), ('district_heating',)], ['carrier']),
+        ],
+    )
+
+    out = node.compute()
+    cells = _by_cell(out)
+
+    assert cells[(2011, 'electricity')] == 1.0
+    assert cells[(2011, 'district_heating')] == 0.0
+    assert set(out['carrier'].unique()) == {'electricity', 'natural_gas', 'district_heating'}
+    n_years = context.model_end_year - context.instance.minimum_historical_year + 1
+    assert len(out) == 3 * n_years
+
+
+def test_without_a_template_the_combinations_still_come_from_the_data():
+    context = _make_context('availability-no-template')
+    node = _make_node(context, [_carrier_data(context, ['electricity', 'natural_gas'])])
+
+    assert set(node.compute()['carrier'].unique()) == {'electricity', 'natural_gas'}
+
+
+def test_the_templates_own_years_and_values_are_ignored():
+    context = _make_context('availability-template-years')
+    node = _make_node(
+        context,
+        [
+            _carrier_data(context, ['electricity'], year=2012),
+            # One year of template rows, far outside the data's own span.
+            _template_dataset(context, [('electricity',), ('natural_gas',)], ['carrier'], year=1995),
+        ],
+    )
+
+    cells = _by_cell(node.compute())
+
+    assert cells[(2011, 'electricity')] == 0.0  # required, and the data does not reach this year
+    assert cells[(2012, 'electricity')] == 1.0
+    assert cells[(2012, 'natural_gas')] == 0.0  # required, never supplied
+    assert not [key for key in cells if key[0] == 1995]
+
+
+def test_a_combination_the_template_does_not_require_is_still_reported():
+    context = _make_context('availability-template-extra')
+    node = _make_node(
+        context,
+        [
+            _carrier_data(context, ['electricity', 'kerosene']),
+            _template_dataset(context, [('electricity',)], ['carrier']),
+        ],
+    )
+
+    cells = _by_cell(node.compute())
+
+    assert cells[(2011, 'electricity')] == 1.0
+    assert cells[(2011, 'kerosene')] == 1.0  # a value does exist, and by default that is all this says
+
+
+def test_flag_unexpected_marks_values_the_template_does_not_require():
+    context = _make_context('availability-template-flagged')
+    node = _make_node(
+        context,
+        [
+            _carrier_data(context, ['electricity', 'kerosene']),
+            _template_dataset(context, [('electricity',)], ['carrier']),
+        ],
+    )
+    node.parameters['flag_unexpected'] = BoolParameter(local_id='flag_unexpected', value=True)
+
+    cells = _by_cell(node.compute())
+
+    assert cells[(2011, 'electricity')] == 1.0
+    assert cells[(2011, 'kerosene')] == -1.0
+    assert cells[(2012, 'kerosene')] == 0.0  # not required and no value either: nothing to flag
+
+
+def test_template_dimensions_must_match_the_datas_dimensions():
+    context = _make_context('availability-template-dims')
+    node = _make_node(
+        context,
+        [
+            _carrier_data(context, ['electricity']),
+            _template_dataset(context, [('electricity', 'households')], ['carrier', 'sector']),
+        ],
+    )
+
+    with pytest.raises(NodeError, match='have to be the same dimensions'):
+        node.compute()
+
+
+def test_a_template_alone_is_not_a_dataset_to_check():
+    context = _make_context('availability-template-only')
+    node = _make_node(context, [_template_dataset(context, [('electricity',)], ['carrier'])])
+
+    with pytest.raises(NodeError, match='Expecting one dataset to check'):
+        node.compute()
+
+
+def test_required_combinations_survive_multiple_metric_columns():
+    context = _make_context('availability-template-metrics')
+    from nodes.node import NodeMetric
+
+    df = pl.DataFrame({
+        YEAR_COLUMN: [2011],
+        'carrier': ['electricity'],
+        'energy': [5.0],
+        'emissions': [None],
+        FORECAST_COLUMN: [False],
+    })
+    meta = DataFrameMeta(
+        units={'energy': unit_registry.parse_units('kWh'), 'emissions': unit_registry.parse_units('t')},
+        primary_keys=[YEAR_COLUMN, 'carrier'],
+    )
+    node = DataAvailabilityNode(
+        id='availability',
+        context=context,
+        name=TranslatedString('availability', default_language='en'),
+        unit=None,
+        quantity=None,
+        output_metrics={
+            'energy': NodeMetric(unit='dimensionless', quantity='fraction', id='energy', column_id='energy'),
+            'emissions': NodeMetric(unit='dimensionless', quantity='fraction', id='emissions', column_id='emissions'),
+        },
+        input_datasets=[
+            _make_dataset(context, to_ppdf(df, meta)),
+            _template_dataset(context, [('electricity',), ('natural_gas',)], ['carrier']),
+        ],
+    )
+
+    by_cell = {(row[YEAR_COLUMN], row['carrier']): row for row in node.compute().to_dicts()}
+
+    assert by_cell[(2011, 'electricity')]['energy'] == 1.0
+    assert by_cell[(2011, 'electricity')]['emissions'] == 0.0
+    # Both flag columns are zero for the required combination the data never mentions.
+    assert by_cell[(2011, 'natural_gas')]['energy'] == 0.0
+    assert by_cell[(2011, 'natural_gas')]['emissions'] == 0.0

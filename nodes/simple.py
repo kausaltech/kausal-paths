@@ -462,12 +462,40 @@ class DataAvailabilityNode(AdditiveNode):
     0/1 column of its own. When the dataset has a single metric column, it is renamed to the
     node's own metric column, so the usual ``unit: dimensionless`` node definition is enough;
     a multi-metric dataset needs matching ``output_metrics`` on the node.
+
+    Taking the combinations from the data means that a combination nobody supplied is not
+    reported as missing — it is simply absent from the output, and a downstream flag computed
+    over it silently loses a term. Where the set of combinations is prescribed rather than
+    discovered, declare it in a second dataset tagged ``template``: its dimension columns list
+    the combinations that must exist, and they become the combinations reported on. A required
+    combination the data never mentions then reads 0.0 for every year instead of vanishing.
+    Keeping that dataset in DVC is the point of it — a user who edits the data being checked
+    cannot edit the requirement. The template's own values and years are ignored; one year's
+    worth of rows is enough, because a requirement of this kind is structural rather than
+    temporal, and it is checked in every year of the model range.
+
+    With ``flag_unexpected``, a combination that carries a value the template does not ask for
+    reads -1.0 instead of 1.0. It is off by default because these outputs are meant to be
+    combined arithmetically downstream (``prod_dim`` over a conformity flag, say), and a
+    negative term would corrupt that rather than register as a complaint.
     """
 
     explanation = _("""This is a Data Availability Node. Instead of using the values of its input dataset, it
 reports whether a value exists in each cell: 1.0 where the dataset has a value and 0.0 where it does not.
 The check is made on the original data, before interpolation or extension fill in the missing years.
-The output covers the whole model period; the years and categories that the dataset does not reach are 0.0.""")
+The output covers the whole model period; the years and categories that the dataset does not reach are 0.0.
+When a template dataset declares which category combinations have to exist, those are the ones reported on,
+so that a combination missing from the data altogether is reported as missing rather than passed over.""")
+
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
+        *AdditiveNode.allowed_parameters,
+        BoolParameter(
+            local_id='flag_unexpected',
+            label=_('Report values that the template does not require as -1'),
+        ),
+    ]
+
+    TEMPLATE_TAG = 'template'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -493,8 +521,61 @@ The output covers the whole model period; the years and categories that the data
                     "Dataset '%s' is interpolated already when it is built, so the gaps of the original data "
                     'cannot be seen any more. Remove the LinearInterpolation dataset processor.' % ds.id,
                 )
-        df = self.get_input_dataset_pl(required=True)
-        return self.check_availability(df)
+        dfs = self.get_input_datasets_pl(exclude_tags=[self.TEMPLATE_TAG])
+        if len(dfs) != 1:
+            raise NodeError(
+                self,
+                'Expecting one dataset to check the availability of, besides any tagged %r; got %d.'
+                % (self.TEMPLATE_TAG, len(dfs)),
+            )
+        return self.check_availability(dfs[0])
+
+    def _get_required_combinations(self, dim_ids: list[str]) -> pl.DataFrame | None:
+        """Return one row per combination the template requires, or None when there is no template."""
+        templates = self.get_input_datasets_pl(tag=self.TEMPLATE_TAG)
+        if not templates:
+            return None
+        if len(templates) > 1:
+            raise NodeError(self, 'Expecting at most one dataset tagged %r; got %d.' % (self.TEMPLATE_TAG, len(templates)))
+        template = templates[0].paths.cast_index_to_str()
+        if sorted(template.dim_ids) != sorted(dim_ids):
+            raise NodeError(
+                self,
+                'The template requires combinations of (%s), but the data has dimensions (%s). '
+                'They have to be the same dimensions for the requirement to mean anything.'
+                % (', '.join(sorted(template.dim_ids)) or '-', ', '.join(sorted(dim_ids)) or '-'),
+            )
+        if not dim_ids:
+            raise NodeError(
+                self,
+                'A template declares which dimension category combinations must exist, but the data has no dimensions.',
+            )
+        # The template's values and years carry no meaning; the combinations are the whole of it.
+        combinations = pl.DataFrame({dim_id: template[dim_id] for dim_id in dim_ids})
+        return combinations.unique(subset=dim_ids)
+
+    def _report_on_required_combinations(self, out: ppl.PathsDataFrame, required: pl.DataFrame) -> ppl.PathsDataFrame:
+        """Give every required combination a row in every year, whether or not the data mentions it."""
+        required_col = '_Required'
+        meta = out.get_meta()
+        dim_ids = out.dim_ids
+        flag_cols = out.metric_cols
+        out = out.with_columns([pl.col(dim_id).cast(pl.Utf8) for dim_id in dim_ids])
+
+        years = pl.DataFrame({YEAR_COLUMN: out[YEAR_COLUMN].unique()})
+        grid = years.join(required.with_columns(pl.lit(value=True).alias(required_col)), how='cross')
+        # The union: a required combination the data never mentions gets its zeros, and a
+        # combination the data has that nothing requires is still reported rather than dropped.
+        joined = out.join(grid, on=[YEAR_COLUMN, *dim_ids], how='full', coalesce=True)
+        joined = joined.with_columns([pl.col(col).fill_null(0.0) for col in flag_cols])
+
+        if self.get_typed_parameter_value('flag_unexpected', bool, required=False):
+            unexpected = ~pl.col(required_col).fill_null(value=False)
+            joined = joined.with_columns([
+                pl.when(unexpected & (pl.col(col) > 0)).then(pl.lit(-1.0)).otherwise(pl.col(col)).alias(col) for col in flag_cols
+            ])
+
+        return ppl.to_ppdf(joined.drop(required_col), meta=meta)
 
     def check_availability(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         """Convert the values of the raw dataset into 1.0 (value exists) and 0.0 (no value)."""
@@ -543,6 +624,10 @@ The output covers the whole model period; the years and categories that the data
                 has_value = has_value & pl.col(col).is_not_nan()
             flags.append(has_value.cast(pl.Float64).alias(col))
         out = wide.with_columns(flags).paths.to_narrow()
+
+        required = self._get_required_combinations(out.dim_ids)
+        if required is not None:
+            out = self._report_on_required_combinations(out, required)
 
         max_hist_year = self.context.instance.maximum_historical_year
         is_forecast = pl.lit(value=False) if max_hist_year is None else pl.col(YEAR_COLUMN) > max_hist_year

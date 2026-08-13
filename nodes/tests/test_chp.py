@@ -11,9 +11,10 @@ from kausal_common.i18n.pydantic import TranslatedString
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.datasets import Dataset
+from nodes.dimensions import Dimension, DimensionCategory
 from nodes.edges import Edge
 from nodes.exceptions import NodeError
-from nodes.generic import BISKO_T_RETURN, BiskoChpNode, ChpNode
+from nodes.generic import BISKO_T_RETURN, BiskoChpNode, BiskoExergeticAllocationNode, ChpNode
 from nodes.node import Node
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from nodes.units import unit_registry
@@ -351,3 +352,237 @@ def test_a_dataset_with_no_usable_column_is_an_error():
 
     with pytest.raises(NodeError, match='no usable metric column'):
         node.compute()
+
+
+# --------------------------------------------------------------------------------------
+# BiskoExergeticAllocationNode -- the criterion 6 conformity gate
+# --------------------------------------------------------------------------------------
+
+
+def _make_gate(context: Context, identifier: str = 'gate') -> BiskoExergeticAllocationNode:
+    return BiskoExergeticAllocationNode(
+        id=identifier,
+        context=context,
+        name=TranslatedString(identifier, default_language='en'),
+        unit=unit_registry.parse_units('dimensionless'),
+        quantity='probability',
+    )
+
+
+def _connect(input_node: Node, output_node: Node, tag: str) -> None:
+    edge = Edge(input_node=input_node, output_node=output_node, tags=[tag])
+    input_node.add_edge(edge)
+    output_node.add_edge(edge)
+
+
+def _attach_emissions(gate: BiskoExergeticAllocationNode, rows: list[tuple[int, float]]) -> None:
+    df = _series_df({VALUE_COLUMN: [r[1] for r in rows]}, years=[r[0] for r in rows], units={VALUE_COLUMN: 'kt/a'})
+    source = _FixedOutputNode(
+        id='dh_emissions',
+        context=gate.context,
+        name=TranslatedString('dh_emissions', default_language='en'),
+        unit=unit_registry.parse_units('kt/a'),
+        quantity='emissions',
+        fixed_df=df,
+    )
+    _connect(source, gate, 'emissions')
+
+
+def _gate_by_year(node: BiskoExergeticAllocationNode) -> dict[int, float]:
+    return {row[YEAR_COLUMN]: row[VALUE_COLUMN] for row in node.compute().to_dicts()}
+
+
+def test_gate_passes_when_the_method_conforms_and_something_was_allocated():
+    context = _make_context('gate-pass')
+    gate = _make_gate(context)
+    allocation = _make_chp_node(context, cls=BiskoChpNode, params={'electricity_fraction': 0.3, 't_supply': 373.0})
+    _connect(allocation, gate, 'allocation')
+    _attach_emissions(gate, [(2016, 120.0), (2017, 118.0), (2018, 115.0)])
+
+    result = _gate_by_year(gate)
+
+    assert result[2016] == 1.0
+    assert result[2018] == 1.0
+    # Full model span, and never null -- a null here fails baseline validation downstream.
+    assert min(result) == START_YEAR
+    assert max(result) == END_YEAR
+    assert all(v is not None for v in result.values())
+
+
+def test_gate_fails_in_years_with_nothing_to_allocate():
+    """A conforming method applied to an empty balance evidences nothing."""
+    context = _make_context('gate-empty-years')
+    gate = _make_gate(context)
+    allocation = _make_chp_node(context, cls=BiskoChpNode, params={'electricity_fraction': 0.3, 't_supply': 373.0})
+    _connect(allocation, gate, 'allocation')
+    _attach_emissions(gate, [(2016, 120.0), (2017, 0.0), (2018, 115.0)])
+
+    result = _gate_by_year(gate)
+
+    assert result[2016] == 1.0
+    assert result[2017] == 0.0  # zero emissions -> not evidenced
+    assert result[2018] == 1.0
+    assert result[1990] == 0.0  # before the series -> no emissions at all
+
+
+def test_gate_fails_when_the_method_does_not_conform():
+    context = _make_context('gate-wrong-method')
+    gate = _make_gate(context)
+    allocation = _make_chp_node(context, params={'method': 'energy_content', 'electricity_fraction': 0.3})
+    _connect(allocation, gate, 'allocation')
+    _attach_emissions(gate, [(2016, 120.0), (2018, 115.0)])
+
+    result = _gate_by_year(gate)
+
+    assert result[2016] == 0.0
+    assert result[2018] == 0.0
+
+
+def test_gate_accepts_work_potential_at_the_bisko_return_temperature():
+    """work_potential with t_return = 283 K is numerically the bisko method, so it conforms."""
+    context = _make_context('gate-work-potential-283')
+    gate = _make_gate(context)
+    allocation = _make_chp_node(
+        context,
+        params={
+            'method': 'work_potential',
+            'electricity_fraction': 0.3,
+            't_supply': 373.0,
+            't_return': BISKO_T_RETURN,
+        },
+    )
+    _connect(allocation, gate, 'allocation')
+    _attach_emissions(gate, [(2018, 115.0)])
+
+    assert _gate_by_year(gate)[2018] == 1.0
+
+
+def test_gate_rejects_work_potential_at_another_return_temperature():
+    context = _make_context('gate-work-potential-313')
+    gate = _make_gate(context)
+    allocation = _make_chp_node(
+        context,
+        params={'method': 'work_potential', 'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': 313.0},
+    )
+    _connect(allocation, gate, 'allocation')
+    _attach_emissions(gate, [(2018, 115.0)])
+
+    assert _gate_by_year(gate)[2018] == 0.0
+
+
+def test_gate_rejects_a_return_temperature_that_moves_between_years():
+    """BISKO fixes the return temperature, so a series cannot conform even if it passes through 283."""
+    context = _make_context('gate-work-potential-series')
+    allocation = _make_chp_node(context, params={'method': 'work_potential', 'electricity_fraction': 0.3, 't_supply': 373.0})
+    _attach_dataset(allocation, _series_df({'t_return': [BISKO_T_RETURN]}, years=[2018], units={'t_return': 'K'}))
+
+    assert allocation.allocation_conforms_to_bisko is False
+
+
+def test_bisko_chp_node_declares_a_fixed_conforming_allocation():
+    context = _make_context('declaration')
+    node = _make_chp_node(context, cls=BiskoChpNode, params={'electricity_fraction': 0.3, 't_supply': 373.0})
+
+    assert node.allocation_method == 'bisko'
+    assert node.allocation_method_is_fixed is True
+    assert node.allocation_conforms_to_bisko is True
+
+
+def test_generic_chp_node_declares_a_settable_method():
+    context = _make_context('declaration-generic')
+    node = _make_chp_node(context, params={'method': 'bisko', 'electricity_fraction': 0.3, 't_supply': 373.0})
+
+    assert node.allocation_method == 'bisko'
+    assert node.allocation_method_is_fixed is False  # conforming, but by a setting
+    assert node.allocation_conforms_to_bisko is True
+
+
+def test_efficiency_method_does_not_conform_to_bisko():
+    context = _make_context('declaration-efficiency')
+    node = _make_chp_node(
+        context,
+        params={
+            'method': 'efficiency',
+            'electricity_fraction': 0.3,
+            'electricity_reference_efficiency': 0.4,
+            'heat_reference_efficiency': 0.9,
+        },
+    )
+
+    assert node.allocation_conforms_to_bisko is False
+
+
+def test_gate_requires_exactly_one_allocation_input():
+    context = _make_context('gate-no-allocation')
+    gate = _make_gate(context)
+    _attach_emissions(gate, [(2018, 115.0)])
+
+    with pytest.raises(NodeError, match="exactly one input node tagged 'allocation'"):
+        gate.compute()
+
+
+def test_gate_rejects_an_allocation_node_that_declares_nothing():
+    context = _make_context('gate-not-a-chp-node')
+    gate = _make_gate(context)
+    other = _FixedOutputNode(
+        id='not_a_chp_node',
+        context=context,
+        name=TranslatedString('not_a_chp_node', default_language='en'),
+        unit=unit_registry.parse_units('dimensionless'),
+        quantity='fraction',
+        fixed_df=_series_df({VALUE_COLUMN: [1.0]}, years=[2018], units={VALUE_COLUMN: 'dimensionless'}),
+    )
+    _connect(other, gate, 'allocation')
+    _attach_emissions(gate, [(2018, 115.0)])
+
+    with pytest.raises(NodeError, match='does not declare whether its allocation conforms'):
+        gate.compute()
+
+
+def test_gate_requires_exactly_one_emissions_input():
+    context = _make_context('gate-no-emissions')
+    gate = _make_gate(context)
+    allocation = _make_chp_node(context, cls=BiskoChpNode, params={'electricity_fraction': 0.3, 't_supply': 373.0})
+    _connect(allocation, gate, 'allocation')
+
+    with pytest.raises(NodeError, match="exactly one input node tagged 'emissions'"):
+        gate.compute()
+
+
+def test_gate_rejects_emissions_that_still_carry_a_dimension():
+    """Forgetting the flatten on the emissions edge is the realistic way to get this wrong."""
+    context = _make_context('gate-dimensional-emissions')
+    gate = _make_gate(context)
+    allocation = _make_chp_node(context, cls=BiskoChpNode, params={'electricity_fraction': 0.3, 't_supply': 373.0})
+    _connect(allocation, gate, 'allocation')
+
+    context.dimensions['energy_carrier'] = Dimension(
+        id='energy_carrier',
+        label=TranslatedString('Energy carrier', default_language='en'),
+        categories=[
+            DimensionCategory(id='district_heating', label=TranslatedString('DH', default_language='en')),
+            DimensionCategory(id='electricity', label=TranslatedString('El', default_language='en')),
+        ],
+    )
+    df = pl.DataFrame({
+        YEAR_COLUMN: [2018, 2018],
+        'energy_carrier': ['district_heating', 'electricity'],
+        VALUE_COLUMN: [115.0, 40.0],
+    }).with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+    meta = DataFrameMeta(
+        units={VALUE_COLUMN: unit_registry.parse_units('kt/a')},
+        primary_keys=[YEAR_COLUMN, 'energy_carrier'],
+    )
+    source = _FixedOutputNode(
+        id='dh_emissions_by_carrier',
+        context=context,
+        name=TranslatedString('dh_emissions_by_carrier', default_language='en'),
+        unit=unit_registry.parse_units('kt/a'),
+        quantity='emissions',
+        output_dimension_ids=['energy_carrier'],
+        fixed_df=to_ppdf(df, meta),
+    )
+    _connect(source, gate, 'emissions')
+
+    with pytest.raises(NodeError, match='must be a single series'):
+        gate.compute()

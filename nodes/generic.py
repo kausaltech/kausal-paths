@@ -1866,6 +1866,44 @@ class ChpNode(GenericNode):
     ]
     DEFAULT_OPERATIONS = 'chp_fractions'
 
+    # ----- What this node declares about its own allocation.
+    #
+    # A conformity test needs to know which method is in force. It must not ask by
+    # inspecting the concrete class, because then adding a conforming subclass would
+    # mean editing every test. The node itself owns the answer, so it states it.
+
+    @property
+    def allocation_method(self) -> str:
+        """The allocation method this node applies."""
+        return self._resolve_method()
+
+    @property
+    def allocation_method_is_fixed(self) -> bool:
+        """Whether the method is pinned by the node's class instead of set in the config."""
+        return self.FIXED_METHOD is not None
+
+    @property
+    def allocation_conforms_to_bisko(self) -> bool:
+        """
+        Whether this node's split is the one BISKO criterion 6 prescribes.
+
+        BISKO asks for the exergetic (Carnot) method *with* the return temperature fixed
+        at 283 K, which is exactly what the ``bisko`` method is. Plain ``work_potential``
+        also qualifies when its return temperature is that same constant — but not when
+        it is given as an annual series, because a value the standard fixes cannot move
+        from year to year.
+        """
+        method = self.allocation_method
+        if method == 'bisko':
+            return True
+        if method != 'work_potential':
+            return False
+        if 't_return' in self._series_input_names():
+            return False
+        raw = self.get_parameter_value('t_return', required=False, units=False)
+        # TODO This should work also with other temperature units than K:
+        return raw is not None and float(raw) == BISKO_T_RETURN  # type: ignore[arg-type]
+
     def _resolve_method(self) -> str:
         if self.FIXED_METHOD is not None:
             return self.FIXED_METHOD
@@ -1876,6 +1914,14 @@ class ChpNode(GenericNode):
                 "Parameter 'method' got value %r; must be one of: %s." % (method, ', '.join(sorted(self.METHODS))),
             )
         return method
+
+    def _series_input_names(self) -> set[str]:
+        """Which annual inputs arrive as a series, without computing their values."""
+        names = {name for name in self.ANNUAL_INPUTS if self.get_input_nodes(tag=name)}
+        ds = self.get_input_dataset_pl(required=False)
+        if ds is not None:
+            names |= {col for col in ds.metric_cols if col in self.ANNUAL_INPUTS}
+        return names
 
     def _dataset_series(self) -> tuple[PathsDataFrame, list[str]] | None:
         """Read the annual series carried by the input dataset, if there is one."""
@@ -2108,8 +2154,8 @@ class BiskoChpNode(ChpNode):
     Using this class instead of ``ChpNode`` with ``method: bisko`` puts the
     conformity in the model structure, where a certifier can see it and no scenario
     can change it. It is evidence about the method, not about the numbers: whether
-    the resulting factor is credible is what
-    ``has_district_heating_by_exergetic_allocation`` tests.
+    the resulting factor is credible is a separate question, tested against the BISKO
+    Table 5 envelope.
     """
 
     FIXED_METHOD = 'bisko'
@@ -2119,6 +2165,105 @@ class BiskoChpNode(ChpNode):
         for p in ChpNode.allowed_parameters
         if p.local_id not in ('method', 't_return', 'electricity_reference_efficiency', 'heat_reference_efficiency')
     ]
+
+
+class BiskoExergeticAllocationNode(GenericNode):
+    """
+    Report whether combined heat and power is allocated the way BISKO criterion 6 requires.
+
+    Answers two things at once, because either alone would be misleading:
+
+    1. **Is the prescribed method in force?** The allocation node is asked directly, via
+       :attr:`ChpNode.allocation_conforms_to_bisko`. Nothing here inspects its class, so a
+       new conforming allocation class needs no change to this node.
+    2. **Did it allocate anything?** A method applied to an empty balance is not evidence
+       of conformity, so the answer is 0 in any year where the district heating emissions
+       it governs are zero or missing.
+
+    Expects two tagged input nodes: ``allocation``, the node performing the split, and
+    ``emissions``, the district heating emissions of the balance. The second must be the
+    emissions the balance actually reports, not the detailed fuel-input branch -- that
+    branch is empty for nearly every BISKO city, so gating on it would report
+    non-conformity everywhere.
+
+    Output is 1 or 0 per year over the model's full span, never null: a null here fails
+    baseline validation and takes the whole graph view down with it.
+
+    This tests the method, and that it was used. It does not test whether the numbers fed
+    into it are right; that is what the Table 5 envelope check is for.
+    """
+
+    DEFAULT_OPERATIONS = 'bisko_allocation_conformity'
+
+    def _get_allocation_node(self) -> Node:
+        nodes = self.get_input_nodes(tag='allocation')
+        if len(nodes) != 1:
+            raise NodeError(
+                self,
+                "Expected exactly one input node tagged 'allocation' (the node performing the CHP split); got %d." % len(nodes),
+            )
+        return nodes[0]
+
+    def _operation_bisko_allocation_conformity(self, df: PathsDataFrame | None) -> OperationReturn:
+        if df is not None:
+            raise NodeError(self, "Operation 'bisko_allocation_conformity' must be the only operation.")
+
+        allocation = self._get_allocation_node()
+        conforms = getattr(allocation, 'allocation_conforms_to_bisko', None)
+        if conforms is None:
+            raise NodeError(
+                self,
+                "Input node '%s' does not declare whether its allocation conforms to BISKO. The "
+                "'allocation' input must be a CHP allocation node." % allocation.id,
+            )
+        if conforms and not getattr(allocation, 'allocation_method_is_fixed', False):
+            # Conforming, but by a setting rather than by construction. Worth saying out loud:
+            # it is the difference between a guarantee and a current value.
+            self.logger.warning(
+                "Node '%s' conforms to BISKO through its '%s' method parameter rather than through its "
+                'node class, so the conformity depends on that parameter keeping its value.',
+                allocation.id,
+                allocation.allocation_method,  # type: ignore[attr-defined]
+            )
+
+        emissions_nodes = self.get_input_nodes(tag='emissions')
+        if len(emissions_nodes) != 1:
+            raise NodeError(
+                self,
+                "Expected exactly one input node tagged 'emissions' (the district heating emissions "
+                'of the balance); got %d.' % len(emissions_nodes),
+            )
+        edf = emissions_nodes[0].get_output_pl(target_node=self)
+        if edf.dim_ids:
+            raise NodeError(
+                self,
+                "The 'emissions' input must be a single series; got dimension(s) %s. Filter to district "
+                'heating and flatten the rest.' % ', '.join(sorted(edf.dim_ids)),
+            )
+
+        instance = self.context.instance
+        years = range(min(instance.reference_year, instance.minimum_historical_year), instance.model_end_year + 1)
+        out = PathsDataFrame({YEAR_COLUMN: years})
+        out._units = {}
+        out._primary_keys = [YEAR_COLUMN]
+
+        allocated = edf.select([YEAR_COLUMN, pl.col(VALUE_COLUMN).alias('_emissions')])
+        out = out.paths.join_over_index(allocated, how='left')
+        out = out.with_columns(
+            pl
+            .when(pl.lit(value=bool(conforms)) & (pl.col('_emissions').fill_null(0.0).fill_nan(0.0).abs() > 0.0))
+            .then(1.0)
+            .otherwise(0.0)
+            .alias(VALUE_COLUMN)
+        ).drop('_emissions')
+        last_hist = instance.maximum_historical_year or instance.reference_year
+        return out.with_columns((pl.col(YEAR_COLUMN) > pl.lit(last_hist)).alias(FORECAST_COLUMN)).set_unit(
+            VALUE_COLUMN, 'dimensionless'
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.OPERATIONS['bisko_allocation_conformity'] = self._operation_bisko_allocation_conformity
 
 
 class ConstantNode(GenericNode):
