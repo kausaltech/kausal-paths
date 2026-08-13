@@ -175,11 +175,20 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
             return self.filter(id=id_or_identifier)
         return self.filter(query_pk_or_uuid_or_identifier(id_or_identifier))
 
+    def active(self) -> InstanceConfigQuerySet:
+        return self.filter(is_active=True)
+
 
 _InstanceConfigManager = cast('Manager[InstanceConfig]', Manager).from_queryset(InstanceConfigQuerySet)
 
 
 class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # type: ignore[valid-type,misc]
+    def get_queryset(self) -> InstanceConfigQuerySet:
+        return super().get_queryset().active()
+
+    def get_queryset_all(self):
+        return super().get_queryset()
+
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
         return self.get(identifier=identifier)
 
@@ -432,6 +441,7 @@ class InstanceConfig(
     """Metadata for one Paths computational model instance."""
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
+    is_active = models.BooleanField(default=True, help_text=_('Whether this instance is active or soft-deleted.'))
     name = models.CharField[str, str](max_length=150, verbose_name=_('name'), unique=True)
     owner = models.CharField[str, str](
         blank=True,
