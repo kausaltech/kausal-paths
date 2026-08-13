@@ -438,3 +438,27 @@ def test_required_combinations_survive_multiple_metric_columns():
     # Both flag columns are zero for the required combination the data never mentions.
     assert by_cell[(2011, 'natural_gas')]['energy'] == 0.0
     assert by_cell[(2011, 'natural_gas')]['emissions'] == 0.0
+
+
+def test_a_template_does_not_change_the_dimension_column_dtype():
+    """Category columns from two frames are not joinable, so the join must not leak its casts out."""
+    context = _make_context('availability-template-dtype')
+    df = pl.DataFrame({
+        YEAR_COLUMN: [2011],
+        'carrier': ['electricity'],
+        VALUE_COLUMN: [5.0],
+        FORECAST_COLUMN: [False],
+    }).with_columns(pl.col('carrier').cast(pl.Categorical))
+    meta = DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kWh')}, primary_keys=[YEAR_COLUMN, 'carrier'])
+    node = _make_node(
+        context,
+        [
+            _make_dataset(context, to_ppdf(df, meta)),
+            _template_dataset(context, [('electricity',), ('natural_gas',)], ['carrier']),
+        ],
+    )
+
+    out = node.compute()
+
+    assert out.schema['carrier'] == pl.Categorical
+    assert set(out['carrier'].cast(pl.Utf8).unique()) == {'electricity', 'natural_gas'}

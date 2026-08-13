@@ -2373,6 +2373,13 @@ nodes:
     - dimension: sector
       categories: [private_households, commerce_trade_services, industry,
         municipal_facilities]
+  # Which sector/carrier cells have to exist at all. Without it the reported combinations are the
+  # ones the city's data happens to use, so a carrier deleted from every sector does not read 0 --
+  # it disappears, and the downstream categories-filter then quietly multiplies over one term
+  # fewer and reports conformity. The requirement lives in DVC because the data it judges is
+  # editable in the admin UI and the requirement must not be.
+  - id: bisko/required_categories
+    tags: [template]
 
 - id: other_transport_energy_availability
   name_en: Rail, water and air transport data availability

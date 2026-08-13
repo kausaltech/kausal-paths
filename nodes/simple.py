@@ -560,6 +560,10 @@ so that a combination missing from the data altogether is reported as missing ra
         meta = out.get_meta()
         dim_ids = out.dim_ids
         flag_cols = out.metric_cols
+        # Join on plain strings, then put the dimension columns back as they were. Category
+        # columns from two different frames are not joinable, and leaving the output as Utf8
+        # where it used to be Categorical would move the same failure downstream instead.
+        dim_dtypes = {dim_id: out.schema[dim_id] for dim_id in dim_ids}
         out = out.with_columns([pl.col(dim_id).cast(pl.Utf8) for dim_id in dim_ids])
 
         years = pl.DataFrame({YEAR_COLUMN: out[YEAR_COLUMN].unique()})
@@ -575,7 +579,8 @@ so that a combination missing from the data altogether is reported as missing ra
                 pl.when(unexpected & (pl.col(col) > 0)).then(pl.lit(-1.0)).otherwise(pl.col(col)).alias(col) for col in flag_cols
             ])
 
-        return ppl.to_ppdf(joined.drop(required_col), meta=meta)
+        joined = joined.drop(required_col).with_columns([pl.col(dim_id).cast(dtype) for dim_id, dtype in dim_dtypes.items()])
+        return ppl.to_ppdf(joined, meta=meta)
 
     def check_availability(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         """Convert the values of the raw dataset into 1.0 (value exists) and 0.0 (no value)."""
