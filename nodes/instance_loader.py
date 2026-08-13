@@ -34,6 +34,7 @@ from .excel_results import InstanceResultExcel
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from uuid import UUID
 
     from ruamel.yaml import CommentedMap
     from ruamel.yaml.comments import LineCol
@@ -44,9 +45,10 @@ if TYPE_CHECKING:
     from frameworks.models import FrameworkConfig
     from nodes.context import Context
     from nodes.datasets import Dataset
+    from nodes.defs.node_defs import NodeSpec
     from nodes.instance import Instance
-    from nodes.instance_serialization import InstanceSnapshot
-    from nodes.node import Node
+    from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot
+    from nodes.node import Node, NodeMetric
     from nodes.scenario import Scenario
     from nodes.units import Unit
     from params import Parameter
@@ -468,6 +470,9 @@ class InstanceLoader:
     _subactions: dict[str, list[str]]
     _scenario_values: dict[str, list[tuple[Parameter, Any]]]
     _node_visualizations: dict[str, list[dict[str, Any]]]
+    # Snapshot-path binding stashes (see _init_instance_from_snapshot).
+    _snapshot_input_edges: dict[UUID, list[dict[str, Any] | str]]
+    _snapshot_dataset_ports: dict[UUID, list[DatasetPortSnapshot]]
 
     @staticmethod
     def wrap_with_span[**P, R, SC: InstanceLoader](
@@ -880,11 +885,194 @@ class InstanceLoader:
             assert dim.id not in self.context.dimensions
             self.context.dimensions[dim.id] = dim
 
+    def _import_node_class_for_spec(self, spec: NodeSpec, identifier: str, *, action: bool) -> type[Node]:
+        from nodes.actions.action import ActionNode
+        from nodes.defs import ActionConfig, FormulaConfig, SimpleConfig
+        from nodes.node import Node
+
+        tc = spec.type_config
+        if isinstance(tc, FormulaConfig):
+            type_path = 'formula.FormulaNode'
+        elif isinstance(tc, (ActionConfig, SimpleConfig)):
+            type_path = tc.node_class
+        else:
+            raise TypeError(f'Unknown node type config: {type(tc)}')
+        prefix = None if type_path.startswith('nodes.') else ('nodes.actions' if action else 'nodes')
+        return self.import_class(
+            type_path,
+            prefix,
+            allowed_classes=[ActionNode] if action else [Node],
+            disallowed_classes=None if action else [ActionNode],
+            node_id=identifier,
+        )
+
+    def _setup_nodes_from_snapshot(self, *, actions: bool) -> None:
+        from nodes.actions.action import ActionNode
+        from nodes.defs import ActionConfig
+        from nodes.defs.node_defs import NodeKind
+
+        assert self.snapshot is not None
+        for n in self.snapshot.nodes:
+            spec = n.spec
+            assert spec is not None
+            if (spec.kind == NodeKind.ACTION) != actions:
+                continue
+            assert n.identifier is not None
+            node_class = self._import_node_class_for_spec(spec, n.identifier, action=actions)
+            node = self.make_node_from_snapshot(node_class, n)
+            if actions:
+                assert isinstance(node, ActionNode)
+                tc = spec.type_config
+                assert isinstance(tc, ActionConfig)
+                if tc.decision_level is not None:
+                    node.decision_level = tc.decision_level
+                if tc.group is not None:
+                    ag = next((ag for ag in self.instance.action_groups if ag.id == tc.group), None)
+                    if ag is None:
+                        self._init_failure(node, "Action group '%s' not found" % tc.group)
+                    else:
+                        node.group = ag
+                if tc.parent is not None:
+                    self._subactions.setdefault(tc.parent, []).append(node.id)
+            self.context.add_node(node)
+
+    def _resolve_output_metrics(  # noqa: C901
+        self, node_class: type[Node], spec: NodeSpec, identifier: str
+    ) -> tuple[dict[str, NodeMetric] | None, Any, str | None]:
+        """Output metrics / unit / quantity from typed output ports, with the dict path's class fallbacks."""
+        from nodes.node import NodeMetric
+        from nodes.units import Unit
+
+        metrics: dict[str, NodeMetric] | None = None
+        unit: Any = None
+        quantity: str | None = None
+        if len(spec.output_ports) == 1:
+            port = spec.output_ports[0]
+            unit = port.unit
+            quantity = port.quantity
+        elif len(spec.output_ports) > 1:
+            metrics = {}
+            for port in spec.output_ports:
+                column = str(port.column_id) if port.column_id is not None else None
+                if column is None:
+                    raise Exception('Node %s: multi-metric output port without column_id' % identifier)
+                if port.quantity is None:
+                    raise Exception('Node %s: output metric %s has no quantity' % (identifier, column))
+                assert port.unit is not None
+                metrics[column] = NodeMetric(unit=port.unit, quantity=port.quantity, id=column, column_id=column)
+            # If the class defines output_metrics, remap keys to the class's
+            # canonical keys by column_id (same as the dict path).
+            class_metrics_def: dict[str, NodeMetric] | None = getattr(node_class, 'output_metrics', None)
+            if class_metrics_def:
+                col_to_class_key = {m.column_id: k for k, m in class_metrics_def.items()}
+                metrics = {col_to_class_key.get(key, key): metric for key, metric in metrics.items()}
+
+        class_metrics = None if metrics is not None else getattr(node_class, 'output_metrics', None)
+        if unit is None:
+            unit = getattr(node_class, 'default_unit', None) or getattr(node_class, 'unit', None)
+            if not unit and not metrics and not class_metrics:
+                raise Exception('Node %s (%s) has no unit set' % (identifier, node_class.__name__))
+        if unit and not isinstance(unit, Unit):
+            unit = self.context.unit_registry.parse_units(unit)
+        if quantity is None:
+            quantity = getattr(node_class, 'quantity', None)
+            if not quantity and not metrics and not class_metrics:
+                raise Exception('Node %s (%s) has no quantity set' % (identifier, node_class.__name__))
+        return metrics, unit, quantity
+
+    def make_node_from_snapshot(self, node_class: type[Node], n: NodeSnapshot) -> Node:  # noqa: C901
+        """Native ``make_node`` twin: construct a runtime node from typed snapshot state."""
+        spec = n.spec
+        assert spec is not None
+        identifier = n.identifier
+        assert identifier is not None
+
+        def ts(val: I18nString | None) -> TranslatedString | None:
+            if val is None or isinstance(val, TranslatedString):
+                return val
+            return self.simple_trans_string(str(val))
+
+        metrics, unit, quantity = self._resolve_output_metrics(node_class, spec, identifier)
+
+        extra = spec.extra
+        ds_fragment: dict[str, Any] = {'id': identifier}
+        dataset_ports = self._snapshot_dataset_ports.get(n.uuid)
+        if dataset_ports:
+            from nodes.instance_from_db import _serialize_dataset_ports
+
+            ds_fragment['input_datasets'] = _serialize_dataset_ports(dataset_ports)
+        if extra.input_dataset_processors:
+            ds_fragment['input_dataset_processors'] = list(extra.input_dataset_processors)
+        if extra.historical_values:
+            ds_fragment['historical_values'] = extra.historical_values
+        if extra.forecast_values:
+            ds_fragment['forecast_values'] = extra.forecast_values
+        if extra.tags:
+            ds_fragment['tags'] = list(extra.tags)
+        datasets = self._make_node_datasets(ds_fragment, node_class, unit)
+
+        node: Node = node_class(
+            id=identifier,
+            context=self.context,
+            # A missing name fails inside the Node constructor, like the dict path.
+            name=cast('TranslatedString', ts(n.name)),
+            short_name=ts(n.short_name),
+            quantity=quantity,
+            unit=unit,
+            node_group=spec.node_group,
+            # The dict path maps the snapshot's short_description onto the
+            # runtime description; keep that projection.
+            description=ts(n.short_description),
+            color=n.color or None,
+            order=n.order,
+            is_visible=n.is_visible,
+            is_outcome=spec.is_outcome,
+            minimum_year=spec.minimum_year,
+            target_year_goal=extra.other.get('target_year_goal'),
+            goals=spec.goals.model_dump(exclude_none=True) if spec.goals.root else None,
+            allow_nulls=spec.allow_nulls,
+            input_datasets=datasets,
+            output_dimension_ids=spec.output_dimensions or None,
+            input_dimension_ids=spec.input_dimensions or None,
+            output_metrics=metrics,
+            config_location=None,
+        )
+        if node.id in self._input_nodes or node.id in self._output_nodes:
+            raise Exception('Node %s is already configured' % node.id)
+        self._input_nodes[node.id] = self._snapshot_input_edges.get(n.uuid, [])
+        self._output_nodes[node.id] = []
+
+        if spec.params:
+            from nodes.instance_from_db import _param_to_dict
+
+            self._make_node_params({'params': [_param_to_dict(p) for p in spec.params]}, node)
+
+        if extra.tags:
+            node.tags.update(extra.tags)
+
+        if spec.visualizations.root:
+            # Dump rather than pass the instance: model_validate short-circuits
+            # on same-type instances and the context-dependent refs would not
+            # be resolved against this context.
+            self._node_visualizations[node.id] = spec.visualizations.model_dump(exclude_none=True)
+
+        from nodes.defs import ActionConfig
+
+        tc = spec.type_config
+        if isinstance(tc, ActionConfig) and tc.no_effect_value is not None:
+            assert isinstance(node, ActionNode)
+            node.no_effect_value = tc.no_effect_value
+
+        return node
+
     @wrap_with_span('setup-nodes', 'function')
     def setup_nodes(self):
         from nodes.actions.action import ActionNode
         from nodes.node import Node
 
+        if self.snapshot is not None:
+            self._setup_nodes_from_snapshot(actions=False)
+            return
         for nc in self.config.get('nodes', []):
             if nc['type'].startswith('nodes.'):
                 prefix = None
@@ -956,6 +1144,9 @@ class InstanceLoader:
     def setup_actions(self):
         from nodes.actions.action import ActionNode
 
+        if self.snapshot is not None:
+            self._setup_nodes_from_snapshot(actions=True)
+            return
         for nc in self.config.get('actions', []):
             if nc['type'].startswith('nodes.'):
                 prefix = None
@@ -1660,7 +1851,35 @@ class InstanceLoader:
                 model_end_year=years.model_end or target_year,
                 sample_size=spec.sample_size,
             )
+
+        self._stash_snapshot_bindings(snapshot)
         self._finish_init()
+
+    def _stash_snapshot_bindings(self, snapshot: InstanceSnapshot) -> None:
+        """
+        Precompute per-node binding stashes for node construction.
+
+        Edges remain dict-shaped (consumed by ``Edge.from_config``) until
+        binding construction goes native; dataset ports are grouped the same
+        way the config-dict shim grouped them.
+        """
+        from collections import defaultdict
+
+        from nodes.instance_from_db import _build_edge_maps
+
+        specs_by_uuid: dict[UUID, NodeSpec] = {}
+        identifiers_by_uuid: dict[UUID, str] = {}
+        for n in snapshot.nodes:
+            assert n.spec is not None
+            assert n.identifier is not None
+            specs_by_uuid[n.uuid] = n.spec
+            identifiers_by_uuid[n.uuid] = n.identifier
+        _output_edges, input_edges = _build_edge_maps(snapshot.edge_bindings, specs_by_uuid, identifiers_by_uuid)
+        self._snapshot_input_edges = {node_id: list(edges) for node_id, edges in input_edges.items()}
+        ports_by_node: defaultdict[UUID, list[DatasetPortSnapshot]] = defaultdict(list)
+        for port in sorted(snapshot.dataset_bindings, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
+            ports_by_node[port.node].append(port)
+        self._snapshot_dataset_ports = dict(ports_by_node)
 
     def _build_instance_args_from_home_page(self) -> dict[str, TranslatedString]:
         # FIXME: This is an ugly hack
