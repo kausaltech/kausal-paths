@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from ruamel.yaml.comments import LineCol
 
     from kausal_common.datasets.models import Dataset as DBDatasetModel
+    from kausal_common.i18n.pydantic import I18nString
 
     from frameworks.models import FrameworkConfig
     from nodes.context import Context
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
     from nodes.instance import Instance
     from nodes.instance_serialization import InstanceSnapshot
     from nodes.node import Node
+    from nodes.scenario import Scenario
     from nodes.units import Unit
     from params import Parameter
 
@@ -853,7 +855,13 @@ class InstanceLoader:
     def setup_dimensions(self):
         from .dimensions import Dimension
 
-        for dc in self.config.get('dimensions', []):
+        if self.snapshot is not None:
+            # Same dict shape as the YAML path, but sourced from the typed
+            # spec; copied so the shared snapshot is never mutated.
+            dim_configs: list[dict[str, Any]] = [dict(dc) for dc in self.snapshot.spec.dimensions]
+        else:
+            dim_configs = self.config.get('dimensions', [])
+        for dc in dim_configs:
             try:
                 dc['mtime_hash'] = self.config_mtime_hash
                 dim = Dimension.from_yaml_config(dc)
@@ -1048,10 +1056,42 @@ class InstanceLoader:
         )
         pt_scenario.actual_historical_years = list(years)
 
-    def setup_scenarios(self):  # noqa: C901, PLR0912
-        from nodes.scenario import CustomScenario, Scenario, ScenarioKind
+    def _snapshot_scenarios(self) -> list[Scenario]:
+        """Runtime scenarios from the typed spec (param values re-cleaned like the dict path)."""
+        from nodes.scenario import Scenario, ScenarioKind
 
-        default_scenario = None
+        assert self.snapshot is not None
+        if not self.snapshot.spec.scenarios:
+            fallback = Scenario(id='default', name=TranslatedString(_('Default')), kind=ScenarioKind.DEFAULT)
+            fallback._context = self.context
+            return [fallback]
+        scenarios: list[Scenario] = []
+        for sc in self.snapshot.spec.scenarios:
+            kind = sc.kind
+            if kind is None:
+                if sc.id == 'progress_tracking':
+                    kind = ScenarioKind.PROGRESS_TRACKING
+                elif sc.id == 'baseline':
+                    kind = ScenarioKind.BASELINE
+            scenario = Scenario(
+                id=sc.id,
+                name=sc.name,
+                description=sc.description,
+                kind=kind,
+                all_actions_enabled=sc.all_actions_enabled,
+                is_selectable=sc.is_selectable,
+                actual_historical_years=list(sc.actual_historical_years) if sc.actual_historical_years is not None else None,
+            )
+            scenario._context = self.context
+            for param_id, value in sc.param_values.items():
+                param = self.context.get_parameter(param_id)
+                scenario.add_parameter(param, param.clean(value))
+            scenarios.append(scenario)
+        return scenarios
+
+    def _config_scenarios(self) -> list[Scenario]:
+        """Runtime scenarios from YAML-shaped config dicts."""
+        from nodes.scenario import Scenario, ScenarioKind
 
         scenario_confs: list[dict[str, Any]] = self.config.get('scenarios', [])
         if not scenario_confs:
@@ -1063,6 +1103,7 @@ class InstanceLoader:
                 }
             ]
 
+        scenarios: list[Scenario] = []
         for sc in scenario_confs:
             name = make_trans_string(sc, 'name', pop=True)
             params_config = sc.pop('params', [])
@@ -1082,7 +1123,16 @@ class InstanceLoader:
             for pc in params_config:
                 param = self.context.get_parameter(pc['id'])
                 scenario.add_parameter(param, param.clean(pc['value']))
+            scenarios.append(scenario)
+        return scenarios
 
+    def setup_scenarios(self):
+        from nodes.scenario import CustomScenario
+
+        default_scenario = None
+
+        scenarios = self._snapshot_scenarios() if self.snapshot is not None else self._config_scenarios()
+        for scenario in scenarios:
             for param, value in self._scenario_values.get(scenario.id, []):
                 scenario.add_parameter(param, value)
 
@@ -1116,6 +1166,14 @@ class InstanceLoader:
         global_params = discover_global_parameters()
 
         context = self.context
+        if self.snapshot is not None:
+            for spec_param in self.snapshot.spec.params:
+                if spec_param.local_id not in global_params:
+                    raise Exception('Unknown global parameter: %s' % spec_param.local_id)
+                param = spec_param.model_copy(deep=True)
+                param.set_context(context)
+                context.add_global_parameter(param)
+            return
         for pc in self.config.get('params', []):
             param_id = pc.pop('id')
             pc['local_id'] = param_id
@@ -1145,6 +1203,17 @@ class InstanceLoader:
         from nodes.actions.action import ImpactOverview
         from nodes.defs.action_def import ImpactOverviewSpec
 
+        if self.snapshot is not None:
+            seen: set[str] = set()
+            for overview_spec in self.snapshot.spec.impact_overviews:
+                spec = overview_spec.model_copy(deep=True)
+                assert spec.id is not None
+                if spec.id in seen:
+                    raise ValueError(f"Duplicate impact overview id '{spec.id}'. Set an explicit 'id' field to disambiguate.")
+                seen.add(spec.id)
+                self.context.impact_overviews.append(ImpactOverview(spec, self.context))
+            return
+
         conf = self.config.get('impact_overviews', [])
         seen_ids: set[str] = set()
         for aepc in conf:
@@ -1172,11 +1241,17 @@ class InstanceLoader:
         from nodes.defs.instance_defs import NormalizationSpec
         from nodes.normalization import Normalization
 
-        ncs = self.config.get('normalizations', [])
-        for nc in ncs:
-            spec_config = dict(nc)
-            if 'normalizer_node' in spec_config and 'normalizer_node_id' not in spec_config:
-                spec_config['normalizer_node_id'] = spec_config.pop('normalizer_node')
+        if self.snapshot is not None:
+            # Re-validate against this context so node refs resolve here.
+            spec_configs: list[dict[str, Any]] = [n.model_dump() for n in self.snapshot.spec.normalizations]
+        else:
+            spec_configs = []
+            for nc in self.config.get('normalizations', []):
+                spec_config = dict(nc)
+                if 'normalizer_node' in spec_config and 'normalizer_node_id' not in spec_config:
+                    spec_config['normalizer_node_id'] = spec_config.pop('normalizer_node')
+                spec_configs.append(spec_config)
+        for spec_config in spec_configs:
             normalization = Normalization(
                 NormalizationSpec.model_validate(spec_config, context=ValidationContext(context=self.context)),
                 self.context,
@@ -1233,13 +1308,13 @@ class InstanceLoader:
         """
         Build the runtime from an ``InstanceSnapshot`` (specs, not YAML dicts).
 
-        Transitional: the build half still consumes YAML-shaped dicts
-        internally, so the snapshot goes through the shim
-        (``nodes/instance_from_db.py``) first. The shim is private to the
-        loader; no other code should convert specs back to dicts.
+        The instance level (identity, years, features, dimensions, params,
+        scenarios, impact overviews, normalizations) is constructed natively
+        from the typed snapshot. Node/action/edge construction still consumes
+        YAML-shaped dicts through the node-scope shim in
+        ``nodes/instance_from_db.py``; that remainder migrates with the
+        ``NodeMeta``-native node construction.
         """
-        from nodes.instance_from_db import snapshot_to_config_dict
-
         payload_refs = None
         if published:
             from nodes.datasets import DatasetPayloadRef
@@ -1257,7 +1332,7 @@ class InstanceLoader:
                 for pin in snapshot.dataset_revisions
             ]
         return cls(
-            config=snapshot_to_config_dict(snapshot),
+            snapshot=snapshot,
             tolerate_node_failures=tolerate_node_failures,
             dataset_payload_refs=payload_refs,
         )
@@ -1284,26 +1359,48 @@ class InstanceLoader:
 
     def __init__(
         self,
-        config: dict[str, Any],
+        config: dict[str, Any] | None = None,
         yaml_file_path: Path | None = None,
         fw_config: FrameworkConfig | None = None,
         config_mtime_hash: str | None = None,
         tolerate_node_failures: bool = False,
         dataset_payload_refs: list[Any] | None = None,
+        *,
+        snapshot: InstanceSnapshot | None = None,
     ):
         from .units import add_unit_translations
 
         add_unit_translations()
+        self.tolerate_node_failures = tolerate_node_failures
+        self.supplied_dataset_payload_refs = dataset_payload_refs
+        self.config_mtime_hash = config_mtime_hash
+        self._node_classes = {}
+        self.snapshot = snapshot
+        if snapshot is not None:
+            assert config is None
+            assert fw_config is None
+            assert yaml_file_path is None
+            self.yaml_file_path = None
+            self.fw_config = None
+            # Node/action/edge construction still reads dicts; the node-scope
+            # shim fills these two keys and nothing else.
+            from nodes.instance_from_db import snapshot_nodes_to_config_dicts
+
+            nodes_list, actions_list = snapshot_nodes_to_config_dicts(snapshot)
+            self.config = {'nodes': nodes_list, 'actions': actions_list}
+            self.default_language = snapshot.metadata.primary_language
+            self.other_languages = list(snapshot.metadata.other_languages)
+            self.logger = logger.bind(instance=snapshot.metadata.identifier)
+            with set_i18n_context(self.default_language, self.other_languages):
+                self._init_instance_from_snapshot(snapshot)
+            return
+        assert config is not None
         self.yaml_file_path = yaml_file_path.absolute() if yaml_file_path else None
         self.config = config
         self.fw_config = fw_config
-        self.tolerate_node_failures = tolerate_node_failures
-        self.supplied_dataset_payload_refs = dataset_payload_refs
         self.default_language = config['default_language']
         self.other_languages = config.get('supported_languages', [])
-        self.config_mtime_hash = config_mtime_hash
         self.logger = logger.bind(instance=config['id'])
-        self._node_classes = {}
         with set_i18n_context(self.default_language, self.other_languages):
             self._init_instance()
 
@@ -1361,7 +1458,7 @@ class InstanceLoader:
             self.db_dataset_refs[dataset.identifier] = ref
         self.dataset_payload_store = CurrentDatasetPayloadStore(refs)
 
-    def _init_instance(self) -> None:  # noqa: PLR0915
+    def _init_instance(self) -> None:
         from nodes.context import Context
         from nodes.defs.instance_defs import ActionGroup
 
@@ -1450,6 +1547,10 @@ class InstanceLoader:
                 model_end_year=model_end_year,
                 sample_size=sample_size,
             )
+        self._finish_init()
+
+    def _finish_init(self) -> None:
+        """Run the setup sequence shared by the config-dict and snapshot paths."""
         self.instance.set_context(self.context)
         # Make the fault-tolerance flag available throughout construction (setup_nodes/edges),
         # not just at compute time. See docs/architecture/fault-tolerance.md.
@@ -1484,6 +1585,73 @@ class InstanceLoader:
         else:
             raise Exception('No default scenario defined')
         self.context.activate_scenario(scenario)
+
+    def _init_instance_from_snapshot(self, snapshot: InstanceSnapshot) -> None:
+        """Build Instance and Context natively from the typed snapshot (no config dict)."""
+        from nodes.context import Context
+        from nodes.excel_results import InstanceResultExcel
+
+        from .instance import Instance
+
+        meta = snapshot.metadata
+        spec = snapshot.spec
+        years = spec.years
+
+        if years.reference is None:
+            raise ValueError('Reference year must be given for the instance.')
+        if years.min_historical is None:
+            raise ValueError('Minimum historical year must be given for the instance.')
+        if years.target is None:
+            raise ValueError('Target year must be given for the instance.')
+        if meta.owner is None:
+            raise ValueError('Owner must be given for the instance.')
+
+        def ts(val: I18nString) -> TranslatedString:
+            if isinstance(val, TranslatedString):
+                return val
+            return self.simple_trans_string(str(val))
+
+        agcs = [ag.model_copy(update={'order': idx}) for idx, ag in enumerate(spec.action_groups)]
+
+        # YAML-era convention preserved: the instance lead content comes from
+        # the 'home' outcome page; the metadata-level copy serves editors.
+        lead_args: dict[str, Any] = {}
+        for page in spec.pages:
+            if page.id == 'home':
+                lead_args['lead_title'] = ts(page.lead_title) if page.lead_title is not None else None
+                lead_args['lead_paragraph'] = ts(page.lead_paragraph) if page.lead_paragraph is not None else None
+                break
+
+        self.instance = Instance(
+            id=meta.identifier,
+            name=ts(meta.name),
+            owner=ts(meta.owner),
+            default_language=meta.primary_language,
+            action_groups=agcs,
+            config_mtime_hash=None,
+            features=spec.features.model_copy(deep=True),
+            terms=spec.terms.model_copy(deep=True),
+            result_excels=[InstanceResultExcel.from_spec(r) for r in spec.result_excels],
+            yaml_file_path=None,
+            pages=[page.model_copy(deep=True) for page in spec.pages],
+            maximum_historical_year=years.max_historical,
+            minimum_historical_year=years.min_historical,
+            reference_year=years.reference,
+            supported_languages=list(meta.other_languages),
+            theme_identifier=spec.theme_identifier,
+            **lead_args,
+        )
+
+        target_year = years.target
+        with start_span(name='create-context', op='function'):
+            self.context = Context(
+                instance=self.instance,
+                dataset_repo_spec=spec.dataset_repo.model_copy(deep=True) if spec.dataset_repo is not None else None,
+                target_year=target_year,
+                model_end_year=years.model_end or target_year,
+                sample_size=spec.sample_size,
+            )
+        self._finish_init()
 
     def _build_instance_args_from_home_page(self) -> dict[str, TranslatedString]:
         # FIXME: This is an ugly hack
