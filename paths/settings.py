@@ -257,7 +257,7 @@ SOCIAL_AUTH_NZCPORTAL_CLIENT_ID = env.str('NZCPORTAL_CLIENT_ID')
 SOCIAL_AUTH_NZCPORTAL_CLIENT_SECRET = env.str('NZCPORTAL_CLIENT_SECRET')
 
 AUTHENTICATION_BACKENDS = (
-    'admin_site.auth_backends.AzureADAuth',
+    'kausal_common.auth.backends.AzureADAuth',
     *(['admin_site.auth_backends.NZCPortalOAuth2'] if SOCIAL_AUTH_NZCPORTAL_CLIENT_ID else []),
     'admin_site.auth_backends.PasswordAuth',
     'django.contrib.auth.backends.ModelBackend',
