@@ -18,8 +18,10 @@ from uuid import uuid3
 from loguru import logger
 
 if TYPE_CHECKING:
+    from collections.abc import Hashable
     from uuid import UUID
 
+    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
     from kausal_common.i18n.pydantic import TranslatedString
 
     from nodes.defs.node_defs import NodeSpec
@@ -238,15 +240,26 @@ def _seed_node_metadata_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_l
 
 
 def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: dict[UUID, NodeConfig]) -> int:
+    from nodes.instance_serialization import edge_match_keys, existing_edge_identities, match_preserved_uuids
     from nodes.models import NodeEdge
 
+    # Recreating the rows keeps pk order equal to authored order, but the row
+    # UUID is the durable binding identity and must survive the rewrite.
+    authored_uuids = {edge.uuid for edge in snapshot.edges if edge.uuid is not None}
+    existing = [item for item in existing_edge_identities(ic) if item[1] not in authored_uuids]
     NodeEdge.objects.filter(instance=ic).delete()
+    preserved = match_preserved_uuids(
+        existing,
+        [edge_match_keys(edge.from_node, edge.from_port, edge.to_node, edge.to_port) for edge in snapshot.edges],
+    )
     edge_objs = []
-    for edge in snapshot.edges:
+    for edge, matched_uuid in zip(snapshot.edges, preserved, strict=True):
         from_nc = node_configs.get(edge.from_node)
         to_nc = node_configs.get(edge.to_node)
         if from_nc is None or to_nc is None:
             raise ValueError(f'Edge references unknown node: {edge.from_node} -> {edge.to_node}')
+        row_uuid = edge.uuid or matched_uuid
+        identity_kwargs = {'uuid': row_uuid} if row_uuid is not None else {}
         edge_objs.append(
             NodeEdge(
                 instance=ic,
@@ -256,6 +269,7 @@ def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: d
                 to_port=edge.to_port,
                 transformations=list(edge.transformations),
                 tags=list(edge.tags),
+                **identity_kwargs,
             )
         )
     NodeEdge.objects.bulk_create(edge_objs)
@@ -272,9 +286,15 @@ def _write_dataset_ports(
     """Resolve bindings against the DB schemas and write the DatasetPort rows."""
     from kausal_common.datasets.models import DatasetMetric
 
+    from nodes.instance_serialization import (
+        dataset_port_match_keys,
+        existing_dataset_port_identities,
+        match_preserved_uuids,
+    )
     from nodes.models import DatasetPort
     from nodes.spec_export import _get_db_datasets
 
+    existing = existing_dataset_port_identities(ic)
     DatasetPort.objects.filter(instance=ic).delete()
     schemas = collect_dataset_schema_info(ic)
     resolved = resolve_dataset_port_snapshots(snapshot, schemas, port_references=port_references)
@@ -288,11 +308,19 @@ def _write_dataset_ports(
         identity = metric.name or str(metric.uuid)
         metric_by_identity[(metric.schema.pk, identity)] = metric
 
-    port_objs: list[DatasetPort] = []
+    triples: list[tuple[DatasetPortSnapshot, DatasetModel, DatasetMetric]] = []
+    match_keys: list[tuple[Hashable, ...]] = []
     for port in resolved:
         dataset_obj = db_datasets[port.dataset]
         assert dataset_obj.schema is not None
         metric = metric_by_identity[(dataset_obj.schema.pk, port.metric)]
+        triples.append((port, dataset_obj, metric))
+        match_keys.append(dataset_port_match_keys(port.node, dataset_obj.pk, port.dataset_index, metric.pk))
+
+    # Recreated rows keep their durable UUIDs (binding identity) across the rewrite.
+    port_objs: list[DatasetPort] = []
+    for (port, dataset_obj, metric), matched_uuid in zip(triples, match_preserved_uuids(existing, match_keys), strict=True):
+        identity_kwargs = {'uuid': matched_uuid} if matched_uuid is not None else {}
         port_objs.append(
             DatasetPort(
                 instance=ic,
@@ -302,6 +330,7 @@ def _write_dataset_ports(
                 metric=metric,
                 spec=port.spec,
                 dataset_index=port.dataset_index,
+                **identity_kwargs,
             )
         )
     DatasetPort.objects.bulk_create(port_objs)

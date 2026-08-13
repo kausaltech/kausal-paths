@@ -1025,6 +1025,29 @@ under Meta ordering would have baked the corrupted order in as authored
 truth. Query-store baselines recorded from DB-sourced serving under the old
 order may need re-recording; baselines recorded from YAML serving now match.
 
+Implementation note (2026-08-13, binding UUIDs survive re-sync): both sync
+write halves (`spec_sync._write_edges` / `_write_dataset_ports` and
+`spec_export._update_edges` / `_update_dataset_ports`) previously
+delete-all + recreated their rows, minting fresh UUIDs on every YAML
+re-sync — unacceptable once binding UUIDs become authoritative identity.
+Rows are still rebuilt (pk order must remain the authored order), but their
+UUIDs are now carried over by ordered structural matching:
+`match_preserved_uuids()` in `instance_serialization.py` (beside
+`ordered_binding_snapshots()` — identity authority next to ordering
+authority) pairs replacement rows to pre-rewrite rows through successive
+key passes, most specific first, zipping duplicates in authored order.
+Edges match on `(from_node, from_port, to_node, to_port)` then loosely
+`(from_node, to_node)` (survives port changes); dataset ports on
+`(node, dataset, dataset_index, metric)` then `(node, dataset, metric)`
+(survives dataset reordering). A rebind to a *different dataset* is
+deliberately a new identity — verified on muenchen-bisko, where the only
+non-preserved rows were genuine YAML drift to different datasets. Espoo
+double-sync: 186/186 edge and 86/86 dataset-port UUIDs stable, mirror
+resync a no-op. Group identity decision (2026-08-13): fanned-out dataset
+binding groups get **no durable identity** — each per-metric row is its own
+binding; the aggregate write service may carry a non-durable grouping key
+for the editor surface.
+
 ### 10. Make InstanceGraph the Context factory input
 
 - Add `InstanceGraph.create_context(options, payload_store)` as a thin delegate

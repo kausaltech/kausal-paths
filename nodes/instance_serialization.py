@@ -48,7 +48,7 @@ from nodes.defs.transform_def import EdgeTransformOp, PortTransformOp
 from nodes.page_snapshot import PageSnapshot
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Hashable, Iterable, Sequence
 
     from django.contrib.contenttypes.models import ContentType
     from django.db.models import Model, QuerySet
@@ -641,6 +641,92 @@ def ordered_binding_snapshots(
         result.append((port, positions[key]))
         positions[key] += 1
     return result
+
+
+def match_preserved_uuids(
+    existing: Sequence[tuple[tuple[Hashable, ...], UUID]],
+    replacements: Sequence[tuple[Hashable, ...]],
+) -> list[UUID | None]:
+    """
+    Match replacement rows to existing rows through successive structural keys.
+
+    The sync paths preserve authored order by deleting and recreating the
+    ``NodeEdge`` / ``DatasetPort`` rows (pk order is the authored order), but
+    the rebuilt rows must keep their durable UUIDs: the row UUID is the
+    binding identity ``NodeInputPortBinding`` mirrors, and it must survive a
+    re-sync. Each row supplies one key per matching pass, most specific
+    first; within a pass, unmatched rows sharing a key pair up in their given
+    (authored) orders, so parallel duplicates match deterministically.
+    Returns one preserved UUID (or ``None``) per replacement.
+    """
+    from collections import defaultdict, deque
+
+    result: list[UUID | None] = [None] * len(replacements)
+    if not existing or not replacements:
+        return result
+    pass_count = len(replacements[0])
+    assert all(len(keys) == pass_count for keys in replacements)
+    assert all(len(keys) == pass_count for keys, _uuid in existing)
+
+    free_existing = list(range(len(existing)))
+    for pass_idx in range(pass_count):
+        pool: defaultdict[Hashable, deque[int]] = defaultdict(deque)
+        for e_idx in free_existing:
+            pool[existing[e_idx][0][pass_idx]].append(e_idx)
+        matched: set[int] = set()
+        for r_idx, keys in enumerate(replacements):
+            if result[r_idx] is not None:
+                continue
+            queue = pool.get(keys[pass_idx])
+            if not queue:
+                continue
+            e_idx = queue.popleft()
+            result[r_idx] = existing[e_idx][1]
+            matched.add(e_idx)
+        free_existing = [e_idx for e_idx in free_existing if e_idx not in matched]
+        if not free_existing:
+            break
+    return result
+
+
+def edge_match_keys(from_node: UUID, from_port: UUID, to_node: UUID, to_port: UUID) -> tuple[Hashable, ...]:
+    """Structural match keys for one edge, most specific first (loose pass survives port changes)."""
+    return ((from_node, from_port, to_node, to_port), (from_node, to_node))
+
+
+def dataset_port_match_keys(node: UUID, dataset_pk: int, dataset_index: int, metric_pk: int) -> tuple[Hashable, ...]:
+    """Structural match keys for one dataset-port row (loose pass survives dataset reordering)."""
+    return ((node, dataset_pk, dataset_index, metric_pk), (node, dataset_pk, metric_pk))
+
+
+def existing_edge_identities(ic: InstanceConfig) -> list[tuple[tuple[Hashable, ...], UUID]]:
+    """Capture edge match keys and UUIDs, in authored (pk) order, before a sync rewrite."""
+    from nodes.models import NodeEdge
+
+    return [
+        (edge_match_keys(from_node, from_port, to_node, to_port), row_uuid)
+        for from_node, from_port, to_node, to_port, row_uuid in (
+            NodeEdge.objects
+            .filter(instance=ic)
+            .order_by('pk')
+            .values_list('from_node__uuid', 'from_port', 'to_node__uuid', 'to_port', 'uuid')
+        )
+    ]
+
+
+def existing_dataset_port_identities(ic: InstanceConfig) -> list[tuple[tuple[Hashable, ...], UUID]]:
+    """Capture dataset-port match keys and UUIDs, in pk order, before a sync rewrite."""
+    from nodes.models import DatasetPort
+
+    return [
+        (dataset_port_match_keys(node_uuid, dataset_pk, dataset_index, metric_pk), row_uuid)
+        for node_uuid, dataset_pk, dataset_index, metric_pk, row_uuid in (
+            DatasetPort.objects
+            .filter(instance=ic)
+            .order_by('pk')
+            .values_list('node__uuid', 'dataset_id', 'dataset_index', 'metric_id', 'uuid')
+        )
+    ]
 
 
 class DatasetRevisionPinSnapshot(BaseModel):
