@@ -4,14 +4,14 @@ Quick debug tool for investigating DB-backed vs YAML-backed model instances.
 
 Usage examples:
     # Sync YAML → DB, then compute from DB
-    python tools/debug_instance.py -i espoo --sync --node net_emissions --filter 2020-2024,T
+    python -m tools.debug_instance -i espoo --sync --node net_emissions --filter 2020-2024,T
 
     # Compare YAML vs DB output for a node
-    python tools/debug_instance.py -i espoo --source yaml --node net_emissions --filter 2020-2024,T
-    python tools/debug_instance.py -i espoo --source db --node net_emissions --filter 2020-2024,T
+    python -m tools.debug_instance -i espoo --source yaml --node net_emissions --filter 2020-2024,T
+    python -m tools.debug_instance -i espoo --source db --node net_emissions --filter 2020-2024,T
 
     # Eval Python with instance/ctx/node in scope
-    python tools/debug_instance.py -i espoo --source db -c "
+    python -m tools.debug_instance -i espoo --source db -c "
         for n in ctx.nodes.values():
             if not n.input_dataset_instances:
                 continue
@@ -19,14 +19,14 @@ Usage examples:
     "
 
     # Check a specific node's edges and inputs
-    python tools/debug_instance.py -i espoo --source db --node building_heating_emissions -c "
+    python -m tools.debug_instance -i espoo --source db --node building_heating_emissions -c "
         for e in node.edges:
             if e.output_node.id == node.id:
                 print(f'{e.input_node.id} -> tags={e.tags}')
     "
 
     # Diff a node's config dict between YAML and DB
-    python tools/debug_instance.py -i espoo --diff-node building_type_index
+    python -m tools.debug_instance -i espoo --diff-node building_type_index
 """
 
 # ruff: noqa: E402
