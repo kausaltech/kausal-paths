@@ -116,6 +116,12 @@ CACHES = {
 }
 if 'KEY_PREFIX' not in CACHES['default']:
     CACHES['default']['KEY_PREFIX'] = PROJECT_NAME
+if CACHES['default']['BACKEND'] == 'django_redis.cache.RedisCache':
+    from redis.maint_notifications import MaintNotificationsConfig
+
+    # Maintenance notifications defaults to enabled, but it causes spurious warnings.
+    CACHES['default']['OPTIONS'] = {'maint_notifications_config': MaintNotificationsConfig(enabled=False)}
+
 
 SECRET_KEY = env('SECRET_KEY')
 
