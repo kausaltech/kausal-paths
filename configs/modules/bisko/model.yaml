@@ -943,7 +943,7 @@ nodes:
   name_en: Final energy use data quality
   type: generic.GenericNode
   quantity: fraction
-  unit: dimensionless
+  unit: '%' # Different unit hides this node from the outcome page
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
