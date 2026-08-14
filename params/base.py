@@ -54,9 +54,19 @@ class Parameter[ValueT = Any, SetValueT = ValueT](I18nBaseModel, ABC):
 
     _hash: str | None = PrivateAttr(default=None)
 
+    _is_implicit: bool = PrivateAttr(default=False)
+    """Whether node behavior synthesized this parameter rather than configuration authoring it."""
+
     @property
     def context(self) -> Context | None:
         return self._context
+
+    @property
+    def is_implicit(self) -> bool:
+        return self._is_implicit
+
+    def mark_implicit(self) -> None:
+        self._is_implicit = True
 
     @property
     def instance(self) -> Instance:

@@ -673,8 +673,8 @@ def _export_node_extra(node: Node) -> NodeSpecExtra:
 
 
 def _export_node_params(node: Node) -> list[Parameter]:
-    """Export node-local parameters (including reference params)."""
-    return [param.model_copy() for param in node.parameters.values()]
+    """Export authored node-local parameters (including reference params)."""
+    return [param.model_copy() for param in node.parameters.values() if not param.is_implicit]
 
 
 # ---------------------------------------------------------------------------

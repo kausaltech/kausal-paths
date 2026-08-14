@@ -673,7 +673,7 @@ class Node:
             return NodeKind.FORMULA
         return NodeKind.SIMPLE
 
-    def add_parameter(self, param: Parameter[Any]):
+    def add_parameter(self, param: Parameter[Any]) -> None:
         if param.local_id in self.parameters:
             msg = f'Local parameter {param.local_id} already defined for node {self.id}'
             raise Exception(msg)

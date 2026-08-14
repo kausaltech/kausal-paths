@@ -778,6 +778,7 @@ class InstanceConfigParser:
             else:
                 raise InstanceParseError(f"Node {parsed.identifier}: 'enabled' is missing from allowed parameters")
             param = proto.copy()
+            param.mark_implicit()
             parsed.params.append(param)
         # EnabledParam.set_node applies the instance's custom label, when set.
         enabled_label = self._terms.enabled_label
@@ -1213,7 +1214,7 @@ class InstanceConfigParser:
             output_ports=parsed.output_ports,
             input_dimensions=[d for d in parsed.input_dimensions if d not in parsed.internal_dims],
             output_dimensions=[d for d in parsed.output_dimensions if d not in parsed.internal_dims],
-            params=cast('list[Any]', parsed.params),
+            params=cast('list[Any]', [param for param in parsed.params if not param.is_implicit]),
             goals=self._parse_node_goals(parsed),
             visualizations=self._parse_node_visualizations(parsed),
             allow_nulls=config.get('allow_nulls', False),

@@ -2,7 +2,7 @@ import pytest
 
 from kausal_common.i18n.pydantic import TranslatedString
 
-from nodes.explanations import BasketRule, NodeExplanationSystem
+from nodes.explanations import BasketRule, NodeExplanationSystem, explanation_to_html
 from nodes.simple import AdditiveNode
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from nodes.units import unit_registry
@@ -41,6 +41,33 @@ def _base_configs() -> list[dict]:
         {'id': 'source_a', 'type': 'simple.AdditiveNode', 'unit': 'kWh', 'quantity': 'energy'},
         {'id': 'impute_source', 'type': 'simple.AdditiveNode', 'unit': 'kWh', 'quantity': 'energy'},
     ]
+
+
+def _render_parameter_explanation(value: float) -> str:
+    context = _make_context(f'parameter-explanation-{type(value).__name__}')
+    config = {
+        'id': 'target',
+        'type': 'simple.ChpAction',
+        'unit': '%',
+        'quantity': 'fraction',
+        'params': [
+            {'id': 'operations', 'value': 'add'},
+            {'id': 't_supply', 'value': value},
+        ],
+    }
+    nes = NodeExplanationSystem(context, [config])
+    context.node_explanation_system = nes
+    nes.generate_input_baskets()
+    explanation = nes.generate_explanations()['target']
+    return ''.join(explanation_to_html(explanation))
+
+
+def test_integral_float_parameter_has_source_neutral_explanation():
+    integer_explanation = _render_parameter_explanation(373)
+    float_explanation = _render_parameter_explanation(373.0)
+
+    assert float_explanation == integer_explanation
+    assert '373.0' not in float_explanation
 
 
 def test_impute_description_absent_when_no_impute_tagged_input():
