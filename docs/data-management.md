@@ -298,3 +298,215 @@ Common errors and their causes:
 | `Series with type X is not compatible with Y` | Dimensionally incompatible units between node and dataset |
 | `Input dataset has duplicate index rows` | Two rows with the same (Year, dimension) combination in the parquet |
 | `No input datasets, but node requires one` | Dataset ID typo or wrong `dataset_replacements` mapping |
+
+---
+
+## Step 9 — When the model and its data disagree
+
+A DB dataset row is a *copy* of the DVC data taken at a point in time. The
+model moves on — categories get renamed, metrics get renamed, columns get
+added — and the copy does not follow. Bumping the `commit:` pin does **not**
+move it. Everything in this section follows from that one fact.
+
+### Telling a stale spec from a stale dataset
+
+These fail differently and are fixed differently. Diagnose which one you have
+before touching anything.
+
+| Symptom | What is stale | Fix |
+|---------|---------------|-----|
+| Unknown node class, e.g. `ChpAction` | The **spec** — a node type the deployed code no longer defines | `sync_instance_to_db <instance>` |
+| `Unknown categories in dimension column 'X': <cat>` | The **dataset** — the row stores a category id the dimension has since renamed or merged | Refresh the row (below) |
+| `Nothing left after filter_dimension` | The **dataset** — an edge filters to a category the row no longer contains | Refresh the row (below) |
+| `No metric <column> in dataset <id>` (from sync) | The **dataset** — DVC metric ids changed, the row still has the old ones | Refresh the row (below) |
+
+Two traps worth knowing before you reach for them:
+
+- **`sync_instance_to_db` does not fix stale data.** It rewrites the spec and
+  the port bindings; it never touches dataset rows.
+- **Switching to `config_source: yaml` does not bypass a stale dataset.**
+  `use_datasets_from_db: true` applies regardless of config source, so the
+  runtime still reads the DB row. Switching to YAML is the escape hatch for a
+  broken *spec* only:
+
+  ```bash
+  python -m tools.debug_instance -i <instance> --source yaml --save   # then --source db --save to revert
+  ```
+
+### Confirming a row is stale
+
+Compare the DB row against the DVC data at the pin. Metric names and data
+point counts are the quickest tell:
+
+```bash
+python manage.py shell_plus --quiet-load -c "
+from kausal_common.datasets.models import Dataset, DatasetMetric
+for d in Dataset.objects.filter(identifier='<city>/<dataset-id>'):
+    ms = list(DatasetMetric.objects.filter(schema=d.schema).values_list('name', flat=True))
+    print(f'{str(d.scope):40} {ms} {d.data_points.count()}')
+"
+```
+
+Rows are scoped per instance, so every city that uses the dataset gets its own
+copy and they go stale independently. Then check what the model actually sees:
+
+```bash
+python -m tools.debug_instance -i <instance> --source db -c "
+node = ctx.get_node('<node-id>')
+for ds in node.input_dataset_instances:
+    df = ds.get_copy()
+    print(ds.id, type(ds).__name__, len(df), {d: sorted(df[d].unique().to_list()) for d in df.dim_ids})
+"
+```
+
+`SerializedDBDataset` in the output confirms the data came from the DB, not DVC.
+
+### Refreshing the row
+
+Start with `--plan`; it writes nothing and names the blockers:
+
+```bash
+python manage.py load_dvc_dataset <instance> <city>/<dataset-id> --plan
+```
+
+A renamed metric produces this:
+
+```
+metrics drop Value (bound by 1 dataset port(s))
+blocker   metric 'Value' would be dropped but 1 dataset port(s) still bind it
+```
+
+That is a deadlock by construction: the import refuses because a port binds the
+old metric, and the sync keeps binding the old metric because it resolves
+against the DB schema, which still has it. Break it by deleting the binding
+first — `DatasetPort` rows are derived state that `sync_instance_to_db`
+deletes and rebuilds wholesale, so removing them costs nothing:
+
+```bash
+python manage.py shell_plus --quiet-load -c "
+from nodes.models import InstanceConfig, DatasetPort
+from nodes.input_bindings import sync_input_bindings
+ic = InstanceConfig.objects.get(identifier='<instance>')
+print(DatasetPort.objects.filter(instance=ic, dataset__identifier='<city>/<dataset-id>').delete())
+print('mirror resync:', sync_input_bindings(ic))
+"
+```
+
+**Do not skip `sync_input_bindings`.** `NodeInputPortBinding` is a derived
+mirror of `NodeEdge` + `DatasetPort`, normally refreshed by a hook at the
+transaction boundary. A raw queryset `.delete()` bypasses that hook, leaving an
+orphaned mirror row that still protects the metric:
+
+```
+ProtectedError: ... referenced through protected foreign keys: 'NodeInputPortBinding.metric'
+```
+
+Then finish. The instance is missing bindings between the delete and the sync,
+so run it straight through:
+
+```bash
+python manage.py load_dvc_dataset <instance> <city>/<dataset-id> --force
+python manage.py sync_instance_to_db <instance>
+```
+
+Never use `--recreate` for this. It mints a new UUID and orphans the dataset
+references held by published instance revisions.
+
+### When a DVC fetch hangs
+
+A run that stops at `Fetching`, right after a few
+`aiobotocore.credentials … Found credentials` lines, is stuck in DVC's S3
+transfer. `Found credentials` only means a file was read — it says nothing
+about whether the transfer works.
+
+Two properties make this worse than it looks: the stuck call is inside a C
+extension, so **Ctrl-C does nothing**, and `dvc_pandas` holds a `filelock`
+acquired with no timeout, so **every later process that touches the DVC repo
+blocks silently and forever** — other management commands and the web workers
+alike. A stuck command can therefore degrade the running site, not just your
+terminal.
+
+Recover from a second shell:
+
+```bash
+D=$(python -c "from dvc_pandas.utils import cache_dir_for_url; print(cache_dir_for_url('https://github.com/kausaltech/dvctest.git'))")
+
+pgrep -af "manage.py|load_nodes"     # find the holder
+kill -9 <pid>                        # SIGTERM will not land either
+```
+
+A leftover `.dvc-pandas.lock` file is **not** itself a lock — the kernel drops
+the `fcntl` lock when the process dies, so the file is inert. Only remove lock
+files when a `kill -9` left DVC's own state behind and the next run complains:
+
+```bash
+pgrep -af "manage.py|load_nodes"     # must be empty first
+rm -f $D/.dvc-pandas.lock $D/.dvc/tmp/lock $D/.dvc/tmp/rwlock $D/.dvc/tmp/rwlock.lock
+```
+
+Then sidestep the fetch entirely by populating the cache by hand. The cache is
+content-addressed at `files/md5/<first 2>/<remaining 38>`, and dvc_pandas only
+checks that the path exists — so a correct file at the correct path is enough.
+The `datasets` bucket is anonymously readable over HTTPS, which avoids the S3
+path that wedges:
+
+```bash
+REV=<pin from the instance YAML>
+cd $D && git fetch origin
+for f in $(git ls-tree -r --name-only $REV | grep '^<city>/.*\.parquet\.dvc$'); do
+  H=$(git show $REV:$f | awk '/md5:/{print $NF; exit}')
+  P=$D/.dvc/cache/files/md5/${H:0:2}/${H:2}
+  [ -f "$P" ] && continue
+  mkdir -p "$(dirname $P)"
+  curl -sSfL --max-time 120 -o "$P" "https://s3.kausal.tech/datasets/files/md5/${H:0:2}/${H:2}" \
+    && chmod 444 "$P" && echo "fetched $f" || echo "FAILED $f"
+done
+```
+
+With every object present the fetch branch is skipped and the command runs
+normally. `dvc fetch -r public --jobs 4 <city>` does the same via the CLI —
+`fetch`, not `pull`, so it fills the cache without writing the working tree.
+
+To check whether the S3 path itself is healthy, without involving DVC:
+
+```bash
+python - <<'EOF'
+import time, s3fs
+t = time.time()
+fs = s3fs.S3FileSystem(client_kwargs={'endpoint_url': 'https://s3.kausal.tech'})
+print('OK', fs.info('datasets/files/md5/<2>/<38>')['size'], round(time.time()-t, 2), 's')
+EOF
+```
+
+Missing credentials raise `NoCredentialsError` immediately — a hang here means
+something else.
+
+### Avoiding all of this
+
+- **Treat a pin bump as two steps, not one.** Update `commit:`, then refresh
+  the DB row of every dataset whose data or metadata changed. A renamed
+  category or metric that only lands in DVC is a crash waiting for the next
+  deploy.
+- **Rename categories with aliases, not replacements.** Adding the retired id
+  to the surviving category's `aliases:` lets old rows keep resolving. Only
+  drop the alias once every environment's rows have been refreshed.
+- **Test from a cold cache before deploying.** Evict one object locally and
+  run the sync; it exercises the fetch path that only ever fails on a cold
+  cache, which is exactly the state a freshly deployed pod is in:
+
+  ```bash
+  rm -f $D/.dvc/cache/files/md5/<2>/<38>
+  python manage.py sync_instance_to_db <instance> --dry-run
+  ```
+
+- **Pre-flight the target environment.** Before deploying, check the dataset
+  rows (metric names and point counts), the S3 path, and whether
+  `$D` exists. Three read-only commands turn a deploy from discovery into
+  execution.
+- **Give the DVC cache a persistent volume.** If it lives on the container's
+  writable layer it is wiped on every restart, so each new pod re-clones and
+  re-fetches, and any deploy opens a window where that first cold fetch can
+  wedge. Note also that `Repository.__init__` clones *before* it creates the
+  lock, so a cold pod can have a management command and a web worker cloning
+  into the same directory concurrently, unguarded.
+- **Never run a sync or import in production without a second shell open.**
