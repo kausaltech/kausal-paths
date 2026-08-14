@@ -1,10 +1,15 @@
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid3, uuid4
 
 import pytest
 
 from nodes.instance_export_sync import compile_instance_export_from_yaml
 from nodes.instance_parser import InstanceConfigParser, parse_instance_snapshot
-from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
+from nodes.spec_export import _export_node_params
+from nodes.tests.factories import AdditiveActionFactory, InstanceConfigFactory, NodeConfigFactory
+
+if TYPE_CHECKING:
+    from nodes.instance_serialization import InstanceSnapshot
 
 pytestmark = pytest.mark.django_db
 
@@ -65,6 +70,52 @@ def test_yaml_short_description_is_rendered_at_snapshot_boundary():
     short_description = snapshot.nodes[0].short_description
     assert short_description is not None
     assert short_description.i18n == {'en': '<p><strong>Rich</strong></p>\n'}
+
+
+def _action_snapshot(*, params: list[dict[str, Any]] | None = None) -> InstanceSnapshot:
+    action: dict[str, Any] = {
+        'id': 'action',
+        'type': 'simple.AdditiveAction',
+        'name': 'Action',
+        'unit': 'kg/a',
+        'quantity': 'mass',
+    }
+    if params is not None:
+        action['params'] = params
+    return parse_instance_snapshot(
+        {
+            'id': 'test',
+            'default_language': 'en',
+            'name': 'Test',
+            'owner': 'Owner',
+            'target_year': 2030,
+            'reference_year': 2020,
+            'minimum_historical_year': 2010,
+            'actions': [action],
+        },
+        instance_uuid=uuid4(),
+    )
+
+
+def test_implicit_action_enabled_parameter_is_not_persisted():
+    snapshot = _action_snapshot()
+
+    assert snapshot.nodes[0].spec is not None
+    assert snapshot.nodes[0].spec.params == []
+    assert snapshot.spec.scenarios[0].param_values == {'action.enabled': False}
+
+
+def test_authored_action_enabled_parameter_is_persisted():
+    snapshot = _action_snapshot(params=[{'id': 'enabled', 'value': True}])
+
+    assert snapshot.nodes[0].spec is not None
+    assert [param.local_id for param in snapshot.nodes[0].spec.params] == ['enabled']
+
+
+def test_runtime_export_omits_implicit_action_enabled_parameter():
+    action = AdditiveActionFactory.create()
+
+    assert _export_node_params(action) == []
 
 
 def test_compile_instance_export_preserves_identity_without_db_metadata(tmp_path):

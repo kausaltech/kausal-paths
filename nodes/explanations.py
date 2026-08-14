@@ -645,6 +645,13 @@ class NodeExplanation:
         return bool(self.node_id or self.formula or self.terms or self.functions or self.leftover_html)
 
 
+def _format_explanation_value(value: Any) -> str:
+    """Format semantically equal YAML and typed-spec values identically."""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
 def explanation_to_html(exp: NodeExplanation) -> list[str]:  # noqa: C901, PLR0912
     """Convert a structured NodeExplanation to a flat list of HTML fragments."""
     html: list[str] = []
@@ -669,7 +676,7 @@ def explanation_to_html(exp: NodeExplanation) -> list[str]:  # noqa: C901, PLR09
         for term in exp.terms:
             suffix_parts: list[str] = []
             if term.kind == 'constant' and term.value is not None:
-                suffix_parts.append(str(term.value))
+                suffix_parts.append(_format_explanation_value(term.value))
             if term.unit:
                 suffix_parts.append(str(term.unit))
             if term.output_dimensions:
@@ -1032,7 +1039,7 @@ class ValidationRule(ABC):
             for id, v in params.items():
                 if id in drop:
                     continue
-                out.append([id, v])
+                out.append([id, _format_explanation_value(v)])
         else:  # Assumes list of dicts
             for param in params:
                 assert isinstance(param, dict)
@@ -1042,7 +1049,7 @@ class ValidationRule(ABC):
                 assert isinstance(id, str)
                 v = param.get('value') or _('referencing to <i>%s</i>') % param.get('ref')
                 u = param.get('unit', '')
-                out.append([id, f'{v} {u}'])
+                out.append([id, f'{_format_explanation_value(v)} {u}'])
         return out
 
 
