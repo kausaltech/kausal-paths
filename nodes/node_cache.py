@@ -279,6 +279,7 @@ class NodeHasher:
         if build_id := get_deployment_build_id():
             hash_part('build_id', '', build_id)
 
+        hash_part('instance', '', self.node.context.instance_hash)
         hash_part('id', '', self.node.id)
         if self.metrics_hash is None:
             metrics_hash = b''
