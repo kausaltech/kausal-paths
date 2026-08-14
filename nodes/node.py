@@ -322,6 +322,9 @@ class Node:
     is_visible: bool = True
     'If the node should be visible in visualizations'
 
+    is_editable: bool | None = None
+    'Whether YAML explicitly declares the node editable'
+
     is_outcome: bool = False
     'If the node is classified as a key outcome for the model'
 
@@ -560,6 +563,7 @@ class Node:
         order: int | None = None,
         node_group: str | None = None,
         is_visible: bool = True,
+        is_editable: bool | None = None,
         is_outcome: bool = False,
         target_year_goal: float | None = None,
         goals: dict[str, Any] | None = None,
@@ -593,6 +597,7 @@ class Node:
         self.color = color
         self.order = order
         self.is_visible = is_visible
+        self.is_editable = is_editable
         self.is_outcome = is_outcome
         self.minimum_year = minimum_year
         self.default_operations = self.DEFAULT_OPERATIONS
@@ -1646,6 +1651,8 @@ class Node:
             'order': self.order,
             'is_visible': self.is_visible,
         }
+        if self.is_editable is not None:
+            attributes['is_editable'] = self.is_editable
 
         i18n = {}
         default_lang = self.context.instance.default_language

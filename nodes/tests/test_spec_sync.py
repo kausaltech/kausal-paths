@@ -237,6 +237,35 @@ def test_sync_reconciles_authoritative_node_metadata_before_upsert(db_instance):
     assert row.spec == NodeSpec()
 
 
+def test_sync_preserves_db_editability_when_yaml_does_not_specify_it(db_instance):
+    row = NodeConfigFactory.create(instance=db_instance, is_editable=False, spec=NodeSpec())
+    source = _snapshot_with_node(db_instance, uuid=row.uuid, identifier=row.identifier)
+
+    snapshot = reconcile_snapshot_node_metadata(source, [row])
+    assert snapshot.nodes[0].is_editable is False
+
+    _upsert_node_configs(db_instance, snapshot, [row])
+
+    row.refresh_from_db()
+    assert row.is_editable is False
+
+
+def test_sync_applies_explicit_yaml_editability(db_instance):
+    row = NodeConfigFactory.create(instance=db_instance, is_editable=True, spec=NodeSpec())
+    source = InstanceSnapshot(
+        spec=db_instance.spec,
+        nodes=[NodeSnapshot(uuid=row.uuid, identifier=row.identifier, is_editable=False, spec=NodeSpec())],
+    )
+
+    snapshot = reconcile_snapshot_node_metadata(source, [row])
+    assert snapshot.nodes[0].is_editable is False
+
+    _upsert_node_configs(db_instance, snapshot, [row])
+
+    row.refresh_from_db()
+    assert row.is_editable is False
+
+
 def test_yaml_runtime_nodes_use_reconciled_metadata_snapshots(instance_config, instance, node):
     node.short_name = TranslatedString(en='YAML short name')
     node.is_visible = True

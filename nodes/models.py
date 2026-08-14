@@ -2003,6 +2003,26 @@ class EditableInstanceChild(
         raise NotImplementedError(msg)
 
 
+class NodeConfigPermissionPolicy(
+    ParentInheritedPolicy['NodeConfig', InstanceConfig, NodeConfigQuerySet, InstanceConfig],
+):
+    """Instance-inherited permissions with a superuser-bypassable edit lock."""
+
+    def __init__(self):
+        super().__init__(NodeConfig, InstanceConfig, 'instance', create_context_type=InstanceConfig)
+
+    def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
+        q = super().construct_perm_q(user, action)
+        if q is None or action not in ('change', 'delete'):
+            return q
+        return q & Q(is_editable=True)
+
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: NodeConfig) -> bool:
+        if action in ('change', 'delete') and not obj.is_editable and not user.is_superuser:
+            return False
+        return super().user_has_perm(user, action, obj)
+
+
 class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexed):
     instance: FK[InstanceConfig] = models.ForeignKey(
         InstanceConfig,
@@ -2020,6 +2040,10 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         verbose_name=_('Order'),
     )
     is_visible = models.BooleanField(default=True)
+    is_editable = models.BooleanField(
+        default=True,
+        help_text=_('Whether non-superusers may modify this node and its inputs'),
+    )
     goal = RichTextField[str | None, str | None](
         null=True,
         blank=True,
@@ -2120,8 +2144,8 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         base_manager_name = 'objects'
 
     @classmethod
-    def permission_policy(cls) -> ParentInheritedPolicy[NodeConfig, InstanceConfig, NodeConfigQuerySet, InstanceConfig]:
-        return ParentInheritedPolicy(cls, InstanceConfig, 'instance', create_context_type=InstanceConfig)
+    def permission_policy(cls) -> NodeConfigPermissionPolicy:
+        return NodeConfigPermissionPolicy()
 
     def get_node(self, visible_for_user: UserOrAnon | None = None) -> Node | None:
         if hasattr(self, '_node'):

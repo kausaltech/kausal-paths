@@ -141,6 +141,7 @@ class InstanceYAMLConfig:
         config_path: Path | None,
         allow_override: bool = False,
         dataset_replacements: list[dict[str, str]] | None = None,
+        is_editable: bool | None = None,
     ) -> None:
         # Create a mapping of old dataset IDs to new ones
         if dataset_replacements is None:
@@ -166,6 +167,7 @@ class InstanceYAMLConfig:
             apply_group=apply_group,
             config_path=config_path,
             allow_override=allow_override,
+            is_editable=is_editable,
         )
 
     def _merge_config(
@@ -176,6 +178,7 @@ class InstanceYAMLConfig:
         apply_group: str | None = None,
         config_path: Path | None = None,
         allow_override: bool = False,
+        is_editable: bool | None = None,
     ) -> None:
         by_id = {d['id']: d for d in existing}
         for nc in newconf:
@@ -187,6 +190,8 @@ class InstanceYAMLConfig:
                 continue
             assert 'node_group' not in nc
             nc['node_group'] = apply_group
+            if is_editable is not None:
+                nc['is_editable'] = is_editable
             if config_path is not None:
                 nc['config_location'] = ConfigLocation(file_path=str(config_path), line=nc.lc.line + 1, column=nc.lc.col)
             existing.append(nc)
@@ -194,6 +199,14 @@ class InstanceYAMLConfig:
     def _init_group(self, objs: list[CommentedMap]) -> None:
         for d in objs:
             d['config_location'] = ConfigLocation(file_path=str(self.meta.entrypoint.path), line=d.lc.line + 1, column=d.lc.col)
+
+    @staticmethod
+    def _get_include_nodes_editable(include: CommentedMap) -> bool | None:
+        value = include.get('nodes_editable')
+        if 'nodes_editable' in include and not isinstance(value, bool):
+            msg = 'Include option nodes_editable must be a boolean'
+            raise TypeError(msg)
+        return value
 
     def load(self):
         meta = self.meta
@@ -241,6 +254,7 @@ class InstanceYAMLConfig:
             allow_override = iconf.get('allow_override', False)
             apply_group = iconf.get('node_group', None)
             dataset_replacements = iconf.get('dataset_replacements', [])
+            nodes_editable = self._get_include_nodes_editable(iconf)
             ifn = (config_path / Path(iconf['file'])).resolve()
             if not ifn.exists():
                 raise Exception('Include file "%s" not found' % str(ifn))
@@ -255,6 +269,7 @@ class InstanceYAMLConfig:
                 config_path=ifn,
                 allow_override=allow_override,
                 dataset_replacements=dataset_replacements,
+                is_editable=nodes_editable,
             )
             self._merge_include_config(
                 dimensions,
@@ -272,6 +287,7 @@ class InstanceYAMLConfig:
                 config_path=None,
                 allow_override=allow_override,
                 dataset_replacements=dataset_replacements,
+                is_editable=nodes_editable,
             )
 
         # Make sure that assignment works even if they are originally empty.
@@ -794,6 +810,7 @@ class InstanceLoader:
             color=config.get('color'),
             order=config.get('order'),
             is_visible=config.get('is_visible', True),
+            is_editable=config.get('is_editable'),
             is_outcome=config.get('is_outcome', False),
             minimum_year=config.get('minimum_year'),
             target_year_goal=config.get('target_year_goal'),

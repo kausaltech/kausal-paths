@@ -1232,6 +1232,7 @@ class InstanceConfigParser:
             color=config.get('color') or '',
             order=config.get('order'),
             is_visible=config.get('is_visible', True),
+            is_editable=config.get('is_editable'),
             spec=spec,
         )
 

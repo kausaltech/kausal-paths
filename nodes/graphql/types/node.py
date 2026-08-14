@@ -14,6 +14,7 @@ from grapple.types.streamfield import StreamFieldInterface
 from markdown_it import MarkdownIt
 
 from kausal_common.strawberry.grapple import grapple_field
+from kausal_common.strawberry.permissions import UserPermissionsMixin
 from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_type
 from kausal_common.strawberry.registry import register_strawberry_type
 
@@ -341,7 +342,7 @@ def _get_node_uuid_with_fallback(root: 'Node') -> UUID:  # noqa: UP037
 
 
 @sb.interface
-class NodeInterface:
+class NodeInterface(UserPermissionsMixin):
     id: sb.ID
     unit: UnitType | None
     quantity: str | None
@@ -456,6 +457,16 @@ class NodeInterface:
         if nc is not None:
             return nc.is_visible
         return root.is_visible
+
+    @sb.field
+    @staticmethod
+    def is_editable(root: 'Node') -> bool:
+        nc = root.db_obj
+        if nc is not None:
+            return nc.is_editable
+        if root.source_snapshot is not None:
+            return root.source_snapshot.is_editable is not False
+        return False
 
     @sb.field
     @staticmethod
