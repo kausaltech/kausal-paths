@@ -241,7 +241,7 @@ if args.pull_datasets:
         context.pull_datasets()
 
 if args.validate:
-    nes = context.node_explanation_system
+    nes = context.get_node_explanation_system()
     if nes is None:
         print('No validation system available.')
         exit(1)

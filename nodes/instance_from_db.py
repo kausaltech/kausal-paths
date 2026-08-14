@@ -160,11 +160,11 @@ def _serialize_instance_metadata(snapshot: InstanceSnapshot) -> dict[str, Any]:
 
 def snapshot_nodes_to_config_dicts(snapshot: InstanceSnapshot) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
-    Convert a snapshot's nodes into loader-consumable ``nodes`` / ``actions`` dict lists.
+    Convert a snapshot's nodes into YAML-shaped ``nodes`` / ``actions`` dict lists.
 
-    The node-scope remainder of the config-dict shim: the instance level is
-    built natively from the typed snapshot, but node/action/edge construction
-    still consumes YAML-shaped dicts until it migrates to ``NodeMeta``.
+    Runtime construction no longer consumes these; the remaining consumers are
+    ``snapshot_to_config_dict()`` and the lazily built ``NodeExplanationSystem``,
+    whose validation rules still read YAML-shaped dicts.
     """
     node_snapshots = snapshot.nodes
     specs_by_uuid: dict[UUID, NodeSpec] = {}

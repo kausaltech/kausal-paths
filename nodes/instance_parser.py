@@ -508,7 +508,7 @@ class InstanceConfigParser:
         expanded: list[dict[str, Any]] = []
         for ec_orig in sectors:
             ec = dict(ec_orig)
-            # setup_validation_graph *overwrites* these on the sector configs
+            # setup_node_explanations *overwrites* these on the sector configs
             # before expansion (an authored `type:` on a sector is ignored);
             # reproduce its net effect.
             ec['type'] = 'simple.SectorEmissions'

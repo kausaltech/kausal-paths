@@ -923,6 +923,18 @@ class NodeExplanationSystem:
         return {node_id: message for node_id, message in messages.items() if len(message) > 0}
 
 
+def build_node_explanation_system(context: Context, node_configs: list[dict[str, Any]]) -> NodeExplanationSystem:
+    """Construct the explanation system and run its generation passes."""
+    nes = NodeExplanationSystem(context, node_configs)
+    # The rules reach back through context.node_explanation_system, so it must
+    # be assigned before the generation passes run.
+    context.node_explanation_system = nes
+    nes.generate_validations()
+    nes.generate_input_baskets()
+    nes.generate_explanations()
+    return nes
+
+
 class GraphValidator:
     @staticmethod
     def validate_graph(graph: GraphRepresentation) -> list[ValidationResult]:
