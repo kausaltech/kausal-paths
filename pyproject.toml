@@ -67,7 +67,7 @@ dependencies = [
   "polars",
   "psycopg[binary,pool]",
   "pycryptodome",
-  "pydantic",
+  "pydantic<2.13",
   "pydantic-extra-types",
   "pygithub",
   "pygments-graphql",
