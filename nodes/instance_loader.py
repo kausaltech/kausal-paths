@@ -944,6 +944,10 @@ class InstanceLoader:
             quantity = port.quantity
         elif len(spec.output_ports) > 1:
             metrics = {}
+            # For ports without an authored identifier, the class's canonical
+            # metric keys are recovered by column_id (same as the dict path).
+            class_metrics_def: dict[str, NodeMetric] | None = getattr(node_class, 'output_metrics', None)
+            col_to_class_key = {m.column_id: k for k, m in class_metrics_def.items()} if class_metrics_def else {}
             for port in spec.output_ports:
                 column = str(port.column_id) if port.column_id is not None else None
                 if column is None:
@@ -951,13 +955,8 @@ class InstanceLoader:
                 if port.quantity is None:
                     raise Exception('Node %s: output metric %s has no quantity' % (identifier, column))
                 assert port.unit is not None
-                metrics[column] = NodeMetric(unit=port.unit, quantity=port.quantity, id=column, column_id=column)
-            # If the class defines output_metrics, remap keys to the class's
-            # canonical keys by column_id (same as the dict path).
-            class_metrics_def: dict[str, NodeMetric] | None = getattr(node_class, 'output_metrics', None)
-            if class_metrics_def:
-                col_to_class_key = {m.column_id: k for k, m in class_metrics_def.items()}
-                metrics = {col_to_class_key.get(key, key): metric for key, metric in metrics.items()}
+                key = port.identifier or col_to_class_key.get(column, column)
+                metrics[key] = NodeMetric(unit=port.unit, quantity=port.quantity, id=key, column_id=column)
 
         class_metrics = None if metrics is not None else getattr(node_class, 'output_metrics', None)
         if unit is None:
