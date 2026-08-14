@@ -1714,6 +1714,38 @@ class InstanceLoader:
             tolerate_node_failures=tolerate_node_failures,
         )
 
+    @classmethod
+    def from_yaml_snapshot(
+        cls,
+        filename: Path,
+        tolerate_node_failures: bool = False,
+    ) -> Self:
+        """
+        Build the runtime from YAML through parse -> InstanceSnapshot -> native build.
+
+        The successor to the config-dict path in ``from_yaml``; the two coexist
+        until runtime parity is proven fleet-wide. Framework-configured
+        instances (``fw_config``) still go through ``from_yaml``.
+        """
+        import uuid as uuid_mod
+
+        from nodes.instance_parser import parse_instance_snapshot
+
+        yaml_fn = filename.resolve()
+        yaml_conf = InstanceYAMLConfig.load_for_entrypoint(yaml_fn)
+        data = yaml_conf.data
+        assert data is not None
+        # The runtime never persists parse-invented UUIDs, so a deterministic
+        # namespace from the instance identifier is sufficient; no DB lookup.
+        instance_uuid = uuid_mod.uuid3(uuid_mod.NAMESPACE_URL, f'kausal-paths:instance:{data["id"]}')
+        snapshot = parse_instance_snapshot(data, instance_uuid=instance_uuid)
+        return cls(
+            snapshot=snapshot,
+            yaml_file_path=yaml_fn,
+            config_mtime_hash=yaml_conf.meta.mtime_hash,
+            tolerate_node_failures=tolerate_node_failures,
+        )
+
     def __init__(
         self,
         config: dict[str, Any] | None = None,
@@ -1736,8 +1768,7 @@ class InstanceLoader:
         if snapshot is not None:
             assert config is None
             assert fw_config is None
-            assert yaml_file_path is None
-            self.yaml_file_path = None
+            self.yaml_file_path = yaml_file_path.absolute() if yaml_file_path else None
             self.fw_config = None
             # self.config is deliberately left unset: the snapshot path must
             # never read YAML-shaped config dicts, and an AttributeError here
@@ -1981,11 +2012,11 @@ class InstanceLoader:
             owner=ts(meta.owner),
             default_language=meta.primary_language,
             action_groups=agcs,
-            config_mtime_hash=None,
+            config_mtime_hash=self.config_mtime_hash,
             features=spec.features.model_copy(deep=True),
             terms=spec.terms.model_copy(deep=True),
             result_excels=[InstanceResultExcel.from_spec(r) for r in spec.result_excels],
-            yaml_file_path=None,
+            yaml_file_path=self.yaml_file_path,
             pages=[page.model_copy(deep=True) for page in spec.pages],
             maximum_historical_year=years.max_historical,
             minimum_historical_year=years.min_historical,
