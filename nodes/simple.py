@@ -11,7 +11,9 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
-from nodes.defs.port_def import InputPortDeclaration, OutputPortDeclaration
+from nodes.constraints.port_roles import PortRoleInferenceResult
+from nodes.constraints.rules import AnyShapeRule, MissingPortRoleError, ProductShapeRule, SameShapeRule
+from nodes.defs.port_def import InputPortDeclaration, InputPortDef, OutputPortDeclaration
 from nodes.units import Quantity
 from params.param import BoolParameter, NumberParameter, StringParameter
 
@@ -31,6 +33,7 @@ if TYPE_CHECKING:
 
     from nodes.datasets import Dataset
     from nodes.edges import Edge
+    from nodes.instance_graph import NodeMeta
     from nodes.pipeline.ir import PipelinePortBinding
     from nodes.pipeline.ops import AnyOperationSpec
     from params.base import Parameter
@@ -201,10 +204,41 @@ Input nodes tagged 'impute' are excluded from the addition; their values overlay
 afterwards instead, replacing it wherever the tagged node has a value and leaving the rest untouched.""")
     export_additive_input_ports_as_multi: ClassVar[bool] = False
     additive_multi_input_excluded_tags: ClassVar[frozenset[str]] = frozenset({'non_additive'})
-    additive_port = InputPortDeclaration(role='additive', multi=True)
-    output_port = OutputPortDeclaration(role='output', identifier='default')
-    input_port_declarations = (additive_port,)
+    additive_port = InputPortDeclaration(role='additive', multi=True, label=_('Additive inputs'))
+    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
+    input_port_declarations = (additive_port, impute_port)
     output_port_declarations = (output_port,)
+
+    @classmethod
+    def shape_rules(cls, meta: NodeMeta) -> tuple[AnyShapeRule, ...]:
+        output = meta.require_output_port('output')
+        inputs = meta.input_port_ids_for_roles('additive', 'impute')
+        if not inputs:
+            return ()
+        return (SameShapeRule(inputs=inputs, output=output.id),)
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        try:
+            output_unit = meta.require_output_port('output').unit
+        except MissingPortRoleError:
+            output_unit = None
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            if 'impute' in tags:
+                result.classify(port, 'impute', "binding tag 'impute'")
+            elif 'non_additive' in tags:
+                result.refuse(port, "tag 'non_additive' excludes it from addition")
+            elif port.unit is None or output_unit is None:
+                result.refuse(port, 'cannot classify without both port and output units')
+            elif port.unit.is_compatible_with(output_unit):
+                result.classify(port, 'additive', f'unit {port.unit} being compatible with output {output_unit}')
+            else:
+                result.refuse(port, f'unit {port.unit} is incompatible with output {output_unit} on an additive node')
+        return result
+
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
         BoolParameter(local_id='drop_nans', is_customizable=False),
@@ -234,7 +268,11 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
             return InputPortMultiplicityHint()
         if any(tag in self.additive_multi_input_excluded_tags for tag in edge.tags):
             return InputPortMultiplicityHint()
-        return InputPortMultiplicityHint(multi=True, group=str(self.additive_port.instance_identifier))
+        return InputPortMultiplicityHint(
+            multi=True,
+            group=str(self.additive_port.instance_identifier),
+            role=str(self.additive_port.role),
+        )
 
     def lower_to_pipeline_ir(self):
         from nodes.pipeline import AddOperationSpec, IdentityOperationSpec, InputNodeBinding, PipelineNodeIR, PortInputRef
@@ -405,6 +443,209 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         return df
 
 
+class DataAvailabilityNode(AdditiveNode):
+    """
+    Report where the input dataset has a value, as 1.0 (value present) and 0.0 (no value).
+
+    The test is made on the dataset as it arrives from its source, before interpolation or
+    extension can fill in the missing years, so the output describes what the data actually
+    covers rather than what the pipeline is able to fabricate. Interpolation configured on
+    the bindings (``interpolate: true`` or ``input_dataset_processors: [LinearInterpolation]``)
+    is therefore switched off for this node's datasets.
+
+    The output covers the whole model year range (``minimum_historical_year`` ..
+    ``model_end_year``) for every dimension category combination that occurs in the dataset;
+    cells outside the data's own span are 0.0. The combinations are the ones the data uses,
+    not the cross product of each dimension's categories, so that a dataset whose categories
+    are ragged (a category of one dimension going together with only some categories of
+    another) is not reported as permanently incomplete. Each metric column of the dataset becomes a
+    0/1 column of its own. When the dataset has a single metric column, it is renamed to the
+    node's own metric column, so the usual ``unit: dimensionless`` node definition is enough;
+    a multi-metric dataset needs matching ``output_metrics`` on the node.
+
+    Taking the combinations from the data means that a combination nobody supplied is not
+    reported as missing — it is simply absent from the output, and a downstream flag computed
+    over it silently loses a term. Where the set of combinations is prescribed rather than
+    discovered, declare it in a second dataset tagged ``template``: its dimension columns list
+    the combinations that must exist, and they become the combinations reported on. A required
+    combination the data never mentions then reads 0.0 for every year instead of vanishing.
+    Keeping that dataset in DVC is the point of it — a user who edits the data being checked
+    cannot edit the requirement. The template's own values and years are ignored; one year's
+    worth of rows is enough, because a requirement of this kind is structural rather than
+    temporal, and it is checked in every year of the model range.
+
+    With ``flag_unexpected``, a combination that carries a value the template does not ask for
+    reads -1.0 instead of 1.0. It is off by default because these outputs are meant to be
+    combined arithmetically downstream (``prod_dim`` over a conformity flag, say), and a
+    negative term would corrupt that rather than register as a complaint.
+    """
+
+    explanation = _("""This is a Data Availability Node. Instead of using the values of its input dataset, it
+reports whether a value exists in each cell: 1.0 where the dataset has a value and 0.0 where it does not.
+The check is made on the original data, before interpolation or extension fill in the missing years.
+The output covers the whole model period; the years and categories that the dataset does not reach are 0.0.
+When a template dataset declares which category combinations have to exist, those are the ones reported on,
+so that a combination missing from the data altogether is reported as missing rather than passed over.""")
+
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
+        *AdditiveNode.allowed_parameters,
+        BoolParameter(
+            local_id='flag_unexpected',
+            label=_('Report values that the template does not require as -1'),
+        ),
+    ]
+
+    TEMPLATE_TAG = 'template'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # The node reports what the source data covers, so gap-filling must not run before
+        # the check. The dataset instances belong to this node alone, so this affects nobody
+        # else (and the dataset cache key follows `interpolate`, so it stays separate too).
+        for ds in self.input_dataset_instances:
+            ds.interpolate = False
+
+    def compute(self) -> ppl.PathsDataFrame:
+        from nodes.datasets import FixedDataset
+
+        if self.input_nodes:
+            raise NodeError(
+                self,
+                'DataAvailabilityNode only inspects its input dataset; it has %d input nodes. Combine '
+                'availability flags in a downstream node instead (e.g. with the min/max edge tags).' % len(self.input_nodes),
+            )
+        for ds in self.input_dataset_instances:
+            if isinstance(ds, FixedDataset) and ds.use_interpolation:
+                raise NodeError(
+                    self,
+                    "Dataset '%s' is interpolated already when it is built, so the gaps of the original data "
+                    'cannot be seen any more. Remove the LinearInterpolation dataset processor.' % ds.id,
+                )
+        dfs = self.get_input_datasets_pl(exclude_tags=[self.TEMPLATE_TAG])
+        if len(dfs) != 1:
+            raise NodeError(
+                self,
+                'Expecting one dataset to check the availability of, besides any tagged %r; got %d.'
+                % (self.TEMPLATE_TAG, len(dfs)),
+            )
+        return self.check_availability(dfs[0])
+
+    def _get_required_combinations(self, dim_ids: list[str]) -> pl.DataFrame | None:
+        """Return one row per combination the template requires, or None when there is no template."""
+        templates = self.get_input_datasets_pl(tag=self.TEMPLATE_TAG)
+        if not templates:
+            return None
+        if len(templates) > 1:
+            raise NodeError(self, 'Expecting at most one dataset tagged %r; got %d.' % (self.TEMPLATE_TAG, len(templates)))
+        template = templates[0].paths.cast_index_to_str()
+        if sorted(template.dim_ids) != sorted(dim_ids):
+            raise NodeError(
+                self,
+                'The template requires combinations of (%s), but the data has dimensions (%s). '
+                'They have to be the same dimensions for the requirement to mean anything.'
+                % (', '.join(sorted(template.dim_ids)) or '-', ', '.join(sorted(dim_ids)) or '-'),
+            )
+        if not dim_ids:
+            raise NodeError(
+                self,
+                'A template declares which dimension category combinations must exist, but the data has no dimensions.',
+            )
+        # The template's values and years carry no meaning; the combinations are the whole of it.
+        combinations = pl.DataFrame({dim_id: template[dim_id] for dim_id in dim_ids})
+        return combinations.unique(subset=dim_ids)
+
+    def _report_on_required_combinations(self, out: ppl.PathsDataFrame, required: pl.DataFrame) -> ppl.PathsDataFrame:
+        """Give every required combination a row in every year, whether or not the data mentions it."""
+        required_col = '_Required'
+        meta = out.get_meta()
+        dim_ids = out.dim_ids
+        flag_cols = out.metric_cols
+        # Join on plain strings, then put the dimension columns back as they were. Category
+        # columns from two different frames are not joinable, and leaving the output as Utf8
+        # where it used to be Categorical would move the same failure downstream instead.
+        dim_dtypes = {dim_id: out.schema[dim_id] for dim_id in dim_ids}
+        out = out.with_columns([pl.col(dim_id).cast(pl.Utf8) for dim_id in dim_ids])
+
+        years = pl.DataFrame({YEAR_COLUMN: out[YEAR_COLUMN].unique()})
+        grid = years.join(required.with_columns(pl.lit(value=True).alias(required_col)), how='cross')
+        # The union: a required combination the data never mentions gets its zeros, and a
+        # combination the data has that nothing requires is still reported rather than dropped.
+        joined = out.join(grid, on=[YEAR_COLUMN, *dim_ids], how='full', coalesce=True)
+        joined = joined.with_columns([pl.col(col).fill_null(0.0) for col in flag_cols])
+
+        if self.get_typed_parameter_value('flag_unexpected', bool, required=False):
+            unexpected = ~pl.col(required_col).fill_null(value=False)
+            joined = joined.with_columns([
+                pl.when(unexpected & (pl.col(col) > 0)).then(pl.lit(-1.0)).otherwise(pl.col(col)).alias(col) for col in flag_cols
+            ])
+
+        joined = joined.drop(required_col).with_columns([pl.col(dim_id).cast(dtype) for dim_id, dtype in dim_dtypes.items()])
+        return ppl.to_ppdf(joined, meta=meta)
+
+    def check_availability(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """Convert the values of the raw dataset into 1.0 (value exists) and 0.0 (no value)."""
+        metric_cols = df.metric_cols
+        if not metric_cols:
+            raise NodeError(self, 'The input dataset has no metric columns whose availability could be tested.')
+        if len(metric_cols) == 1:
+            out_cols = [self.get_default_output_metric().column_id]
+        else:
+            out_cols = list(metric_cols)
+        declared = {metric.column_id: metric.unit for metric in self.output_metrics.values()}
+        units = {col: declared.get(col, self.context.unit_registry.parse_units('dimensionless')) for col in out_cols}
+        with_dimension = {col: str(unit) for col, unit in units.items() if not unit.dimensionless}
+        if with_dimension:
+            raise NodeError(
+                self,
+                'The output columns tell whether a value exists, so their units must be dimensionless: %s.'
+                % ', '.join("'%s' is '%s'" % item for item in with_dimension.items()),
+            )
+
+        # Missing data is mostly missing *rows*, not null cells, so the years and the
+        # dimension category combinations have to be materialised before they can be
+        # reported as zeros. Projecting wide gives one column per combination that the
+        # dataset actually uses; joining the model timeline onto it then turns every
+        # absent year into nulls, which the presence test below reads as 'no value'.
+        # (Crossing the categories of each dimension separately instead would invent
+        # cells that the dataset never means to have -- the BISKO district heating data
+        # uses different energy carriers for fuel input than for heat output -- and those
+        # would look like missing data forever.)
+        wide = df.drop(FORECAST_COLUMN) if FORECAST_COLUMN in df.columns else df
+        wide = wide.paths.to_wide()
+        years = pl.DataFrame({YEAR_COLUMN: range(self.context.instance.minimum_historical_year, self.get_end_year() + 1)})
+        years_pdf = ppl.to_ppdf(
+            years.with_columns(pl.col(YEAR_COLUMN).cast(df.schema[YEAR_COLUMN])),
+            ppl.DataFrameMeta(units={}, primary_keys=[YEAR_COLUMN]),
+        )
+        wide = years_pdf.paths.join_over_index(wide)
+
+        # A null cell has no value; for float columns NaN counts as no value, too.
+        # (`is_not_nan()` is null for null cells, but the `is_not_null()` term makes the
+        # conjunction false there anyway.)
+        flags: list[pl.Expr] = []
+        for col in wide.metric_cols:
+            has_value = pl.col(col).is_not_null()
+            if wide.schema[col].is_float():
+                has_value = has_value & pl.col(col).is_not_nan()
+            flags.append(has_value.cast(pl.Float64).alias(col))
+        out = wide.with_columns(flags).paths.to_narrow()
+
+        required = self._get_required_combinations(out.dim_ids)
+        if required is not None:
+            out = self._report_on_required_combinations(out, required)
+
+        max_hist_year = self.context.instance.maximum_historical_year
+        is_forecast = pl.lit(value=False) if max_hist_year is None else pl.col(YEAR_COLUMN) > max_hist_year
+        out = out.with_columns(is_forecast.alias(FORECAST_COLUMN)).sort(out.primary_keys)
+
+        for col_id, out_col in zip(metric_cols, out_cols, strict=True):
+            if out_col != col_id:
+                out = out.rename({col_id: out_col})
+            out = out.set_unit(out_col, 'dimensionless', force=True)
+            out = out.ensure_unit(out_col, units[out_col])
+        return out
+
+
 class SubtractiveNode(Node):  # FIXME Remove, when you clean Longmont.
     explanation = _(
         'This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it.',
@@ -491,12 +732,50 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         ),
     ]
     operation_label = 'multiplication'
-    factors_port = InputPortDeclaration(role='factors', multi=True)
-    additive_port = InputPortDeclaration(role='additive', multi=True, required=False)
-    impute_port = InputPortDeclaration(role='impute', multi=True, required=False)
-    output_port = OutputPortDeclaration(role='output', identifier='default')
+    factors_port = InputPortDeclaration(role='factors', repeatable=True, min_count=1, default_count=2, label=_('Factor'))
+    additive_port = InputPortDeclaration(role='additive', multi=True, min_count=0, default_count=1, label=_('Additive inputs'))
+    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
     input_port_declarations = (factors_port, additive_port, impute_port)
     output_port_declarations = (output_port,)
+
+    @classmethod
+    def shape_rules(cls, meta: NodeMeta) -> tuple[AnyShapeRule, ...]:
+        output = meta.require_output_port('output')
+        rules: list[AnyShapeRule] = []
+        factors = meta.input_port_ids_for_roles('factors')
+        if factors:
+            rules.append(ProductShapeRule(inputs=factors, output=output.id))
+        same_shaped = meta.input_port_ids_for_roles('additive', 'impute')
+        if same_shaped:
+            rules.append(SameShapeRule(inputs=same_shaped, output=output.id))
+        return tuple(rules)
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        from nodes.defs.binding_def import DatasetBindingDef
+
+        result = PortRoleInferenceResult()
+        try:
+            output_unit = meta.require_output_port('output').unit
+        except MissingPortRoleError:
+            output_unit = None
+        for port in candidates:
+            bindings = meta.bindings_for_port(port.id)
+            tags = {tag for binding in bindings for tag in binding.tags}
+            if 'impute' in tags:
+                result.classify(port, 'impute', "binding tag 'impute'")
+            elif 'non_additive' in tags:
+                result.classify(port, 'factors', "binding tag 'non_additive'")
+            elif any(isinstance(binding, DatasetBindingDef) for binding in bindings):
+                result.refuse(port, 'dataset-bound port on a multiplicative node has no explicit role')
+            elif port.unit is None or output_unit is None:
+                result.refuse(port, 'cannot classify without both port and output units')
+            elif port.unit.is_compatible_with(output_unit):
+                result.classify(port, 'additive', f'unit {port.unit} being compatible with output {output_unit}')
+            else:
+                result.classify(port, 'factors', f'unit {port.unit} being incompatible with output {output_unit}')
+        return result
 
     def lower_to_pipeline_ir(self):
         from nodes.pipeline import InputNodeBinding, MultiplyOperationSpec, PipelineNodeIR, PortInputRef

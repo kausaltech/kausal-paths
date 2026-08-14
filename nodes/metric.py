@@ -384,8 +384,12 @@ class DimensionalMetric(BaseModel):
         import polars as pl
 
         idx_names = [dim.original_id for dim in dims] + [YEAR_COLUMN]
+        # The year dtype is given explicitly because `years` is empty whenever the node computed
+        # to no rows at all -- a legitimate outcome, e.g. a weighted average whose weights are
+        # all missing. Polars would then infer Null for the column, and the caller's join against
+        # the (Int64) output would fail with a SchemaError instead of yielding an empty metric.
         idx_dfs = [pl.LazyFrame(dim.get_original_cat_ids(), schema=[dim.original_id], orient='row') for dim in dims] + [
-            pl.LazyFrame(years, schema=[YEAR_COLUMN]),
+            pl.LazyFrame(years, schema={YEAR_COLUMN: pl.Int64}),
         ]
         idf_lazy = idx_dfs[0]
         for d in idx_dfs[1:]:

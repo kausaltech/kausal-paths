@@ -116,6 +116,12 @@ CACHES = {
 }
 if 'KEY_PREFIX' not in CACHES['default']:
     CACHES['default']['KEY_PREFIX'] = PROJECT_NAME
+if CACHES['default']['BACKEND'] == 'django_redis.cache.RedisCache':
+    from redis.maint_notifications import MaintNotificationsConfig
+
+    # Maintenance notifications defaults to enabled, but it causes spurious warnings.
+    CACHES['default']['OPTIONS'] = {'maint_notifications_config': MaintNotificationsConfig(enabled=False)}
+
 
 SECRET_KEY = env('SECRET_KEY')
 
@@ -257,7 +263,7 @@ SOCIAL_AUTH_NZCPORTAL_CLIENT_ID = env.str('NZCPORTAL_CLIENT_ID')
 SOCIAL_AUTH_NZCPORTAL_CLIENT_SECRET = env.str('NZCPORTAL_CLIENT_SECRET')
 
 AUTHENTICATION_BACKENDS = (
-    'admin_site.auth_backends.AzureADAuth',
+    'kausal_common.auth.backends.AzureADAuth',
     *(['admin_site.auth_backends.NZCPortalOAuth2'] if SOCIAL_AUTH_NZCPORTAL_CLIENT_ID else []),
     'admin_site.auth_backends.PasswordAuth',
     'django.contrib.auth.backends.ModelBackend',

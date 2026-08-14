@@ -85,10 +85,11 @@ from paths.utils import (
 
 from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
 from nodes.defs.instance_defs import InstanceFeatures, InstanceMetadata
-from nodes.defs.transform_def import EdgeTransformOp
+from nodes.defs.transform_def import EdgeTransformOp, StoredPortTransformOp
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
     EdgeSnapshot,
+    InputBindingSnapshot,
     NodeSnapshot,
 )
 from orgs.models import Organization
@@ -174,11 +175,20 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
             return self.filter(id=id_or_identifier)
         return self.filter(query_pk_or_uuid_or_identifier(id_or_identifier))
 
+    def active(self) -> InstanceConfigQuerySet:
+        return self.filter(is_active=True)
+
 
 _InstanceConfigManager = cast('Manager[InstanceConfig]', Manager).from_queryset(InstanceConfigQuerySet)
 
 
 class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # type: ignore[valid-type,misc]
+    def get_queryset(self) -> InstanceConfigQuerySet:
+        return super().get_queryset().active()
+
+    def get_queryset_all(self):
+        return super().get_queryset()
+
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
         return self.get(identifier=identifier)
 
@@ -431,6 +441,7 @@ class InstanceConfig(
     """Metadata for one Paths computational model instance."""
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
+    is_active = models.BooleanField(default=True, help_text=_('Whether this instance is active or soft-deleted.'))
     name = models.CharField[str, str](max_length=150, verbose_name=_('name'), unique=True)
     owner = models.CharField[str, str](
         blank=True,
@@ -573,6 +584,7 @@ class InstanceConfig(
     datasets: RevMany[DatasetModel]
     edges: RevMany[NodeEdge]
     dataset_ports: RevMany[DatasetPort]
+    input_bindings: RevMany[NodeInputPortBinding]
     dataset_revision_pins: RevMany[InstanceRevisionDatasetPin]
     change_operations: RevMany[InstanceChangeOperation]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
@@ -588,6 +600,9 @@ class InstanceConfig(
     _nodes_for_serialization: list[NodeConfig] | None
     _annotated_dataset_ports: list[DatasetPort]
     _publication_dataset_revision_pins: dict[int, Any] | None = None
+    # Avoid revalidating the same YAML materialization for every field resolved
+    # from one model object. A newly loaded row validates against disk again.
+    _verified_yaml_spec_hash: str | None = None
     graphql_context: InstanceGraphQLContext | None = None
 
     search_fields = [
@@ -734,10 +749,35 @@ class InstanceConfig(
         return None
 
     def update_instance_from_configs(self, instance: Instance, node_refs: bool = False):
+        bind_reconciled_snapshots = instance.source_snapshot is None
+        if bind_reconciled_snapshots:
+            instance.source_nodes_by_uuid = {}
         for node_config in self.nodes_for_serialization:
             node = instance.context.nodes.get(node_config.identifier)
             if node is None:
                 continue
+            if bind_reconciled_snapshots:
+                from .instance_serialization import NodeSnapshot, reconcile_node_snapshot_metadata
+
+                source_snapshot = NodeSnapshot.from_runtime_node(
+                    node,
+                    uuid=node_config.uuid,
+                    primary_language=self.primary_language,
+                )
+                node.source_snapshot = reconcile_node_snapshot_metadata(
+                    source_snapshot,
+                    node_config,
+                    primary_language=self.primary_language,
+                )
+                instance.source_nodes_by_uuid[node_config.uuid] = node
+                # Metrics and other runtime consumers read these fields directly,
+                # so they must see the same reconciled metadata as GraphQL fields.
+                node.name = node.source_snapshot.name or node.name
+                node.short_name = node.source_snapshot.short_name
+                node.description = node.source_snapshot.short_description
+                node.color = node.source_snapshot.color or None
+                node.order = node.source_snapshot.order
+                node.is_visible = node.source_snapshot.is_visible
             node_config.update_node_from_config(node, keep_ref=node_refs)
 
     def update_identity_metadata(
@@ -889,6 +929,20 @@ class InstanceConfig(
         latest = self.change_operations.only('uuid').order_by('-created_at').first()
         return latest.uuid if latest is not None else None
 
+    def validate_draft_constraints(self) -> None:
+        """
+        Run strict whole-graph constraint validation on the current draft.
+
+        Raises ``InstanceConstraintError`` carrying the complete conflict set;
+        used as the publication gate and before strict computation contexts.
+        """
+        from nodes.constraints.validation import require_valid_instance_constraints
+        from nodes.instance_graph_cache import get_instance_graph, resolve_instance_source
+
+        source = resolve_instance_source(self, PreferredInstanceSource.DRAFT)
+        graph = get_instance_graph(self, PreferredInstanceSource.DRAFT, resolved_source=source)
+        require_valid_instance_constraints(self, graph, source)
+
     def publish_instance(self, user: User | None = None) -> None:
         """Atomically publish the model and immutable revisions of its DB datasets."""
         from wagtail.models import Revision
@@ -913,12 +967,20 @@ class InstanceConfig(
                     dataset_id__in=[dataset.pk for dataset in datasets],
                 )
             }
+            from nodes.dataset_materialization import materialization_is_fresh, refresh_dataset_materialization
+
             for dataset in datasets:
                 materialization = materializations.get(dataset.pk)
-                if materialization is None:
-                    raise RuntimeError(f'Dataset {dataset.uuid} has no current materialization')
-                if materialization.source_modified_at != dataset.last_modified_at:
-                    raise RuntimeError(f'Dataset {dataset.uuid} has a stale current materialization')
+                if materialization is None or not materialization_is_fresh(dataset, materialization):
+                    materialization = refresh_dataset_materialization(dataset, touch=False)
+                    materializations[dataset.pk] = materialization
+
+            # Publication is the strictness boundary: a draft may carry
+            # structural constraint conflicts and stay inspectable, but a
+            # conflicted graph never becomes a published revision. Runs after
+            # the materialization refresh so shape profiles read the same
+            # observed facts the revision will pin.
+            locked.validate_draft_constraints()
 
             dataset_ct = ContentType.objects.get_for_model(DatasetModel, for_concrete_model=False)
             now = timezone.now()
@@ -968,6 +1030,7 @@ class InstanceConfig(
                     dataset_uuid=dataset.uuid,
                     identifier=dataset.identifier,
                     forecast_from=materializations[dataset.pk].forecast_from,
+                    shape_profiles=materializations[dataset.pk].shape_profiles,
                 )
                 for dataset in datasets
             ])
@@ -1242,24 +1305,34 @@ class InstanceConfig(
         return spec, primary_language, other_languages, mtime_hash
 
     def ensure_spec(self, update_self: bool = True, save: bool = True) -> InstanceModelSpec:
-        if self.spec is not None:
-            return self.spec
-
         if self.config_source == 'yaml':
+            if self.spec is not None and self._verified_yaml_spec_hash == self.yaml_mtime_hash:
+                return self.spec
+
             yaml_ret = self._get_spec_from_yaml()
             if yaml_ret is None:
+                if self.spec is not None:
+                    return self.spec
                 raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
 
-            if not save and not update_self:
-                return yaml_ret[0]
-
             spec, primary_language, other_languages, yaml_mtime_hash = yaml_ret
+            if self.spec is not None and self.yaml_mtime_hash == yaml_mtime_hash:
+                self._verified_yaml_spec_hash = yaml_mtime_hash
+                return self.spec
+
+            if not save and not update_self:
+                return spec
+
             self.spec = spec
             self.yaml_mtime_hash = yaml_mtime_hash
+            self._verified_yaml_spec_hash = yaml_mtime_hash
             self.primary_language = primary_language
             self.other_languages = other_languages
             if save:
                 self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash'])
+            return self.spec
+
+        if self.spec is not None:
             return self.spec
 
         # Database-sourced: identity metadata already lives on the columns,
@@ -1771,22 +1844,32 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         return self.defer(None)
 
     def annotate_ports(self) -> Self:
+        """
+        Attach the node's port bindings as ``PortBindingDef``-shaped JSON.
+
+        Served from the unified ``NodeInputPortBinding`` mirror, which the
+        write boundaries keep in sync with the still-authoritative
+        ``NodeEdge`` / ``DatasetPort`` tables. This is the projection behind
+        ``port_edge_bindings`` / ``port_dataset_bindings``.
+        """
         edge_bindings = (
-            NodeEdge.objects
-            .filter(Q(to_node=OuterRef('pk')) | Q(from_node=OuterRef('pk')))
+            NodeInputPortBinding.objects
+            .filter(Q(node=OuterRef('pk')) | Q(source_node=OuterRef('pk')), source_node__isnull=False)
+            .order_by('node_id', 'port_id', 'position')
             .annotate(
                 obj=JSONObject(
                     id=F('uuid'),
                     from_ref=JSONObject(
-                        node_uuid=F('from_node__uuid'),
-                        node_id=F('from_node__identifier'),
-                        port_id=F('from_port'),
+                        node_uuid=F('source_node__uuid'),
+                        node_id=F('source_node__identifier'),
+                        port_id=F('source_port_id'),
                     ),
                     port_ref=JSONObject(
-                        node_uuid=F('to_node__uuid'),
-                        node_id=F('to_node__identifier'),
-                        port_id=F('to_port'),
+                        node_uuid=F('node__uuid'),
+                        node_id=F('node__identifier'),
+                        port_id=F('port_id'),
                     ),
+                    position=F('position'),
                     transformations=F('transformations'),
                     tags=F('tags'),
                 ),
@@ -1794,8 +1877,9 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
             .values('obj')
         )
         dataset_bindings = (
-            DatasetPort.objects
-            .filter(node=OuterRef('pk'))
+            NodeInputPortBinding.objects
+            .filter(node=OuterRef('pk'), dataset__isnull=False)
+            .order_by('port_id', 'position')
             .annotate(
                 obj=JSONObject(
                     id=F('uuid'),
@@ -1804,14 +1888,15 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                         node_id=F('node__identifier'),
                         port_id=F('port_id'),
                     ),
+                    position=F('position'),
                     dataset_uuid=F('dataset__uuid'),
                     metric_uuid=F('metric__uuid'),
                     dataset_is_external_placeholder=F('dataset__is_external_placeholder'),
                     dataset_external_ref=F('dataset__external_ref'),
                     external_dataset_id=F('dataset__identifier'),
                     external_metric_id=F('metric__name'),
-                    transformations=F('spec__transformations'),
-                    tags=F('spec__tags'),
+                    transformations=F('transformations'),
+                    tags=F('tags'),
                 ),
             )
             .values('obj')
@@ -1822,7 +1907,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         )
 
     def for_serialization(self) -> Self:
-        return self.active().with_spec().select_related('layout').annotate_ports()
+        return self.active().with_spec().select_related('indicator_node', 'copy_of', 'layout').annotate_ports()
 
 
 _NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)
@@ -1986,6 +2071,10 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     goal_i18n: str | None
     indicates_nodes: RevMany[NodeConfig]
     layout: RevOne[NodeConfig, NodeLayout]
+    incoming_edges: RevMany[NodeEdge]
+    outgoing_edges: RevMany[NodeEdge]
+    input_bindings: RevMany[NodeInputPortBinding]
+    output_bindings: RevMany[NodeInputPortBinding]
 
     search_fields = [
         index.AutocompleteField('identifier'),
@@ -2249,9 +2338,6 @@ class NodeEdge(EditableInstanceChild):
         blank=True,
     )
 
-    objects: ClassVar[Manager[NodeEdge]] = Manager()
-    _default_manager: ClassVar[Manager[NodeEdge]]
-
     from_node_id: int  # for type checkers
     to_node_id: int
 
@@ -2308,9 +2394,6 @@ class DatasetPort(EditableInstanceChild):
     dataset_id: int
     metric_id: int
 
-    objects: ClassVar[Manager[DatasetPort]] = Manager()
-    _default_manager: ClassVar[Manager[DatasetPort]]
-
     class Meta:
         ordering = ['node', 'dataset_index', 'metric__order']
         verbose_name = _('Dataset port')
@@ -2318,6 +2401,118 @@ class DatasetPort(EditableInstanceChild):
 
     def __str__(self) -> str:
         return f'{self.node_id}:{self.port_id} ← {self.dataset_id}'
+
+
+class NodeInputPortBinding(EditableInstanceChild):
+    """
+    One value delivered to a node input port — edge- or dataset-sourced.
+
+    The unified persisted form of ``NodeEdge`` and ``DatasetPort`` (see
+    docs/architecture/dimension-constraints.md, "One input-binding table").
+    ``position`` orders bindings within one port across both source kinds,
+    which matters because a ``multi`` port may hold both and floating-point
+    addition makes delivery order observable.
+
+    Transitional: writes still target the legacy tables, and
+    ``nodes.input_bindings.sync_input_bindings()`` rebuilds these rows at
+    every write boundary, preserving the legacy row UUIDs as binding
+    identity. Reads go through ``NodeConfigQuerySet.annotate_ports()``.
+    """
+
+    snapshot_model: ClassVar[type[ModelSnapshot]] = InputBindingSnapshot
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig,
+        on_delete=models.CASCADE,
+        related_name='input_bindings',
+    )
+    node: FK[NodeConfig] = models.ForeignKey(
+        NodeConfig,
+        on_delete=models.CASCADE,
+        related_name='input_bindings',
+    )
+    port_id = models.UUIDField[UUID, UUID](
+        help_text='Input port ID on the node (must match a port in node.input_ports)',
+    )
+    position = models.PositiveIntegerField(
+        default=0,
+        help_text='Stable order among values delivered to the input port, shared across source kinds.',
+    )
+
+    # Exactly one source branch is populated.
+    source_node: FK[NodeConfig | None] = models.ForeignKey(
+        NodeConfig,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='output_bindings',
+    )
+    source_port_id = models.UUIDField[UUID | None, UUID | None](
+        null=True,
+        blank=True,
+        help_text='Output port ID on the source node',
+    )
+    dataset: FK[DatasetModel | None] = models.ForeignKey(
+        DatasetModel,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='node_input_bindings',
+    )
+    metric: FK[DatasetMetric | None] = models.ForeignKey(
+        DatasetMetric,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='node_input_bindings',
+    )
+
+    transformations = SchemaField(schema=list[StoredPortTransformOp], default=list, blank=True)
+    tags = ArrayField(
+        models.CharField(max_length=200),
+        default=list,
+        blank=True,
+    )
+
+    # for type checkers
+    node_id: int
+    source_node_id: int | None
+    dataset_id: int | None
+    metric_id: int | None
+
+    class Meta:
+        ordering = ['node', 'port_id', 'position']
+        verbose_name = _('Node input binding')
+        verbose_name_plural = _('Node input bindings')
+        constraints = (
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        source_node__isnull=False,
+                        source_port_id__isnull=False,
+                        dataset__isnull=True,
+                        metric__isnull=True,
+                    )
+                    | Q(
+                        source_node__isnull=True,
+                        source_port_id__isnull=True,
+                        dataset__isnull=False,
+                        metric__isnull=False,
+                    )
+                ),
+                name='node_input_binding_has_one_source',
+            ),
+            models.UniqueConstraint(
+                fields=('node', 'port_id', 'position'),
+                name='node_input_binding_position_is_unique',
+                deferrable=models.Deferrable.DEFERRED,
+            ),
+        )
+
+    def __str__(self) -> str:
+        if self.source_node_id is not None:
+            return f'{self.node_id}:{self.port_id}[{self.position}] ← node {self.source_node_id}'
+        return f'{self.node_id}:{self.port_id}[{self.position}] ← dataset {self.dataset_id}'
 
 
 class DatasetMaterialization(models.Model):
@@ -2331,11 +2526,10 @@ class DatasetMaterialization(models.Model):
     content = models.JSONField()
     content_hash = models.CharField(max_length=64)
     generation = models.PositiveBigIntegerField(default=1)
+    shape_profiles = models.JSONField(null=True)
     forecast_from = models.IntegerField(null=True, blank=True)
     source_modified_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)
-
-    objects: ClassVar[Manager[DatasetMaterialization]] = Manager()
 
     class Meta:
         ordering = ['dataset_id']
@@ -2372,8 +2566,7 @@ class InstanceRevisionDatasetPin(models.Model):
     dataset_uuid = models.UUIDField()
     identifier = models.CharField(max_length=100, null=True, blank=True)
     forecast_from = models.IntegerField(null=True, blank=True)
-
-    objects: ClassVar[Manager[InstanceRevisionDatasetPin]] = Manager()
+    shape_profiles = models.JSONField(null=True)
 
     class Meta:
         ordering = ['instance_revision_id', 'dataset_id']
@@ -2436,6 +2629,10 @@ class InstanceChangeOperation(UUIDIdentifiedModel):
         related_name='+',
     )
     user_id: int | None
+    # In-memory only: model classes recorded through ``record_change`` during
+    # this operation, so the write-boundary hook knows whether the
+    # input-binding mirror may be affected.
+    _touched_models: set[type[models.Model]]
     action = models.CharField(
         max_length=100,
         help_text="Top-level action that triggered the operation, e.g. 'node.delete'.",
@@ -2454,8 +2651,6 @@ class InstanceChangeOperation(UUIDIdentifiedModel):
         related_name='supersedes',
         help_text='Set when this operation has been undone by another operation.',
     )
-
-    objects: ClassVar[Manager[InstanceChangeOperation]] = Manager()
 
     class Meta:
         ordering = ['-created_at']
@@ -2509,8 +2704,6 @@ class InstanceModelLogEntry(UUIDIdentifiedModel):
     )
     data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    objects: ClassVar[Manager[InstanceModelLogEntry]] = Manager()
 
     class Meta:
         ordering = ['-id']

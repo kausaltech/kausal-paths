@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a8e9584d8a313025877793f4ceabac8fcf865ace
+  commit: a23b10a999f93fc76553c8d8f518d68bce1f3c3c
   dvc_remote: kausal-s3
 name_de: Schwerin Klima-Monitor-BISKO
 name_en: Schwerin Climate Monitor BISKO
@@ -70,14 +70,29 @@ params:
   value: true
   is_visible: true
   is_customizable: true
-- id: use_local_values # FIXME Make connection to district heating emission factors dataset.
-  label_en: Use local rather than national district heating emission factors 
-    (BISKO)
-  label_de: Verwenden Sie lokale statt nationale Fernwärmeemissionsfaktoren 
-    (BISKO).
-  value: true
+# Separate from use_mileage, which chooses between the mileage route and the city's own
+# energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
+# or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
+# regularly updated traffic data, so this is a real alternative rather than a workaround.
+- id: use_own_mileage
+  label_en: Use the city's own mileage data rather than the BISKO municipality
+    defaults
+  label_de: Eigene Fahrleistungsdaten der Kommune anstelle der gemeindefeinen
+    BISKO-Default-Werte verwenden
+  value: false
   is_visible: true
   is_customizable: true
+# Subtracting Schwerin's facility consumption keeps GHD positive in every year but one (district
+# heating −16.4 GWh, heating electricity −0.8 GWh in a single year), which reads as a one-year
+# data problem rather than as evidence that the delivery already excludes the facilities.
+- id: municipal_facilities_included_in_commerce
+  label_en: Is the consumption of municipal facilities included in the commerce,
+    trade and services sector?
+  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
+    GHD/Sonstiges enthalten?
+  value: true
+  is_visible: true
+  is_customizable: false
 
 
 #//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,7 +104,10 @@ result_excels:
   node_ids:
   - weather_correction
   - final_energy_use
+  - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
+  - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
   - final_energy_use_data_quality
+  - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type
   # - municipal_fleet_energy
   - historical_emissions
@@ -97,15 +115,9 @@ result_excels:
   - electricity_production_emission_factors
   - emission_factors_without_fuel_data
   - emission_factors_for_district_heating_by_generic_fuel
+  - transport_emission_factors      # the certifier could not find these listed
   - vehicle_kilometers_ifeu
   - other_transport_energy
-
-action_groups:
-
-- id: combined_heat_and_power
-  name_en: Combined heat and power
-  name_de: Kombination aus Wärme und Strom
-  color: '#007C78'
 
 pages:
 - id: home

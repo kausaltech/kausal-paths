@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a8e9584d8a313025877793f4ceabac8fcf865ace
+  commit: a23b10a999f93fc76553c8d8f518d68bce1f3c3c
   dvc_remote: kausal-s3
 name_de: Augsburg CO₂-Zukunfts-Rechner
 name_en: Augsburg CO₂-Future Calculator
@@ -98,14 +98,29 @@ params:
   value: true
   is_visible: true
   is_customizable: true
-- id: use_local_values # FIXME Make connection to district heating emission factors dataset.
-  label_en: Use local rather than national district heating emission factors 
-    (BISKO)
-  label_de: Verwenden Sie lokale statt nationale Fernwärmeemissionsfaktoren 
-    (BISKO).
-  value: true
+# Separate from use_mileage, which chooses between the mileage route and the city's own
+# energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
+# or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
+# regularly updated traffic data, so this is a real alternative rather than a workaround.
+- id: use_own_mileage
+  label_en: Use the city's own mileage data rather than the BISKO municipality
+    defaults
+  label_de: Eigene Fahrleistungsdaten der Kommune anstelle der gemeindefeinen
+    BISKO-Default-Werte verwenden
+  value: false
   is_visible: true
   is_customizable: true
+# Augsburg's municipal-facility column is zero throughout, so this has no effect on the balance
+# today. Left at the BISKO default so a later delivery carrying real facility data is treated
+# correctly without a config change.
+- id: municipal_facilities_included_in_commerce
+  label_en: Is the consumption of municipal facilities included in the commerce,
+    trade and services sector?
+  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
+    GHD/Sonstiges enthalten?
+  value: true
+  is_visible: true
+  is_customizable: false
 
 
 #//////  Dimensions  ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -438,7 +453,11 @@ dimensions:
   - id: electricity
     label_en: Electricity
     label_de: Strom
-    aliases: [strom]
+    # 'Fahrstrom' used to map to a separate driving_electricity category, which meant the KSP
+    # transport branch lost its electricity in the multiply against the BISKO fuel factors
+    # (those label it 'Strom'). BISKO applies the Bundesstrommix to all electricity, so one
+    # carrier is correct and the Fahrstrom labels resolve here.
+    aliases: [strom, fahrstrom, strom_fahrstrom, St]
     color: *darkblue
     order: 46
   - id: heating_electricity
@@ -447,12 +466,6 @@ dimensions:
     aliases: [heizstrom]
     color: *g_darkblue2
     order: 30
-  - id: driving_electricity
-    label_en: Driving electricity
-    label_de: Fahrstrom
-    aliases: [fahrstrom, strom_fahrstrom, St]
-    color: *g_darkblue2
-    order: 19
   # --- Electricity generation (order 40-42): amber / blue-teal ---
   - id: photovoltaic
     label_en: Photovoltaic
@@ -583,15 +596,13 @@ dimensions:
     label_en: Trains
     label_de: Züge
     color: '#949acb'
-  - id: rail_vehicles
-    label_en: Tram and metro
-    label_de: Schienenfahrzeuge
-    aliases: [SSU, 'Stadt- , Straßen- und U-Bahn', VL_SSU]
-    color: '#9ca2cf'
+  # BISKO's 'Straßen-, Stadt- und U-Bahnen' (SSU in the mileage sheet, Tram in the
+  # consumption factor sheet) is one mode; it used to resolve to two categories, so the
+  # mileage and the factors never met and tram/metro dropped out of road transport.
   - id: tram
-    label_en: Tram
-    label_de: Straßenbahn
-    aliases: [Tram]
+    label_en: Tram and metro
+    label_de: Straßen-, Stadt- und U-Bahn
+    aliases: [Tram, SSU, 'Stadt- , Straßen- und U-Bahn', VL_SSU]
     color: '#a5aad3'
   - id: local_trains
     label_en: Local trains
@@ -637,7 +648,10 @@ result_excels:
   node_ids:
   - weather_correction
   - final_energy_use
+  - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
+  - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
   - final_energy_use_data_quality
+  - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type
   # - municipal_fleet_energy
   - historical_emissions
@@ -645,16 +659,9 @@ result_excels:
   - electricity_production_emission_factors
   - emission_factors_without_fuel_data
   - emission_factors_for_district_heating_by_generic_fuel
+  - transport_emission_factors      # the certifier could not find these listed
   - vehicle_kilometers_ifeu
   - other_transport_energy
-
-action_groups:
-
-- id: combined_heat_and_power
-  name_en: Combined heat and power
-  name_de: Kombination aus Wärme und Strom
-  color: '#007C78'
-
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 # copied from bisko --> model.yaml  for changing colors

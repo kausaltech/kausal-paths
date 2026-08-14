@@ -273,6 +273,10 @@ def ensure_template_dataset_ports(source: InstanceConfig, target: InstanceConfig
         print(f'Template dataset ports already copied: {target}')
         return
     DatasetPort.objects.bulk_create(missing_ports)
+
+    from nodes.input_bindings import sync_input_bindings
+
+    sync_input_bindings(target)
     print(f'Copied {len(missing_ports)} dataset port(s) from {source.identifier} to {target.identifier}')
 
 

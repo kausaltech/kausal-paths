@@ -333,59 +333,93 @@ unknown and an empty set is an exact scalar. Consumer requirements remain a
 separate lower-bound set. Neither fact is written back into the authored port.
 
 Port UUIDs are durable instance-local identity and are what bindings refer to.
-Port identifiers are the structural names used by node-class rules and
-formulas. A class-declared port therefore needs an identifier even though it
-remains optional during the migration of anonymous YAML-derived ports. An
-anonymous port can still be executed, but it cannot participate in a
-class-level signature until it is given a structural name.
+A port's link to its class semantics is the persisted `role` field
+(`InputPortDef.role` / `OutputPortDef.role`), matching a class-level
+`InputPortDeclaration` / `OutputPortDeclaration`. Port identifiers remain
+human/formula names and are freely renameable without detaching the port from
+its role. The declarations distinguish two multiplicities that must not be
+conflated: a **multi** port (one port, many bindings) is a *homogeneous*
+aggregate — every binding shape-equal, summed — while a **repeatable** role
+(many port instances, e.g. each factor of a product) is *heterogeneous*, each
+instance carrying its own unit, quantity and dimension expectations. Products
+therefore only ever happen across distinct ports; bindings on one port are
+always shape-equal.
+
+An anonymous legacy port can still be executed, but it cannot participate in
+a class-level rule until it has a role. During migration the node class
+itself classifies such ports — `Node.infer_legacy_port_roles(meta,
+candidates)`, implemented by `AdditiveNode` and `MultiplicativeNode` from
+binding tags and unit compatibility, mirroring the runtime's current
+behavior. The framework side (`NodeMeta`) computes the candidates (authored
+roles and declaration-identifier matches are filtered out, so the heuristic
+can never override them), validates that inferred roles exist in the class
+declarations, and formats uniform diagnostics. The classification is derived
+state, recomputed per hydrated graph, never serialized. Implementing the
+hook for a new node class is always wrong — new classes declare roles at
+port creation — and the whole mechanism dies once persisted ports carry
+explicit roles.
 
 
 ### Node shape rules
 
+*Implemented in `nodes/constraints/` (instance-graph plan step 6, 2026-08-11).*
+
 The four signature facets are sufficient for a one-input/one-output
 transformation, but they do not say how several ports relate. Additive and
 multiplicative nodes need relations between named ports. Represent the common
-algebras explicitly rather than storing a Python callback name in `NodeSpec`:
+algebras explicitly rather than storing a Python callback name in `NodeSpec`.
+Rules are compiled per node — `Node.shape_rules(meta)` resolves role
+selectors against one node's ports — so the compiled rules contain UUIDs
+only:
 
 ```python
-class EqualShapeRule(BaseModel):
-    kind: Literal['equal'] = 'equal'
-    inputs: list[NodePortIdentifier]
-    output: NodePortIdentifier
+class SameShapeRule(BaseModel):
+    kind: Literal['same'] = 'same'
+    inputs: tuple[UUID, ...]
+    output: UUID
     # Dimensions are equal; units are convertible; quantities are equal.
 
 
 class ProductShapeRule(BaseModel):
     kind: Literal['product'] = 'product'
-    inputs: list[NodePortIdentifier]
-    output: NodePortIdentifier
+    inputs: tuple[UUID, ...]
+    output: UUID
     # Output dimensions are the union, units the product, and quantity is
     # obtained from the quantity algebra when one is registered.
 
 
-class DimensionSignatureRule(BaseModel):
-    kind: Literal['dimension_signature'] = 'dimension_signature'
-    input: NodePortIdentifier
-    output: NodePortIdentifier
-    requires: UniqueList[DimensionRef] = Field(default_factory=list)
-    consumes: UniqueList[DimensionRef] = Field(default_factory=list)
-    produces: UniqueList[DimensionRef] = Field(default_factory=list)
+class DimensionTransformRule(BaseModel):
+    kind: Literal['dimension_transform'] = 'dimension_transform'
+    input: UUID
+    output: UUID
+    requires: frozenset[UUID] = frozenset()
+    consumes: frozenset[UUID] = frozenset()
+    produces: frozenset[UUID] = frozenset()
     transparent: bool = True
 
 
-type PortShapeRule = EqualShapeRule | ProductShapeRule | DimensionSignatureRule
+type PortShapeRule = SameShapeRule | ProductShapeRule | DimensionTransformRule
 ```
 
-The node class exposes a list of these rules. A pipeline compiles its steps to
-the same rule list. `NodeSpec` stores the selected node type or authored
+The node class exposes a list of these rules. A pipeline compiles its
+operations to the same rule list, chaining through deterministic intermediate
+value UUIDs (`nodes/constraints/pipeline_compile.py`); several rules may
+constrain one output port (that is how "the additive aggregate conforms to
+the product result" is expressed), while an intermediate is defined by
+exactly one rule. `NodeSpec` stores the selected node type or authored
 pipeline, not a copied result of that compilation. This prevents class
 semantics and stored signature JSON from drifting apart.
 
 The three rules cover the initial implementation:
 
-- additive nodes use `equal`;
+- additive nodes use `same`;
 - multiplicative nodes use `product`;
-- GWP, reducers and disaggregation use `dimension_signature`.
+- GWP, reducers and disaggregation use `dimension_transform`. No production
+  class declares one yet — the existing co2e conversions are conditional
+  helpers inside `compute()`, and a rule must not lie about conditionality —
+  so the union member is validated and tested, waiting for the first class
+  with a declared signature. Real-world consumes/produces coverage comes from
+  flatten binding transformations in the solver.
 
 Nodes with genuinely different algebra may implement the same constraint-rule
 protocol in Python. That escape hatch should return constraints and derived
@@ -394,8 +428,14 @@ add another declarative union member based on the repeated algebra rather than
 persisting arbitrary callback names.
 
 `consumes ⊆ requires` and `requires ∩ produces = ∅` are construction-time
-invariants of `DimensionSignatureRule`. A non-transparent rule also places an
+invariants of `DimensionTransformRule`. A non-transparent rule also places an
 upper bound on its output: dimensions not required or produced do not pass.
+
+Compilation keeps two failure modes apart: a structurally invalid rule (wrong
+port direction, unknown value or dimension, intermediate cycle) raises
+`ShapeRuleError` naming the node class — it is a class bug — while a node
+whose legacy spec lacks ports for a required role compiles to no rules and a
+`missing_role_port` diagnostic. Incompleteness never blocks anything.
 
 
 ### One input-binding table
@@ -535,7 +575,11 @@ resolves the dataset and metric strings to its FKs; unlike graph-internal node
 and port references, these are intentionally natural keys at the portable
 snapshot boundary.
 
-A staged migration is safer than replacing both tables at once:
+A staged migration is safer than replacing both tables at once (stages 1–2
+landed 2026-08-12: the table exists as a derived mirror, kept fresh at the
+write boundaries by `nodes/input_bindings.py:sync_input_bindings()`, and
+`annotate_ports()` reads it; the legacy tables stay authoritative until
+stage 4):
 
 1. Create `NodeInputPortBinding` and dual-read it behind the existing
    `PortBindingDef` projection.

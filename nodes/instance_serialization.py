@@ -25,7 +25,9 @@ from uuid import UUID
 
 from django.db import transaction
 from django.db.models import F
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from markdown_it import MarkdownIt
 
 from kausal_common.i18n.pydantic import (
     I18nBaseModel,
@@ -42,11 +44,11 @@ from nodes.defs.graph import (
 )
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
-from nodes.defs.transform_def import EdgeTransformOp
+from nodes.defs.transform_def import EdgeTransformOp, PortTransformOp
 from nodes.page_snapshot import PageSnapshot
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
 
     from django.contrib.contenttypes.models import ContentType
     from django.db.models import Model, QuerySet
@@ -58,7 +60,8 @@ if TYPE_CHECKING:
     )
 
     from frameworks.models import FrameworkConfig
-    from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge, NodeLayout
+    from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge, NodeInputPortBinding, NodeLayout
+    from nodes.node import Node
 
 
 # Current schema version for ``InstanceSnapshot`` and ``InstanceExport``.
@@ -74,6 +77,8 @@ if TYPE_CHECKING:
 #   v7: published DB datasets have a normalized immutable revision manifest.
 #   v8: structural dimension and dataset catalogs carry canonical UUIDs.
 SNAPSHOT_SCHEMA_VERSION = 8
+
+_MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
 
 # ---------------------------------------------------------------------------
@@ -307,6 +312,7 @@ class NodeSnapshot(ModelSnapshot):
     name: TranslatedString | None = None
     short_name: TranslatedString | None = None
     short_description: TranslatedString | None = None
+    """Translated Wagtail database HTML, normalized from authored Markdown at the snapshot boundary."""
     description: TranslatedString | None = None
     goal: TranslatedString | None = None
     color: str = ''
@@ -320,6 +326,17 @@ class NodeSnapshot(ModelSnapshot):
     published serving doesn't lose (or leak drafts of) body content."""
     spec: NodeSpec | None = None
     layout: NodeLayoutSnapshot | None = None
+
+    @field_validator('short_description')
+    @classmethod
+    def render_short_description(cls, value: TranslatedString | None) -> TranslatedString | None:
+        """Keep every snapshot producer on the RichTextField-compatible HTML contract."""
+        if value is None:
+            return None
+        return TranslatedString(
+            default_language=value.default_language,
+            **{language: _MARKDOWN.render(text) for language, text in value.i18n.items()},
+        )
 
     @classmethod
     def from_model(cls, obj: NodeConfig, primary_language: str | None = None) -> Self:
@@ -348,6 +365,75 @@ class NodeSnapshot(ModelSnapshot):
             spec=obj.spec,
             layout=NodeLayoutSnapshot.from_model(layout) if layout is not None else None,
         )
+
+    @classmethod
+    def from_runtime_node(cls, obj: Node, uuid: UUID, primary_language: str) -> Self:
+        """Capture the YAML/runtime-owned metadata before applying ORM overrides."""
+
+        def translated(value: str | TranslatedString | None) -> TranslatedString | None:
+            if value is None or isinstance(value, TranslatedString):
+                return value
+            return TranslatedString(value, default_language=primary_language)
+
+        return cls(
+            uuid=uuid,
+            identifier=obj.id,
+            name=translated(obj.name),
+            short_name=translated(obj.short_name),
+            short_description=translated(obj.description),
+            color=obj.color or '',
+            order=obj.order,
+            is_visible=obj.is_visible,
+            spec=obj._spec,
+        )
+
+
+def _merge_translated_metadata(
+    source: TranslatedString | None,
+    stored: TranslatedString | None,
+) -> TranslatedString | None:
+    """Merge translations with non-empty ORM values taking precedence."""
+    if stored is None:
+        return source
+    if source is None:
+        return stored
+    translations = dict(source.i18n)
+    translations.update(stored.i18n)
+    return TranslatedString(
+        default_language=stored.default_language or source.default_language,
+        **translations,
+    )
+
+
+def reconcile_node_snapshot_metadata(
+    source: NodeSnapshot,
+    node_config: NodeConfig,
+    primary_language: str,
+) -> NodeSnapshot:
+    """
+    Overlay ORM-owned metadata on a YAML/runtime node snapshot.
+
+    Empty optional ORM values retain the YAML fallback used by the legacy
+    runtime. Boolean visibility is never treated as missing, so an authored
+    ``False`` survives the transition to DB-backed snapshots.
+    """
+    stored = NodeSnapshot.from_model(node_config, primary_language=primary_language)
+    return source.model_copy(
+        update={
+            'name': _merge_translated_metadata(source.name, stored.name),
+            'short_name': _merge_translated_metadata(source.short_name, stored.short_name),
+            'short_description': _merge_translated_metadata(source.short_description, stored.short_description),
+            'description': _merge_translated_metadata(source.description, stored.description),
+            'goal': _merge_translated_metadata(source.goal, stored.goal),
+            'color': stored.color or source.color,
+            'order': stored.order if stored.order is not None else source.order,
+            'is_visible': stored.is_visible,
+            'indicator_node': stored.indicator_node,
+            'copy_of': stored.copy_of,
+            'body': stored.body,
+            'layout': stored.layout,
+        },
+    )
 
 
 def _upgrade_node_metadata_v4(nodes: list[Any]) -> None:
@@ -455,6 +541,108 @@ class DatasetPortSnapshot(ModelSnapshot):
         )
 
 
+class NodePortSource(BaseModel):
+    """An input-binding source: another node's output port."""
+
+    kind: Literal['node'] = 'node'
+    node_id: UUID
+    port_id: UUID
+
+
+class DatasetMetricSource(BaseModel):
+    """
+    An input-binding source: one metric of a dataset.
+
+    Natural references keep portable exports restore-stable, matching the
+    dataset snapshot boundary (``DatasetPortSnapshot.dataset`` / ``metric``).
+    """
+
+    kind: Literal['dataset'] = 'dataset'
+    dataset: str
+    metric: str
+
+
+type InputBindingSource = NodePortSource | DatasetMetricSource
+
+
+class InputBindingSnapshot(ModelSnapshot):
+    """
+    Snapshot form of one ``NodeInputPortBinding`` row.
+
+    Not yet part of ``InstanceSnapshot`` — the snapshot schema still carries
+    the legacy ``edges`` + ``dataset_ports`` arrays. This exists as the
+    row-level ``snapshot_model`` (change history, revisions) until the
+    unified-binding snapshot upgrade lands.
+    """
+
+    uuid: UUID | None = None
+    node_id: UUID
+    port_id: UUID
+    position: int = 0
+    source: InputBindingSource = Field(discriminator='kind')
+    transformations: list[PortTransformOp] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+
+    @classmethod
+    def from_model(cls, obj: NodeInputPortBinding) -> Self:
+        source: NodePortSource | DatasetMetricSource
+        source_node = obj.source_node
+        if source_node is not None:
+            assert obj.source_port_id is not None
+            source = NodePortSource(node_id=source_node.uuid, port_id=obj.source_port_id)
+        else:
+            assert obj.dataset is not None
+            assert obj.metric is not None
+            source = DatasetMetricSource(
+                dataset=obj.dataset.identifier or str(obj.dataset.uuid),
+                metric=obj.metric.name or str(obj.metric.uuid),
+            )
+        return cls(
+            uuid=obj.uuid,
+            node_id=obj.node.uuid,
+            port_id=obj.port_id,
+            position=obj.position,
+            source=source,
+            transformations=list(obj.transformations or []),
+            tags=list(obj.tags or []),
+        )
+
+
+def ordered_binding_snapshots(
+    edges: Sequence[EdgeSnapshot],
+    dataset_ports: Sequence[DatasetPortSnapshot],
+) -> list[tuple[EdgeSnapshot | DatasetPortSnapshot, int]]:
+    """
+    Interleave a snapshot's two legacy binding arrays in canonical delivery order.
+
+    This is the single ordering authority for per-port ``position`` values:
+    ``build_instance_graph()`` and the ``NodeInputPortBinding`` mirror must
+    assign identical positions, because floating-point addition makes the
+    order values are delivered to a port observable in computation results.
+
+    On a shared port, edges come first in their snapshot order (for DB
+    snapshots: the ``NodeEdge`` queryset order), then dataset ports sorted by
+    ``(node, dataset_index, port, metric)``.
+    """
+    from collections import defaultdict
+
+    positions: defaultdict[tuple[UUID, UUID], int] = defaultdict(int)
+    result: list[tuple[EdgeSnapshot | DatasetPortSnapshot, int]] = []
+    for edge in edges:
+        key = (edge.to_node, edge.to_port)
+        result.append((edge, positions[key]))
+        positions[key] += 1
+    sorted_ports = sorted(
+        dataset_ports,
+        key=lambda item: (item.node, item.dataset_index, str(item.port_id), item.metric),
+    )
+    for port in sorted_ports:
+        key = (port.node, port.port_id)
+        result.append((port, positions[key]))
+        positions[key] += 1
+    return result
+
+
 class DatasetRevisionPinSnapshot(BaseModel):
     dataset_uuid: UUID
     identifier: str | None = None
@@ -506,6 +694,31 @@ class InstanceSnapshot(BaseModel):
 
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
         return cls.model_validate(data)
+
+
+def reconcile_snapshot_node_metadata(
+    snapshot: InstanceSnapshot,
+    node_configs: Iterable[NodeConfig],
+) -> InstanceSnapshot:
+    """Return the desired snapshot after applying authoritative ORM metadata."""
+    by_uuid = {node.uuid: node for node in node_configs}
+    by_identifier = {node.identifier: node for node in node_configs}
+    nodes: list[NodeSnapshot] = []
+    for source in snapshot.nodes:
+        node_config = by_uuid.get(source.uuid)
+        if node_config is None and source.identifier is not None:
+            node_config = by_identifier.get(source.identifier)
+        if node_config is None:
+            nodes.append(source)
+            continue
+        nodes.append(
+            reconcile_node_snapshot_metadata(
+                source,
+                node_config,
+                primary_language=snapshot.metadata.primary_language,
+            )
+        )
+    return snapshot.model_copy(update={'nodes': nodes})
 
 
 class InstanceExport(BaseModel):
@@ -628,8 +841,6 @@ def build_instance_snapshot(
     Structural references are pinned by UUID; dataset bodies are not included.
     Use ``export_instance`` when the bodies are also needed.
     """
-    from nodes.models import NodeEdge
-
     if ic.spec is None:
         msg = f'Instance {ic.identifier} has no spec — run sync_instance_to_db first'
         raise ValueError(msg)
@@ -639,13 +850,9 @@ def build_instance_snapshot(
     )
     nodes = [NodeSnapshot.from_model(nc, primary_language=ic.primary_language) for nc in node_qs]
 
-    edge_qs = NodeEdge.objects.filter(instance=ic).annotate(
-        _from_node_uuid=F('from_node__uuid'),
-        _to_node_uuid=F('to_node__uuid'),
-    )
-    edges = [EdgeSnapshot.from_model(e) for e in edge_qs]
+    edges = [EdgeSnapshot.from_model(e) for e in edge_qs_for(ic)]
 
-    port_qs = _dataset_port_qs_for(ic)
+    port_qs = dataset_port_qs_for(ic)
     dataset_ports: list[DatasetPortSnapshot] = []
     for port in port_qs:
         snapshot = DatasetPortSnapshot.from_model(port)
@@ -712,6 +919,39 @@ def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
     return dimensions
 
 
+def dataset_meta_from_model(
+    dataset: DatasetModel,
+    *,
+    primary_language: str,
+    pinned_revision_id: int | None = None,
+) -> DatasetMeta:
+    """Build the graph catalog entry for one dataset, exactly as snapshots record it."""
+    schema = dataset.schema
+    if schema is None:
+        raise ValueError(f'Dataset {dataset.uuid} has no schema')
+    metrics = tuple(
+        DatasetMetricMeta(
+            id=metric.uuid,
+            identifier=metric.name,
+            label=_ts_from_modeltrans(metric, 'label', primary_language),
+            unit=metric.unit,
+            order=metric.order,
+        )
+        for metric in schema.metrics.all()
+    )
+    declared_dimension_ids = tuple(schema_dimension.dimension.uuid for schema_dimension in schema.dimensions.all())
+    return DatasetMeta(
+        id=dataset.uuid,
+        identifier=dataset.identifier,
+        schema_id=schema.uuid,
+        metrics=metrics,
+        declared_dimension_ids=declared_dimension_ids,
+        is_external_placeholder=dataset.is_external_placeholder,
+        external_ref=dataset.external_ref,
+        revision_id=pinned_revision_id if pinned_revision_id is not None else dataset.latest_revision_id,
+    )
+
+
 def _dataset_catalog_for(
     ic: InstanceConfig,
     *,
@@ -729,37 +969,45 @@ def _dataset_catalog_for(
     )
     result: list[DatasetMeta] = []
     for dataset in datasets:
-        schema = dataset.schema
-        if schema is None:
-            raise ValueError(f'Dataset {dataset.uuid} has no schema')
-        metrics = tuple(
-            DatasetMetricMeta(
-                id=metric.uuid,
-                identifier=metric.name,
-                label=_ts_from_modeltrans(metric, 'label', ic.primary_language),
-                unit=metric.unit,
-                order=metric.order,
-            )
-            for metric in schema.metrics.all()
-        )
-        declared_dimension_ids = tuple(schema_dimension.dimension.uuid for schema_dimension in schema.dimensions.all())
         pin = dataset_revision_pins.get(dataset.pk) if dataset_revision_pins is not None else None
         result.append(
-            DatasetMeta(
-                id=dataset.uuid,
-                identifier=dataset.identifier,
-                schema_id=schema.uuid,
-                metrics=metrics,
-                declared_dimension_ids=declared_dimension_ids,
-                is_external_placeholder=dataset.is_external_placeholder,
-                external_ref=dataset.external_ref,
-                revision_id=pin.revision_id if pin is not None else dataset.latest_revision_id,
+            dataset_meta_from_model(
+                dataset,
+                primary_language=ic.primary_language,
+                pinned_revision_id=pin.revision_id if pin is not None else None,
             )
         )
     return result
 
 
-def _dataset_port_qs_for(ic: InstanceConfig) -> QuerySet[DatasetPort]:
+def edge_qs_for(ic: InstanceConfig) -> QuerySet[NodeEdge]:
+    """
+    Edges in canonical snapshot order: creation (pk) order.
+
+    Creation order is the authored order — the parser mirrors the YAML
+    runtime's edge-creation sequence and the sync writes rows in that
+    sequence, so pk order is what the YAML runtime observes; editor-created
+    edges append at the end. ``NodeEdge.Meta.ordering`` (source-node pk)
+    must not be used here: it reorders inputs by an accident of node
+    creation and made DB-sourced sector breakdowns and additive summation
+    order diverge from the same instance served from YAML. Position
+    assignment (``ordered_binding_snapshots``) and the
+    ``NodeInputPortBinding`` mirror both depend on this order.
+    """
+    from nodes.models import NodeEdge
+
+    return (
+        NodeEdge.objects
+        .filter(instance=ic)
+        .annotate(
+            _from_node_uuid=F('from_node__uuid'),
+            _to_node_uuid=F('to_node__uuid'),
+        )
+        .order_by('pk')
+    )
+
+
+def dataset_port_qs_for(ic: InstanceConfig) -> QuerySet[DatasetPort]:
     from nodes.models import DatasetPort
 
     return (
@@ -1410,8 +1658,11 @@ def import_instance_edges_and_ports(
     ``config_source='yaml'`` (the runtime loads the YAML) but are read by the
     Trailhead editor, so a copy should mirror whatever the source has.
     """
+    from nodes.input_bindings import sync_input_bindings
+
     _import_edges(ic, export, nodes_by_uuid)
     _import_dataset_ports(ic, export, nodes_by_uuid, datasets_by_id)
+    sync_input_bindings(ic)
 
 
 def _apply_translated(
@@ -1631,3 +1882,8 @@ def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config
 
     # Dataset ports
     _import_dataset_ports(ic, export, nodes_by_uuid, datasets_by_id)
+
+    # Refresh the unified input-binding mirror from the imported rows.
+    from nodes.input_bindings import sync_input_bindings
+
+    sync_input_bindings(ic)

@@ -18,7 +18,7 @@ from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_t
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths import gql
-from paths.graphql_helpers import get_instance_context, pass_context
+from paths.graphql_helpers import get_instance_context, graphql_error_nodes, pass_context
 from paths.graphql_types import UnitType
 
 from nodes import visualizations as viz
@@ -36,6 +36,7 @@ from nodes.quantities import get_registry as get_quantity_registry
 from nodes.scenario import Scenario, ScenarioKind
 from params import Parameter
 
+from .constraints import ConstraintConflictType, conflicts_for_node
 from .graph import ActionGroupType, NodeEdgeType
 from .layout import NodeLayoutType
 from .metric import (
@@ -45,7 +46,7 @@ from .metric import (
     NodeGoal,
     VisualizationEntry,
 )
-from .spec import InputPortType, OutputPortType
+from .spec import InputPortDeclarationType, InputPortType, OutputPortType
 
 if TYPE_CHECKING:
     from nodes.context import Context
@@ -156,6 +157,7 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
             port_obj = InputPortType.from_def(
                 port,
                 bindings=edges,
+                node_uuid=nc.uuid,
             )
             port_objs.append(port_obj)
         return port_objs
@@ -175,9 +177,51 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
                     if binding.from_ref.port_id == port.id and binding.from_ref.node_id == nc.identifier
                 ],
                 node=root._node,
+                node_uuid=nc.uuid,
             )
             for port in spec.output_ports
         ]
+
+    @sb.field(
+        graphql_type=list[ConstraintConflictType],
+        description='Structural constraint conflicts involving this node, its ports, or its bindings.',
+    )
+    @staticmethod
+    def constraint_conflicts(root: 'NodeSpecType', info: gql.Info) -> list[ConstraintConflictType]:
+        nc = _require_nc(root)
+        graph = info.context.require_instance_graph()
+        result = info.context.require_constraint_solve()
+        return conflicts_for_node(graph, result, nc.uuid)
+
+    @sb.field(
+        description=(
+            "The node class's semantic input roles, with the ports currently instantiating each. "
+            'This is the catalog behind add-port affordances: a repeatable role can always take '
+            'another instance, a non-repeatable role at most one.'
+        ),
+    )
+    @staticmethod
+    def input_port_declarations(root: 'NodeSpecType') -> list['InputPortDeclarationType']:
+        from nodes.instance_graph import node_class_for_spec
+
+        spec = root._original_model
+        node_class = node_class_for_spec(spec)
+        return [
+            InputPortDeclarationType.from_declaration(declaration, spec.input_ports)
+            for declaration in node_class.input_port_declarations
+        ]
+
+    @sb.field(
+        description=(
+            'Whether the editor may add free-form input ports on this node '
+            '(instance-authored algebra: formula and pipeline nodes).'
+        ),
+    )
+    @staticmethod
+    def supports_authored_ports(root: 'NodeSpecType') -> bool:
+        from nodes.instance_graph import node_class_for_spec
+
+        return node_class_for_spec(root._original_model).supports_authored_ports
 
 
 @sb.type(name='NodeError')
@@ -299,8 +343,6 @@ def _get_node_uuid_with_fallback(root: 'Node') -> UUID:  # noqa: UP037
 @sb.interface
 class NodeInterface:
     id: sb.ID
-    short_name: str | None
-    order: int | None
     unit: UnitType | None
     quantity: str | None
 
@@ -375,6 +417,23 @@ class NodeInterface:
         if nc is not None and nc.name_i18n:
             return nc.name_i18n
         return str(root.name)
+
+    @sb.field
+    @staticmethod
+    def short_name(root: 'Node') -> str | None:
+        if root.source_snapshot is not None and root.source_snapshot.short_name is not None:
+            return str(root.source_snapshot.short_name)
+        nc = root.db_obj
+        if nc is not None and nc.short_name_i18n:
+            return nc.short_name_i18n
+        return str(root.short_name) if root.short_name is not None else None
+
+    @sb.field
+    @staticmethod
+    def order(root: 'Node') -> int | None:
+        if root.source_snapshot is not None:
+            return root.source_snapshot.order
+        return root.order
 
     @sb.field
     @staticmethod
@@ -502,7 +561,7 @@ class NodeInterface:
             try:
                 to_node = root.context.get_node(until_node)
             except KeyError:
-                raise GraphQLError('Node %s not found' % until_node, info.field_nodes) from None
+                raise GraphQLError('Node %s not found' % until_node, graphql_error_nodes(info)) from None
         else:
             to_node = None
         return root.get_downstream_nodes(max_depth=max_depth, only_outcome=only_outcome, until_node=to_node)
@@ -561,14 +620,14 @@ class NodeInterface:
             try:
                 goal = instance.get_goals(goal_id=goal_id)
             except Exception:
-                raise GraphQLError('Goal not found', info.field_nodes) from None
+                raise GraphQLError('Goal not found', graphql_error_nodes(info)) from None
         else:
             goal = None
 
         target_node: 'Node'
         if target_node_id is not None:
             if target_node_id not in context.nodes:
-                raise GraphQLError('Node %s not found' % target_node_id, info.field_nodes)
+                raise GraphQLError('Node %s not found' % target_node_id, graphql_error_nodes(info))
             source_node = root
             target_node = context.get_node(target_node_id)
         elif upstream_node is not None:
@@ -580,7 +639,7 @@ class NodeInterface:
         else:
             outcome_nodes = context.get_outcome_nodes()
             if not len(outcome_nodes):
-                raise GraphQLError('No default target node available', info.field_nodes)
+                raise GraphQLError('No default target node available', graphql_error_nodes(info))
             source_node = root
             target_node = outcome_nodes[0]
 

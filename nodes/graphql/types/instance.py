@@ -37,6 +37,7 @@ from nodes.units import Unit
 from pages.models import ActionListPage
 from users.models import User
 
+from .constraints import ConstraintConflictType
 from .graph import (
     ActionGroupType,
     DatasetMetricRefType,
@@ -288,6 +289,19 @@ class InstanceEditorFields:
     def edges(root: 'InstanceEditorFields') -> list[NodeEdgeType]:
         edges = root._config.edges.select_related('from_node', 'to_node')
         return [NodeEdgeType.from_node_edge(edge) for edge in edges]
+
+    @sb.field(
+        graphql_type=list[ConstraintConflictType],
+        description=(
+            'All structural constraint conflicts in the selected graph. '
+            'Resolved from instance metadata without hydrating the computation model; '
+            'a draft with conflicts stays inspectable but cannot be published.'
+        ),
+    )
+    @staticmethod
+    def constraint_conflicts(root: 'InstanceEditorFields', info: gql.Info) -> list[ConstraintConflictType]:
+        result = info.context.require_constraint_solve(root._config, source=root._source)
+        return [ConstraintConflictType.from_conflict(conflict) for conflict in result.conflicts]
 
     @sb.field(
         graphql_type=list[Annotated['InstanceChangeOperationType', sb.lazy('nodes.graphql.types.change_history')]],
@@ -624,6 +638,19 @@ class InstanceType:
 
     def instance(self, info: gql.Info) -> Instance:
         return info.context.require_instance(self._config, source=self._source)
+
+    @sb.field(description='Display title for the instance.')
+    def site_title(self) -> str:
+        instance_name = self.name
+        ic = self._config
+        if not ic.has_framework_config():
+            return instance_name
+
+        fw = ic.cache.object_cache.for_framework_id(ic.framework_config.framework_id)
+        assert fw is not None
+        if ic.pk == fw.root_instance_id:
+            return instance_name
+        return f'{fw.name}: {instance_name}'
 
     @sb.field
     def owner(self, info: gql.Info) -> str | None:

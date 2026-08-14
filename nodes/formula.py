@@ -45,6 +45,7 @@ type BinomRightDF = Callable[[Quantity, PDF], PDF]
 
 
 class FormulaNode(Node):
+    supports_authored_ports = True
     explanation = _(
         'This is a Formula Node. It uses a specified formula to calculate the output. '
         "Input nodes tagged 'impute' are not part of the formula; their values overlay the result "

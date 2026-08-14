@@ -1,4 +1,17 @@
 # New version saved 2026-06-09 based on lucia.yaml
+# These legacy versions were archived on 2026-08-14:
+# https://github.com/kausaltech/kausal-paths/commit/098cc909ecf982530a8f2ed32b7e24f32da44e68
+# lucia.yaml
+# nzc-legacy.yaml
+# nzc-lucia.yaml
+# nzc/buildings.yaml
+# nzc/electricity.yaml
+# nzc/freight_transport.yaml
+# nzc/other.yaml
+# nzc/transport_cost.yaml
+# nzc/transport_health_cost.yaml
+# nzc/transport.yaml
+# nzc/waste.yaml
 id: nzc
 default_language: en
 dataset_repo:

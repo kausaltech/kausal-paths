@@ -31,7 +31,7 @@ def _make_node(context, cls=Node, identifier: str = 'node', unit: str = 'kt/a', 
 
 @pytest.mark.django_db
 def test_generic_node_port_roles_have_one_shared_typed_namespace():
-    assert AdditiveNode.input_port_declarations == (AdditiveNode.additive_port,)
+    assert AdditiveNode.input_port_declarations == (AdditiveNode.additive_port, AdditiveNode.impute_port)
     assert AdditiveNode.additive_port.role == 'additive'
     assert AdditiveNode.output_port.role == 'output'
     assert AdditiveNode.output_port.identifier == 'default'
@@ -41,9 +41,13 @@ def test_generic_node_port_roles_have_one_shared_typed_namespace():
         MultiplicativeNode.additive_port,
         MultiplicativeNode.impute_port,
     )
-    assert MultiplicativeNode.factors_port.required is True
-    assert MultiplicativeNode.additive_port.required is False
-    assert MultiplicativeNode.impute_port.required is False
+    assert MultiplicativeNode.factors_port.repeatable is True
+    assert MultiplicativeNode.factors_port.min_count == 1
+    assert MultiplicativeNode.factors_port.effective_default_count == 2
+    assert MultiplicativeNode.additive_port.multi is True
+    assert MultiplicativeNode.additive_port.min_count == 0
+    assert MultiplicativeNode.additive_port.effective_default_count == 1
+    assert MultiplicativeNode.impute_port.effective_default_count == 0
 
 
 @pytest.mark.django_db

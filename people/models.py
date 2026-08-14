@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from people.permissions import PersonGroupPermissionPolicy
 
 
-class PersonQuerySet(MultilingualQuerySet['Person'], PermissionedQuerySet['Person']):
+class PersonQuerySet(MultilingualQuerySet['Person'], PermissionedQuerySet['Person']):  # type: ignore[override]
     def available_for_instance(self, instance: InstanceConfig):
         related = Organization.objects.filter(id=instance.organization_id)
         # TODO: Replace with the following if / when we add `related_organizations` to InstanceConfig

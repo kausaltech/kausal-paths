@@ -5,13 +5,21 @@
 The main tool for investigating DB-backed vs YAML-backed model
 instances. Lives at `tools/debug_instance.py`.
 
+**Invoke it as a module, not as a script** — `python -m tools.debug_instance`,
+never `python tools/debug_instance.py`. The script form puts `tools/` on
+`sys.path` instead of the repo root, so the `kausal_common` / `nodes` imports
+only resolve where the repo happens to be installed editable (which is what
+`mise prepare` gives you locally). On a deployment without that editable
+install it fails at import. The `-m` form keeps the working directory on the
+path and works in both places.
+
 ### Diff a node's config dict between YAML and DB
 
 The most useful operation — shows exactly what the DB serialization
 produces vs what the YAML loader would see:
 
 ```bash
-python tools/debug_instance.py -i espoo --diff-node building_type_index
+python -m tools.debug_instance -i espoo --diff-node building_type_index
 ```
 
 Use this to verify that `instance_from_db.py` serialization produces
@@ -21,17 +29,17 @@ config dicts that the InstanceLoader can consume correctly.
 
 ```bash
 # Switch to YAML (useful when DB spec is stale or broken)
-python tools/debug_instance.py -i budget --source yaml --save
+python -m tools.debug_instance -i budget --source yaml --save
 
 # Switch back to DB
-python tools/debug_instance.py -i budget --source db --save
+python -m tools.debug_instance -i budget --source db --save
 ```
 
 ### Evaluate Python with instance/ctx/node in scope
 
 ```bash
 # List input datasets for all nodes
-python tools/debug_instance.py -i espoo --source db -c "
+python -m tools.debug_instance -i espoo --source db -c "
     for n in ctx.nodes.values():
         if not n.input_dataset_instances:
             continue
@@ -39,7 +47,7 @@ python tools/debug_instance.py -i espoo --source db -c "
 "
 
 # Inspect a specific node's output metrics
-python tools/debug_instance.py -i budget --source yaml -c "
+python -m tools.debug_instance -i budget --source yaml -c "
     node = ctx.get_node('building_renovations')
     for k, m in node.output_metrics.items():
         print(f'key={k!r}, column_id={m.column_id!r}, unit={m.unit}')
@@ -49,8 +57,57 @@ python tools/debug_instance.py -i budget --source yaml -c "
 ### Compute a node from a specific source
 
 ```bash
-python tools/debug_instance.py -i espoo --source db --node net_emissions
+python -m tools.debug_instance -i espoo --source db --node net_emissions
 ```
+
+
+## load_dvc_dataset
+
+Imports a DVC dataset into the DB as a `Dataset` row. Two phases:
+diagnose, then apply.
+
+```bash
+# Phase 1 -- what exists, and what would change? Writes nothing.
+python manage.py load_dvc_dataset espoo espoo/buildings --plan
+
+# Phase 2 -- apply. Existing rows are refreshed in place (same pk and UUID),
+# so DatasetPort / NodeDataset / revision-pin references stay valid.
+python manage.py load_dvc_dataset espoo espoo/buildings --force
+```
+
+The plan reports the row's pk/UUID, the commit its data came from versus the
+one about to be imported, the data-point count on both sides, and which
+metrics are kept, added or dropped.
+
+### Which commit gets imported
+
+Every run prints the repository and commit it is reading, and where that pin
+came from. `--repo-from` chooses:
+
+- `auto` (default) — the instance's declared `config_source`. For a
+  DB-sourced instance that is the DB spec's pin, which lags the YAML until
+  `sync_instance_to_db` runs.
+- `yaml` — the pin in `configs/<instance>.yaml`.
+- `db` — the pin in the stored `InstanceConfig.spec`.
+
+When the two pins disagree the command warns and names the other one. This
+matters because importing from the wrong commit is otherwise invisible: it
+surfaces much later as `No metric <column> in dataset <id>` from
+`sync_instance_to_db`, which reads the YAML regardless of `config_source`.
+
+### Things that will stop a run
+
+- **A dropped metric that dataset ports still bind.** Refused up front, with
+  the port count, rather than leaving a node bound to input that no longer
+  arrives. Update the model binding or keep the column in the data.
+- **`--all` with `use_datasets_from_db`.** Any identifier that already has a
+  DB row loads as a `DBDataset`, so `ctx.get_all_dvc_dataset_ids()` is empty
+  and `--all` has nothing to do. Name the datasets explicitly.
+
+`--recreate` restores the old delete-and-rebuild behaviour. It mints a new
+UUID, which orphans the dataset references held by published instance
+revisions, and it fails outright when anything references the row under
+`PROTECT` — use it only when you want a genuinely fresh row.
 
 
 ## sync_instance_to_db
@@ -216,13 +273,13 @@ Notes:
 2. Re-sync: `python manage.py sync_instance_to_db --all`
 3. Test init: `python manage.py test_instance --state-dir model-outputs/ --dry-run --spec-only`
 4. Test compute: `python manage.py test_instance --state-dir model-outputs/ --dry-run`
-5. Spot-check a node diff: `python tools/debug_instance.py -i espoo --diff-node some_node`
+5. Spot-check a node diff: `python -m tools.debug_instance -i espoo --diff-node some_node`
 
 ### Debugging a DB-sourced instance that fails to load
 
 1. Check the error: `python manage.py test_instance --start-from the_instance --dry-run`
-2. Diff a suspicious node: `python tools/debug_instance.py -i the_instance --diff-node the_node`
-3. Switch to YAML to verify it works: `python tools/debug_instance.py -i the_instance --source yaml --save`
+2. Diff a suspicious node: `python -m tools.debug_instance -i the_instance --diff-node the_node`
+3. Switch to YAML to verify it works: `python -m tools.debug_instance -i the_instance --source yaml --save`
 4. Fix the serialization in `instance_from_db.py`
 5. Re-sync and switch back: `python manage.py sync_instance_to_db the_instance`
 

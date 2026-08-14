@@ -26,13 +26,14 @@ from paths import gql
 from paths.identifiers import identifier_or_none
 
 from nodes.defs import FormulaConfig, SimpleConfig
-from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig
+from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig, TypeConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.models import InstanceConfig, NodeConfig, NodeLayout, NodeLayoutSource
 from nodes.node import Node
 from nodes.units import unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
 
+from .types.constraints import ConstraintViolationsType
 from .types.dimension import DimensionType
 from .types.graph import NodeEdgeType
 from .types.instance import InstanceType
@@ -119,71 +120,159 @@ def _get_input_port(nc: NodeConfig, port_id: UUID) -> InputPortDef | None:
     return None
 
 
-def _resolve_or_create_target_port(
-    info: gql.Info,
-    to_node: NodeConfig,
-    to_port: str | None,
-    source_port: OutputPortDef,
-) -> UUID:
-    """
-    Resolve the target input port, auto-creating one on demand.
+def _node_class_for(nc: NodeConfig) -> type[Node]:
+    from nodes.instance_graph import node_class_for_spec
 
-    If ``to_port`` is null, reuse a matching unbound/multi port or append a
-    new input port that mirrors ``source_port``. The newly-appended port is
-    recorded as a ``node.update`` entry under the active change operation
-    so undo can strip it.
-    """
-    from uuid import uuid4
+    assert nc.spec is not None
+    return node_class_for_spec(nc.spec)
 
-    from nodes.defs.port_def import InputPortDef
+
+def _unique_port_identifier(existing: set[str], base: str) -> str:
+    if base not in existing:
+        return base
+    index = 2
+    while f'{base}{index}' in existing:
+        index += 1
+    return f'{base}{index}'
+
+
+def _default_input_ports(type_config: TypeConfig) -> list[InputPortDef]:
+    """Instantiate every class-declared input role at its default count for a new node."""
+    from nodes.instance_graph import node_class_for_type_config
+
+    node_class = node_class_for_type_config(type_config)
+    ports: list[InputPortDef] = []
+    identifiers: set[str] = set()
+    for declaration in node_class.input_port_declarations:
+        for _ in range(declaration.effective_default_count):
+            identifier = _unique_port_identifier(identifiers, str(declaration.instance_identifier))
+            identifiers.add(identifier)
+            ports.append(
+                InputPortDef(
+                    id=uuid4(),
+                    identifier=identifier,
+                    role=declaration.role,
+                    multi=declaration.multi,
+                ),
+            )
+    return ports
+
+
+def _plan_declared_input_port(to_node: NodeConfig) -> InputPortDef | None:
+    """
+    Instantiate a class-declared input role for a new connection, if one is available.
+
+    Declarations are considered in class order: a ``repeatable`` role can
+    always take another instance, and a missing non-repeatable role can take
+    its first — except roles whose ``default_count`` is zero (``impute``),
+    which exist only for explicit authoring, never for a plain connect.
+    """
+    declarations = _node_class_for(to_node).input_port_declarations
+    if not declarations:
+        return None
+    assert to_node.spec is not None
+    ports = to_node.spec.input_ports
+    identifiers = {str(port.identifier) for port in ports if port.identifier}
+    roles_present = {str(port.role) for port in ports if port.role}
+    for declaration in declarations:
+        if declaration.effective_default_count == 0 and declaration.min_count == 0:
+            continue
+        if not declaration.repeatable and str(declaration.role) in roles_present:
+            continue
+        # The declaration's label is presentation fallback, not authored data:
+        # an instantiated port stores no label until a user gives it one.
+        return InputPortDef(
+            id=uuid4(),
+            identifier=_unique_port_identifier(identifiers, str(declaration.instance_identifier)),
+            role=declaration.role,
+            multi=declaration.multi,
+        )
+    return None
+
+
+def _select_existing_target_port(to_node: NodeConfig, source_port: OutputPortDef) -> UUID | None:
+    """Pick an existing input port with capacity for a new connection, if any fits."""
     from nodes.models import DatasetPort, NodeEdge
-
-    if to_port is not None:
-        port_id = _parse_port_id(info, to_port, field_name='toPort')
-        if _get_input_port(to_node, port_id) is not None:
-            return port_id
-        raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
 
     assert to_node.spec is not None
     input_ports = to_node.spec.input_ports
 
+    def has_capacity(port: InputPortDef) -> bool:
+        if port.multi:
+            return True
+        has_edge = NodeEdge.objects.filter(to_node=to_node, to_port=port.id).exists()
+        has_dataset = DatasetPort.objects.filter(node=to_node, port_id=port.id).exists()
+        return not has_edge and not has_dataset
+
     # Preserve single-port convenience: if the target has exactly one input
-    # port and the quantity/unit aren't obviously incompatible, use it.
-    if len(input_ports) == 1:
+    # port with capacity, use it even when quantity/unit look incompatible.
+    # An occupied sole port falls through to role planning instead, so e.g.
+    # a one-factor multiplicative node can still grow a second factor.
+    if len(input_ports) == 1 and has_capacity(input_ports[0]):
         return input_ports[0].id
 
-    # Try an existing matching port with capacity (multi OR unbound).
+    # Otherwise require a quantity/unit match alongside capacity.
     for port in input_ports:
         if source_port.quantity is not None and port.quantity is not None and port.quantity != source_port.quantity:
             continue
-        if source_port.unit is not None and port.unit is not None and source_port.unit.dimensionality != port.unit.dimensionality:
+        if port.unit is not None and source_port.unit.dimensionality != port.unit.dimensionality:
             continue
-        if port.multi:
+        if has_capacity(port):
             return port.id
-        has_edge = NodeEdge.objects.filter(to_node=to_node, to_port=port.id).exists()
-        has_dataset = DatasetPort.objects.filter(node=to_node, port_id=port.id).exists()
-        if not has_edge and not has_dataset:
-            return port.id
+    return None
 
-    # Auto-create a new input port mirroring the source port. The target
-    # node can now accept this edge alongside its existing bindings.
+
+def _plan_target_port(
+    info: gql.Info,
+    to_node: NodeConfig,
+    to_port: str | None,
+    source_port: OutputPortDef,
+) -> tuple[UUID, InputPortDef | None]:
+    """
+    Resolve the target input port, planning a new one on demand.
+
+    If ``to_port`` is null, reuse a matching unbound/multi port or plan a new
+    input port — from the node class's role declarations when it has any,
+    otherwise mirroring ``source_port``. A planned port is not written here:
+    the caller validates the whole change first and persists the port only
+    when the connection is accepted.
+    """
+    if to_port is not None:
+        port_id = _parse_port_id(info, to_port, field_name='toPort')
+        if _get_input_port(to_node, port_id) is not None:
+            return port_id, None
+        raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
+
+    existing = _select_existing_target_port(to_node, source_port)
+    if existing is not None:
+        return existing, None
+
+    planned = _plan_declared_input_port(to_node)
+    if planned is None:
+        # No declared role available: plan a port mirroring the source port,
+        # so declaration-less classes (formula, pipeline, legacy) keep
+        # accepting connections alongside their existing bindings.
+        planned = InputPortDef(
+            id=uuid4(),
+            label=source_port.label,
+            quantity=source_port.quantity,
+            unit=source_port.unit,
+            multi=False,
+            required_dimensions=list(source_port.dimensions),
+        )
+    return planned.id, planned
+
+
+def _append_input_port(to_node: NodeConfig, port: InputPortDef) -> None:
+    """Persist a planned input port, recorded as a ``node.update`` entry so undo can strip it."""
     from nodes.change_ops import record_change
 
+    assert to_node.spec is not None
     before = to_node.serializable_data()
-    new_port = InputPortDef(
-        id=uuid4(),
-        label=source_port.label,
-        quantity=source_port.quantity,
-        unit=source_port.unit,
-        multi=False,
-        required_dimensions=list(source_port.dimensions),
-        supported_dimensions=list(source_port.dimensions),
-    )
-    to_node.spec.input_ports = [*input_ports, new_port]
+    to_node.spec.input_ports = [*to_node.spec.input_ports, port]
     NodeConfig.objects.filter(pk=to_node.pk).update(spec=to_node.spec)
     to_node.refresh_from_db()
     record_change(to_node, action='node.update', before=before, after=to_node.serializable_data())
-    return new_port.id
 
 
 def _resolve_source_port(info: gql.Info, from_node: NodeConfig, from_port: str) -> UUID:
@@ -213,71 +302,27 @@ def _resolve_edge_transformations(
         raise GraphQLValidationError(info, str(e)) from None
 
 
-def _validate_edge_ports(
-    info: gql.Info,
-    from_node: NodeConfig,
-    from_port: UUID,
-    to_node: NodeConfig,
-    to_port: UUID,
-    *,
-    allow_occupied: bool = False,
-) -> None:
-    from nodes.models import DatasetPort, NodeEdge
+def _check_target_port_capacity(info: gql.Info, to_node: NodeConfig, to_port: UUID) -> None:
+    """
+    Reject a non-``multi`` target port that already holds a binding.
 
-    source_port = _get_output_port(from_node, from_port)
-    if source_port is None:
-        raise GraphQLValidationError(info, f'Output port "{from_port}" does not exist on node "{from_node.identifier}"')
+    Occupancy is structural capacity, not shape: it stays a hard error while
+    every shape/unit/quantity question belongs to the constraint solver.
+    """
+    from nodes.models import DatasetPort, NodeEdge
 
     target_port = _get_input_port(to_node, to_port)
     if target_port is None:
         raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
-
-    if source_port.quantity is not None and target_port.quantity is not None and source_port.quantity != target_port.quantity:
+    if target_port.multi:
+        return
+    has_edge_binding = NodeEdge.objects.filter(to_node=to_node, to_port=to_port).exists()
+    has_dataset_binding = DatasetPort.objects.filter(node=to_node, port_id=to_port).exists()
+    if has_edge_binding or has_dataset_binding:
         raise GraphQLValidationError(
             info,
-            f'Quantity mismatch: output port "{from_node.identifier}.{from_port}" has quantity '
-            + f'"{source_port.quantity}", input port "{to_node.identifier}.{to_port}" expects "{target_port.quantity}"',
+            f'Input port "{to_port}" on node "{to_node.identifier}" already has a binding and does not allow multiple inputs',
         )
-
-    source_dims = set(source_port.dimensions)
-    required_dims = set(target_port.required_dimensions)
-    supported_dims = set(target_port.supported_dimensions)
-
-    missing_dims = sorted(required_dims - source_dims)
-    if missing_dims:
-        raise GraphQLValidationError(
-            info,
-            f'Input port "{to_node.identifier}.{to_port}" requires dimensions {missing_dims}, '
-            + f'but output port "{from_node.identifier}.{from_port}" provides {sorted(source_dims)}',
-        )
-
-    if supported_dims and not source_dims.issubset(supported_dims):
-        raise GraphQLValidationError(
-            info,
-            f'Input port "{to_node.identifier}.{to_port}" supports only dimensions {sorted(supported_dims)}, '
-            + f'but output port "{from_node.identifier}.{from_port}" provides {sorted(source_dims)}',
-        )
-
-    if (
-        source_port.unit is not None
-        and target_port.unit is not None
-        and source_port.unit.dimensionality != target_port.unit.dimensionality
-    ):
-        raise GraphQLValidationError(
-            info,
-            f'Unit dimensionality mismatch: output port "{from_node.identifier}.{from_port}" has '
-            + f'{source_port.unit.dimensionality}, input port "{to_node.identifier}.{to_port}" expects '
-            + f'{target_port.unit.dimensionality}',
-        )
-
-    if not target_port.multi and not allow_occupied:
-        has_edge_binding = NodeEdge.objects.filter(to_node=to_node, to_port=to_port).exists()
-        has_dataset_binding = DatasetPort.objects.filter(node=to_node, port_id=to_port).exists()
-        if has_edge_binding or has_dataset_binding:
-            raise GraphQLValidationError(
-                info,
-                f'Input port "{to_node.identifier}.{to_port}" already has a binding and does not allow multiple inputs',
-            )
 
 
 @pydantic_input(model=FormulaConfig)
@@ -304,11 +349,18 @@ class InputPortInput:
     id: UUID | None = None
     identifier: str | None = None
     label: str | None = None
+    role: str | None = sb.field(
+        default=None,
+        description="Semantic role from the node class's input port declarations.",
+    )
     quantity: str | None = None
     unit: str | None = None
     multi: bool = False
     required_dimensions: list[str] | None = None
-    supported_dimensions: list[str] | None = None
+    supported_dimensions: list[str] | None = sb.field(
+        default=None,
+        deprecation_reason='Never had solver semantics and is no longer stored.',
+    )
 
 
 @sb.input
@@ -578,11 +630,11 @@ def _input_port_to_def(node_identifier: str, index: int, port: InputPortInput) -
         id=port.id or _generated_port_id(node_identifier, 'input', key),
         identifier=port.identifier or identifier_or_none(port.label or port.quantity),
         label=port.label,
+        role=identifier_or_none(port.role),
         quantity=port.quantity,
         unit=unit_registry.parse_units(port.unit) if port.unit is not None else None,
         multi=port.multi,
         required_dimensions=port.required_dimensions or [],
-        supported_dimensions=port.supported_dimensions or [],
     )
 
 
@@ -938,7 +990,7 @@ class NodeEditorMutation:
 
     @gql.mutation(
         description='Bind a dataset metric to an existing input port on this node',
-        graphql_type=Annotated['DatasetPortType', sb.lazy('nodes.graphql.types.graph')],
+        graphql_type=Annotated['DatasetPortType', sb.lazy('nodes.graphql.types.graph')] | ConstraintViolationsType,
     )
     @staticmethod
     def bind_dataset(
@@ -993,9 +1045,13 @@ class InstanceEditorMutation:
 
         input_dimensions = input.input_dimensions or []
         output_dimensions = input.output_dimensions or []
-        input_ports = [
-            _input_port_to_def(str(input.identifier), index, port) for index, port in enumerate(input.input_ports or [])
-        ]
+        if input.input_ports is None:
+            # Instantiate the class-declared default ports (e.g. two factors
+            # and an additive input for a MultiplicativeNode). An explicit
+            # empty list opts out.
+            input_ports = _default_input_ports(type_config.to_pydantic())
+        else:
+            input_ports = [_input_port_to_def(str(input.identifier), index, port) for index, port in enumerate(input.input_ports)]
         output_ports = [
             _output_port_to_def(str(input.identifier), index, port) for index, port in enumerate(input.output_ports or [])
         ]
@@ -1148,10 +1204,15 @@ class InstanceEditorMutation:
 
         return binding_editor(info, root.instance, binding_id)
 
-    @gql.mutation(description='Create a new edge between nodes')
+    @gql.mutation(
+        description='Create a new edge between nodes',
+        graphql_type=NodeEdgeType | ConstraintViolationsType,
+    )
     @staticmethod
-    def create_edge(info: gql.Info, input: CreateEdgeInput) -> NodeEdgeType:
+    def create_edge(info: gql.Info, input: CreateEdgeInput) -> NodeEdgeType | ConstraintViolationsType:
         from nodes.change_ops import gql_change_operation, record_change
+        from nodes.constraints.validation import BindingChange
+        from nodes.graphql.constraint_checks import check_binding_change, edge_candidate, require_draft_graph
         from nodes.models import DatasetPort, NodeEdge
 
         ic = _get_instance_config(info, input.instance_id)
@@ -1164,6 +1225,8 @@ class InstanceEditorMutation:
         source_port = _get_output_port(from_node, from_port)
         assert source_port is not None  # _resolve_source_port validated it
 
+        to_port, planned_port = _plan_target_port(info, to_node, requested_to_port, source_port)
+
         displaced_edges: list[NodeEdge] = []
         displaced_rows: list[DatasetPort] = []
         if input.replace:
@@ -1174,24 +1237,41 @@ class InstanceEditorMutation:
                     info,
                     '`replace` requires an explicit `toPort`: an auto-selected or auto-created port is never occupied',
                 )
-            # With an explicit toPort, target-port resolution only parses and
-            # validates — no port is created — so it is safe outside the
-            # change operation.
-            explicit_to_port = _resolve_or_create_target_port(info, to_node, requested_to_port, source_port)
-            displaced_edges, displaced_rows = _port_occupants(info, to_node, explicit_to_port)
+            displaced_edges, displaced_rows = _port_occupants(info, to_node, to_port)
+        elif planned_port is None:
+            _check_target_port_capacity(info, to_node, to_port)
+
+        transformations = _resolve_edge_transformations(info, input.transformations)
+
+        graph = require_draft_graph(info, ic)
+        candidate = edge_candidate(
+            graph,
+            from_node=from_node,
+            from_port=from_port,
+            to_node=to_node,
+            to_port=to_port,
+            transformations=transformations,
+        )
+        change = BindingChange(
+            add_bindings=(candidate,),
+            remove_binding_ids=frozenset(
+                {*(displaced.uuid for displaced in displaced_edges), *(displaced.uuid for displaced in displaced_rows)},
+            ),
+            add_input_ports=((to_node.uuid, planned_port),) if planned_port is not None else (),
+        )
+        violations = check_binding_change(info, ic, change)
+        if violations is not None:
+            # Validation failed before any write: a rejected edge leaves the
+            # graph — including a would-be displaced binding — untouched.
+            return violations
 
         replacing = bool(displaced_edges or displaced_rows)
         action = 'edge.replace' if replacing else 'edge.create'
         with gql_change_operation(info, ic, action=action):
-            # Target-port resolution may append a new input port to
-            # ``to_node`` when ``to_port`` is null; that write must happen
-            # inside the change_operation so the resulting ``node.update``
-            # entry groups with this edge.create operation.
-            to_port = _resolve_or_create_target_port(info, to_node, requested_to_port, source_port)
-            _validate_edge_ports(info, from_node, from_port, to_node, to_port, allow_occupied=input.replace)
-            transformations = _resolve_edge_transformations(info, input.transformations)
-            # All validation has passed; only now may the old binding go, so a
-            # rejected edge never leaves the port unbound.
+            # A planned port is persisted inside the change_operation so the
+            # resulting ``node.update`` entry groups with this edge.create.
+            if planned_port is not None:
+                _append_input_port(to_node, planned_port)
             for displaced_edge in displaced_edges:
                 record_change(displaced_edge, action='edge.delete', before=displaced_edge.serializable_data(), after=None)
                 displaced_edge.delete()
@@ -1609,15 +1689,27 @@ class InstanceEditorMutation:
     def delete_scenario(info: gql.Info, scenario_id: sb.ID) -> None:
         raise GraphQLError('Scenario mutations not yet implemented')
 
-    @gql.mutation(description='Publish the current model state as a new revision')
+    @gql.mutation(
+        description=(
+            'Publish the current model state as a new revision. '
+            'A draft with structural constraint conflicts cannot be published; '
+            'the blocking conflicts are returned instead.'
+        ),
+        graphql_type=InstanceType | ConstraintViolationsType,
+    )
     @staticmethod
-    def publish_model_instance(info: gql.Info, instance_id: sb.ID) -> InstanceType:
+    def publish_model_instance(info: gql.Info, instance_id: sb.ID) -> InstanceType | ConstraintViolationsType:
+        from nodes.constraints.validation import InstanceConstraintError
+
         ic = _get_instance_config(info, instance_id)
         if ic.config_source != 'database':
             raise GraphQLError('Cannot publish YAML-sourced instances')
 
         user = getattr(info.context, 'user', None)
-        ic.publish_instance(user=user)
+        try:
+            ic.publish_instance(user=user)
+        except InstanceConstraintError as error:
+            return ConstraintViolationsType.from_conflicts(error.conflicts)
         ic.refresh_from_db()
         return _resolve_model_instance(info, ic, refresh=True)
 

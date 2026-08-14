@@ -8,6 +8,11 @@
 #   is_activity:  Represents a physical activity or flow (default false)
 #   is_factor:    A rate or conversion factor (default false)
 #   is_unit_price: A monetary cost per unit of something (default false)
+#   is_scalar_identity: In a product, preserves the other operand's
+#                 quantity (default false)
+#   numerator:    For a factor kind: the quantity its product with an
+#                 activity yields (the concrete activity is recovered
+#                 from units, never enumerated here)
 
 # ---------------------------------------------------------------------------
 # Activities (stackable)
@@ -229,6 +234,7 @@ mix:
   icon: "💯"
   qudt: quantitykind:DimensionlessRatio
   is_stackable: true
+  is_scalar_identity: true
 
 grouped_mix:
   label:
@@ -290,6 +296,7 @@ emission_factor:
   icon: "✖"
   qudt: quantitykind:MassPerEnergy
   is_factor: true
+  numerator: emissions
 
 energy_factor:
   label:
@@ -299,6 +306,7 @@ energy_factor:
     sv: Energifaktor
   icon: "✖"
   is_factor: true
+  numerator: energy
 
 consumption_factor:
   label:
@@ -308,6 +316,7 @@ consumption_factor:
     sv: Förbrukningsfaktor
   icon: "✖"
   is_factor: true
+  numerator: consumption
 
 energy_per_area:
   label:
@@ -318,6 +327,7 @@ energy_per_area:
   icon: "📐"
   qudt: quantitykind:EnergyPerArea
   is_factor: true
+  numerator: energy
 
 occupancy_factor:
   label:
@@ -336,6 +346,7 @@ fuel_factor:
     sv: Bränslefaktor
   icon: "⛽"
   is_factor: true
+  numerator: fuel_consumption
 
 demand_factor:
   label:
@@ -434,6 +445,7 @@ fraction:
     sv: Andel
   icon: "➗"
   qudt: quantitykind:DimensionlessRatio
+  is_scalar_identity: true
 
 ratio:
   label:
@@ -443,6 +455,7 @@ ratio:
     sv: Förhållande
   icon: "🔄"
   qudt: quantitykind:DimensionlessRatio
+  is_scalar_identity: true
 
 probability:
   label:

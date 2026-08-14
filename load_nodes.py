@@ -14,9 +14,11 @@ init_django()
 
 import argparse
 import cProfile
+import json
 import math
 import os
 import random
+import sys
 import time
 from math import log10
 from pathlib import Path
@@ -67,6 +69,11 @@ parser.add_argument('--update-nodes', action='store_true', help='update existing
 parser.add_argument('--overwrite', action='store_true', help='Overwrite contents in the database')
 parser.add_argument('--skip-descriptions', action='store_true', help='skip description updates in the database')
 parser.add_argument('--delete-stale-nodes', action='store_true', help='delete NodeConfig instances that no longer exist')
+parser.add_argument(
+    '--dry-run',
+    action='store_true',
+    help='Preview --update-nodes NodeConfig changes as structured JSON without writing them',
+)
 parser.add_argument('--validate', action='store_true', help='print validation results and exit')
 parser.add_argument(
     '--validation-level',
@@ -135,6 +142,26 @@ def get_ic(instance_id: str, /, *, required: bool = False) -> InstanceConfig | N
         raise Exception("InstanceConfig with identifier '%s' not found" % args.instance)
     _instance_obj = ic
     return ic
+
+
+if args.dry_run:
+    if not args.instance or not args.update_nodes:
+        parser.error('--dry-run requires --instance and --update-nodes')
+
+    from nodes.instance_export_sync import compile_instance_export_from_yaml, plan_load_nodes_instance_export_sync
+
+    dry_run_instance = get_ic(args.instance, required=True)
+    dry_run_export = compile_instance_export_from_yaml(dry_run_instance)
+    dry_run_plan = plan_load_nodes_instance_export_sync(
+        dry_run_instance,
+        dry_run_export,
+        update_existing=True,
+        delete_stale_nodes=args.delete_stale_nodes,
+        overwrite=args.overwrite,
+        skip_descriptions=args.skip_descriptions,
+    )
+    sys.stdout.write(json.dumps(dry_run_plan.to_dict(), ensure_ascii=False, indent=2, default=str) + '\n')
+    exit(0)
 
 
 install_node_error_handler()
@@ -478,6 +505,10 @@ if args.baseline:
 def update_instance():
     from django.db import transaction
 
+    from nodes.instance_export_sync import (
+        apply_load_nodes_instance_export_sync,
+        compile_instance_export_from_yaml,
+    )
     from nodes.models import InstanceConfig
 
     ic = get_ic(instance.id, required=False)
@@ -488,19 +519,34 @@ def update_instance():
     else:
         instance_obj = ic
 
-    with transaction.atomic(), instance_obj.enter_instance_context():
+    export = None
+    if args.update_nodes and not instance_obj.has_framework_config() and instance_obj.get_yaml_config_entrypoint() is not None:
+        export = compile_instance_export_from_yaml(instance_obj)
+
+    with transaction.atomic():
         if args.update_instance:
             instance_obj.update_from_instance(instance, overwrite=True)
             instance_obj.save()
-        instance_obj.sync_nodes(
-            update_existing=args.update_nodes,
-            delete_stale=args.delete_stale_nodes,
-            overwrite=args.overwrite,
-            skip_descriptions=args.skip_descriptions,
-        )
-        instance_obj.sync_dimensions(update_existing=True, delete_stale=args.delete_stale_nodes)
-        instance_obj.refresh_from_db()
-        instance_obj.create_default_content()
+        if export is not None:
+            apply_load_nodes_instance_export_sync(
+                instance_obj,
+                export,
+                update_existing=True,
+                delete_stale_nodes=args.delete_stale_nodes,
+                overwrite=args.overwrite,
+                skip_descriptions=args.skip_descriptions,
+            )
+        with instance_obj.enter_instance_context():
+            if export is None:
+                instance_obj.sync_nodes(
+                    update_existing=args.update_nodes,
+                    delete_stale=args.delete_stale_nodes,
+                    overwrite=args.overwrite,
+                    skip_descriptions=args.skip_descriptions,
+                )
+            instance_obj.sync_dimensions(update_existing=True, delete_stale=args.delete_stale_nodes)
+            instance_obj.refresh_from_db()
+            instance_obj.create_default_content()
     return instance_obj
 
 

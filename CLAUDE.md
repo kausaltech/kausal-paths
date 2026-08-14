@@ -171,6 +171,10 @@ full rationale. In brief:
    guessed. "I don't know yet" beats a plausible-sounding wrong answer.
 5. **Migration paths: explicit and contained.** Backward compat goes behind
    explicit entry points (e.g. `from_yaml_config`), not in the common path.
+6. **Behavior owns its semantic dependencies.** Consumers may compose an
+   object's declared identity or dependencies, but must not reconstruct its
+   behavior with concrete-type switches. If changing a class requires a
+   coordinated change in a remote consumer, the responsibility is misplaced.
 
 ### Code Conventions
 

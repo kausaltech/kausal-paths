@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from collections import OrderedDict
     from typing import type_check_only
 
-    from django.db.models import Manager
     from graphql import GraphQLResolveInfo
     from rest_framework.request import Request as APIRequest
     from wagtail.models import Site
@@ -59,11 +58,6 @@ class PathsModel[CreateContext: Any = None](PermissionedModel[CreateContext], Ab
 
 
 class PathsQuerySet[M: PathsModel](PermissionedQuerySet[M]):
-    if TYPE_CHECKING:
-
-        @classmethod
-        def as_manager(cls) -> Manager[M]: ...
-
     def within_realm(self, realm: InstanceConfig) -> Self:
         from nodes.models import InstanceConfig
 

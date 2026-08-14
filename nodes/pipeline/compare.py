@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 
-from deepdiff import DeepDiff
-
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes.datasets import JSONDataset
 
@@ -56,6 +54,8 @@ class PipelineOutputComparison(BaseModel):
 def compare_node_with_lowered_pipeline(
     node: PipelineCompatibleNode, original_df: ppl.PathsDataFrame, target_node: Node | None, metric: str | None
 ) -> PipelineOutputComparison:
+    from deepdiff import DeepDiff
+
     try:
         ir = node.lower_to_pipeline_ir()
     except NotImplementedError as exc:
