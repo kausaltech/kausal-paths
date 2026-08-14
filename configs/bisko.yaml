@@ -5,10 +5,10 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: a23b10a999f93fc76553c8d8f518d68bce1f3c3c
   dvc_remote: kausal-s3
-name: Klima-Monitor Treibhausgasinventar
+name: Treibhausgasmonitor
 owner: Kausal Ltd
 theme_identifier: default
-target_year: 2025
+target_year: 2030
 model_end_year: 2025
 reference_year: 1990
 minimum_historical_year: 1990
@@ -37,15 +37,15 @@ include:
 params:
 
 - id: weather_correction
-  label_de: Wetterkorrektur durchführen?
-  label_en: Perform weather correction?
+  label_de: Wetterkorrektur durchführen (nicht BISKO-konform)
+  label_en: Perform weather correction (BISKO)
   value: false
   is_customizable: true
   is_visible: true
 - id: municipality_name
   label_en: Municipality name
   label_de: Gemeindename
-  value: Düsseldorf
+  value: Sonnenstadt
   is_customizable: false
   is_visible: false
 - id: ags_number
@@ -56,16 +56,14 @@ params:
   is_visible: false
 - id: use_national_values
   label_en: Use national rather than local electricity emission factors (BISKO)
-  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren 
-    (BISKO).
+  label_de: Nationale Stromemissionsfaktoren anstatt lokaler nutzen (nicht BISKO-konform).
   value: true
   is_visible: true
   is_customizable: true
 - id: use_mileage
   label_en: Use BISKO mileage statistics rather than own energy data for
     transport
-  label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen
-    Energieverbrauchsdaten für den Transport.
+  label_de: Ifeu-Transportstatistiken anstatt eigener Energieverbrauchsdaten für den Verkehr nutzen (BISKO-konform).
   value: true
   is_visible: true
   is_customizable: true
@@ -76,8 +74,7 @@ params:
 - id: use_own_mileage
   label_en: Use the city's own mileage data rather than the BISKO municipality
     defaults
-  label_de: Eigene Fahrleistungsdaten der Kommune anstelle der gemeindefeinen
-    BISKO-Default-Werte verwenden
+  label_de: Eigene Fahrleistungsdaten anstatt der gemeindefeinen ifeu-Default-Werte nutzen (nicht BISKO-konform).
   value: false
   is_visible: true
   is_customizable: true
@@ -123,13 +120,13 @@ result_excels:
 pages:
 
 - id: home
-  name: Klima-Monitor Treibhausgasinventar
-  name_en: Climate Protection Monitor Greenhouse Gas Inventory
+  name: Treibhausgasmonitor
+  name_en: Greenhousegasmonitor
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Klima-Monitor Treibhausgasinventar
-  lead_paragraph: Die Treibhausgasemissionen.
+  lead_title: Treibhausgasmonitor
+  lead_paragraph: 
 
 scenarios:
 
@@ -141,4 +138,4 @@ scenarios:
 - id: default
   default: true
   all_actions_enabled: true
-  name: Masterplan 100% Klimaschutz
+  name: Klimaschutzplan

@@ -711,6 +711,16 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   is_outcome: true
 
+- id: net_emissions_by_energy_carrier
+  name_de: Netto-Emissionen
+  name_en: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  is_outcome: true
+
 - id: private_household_emissions
   name_de: Private Haushalte
   name_en: Private household emissions
