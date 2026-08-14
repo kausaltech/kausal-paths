@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import importlib
 import json
@@ -26,7 +27,6 @@ from nodes.actions.action import ActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs.instance_defs import DatasetRepoSpec
 from nodes.exceptions import NodeError
-from nodes.explanations import NodeExplanationSystem
 from pages.config import pages_from_config
 from params.discover import discover_global_parameters
 
@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from nodes.datasets import Dataset
     from nodes.defs.node_defs import NodeSpec
     from nodes.edges import Edge
+    from nodes.explanations import NodeExplanationSystem
     from nodes.instance import Instance
     from nodes.instance_serialization import DatasetPortSnapshot, EdgeSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.node import Node, NodeMetric
@@ -1097,6 +1098,10 @@ class InstanceLoader:
     def generate_nodes_from_emission_sectors(self):
         from nodes.simple import SectorEmissions
 
+        if self.snapshot is not None:
+            # Emission sectors are a YAML authoring shorthand; snapshots carry
+            # the expanded nodes.
+            return
         if not self.config.get('emission_sectors'):
             return
 
@@ -1613,7 +1618,22 @@ class InstanceLoader:
             )
             self.context.add_normalization(normalization.normalizer_node.id, normalization)
 
-    def setup_validation_graph(self):
+    def setup_node_explanations(self):
+        """Install a lazy builder for the explanation system; nothing consumes it during loading."""
+        from nodes.explanations import build_node_explanation_system
+
+        if self.snapshot is not None:
+            snapshot = self.snapshot
+
+            def build_from_snapshot(context: Context) -> NodeExplanationSystem:
+                from nodes.instance_from_db import snapshot_nodes_to_config_dicts
+
+                nodes_list, actions_list = snapshot_nodes_to_config_dicts(snapshot)
+                return build_node_explanation_system(context, [*nodes_list, *actions_list])
+
+            self.context._nes_factory = build_from_snapshot
+            return
+
         config = self.config
         nodes = config.get('nodes')
         assert isinstance(nodes, list)
@@ -1633,24 +1653,15 @@ class InstanceLoader:
                 es['output_dimensions'] = config.get('emission_dimensions')
                 all_nodes.append(es)
 
-        nes = NodeExplanationSystem(self.context, all_nodes)
-        self.context.node_explanation_system = nes
+        # Copy now: generate_nodes_from_emission_sectors() pops keys from the
+        # emission-sector dicts, and the explanation system must see the
+        # pre-pop shape it has always seen.
+        node_configs = copy.deepcopy(all_nodes)
 
-    def setup_validations(self):
-        nes = self.context.node_explanation_system
-        assert nes is not None
-        nes.generate_validations()
-        nes.generate_input_baskets()
-        nes.generate_explanations()
+        def build_from_config(context: Context) -> NodeExplanationSystem:
+            return build_node_explanation_system(context, node_configs)
 
-    @classmethod
-    def from_dict_config(cls, config: dict[str, Any], fw_config: FrameworkConfig | None = None) -> Self:
-        yaml_path = config.get('yaml_file_path')
-        return cls(
-            config=config,
-            yaml_file_path=Path(yaml_path) if yaml_path else None,
-            fw_config=fw_config,
-        )
+        self.context._nes_factory = build_from_config
 
     @classmethod
     def from_snapshot(
@@ -1737,12 +1748,9 @@ class InstanceLoader:
             assert yaml_file_path is None
             self.yaml_file_path = None
             self.fw_config = None
-            # Node/action/edge construction still reads dicts; the node-scope
-            # shim fills these two keys and nothing else.
-            from nodes.instance_from_db import snapshot_nodes_to_config_dicts
-
-            nodes_list, actions_list = snapshot_nodes_to_config_dicts(snapshot)
-            self.config = {'nodes': nodes_list, 'actions': actions_list}
+            # self.config is deliberately left unset: the snapshot path must
+            # never read YAML-shaped config dicts, and an AttributeError here
+            # is a bug in a setup method missing its snapshot branch.
             self.default_language = snapshot.metadata.primary_language
             self.other_languages = list(snapshot.metadata.other_languages)
             self.logger = logger.bind(instance=snapshot.metadata.identifier)
@@ -1920,7 +1928,7 @@ class InstanceLoader:
         self.db_datasets = {}
         self.db_dataset_refs = {}
         self.dataset_payload_store = None
-        self.setup_validation_graph()
+        self.setup_node_explanations()
         self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()
@@ -1932,7 +1940,6 @@ class InstanceLoader:
         self.setup_scenarios()
         self.setup_normalizations()
         self.setup_node_visualizations()
-        self.setup_validations()
 
         for scenario in self.context.scenarios.values():
             if scenario.default:

@@ -1976,14 +1976,14 @@ class Node:
         """
         Get combined explanations: static (from config) and runtime (from computation).
 
-        Static explanations are generated from node configurations during instance loading.
+        Static explanations are generated from node configurations on first use.
         Runtime explanations are collected during node computation.
         Both are merged when this method is called.
         """
         from .explanations import explanation_to_html
 
         parts = []
-        nes = self.context.node_explanation_system
+        nes = self.context.get_node_explanation_system()
         if nes is not None:
             # Get static explanations (from node config)
             static_exp = nes.explanations.get(self.id)

@@ -29,7 +29,7 @@ from .datasets import DVCDataset, FixedDataset
 from .units import unit_registry
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
     from datetime import datetime
     from types import FrameType
 
@@ -90,7 +90,10 @@ class Context:
     """Global parameters not specific to any individual node."""
 
     node_explanation_system: NodeExplanationSystem | None
-    """Explanations and validations for nodes and node graph."""
+    """Explanations and validations for nodes and node graph. Built lazily; read via get_node_explanation_system()."""
+
+    _nes_factory: Callable[[Context], NodeExplanationSystem] | None
+    """Deferred builder for the explanation system, installed by the loader."""
 
     scenarios: dict[str, Scenario]
     """All scenarios in the context keyed by the scenario identifier."""
@@ -234,6 +237,7 @@ class Context:
             base_logger=self.log,
         )
         self.node_explanation_system = None
+        self._nes_factory = None
         if env_bool('DISABLE_PATHS_MODEL_CACHE', default=False):
             self.skip_cache = True
 
@@ -823,6 +827,12 @@ class Context:
 
     def warning(self, msg: Any, *args, depth: int = 0, **kwargs) -> None:
         self.instance.warning(msg, *args, depth=depth + 1, **kwargs)
+
+    def get_node_explanation_system(self) -> NodeExplanationSystem | None:
+        """Return the explanation system, building it on first use."""
+        if self.node_explanation_system is None and self._nes_factory is not None:
+            self.node_explanation_system = self._nes_factory(self)
+        return self.node_explanation_system
 
     @cached_property
     def framework_config_data(self) -> FrameworkConfigData | None:
