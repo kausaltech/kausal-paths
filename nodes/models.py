@@ -84,7 +84,7 @@ from paths.utils import (
 )
 
 from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
-from nodes.defs.instance_defs import InstanceFeatures, InstanceMetadata
+from nodes.defs.instance_defs import ActionGroup, InstanceFeatures, InstanceMetadata
 from nodes.defs.transform_def import EdgeTransformOp, StoredPortTransformOp
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
@@ -390,6 +390,10 @@ def make_empty_instance_spec() -> InstanceModelSpec:
     return InstanceModelSpec()
 
 
+YAML_SPEC_VERSION = 1
+"""Version of the lightweight YAML-to-InstanceModelSpec materialization."""
+
+
 def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> InstanceModelSpec:
     """
     Build the computation-only ``InstanceModelSpec``.
@@ -409,6 +413,7 @@ def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> Instan
                 model_end=instance.get('model_end_year'),
             ),
             features=features,
+            action_groups=[ActionGroup.model_validate(dict(group)) for group in instance.get('action_groups', [])],
             theme_identifier=instance.get('theme_identifier'),
         )
 
@@ -425,6 +430,7 @@ def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> Instan
             model_end=context.model_end_year,
         ),
         features=features,
+        action_groups=[group.model_copy() for group in instance.action_groups],
         theme_identifier=instance.theme_identifier,
     )
 
@@ -496,6 +502,7 @@ class InstanceConfig(
     modified_at = models.DateTimeField(auto_now=True)
     cache_invalidated_at = models.DateTimeField(default=timezone.now)
     yaml_mtime_hash = models.CharField(max_length=32, null=True, blank=True, editable=False)
+    yaml_spec_version = models.PositiveSmallIntegerField(default=0, editable=False)
 
     primary_language = models.CharField[str, str](
         max_length=8,
@@ -722,6 +729,7 @@ class InstanceConfig(
             'other_languages': [lang for lang in instance.supported_languages if lang != instance.default_language],
             'spec': make_minimal_instance_spec(instance),
             'yaml_mtime_hash': instance.config_mtime_hash,
+            'yaml_spec_version': YAML_SPEC_VERSION,
             **kwargs,
         }
         ic = cls.objects.create(**fields)
@@ -837,6 +845,7 @@ class InstanceConfig(
         if self.config_source == 'yaml':
             self.spec = make_minimal_instance_spec(instance)
             self.yaml_mtime_hash = instance.config_mtime_hash
+            self.yaml_spec_version = YAML_SPEC_VERSION
 
     def serializable_data(self) -> dict[str, Any]:
         """
@@ -1298,15 +1307,22 @@ class InstanceConfig(
         yaml_conf = InstanceYAMLConfig.load_for_entrypoint(config_fn)
         data = yaml_conf.data
         assert data is not None
-        spec = make_minimal_instance_spec(data)
         primary_language = data['default_language']
         other_languages = list(data.get('supported_languages') or [])
+        from kausal_common.i18n.pydantic import set_i18n_context
+
+        with set_i18n_context(primary_language, other_languages):
+            spec = make_minimal_instance_spec(data)
         mtime_hash = yaml_conf.meta.mtime_hash or yaml_conf.meta.calculate_mtime_hash()
         return spec, primary_language, other_languages, mtime_hash
 
     def ensure_spec(self, update_self: bool = True, save: bool = True) -> InstanceModelSpec:
         if self.config_source == 'yaml':
-            if self.spec is not None and self._verified_yaml_spec_hash == self.yaml_mtime_hash:
+            if (
+                self.spec is not None
+                and self.yaml_spec_version == YAML_SPEC_VERSION
+                and self._verified_yaml_spec_hash == self.yaml_mtime_hash
+            ):
                 return self.spec
 
             yaml_ret = self._get_spec_from_yaml()
@@ -1316,7 +1332,7 @@ class InstanceConfig(
                 raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
 
             spec, primary_language, other_languages, yaml_mtime_hash = yaml_ret
-            if self.spec is not None and self.yaml_mtime_hash == yaml_mtime_hash:
+            if self.spec is not None and self.yaml_spec_version == YAML_SPEC_VERSION and self.yaml_mtime_hash == yaml_mtime_hash:
                 self._verified_yaml_spec_hash = yaml_mtime_hash
                 return self.spec
 
@@ -1325,11 +1341,12 @@ class InstanceConfig(
 
             self.spec = spec
             self.yaml_mtime_hash = yaml_mtime_hash
+            self.yaml_spec_version = YAML_SPEC_VERSION
             self._verified_yaml_spec_hash = yaml_mtime_hash
             self.primary_language = primary_language
             self.other_languages = other_languages
             if save:
-                self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash'])
+                self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash', 'yaml_spec_version'])
             return self.spec
 
         if self.spec is not None:
