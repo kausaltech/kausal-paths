@@ -36,12 +36,6 @@ include:
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////
 params:
 
-- id: weather_correction
-  label_de: Wetterkorrektur durchführen (nicht BISKO-konform)
-  label_en: Perform weather correction (BISKO)
-  value: false
-  is_customizable: true
-  is_visible: true
 - id: municipality_name
   label_en: Municipality name
   label_de: Gemeindename
@@ -54,43 +48,52 @@ params:
   value: '05111000'
   is_customizable: false
   is_visible: false
-- id: use_national_values
-  label_en: Use national rather than local electricity emission factors (BISKO)
-  label_de: Nationale Stromemissionsfaktoren anstatt lokaler nutzen (nicht BISKO-konform).
-  value: true
-  is_visible: true
-  is_customizable: true
-- id: use_mileage
-  label_en: Use BISKO mileage statistics rather than own energy data for
-    transport
-  label_de: Ifeu-Transportstatistiken anstatt eigener Energieverbrauchsdaten für den Verkehr nutzen (BISKO-konform).
-  value: true
-  is_visible: true
-  is_customizable: true
-# Separate from use_mileage, which chooses between the mileage route and the city's own
-# energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
-# or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
-# regularly updated traffic data, so this is a real alternative rather than a workaround.
-- id: use_own_mileage
-  label_en: Use the city's own mileage data rather than the BISKO municipality
-    defaults
-  label_de: Eigene Fahrleistungsdaten anstatt der gemeindefeinen ifeu-Default-Werte nutzen (nicht BISKO-konform).
-  value: false
-  is_visible: true
-  is_customizable: true
+
 # Utilities report municipal consumption inside the GHD residual unless the city has had it
 # separated, so BISKO's Leitfaden Datenbeschaffung treats the overlap as the normal case and
 # requires it to be subtracted (Prüfschritt 2.1). Declared per city, because only the city knows
 # how its data was delivered; visible so the answer to "how does the tool process the data?" is
 # on screen, and not customizable because it moves the balance.
 - id: municipal_facilities_included_in_commerce
-  label_en: Is the consumption of municipal facilities included in the commerce,
-    trade and services sector?
-  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
-    GHD/Sonstiges enthalten?
+  label_en: Energy consumption of municipal facilities is included in the commerce, trade and services sector.
+  label_de: Energieverbräuche der kommunalen Einrichtungen sind im Sektor GHD/Sonstiges enthalten.
   value: true
   is_visible: true
-  is_customizable: false
+  is_customizable: true
+
+- id: use_national_values
+  label_en: Use national ("Bundesstrommix") rather than local electricity emission factors (BISKO-compliant)
+  label_de: Nationale Stromemissionsfaktoren (Bundesstrommix) statt lokaler nutzen (BISKO-konform).
+  value: true
+  is_visible: true
+  is_customizable: true
+
+- id: use_mileage
+  label_en: Use BISKO mileage statistics rather than own energy data for transport sector (BISKO-compliant)
+  label_de: BISKO-Transportstatistiken statt eigener Verkehrs-Energieverbrauchsdaten nutzen (BISKO-konform).
+  value: true
+  is_visible: true
+  is_customizable: true
+
+# Separate from use_mileage, which chooses between the mileage route and the city's own
+# energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
+# or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
+# regularly updated traffic data, so this is a real alternative rather than a workaround.
+- id: use_own_mileage
+  label_en: Use own mileage data rather than BISKO municipality defaults (recommended if data from own municipal traffic model is available).
+  label_de: Eigene Fahrleistungsdaten statt gemeindefeiner BISKO-Default-Werte nutzen (empfohlen falls Daten aus eigenem kommunales Verkehrsmodell vorhanden).
+  value: false
+  is_visible: true
+  is_customizable: true
+
+- id: weather_correction
+  label_de: Wetterkorrektur durchführen (nicht BISKO-konform)
+  label_en: Perform weather correction (not BISKO-compliant)
+  value: false
+  is_customizable: true
+  is_visible: true
+
+
 
 
 #//////  Result Excels  /////////////////////////////////////////////////////////////////////////
