@@ -1,6 +1,6 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = [ "setuptools>=61.2" ]
+requires = ["setuptools>=61.2"]
 
 [project]
 name = "kausal-paths"
@@ -67,7 +67,7 @@ dependencies = [
   "polars",
   "psycopg[binary,pool]",
   "pycryptodome",
-  "pydantic",
+  "pydantic>=2.14b1",
   "pydantic-extra-types",
   "pygithub",
   "pygments-graphql",
@@ -101,7 +101,7 @@ dependencies = [
   "wrapt>=1.17.3",
   "xxhash",
 ]
-optional-dependencies.kausal = [ "kausal-paths-extensions>=0.7.8" ]
+optional-dependencies.kausal = ["kausal-paths-extensions>=0.7.8"]
 
 [dependency-groups]
 dev = [
@@ -180,7 +180,7 @@ environments = [
 
 [tool.ruff]
 extend = "./kausal_common/configs/ruff.toml"
-extend-exclude = [ "*.ipynb", "notebooks/*" ]
+extend-exclude = ["*.ipynb", "notebooks/*"]
 
 [tool.mypy]
 plugins = [
@@ -202,8 +202,8 @@ cache_fine_grained = true
 explicit_package_bases = true
 strict_optional = true
 fixed_format_cache = true
-always_true = [ "IS_PATHS", "IS_MYPY", "HAS_BABEL" ]
-always_false = [ "IS_WATCH" ]
+always_true = ["IS_PATHS", "IS_MYPY", "HAS_BABEL"]
+always_false = ["IS_WATCH"]
 local_partial_types = true
 allow_redefinition_new = true
 
@@ -301,14 +301,14 @@ reportUnsafeMultipleInheritance = "information"
 reportUnusedCallResult = false
 
 [tool.ty]
-environment.extra-paths = [ "./kausal_common/typings" ]
+environment.extra-paths = ["./kausal_common/typings"]
 
 [tool.django-stubs]
 django_settings_module = "paths.settings"
 
 [tool.pytest]
 DJANGO_SETTINGS_MODULE = "paths.settings"
-norecursedirs = [ "node_modules", "data", ".git", "venv", "Attic" ]
+norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
 filterwarnings = [
   "ignore::DeprecationWarning:graphene",
   "ignore:.*iscoroutinefunction:DeprecationWarning",
