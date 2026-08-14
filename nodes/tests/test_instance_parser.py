@@ -4,6 +4,7 @@ from uuid import UUID, uuid3, uuid4
 import pytest
 
 from nodes.instance_export_sync import compile_instance_export_from_yaml
+from nodes.instance_loader import InstanceYAMLConfig
 from nodes.instance_parser import InstanceConfigParser, parse_instance_snapshot
 from nodes.spec_export import _export_node_params
 from nodes.tests.factories import AdditiveActionFactory, InstanceConfigFactory, NodeConfigFactory
@@ -147,3 +148,65 @@ nodes:
     exported = export.instance.nodes[0]
     assert exported.uuid == existing.uuid
     assert str(exported.name) == 'YAML name'
+
+
+def test_include_nodes_editable_applies_to_nodes_and_actions(tmp_path):
+    module_path = tmp_path / 'module.yaml'
+    module_path.write_text(
+        """
+nodes:
+- id: included_node
+  type: generic.GenericNode
+  name: Included node
+  unit: kg/a
+  quantity: mass
+actions:
+- id: included_action
+  type: simple.AdditiveAction
+  name: Included action
+  unit: kg/a
+  quantity: mass
+""".lstrip()
+    )
+    yaml_path = tmp_path / 'test.yaml'
+    yaml_path.write_text(
+        """
+id: test
+default_language: en
+name: Test
+owner: Owner
+target_year: 2030
+reference_year: 2020
+minimum_historical_year: 2010
+include:
+- file: module.yaml
+  nodes_editable: false
+""".lstrip()
+    )
+
+    yaml_config = InstanceYAMLConfig.load_for_entrypoint(yaml_path)
+    assert yaml_config.data is not None
+    assert yaml_config.data['nodes'][0]['is_editable'] is False
+    assert yaml_config.data['actions'][0]['is_editable'] is False
+
+    snapshot = parse_instance_snapshot(yaml_config.data, instance_uuid=uuid4())
+    assert {node.identifier: node.is_editable for node in snapshot.nodes} == {
+        'included_node': False,
+        'included_action': False,
+    }
+
+
+def test_include_nodes_editable_must_be_boolean(tmp_path):
+    (tmp_path / 'module.yaml').write_text('nodes: []\n')
+    yaml_path = tmp_path / 'test.yaml'
+    yaml_path.write_text(
+        """
+id: test
+include:
+- file: module.yaml
+  nodes_editable: "false"
+""".lstrip()
+    )
+
+    with pytest.raises(TypeError, match='nodes_editable must be a boolean'):
+        InstanceYAMLConfig.load_for_entrypoint(yaml_path)

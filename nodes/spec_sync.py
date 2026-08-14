@@ -221,6 +221,8 @@ def _seed_node_metadata_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_l
         'order': n.order,
         'is_visible': n.is_visible,
     }
+    if n.is_editable is not None:
+        attributes['is_editable'] = n.is_editable
     for field_name, value in (
         ('name', n.name),
         ('short_name', n.short_name),

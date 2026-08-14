@@ -684,6 +684,90 @@ def test_dataset_editor_rejects_dataset_outside_instance(gql_client: PathsTestCl
     )
 
 
+def test_protected_dataset_exposes_effective_permissions_and_rejects_admin_edits(
+    client,
+    dataset_setup,
+) -> None:
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import DatasetSchemaScope
+
+    from nodes.roles import instance_admin_role
+
+    instance_config, dataset, metric, category = dataset_setup
+    dataset.schema.is_editable = False
+    dataset.schema.save(update_fields=['is_editable'])
+    DatasetSchemaScope.objects.create(
+        schema=dataset.schema,
+        scope_content_type=ContentType.objects.get_for_model(instance_config),
+        scope_id=instance_config.pk,
+    )
+    user = UserFactory.create()
+    instance_admin_role.assign_user(instance_config, user)
+    client.force_login(user)
+    admin_client = PathsTestClient(client)
+    admin_client.set_instance(instance_config)
+
+    data = admin_client.query_data(
+        """
+        query ProtectedDataset($instanceId: ID!) {
+            modelInstance(instanceId: $instanceId) {
+                editor {
+                    datasets {
+                        id
+                        isEditable
+                        userPermissions { view change delete }
+                    }
+                }
+            }
+        }
+        """,
+        variables={'instanceId': str(instance_config.pk)},
+    )
+    item = next(item for item in data['modelInstance']['editor']['datasets'] if item['id'] == str(dataset.uuid))
+    assert item == {
+        'id': str(dataset.uuid),
+        'isEditable': False,
+        'userPermissions': {'view': True, 'change': False, 'delete': False},
+    }
+
+    admin_client.query_errors(
+        CREATE_DATA_POINT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': {
+                'date': '2024-01-01',
+                'value': 1,
+                'metricId': str(metric.uuid),
+                'dimensionCategoryIds': [str(category.uuid)],
+            },
+        },
+        assert_error_message='not found',
+    )
+
+
+def test_superuser_can_edit_protected_dataset(gql_client: PathsTestClient, dataset_setup) -> None:
+    instance_config, dataset, metric, category = dataset_setup
+    dataset.schema.is_editable = False
+    dataset.schema.save(update_fields=['is_editable'])
+
+    data = gql_client.query_data(
+        CREATE_DATA_POINT,
+        variables={
+            'instanceId': str(instance_config.pk),
+            'datasetId': str(dataset.uuid),
+            'input': {
+                'date': '2024-01-01',
+                'value': 1,
+                'metricId': str(metric.uuid),
+                'dimensionCategoryIds': [str(category.uuid)],
+            },
+        },
+    )
+    assert data['instanceEditor']['datasetEditor']['createDataPoint']['value'] == 1
+
+
 def test_create_data_point_emits_change_operation(gql_client: PathsTestClient, dataset_setup):
     """Creating a datapoint opens an InstanceChangeOperation for the instance."""
     from nodes.models import InstanceChangeOperation, InstanceModelLogEntry

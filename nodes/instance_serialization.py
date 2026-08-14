@@ -207,6 +207,7 @@ class DatasetSnapshot(ModelSnapshot):
     is_external_placeholder: bool = False
     external_ref: dict[str, Any] | None = None
     time_resolution: str = 'yearly'
+    is_editable: bool = True
     dimensions: list[str] = Field(default_factory=list)
     dimension_columns: dict[str, str] = Field(default_factory=dict)
     metrics: list[DatasetMetricSnapshot] = Field(default_factory=list)
@@ -229,10 +230,12 @@ class DatasetSnapshot(ModelSnapshot):
         dimension_columns: dict[str, str] = {}
         name_ts: TranslatedString | None = None
         time_resolution = 'yearly'
+        is_editable = True
         primary_language = instance_config.primary_language if instance_config is not None else _primary_language_for_dataset(obj)
 
         if schema is not None:
             time_resolution = schema.time_resolution
+            is_editable = schema.is_editable
             # Schema name is a plain CharField + an i18n TranslationField.
             name_ts = _ts_from_modeltrans(schema, 'name', primary_language)
             metrics = [
@@ -274,6 +277,7 @@ class DatasetSnapshot(ModelSnapshot):
             is_external_placeholder=obj.is_external_placeholder,
             external_ref=obj.external_ref,
             time_resolution=time_resolution,
+            is_editable=is_editable,
             dimensions=dimensions,
             dimension_columns=dimension_columns,
             metrics=metrics,
@@ -320,6 +324,7 @@ class NodeSnapshot(ModelSnapshot):
     color: str = ''
     order: int | None = None
     is_visible: bool = True
+    is_editable: bool | None = None
     indicator_node: UUID | None = None
     copy_of: UUID | None = None
     body: list[Any] | None = None
@@ -361,6 +366,7 @@ class NodeSnapshot(ModelSnapshot):
             color=obj.color,
             order=obj.order,
             is_visible=obj.is_visible,
+            is_editable=obj.is_editable,
             indicator_node=indicator_uuid,
             copy_of=obj.copy_of.uuid if obj.copy_of else None,
             body=list(obj.body.raw_data) if obj.body else None,
@@ -386,6 +392,7 @@ class NodeSnapshot(ModelSnapshot):
             color=obj.color or '',
             order=obj.order,
             is_visible=obj.is_visible,
+            is_editable=obj.is_editable,
             spec=obj._spec,
         )
 
@@ -430,6 +437,7 @@ def reconcile_node_snapshot_metadata(
             'color': stored.color or source.color,
             'order': stored.order if stored.order is not None else source.order,
             'is_visible': stored.is_visible,
+            'is_editable': source.is_editable if source.is_editable is not None else stored.is_editable,
             'indicator_node': stored.indicator_node,
             'copy_of': stored.copy_of,
             'body': stored.body,
@@ -1300,7 +1308,10 @@ def _import_dataset(
     primary_lang = ic.primary_language
 
     # Resolve schema name from the TranslatedString snapshot.
-    schema_fields: dict[str, Any] = {'time_resolution': ds_snapshot.time_resolution}
+    schema_fields: dict[str, Any] = {
+        'time_resolution': ds_snapshot.time_resolution,
+        'is_editable': ds_snapshot.is_editable,
+    }
     schema_i18n: dict[str, str] = {}
     _apply_translated(schema_fields, schema_i18n, ds_snapshot.name, 'name', primary_lang)
     if schema_fields.get('name') is None:
@@ -1853,6 +1864,7 @@ def _import_nodes(
             color=n.color,
             order=n.order,
             is_visible=n.is_visible,
+            is_editable=n.is_editable if n.is_editable is not None else True,
             body=n.body or [],
             i18n=i18n_dict,
             **fields,

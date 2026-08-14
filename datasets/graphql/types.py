@@ -16,6 +16,7 @@ from kausal_common.datasets.models import (
     DataSource as DataSourceModel,
 )
 from kausal_common.strawberry.ordering import with_sibling_ids
+from kausal_common.strawberry.permissions import UserPermissionsMixin
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from users.models import User
@@ -287,7 +288,7 @@ class DataPointType:
 
 @register_strawberry_type
 @sb.type(name='Dataset')
-class DatasetType:
+class DatasetType(UserPermissionsMixin):
     """A DB-backed dataset with schema, dimensions, metrics and data."""
 
     id: sb.ID
@@ -318,6 +319,13 @@ class DatasetType:
         if root._model is None or root._model.schema is None:
             return root.identifier or ''
         return root._model.schema.name_i18n or root.identifier or ''
+
+    @sb.field
+    @staticmethod
+    def is_editable(root: 'DatasetType') -> bool:
+        if root._model is None or root._model.schema is None:
+            return False
+        return root._model.schema.is_editable
 
     @sb.field(description='Default or effective first forecast year for this dataset.')
     @staticmethod
