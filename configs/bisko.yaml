@@ -5,10 +5,10 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: a23b10a999f93fc76553c8d8f518d68bce1f3c3c
   dvc_remote: kausal-s3
-name: Klima-Monitor Treibhausgasinventar
+name: Treibhausgasmonitor
 owner: Kausal Ltd
 theme_identifier: default
-target_year: 2025
+target_year: 2030
 model_end_year: 2025
 reference_year: 1990
 minimum_historical_year: 1990
@@ -36,12 +36,6 @@ include:
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////
 params:
 
-- id: weather_correction
-  label_de: Wetterkorrektur durchführen?
-  label_en: Perform weather correction?
-  value: false
-  is_customizable: true
-  is_visible: true
 - id: municipality_name
   label_en: Municipality name
   label_de: Gemeindename
@@ -54,46 +48,52 @@ params:
   value: '05111000'
   is_customizable: false
   is_visible: false
-- id: use_national_values
-  label_en: Use national rather than local electricity emission factors (BISKO)
-  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren 
-    (BISKO).
-  value: true
-  is_visible: true
-  is_customizable: true
-- id: use_mileage
-  label_en: Use BISKO mileage statistics rather than own energy data for
-    transport
-  label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen
-    Energieverbrauchsdaten für den Transport.
-  value: true
-  is_visible: true
-  is_customizable: true
-# Separate from use_mileage, which chooses between the mileage route and the city's own
-# energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
-# or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
-# regularly updated traffic data, so this is a real alternative rather than a workaround.
-- id: use_own_mileage
-  label_en: Use the city's own mileage data rather than the BISKO municipality
-    defaults
-  label_de: Eigene Fahrleistungsdaten der Kommune anstelle der gemeindefeinen
-    BISKO-Default-Werte verwenden
-  value: false
-  is_visible: true
-  is_customizable: true
+
 # Utilities report municipal consumption inside the GHD residual unless the city has had it
 # separated, so BISKO's Leitfaden Datenbeschaffung treats the overlap as the normal case and
 # requires it to be subtracted (Prüfschritt 2.1). Declared per city, because only the city knows
 # how its data was delivered; visible so the answer to "how does the tool process the data?" is
 # on screen, and not customizable because it moves the balance.
 - id: municipal_facilities_included_in_commerce
-  label_en: Is the consumption of municipal facilities included in the commerce,
-    trade and services sector?
-  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
-    GHD/Sonstiges enthalten?
+  label_en: Energy consumption of municipal facilities is included in the commerce, trade and services sector.
+  label_de: Energieverbräuche der kommunalen Einrichtungen sind im Sektor GHD/Sonstiges enthalten.
   value: true
   is_visible: true
-  is_customizable: false
+  is_customizable: true
+
+- id: use_national_values
+  label_en: Use national ("Bundesstrommix") rather than local electricity emission factors (BISKO-compliant)
+  label_de: Nationale Stromemissionsfaktoren (Bundesstrommix) statt lokaler nutzen (BISKO-konform).
+  value: true
+  is_visible: true
+  is_customizable: true
+
+- id: use_mileage
+  label_en: Use BISKO mileage statistics rather than own energy data for transport sector (BISKO-compliant)
+  label_de: BISKO-Transportstatistiken statt eigener Verkehrs-Energieverbrauchsdaten nutzen (BISKO-konform).
+  value: true
+  is_visible: true
+  is_customizable: true
+
+# Separate from use_mileage, which chooses between the mileage route and the city's own
+# energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
+# or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
+# regularly updated traffic data, so this is a real alternative rather than a workaround.
+- id: use_own_mileage
+  label_en: Use own mileage data rather than BISKO municipality defaults (recommended if data from own municipal traffic model is available).
+  label_de: Eigene Fahrleistungsdaten statt gemeindefeiner BISKO-Default-Werte nutzen (empfohlen falls Daten aus eigenem kommunales Verkehrsmodell vorhanden).
+  value: false
+  is_visible: true
+  is_customizable: true
+
+- id: weather_correction
+  label_de: Wetterkorrektur durchführen (nicht BISKO-konform)
+  label_en: Perform weather correction (not BISKO-compliant)
+  value: false
+  is_customizable: true
+  is_visible: true
+
+
 
 
 #//////  Result Excels  /////////////////////////////////////////////////////////////////////////
@@ -123,13 +123,13 @@ result_excels:
 pages:
 
 - id: home
-  name: Klima-Monitor Treibhausgasinventar
-  name_en: Climate Protection Monitor Greenhouse Gas Inventory
+  name: Treibhausgasmonitor
+  name_en: Greenhousegasmonitor
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Klima-Monitor Treibhausgasinventar
-  lead_paragraph: Die Treibhausgasemissionen.
+  lead_title: Treibhausgasmonitor
+  lead_paragraph: 
 
 scenarios:
 
@@ -141,4 +141,4 @@ scenarios:
 - id: default
   default: true
   all_actions_enabled: true
-  name: Masterplan 100% Klimaschutz
+  name: Klimaschutzplan
