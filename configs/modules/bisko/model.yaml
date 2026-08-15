@@ -639,7 +639,7 @@ dimensions:
     aliases: [Reisebus, long_distance_buses]
   - id: local_buses
     label_en: Local buses
-    label_de: LinienBus
+    label_de: Linienbusse
     aliases: [Lbus, VL_Lbus]
   - id: motorcycles
     label_en: Motorcycles
