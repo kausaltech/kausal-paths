@@ -652,12 +652,15 @@ def _export_node_extra(node: Node) -> NodeSpecExtra:
             if ds.forecast:
                 forecast_values = ds.forecast
 
-    # input_dataset_processors: check if node uses interpolation
+    # input_dataset_processors: check if node uses interpolation. A class that interpolates
+    # by default does not report a processor, because none was authored — the parse path
+    # derives the same flag from the class, and the two representations have to agree.
     processors: list[str] = []
-    for ds in node.input_dataset_instances:
-        if getattr(ds, 'interpolate', False):
-            processors = ['LinearInterpolation']
-            break
+    if not type(node).interpolates_input_datasets_by_default:
+        for ds in node.input_dataset_instances:
+            if getattr(ds, 'interpolate', False):
+                processors = ['LinearInterpolation']
+                break
 
     tags = list(node.tags) if node.tags else []
 

@@ -134,6 +134,10 @@ class InputDatasetDef(I18nBaseModel):
     id: DatasetIdentifier
     tags: list[str] = Field(default_factory=list)
     interpolate: bool = False
+    backfill: bool = False
+    """Copy each category's first known value backwards over the nulls that precede it."""
+    extend: bool = False
+    """Carry the last historical value forward to the model end year."""
     input_dataset: str | None = None
     """DVC dataset identifier override (when different from ``id``)."""
     column: str | None = None
@@ -218,6 +222,8 @@ def legacy_dataset_spec_to_transformations(data: dict[str, Any]) -> dict[str, An
         **{key: value for key, value in data.items() if key in LEGACY_DATASET_SPEC_FIELDS and value is not None},
         'tags': data.get('tags') or [],
         'interpolate': data.get('interpolate', False),
+        'extend': data.get('extend', False),
+        'backfill': data.get('backfill', False),
         'input_dataset': data.get('input_dataset'),
         'output_dimensions': data.get('output_dimensions'),
     })
@@ -227,6 +233,8 @@ def legacy_dataset_spec_to_transformations(data: dict[str, Any]) -> dict[str, An
         'tags': ds_def.tags,
         'input_dataset': ds_def.input_dataset,
         'interpolate': ds_def.interpolate,
+        'extend': ds_def.extend,
+        'backfill': ds_def.backfill,
         'output_dimensions': ds_def.output_dimensions,
     }
 
@@ -270,6 +278,17 @@ class DatasetPortSpec(I18nBaseModel):
 
     input_dataset: str | None = None
     """DVC dataset identifier override (when different from the bound dataset)."""
+
+    backfill: bool = False
+    """Copy each category's first known value backwards over the nulls that precede it."""
+
+    extend: bool = False
+    """
+    Carry the last historical value forward to the model end year.
+
+    Like ``interpolate``, a property of the binding rather than of the consuming node, so
+    that a dataset means the same thing wherever it is bound.
+    """
 
     interpolate: bool = False
     """
@@ -334,6 +353,8 @@ class DatasetPortSpec(I18nBaseModel):
             tags=list(ds_def.tags),
             input_dataset=ds_def.input_dataset,
             interpolate=ds_def.interpolate,
+            extend=ds_def.extend,
+            backfill=ds_def.backfill,
             output_dimensions=ds_def.output_dimensions,
         )
 
@@ -346,6 +367,8 @@ class DatasetPortSpec(I18nBaseModel):
             tags=self.tags,
             input_dataset=self.input_dataset,
             interpolate=self.interpolate,
+            extend=self.extend,
+            backfill=self.backfill,
             output_dimensions=self.output_dimensions,
         )
 

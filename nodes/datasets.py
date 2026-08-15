@@ -91,6 +91,8 @@ class DatasetKwargs(TypedDict):
     tags: list[str]
     output_dimensions: list[str] | None
     interpolate: bool
+    extend: bool
+    backfill: bool
 
 
 @dataclass
@@ -104,6 +106,17 @@ class Dataset(ABC):
     output_dimensions: list[str] | None = field(default=None)
 
     interpolate: bool = False
+    backfill: bool = False
+    """Fill leading nulls by copying each category's first known value backwards.
+
+    Off by default: extending a series backwards invents data before it starts. It exists
+    because ``GenericNode`` did it silently, and a binding that relies on it should say so."""
+    extend: bool = False
+    """Carry the last historical value forward to the model end year.
+
+    A property of the binding rather than of the node class, so that a dataset means the
+    same thing wherever it is bound. See
+    ``docs/plans/additive-multiplicative-modernization.md``."""
     df: ppl.PathsDataFrame | None = field(init=False, repr=False, default=None)
     hash: bytes | None = field(init=False, repr=False, default=None)
 
@@ -128,6 +141,8 @@ class Dataset(ABC):
             tags=ds_def.tags,
             output_dimensions=ds_def.output_dimensions,
             interpolate=ds_def.interpolate,
+            backfill=ds_def.backfill,
+            extend=ds_def.extend,
         )
 
     @abstractmethod
@@ -165,7 +180,7 @@ class Dataset(ABC):
         if class_hash is None:
             class_hash = type(self).get_class_hash()
             type(self)._class_hash = class_hash
-        d = {'id': self.id, 'interpolate': self.interpolate}
+        d = {'id': self.id, 'interpolate': self.interpolate, 'backfill': self.backfill, 'extend': self.extend}
         if build_id := get_deployment_build_id():
             d['build_id'] = build_id
         else:
@@ -220,9 +235,37 @@ class Dataset(ABC):
         return df
 
     def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        # Interior gaps first, then the leading edge, then the trailing edge.
         if self.interpolate:
             df = self._linear_interpolate(df)
+        if self.backfill:
+            df = self._backfill_leading_values(df)
+        if self.extend:
+            df = self._extend_to_end_year(df)
         return df
+
+    @measure_dataset_call('dataset.backfill')
+    def _backfill_leading_values(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """
+        Copy each category's first known value backwards over the nulls that precede it.
+
+        Only fills what is already there as a null row; pair it with ``interpolate`` when the
+        early years are missing altogether, since that is what materialises them.
+        """
+        dims = df.dim_ids
+        df = df.sort(YEAR_COLUMN)
+        exprs = []
+        for col in df.metric_cols:
+            expr = pl.col(col).fill_null(strategy='backward')
+            exprs.append(expr.over(dims) if dims else expr)
+        return df.with_columns(exprs)
+
+    @measure_dataset_call('dataset.extend')
+    def _extend_to_end_year(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """Carry the last historical value forward, after any interpolation has filled gaps."""
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+        return extend_last_historical_value_pl(df, self.context.instance.model_end_year)
 
     @measure_dataset_call('dataset.get')
     def get_copy(self) -> ppl.PathsDataFrame:

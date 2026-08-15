@@ -33,7 +33,7 @@ from .constants import (
     YEAR_COLUMN,
 )
 from .exceptions import NodeError
-from .explanations import TAG_TO_BASKET
+from .operands import resolve_input_nodes
 from .simple import SimpleNode
 
 if TYPE_CHECKING:
@@ -161,39 +161,14 @@ class GenericNode(SimpleNode):
         """
         Return (add_nodes, multiply_nodes) for add/multiply ops.
 
-        Uses tag 'additive'/'non_additive' or unit compatibility. Excludes nodes in
-        self._weighted_node_ids (set by add_with_weights so they are not added again).
+        The rule — tag first, then unit compatibility — lives in :mod:`nodes.operands`,
+        shared with the simple classes. Nodes in self._weighted_node_ids are excluded
+        (add_with_weights has already consumed them, so they must not be added twice), and
+        so are inputs claimed by another operation's tag.
         """
-        skip_tags = {'ignore_content'}
         exclude_ids: set[str] = getattr(self, '_weighted_node_ids', set())
-        add_nodes: list[Node] = []
-        multiply_nodes: list[Node] = []
-        for edge in self.edges:
-            if edge.output_node != self:
-                continue
-            node = edge.input_node
-            if any(tag in edge.tags or tag in node.tags for tag in skip_tags):
-                continue
-            edge_or_node_tags = set(edge.tags) | set(node.tags)
-            if node.id in exclude_ids:
-                continue
-            if 'additive' in edge_or_node_tags:
-                add_nodes.append(node)
-                continue
-            if 'non_additive' in edge_or_node_tags:
-                multiply_nodes.append(node)
-                continue
-            # No add/multiply tag: check if node has another op-specific tag (then skip for add/multiply)
-            if edge_or_node_tags.intersection(TAG_TO_BASKET.keys()):
-                continue
-            # Untagged: assign by unit compatibility
-            out_df = node.get_output_pl(target_node=self)
-            df_unit = out_df.get_unit(VALUE_COLUMN)
-            if self.is_compatible_unit(self.unit, df_unit):
-                add_nodes.append(node)
-            else:
-                multiply_nodes.append(node)
-        return add_nodes, multiply_nodes
+        operands = resolve_input_nodes(self, exclude_ids=exclude_ids)
+        return operands.additive, operands.factors
 
     def _operation_multiply(self, df: PathsDataFrame | None) -> OperationReturn:
         """Multiply all nodes tagged 'non_additive' or (untagged and unit-incompatible)."""

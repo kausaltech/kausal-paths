@@ -252,7 +252,7 @@ dimensions:
   - id: electricity
     label_en: Electricity
     label_de: Strom
-    # 'Fahrstrom' used to map to a separate driving_electricity category, which meant the KSP
+    # 'Fahrstrom' used to map to a separate driving_electricity category, which meant the own-data
     # transport branch lost its electricity in the multiply against the BISKO fuel factors
     # (those label it 'Strom'). BISKO applies the Bundesstrommix to all electricity, so one
     # carrier is correct and the Fahrstrom labels resolve here.
@@ -416,8 +416,8 @@ dimensions:
 
 # Road types below are from BISKO/IFEU (AB/AO/IO). They are only populated when
 # using BISKO datasets (e.g. gemeindefeine_fahrleistungen_straenverkehr,
-# energy_factor, energy_shares). KSP data uses different codes in field_key
-# (QZBV, QZVV, QZFV, BBV, BFV, BVV, KBF) and has no road_type dimension.
+# energy_factor, energy_shares). A city's own transport export may use different codes
+# and may have no road_type dimension at all.
 - id: road_type
   label_en: Road Type
   label_de: Straßentyp
@@ -443,10 +443,17 @@ dimensions:
   - id: federal_roads
     label_en: Federal Roads
     label_de: Bundesstraße
-  - id: total
-    label_en: Total
-    label_de: Total
-    aliases: [alle]
+  # NOT a total over the three road categories -- it is the absence of a road-type
+  # breakdown. The BISKO factor tables use it ('alle' in the source) to say "one factor
+  # valid for every road category", and the ifeu mileage uses it for the OeSPV rows, which
+  # are delivered as a single figure. It was called 'total' until 2026-08-15, which invited
+  # exactly one mistake: filtering it out to avoid a double count that never existed.
+  # Nothing at this category may be summed with the three road categories of the same
+  # vehicle type -- but no vehicle type carries both, so there is nothing to filter.
+  - id: all_road_types
+    label_en: All road types
+    label_de: Alle Straßentypen
+    aliases: [total, alle]
   - id: rail
     label_en: Rail
     label_de: Eisenbahn
@@ -629,18 +636,23 @@ dimensions:
   - id: heavy_commercial
     label_en: Heavy commercial vehicles
     label_de: Schwere Nutzfahrzeuge
+  # All buses together, line and coach. This is what FL_Bus in the ifeu mileage means; it
+  # is an input to the Linienbus/Reisebus split and does not reach the balance itself.
   - id: buses
-    label_en: Buses
-    label_de: Busse
+    label_en: All buses
+    label_de: Busse insgesamt
     aliases: [Bus, bus]
   - id: coach_buses
-    label_en: Coach buses
+    label_en: Coach and long-distance buses
     label_de: Reise-/Fernbusse
     aliases: [Reisebus, long_distance_buses]
+  # BISKO's Linienbus, one of the two OeSPV modes. The consumption factor and fuel shares
+  # are delivered under the label 'Linienbus'; see the migration note in
+  # data/bisko/migrate_category_ids.py.
   - id: local_buses
     label_en: Local buses
     label_de: Linienbusse
-    aliases: [Lbus, VL_Lbus]
+    aliases: [Lbus, VL_Lbus, Linienbus]
   - id: motorcycles
     label_en: Motorcycles
     label_de: Motorisierte Zweiräder
@@ -712,14 +724,16 @@ nodes:
   is_outcome: true
 
 - id: net_emissions_by_energy_carrier
-  name_de: Netto-Emissionen
-  name_en: Net emissions
+  name_de: Netto-Emissionen nach Energieträger
+  name_en: Net emissions by energy carrier
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   is_outcome: true
+  input_nodes:
+  - id: net_emissions
 
 - id: private_household_emissions
   name_de: Private Haushalte
@@ -1477,9 +1491,15 @@ nodes:
 
 - id: passenger_kilometers_own
   name_en: Passenger kilometers - own data
-  name_de: Personenkilometer aus KSP
-  description_en: Data comes from KSP -> Eingabe -> Verkehr -> Verkehrsleistung.
-  description_de: Daten kommen aus Klimaschutz-Planer.
+  name_de: Personenkilometer aus eigenen Daten
+  description_en: |
+    Verkehrsleistung in passenger-kilometres, from the city's own transport data. Note that
+    this is a different quantity from the Fahrleistung (vehicle-kilometres) the balance is
+    built on; see 'Vehicle kilometers - own data'.
+  description_de: |
+    Verkehrsleistung in Personenkilometern aus den eigenen Verkehrsdaten der Kommune. Dies ist
+    eine andere Größe als die Fahrleistung in Fahrzeugkilometern, auf der die Bilanz aufbaut;
+    siehe „Fahrleistung aus eigenen Daten“.
   type: formula.FormulaNode
   quantity: mileage
   unit: pkm/a
@@ -1494,24 +1514,53 @@ nodes:
   params:
     formula: extend_all(mileage)
 
+# BISKO recommends that cities move from the gemeindefeine default mileage to their own
+# regularly updated traffic data (Methodenpapier 5.1.1). For that route to be conformant the
+# city's data has to carry what the protocol asks for: Prüfschritt 2.2 requires the road
+# vehicle classes to be differentiated (Pkw, motorisierte Zweiräder, leichte Nutzfahrzeuge,
+# Lkw > 3,5 t, Linienbusse, Reisebusse, ggf. Straßen-/Stadt-/U-Bahnen) and Prüfschritt 2.3
+# requires the first four of those to be split by a verbrauchsrelevante Straßentypisierung.
+#
+# Until 2026-08-15 this node derived vehicle-kilometres from the passenger-kilometre export
+# divided by an occupancy factor. That could not satisfy either step: the quotient exists
+# only for the modes that have both a pkm figure and an occupancy factor (three of them), it
+# cannot produce vans or trucks at all -- the source gives no occupancy for LNF and states
+# the Lkw figure in tonnes rather than persons per vehicle -- and it carries no road type, so
+# everything landed on 'innerorts'. That is the certifier's finding "Es kann nur innerorts
+# ausgewählt werden" in its original form. The node now reads a vehicle-kilometre dataset
+# with both dimensions, and vehicle_kilometers_own_availability checks it against the
+# required combinations.
 - id: vehicle_kilometers_own
   name_en: Vehicle kilometers - own data
-  name_de: Fahrleistung aus KSP
+  name_de: Fahrleistung aus eigenen Daten
+  description_en: |
+    Road mileage (Fahrleistung, vehicle-kilometres) from the city's own traffic model, by
+    vehicle class and road category. Used instead of the BISKO municipality defaults when the
+    'use own mileage' setting is on. The rows BISKO requires are listed in
+    'Own road mileage data availability'; an empty required cell means the balance cannot be
+    declared conformant.
+  description_de: |
+    Fahrleistung in Fahrzeugkilometern aus dem eigenen Verkehrsmodell der Kommune, nach
+    Fahrzeugklasse und Straßenkategorie. Wird anstelle der gemeindefeinen BISKO-Default-Werte
+    verwendet, wenn die Einstellung „eigene Fahrleistung verwenden“ aktiv ist. Welche Zeilen
+    BISKO verlangt, zeigt „Datenverfügbarkeit der eigenen Fahrleistungsdaten“; eine leere
+    Pflichtzelle schließt die Konformität aus.
   type: formula.FormulaNode
   quantity: mileage
   unit: Mvkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: passenger_kilometers_own
-  - id: passengers_per_vehicle
+  input_dimensions: [vehicle_type, road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_datasets:
+  - id: bisko/vehicle_kilometers
+    column: Value
+    tags: [mileage]
   params:
-    formula: passenger_kilometers_own / passengers_per_vehicle
+    formula: extend_all(mileage)
 
 - id: transport_energy_own
   name_de: Transport Energie nach Fahrzeugtyp - eigene Daten
   name_en: Transport energy by vehicle type - own data
-  description: Data comes from KSP -> Eingabe -> Verkehr -> Fahrten gesamt.
+  description: Total vehicle trips from the city's own transport data.
   type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
@@ -1531,14 +1580,21 @@ nodes:
     Municipality-level default road mileage (Fahrleistung) derived by IFEU from GRETA/TREMOD,
     for every German municipality. Motorcycles, cars, light commercial vehicles, trucks and
     buses are given separately for motorway, rural and urban roads. From 2022 the source also
-    reports line buses (FL_Lbus) and tram/metro (FL_SSU) as separate totals; line buses are a
-    subset of the bus figure and must not be added to it.
+    reports line buses (FL_Lbus) and tram/metro (FL_SSU), in a separate ÖSPV block of the
+    workbook with its own unit header. FL_Lbus is <em>not</em> a subset of FL_Bus: the road
+    block is territorial mileage regionalised from GRETA/TREMOD, the ÖSPV block is service
+    mileage from public transport statistics, and FL_Lbus exceeds FL_Bus in about a quarter of
+    German municipalities. The two are reconciled in 'Line bus share of all bus mileage'.
   description_de: |
     Gemeindefeine Default-Fahrleistungen, von IFEU aus GRETA/TREMOD abgeleitet, für alle
     deutschen Gemeinden. Motorisierte Zweiräder, Pkw, leichte Nutzfahrzeuge, Lkw und Busse
     werden getrennt für Autobahn, Außerorts und Innerorts angegeben. Ab 2022 weist die Quelle
-    zusätzlich Linienbusse (FL_Lbus) und Straßen-/Stadt-/U-Bahnen (FL_SSU) als Summen aus;
-    Linienbusse sind eine Teilmenge der Busse und dürfen nicht hinzuaddiert werden.
+    zusätzlich Linienbusse (FL_Lbus) und Straßen-/Stadt-/U-Bahnen (FL_SSU) aus, in einem
+    eigenen ÖSPV-Block der Arbeitsmappe mit eigener Einheitenzeile. FL_Lbus ist <em>keine</em>
+    Teilmenge von FL_Bus: der Straßenblock enthält territoriale, aus GRETA/TREMOD
+    regionalisierte Fahrleistungen, der ÖSPV-Block die Betriebsleistung aus der
+    ÖPNV-Statistik, und FL_Lbus übersteigt FL_Bus in etwa einem Viertel aller deutschen
+    Gemeinden. Zusammengeführt werden beide in „Linienbusanteil an der Busfahrleistung“.
   type: formula.FormulaNode
   quantity: mileage
   unit: Mvkm/a
@@ -1557,6 +1613,172 @@ nodes:
   params:
     formula: extend_all(mileage)
 
+# --- Splitting the default bus mileage into Linienbus and Reisebus ---------------------------
+#
+# BISKO requires Linienbusse and Reisebusse to be reported separately (Prüfschritt 2.2), and
+# gives them separate consumption factors and fuel shares (Methodenpapier Table 8). The ifeu
+# municipality defaults do not carry that split: FL_Bus is all buses on the territory, and the
+# ÖSPV figure FL_Lbus measures something else on a different boundary, so it can be neither
+# added to FL_Bus (double count) nor subtracted from it (negative in a quarter of
+# municipalities).
+#
+# What it can do is act as a split key. The line-bus share of the territorial bus mileage is
+# taken to be FL_Lbus / FL_Bus, capped at 1, and FL_Bus is divided by it. The territorial total
+# is preserved, the series has no step where FL_Lbus begins in 2022, and where the ÖSPV service
+# mileage equals or exceeds the territorial figure the whole of it is line bus -- which is the
+# right answer for a dense city. The ratio is our construction, not an ifeu number, and it is
+# an approximation of a split ifeu has not published; see data/TODO.md item 14.
+#
+# FL_Lbus and FL_SSU start in 2022 in the source, and vehicle_kilometers_ifeu applies
+# extend_all, so the 2022 ratio is what the earlier years get.
+
+- id: all_bus_mileage
+  name_en: All bus mileage
+  name_de: Fahrleistung aller Busse
+  description_en: Territorial road mileage of all buses together (FL_Bus), summed over road
+    categories. The denominator of the line bus share.
+  description_de: Territoriale Fahrleistung aller Busse zusammen (FL_Bus), über die
+    Straßenkategorien summiert. Der Nenner des Linienbusanteils.
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: vehicle_kilometers_ifeu
+    from_dimensions:
+    - id: vehicle_type
+      categories: [buses]
+      flatten: true
+    - id: road_type
+      flatten: true
+    to_dimensions: []
+
+- id: reported_line_bus_mileage
+  name_en: Reported line bus service mileage
+  name_de: Ausgewiesene Linienbus-Betriebsleistung
+  description_en: The ÖSPV line bus figure (FL_Lbus) as delivered. It is service mileage on a
+    different system boundary from the territorial road figure, so it is used to apportion the
+    territorial bus mileage rather than to replace it.
+  description_de: Die ÖSPV-Linienbuszahl (FL_Lbus) wie geliefert. Sie ist eine Betriebsleistung
+    mit anderer Systemgrenze als die territoriale Straßenzahl und wird daher zur Aufteilung der
+    territorialen Busfahrleistung verwendet, nicht als deren Ersatz.
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: vehicle_kilometers_ifeu
+    from_dimensions:
+    - id: vehicle_type
+      categories: [local_buses]
+      flatten: true
+    - id: road_type
+      flatten: true
+    to_dimensions: []
+
+- id: line_bus_mileage_share
+  name_en: Line bus share of all bus mileage
+  name_de: Linienbusanteil an der Busfahrleistung
+  description_en: |
+    The share of the territorial bus mileage treated as line bus, taken as the reported ÖSPV
+    line bus mileage divided by the territorial mileage of all buses and capped at 1. The
+    remainder is coach and long-distance bus.
+  description_de: |
+    Anteil der territorialen Busfahrleistung, der als Linienbus behandelt wird: die
+    ausgewiesene ÖSPV-Linienbusfahrleistung geteilt durch die territoriale Fahrleistung aller
+    Busse, begrenzt auf 1. Der Rest entfällt auf Reise- und Fernbusse.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: reported_line_bus_mileage
+  - id: all_bus_mileage
+  params:
+    formula: min(reported_line_bus_mileage / all_bus_mileage, 1)
+
+- id: line_bus_mileage
+  name_en: Line bus mileage
+  name_de: Linienbusfahrleistung
+  description_en: The line bus part of the territorial bus mileage, keeping the road category
+    split of the territorial figure.
+  description_de: Der Linienbusanteil der territorialen Busfahrleistung, unter Beibehaltung der
+    Straßenkategorienaufteilung der territorialen Zahl.
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_nodes:
+  - id: vehicle_kilometers_ifeu
+    from_dimensions:
+    - id: vehicle_type
+      categories: [buses]
+      flatten: true
+    to_dimensions:
+    - id: road_type
+    - id: vehicle_type
+      categories: [local_buses]
+  - id: line_bus_mileage_share
+    to_dimensions: []
+  params:
+    formula: vehicle_kilometers_ifeu * line_bus_mileage_share
+
+- id: coach_bus_mileage
+  name_en: Coach bus mileage
+  name_de: Reisebusfahrleistung
+  description_en: The coach and long-distance bus part of the territorial bus mileage, keeping
+    the road category split of the territorial figure.
+  description_de: Der Reise- und Fernbusanteil der territorialen Busfahrleistung, unter
+    Beibehaltung der Straßenkategorienaufteilung der territorialen Zahl.
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_nodes:
+  - id: vehicle_kilometers_ifeu
+    from_dimensions:
+    - id: vehicle_type
+      categories: [buses]
+      flatten: true
+    to_dimensions:
+    - id: road_type
+    - id: vehicle_type
+      categories: [coach_buses]
+  - id: line_bus_mileage_share
+    to_dimensions: []
+  params:
+    formula: vehicle_kilometers_ifeu * (1 - line_bus_mileage_share)
+
+- id: vehicle_kilometers_ifeu_by_bus_class
+  name_en: Road transport activity by road type, buses split by class
+  name_de: Verkehr Aktivität nach Straßentyp, Busse nach Klasse getrennt
+  description_en: |
+    The ifeu municipality defaults with the two raw bus rows replaced by the Linienbus and
+    Reisebus split. FL_Bus and FL_Lbus are both consumed by the split and neither appears here,
+    so nothing is counted twice.
+  description_de: |
+    Die gemeindefeinen ifeu-Default-Werte, wobei die beiden Rohzeilen für Busse durch die
+    Aufteilung in Linien- und Reisebusse ersetzt sind. FL_Bus und FL_Lbus gehen beide in die
+    Aufteilung ein und erscheinen hier nicht mehr, sodass nichts doppelt gezählt wird.
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type, road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_nodes:
+  - id: vehicle_kilometers_ifeu
+    from_dimensions:
+    - id: vehicle_type
+      categories: [buses, local_buses]
+      exclude: true
+  - id: line_bus_mileage
+  - id: coach_bus_mileage
+
 - id: vehicle_kilometers
   name_en: Vehicle kilometers
   name_de: Fahrleistung
@@ -1564,16 +1786,17 @@ nodes:
     Road mileage used for the balance. By default the BISKO municipality-level default values
     from IFEU are used, which cover every motorised road vehicle class on motorway, rural and
     urban roads. A city that has its own traffic model can switch to its own data with the
-    'use own mileage' setting; BISKO recommends this in the long run, but note that the KSP
-    export only covers urban roads and only the modes for which a vehicle occupancy factor
-    exists, so the switch narrows the balance.
+    'use own mileage' setting; BISKO recommends this in the long run. The city's own data has
+    to carry the vehicle classes and road categories the protocol requires -- see
+    'Own road mileage data availability' for which rows are checked.
   description_de: |
     Für die Bilanz verwendete Fahrleistung. Standardmäßig werden die gemeindefeinen
     BISKO-Default-Werte von IFEU genutzt, die alle motorisierten Straßenfahrzeugklassen auf
     Autobahn, Außerorts und Innerorts abdecken. Eine Kommune mit eigenem Verkehrsmodell kann
     über die Einstellung „eigene Fahrleistung verwenden“ auf eigene Daten umschalten; BISKO
-    empfiehlt dies langfristig, jedoch umfasst der KSP-Export nur Innerorts und nur die
-    Verkehrsmittel, für die ein Besetzungsgrad vorliegt, sodass die Bilanz dadurch schmaler wird.
+    empfiehlt dies langfristig. Die eigenen Daten müssen die vom Prüfprotokoll verlangten
+    Fahrzeugklassen und Straßenkategorien enthalten – welche Zeilen geprüft werden, zeigt
+    „Datenverfügbarkeit der eigenen Fahrleistungsdaten“.
   type: formula.FormulaNode
   quantity: mileage
   unit: Mvkm/a
@@ -1581,19 +1804,14 @@ nodes:
   output_dimensions: [vehicle_type, road_type]
   input_nodes:
   - id: vehicle_kilometers_own
-    tags: [ksp]
-    to_dimensions:
-    - id: vehicle_type
-    - id: road_type
-      categories: [urban_roads]
-  - id: vehicle_kilometers_ifeu
+    tags: [own]
+  - id: vehicle_kilometers_ifeu_by_bus_class
     tags: [ifeu]
   params:
   - id: formula
-    value: select_port(condition, ksp, ifeu)
+    value: select_port(condition, own, ifeu)
   # Was hard-coded to true, so the BISKO default mileage was never reachable and every
-  # road vehicle except cars and motorcycles fell out of the balance (the KSP path only
-  # survives for modes that have both a pkm figure and an occupancy factor).
+  # road vehicle except cars and motorcycles fell out of the balance.
   - id: condition
     ref: use_own_mileage
 
@@ -1721,25 +1939,35 @@ nodes:
 #     - id: vehicle_type
 #     - id: road_type
 
-# The two BISKO factor tables use the road-type category 'total' ('alle' in the source) to
-# mean "one factor that applies to every road category", not "a fourth road category". Cars,
-# motorcycles, light commercial vehicles and trucks get a factor per road category; the public
-# road passenger modes (line buses, coaches, tram/metro) get a single road-type-independent
-# factor. Treating 'total' as an ordinary category made the mileage and the factors miss each
-# other for the public modes, so buses and tram produced no energy at all. Hence two nodes.
+# The BISKO factor tables state some factors per road category and others once for all of
+# them, at road_type 'all_road_types' ('alle' in the source). Cars, motorcycles, light
+# commercial vehicles and trucks get a factor per road category; line buses, coaches and
+# tram/metro get one factor that holds on every road. That is a property of the factor table,
+# not of the mileage, so it is the factors that are filtered below and never the mileage.
+#
+# Each vehicle class selects its own branch: a class whose factors are road-specific has no
+# 'all_road_types' row and drops out of the uniform branch, and a class with only an
+# 'all_road_types' factor drops out of the road-specific one. No class appears in both, so the
+# two branches partition the mileage and their sum double-counts nothing.
+#
+# Until 2026-08-15 the mileage was filtered too -- 'all_road_types' was excluded from it in one
+# branch and flattened away in the other -- on the reading that a category named 'total' had to
+# be a sum of the other three. It is not: it means "no road-type breakdown", which is how the
+# ÖSPV mileage arrives. Excluding it dropped tram/metro out of the balance entirely, and
+# flattening it away discarded the road category split of everything that reached the uniform
+# branch.
 
-- id: road_transport_energy_by_road_type
-  name_en: Road transport energy by road type
-  name_de: Straßenverkehrsenergie nach Straßentyp
+- id: road_transport_energy_with_road_type_factors
+  name_en: Road transport energy - road-type-specific factors
+  name_de: Straßenverkehrsenergie – straßentypspezifische Faktoren
   description_en: |
     End energy of the road vehicle classes whose specific consumption depends on the road
     category: motorcycles, cars, light commercial vehicles and trucks, on motorway, rural and
-    urban roads. This is the road typing BISKO asks for (criterion 2.3).
+    urban roads.
   description_de: |
     Endenergie der Straßenfahrzeugklassen, deren spezifischer Verbrauch von der
     Straßenkategorie abhängt: motorisierte Zweiräder, Pkw, leichte Nutzfahrzeuge und Lkw, auf
-    Autobahn, Außerorts und Innerorts. Dies ist die von BISKO verlangte verbrauchsrelevante
-    Straßentypisierung (Prüfschritt 2.3).
+    Autobahn, Außerorts und Innerorts.
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
@@ -1749,7 +1977,7 @@ nodes:
   - id: transport_energy_factors
     from_dimensions:
     - id: road_type
-      categories: [total]
+      categories: [all_road_types]
       exclude: true
     to_dimensions:
     - id: vehicle_type
@@ -1758,55 +1986,48 @@ nodes:
   - id: transport_energy_shares
     from_dimensions:
     - id: road_type
-      categories: [total]
+      categories: [all_road_types]
       exclude: true
     to_dimensions:
     - id: vehicle_type
     - id: road_type
     - id: energy_carrier
   - id: vehicle_kilometers
-    from_dimensions:
-    - id: road_type
-      categories: [total]
-      exclude: true
     to_dimensions:
     - id: vehicle_type
     - id: road_type
 
-- id: public_road_transport_energy
-  name_en: Public road passenger transport energy
-  name_de: Energieverbrauch öffentlicher Straßenpersonenverkehr
+- id: road_transport_energy_with_uniform_factors
+  name_en: Road transport energy - one factor for all road categories
+  name_de: Straßenverkehrsenergie – ein Faktor für alle Straßentypen
   description_en: |
-    End energy of the public road passenger modes, whose BISKO consumption factors are given
-    once for all road categories, so the mileage is summed over road categories before the
-    multiplication.<br/>
-    Two caveats from the source data. The municipality-level default mileage reports one figure
-    for all buses; BISKO publishes no split between line buses and coaches, so the whole bus
-    mileage is valued with the line-bus consumption factors. Coach factors are about 15 per cent
-    lower, so bus energy is slightly overestimated where coaches are a large share. Separately,
-    tram/metro has a consumption factor but no fuel-share row in the BISKO shares dataset, so it
-    contributes nothing until that row is added.
+    End energy of the modes whose BISKO consumption factor is stated once for all road
+    categories: line buses, coach and long-distance buses, and tram/metro. The factor is
+    broadcast over whatever road categories the mileage carries, so buses keep the road split
+    of the municipality default mileage while tram/metro, which arrives as a single figure,
+    stays at 'all road types'.<br/>
+    One gap remains in the source data: tram/metro has a consumption factor but no fuel-share
+    row in the BISKO shares dataset, so it contributes nothing until that row is added.
   description_de: |
-    Endenergie des öffentlichen Straßenpersonenverkehrs, dessen BISKO-Verbrauchsfaktoren einmal
-    für alle Straßenkategorien angegeben sind; die Fahrleistung wird daher vor der
-    Multiplikation über die Straßenkategorien summiert.<br/>
-    Zwei Einschränkungen aus den Quelldaten: Die gemeindefeinen Default-Fahrleistungen weisen
-    einen Wert für alle Busse aus; BISKO veröffentlicht keine Aufteilung zwischen Linien- und
-    Reisebussen, daher wird die gesamte Busfahrleistung mit den Linienbus-Verbrauchsfaktoren
-    bewertet. Reisebusfaktoren liegen etwa 15 Prozent niedriger, sodass die Busenergie bei
-    hohem Reisebusanteil leicht überschätzt wird. Zudem liegt für Straßen-/Stadt-/U-Bahnen ein
-    Verbrauchsfaktor, aber keine Energieträgeranteilszeile vor, sodass dieser Verkehrsmittel
+    Endenergie der Verkehrsmittel, deren BISKO-Verbrauchsfaktor einmal für alle
+    Straßenkategorien angegeben ist: Linienbusse, Reise- und Fernbusse sowie
+    Straßen-/Stadt-/U-Bahnen. Der Faktor wird auf die Straßenkategorien der jeweiligen
+    Fahrleistung übertragen, sodass Busse die Straßenaufteilung der gemeindefeinen
+    Default-Fahrleistung behalten, während Straßen-/Stadt-/U-Bahnen, die als Einzelwert
+    vorliegen, bei „Alle Straßentypen“ bleiben.<br/>
+    Eine Lücke in den Quelldaten bleibt: Für Straßen-/Stadt-/U-Bahnen liegt ein
+    Verbrauchsfaktor, aber keine Energieträgeranteilszeile vor, sodass dieses Verkehrsmittel
     erst nach Ergänzung dieser Zeile beiträgt.
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
   input_nodes:
   - id: transport_energy_factors
     from_dimensions:
     - id: road_type
-      categories: [total]
+      categories: [all_road_types]
       flatten: true
     to_dimensions:
     - id: vehicle_type
@@ -1814,26 +2035,37 @@ nodes:
   - id: transport_energy_shares
     from_dimensions:
     - id: road_type
-      categories: [total]
+      categories: [all_road_types]
       flatten: true
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
-  # 'local_buses' (FL_Lbus, 2022 onwards) is a subset of 'buses' (FL_Bus) in the same source
-  # sheet; including both would double-count line buses for 2022-2023.
-  # Only 'local_buses' has to be named here. Every other vehicle class is selected
-  # automatically by the multiply: the classes whose factors are road-type specific have no
-  # entry at road_type 'total', so they drop out of this branch and are handled by
-  # road_transport_energy_by_road_type instead.
   - id: vehicle_kilometers
-    from_dimensions:
-    - id: vehicle_type
-      categories: [local_buses]
-      exclude: true
-    - id: road_type
-      flatten: true
     to_dimensions:
     - id: vehicle_type
+    - id: road_type
+
+- id: road_transport_energy_by_road_type
+  name_en: Road transport energy by road type
+  name_de: Straßenverkehrsenergie nach Straßentyp
+  description_en: |
+    End energy of road transport by vehicle class, road category and energy carrier. This is
+    the verbrauchsrelevante Straßentypisierung BISKO asks for (Prüfschritt 2.3). Tram and metro
+    appear under 'all road types' because the source reports their mileage as a single figure
+    without a road breakdown.
+  description_de: |
+    Endenergie des Straßenverkehrs nach Fahrzeugklasse, Straßenkategorie und Energieträger.
+    Dies ist die von BISKO verlangte verbrauchsrelevante Straßentypisierung (Prüfschritt 2.3).
+    Straßen-, Stadt- und U-Bahnen erscheinen unter „Alle Straßentypen“, da die Quelle ihre
+    Fahrleistung als Einzelwert ohne Straßenaufteilung ausweist.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_nodes:
+  - id: road_transport_energy_with_road_type_factors
+  - id: road_transport_energy_with_uniform_factors
 
 - id: road_transport_energy_bisko
   name_en: Road transport energy
@@ -1848,7 +2080,6 @@ nodes:
     from_dimensions:
     - id: road_type
       flatten: true
-  - id: public_road_transport_energy
 
 - id: transport_emission_factors
   name_en: Transport emission factors
@@ -1944,8 +2175,9 @@ nodes:
     of the BISKO method paper map onto these tests:
     <ol>
       <li><b>End-energy-based territorial principle</b> — entries exist for the mandatory
-        grid-bound carriers, the mandatory non-grid-bound carriers, and the rail, water and air
-        transport modes. The entry may be zero, but it has to exist.</li>
+        grid-bound carriers, the mandatory non-grid-bound carriers, the road vehicle classes by
+        road category, and the rail, water and air transport modes. The entry may be zero, but
+        it has to exist.</li>
       <li><b>Split by sector and energy carrier</b> — structural; the balance is reported by
         both, transport included.</li>
       <li><b>Emission factors with equivalents and upstream chains</b> — the national BISKO
@@ -1967,9 +2199,10 @@ nodes:
     des BISKO-Methodenpapiers werden wie folgt abgebildet:
     <ol>
       <li><b>Endenergiebasiertes Territorialprinzip</b> — für die verpflichtenden
-        leitungsgebundenen und nicht-leitungsgebundenen Energieträger sowie für Schienen-,
-        Schiffs- und Flugverkehr liegen Einträge vor. Der Eintrag darf null sein, muss aber
-        vorhanden sein.</li>
+        leitungsgebundenen und nicht-leitungsgebundenen Energieträger, für die
+        Straßenfahrzeugklassen nach Straßenkategorie sowie für Schienen-, Schiffs- und
+        Flugverkehr liegen Einträge vor. Der Eintrag darf null sein, muss aber vorhanden
+        sein.</li>
       <li><b>Aufteilung nach Sektoren und Energieträgern</b> — strukturell; die Bilanz wird nach
         beiden ausgewiesen, einschließlich Verkehr.</li>
       <li><b>Emissionsfaktoren mit Äquivalenten und Vorketten</b> — es werden die nationalen
@@ -2014,9 +2247,11 @@ nodes:
     tags: [non_grid_bound]
   - id: has_all_other_transport_data
     tags: [other_transport]
+  - id: has_all_road_transport_data
+    tags: [road_transport]
   params:
     formula: weather * electricity * district_heating * district_heating_factor
-      * grid_energy * grid_bound * non_grid_bound * other_transport
+      * grid_energy * grid_bound * non_grid_bound * other_transport * road_transport
 
 - id: has_no_weather_correction
   name_en: Has no weather correction?
@@ -2415,6 +2650,72 @@ nodes:
       ref: ags_number
     - column: municipality
       ref: municipality_name
+
+- id: vehicle_kilometers_own_availability
+  name_en: Own road mileage data availability
+  name_de: Datenverfügbarkeit der eigenen Fahrleistungsdaten
+  description_en: |
+    Shows for which vehicle class, road category and year the city's own road mileage dataset
+    contains a value (1 = a value exists, 0 = none). The combinations reported on are the ones
+    BISKO requires, not the ones the data happens to use, so a row deleted from the dataset
+    reads 0 rather than disappearing.<br/>
+    Prüfschritt 2.2 requires the road vehicle classes to be differentiated — cars, motorised
+    two-wheelers, light commercial vehicles, trucks over 3.5 t, line buses, coaches, and
+    tram/metro where present — and Prüfschritt 2.3 requires the first four of those to be split
+    by road category. That is 4 × 3 + 3 = 15 required combinations.
+  description_de: |
+    Zeigt, für welche Fahrzeugklasse, Straßenkategorie und welches Jahr der eigene
+    Fahrleistungsdatensatz der Kommune einen Wert enthält (1 = Wert vorhanden, 0 = keiner).
+    Berichtet werden die von BISKO verlangten Kombinationen und nicht die zufällig in den Daten
+    vorhandenen, sodass eine gelöschte Zeile als 0 erscheint statt zu verschwinden.<br/>
+    Prüfschritt 2.2 verlangt die Differenzierung der Straßenfahrzeugklassen – Pkw, motorisierte
+    Zweiräder, leichte Nutzfahrzeuge, Lkw über 3,5 t, Linienbusse, Reisebusse sowie ggf.
+    Straßen-/Stadt-/U-Bahnen – und Prüfschritt 2.3 die Aufteilung der ersten vier nach
+    Straßenkategorie. Das sind 4 × 3 + 3 = 15 Pflichtkombinationen.
+  type: simple.DataAvailabilityNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_type, road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_datasets:
+  - id: bisko/vehicle_kilometers
+    column: Value
+  # Which vehicle class / road category cells have to exist. In DVC rather than in the database
+  # because the data it judges is editable in the admin UI and the requirement must not be.
+  - id: bisko/required_road_mileage_categories
+    tags: [template]
+
+- id: has_all_road_transport_data
+  name_en: Has all road transport data?
+  name_de: Sind alle Daten zum Straßenverkehr vorhanden?
+  description_en: |
+    1 when every road vehicle class and road category BISKO requires has a mileage entry for
+    that year, 0 when any is missing. The entry may be zero, but it has to exist; use
+    'Own road mileage data availability' to see which cell is empty.<br/>
+    The test applies to the city's own mileage. When the balance runs on the ifeu municipality
+    defaults the required rows are supplied by construction, so the flag is 1.
+  description_de: |
+    1, wenn jede von BISKO verlangte Straßenfahrzeugklasse und Straßenkategorie für dieses Jahr
+    einen Fahrleistungseintrag hat, 0, wenn eine fehlt. Der Eintrag darf null sein, muss aber
+    vorhanden sein; welche Zelle leer ist, zeigt „Datenverfügbarkeit der eigenen
+    Fahrleistungsdaten“.<br/>
+    Geprüft werden die eigenen Fahrleistungsdaten. Läuft die Bilanz auf den gemeindefeinen
+    ifeu-Default-Werten, sind die Pflichtzeilen konstruktionsbedingt vorhanden und das Flag ist 1.
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_dimensions: [vehicle_type, road_type]
+  input_nodes:
+  - id: vehicle_kilometers_own_availability
+    tags: [availability]
+  params:
+  # Both dimensions are reduced with prod_dim: unlike the stationary carriers, which BISKO
+  # requires only "mindestens auf Ebene der Gesamtkommune", Prüfschritt 2.3 requires the road
+  # categories themselves, so a class present on one road type only is not complete.
+  - id: formula
+    value: max(prod_dim(prod_dim(availability, road_type), vehicle_type), 1 - float(condition))
+  - id: condition
+    ref: use_own_mileage
 
 - id: has_all_grid_bound_energy_data
   name_en: Has all grid-bound energy data?

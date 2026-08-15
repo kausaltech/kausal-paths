@@ -795,11 +795,12 @@ nodes:
     sin procesar se obtuvieron del <a 
     href="https://demography.dola.colorado.gov/assets/html/county.html">Departamento
     de Asuntos Locales de Colorado</a>.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: population
   unit: cap
   input_datasets:
   - id: longmont/population
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: population
     forecast_from: 2025
   input_dataset_processors: [LinearInterpolation]
@@ -834,13 +835,14 @@ nodes:
   name: Agriculture, forestry, and other land use emissions
   name_es-US: Emisiones de la agricultura, la silvicultura y otros usos del 
     suelo
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
   input_datasets:
   - id: longmont/greenhouse_gas_emissions_by_subsector
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: emissions
     filters:
     - column: emission_sectors
@@ -858,11 +860,12 @@ nodes:
 - id: waste_water_treatment_emissions
   name: Waste water treatment emissions
   name_es-US: Emisiones del tratamiento de aguas residuales
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   input_datasets:
   - id: longmont/greenhouse_gas_emissions_by_subsector
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: emissions
     filters:
     - column: emission_scope
@@ -879,7 +882,7 @@ nodes:
 - id: leakage_from_oil_and_gas_wells_emissions
   name: Emissions from leakages from oil and gas wells
   name_es-US: Emisiones procedentes de fugas de pozos de petróleo y gas
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [emission_scope]
@@ -910,18 +913,19 @@ nodes:
 
 - id: green_electricity_production
   name: Green electricity production
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy
   unit: kWh/a
   input_dimensions: [asset, energy_carrier]
   output_dimensions: [asset, energy_carrier]
   input_datasets:
   - id: longmont/avoided_emissions
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Green production
 
 - id: green_electricity_emission_reduction
   name: Green electricity emission reduction
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [asset, site, ghg]
@@ -942,7 +946,7 @@ nodes:
 
 - id: avoided_emissions
   name: Avoided emissions
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   input_nodes:
@@ -1027,7 +1031,7 @@ nodes:
 - id: stationary_energy_emissions
   name: Stationary energy emissions
   name_es-US: Emisiones de energía estacionaria
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   color: '#73C1B7'
@@ -1047,7 +1051,7 @@ nodes:
   name: Fugitive emissions
   name_es-US: Emisiones fugitivas
   color: '#8DAFBC'
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [emission_sectors, scope, ghg, energy_carrier]
@@ -1164,13 +1168,14 @@ nodes:
   name: Electricity use on streetlights and internal operations
   name_es-US: Consumo de electricidad en alumbrado público e operaciones 
     internas
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy
   unit: GWh/a
   input_dimensions: [emission_sectors, site]
   output_dimensions: [emission_sectors, site]
   input_datasets:
   - id: longmont/stationary_energy_consumption
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: electricity
     filters:
     - column: energy_carrier
@@ -1337,7 +1342,7 @@ nodes:
     unit-incompatible so it's multiplied in) rather than a FormulaNode formula 
     string, so replace_natural_gas_residential stays an implicit input -- 
     removable without also having to edit a formula elsewhere.
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: energy
   unit: Mthm/a
   input_dimensions: [emission_sectors, building_energy_class]
@@ -1362,7 +1367,7 @@ nodes:
     unit-incompatible so it's multiplied in) rather than a FormulaNode formula 
     string, so replace_natural_gas_commercial stays an implicit input -- 
     removable without also having to edit a formula elsewhere.
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: energy
   unit: Mthm/a
   input_dimensions: [emission_sectors, building_energy_class]
@@ -1555,13 +1560,14 @@ nodes:
 - id: electricity_emission_factor
   name: Emission factor of electricity production
   name_es-US: Factor de emisión de la producción de electricidad
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: t/MWh
   input_dimensions: [site, ghg]
   output_dimensions: [site, ghg]
   input_datasets:
   - id: longmont/electricity_emission_factor
+    extend: true  # GenericNode extended its dataset; keep that explicit
   input_dataset_processors: [LinearInterpolation]
 
 - id: electricity_emission_factor_co2e
@@ -1583,7 +1589,7 @@ nodes:
 - id: electricity_consumption_emissions
   name: Electricity consumption emissions
   name_es-US: Emisiones del consumo de electricidad
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   color: '#4d9870'
@@ -1616,6 +1622,8 @@ nodes:
   name: Electricity that replaces natural gas in residential buildings
   name_es-US: Electricidad que reemplaza al gas natural en edificios 
     residenciales
+  # Stays a GenericNode: the 0.33 multiplier below has no equivalent on AdditiveNode2, and
+  # the honest conversion is an explicit factor in the graph rather than a node parameter.
   type: generic.GenericNode
   quantity: energy
   unit: kWh/a
@@ -1740,7 +1748,7 @@ nodes:
 - id: natural_gas_consumption_emissions
   name: Natural gas consumption emissions
   name_es-US: Emisiones del consumo de gas natural
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   output_dimensions: [emission_sectors, ghg, energy_carrier]
@@ -1771,11 +1779,12 @@ nodes:
 - id: stationary_fuel_consumption
   name: Other stationary fuel consumption
   name_es-US: Consumo de otros combustibles estacionarios
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy
   unit: gal/a
   input_datasets:
-  - longmont/stationary_fuel_use
+  - id: longmont/stationary_fuel_use
+    extend: true  # GenericNode extended its dataset; keep that explicit
   input_dimensions: [emission_sectors, energy_carrier]
   output_dimensions: [emission_sectors, energy_carrier]
 
@@ -1894,12 +1903,13 @@ nodes:
 - id: stationary_wood_consumption
   name: Stationary wood consumption
   name_es-US: Consumo de madera estacionario
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy
   unit: MMBtu/a
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: longmont/stationary_wood_consumption
+    extend: true  # GenericNode extended its dataset; keep that explicit
   input_dimensions: [emission_sectors]
   output_dimensions: [energy_carrier, emission_sectors]
 
@@ -1943,7 +1953,7 @@ nodes:
 - id: wood_consumption_emissions
   name: Wood consumption emissions
   name_es-US: Emisiones del consumo de madera
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   output_dimensions: [ghg, emission_sectors, energy_carrier]
@@ -1962,11 +1972,12 @@ nodes:
 - id: electricity_loss_fraction
   name: Electricity loss fraction
   name_es-US: Fracción de pérdida de electricidad
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_datasets:
   - id: longmont/transmission_and_distribution_loss
+    extend: true  # GenericNode extended its dataset; keep that explicit
     filters:
     - column: site
       value: longmont_power
@@ -1999,7 +2010,7 @@ nodes:
 - id: electricity_loss_emissions
   name: Emissions due to electricity losses
   name_es-US: Emisiones por pérdidas de electricidad
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [emission_sectors, ghg, site, scope]
@@ -2026,17 +2037,18 @@ nodes:
 
 - id: rng_truck_energy_use
   name: RNG truck energy use
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy
   unit: scf/a
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/rng_truck_energy_use
+    extend: true  # GenericNode extended its dataset; keep that explicit
 
 - id: rng_truck_emissions
   name: RNG truck emissions
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
@@ -2109,7 +2121,7 @@ nodes:
 
 - id: bus_natural_gas_use
   name: Bus natural gas use
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: energy
   unit: scf/a
   input_dimensions: [vehicle_type, energy_carrier]
@@ -2120,7 +2132,7 @@ nodes:
 
 - id: natural_gas_bus_emissions
   name: Natural gas bus emissions
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
@@ -2177,7 +2189,7 @@ nodes:
 
 - id: transportation_electricity_emissions
   name: Transportation electricity emissions
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
@@ -2194,24 +2206,28 @@ nodes:
 
 - id: transportation_miles_per_gallon
   name: Transportation miles per gallon
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy_factor
   unit: MPG
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/transportation_energy_factors
+    # GenericNode back-filled this series' leading nulls silently; keep it, said out loud.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Miles per gallon
 
 - id: phev_fuel_shares
   name: PHEV fuel shares
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/phev_fuel_shares
+    extend: true  # GenericNode extended its dataset; keep that explicit
 
 - id: phev_fuel_use
   name: PHEV fuel use
@@ -2295,7 +2311,7 @@ nodes:
 
 - id: transportation_ch4_emissions
   name: Transportation CH4 and N2O emissions
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
@@ -2313,7 +2329,7 @@ nodes:
 
 - id: road_transportation_emissions
   name: Road transportation emissions
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [energy_carrier, ghg, scope]
@@ -2343,7 +2359,7 @@ nodes:
 
 - id: transportation_emissions
   name: Transportation emissions
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [energy_carrier, ghg, scope]
@@ -2379,25 +2395,31 @@ nodes:
 
 - id: transit_percentage_attributable_to_longmont
   name: Transit percentage attributable to Longmont
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_dimensions: [service, vehicle_type, energy_carrier]
   output_dimensions: [service, vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/transit_data
+    # GenericNode back-filled this series' leading nulls silently; keep it, said out loud.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     forecast_from: 2025
     column: percent_attributable
 
 - id: transit_mpg
   name: Transit MPG
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: mileage
   unit: VMT/gal
   input_dimensions: [service, vehicle_type, energy_carrier]
   output_dimensions: [service, vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/transit_data
+    # GenericNode back-filled this series' leading nulls silently; keep it, said out loud.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     forecast_from: 2025
     column: transit_mpg
 
@@ -2418,7 +2440,7 @@ nodes:
 
 - id: transit_co2_emissions
   name: Transit CO2 emissions
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [service, vehicle_type, energy_carrier, ghg]
@@ -2450,25 +2472,32 @@ nodes:
 
 - id: total_railway_ghg_emissions_boulder_county
   name: Total Railway GHG Emissions Boulder County
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t/a
   input_dimensions: [ghg]
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/total_railway_ghg_emissions_boulder_county
+    extend: true  # GenericNode extended its dataset; keep that explicit
     forecast_from: 2025
     column: railway_emissions
 
 - id: proportion_of_rail_lines_in_longmont
   name: Proportion of Rail Lines in Longmont
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_datasets:
   - id: longmont/total_railway_ghg_emissions_boulder_county
+    extend: true  # GenericNode extended its dataset; keep that explicit
     forecast_from: 2025
     column: proportion_of_rail_lines_in_longmont
+    filters:
+    # `ghg` belongs to this dataset's other metric (railway_emissions), not to this one, so
+    # after selecting the column above it is present but empty. AdditiveNode2 does not drop
+    # empty dimensions the way GenericNode did, so say it here.
+    - column: ghg
 
 - id: railway_emissions
   name: Railway emissions
@@ -2500,25 +2529,41 @@ nodes:
 
 - id: aviation_fuel_usage
   name: Aviation fuel usage
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy
   unit: gal/a
   input_dimensions: [energy_carrier, airport, scope]
   output_dimensions: [energy_carrier, airport, scope]
   input_datasets:
   - id: longmont/aviation_data
+    # GenericNode back-filled this series' leading nulls silently; keep it, said out loud.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: total_fuel_used
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: ghg
+    - column: source
 
 - id: aviation_fuel_emission_factors
   name: Aviation fuel emission factors
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: g/gal
   input_dimensions: [energy_carrier, ghg, source]
   output_dimensions: [energy_carrier, ghg, source]
   input_datasets:
   - id: longmont/aviation_data
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: fuel_emission_factors
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: airport
+    - column: scope
 
 - id: aviation_fuel_emission_factors_co2e
   name: Aviation fuel emission factors (CO2e)
@@ -2537,7 +2582,7 @@ nodes:
 
 - id: aviation_emissions
   name: Aviation emissions
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [airport, energy_carrier, ghg, scope]
@@ -2569,14 +2614,20 @@ nodes:
 
 - id: waste_emission_factors
   name: Waste emission factors
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: t/short_ton
   input_dimensions: [waste, ghg]
   output_dimensions: [waste, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: waste_emission_factor
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: scope
 
 - id: waste_emission_factors_co2e
   name: Waste emission factors (CO2e)
@@ -2595,16 +2646,23 @@ nodes:
 
 - id: gas_collection_rate
   name: Gas collection rate
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_datasets:
   - id: longmont/waste_data
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: gas_collection_rate
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: scope
+    - column: waste
 
 - id: waste_landfilled
   name: Waste landfilled
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: mass
   unit: short_ton/a
   input_dimensions: [scope, waste]
@@ -2612,28 +2670,40 @@ nodes:
   input_datasets:
   - id: longmont/waste_data
     column: waste_landfilled
+    # A factor, not an addend: its unit matches the node's, so the unit rule alone would
+    # read it as something to add. Extended because GenericNode used to extend it.
+    tags: [non_additive]
+    extend: true
   input_nodes:
   - id: population
     tags: [ratio_to_max_hist_year]
 
 - id: diversion_rate
   name: Diversion rate
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_datasets:
   - id: longmont/waste_data
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Diversion rate
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: scope
+    - column: waste
 
 - id: msw_characterization
   name: MSW characterization
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_dimensions: [waste]
   output_dimensions: [waste]
   input_datasets:
   - id: longmont/waste_characterization
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: msw_characterization
 
 - id: landfilled_waste_emissions
@@ -2674,14 +2744,21 @@ nodes:
 
 - id: composted_waste_emission_factor
   name: Composted waste emission factor
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: t/short_ton
   input_dimensions: [ghg]
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: composting_emission_factor
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: scope
+    - column: waste
 
 - id: composted_waste_emission_factor_co2e
   name: Composted waste emission factor (CO2e)
@@ -2700,7 +2777,7 @@ nodes:
 
 - id: waste_composted
   name: Waste composted
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: mass
   unit: short_ton/a
   input_dimensions: [scope]
@@ -2708,13 +2785,22 @@ nodes:
   input_datasets:
   - id: longmont/waste_data
     column: waste_composted
+    # A factor, not an addend: its unit matches the node's, so the unit rule alone would
+    # read it as something to add. Extended because GenericNode used to extend it.
+    tags: [non_additive]
+    extend: true
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: waste
   input_nodes:
   - id: population
     tags: [ratio_to_max_hist_year]
 
 - id: composted_waste_emissions
   name: Composted waste emissions
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [scope, ghg]
@@ -2732,14 +2818,20 @@ nodes:
 
 - id: informational_composting_emission_factor
   name: Informational composting emission factor
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: t/short_ton
   input_dimensions: [scope, ghg]
   output_dimensions: [scope, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: informational_composting_emission_factor
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: waste
 
 - id: informational_composting_emission_factor_co2e
   name: Informational composting emission factor (CO2e)
@@ -2758,7 +2850,7 @@ nodes:
 
 - id: informational_composting_emission_reduction
   name: Informational composting emission reduction
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [scope, ghg]
@@ -2779,7 +2871,7 @@ nodes:
 
 - id: waste_recycled
   name: Waste recycled
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: mass
   unit: short_ton/a
   input_dimensions: [scope]
@@ -2787,46 +2879,68 @@ nodes:
   input_datasets:
   - id: longmont/waste_data
     column: waste_recycled
+    # A factor, not an addend: its unit matches the node's, so the unit rule alone would
+    # read it as something to add. Extended because GenericNode used to extend it.
+    tags: [non_additive]
+    extend: true
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: waste
   input_nodes:
   - id: population
     tags: [ratio_to_max_hist_year]
 
 - id: recycling_characterization
   name: Recycling characterization
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_dimensions: [waste]
   output_dimensions: [waste]
   input_datasets:
   - id: longmont/waste_characterization
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: recycling_characterization
 
 - id: recycling_instead_of_virgin
   name: Recycling instead of virgin materials
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: t/short_ton
   input_dimensions: [waste, ghg]
   output_dimensions: [waste, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: recycling_instead_of_virgin
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: scope
 
 - id: landfill_gas_collection
   name: Landfill gas collection factor
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: t/short_ton
   input_dimensions: [waste, ghg]
   output_dimensions: [waste, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: landfill_gas_collection
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: scope
 
 - id: recycling_emission_factor
   name: Recycling emission factor
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: t/short_ton
   input_dimensions: [waste, ghg]
@@ -2852,7 +2966,7 @@ nodes:
 
 - id: recycling_emission_reduction
   name: Recycling emission reduction
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [scope, ghg, waste]
@@ -2872,20 +2986,21 @@ nodes:
 
 - id: global_warming_potential_100a
   name: Global warming potential2
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: ratio
   unit: t_co2e/t
   input_dimensions: [ghg]
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/global_warming_potentials
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: global_warming_potential
 
 - id: waste_emissions
   name: Waste emissions
   name_es-US: Emisiones de residuos
   color: '#D3805E'
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [scope, ghg]
@@ -2900,41 +3015,60 @@ nodes:
 
 - id: commercial_air_conditioned_square_footage
   name: Commercial air-conditioned square footage
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: floor_area
   unit: sq_ft
   input_datasets:
   - id: longmont/ippu
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: commercial_square_footage_air_conditioned
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: ghg
 
 - id: square_feet_per_ton_of_cooling
   name: Square feet per ton of cooling
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: floor_area
   unit: sq_ft/refrigeration_ton
   input_datasets:
   - id: longmont/ippu
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: square_feet_per_ton_of_cooling
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: ghg
 
 - id: amount_of_refrigerant
   name: Amount of refrigerant
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: mass
   unit: kg/refrigeration_ton
   input_dimensions: [ghg]
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/ippu
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: amount_of_refrigerant
 
 - id: refrigerant_loss
   name: Refrigerant loss
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: '%/a'
   input_datasets:
   - id: longmont/ippu
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: estimated_refrigerant_loss
+    # Dimensions of this dataset's other metrics, empty for the column selected above.
+    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
+    # did, so the binding says which ones do not apply.
+    filters:
+    - column: ghg
 
 - id: refrigerant_emissions
   name: Refrigerant emissions
@@ -2965,7 +3099,7 @@ nodes:
 - id: ippu_emissions
   name: Industrial processes and product use emissions
   name_es-US: Emisiones de procesos industriales y uso de productos
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   color: '#6686B9'
@@ -2991,21 +3125,23 @@ nodes:
     50: VMT promedio anual por vehículo (de BAU, año 2018) 4671,6 mi/vehículo/a</li>
     <li>Fila 76: VMT promedio anual (a partir del supuesto, año 2018) 7982 mi/vehículo/a</li></ul></p>
     <p><b>Unidad:</b> mi/(año v) = millas al año por vehículo</p>'
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: mileage
   unit: VMT/vehicle/a
   input_datasets:
   - id: longmont/annual_vehicle_miles_per_vehicle
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: vmt
 
 - id: registered_electric_vehicles
   name: Registered electric vehicles
   name_es-US: Vehículos eléctricos matriculados
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: number
   unit: vehicle
   input_datasets:
-  - longmont/registered_electric_vehicles
+  - id: longmont/registered_electric_vehicles
+    extend: true  # GenericNode extended its dataset; keep that explicit
 
 - id: electric_vehicle_miles_traveled
   name: Electric vehicle miles traveled
@@ -3108,13 +3244,14 @@ nodes:
 - id: greenhouse_gas_index
   name: Greenhouse gas index
   name_es-US: Índice de gases de efecto invernadero
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [ghg, greenhouse_gases]
   output_dimensions: [ghg, greenhouse_gases]
   input_datasets:
   - id: longmont/greenhouse_gas_index
+    extend: true  # GenericNode extended its dataset; keep that explicit
 
 - id: vehicle_fuel_emissions
   name: Vehicle fuel emissions

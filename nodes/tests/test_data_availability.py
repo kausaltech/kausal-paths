@@ -462,3 +462,48 @@ def test_a_template_does_not_change_the_dimension_column_dtype():
 
     assert out.schema['carrier'] == pl.Categorical
     assert set(out['carrier'].cast(pl.Utf8).unique()) == {'electricity', 'natural_gas'}
+
+
+def _empty_carrier_data(context: Context) -> Dataset:
+    """
+    Build a dataset a city has not started filling in: the right columns, no rows.
+
+    Rows whose every metric is null are dropped before the node sees them, so the frame that
+    arrives from an untouched template is empty. Its dimension columns survive the drop but
+    carry nothing, which is the case the template has to answer for.
+    """
+    df = pl.DataFrame(
+        {YEAR_COLUMN: [], 'carrier': [], VALUE_COLUMN: [], FORECAST_COLUMN: []},
+        schema={YEAR_COLUMN: pl.Int64, 'carrier': pl.Utf8, VALUE_COLUMN: pl.Float64, FORECAST_COLUMN: pl.Boolean},
+    )
+    meta = DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kWh')}, primary_keys=[YEAR_COLUMN, 'carrier'])
+    return _make_dataset(context, to_ppdf(df, meta))
+
+
+def test_an_empty_dataset_reports_every_required_combination_as_missing():
+    """'Nobody has looked' is the case the template exists for, so it must not raise."""
+    context = _make_context('availability-template-empty')
+    node = _make_node(
+        context,
+        [
+            _empty_carrier_data(context),
+            _template_dataset(context, [('electricity',), ('natural_gas',)], ['carrier']),
+        ],
+    )
+
+    df = node.compute()
+
+    assert set(df['carrier'].unique()) == {'electricity', 'natural_gas'}
+    assert df[VALUE_COLUMN].sum() == 0.0
+    years = range(context.instance.minimum_historical_year, context.instance.model_end_year + 1)
+    assert len(df) == 2 * len(years)
+    assert df.get_unit(VALUE_COLUMN).dimensionless
+
+
+def test_an_empty_dataset_without_a_template_still_raises():
+    """With nothing to declare what should have been there, silence is the wrong answer."""
+    context = _make_context('availability-empty-no-template')
+    node = _make_node(context, [_empty_carrier_data(context)])
+
+    with pytest.raises(NodeError):
+        node.compute()

@@ -677,6 +677,9 @@ class InstanceConfigParser:
         if ds_config is None:
             ds_config = getattr(parsed.node_class, 'input_datasets', [])
 
+        # Mirror the loader: a processor entry forces interpolation on, a class default
+        # yields to an explicit `interpolate:` on the binding.
+        class_interpolate = parsed.node_class.interpolates_input_datasets_by_default
         ds_interpolate = False
         idp_confs = config.get('input_dataset_processors', [])
         if idp_confs:
@@ -687,10 +690,12 @@ class InstanceConfigParser:
         defs: list[InputDatasetDef] = []
         for ds in ds_config:
             if isinstance(ds, str):
-                ds_def = InputDatasetDef(id=ds, interpolate=ds_interpolate)
+                ds_def = InputDatasetDef(id=ds, interpolate=ds_interpolate or class_interpolate)
             else:
                 ds_def = InputDatasetDef.model_validate(ds)
                 if ds_interpolate:
+                    ds_def.interpolate = True
+                elif class_interpolate and 'interpolate' not in ds:
                     ds_def.interpolate = True
             defs.append(ds_def)
         parsed.dataset_defs = defs
@@ -949,17 +954,16 @@ class InstanceConfigParser:
         return tuple(parsed.input_dimensions)
 
     def _multiplicity_hint(self, parsed: _ParsedNode, edge: _ParsedEdge) -> tuple[str, str] | None:
-        """Mirror ``AdditiveNode.input_port_multiplicity_hint`` from class metadata: ``(group, role)``."""
-        from nodes.simple import AdditiveNode
+        """
+        Mirror ``input_port_multiplicity_hint`` from class metadata: ``(group, role)``.
 
-        node_class = parsed.node_class
-        if not issubclass(node_class, AdditiveNode):
+        The class answers whether it has an additive multiport, so that adding another
+        class with one does not mean remembering to name it here too.
+        """
+        declaration = parsed.node_class.additive_multiport_declaration(edge.tags)
+        if declaration is None:
             return None
-        if node_class is not AdditiveNode and not node_class.export_additive_input_ports_as_multi:
-            return None
-        if any(tag in node_class.additive_multi_input_excluded_tags for tag in edge.tags):
-            return None
-        return str(node_class.additive_port.instance_identifier), str(node_class.additive_port.role)
+        return str(declaration.instance_identifier), str(declaration.role)
 
     def _is_compatible_unit(self, unit_a: Unit | None, unit_b: Unit | None, node_id: str) -> bool:
         assert unit_a is not None, f'Unit is missing in node {node_id}. Is it multimetric?'
@@ -1154,7 +1158,9 @@ class InstanceConfigParser:
         # with no datasets is therefore dropped — reproduce that.
         processors: list[str] = []
         has_idp = bool(config.get('input_dataset_processors'))
-        if any(ds_def.interpolate for ds_def in parsed.dataset_defs) or (parsed.has_fixed_dataset and has_idp):
+        if not parsed.node_class.interpolates_input_datasets_by_default and (
+            any(ds_def.interpolate for ds_def in parsed.dataset_defs) or (parsed.has_fixed_dataset and has_idp)
+        ):
             processors = ['LinearInterpolation']
         tags = config.get('tags')
         if isinstance(tags, str):

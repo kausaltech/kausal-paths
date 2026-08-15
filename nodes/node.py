@@ -45,7 +45,7 @@ from .exceptions import NodeComputationError, NodeError, NodeMissingDefaultUnitE
 from .units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Collection, Sequence
     from contextlib import AbstractContextManager
 
     import loguru
@@ -334,6 +334,13 @@ class Node:
 
     default_unit: ClassVar[str]
     'Default unit for the node class (defined as a class variable)'
+
+    interpolates_input_datasets_by_default: ClassVar[bool] = False
+    """Whether a dataset bound to this class has year gaps filled unless the binding opts out.
+
+    Off for the historical classes, which interpolate only when asked; on for the rebuilt
+    ones, where it is the sane default and `interpolate: false` is the explicit exception.
+    See ``docs/plans/additive-multiplicative-modernization.md``."""
 
     input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = ()
     output_port_declarations: ClassVar[tuple[OutputPortDeclaration, ...]] = ()
@@ -1380,6 +1387,19 @@ class Node:
         dataset: Dataset | None = None,  # pyright: ignore[reportUnusedParameter]
     ) -> InputPortMultiplicityHint:
         return InputPortMultiplicityHint()
+
+    @classmethod
+    def additive_multiport_declaration(cls, tags: Collection[str] = ()) -> InputPortDeclaration | None:  # noqa: ARG003
+        """
+        Return this class's additive multiport for an input carrying ``tags``, if there is one.
+
+        A node with an additive multiport lets any number of compatible inputs land on one
+        port, and the editor draws it that way. Classes that work like this answer here
+        instead of being named in a list somewhere else: the parser mirrors port layout from
+        class metadata, and it must not have to know which concrete classes those are. Tags
+        are passed in because a class may exclude some inputs from the pool.
+        """
+        return None
 
     @classmethod
     def shape_rules(cls, meta: NodeMeta) -> tuple[AnyShapeRule, ...]:  # pyright: ignore[reportUnusedParameter]  # noqa: ARG003
