@@ -726,6 +726,11 @@ nodes:
 - id: net_emissions_by_energy_carrier
   name_de: Netto-Emissionen nach Energieträger
   name_en: Net emissions by energy carrier
+  description_en: A copy of net_emissions with energy_carrier as the first dimension,
+    so the outcome page shows the energy carrier breakdown before the sector breakdown.
+  description_de: Eine Kopie von net_emissions mit energy_carrier als erster Dimension,
+    sodass die Ergebnisseite die Aufschlüsselung nach Energieträger vor der nach
+    Sektor zeigt.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
@@ -1800,8 +1805,8 @@ nodes:
   type: formula.FormulaNode
   quantity: mileage
   unit: Mvkm/a
-  input_dimensions: [vehicle_type, road_type]
-  output_dimensions: [vehicle_type, road_type]
+  input_dimensions: [road_type, vehicle_type]
+  output_dimensions: [road_type, vehicle_type]
   input_nodes:
   - id: vehicle_kilometers_own
     tags: [own]
