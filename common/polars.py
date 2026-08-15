@@ -499,9 +499,16 @@ class PathsDataFrame(pl.DataFrame):
             raise Exception("Unit '%s' for column %s is not compatible with '%s'" % (col_unit, col, unit_obj))
 
         assert isinstance(unit_obj, Unit), f'Unit is not a Unit: {type(unit)}'
-        vls = self[col].to_numpy()
+        src = self[col]
+        vls = src.to_numpy()
         vls = (vls * col_unit).to(unit_obj).m
-        df = self.with_columns([pl.Series(name=col, values=vls)], units={col: unit_obj})
+        converted = pl.Series(name=col, values=vls)
+        if src.null_count():
+            # `to_numpy()` renders nulls as NaN, and they would come back as NaN. A null means
+            # "no value" and must stay one: NaN poisons every downstream sum and `Node.check()`
+            # rejects it. Genuine NaNs in the input are untouched — only the null mask is restored.
+            converted = converted.zip_with(src.is_not_null(), pl.Series(name=col, values=[None], dtype=converted.dtype))
+        df = self.with_columns([converted], units={col: unit_obj})
         return df
 
     def to_pandas(
