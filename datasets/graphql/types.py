@@ -19,8 +19,22 @@ from kausal_common.strawberry.ordering import with_sibling_ids
 from kausal_common.strawberry.permissions import UserPermissionsMixin
 from kausal_common.strawberry.registry import register_strawberry_type
 
+from datasets.validation_rules import (
+    DimensionSumRule,
+    NoGapsRule,
+    ValidationRuleGQLInterface,
+    ValueRangeRule,
+    rule_to_gql,
+    validation_rule_adapter,
+)
 from users.models import User
 from users.schema import UserType
+
+# The concrete rule types are only reachable through the ValidationRule
+# interface, so they must be registered as extra schema types explicitly.
+register_strawberry_type(ValueRangeRule.ObjectType)
+register_strawberry_type(DimensionSumRule.ObjectType)
+register_strawberry_type(NoGapsRule.ObjectType)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -28,6 +42,7 @@ if TYPE_CHECKING:
     from kausal_common.datasets.models import (
         DataPoint as DataPointModel,
         DatasetMetric as DatasetMetricModel,
+        DatasetMetricValidationRule as DatasetMetricValidationRuleModel,
         DatasetSchemaDimension,
         Dimension as DimensionModel,
         DimensionCategory as DimensionCategoryModel,
@@ -38,6 +53,7 @@ if TYPE_CHECKING:
     from nodes.defs.binding_def import DatasetBindingDef
     from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
+    from nodes.graphql.types.problems import DatasetValidationViolationType
     from nodes.metric import DimensionalMetric
 
 
@@ -77,6 +93,20 @@ class DatasetDimensionType:
         )
 
 
+@sb.type(name='DatasetMetricValidationRule')
+class MetricValidationRuleType:
+    """A declarative validation rule bound to a dataset metric."""
+
+    id: sb.ID
+    rule: ValidationRuleGQLInterface = sb.field(
+        description='The rule; the concrete type carries the kind-specific parameters.',
+    )
+
+    @classmethod
+    def from_model(cls, obj: DatasetMetricValidationRuleModel) -> MetricValidationRuleType:
+        return cls(id=sb.ID(str(obj.uuid)), rule=rule_to_gql(validation_rule_adapter.validate_python(obj.rule)))
+
+
 @register_strawberry_type
 @sb.type(name='DatasetMetric')
 class DatasetMetricType:
@@ -88,6 +118,9 @@ class DatasetMetricType:
     unit: str = sb.field(deprecation_reason='Use unitInfo instead.')
     previous_sibling: sb.ID | None
     next_sibling: sb.ID | None
+    validation_rules: list[MetricValidationRuleType] = sb.field(
+        description='Validation rules evaluated against this metric, in order.',
+    )
 
     @sb.field(
         graphql_type=Annotated['UnitType', sb.lazy('paths.graphql_types')] | None,  # type: ignore[operator]
@@ -121,6 +154,7 @@ class DatasetMetricType:
             unit=metric.unit or '',
             previous_sibling=previous_sibling,
             next_sibling=next_sibling,
+            validation_rules=[MetricValidationRuleType.from_model(rule) for rule in metric.validation_rules.all()],
         )
 
 
@@ -424,6 +458,30 @@ class DatasetType(UserPermissionsMixin):
                 )
             )
         return results
+
+    @sb.field(
+        graphql_type=list[Annotated['DatasetValidationViolationType', sb.lazy('nodes.graphql.types.problems')]],
+        description=(
+            'Current validation-rule violations of this dataset. Read from the '
+            'persisted evaluation results, repairing a stale materialization first.'
+        ),
+    )
+    @staticmethod
+    def validation_violations(root: 'DatasetType') -> "list['DatasetValidationViolationType']":
+        if root._model is None:
+            return []
+        from datasets.validation import load_violations
+        from nodes.dataset_materialization import ensure_dataset_materializations
+        from nodes.graphql.types.problems import DatasetValidationViolationType
+
+        materializations = ensure_dataset_materializations([root._model])
+        materialization = materializations.get(root._model.pk)
+        if materialization is None:
+            return []
+        return [
+            DatasetValidationViolationType.from_violation(violation)
+            for violation in load_violations(materialization.validation_violations)
+        ]
 
     @sb.field(graphql_type=list[Annotated['DatasetPortType', sb.lazy('nodes.graphql.types.graph')]])
     @staticmethod

@@ -73,6 +73,57 @@ def test_yaml_short_description_is_rendered_at_snapshot_boundary():
     assert short_description.i18n == {'en': '<p><strong>Rich</strong></p>\n'}
 
 
+def test_datasets_key_parses_into_typed_catalog_entries():
+    from datasets.validation_rules import NoGapsRule, ValueRangeRule
+    from nodes.instance_parser import InstanceParseError
+
+    config = {
+        'id': 'test',
+        'default_language': 'en',
+        'name': 'Test',
+        'owner': 'Owner',
+        'target_year': 2030,
+        'reference_year': 2020,
+        'minimum_historical_year': 2010,
+        'datasets': [
+            {
+                'id': 'test/energy',
+                'metrics': [
+                    {
+                        'id': 'amount',
+                        'validation_rules': [
+                            {'kind': 'no_gaps', 'enforcement': 'block_publish'},
+                            {'kind': 'value_range', 'enforcement': 'block_edit', 'min': 0},
+                        ],
+                    },
+                ],
+            },
+        ],
+    }
+    instance_uuid = uuid4()
+
+    snapshot = parse_instance_snapshot(config, instance_uuid=instance_uuid)
+
+    (ds_meta,) = snapshot.datasets
+    assert ds_meta.identifier == 'test/energy'
+    (metric_meta,) = ds_meta.metrics
+    assert metric_meta.identifier == 'amount'
+    no_gaps, value_range = metric_meta.validation_rules
+    assert isinstance(no_gaps, NoGapsRule)
+    assert isinstance(value_range, ValueRangeRule)
+    assert value_range.min == 0.0
+
+    # Catalog UUIDs are parse-invented but deterministic per instance.
+    again = parse_instance_snapshot(config, instance_uuid=instance_uuid)
+    assert again.datasets[0].id == ds_meta.id
+    assert again.datasets[0].metrics[0].id == metric_meta.id
+
+    bad = dict(config)
+    bad['datasets'] = [{'id': 'test/energy', 'metrics': [{'id': 'amount', 'validation_rules': [{'kind': 'nope'}]}]}]
+    with pytest.raises(InstanceParseError, match='Invalid validation rule'):
+        parse_instance_snapshot(bad, instance_uuid=instance_uuid)
+
+
 def _action_snapshot(*, params: list[dict[str, Any]] | None = None) -> InstanceSnapshot:
     action: dict[str, Any] = {
         'id': 'action',

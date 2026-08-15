@@ -49,6 +49,7 @@ from .graph import (
 )
 from .layout import NodeLayoutType
 from .node import QuantityKindType
+from .problems import DatasetValidationViolationType, InstanceProblemInterface
 from .spec import InstanceSpecType, YearsDefType
 
 if TYPE_CHECKING:
@@ -302,6 +303,43 @@ class InstanceEditorFields:
     def constraint_conflicts(root: 'InstanceEditorFields', info: gql.Info) -> list[ConstraintConflictType]:
         result = info.context.require_constraint_solve(root._config, source=root._source)
         return [ConstraintConflictType.from_conflict(conflict) for conflict in result.conflicts]
+
+    @sb.field(
+        graphql_type=list[DatasetValidationViolationType],
+        description=(
+            'Current dataset validation-rule violations across the datasets bound to the graph. '
+            'Any entry blocks publication; BLOCK_EDIT entries predate the rule that forbids them.'
+        ),
+    )
+    @staticmethod
+    def dataset_validation_violations(root: 'InstanceEditorFields') -> list[DatasetValidationViolationType]:
+        from nodes.dataset_materialization import collect_instance_dataset_violations
+
+        return [
+            DatasetValidationViolationType.from_violation(violation)
+            for violation in collect_instance_dataset_violations(root._config)
+        ]
+
+    @sb.field(
+        graphql_type=list[InstanceProblemInterface],
+        description=(
+            'Everything standing between this draft and publication: structural '
+            'constraint conflicts and dataset validation-rule violations, as one list.'
+        ),
+    )
+    @staticmethod
+    def problems(root: 'InstanceEditorFields', info: gql.Info) -> list[InstanceProblemInterface]:
+        from nodes.dataset_materialization import collect_instance_dataset_violations
+
+        result = info.context.require_constraint_solve(root._config, source=root._source)
+        conflicts: list[InstanceProblemInterface] = [
+            ConstraintConflictType.from_conflict(conflict) for conflict in result.conflicts
+        ]
+        violations: list[InstanceProblemInterface] = [
+            DatasetValidationViolationType.from_violation(violation)
+            for violation in collect_instance_dataset_violations(root._config)
+        ]
+        return conflicts + violations
 
     @sb.field(
         graphql_type=list[Annotated['InstanceChangeOperationType', sb.lazy('nodes.graphql.types.change_history')]],

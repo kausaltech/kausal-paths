@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
     from kausal_common.i18n.pydantic import TranslatedString
 
+    from datasets.validation_rules import ValidationRule
     from nodes.defs.node_defs import NodeSpec
     from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig, NodeConfig
@@ -203,6 +204,57 @@ def _sync_dimensions_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapsho
     for dim_config in snapshot.spec.dimensions:
         dim = Dimension.model_validate(dim_config)
         ic.sync_dimension(dim, update_existing=True)
+
+
+def _sync_metric_validation_rules_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
+    """
+    Reconcile ``DatasetMetricValidationRule`` rows from the spec's raw ``datasets`` configs.
+
+    Only datasets named in the config are managed: their metrics' rule rows
+    are replaced when the declared blob list differs (preserving rows — and
+    thus rule uuids — when it does not). Datasets absent from the config are
+    left untouched. Invalid declarations fail the sync loudly.
+    """
+    from kausal_common.datasets.models import Dataset
+
+    from nodes.dataset_materialization import refresh_dataset_materialization
+
+    for ds_meta in snapshot.datasets:
+        ds_id = ds_meta.identifier
+        if not ds_id:
+            raise ValueError('datasets entry is missing an identifier')
+        try:
+            dataset = Dataset.objects.get_queryset().for_instance_config(ic).get(identifier=ds_id)
+        except Dataset.DoesNotExist as exc:
+            raise ValueError(f"datasets entry '{ds_id}' does not match any dataset of instance {ic.identifier}") from exc
+        if dataset.schema is None:
+            raise ValueError(f"dataset '{ds_id}' has no schema")
+        metrics_by_name = {metric.name: metric for metric in dataset.schema.metrics.all()}
+        dataset_changed = False
+        for metric_meta in ds_meta.metrics:
+            metric = metrics_by_name.get(metric_meta.identifier) if metric_meta.identifier else None
+            if metric is None:
+                raise ValueError(f"dataset '{ds_id}' has no metric '{metric_meta.identifier}'")
+            dataset_changed |= _apply_declared_metric_rules(metric, list(metric_meta.validation_rules))
+        if dataset_changed and not dataset.is_external_placeholder:
+            # Rules ride in the materialized snapshot and their violations are
+            # persisted there; re-evaluate under the new rule set.
+            refresh_dataset_materialization(dataset, touch=False)
+
+
+def _apply_declared_metric_rules(metric: DatasetMetric, declared: list[ValidationRule]) -> bool:
+    """Replace the metric's rule rows when the declared rule list differs; returns whether it did."""
+    from kausal_common.datasets.models import DatasetMetricValidationRule
+
+    blobs = [rule.model_dump(mode='json') for rule in declared]
+    existing_rows = list(metric.validation_rules.order_by('order'))
+    if [row.rule for row in existing_rows] == blobs:
+        return False
+    for row in existing_rows:
+        row.delete()
+    for order, blob in enumerate(blobs):
+        DatasetMetricValidationRule.objects.create(metric=metric, rule=blob, order=order)
+    return True
 
 
 def _seed_node_metadata_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_language: str) -> None:
@@ -450,6 +502,7 @@ def sync_parsed_instance_to_db(
             node_configs = _upsert_node_configs(ic, snapshot, existing_node_configs)
             edge_count = _write_edges(ic, snapshot, node_configs)
             created_placeholder_ids = sync_dataset_placeholders_from_snapshot(ic, snapshot)
+            _sync_metric_validation_rules_from_snapshot(ic, snapshot)
             dataset_port_count = _write_dataset_ports(
                 ic,
                 snapshot,

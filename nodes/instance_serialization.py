@@ -36,6 +36,7 @@ from kausal_common.i18n.pydantic import (
     get_translated_string_from_modeltrans,
 )
 
+from datasets.validation_rules import ValidationRule, validation_rule_adapter
 from nodes.defs.graph import (
     DatasetMeta,
     DatasetMetricMeta,
@@ -124,10 +125,27 @@ def _ts_from_modeltrans(obj: Model, field_name: str, primary_language: str) -> T
     return get_translated_string_from_modeltrans(obj, field_name, primary_language)
 
 
+class MetricValidationRuleSnapshot(ModelSnapshot):
+    """
+    One validation rule bound to a metric.
+
+    ``rule`` parses the stored blob strictly against the schema in
+    ``datasets.validation_rules``; ``uuid`` records the source row's identity.
+    """
+
+    uuid: UUID
+    rule: ValidationRule
+
+    @classmethod
+    def from_model(cls, obj: Any) -> Self:
+        return cls(uuid=obj.uuid, rule=validation_rule_adapter.validate_python(obj.rule))
+
+
 class DatasetMetricSnapshot(ModelSnapshot):
     identifier: str
     label: TranslatedString | None = None
     unit: str
+    validation_rules: list[MetricValidationRuleSnapshot] = Field(default_factory=list)
 
     @classmethod
     def from_model(cls, obj: Any) -> Self:
@@ -140,6 +158,7 @@ class DatasetMetricSnapshot(ModelSnapshot):
             identifier=obj.name or str(obj.uuid),
             label=_ts_from_modeltrans(obj, 'label', 'en') if obj.label or obj.i18n else None,
             unit=obj.unit,
+            validation_rules=cls._rules_from_model(obj),
         )
 
     @classmethod
@@ -148,7 +167,12 @@ class DatasetMetricSnapshot(ModelSnapshot):
             identifier=obj.name or str(obj.uuid),
             label=_ts_from_modeltrans(obj, 'label', primary_language),
             unit=obj.unit,
+            validation_rules=cls._rules_from_model(obj),
         )
+
+    @staticmethod
+    def _rules_from_model(obj: Any) -> list[MetricValidationRuleSnapshot]:
+        return [MetricValidationRuleSnapshot.from_model(rule) for rule in obj.validation_rules.order_by('order')]
 
 
 class DataPointKey(BaseModel):
@@ -1084,6 +1108,12 @@ def dataset_meta_from_model(
             label=_ts_from_modeltrans(metric, 'label', primary_language),
             unit=metric.unit,
             order=metric.order,
+            validation_rules=tuple(
+                validation_rule_adapter.validate_python(rule.rule)
+                # Meta.ordering is (metric, order), so .all() hits the
+                # prefetch cache already in rule order.
+                for rule in metric.validation_rules.all()
+            ),
         )
         for metric in schema.metrics.all()
     )
@@ -1112,7 +1142,7 @@ def _dataset_catalog_for(
         DatasetModel.objects
         .filter(pk__in=dataset_ids)
         .select_related('schema')
-        .prefetch_related('schema__metrics', 'schema__dimensions__dimension')
+        .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension')
         .order_by('pk')
     )
     result: list[DatasetMeta] = []
@@ -1299,6 +1329,7 @@ def _import_dataset(
     from kausal_common.datasets.models import (
         Dataset as DatasetModel,
         DatasetMetric as DatasetMetricModel,
+        DatasetMetricValidationRule,
         DatasetSchema as DatasetSchemaModel,
         DatasetSchemaDimension,
         DatasetSchemaScope,
@@ -1345,6 +1376,14 @@ def _import_dataset(
             i18n=metric_i18n,
             **metric_fields,
         )
+        # Like the metric itself, a restored rule gets a fresh uuid; the
+        # snapshot uuid records provenance only.
+        for rule_idx, rule_snap in enumerate(m_snap.validation_rules):
+            DatasetMetricValidationRule.objects.create(
+                metric=metric,
+                rule=rule_snap.rule.model_dump(mode='json'),
+                order=rule_idx,
+            )
         metrics_by_id[m_snap.identifier] = metric
 
     # Link dimensions to schema

@@ -1968,7 +1968,9 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
         if 'FROM "datasets_dataset"' in query['sql'] and 'WHERE "datasets_dataset"."uuid" =' in query['sql']
     ]
     assert per_binding_dataset_queries == []
-    assert len(query_ctx) <= 20
+    # Constant budget, independent of node/binding count. Metric validation
+    # rules add fixed dataset-catalog queries, not per-binding ones.
+    assert len(query_ctx) <= 22
 
 
 def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: InstanceConfig):
