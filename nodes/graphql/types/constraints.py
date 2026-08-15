@@ -26,6 +26,7 @@ from nodes.constraints.values import (
     ValueKey,
 )
 from nodes.defs.binding_def import EdgeBindingDef
+from nodes.graphql.types.problems import InstanceProblemInterface, ProblemSeverity
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -78,9 +79,7 @@ class ConstraintOriginType:
 
 
 @sb.type(name='ConstraintConflict', description='One structural contradiction found by the constraint solver.')
-class ConstraintConflictType:
-    code: str
-    message: str
+class ConstraintConflictType(InstanceProblemInterface):
     value: ConstraintValueRefType | None
     origins: list[ConstraintOriginType]
 
@@ -89,6 +88,7 @@ class ConstraintConflictType:
         return cls(
             code=conflict.code,
             message=conflict.message,
+            severity=ProblemSeverity.ERROR,
             value=ConstraintValueRefType.from_value(conflict.value) if conflict.value is not None else None,
             origins=[ConstraintOriginType.from_origin(origin) for origin in conflict.origins],
         )

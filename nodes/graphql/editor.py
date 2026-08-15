@@ -39,6 +39,7 @@ from .types.graph import NodeEdgeType
 from .types.instance import InstanceType
 from .types.layout import NodeLayoutType, UpdateNodeLayoutsResult
 from .types.node import AnyNodeType, NodeInterface
+from .types.problems import DatasetValidationViolationsType
 from .types.scenario import ScenarioType
 from .types.spec import InputPortType, OutputPortType
 from .types.transformations import EdgeTransformationInput, edge_transformations_from_input
@@ -1703,13 +1704,17 @@ class InstanceEditorMutation:
     @gql.mutation(
         description=(
             'Publish the current model state as a new revision. '
-            'A draft with structural constraint conflicts cannot be published; '
-            'the blocking conflicts are returned instead.'
+            'A draft with structural constraint conflicts or dataset validation-rule '
+            'violations cannot be published; the blocking problems are returned instead.'
         ),
-        graphql_type=InstanceType | ConstraintViolationsType,
+        graphql_type=InstanceType | ConstraintViolationsType | DatasetValidationViolationsType,
     )
     @staticmethod
-    def publish_model_instance(info: gql.Info, instance_id: sb.ID) -> InstanceType | ConstraintViolationsType:
+    def publish_model_instance(
+        info: gql.Info,
+        instance_id: sb.ID,
+    ) -> InstanceType | ConstraintViolationsType | DatasetValidationViolationsType:
+        from datasets.validation import InstanceDatasetValidationError
         from nodes.constraints.validation import InstanceConstraintError
 
         ic = _get_instance_config(info, instance_id)
@@ -1721,6 +1726,8 @@ class InstanceEditorMutation:
             ic.publish_instance(user=user)
         except InstanceConstraintError as error:
             return ConstraintViolationsType.from_conflicts(error.conflicts)
+        except InstanceDatasetValidationError as error:
+            return DatasetValidationViolationsType.from_violations(error.violations)
         ic.refresh_from_db()
         return _resolve_model_instance(info, ic, refresh=True)
 

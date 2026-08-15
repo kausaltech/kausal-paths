@@ -27,14 +27,18 @@ from kausal_common.users import user_or_bust
 
 from paths import gql
 
+from datasets.validation_rules import ValidationRule, ValidationRuleSpecInput
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.dataset_materialization import refresh_dataset_materialization
+from nodes.graphql.types.problems import DatasetValidationViolationType
 from nodes.models import InstanceConfig
 
-from .types import DataPointCommentType, DataPointType, DatasetSourceReferenceType
+from .types import DataPointCommentType, DataPointType, DatasetSourceReferenceType, MetricValidationRuleType
 
 if TYPE_CHECKING:
     from strawberry import Some
+
+    from kausal_common.datasets.models import DatasetMetric, DatasetMetricValidationRule
 
 
 @sb.input
@@ -87,11 +91,40 @@ class UpdateDataPointItemInput:
 @sb.type
 class DataPointsMutationResult:
     data_points: list[DataPointType]
+    violations: list[DatasetValidationViolationType] = sb.field(
+        description=(
+            'Validation-rule violations of the dataset after this write. These do not undo the write, but they block publication.'
+        ),
+    )
 
 
 @sb.type
 class DeleteDataPointsResult:
     deleted_data_point_ids: list[sb.ID]
+    violations: list[DatasetValidationViolationType] = sb.field(
+        description=(
+            'Validation-rule violations of the dataset after this write. These do not undo the write, but they block publication.'
+        ),
+    )
+
+
+@sb.input
+class ValidationRuleInput:
+    rule: ValidationRuleSpecInput = sb.field(
+        description='The rule; set exactly one variant field.',
+    )
+    uuid: UUID | None = sb.field(
+        default=None,
+        description='Identity of an existing rule to keep; omit for a new rule.',
+    )
+
+
+@sb.type
+class MetricValidationRulesResult:
+    validation_rules: list[MetricValidationRuleType]
+    violations: list[DatasetValidationViolationType] = sb.field(
+        description='Validation-rule violations of the dataset under the new rule set.',
+    )
 
 
 def _is_maybe_set[T](maybe: Some[T] | None) -> TypeGuard[Some[T]]:
@@ -108,6 +141,49 @@ def _stringify_errors(value: Any) -> Any:
 
 def _raise_serializer_errors(serializer: DataPointSerializer) -> NoReturn:
     raise ValidationError(_stringify_errors(serializer.errors))
+
+
+def _replace_metric_validation_rules(
+    metric: DatasetMetric,
+    rules: list[tuple[UUID | None, ValidationRule]],
+) -> list[DatasetMetricValidationRule]:
+    """
+    Reconcile the metric's rule rows against the (uuid, rule) list, recording changes.
+
+    Entries are matched by uuid: known uuids are updated in place, entries
+    without a uuid create new rows, and existing rows missing from the list
+    are deleted. List position becomes the order.
+    """
+    from kausal_common.datasets.models import DatasetMetricValidationRule
+
+    def rule_snapshot(row: DatasetMetricValidationRule) -> dict[str, Any]:
+        return {'uuid': str(row.uuid), 'rule': row.rule, 'order': row.order}
+
+    existing = {row.uuid: row for row in metric.validation_rules.all()}
+    kept: set[UUID] = set()
+    result_rows: list[DatasetMetricValidationRule] = []
+    for order, (rule_uuid, rule) in enumerate(rules):
+        blob = rule.model_dump(mode='json')
+        if rule_uuid is not None:
+            row = existing.get(rule_uuid)
+            if row is None:
+                raise ValidationError(f'Unknown validation rule uuid {rule_uuid}')
+            before = rule_snapshot(row)
+            row.rule = blob
+            row.order = order
+            row.save(update_fields=['rule', 'order'])
+            record_change(row, action='dataset.metric.validation_rule.update', before=before, after=rule_snapshot(row))
+        else:
+            row = DatasetMetricValidationRule.objects.create(metric=metric, rule=blob, order=order)
+            record_change(row, action='dataset.metric.validation_rule.create', before=None, after=rule_snapshot(row))
+        kept.add(row.uuid)
+        result_rows.append(row)
+    for row in existing.values():
+        if row.uuid in kept:
+            continue
+        record_change(row, action='dataset.metric.validation_rule.delete', before=rule_snapshot(row), after=None)
+        row.delete()
+    return result_rows
 
 
 @sb.type
@@ -147,7 +223,21 @@ class DatasetEditorMutation:
             user = user_or_bust(info.context.user)
         except ValueError as exc:
             raise PermissionDenied('Permission denied') from exc
-        refresh_dataset_materialization(dataset or root.dataset, user=user)
+        refresh_dataset_materialization(dataset or root.dataset, user=user, enforce_edit_rules=True)
+
+    @staticmethod
+    def _current_violations(root: Me) -> list[DatasetValidationViolationType]:
+        """Read the dataset's persisted violations, as recorded by the refresh this mutation just ran."""
+        from datasets.validation import load_violations
+        from nodes.models import DatasetMaterialization
+
+        materialization = DatasetMaterialization.objects.filter(dataset=root.dataset).first()
+        if materialization is None:
+            return []
+        return [
+            DatasetValidationViolationType.from_violation(violation)
+            for violation in load_violations(materialization.validation_violations)
+        ]
 
     @staticmethod
     def _data_point_snapshot(dp: DataPoint) -> dict[str, Any]:
@@ -216,7 +306,10 @@ class DatasetEditorMutation:
         input: list[CreateDataPointInput],
     ) -> DataPointsMutationResult:
         created = DatasetEditorMutation._create_data_points(info, root, input)
-        return DataPointsMutationResult(data_points=[DataPointType.from_model(data_point) for data_point in created])
+        return DataPointsMutationResult(
+            data_points=[DataPointType.from_model(data_point) for data_point in created],
+            violations=DatasetEditorMutation._current_violations(root),
+        )
 
     @gql.mutation(
         description='Create a data point',
@@ -277,7 +370,10 @@ class DatasetEditorMutation:
         input: list[UpdateDataPointItemInput],
     ) -> DataPointsMutationResult:
         updated = DatasetEditorMutation._update_data_points(info, root, input)
-        return DataPointsMutationResult(data_points=[DataPointType.from_model(data_point) for data_point in updated])
+        return DataPointsMutationResult(
+            data_points=[DataPointType.from_model(data_point) for data_point in updated],
+            violations=DatasetEditorMutation._current_violations(root),
+        )
 
     @gql.mutation(
         description='Update a data point',
@@ -327,6 +423,58 @@ class DatasetEditorMutation:
                 DatasetEditorMutation._save_dataset(root, info, dataset=dataset)
         return deleted_ids
 
+    @gql.mutation(
+        description=(
+            'Replace the validation rules of one metric of this dataset. '
+            'Entries are matched by uuid: known uuids are updated in place (preserving '
+            'rule identity for violation tracking), entries without a uuid are created, '
+            'and existing rules missing from the list are deleted. Setting rules never '
+            'blocks on pre-existing data; the resulting violations are returned.'
+        ),
+        graphql_type=MetricValidationRulesResult,
+    )
+    @staticmethod
+    def set_metric_validation_rules(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        metric_id: UUID,
+        rules: list[ValidationRuleInput],
+    ) -> MetricValidationRulesResult:
+        from pydantic import ValidationError as PydanticValidationError
+
+        from kausal_common.datasets.models import DatasetMetric
+
+        dataset = root.dataset
+        if dataset.schema is None:
+            raise ValidationError('Dataset has no schema')
+        try:
+            metric = DatasetMetric.objects.get(schema=dataset.schema, uuid=metric_id)
+        except DatasetMetric.DoesNotExist as exc:
+            raise ValidationError(f'Metric {metric_id} does not belong to this dataset') from exc
+        converted: list[tuple[UUID | None, ValidationRule]] = []
+        for item in rules:
+            try:
+                converted.append((item.uuid, item.rule.to_rule()))
+            except (PydanticValidationError, ValueError) as error:
+                raise ValidationError(f'Invalid validation rule: {error}') from error
+
+        try:
+            user = user_or_bust(info.context.user)
+        except ValueError as exc:
+            raise PermissionDenied('Permission denied') from exc
+
+        with transaction.atomic():
+            locked_dataset = Dataset.objects.select_for_update().get(pk=dataset.pk)
+            with gql_change_operation(info, root.instance, action='dataset.metric.validation_rules.set'):
+                result_rows = _replace_metric_validation_rules(metric, converted)
+                # Setting rules is not a data edit: re-evaluate and persist the
+                # violations, but never block on pre-existing data.
+                refresh_dataset_materialization(locked_dataset, user=user)
+        return MetricValidationRulesResult(
+            validation_rules=[MetricValidationRuleType.from_model(row) for row in result_rows],
+            violations=DatasetEditorMutation._current_violations(root),
+        )
+
     @gql.mutation(description='Delete data points', graphql_type=DeleteDataPointsResult)
     @staticmethod
     def delete_data_points(
@@ -335,7 +483,8 @@ class DatasetEditorMutation:
         data_point_ids: list[sb.ID],
     ) -> DeleteDataPointsResult:
         return DeleteDataPointsResult(
-            deleted_data_point_ids=DatasetEditorMutation._delete_data_points(info, root, data_point_ids)
+            deleted_data_point_ids=DatasetEditorMutation._delete_data_points(info, root, data_point_ids),
+            violations=DatasetEditorMutation._current_violations(root),
         )
 
     @gql.mutation(

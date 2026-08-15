@@ -390,7 +390,7 @@ def make_empty_instance_spec() -> InstanceModelSpec:
     return InstanceModelSpec()
 
 
-YAML_SPEC_VERSION = 1
+YAML_SPEC_VERSION = 3
 """Version of the lightweight YAML-to-InstanceModelSpec materialization."""
 
 
@@ -976,7 +976,11 @@ class InstanceConfig(
                     dataset_id__in=[dataset.pk for dataset in datasets],
                 )
             }
-            from nodes.dataset_materialization import materialization_is_fresh, refresh_dataset_materialization
+            from nodes.dataset_materialization import (
+                materialization_is_fresh,
+                refresh_dataset_materialization,
+                require_valid_dataset_rules,
+            )
 
             for dataset in datasets:
                 materialization = materializations.get(dataset.pk)
@@ -990,6 +994,9 @@ class InstanceConfig(
             # the materialization refresh so shape profiles read the same
             # observed facts the revision will pin.
             locked.validate_draft_constraints()
+            # Dataset validation rules gate publication the same way: the
+            # violations were just re-evaluated by the refresh above.
+            require_valid_dataset_rules(materializations.values())
 
             dataset_ct = ContentType.objects.get_for_model(DatasetModel, for_concrete_model=False)
             now = timezone.now()
@@ -2568,6 +2575,8 @@ class DatasetMaterialization(models.Model):
     content_hash = models.CharField(max_length=64)
     generation = models.PositiveBigIntegerField(default=1)
     shape_profiles = models.JSONField(null=True)
+    validation_violations = models.JSONField(default=list, blank=True)
+    """Current violations of the dataset's metric validation rules (see ``datasets.validation``)."""
     forecast_from = models.IntegerField(null=True, blank=True)
     source_modified_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)
