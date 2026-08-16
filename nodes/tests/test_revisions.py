@@ -2140,8 +2140,8 @@ def test_published_indicator_node_uses_snapshot_reference(empty_db_instance: Ins
     assert published.source_nodes_by_uuid[indicator.source_snapshot.uuid] is indicator
 
 
-def test_published_editor_and_history_guarded(gql_client, empty_db_instance: InstanceConfig):
-    """Editor fields and change history are draft-row governance: absent on PUBLISHED."""
+def test_published_editor_reads_revision_node_without_live_row_dependency(gql_client, empty_db_instance: InstanceConfig):
+    """Authorized editor reads remain available on a published runtime."""
     from nodes.models import _pytest_instances
 
     _make_publishable_node(empty_db_instance, 'guarded', 'Guarded')
@@ -2157,7 +2157,7 @@ def test_published_editor_and_history_guarded(gql_client, empty_db_instance: Ins
         nodes {{
             identifier
             name
-            editor {{ nodeType }}
+            editor {{ nodeType changeHistory {{ uuid }} }}
             changeHistory {{ uuid }}
         }}
     }}
@@ -2165,7 +2165,8 @@ def test_published_editor_and_history_guarded(gql_client, empty_db_instance: Ins
     data = gql_client.query_data(query)
     (node_data,) = [n for n in data['nodes'] if n['identifier'] == 'guarded']
     assert node_data['name'] == 'Guarded'
-    assert node_data['editor'] is None
+    assert node_data['editor'] is not None
+    assert node_data['editor']['changeHistory'] == []
     assert node_data['changeHistory'] == []
 
     # Same query on DRAFT: the superuser gets editor fields from live rows.
@@ -2173,6 +2174,33 @@ def test_published_editor_and_history_guarded(gql_client, empty_db_instance: Ins
     data = gql_client.query_data(draft_query)
     (node_data,) = [n for n in data['nodes'] if n['identifier'] == 'guarded']
     assert node_data['editor'] is not None
+
+
+def test_published_node_history_uses_uuid_after_draft_row_deletion(gql_client, empty_db_instance: InstanceConfig):
+    from nodes.change_ops import change_operation, record_change
+    from nodes.models import _pytest_instances
+
+    node = _make_publishable_node(empty_db_instance, 'deleted_from_draft', 'Published only')
+    empty_db_instance.publish_instance()
+    before = node.serializable_data()
+    with change_operation(empty_db_instance, user=None, action='node.delete'):
+        entry = record_change(node, action='node.delete', before=before, after=None)
+        node.delete()
+    empty_db_instance.refresh_from_db()
+    _pytest_instances.pop(empty_db_instance.identifier, None)
+
+    data = gql_client.query_data(
+        f"""
+        query PublishedHistory @instance(identifier: "{empty_db_instance.identifier}", preview: PUBLISHED) {{
+            nodes {{
+                identifier
+                editor {{ changeHistory {{ uuid }} }}
+            }}
+        }}
+        """,
+    )
+    published_node = next(node for node in data['nodes'] if node['identifier'] == 'deleted_from_draft')
+    assert published_node['editor']['changeHistory'] == [{'uuid': str(entry.uuid)}]
 
 
 def test_publish_instance_bumps_cache_invalidated_at(empty_db_instance: InstanceConfig):

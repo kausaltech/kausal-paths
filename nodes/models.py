@@ -739,6 +739,7 @@ class InstanceConfig(
             **kwargs,
         }
         ic = cls.objects.create(**fields)
+        instance.config = ic
         return ic
 
     def has_framework_config(self) -> bool:
@@ -1128,7 +1129,11 @@ class InstanceConfig(
                         f'Instance revision {rev.pk} dataset manifest mismatch: '
                         f'snapshot={sorted(map(str, expected_pins))}, persisted={sorted(map(str, persisted_pins))}',
                     )
-            instance = InstanceLoader.from_snapshot(snapshot, published=source_schema_version >= 7).instance
+            instance = InstanceLoader.from_snapshot(
+                snapshot,
+                published=source_schema_version >= 7,
+                instance_config=self,
+            ).instance
             instance.bind_source_snapshot(snapshot)
             return instance
         # Legacy revisions carry only the serialized config dict. They predate
@@ -1138,7 +1143,7 @@ class InstanceConfig(
         if hydrate_dict is None:
             # Revision predates the snapshot restructure; fall back to draft.
             return None
-        instance = InstanceLoader(config=hydrate_dict).instance
+        instance = InstanceLoader(config=hydrate_dict, instance_config=self).instance
         self.update_instance_from_configs(instance, node_refs=True)
         return instance
 
@@ -1167,7 +1172,11 @@ class InstanceConfig(
 
             _check_dimension_orm_coverage(self)
             snapshot = build_instance_snapshot(self)
-            loader = InstanceLoader.from_snapshot(snapshot, tolerate_node_failures=tolerate_node_failures)
+            loader = InstanceLoader.from_snapshot(
+                snapshot,
+                tolerate_node_failures=tolerate_node_failures,
+                instance_config=self,
+            )
             instance = loader.instance
             instance.bind_source_snapshot(snapshot)
             self.update_instance_from_configs(instance, node_refs=True)
@@ -1183,7 +1192,11 @@ class InstanceConfig(
             if config_fn is None:
                 raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
             self.log.debug('Creating instance from YAML file: %s' % config_fn)
-            loader = InstanceLoader.from_yaml(config_fn, tolerate_node_failures=tolerate_node_failures)
+            loader = InstanceLoader.from_yaml(
+                config_fn,
+                tolerate_node_failures=tolerate_node_failures,
+                instance_config=self,
+            )
             instance = loader.instance
             with sentry_sdk.start_span(name='update-instance-from-configs: %s' % self.identifier, op='function'):
                 # We only need to do this on the plain old YAML path

@@ -6,6 +6,7 @@ import strawberry as sb
 
 from kausal_common.strawberry.pydantic import pydantic_type
 
+from paths import gql
 from paths.graphql_helpers import pass_context
 
 from nodes.actions.action import ActionNode
@@ -141,16 +142,14 @@ class NodeEdgeType(EditableEntity):
     @staticmethod
     def change_history(
         root: 'NodeEdgeType',
+        info: gql.Info,
         limit: int = 50,
         before: 'datetime | None' = None,
     ) -> 'list[InstanceModelLogEntryType]':
-        from nodes.graphql.types.change_history import fetch_entity_history
+        from nodes.graphql.types.change_history import fetch_entity_history_by_uuid
         from nodes.models import NodeEdge
 
-        edge = NodeEdge.objects.filter(uuid=root.uuid).first()
-        if edge is None:
-            return []
-        return fetch_entity_history(NodeEdge, edge.pk, limit=limit, before=before)
+        return fetch_entity_history_by_uuid(NodeEdge, root.uuid, info, limit=limit, before=before)
 
 
 @sb.type
@@ -301,16 +300,14 @@ class DatasetPortType(EditableEntity):
     @staticmethod
     def change_history(
         root: 'DatasetPortType',
+        info: gql.Info,
         limit: int = 50,
         before: datetime | None = None,
     ) -> 'list[InstanceModelLogEntryType]':
-        from nodes.graphql.types.change_history import fetch_entity_history
+        from nodes.graphql.types.change_history import fetch_entity_history_by_uuid
         from nodes.models import DatasetPort
 
-        dp = DatasetPort.objects.filter(uuid=root.uuid).first()
-        if dp is None:
-            return []
-        return fetch_entity_history(DatasetPort, dp.pk, limit=limit, before=before)
+        return fetch_entity_history_by_uuid(DatasetPort, root.uuid, info, limit=limit, before=before)
 
 
 InputPortBinding = Annotated[NodeEdgeType | DatasetPortType, sb.union('InputPortBindingUnion')]

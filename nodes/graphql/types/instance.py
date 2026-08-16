@@ -351,16 +351,19 @@ class InstanceEditorFields:
     @staticmethod
     def change_history(
         root: 'InstanceEditorFields',
+        info: gql.Info,
         limit: int = 50,
         before: datetime | None = None,
     ) -> 'list[InstanceChangeOperationType]':
         from nodes.graphql.types.change_history import InstanceChangeOperationType
         from nodes.models import InstanceChangeOperation
 
+        if not root._config.gql_action_allowed(info, 'change', raise_on_denied=False):
+            return []
         qs = (
             InstanceChangeOperation.objects
             .filter(instance_config=root._config)
-            .select_related('user', 'superseded_by')
+            .select_related('instance_config', 'user', 'superseded_by')
             .order_by('-created_at')
         )
         if before is not None:

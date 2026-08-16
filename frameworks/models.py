@@ -994,7 +994,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         config_fn = ic.get_yaml_config_entrypoint()
         if config_fn is None:
             raise ValueError(f'No YAML config entrypoint found for framework {fw.identifier}')
-        loader = InstanceLoader.from_yaml(config_fn, fw_config=self)
+        loader = InstanceLoader.from_yaml(config_fn, fw_config=self, instance_config=ic)
         return loader.instance
 
     @staticmethod

@@ -865,6 +865,8 @@ def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
 ) -> None:
     from paths.tests.graphql import PathsTestClient
 
+    from nodes.change_ops import change_operation, record_change
+    from nodes.models import _pytest_instances
     from nodes.roles import instance_admin_role
     from users.tests.factories import UserFactory
 
@@ -877,6 +879,13 @@ def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
     )
     user = UserFactory.create()
     instance_admin_role.assign_user(db_instance_config, user)
+    with change_operation(db_instance_config, user=user, action='node.update'):
+        entry = record_change(
+            nc,
+            action='node.update',
+            before=nc.serializable_data(),
+            after=nc.serializable_data(),
+        )
     client.force_login(user)
     admin_client = PathsTestClient(client)
     admin_client.set_instance(db_instance_config)
@@ -889,7 +898,11 @@ def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
                     identifier
                     isEditable
                     userPermissions { view change delete }
-                    editor { nodeGroup }
+                    changeHistory { uuid }
+                    editor {
+                        nodeGroup
+                        changeHistory { uuid }
+                    }
                 }
             }
         }
@@ -901,7 +914,8 @@ def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
         'identifier': 'protected',
         'isEditable': False,
         'userPermissions': {'view': True, 'change': False, 'delete': False},
-        'editor': None,
+        'changeHistory': [{'uuid': str(entry.uuid)}],
+        'editor': {'nodeGroup': None, 'changeHistory': [{'uuid': str(entry.uuid)}]},
     }
 
     admin_client.query_errors(
@@ -915,6 +929,28 @@ def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
     )
     nc.refresh_from_db()
     assert nc.name == 'Certified'
+
+    _pytest_instances.pop(db_instance_config.identifier, None)
+    client.force_login(UserFactory.create())
+    unauthorized_client = PathsTestClient(client)
+    unauthorized_client.set_instance(db_instance_config)
+    unauthorized = unauthorized_client.query_data(
+        """
+        query ProtectedNodeHistory {
+            nodes {
+                identifier
+                changeHistory { uuid }
+                editor { changeHistory { uuid } }
+            }
+        }
+        """,
+    )
+    unauthorized_node = next(node for node in unauthorized['nodes'] if node['identifier'] == nc.identifier)
+    assert unauthorized_node == {
+        'identifier': 'protected',
+        'changeHistory': [],
+        'editor': None,
+    }
 
 
 def test_superuser_can_update_protected_node(gql_client: PathsTestClient, db_instance_config: InstanceConfig) -> None:

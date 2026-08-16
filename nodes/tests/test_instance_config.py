@@ -140,8 +140,8 @@ def test_hydrated_instance_reuses_source_instance_config() -> None:
         }),
     )
 
-    instance = ic.get_instance()
     with CaptureQueriesContext(connection) as query_ctx:
+        instance = ic.get_instance()
         assert instance.config is ic
         assert instance.config is ic
 
@@ -149,6 +149,14 @@ def test_hydrated_instance_reuses_source_instance_config() -> None:
         query['sql'] for query in query_ctx.captured_queries if 'FROM "nodes_instanceconfig"' in query['sql']
     ]
     assert instance_config_queries == []
+
+
+def test_create_for_instance_binds_source_instance_config() -> None:
+    instance = InstanceFactory.create(id='new-instance-config')
+
+    config = InstanceConfig.create_for_instance(instance)
+
+    assert instance.config is config
 
 
 def test_locked_instance_removes_mutating_permissions_for_superuser_and_children() -> None:

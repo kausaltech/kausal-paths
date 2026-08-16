@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from nodes.explanations import NodeExplanationSystem
     from nodes.instance import Instance
     from nodes.instance_serialization import DatasetPortSnapshot, EdgeSnapshot, InstanceSnapshot, NodeSnapshot
+    from nodes.models import InstanceConfig
     from nodes.node import Node, NodeMetric
     from nodes.scenario import Scenario
     from nodes.units import Unit
@@ -1725,6 +1726,7 @@ class InstanceLoader:
         tolerate_node_failures: bool = False,
         *,
         published: bool = False,
+        instance_config: InstanceConfig | None = None,
     ) -> Self:
         """
         Build the runtime from an ``InstanceSnapshot`` (specs, not YAML dicts).
@@ -1756,6 +1758,7 @@ class InstanceLoader:
             snapshot=snapshot,
             tolerate_node_failures=tolerate_node_failures,
             dataset_payload_refs=payload_refs,
+            instance_config=instance_config,
         )
 
     @classmethod
@@ -1764,6 +1767,7 @@ class InstanceLoader:
         filename: Path,
         fw_config: FrameworkConfig | None = None,
         tolerate_node_failures: bool = False,
+        instance_config: InstanceConfig | None = None,
     ) -> Self:
         yaml_fn = filename.resolve()
         yaml_conf = InstanceYAMLConfig.load_for_entrypoint(yaml_fn)
@@ -1776,6 +1780,7 @@ class InstanceLoader:
             fw_config=fw_config,
             config_mtime_hash=yaml_conf.meta.mtime_hash,
             tolerate_node_failures=tolerate_node_failures,
+            instance_config=instance_config,
         )
 
     @classmethod
@@ -1818,6 +1823,7 @@ class InstanceLoader:
         config_mtime_hash: str | None = None,
         tolerate_node_failures: bool = False,
         dataset_payload_refs: list[Any] | None = None,
+        instance_config: InstanceConfig | None = None,
         *,
         snapshot: InstanceSnapshot | None = None,
     ):
@@ -1826,6 +1832,7 @@ class InstanceLoader:
         add_unit_translations()
         self.tolerate_node_failures = tolerate_node_failures
         self.supplied_dataset_payload_refs = dataset_payload_refs
+        self.instance_config = instance_config
         self.config_mtime_hash = config_mtime_hash
         self._node_classes = {}
         self.snapshot = snapshot
@@ -1861,8 +1868,6 @@ class InstanceLoader:
     def load_db_datasets(self):
         from kausal_common.datasets.models import Dataset as DBDatasetModel
 
-        from nodes.models import InstanceConfig
-
         if self.supplied_dataset_payload_refs is not None:
             from nodes.datasets import RevisionDatasetPayloadStore
 
@@ -1871,11 +1876,19 @@ class InstanceLoader:
             self.dataset_payload_store = RevisionDatasetPayloadStore(self.supplied_dataset_payload_refs)
             return
 
-        try:
-            ic = self.instance.config
-        except InstanceConfig.DoesNotExist:
-            self.db_datasets = {}
-            return
+        ic = self.instance.config
+        if ic is None:
+            # Standalone YAML tooling has no InstanceConfig owner to pass in.
+            # Keep that compatibility lookup explicit at the loader boundary;
+            # normal InstanceConfig construction binds the owner up front.
+            from nodes.models import InstanceConfig
+
+            try:
+                ic = InstanceConfig.objects.get(identifier=self.instance.id)
+            except InstanceConfig.DoesNotExist:
+                self.db_datasets = {}
+                return
+            self.instance.config = ic
         ds_objs = list(
             DBDatasetModel.objects.qs
             .for_instance_config(ic)
@@ -1981,6 +1994,7 @@ class InstanceLoader:
                 self.config.get('supported_languages') or [],
             ),
             theme_identifier=cast('str | None', self.config.get('theme_identifier')),
+            config=self.instance_config,
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
             # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
             **self._build_instance_args_from_home_page(),
@@ -2087,6 +2101,7 @@ class InstanceLoader:
             reference_year=years.reference,
             supported_languages=list(meta.other_languages),
             theme_identifier=spec.theme_identifier,
+            config=self.instance_config,
             **lead_args,
         )
 
