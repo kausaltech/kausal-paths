@@ -12,7 +12,7 @@ import pytest
 from kausal_common.datasets.models import DataPoint, Dataset, DatasetMetric
 
 from nodes.management.commands.load_dvc_dataset import Command, build_dataset_plan
-from nodes.models import DatasetPort, NodeConfig
+from nodes.models import DatasetPort, NodeConfig, NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 
 pytestmark = pytest.mark.django_db
@@ -183,3 +183,37 @@ def test_plan_flags_a_dropped_metric_that_ports_still_bind():
     assert plan.dropped_metrics == [('old_col', 1)]
     assert plan.added_metrics == ['new_col']
     assert plan.blockers, 'dropping a bound metric must be reported as a blocker'
+
+
+def test_plan_flags_a_dropped_metric_that_only_an_input_binding_holds():
+    """
+    An input binding protects a metric just as a dataset port does; count both.
+
+    Counting only the ports made the command report a clean plan and then die on
+    ``ProtectedError`` partway through the sync — after deleting the data points, with the
+    transaction rolled back and nothing to tell the operator what still held the metric.
+    """
+    ic = InstanceConfigFactory.create(name='refresh-blocked-binding', config_source='database')
+    Command().sync_dataset(
+        ic, make_context(pl.DataFrame({'Year': [2020], 'old_col': [1.0]}), {'old_col': 'kt'}, commit='aaa111'), DS_ID
+    )
+    dataset = Dataset.objects.get(identifier=DS_ID)
+    metric = DatasetMetric.objects.get(schema=dataset.schema, name='old_col')
+    NodeInputPortBinding.objects.create(
+        instance=ic,
+        node=NodeConfigFactory.create(instance=ic),
+        port_id=UUID('33333333-3333-3333-3333-333333333333'),
+        dataset=dataset,
+        metric=metric,
+    )
+
+    plan = build_dataset_plan(
+        ds_id=DS_ID,
+        dataset=dataset,
+        incoming_metric_cols=['new_col'],
+        incoming_data_points=1,
+        incoming_commit='bbb222',
+    )
+
+    assert plan.dropped_metrics == [('old_col', 1)]
+    assert plan.blockers, 'an input binding must block the drop, not just a dataset port'
