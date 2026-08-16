@@ -8,7 +8,7 @@ dataset_repo:
 name: Treibhausgasmonitor
 owner: Kausal Ltd
 theme_identifier: default
-target_year: 2030
+target_year: 2025
 model_end_year: 2025
 reference_year: 1990
 minimum_historical_year: 1990
