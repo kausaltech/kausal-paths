@@ -207,7 +207,9 @@ def _export_type_config(node: Node) -> FormulaConfig | ActionConfig | SimpleConf
 
 
 def uuid_from_identifiers(instance: Instance, identifiers: Iterable[str]) -> UUID:
-    return uuid3(instance.config.uuid, ':'.join(identifiers))
+    ic = instance.config
+    assert ic is not None
+    return uuid3(ic.uuid, ':'.join(identifiers))
 
 
 @dataclass
