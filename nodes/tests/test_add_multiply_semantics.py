@@ -37,6 +37,8 @@ from nodes.units import unit_registry
 from params.param import BoolParameter, StringParameter
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from common.polars import PathsDataFrame
     from nodes.context import Context
 
@@ -100,7 +102,7 @@ def _make_context(identifier: str) -> Context:
     return ctx
 
 
-def _ppdf(rows: list[tuple], unit: str = 'kWh', dim: str | None = None) -> PathsDataFrame:
+def _ppdf(rows: Sequence[tuple[Any, ...]], unit: str = 'kWh', dim: str | None = None) -> PathsDataFrame:
     """Build a frame from ``(year, value)`` rows, or ``(year, category, value)`` when ``dim`` is given."""
     if dim is None:
         df = pl.DataFrame(
@@ -122,7 +124,7 @@ def _ppdf(rows: list[tuple], unit: str = 'kWh', dim: str | None = None) -> Paths
 def _source(
     context: Context,
     identifier: str,
-    rows: list[tuple],
+    rows: Sequence[tuple[Any, ...]],
     unit: str = 'kWh',
     dim: str | None = None,
     quantity: str = 'energy',
@@ -209,7 +211,7 @@ def _attach(
     )
 
 
-def _values(df: PathsDataFrame, dim: str | None = None) -> dict:
+def _values(df: PathsDataFrame, dim: str | None = None) -> dict[Any, float | None]:
     """Return ``{year: value}``, or ``{(year, category): value}`` when ``dim`` is given."""
     df = df.sort(df.primary_keys)
     if dim is None:
