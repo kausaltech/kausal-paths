@@ -2000,7 +2000,15 @@ class Node:
         # Get runtime explanations (from DataFrame operations during computation)
         warnings = self.context.instance.features.show_category_warnings
         if warnings:
-            runtime_explanations = self.get_output_pl()._explanation
+            try:
+                runtime_explanations = self.get_output_pl()._explanation
+            except NodeError:
+                # get_output_pl has already recorded the failure on the node. In tolerant
+                # mode the editor must still be able to render its static explanation and
+                # inspect that status/error instead of losing the whole GraphQL field.
+                if not self.context.tolerate_node_failures:
+                    raise
+                runtime_explanations = None
             if runtime_explanations:
                 cat = _('Category warnings')
                 parts.append(f'<p><strong>{cat}:</strong></p><ul>')

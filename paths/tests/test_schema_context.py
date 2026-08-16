@@ -229,6 +229,48 @@ def test_runtime_instance_is_created_once_per_request(
     assert enter_count == 1
 
 
+@pytest.mark.parametrize('directive_name', ['instance', 'context'])
+def test_fault_tolerance_directive_reaches_runtime_context(
+    instance_gql_client: tuple[PathsTestClient, InstanceConfig],
+    monkeypatch: pytest.MonkeyPatch,
+    directive_name: str,
+) -> None:
+    gql_client, config = instance_gql_client
+    original = InstanceConfig.enter_instance_context
+    tolerance_values: list[bool] = []
+
+    @contextmanager
+    def capture_enter_instance_context(
+        self: InstanceConfig,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Generator[Any]:
+        tolerance_values.append(kwargs['tolerate_node_failures'])
+        with original(self, *args, **kwargs) as instance:
+            yield instance
+
+    monkeypatch.setattr(InstanceConfig, 'enter_instance_context', capture_enter_instance_context)
+    if directive_name == 'instance':
+        directive = '@instance(identifier: $_identifier, tolerateNodeFailures: $_tolerateNodeFailures)'
+    else:
+        directive = '@context(input: {identifier: $_identifier, tolerateNodeFailures: $_tolerateNodeFailures})'
+    query = f"""\
+        query NodeGraph($_identifier: ID!, $_tolerateNodeFailures: Boolean!) {directive} {{
+          nodes {{ id }}
+        }}
+    """
+
+    gql_client.query_data(
+        query,
+        variables={
+            '_identifier': config.identifier,
+            '_tolerateNodeFailures': True,
+        },
+    )
+
+    assert tolerance_values == [True]
+
+
 def test_published_snapshot_is_reused_when_graph_is_built(
     instance_gql_client: tuple[PathsTestClient, InstanceConfig],
     monkeypatch: pytest.MonkeyPatch,

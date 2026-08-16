@@ -253,6 +253,27 @@ def test_maybe_compute_status_marks_clean_node_ok(context):
     assert leaf.status is NodeStatus.OK
 
 
+# --- explanation computation ------------------------------------------------
+
+
+def test_tolerant_explanation_swallows_runtime_warning_failure(context):
+    context.tolerate_node_failures = True
+    context.instance.features.show_category_warnings = True
+    boom = BoomNodeFactory.create(context=context)
+
+    assert boom.get_explanation() == ''
+    assert boom.status is NodeStatus.FAILED
+    assert len(boom.status_errors) == 1
+
+
+def test_strict_explanation_propagates_runtime_warning_failure(context):
+    context.instance.features.show_category_warnings = True
+    boom = BoomNodeFactory.create(context=context)
+
+    with pytest.raises(NodeError):
+        boom.get_explanation()
+
+
 # --- tolerant mode ----------------------------------------------------------
 
 
