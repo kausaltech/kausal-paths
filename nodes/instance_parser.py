@@ -845,7 +845,7 @@ class InstanceConfigParser:
     # -- edges & ports -------------------------------------------------------------
 
     def _parse_edge_dimension(self, dc: dict[str, Any], node_id: str, other_dims: list[str]) -> tuple[str, _ParsedEdgeDimension]:
-        """Mirror ``EdgeDimension.from_config``."""
+        """Resolve a YAML edge-dimension declaration (the legacy ``EdgeDimension.from_config`` semantics)."""
         if 'id' not in dc:
             if len(other_dims) == 1:
                 dim_id = other_dims[0]

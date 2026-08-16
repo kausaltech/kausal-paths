@@ -32,7 +32,6 @@ if TYPE_CHECKING:
 
     from kausal_common.i18n.pydantic import I18nString
 
-    from nodes.defs.instance_defs import ActionGroup
     from nodes.defs.node_defs import NodeSpec
     from nodes.defs.transform_def import FilterDimensionOp, PortTransformOp
     from nodes.instance_serialization import (
@@ -42,7 +41,6 @@ if TYPE_CHECKING:
         NodeSnapshot,
     )
     from nodes.models import InstanceConfig
-    from nodes.scenario import Scenario
     from params.base import Parameter
 
 
@@ -58,31 +56,6 @@ def _ts_to_yaml(field: str, val: I18nString | None) -> dict[str, str]:
             result[f'{field}_{lang}'] = text
     assert not isinstance(val, Promise)
     return result
-
-
-def serialize_instance_to_dict(ic: InstanceConfig) -> dict[str, Any]:
-    """Convert a DB-sourced InstanceConfig into a YAML-equivalent dict, via its snapshot."""
-    from nodes.instance_serialization import build_instance_snapshot
-
-    _check_dimension_orm_coverage(ic)
-    return snapshot_to_config_dict(build_instance_snapshot(ic))
-
-
-def snapshot_to_config_dict(snapshot: InstanceSnapshot) -> dict[str, Any]:
-    """Convert an InstanceSnapshot into the YAML-equivalent dict the loader consumes."""
-    spec = snapshot.spec
-    config = _serialize_instance_metadata(snapshot)
-    config['action_groups'] = [_serialize_action_group(ag) for ag in spec.action_groups]
-    config['scenarios'] = [_serialize_scenario(s) for s in spec.scenarios]
-    config['terms'] = spec.terms.model_dump(exclude_none=True)
-    config['result_excels'] = [result.model_dump(exclude_none=True) for result in spec.result_excels]
-    config['pages'] = [page.model_dump(exclude_none=True) for page in spec.pages]
-    config['impact_overviews'] = [overview.model_dump(exclude_none=True) for overview in spec.impact_overviews]
-    config['normalizations'] = [normalization.model_dump(exclude_none=True) for normalization in spec.normalizations]
-
-    _add_nodes_and_edges(snapshot, config)
-    config['dimensions'] = spec.dimensions
-    return config
 
 
 def _check_dimension_orm_coverage(ic: InstanceConfig) -> None:
@@ -127,44 +100,13 @@ def _orm_category_ids_by_dim(ic: InstanceConfig) -> dict[str, set[str]]:
     return result
 
 
-def _serialize_instance_metadata(snapshot: InstanceSnapshot) -> dict[str, Any]:
-    meta = snapshot.metadata
-    spec = snapshot.spec
-    years = spec.years
-    repo = spec.dataset_repo
-
-    config: dict[str, Any] = {
-        'id': meta.identifier,
-        'uuid': meta.uuid,
-        'default_language': meta.primary_language,
-        'supported_languages': meta.other_languages,
-        'target_year': years.target,
-        'reference_year': years.reference,
-        'minimum_historical_year': years.min_historical,
-        'maximum_historical_year': years.max_historical,
-        'model_end_year': years.model_end or years.target,
-        'features': spec.features.model_dump(),
-        'params': [_param_to_dict(p) for p in cast('Sequence[Parameter]', spec.params)],
-        'theme_identifier': spec.theme_identifier,
-        'sample_size': spec.sample_size,
-        **_ts_to_yaml('owner', meta.owner),
-        **_ts_to_yaml('name', meta.name),
-        **_ts_to_yaml('lead_title', meta.lead_title),
-        **_ts_to_yaml('lead_paragraph', meta.lead_paragraph),
-        **(
-            {'dataset_repo': {'url': repo.url, 'commit': repo.commit, 'dvc_remote': repo.dvc_remote}} if repo and repo.url else {}
-        ),
-    }
-    return config
-
-
 def snapshot_nodes_to_config_dicts(snapshot: InstanceSnapshot) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Convert a snapshot's nodes into YAML-shaped ``nodes`` / ``actions`` dict lists.
 
-    Runtime construction no longer consumes these; the remaining consumers are
-    ``snapshot_to_config_dict()`` and the lazily built ``NodeExplanationSystem``,
-    whose validation rules still read YAML-shaped dicts.
+    Runtime construction no longer consumes these; the sole remaining consumer
+    is the lazily built ``NodeExplanationSystem``, whose validation rules still
+    read YAML-shaped dicts.
     """
     node_snapshots = snapshot.nodes
     specs_by_uuid: dict[UUID, NodeSpec] = {}
@@ -196,10 +138,6 @@ def snapshot_nodes_to_config_dicts(snapshot: InstanceSnapshot) -> tuple[list[dic
             nodes_list.append(node_dict)
 
     return nodes_list, actions_list
-
-
-def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> None:
-    config['nodes'], config['actions'] = snapshot_nodes_to_config_dicts(snapshot)
 
 
 def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
@@ -377,28 +315,6 @@ def _param_to_dict(p: Parameter) -> dict[str, Any]:
     return d
 
 
-def _serialize_action_group(ag: ActionGroup) -> dict[str, Any]:
-    result: dict[str, Any] = {'id': ag.id}
-    if ag.name:
-        result.update(_ts_to_yaml('name', ag.name))
-    result['color'] = ag.color
-    return result
-
-
-def _serialize_scenario(scenario: Scenario) -> dict[str, Any]:
-    result: dict[str, Any] = {'id': scenario.id}
-    result.update(_ts_to_yaml('name', scenario.name))
-    result.update(_ts_to_yaml('description', scenario.description))
-    if scenario.kind is not None and scenario.kind.value == 'default':
-        result['default'] = True
-    if scenario.all_actions_enabled:
-        result['all_actions_enabled'] = True
-    result['is_selectable'] = scenario.is_selectable
-    if scenario.param_values:
-        result['params'] = [{'id': k, 'value': v} for k, v in scenario.param_values.items()]
-    return result
-
-
 # ---------------------------------------------------------------------------
 # Edge helpers
 # ---------------------------------------------------------------------------
@@ -423,12 +339,10 @@ def _transforms_to_config(
     required_dimensions: Sequence[str] = (),
 ) -> dict[str, list[dict[str, Any]]]:
     """
-    Convert a binding's transformations to the dict format Edge.from_config expects.
+    Convert a binding's transformations to the YAML-shaped edge-dimension dict format.
 
-    This is the seam between the stored vocabulary and the legacy runtime: until
-    ``_get_output_for_target()`` consumes the transform pipeline directly, only
-    what these dicts can express is executable on an edge — which is why the
-    edge mutations accept only the dimension-reshaping transformations.
+    Only the ``NodeExplanationSystem`` shim consumes this now; the runtime
+    executes the typed pipeline directly.
     """
     from nodes.defs.transform_def import (
         AssignDimensionOp,
