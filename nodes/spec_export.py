@@ -634,6 +634,8 @@ def _input_dataset_def_from_instance(ds: DatasetWithFilters) -> InputDatasetDef:
         column=ds.column,
         transformations=list(ds.transformations),
         interpolate=ds.interpolate,
+        backfill=ds.backfill,
+        extend=ds.extend,
         unit=ds.unit,
     )
 
