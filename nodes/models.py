@@ -84,7 +84,7 @@ from paths.utils import (
 )
 
 from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
-from nodes.defs.instance_defs import InstanceFeatures, InstanceMetadata
+from nodes.defs.instance_defs import ActionGroup, InstanceFeatures, InstanceMetadata
 from nodes.defs.transform_def import EdgeTransformOp, StoredPortTransformOp
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
@@ -390,6 +390,10 @@ def make_empty_instance_spec() -> InstanceModelSpec:
     return InstanceModelSpec()
 
 
+YAML_SPEC_VERSION = 3
+"""Version of the lightweight YAML-to-InstanceModelSpec materialization."""
+
+
 def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> InstanceModelSpec:
     """
     Build the computation-only ``InstanceModelSpec``.
@@ -409,6 +413,7 @@ def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> Instan
                 model_end=instance.get('model_end_year'),
             ),
             features=features,
+            action_groups=[ActionGroup.model_validate(dict(group)) for group in instance.get('action_groups', [])],
             theme_identifier=instance.get('theme_identifier'),
         )
 
@@ -425,6 +430,7 @@ def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> Instan
             model_end=context.model_end_year,
         ),
         features=features,
+        action_groups=[group.model_copy() for group in instance.action_groups],
         theme_identifier=instance.theme_identifier,
     )
 
@@ -496,6 +502,7 @@ class InstanceConfig(
     modified_at = models.DateTimeField(auto_now=True)
     cache_invalidated_at = models.DateTimeField(default=timezone.now)
     yaml_mtime_hash = models.CharField(max_length=32, null=True, blank=True, editable=False)
+    yaml_spec_version = models.PositiveSmallIntegerField(default=0, editable=False)
 
     primary_language = models.CharField[str, str](
         max_length=8,
@@ -722,6 +729,7 @@ class InstanceConfig(
             'other_languages': [lang for lang in instance.supported_languages if lang != instance.default_language],
             'spec': make_minimal_instance_spec(instance),
             'yaml_mtime_hash': instance.config_mtime_hash,
+            'yaml_spec_version': YAML_SPEC_VERSION,
             **kwargs,
         }
         ic = cls.objects.create(**fields)
@@ -837,6 +845,7 @@ class InstanceConfig(
         if self.config_source == 'yaml':
             self.spec = make_minimal_instance_spec(instance)
             self.yaml_mtime_hash = instance.config_mtime_hash
+            self.yaml_spec_version = YAML_SPEC_VERSION
 
     def serializable_data(self) -> dict[str, Any]:
         """
@@ -967,7 +976,11 @@ class InstanceConfig(
                     dataset_id__in=[dataset.pk for dataset in datasets],
                 )
             }
-            from nodes.dataset_materialization import materialization_is_fresh, refresh_dataset_materialization
+            from nodes.dataset_materialization import (
+                materialization_is_fresh,
+                refresh_dataset_materialization,
+                require_valid_dataset_rules,
+            )
 
             for dataset in datasets:
                 materialization = materializations.get(dataset.pk)
@@ -981,6 +994,9 @@ class InstanceConfig(
             # the materialization refresh so shape profiles read the same
             # observed facts the revision will pin.
             locked.validate_draft_constraints()
+            # Dataset validation rules gate publication the same way: the
+            # violations were just re-evaluated by the refresh above.
+            require_valid_dataset_rules(materializations.values())
 
             dataset_ct = ContentType.objects.get_for_model(DatasetModel, for_concrete_model=False)
             now = timezone.now()
@@ -1298,15 +1314,22 @@ class InstanceConfig(
         yaml_conf = InstanceYAMLConfig.load_for_entrypoint(config_fn)
         data = yaml_conf.data
         assert data is not None
-        spec = make_minimal_instance_spec(data)
         primary_language = data['default_language']
         other_languages = list(data.get('supported_languages') or [])
+        from kausal_common.i18n.pydantic import set_i18n_context
+
+        with set_i18n_context(primary_language, other_languages):
+            spec = make_minimal_instance_spec(data)
         mtime_hash = yaml_conf.meta.mtime_hash or yaml_conf.meta.calculate_mtime_hash()
         return spec, primary_language, other_languages, mtime_hash
 
     def ensure_spec(self, update_self: bool = True, save: bool = True) -> InstanceModelSpec:
         if self.config_source == 'yaml':
-            if self.spec is not None and self._verified_yaml_spec_hash == self.yaml_mtime_hash:
+            if (
+                self.spec is not None
+                and self.yaml_spec_version == YAML_SPEC_VERSION
+                and self._verified_yaml_spec_hash == self.yaml_mtime_hash
+            ):
                 return self.spec
 
             yaml_ret = self._get_spec_from_yaml()
@@ -1316,7 +1339,7 @@ class InstanceConfig(
                 raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
 
             spec, primary_language, other_languages, yaml_mtime_hash = yaml_ret
-            if self.spec is not None and self.yaml_mtime_hash == yaml_mtime_hash:
+            if self.spec is not None and self.yaml_spec_version == YAML_SPEC_VERSION and self.yaml_mtime_hash == yaml_mtime_hash:
                 self._verified_yaml_spec_hash = yaml_mtime_hash
                 return self.spec
 
@@ -1325,11 +1348,12 @@ class InstanceConfig(
 
             self.spec = spec
             self.yaml_mtime_hash = yaml_mtime_hash
+            self.yaml_spec_version = YAML_SPEC_VERSION
             self._verified_yaml_spec_hash = yaml_mtime_hash
             self.primary_language = primary_language
             self.other_languages = other_languages
             if save:
-                self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash'])
+                self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash', 'yaml_spec_version'])
             return self.spec
 
         if self.spec is not None:
@@ -1986,6 +2010,26 @@ class EditableInstanceChild(
         raise NotImplementedError(msg)
 
 
+class NodeConfigPermissionPolicy(
+    ParentInheritedPolicy['NodeConfig', InstanceConfig, NodeConfigQuerySet, InstanceConfig],
+):
+    """Instance-inherited permissions with a superuser-bypassable edit lock."""
+
+    def __init__(self):
+        super().__init__(NodeConfig, InstanceConfig, 'instance', create_context_type=InstanceConfig)
+
+    def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
+        q = super().construct_perm_q(user, action)
+        if q is None or action not in ('change', 'delete'):
+            return q
+        return q & Q(is_editable=True)
+
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: NodeConfig) -> bool:
+        if action in ('change', 'delete') and not obj.is_editable and not user.is_superuser:
+            return False
+        return super().user_has_perm(user, action, obj)
+
+
 class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexed):
     instance: FK[InstanceConfig] = models.ForeignKey(
         InstanceConfig,
@@ -2003,6 +2047,10 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         verbose_name=_('Order'),
     )
     is_visible = models.BooleanField(default=True)
+    is_editable = models.BooleanField(
+        default=True,
+        help_text=_('Whether non-superusers may modify this node and its inputs'),
+    )
     goal = RichTextField[str | None, str | None](
         null=True,
         blank=True,
@@ -2103,8 +2151,8 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         base_manager_name = 'objects'
 
     @classmethod
-    def permission_policy(cls) -> ParentInheritedPolicy[NodeConfig, InstanceConfig, NodeConfigQuerySet, InstanceConfig]:
-        return ParentInheritedPolicy(cls, InstanceConfig, 'instance', create_context_type=InstanceConfig)
+    def permission_policy(cls) -> NodeConfigPermissionPolicy:
+        return NodeConfigPermissionPolicy()
 
     def get_node(self, visible_for_user: UserOrAnon | None = None) -> Node | None:
         if hasattr(self, '_node'):
@@ -2527,6 +2575,8 @@ class DatasetMaterialization(models.Model):
     content_hash = models.CharField(max_length=64)
     generation = models.PositiveBigIntegerField(default=1)
     shape_profiles = models.JSONField(null=True)
+    validation_violations = models.JSONField(default=list, blank=True)
+    """Current violations of the dataset's metric validation rules (see ``datasets.validation``)."""
     forecast_from = models.IntegerField(null=True, blank=True)
     source_modified_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)

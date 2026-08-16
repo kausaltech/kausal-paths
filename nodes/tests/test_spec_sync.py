@@ -237,6 +237,35 @@ def test_sync_reconciles_authoritative_node_metadata_before_upsert(db_instance):
     assert row.spec == NodeSpec()
 
 
+def test_sync_preserves_db_editability_when_yaml_does_not_specify_it(db_instance):
+    row = NodeConfigFactory.create(instance=db_instance, is_editable=False, spec=NodeSpec())
+    source = _snapshot_with_node(db_instance, uuid=row.uuid, identifier=row.identifier)
+
+    snapshot = reconcile_snapshot_node_metadata(source, [row])
+    assert snapshot.nodes[0].is_editable is False
+
+    _upsert_node_configs(db_instance, snapshot, [row])
+
+    row.refresh_from_db()
+    assert row.is_editable is False
+
+
+def test_sync_applies_explicit_yaml_editability(db_instance):
+    row = NodeConfigFactory.create(instance=db_instance, is_editable=True, spec=NodeSpec())
+    source = InstanceSnapshot(
+        spec=db_instance.spec,
+        nodes=[NodeSnapshot(uuid=row.uuid, identifier=row.identifier, is_editable=False, spec=NodeSpec())],
+    )
+
+    snapshot = reconcile_snapshot_node_metadata(source, [row])
+    assert snapshot.nodes[0].is_editable is False
+
+    _upsert_node_configs(db_instance, snapshot, [row])
+
+    row.refresh_from_db()
+    assert row.is_editable is False
+
+
 def test_yaml_runtime_nodes_use_reconciled_metadata_snapshots(instance_config, instance, node):
     node.short_name = TranslatedString(en='YAML short name')
     node.is_visible = True
@@ -388,7 +417,7 @@ def test_load_nodes_export_sync_updates_legacy_db_dataset_relations(instance_con
             metadata=InstanceMetadata(primary_language='en'),
             spec=InstanceModelSpec(features=InstanceFeatures(use_datasets_from_db=True)),
             nodes=[NodeSnapshot(uuid=row.uuid, identifier='node', name=TranslatedString(en='Node'), spec=NodeSpec())],
-            dataset_ports=[
+            bindings=[
                 DatasetPortSnapshot(
                     node=row.uuid,
                     dataset='input',
@@ -423,3 +452,199 @@ def test_load_nodes_export_sync_updates_legacy_db_dataset_relations(instance_con
     )
 
     assert list(row.datasets.values_list('pk', flat=True)) == [dataset.pk]
+
+
+# ---------------------------------------------------------------------------
+# Binding identity across re-sync: the row UUID is the durable binding
+# identity the NodeInputPortBinding mirror derives, so the delete+recreate
+# rewrite (which preserves authored pk order) must carry UUIDs over.
+# ---------------------------------------------------------------------------
+
+
+def test_match_preserved_uuids_prefers_exact_over_loose():
+    from nodes.instance_serialization import match_preserved_uuids
+
+    exact_a, exact_b = uuid.uuid4(), uuid.uuid4()
+    existing = [
+        ((('n1', 'p1'), ('n1',)), exact_a),
+        ((('n1', 'p2'), ('n1',)), exact_b),
+    ]
+    # First replacement only matches loosely; second matches exactly. The
+    # exact pass must win the contested row for the second replacement.
+    replacements = [(('n1', 'p9'), ('n1',)), (('n1', 'p2'), ('n1',))]
+    assert match_preserved_uuids(existing, replacements) == [exact_a, exact_b]
+
+
+def test_match_preserved_uuids_pairs_duplicates_in_order():
+    from nodes.instance_serialization import match_preserved_uuids
+
+    first, second = uuid.uuid4(), uuid.uuid4()
+    existing = [((('k',),), first), ((('k',),), second)]
+    replacements = [(('k',),), (('k',),), (('k',),)]
+    assert match_preserved_uuids(existing, replacements) == [first, second, None]
+
+
+def test_match_preserved_uuids_returns_none_when_nothing_matches():
+    from nodes.instance_serialization import match_preserved_uuids
+
+    existing = [((('a', 'x'), ('a',)), uuid.uuid4())]
+    assert match_preserved_uuids(existing, [(('b', 'x'), ('b',))]) == [None]
+    assert match_preserved_uuids([], [(('a', 'x'), ('a',))]) == [None]
+    assert match_preserved_uuids(existing, []) == []
+
+
+def _edge_snapshot_instance(db_instance):
+    from nodes.instance_serialization import EdgeSnapshot
+
+    source = NodeConfigFactory.create(instance=db_instance, identifier='source')
+    target = NodeConfigFactory.create(instance=db_instance, identifier='target')
+    node_configs = {source.uuid: source, target.uuid: target}
+    from_port, to_port = uuid.uuid4(), uuid.uuid4()
+    snapshot = InstanceSnapshot(
+        spec=db_instance.spec,
+        bindings=[
+            EdgeSnapshot(
+                from_node=source.uuid,
+                to_node=target.uuid,
+                from_port=from_port,
+                to_port=to_port,
+                tags=['a'],
+            ),
+        ],
+    )
+    return snapshot, node_configs
+
+
+def test_write_edges_preserves_uuids_across_resync(db_instance):
+    from nodes.models import NodeEdge
+    from nodes.spec_sync import _write_edges
+
+    snapshot, node_configs = _edge_snapshot_instance(db_instance)
+
+    _write_edges(db_instance, snapshot, node_configs)
+    first = NodeEdge.objects.get(instance=db_instance)
+
+    _write_edges(db_instance, snapshot, node_configs)
+    second = NodeEdge.objects.get(instance=db_instance)
+
+    assert second.uuid == first.uuid
+    assert second.pk != first.pk, 'rows are rebuilt so pk order stays the authored order'
+
+
+def test_write_edges_preserves_uuid_when_payload_changes(db_instance):
+    from nodes.defs.transform_def import AssignDimensionOp
+    from nodes.models import NodeEdge
+    from nodes.spec_sync import _write_edges
+
+    snapshot, node_configs = _edge_snapshot_instance(db_instance)
+    _write_edges(db_instance, snapshot, node_configs)
+    original = NodeEdge.objects.get(instance=db_instance)
+
+    snapshot.edge_bindings[0].tags = ['b']
+    snapshot.edge_bindings[0].transformations = [AssignDimensionOp(dimension='sector', category='transport')]
+    _write_edges(db_instance, snapshot, node_configs)
+
+    rewritten = NodeEdge.objects.get(instance=db_instance)
+    assert rewritten.uuid == original.uuid
+    assert rewritten.tags == ['b']
+
+
+def test_write_edges_preserves_uuid_across_port_change(db_instance):
+    from nodes.models import NodeEdge
+    from nodes.spec_sync import _write_edges
+
+    snapshot, node_configs = _edge_snapshot_instance(db_instance)
+    _write_edges(db_instance, snapshot, node_configs)
+    original = NodeEdge.objects.get(instance=db_instance)
+
+    snapshot.edge_bindings[0].to_port = uuid.uuid4()
+    _write_edges(db_instance, snapshot, node_configs)
+
+    assert NodeEdge.objects.get(instance=db_instance).uuid == original.uuid, 'loose pass survives a port change'
+
+
+def test_write_edges_mints_fresh_uuid_for_new_edges_only(db_instance):
+    from nodes.instance_serialization import EdgeSnapshot
+    from nodes.models import NodeEdge
+    from nodes.spec_sync import _write_edges
+
+    snapshot, node_configs = _edge_snapshot_instance(db_instance)
+    _write_edges(db_instance, snapshot, node_configs)
+    original = NodeEdge.objects.get(instance=db_instance)
+
+    third = NodeConfigFactory.create(instance=db_instance, identifier='third')
+    node_configs[third.uuid] = third
+    snapshot.bindings.append(
+        EdgeSnapshot(
+            from_node=third.uuid,
+            to_node=snapshot.edge_bindings[0].to_node,
+            from_port=uuid.uuid4(),
+            to_port=snapshot.edge_bindings[0].to_port,
+        )
+    )
+    _write_edges(db_instance, snapshot, node_configs)
+
+    uuids = set(NodeEdge.objects.filter(instance=db_instance).values_list('uuid', flat=True))
+    assert original.uuid in uuids
+    assert len(uuids) == 2
+
+
+def test_resync_keeps_mirror_binding_identity(db_instance):
+    from nodes.input_bindings import sync_input_bindings
+    from nodes.models import NodeInputPortBinding
+    from nodes.spec_sync import _write_edges
+
+    snapshot, node_configs = _edge_snapshot_instance(db_instance)
+    _write_edges(db_instance, snapshot, node_configs)
+    sync_input_bindings(db_instance)
+    before = {(b.pk, b.uuid) for b in NodeInputPortBinding.objects.filter(instance=db_instance)}
+
+    _write_edges(db_instance, snapshot, node_configs)
+    assert sync_input_bindings(db_instance) == 0, 'an unchanged re-sync must not touch the mirror'
+    after = {(b.pk, b.uuid) for b in NodeInputPortBinding.objects.filter(instance=db_instance)}
+    assert after == before
+
+
+def test_write_dataset_ports_preserves_uuids_across_resync(db_instance):
+    from kausal_common.datasets.tests.factories import DatasetMetricFactory
+
+    from nodes.models import DatasetPort
+    from nodes.spec_sync import _write_dataset_ports
+    from nodes.yaml_port_refs import build_yaml_port_reference_catalog
+
+    node = NodeConfigFactory.create(instance=db_instance, identifier='consumer')
+    dataset = DatasetFactory.create(identifier='ds_input', scope=db_instance)
+    DatasetMetricFactory.create(schema=dataset.schema, name='value', label='Value', unit='kt/a')
+
+    port_id = uuid.uuid4()
+    snapshot = InstanceSnapshot(
+        spec=db_instance.spec,
+        nodes=[NodeSnapshot(uuid=node.uuid, identifier=node.identifier, spec=NodeSpec())],
+        bindings=[
+            DatasetPortSnapshot(
+                node=node.uuid,
+                dataset='ds_input',
+                port_id=port_id,
+                metric='value',
+                dataset_index=0,
+                spec=DatasetPortSpec(column='value'),
+            )
+        ],
+    )
+
+    catalog = build_yaml_port_reference_catalog(db_instance)
+    _write_dataset_ports(db_instance, snapshot, {node.uuid: node}, port_references=catalog)
+    first = DatasetPort.objects.get(instance=db_instance)
+
+    catalog = build_yaml_port_reference_catalog(db_instance)
+    _write_dataset_ports(db_instance, snapshot, {node.uuid: node}, port_references=catalog)
+    second = DatasetPort.objects.get(instance=db_instance)
+
+    assert second.uuid == first.uuid
+    assert second.pk != first.pk
+
+    # A dataset_index change (dataset reordering) still preserves identity via the loose pass.
+    snapshot.dataset_bindings[0].dataset_index = 1
+    catalog = build_yaml_port_reference_catalog(db_instance)
+    _write_dataset_ports(db_instance, snapshot, {node.uuid: node}, port_references=catalog)
+    assert DatasetPort.objects.get(instance=db_instance).uuid == first.uuid

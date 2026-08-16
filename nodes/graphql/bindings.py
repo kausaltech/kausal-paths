@@ -535,6 +535,7 @@ def bind_dataset(
     from nodes.graphql.constraint_checks import check_binding_change, dataset_candidate, require_draft_graph
     from nodes.models import DatasetPort
 
+    nc.ensure_gql_action_allowed(info, 'change')
     port_id = _resolve_port(info, nc, str(input.port_id))
     displaced_edges: list[NodeEdge] = []
     displaced_rows: list[DatasetPort] = []
@@ -628,10 +629,12 @@ def _sole_metric_or_error(info: gql.Info, dataset: DatasetModel) -> DatasetMetri
 def binding_editor(info: gql.Info, ic: InstanceConfig, binding_id: sb.ID) -> PortBindingEditorMutation:
     rows = _binding_rows(ic, str(binding_id))
     if rows:
+        rows[0].node.ensure_gql_action_allowed(info, 'change')
         return PortBindingEditorMutation(instance=ic, rows=rows, edge=None)
     edge = None
     if _looks_like_uuid(str(binding_id)):
         edge = NodeEdge.objects.filter(instance=ic, uuid=str(binding_id)).select_related('from_node', 'to_node').first()
     if edge is not None:
+        edge.to_node.ensure_gql_action_allowed(info, 'change')
         return PortBindingEditorMutation(instance=ic, rows=[], edge=edge)
     raise GraphQLError(f'Binding "{binding_id}" not found')

@@ -33,6 +33,15 @@ def test_parameter_global_id_node_param(node, number_parameter):
     assert number_parameter.global_id == f'{node.id}.{number_parameter.local_id}'
 
 
+def test_parameter_implicit_provenance_is_runtime_only(number_parameter):
+    assert not number_parameter.is_implicit
+
+    number_parameter.mark_implicit()
+
+    assert number_parameter.is_implicit
+    assert 'is_implicit' not in number_parameter.model_dump()
+
+
 @pytest.mark.parametrize('value', [3, 3.5, '3', '3.5'])
 def test_number_parameter_clean_to_float(number_parameter, value):
     assert number_parameter.clean(value) == float(value)

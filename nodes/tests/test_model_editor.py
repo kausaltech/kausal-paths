@@ -191,6 +191,35 @@ def test_update_node_layouts_is_shared_editor_metadata_without_change_operation(
     assert db_instance_config.draft_head_token == previous_head
 
 
+def test_instance_admin_can_update_layout_of_protected_node(client, db_instance_config: InstanceConfig) -> None:
+    from paths.tests.graphql import PathsTestClient
+
+    from nodes.models import NodeLayout
+    from nodes.roles import instance_admin_role
+    from users.tests.factories import UserFactory
+
+    node = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='protected_layout',
+        is_editable=False,
+        spec=_make_node_spec(),
+    )
+    user = UserFactory.create()
+    instance_admin_role.assign_user(db_instance_config, user)
+    client.force_login(user)
+    admin_client = PathsTestClient(client)
+    admin_client.set_instance(db_instance_config)
+
+    admin_client.query_data(
+        UPDATE_NODE_LAYOUTS,
+        variables={
+            'instanceId': db_instance_config.identifier,
+            'input': [{'nodeId': str(node.uuid), 'x': 1.0, 'y': 2.0, 'source': 'USER'}],
+        },
+    )
+    assert NodeLayout.objects.filter(node=node, x=1.0, y=2.0).exists()
+
+
 def test_node_layout_is_readable_per_node_and_in_bulk(
     gql_client: PathsTestClient,
     db_instance_config: InstanceConfig,
@@ -830,6 +859,85 @@ def test_node_editor_update_alias(gql_client: PathsTestClient, db_instance_confi
     assert nc.is_visible is False
 
 
+def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
+    client,
+    db_instance_config: InstanceConfig,
+) -> None:
+    from paths.tests.graphql import PathsTestClient
+
+    from nodes.roles import instance_admin_role
+    from users.tests.factories import UserFactory
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='protected',
+        name='Certified',
+        is_editable=False,
+        spec=_make_node_spec(),
+    )
+    user = UserFactory.create()
+    instance_admin_role.assign_user(db_instance_config, user)
+    client.force_login(user)
+    admin_client = PathsTestClient(client)
+    admin_client.set_instance(db_instance_config)
+
+    data = admin_client.query_data(
+        """
+        query ProtectedNode($instanceId: ID!) {
+            modelInstance(instanceId: $instanceId) {
+                nodes {
+                    identifier
+                    isEditable
+                    userPermissions { view change delete }
+                    editor { nodeGroup }
+                }
+            }
+        }
+        """,
+        variables={'instanceId': str(db_instance_config.pk)},
+    )
+    node = next(node for node in data['modelInstance']['nodes'] if node['identifier'] == nc.identifier)
+    assert node == {
+        'identifier': 'protected',
+        'isEditable': False,
+        'userPermissions': {'view': True, 'change': False, 'delete': False},
+        'editor': None,
+    }
+
+    admin_client.query_errors(
+        UPDATE_NODE_VIA_NODE_EDITOR,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {'name': 'Tampered'},
+        },
+        assert_error_message='Permission denied',
+    )
+    nc.refresh_from_db()
+    assert nc.name == 'Certified'
+
+
+def test_superuser_can_update_protected_node(gql_client: PathsTestClient, db_instance_config: InstanceConfig) -> None:
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='protected_for_superuser',
+        name='Before',
+        is_editable=False,
+        spec=_make_node_spec(),
+    )
+
+    gql_client.query_data(
+        UPDATE_NODE_VIA_NODE_EDITOR,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {'name': 'After'},
+        },
+    )
+    nc.refresh_from_db()
+    assert nc.name == 'After'
+
+
 def test_node_editor_add_input_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     from nodes.models import NodeConfig
 
@@ -1332,6 +1440,52 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     assert not NodeEdge.objects.filter(pk=edge_obj.pk).exists()
 
 
+def test_instance_admin_cannot_change_incoming_edge_of_protected_node(
+    client,
+    db_instance_config: InstanceConfig,
+) -> None:
+    from paths.tests.graphql import PathsTestClient
+
+    from nodes.models import NodeEdge
+    from nodes.roles import instance_admin_role
+    from users.tests.factories import UserFactory
+
+    unit = unit_registry.parse_units('kt/a')
+    source = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='protected_edge_source',
+        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('source'), unit=unit, quantity='emissions')]),
+    )
+    target = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='protected_edge_target',
+        is_editable=False,
+        spec=_make_node_spec(
+            input_ports=[InputPortDef(id=_port_uuid('target'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('target-output'), unit=unit, quantity='emissions')],
+        ),
+    )
+    user = UserFactory.create()
+    instance_admin_role.assign_user(db_instance_config, user)
+    client.force_login(user)
+    admin_client = PathsTestClient(client)
+    admin_client.set_instance(db_instance_config)
+
+    admin_client.query_errors(
+        CREATE_EDGE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'instanceId': str(db_instance_config.pk),
+                'fromRef': {'nodeUuid': str(source.uuid), 'portId': str(_port_uuid('source'))},
+                'portRef': {'nodeUuid': str(target.uuid), 'portId': str(_port_uuid('target'))},
+            },
+        },
+        assert_error_message='Permission denied',
+    )
+    assert not NodeEdge.objects.filter(from_node=source, to_node=target).exists()
+
+
 def test_create_edge_accepts_uuid_only_references(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     from nodes.models import NodeEdge
 
@@ -1814,7 +1968,9 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
         if 'FROM "datasets_dataset"' in query['sql'] and 'WHERE "datasets_dataset"."uuid" =' in query['sql']
     ]
     assert per_binding_dataset_queries == []
-    assert len(query_ctx) <= 20
+    # Constant budget, independent of node/binding count. Metric validation
+    # rules add fixed dataset-catalog queries, not per-binding ones.
+    assert len(query_ctx) <= 22
 
 
 def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: InstanceConfig):

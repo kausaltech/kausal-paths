@@ -23,6 +23,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from paths.identifiers import identifier_or_none
 
+from datasets.validation_rules import rule_list_adapter
 from nodes.constants import VALUE_COLUMN, DecisionLevel
 from nodes.defs import (
     ActionConfig,
@@ -33,6 +34,7 @@ from nodes.defs import (
     SimpleConfig,
     YearsSpec,
 )
+from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
 from nodes.defs.instance_defs import ActionGroup, DatasetRepoSpec, InstanceFeatures, InstanceMetadata, InstanceTerms
 from nodes.defs.node_defs import NodeSpecExtra
 from nodes.defs.port_def import InputPortDef, OutputPortDef
@@ -267,12 +269,14 @@ class InstanceConfigParser:
         edges = self._build_edge_snapshots()
         dataset_ports = self._build_dataset_port_snapshots()
 
+        # Positions stay unassigned: this is the pre-resolution parse-side
+        # snapshot, and the dataset fan-out at sync changes binding cardinality.
         return InstanceSnapshot(
             metadata=metadata,
             spec=spec,
             nodes=node_snapshots,
-            edges=edges,
-            dataset_ports=dataset_ports,
+            bindings=[*edges, *dataset_ports],
+            datasets=self._parse_dataset_catalog(),
         )
 
     # -- metadata & instance spec ---------------------------------------------
@@ -298,6 +302,54 @@ class InstanceConfigParser:
             if dim.id in self.dimensions:
                 raise InstanceParseError(f'Duplicate dimension {dim.id}')
             self.dimensions[dim.id] = dim
+
+    def _parse_dataset_catalog(self) -> list[DatasetMeta]:
+        """
+        Parse the top-level ``datasets`` key into partial catalog entries.
+
+        YAML declares per-dataset metric metadata (currently the validation
+        rules) by identifier; the entries' UUIDs are parse-invented and never
+        persisted — sync matches datasets and metrics by identifier against
+        the rows placeholder sync has minted.
+        """
+        from pydantic import ValidationError as PydanticValidationError
+
+        entries: list[DatasetMeta] = []
+        seen: set[str] = set()
+        for ds_conf in self.config.get('datasets', []):
+            ds_id = ds_conf.get('id')
+            if not ds_id:
+                raise InstanceParseError("Entry under 'datasets' is missing an 'id'")
+            if ds_id in seen:
+                raise InstanceParseError(f"Duplicate dataset '{ds_id}' under 'datasets'")
+            seen.add(ds_id)
+            metrics: list[DatasetMetricMeta] = []
+            for m_conf in ds_conf.get('metrics', []):
+                metric_id = m_conf.get('id')
+                if not metric_id:
+                    raise InstanceParseError(f"Metric entry of dataset '{ds_id}' is missing an 'id'")
+                try:
+                    rules = rule_list_adapter.validate_python(m_conf.get('validation_rules', []))
+                except PydanticValidationError as error:
+                    raise InstanceParseError(
+                        f"Invalid validation rule on dataset '{ds_id}' metric '{metric_id}': {error}",
+                    ) from error
+                metrics.append(
+                    DatasetMetricMeta(
+                        id=self._uuid_from_identifiers(['dataset', ds_id, 'metric', metric_id]),
+                        identifier=metric_id,
+                        validation_rules=tuple(rules),
+                    )
+                )
+            entries.append(
+                DatasetMeta(
+                    id=self._uuid_from_identifiers(['dataset', ds_id]),
+                    identifier=ds_id,
+                    schema_id=self._uuid_from_identifiers(['dataset', ds_id, 'schema']),
+                    metrics=tuple(metrics),
+                )
+            )
+        return entries
 
     def _parse_global_params(self) -> None:
         from params.discover import discover_global_parameters
@@ -507,7 +559,7 @@ class InstanceConfigParser:
         expanded: list[dict[str, Any]] = []
         for ec_orig in sectors:
             ec = dict(ec_orig)
-            # setup_validation_graph *overwrites* these on the sector configs
+            # setup_node_explanations *overwrites* these on the sector configs
             # before expansion (an authored `type:` on a sector is ignored);
             # reproduce its net effect.
             ec['type'] = 'simple.SectorEmissions'
@@ -777,6 +829,7 @@ class InstanceConfigParser:
             else:
                 raise InstanceParseError(f"Node {parsed.identifier}: 'enabled' is missing from allowed parameters")
             param = proto.copy()
+            param.mark_implicit()
             parsed.params.append(param)
         # EnabledParam.set_node applies the instance's custom label, when set.
         enabled_label = self._terms.enabled_label
@@ -1212,7 +1265,7 @@ class InstanceConfigParser:
             output_ports=parsed.output_ports,
             input_dimensions=[d for d in parsed.input_dimensions if d not in parsed.internal_dims],
             output_dimensions=[d for d in parsed.output_dimensions if d not in parsed.internal_dims],
-            params=cast('list[Any]', parsed.params),
+            params=cast('list[Any]', [param for param in parsed.params if not param.is_implicit]),
             goals=self._parse_node_goals(parsed),
             visualizations=self._parse_node_visualizations(parsed),
             allow_nulls=config.get('allow_nulls', False),
@@ -1230,6 +1283,7 @@ class InstanceConfigParser:
             color=config.get('color') or '',
             order=config.get('order'),
             is_visible=config.get('is_visible', True),
+            is_editable=config.get('is_editable'),
             spec=spec,
         )
 

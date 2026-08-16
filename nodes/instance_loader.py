@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import importlib
 import json
@@ -26,26 +27,31 @@ from nodes.actions.action import ActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs.instance_defs import DatasetRepoSpec
 from nodes.exceptions import NodeError
-from nodes.explanations import NodeExplanationSystem
 from pages.config import pages_from_config
 from params.discover import discover_global_parameters
 
 from .excel_results import InstanceResultExcel
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
+    from uuid import UUID
 
     from ruamel.yaml import CommentedMap
     from ruamel.yaml.comments import LineCol
 
     from kausal_common.datasets.models import Dataset as DBDatasetModel
+    from kausal_common.i18n.pydantic import I18nString
 
     from frameworks.models import FrameworkConfig
     from nodes.context import Context
     from nodes.datasets import Dataset
+    from nodes.defs.node_defs import NodeSpec
+    from nodes.edges import Edge
+    from nodes.explanations import NodeExplanationSystem
     from nodes.instance import Instance
-    from nodes.instance_serialization import InstanceSnapshot
-    from nodes.node import Node
+    from nodes.instance_serialization import DatasetPortSnapshot, EdgeSnapshot, InstanceSnapshot, NodeSnapshot
+    from nodes.node import Node, NodeMetric
+    from nodes.scenario import Scenario
     from nodes.units import Unit
     from params import Parameter
 
@@ -135,6 +141,7 @@ class InstanceYAMLConfig:
         config_path: Path | None,
         allow_override: bool = False,
         dataset_replacements: list[dict[str, str]] | None = None,
+        is_editable: bool | None = None,
     ) -> None:
         # Create a mapping of old dataset IDs to new ones
         if dataset_replacements is None:
@@ -160,6 +167,7 @@ class InstanceYAMLConfig:
             apply_group=apply_group,
             config_path=config_path,
             allow_override=allow_override,
+            is_editable=is_editable,
         )
 
     def _merge_config(
@@ -170,6 +178,7 @@ class InstanceYAMLConfig:
         apply_group: str | None = None,
         config_path: Path | None = None,
         allow_override: bool = False,
+        is_editable: bool | None = None,
     ) -> None:
         by_id = {d['id']: d for d in existing}
         for nc in newconf:
@@ -181,6 +190,8 @@ class InstanceYAMLConfig:
                 continue
             assert 'node_group' not in nc
             nc['node_group'] = apply_group
+            if is_editable is not None:
+                nc['is_editable'] = is_editable
             if config_path is not None:
                 nc['config_location'] = ConfigLocation(file_path=str(config_path), line=nc.lc.line + 1, column=nc.lc.col)
             existing.append(nc)
@@ -188,6 +199,14 @@ class InstanceYAMLConfig:
     def _init_group(self, objs: list[CommentedMap]) -> None:
         for d in objs:
             d['config_location'] = ConfigLocation(file_path=str(self.meta.entrypoint.path), line=d.lc.line + 1, column=d.lc.col)
+
+    @staticmethod
+    def _get_include_nodes_editable(include: CommentedMap) -> bool | None:
+        value = include.get('nodes_editable')
+        if 'nodes_editable' in include and not isinstance(value, bool):
+            msg = 'Include option nodes_editable must be a boolean'
+            raise TypeError(msg)
+        return value
 
     def load(self):
         meta = self.meta
@@ -235,6 +254,7 @@ class InstanceYAMLConfig:
             allow_override = iconf.get('allow_override', False)
             apply_group = iconf.get('node_group', None)
             dataset_replacements = iconf.get('dataset_replacements', [])
+            nodes_editable = self._get_include_nodes_editable(iconf)
             ifn = (config_path / Path(iconf['file'])).resolve()
             if not ifn.exists():
                 raise Exception('Include file "%s" not found' % str(ifn))
@@ -249,6 +269,7 @@ class InstanceYAMLConfig:
                 config_path=ifn,
                 allow_override=allow_override,
                 dataset_replacements=dataset_replacements,
+                is_editable=nodes_editable,
             )
             self._merge_include_config(
                 dimensions,
@@ -266,6 +287,7 @@ class InstanceYAMLConfig:
                 config_path=None,
                 allow_override=allow_override,
                 dataset_replacements=dataset_replacements,
+                is_editable=nodes_editable,
             )
 
         # Make sure that assignment works even if they are originally empty.
@@ -466,6 +488,8 @@ class InstanceLoader:
     _subactions: dict[str, list[str]]
     _scenario_values: dict[str, list[tuple[Parameter, Any]]]
     _node_visualizations: dict[str, list[dict[str, Any]]]
+    # Snapshot-path dataset-binding stash (see _stash_snapshot_bindings).
+    _snapshot_dataset_ports: dict[UUID, list[DatasetPortSnapshot]]
 
     @staticmethod
     def wrap_with_span[**P, R, SC: InstanceLoader](
@@ -786,6 +810,7 @@ class InstanceLoader:
             color=config.get('color'),
             order=config.get('order'),
             is_visible=config.get('is_visible', True),
+            is_editable=config.get('is_editable'),
             is_outcome=config.get('is_outcome', False),
             minimum_year=config.get('minimum_year'),
             target_year_goal=config.get('target_year_goal'),
@@ -862,7 +887,13 @@ class InstanceLoader:
     def setup_dimensions(self):
         from .dimensions import Dimension
 
-        for dc in self.config.get('dimensions', []):
+        if self.snapshot is not None:
+            # Same dict shape as the YAML path, but sourced from the typed
+            # spec; copied so the shared snapshot is never mutated.
+            dim_configs: list[dict[str, Any]] = [dict(dc) for dc in self.snapshot.spec.dimensions]
+        else:
+            dim_configs = self.config.get('dimensions', [])
+        for dc in dim_configs:
             try:
                 dc['mtime_hash'] = self.config_mtime_hash
                 dim = Dimension.from_yaml_config(dc)
@@ -872,11 +903,195 @@ class InstanceLoader:
             assert dim.id not in self.context.dimensions
             self.context.dimensions[dim.id] = dim
 
+    def _import_node_class_for_spec(self, spec: NodeSpec, identifier: str, *, action: bool) -> type[Node]:
+        from nodes.actions.action import ActionNode
+        from nodes.defs import ActionConfig, FormulaConfig, SimpleConfig
+        from nodes.node import Node
+
+        tc = spec.type_config
+        if isinstance(tc, FormulaConfig):
+            type_path = 'formula.FormulaNode'
+        elif isinstance(tc, (ActionConfig, SimpleConfig)):
+            type_path = tc.node_class
+        else:
+            raise TypeError(f'Unknown node type config: {type(tc)}')
+        prefix = None if type_path.startswith('nodes.') else ('nodes.actions' if action else 'nodes')
+        return self.import_class(
+            type_path,
+            prefix,
+            allowed_classes=[ActionNode] if action else [Node],
+            disallowed_classes=None if action else [ActionNode],
+            node_id=identifier,
+        )
+
+    def _setup_nodes_from_snapshot(self, *, actions: bool) -> None:
+        from nodes.actions.action import ActionNode
+        from nodes.defs import ActionConfig
+        from nodes.defs.node_defs import NodeKind
+
+        assert self.snapshot is not None
+        for n in self.snapshot.nodes:
+            spec = n.spec
+            assert spec is not None
+            if (spec.kind == NodeKind.ACTION) != actions:
+                continue
+            assert n.identifier is not None
+            node_class = self._import_node_class_for_spec(spec, n.identifier, action=actions)
+            node = self.make_node_from_snapshot(node_class, n)
+            if actions:
+                assert isinstance(node, ActionNode)
+                tc = spec.type_config
+                assert isinstance(tc, ActionConfig)
+                if tc.decision_level is not None:
+                    node.decision_level = tc.decision_level
+                if tc.group is not None:
+                    ag = next((ag for ag in self.instance.action_groups if ag.id == tc.group), None)
+                    if ag is None:
+                        self._init_failure(node, "Action group '%s' not found" % tc.group)
+                    else:
+                        node.group = ag
+                if tc.parent is not None:
+                    self._subactions.setdefault(tc.parent, []).append(node.id)
+            self.context.add_node(node)
+
+    def _resolve_output_metrics(  # noqa: C901
+        self, node_class: type[Node], spec: NodeSpec, identifier: str
+    ) -> tuple[dict[str, NodeMetric] | None, Any, str | None]:
+        """Output metrics / unit / quantity from typed output ports, with the dict path's class fallbacks."""
+        from nodes.node import NodeMetric
+        from nodes.units import Unit
+
+        metrics: dict[str, NodeMetric] | None = None
+        unit: Any = None
+        quantity: str | None = None
+        if len(spec.output_ports) == 1:
+            port = spec.output_ports[0]
+            unit = port.unit
+            quantity = port.quantity
+        elif len(spec.output_ports) > 1:
+            metrics = {}
+            # For ports without an authored identifier, the class's canonical
+            # metric keys are recovered by column_id (same as the dict path).
+            class_metrics_def: dict[str, NodeMetric] | None = getattr(node_class, 'output_metrics', None)
+            col_to_class_key = {m.column_id: k for k, m in class_metrics_def.items()} if class_metrics_def else {}
+            for port in spec.output_ports:
+                column = str(port.column_id) if port.column_id is not None else None
+                if column is None:
+                    raise Exception('Node %s: multi-metric output port without column_id' % identifier)
+                if port.quantity is None:
+                    raise Exception('Node %s: output metric %s has no quantity' % (identifier, column))
+                assert port.unit is not None
+                key = port.identifier or col_to_class_key.get(column, column)
+                metrics[key] = NodeMetric(unit=port.unit, quantity=port.quantity, id=key, column_id=column)
+
+        class_metrics = None if metrics is not None else getattr(node_class, 'output_metrics', None)
+        if unit is None:
+            unit = getattr(node_class, 'default_unit', None) or getattr(node_class, 'unit', None)
+            if not unit and not metrics and not class_metrics:
+                raise Exception('Node %s (%s) has no unit set' % (identifier, node_class.__name__))
+        if unit and not isinstance(unit, Unit):
+            unit = self.context.unit_registry.parse_units(unit)
+        if quantity is None:
+            quantity = getattr(node_class, 'quantity', None)
+            if not quantity and not metrics and not class_metrics:
+                raise Exception('Node %s (%s) has no quantity set' % (identifier, node_class.__name__))
+        return metrics, unit, quantity
+
+    def make_node_from_snapshot(self, node_class: type[Node], n: NodeSnapshot) -> Node:  # noqa: C901
+        """Native ``make_node`` twin: construct a runtime node from typed snapshot state."""
+        spec = n.spec
+        assert spec is not None
+        identifier = n.identifier
+        assert identifier is not None
+
+        def ts(val: I18nString | None) -> TranslatedString | None:
+            if val is None or isinstance(val, TranslatedString):
+                return val
+            return self.simple_trans_string(str(val))
+
+        metrics, unit, quantity = self._resolve_output_metrics(node_class, spec, identifier)
+
+        extra = spec.extra
+        ds_fragment: dict[str, Any] = {'id': identifier}
+        dataset_ports = self._snapshot_dataset_ports.get(n.uuid)
+        if dataset_ports:
+            from nodes.instance_from_db import _serialize_dataset_ports
+
+            ds_fragment['input_datasets'] = _serialize_dataset_ports(dataset_ports)
+        if extra.input_dataset_processors:
+            ds_fragment['input_dataset_processors'] = list(extra.input_dataset_processors)
+        if extra.historical_values:
+            ds_fragment['historical_values'] = extra.historical_values
+        if extra.forecast_values:
+            ds_fragment['forecast_values'] = extra.forecast_values
+        if extra.tags:
+            ds_fragment['tags'] = list(extra.tags)
+        datasets = self._make_node_datasets(ds_fragment, node_class, unit)
+
+        node: Node = node_class(
+            id=identifier,
+            context=self.context,
+            # A missing name fails inside the Node constructor, like the dict path.
+            name=cast('TranslatedString', ts(n.name)),
+            short_name=ts(n.short_name),
+            quantity=quantity,
+            unit=unit,
+            node_group=spec.node_group,
+            # The dict path maps the snapshot's short_description onto the
+            # runtime description; keep that projection.
+            description=ts(n.short_description),
+            color=n.color or None,
+            order=n.order,
+            is_visible=n.is_visible,
+            is_outcome=spec.is_outcome,
+            minimum_year=spec.minimum_year,
+            target_year_goal=extra.other.get('target_year_goal'),
+            goals=spec.goals.model_dump(exclude_none=True) if spec.goals.root else None,
+            allow_nulls=spec.allow_nulls,
+            input_datasets=datasets,
+            output_dimension_ids=spec.output_dimensions or None,
+            input_dimension_ids=spec.input_dimensions or None,
+            output_metrics=metrics,
+            config_location=None,
+        )
+        if node.id in self._input_nodes or node.id in self._output_nodes:
+            raise Exception('Node %s is already configured' % node.id)
+        # Edges are constructed natively from snapshot bindings in
+        # _setup_edges_from_snapshot; nothing is stashed for Edge.from_config.
+        self._input_nodes[node.id] = []
+        self._output_nodes[node.id] = []
+
+        if spec.params:
+            from nodes.instance_from_db import _param_to_dict
+
+            self._make_node_params({'params': [_param_to_dict(p) for p in spec.params]}, node)
+
+        if extra.tags:
+            node.tags.update(extra.tags)
+
+        if spec.visualizations.root:
+            # Dump rather than pass the instance: model_validate short-circuits
+            # on same-type instances and the context-dependent refs would not
+            # be resolved against this context.
+            self._node_visualizations[node.id] = spec.visualizations.model_dump(exclude_none=True)
+
+        from nodes.defs import ActionConfig
+
+        tc = spec.type_config
+        if isinstance(tc, ActionConfig) and tc.no_effect_value is not None:
+            assert isinstance(node, ActionNode)
+            node.no_effect_value = tc.no_effect_value
+
+        return node
+
     @wrap_with_span('setup-nodes', 'function')
     def setup_nodes(self):
         from nodes.actions.action import ActionNode
         from nodes.node import Node
 
+        if self.snapshot is not None:
+            self._setup_nodes_from_snapshot(actions=False)
+            return
         for nc in self.config.get('nodes', []):
             if nc['type'].startswith('nodes.'):
                 prefix = None
@@ -899,6 +1114,10 @@ class InstanceLoader:
     def generate_nodes_from_emission_sectors(self):
         from nodes.simple import SectorEmissions
 
+        if self.snapshot is not None:
+            # Emission sectors are a YAML authoring shorthand; snapshots carry
+            # the expanded nodes.
+            return
         if not self.config.get('emission_sectors'):
             return
 
@@ -948,6 +1167,9 @@ class InstanceLoader:
     def setup_actions(self):
         from nodes.actions.action import ActionNode
 
+        if self.snapshot is not None:
+            self._setup_nodes_from_snapshot(actions=True)
+            return
         for nc in self.config.get('actions', []):
             if nc['type'].startswith('nodes.'):
                 prefix = None
@@ -987,10 +1209,163 @@ class InstanceLoader:
 
             self.context.add_node(node)
 
+    def _require_dimension(self, dim_id: str, node: Node) -> Any:
+        dim = self.context.dimensions.get(dim_id)
+        if dim is None:
+            raise NodeError(node, 'dimension %s not found' % dim_id)
+        return dim
+
+    def _edge_dimensions_from_transforms(
+        self,
+        transforms: list[Any],
+        required_dimensions: Sequence[str],
+        node: Node,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """
+        Typed transforms into runtime ``EdgeDimension`` maps (from_dims, to_dims).
+
+        Mirrors ``_transforms_to_config`` + ``EdgeDimension.from_config``: the
+        target port's declared dimensions (plus legacy ``FlattenTransformation``
+        rows preserved in pre-step-2 snapshots) become bare exclude+flatten
+        declarations, filters resolve categories and groups, and assigns pin
+        one category.
+        """
+        from nodes.defs.transform_def import (
+            AssignDimensionOp,
+            FilterDimensionOp,
+            FlattenTransformation,
+            modernized_transformations,
+        )
+        from nodes.edges import EdgeDimension
+
+        legacy_declared = [t.dimension for t in transforms if isinstance(t, FlattenTransformation)]
+        declared = list(dict.fromkeys([*required_dimensions, *legacy_declared]))
+        to_dims: dict[str, EdgeDimension] = {}
+        for dim_id in declared:
+            self._require_dimension(dim_id, node)
+            to_dims[dim_id] = EdgeDimension(categories=[], exclude=True, flatten=True)
+
+        from_dims: dict[str, EdgeDimension] = {}
+        for t in modernized_transformations(transforms):
+            match t:
+                case FilterDimensionOp():
+                    dim = self._require_dimension(t.dimension, node)
+                    cat_ids = list(t.categories)
+                    for gid in t.groups or ():
+                        cat_ids += [cat.id for cat in dim.get_cats_for_group(gid)]
+                    if not cat_ids:
+                        # A filter with no category selection is a bare
+                        # flatten declaration, exactly as the dict round-trip
+                        # produced regardless of the stored flatten flag.
+                        from_dims[t.dimension] = EdgeDimension(categories=[], exclude=True, flatten=True)
+                    else:
+                        from_dims[t.dimension] = EdgeDimension(
+                            categories=[dim.get(cat_id) for cat_id in cat_ids],
+                            exclude=bool(t.exclude),
+                            flatten=bool(t.flatten),
+                        )
+                case AssignDimensionOp():
+                    dim = self._require_dimension(t.dimension, node)
+                    to_dims[t.dimension] = EdgeDimension(categories=[dim.get(t.category)], exclude=False, flatten=False)
+                case _:
+                    raise ValueError(f'Edge transformation "{t.kind}" is not executable by the legacy edge runtime')
+        return from_dims, to_dims
+
+    def _setup_edges_from_snapshot(self) -> None:
+        """Construct runtime edges from snapshot bindings, grouped per node pair like the dict path."""
+        from collections import defaultdict
+
+        from nodes.constants import VALUE_COLUMN
+
+        snapshot = self.snapshot
+        assert snapshot is not None
+        specs_by_uuid: dict[UUID, NodeSpec] = {}
+        identifiers_by_uuid: dict[UUID, str] = {}
+        for n in snapshot.nodes:
+            assert n.spec is not None
+            assert n.identifier is not None
+            specs_by_uuid[n.uuid] = n.spec
+            identifiers_by_uuid[n.uuid] = n.identifier
+
+        # One runtime Edge per (from, to) pair; parallel bindings deliver the
+        # source's metrics. Grouping preserves binding order.
+        groups: dict[tuple[UUID, UUID], list[tuple[str, EdgeSnapshot]]] = {}
+        for e in snapshot.edge_bindings:
+            from_port = specs_by_uuid[e.from_node].output_port_by_id[e.from_port]
+            groups.setdefault((e.from_node, e.to_node), []).append((from_port.column_id or VALUE_COLUMN, e))
+
+        # Per target, edge groups apply in the target's input-port declaration
+        # order (stable within a port: binding order).
+        per_target: defaultdict[UUID, list[tuple[int, tuple[UUID, UUID]]]] = defaultdict(list)
+        for (from_id, to_id), tuples in groups.items():
+            to_spec = specs_by_uuid[to_id]
+            port_order = {port.id: idx for idx, port in enumerate(to_spec.input_ports)}
+            first = tuples[0][1]
+            per_target[to_id].append((port_order.get(first.to_port, len(port_order)), (from_id, to_id)))
+
+        ctx = self.context
+        uuid_by_identifier = {identifier: node_id for node_id, identifier in identifiers_by_uuid.items()}
+        for node in ctx.nodes.values():
+            to_id = uuid_by_identifier.get(node.id)
+            if to_id is None:
+                continue
+            for _port_idx, (from_id, group_to_id) in sorted(per_target.get(to_id, []), key=lambda item: item[0]):
+                tuples = groups[(from_id, group_to_id)]
+                try:
+                    edge = self._make_edge_from_group(from_id, group_to_id, tuples, specs_by_uuid, identifiers_by_uuid)
+                    node.add_edge(edge)
+                    edge.input_node.add_edge(edge)
+                except Exception as e:
+                    self._init_failure(node, 'Invalid input edge: %s' % e, cause=e)
+
+    def _make_edge_from_group(
+        self,
+        from_id: UUID,
+        to_id: UUID,
+        tuples: list[tuple[str, EdgeSnapshot]],
+        specs_by_uuid: dict[UUID, NodeSpec],
+        identifiers_by_uuid: dict[UUID, str],
+    ) -> Edge:
+        from nodes.edges import Edge
+
+        first = tuples[0][1]
+        transforms = first.transformations
+        tags = first.tags
+        metrics: list[str] = []
+        for column_id, e in tuples:
+            if transforms:
+                assert e.transformations == transforms
+            if tags:
+                assert tuple(e.tags) == tuple(tags)
+            metrics.append(column_id)
+
+        input_node = self.context.get_node(identifiers_by_uuid[from_id])
+        output_node = self.context.get_node(identifiers_by_uuid[to_id])
+        to_port = specs_by_uuid[to_id].input_port_by_id[first.to_port]
+        from_dims, to_dims = self._edge_dimensions_from_transforms(
+            list(transforms),
+            to_port.required_dimensions,
+            output_node,
+        )
+        # Only deliver explicit `metrics` when the source is multi-metric; for
+        # single-output nodes an empty list keeps the pass-through code path.
+        from_is_multi_metric = len(specs_by_uuid[from_id].output_ports) > 1
+        return Edge(
+            input_node=input_node,
+            output_node=output_node,
+            tags=list(tags),
+            from_dimensions=from_dims,
+            to_dimensions=to_dims or None,
+            metrics=metrics if from_is_multi_metric else [],
+        )
+
     def _setup_edges(self) -> None:
         from nodes.edges import Edge
 
         ctx = self.context
+        if self.snapshot is not None:
+            self._setup_edges_from_snapshot()
+            return
         for node in ctx.nodes.values():
             for ec in self._output_nodes.get(node.id, []):
                 try:
@@ -1057,10 +1432,42 @@ class InstanceLoader:
         )
         pt_scenario.actual_historical_years = list(years)
 
-    def setup_scenarios(self):  # noqa: C901, PLR0912
-        from nodes.scenario import CustomScenario, Scenario, ScenarioKind
+    def _snapshot_scenarios(self) -> list[Scenario]:
+        """Runtime scenarios from the typed spec (param values re-cleaned like the dict path)."""
+        from nodes.scenario import Scenario, ScenarioKind
 
-        default_scenario = None
+        assert self.snapshot is not None
+        if not self.snapshot.spec.scenarios:
+            fallback = Scenario(id='default', name=TranslatedString(_('Default')), kind=ScenarioKind.DEFAULT)
+            fallback._context = self.context
+            return [fallback]
+        scenarios: list[Scenario] = []
+        for sc in self.snapshot.spec.scenarios:
+            kind = sc.kind
+            if kind is None:
+                if sc.id == 'progress_tracking':
+                    kind = ScenarioKind.PROGRESS_TRACKING
+                elif sc.id == 'baseline':
+                    kind = ScenarioKind.BASELINE
+            scenario = Scenario(
+                id=sc.id,
+                name=sc.name,
+                description=sc.description,
+                kind=kind,
+                all_actions_enabled=sc.all_actions_enabled,
+                is_selectable=sc.is_selectable,
+                actual_historical_years=list(sc.actual_historical_years) if sc.actual_historical_years is not None else None,
+            )
+            scenario._context = self.context
+            for param_id, value in sc.param_values.items():
+                param = self.context.get_parameter(param_id)
+                scenario.add_parameter(param, param.clean(value))
+            scenarios.append(scenario)
+        return scenarios
+
+    def _config_scenarios(self) -> list[Scenario]:
+        """Runtime scenarios from YAML-shaped config dicts."""
+        from nodes.scenario import Scenario, ScenarioKind
 
         scenario_confs: list[dict[str, Any]] = self.config.get('scenarios', [])
         if not scenario_confs:
@@ -1072,6 +1479,7 @@ class InstanceLoader:
                 }
             ]
 
+        scenarios: list[Scenario] = []
         for sc in scenario_confs:
             name = make_trans_string(sc, 'name', pop=True)
             params_config = sc.pop('params', [])
@@ -1091,7 +1499,16 @@ class InstanceLoader:
             for pc in params_config:
                 param = self.context.get_parameter(pc['id'])
                 scenario.add_parameter(param, param.clean(pc['value']))
+            scenarios.append(scenario)
+        return scenarios
 
+    def setup_scenarios(self):
+        from nodes.scenario import CustomScenario
+
+        default_scenario = None
+
+        scenarios = self._snapshot_scenarios() if self.snapshot is not None else self._config_scenarios()
+        for scenario in scenarios:
             for param, value in self._scenario_values.get(scenario.id, []):
                 scenario.add_parameter(param, value)
 
@@ -1125,6 +1542,14 @@ class InstanceLoader:
         global_params = discover_global_parameters()
 
         context = self.context
+        if self.snapshot is not None:
+            for spec_param in self.snapshot.spec.params:
+                if spec_param.local_id not in global_params:
+                    raise Exception('Unknown global parameter: %s' % spec_param.local_id)
+                param = spec_param.model_copy(deep=True)
+                param.set_context(context)
+                context.add_global_parameter(param)
+            return
         for pc in self.config.get('params', []):
             param_id = pc.pop('id')
             pc['local_id'] = param_id
@@ -1154,6 +1579,17 @@ class InstanceLoader:
         from nodes.actions.action import ImpactOverview
         from nodes.defs.action_def import ImpactOverviewSpec
 
+        if self.snapshot is not None:
+            seen: set[str] = set()
+            for overview_spec in self.snapshot.spec.impact_overviews:
+                spec = overview_spec.model_copy(deep=True)
+                assert spec.id is not None
+                if spec.id in seen:
+                    raise ValueError(f"Duplicate impact overview id '{spec.id}'. Set an explicit 'id' field to disambiguate.")
+                seen.add(spec.id)
+                self.context.impact_overviews.append(ImpactOverview(spec, self.context))
+            return
+
         conf = self.config.get('impact_overviews', [])
         seen_ids: set[str] = set()
         for aepc in conf:
@@ -1181,18 +1617,39 @@ class InstanceLoader:
         from nodes.defs.instance_defs import NormalizationSpec
         from nodes.normalization import Normalization
 
-        ncs = self.config.get('normalizations', [])
-        for nc in ncs:
-            spec_config = dict(nc)
-            if 'normalizer_node' in spec_config and 'normalizer_node_id' not in spec_config:
-                spec_config['normalizer_node_id'] = spec_config.pop('normalizer_node')
+        if self.snapshot is not None:
+            # Re-validate against this context so node refs resolve here.
+            spec_configs: list[dict[str, Any]] = [n.model_dump() for n in self.snapshot.spec.normalizations]
+        else:
+            spec_configs = []
+            for nc in self.config.get('normalizations', []):
+                spec_config = dict(nc)
+                if 'normalizer_node' in spec_config and 'normalizer_node_id' not in spec_config:
+                    spec_config['normalizer_node_id'] = spec_config.pop('normalizer_node')
+                spec_configs.append(spec_config)
+        for spec_config in spec_configs:
             normalization = Normalization(
                 NormalizationSpec.model_validate(spec_config, context=ValidationContext(context=self.context)),
                 self.context,
             )
             self.context.add_normalization(normalization.normalizer_node.id, normalization)
 
-    def setup_validation_graph(self):
+    def setup_node_explanations(self):
+        """Install a lazy builder for the explanation system; nothing consumes it during loading."""
+        from nodes.explanations import build_node_explanation_system
+
+        if self.snapshot is not None:
+            snapshot = self.snapshot
+
+            def build_from_snapshot(context: Context) -> NodeExplanationSystem:
+                from nodes.instance_from_db import snapshot_nodes_to_config_dicts
+
+                nodes_list, actions_list = snapshot_nodes_to_config_dicts(snapshot)
+                return build_node_explanation_system(context, [*nodes_list, *actions_list])
+
+            self.context._nes_factory = build_from_snapshot
+            return
+
         config = self.config
         nodes = config.get('nodes')
         assert isinstance(nodes, list)
@@ -1212,24 +1669,15 @@ class InstanceLoader:
                 es['output_dimensions'] = config.get('emission_dimensions')
                 all_nodes.append(es)
 
-        nes = NodeExplanationSystem(self.context, all_nodes)
-        self.context.node_explanation_system = nes
+        # Copy now: generate_nodes_from_emission_sectors() pops keys from the
+        # emission-sector dicts, and the explanation system must see the
+        # pre-pop shape it has always seen.
+        node_configs = copy.deepcopy(all_nodes)
 
-    def setup_validations(self):
-        nes = self.context.node_explanation_system
-        assert nes is not None
-        nes.generate_validations()
-        nes.generate_input_baskets()
-        nes.generate_explanations()
+        def build_from_config(context: Context) -> NodeExplanationSystem:
+            return build_node_explanation_system(context, node_configs)
 
-    @classmethod
-    def from_dict_config(cls, config: dict[str, Any], fw_config: FrameworkConfig | None = None) -> Self:
-        yaml_path = config.get('yaml_file_path')
-        return cls(
-            config=config,
-            yaml_file_path=Path(yaml_path) if yaml_path else None,
-            fw_config=fw_config,
-        )
+        self.context._nes_factory = build_from_config
 
     @classmethod
     def from_snapshot(
@@ -1242,13 +1690,13 @@ class InstanceLoader:
         """
         Build the runtime from an ``InstanceSnapshot`` (specs, not YAML dicts).
 
-        Transitional: the build half still consumes YAML-shaped dicts
-        internally, so the snapshot goes through the shim
-        (``nodes/instance_from_db.py``) first. The shim is private to the
-        loader; no other code should convert specs back to dicts.
+        The instance level (identity, years, features, dimensions, params,
+        scenarios, impact overviews, normalizations) is constructed natively
+        from the typed snapshot. Node/action/edge construction still consumes
+        YAML-shaped dicts through the node-scope shim in
+        ``nodes/instance_from_db.py``; that remainder migrates with the
+        ``NodeMeta``-native node construction.
         """
-        from nodes.instance_from_db import snapshot_to_config_dict
-
         payload_refs = None
         if published:
             from nodes.datasets import DatasetPayloadRef
@@ -1266,7 +1714,7 @@ class InstanceLoader:
                 for pin in snapshot.dataset_revisions
             ]
         return cls(
-            config=snapshot_to_config_dict(snapshot),
+            snapshot=snapshot,
             tolerate_node_failures=tolerate_node_failures,
             dataset_payload_refs=payload_refs,
         )
@@ -1291,28 +1739,78 @@ class InstanceLoader:
             tolerate_node_failures=tolerate_node_failures,
         )
 
+    @classmethod
+    def from_yaml_snapshot(
+        cls,
+        filename: Path,
+        tolerate_node_failures: bool = False,
+    ) -> Self:
+        """
+        Build the runtime from YAML through parse -> InstanceSnapshot -> native build.
+
+        The successor to the config-dict path in ``from_yaml``; the two coexist
+        until runtime parity is proven fleet-wide. Framework-configured
+        instances (``fw_config``) still go through ``from_yaml``.
+        """
+        import uuid as uuid_mod
+
+        from nodes.instance_parser import parse_instance_snapshot
+
+        yaml_fn = filename.resolve()
+        yaml_conf = InstanceYAMLConfig.load_for_entrypoint(yaml_fn)
+        data = yaml_conf.data
+        assert data is not None
+        # The runtime never persists parse-invented UUIDs, so a deterministic
+        # namespace from the instance identifier is sufficient; no DB lookup.
+        instance_uuid = uuid_mod.uuid3(uuid_mod.NAMESPACE_URL, f'kausal-paths:instance:{data["id"]}')
+        snapshot = parse_instance_snapshot(data, instance_uuid=instance_uuid)
+        return cls(
+            snapshot=snapshot,
+            yaml_file_path=yaml_fn,
+            config_mtime_hash=yaml_conf.meta.mtime_hash,
+            tolerate_node_failures=tolerate_node_failures,
+        )
+
     def __init__(
         self,
-        config: dict[str, Any],
+        config: dict[str, Any] | None = None,
         yaml_file_path: Path | None = None,
         fw_config: FrameworkConfig | None = None,
         config_mtime_hash: str | None = None,
         tolerate_node_failures: bool = False,
         dataset_payload_refs: list[Any] | None = None,
+        *,
+        snapshot: InstanceSnapshot | None = None,
     ):
         from .units import add_unit_translations
 
         add_unit_translations()
+        self.tolerate_node_failures = tolerate_node_failures
+        self.supplied_dataset_payload_refs = dataset_payload_refs
+        self.config_mtime_hash = config_mtime_hash
+        self._node_classes = {}
+        self.snapshot = snapshot
+        if snapshot is not None:
+            assert config is None
+            assert fw_config is None
+            self.yaml_file_path = yaml_file_path.absolute() if yaml_file_path else None
+            self.fw_config = None
+            # self.config is deliberately left unset: the snapshot path must
+            # never read YAML-shaped config dicts, and an AttributeError here
+            # is a bug in a setup method missing its snapshot branch.
+            self.default_language = snapshot.metadata.primary_language
+            self.other_languages = list(snapshot.metadata.other_languages)
+            self.logger = logger.bind(instance=snapshot.metadata.identifier)
+            with set_i18n_context(self.default_language, self.other_languages):
+                self._init_instance_from_snapshot(snapshot)
+            return
+        assert config is not None
         self.yaml_file_path = yaml_file_path.absolute() if yaml_file_path else None
         self.config = config
         self.fw_config = fw_config
-        self.tolerate_node_failures = tolerate_node_failures
-        self.supplied_dataset_payload_refs = dataset_payload_refs
         self.default_language = config['default_language']
         self.other_languages = config.get('supported_languages', [])
-        self.config_mtime_hash = config_mtime_hash
         self.logger = logger.bind(instance=config['id'])
-        self._node_classes = {}
         with set_i18n_context(self.default_language, self.other_languages):
             self._init_instance()
 
@@ -1370,7 +1868,7 @@ class InstanceLoader:
             self.db_dataset_refs[dataset.identifier] = ref
         self.dataset_payload_store = CurrentDatasetPayloadStore(refs)
 
-    def _init_instance(self) -> None:  # noqa: PLR0915
+    def _init_instance(self) -> None:
         from nodes.context import Context
         from nodes.defs.instance_defs import ActionGroup
 
@@ -1459,6 +1957,10 @@ class InstanceLoader:
                 model_end_year=model_end_year,
                 sample_size=sample_size,
             )
+        self._finish_init()
+
+    def _finish_init(self) -> None:
+        """Run the setup sequence shared by the config-dict and snapshot paths."""
         self.instance.set_context(self.context)
         # Make the fault-tolerance flag available throughout construction (setup_nodes/edges),
         # not just at compute time. See docs/architecture/fault-tolerance.md.
@@ -1473,7 +1975,7 @@ class InstanceLoader:
         self.db_datasets = {}
         self.db_dataset_refs = {}
         self.dataset_payload_store = None
-        self.setup_validation_graph()
+        self.setup_node_explanations()
         self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()
@@ -1485,7 +1987,6 @@ class InstanceLoader:
         self.setup_scenarios()
         self.setup_normalizations()
         self.setup_node_visualizations()
-        self.setup_validations()
 
         for scenario in self.context.scenarios.values():
             if scenario.default:
@@ -1493,6 +1994,84 @@ class InstanceLoader:
         else:
             raise Exception('No default scenario defined')
         self.context.activate_scenario(scenario)
+
+    def _init_instance_from_snapshot(self, snapshot: InstanceSnapshot) -> None:
+        """Build Instance and Context natively from the typed snapshot (no config dict)."""
+        from nodes.context import Context
+        from nodes.excel_results import InstanceResultExcel
+
+        from .instance import Instance
+
+        meta = snapshot.metadata
+        spec = snapshot.spec
+        years = spec.years
+
+        if years.reference is None:
+            raise ValueError('Reference year must be given for the instance.')
+        if years.min_historical is None:
+            raise ValueError('Minimum historical year must be given for the instance.')
+        if years.target is None:
+            raise ValueError('Target year must be given for the instance.')
+        if meta.owner is None:
+            raise ValueError('Owner must be given for the instance.')
+
+        def ts(val: I18nString) -> TranslatedString:
+            if isinstance(val, TranslatedString):
+                return val
+            return self.simple_trans_string(str(val))
+
+        agcs = [ag.model_copy(update={'order': idx}) for idx, ag in enumerate(spec.action_groups)]
+
+        # YAML-era convention preserved: the instance lead content comes from
+        # the 'home' outcome page; the metadata-level copy serves editors.
+        lead_args: dict[str, Any] = {}
+        for page in spec.pages:
+            if page.id == 'home':
+                lead_args['lead_title'] = ts(page.lead_title) if page.lead_title is not None else None
+                lead_args['lead_paragraph'] = ts(page.lead_paragraph) if page.lead_paragraph is not None else None
+                break
+
+        self.instance = Instance(
+            id=meta.identifier,
+            name=ts(meta.name),
+            owner=ts(meta.owner),
+            default_language=meta.primary_language,
+            action_groups=agcs,
+            config_mtime_hash=self.config_mtime_hash,
+            features=spec.features.model_copy(deep=True),
+            terms=spec.terms.model_copy(deep=True),
+            result_excels=[InstanceResultExcel.from_spec(r) for r in spec.result_excels],
+            yaml_file_path=self.yaml_file_path,
+            pages=[page.model_copy(deep=True) for page in spec.pages],
+            maximum_historical_year=years.max_historical,
+            minimum_historical_year=years.min_historical,
+            reference_year=years.reference,
+            supported_languages=list(meta.other_languages),
+            theme_identifier=spec.theme_identifier,
+            **lead_args,
+        )
+
+        target_year = years.target
+        with start_span(name='create-context', op='function'):
+            self.context = Context(
+                instance=self.instance,
+                dataset_repo_spec=spec.dataset_repo.model_copy(deep=True) if spec.dataset_repo is not None else None,
+                target_year=target_year,
+                model_end_year=years.model_end or target_year,
+                sample_size=spec.sample_size,
+            )
+
+        self._stash_snapshot_bindings(snapshot)
+        self._finish_init()
+
+    def _stash_snapshot_bindings(self, snapshot: InstanceSnapshot) -> None:
+        """Group dataset bindings per node for construction, the same way the config-dict shim grouped them."""
+        from collections import defaultdict
+
+        ports_by_node: defaultdict[UUID, list[DatasetPortSnapshot]] = defaultdict(list)
+        for port in sorted(snapshot.dataset_bindings, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
+            ports_by_node[port.node].append(port)
+        self._snapshot_dataset_ports = dict(ports_by_node)
 
     def _build_instance_args_from_home_page(self) -> dict[str, TranslatedString]:
         # FIXME: This is an ugly hack
