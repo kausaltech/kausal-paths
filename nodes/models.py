@@ -621,6 +621,12 @@ class InstanceConfig(
         verbose_name = _('Instance')
         verbose_name_plural = _('Instances')
         ordering = ['id']
+        constraints = (
+            models.CheckConstraint(
+                condition=Q(config_source='yaml') | Q(spec__isnull=False),
+                name='instance_database_source_has_spec',
+            ),
+        )
 
     def __str__(self) -> str:
         return self.get_name()
@@ -1324,48 +1330,50 @@ class InstanceConfig(
         return spec, primary_language, other_languages, mtime_hash
 
     def ensure_spec(self, update_self: bool = True, save: bool = True) -> InstanceModelSpec:
-        if self.config_source == 'yaml':
-            if (
-                self.spec is not None
-                and self.yaml_spec_version == YAML_SPEC_VERSION
-                and self._verified_yaml_spec_hash == self.yaml_mtime_hash
-            ):
+        if self.config_source != 'yaml':
+            return self._ensure_database_spec(save=save)
+
+        if (
+            self.spec is not None
+            and self.yaml_spec_version == YAML_SPEC_VERSION
+            and self._verified_yaml_spec_hash == self.yaml_mtime_hash
+        ):
+            return self.spec
+
+        yaml_ret = self._get_spec_from_yaml()
+        if yaml_ret is None:
+            if self.spec is not None:
                 return self.spec
+            raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
 
-            yaml_ret = self._get_spec_from_yaml()
-            if yaml_ret is None:
-                if self.spec is not None:
-                    return self.spec
-                raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
-
-            spec, primary_language, other_languages, yaml_mtime_hash = yaml_ret
-            if self.spec is not None and self.yaml_spec_version == YAML_SPEC_VERSION and self.yaml_mtime_hash == yaml_mtime_hash:
-                self._verified_yaml_spec_hash = yaml_mtime_hash
-                return self.spec
-
-            if not save and not update_self:
-                return spec
-
-            self.spec = spec
-            self.yaml_mtime_hash = yaml_mtime_hash
-            self.yaml_spec_version = YAML_SPEC_VERSION
+        spec, primary_language, other_languages, yaml_mtime_hash = yaml_ret
+        if self.spec is not None and self.yaml_spec_version == YAML_SPEC_VERSION and self.yaml_mtime_hash == yaml_mtime_hash:
             self._verified_yaml_spec_hash = yaml_mtime_hash
-            self.primary_language = primary_language
-            self.other_languages = other_languages
-            if save:
-                self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash', 'yaml_spec_version'])
             return self.spec
 
-        if self.spec is not None:
-            return self.spec
-
-        # Database-sourced: identity metadata already lives on the columns,
-        # so the computation spec starts empty.
-        spec = InstanceModelSpec()
-        if not save:
+        if not save and not update_self:
             return spec
+
         self.spec = spec
-        self.save(update_fields=['spec'])
+        self.yaml_mtime_hash = yaml_mtime_hash
+        self.yaml_spec_version = YAML_SPEC_VERSION
+        self._verified_yaml_spec_hash = yaml_mtime_hash
+        self.primary_language = primary_language
+        self.other_languages = other_languages
+        if save:
+            self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash', 'yaml_spec_version'])
+        return self.spec
+
+    def _ensure_database_spec(self, *, save: bool) -> InstanceModelSpec:
+        spec = self.spec
+        if spec is None:
+            assert self.pk is None, f'Persisted database-sourced instance {self.identifier} has no spec'
+            # Database-sourced identity metadata lives on the columns, so a
+            # newly created blank model starts with an empty computation spec.
+            spec = InstanceModelSpec()
+            if save:
+                self.spec = spec
+                self.save(update_fields=['spec'])
         return spec
 
     @property
