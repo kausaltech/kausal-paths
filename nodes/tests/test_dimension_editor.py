@@ -228,7 +228,7 @@ def test_create_category_with_identifier(gql_client: PathsTestClient, db_instanc
 
 
 def test_create_category_updates_spec_dimensions(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
-    from nodes.instance_from_db import serialize_instance_to_dict
+    from nodes.instance_serialization import build_instance_snapshot
 
     dim = _make_dimension(db_instance_config, 'sector', 'Sector')
     _create_cats(
@@ -241,7 +241,7 @@ def test_create_category_updates_spec_dimensions(gql_client: PathsTestClient, db
 
     spec_dim = _spec_dimension(db_instance_config, 'sector')
     assert spec_dim['categories'] == [{'id': 'energy', 'label': 'Energy'}]
-    assert serialize_instance_to_dict(db_instance_config)['dimensions'] == [spec_dim]
+    assert build_instance_snapshot(db_instance_config).spec.dimensions == [spec_dim]
 
 
 def test_create_category_duplicate_identifier_fails(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -565,7 +565,7 @@ def test_delete_category(gql_client: PathsTestClient, db_instance_config: Instan
 
 
 def test_delete_category_updates_spec_dimensions(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
-    from nodes.instance_from_db import serialize_instance_to_dict
+    from nodes.instance_serialization import build_instance_snapshot
 
     dim = _make_dimension(db_instance_config, 'sector', 'Sector', ['A', 'B'])
     a = DimensionCategory.objects.get(dimension=dim, identifier='a')
@@ -583,7 +583,7 @@ def test_delete_category_updates_spec_dimensions(gql_client: PathsTestClient, db
 
     spec_dim = _spec_dimension(db_instance_config, 'sector')
     assert spec_dim['categories'] == [{'id': 'a', 'label': 'A'}]
-    assert serialize_instance_to_dict(db_instance_config)['dimensions'] == [spec_dim]
+    assert build_instance_snapshot(db_instance_config).spec.dimensions == [spec_dim]
 
 
 def test_delete_nonexistent_category_fails(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
