@@ -838,15 +838,31 @@ class Context:
     def framework_config_data(self) -> FrameworkConfigData | None:
         from frameworks.models import FrameworkConfig
 
-        fwc = (
-            FrameworkConfig.objects
-            .filter(instance_config__identifier=self.instance.id)
-            .values_list('last_modified_at', 'id')
-            .first()
-        )
+        ic = self.instance.config
+        if ic is None:
+            # Standalone YAML tooling; no InstanceConfig means no FrameworkConfig either.
+            return None
+        fwc = FrameworkConfig.objects.filter(instance_config__uuid=ic.uuid).values_list('last_modified_at', 'id').first()
         if fwc is None:
             return None
         return FrameworkConfigData(last_modified_at=fwc[0], id=fwc[1])
+
+    @cached_property
+    def measure_datapoint_years(self) -> list[int] | None:
+        """Years with framework measure datapoints, or None when not framework-configured."""
+        fwd = self.framework_config_data
+        if fwd is None:
+            return None
+        from frameworks.models import MeasureDataPoint
+
+        years = (
+            MeasureDataPoint.objects
+            .filter(measure__framework_config_id=fwd.id, value__isnull=False)
+            .order_by()
+            .values_list('year', flat=True)
+            .distinct('year')
+        )
+        return sorted(years)
 
     @contextmanager
     def run(self):
