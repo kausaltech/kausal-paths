@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a23b10a999f93fc76553c8d8f518d68bce1f3c3c
+  commit: a1dcbcf15cb0bc1c7d88cf8b3be80b2891abd4e1
   dvc_remote: kausal-s3
 name: Treibhausgasmonitor
 owner: Kausal Ltd
@@ -39,7 +39,10 @@ params:
 - id: municipality_name
   label_en: Municipality name
   label_de: Gemeindename
-  value: Sonnenstadt
+  # Filters bisko/gemeindefeine_fahrleistungen_strassenverkehr and
+  # bisko/other_transport_energy, so it must match a municipality that exists in those
+  # datasets. It is not a display name -- the template's display name is set by `name`.
+  value: Düsseldorf
   is_customizable: false
   is_visible: false
 - id: ags_number
@@ -77,14 +80,21 @@ params:
 
 # Separate from use_mileage, which chooses between the mileage route and the city's own
 # energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
-# or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
+# or the city's own traffic model (true). BISKO recommends cities move to their own
 # regularly updated traffic data, so this is a real alternative rather than a workaround.
+#
+# Visible but not customizable, as the other data-source declarations are. It says which
+# dataset the balance is built from, which is a fact about the city's data rather than a
+# scenario, and switching it moves the balance -- something BISKO does not allow a user to do.
+# It also has no meaning until the city has actually supplied bisko/vehicle_kilometers; while
+# that dataset is the empty template, has_all_road_transport_data reads 0 and the switch has
+# nothing to select.
 - id: use_own_mileage
   label_en: Use own mileage data rather than BISKO municipality defaults (recommended if data from own municipal traffic model is available).
   label_de: Eigene Fahrleistungsdaten statt gemeindefeiner BISKO-Default-Werte nutzen (empfohlen falls Daten aus eigenem kommunalen Verkehrsmodell existieren).
   value: false
   is_visible: true
-  is_customizable: true
+  is_customizable: false
 
 - id: weather_correction
   label_de: Wetterkorrektur durchführen (nicht BISKO-konform)

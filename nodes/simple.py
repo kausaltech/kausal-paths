@@ -20,10 +20,19 @@ from params.param import BoolParameter, NumberParameter, StringParameter
 from .constants import FORECAST_COLUMN, MIX_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
 from .exceptions import NodeError
 from .node import InputPortMultiplicityHint, Node, NodeMetric, NodeStatus
+from .operands import (
+    Operand,
+    declared_unit_of,
+    empty_output_frame,
+    impute_operands,
+    multiply_operands,
+    resolve_operands,
+    sum_operands,
+)
 from .pipeline.compat import PipelineCompatibleNode
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Collection, Sequence
     from typing import Any
     from uuid import UUID
 
@@ -36,6 +45,7 @@ if TYPE_CHECKING:
     from nodes.instance_graph import NodeMeta
     from nodes.pipeline.ir import PipelinePortBinding
     from nodes.pipeline.ops import AnyOperationSpec
+    from nodes.units import Unit
     from params.base import Parameter
 
 EMISSION_UNIT = 'kg'
@@ -43,6 +53,25 @@ EMISSION_UNIT = 'kg'
 
 def _runtime_port_id(node_id: str, index: int) -> UUID:
     return uuid5(NAMESPACE_URL, f'kausal-paths:{node_id}:pipeline-input:{index}')
+
+
+def additive_multiplicity_hint(node_class: type[Node], edge: Edge | None) -> InputPortMultiplicityHint:
+    """
+    Resolve the multiplicity hint for one edge into a class's additive multiport.
+
+    Shared by the runtime hint and by ``instance_parser``, which has to predict the same
+    port layout from class metadata alone, before any node exists.
+    """
+    if edge is None:
+        return InputPortMultiplicityHint()
+    declaration = node_class.additive_multiport_declaration(edge.tags)
+    if declaration is None:
+        return InputPortMultiplicityHint()
+    return InputPortMultiplicityHint(
+        multi=True,
+        group=str(declaration.instance_identifier),
+        role=str(declaration.role),
+    )
 
 
 class SimpleNode(Node):
@@ -255,6 +284,16 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         ),
     ]
 
+    @classmethod
+    def additive_multiport_declaration(cls, tags: Collection[str] = ()) -> InputPortDeclaration | None:
+        # The base class always has one; a subclass only if it says so, because a subclass
+        # usually consumes its inputs by tag rather than pooling them into a sum.
+        if cls is not AdditiveNode and not cls.export_additive_input_ports_as_multi:
+            return None
+        if any(tag in cls.additive_multi_input_excluded_tags for tag in tags):
+            return None
+        return cls.additive_port
+
     def input_port_multiplicity_hint(
         self,
         *,
@@ -262,17 +301,7 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         metric: NodeMetric | None = None,
         dataset: Dataset | None = None,
     ) -> InputPortMultiplicityHint:
-        if edge is None:
-            return InputPortMultiplicityHint()
-        if type(self) is not AdditiveNode and not self.export_additive_input_ports_as_multi:
-            return InputPortMultiplicityHint()
-        if any(tag in self.additive_multi_input_excluded_tags for tag in edge.tags):
-            return InputPortMultiplicityHint()
-        return InputPortMultiplicityHint(
-            multi=True,
-            group=str(self.additive_port.instance_identifier),
-            role=str(self.additive_port.role),
-        )
+        return additive_multiplicity_hint(type(self), edge)
 
     def lower_to_pipeline_ir(self):
         from nodes.pipeline import AddOperationSpec, IdentityOperationSpec, InputNodeBinding, PipelineNodeIR, PortInputRef
@@ -384,14 +413,7 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         is dimensionless — a transparent additive node with no inputs has no categorical
         dimensions. See ``docs/architecture/fault-tolerance.md``.
         """
-        schema: dict[str, Any] = {YEAR_COLUMN: pl.Int64}
-        units = {}
-        for m in self.output_metrics.values():
-            schema[m.column_id] = pl.Float64
-            units[m.column_id] = m.unit
-        schema[FORECAST_COLUMN] = pl.Boolean
-        meta = ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN])
-        return ppl.to_ppdf(pl.DataFrame(schema=schema), meta=meta)
+        return empty_output_frame(self)
 
     def compute(self) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
         idf = self.get_input_dataset_pl(required=False)
@@ -440,6 +462,168 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         if impute_nodes:
             df = self.impute_nodes_pl(df, impute_nodes)
 
+        return df
+
+
+class AdditiveNode2(PipelineCompatibleNode):
+    """
+    Sum every input, whether it arrived as a node or as a dataset.
+
+    The rebuilt ``AdditiveNode``. Three things differ from the original, all deliberate:
+
+    * **A dataset is just another input.** Any number of them, combined with node inputs on
+      equal terms, instead of the old limit of one dataset processed down a separate path.
+    * **No implicit extension.** The original carried a dataset's last value to the model
+      end year but did nothing of the sort for a node input. Whether a series extends is now
+      a property of the binding, not of how the value happens to reach the node.
+    * **A ``non_additive`` input is an error.** The original collected them and then silently
+      dropped them, so a factor wired into an additive node vanished without a word.
+
+    See ``docs/plans/additive-multiplicative-modernization.md``.
+    """
+
+    explanation = _("""This is an Additive Node. It adds up all of its inputs, whether they are
+nodes or datasets. Inputs must have the same dimensions and compatible units; a missing value
+counts as zero.
+
+Inputs tagged 'impute' are excluded from the addition; their values overlay the result
+afterwards instead, replacing it wherever the tagged input has a value.""")
+
+    allowed_parameters: ClassVar[Sequence[Parameter[Any]]] = [
+        BoolParameter(
+            local_id='inventory_only',
+            description=_('Node represents historical (inventory) values only'),
+            is_customizable=False,
+        ),
+        StringParameter(
+            local_id='metric',
+            description=_('Which column of a multi-metric input dataset carries the values'),
+            is_customizable=False,
+        ),
+    ]
+
+    interpolates_input_datasets_by_default: ClassVar[bool] = True
+    export_additive_input_ports_as_multi: ClassVar[bool] = False
+    additive_multi_input_excluded_tags: ClassVar[frozenset[str]] = frozenset({'non_additive'})
+    additive_port = InputPortDeclaration(role='additive', multi=True, label=_('Additive inputs'))
+    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
+    input_port_declarations = (additive_port, impute_port)
+    output_port_declarations = (output_port,)
+
+    @classmethod
+    def shape_rules(cls, meta: NodeMeta) -> tuple[AnyShapeRule, ...]:
+        output = meta.require_output_port('output')
+        inputs = meta.input_port_ids_for_roles('additive', 'impute')
+        if not inputs:
+            return ()
+        return (SameShapeRule(inputs=inputs, output=output.id),)
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        try:
+            output_unit = meta.require_output_port('output').unit
+        except MissingPortRoleError:
+            output_unit = None
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            if 'impute' in tags:
+                result.classify(port, 'impute', "binding tag 'impute'")
+            elif 'non_additive' in tags:
+                result.refuse(port, "tag 'non_additive' has no meaning on an additive node")
+            elif port.unit is None or output_unit is None:
+                result.refuse(port, 'cannot classify without both port and output units')
+            elif port.unit.is_compatible_with(output_unit):
+                result.classify(port, 'additive', f'unit {port.unit} being compatible with output {output_unit}')
+            else:
+                result.refuse(port, f'unit {port.unit} is incompatible with output {output_unit} on an additive node')
+        return result
+
+    @classmethod
+    def additive_multiport_declaration(cls, tags: Collection[str] = ()) -> InputPortDeclaration | None:
+        if cls is not AdditiveNode2 and not cls.export_additive_input_ports_as_multi:
+            return None
+        if any(tag in cls.additive_multi_input_excluded_tags for tag in tags):
+            return None
+        return cls.additive_port
+
+    def input_port_multiplicity_hint(
+        self,
+        *,
+        edge: Edge | None = None,
+        metric: NodeMetric | None = None,
+        dataset: Dataset | None = None,
+    ) -> InputPortMultiplicityHint:
+        return additive_multiplicity_hint(type(self), edge)
+
+    def lower_to_pipeline_ir(self):
+        from nodes.pipeline import AddOperationSpec, IdentityOperationSpec, InputNodeBinding, PipelineNodeIR, PortInputRef
+
+        if self.input_dataset_instances:
+            raise NotImplementedError('AdditiveNode2 pipeline lowering does not yet support input datasets')
+        if not self.input_nodes:
+            raise NotImplementedError('AdditiveNode2 pipeline lowering requires at least one input node')
+
+        spec = self.spec
+        if spec.input_ports and len(spec.input_ports) == len(self.input_nodes):
+            port_ids = [port.id for port in spec.input_ports]
+        else:
+            port_ids = [_runtime_port_id(self.id, idx) for idx, _ in enumerate(self.input_nodes)]
+
+        port_bindings: dict[NodePortIdentifier, PipelinePortBinding] = {
+            port_id: InputNodeBinding(node=input_node.id) for port_id, input_node in zip(port_ids, self.input_nodes, strict=True)
+        }
+        first_port = PortInputRef(port=port_ids[0])
+        operations: list[AnyOperationSpec]
+        if len(port_ids) == 1:
+            operations = [IdentityOperationSpec(input=first_port, result_id='output')]
+        else:
+            operations = [
+                AddOperationSpec(
+                    input=first_port,
+                    values=[PortInputRef(port=port_id) for port_id in port_ids[1:]],
+                    result_id='output',
+                ),
+            ]
+
+        return PipelineNodeIR(
+            node_id=self.id,
+            source_node_class=f'{type(self).__module__}.{type(self).__qualname__}',
+            port_bindings=port_bindings,
+            operations=operations,
+            output_ref='output',
+        )
+
+    def compute(self) -> ppl.PathsDataFrame:
+        assert self.unit is not None
+        operands = resolve_operands(self, metric=self.get_parameter_value_str('metric', required=False))
+
+        if operands.factors:
+            raise NodeError(
+                self,
+                'An additive node cannot multiply. These inputs are factors, by tag or by unit: %s. '
+                'Use a MultiplicativeNode2, or fix the unit.' % ', '.join(str(op) for op in operands.factors),
+            )
+        if operands.claimed_elsewhere:
+            raise NodeError(
+                self,
+                'These inputs are tagged for an operation an additive node does not have: %s'
+                % ', '.join(operands.claimed_elsewhere),
+            )
+
+        if not operands.additive:
+            # Nothing usable arrived: not wired up yet, or every upstream is unavailable.
+            self.mark_status(NodeStatus.INCOMPLETE)
+            return empty_output_frame(self)
+        if operands.unavailable:
+            self.mark_status(NodeStatus.DEGRADED)
+
+        df = sum_operands(self, operands.additive, self.unit)
+        if self.get_parameter_value('inventory_only', required=False):
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+        if operands.impute:
+            df = impute_operands(self, df, operands.impute)
         return df
 
 
@@ -530,14 +714,19 @@ so that a combination missing from the data altogether is reported as missing ra
             )
         return self.check_availability(dfs[0])
 
-    def _get_required_combinations(self, dim_ids: list[str]) -> pl.DataFrame | None:
-        """Return one row per combination the template requires, or None when there is no template."""
+    def _get_template(self) -> ppl.PathsDataFrame | None:
         templates = self.get_input_datasets_pl(tag=self.TEMPLATE_TAG)
         if not templates:
             return None
         if len(templates) > 1:
             raise NodeError(self, 'Expecting at most one dataset tagged %r; got %d.' % (self.TEMPLATE_TAG, len(templates)))
-        template = templates[0].paths.cast_index_to_str()
+        return templates[0].paths.cast_index_to_str()
+
+    def _get_required_combinations(self, dim_ids: list[str]) -> pl.DataFrame | None:
+        """Return one row per combination the template requires, or None when there is no template."""
+        template = self._get_template()
+        if template is None:
+            return None
         if sorted(template.dim_ids) != sorted(dim_ids):
             raise NodeError(
                 self,
@@ -553,6 +742,34 @@ so that a combination missing from the data altogether is reported as missing ra
         # The template's values and years carry no meaning; the combinations are the whole of it.
         combinations = pl.DataFrame({dim_id: template[dim_id] for dim_id in dim_ids})
         return combinations.unique(subset=dim_ids)
+
+    def _all_required_missing(self, template: ppl.PathsDataFrame, metric_cols: list[str]) -> ppl.PathsDataFrame:
+        """
+        Report every required combination as missing, for a dataset that has no rows at all.
+
+        A dataset nobody has started filling in cannot say what it should have contained: rows
+        whose every metric is null are dropped on the way here, and with the last row go the
+        dimension columns. That is exactly the case the template exists for -- "nobody has
+        looked" has to read as missing rather than as an error -- so the combinations come from
+        the template instead, and every one of them is 0.0 in every year.
+        """
+        dim_ids = sorted(template.dim_ids)
+        combinations = pl.DataFrame({dim_id: template[dim_id] for dim_id in dim_ids}).unique(subset=dim_ids)
+        years = pl.DataFrame({
+            YEAR_COLUMN: range(self.context.instance.minimum_historical_year, self.get_end_year() + 1),
+        })
+        grid = years.join(combinations, how='cross')
+        grid = grid.with_columns(
+            [pl.lit(0.0).alias(col) for col in metric_cols]
+            # Dimension columns are Categorical everywhere else, and a Utf8 column here would
+            # move the failure downstream to the first join against a normal node output.
+            + [pl.col(dim_id).cast(pl.Categorical) for dim_id in dim_ids],
+        )
+        meta = ppl.DataFrameMeta(
+            units=dict.fromkeys(metric_cols, self.context.unit_registry.parse_units('dimensionless')),
+            primary_keys=[YEAR_COLUMN, *dim_ids],
+        )
+        return ppl.to_ppdf(grid, meta=meta)
 
     def _report_on_required_combinations(self, out: ppl.PathsDataFrame, required: pl.DataFrame) -> ppl.PathsDataFrame:
         """Give every required combination a row in every year, whether or not the data mentions it."""
@@ -601,6 +818,22 @@ so that a combination missing from the data altogether is reported as missing ra
                 % ', '.join("'%s' is '%s'" % item for item in with_dimension.items()),
             )
 
+        template = self._get_template()
+        if df.is_empty() or not df.dim_ids:
+            if template is not None and template.dim_ids:
+                return self._finish_availability(
+                    self._all_required_missing(template, metric_cols),
+                    metric_cols,
+                    out_cols,
+                    units,
+                )
+            if df.is_empty():
+                raise NodeError(
+                    self,
+                    'The dataset has no rows, so there is nothing to report the availability of, and no '
+                    'dataset tagged %r declares what it should have contained. Add a template.' % self.TEMPLATE_TAG,
+                )
+
         # Missing data is mostly missing *rows*, not null cells, so the years and the
         # dimension category combinations have to be materialised before they can be
         # reported as zeros. Projecting wide gives one column per combination that the
@@ -634,6 +867,16 @@ so that a combination missing from the data altogether is reported as missing ra
         if required is not None:
             out = self._report_on_required_combinations(out, required)
 
+        return self._finish_availability(out, metric_cols, out_cols, units)
+
+    def _finish_availability(
+        self,
+        out: ppl.PathsDataFrame,
+        metric_cols: list[str],
+        out_cols: list[str],
+        units: dict[str, Unit],
+    ) -> ppl.PathsDataFrame:
+        """Mark the forecast years and give the flag columns the node's own metric names."""
         max_hist_year = self.context.instance.maximum_historical_year
         is_forecast = pl.lit(value=False) if max_hist_year is None else pl.col(YEAR_COLUMN) > max_hist_year
         out = out.with_columns(is_forecast.alias(FORECAST_COLUMN)).sort(out.primary_keys)
@@ -962,6 +1205,153 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
 
     def compute(self) -> ppl.PathsDataFrame:
         return self._compute()
+
+
+class MultiplicativeNode2(PipelineCompatibleNode):
+    """
+    Multiply the factors, then add whatever is additive to the product.
+
+    The rebuilt ``MultiplicativeNode``. Differences from the original, all deliberate:
+
+    * **Datasets can be factors.** The original loaded an input dataset and then never
+      looked at it, so a dataset bound here contributed nothing, silently.
+    * **A null factor value propagates.** The original dropped the whole row, so a year with
+      one unknown factor disappeared from the output rather than being reported as unknown.
+    * **The unit test reads what an input actually delivers**, not what it declares. The two
+      disagree whenever a node's output unit differs from its declaration.
+
+    See ``docs/plans/additive-multiplicative-modernization.md``.
+    """
+
+    explanation = _("""This is a Multiplicative Node. It multiplies its factors together and adds
+any additive inputs to the product. Inputs may be nodes or datasets. Whether an input is a factor
+or an addend is decided by its tag ('non_additive' or 'additive'), or failing that by whether its
+unit is compatible with this node's own unit.
+
+The product spans the union of the factors' dimensions, and a row missing from any factor is
+missing from the result. Additive inputs must match the product's dimensions.
+
+Inputs tagged 'impute' take no part in either operation; their values overlay the result
+afterwards, replacing it wherever the tagged input has a value.""")
+
+    allowed_parameters: ClassVar[Sequence[Parameter[Any]]] = [
+        StringParameter(
+            local_id='metric',
+            description=_('Which column of a multi-metric input dataset carries the values'),
+            is_customizable=False,
+        ),
+    ]
+
+    interpolates_input_datasets_by_default: ClassVar[bool] = True
+    operation_label = 'multiplication'
+    factors_port = InputPortDeclaration(role='factors', repeatable=True, min_count=1, default_count=2, label=_('Factor'))
+    additive_port = InputPortDeclaration(role='additive', multi=True, min_count=0, default_count=1, label=_('Additive inputs'))
+    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
+    input_port_declarations = (factors_port, additive_port, impute_port)
+    output_port_declarations = (output_port,)
+
+    @classmethod
+    def shape_rules(cls, meta: NodeMeta) -> tuple[AnyShapeRule, ...]:
+        output = meta.require_output_port('output')
+        rules: list[AnyShapeRule] = []
+        factors = meta.input_port_ids_for_roles('factors')
+        if factors:
+            rules.append(ProductShapeRule(inputs=factors, output=output.id))
+        same_shaped = meta.input_port_ids_for_roles('additive', 'impute')
+        if same_shaped:
+            rules.append(SameShapeRule(inputs=same_shaped, output=output.id))
+        return tuple(rules)
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        try:
+            output_unit = meta.require_output_port('output').unit
+        except MissingPortRoleError:
+            output_unit = None
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            if 'impute' in tags:
+                result.classify(port, 'impute', "binding tag 'impute'")
+            elif 'non_additive' in tags:
+                result.classify(port, 'factors', "binding tag 'non_additive'")
+            elif port.unit is None or output_unit is None:
+                result.refuse(port, 'cannot classify without both port and output units')
+            elif port.unit.is_compatible_with(output_unit):
+                result.classify(port, 'additive', f'unit {port.unit} being compatible with output {output_unit}')
+            else:
+                result.classify(port, 'factors', f'unit {port.unit} being incompatible with output {output_unit}')
+        return result
+
+    def lower_to_pipeline_ir(self):
+        from nodes.pipeline import InputNodeBinding, MultiplyOperationSpec, PipelineNodeIR, PortInputRef
+
+        if self.input_dataset_instances:
+            raise NotImplementedError('MultiplicativeNode2 pipeline lowering does not yet support input datasets')
+
+        operands = resolve_operands(self, unit_of=declared_unit_of)
+        if operands.additive:
+            raise NotImplementedError(
+                'MultiplicativeNode2 pipeline lowering does not yet support additive side inputs '
+                + f'({[operand.source_id for operand in operands.additive]})'
+            )
+        if len(operands.factors) < 2:
+            raise NotImplementedError(
+                'MultiplicativeNode2 pipeline lowering requires at least two factors '
+                + f'({[operand.source_id for operand in operands.factors]})'
+            )
+
+        spec = self.spec
+        if spec.input_ports and len(spec.input_ports) == len(self.input_nodes):
+            port_ids = [port.id for port in spec.input_ports]
+        else:
+            port_ids = [_runtime_port_id(self.id, idx) for idx, _ in enumerate(self.input_nodes)]
+
+        port_bindings: dict[NodePortIdentifier, PipelinePortBinding] = {
+            port_id: InputNodeBinding(node=input_node.id) for port_id, input_node in zip(port_ids, self.input_nodes, strict=True)
+        }
+        operations: list[AnyOperationSpec] = [
+            MultiplyOperationSpec(
+                input=PortInputRef(port=port_ids[0]),
+                values=[PortInputRef(port=port_id) for port_id in port_ids[1:]],
+                result_id='output',
+            ),
+        ]
+
+        return PipelineNodeIR(
+            node_id=self.id,
+            source_node_class=f'{type(self).__module__}.{type(self).__qualname__}',
+            port_bindings=port_bindings,
+            operations=operations,
+            output_ref='output',
+        )
+
+    def compute(self) -> ppl.PathsDataFrame:
+        assert self.unit is not None
+        operands = resolve_operands(self, metric=self.get_parameter_value_str('metric', required=False))
+
+        if operands.claimed_elsewhere:
+            raise NodeError(
+                self,
+                'These inputs are tagged for an operation a multiplicative node does not have: %s'
+                % ', '.join(operands.claimed_elsewhere),
+            )
+        if operands.unavailable:
+            # A product cannot be computed from a subset of its factors, so unlike addition
+            # there is no degraded answer to give.
+            raise NodeError(
+                self,
+                'Cannot multiply: these inputs are unavailable: %s' % ', '.join(operands.unavailable),
+            )
+
+        df = multiply_operands(self, operands.factors, self.unit)
+        if operands.additive:
+            product = Operand(df=df, role='additive', source_id=self.id, kind='node')
+            df = sum_operands(self, [product, *operands.additive], self.unit)
+        if operands.impute:
+            df = impute_operands(self, df, operands.impute)
+        return df
 
 
 class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Tampere/other_electricity_consumption_emisisons

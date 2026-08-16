@@ -202,6 +202,10 @@ class NodeInfo:
 NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
     'AdditiveAction': NodeInfo(_("""Simple action that produces an additive change to a value.""")),
     'AdditiveNode': NodeInfo(_('')),
+    'AdditiveNode2': NodeInfo(
+        _("""Adds up all of its inputs, whether they arrive as nodes or as datasets. Inputs must have
+        the same dimensions and compatible units; a missing value counts as zero.""")
+    ),
     'AlasEmissions': NodeInfo(
         _("""AlasEmissions is a specified node to handle emissions from the ALas model by Syke."""), deprecated=True
     ),
@@ -554,6 +558,10 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         ln(y / (1 - y)) = b <=> y = 1 / (1 + exp(-b)).
         """
         )
+    ),
+    'MultiplicativeNode2': NodeInfo(
+        _("""Multiplies its factors together and adds any additive inputs to the product. Inputs may be
+        nodes or datasets, and are sorted into factors and addends by tag or by unit.""")
     ),
     'MultiplicativeNode': NodeInfo(_('')),
     'Population': NodeInfo(_('Population is a specific node about Finnish population.'), deprecated=True),

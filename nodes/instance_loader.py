@@ -507,6 +507,11 @@ class InstanceLoader:
 
             ds_config = copy.deepcopy(ds_config)
 
+        # Two sources of interpolation, and they behave differently on purpose: the legacy
+        # `input_dataset_processors` entry forces it on for every binding, while a class
+        # default is only a default and yields to a binding that says `interpolate: false`.
+        # See docs/plans/additive-multiplicative-modernization.md.
+        class_interpolate = node_class.interpolates_input_datasets_by_default
         ds_interpolate = False
         idp_confs = config.get('input_dataset_processors', [])
         if idp_confs:
@@ -518,9 +523,13 @@ class InstanceLoader:
             ds_interpolate = True
         for ds in ds_config:
             if isinstance(ds, str):
-                ds_def = InputDatasetDef(id=ds, interpolate=ds_interpolate)
+                ds_def = InputDatasetDef(id=ds, interpolate=ds_interpolate or class_interpolate)
             else:
                 ds_def = InputDatasetDef.model_validate(ds)
+                if ds_interpolate:
+                    ds_def.interpolate = True
+                elif class_interpolate and 'interpolate' not in ds:
+                    ds_def.interpolate = True
 
             ds_obj: Dataset | None = None
             if issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode):

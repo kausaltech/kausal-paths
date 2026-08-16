@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a23b10a999f93fc76553c8d8f518d68bce1f3c3c
+  commit: a1dcbcf15cb0bc1c7d88cf8b3be80b2891abd4e1
   dvc_remote: kausal-s3
 name_de: Reutlingen THG-Bilanzierungstool
 name_en: Reutlingen GHG-Inventory Tool
@@ -78,7 +78,7 @@ params:
   is_customizable: true
 # Separate from use_mileage, which chooses between the mileage route and the city's own
 # energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
-# or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
+# or the city's own traffic model (true). BISKO recommends cities move to their own
 # regularly updated traffic data, so this is a real alternative rather than a workaround.
 - id: use_own_mileage
   label_en: Use the city's own mileage data rather than the BISKO municipality
