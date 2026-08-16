@@ -1116,6 +1116,31 @@ stages, each shippable:
 Gate for each stage: old-vs-new runtime parity over all buildable DB
 instances (structure + computed outputs), plus the standard suites.
 
+Implementation note (2026-08-16, framework carve-out dissolved): framework
+instances are the first production tenant of the stage-4 native YAML path.
+`FrameworkConfig.create_model_instance()` now routes through
+`from_yaml_snapshot(..., snapshot_transform=self.apply_snapshot_overrides)`;
+the overlay resolves fwc identity (InstanceConfig uuid/identifier/name,
+organization owner) and year boundaries (baseline/measure-datapoint min-max,
+target) into the parsed snapshot once, so the loader's `fw_config` parameter
+and every branch it fed are gone. The other two fwc dependencies became
+runtime-owned rather than load-time state: dataset-class selection is
+declared by the node class (`Node.uses_framework_measure_data`, true on
+`gpc.DatasetNode`) and gated on `context.framework_config_data` — now
+UUID-keyed through `instance.config`, no identifier lookups — and the
+progress-tracking scenario's `actual_historical_years` is derived lazily
+(`Scenario.get_actual_historical_years()` →
+`Context.measure_datapoint_years`), tracking live measure data instead of
+freezing at build. One deliberate chain change: framework loads no longer
+bypass the `use_datasets_from_db` branch for untagged datasets (verified
+vacuous — no NZC instance has instance-scoped DB dataset rows; cads relies
+on that branch and keeps it). Parity gate: 6 NZC + 3 CADS instances,
+structure + scenarios + outputs identical old-vs-new (the single float
+difference reproduced between two runs of identical code — threaded-sum
+nondeterminism in a numerically exploded test model, not a path effect).
+Plain YAML instances still use `from_yaml`; their flip is the remaining
+stage-4 work.
+
 **Gate:** draft, published, and YAML calculation share graph construction;
 metadata-only queries never create `Context`; calculation parity and existing
 dataset revision isolation tests pass.

@@ -56,6 +56,20 @@ class Scenario(I18nBaseModel):
             param = self.context.get_parameter(param_id)
             yield param, val
 
+    def get_actual_historical_years(self) -> list[int] | None:
+        """
+        Years for which actual (observed) data exists.
+
+        Authored values win; a progress-tracking scenario without one derives
+        the years lazily from the framework measure datapoints, so the value
+        tracks live data instead of freezing at model build time.
+        """
+        if self.actual_historical_years is not None:
+            return self.actual_historical_years
+        if self.kind == ScenarioKind.PROGRESS_TRACKING:
+            return self.context.measure_datapoint_years
+        return None
+
     @contextmanager
     def override(self, set_active: bool = False) -> Generator[None]:
         old_vals: dict[str, Any] = {}

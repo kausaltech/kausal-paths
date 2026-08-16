@@ -345,6 +345,13 @@ class Node:
     ones, where it is the sane default and `interpolate: false` is the explicit exception.
     See ``docs/plans/additive-multiplicative-modernization.md``."""
 
+    uses_framework_measure_data: ClassVar[bool] = False
+    """Whether this class's input datasets are overlaid with framework measure datapoints.
+
+    Effective only when the instance is framework-configured; declared by the
+    class (rather than switched on concrete types in the loader) so the dataset
+    semantics live with the node class that defines them."""
+
     input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = ()
     output_port_declarations: ClassVar[tuple[OutputPortDeclaration, ...]] = ()
     """Semantic role declarations shared by future get_input() and shape_rules()."""

@@ -12,7 +12,6 @@ from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, Literal, Self, TypedDict, cast, overload
 
-from django.db.models.aggregates import Max, Min
 from pydantic import BaseModel, Field, field_validator
 
 import platformdirs
@@ -42,7 +41,6 @@ if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DBDatasetModel
     from kausal_common.i18n.pydantic import I18nString
 
-    from frameworks.models import FrameworkConfig
     from nodes.context import Context
     from nodes.datasets import Dataset
     from nodes.defs.node_defs import NodeSpec
@@ -515,7 +513,6 @@ class InstanceLoader:
     default_language: str
     yaml_file_path: Path | None = None
     config: CommentedMap | dict[str, Any]
-    fw_config: FrameworkConfig | None = None
     config_mtime_hash: str | None = None
     db_datasets: dict[str, DBDatasetModel] = {}
     db_dataset_refs: dict[str, Any] = {}
@@ -599,7 +596,11 @@ class InstanceLoader:
             if issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode):
                 ds_obj = GenericDataset.from_def(ds_def, self.context)
 
-            use_framework_ds = 'framework_measure_data' in ds_def.tags
+            # The class declares whether its datasets take framework measure
+            # overlays; the tag is the per-binding opt-in for other classes.
+            use_framework_ds = 'framework_measure_data' in ds_def.tags or (
+                node_class.uses_framework_measure_data and self.context.framework_config_data is not None
+            )
             use_obs_ds = 'observation_dataset' in ds_def.tags
             use_city_ds = 'city_data' in ds_def.tags
             if use_obs_ds:
@@ -630,13 +631,6 @@ class InstanceLoader:
                     payload_ref=payload_ref,
                     payload_store=self.dataset_payload_store,
                 )
-            elif self.fw_config is not None:
-                from nodes.gpc import DatasetNode
-
-                if issubclass(node_class, DatasetNode) or use_framework_ds:
-                    from frameworks.datasets import FrameworkMeasureDVCDataset
-
-                    ds_obj = FrameworkMeasureDVCDataset.from_def(ds_def, self.context)
             elif use_framework_ds:
                 from frameworks.datasets import FrameworkMeasureDVCDataset
 
@@ -1453,25 +1447,6 @@ class InstanceLoader:
         self._setup_subactions()
         self.context.finalize_nodes()
 
-    def setup_progress_tracking_scenario(self):
-        from frameworks.models import MeasureDataPoint
-
-        pt_scenario = self.context.scenarios.get('progress_tracking')
-        if pt_scenario is None:
-            return
-        fwc = self.fw_config
-        if fwc is None:
-            return
-        years = (
-            MeasureDataPoint.objects
-            .filter(measure__framework_config=fwc)
-            .filter(value__isnull=False)
-            .order_by()
-            .values_list('year', flat=True)
-            .distinct('year')
-        )
-        pt_scenario.actual_historical_years = list(years)
-
     def _snapshot_scenarios(self) -> list[Scenario]:
         """Runtime scenarios from the typed spec (param values re-cleaned like the dict path)."""
         from nodes.scenario import Scenario, ScenarioKind
@@ -1574,9 +1549,6 @@ class InstanceLoader:
         )
 
         self.context.set_custom_scenario(custom_scenario)
-
-        if self.fw_config is not None:
-            self.setup_progress_tracking_scenario()
 
     def setup_global_parameters(self):
         global_params = discover_global_parameters()
@@ -1765,7 +1737,6 @@ class InstanceLoader:
     def from_yaml(
         cls,
         filename: Path,
-        fw_config: FrameworkConfig | None = None,
         tolerate_node_failures: bool = False,
         instance_config: InstanceConfig | None = None,
     ) -> Self:
@@ -1777,7 +1748,6 @@ class InstanceLoader:
         return cls(
             config=data,
             yaml_file_path=yaml_fn,
-            fw_config=fw_config,
             config_mtime_hash=yaml_conf.meta.mtime_hash,
             tolerate_node_failures=tolerate_node_failures,
             instance_config=instance_config,
@@ -1788,13 +1758,17 @@ class InstanceLoader:
         cls,
         filename: Path,
         tolerate_node_failures: bool = False,
+        instance_config: InstanceConfig | None = None,
+        snapshot_transform: Callable[[InstanceSnapshot], InstanceSnapshot] | None = None,
     ) -> Self:
         """
         Build the runtime from YAML through parse -> InstanceSnapshot -> native build.
 
         The successor to the config-dict path in ``from_yaml``; the two coexist
-        until runtime parity is proven fleet-wide. Framework-configured
-        instances (``fw_config``) still go through ``from_yaml``.
+        until runtime parity is proven fleet-wide. ``snapshot_transform`` lets a
+        caller overlay the parsed snapshot before construction — the framework
+        path uses it to apply ``FrameworkConfig`` identity and year boundaries
+        without the loader knowing about frameworks.
         """
         import uuid as uuid_mod
 
@@ -1804,22 +1778,30 @@ class InstanceLoader:
         yaml_conf = InstanceYAMLConfig.load_for_entrypoint(yaml_fn)
         data = yaml_conf.data
         assert data is not None
-        # The runtime never persists parse-invented UUIDs, so a deterministic
-        # namespace from the instance identifier is sufficient; no DB lookup.
-        instance_uuid = uuid_mod.uuid3(uuid_mod.NAMESPACE_URL, f'kausal-paths:instance:{data["id"]}')
+        if instance_config is not None:
+            instance_uuid = instance_config.uuid
+        else:
+            # The runtime never persists parse-invented UUIDs, so a deterministic
+            # namespace from the instance identifier is sufficient; no DB lookup.
+            instance_uuid = uuid_mod.uuid3(uuid_mod.NAMESPACE_URL, f'kausal-paths:instance:{data["id"]}')
         snapshot = parse_instance_snapshot(data, instance_uuid=instance_uuid)
+        if snapshot_transform is not None:
+            # The transform may rewrite I18n fields, which validate against the
+            # active i18n context.
+            with set_i18n_context(snapshot.metadata.primary_language, list(snapshot.metadata.other_languages)):
+                snapshot = snapshot_transform(snapshot)
         return cls(
             snapshot=snapshot,
             yaml_file_path=yaml_fn,
             config_mtime_hash=yaml_conf.meta.mtime_hash,
             tolerate_node_failures=tolerate_node_failures,
+            instance_config=instance_config,
         )
 
     def __init__(
         self,
         config: dict[str, Any] | None = None,
         yaml_file_path: Path | None = None,
-        fw_config: FrameworkConfig | None = None,
         config_mtime_hash: str | None = None,
         tolerate_node_failures: bool = False,
         dataset_payload_refs: list[Any] | None = None,
@@ -1838,9 +1820,7 @@ class InstanceLoader:
         self.snapshot = snapshot
         if snapshot is not None:
             assert config is None
-            assert fw_config is None
             self.yaml_file_path = yaml_file_path.absolute() if yaml_file_path else None
-            self.fw_config = None
             # self.config is deliberately left unset: the snapshot path must
             # never read YAML-shaped config dicts, and an AttributeError here
             # is a bug in a setup method missing its snapshot branch.
@@ -1853,7 +1833,6 @@ class InstanceLoader:
         assert config is not None
         self.yaml_file_path = yaml_file_path.absolute() if yaml_file_path else None
         self.config = config
-        self.fw_config = fw_config
         self.default_language = config['default_language']
         self.other_languages = config.get('supported_languages', [])
         self.logger = logger.bind(instance=config['id'])
@@ -1928,9 +1907,6 @@ class InstanceLoader:
 
         config = self.config
         instance_id: str = config['id']
-        fwc = self.fw_config
-        if fwc is not None:
-            instance_id = fwc.instance_config.identifier
 
         dataset_repo_config = config.get('dataset_repo')
         if dataset_repo_config is not None:
@@ -1951,28 +1927,13 @@ class InstanceLoader:
 
         target_year = self.config['target_year']
 
-        if fwc is None:
-            owner = make_trans_string(self.config, 'owner', required=True)
-            name = make_trans_string(self.config, 'name', required=True)
-            max_hist_year: int | None = self.config.get('maximum_historical_year')
-            min_hist_year: int = self.config['minimum_historical_year']
-            reference_year = self.config.get('reference_year')
-            if reference_year is None:
-                raise ValueError(self, 'Reference year must be given for the instance.')
-        else:
-            from frameworks.models import MeasureDataPoint
-
-            owner = self.simple_trans_string(fwc.organization_name or '')
-            name = self.simple_trans_string(fwc.instance_config.get_name())
-            mdp_data = MeasureDataPoint.objects.filter(measure__framework_config=fwc).aggregate(
-                min_year=Min('year'),
-                max_year=Max('year'),
-            )
-            max_hist_year = mdp_data['max_year'] or fwc.baseline_year
-            min_hist_year = mdp_data['min_year'] or fwc.baseline_year
-            reference_year = fwc.baseline_year
-            if fwc.target_year is not None:
-                target_year = fwc.target_year
+        owner = make_trans_string(self.config, 'owner', required=True)
+        name = make_trans_string(self.config, 'name', required=True)
+        max_hist_year: int | None = self.config.get('maximum_historical_year')
+        min_hist_year: int = self.config['minimum_historical_year']
+        reference_year = self.config.get('reference_year')
+        if reference_year is None:
+            raise ValueError(self, 'Reference year must be given for the instance.')
 
         self.instance = Instance(
             id=instance_id,
