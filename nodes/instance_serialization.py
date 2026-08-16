@@ -999,6 +999,43 @@ def _export_dataset_data_safe(ds: DatasetModel) -> dict[str, Any] | None:
     return _export_dataset_data(ds)
 
 
+def _check_spec_is_not_yaml_minimal(ic: InstanceConfig, nodes: list[NodeSnapshot]) -> None:
+    """
+    Refuse a spec that ``ensure_spec()`` derived from YAML, which carries no dimensions.
+
+    A yaml-sourced instance stores the *minimal* spec that ``make_minimal_instance_spec()``
+    builds: identity, params, scenarios, pages — but no dimension catalogue, because the YAML
+    runtime reads dimensions from the config file and never consults the spec. Flipping such an
+    instance to ``config_source='database'`` therefore hands the snapshot path a spec with an
+    empty dimension list, and the load dies far downstream on the first node that declares one,
+    as ``NodeError: Dimension <x> not found``. Say what is actually wrong instead.
+
+    An instance whose nodes are all dimensionless is left alone: an empty catalogue is correct
+    there, and this must not become a reason to refuse a model that would load fine.
+    """
+    if ic.spec is None or ic.spec.dimensions:
+        return
+    wanted = next(
+        (
+            dim_id
+            for node in nodes
+            if node.spec is not None
+            for dim_id in (list(node.spec.input_dimensions or []) + list(node.spec.output_dimensions or []))
+        ),
+        None,
+    )
+    if wanted is None:
+        return
+    msg = (
+        f'Instance {ic.identifier} has a spec with no dimensions, but its nodes declare some '
+        f"(e.g. '{wanted}'). This is the minimal spec derived from the YAML config "
+        f"(config_source is '{ic.config_source}'), which does not carry a dimension catalogue. "
+        f'Run `sync_instance_to_db {ic.identifier}` to store a full spec before loading from '
+        f'the database.'
+    )
+    raise ValueError(msg)
+
+
 def build_instance_snapshot(
     ic: InstanceConfig,
     dataset_revision_pins: dict[int, DatasetRevisionPinSnapshot] | None = None,
@@ -1017,6 +1054,7 @@ def build_instance_snapshot(
         ic.nodes.get_queryset().active().with_spec().select_related('indicator_node', 'copy_of', 'layout').order_by('order', 'pk')
     )
     nodes = [NodeSnapshot.from_model(nc, primary_language=ic.primary_language) for nc in node_qs]
+    _check_spec_is_not_yaml_minimal(ic, nodes)
 
     edges = [EdgeSnapshot.from_model(e) for e in edge_qs_for(ic)]
 

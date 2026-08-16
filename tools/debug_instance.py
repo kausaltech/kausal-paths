@@ -72,7 +72,15 @@ def _load_from_yaml(instance_id: str) -> Instance:
 def _load_from_db(instance_id: str) -> Instance:
     ic = InstanceConfig.objects.get(identifier=instance_id)
     if ic.config_source != 'database':
-        print(f'Warning: {instance_id} config_source is "{ic.config_source}", not "database"', file=sys.stderr)
+        # Asked for explicitly, so honour it -- but say what it costs. A yaml-sourced instance
+        # keeps only the minimal spec that ensure_spec() derives from the YAML, and that spec
+        # carries no dimensions, so the snapshot path fails on the first node that declares one
+        # ('Dimension <x> not found'). Run sync_instance_to_db to give it a full spec.
+        print(
+            f'Warning: {instance_id} is "{ic.config_source}"-sourced; forcing the database path. '
+            'Its stored spec may be the minimal YAML-derived one, which has no dimensions.',
+            file=sys.stderr,
+        )
         ic.config_source = 'database'
     return ic.get_instance()
 
@@ -189,7 +197,14 @@ def _run_instance(args: argparse.Namespace) -> None:  # noqa: C901
 def main():
     parser = argparse.ArgumentParser(description='Debug model instances (YAML vs DB)')
     parser.add_argument('-i', '--instance', required=True, help='Instance identifier')
-    parser.add_argument('--source', choices=['yaml', 'db'], default='db', help='Config source (default: db)')
+    # No default: an unqualified run should load the instance the way the site loads it.
+    # Defaulting to 'db' meant every yaml-sourced instance failed on the snapshot path.
+    parser.add_argument(
+        '--source',
+        choices=['yaml', 'db'],
+        default=None,
+        help="Config source (default: the instance's own config_source)",
+    )
     parser.add_argument('--save', action='store_true', help='Save the new config source into DB')
     parser.add_argument('--node', help='Node identifier to inspect/compute')
     parser.add_argument('--filter', help='Output filter (e.g. 2020-2024,T)')
@@ -219,6 +234,16 @@ def main():
 
         sync_parsed_instance_to_db(args.instance)
         args.source = 'db'
+
+    if args.source is None:
+        # --save is the one case where the flag names a destination rather than a source, so
+        # there is nothing to infer; ask for it rather than flipping the instance to whatever
+        # it already is.
+        if args.save:
+            print('--save needs an explicit --source: it writes that source onto the instance.', file=sys.stderr)
+            sys.exit(1)
+        ic = InstanceConfig.objects.get(identifier=args.instance)
+        args.source = 'db' if ic.config_source == 'database' else 'yaml'
 
     _run_instance(args)
 

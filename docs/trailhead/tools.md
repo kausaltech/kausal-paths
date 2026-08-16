@@ -25,6 +25,16 @@ python -m tools.debug_instance -i espoo --diff-node building_type_index
 Use this to verify that `instance_from_db.py` serialization produces
 config dicts that the InstanceLoader can consume correctly.
 
+### Which source it loads from
+
+With no `--source`, the instance is loaded the way the site loads it — from its
+own `config_source`. Pass `--source yaml` or `--source db` to override.
+
+Overriding to `db` on a yaml-sourced instance warns, because its stored spec is
+usually the minimal one `ensure_spec()` derives from the YAML, which carries no
+dimensions; see [`data-management.md`](../data-management.md) §Step 9. Give it a
+full spec with `sync_instance_to_db` first if you actually want that path.
+
 ### Switch an instance between YAML and DB sources
 
 ```bash
@@ -97,17 +107,69 @@ surfaces much later as `No metric <column> in dataset <id>` from
 
 ### Things that will stop a run
 
-- **A dropped metric that dataset ports still bind.** Refused up front, with
-  the port count, rather than leaving a node bound to input that no longer
-  arrives. Update the model binding or keep the column in the data.
+- **A dropped metric that model bindings still hold.** Refused up front, with
+  the count, rather than leaving a node bound to input that no longer arrives.
+  Both `DatasetPort.metric` and `NodeInputPortBinding.metric` are counted —
+  each is a `PROTECT`ed reference, and counting only one turns a clean refusal
+  into a `ProtectedError` halfway through the sync. Fix it with
+  `rename_dataset_metrics` (below), which is usually what the upstream change
+  actually was.
 - **`--all` with `use_datasets_from_db`.** Any identifier that already has a
   DB row loads as a `DBDataset`, so `ctx.get_all_dvc_dataset_ids()` is empty
-  and `--all` has nothing to do. Name the datasets explicitly.
+  and `--all` has nothing to do. Name the datasets explicitly, or ask
+  `dataset_status` (below) which ones need naming.
 
 `--recreate` restores the old delete-and-rebuild behaviour. It mints a new
 UUID, which orphans the dataset references held by published instance
 revisions, and it fails outright when anything references the row under
 `PROTECT` — use it only when you want a genuinely fresh row.
+
+
+## dataset_status
+
+Answers "what do I still have to load here, and in what order?" — the question
+`load_dvc_dataset --all` cannot answer for a DB-sourced instance, because every
+imported identifier loads as a `DBDataset` and disappears from the DVC list.
+This command enumerates from the DB rows instead, so nothing is invisible.
+
+```bash
+python manage.py dataset_status mainz-bisko
+python manage.py dataset_status bisko mainz-bisko augsburg-bisko --stale-only
+```
+
+Each dataset gets a verdict: `current`, `import`, `rename first` (a metric was
+renamed upstream and bindings still hold the old name), `new` (declared but
+never imported), `unreadable` (claims a DVC source that will not read) or
+`db only` (authored in the admin, so nothing to import). It then prints the
+commands to run in the order they have to happen — rename, import, sync.
+
+It deliberately lists rows that carry no `external_ref`. Those were imported
+before provenance stamping existed, and they are the ones most likely to be
+silently stale: 15 of `mainz-bisko`'s 32 rows are in that state, including the
+one that was blocking its update.
+
+
+## rename_dataset_metrics
+
+When DVC data comes back with a metric column under a new name, the import
+wants to drop the old metric and add the new one — and cannot, because model
+bindings hold the old one under `PROTECT`. Renaming the metric row in place is
+better than clearing the bindings and re-syncing: the bindings keep pointing at
+the same row, the metric UUID survives for anything that pinned it, and the
+import then sees the metric as *kept*, so the conflict never arises.
+
+```bash
+# plan only; the mapping is inferred from the DVC data when unambiguous
+python manage.py rename_dataset_metrics mainz-bisko bisko/weather_correction
+
+python manage.py rename_dataset_metrics mainz-bisko --all
+python manage.py rename_dataset_metrics mainz-bisko bisko/energy_shares --rename Value=default --apply
+```
+
+Nothing is written without `--apply`. It refuses rather than guess when two
+columns were renamed at once (say which with `--rename`), when the target name
+already exists, or when the schema is shared with other datasets and the rename
+would silently affect them too.
 
 
 ## sync_instance_to_db
@@ -266,6 +328,30 @@ Notes:
 
 
 ## Common workflows
+
+### Bringing an instance's data up to date
+
+Start from the report rather than from memory — for a DB-sourced instance there
+is no other way to see the whole list:
+
+```bash
+python manage.py dataset_status <instance> --stale-only
+```
+
+Then run what it prints, which is this sequence:
+
+1. `rename_dataset_metrics <instance> <datasets> --apply` — only for anything it
+   marked `rename first`, and it has to come first: the import refuses while a
+   binding still holds the old metric name.
+2. `load_dvc_dataset <instance> <datasets> --force`
+3. `sync_instance_to_db <instance>`
+4. `dataset_status <instance> --stale-only` again, which should now be quiet.
+
+Check the pin before starting. `dataset_status` prints it, and for a DB-sourced
+instance it is the DB spec's pin, which lags the YAML until step 3 — so a first
+pass can legitimately import from an older commit than the YAML names. Use
+`--repo-from yaml` on both `dataset_status` and `load_dvc_dataset` when you mean
+the YAML's.
 
 ### Verifying a spec model change
 

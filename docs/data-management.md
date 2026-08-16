@@ -319,8 +319,9 @@ before touching anything.
 | `Unknown categories in dimension column 'X': <cat>` | The **dataset** — the row stores a category id the dimension has since renamed or merged | Refresh the row (below) |
 | `Nothing left after filter_dimension` | The **dataset** — an edge filters to a category the row no longer contains | Refresh the row (below) |
 | `No metric <column> in dataset <id>` (from sync) | The **dataset** — DVC metric ids changed, the row still has the old ones | Refresh the row (below) |
+| `Dimension <x> not found`, loading from the database | The **spec** — emptied by a `database` → `yaml` flip (below) | `sync_instance_to_db <instance>` |
 
-Two traps worth knowing before you reach for them:
+Three traps worth knowing before you reach for them:
 
 - **`sync_instance_to_db` does not fix stale data.** It rewrites the spec and
   the port bindings; it never touches dataset rows.
@@ -332,6 +333,33 @@ Two traps worth knowing before you reach for them:
   ```bash
   python -m tools.debug_instance -i <instance> --source yaml --save   # then --source db --save to revert
   ```
+
+- **Flipping to `yaml` empties the stored spec, and flipping back does not refill it.**
+  This is the trap the row above names. While `config_source` is `yaml`,
+  `ensure_spec()` rebuilds `InstanceConfig.spec` from the config file with
+  `make_minimal_instance_spec()` and saves it, whenever the YAML's mtime hash
+  changes — which a deploy guarantees. *Minimal* means identity, params,
+  scenarios and pages, but **no dimension catalogue**: the YAML runtime reads
+  dimensions from the config file and never consults the spec, so it does not
+  need one. The previous, sync-generated spec is overwritten in the process.
+
+  Nothing breaks while the instance stays yaml-sourced. The moment anything
+  loads it through the *database* path, the snapshot gets a spec with an empty
+  dimension list and the load dies on the first node that declares one:
+
+  ```
+  NodeError: Node net_emissions: Dimension sector not found
+  ```
+
+  `build_instance_snapshot` now refuses this up front and names the fix instead
+  of letting it surface as a missing dimension. Two ways to meet it:
+
+  - **`sync_instance_to_db <instance>` after flipping back to `database`.** Not
+    optional — without it the live site gets the error, not just your terminal.
+  - **`debug_instance --source db` against a yaml-sourced instance.** The tool
+    forces the database path when you ask for it explicitly, and warns. Without
+    `--source` it now follows the instance's own `config_source`, which is what
+    you want almost always.
 
 ### Confirming a row is stale
 
