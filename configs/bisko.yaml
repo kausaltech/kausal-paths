@@ -63,7 +63,7 @@ params:
 
 - id: use_national_values
   label_en: Use national ("Bundesstrommix") rather than local electricity emission factors (BISKO-compliant)
-  label_de: Nationale Stromemissionsfaktoren (Bundesstrommix) statt lokaler nutzen (BISKO-konform).
+  label_de: Nationale Stromemissionsfaktoren (Bundesstrommix) statt lokaler Stromemissionsfaktoren nutzen (BISKO-konform).
   value: true
   is_visible: true
   is_customizable: true
@@ -81,7 +81,7 @@ params:
 # regularly updated traffic data, so this is a real alternative rather than a workaround.
 - id: use_own_mileage
   label_en: Use own mileage data rather than BISKO municipality defaults (recommended if data from own municipal traffic model is available).
-  label_de: Eigene Fahrleistungsdaten statt gemeindefeiner BISKO-Default-Werte nutzen (empfohlen falls Daten aus eigenem kommunales Verkehrsmodell vorhanden).
+  label_de: Eigene Fahrleistungsdaten statt gemeindefeiner BISKO-Default-Werte nutzen (empfohlen falls Daten aus eigenem kommunalen Verkehrsmodell existieren).
   value: false
   is_visible: true
   is_customizable: true

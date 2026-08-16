@@ -1203,8 +1203,8 @@ nodes:
     operations: multiply,split_dims
 
 - id: end_energy_emission_factors
-  name_de: Endenergie Emissionsfaktoren
-  name_en: End energy emission factors
+  name_de: Endenergie Emissionsfaktoren (inkl. Bundesstrommix)
+  name_en: End energy emission factors (incl. Bundesstrommix)
   description_en: |
     The emission factors are given per final energy use. They are relevant for all sectors and
     the whole of Germany. They include upstream emissions of energy used for production. Upstream products (gray
