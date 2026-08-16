@@ -35,7 +35,7 @@ def _parse(nodes: list[dict]):
 def _snapshot(node: dict) -> dict:
     """Parse a one-node instance and return its dataset port snapshots by dataset id."""
     snapshot = _parse([{'name': 'Node', 'unit': 'kg/a', 'quantity': 'mass', **node}])
-    return {port.dataset: port for port in snapshot.dataset_ports}
+    return {port.dataset: port for port in snapshot.dataset_bindings}
 
 
 def test_historical_classes_do_not_interpolate_unless_asked():
