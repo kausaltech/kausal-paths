@@ -245,5 +245,4 @@ class Instance:
         self.source_snapshot = None
         self.context.instance = None  # type: ignore
         self.config = None
-        self.fw_config = None
         self.context = None  # type: ignore
