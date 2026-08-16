@@ -1,6 +1,7 @@
 # Modernizing AdditiveNode and MultiplicativeNode
 
 *Produced by Claude Opus 5.0 on 2026-08-15.*
+*Version 2 produced by Claude Opus 5.0 on 2026-08-16.*
 *Responsible: Jouni Tuomisto.*
 
 `AdditiveNode` and `MultiplicativeNode` are the oldest node classes in the codebase.
@@ -194,6 +195,13 @@ a class default must not manufacture a processor entry in the export, or parse a
 stop agreeing — `tools/parse_oracle.py` catches exactly that. All three flags are in the
 dataset cache key, or flipping one would serve a stale frame. *Diff: none, 53 instances.*
 
+> A defect in this step survived until the bisko migration: `spec_export` rebuilds an
+> `InputDatasetDef` from the runtime dataset field by field, and it was not taught to read
+> `extend` or `backfill`. Both flags would have been dropped on the way into the DB, so a
+> DB-sourced instance would quietly compute something different from its YAML. The oracle
+> caught it the first time a config actually set `extend` — which is the argument for
+> running `parse_oracle.py` *after* a migration and not only after a code change.
+
 **Step 4 — migrate, model by model.** ✅ for **`longmont-dev`**: 64 of its 74 convertible
 nodes now run on the v2 classes, computing byte-identically — 292 comparisons across all
 278 node outputs and action impacts, zero differences. (`data/TODO.md`
@@ -242,10 +250,63 @@ is `avoided_emissions_if_included`, which has one factor where a product needs t
 Delete `nodes/tests/test_zz_scratch_order.py` then too — the scratch probe the semantics
 test replaced.
 
+### The bisko family
+
+Migrated 2026-08-16, once the transport work on those models had settled. The nodes live in
+two shared modules rather than in an instance, so a conversion has to be right for every
+instance that includes them: the survey was run against each of the six loadable instances
+(`bisko`, `augsburg-bisko`, `bayreuth-bisko`, `duesseldorf-bisko`, `mainz-bisko`,
+`schwerin-bisko`) and only nodes classified identically in all of them were converted.
+Nine nodes classified differently somewhere; every one turned out to be a city-level
+override in that instance's own YAML, so the module definition it shadows converts safely.
+
+**42 nodes converted** — 21 in `configs/modules/bisko/model.yaml` (15 additive, 6
+multiplicative) and all 21 in `configs/modules/bisko/municipal_balance.yaml` (15 additive,
+6 multiplicative). `municipal_balance.yaml` converted completely; `model.yaml` keeps 9
+`GenericNode`s, all either subclasses (`BiskoChpNode`, `BiskoExergeticAllocationNode`,
+`ConstantNode`) or users of `do_correction`, `split_dims` or `extend_all`.
+
+**Verifying a config change needs the instance to be reading that config.** `bisko` and
+`mainz-bisko` have `config_source='database'`, so `test_instance` loads their stored DB spec
+and never opens the edited YAML at all — a comparison over them passes trivially and proves
+nothing. `municipal_balance.yaml` is included *only* by `mainz-bisko`, so its 21 conversions
+had no coverage whatsoever until this was noticed. Check `config_source` before trusting a
+migration diff; the run log names the source (`Creating instance from YAML file: …`) and
+says nothing when it came from the DB.
+
+| instance | source | how verified | result |
+| --- | --- | --- | --- |
+| `augsburg-bisko`, `bayreuth-bisko`, `duesseldorf-bisko`, `schwerin-bisko` | yaml | `test_instance --all-nodes` | 600 comparisons, 0 diffs |
+| `bisko` | database | YAML loaded directly, before vs after | 68 nodes identical |
+| `mainz-bisko` | database | YAML loaded directly, before vs after | 79 identical, 11 failing in both |
+| `reutlingen-klimabilanz` | yaml | YAML loaded directly, before vs after | 75 nodes identical |
+
+Comparing a DB-sourced instance means loading its YAML by hand and diffing node outputs
+**keyed by index, not by row position**: the v2 classes build `primary_keys` from a set, so
+row order legitimately differs (finding F5). A positional comparison reports every reordered
+row as a change — it showed 2397 of 3660 rows "differing" in `final_energy_use`, with the
+tell-tale symmetry of 764 values becoming zero and 764 zeros becoming values. Keyed, the
+node is identical.
+
+The markers needed: 25 × `extend: true`, 4 × `backfill: true`, 2 × `tags: [non_additive]`,
+and one removal — the six `municipal_*_emissions` nodes carried `params: {operations:
+multiply}`, which `MultiplicativeNode2` refuses because it has no `operations` parameter at
+all. The parameter was redundant on a class that multiplies natively, so dropping it *is*
+the conversion. Worth checking for on any node being retyped: a v2 class accepts only
+`metric` (and `inventory_only` on the additive one), and rejects everything else at load.
+Both `non_additive` tags are the same trap the longmont waste nodes hit — a dataset that is
+the left operand of a multiplication while carrying the node's own unit, so the unit rule
+alone reads it as an addend. `district_heating_fuel_emission_factors` and `final_energy_use`
+are the `1ds+1add+1mul` shape that §19.2 of `data/TODO.md` could not classify from YAML
+alone and predicted would need the live graph; it does, and it is a product plus an addend.
+
+`mainz-bisko` carries 22 pre-existing node failures (`Unknown categories in dimension
+column 'road_type': total`, from `bisko/energy_shares`) that predate this work and are
+unchanged by it. `reutlingen-klimabilanz` has no local `InstanceConfig` and was not tested.
+
 ### What is left
 
-- Migrate the remaining models. `*bisko` next, once it is out of active edit; the classifier
-  used on `longmont-dev` runs against any loaded instance.
+- Migrate the remaining models; the classifier runs against any loaded instance.
 - Open the model editor on a migrated `longmont-dev` node and confirm the additive and
   factor ports render. Everything else is verified by state comparison, but this is the
   reason the work exists and only an eye can check it.
