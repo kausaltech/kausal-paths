@@ -442,6 +442,7 @@ def test_record_change_produces_log_entry(empty_db_instance: InstanceConfig):
     assert entry.data['before'] is None
     assert entry.data['after']['identifier'] == 'n1'
     assert entry.data['target_uuid'] == str(nc.uuid)
+    assert entry.target_uuid == nc.uuid
     # GFK fields
     assert entry.object_id == str(nc.pk)
 

@@ -26,6 +26,7 @@ Typical use::
 
 from __future__ import annotations
 
+import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
@@ -44,7 +45,6 @@ from nodes.models import (
 )
 
 if TYPE_CHECKING:
-    import uuid
     from collections.abc import Iterator
     from uuid import UUID
 
@@ -263,8 +263,9 @@ def record_change(
     Emit one ``InstanceModelLogEntry`` under the active operation.
 
     ``obj`` is the affected ORM row. Its ``pk`` and ``ContentType`` form
-    the GFK; ``target_uuid`` (defaulting to ``obj.uuid``) is recorded in
-    the payload to survive row deletion.
+    the GFK; ``target_uuid`` (defaulting to ``obj.uuid``) is stored in its
+    own indexed column to survive row deletion. A payload copy is retained
+    for compatibility with existing readers.
 
     ``before`` / ``after`` are the snapshot dicts produced by
     ``serializable_data()`` or ``snapshot_data()`` helpers:
@@ -286,18 +287,27 @@ def record_change(
     touched.add(type(obj))
 
     if target_uuid is None:
-        # UUIDIdentifiedModel.uuid is the canonical choice; fall back to pk
-        # so non-uuid targets (e.g. InstanceConfig itself, for spec edits)
-        # still produce readable entries.
-        target_uuid = getattr(obj, 'uuid', None) or obj.pk
+        target_uuid = getattr(obj, 'uuid', None)
+
+    stored_target_uuid: uuid.UUID | None
+    try:
+        stored_target_uuid = uuid.UUID(str(target_uuid)) if target_uuid is not None else None
+    except ValueError:
+        # Legacy callers may identify a non-UUID target by pk. Preserve that
+        # value in the JSON payload, but do not misrepresent it in the UUID
+        # column.
+        stored_target_uuid = None
+
+    payload_target = target_uuid if target_uuid is not None else obj.pk
 
     return InstanceModelLogEntry.objects.create(
         operation=op,
         content_type=ContentType.objects.get_for_model(type(obj)),
         object_id=str(obj.pk) if obj.pk is not None else None,
+        target_uuid=stored_target_uuid,
         action=action,
         data={
-            'target_uuid': str(target_uuid),
+            'target_uuid': str(payload_target),
             'before': before,
             'after': after,
         },

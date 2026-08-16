@@ -178,8 +178,8 @@ class InstanceModelLogEntryType:
 
     @classmethod
     def from_model(cls, entry: InstanceModelLogEntry) -> InstanceModelLogEntryType:
-        raw_uuid = (entry.data or {}).get('target_uuid')
-        target_uuid: UUID | None = UUID(raw_uuid) if raw_uuid else None
+        raw_uuid = entry.target_uuid or (entry.data or {}).get('target_uuid')
+        target_uuid: UUID | None = UUID(str(raw_uuid)) if raw_uuid else None
         return cls(
             uuid=entry.uuid,
             action=entry.action,

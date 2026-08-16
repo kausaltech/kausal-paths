@@ -2733,10 +2733,13 @@ class InstanceModelLogEntry(UUIDIdentifiedModel):
     ``action`` string; ``data`` JSON), but user/timestamp metadata lives
     on the parent ``operation`` to avoid duplication.
 
+    ``target_uuid`` is the durable identity of the affected object. Unlike
+    ``object_id``, it remains meaningful after the target row is deleted.
+
     ``data`` layout::
 
         {
-            'target_uuid': str,         # survives row deletion
+            'target_uuid': str,         # legacy payload copy; remove after old readers retire
             'before': dict | None,      # None for creates
             'after':  dict | None,      # None for deletes
         }
@@ -2756,6 +2759,12 @@ class InstanceModelLogEntry(UUIDIdentifiedModel):
         help_text='Type of the affected row; GFK with object_id.',
     )
     object_id = models.CharField(max_length=255, null=True, blank=True)
+    target_uuid = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Stable UUID of the affected object; retained after the target row is deleted.',
+    )
     action = models.CharField(
         max_length=100,
         help_text="Dotted action id, e.g. 'node.update'.",
