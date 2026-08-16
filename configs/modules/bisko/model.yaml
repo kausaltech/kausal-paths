@@ -781,7 +781,7 @@ nodes:
   name_de: Private Haushalte
   name_en: Private household emissions
   color: '#009ebe'
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
@@ -798,7 +798,7 @@ nodes:
   name_de: Kommunale Einrichtungen
   name_en: Municipal facilities emissions
   color: '#6bc248'
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
@@ -815,7 +815,7 @@ nodes:
   name_de: Industrie
   name_en: Industry emissions
   color: '#737373'
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
@@ -832,7 +832,7 @@ nodes:
   name_de: Gewerbe, Handel, Dienstleistungen
   name_en: Commerce, trade, services emissions
   color: '#fe8035'
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
@@ -881,13 +881,17 @@ nodes:
     GHD-Wert</i>). Die von BISKO nicht zugelassene Witterungsbereinigung wird auf beide Seiten
     dieser Subtraktion angewendet, der Sektorwert ist also
     (GHD &minus; kommunale Einrichtungen) &times; Korrekturfaktor.
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: energy
   unit: MWh/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: bisko/final_energy
+    # These series start after the frame does; GenericNode back-filled their first
+    # value into the earlier years. Keeping that, but saying so.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     tags: [non_additive]
     column: Value
     filters:
@@ -1007,13 +1011,17 @@ nodes:
 - id: final_energy_use_data_quality
   name_de: Endenergie Datenqualität
   name_en: Final energy use data quality
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%' # Different unit hides this node from the outcome page
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: bisko/final_energy  # is automatically created by upload_new_dataset.py when uploading to DVC
+    # These series start after the frame does; GenericNode back-filled their first
+    # value into the earlier years. Keeping that, but saying so.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: quality
 
 # - id: final_private_household_energy_use
@@ -1115,13 +1123,17 @@ nodes:
 - id: historical_emissions
   name_de: Historische Emissionen
   name_en: Historical emissions
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: bisko/historical_emissions
+    # These series start after the frame does; GenericNode back-filled their first
+    # value into the earlier years. Keeping that, but saying so.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Value
     filters:
     - column: energy_carrier
@@ -1186,13 +1198,14 @@ nodes:
 - id: district_heating_energy_use
   name_de: Fernwärmeenergieverbrauch
   name_en: District heating energy use
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy
   unit: MWh/a
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: bisko/district_heating_energy_use
+    extend: true  # GenericNode extended its dataset; keep that explicit
     forecast_from: 2024
     filters:
     - column: upstream_included
@@ -1201,13 +1214,17 @@ nodes:
 - id: district_heating_fuel_emission_factors
   name_de: Fernwärme Brennstoffemissionfaktoren
   name_en: District heating fuel emission factors
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emission_factor
   unit: g_co2e/kWh
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: bisko/endenergie_emissionsfaktoren
+    extend: true  # GenericNode extended its dataset; keep that explicit
+    # The left operand of the multiplication, not an addend: it carries the node's own unit,
+    # so the unit rule alone would add it. (Same as bisko/final_energy below.)
+    tags: [non_additive]
     filters:
     - column: upstream_included
   input_nodes:
@@ -1224,7 +1241,7 @@ nodes:
 - id: district_heating_emissions
   name_de: Fernwärmeemissionen
   name_en: District heating emissions
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [energy_carrier, per_what_energy]
@@ -1931,37 +1948,40 @@ nodes:
     sowie bei Straßen-/Stadt- und U-Bahnen
   description_en: Specific end energy consumption factors in road transport as 
     well as in suburban and urban rail transport
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy_factor
   unit: kWh/vkm
   input_dimensions: [vehicle_type, energy_carrier, road_type]
   output_dimensions: [vehicle_type, energy_carrier, road_type]
   input_datasets:
   - id: bisko/energy_factor # kWh/vkm, usable for every city (BISKO Standard)
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Value
 
 - id: transport_energy_shares
   name_en: Transport energy shares
   name_de: Verkehrsenergieanteile
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_dimensions: [vehicle_type, energy_carrier, road_type]
   output_dimensions: [vehicle_type, energy_carrier, road_type]
   input_datasets:
   - id: bisko/energy_shares # sums up to 100% across energy carrier dim, usbale for every city (BISKO Standard)
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Value
 
 - id: passengers_per_vehicle
   name_en: Passengers per vehicle
   name_de: Passagiere pro Fahrzeug
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: ratio
   unit: p/v
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_datasets:
   - id: bisko/load_per_vehicle # BISKO-Standard
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Passengers
 
 # - id: passenger_activity
@@ -2010,7 +2030,7 @@ nodes:
     Endenergie der Straßenfahrzeugklassen, deren spezifischer Verbrauch von der
     Straßenkategorie abhängt: motorisierte Zweiräder, Pkw, leichte Nutzfahrzeuge und Lkw, auf
     Autobahn, Außerorts und Innerorts.
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: energy
   unit: MWh/a
   input_dimensions: [vehicle_type, road_type, energy_carrier]
@@ -2060,7 +2080,7 @@ nodes:
     Eine Lücke in den Quelldaten bleibt: Für Straßen-/Stadt-/U-Bahnen liegt ein
     Verbrauchsfaktor, aber keine Energieträgeranteilszeile vor, sodass dieses Verkehrsmittel
     erst nach Ergänzung dieser Zeile beiträgt.
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: energy
   unit: MWh/a
   input_dimensions: [vehicle_type, road_type, energy_carrier]
@@ -2138,13 +2158,17 @@ nodes:
     betriebenen Verkehr den Bundesstrommix, daher wird der Stromemissionsfaktor aus derselben
     nationalen Zeitreihe übernommen, die auch im stationären Bereich verwendet wird, und nicht
     hier separat definiert.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: g_co2e/kWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: bisko/emission_factor # must use the well-to-wheel EF for BISKO-conformity. Some cities want to know also well-to-tank, so will be implemented at some point.
+    # These series start after the frame does; GenericNode back-filled their first
+    # value into the earlier years. Keeping that, but saying so.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Well-to-wheel
   input_nodes:
   # BISKO criterion 4.2: the Bundesstrommix must be applied to electrically driven
@@ -2160,16 +2184,17 @@ nodes:
 - id: fraction_of_biodiesel
   name_en: Fraction of biodiesel
   name_de: Anteil von Biodiesel
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_datasets:
   - id: bisko/fraction_of_biodiesel
+    extend: true  # GenericNode extended its dataset; keep that explicit
 
 - id: transport_emissions
   name_en: Transport emissions
   name_de: Transportemissionen
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: kt_co2e/a
   color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
@@ -2198,13 +2223,14 @@ nodes:
 - id: energy_costs
   name_en: Energy costs
   name_de: Energiekosten
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: currency
   unit: M€/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: bisko/energy_costs # Resembles Mainz
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Value
 
 #//////  BISKO Compliance  /////////////////////////////////////////////////////////////////////////////////
@@ -2332,7 +2358,7 @@ nodes:
   description_de: Die höchste BISKO-Variante aus Tabelle 5, Kohle KWK. BISKO nennt sie als
     Rückfallwert, wenn keine Erzeugungsvariante 80 Prozent der Wärmeerzeugung erreicht; sie ist
     damit die Obergrenze, die ein konformer Fernwärmeemissionsfaktor nicht überschreiten darf.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: g_co2e/kWh
   input_nodes:
@@ -2352,7 +2378,7 @@ nodes:
   description_de: Die niedrigste BISKO-Variante aus Tabelle 5, Biomasse KWK. Ein
     Fernwärmeemissionsfaktor darunter kann aus keiner der im Standard vorgesehenen
     Erzeugungsvarianten stammen.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: g_co2e/kWh
   input_nodes:
