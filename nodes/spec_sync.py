@@ -251,8 +251,17 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
             raise ValueError('datasets entry is missing an identifier')
         try:
             dataset = Dataset.objects.get_queryset().for_instance_config(ic).get(identifier=ds_id)
-        except Dataset.DoesNotExist as exc:
-            raise ValueError(f"datasets entry '{ds_id}' does not match any dataset of instance {ic.identifier}") from exc
+        except Dataset.DoesNotExist:
+            # A module declares ownership for every dataset it reads, but an including
+            # instance legitimately uses only a subset: overriding a node drops the datasets
+            # only that node read. Warn rather than raise, so one city's override cannot
+            # break the sync for a declaration that is correct for the module. Enforcement is
+            # unaffected — a dataset that is not there cannot be left wrongly editable.
+            logger.warning(
+                f"datasets entry '{ds_id}' matches no dataset of instance {ic.identifier}; "
+                'skipping (check for a typo if the instance is meant to use it)'
+            )
+            continue
         if dataset.schema is None:
             raise ValueError(f"dataset '{ds_id}' has no schema")
         _apply_declared_dataset_editability(dataset, ds_meta, declared_schema_editability)

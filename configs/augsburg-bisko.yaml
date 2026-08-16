@@ -669,6 +669,7 @@ result_excels:
 
 nodes:
 - id: private_household_emissions
+  is_editable: false
   name_de: Private Haushalte Emissionen
   name_en: Private household emissions
   color: '#203abf'
@@ -697,6 +698,7 @@ nodes:
 
 
 - id: commerce_trade_services_emissions
+  is_editable: false
   name_de: Gewerbe, Handel, Dienstleistungen Emissionen
   name_en: Commerce, trade, services emissions
   color: *blue
@@ -725,6 +727,7 @@ nodes:
 
 
 - id: industry_emissions
+  is_editable: false
   name_de: Industrie Emissionen
   name_en: Industry Emissions
   color: *grey
@@ -753,6 +756,7 @@ nodes:
 
 
 - id: transport_emissions
+  is_editable: false
   name_en: Transport & Verkehr Emissionen
   name_de: Transport Emissions
   type: generic.GenericNode
@@ -782,6 +786,7 @@ nodes:
 
 
 - id: transport_emissions_helper
+  is_editable: false
   name_de: Verkehrsemissionen gesamt
   name_en: Transport emissions total
   type: simple.AdditiveNode
@@ -805,6 +810,7 @@ nodes:
 
 
 - id: municipal_facilities_emissions
+  is_editable: false
   name_de: Kommunale Einrichtungen
   name_en: Municipal facilities emissions
   color: *lime
@@ -823,6 +829,7 @@ nodes:
 
 
 - id: net_emissions
+  is_editable: false
   name_de: Netto-Emissionen
   name_en: Net emissions
   type: simple.AdditiveNode

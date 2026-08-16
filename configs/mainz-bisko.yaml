@@ -54,6 +54,7 @@ include:
 nodes:
 
 - id: gas_heizwert_brennwert_ratio
+  is_editable: false
   name_de: Erdgas Heizwert/Brennwert Umrechnungsfaktor
   name_en: Natural gas Heizwert/Brennwert conversion factor
   description_en: 'Constant ~0.901 for all years. Likely the Hu/Ho (Heizwert/Brennwert)

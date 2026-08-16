@@ -150,6 +150,7 @@ nodes:
 
 # sum up Industry + Commercial
 - id: industry_commerce_emissions
+  is_editable: false
   name_en: Industry & Commerce
   name_de: Gewerbe/Handel/Dienstleistungen & Industrie
   type: formula.FormulaNode
@@ -166,6 +167,7 @@ nodes:
 
 # copy them from bisko standard and remove output node net_emissions - don't forget to put allow_override=true
 - id: industry_emissions
+  is_editable: false
   name_de: Industrie Emissionen
   name_en: Industry emissions
   color: '#737373'
@@ -181,6 +183,7 @@ nodes:
       categories: [industry]
 
 - id: commerce_trade_services_emissions
+  is_editable: false
   name_de: Gewerbe, Handel, Dienstleistungen Emissionen
   name_en: Commerce, trade, services emissions
   color: '#fe8035'
@@ -196,6 +199,7 @@ nodes:
       categories: [commerce_trade_services]
 
 - id: transport_energy
+  is_editable: false
   name_de: Transportenergie
   name_en: Transport energy
   type: formula.FormulaNode
