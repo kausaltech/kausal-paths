@@ -1136,16 +1136,12 @@ class InstanceConfig(
             ).instance
             instance.bind_source_snapshot(snapshot)
             return instance
-        # Legacy revisions carry only the serialized config dict. They predate
-        # the structured snapshot, so published metadata still comes from the
-        # live rows here (known draft-leak; fixed by republishing).
-        hydrate_dict = snapshot_data.get('hydrate_dict')
-        if hydrate_dict is None:
-            # Revision predates the snapshot restructure; fall back to draft.
-            return None
-        instance = InstanceLoader(config=hydrate_dict, instance_config=self).instance
-        self.update_instance_from_configs(instance, node_refs=True)
-        return instance
+        # Legacy revisions carry only the serialized config dict; the
+        # config-dict loader is gone, so they fall back to the draft.
+        # Republishing is the migration path (no such revisions are known
+        # to exist -- publication opened after the snapshot restructure).
+        self.log.warning('Published revision predates the structured snapshot; serving the draft instead')
+        return None
 
     def _create_from_config(
         self,

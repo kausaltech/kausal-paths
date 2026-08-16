@@ -191,12 +191,32 @@ def _node_cfg(node_id: str, **extra: Any) -> dict[str, Any]:
     return {'id': node_id, 'type': 'nodes.simple.AdditiveNode', 'name': node_id, 'unit': 'kWh', 'quantity': 'energy', **extra}
 
 
+def _parse_snapshot(config: dict[str, Any]):
+    from uuid import uuid4
+
+    from nodes.instance_parser import parse_instance_snapshot
+
+    return parse_instance_snapshot(config, instance_uuid=uuid4())
+
+
+def _snapshot_with_bad_param():
+    """
+    Build a snapshot whose 'bad' node carries a parameter its class does not allow.
+
+    The YAML parser refuses this at parse time; a DB-built snapshot can still
+    carry it (e.g. after a node class change), so construction must handle it.
+    """
+    from params import NumberParameter
+
+    snapshot = _parse_snapshot(_loader_config([_node_cfg('good'), _node_cfg('bad')]))
+    bad = next(n for n in snapshot.nodes if n.identifier == 'bad')
+    assert bad.spec is not None
+    bad.spec.params.append(NumberParameter(local_id='this_param_does_not_exist', value=1.0))
+    return snapshot
+
+
 def test_construction_tolerates_bad_param():
-    config = _loader_config([
-        _node_cfg('good'),
-        _node_cfg('bad', params=[{'id': 'this_param_does_not_exist', 'value': 1}]),
-    ])
-    ctx = InstanceLoader(config=config, tolerate_node_failures=True).context
+    ctx = InstanceLoader(snapshot=_snapshot_with_bad_param(), tolerate_node_failures=True).context
 
     assert ctx.nodes['bad'].status is NodeStatus.FAILED
     assert any(e.phase is NodeErrorPhase.INITIALIZATION for e in ctx.nodes['bad'].status_errors)
@@ -205,11 +225,18 @@ def test_construction_tolerates_bad_param():
 
 
 def test_construction_tolerates_bad_edge():
-    config = _loader_config([
-        _node_cfg('good'),
-        _node_cfg('dangling', output_nodes=['nonexistent_node']),
-    ])
-    ctx = InstanceLoader(config=config, tolerate_node_failures=True).context
+    from uuid import uuid4
+
+    snapshot = _parse_snapshot(
+        _loader_config([
+            _node_cfg('good', output_nodes=['dangling']),
+            _node_cfg('dangling'),
+        ])
+    )
+    # A stale target-port reference, as a DB draft can hold after port edits.
+    edge = snapshot.edge_bindings[0]
+    edge.to_port = uuid4()
+    ctx = InstanceLoader(snapshot=snapshot, tolerate_node_failures=True).context
 
     assert ctx.nodes['dangling'].status is NodeStatus.FAILED
     assert any(e.phase is NodeErrorPhase.INITIALIZATION for e in ctx.nodes['dangling'].status_errors)
@@ -217,12 +244,8 @@ def test_construction_tolerates_bad_edge():
 
 
 def test_construction_strict_mode_still_raises():
-    config = _loader_config([
-        _node_cfg('good'),
-        _node_cfg('bad', params=[{'id': 'this_param_does_not_exist', 'value': 1}]),
-    ])
     with pytest.raises(NodeError):
-        InstanceLoader(config=config, tolerate_node_failures=False)
+        InstanceLoader(snapshot=_snapshot_with_bad_param(), tolerate_node_failures=False)
 
 
 # --- editor status field: opt-in compute ------------------------------------

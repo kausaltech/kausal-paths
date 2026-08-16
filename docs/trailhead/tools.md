@@ -13,17 +13,16 @@ only resolve where the repo happens to be installed editable (which is what
 install it fails at import. The `-m` form keeps the working directory on the
 path and works in both places.
 
-### Diff a node's config dict between YAML and DB
+### Diff a node's spec between YAML and DB
 
-The most useful operation — shows exactly what the DB serialization
-produces vs what the YAML loader would see:
+The most useful operation — parses the current YAML into a snapshot and
+diffs the node's `NodeSpec` against the stored `NodeConfig.spec`:
 
 ```bash
 python -m tools.debug_instance -i espoo --diff-node building_type_index
 ```
 
-Use this to verify that `instance_from_db.py` serialization produces
-config dicts that the InstanceLoader can consume correctly.
+A diff means the DB mirror is stale (re-sync) or the parse changed.
 
 ### Which source it loads from
 

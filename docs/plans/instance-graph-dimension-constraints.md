@@ -1141,6 +1141,22 @@ nondeterminism in a numerically exploded test model, not a path effect).
 Plain YAML instances still use `from_yaml`; their flip is the remaining
 stage-4 work.
 
+Implementation note (2026-08-16, stage 4 flip): `from_yaml` *is* the
+snapshot path now — parse → `InstanceSnapshot` → native build, with
+`snapshot_transform` as the framework overlay hook; `from_yaml_snapshot`
+is gone as a separate name. All production and tooling callers ride it.
+Parity gate: every top-level `configs/*.yaml`, old config-dict path vs
+new, structure (normalized for the known representational shifts:
+port-declaration-materialized bare edge dims, explicit metrics on
+multi-metric sources, in-edge order) plus computed outcome-node outputs
+at rel_tol 1e-9. The config-dict branches, `_init_instance`, dict
+scenario/param/impact-overview/normalization/emission-sector setup,
+`Edge.from_config` / `EdgeDimension.from_config`, and
+`snapshot_to_config_dict` are deleted; `snapshot_nodes_to_config_dicts`
+survives solely as the `NodeExplanationSystem` adapter (its rules still
+read YAML-shaped dicts — retiring that is a separate slice, tracked for
+step 11 alongside the other compatibility removals).
+
 **Gate:** draft, published, and YAML calculation share graph construction;
 metadata-only queries never create `Context`; calculation parity and existing
 dataset revision isolation tests pass.
