@@ -9,6 +9,7 @@ import pytest
 from kausal_common.datasets.tests.factories import DatasetFactory
 from kausal_common.i18n.pydantic import TranslatedString
 
+from nodes.defs.graph import DatasetMeta
 from nodes.defs.instance_defs import InstanceFeatures, InstanceMetadata, InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
 from nodes.instance_export_sync import (
@@ -23,7 +24,7 @@ from nodes.instance_serialization import (
     reconcile_snapshot_node_metadata,
 )
 from nodes.models import NodeConfig
-from nodes.spec_sync import _apply_metadata_columns, _upsert_node_configs
+from nodes.spec_sync import _apply_metadata_columns, _sync_dataset_metadata_from_snapshot, _upsert_node_configs
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 
 pytestmark = pytest.mark.django_db
@@ -264,6 +265,47 @@ def test_sync_applies_explicit_yaml_editability(db_instance):
 
     row.refresh_from_db()
     assert row.is_editable is False
+
+
+def test_sync_applies_explicit_dataset_editability(db_instance):
+    dataset = DatasetFactory.create(scope=db_instance, identifier='test/reference')
+    assert dataset.schema is not None
+    snapshot = InstanceSnapshot(
+        spec=db_instance.spec,
+        datasets=[
+            DatasetMeta(
+                id=dataset.uuid,
+                identifier=dataset.identifier,
+                schema_id=dataset.schema.uuid,
+                is_editable=False,
+            )
+        ],
+    )
+
+    _sync_dataset_metadata_from_snapshot(db_instance, snapshot)
+
+    dataset.schema.refresh_from_db()
+    assert dataset.schema.is_editable is False
+
+
+def test_sync_preserves_dataset_editability_when_yaml_does_not_specify_it(db_instance):
+    dataset = DatasetFactory.create(scope=db_instance, identifier='test/reference', schema__is_editable=False)
+    assert dataset.schema is not None
+    snapshot = InstanceSnapshot(
+        spec=db_instance.spec,
+        datasets=[
+            DatasetMeta(
+                id=dataset.uuid,
+                identifier=dataset.identifier,
+                schema_id=dataset.schema.uuid,
+            )
+        ],
+    )
+
+    _sync_dataset_metadata_from_snapshot(db_instance, snapshot)
+
+    dataset.schema.refresh_from_db()
+    assert dataset.schema.is_editable is False
 
 
 def test_yaml_runtime_nodes_use_reconciled_metadata_snapshots(instance_config, instance, node):

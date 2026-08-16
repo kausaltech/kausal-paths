@@ -88,6 +88,7 @@ def test_datasets_key_parses_into_typed_catalog_entries():
         'datasets': [
             {
                 'id': 'test/energy',
+                'is_editable': False,
                 'metrics': [
                     {
                         'id': 'amount',
@@ -106,6 +107,7 @@ def test_datasets_key_parses_into_typed_catalog_entries():
 
     (ds_meta,) = snapshot.datasets
     assert ds_meta.identifier == 'test/energy'
+    assert ds_meta.is_editable is False
     (metric_meta,) = ds_meta.metrics
     assert metric_meta.identifier == 'amount'
     no_gaps, value_range = metric_meta.validation_rules
@@ -121,6 +123,11 @@ def test_datasets_key_parses_into_typed_catalog_entries():
     bad = dict(config)
     bad['datasets'] = [{'id': 'test/energy', 'metrics': [{'id': 'amount', 'validation_rules': [{'kind': 'nope'}]}]}]
     with pytest.raises(InstanceParseError, match='Invalid validation rule'):
+        parse_instance_snapshot(bad, instance_uuid=instance_uuid)
+
+    bad = dict(config)
+    bad['datasets'] = [{'id': 'test/energy', 'is_editable': 'false'}]
+    with pytest.raises(InstanceParseError, match=r'is_editable.*must be a boolean'):
         parse_instance_snapshot(bad, instance_uuid=instance_uuid)
 
 
@@ -217,6 +224,9 @@ actions:
   name: Included action
   unit: kg/a
   quantity: mass
+datasets:
+- id: module/reference
+  is_editable: false
 """.lstrip()
     )
     yaml_path = tmp_path / 'test.yaml'
@@ -232,6 +242,9 @@ minimum_historical_year: 2010
 include:
 - file: module.yaml
   nodes_editable: false
+  dataset_replacements:
+  - from: module/reference
+    to: test/reference
 """.lstrip()
     )
 
@@ -239,12 +252,15 @@ include:
     assert yaml_config.data is not None
     assert yaml_config.data['nodes'][0]['is_editable'] is False
     assert yaml_config.data['actions'][0]['is_editable'] is False
+    assert yaml_config.data['datasets'] == [{'id': 'test/reference', 'is_editable': False}]
 
     snapshot = parse_instance_snapshot(yaml_config.data, instance_uuid=uuid4())
     assert {node.identifier: node.is_editable for node in snapshot.nodes} == {
         'included_node': False,
         'included_action': False,
     }
+    assert snapshot.datasets[0].identifier == 'test/reference'
+    assert snapshot.datasets[0].is_editable is False
 
 
 def test_include_nodes_editable_must_be_boolean(tmp_path):

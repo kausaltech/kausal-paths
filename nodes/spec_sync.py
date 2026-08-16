@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from kausal_common.i18n.pydantic import TranslatedString
 
     from datasets.validation_rules import ValidationRule
+    from nodes.defs.graph import DatasetMeta
     from nodes.defs.node_defs import NodeSpec
     from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig, NodeConfig
@@ -206,19 +207,44 @@ def _sync_dimensions_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapsho
         ic.sync_dimension(dim, update_existing=True)
 
 
-def _sync_metric_validation_rules_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
-    """
-    Reconcile ``DatasetMetricValidationRule`` rows from the spec's raw ``datasets`` configs.
+def _apply_declared_dataset_editability(
+    dataset: DatasetModel,
+    metadata: DatasetMeta,
+    declarations: dict[int, tuple[str, bool]],
+) -> None:
+    """Apply one explicit schema lock, rejecting contradictory declarations for a shared schema."""
+    if metadata.is_editable is None:
+        return
+    assert dataset.schema is not None
+    assert dataset.schema_id is not None
+    assert dataset.identifier is not None
+    previous = declarations.get(dataset.schema_id)
+    if previous is not None and previous[1] != metadata.is_editable:
+        raise ValueError(
+            f"datasets '{previous[0]}' and '{dataset.identifier}' share a schema but declare conflicting is_editable values"
+        )
+    declarations[dataset.schema_id] = (dataset.identifier, metadata.is_editable)
+    if dataset.schema.is_editable != metadata.is_editable:
+        dataset.schema.is_editable = metadata.is_editable
+        dataset.schema.save(update_fields=['is_editable'])
 
-    Only datasets named in the config are managed: their metrics' rule rows
-    are replaced when the declared blob list differs (preserving rows — and
-    thus rule uuids — when it does not). Datasets absent from the config are
-    left untouched. Invalid declarations fail the sync loudly.
+
+def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
+    """
+    Reconcile schema editability and metric validation rules declared under ``datasets``.
+
+    Only datasets named in the config are managed. Explicit ``is_editable``
+    values update the shared schema; an absent value preserves its current DB
+    state. Metric rule rows are replaced when the declared blob list differs
+    (preserving rows — and thus rule uuids — when it does not). Datasets absent
+    from the config are left untouched. Invalid or conflicting declarations
+    fail the sync loudly.
     """
     from kausal_common.datasets.models import Dataset
 
     from nodes.dataset_materialization import refresh_dataset_materialization
 
+    declared_schema_editability: dict[int, tuple[str, bool]] = {}
     for ds_meta in snapshot.datasets:
         ds_id = ds_meta.identifier
         if not ds_id:
@@ -229,6 +255,7 @@ def _sync_metric_validation_rules_from_snapshot(ic: InstanceConfig, snapshot: In
             raise ValueError(f"datasets entry '{ds_id}' does not match any dataset of instance {ic.identifier}") from exc
         if dataset.schema is None:
             raise ValueError(f"dataset '{ds_id}' has no schema")
+        _apply_declared_dataset_editability(dataset, ds_meta, declared_schema_editability)
         metrics_by_name = {metric.name: metric for metric in dataset.schema.metrics.all()}
         dataset_changed = False
         for metric_meta in ds_meta.metrics:
@@ -502,7 +529,7 @@ def sync_parsed_instance_to_db(
             node_configs = _upsert_node_configs(ic, snapshot, existing_node_configs)
             edge_count = _write_edges(ic, snapshot, node_configs)
             created_placeholder_ids = sync_dataset_placeholders_from_snapshot(ic, snapshot)
-            _sync_metric_validation_rules_from_snapshot(ic, snapshot)
+            _sync_dataset_metadata_from_snapshot(ic, snapshot)
             dataset_port_count = _write_dataset_ports(
                 ic,
                 snapshot,

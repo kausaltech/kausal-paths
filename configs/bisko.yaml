@@ -23,6 +23,7 @@ features:
 include:
 - file: modules/bisko/model.yaml
   allow_override: false
+  nodes_editable: false
   # dataset_replacements:
   # - from: bisko/final_energy
   #   to: duesseldorf/final_energy

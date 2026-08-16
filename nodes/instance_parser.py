@@ -307,8 +307,8 @@ class InstanceConfigParser:
         """
         Parse the top-level ``datasets`` key into partial catalog entries.
 
-        YAML declares per-dataset metric metadata (currently the validation
-        rules) by identifier; the entries' UUIDs are parse-invented and never
+        YAML declares schema editability and per-metric validation rules by
+        dataset identifier; the entries' UUIDs are parse-invented and never
         persisted — sync matches datasets and metrics by identifier against
         the rows placeholder sync has minted.
         """
@@ -323,6 +323,9 @@ class InstanceConfigParser:
             if ds_id in seen:
                 raise InstanceParseError(f"Duplicate dataset '{ds_id}' under 'datasets'")
             seen.add(ds_id)
+            is_editable = ds_conf.get('is_editable')
+            if 'is_editable' in ds_conf and not isinstance(is_editable, bool):
+                raise InstanceParseError(f"Dataset '{ds_id}' field 'is_editable' must be a boolean")
             metrics: list[DatasetMetricMeta] = []
             for m_conf in ds_conf.get('metrics', []):
                 metric_id = m_conf.get('id')
@@ -346,6 +349,7 @@ class InstanceConfigParser:
                     id=self._uuid_from_identifiers(['dataset', ds_id]),
                     identifier=ds_id,
                     schema_id=self._uuid_from_identifiers(['dataset', ds_id, 'schema']),
+                    is_editable=is_editable,
                     metrics=tuple(metrics),
                 )
             )

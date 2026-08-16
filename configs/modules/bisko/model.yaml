@@ -1,3 +1,40 @@
+# National BISKO method data and provider defaults are source-owned. An including instance
+# may select them or replace them with another source, but city users must not edit the
+# source records in place. Dataset replacements remap these declarations together with the
+# node bindings. Municipal inputs and deliberately local factor alternatives are omitted and
+# therefore retain their database editability.
+datasets:
+- id: bisko/endenergie_emissionsfaktoren
+  is_editable: false
+- id: bisko/emissionsfaktoren_fr_erzeugung
+  is_editable: false
+- id: bisko/emissionsfaktoren_ohne_brennstoffinputinformationen
+  is_editable: false
+- id: bisko/fernwarme_berwiegend
+  is_editable: false
+- id: bisko/emission_factor
+  is_editable: false
+- id: bisko/energy_factor
+  is_editable: false
+- id: bisko/energy_shares
+  is_editable: false
+- id: bisko/fraction_of_biodiesel
+  is_editable: false
+- id: bisko/load_per_vehicle
+  is_editable: false
+- id: bisko/gemeindefeine_fahrleistungen_strassenverkehr
+  is_editable: false
+- id: bisko/other_transport_energy
+  is_editable: false
+- id: bisko/weather_correction
+  is_editable: false
+- id: bisko/quality_criteria
+  is_editable: false
+- id: bisko/required_categories
+  is_editable: false
+- id: bisko/required_road_mileage_categories
+  is_editable: false
+
 dimensions:
 
   # ┌────────────────────────┬───────┬───────────────────────────────────────┬───────────────────────────────────┐

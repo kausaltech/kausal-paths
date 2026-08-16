@@ -170,6 +170,30 @@ class InstanceYAMLConfig:
             is_editable=is_editable,
         )
 
+    @staticmethod
+    def _merge_include_dataset_config(
+        existing: list[CommentedMap],
+        included: list[CommentedMap],
+        dataset_replacements: list[dict[str, str]],
+    ) -> None:
+        """Merge module dataset metadata, remapping ids exactly like node bindings."""
+        dataset_map = {replacement['from']: replacement['to'] for replacement in dataset_replacements}
+        by_id = {dataset['id']: dataset for dataset in existing}
+        for dataset in included:
+            source_id = dataset['id']
+            target_id = dataset_map.get(source_id, source_id)
+            dataset['id'] = target_id
+            current = by_id.get(target_id)
+            if current is None:
+                existing.append(dataset)
+                by_id[target_id] = dataset
+                continue
+            # Instance-level declarations take precedence, while omitted
+            # fields still inherit reusable metadata from the module.
+            for key, value in dataset.items():
+                if key not in current:
+                    current[key] = value
+
     def _merge_config(
         self,
         existing: list[CommentedMap],
@@ -201,6 +225,17 @@ class InstanceYAMLConfig:
             d['config_location'] = ConfigLocation(file_path=str(self.meta.entrypoint.path), line=d.lc.line + 1, column=d.lc.col)
 
     @staticmethod
+    def _set_merged_collections(
+        data: dict[str, Any],
+        *,
+        nodes: list[CommentedMap],
+        actions: list[CommentedMap],
+        dimensions: list[CommentedMap],
+        datasets: list[CommentedMap],
+    ) -> None:
+        data.update(nodes=nodes, actions=actions, dimensions=dimensions, datasets=datasets)
+
+    @staticmethod
     def _get_include_nodes_editable(include: CommentedMap) -> bool | None:
         value = include.get('nodes_editable')
         if 'nodes_editable' in include and not isinstance(value, bool):
@@ -230,6 +265,7 @@ class InstanceYAMLConfig:
         actions = data.get('actions', [])
 
         dimensions = data.get('dimensions', [])
+        datasets = data.get('datasets', [])
 
         self._init_group(nodes)
         self._init_group(emission_sectors)
@@ -271,6 +307,11 @@ class InstanceYAMLConfig:
                 dataset_replacements=dataset_replacements,
                 is_editable=nodes_editable,
             )
+            self._merge_include_dataset_config(
+                datasets,
+                idata.get('datasets', []),
+                dataset_replacements,
+            )
             self._merge_include_config(
                 dimensions,
                 idata.get('dimensions', []),
@@ -291,9 +332,7 @@ class InstanceYAMLConfig:
             )
 
         # Make sure that assignment works even if they are originally empty.
-        data['actions'] = actions
-        data['nodes'] = nodes
-        data['dimensions'] = dimensions
+        self._set_merged_collections(data, nodes=nodes, actions=actions, dimensions=dimensions, datasets=datasets)
 
         # Serialize and deserialize to get rid of Ruamel extras
         ser_data = json.dumps(data)

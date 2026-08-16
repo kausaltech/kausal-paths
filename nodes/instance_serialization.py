@@ -1122,6 +1122,7 @@ def dataset_meta_from_model(
         id=dataset.uuid,
         identifier=dataset.identifier,
         schema_id=schema.uuid,
+        is_editable=schema.is_editable,
         metrics=metrics,
         declared_dimension_ids=declared_dimension_ids,
         is_external_placeholder=dataset.is_external_placeholder,

@@ -74,6 +74,7 @@ class DatasetMeta(FrozenGraphModel):
     id: UUID
     identifier: str | None = None
     schema_id: UUID
+    is_editable: bool | None = None
     metrics: tuple[DatasetMetricMeta, ...] = ()
     declared_dimension_ids: tuple[UUID, ...] = ()
     is_external_placeholder: bool = False
