@@ -655,8 +655,14 @@ class Command(BaseCommand):
             year = date(year=year_val, month=1, day=1)
             for metric_identifier, metric in metrics.items():
                 value = row[metric_identifier]
-                if value is None:
-                    continue
+                # A valueless cell is created as a DataPoint with a null value rather than
+                # skipped. `DataPoint.value` is nullable, GraphQL types it `float | None`, and
+                # DataAvailabilityNode tests `is_not_null()` — so an empty cell reads as
+                # "no data" while still existing as a row the city can see, comment on and
+                # fill in. Skipping it lost the cell, its dimension categories, its source
+                # link and its comment, which is why BISKO template datasets had to ship
+                # zeros: a pre-filled 0 is indistinguishable from a municipality-confirmed 0,
+                # and the certifier's Pruefschritt 1.4 tests exactly that.
                 data_point = DataPoint.objects.create(
                     dataset=dataset,
                     date=year,

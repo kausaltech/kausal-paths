@@ -2632,18 +2632,22 @@ nodes:
 
 - id: quality_a_data_for_grid_based_energy
   is_editable: false
-  name_en: Quality A data for grid-based energy
-  name_de: Qualität A-Daten für gitterbasierte Energie
+  # The node id still says "grid_based". Renaming it to "grid_bound", to match the sibling
+  # has_all_grid_bound_energy_data nodes, is a separate change: the identifier keys the
+  # NodeConfig row, and these nodes sit upstream of is_bisko_compliant, which has an outcome
+  # page. What the certifier raised was the German term shown in the tool, and that is fixed.
+  name_en: Quality A data for grid-bound energy carriers
+  name_de: Qualität A-Daten für leitungsgebundene Energieträger
   # FIXME When we fix the graph, it will show 1 rather than 3.
-  description_en: BISKO inventory must use regional primary data for grid-based 
-    energy. To be BISKO-compliant, each sector should have value 3 in the graph.
+  description_en: BISKO inventory must use regional primary data for grid-bound
+    energy carriers. To be BISKO-compliant, each sector should have value 3 in the graph.
     It means that all three critical energy carriers (electricity, natural gas,
     district heating) have quality A data. Use this node to identify data points
     that don't meet the quality criteria yet and need to be improved to reach
     BISKO-compliance.
-  description_de: BISKO-Inventar muss regionale Primärdaten für gitterbasierte 
-    Energie verwenden. Um BISKO-konform zu sein, sollte jeder Sektor den Wert 3
-    in der Grafik haben. Das bedeutet, dass alle drei kritischen Energieträger 
+  description_de: BISKO-Inventar muss regionale Primärdaten für leitungsgebundene
+    Energieträger verwenden. Um BISKO-konform zu sein, sollte jeder Sektor den Wert 3
+    in der Grafik haben. Das bedeutet, dass alle drei kritischen Energieträger
     (Strom, Erdgas, Fernwärme) Qualität A-Daten haben. Verwenden Sie diesen Knoten,
     um Datenpunkte zu identifizieren, die noch nicht die Qualitätskriterien
     erfüllen und verbessert werden müssen, um BISKO-Konformität zu erreichen.
@@ -2665,12 +2669,12 @@ nodes:
 
 - id: has_quality_a_data_for_grid_based_energy
   is_editable: false
-  name_en: Has quality A data for grid-based energy?
-  name_de: Hat Qualität A-Daten für gitterbasierte Energie?
-  description_en: BISKO inventory must use regional primary data for grid-based 
-    energy.
-  description_de: BISKO-Inventar muss regionale Primärdaten für gitterbasierte 
-    Energie verwenden.
+  name_en: Has quality A data for grid-bound energy carriers?
+  name_de: Hat Qualität A-Daten für leitungsgebundene Energieträger?
+  description_en: BISKO inventory must use regional primary data for grid-bound
+    energy carriers.
+  description_de: BISKO-Inventar muss regionale Primärdaten für leitungsgebundene
+    Energieträger verwenden.
   type: formula.FormulaNode
   quantity: probability
   unit: dimensionless

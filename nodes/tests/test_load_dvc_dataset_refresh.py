@@ -217,3 +217,29 @@ def test_plan_flags_a_dropped_metric_that_only_an_input_binding_holds():
 
     assert plan.dropped_metrics == [('old_col', 1)]
     assert plan.blockers, 'an input binding must block the drop, not just a dataset port'
+
+
+def test_a_valueless_cell_becomes_a_null_data_point_rather_than_being_skipped():
+    """
+    An empty cell has to survive the import as a null DataPoint.
+
+    BISKO Pruefschritt 1.4 requires that a municipality-confirmed zero be distinguishable
+    from a cell nobody has filled in. `DataAvailabilityNode` tests `is_not_null()`, so a null
+    reads as "no data" while a 0 reads as a valid entry -- but only if the import keeps the
+    cell. Skipping it (the old behaviour) lost the row and forced template datasets to ship
+    zeros, which is exactly the finding.
+    """
+    ic = InstanceConfigFactory.create(name='nullable-instance', config_source='database')
+    ctx = make_context(
+        pl.DataFrame({'Year': [2020, 2021, 2022], 'value': [1.0, None, 3.0]}),
+        {'value': 'kt'},
+        commit='ccc333',
+    )
+    Command().sync_dataset(ic, ctx, DS_ID)
+
+    dataset = Dataset.objects.get(identifier=DS_ID)
+    points = {dp.date.year: dp.value for dp in DataPoint.objects.filter(dataset=dataset)}
+    assert set(points) == {2020, 2021, 2022}, 'the valueless year must still have a row'
+    assert points[2021] is None, 'the empty cell must be null, not absent and not zero'
+    assert float(cast('Any', points[2020])) == 1.0
+    assert float(cast('Any', points[2022])) == 3.0

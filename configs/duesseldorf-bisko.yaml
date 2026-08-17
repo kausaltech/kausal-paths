@@ -119,6 +119,16 @@ result_excels:
   - transport_emission_factors      # the certifier could not find these listed
   - vehicle_kilometers_ifeu
   - other_transport_energy
+  # --- Added 2026-08-17, each against a specific Pruefschritt ---
+  - district_heating_energy_use     # 7.3: the certifier could not find where to enter this
+  - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
+  - vehicle_kilometers_own          # 2.3: the own-data mileage route, road-typed
+  - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
+  # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
+  # These show which required cell is missing rather than a bare 0.
+  - final_energy_use_availability
+  - other_transport_energy_availability
+  - vehicle_kilometers_own_availability
 
 actions:
 
