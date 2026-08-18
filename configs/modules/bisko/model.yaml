@@ -578,7 +578,7 @@ dimensions:
     order: 12
   - id: ghg_neutral_administration
     label_en: GHG-Neutral Administration
-    label_de: THG-neutrale Verwaltung
+    label_de: Klimaneutrale Verwaltung
     color: '#34495E'
     order: 17
   - id: food_and_land_use
@@ -610,6 +610,10 @@ dimensions:
     label_en: Yes
     label_de: Ja
 
+# Category order follows the production model editor's export (2026-08-18), which is
+# mostly German-alphabetical within each transport medium but groups road, then rail, then
+# air, then water, then the undefined/none catch-alls -- kept as-is rather than re-sorted,
+# since that grouping is more useful to read than a flat alphabetical list would be.
 - id: vehicle_type
   label_en: Vehicle type
   label_de: Fahrzeugtyp
@@ -617,35 +621,47 @@ dimensions:
   - id: total
     label_en: Total
     label_de: Gesamt
-  - id: passenger_cars
-    label_en: Passenger cars
-    label_de: Personenkraftwagen (PKW)
-    aliases: [Pkw, VL_Pkw, PKW, car]
   - id: walking
     label_en: Walking
     label_de: Fußgänger
     aliases: [Fuss, VL_Fuss]
-  - id: trucks
-    label_en: Trucks
-    label_de: Lastkraftwagen (LKW)
-    aliases: [Lkw, VL_Lkw, LKW, truck]
+  - id: bicycles
+    label_en: Bicycles
+    label_de: Fahrräder
+    aliases: [VL_Rad, Rad]
+  - id: ebikes_escooters
+    label_en: E-bikes & e-scooters
+    label_de: E-Bikes & E-Roller
+  - id: motorcycles
+    label_en: Motorcycles
+    label_de: Motorisierte Zweiräder
+    aliases: [MZR, VL_MRZ, motorcycle]
+  - id: passenger_cars
+    label_en: Passenger cars
+    label_de: Personenkraftwagen (PKW)
+    aliases: [Pkw, VL_Pkw, PKW, car]
+  - id: cars_and_motorcycles
+    label_en: Cars and motorcycles
+    label_de: Personenkraftwagen und Motorisierte Zweiräder
   - id: vans
     label_en: Light commercial vehicles
     label_de: Leichte Nutzfahrzeuge
     aliases: [LNF, VL_LNF]
+  - id: trucks
+    label_en: Trucks
+    label_de: Lastkraftwagen (LKW)
+    aliases: [Lkw, VL_Lkw, LKW, truck]
   - id: heavy_commercial
     label_en: Heavy commercial vehicles
     label_de: Schwere Nutzfahrzeuge
-  # All buses together, line and coach. This is what FL_Bus in the ifeu mileage means; it
-  # is an input to the Linienbus/Reisebus split and does not reach the balance itself.
-  - id: buses
-    label_en: All buses
-    label_de: Busse insgesamt
-    aliases: [Bus, bus]
-  - id: coach_buses
-    label_en: Coach and long-distance buses
-    label_de: Reise-/Fernbusse
-    aliases: [Reisebus, long_distance_buses]
+  # Mowers, sweepers, chainsaws and the like. Not road vehicles, but they burn a
+  # measurable share of a municipal fleet's fuel and are reported separately in
+  # GHG-Protocol administration balances, so they need their own category rather
+  # than being folded into 'undefined'.
+  - id: working_machines
+    label_en: Working machines and equipment
+    label_de: Arbeitsgeräte
+    aliases: [Arbeitsgeraete]
   # BISKO's Linienbus, one of the two OeSPV modes. The consumption factor and fuel shares
   # are delivered under the label 'Linienbus'; see the migration note in
   # data/bisko/migrate_category_ids.py.
@@ -653,20 +669,16 @@ dimensions:
     label_en: Local buses
     label_de: Linienbusse
     aliases: [Lbus, VL_Lbus, Linienbus]
-  - id: motorcycles
-    label_en: Motorcycles
-    label_de: Motorisierte Zweiräder
-    aliases: [MZR, VL_MRZ, motorcycle]
-  - id: cars_and_motorcycles
-    label_en: Cars and motorcycles
-    label_de: Personenkraftwagen und Motorisierte Zweiräder
-  - id: bicycles
-    label_en: Bicycles
-    label_de: Fahrräder
-    aliases: [VL_Rad, Rad]
-  - id: trains
-    label_en: Trains
-    label_de: Züge
+  - id: coach_buses
+    label_en: Coach and long-distance buses
+    label_de: Reise-/Fernbusse
+    aliases: [Reisebus, long_distance_buses]
+  # All buses together, line and coach. This is what FL_Bus in the ifeu mileage means; it
+  # is an input to the Linienbus/Reisebus split and does not reach the balance itself.
+  - id: buses
+    label_en: All buses
+    label_de: Busse insgesamt
+    aliases: [Bus, bus]
   # BISKO's 'Straßen-, Stadt- und U-Bahnen' (SSU in the mileage sheet, Tram in the
   # consumption factor sheet) is one mode. It used to resolve to two categories, so the
   # mileage and the factors never met and tram/metro dropped out of road transport
@@ -687,28 +699,35 @@ dimensions:
     label_en: Cargo trains
     label_de: Schienengüterverkehr
     aliases: [SGV]
-  - id: inland_waterway_shipping
-    label_en: Inland waterway shipping
-    label_de: Binnenschifffahrt
-    aliases: [BiSchi, Binnenschiffahrt]
+  - id: trains
+    label_en: All trains
+    label_de: Züge insgesamt
+  - id: air_transport_public_cargo
+    label_en: Air transport (public, cargo)
+    label_de: Flugverkehr (Öffentlich, Güter)
+  - id: air_transport_private
+    label_en: Air transport (private, sport)
+    label_de: Flugverkehr (Privat, Sport)
   - id: air_transport
-    label_en: Air transport (LTO)
-    label_de: Flugverkehr
+    label_en: All air transport (LTO)
+    label_de: Flugverkehr insgesamt
     aliases: [LTO, Flug]
+  - id: inland_waterway_shipping_cargo
+    label_en: Inland waterway freight shipping
+    label_de: Güterbinnenschifffahrt
+  - id: inland_waterway_shipping_passengers
+    label_en: Inland waterway passenger shipping
+    label_de: Personenbinnenschifffahrt
+  - id: inland_waterway_shipping
+    label_en: All inland waterway shipping
+    label_de: Binnenschifffahrt insgesamt
+    aliases: [BiSchi, Binnenschiffahrt]
   - id: undefined
     label_en: Undefined
     label_de: Unzugeordnet
   - id: none
     label_en: None (stationary energy, no vehicle)
     label_de: Kein Fahrzeug (stationäre Energie)
-  # Mowers, sweepers, chainsaws and the like. Not road vehicles, but they burn a
-  # measurable share of a municipal fleet's fuel and are reported separately in
-  # GHG-Protocol administration balances, so they need their own category rather
-  # than being folded into 'undefined'.
-  - id: working_machines
-    label_en: Working machines and equipment
-    label_de: Arbeitsgeräte
-    aliases: [Arbeitsgeraete]
 
 #//////  Nodes  ////////////////////////////////////////////////////////////////////////////////////////////////////
 nodes:
