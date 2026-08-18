@@ -16,7 +16,7 @@ The two layers are separate: uploading to DVC does not automatically populate th
 ## 1. `upload_new_dataset.py` — CSV → DVC
 
 **Location:** `notebooks/upload_new_dataset.py`  
-**Invocation:** `python -m notebooks.upload_new_dataset -i input.csv -o dvc/path -l de [-n instance-id]`
+**Invocation:** `python -m notebooks.upload_new_dataset -i input.csv -o dvc/path -l de [-n instance-id] [--keep-empty-cells]`
 
 Reads a wide-format CSV and pushes one or more datasets to the DVC parquet store.
 
@@ -48,7 +48,8 @@ Reads a wide-format CSV and pushes one or more datasets to the DVC parquet store
 
 ### What is lost
 
-- **Empty cells in year columns** — rows with `None`, `"."`, or `"-"` values are silently skipped; those year/dimension combinations will be absent from the parquet file.
+- **Empty cells in year columns** — rows with `None`, `"."` or `"-"` values are skipped by default; those year/dimension combinations will be absent from the parquet file. A year column that is *entirely* empty is dropped before the unpivot, so an all-blank file fails with *"No year columns found"* rather than uploading as nothing.
+  **`--keep-empty-cells` reverses this for `None`** (never for `"."`/`"-"`, which mean "no data" in a source file). Use it for a template a city is meant to fill in, where the blank cells are the deliverable and a presence check has to tell an entered zero from an untouched one — see [`dataset-csv-format.md`](dataset-csv-format.md) §5, which also covers the `empty_to_zero` binding tag the consuming node then needs. Wide format only; a long-format file with a `Year` column was never affected.
 - **`Description` column** — moved to DVC metadata but does not appear in the admin UI (known limitation, marked `FIXME` in code).
 - **`Dataset` column** — consumed to split into separate DVC datasets; not stored in the parquet.
 - **Historical vs forecast distinction** — parquet files have no `Forecast` column. The split is applied at read time via `forecast_from` in the node's `input_datasets` YAML config.

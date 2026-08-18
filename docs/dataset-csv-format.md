@@ -107,7 +107,8 @@ relative-year offsets in the NZC framework — see
 
 Leave a year cell blank where there is no observation; blanks are dropped, not
 zero-filled. **A blank and a zero mean different things** — a zero is an
-assertion that the value is zero.
+assertion that the value is zero. When the blanks are the point, because the file
+is a template a city has yet to fill in, see §5.
 
 ### Long format
 
@@ -225,7 +226,81 @@ For flat NZC-style files where every dimension combination lives in one file, us
 `Unit` and `UUID`. See `data/cork/README.md` §"Why plain_csv_wide and not
 plain_csv" for why including `Value` breaks the round trip.
 
-## 5. Rules worth stating
+## 5. Shipping an empty template
+
+Sometimes the blank cells *are* the deliverable: a dataset a city is meant to fill in, where
+every value is empty on purpose. This is the opposite of the usual case, and it needs four
+deliberate steps, because every layer of the pipeline drops empty cells by default and each one
+is right to do so for ordinary data.
+
+**Why it matters.** A presence check has to be able to tell "the municipality entered zero" from
+"nobody has looked at this yet". Those are different facts, and standards that accept a reported
+zero — BISKO among them — make the distinction load-bearing: a balance built on unexamined cells
+must not report conformity. If the template ships zeros, no check can ever tell the two apart,
+because a pre-filled zero and an entered zero are the same number.
+
+### The four steps
+
+**1. The CSV leaves the value cells empty.** Not `0`, not `.` — empty. Keep the `Comment` column
+populated: it is what tells the city what belongs in the cell, and it survives to the editor.
+
+```csv
+Metric,Unit,Quantity,Dataset,vehicle_type,road_type,2023,Comment
+Value,Mvkm/a,mileage,vehicle_kilometers,passenger_cars,highway,,"Fahrleistung Pkw auf Autobahnen, in Mio. Fahrzeugkilometern pro Jahr."
+```
+
+**2. Upload with `--keep-empty-cells`.** Without it the upload fails with *"No year columns found
+and no Year column exists"*: `clean_dataframe` drops a year column that is entirely null, and
+`convert_to_standard_format` then filters out every null value. Both are correct defaults —
+dropping blanks is what keeps a sparse wide file from becoming a dense one — so the template case
+is opt-in.
+
+```bash
+python -m notebooks.upload_new_dataset -i template.csv -o <repo> --language de \
+    --instance <instance> --keep-empty-cells
+```
+
+Note this affects **wide format only**. A long-format file (one that already has a `Year` column)
+returns early from `convert_to_standard_format` and never hits either step.
+
+**3. Import keeps the empty cell as a null data point.** `load_dvc_dataset` creates a `DataPoint`
+with a null `value` rather than skipping the row, so the cell exists in the editor with its
+dimension categories, source link and comment intact. `DataPoint.value` is nullable and GraphQL
+types it `float | None`; nothing extra is needed.
+
+**4. Tag the *consuming* binding `empty_to_zero`.** This is the step that is easy to get wrong.
+
+A node that reads the template still has to compute while the template is empty — often it has no
+choice, because `select_port` evaluates both of its branches even when the switch selects the
+other one. But an empty frame has no rows and therefore no dimensions, which fails far away as
+*"Dimensions (set()) do not match in output"*.
+
+```yaml
+input_datasets:
+- id: bisko/vehicle_kilometers
+  column: Value
+  tags: [mileage, empty_to_zero]
+```
+
+**The tag belongs to the binding, not to the dataset**, and that is exactly what makes this work.
+The same dataset is read twice, and the two readers want opposite things:
+
+| Reader | Tag | Sees | Why |
+| --- | --- | --- | --- |
+| the node that computes with the data | `empty_to_zero` | zeros | so it computes instead of failing |
+| a `DataAvailabilityNode` checking the data | *(none)* | empty cells | so it reports 0 and the balance is not declared conformant |
+
+Tagging the *dataset* would give both readers zeros and silently defeat the presence check — the
+tool would report "the city supplied this" about a template nobody has touched.
+
+### Checking it
+
+After the upload, the availability node should read `0.0` in every required cell while the
+consuming node computes without error. If the availability node reads `1.0`, the cells are zeros
+rather than blanks somewhere along the chain: check the CSV first, then whether the tag ended up
+on the availability binding by mistake.
+
+## 6. Rules worth stating
 
 - **Any unrecognised column becomes a dimension.** A typo in a metadata column
   name turns it into a dimension and the load fails on an unknown dimension —
@@ -239,7 +314,8 @@ plain_csv" for why including `Value` breaks the round trip.
   `Livestock` alongside a `Livestock` dimension raises
   `DuplicateError: column 'livestock' is duplicate` — and only *after* earlier
   datasets in the same file have already been written. Rename the metric.
-- **Blank ≠ zero.** See §1.
+- **Blank ≠ zero.** See §1 — and §5 for how to ship a file that is deliberately
+  all blanks, which takes an explicit flag at upload and an explicit tag at the binding.
 - **Comments are the home for adopted-error documentation.** When a model must
   reproduce a source's mistake, the `Comment` cell is where the correct value and
   the reasoning go; see

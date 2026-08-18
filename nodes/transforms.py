@@ -181,11 +181,30 @@ def _guard_not_empty(
 # --- Legacy stage markers ---------------------------------------------------
 
 
+EMPTY_TO_ZERO_TAG = 'empty_to_zero'
+"""Binding tag that turns a missing value into a zero instead of into a missing row.
+
+Selection drops null values, which is right for ordinary data: a blank cell means the
+combination has nothing to say, and keeping it would make every sparse frame dense. An empty
+template is the opposite case — the rows *are* its content, and dropping them leaves a frame
+with no rows and therefore no dimensions, which fails much later as "Dimensions (set()) do not
+match in output".
+
+Tagging the binding ``empty_to_zero`` defers to the operation of the same name, which runs
+later in the pipeline and fills the metric columns. The tag belongs to the binding rather than
+to the dataset, which is what makes it usable here: the node that *consumes* the template can
+ask for zeros so it computes, while a ``DataAvailabilityNode`` reading the same dataset leaves
+the tag off and still sees the cells as empty, so a city that has filled nothing in is reported
+as having filled nothing in.
+"""
+
+
 def _select_metric(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFrame:
     """
     Alias the bound column to ``Value``, drop its nulls and narrow the frame.
 
-    Which column that is comes from the binding, not from the op.
+    Which column that is comes from the binding, not from the op. A binding tagged
+    ``empty_to_zero`` keeps its nulls here for that operation to fill; see the tag's docstring.
     """
     column = env.metric_column
     if column is None:
@@ -193,7 +212,9 @@ def _select_metric(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFra
     if column not in df.columns:
         env.fail(f"Column '{column}' not found in dataset '{env.source_id}'. Available columns: {', '.join(df.columns)}")
     df = df.with_columns(pl.col(column).alias(VALUE_COLUMN))
-    df = df.filter(pl.col(VALUE_COLUMN).is_not_null())
+    fills_empties = env.dataset is not None and EMPTY_TO_ZERO_TAG in env.dataset.tags
+    if not fills_empties:
+        df = df.filter(pl.col(VALUE_COLUMN).is_not_null())
     cols = [YEAR_COLUMN, VALUE_COLUMN, *df.dim_ids]
     if FORECAST_COLUMN in df.columns:
         cols.append(FORECAST_COLUMN)
