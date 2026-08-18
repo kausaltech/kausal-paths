@@ -360,20 +360,24 @@ def extract_metrics(df: pl.DataFrame, language: str, units: dict[str, str]) -> l
     return metrics
 
 
-def clean_dataframe(df: pl.DataFrame) -> pl.DataFrame:
+def clean_dataframe(df: pl.DataFrame, keep_empty_cells: bool = False) -> pl.DataFrame:
     """Remove metadata columns and empty columns."""
     # 1. Drop metadata columns that are now in metadata but keep CompoundID
     metadata_columns = ['Unit', 'Description', 'Metric']
     df = df.drop([c for c in metadata_columns if c in df.columns])
 
-    # 2. Drop any columns that are entirely null — single pass over all columns
-    all_null = df.select(pl.all().is_null().all()).row(0)
-    df = df.drop([col for col, is_null in zip(df.columns, all_null) if is_null])
+    # 2. Drop any columns that are entirely null — single pass over all columns.
+    #    An empty template is the one case where an all-null column is the point rather than
+    #    noise: every value cell is deliberately blank, and dropping the year column leaves
+    #    convert_to_standard_format with nothing to unpivot.
+    if not keep_empty_cells:
+        all_null = df.select(pl.all().is_null().all()).row(0)
+        df = df.drop([col for col, is_null in zip(df.columns, all_null) if is_null])
 
     return df
 
 
-def convert_to_standard_format(df: pl.DataFrame) -> pl.DataFrame:
+def convert_to_standard_format(df: pl.DataFrame, keep_empty_cells: bool = False) -> pl.DataFrame:
     """Convert dataframe to standard format with Year column if needed."""
     if 'Year' in df.columns:
         return df.with_columns(pl.col('Year').cast(pl.Int64))
@@ -384,12 +388,24 @@ def convert_to_standard_format(df: pl.DataFrame) -> pl.DataFrame:
 
     context_columns = [col for col in df.columns if not col.isdigit()]
 
+    # A blank cell normally means "this combination has no data" and is dropped, which is what
+    # keeps a sparse wide file from becoming a dense one. In a template it means the opposite:
+    # the row is the prompt, and the empty value is what a presence check has to be able to see
+    # (BISKO Pruefschritt 1.4 turns on telling a confirmed zero from an untouched cell). Kept
+    # behind a flag rather than made the default, because flipping it for every upload would
+    # materialise every absent combination in every existing sparse dataset.
+    value_is_usable = ~pl.col('Value').is_in(['.', '-'])
+    if keep_empty_cells:
+        value_is_usable = pl.col('Value').is_null() | value_is_usable
+    else:
+        value_is_usable = pl.col('Value').is_not_null() & value_is_usable
+
     return (
         df.unpivot(on=year_columns, index=context_columns, variable_name='Year', value_name='Value')
         # Cast to string regardless of source dtype (numeric columns are inferred as Float64
         # by load_data; downstream pivot_by_compound_id casts back to Float64).
         .with_columns(pl.col('Value').cast(pl.Utf8, strict=False))
-        .filter(pl.col('Value').is_not_null() & ~pl.col('Value').is_in(['.', '-']))
+        .filter(value_is_usable)
         .with_columns(pl.col('Year').cast(pl.Int64))
     )
 
@@ -637,6 +653,7 @@ def process_dataset(
     language: str,
     context: Context | None,
     sources_registry: dict[str, dict[str, str | None]] | None = None,
+    keep_empty_cells: bool = False,
 ) -> None:
     """Process a single dataset of data."""
     print(f'\n==== Processing dataset: {dataset_name} ====\n')
@@ -677,10 +694,10 @@ def process_dataset(
         print('Description extracted')
 
     # 5. Clean dataframe (remove metadata columns)
-    df = clean_dataframe(df)
+    df = clean_dataframe(df, keep_empty_cells)
 
     # 6. Convert to standard format with Year column if needed
-    df = convert_to_standard_format(df)
+    df = convert_to_standard_format(df, keep_empty_cells)
     print(f'Data converted to standard format with {len(df)} rows')
 
     # 7. Pivot by compound ID
@@ -719,6 +736,7 @@ def process_datasets(
     context: Context | None = None,
     dataset_name: str | None = None,
     sources_registry: dict[str, dict[str, str | None]] | None = None,
+    keep_empty_cells: bool = False,
 ) -> None:
     # Process all datasets
     # Process datasets
@@ -731,7 +749,7 @@ def process_datasets(
         elif dataset_name == 'plain_csv_wide':
             print('Uploading csv with year columns pivoted to Year column.')
             units, full_df = extract_units_from_row(full_df)
-            full_df = convert_to_standard_format(full_df)
+            full_df = convert_to_standard_format(full_df, keep_empty_cells)
             full_df = full_df.with_columns(pl.col('Value').cast(pl.Float64))
             # 'Is_action' is never used by DatasetNode; drop it. 'Description'/'Source' are
             # kept as literal per-row columns (like 'UUID') for load_dvc_dataset to read back
@@ -755,17 +773,23 @@ def process_datasets(
                 # Process only the specified
                 print(f'Processing only dataset: {dataset_name}')
                 dataset_df = full_df.filter(pl.col(d) == dataset_name).drop(d)
-                process_dataset(dataset_df, dataset_name, outcsvpath, outdvcpath, language, context, sources_registry)
+                process_dataset(
+                    dataset_df, dataset_name, outcsvpath, outdvcpath, language, context, sources_registry, keep_empty_cells
+                )
             else:
                 print(f"No '{d}' column, treating the whole table as one dataset '{dataset_name}'.")
-                process_dataset(full_df, dataset_name, outcsvpath, outdvcpath, language, context, sources_registry)
+                process_dataset(
+                    full_df, dataset_name, outcsvpath, outdvcpath, language, context, sources_registry, keep_empty_cells
+                )
     else:
         # Process all datasets
         dataset_dfs = split_by_dataset(full_df)
         print(f'Found {len(dataset_dfs)} datasets to process')
 
         for ds_name, dataset_df in dataset_dfs.items():
-            process_dataset(dataset_df, ds_name, outcsvpath, outdvcpath, language, context, sources_registry)
+            process_dataset(
+                dataset_df, ds_name, outcsvpath, outdvcpath, language, context, sources_registry, keep_empty_cells
+            )
 
 
 def main():
@@ -798,6 +822,16 @@ def main():
     parser.add_argument('--instance', '-n', required=False, default=None, help='Use dimensions and categories from an instance')
 
     parser.add_argument(
+        '--keep-empty-cells',
+        action='store_true',
+        help=(
+            'Keep cells with no value instead of dropping them, and keep a year column that is '
+            'entirely empty. Use for templates a city is meant to fill in: the blank cell is the '
+            'prompt, and a presence check has to be able to tell it from an entered zero. Without '
+            'this, an all-blank template uploads as no data at all.'
+        ),
+    )
+    parser.add_argument(
         '--sources-csv',
         required=False,
         default=None,
@@ -821,13 +855,16 @@ def main():
     encoding = args.encoding
     instance = args.instance
     sources_registry = load_sources_registry(args.sources_csv) if args.sources_csv else None
+    keep_empty_cells = args.keep_empty_cells
 
     context = get_context(instance) if instance is not None else None
 
     # Load data
     full_df = load_data(incsvpath, incsvsep, encoding)
 
-    process_datasets(full_df, outcsvpath, outdvcpath, language, context, dataset_name, sources_registry)
+    process_datasets(
+        full_df, outcsvpath, outdvcpath, language, context, dataset_name, sources_registry, keep_empty_cells
+    )
 
 
 if __name__ == '__main__':
