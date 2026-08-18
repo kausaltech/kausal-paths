@@ -1797,79 +1797,6 @@ nodes:
     to_dimensions:
     - id: sector
 
-- id: organic_soils_cultivation_emissions
-  name: Organic Soils Cultivation Emissions
-  short_name: Cultivation Emissions
-  type: formula.FormulaNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  params:
-    formula: (land_areas * land_emission_factors) + reference
-  input_datasets:
-  - id: aarhus/land
-    tags: [reference]
-    column: emissions
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - dimension: sector
-      categories: [v121]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1211, v1212]
-    to_dimensions:
-    - id: sector
-
-- id: organic_soils_permanent_grass_emissions
-  name: Organic Soils Permanent Grass Emissions
-  short_name: Permanent Grass Emissions
-  type: formula.FormulaNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  params:
-    formula: (land_areas * land_emission_factors) + reference
-  input_datasets:
-  - id: aarhus/land
-    tags: [reference]
-    column: emissions
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - dimension: sector
-      categories: [v122]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1221, v1222]
-    to_dimensions:
-    - id: sector
-
-- id: organic_soils_nature_emissions
-  name: Organic Soils Nature Emissions
-  short_name: Nature Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1231, v1232]
-    to_dimensions:
-    - id: sector
-
 - id: organic_soils_emissions
   name: Organic Soils Emissions
   type: simple.AdditiveNode
@@ -1877,10 +1804,14 @@ nodes:
   unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
-  input_nodes:
-  - id: organic_soils_cultivation_emissions
-  - id: organic_soils_permanent_grass_emissions
-  - id: organic_soils_nature_emissions
+  input_datasets:
+  - id: aarhus/land
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [v121, v122, v123]
 
 - id: forestry_emissions
   name: Forestry Emissions
