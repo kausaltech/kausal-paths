@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Never
+from typing import TYPE_CHECKING, Never
 from urllib.parse import parse_qs, urlparse
 
 from django.test import override_settings
@@ -22,7 +22,26 @@ from frameworks.tests.factories import FrameworkFactory
 from nodes.tests.factories import InstanceConfigFactory
 from users.tests.factories import UserFactory
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture
+def _reset_social_backends_cache() -> Iterator[None]:
+    """
+    Reset social_core's global load_backends() cache.
+
+    load_backends() memoizes its result on a module-level BACKENDSCACHE, so
+    tests that use @override_settings(AUTHENTICATION_BACKENDS=…) can pollute
+    subsequent tests. Reset before and after to guarantee isolation.
+    """
+    import social_core.backends.utils as sc_utils
+
+    sc_utils.BACKENDSCACHE = {}
+    yield
+    sc_utils.BACKENDSCACHE = {}
 
 
 class DummyAuthBackend(BaseAuth):
@@ -60,6 +79,133 @@ def test_azure_ad_auth_entry_requires_post_and_forwards_email(client):
     query = parse_qs(urlparse(response['Location']).query)
     assert query['login_hint'] == ['user@example.com']
     assert client.session['next'] == '/admin/'
+
+
+@pytest.mark.usefixtures('_reset_social_backends_cache')
+@override_settings(
+    SOCIAL_AUTH_NZCPORTAL_CLIENT_ID='client-id',
+    SOCIAL_AUTH_NZCPORTAL_CLIENT_SECRET='client-secret',  # noqa: S106
+    AUTHENTICATION_BACKENDS=[
+        'admin_site.auth_backends.NZCPortalOAuth2',
+        'django.contrib.auth.backends.ModelBackend',
+    ],
+)
+def test_nzc_oauth_authorize_login_redirect_reaches_provider(client):
+    """
+    External OAuth-provider redirects into /o/authorize/ must not dead-end on 405.
+
+    NZC Planner UI (netzero.kausal.tech) drives users through Paths as an OAuth
+    provider. When unauthenticated, browsers land at /o/authorize/ via GET, and
+    AuthorizationView.get_login_url() sends them onward via a 302 (GET) redirect.
+    Since social_django's /auth/login/<backend>/ is hardcoded POST-only in 6.0.x,
+    that hop is a dead end. This test guards the end-to-end invariant.
+    """
+    from kausal_paths_extensions.auth.models import AuthApplication
+
+    AuthApplication.objects.create(
+        client_id='nzc-test-client',
+        client_secret='nzc-test-secret',  # noqa: S106
+        client_type=AuthApplication.CLIENT_CONFIDENTIAL,
+        authorization_grant_type=AuthApplication.GRANT_AUTHORIZATION_CODE,
+        redirect_uris='https://netzero.example/callback',
+        social_auth_backend='nzcportal',
+    )
+
+    authorize_url = (
+        '/o/authorize/'
+        '?response_type=code&client_id=nzc-test-client'
+        '&redirect_uri=https://netzero.example/callback'
+        '&scope=openid'
+        '&code_challenge=nmTAQE68zHR1tT6_Nqc26hpDPpI1tCtIVA0PWjgypT4'
+        '&code_challenge_method=S256'
+    )
+    r = client.get(authorize_url)
+    assert r.status_code == 302, f'expected 302 from /o/authorize/, got {r.status_code}'
+    # Verify the redirect fully — scheme+host+path, plus the OAuth params that
+    # NZC needs to accept the request. A prefix check would silently pass if a
+    # regression dropped or corrupted client_id, state, response_type, scope,
+    # or the callback redirect_uri.
+    parsed = urlparse(r['Location'])
+    assert (parsed.scheme, parsed.netloc, parsed.path) == (
+        'https',
+        'netzerocities.app',
+        '/sso/authorize',
+    ), f'expected redirect to https://netzerocities.app/sso/authorize, got {r["Location"]!r}'
+    qs = parse_qs(parsed.query)
+    assert qs.get('client_id') == ['client-id'], (
+        f'client_id must be forwarded from SOCIAL_AUTH_NZCPORTAL_CLIENT_ID, got {qs.get("client_id")!r}'
+    )
+    assert qs.get('response_type') == ['code'], f'response_type must be "code", got {qs.get("response_type")!r}'
+    assert qs.get('redirect_uri') == ['http://testserver/auth/complete/nzcportal/'], (
+        f'redirect_uri must point at social_django complete endpoint, got {qs.get("redirect_uri")!r}'
+    )
+    assert qs.get('scope') == ['basic'], f'scope must match NZCPortalOAuth2.DEFAULT_SCOPE, got {qs.get("scope")!r}'
+    state = qs.get('state', [''])[0]
+    assert state, f'state must be present (anti-CSRF token), got {qs.get("state")!r}'
+    # The OAuth-provider flow resumes after NZC callback via the "next" value
+    # stashed in the session. Verify it preserves the full original /o/authorize/
+    # URL so client_id, redirect_uri, and PKCE params survive the round trip.
+    assert client.session.get('next') == authorize_url, (
+        f'session["next"] must preserve the original OAuth authorize URL for '
+        f'resume after NZC login; got {client.session.get("next")!r}, '
+        f'expected {authorize_url!r}.'
+    )
+
+
+@pytest.mark.usefixtures('_reset_social_backends_cache')
+@override_settings(
+    SOCIAL_AUTH_AZURE_AD_KEY='client-id',
+    SOCIAL_AUTH_AZURE_AD_SECRET='client-secret',  # noqa: S106
+)
+def test_azure_ad_oauth_authorize_does_not_take_nzc_shortcut(client):
+    """
+    Non-nzcportal social-backed OAuth apps must skip the nzcportal shortcut.
+
+    The AuthorizationView override in handle_no_permission() is deliberately
+    narrowed to `nzcportal` so that Azure-AD-backed OAuth clients (should any
+    exist) fall through to the default LoginRequiredMixin behavior — the same
+    code path they took before the nzcportal fix. This test bounds the blast
+    radius of the override.
+    """
+    from kausal_paths_extensions.auth.models import AuthApplication
+
+    AuthApplication.objects.create(
+        client_id='azure-oauth-test-client',
+        client_secret='azure-oauth-test-secret',  # noqa: S106
+        client_type=AuthApplication.CLIENT_CONFIDENTIAL,
+        authorization_grant_type=AuthApplication.GRANT_AUTHORIZATION_CODE,
+        redirect_uris='https://azure-client.example/callback',
+        social_auth_backend='azure_ad',
+    )
+
+    authorize_url = (
+        '/o/authorize/'
+        '?response_type=code&client_id=azure-oauth-test-client'
+        '&redirect_uri=https://azure-client.example/callback'
+        '&scope=openid'
+        '&code_challenge=nmTAQE68zHR1tT6_Nqc26hpDPpI1tCtIVA0PWjgypT4'
+        '&code_challenge_method=S256'
+    )
+    r = client.get(authorize_url)
+    assert r.status_code == 302
+    # Positively assert the pre-existing fallback: redirect to the internal
+    # social:begin URL for azure_ad, with the full original /o/authorize/ URL
+    # preserved in ?next= so login can resume with client_id, redirect_uri and
+    # PKCE params intact. A prefix check would silently accept a truncated
+    # next= that drops these params.
+    parsed = urlparse(r['Location'])
+    assert parsed.path == '/auth/login/azure_ad/', (
+        f'azure_ad OAuth app should fall through to the internal social:begin '
+        f'redirect (not the nzcportal shortcut, admin login, or a loop); '
+        f'got path {parsed.path!r}. If handle_no_permission() is widened '
+        f'beyond nzcportal, this breaks.'
+    )
+    next_value = parse_qs(parsed.query).get('next', [''])[0]
+    assert next_value == authorize_url, (
+        f'next= must preserve the full original OAuth authorize URL so login '
+        f'can resume with all OAuth params intact; got {next_value!r}, '
+        f'expected {authorize_url!r}.'
+    )
 
 
 def test_check_login_method_redirects_to_user_cluster(client, monkeypatch, settings) -> None:
