@@ -130,3 +130,53 @@ def test_rows_without_a_provenance_stamp_are_still_listed():
     ctx.get_all_dvc_dataset_ids = set
 
     assert DS_ID in candidate_dataset_ids(ic, cast('Any', ctx))
+
+
+def _gemeindefein_ctx() -> Any:
+    """Build a Germany-wide dataset indexed by a column no city instance has a dimension for."""
+    from types import SimpleNamespace
+
+    df = pl.DataFrame({'Year': [2020, 2020], 'district': ['01001', '01002'], 'Value': [1.0, 2.0]})
+    dvc_dataset = SimpleNamespace(
+        df=df,
+        units={'Value': 'kt'},
+        index_columns=['Year', 'district'],
+        metadata={'name': {'en': 'Gemeindefein dataset'}, 'metrics': [{'column_id': 'Value'}]},
+    )
+    return cast(
+        'Any',
+        SimpleNamespace(
+            dataset_repo_spec=SimpleNamespace(url='https://example.com/dvc.git', commit=COMMIT, dvc_remote=None),
+            dimensions={},
+            instance=SimpleNamespace(default_language='en'),
+            load_dvc_dataset=lambda _dataset_id: dvc_dataset,
+        ),
+    )
+
+
+def test_a_dataset_indexed_by_an_unknown_column_is_dvc_only_not_import():
+    """
+    Report a dataset that cannot be imported as finished, not as outstanding work.
+
+    `load_dvc_dataset` resolves every index column through `ctx.dimensions[col]`, so a
+    Germany-wide, gemeindefein dataset raises `KeyError: 'district'` on import -- correctly,
+    because a per-municipality index is not an instance dimension. Reporting it as `import`
+    sent operators to run the one command that cannot work.
+    """
+    ic = InstanceConfigFactory.create(name='status-gemeindefein', config_source='database')
+    ctx = _gemeindefein_ctx()
+
+    status = status_for(ic, ctx, DS_ID)
+
+    assert status.verdict == 'dvc only', f'got {status.verdict}: {status.detail}'
+    assert 'district' in status.detail
+    assert not status.is_stale, 'a dataset that can never be imported is not outstanding work'
+
+
+def test_the_same_dataset_is_ordinary_work_once_the_instance_has_the_dimension():
+    """The verdict is about the instance's dimensions, not about the column's name."""
+    ic = InstanceConfigFactory.create(name='status-has-dim', config_source='database')
+    ctx = _gemeindefein_ctx()
+    ctx.dimensions = {'district': object()}
+
+    assert status_for(ic, ctx, DS_ID).verdict != 'dvc only'

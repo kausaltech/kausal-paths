@@ -17,8 +17,11 @@ reports a verdict:
     new           the model declares it but there is no DB row yet
     unreadable    the row claims a DVC source that will not read at the pinned commit
     db only       no DVC source: authored in the admin, so nothing to import
+    dvc only      indexed by columns this instance has no dimension for, so it cannot be
+                  imported at all; the runtime reads it from DVC and the nodes slice it
 
-and then prints the commands to run, in the order they have to happen.
+and then prints the commands to run, in the order they have to happen. Verdicts that are not
+work to do — ``current``, ``db only``, ``dvc only`` — are left out of that list.
 
     python manage.py dataset_status mainz-bisko
     python manage.py dataset_status bisko mainz-bisko augsburg-bisko --stale-only
@@ -55,6 +58,7 @@ VERDICT_STYLE = {
     'new': 'cyan',
     'unreadable': 'red',
     'db only': 'dim',
+    'dvc only': 'dim',
 }
 
 
@@ -66,7 +70,7 @@ class DatasetStatus:
 
     @property
     def is_stale(self) -> bool:
-        return self.verdict not in ('current', 'db only')
+        return self.verdict not in ('current', 'db only', 'dvc only')
 
 
 def candidate_dataset_ids(ic: InstanceConfig, ctx: Context) -> list[str]:
@@ -98,6 +102,24 @@ def status_for(ic: InstanceConfig, ctx: Context, ds_id: str) -> DatasetStatus:
         return DatasetStatus(ds_id, 'unreadable', summary)
 
     meta = df.get_meta()
+
+    # A Germany-wide, gemeindefein dataset is indexed by columns like `district`, `ags` and
+    # `municipality`, which are not dimensions of any one city. `sync_dimensions` resolves
+    # every index column through `ctx.dimensions[col]`, so importing one raises
+    # `KeyError: 'district'` -- correctly, because a per-municipality index has no business
+    # becoming an instance dimension. These datasets stay external placeholders and the
+    # runtime reads them from DVC, with each node filtering to its own city at load time.
+    #
+    # Reporting them as `import` sent people to run the one command that cannot work, over
+    # and over. They are not work; they are the finished state.
+    unknown_index = [col for col in meta.dim_ids if col not in ctx.dimensions]
+    if unknown_index:
+        return DatasetStatus(
+            ds_id,
+            'dvc only',
+            'indexed by ' + ', '.join(sorted(unknown_index)) + ' — not dimensions of this instance',
+        )
+
     plan = build_dataset_plan(
         ds_id=ds_id,
         dataset=dataset,
