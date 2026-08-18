@@ -22,7 +22,7 @@ from nodes.instance_serialization import (
     NodeSnapshot,
     build_instance_snapshot,
 )
-from nodes.models import NodeEdge
+from nodes.models import NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 
 if TYPE_CHECKING:
@@ -343,12 +343,13 @@ def test_revisioned_content_round_trips_through_instance_export(empty_db_instanc
 def test_build_instance_snapshot_does_not_hydrate_related_specs(empty_db_instance: InstanceConfig):
     source = NodeConfigFactory.create(instance=empty_db_instance, identifier='source')
     target = NodeConfigFactory.create(instance=empty_db_instance, identifier='target')
-    NodeEdge.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=empty_db_instance,
-        from_node=source,
-        to_node=target,
-        from_port=uuid.uuid4(),
-        to_port=uuid.uuid4(),
+        source_node=source,
+        node=target,
+        source_port_id=uuid.uuid4(),
+        port_id=uuid.uuid4(),
+        position=0,
     )
 
     with CaptureQueriesContext(connection) as queries:
@@ -356,11 +357,9 @@ def test_build_instance_snapshot_does_not_hydrate_related_specs(empty_db_instanc
 
     assert [(edge.from_node, edge.to_node) for edge in snapshot.edge_bindings] == [(source.uuid, target.uuid)]
     node_sql = next(query['sql'] for query in queries if 'FROM "nodes_nodeconfig"' in query['sql'])
-    edge_sql = next(query['sql'] for query in queries if 'FROM "nodes_nodeedge"' in query['sql'])
-    port_sql = next(query['sql'] for query in queries if 'FROM "nodes_datasetport"' in query['sql'])
+    binding_sql = next(query['sql'] for query in queries if 'FROM "nodes_nodeinputportbinding"' in query['sql'])
     assert 'JOIN "nodes_instanceconfig"' not in node_sql
-    assert '"nodes_nodeconfig"."spec"' not in edge_sql
-    assert '"nodes_nodeconfig"."spec"' not in port_sql
+    assert '"nodes_nodeconfig"."spec"' not in binding_sql
 
 
 # ---------------------------------------------------------------------------
@@ -692,14 +691,13 @@ def test_poc_delete_node_cascades_under_single_operation(
             output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
         ),
     )
-    from nodes.models import NodeEdge
-
-    edge = NodeEdge.objects.create(
+    edge = NodeInputPortBinding.objects.create(
         instance=empty_db_instance,
-        from_node=nc_a,
-        to_node=nc_b,
-        from_port=_pu('default'),
-        to_port=_pu('input_1'),
+        source_node=nc_a,
+        node=nc_b,
+        source_port_id=_pu('default'),
+        port_id=_pu('input_1'),
+        position=0,
     )
     src_pk = nc_a.pk
 
@@ -727,7 +725,11 @@ def test_poc_delete_node_cascades_under_single_operation(
     edge_entry = next(e for e in entries if e.action == 'node.edges.delete')
     assert edge_entry.data['target_uuid'] == str(edge.uuid)
     assert edge_entry.data['after'] is None
-    assert edge_entry.data['before']['from_node'] == str(nc_a.uuid)
+    assert edge_entry.data['before']['source'] == {
+        'kind': 'node',
+        'node_id': str(nc_a.uuid),
+        'port_id': str(_pu('default')),
+    }
 
     # Node is actually gone
     assert not NodeConfig.objects.filter(pk=src_pk).exists()
@@ -834,11 +836,11 @@ def _materialized_df_value(content: dict[str, Any]) -> float:
 
 
 def test_publish_pins_current_dataset_materialization(empty_db_instance: InstanceConfig):
-    from nodes.models import DatasetPort, InstanceRevisionDatasetPin
+    from nodes.models import InstanceRevisionDatasetPin
 
     dataset, metric, _point, materialization = _make_materialized_dataset(empty_db_instance, 'pinned', '10')
     node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
-    DatasetPort.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=empty_db_instance,
         node=node,
         port_id=uuid.uuid4(),
@@ -876,11 +878,11 @@ def test_publish_pins_current_dataset_materialization(empty_db_instance: Instanc
 
 
 def test_published_runtime_rejects_missing_relational_dataset_pin(empty_db_instance: InstanceConfig):
-    from nodes.models import DatasetPort, InstanceRevisionDatasetPin, PreferredInstanceSource
+    from nodes.models import InstanceRevisionDatasetPin, PreferredInstanceSource
 
     dataset, metric, _point, _materialization = _make_materialized_dataset(empty_db_instance, 'missing-pin', '10')
     node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
-    DatasetPort.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=empty_db_instance,
         node=node,
         port_id=uuid.uuid4(),
@@ -901,11 +903,11 @@ def test_published_dataset_payload_is_isolated_from_later_draft_edit(empty_db_in
     from django.db import transaction
 
     from nodes.dataset_materialization import refresh_dataset_materialization
-    from nodes.models import DatasetPort, InstanceRevisionDatasetPin
+    from nodes.models import InstanceRevisionDatasetPin
 
     dataset, metric, point, _materialization = _make_materialized_dataset(empty_db_instance, 'isolated', '10')
     node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
-    DatasetPort.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=empty_db_instance,
         node=node,
         port_id=uuid.uuid4(),
@@ -939,7 +941,7 @@ def test_draft_and_published_runtime_share_serialized_dataset_path(empty_db_inst
     from nodes.datasets import DatasetWithFilters, SerializedDBDataset
     from nodes.defs.node_defs import SimpleConfig
     from nodes.defs.port_def import InputPortDef, OutputPortDef
-    from nodes.models import DatasetPort, NodeConfig, PreferredInstanceSource
+    from nodes.models import NodeConfig, PreferredInstanceSource
     from nodes.tests.test_model_editor import SIMPLE_NODE_CLASS, _port_uuid
     from nodes.units import unit_registry
 
@@ -971,7 +973,7 @@ def test_draft_and_published_runtime_share_serialized_dataset_path(empty_db_inst
             ],
         ),
     )
-    DatasetPort.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=empty_db_instance,
         node=node,
         port_id=port_id,
@@ -1048,21 +1050,21 @@ def test_current_dataset_payload_store_bulk_loads_once(empty_db_instance: Instan
 
 def test_revision_dataset_payload_store_bulk_loads_once(empty_db_instance: InstanceConfig):
     from nodes.datasets import DatasetPayloadRef, RevisionDatasetPayloadStore
-    from nodes.models import DatasetPort
 
     node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
-    for identifier, value in [('published-one', '1'), ('published-two', '2')]:
+    for dataset_index, (identifier, value) in enumerate([('published-one', '1'), ('published-two', '2')]):
         dataset, metric, _point, _materialization = _make_materialized_dataset(
             empty_db_instance,
             identifier,
             value,
         )
-        DatasetPort.objects.create(
+        NodeInputPortBinding.objects.create(
             instance=empty_db_instance,
             node=node,
             port_id=uuid.uuid4(),
             dataset=dataset,
             metric=metric,
+            dataset_index=dataset_index,
         )
     empty_db_instance.publish_instance()
     empty_db_instance.refresh_from_db()
@@ -1094,11 +1096,11 @@ def test_revision_dataset_payload_store_bulk_loads_once(empty_db_instance: Insta
 def test_pinned_dataset_revision_is_protected_until_instance_is_deleted(empty_db_instance: InstanceConfig):
     from django.db.models.deletion import ProtectedError
 
-    from nodes.models import DatasetPort, InstanceRevisionDatasetPin
+    from nodes.models import InstanceRevisionDatasetPin
 
     dataset, metric, _point, _materialization = _make_materialized_dataset(empty_db_instance, 'retained', '10')
     node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
-    DatasetPort.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=empty_db_instance,
         node=node,
         port_id=uuid.uuid4(),
@@ -1156,7 +1158,7 @@ def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db
     )
 
     from nodes.instance_serialization import export_instance, import_instance_datasets
-    from nodes.models import DatasetMaterialization, DatasetPort, NodeConfig
+    from nodes.models import DatasetMaterialization, NodeConfig
 
     source = empty_db_instance
     target_instance = InstanceFactory.create()
@@ -1193,7 +1195,7 @@ def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db
     )
     placeholder_metric = DatasetMetricFactory.create(schema=placeholder_schema, name='value', label='Value', unit='kt/a')
     node = NodeConfig.objects.create(instance=target, identifier='receiver', name='Receiver')
-    port = DatasetPort.objects.create(
+    port = NodeInputPortBinding.objects.create(
         instance=target,
         node=node,
         port_id=uuid.uuid4(),
@@ -1221,6 +1223,7 @@ def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db
 
     port.refresh_from_db()
     assert port.dataset == copied_dataset
+    assert port.metric is not None
     assert port.metric.schema == copied_dataset.schema
 
 
@@ -1450,7 +1453,7 @@ def _build_edge_endpoints(db_instance: InstanceConfig):
 
 
 def test_poc_create_edge_emits_change_operation(gql_client, empty_db_instance: InstanceConfig):
-    from nodes.models import InstanceChangeOperation, InstanceModelLogEntry, NodeEdge
+    from nodes.models import InstanceChangeOperation, InstanceModelLogEntry
 
     src, dst = _build_edge_endpoints(empty_db_instance)
 
@@ -1473,21 +1476,23 @@ def test_poc_create_edge_emits_change_operation(gql_client, empty_db_instance: I
     assert len(entries) == 1
     assert entries[0].action == 'edge.create'
     assert entries[0].data['before'] is None
-    assert entries[0].data['after']['from_node'] == str(src.uuid)
-    assert NodeEdge.objects.filter(instance=empty_db_instance).count() == 1
+    assert entries[0].data['after']['source']['kind'] == 'node'
+    assert entries[0].data['after']['source']['node_id'] == str(src.uuid)
+    assert NodeInputPortBinding.objects.filter(instance=empty_db_instance, source_node__isnull=False).count() == 1
 
 
 def test_poc_delete_edge_emits_change_operation(gql_client, empty_db_instance: InstanceConfig):
-    from nodes.models import InstanceChangeOperation, InstanceModelLogEntry, NodeEdge
+    from nodes.models import InstanceChangeOperation, InstanceModelLogEntry
     from nodes.tests.test_model_editor import _port_uuid as _pu
 
     src, dst = _build_edge_endpoints(empty_db_instance)
-    edge = NodeEdge.objects.create(
+    edge = NodeInputPortBinding.objects.create(
         instance=empty_db_instance,
-        from_node=src,
-        to_node=dst,
-        from_port=_pu('default'),
-        to_port=_pu('input'),
+        source_node=src,
+        node=dst,
+        source_port_id=_pu('default'),
+        port_id=_pu('input'),
+        position=0,
     )
 
     gql_client.query_data(
@@ -1500,7 +1505,7 @@ def test_poc_delete_edge_emits_change_operation(gql_client, empty_db_instance: I
     entry = InstanceModelLogEntry.objects.filter(operation=op).first()
     assert entry is not None
     assert entry.action == 'edge.delete'
-    assert entry.data['before']['from_node'] == str(src.uuid)
+    assert entry.data['before']['source']['node_id'] == str(src.uuid)
     assert entry.data['after'] is None
 
 
@@ -1515,7 +1520,6 @@ def test_create_edge_auto_creates_matching_target_port(
         InstanceChangeOperation,
         InstanceModelLogEntry,
         NodeConfig,
-        NodeEdge,
     )
     from nodes.tests.test_model_editor import _port_uuid as _pu
     from nodes.units import unit_registry
@@ -1557,19 +1561,21 @@ def test_create_edge_auto_creates_matching_target_port(
             ],
         ),
     )
-    NodeEdge.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=empty_db_instance,
-        from_node=other,
-        to_node=dst,
-        from_port=_pu('default'),
-        to_port=_pu('existing_a'),
+        source_node=other,
+        node=dst,
+        source_port_id=_pu('default'),
+        port_id=_pu('existing_a'),
+        position=0,
     )
-    NodeEdge.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=empty_db_instance,
-        from_node=other,
-        to_node=dst,
-        from_port=_pu('default'),
-        to_port=_pu('existing_b'),
+        source_node=other,
+        node=dst,
+        source_port_id=_pu('default'),
+        port_id=_pu('existing_b'),
+        position=0,
     )
 
     gql_client.query_data(
@@ -1592,9 +1598,9 @@ def test_create_edge_auto_creates_matching_target_port(
     assert len(dst_with_spec.spec.input_ports) == 3
 
     # The new edge wires to the freshly-added port.
-    new_edge = NodeEdge.objects.filter(instance=empty_db_instance, from_node=src, to_node=dst).first()
+    new_edge = NodeInputPortBinding.objects.filter(instance=empty_db_instance, source_node=src, node=dst).first()
     assert new_edge is not None
-    assert new_edge.to_port == dst_with_spec.spec.input_ports[-1].id
+    assert new_edge.port_id == dst_with_spec.spec.input_ports[-1].id
 
     # One change operation with two entries: node.update + edge.create.
     op = InstanceChangeOperation.objects.filter(instance_config=empty_db_instance, action='edge.create').first()

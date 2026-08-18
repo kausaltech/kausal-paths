@@ -166,9 +166,9 @@ class DatasetPlan:
         naming the bindings, than to let it surface later as a missing metric during
         ``sync_instance_to_db`` -- or not at all, as silently empty input.
 
-        "Binds" covers both ``DatasetPort`` and ``NodeInputPortBinding``; each holds a
-        PROTECTed reference, so counting only one of them turns a clean refusal into a
-        ``ProtectedError`` halfway through the sync.
+        "Binds" means a ``NodeInputPortBinding`` row; each holds a PROTECTed reference,
+        so an under-count turns a clean refusal into a ``ProtectedError`` halfway
+        through the sync.
         """
         return [
             f'metric {name!r} would be dropped but {n} model binding(s) still bind it' for name, n in self.dropped_metrics if n
@@ -183,7 +183,7 @@ def build_dataset_plan(
     incoming_commit: str | None,
 ) -> DatasetPlan:
     """Diff the DB state of one dataset against the DVC data about to be imported."""
-    from nodes.models import DatasetPort, NodeInputPortBinding
+    from nodes.models import NodeInputPortBinding
 
     plan = DatasetPlan(
         ds_id=ds_id,
@@ -208,13 +208,14 @@ def build_dataset_plan(
     incoming = set(incoming_metric_cols)
     plan.kept_metrics = sorted(name for name in existing if name in incoming)
     plan.added_metrics = sorted(name for name in incoming if name not in existing)
-    # Both models hold a PROTECTed reference to a metric, and both have to be counted:
-    # missing one means promising the sync can proceed and then dying on the delete, with
-    # the transaction rolled back and the operator none the wiser about what to clear.
+    # Every binding holds a PROTECTed reference to its metric, and every one has to be
+    # counted: missing one means promising the sync can proceed and then dying on the
+    # delete, with the transaction rolled back and the operator none the wiser about
+    # what to clear.
     plan.dropped_metrics = sorted(
         (
             name,
-            DatasetPort.objects.filter(metric=metric).count() + NodeInputPortBinding.objects.filter(metric=metric).count(),
+            NodeInputPortBinding.objects.filter(metric=metric).count(),
         )
         for name, metric in existing.items()
         if name not in incoming

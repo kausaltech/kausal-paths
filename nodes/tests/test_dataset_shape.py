@@ -174,7 +174,7 @@ def test_profile_query_count_is_constant_with_dataset_count() -> None:
 
 
 def test_published_profile_uses_pinned_shape_not_live_rows() -> None:
-    from nodes.models import DatasetPort, InstanceRevisionDatasetPin
+    from nodes.models import InstanceRevisionDatasetPin, NodeInputPortBinding
 
     config = _config()
     category = DimensionCategoryFactory.create(identifier='pinned')
@@ -189,7 +189,7 @@ def test_published_profile_uses_pinned_shape_not_live_rows() -> None:
     )
     materialize_dataset(dataset)
     node = NodeConfigFactory.create(instance=config, identifier='owner', name='Owner')
-    DatasetPort.objects.create(instance=config, node=node, port_id=uuid4(), dataset=dataset, metric=metric)
+    NodeInputPortBinding.objects.create(instance=config, node=node, port_id=uuid4(), dataset=dataset, metric=metric)
     config.publish_instance()
     config.refresh_from_db()
     graph = _graph(config, [_dataset_meta(dataset, [metric], category.dimension.uuid)])

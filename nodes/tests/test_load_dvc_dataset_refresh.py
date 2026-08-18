@@ -12,7 +12,7 @@ import pytest
 from kausal_common.datasets.models import DataPoint, Dataset, DatasetMetric
 
 from nodes.management.commands.load_dvc_dataset import Command, build_dataset_plan
-from nodes.models import DatasetPort, NodeConfig, NodeInputPortBinding
+from nodes.models import NodeConfig, NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 
 pytestmark = pytest.mark.django_db
@@ -66,7 +66,7 @@ def test_force_reimport_replaces_data_in_place():
 
 
 def test_force_reimport_survives_a_protected_reference():
-    """A DatasetPort binding the dataset used to make --force fail with ProtectedError."""
+    """An input binding holding the dataset used to make --force fail with ProtectedError."""
     ic = InstanceConfigFactory.create(name='refresh-ported', config_source='database')
     ctx = make_context(pl.DataFrame({'Year': [2020], 'value': [1.0]}), {'value': 'kt'}, commit='aaa111')
     Command().sync_dataset(ic, ctx, DS_ID)
@@ -74,7 +74,7 @@ def test_force_reimport_survives_a_protected_reference():
     dataset = Dataset.objects.get(identifier=DS_ID)
     metric = DatasetMetric.objects.get(schema=dataset.schema, name='value')
     node: NodeConfig = NodeConfigFactory.create(instance=ic)
-    port = DatasetPort.objects.create(
+    binding = NodeInputPortBinding.objects.create(
         instance=ic,
         node=node,
         port_id=UUID('11111111-1111-1111-1111-111111111111'),
@@ -85,8 +85,8 @@ def test_force_reimport_survives_a_protected_reference():
     newer = make_context(pl.DataFrame({'Year': [2020, 2021], 'value': [5.0, 6.0]}), {'value': 'kt'}, commit='bbb222')
     Command().sync_dataset(ic, newer, DS_ID, force=True)
 
-    port.refresh_from_db()
-    assert port.dataset_id == dataset.pk, 'the binding must still resolve after the refresh'
+    binding.refresh_from_db()
+    assert binding.dataset_id == dataset.pk, 'the binding must still resolve after the refresh'
     assert DataPoint.objects.filter(dataset=dataset).count() == 2
 
 
@@ -156,7 +156,7 @@ def test_provenance_reports_disagreeing_pins(monkeypatch: pytest.MonkeyPatch):
     assert override.spec.commit == 'yaml111'
 
 
-def test_plan_flags_a_dropped_metric_that_ports_still_bind():
+def test_plan_flags_a_dropped_metric_that_bindings_still_hold():
     """The diagnosis names the blocker up front instead of leaving it for sync_instance_to_db."""
     ic = InstanceConfigFactory.create(name='refresh-blocked', config_source='database')
     Command().sync_dataset(
@@ -164,7 +164,7 @@ def test_plan_flags_a_dropped_metric_that_ports_still_bind():
     )
     dataset = Dataset.objects.get(identifier=DS_ID)
     metric = DatasetMetric.objects.get(schema=dataset.schema, name='old_col')
-    DatasetPort.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=ic,
         node=NodeConfigFactory.create(instance=ic),
         port_id=UUID('22222222-2222-2222-2222-222222222222'),
@@ -185,11 +185,11 @@ def test_plan_flags_a_dropped_metric_that_ports_still_bind():
     assert plan.blockers, 'dropping a bound metric must be reported as a blocker'
 
 
-def test_plan_flags_a_dropped_metric_that_only_an_input_binding_holds():
+def test_plan_counts_every_binding_that_holds_a_dropped_metric():
     """
-    An input binding protects a metric just as a dataset port does; count both.
+    The blocker names how many bindings still hold the metric, not just that one does.
 
-    Counting only the ports made the command report a clean plan and then die on
+    Under-counting once made the command report a clean plan and then die on
     ``ProtectedError`` partway through the sync — after deleting the data points, with the
     transaction rolled back and nothing to tell the operator what still held the metric.
     """
@@ -199,13 +199,14 @@ def test_plan_flags_a_dropped_metric_that_only_an_input_binding_holds():
     )
     dataset = Dataset.objects.get(identifier=DS_ID)
     metric = DatasetMetric.objects.get(schema=dataset.schema, name='old_col')
-    NodeInputPortBinding.objects.create(
-        instance=ic,
-        node=NodeConfigFactory.create(instance=ic),
-        port_id=UUID('33333333-3333-3333-3333-333333333333'),
-        dataset=dataset,
-        metric=metric,
-    )
+    for _ in range(2):
+        NodeInputPortBinding.objects.create(
+            instance=ic,
+            node=NodeConfigFactory.create(instance=ic),
+            port_id=UUID('33333333-3333-3333-3333-333333333333'),
+            dataset=dataset,
+            metric=metric,
+        )
 
     plan = build_dataset_plan(
         ds_id=DS_ID,
@@ -215,8 +216,8 @@ def test_plan_flags_a_dropped_metric_that_only_an_input_binding_holds():
         incoming_commit='bbb222',
     )
 
-    assert plan.dropped_metrics == [('old_col', 1)]
-    assert plan.blockers, 'an input binding must block the drop, not just a dataset port'
+    assert plan.dropped_metrics == [('old_col', 2)]
+    assert plan.blockers, 'every binding that holds the metric must block the drop'
 
 
 def test_a_valueless_cell_becomes_a_null_data_point_rather_than_being_skipped():

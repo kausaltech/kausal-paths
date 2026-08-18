@@ -2,9 +2,9 @@
 Rename a dataset's metric rows so they match columns that were renamed in the DVC data.
 
 When a DVC dataset is re-uploaded with a metric column under a new name, importing it wants
-to drop the old metric and add the new one. It cannot: ``DatasetPort.metric`` and
-``NodeInputPortBinding.metric`` both hold PROTECTed references, so ``load_dvc_dataset``
-refuses (or, before that refusal counted both models, died halfway through).
+to drop the old metric and add the new one. It cannot: ``NodeInputPortBinding.metric``
+holds a PROTECTed reference, so ``load_dvc_dataset`` refuses (or, before that refusal
+counted every binding, died halfway through).
 
 Deleting the bindings and rebuilding them by re-syncing works but throws away and recreates
 identity for no reason. Renaming the metric row in place is better on every count: the
@@ -35,7 +35,7 @@ from kausal_common.datasets.models import Dataset, DatasetMetric
 
 from common import polars as ppl
 from nodes.management.commands.load_dvc_dataset import apply_repo_provenance, resolve_repo_provenance
-from nodes.models import DatasetPort, InstanceConfig, NodeInputPortBinding
+from nodes.models import InstanceConfig, NodeInputPortBinding
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser
@@ -62,7 +62,7 @@ class RenamePlan:
 
 
 def _binding_count(metric: DatasetMetric) -> int:
-    return DatasetPort.objects.filter(metric=metric).count() + NodeInputPortBinding.objects.filter(metric=metric).count()
+    return NodeInputPortBinding.objects.filter(metric=metric).count()
 
 
 def _explicit_renames(existing: dict[str, DatasetMetric], explicit: dict[str, str], plan: RenamePlan) -> None:

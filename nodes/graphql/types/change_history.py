@@ -60,6 +60,8 @@ class ChangeTargetKind(Enum):
 # unknown until someone teaches the mapping.
 _CT_TO_KIND: dict[tuple[str, str], ChangeTargetKind] = {
     ('nodes', 'nodeconfig'): ChangeTargetKind.NODE,
+    # Legacy binding tables; live entries carry 'nodeinputportbinding',
+    # discriminated by the payload's source kind in _resolve_target_kind.
     ('nodes', 'nodeedge'): ChangeTargetKind.EDGE,
     ('nodes', 'datasetport'): ChangeTargetKind.DATASET_PORT,
     ('nodes', 'instanceconfig'): ChangeTargetKind.INSTANCE,
@@ -73,11 +75,22 @@ def _resolve_target_kind(entry: InstanceModelLogEntry) -> ChangeTargetKind:
     ct = entry.content_type
     if ct is None:
         return ChangeTargetKind.UNKNOWN
+    if (ct.app_label, ct.model) == ('nodes', 'nodeinputportbinding'):
+        # The unified binding row is edge- or dataset-sourced; the payload
+        # snapshot carries the source discriminator even after deletion.
+        data = entry.data or {}
+        snapshot = data.get('after') or data.get('before') or {}
+        source_kind = (snapshot.get('source') or {}).get('kind')
+        if source_kind == 'node':
+            return ChangeTargetKind.EDGE
+        if source_kind == 'dataset':
+            return ChangeTargetKind.DATASET_PORT
+        return ChangeTargetKind.UNKNOWN
     return _CT_TO_KIND.get((ct.app_label, ct.model), ChangeTargetKind.UNKNOWN)
 
 
 def fetch_entity_history_by_uuid(
-    django_model: type[Model],
+    django_model: type[Model] | tuple[type[Model], ...],
     target_uuid: UUID,
     info: gql.Info,
     *,
@@ -89,7 +102,9 @@ def fetch_entity_history_by_uuid(
 
     UUID lookup survives deletion of the target row. Permission is checked
     against the owning InstanceConfig recorded by each operation, so this
-    helper is safe even when a type later gains a new query path.
+    helper is safe even when a type later gains a new query path. Several
+    model classes may be given when an entity's rows migrated between
+    tables under the same UUID (the unified input-binding flip).
     """
     from django.contrib.contenttypes.models import ContentType
 
@@ -101,12 +116,13 @@ def fetch_entity_history_by_uuid(
     if user is None:
         return []
 
-    ct = ContentType.objects.get_for_model(django_model)
+    models = django_model if isinstance(django_model, tuple) else (django_model,)
+    cts = [ContentType.objects.get_for_model(model) for model in models]
     permitted_instances = InstanceConfig.permission_policy().instances_user_has_permission_for(user, 'change')
     qs = (
         InstanceModelLogEntry.objects
         .filter(
-            content_type=ct,
+            content_type__in=cts,
             target_uuid=target_uuid,
             operation__instance_config__in=permitted_instances,
         )
@@ -212,8 +228,7 @@ def _resolve_target(entry: InstanceModelLogEntry) -> Any:
     or when the target kind has no GQL representation yet. The ``before``
     snapshot in the entry data carries what was there for UI fallback.
     """
-    from nodes.graphql.types.graph import NodeEdgeType
-    from nodes.models import DatasetPort, NodeConfig, NodeEdge
+    from nodes.models import DatasetPort, NodeConfig, NodeEdge, NodeInputPortBinding
 
     ct = entry.content_type
     if ct is None or entry.object_id is None:
@@ -238,16 +253,38 @@ def _resolve_target(entry: InstanceModelLogEntry) -> Any:
         instance = ic.get_instance()
         return instance.context.nodes.get(nc.identifier)
 
-    if model is NodeEdge:
-        edge = NodeEdge.objects.filter(pk=pk).select_related('from_node', 'to_node').first()
-        return NodeEdgeType.from_node_edge(edge) if edge else None
-
-    if model is DatasetPort:
-        return DatasetPort.objects.filter(pk=pk).first()
+    if model is NodeInputPortBinding or model in (NodeEdge, DatasetPort):
+        return _resolve_binding_target(entry, pk, by_pk=model is NodeInputPortBinding)
 
     # Dimension / DimensionCategory / DataPoint / spec-embedded: no GQL
     # representation yet — surface the shape via ``before`` / ``after``.
     return None
+
+
+def _resolve_binding_target(entry: InstanceModelLogEntry, pk: int, *, by_pk: bool) -> Any:
+    """
+    Resolve a binding log entry to its GQL object through the unified table.
+
+    Legacy-table entries resolve through the shared binding UUID; the legacy
+    rows themselves are gone.
+    """
+    from nodes.graphql.types.graph import NodeEdgeType
+    from nodes.models import NodeInputPortBinding
+
+    qs = NodeInputPortBinding.objects.select_related('node', 'source_node', 'dataset', 'metric')
+    if by_pk:
+        binding = qs.filter(pk=pk).first()
+    elif entry.target_uuid is not None:
+        binding = qs.filter(uuid=entry.target_uuid).first()
+    else:
+        binding = None
+    if binding is None:
+        return None
+    if binding.source_node_id is not None:
+        return NodeEdgeType.from_input_binding(binding)
+    from nodes.graphql.bindings import _to_gql
+
+    return _to_gql(binding)
 
 
 @sb.type

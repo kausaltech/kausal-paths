@@ -35,7 +35,6 @@ from nodes.defs import (
 )
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.goals import NodeGoals
-from nodes.models import NodeEdge
 from nodes.visualizations import NodeVisualizations
 
 if TYPE_CHECKING:
@@ -52,7 +51,7 @@ if TYPE_CHECKING:
     from nodes.defs.node_defs import NodeSpecExtra
     from nodes.edges import Edge, EdgeDimension
     from nodes.instance import Instance
-    from nodes.models import DatasetPort, InstanceConfig, NodeConfig
+    from nodes.models import InstanceConfig, NodeConfig
     from nodes.node import Node, NodeMetric
     from nodes.scenario import Scenario
     from params import Parameter
@@ -715,13 +714,8 @@ def _resolve_from_port(edge: Edge, from_node: NodeSpec, metric_id: str) -> Outpu
 # ---------------------------------------------------------------------------
 
 
-def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, NodeConfig]) -> int:
-    from nodes.instance_serialization import edge_match_keys, existing_edge_identities, match_preserved_uuids
-
-    # Recreate edges. Rebuilding keeps pk order equal to authored order, but
-    # the row UUID is the durable binding identity and must survive the rewrite.
-    existing = existing_edge_identities(ic)
-    NodeEdge.objects.filter(instance=ic).delete()
+def _collect_edge_rows(ic: InstanceConfig, ctx: Context, node_configs: dict[str, NodeConfig]) -> tuple[int, list[dict[str, Any]]]:
+    """Resolve runtime edges into edge-branch row kwargs, in ctx (source-grouped) order."""
     edge_count = 0
     edge_rows: list[dict[str, Any]] = []
     for node in ctx.nodes.values():
@@ -752,24 +746,16 @@ def _update_edges(ic: InstanceConfig, ctx: Context, node_configs: dict[str, Node
                 edge_rows.append(
                     dict(
                         instance=ic,
-                        from_node=from_nc,
-                        from_port=from_port.id,
-                        to_node=to_nc,
-                        to_port=to_port.id,
+                        source_node=from_nc,
+                        source_port_id=from_port.id,
+                        node=to_nc,
+                        port_id=to_port.id,
                         transformations=edge.to_transforms(),
                         tags=list(edge.tags) if edge.tags else [],
                     )
                 )
             edge_count += 1
-    match_keys = [
-        edge_match_keys(row['from_node'].uuid, row['from_port'], row['to_node'].uuid, row['to_port']) for row in edge_rows
-    ]
-    edge_objs = [
-        NodeEdge(**row, **({'uuid': matched_uuid} if matched_uuid is not None else {}))
-        for row, matched_uuid in zip(edge_rows, match_preserved_uuids(existing, match_keys), strict=True)
-    ]
-    NodeEdge.objects.bulk_create(edge_objs)
-    return edge_count
+    return edge_count, edge_rows
 
 
 def _resolve_dataset_ports(
@@ -822,7 +808,9 @@ def _resolve_dataset_ports(
                 port_id=_dataset_port_id(node, idx, port_column),
                 dataset=dataset_obj,
                 metric=metric,
-                spec=spec,
+                transformations=list(spec.transformations),
+                tags=list(spec.tags),
+                dataset_spec=spec,
                 dataset_index=idx,
             )
         )
@@ -874,32 +862,41 @@ def _dataset_metric_binding_key(metric: DatasetMetric) -> str:
     return str(metric.uuid)
 
 
-def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[str, NodeConfig]) -> int:
-    """Create DatasetPort objects linking datasets to node input ports."""
-    from nodes.datasets import FixedDataset
-    from nodes.instance_serialization import (
-        dataset_port_match_keys,
-        existing_dataset_port_identities,
-        match_preserved_uuids,
-    )
-    from nodes.models import DatasetPort
+def _update_bindings(ic: InstanceConfig, ctx: Context, node_configs: dict[str, NodeConfig]) -> tuple[int, int]:
+    """
+    Reconcile ``NodeInputPortBinding`` rows from the runtime graph.
 
-    # Rebuilding keeps pk order deterministic, but the row UUID is the
-    # durable binding identity and must survive the rewrite.
-    existing = existing_dataset_port_identities(ic)
-    DatasetPort.objects.filter(instance=ic).delete()
+    Returns (edge count, dataset-binding row count). Row UUIDs are the durable
+    binding identity and are carried over by structural matching.
+    """
+    from nodes.datasets import FixedDataset
+    from nodes.input_bindings import reconcile_input_bindings
+    from nodes.instance_serialization import (
+        DatasetPortSnapshot,
+        EdgeSnapshot,
+        dataset_port_match_keys,
+        edge_match_keys,
+        existing_dataset_port_identities,
+        existing_edge_identities,
+        match_preserved_uuids,
+        ordered_binding_snapshots,
+    )
+    from nodes.models import NodeInputPortBinding
+
+    existing_edges = existing_edge_identities(ic)
+    existing_ports = existing_dataset_port_identities(ic)
+
+    edge_count, edge_rows = _collect_edge_rows(ic, ctx, node_configs)
 
     db_datasets = _get_db_datasets(ic)
     all_schema_pks = _collect_dataset_schema_pks(ctx, db_datasets)
-    if not all_schema_pks:
-        return 0
 
     # Build lookup: (schema_pk, metric_name) -> DatasetMetric
     metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric] = {}
     for metric in DatasetMetric.objects.filter(schema__pk__in=all_schema_pks):
         metrics_by_schema_and_name[(metric.schema.pk, _dataset_metric_binding_key(metric))] = metric
 
-    rows: list[dict[str, Any]] = []
+    port_rows: list[dict[str, Any]] = []
     for node in ctx.nodes.values():
         nc = node_configs.get(node.id)
         if nc is None:
@@ -910,17 +907,50 @@ def _update_dataset_ports(ic: InstanceConfig, ctx: Context, node_configs: dict[s
                 continue
             if not isinstance(ds_instance, DatasetWithFilters):
                 continue
-            rows.extend(_resolve_dataset_ports(ic, nc, node, idx, ds_instance, db_datasets, metrics_by_schema_and_name))
+            port_rows.extend(_resolve_dataset_ports(ic, nc, node, idx, ds_instance, db_datasets, metrics_by_schema_and_name))
 
-    match_keys = [
-        dataset_port_match_keys(row['node'].uuid, row['dataset'].pk, row['dataset_index'], row['metric'].pk) for row in rows
+    edge_uuids = match_preserved_uuids(
+        existing_edges,
+        [edge_match_keys(row['source_node'].uuid, row['source_port_id'], row['node'].uuid, row['port_id']) for row in edge_rows],
+    )
+    port_uuids = match_preserved_uuids(
+        existing_ports,
+        [
+            dataset_port_match_keys(row['node'].uuid, row['dataset'].pk, row['dataset_index'], row['metric'].pk)
+            for row in port_rows
+        ],
+    )
+
+    # Minimal snapshot forms carrying only what the ordering authority reads.
+    edge_snaps = [
+        EdgeSnapshot(
+            from_node=row['source_node'].uuid,
+            to_node=row['node'].uuid,
+            from_port=row['source_port_id'],
+            to_port=row['port_id'],
+        )
+        for row in edge_rows
     ]
-    port_objs = [
-        DatasetPort(**row, **({'uuid': matched_uuid} if matched_uuid is not None else {}))
-        for row, matched_uuid in zip(rows, match_preserved_uuids(existing, match_keys), strict=True)
+    port_snaps = [
+        DatasetPortSnapshot(
+            node=row['node'].uuid,
+            dataset=row['dataset'].identifier or str(row['dataset'].uuid),
+            port_id=row['port_id'],
+            metric=row['metric'].name or str(row['metric'].uuid),
+            dataset_index=row['dataset_index'],
+        )
+        for row in port_rows
     ]
-    DatasetPort.objects.bulk_create(port_objs)
-    return len(port_objs)
+    row_by_snap = {id(snap): (row, matched) for snap, row, matched in zip(edge_snaps, edge_rows, edge_uuids, strict=True)}
+    row_by_snap.update((id(snap), (row, matched)) for snap, row, matched in zip(port_snaps, port_rows, port_uuids, strict=True))
+
+    desired: list[NodeInputPortBinding] = []
+    for item, position in ordered_binding_snapshots(edge_snaps, port_snaps):
+        row, matched_uuid = row_by_snap[id(item)]
+        identity_kwargs = {'uuid': matched_uuid} if matched_uuid is not None else {}
+        desired.append(NodeInputPortBinding(**row, position=position, **identity_kwargs))
+    reconcile_input_bindings(ic, desired)
+    return edge_count, len(port_rows)
 
 
 def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
@@ -928,19 +958,23 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
     Promote binding-level forecast years to dataset defaults when unambiguous.
 
     YAML allows ``forecast_from`` per input-dataset binding. In the DB editor we
-    want the common case to be dataset-scoped, with ``DatasetPort.spec`` kept as
-    an override. If all non-null binding years for an instance dataset agree,
-    store that year on ``Dataset.spec.forecast_from`` and clear matching port
-    overrides so those ports inherit the dataset default.
+    want the common case to be dataset-scoped, with the binding's
+    ``dataset_spec`` kept as an override. If all non-null binding years for an
+    instance dataset agree, store that year on ``Dataset.spec.forecast_from``
+    and clear matching binding overrides so those bindings inherit the dataset
+    default.
     """
     from collections import defaultdict
 
     from nodes.dataset_materialization import refresh_dataset_materialization
-    from nodes.models import DatasetMaterialization, DatasetPort
+    from nodes.models import DatasetMaterialization, NodeInputPortBinding
 
-    ports_by_dataset: dict[int, list[DatasetPort]] = defaultdict(list)
-    ports = DatasetPort.objects.filter(instance=ic).select_related('dataset').order_by('dataset_id')
+    ports_by_dataset: dict[int, list[NodeInputPortBinding]] = defaultdict(list)
+    ports = (
+        NodeInputPortBinding.objects.filter(instance=ic, dataset__isnull=False).select_related('dataset').order_by('dataset_id')
+    )
     for port in ports:
+        assert port.dataset_id is not None
         ports_by_dataset[port.dataset_id].append(port)
 
     materializations = {
@@ -952,15 +986,15 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
 
     promoted = 0
     for dataset_ports in ports_by_dataset.values():
+        dataset = dataset_ports[0].dataset
+        assert dataset is not None
         # External placeholders (no real DB dataset content) are loaded via plain DVCDataset at
         # runtime, which has no fallback to Dataset.spec.forecast_from (only DBDataset.from_def
         # does). Promoting for these would clear the binding-level value with nothing left to
         # read it back, silently dropping forecast_from and breaking Forecast-column synthesis.
-        if dataset_ports[0].dataset.is_external_placeholder:
+        if dataset.is_external_placeholder:
             continue
-
-        dataset = dataset_ports[0].dataset
-        years = {port.spec.forecast_from for port in dataset_ports if port.spec.forecast_from is not None}
+        years = {port.dataset_spec.forecast_from for port in dataset_ports if port.dataset_spec.forecast_from is not None}
         if len(years) == 1:
             year = years.pop()
             spec = dict(dataset.spec or {})
@@ -970,13 +1004,13 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
                 dataset.save(update_fields=['spec'])
                 promoted += 1
 
-            changed_ports: list[DatasetPort] = []
+            changed_ports: list[NodeInputPortBinding] = []
             for port in dataset_ports:
-                if port.spec.forecast_from == year:
-                    port.spec = port.spec.without_forecast_from()
+                if port.dataset_spec.forecast_from == year:
+                    port.dataset_spec = port.dataset_spec.without_forecast_from()
                     changed_ports.append(port)
             if changed_ports:
-                DatasetPort.objects.bulk_update(changed_ports, ['spec'])
+                NodeInputPortBinding.objects.bulk_update(changed_ports, ['dataset_spec'])
 
         forecast_from = (dataset.spec or {}).get('forecast_from')
         materialization = materializations.get(dataset.pk)
@@ -986,7 +1020,7 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
     return promoted
 
 
-def sync_instance_to_db(  # noqa: PLR0915
+def sync_instance_to_db(
     instance_id: str,
     yaml_path: str | Path | None = None,
     *,
@@ -1059,16 +1093,10 @@ def sync_instance_to_db(  # noqa: PLR0915
                 stale_node.delete()
             # NodeConfig.objects.filter(instance=ic, identifier__in=stale_ids, pages__isnull=True).defer('spec').delete()
 
-        edge_count = _update_edges(ic, ctx, node_configs)
-
         created_placeholder_ids = sync_instance_dataset_placeholders(ic, ctx)
 
-        dataset_port_count = _update_dataset_ports(ic, ctx, node_configs)
+        edge_count, dataset_port_count = _update_bindings(ic, ctx, node_configs)
         promoted_forecast_defaults = _promote_dataset_forecast_defaults(ic) if promote_forecast_defaults else 0
-
-        from nodes.input_bindings import sync_input_bindings
-
-        sync_input_bindings(ic)
 
     logger.info(
         (

@@ -27,7 +27,7 @@ from nodes.instance_graph_cache import (
     resolve_instance_source,
 )
 from nodes.instance_serialization import EdgeSnapshot, InstanceSnapshot, NodeSnapshot, build_instance_snapshot
-from nodes.models import DatasetPort, PreferredInstanceSource
+from nodes.models import NodeInputPortBinding, PreferredInstanceSource
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
 
@@ -200,7 +200,7 @@ def test_graph_construction_does_not_query_dataset_payloads() -> None:
     )
     dataset = DatasetFactory.create(identifier='structural', scope=config)
     metric = DatasetMetricFactory.create(schema=dataset.schema, name='value', unit='t/a')
-    DatasetPort.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=config,
         node=node,
         port_id=port_id,
@@ -233,7 +233,7 @@ def test_snapshot_catalog_keeps_dataset_references_stable_across_renames() -> No
     )
     dataset = DatasetFactory.create(identifier='before-dataset', scope=config)
     metric = DatasetMetricFactory.create(schema=dataset.schema, name='before_metric', unit='t/a')
-    port = DatasetPort.objects.create(
+    stored = NodeInputPortBinding.objects.create(
         instance=config,
         node=node,
         port_id=port_id,
@@ -248,7 +248,7 @@ def test_snapshot_catalog_keeps_dataset_references_stable_across_renames() -> No
     metric.save(update_fields=['name'])
 
     graph = build_instance_graph(snapshot)
-    binding = graph.binding_by_id[port.uuid]
+    binding = graph.binding_by_id[stored.uuid]
     assert isinstance(binding, DatasetBindingDef)
     assert binding.dataset.id == dataset.uuid
     assert binding.dataset.identifier == 'before-dataset'

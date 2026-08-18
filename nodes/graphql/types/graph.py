@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from nodes.defs.binding_def import EdgeBindingDef
     from nodes.graphql.types.change_history import InstanceModelLogEntryType
     from nodes.graphql.types.node import ActionNodeType
-    from nodes.models import NodeEdge
+    from nodes.models import NodeInputPortBinding
     from nodes.node import Node
 
 from nodes.graphql.types.transformations import PortTransformationType
@@ -114,25 +114,28 @@ class NodeEdgeType(EditableEntity):
         return edge
 
     @classmethod
-    def from_node_edge(cls, edge: NodeEdge) -> NodeEdgeType:
+    def from_input_binding(cls, binding: NodeInputPortBinding) -> NodeEdgeType:
+        source_node = binding.source_node
+        assert source_node is not None
+        assert binding.source_port_id is not None
         obj = NodeEdgeType(
-            id=sb.ID(str(edge.uuid)),
-            uuid=edge.uuid,
+            id=sb.ID(str(binding.uuid)),
+            uuid=binding.uuid,
             from_ref=NodePortRef(
-                node_uuid=edge.from_node.uuid,
-                node_id=sb.ID(str(edge.from_node.identifier)),
-                port_id=edge.from_port,
+                node_uuid=source_node.uuid,
+                node_id=sb.ID(str(source_node.identifier)),
+                port_id=binding.source_port_id,
             ),
             port_ref=NodePortRef(
-                node_uuid=edge.to_node.uuid,
-                node_id=sb.ID(str(edge.to_node.identifier)),
-                port_id=edge.to_port,
+                node_uuid=binding.node.uuid,
+                node_id=sb.ID(str(binding.node.identifier)),
+                port_id=binding.port_id,
             ),
-            tags=edge.tags or [],
+            tags=list(binding.tags or []),
         )
         # Presented in the current vocabulary regardless of what the row stores,
         # so clients read back what the mutations accept.
-        obj._transformations = modernized_transformations(edge.transformations)
+        obj._transformations = modernized_transformations(list(binding.transformations or []))
         return obj
 
     @sb.field(
@@ -147,9 +150,11 @@ class NodeEdgeType(EditableEntity):
         before: 'datetime | None' = None,
     ) -> 'list[InstanceModelLogEntryType]':
         from nodes.graphql.types.change_history import fetch_entity_history_by_uuid
-        from nodes.models import NodeEdge
+        from nodes.models import NodeEdge, NodeInputPortBinding
 
-        return fetch_entity_history_by_uuid(NodeEdge, root.uuid, info, limit=limit, before=before)
+        # Entries recorded before the unified-binding flip carry the legacy
+        # content type; the row UUID is the same durable binding identity.
+        return fetch_entity_history_by_uuid((NodeInputPortBinding, NodeEdge), root.uuid, info, limit=limit, before=before)
 
 
 @sb.type
@@ -305,9 +310,11 @@ class DatasetPortType(EditableEntity):
         before: datetime | None = None,
     ) -> 'list[InstanceModelLogEntryType]':
         from nodes.graphql.types.change_history import fetch_entity_history_by_uuid
-        from nodes.models import DatasetPort
+        from nodes.models import DatasetPort, NodeInputPortBinding
 
-        return fetch_entity_history_by_uuid(DatasetPort, root.uuid, info, limit=limit, before=before)
+        # Entries recorded before the unified-binding flip carry the legacy
+        # content type; the row UUID is the same durable binding identity.
+        return fetch_entity_history_by_uuid((NodeInputPortBinding, DatasetPort), root.uuid, info, limit=limit, before=before)
 
 
 InputPortBinding = Annotated[NodeEdgeType | DatasetPortType, sb.union('InputPortBindingUnion')]
