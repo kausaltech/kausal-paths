@@ -347,7 +347,7 @@ dimensions:
     # transport branch lost its electricity in the multiply against the BISKO fuel factors
     # (those label it 'Strom'). BISKO applies the Bundesstrommix to all electricity, so one
     # carrier is correct and the Fahrstrom labels resolve here.
-    aliases: [strom, fahrstrom, strom_fahrstrom, St]
+    aliases: [strom, fahrstrom, strom_fahrstrom, St, driving_electricity]
     color: '#1565C0'
     order: 46
   - id: heating_electricity
