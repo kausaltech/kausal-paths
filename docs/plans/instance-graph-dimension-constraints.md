@@ -1025,6 +1025,50 @@ under Meta ordering would have baked the corrupted order in as authored
 truth. Query-store baselines recorded from DB-sourced serving under the old
 order may need re-recording; baselines recorded from YAML serving now match.
 
+Implementation note (2026-08-13, binding UUIDs survive re-sync): both sync
+write halves (`spec_sync._write_edges` / `_write_dataset_ports` and
+`spec_export._update_edges` / `_update_dataset_ports`) previously
+delete-all + recreated their rows, minting fresh UUIDs on every YAML
+re-sync — unacceptable once binding UUIDs become authoritative identity.
+Rows are still rebuilt (pk order must remain the authored order), but their
+UUIDs are now carried over by ordered structural matching:
+`match_preserved_uuids()` in `instance_serialization.py` (beside
+`ordered_binding_snapshots()` — identity authority next to ordering
+authority) pairs replacement rows to pre-rewrite rows through successive
+key passes, most specific first, zipping duplicates in authored order.
+Edges match on `(from_node, from_port, to_node, to_port)` then loosely
+`(from_node, to_node)` (survives port changes); dataset ports on
+`(node, dataset, dataset_index, metric)` then `(node, dataset, metric)`
+(survives dataset reordering). A rebind to a *different dataset* is
+deliberately a new identity — verified on muenchen-bisko, where the only
+non-preserved rows were genuine YAML drift to different datasets. Espoo
+double-sync: 186/186 edge and 86/86 dataset-port UUIDs stable, mirror
+resync a no-op. Group identity decision (2026-08-13): fanned-out dataset
+binding groups get **no durable identity** — each per-metric row is its own
+binding; the aggregate write service may carry a non-durable grouping key
+for the editor surface.
+
+Design note (2026-08-13, snapshot binding-list upgrade): snapshot v9 makes
+`InstanceSnapshot.bindings` one discriminated list, but its union members
+are the *existing* `EdgeSnapshot` / `DatasetPortSnapshot` classes (gaining
+`kind` discriminators and an explicit `position`), not `InputBindingSnapshot`.
+Rationale: the legacy classes carry YAML-era semantics the config-dict
+runtime path still needs (`dataset_index` grouping, pre-resolution metric
+strings, the full `DatasetPortSpec`) — folding those into
+`InputBindingSnapshot` as optional fields would pollute the clean target
+shape with transitional debt. Instead the debt stays in the classes that
+die with the config-dict path (steps 10–11), and `InputBindingSnapshot`
+remains the row-level and eventual list-level form the authority flip
+converges on. Positions are assigned by `ordered_binding_snapshots()` at
+snapshot production and *stored*; `build_instance_graph()` trusts stored
+positions for v9 snapshots. Parse-side (pre-resolution) snapshots leave
+positions unassigned — the fanned-out expansion at resolution changes
+cardinality, so positions are only meaningful post-resolution. The pure
+`from_serialized_data` upgrader wraps legacy arrays into the union and
+assigns positions; dataset/metric UUID recovery for pre-v8 pins stays in
+the existing catalog-injected compatibility adapter. New snapshots never
+serialize the legacy arrays.
+
 ### 10. Make InstanceGraph the Context factory input
 
 - Add `InstanceGraph.create_context(options, payload_store)` as a thin delegate
@@ -1035,6 +1079,42 @@ order may need re-recording; baselines recorded from YAML serving now match.
   tracing, payload stores, dataframe operations, and runtime node instances in
   `Context`.
 - Route YAML through snapshot then graph as the loader-inversion plan lands.
+
+Staging decision (2026-08-13, with Juha): step 10 lands **before** the
+step-9 authority flip — killing the config-dict path first means the flip
+never needs a reverse mirror reconstructing `dataset_index` /
+`DatasetPortSpec.column` from unified rows. Within step 10, compare-gated
+stages, each shippable:
+
+1. **Instance-level native construction.** `from_snapshot()` stops calling
+   `snapshot_to_config_dict()`; `_init_instance_from_snapshot()` builds
+   Instance/Context and dimensions, global params, scenarios, impact
+   overviews, normalizations from typed `InstanceMetadata` +
+   `InstanceModelSpec` (they are all already typed on the spec). Setup
+   methods branch on `self.snapshot`. The shim shrinks to node scope:
+   `self.config` carries only the `nodes` / `actions` dict lists (consumed
+   by setup_nodes/actions, the validation graph, and edge stash). Notable
+   dict-path semantics to reproduce: lead_title/lead_paragraph come from
+   the *home page* in `spec.pages` (the top-level metadata copy is written
+   but never read); action-group `order` is enumeration order; a missing
+   `reference_year` raises. Framework-configured instances never go through
+   `from_snapshot` (they load YAML + fw_config), so the snapshot path
+   carries no fwc branches.
+2. **Node-scope native construction.** Nodes/actions built from
+   `NodeMeta`/`NodeSpec` (`make_node` twin consuming typed specs); datasets
+   from `DatasetBindingDef` + `DatasetPortSpec`; node params typed;
+   validation graph gets a typed adapter or its dict input built from
+   specs.
+3. **Bindings native.** Edges constructed from graph bindings in stored
+   position order; `Edge.from_config` / `EdgeDimension` retired from the
+   snapshot path; the loader-plan step-1 leftovers (metric selection into
+   the executor) fold in here as needed.
+4. **YAML through the same path** (loader plan step 3):
+   `from_yaml()` = parse → snapshot → native build; delete
+   `snapshot_to_config_dict()` and the config-dict branches.
+
+Gate for each stage: old-vs-new runtime parity over all buildable DB
+instances (structure + computed outputs), plus the standard suites.
 
 **Gate:** draft, published, and YAML calculation share graph construction;
 metadata-only queries never create `Context`; calculation parity and existing

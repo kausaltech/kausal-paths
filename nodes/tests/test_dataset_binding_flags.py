@@ -7,16 +7,18 @@ means the same thing wherever it is bound. The one class-dependent part is the d
 only when asked. See ``docs/plans/additive-multiplicative-modernization.md``.
 """
 
+from typing import Any
 from uuid import uuid4
 
 import pytest
 
 from nodes.instance_parser import parse_instance_snapshot
+from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot
 
 pytestmark = pytest.mark.django_db
 
 
-def _parse(nodes: list[dict]):
+def _parse(nodes: list[dict[str, Any]]) -> InstanceSnapshot:
     return parse_instance_snapshot(
         {
             'id': 'flags',
@@ -32,10 +34,10 @@ def _parse(nodes: list[dict]):
     )
 
 
-def _snapshot(node: dict) -> dict:
-    """Parse a one-node instance and return its dataset port snapshots by dataset id."""
+def _snapshot(node: dict[str, Any]) -> dict[str, DatasetPortSnapshot]:
+    """Parse a one-node instance and return its dataset-port bindings by dataset id."""
     snapshot = _parse([{'name': 'Node', 'unit': 'kg/a', 'quantity': 'mass', **node}])
-    return {port.dataset: port for port in snapshot.dataset_ports}
+    return {b.dataset: b for b in snapshot.bindings if isinstance(b, DatasetPortSnapshot)}
 
 
 def test_historical_classes_do_not_interpolate_unless_asked():
@@ -103,6 +105,7 @@ def test_a_class_default_does_not_manufacture_a_processor_entry():
         },
     ])
     parsed = next(n for n in snapshot.nodes if n.identifier == 'n')
+    assert parsed.spec is not None
     assert parsed.spec.extra.input_dataset_processors == []
 
 

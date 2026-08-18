@@ -12,7 +12,7 @@ import pytest
 from kausal_common.datasets.models import DataPoint, Dataset, DatasetMetric
 
 from nodes.management.commands.load_dvc_dataset import Command, build_dataset_plan
-from nodes.models import DatasetPort, NodeConfig
+from nodes.models import DatasetPort, NodeConfig, NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 
 pytestmark = pytest.mark.django_db
@@ -183,3 +183,63 @@ def test_plan_flags_a_dropped_metric_that_ports_still_bind():
     assert plan.dropped_metrics == [('old_col', 1)]
     assert plan.added_metrics == ['new_col']
     assert plan.blockers, 'dropping a bound metric must be reported as a blocker'
+
+
+def test_plan_flags_a_dropped_metric_that_only_an_input_binding_holds():
+    """
+    An input binding protects a metric just as a dataset port does; count both.
+
+    Counting only the ports made the command report a clean plan and then die on
+    ``ProtectedError`` partway through the sync — after deleting the data points, with the
+    transaction rolled back and nothing to tell the operator what still held the metric.
+    """
+    ic = InstanceConfigFactory.create(name='refresh-blocked-binding', config_source='database')
+    Command().sync_dataset(
+        ic, make_context(pl.DataFrame({'Year': [2020], 'old_col': [1.0]}), {'old_col': 'kt'}, commit='aaa111'), DS_ID
+    )
+    dataset = Dataset.objects.get(identifier=DS_ID)
+    metric = DatasetMetric.objects.get(schema=dataset.schema, name='old_col')
+    NodeInputPortBinding.objects.create(
+        instance=ic,
+        node=NodeConfigFactory.create(instance=ic),
+        port_id=UUID('33333333-3333-3333-3333-333333333333'),
+        dataset=dataset,
+        metric=metric,
+    )
+
+    plan = build_dataset_plan(
+        ds_id=DS_ID,
+        dataset=dataset,
+        incoming_metric_cols=['new_col'],
+        incoming_data_points=1,
+        incoming_commit='bbb222',
+    )
+
+    assert plan.dropped_metrics == [('old_col', 1)]
+    assert plan.blockers, 'an input binding must block the drop, not just a dataset port'
+
+
+def test_a_valueless_cell_becomes_a_null_data_point_rather_than_being_skipped():
+    """
+    An empty cell has to survive the import as a null DataPoint.
+
+    BISKO Pruefschritt 1.4 requires that a municipality-confirmed zero be distinguishable
+    from a cell nobody has filled in. `DataAvailabilityNode` tests `is_not_null()`, so a null
+    reads as "no data" while a 0 reads as a valid entry -- but only if the import keeps the
+    cell. Skipping it (the old behaviour) lost the row and forced template datasets to ship
+    zeros, which is exactly the finding.
+    """
+    ic = InstanceConfigFactory.create(name='nullable-instance', config_source='database')
+    ctx = make_context(
+        pl.DataFrame({'Year': [2020, 2021, 2022], 'value': [1.0, None, 3.0]}),
+        {'value': 'kt'},
+        commit='ccc333',
+    )
+    Command().sync_dataset(ic, ctx, DS_ID)
+
+    dataset = Dataset.objects.get(identifier=DS_ID)
+    points = {dp.date.year: dp.value for dp in DataPoint.objects.filter(dataset=dataset)}
+    assert set(points) == {2020, 2021, 2022}, 'the valueless year must still have a row'
+    assert points[2021] is None, 'the empty cell must be null, not absent and not zero'
+    assert float(cast('Any', points[2020])) == 1.0
+    assert float(cast('Any', points[2022])) == 3.0

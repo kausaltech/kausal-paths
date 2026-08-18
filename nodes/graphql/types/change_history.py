@@ -76,26 +76,41 @@ def _resolve_target_kind(entry: InstanceModelLogEntry) -> ChangeTargetKind:
     return _CT_TO_KIND.get((ct.app_label, ct.model), ChangeTargetKind.UNKNOWN)
 
 
-def fetch_entity_history(
+def fetch_entity_history_by_uuid(
     django_model: type[Model],
-    pk: int,
+    target_uuid: UUID,
+    info: gql.Info,
     *,
     limit: int,
     before: datetime | None = None,
 ) -> list[InstanceModelLogEntryType]:
     """
-    Return log entries targeting a specific ORM row (by ContentType + pk).
+    Return authorized log entries targeting a stable entity UUID.
 
-    Used by the ``EditableEntity.change_history`` resolver on each
-    implementing type. Results are newest-first.
+    UUID lookup survives deletion of the target row. Permission is checked
+    against the owning InstanceConfig recorded by each operation, so this
+    helper is safe even when a type later gains a new query path.
     """
     from django.contrib.contenttypes.models import ContentType
 
+    from kausal_common.users import user_or_none
+
+    from nodes.models import InstanceConfig
+
+    user = user_or_none(info.context.user)
+    if user is None:
+        return []
+
     ct = ContentType.objects.get_for_model(django_model)
+    permitted_instances = InstanceConfig.permission_policy().instances_user_has_permission_for(user, 'change')
     qs = (
         InstanceModelLogEntry.objects
-        .filter(content_type=ct, object_id=str(pk))
-        .select_related('operation', 'content_type')
+        .filter(
+            content_type=ct,
+            target_uuid=target_uuid,
+            operation__instance_config__in=permitted_instances,
+        )
+        .select_related('operation', 'operation__instance_config', 'content_type')
         .order_by('-id')
     )
     if before is not None:
@@ -118,11 +133,9 @@ class EditableEntity:
     ``changeHistory`` returns ``[]`` since no DB row exists to carry
     entries.
 
-    Permission gating: the ``changeHistory`` resolver checks the viewer's
-    ``change`` permission on the hosting InstanceConfig; denied readers
-    see an empty list. One place for the perm check across all editable
-    types — analogous to the ``editor`` sub-type pattern but without
-    forcing every read-side query through the edit-time surface.
+    ``changeHistory`` remains as a compatibility surface while entity-specific
+    editor projections become its canonical home. Concrete resolvers delegate
+    to the shared permission-aware UUID lookup.
     """
 
     uuid: UUID
@@ -164,6 +177,8 @@ class InstanceModelLogEntryType:
     )
     @staticmethod
     def target(root: InstanceModelLogEntryType, info: gql.Info) -> Any:
+        if not root._entry.operation.instance_config.gql_action_allowed(info, 'change', raise_on_denied=False):
+            return None
         return _resolve_target(root._entry)
 
     @sb.field(graphql_type=sb.scalars.JSON | None, description='State prior to the change. Null for create operations.')
@@ -178,8 +193,8 @@ class InstanceModelLogEntryType:
 
     @classmethod
     def from_model(cls, entry: InstanceModelLogEntry) -> InstanceModelLogEntryType:
-        raw_uuid = (entry.data or {}).get('target_uuid')
-        target_uuid: UUID | None = UUID(raw_uuid) if raw_uuid else None
+        raw_uuid = entry.target_uuid or (entry.data or {}).get('target_uuid')
+        target_uuid: UUID | None = UUID(str(raw_uuid)) if raw_uuid else None
         return cls(
             uuid=entry.uuid,
             action=entry.action,
@@ -250,8 +265,16 @@ class InstanceChangeOperationType:
 
     @sb.field(description='Row-level entries bundled under this operation, in insertion order.')
     @staticmethod
-    def entries(root: InstanceChangeOperationType) -> list[InstanceModelLogEntryType]:
-        entries = InstanceModelLogEntry.objects.filter(operation=root._operation).select_related('content_type').order_by('id')
+    def entries(root: InstanceChangeOperationType, info: gql.Info) -> list[InstanceModelLogEntryType]:
+        ic = root._operation.instance_config
+        if not ic.gql_action_allowed(info, 'change', raise_on_denied=False):
+            return []
+        entries = (
+            InstanceModelLogEntry.objects
+            .filter(operation=root._operation)
+            .select_related('content_type', 'operation__instance_config')
+            .order_by('id')
+        )
         return [InstanceModelLogEntryType.from_model(e) for e in entries]
 
     @classmethod

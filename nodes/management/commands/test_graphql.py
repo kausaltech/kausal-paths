@@ -29,14 +29,16 @@ def compare_func(x: Any, y: Any, level: DiffLevel | None):
     if level and 'metricDim' in level.path(output_format='list'):
         raise CannotCompare
 
-    if '__typename' in x and '__typename' in y and x['__typename'] == y['__typename']:
-        if x['__typename'] == 'ActionImpact':
-            try:
-                return x['action']['id'] == y['action']['id']
-            except Exception:
-                raise CannotCompare() from None
-        elif x['__typename'] == 'YearlyValue':
-            return x['year'] == y['year']
+    # Action-impact queries do not necessarily select ``__typename``. The
+    # action is the stable identity of an impact; its position in the response
+    # follows runtime node insertion order and is not part of the comparison.
+    try:
+        return x['action']['id'] == y['action']['id']
+    except KeyError, TypeError:
+        pass
+
+    if '__typename' in x and '__typename' in y and x['__typename'] == y['__typename'] == 'YearlyValue':
+        return x['year'] == y['year']
     try:
         return x['id'] == y['id']
     except Exception:

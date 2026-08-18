@@ -1,3 +1,94 @@
+# Every dataset this module reads is declared here with its ownership class, so the
+# ownership map can be read off the module rather than inferred from the database. See
+# docs/trailhead/bisko-requirements.md for the classes and the certification reasons.
+#
+# `is_editable: false` locks the dataset's schema wherever the dataset lives. The lock is
+# re-applied on every `sync_instance_to_db`, so a later `load_dvc_dataset` cannot silently
+# reopen a factor table. `is_editable: true` is stated rather than left to the database
+# default, so that the set a city may edit is authoritative too.
+#
+# Dataset replacements remap these declarations together with the node bindings, so a city
+# swapping `bisko/final_energy` for `<city>/final_energy` carries the class with it. No
+# city currently replaces a locked dataset.
+datasets:
+
+# --- BISKO reference data: methodology constants, immutable to every user ------------------
+# Emission factors including equivalents and upstream chains, the consumption and fuel-share
+# tables behind the transport branch, and the data-quality thresholds. Protocol steps 3.2,
+# 4.3 and 6.2 require that tool users cannot change these.
+- id: bisko/endenergie_emissionsfaktoren      # stationary end-energy EFs incl. Bundesstrommix
+  is_editable: false
+- id: bisko/emissionsfaktoren_fr_erzeugung    # generation EFs (power/heat plants)
+  is_editable: false
+- id: bisko/emissionsfaktoren_ohne_brennstoffinputinformationen  # EFs without fuel-input data
+  is_editable: false
+- id: bisko/fernwarme_berwiegend              # method paper Table 5 district-heating variants
+  is_editable: false
+- id: bisko/emission_factor                   # transport fuel well-to-wheel EFs
+  is_editable: false
+- id: bisko/energy_factor                     # specific energy use per vehicle-km
+  is_editable: false
+- id: bisko/energy_shares                     # road mileage split by fuel
+  is_editable: false
+- id: bisko/fraction_of_biodiesel             # biofuel share
+  is_editable: false
+- id: bisko/load_per_vehicle                  # occupancy / load factors
+  is_editable: false
+- id: bisko/quality_criteria                  # Datenguete thresholds for criterion 1.3
+  is_editable: false
+
+# --- Provider defaults: immutable source snapshots a city may supersede, not edit ----------
+# A city replaces these by supplying its own data and switching the corresponding
+# data-source parameter (`use_own_mileage`, `use_mileage`); the provider record itself keeps
+# its value and its provenance.
+- id: bisko/gemeindefeine_fahrleistungen_strassenverkehr  # ifeu municipality-level road mileage
+  is_editable: false
+- id: bisko/other_transport_energy            # ifeu rail, inland waterway and aviation energy
+  is_editable: false
+- id: bisko/weather_correction                # DWD degree days; not part of the BISKO baseline
+  is_editable: false
+
+# --- Conformity templates: the required-data register, machine-readable --------------------
+# These declare which combinations the presence gate demands. A city editing them could
+# make an incomplete balance report conformity, so they are locked like reference data.
+- id: bisko/required_categories
+  is_editable: false
+- id: bisko/required_road_mileage_categories
+  is_editable: false
+
+# --- Municipal data: the city's own observations and declarations --------------------------
+# This is the editable surface of the model. Everything a city is asked to supply for a
+# BISKO balance is here, and nothing else is.
+- id: bisko/final_energy                      # stationary final energy by sector and carrier
+  is_editable: true
+- id: bisko/district_heating_energy_use        # local plant fuel input and heat output
+  is_editable: true
+- id: bisko/chp_parameters                     # plant electricity fraction and supply temperature
+  is_editable: true
+- id: bisko/historical_emissions               # the city's own reported inventory
+  is_editable: true
+- id: bisko/vehicle_kilometers                 # own Fahrleistung, used when use_own_mileage
+  is_editable: true
+- id: bisko/vehicle_energy                     # own transport energy, used when not use_mileage
+  is_editable: true
+- id: bisko/passenger_kilometers               # own Verkehrsleistung (pkm); not in the balance
+  is_editable: true
+
+# --- Local factor alternatives: editable by design, and non-conformant when selected -------
+# Each is the `local` port of an EF node whose `national` port reads the locked BISKO table
+# above, chosen by `use_national_values`. Editing one only affects the balance when that
+# parameter is switched off, and `has_national_electricity_emission_factors` then drops
+# `is_bisko_compliant` to 0. That is the mechanism protocol steps 3.2/4.3/6.2 ask for: the
+# alternative exists for analysis, but a result using it is not labelled BISKO-conform.
+- id: bisko/end_energy_emission_factors
+  is_editable: true
+- id: bisko/electricity_production_emission_factors
+  is_editable: true
+- id: bisko/emission_factors_without_fuel_data
+  is_editable: true
+- id: bisko/emission_factors_for_district_heating_by_generic_fuel
+  is_editable: true
+
 dimensions:
 
   # ┌────────────────────────┬───────┬───────────────────────────────────────┬───────────────────────────────────┐
@@ -256,7 +347,7 @@ dimensions:
     # transport branch lost its electricity in the multiply against the BISKO fuel factors
     # (those label it 'Strom'). BISKO applies the Bundesstrommix to all electricity, so one
     # carrier is correct and the Fahrstrom labels resolve here.
-    aliases: [strom, fahrstrom, strom_fahrstrom, St]
+    aliases: [strom, fahrstrom, strom_fahrstrom, St, driving_electricity]
     color: '#1565C0'
     order: 46
   - id: heating_electricity
@@ -733,6 +824,7 @@ dimensions:
 nodes:
 
 - id: net_emissions
+  is_editable: false
   name_de: Netto-Emissionen
   name_en: Net emissions
   type: simple.AdditiveNode
@@ -743,6 +835,7 @@ nodes:
   is_outcome: true
 
 - id: net_emissions_by_energy_carrier
+  is_editable: false
   name_de: Netto-Emissionen nach Energieträger
   name_en: Net emissions by energy carrier
   description_en: A copy of net_emissions with energy_carrier as the first dimension,
@@ -760,10 +853,11 @@ nodes:
   - id: net_emissions
 
 - id: private_household_emissions
+  is_editable: false
   name_de: Private Haushalte
   name_en: Private household emissions
   color: '#009ebe'
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
@@ -777,10 +871,11 @@ nodes:
   - id: net_emissions
 
 - id: municipal_facilities_emissions
+  is_editable: false
   name_de: Kommunale Einrichtungen
   name_en: Municipal facilities emissions
   color: '#6bc248'
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
@@ -794,10 +889,11 @@ nodes:
   - id: net_emissions
 
 - id: industry_emissions
+  is_editable: false
   name_de: Industrie
   name_en: Industry emissions
   color: '#737373'
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
@@ -811,10 +907,11 @@ nodes:
   - id: net_emissions
 
 - id: commerce_trade_services_emissions
+  is_editable: false
   name_de: Gewerbe, Handel, Dienstleistungen
   name_en: Commerce, trade, services emissions
   color: '#fe8035'
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
@@ -828,6 +925,7 @@ nodes:
   - id: net_emissions
 
 - id: weather_correction
+  is_editable: false
   name_de: Witterungsbereinigung
   name_en: Weather Correction
   description_en: Weather correction is the ratio of the degree days in the current year
@@ -846,6 +944,7 @@ nodes:
     ref: weather_correction
 
 - id: final_energy_use
+  is_editable: false
   name_de: Endenergie
   name_en: Final energy use
   description_en: |
@@ -863,13 +962,17 @@ nodes:
     GHD-Wert</i>). Die von BISKO nicht zugelassene Witterungsbereinigung wird auf beide Seiten
     dieser Subtraktion angewendet, der Sektorwert ist also
     (GHD &minus; kommunale Einrichtungen) &times; Korrekturfaktor.
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: energy
   unit: MWh/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: bisko/final_energy
+    # These series start after the frame does; GenericNode back-filled their first
+    # value into the earlier years. Keeping that, but saying so.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     tags: [non_additive]
     column: Value
     filters:
@@ -887,6 +990,7 @@ nodes:
       categories: [commerce_trade_services]
 
 - id: municipal_facilities_energy_in_commerce
+  is_editable: false
   name_de: Endenergie der kommunalen Einrichtungen im GHD-Wert
   name_en: Municipal facility energy included in commerce
   description_en: |
@@ -949,6 +1053,7 @@ nodes:
     value: 0
 
 - id: total_final_energy_use
+  is_editable: false
   name_en: Final energy use by sector
   name_de: Endenergieverbrauch nach Sektoren
   description_en: |
@@ -987,15 +1092,20 @@ nodes:
       categories: [transport]
 
 - id: final_energy_use_data_quality
+  is_editable: false
   name_de: Endenergie Datenqualität
   name_en: Final energy use data quality
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%' # Different unit hides this node from the outcome page
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: bisko/final_energy  # is automatically created by upload_new_dataset.py when uploading to DVC
+    # These series start after the frame does; GenericNode back-filled their first
+    # value into the earlier years. Keeping that, but saying so.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: quality
 
 # - id: final_private_household_energy_use
@@ -1095,15 +1205,20 @@ nodes:
 #       categories: [commerce_trade_services]
 
 - id: historical_emissions
+  is_editable: false
   name_de: Historische Emissionen
   name_en: Historical emissions
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: bisko/historical_emissions
+    # These series start after the frame does; GenericNode back-filled their first
+    # value into the earlier years. Keeping that, but saying so.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Value
     filters:
     - column: energy_carrier
@@ -1166,30 +1281,37 @@ nodes:
 #     formula: extend_all(drop_nans(emissions / energy))
 
 - id: district_heating_energy_use
+  is_editable: false
   name_de: Fernwärmeenergieverbrauch
   name_en: District heating energy use
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy
   unit: MWh/a
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: bisko/district_heating_energy_use
+    extend: true  # GenericNode extended its dataset; keep that explicit
     forecast_from: 2024
     filters:
     - column: upstream_included
       value: 'yes'
 
 - id: district_heating_fuel_emission_factors
+  is_editable: false
   name_de: Fernwärme Brennstoffemissionfaktoren
   name_en: District heating fuel emission factors
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emission_factor
   unit: g_co2e/kWh
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: bisko/endenergie_emissionsfaktoren
+    extend: true  # GenericNode extended its dataset; keep that explicit
+    # The left operand of the multiplication, not an addend: it carries the node's own unit,
+    # so the unit rule alone would add it. (Same as bisko/final_energy below.)
+    tags: [non_additive]
     filters:
     - column: upstream_included
   input_nodes:
@@ -1204,9 +1326,10 @@ nodes:
       categories: [heat_output]
 
 - id: district_heating_emissions
+  is_editable: false
   name_de: Fernwärmeemissionen
   name_en: District heating emissions
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [energy_carrier, per_what_energy]
@@ -1217,6 +1340,7 @@ nodes:
   - id: district_heating_fuel_emission_factors
 
 - id: stationary_emissions
+  is_editable: false
   name_de: Stationäre Emissionen
   name_en: Stationary emissions
   type: generic.GenericNode
@@ -1241,6 +1365,7 @@ nodes:
     operations: multiply,split_dims
 
 - id: end_energy_emission_factors
+  is_editable: false
   name_de: Endenergie Emissionsfaktoren (inkl. Bundesstrommix)
   name_en: End energy emission factors (incl. Bundesstrommix)
   description_en: |
@@ -1283,6 +1408,7 @@ nodes:
     ref: use_national_values
 
 - id: end_energy_emission_factors_local
+  is_editable: false
   name_de: Endenergie Emissionsfaktoren lokal
   name_en: End energy emission factors local
   description_en: |
@@ -1316,6 +1442,7 @@ nodes:
     ref: use_national_values
 
 - id: electricity_production_emission_factors
+  is_editable: false
   name_de: Emissionsfaktoren für Erzeugung
   name_en: Emission factors for electricity production
   description_en: |
@@ -1359,6 +1486,7 @@ nodes:
     ref: use_national_values
 
 - id: emission_factors_without_fuel_data
+  is_editable: false
   name_de: Emissionsfaktoren ohne Brennstoffiniputinformationen
   name_en: Emission factors for electricity and heat without known fuel fractions
   description_en: |
@@ -1411,6 +1539,7 @@ nodes:
     ref: use_national_values
 
 - id: emission_factors_for_district_heating_by_generic_fuel
+  is_editable: false
   name_de: Emissionsfaktoren für Fernwärme - überwiegend
   name_en: Emission factors for district heating by generic fuel
   description_en: |
@@ -1458,6 +1587,7 @@ nodes:
     ref: use_national_values
 
 - id: combined_heat_and_power_chp_fraction
+  is_editable: false
   name_en: Combined heat and power allocation fractions
   name_de: Aufteilungsfaktoren der Kraft-Wärme-Kopplung
   description_en: |
@@ -1514,6 +1644,7 @@ nodes:
 #//////  Transport  /////////////////////////////////////////////////////////////////////////////////
 
 - id: passenger_kilometers_own
+  is_editable: false
   name_en: Passenger kilometers - own data
   name_de: Personenkilometer aus eigenen Daten
   description_en: |
@@ -1555,6 +1686,7 @@ nodes:
 # with both dimensions, and vehicle_kilometers_own_availability checks it against the
 # required combinations.
 - id: vehicle_kilometers_own
+  is_editable: false
   name_en: Vehicle kilometers - own data
   name_de: Fahrleistung aus eigenen Daten
   description_en: |
@@ -1582,6 +1714,7 @@ nodes:
     formula: extend_all(mileage)
 
 - id: transport_energy_own
+  is_editable: false
   name_de: Transport Energie nach Fahrzeugtyp - eigene Daten
   name_en: Transport energy by vehicle type - own data
   description: Total vehicle trips from the city's own transport data.
@@ -1598,6 +1731,7 @@ nodes:
     formula: extend_all(energy)
 
 - id: vehicle_kilometers_ifeu
+  is_editable: false
   name_en: Road transport activity by road type according to IFEU
   name_de: Verkehr Aktivität nach Straßentyp nach IFEU
   description_en: |
@@ -1657,6 +1791,7 @@ nodes:
 # extend_all, so the 2022 ratio is what the earlier years get.
 
 - id: all_bus_mileage
+  is_editable: false
   name_en: All bus mileage
   name_de: Fahrleistung aller Busse
   description_en: Territorial road mileage of all buses together (FL_Bus), summed over road
@@ -1679,6 +1814,7 @@ nodes:
     to_dimensions: []
 
 - id: reported_line_bus_mileage
+  is_editable: false
   name_en: Reported line bus service mileage
   name_de: Ausgewiesene Linienbus-Betriebsleistung
   description_en: The ÖSPV line bus figure (FL_Lbus) as delivered. It is service mileage on a
@@ -1703,6 +1839,7 @@ nodes:
     to_dimensions: []
 
 - id: line_bus_mileage_share
+  is_editable: false
   name_en: Line bus share of all bus mileage
   name_de: Linienbusanteil an der Busfahrleistung
   description_en: |
@@ -1725,6 +1862,7 @@ nodes:
     formula: min(reported_line_bus_mileage / all_bus_mileage, 1)
 
 - id: line_bus_mileage
+  is_editable: false
   name_en: Line bus mileage
   name_de: Linienbusfahrleistung
   description_en: The line bus part of the territorial bus mileage, keeping the road category
@@ -1752,6 +1890,7 @@ nodes:
     formula: vehicle_kilometers_ifeu * line_bus_mileage_share
 
 - id: coach_bus_mileage
+  is_editable: false
   name_en: Coach bus mileage
   name_de: Reisebusfahrleistung
   description_en: The coach and long-distance bus part of the territorial bus mileage, keeping
@@ -1779,6 +1918,7 @@ nodes:
     formula: vehicle_kilometers_ifeu * (1 - line_bus_mileage_share)
 
 - id: vehicle_kilometers_ifeu_by_bus_class
+  is_editable: false
   name_en: Road transport activity by road type, buses split by class
   name_de: Verkehr Aktivität nach Straßentyp, Busse nach Klasse getrennt
   description_en: |
@@ -1804,6 +1944,7 @@ nodes:
   - id: coach_bus_mileage
 
 - id: vehicle_kilometers
+  is_editable: false
   name_en: Vehicle kilometers
   name_de: Fahrleistung
   description_en: |
@@ -1840,6 +1981,7 @@ nodes:
     ref: use_own_mileage
 
 - id: other_transport_energy
+  is_editable: false
   name_en: Other transport energy
   name_de: Andere Transportenergie
   type: formula.FormulaNode
@@ -1880,6 +2022,7 @@ nodes:
 #     formula: extend_all(energy)
 
 - id: transport_energy
+  is_editable: false
   name_de: Transportenergie
   name_en: Transport energy
   type: formula.FormulaNode
@@ -1907,43 +2050,49 @@ nodes:
     ref: use_mileage
 
 - id: transport_energy_factors
+  is_editable: false
   name_en: Transport energy factors
   name_de: Verkehrsenergiefaktoren
   description_de: Spezifische Endenergieverbrauchsfaktoren im Straßenverkehr 
     sowie bei Straßen-/Stadt- und U-Bahnen
   description_en: Specific end energy consumption factors in road transport as 
     well as in suburban and urban rail transport
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy_factor
   unit: kWh/vkm
   input_dimensions: [vehicle_type, energy_carrier, road_type]
   output_dimensions: [vehicle_type, energy_carrier, road_type]
   input_datasets:
   - id: bisko/energy_factor # kWh/vkm, usable for every city (BISKO Standard)
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Value
 
 - id: transport_energy_shares
+  is_editable: false
   name_en: Transport energy shares
   name_de: Verkehrsenergieanteile
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_dimensions: [vehicle_type, energy_carrier, road_type]
   output_dimensions: [vehicle_type, energy_carrier, road_type]
   input_datasets:
   - id: bisko/energy_shares # sums up to 100% across energy carrier dim, usbale for every city (BISKO Standard)
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Value
 
 - id: passengers_per_vehicle
+  is_editable: false
   name_en: Passengers per vehicle
   name_de: Passagiere pro Fahrzeug
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: ratio
   unit: p/v
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_datasets:
   - id: bisko/load_per_vehicle # BISKO-Standard
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Passengers
 
 # - id: passenger_activity
@@ -1982,6 +2131,7 @@ nodes:
 # branch.
 
 - id: road_transport_energy_with_road_type_factors
+  is_editable: false
   name_en: Road transport energy - road-type-specific factors
   name_de: Straßenverkehrsenergie – straßentypspezifische Faktoren
   description_en: |
@@ -1992,7 +2142,7 @@ nodes:
     Endenergie der Straßenfahrzeugklassen, deren spezifischer Verbrauch von der
     Straßenkategorie abhängt: motorisierte Zweiräder, Pkw, leichte Nutzfahrzeuge und Lkw, auf
     Autobahn, Außerorts und Innerorts.
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: energy
   unit: MWh/a
   input_dimensions: [vehicle_type, road_type, energy_carrier]
@@ -2022,6 +2172,7 @@ nodes:
     - id: road_type
 
 - id: road_transport_energy_with_uniform_factors
+  is_editable: false
   name_en: Road transport energy - one factor for all road categories
   name_de: Straßenverkehrsenergie – ein Faktor für alle Straßentypen
   description_en: |
@@ -2042,7 +2193,7 @@ nodes:
     Eine Lücke in den Quelldaten bleibt: Für Straßen-/Stadt-/U-Bahnen liegt ein
     Verbrauchsfaktor, aber keine Energieträgeranteilszeile vor, sodass dieses Verkehrsmittel
     erst nach Ergänzung dieser Zeile beiträgt.
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: energy
   unit: MWh/a
   input_dimensions: [vehicle_type, road_type, energy_carrier]
@@ -2070,6 +2221,7 @@ nodes:
     - id: road_type
 
 - id: road_transport_energy_by_road_type
+  is_editable: false
   name_en: Road transport energy by road type
   name_de: Straßenverkehrsenergie nach Straßentyp
   description_en: |
@@ -2092,6 +2244,7 @@ nodes:
   - id: road_transport_energy_with_uniform_factors
 
 - id: road_transport_energy_bisko
+  is_editable: false
   name_en: Road transport energy
   name_de: Straßenverkehrsenergie
   type: simple.AdditiveNode
@@ -2106,6 +2259,7 @@ nodes:
       flatten: true
 
 - id: transport_emission_factors
+  is_editable: false
   name_en: Transport emission factors
   name_de: Verkehrsemissionsfaktoren
   description_en: |
@@ -2120,13 +2274,17 @@ nodes:
     betriebenen Verkehr den Bundesstrommix, daher wird der Stromemissionsfaktor aus derselben
     nationalen Zeitreihe übernommen, die auch im stationären Bereich verwendet wird, und nicht
     hier separat definiert.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: g_co2e/kWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: bisko/emission_factor # must use the well-to-wheel EF for BISKO-conformity. Some cities want to know also well-to-tank, so will be implemented at some point.
+    # These series start after the frame does; GenericNode back-filled their first
+    # value into the earlier years. Keeping that, but saying so.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: Well-to-wheel
   input_nodes:
   # BISKO criterion 4.2: the Bundesstrommix must be applied to electrically driven
@@ -2140,18 +2298,21 @@ nodes:
       categories: [electricity]
 
 - id: fraction_of_biodiesel
+  is_editable: false
   name_en: Fraction of biodiesel
   name_de: Anteil von Biodiesel
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: '%'
   input_datasets:
   - id: bisko/fraction_of_biodiesel
+    extend: true  # GenericNode extended its dataset; keep that explicit
 
 - id: transport_emissions
+  is_editable: false
   name_en: Transport emissions
   name_de: Transportemissionen
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: kt_co2e/a
   color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
@@ -2175,23 +2336,10 @@ nodes:
     - id: sector
       categories: [transport]
 
-#//////  Costs  /////////////////////////////////////////////////////////////////////////////////
-
-- id: energy_costs
-  name_en: Energy costs
-  name_de: Energiekosten
-  type: generic.GenericNode
-  quantity: currency
-  unit: M€/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: bisko/energy_costs # Resembles Mainz
-    column: Value
-
 #//////  BISKO Compliance  /////////////////////////////////////////////////////////////////////////////////
 
 - id: is_bisko_compliant
+  is_editable: false
   name_en: Are the inventories BISKO compliant?
   name_de: Sind die Inventare BISKO-konform?
   description_en: |
@@ -2278,6 +2426,7 @@ nodes:
       * grid_energy * grid_bound * non_grid_bound * other_transport * road_transport
 
 - id: has_no_weather_correction
+  is_editable: false
   name_en: Has no weather correction?
   name_de: Hat keine Witterungsbereinigung?
   description_en: BISKO inventory must not be corrected for weather.
@@ -2292,6 +2441,7 @@ nodes:
     value: constant,complement
 
 - id: has_national_electricity_emission_factors
+  is_editable: false
   name_en: Has national electricity emission factors?
   name_de: Hat nationale Stromemissionsfaktoren?
   description_en: BISKO inventory must use national electricity emission 
@@ -2306,6 +2456,7 @@ nodes:
     ref: use_national_values
 
 - id: district_heating_emission_factor_ceiling
+  is_editable: false
   name_en: District heating emission factor ceiling (Coal CHP)
   name_de: Obergrenze Fernwärmeemissionsfaktor (Kohle KWK)
   description_en: The highest BISKO Table 5 variant, Coal CHP. BISKO names it as the value to
@@ -2314,7 +2465,7 @@ nodes:
   description_de: Die höchste BISKO-Variante aus Tabelle 5, Kohle KWK. BISKO nennt sie als
     Rückfallwert, wenn keine Erzeugungsvariante 80 Prozent der Wärmeerzeugung erreicht; sie ist
     damit die Obergrenze, die ein konformer Fernwärmeemissionsfaktor nicht überschreiten darf.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: g_co2e/kWh
   input_nodes:
@@ -2327,6 +2478,7 @@ nodes:
       flatten: true
 
 - id: district_heating_emission_factor_floor
+  is_editable: false
   name_en: District heating emission factor floor (Biomass CHP)
   name_de: Untergrenze Fernwärmeemissionsfaktor (Biomasse KWK)
   description_en: The lowest BISKO Table 5 variant, Biomass CHP. A district heating factor below
@@ -2334,7 +2486,7 @@ nodes:
   description_de: Die niedrigste BISKO-Variante aus Tabelle 5, Biomasse KWK. Ein
     Fernwärmeemissionsfaktor darunter kann aus keiner der im Standard vorgesehenen
     Erzeugungsvarianten stammen.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: g_co2e/kWh
   input_nodes:
@@ -2347,6 +2499,7 @@ nodes:
       flatten: true
 
 - id: has_district_heating_by_exergetic_allocation
+  is_editable: false
   name_en: Are district heating emissions allocated exergetically?
   name_de: Werden die Fernwärmeemissionen exergetisch alloziert?
   description_en: |
@@ -2406,6 +2559,7 @@ nodes:
       flatten: true
 
 - id: has_district_heating_factor_within_bisko_variants
+  is_editable: false
   name_en: Is the district heating factor within the BISKO Table 5 range?
   name_de: Liegt der Fernwärmefaktor innerhalb der Spannweite von BISKO-Tabelle 5?
   description_en: |
@@ -2482,6 +2636,7 @@ nodes:
     value: zero_fill((emissions <= heat * ceiling) * (emissions >= heat * floor))
 
 - id: quality_criteria
+  is_editable: false
   name_en: Quality criteria
   name_de: Qualitätskriterien
   type: generic.GenericNode
@@ -2495,18 +2650,23 @@ nodes:
     operations: get_single_dataset,extend_all
 
 - id: quality_a_data_for_grid_based_energy
-  name_en: Quality A data for grid-based energy
-  name_de: Qualität A-Daten für gitterbasierte Energie
+  is_editable: false
+  # The node id still says "grid_based". Renaming it to "grid_bound", to match the sibling
+  # has_all_grid_bound_energy_data nodes, is a separate change: the identifier keys the
+  # NodeConfig row, and these nodes sit upstream of is_bisko_compliant, which has an outcome
+  # page. What the certifier raised was the German term shown in the tool, and that is fixed.
+  name_en: Quality A data for grid-bound energy carriers
+  name_de: Qualität A-Daten für leitungsgebundene Energieträger
   # FIXME When we fix the graph, it will show 1 rather than 3.
-  description_en: BISKO inventory must use regional primary data for grid-based 
-    energy. To be BISKO-compliant, each sector should have value 3 in the graph.
+  description_en: BISKO inventory must use regional primary data for grid-bound
+    energy carriers. To be BISKO-compliant, each sector should have value 3 in the graph.
     It means that all three critical energy carriers (electricity, natural gas,
     district heating) have quality A data. Use this node to identify data points
     that don't meet the quality criteria yet and need to be improved to reach
     BISKO-compliance.
-  description_de: BISKO-Inventar muss regionale Primärdaten für gitterbasierte 
-    Energie verwenden. Um BISKO-konform zu sein, sollte jeder Sektor den Wert 3
-    in der Grafik haben. Das bedeutet, dass alle drei kritischen Energieträger 
+  description_de: BISKO-Inventar muss regionale Primärdaten für leitungsgebundene
+    Energieträger verwenden. Um BISKO-konform zu sein, sollte jeder Sektor den Wert 3
+    in der Grafik haben. Das bedeutet, dass alle drei kritischen Energieträger
     (Strom, Erdgas, Fernwärme) Qualität A-Daten haben. Verwenden Sie diesen Knoten,
     um Datenpunkte zu identifizieren, die noch nicht die Qualitätskriterien
     erfüllen und verbessert werden müssen, um BISKO-Konformität zu erreichen.
@@ -2527,12 +2687,13 @@ nodes:
     value: data_quality >= quality_criteria
 
 - id: has_quality_a_data_for_grid_based_energy
-  name_en: Has quality A data for grid-based energy?
-  name_de: Hat Qualität A-Daten für gitterbasierte Energie?
-  description_en: BISKO inventory must use regional primary data for grid-based 
-    energy.
-  description_de: BISKO-Inventar muss regionale Primärdaten für gitterbasierte 
-    Energie verwenden.
+  is_editable: false
+  name_en: Has quality A data for grid-bound energy carriers?
+  name_de: Hat Qualität A-Daten für leitungsgebundene Energieträger?
+  description_en: BISKO inventory must use regional primary data for grid-bound
+    energy carriers.
+  description_de: BISKO-Inventar muss regionale Primärdaten für leitungsgebundene
+    Energieträger verwenden.
   type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
@@ -2544,6 +2705,7 @@ nodes:
     value: prod_dim(prod_dim(quality_a, energy_carrier), sector)
 
 - id: weighted_data_quality_by_sector
+  is_editable: false
   name_en: Weighted data quality by sector
   name_de: Gewichtete Datenqualität nach Sektor
   type: formula.FormulaNode
@@ -2561,6 +2723,7 @@ nodes:
     value: drop_nans(sum_dim(quality * energy, energy_carrier) / sum_dim(energy, energy_carrier))
 
 - id: weighted_data_quality_by_energy_carrier
+  is_editable: false
   name_en: Weighted data quality by energy carrier
   name_de: Gewichtete Datenqualität nach Energieträger
   type: formula.FormulaNode
@@ -2578,6 +2741,7 @@ nodes:
     value: drop_nans(sum_dim(quality * energy, sector) / sum_dim(energy, sector))
 
 - id: total_weighted_data_quality
+  is_editable: false
   name_en: Total weighted data quality
   name_de: Gesamte gewichtete Datenqualität
   type: formula.FormulaNode
@@ -2612,6 +2776,7 @@ nodes:
 # forbids.
 
 - id: final_energy_use_availability
+  is_editable: false
   name_en: Final energy use data availability
   name_de: Datenverfügbarkeit des Endenergieverbrauchs
   description_en: Shows for which sector, energy carrier and year the city's own energy dataset
@@ -2651,6 +2816,7 @@ nodes:
     tags: [template]
 
 - id: other_transport_energy_availability
+  is_editable: false
   name_en: Rail, water and air transport data availability
   name_de: Datenverfügbarkeit Schienen-, Schiffs- und Flugverkehr
   description_en: Shows for which vehicle type, energy carrier and year the consumption data for
@@ -2676,6 +2842,7 @@ nodes:
       ref: municipality_name
 
 - id: vehicle_kilometers_own_availability
+  is_editable: false
   name_en: Own road mileage data availability
   name_de: Datenverfügbarkeit der eigenen Fahrleistungsdaten
   description_en: |
@@ -2710,6 +2877,7 @@ nodes:
     tags: [template]
 
 - id: has_all_road_transport_data
+  is_editable: false
   name_en: Has all road transport data?
   name_de: Sind alle Daten zum Straßenverkehr vorhanden?
   description_en: |
@@ -2742,6 +2910,7 @@ nodes:
     ref: use_own_mileage
 
 - id: has_all_grid_bound_energy_data
+  is_editable: false
   name_en: Has all grid-bound energy data?
   name_de: Sind alle Daten zu leitungsgebundenen Energieträgern vorhanden?
   description_en: 1 when electricity, natural gas and district heating each have a value for that
@@ -2768,6 +2937,7 @@ nodes:
     value: prod_dim(max_dim(availability, sector), energy_carrier)
 
 - id: has_all_non_grid_bound_energy_data
+  is_editable: false
   name_en: Has all non-grid-bound energy data?
   name_de: Sind alle Daten zu nicht-leitungsgebundenen Energieträgern vorhanden?
   description_en: |
@@ -2801,6 +2971,7 @@ nodes:
     value: prod_dim(max_dim(availability, sector), energy_carrier)
 
 - id: has_all_other_transport_data
+  is_editable: false
   name_en: Has all rail, water and air transport data?
   name_de: Sind alle Daten zu Schienen-, Schiffs- und Flugverkehr vorhanden?
   description_en: 1 when local, long-distance and freight rail, inland waterway shipping and
@@ -2826,6 +2997,7 @@ nodes:
     value: prod_dim(max_dim(availability, energy_carrier), vehicle_type)
 
 - id: district_heating_energy_use_availability
+  is_editable: false
   name_de: Datenverfügbarkeit des Fernwärmeenergieverbrauchs
   name_en: District heating energy use data availability
   description_de: Zeigt, für welche Energieträger und Jahre der Datensatz zum
@@ -2849,6 +3021,7 @@ nodes:
       value: 'yes'
 
 - id: has_all_district_heating_energy_use_data
+  is_editable: false
   name_de: Sind alle Fernwärmeenergieverbrauchsdaten vorhanden?
   name_en: Has all district heating energy use data?
   description_de: Fasst die Datenverfügbarkeit zu einer Zahl pro Jahr zusammen.

@@ -163,11 +163,15 @@ class DatasetPlan:
 
         A metric that the model still binds cannot lose its column: the node would
         keep a port pointing at data that no longer arrives. Better to say so here,
-        naming the ports, than to let it surface later as a missing metric during
+        naming the bindings, than to let it surface later as a missing metric during
         ``sync_instance_to_db`` -- or not at all, as silently empty input.
+
+        "Binds" covers both ``DatasetPort`` and ``NodeInputPortBinding``; each holds a
+        PROTECTed reference, so counting only one of them turns a clean refusal into a
+        ``ProtectedError`` halfway through the sync.
         """
         return [
-            f'metric {name!r} would be dropped but {n} dataset port(s) still bind it' for name, n in self.dropped_metrics if n
+            f'metric {name!r} would be dropped but {n} model binding(s) still bind it' for name, n in self.dropped_metrics if n
         ]
 
 
@@ -179,7 +183,7 @@ def build_dataset_plan(
     incoming_commit: str | None,
 ) -> DatasetPlan:
     """Diff the DB state of one dataset against the DVC data about to be imported."""
-    from nodes.models import DatasetPort
+    from nodes.models import DatasetPort, NodeInputPortBinding
 
     plan = DatasetPlan(
         ds_id=ds_id,
@@ -204,8 +208,16 @@ def build_dataset_plan(
     incoming = set(incoming_metric_cols)
     plan.kept_metrics = sorted(name for name in existing if name in incoming)
     plan.added_metrics = sorted(name for name in incoming if name not in existing)
+    # Both models hold a PROTECTed reference to a metric, and both have to be counted:
+    # missing one means promising the sync can proceed and then dying on the delete, with
+    # the transaction rolled back and the operator none the wiser about what to clear.
     plan.dropped_metrics = sorted(
-        (name, DatasetPort.objects.filter(metric=metric).count()) for name, metric in existing.items() if name not in incoming
+        (
+            name,
+            DatasetPort.objects.filter(metric=metric).count() + NodeInputPortBinding.objects.filter(metric=metric).count(),
+        )
+        for name, metric in existing.items()
+        if name not in incoming
     )
     return plan
 
@@ -643,8 +655,14 @@ class Command(BaseCommand):
             year = date(year=year_val, month=1, day=1)
             for metric_identifier, metric in metrics.items():
                 value = row[metric_identifier]
-                if value is None:
-                    continue
+                # A valueless cell is created as a DataPoint with a null value rather than
+                # skipped. `DataPoint.value` is nullable, GraphQL types it `float | None`, and
+                # DataAvailabilityNode tests `is_not_null()` — so an empty cell reads as
+                # "no data" while still existing as a row the city can see, comment on and
+                # fill in. Skipping it lost the cell, its dimension categories, its source
+                # link and its comment, which is why BISKO template datasets had to ship
+                # zeros: a pre-filled 0 is indistinguishable from a municipality-confirmed 0,
+                # and the certifier's Pruefschritt 1.4 tests exactly that.
                 data_point = DataPoint.objects.create(
                     dataset=dataset,
                     date=year,

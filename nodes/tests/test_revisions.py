@@ -11,6 +11,7 @@ from django.test.utils import CaptureQueriesContext
 import pytest
 
 from kausal_common.i18n.pydantic import TranslatedString
+
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import DatasetPortSpec, InputDatasetDef, NodeSpec
 from nodes.instance_serialization import (
@@ -72,22 +73,20 @@ def test_instance_snapshot_json_round_trip():
                 is_visible=True,
             )
         ],
-        edges=[
+        bindings=[
             EdgeSnapshot(
                 from_node=node_1_uuid,
                 to_node=node_2_uuid,
                 from_port=uuid.UUID('33191571-e9c8-45ac-b624-cc0a04341d37'),
                 to_port=uuid.UUID('796076a8-426b-4068-ac57-e3e333d0ef0a'),
-            )
-        ],
-        dataset_ports=[
+            ),
             DatasetPortSnapshot(
                 node=node_1_uuid,
                 dataset='ds',
                 port_id=uuid.UUID('6c8b0551-7ccf-472b-94db-26f513d706dc'),
                 metric='m',
                 spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
-            )
+            ),
         ],
     )
     dumped = snap.model_dump(mode='json')
@@ -95,9 +94,51 @@ def test_instance_snapshot_json_round_trip():
 
     reloaded = InstanceSnapshot.model_validate(dumped)
     assert reloaded.nodes[0].identifier == 'n1'
-    assert reloaded.edges[0].from_node == node_1_uuid
-    assert reloaded.dataset_ports[0].spec.forecast_from == 2025
+    assert reloaded.edge_bindings[0].from_node == node_1_uuid
+    assert reloaded.dataset_bindings[0].spec.forecast_from == 2025
     assert reloaded.schema_version == SNAPSHOT_SCHEMA_VERSION
+
+
+def test_snapshot_v8_upgrade_merges_legacy_binding_arrays():
+    """Pre-v9 snapshots carry separate edges/dataset_ports arrays; upgrade interleaves them with positions."""
+    node_1 = uuid.uuid4()
+    node_2 = uuid.uuid4()
+    shared_port = uuid.uuid4()
+    edge_uuid = uuid.uuid4()
+    port_uuid = uuid.uuid4()
+    data = {
+        'schema_version': 8,
+        'spec': InstanceModelSpec(years=YearsSpec(target=2030)).model_dump(mode='json'),
+        'nodes': [],
+        'edges': [
+            {
+                'uuid': str(edge_uuid),
+                'from_node': str(node_1),
+                'to_node': str(node_2),
+                'from_port': str(uuid.uuid4()),
+                'to_port': str(shared_port),
+            }
+        ],
+        'dataset_ports': [
+            {
+                'uuid': str(port_uuid),
+                'node': str(node_2),
+                'dataset': 'ds',
+                'port_id': str(shared_port),
+                'metric': 'm',
+            }
+        ],
+    }
+
+    snapshot = InstanceSnapshot.from_serialized_data(data)
+
+    assert snapshot.schema_version == SNAPSHOT_SCHEMA_VERSION
+    # On a shared port, the edge comes first — the same order
+    # ordered_binding_snapshots always produced.
+    assert [(b.kind, b.uuid, b.position) for b in snapshot.bindings] == [
+        ('edge', edge_uuid, 0),
+        ('dataset', port_uuid, 1),
+    ]
 
 
 def test_i18n_node_metadata_stays_dict_serializable():
@@ -179,8 +220,8 @@ def test_instance_snapshot_upgrades_legacy_identifier_references():
 
     assert snapshot.schema_version == SNAPSHOT_SCHEMA_VERSION
     assert snapshot.nodes[0].uuid == node_uuid
-    assert snapshot.edges[0].from_node == node_uuid
-    assert snapshot.dataset_ports[0].node == node_uuid
+    assert snapshot.edge_bindings[0].from_node == node_uuid
+    assert snapshot.dataset_bindings[0].node == node_uuid
 
 
 def test_instance_snapshot_upgrades_v3_node_metadata():
@@ -231,8 +272,8 @@ def test_build_instance_snapshot_empty_instance(empty_db_instance: InstanceConfi
     snapshot = build_instance_snapshot(empty_db_instance)
     assert snapshot.spec is empty_db_instance.spec
     assert snapshot.nodes == []
-    assert snapshot.edges == []
-    assert snapshot.dataset_ports == []
+    assert snapshot.edge_bindings == []
+    assert snapshot.dataset_bindings == []
     assert snapshot.schema_version == SNAPSHOT_SCHEMA_VERSION
 
 
@@ -313,7 +354,7 @@ def test_build_instance_snapshot_does_not_hydrate_related_specs(empty_db_instanc
     with CaptureQueriesContext(connection) as queries:
         snapshot = build_instance_snapshot(empty_db_instance)
 
-    assert [(edge.from_node, edge.to_node) for edge in snapshot.edges] == [(source.uuid, target.uuid)]
+    assert [(edge.from_node, edge.to_node) for edge in snapshot.edge_bindings] == [(source.uuid, target.uuid)]
     node_sql = next(query['sql'] for query in queries if 'FROM "nodes_nodeconfig"' in query['sql'])
     edge_sql = next(query['sql'] for query in queries if 'FROM "nodes_nodeedge"' in query['sql'])
     port_sql = next(query['sql'] for query in queries if 'FROM "nodes_datasetport"' in query['sql'])
@@ -401,6 +442,7 @@ def test_record_change_produces_log_entry(empty_db_instance: InstanceConfig):
     assert entry.data['before'] is None
     assert entry.data['after']['identifier'] == 'n1'
     assert entry.data['target_uuid'] == str(nc.uuid)
+    assert entry.target_uuid == nc.uuid
     # GFK fields
     assert entry.object_id == str(nc.pk)
 
@@ -2098,8 +2140,8 @@ def test_published_indicator_node_uses_snapshot_reference(empty_db_instance: Ins
     assert published.source_nodes_by_uuid[indicator.source_snapshot.uuid] is indicator
 
 
-def test_published_editor_and_history_guarded(gql_client, empty_db_instance: InstanceConfig):
-    """Editor fields and change history are draft-row governance: absent on PUBLISHED."""
+def test_published_editor_reads_revision_node_without_live_row_dependency(gql_client, empty_db_instance: InstanceConfig):
+    """Authorized editor reads remain available on a published runtime."""
     from nodes.models import _pytest_instances
 
     _make_publishable_node(empty_db_instance, 'guarded', 'Guarded')
@@ -2115,7 +2157,7 @@ def test_published_editor_and_history_guarded(gql_client, empty_db_instance: Ins
         nodes {{
             identifier
             name
-            editor {{ nodeType }}
+            editor {{ nodeType changeHistory {{ uuid }} }}
             changeHistory {{ uuid }}
         }}
     }}
@@ -2123,7 +2165,8 @@ def test_published_editor_and_history_guarded(gql_client, empty_db_instance: Ins
     data = gql_client.query_data(query)
     (node_data,) = [n for n in data['nodes'] if n['identifier'] == 'guarded']
     assert node_data['name'] == 'Guarded'
-    assert node_data['editor'] is None
+    assert node_data['editor'] is not None
+    assert node_data['editor']['changeHistory'] == []
     assert node_data['changeHistory'] == []
 
     # Same query on DRAFT: the superuser gets editor fields from live rows.
@@ -2131,6 +2174,33 @@ def test_published_editor_and_history_guarded(gql_client, empty_db_instance: Ins
     data = gql_client.query_data(draft_query)
     (node_data,) = [n for n in data['nodes'] if n['identifier'] == 'guarded']
     assert node_data['editor'] is not None
+
+
+def test_published_node_history_uses_uuid_after_draft_row_deletion(gql_client, empty_db_instance: InstanceConfig):
+    from nodes.change_ops import change_operation, record_change
+    from nodes.models import _pytest_instances
+
+    node = _make_publishable_node(empty_db_instance, 'deleted_from_draft', 'Published only')
+    empty_db_instance.publish_instance()
+    before = node.serializable_data()
+    with change_operation(empty_db_instance, user=None, action='node.delete'):
+        entry = record_change(node, action='node.delete', before=before, after=None)
+        node.delete()
+    empty_db_instance.refresh_from_db()
+    _pytest_instances.pop(empty_db_instance.identifier, None)
+
+    data = gql_client.query_data(
+        f"""
+        query PublishedHistory @instance(identifier: "{empty_db_instance.identifier}", preview: PUBLISHED) {{
+            nodes {{
+                identifier
+                editor {{ changeHistory {{ uuid }} }}
+            }}
+        }}
+        """,
+    )
+    published_node = next(node for node in data['nodes'] if node['identifier'] == 'deleted_from_draft')
+    assert published_node['editor']['changeHistory'] == [{'uuid': str(entry.uuid)}]
 
 
 def test_publish_instance_bumps_cache_invalidated_at(empty_db_instance: InstanceConfig):

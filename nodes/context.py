@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import inspect
 import os
 from collections.abc import Generator
@@ -8,6 +9,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, overload
 
+import orjson
 import rich
 from rich.tree import Tree
 from sentry_sdk import start_span
@@ -27,7 +29,7 @@ from .datasets import DVCDataset, FixedDataset
 from .units import unit_registry
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
     from datetime import datetime
     from types import FrameType
 
@@ -88,7 +90,10 @@ class Context:
     """Global parameters not specific to any individual node."""
 
     node_explanation_system: NodeExplanationSystem | None
-    """Explanations and validations for nodes and node graph."""
+    """Explanations and validations for nodes and node graph. Built lazily; read via get_node_explanation_system()."""
+
+    _nes_factory: Callable[[Context], NodeExplanationSystem] | None
+    """Deferred builder for the explanation system, installed by the loader."""
 
     scenarios: dict[str, Scenario]
     """All scenarios in the context keyed by the scenario identifier."""
@@ -232,6 +237,7 @@ class Context:
             base_logger=self.log,
         )
         self.node_explanation_system = None
+        self._nes_factory = None
         if env_bool('DISABLE_PATHS_MODEL_CACHE', default=False):
             self.skip_cache = True
 
@@ -247,6 +253,37 @@ class Context:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    @cached_property
+    def instance_hash(self) -> bytes:
+        """
+        Return the cache identity shared by every node in this context.
+
+        Node results are instance-specific even when the node definition and its
+        explicit inputs happen to be identical. In particular, the instance
+        timeline affects whether values are historical or forecast. Keep those
+        global dependencies in one extensible namespace rather than requiring
+        each affected node to declare them separately.
+        """
+        # Do not access Instance.config through its cached_property here: small
+        # standalone runtimes and unit tests intentionally have no database row.
+        config = self.instance.__dict__.get('config')
+        cache_invalidated_at = config.cache_invalidated_at.isoformat() if config is not None else None
+        data = {
+            'instance_id': self.instance.id,
+            'instance_uuid': str(config.uuid) if config is not None else None,
+            'cache_invalidated_at': cache_invalidated_at,
+            'config_mtime_hash': self.instance.config_mtime_hash,
+            'timeline': {
+                'reference_year': self.instance.reference_year,
+                'minimum_historical_year': self.instance.minimum_historical_year,
+                'maximum_historical_year': self.instance.maximum_historical_year,
+                'target_year': self.target_year,
+                'model_end_year': self.model_end_year,
+            },
+        }
+        serialized = orjson.dumps(data, option=orjson.OPT_SORT_KEYS)
+        return hashlib.md5(serialized, usedforsecurity=False).digest()
 
     @contextmanager
     def start_span(self, name: str, op: str | None = None, attributes: PerfAttrs | None = None) -> Generator[Span]:
@@ -790,6 +827,12 @@ class Context:
 
     def warning(self, msg: Any, *args, depth: int = 0, **kwargs) -> None:
         self.instance.warning(msg, *args, depth=depth + 1, **kwargs)
+
+    def get_node_explanation_system(self) -> NodeExplanationSystem | None:
+        """Return the explanation system, building it on first use."""
+        if self.node_explanation_system is None and self._nes_factory is not None:
+            self.node_explanation_system = self._nes_factory(self)
+        return self.node_explanation_system
 
     @cached_property
     def framework_config_data(self) -> FrameworkConfigData | None:

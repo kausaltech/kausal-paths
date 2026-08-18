@@ -4,7 +4,7 @@ from paths.tests.graphql import PathsTestClient
 
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
 from nodes.defs.instance_defs import InstanceFeatures
-from nodes.models import InstanceConfig, InstanceHostname
+from nodes.models import YAML_SPEC_VERSION, InstanceConfig, InstanceHostname
 from nodes.tests.factories import InstanceConfigFactory
 
 pytestmark = pytest.mark.django_db
@@ -257,6 +257,12 @@ model_end_year: 2040
 theme_identifier: fast-theme
 features:
   requires_authentication: true
+action_groups:
+- id: energy
+  name: Energia
+  name_en: Energy
+  name_sv: Energi
+  color: '#123456'
 """,
         encoding='utf8',
     )
@@ -273,7 +279,22 @@ features:
     assert instance_config.primary_language == 'fi'
     assert instance_config.other_languages == ['en', 'sv']
     assert instance_config.yaml_mtime_hash is not None
+    assert instance_config.yaml_spec_version == YAML_SPEC_VERSION
     assert spec.theme_identifier == 'fast-theme'
     assert spec.features.requires_authentication is True
     assert spec.years.target == 2035
     assert spec.years.model_end == 2040
+    assert [(group.id, str(group.name), group.color) for group in spec.action_groups] == [('energy', 'Energy', '#123456')]
+
+    yaml_mtime_hash = instance_config.yaml_mtime_hash
+    instance_config.spec = spec.model_copy(update={'action_groups': []})
+    instance_config.yaml_spec_version = 0
+    instance_config.save(update_fields=['spec', 'yaml_spec_version'])
+    instance_config.refresh_from_db()
+
+    regenerated_spec = instance_config.ensure_spec()
+
+    instance_config.refresh_from_db()
+    assert instance_config.yaml_mtime_hash == yaml_mtime_hash
+    assert instance_config.yaml_spec_version == YAML_SPEC_VERSION
+    assert [group.id for group in regenerated_spec.action_groups] == ['energy']

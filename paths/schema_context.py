@@ -445,7 +445,7 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         self._apply_preview_and_version(
             arguments.get('preview'),
             arguments.get('version'),
-            arguments.get('tolerate_node_failures', False),
+            arguments.get('tolerateNodeFailures', False),
         )
         return ic
 
@@ -477,7 +477,7 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         self._apply_preview_and_version(
             ctx.get('preview'),
             ctx.get('version'),
-            ctx.get('tolerate_node_failures', False),
+            ctx.get('tolerateNodeFailures', False),
         )
         return ic, locale
 

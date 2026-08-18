@@ -585,7 +585,7 @@ def _snapshot_bindings(snapshot: InstanceSnapshot) -> list[_SnapshotBinding]:
     bindings the runtime iterates over.
     """
     bindings: dict[tuple[UUID, int], _SnapshotBinding] = {}
-    for port in snapshot.dataset_ports:
+    for port in snapshot.dataset_bindings:
         key = (port.node, port.dataset_index)
         if key in bindings:
             continue
@@ -658,7 +658,7 @@ def _dvc_dataset_ids_from_snapshot(instance_config: InstanceConfig, snapshot: In
     the "already exists" lookup in :func:`_sync_dataset_placeholder`, which
     skips creation. Only the DVC load (and its report line) is avoided.
     """
-    ds_ids = {port.dataset for port in snapshot.dataset_ports}
+    ds_ids = {port.dataset for port in snapshot.dataset_bindings}
     if not ds_ids or not snapshot.spec.features.use_datasets_from_db:
         return ds_ids
     db_ds_ids = set(

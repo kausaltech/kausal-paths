@@ -220,12 +220,16 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
                 scopes__scope_id__in=self.get_role('instance-reviewer').get_instances_for_user(user),
             )
             q |= viewer_q | reviewer_q
+
+        def apply_editable_filter(value: Q) -> Q:
+            return value if action == 'view' else value & Q(is_editable=True)
+
         if getattr(user, 'person', None) is None:
-            return q
+            return apply_editable_filter(q)
 
         privileged_roles = ObjectRole.get_roles_for_action(action)
         if not privileged_roles:
-            return q
+            return apply_editable_filter(q)
 
         group_ids = PersonGroupMember.objects.filter(person=user.person).values_list('group_id', flat=True)
         group_object_ids = DatasetSchemaGroupPermission.objects.filter(
@@ -235,7 +239,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
             person=user.person, role__in=privileged_roles
         ).values_list('object_id', flat=True)  # type: ignore[misc]
         q |= Q(pk__in=group_object_ids) | Q(pk__in=individual_object_ids)
-        return q
+        return apply_editable_filter(q)
 
     def construct_state_perm_q(self, action: ObjectSpecificAction) -> Q:
         if action not in ('change', 'delete'):
@@ -251,6 +255,8 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DatasetSchema) -> bool:
         if self.get_permission_block(action, obj=obj) is not None:
+            return False
+        if action in ('change', 'delete') and not obj.is_editable and not user.is_superuser:
             return False
         if hasattr(user, 'person'):
             # Check dataset schema's person / group permissions first

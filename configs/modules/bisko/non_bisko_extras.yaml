@@ -1,0 +1,45 @@
+# Content that sits alongside a BISKO balance but is not part of it.
+#
+# Nothing in this file is read by the BISKO territorial inventory, and nothing in it is
+# covered by the certification. It is kept separate so that `modules/bisko/model.yaml`
+# contains the certified balance and only the certified balance — a certifier reading the
+# module should not have to work out which nodes are in scope.
+#
+# No instance includes this file today. Include it explicitly if a city wants the content:
+#
+#   include:
+#   - file: modules/bisko/non_bisko_extras.yaml
+#     nodes_editable: false
+#
+# Nodes here still carry `is_editable: false`, because the reason city users must not edit
+# the node graph is the same whether or not the node is certified.
+
+datasets:
+
+# Energy prices are a city input like any other, so the dataset stays editable. It is not a
+# BISKO quantity and no conformity test reads it.
+- id: bisko/energy_costs
+  is_editable: true
+
+nodes:
+
+#//////  Costs  /////////////////////////////////////////////////////////////////////////////////
+
+# Moved out of modules/bisko/model.yaml on 2026-08-16. It had no output node there and no
+# BISKO role: energy cost in M€/a is neither an activity, an energy quantity nor an emission,
+# so it can reach neither the balance nor the Datengüte weighting. It is kept rather than
+# deleted because the dataset exists for `bisko` and `mainz-bisko` and the node is the only
+# thing that reads it.
+- id: energy_costs
+  is_editable: false
+  name_en: Energy costs
+  name_de: Energiekosten
+  type: simple.AdditiveNode2
+  quantity: currency
+  unit: M€/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: bisko/energy_costs # Resembles Mainz
+    extend: true  # GenericNode extended its dataset; keep that explicit
+    column: Value

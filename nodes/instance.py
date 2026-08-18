@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 import threading
 from dataclasses import dataclass, field
-from functools import cached_property
 from typing import TYPE_CHECKING, overload
 
 from loguru import logger
@@ -122,6 +121,9 @@ class Instance:
     source_nodes_by_uuid: dict[UUID, Node] = field(init=False, default_factory=dict, repr=False)
     """Runtime-node index for UUID references in the selected snapshot."""
 
+    config: InstanceConfig | None = field(default=None, repr=False)
+    """Owning database configuration, bound explicitly when one exists."""
+
     @property
     def target_year(self) -> int:
         return self.context.target_year
@@ -129,13 +131,6 @@ class Instance:
     @property
     def model_end_year(self) -> int:
         return self.context.model_end_year
-
-    @cached_property
-    def config(self) -> InstanceConfig:
-        """Returns the Django model object that corresponds to this instance."""
-        from .models import InstanceConfig
-
-        return InstanceConfig.objects.get(identifier=self.id)
 
     def __rich_repr__(self) -> RichReprResult:
         yield 'id', self.id
@@ -249,6 +244,6 @@ class Instance:
         self.source_nodes_by_uuid = {}
         self.source_snapshot = None
         self.context.instance = None  # type: ignore
-        self.config = None  # type: ignore
+        self.config = None
         self.fw_config = None
         self.context = None  # type: ignore

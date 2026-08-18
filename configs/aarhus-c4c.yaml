@@ -8,13 +8,13 @@ dataset_repo:
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
 theme_identifier: eu-climate-4-cast
-target_year: 2030
+target_year: 2035
 model_end_year: 2035
 reference_year: 1990
 minimum_historical_year: 2018
-maximum_historical_year: 2023
+maximum_historical_year: 2024
 emission_unit: t/a
-emission_forecast_from: 2024
+emission_forecast_from: 2025
 emission_dimensions: [ghg]
 features:
   baseline_visible_in_graphs: true
@@ -412,7 +412,7 @@ nodes:
   input_datasets:
   - id: aarhus/emission_factors__energy
     column: emission_factor
-    forecast_from: 2024
+    forecast_from: 2025
 
 # ----- I Energy
 
@@ -453,7 +453,7 @@ nodes:
   - id: aarhus/combined_heat_and_power
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: energy_carrier
       value: electricity
@@ -474,7 +474,7 @@ nodes:
   - id: aarhus/combined_heat_and_power
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: energy_carrier
       categories: [electricity]
@@ -511,7 +511,7 @@ nodes:
   - id: aarhus/combined_heat_and_power
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: sector
       categories: [i12]
@@ -546,7 +546,7 @@ nodes:
   - id: aarhus/combined_heat_and_power
     column: energy_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
       value: i12
@@ -578,7 +578,7 @@ nodes:
   - id: aarhus/combined_heat_and_power
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
   input_nodes:
   - id: chp_district_heat_emissions
   - id: chp_electricity_generation_emissions
@@ -595,7 +595,7 @@ nodes:
   input_datasets:
   - id: aarhus/electricity
     column: energy
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
       value: i21
@@ -611,7 +611,7 @@ nodes:
   input_datasets:
   - id: aarhus/electricity
     column: energy
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
       value: i22
@@ -679,7 +679,7 @@ nodes:
   - id: aarhus/manufacturing
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: ghg
@@ -698,7 +698,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
   input_nodes:
@@ -719,7 +719,7 @@ nodes:
   input_datasets:
   - id: aarhus/other_energy
     column: energy
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: other_energy_heating_emissions
   name: Other Energy Heating Emissions
@@ -781,7 +781,7 @@ nodes:
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
       value: i51
@@ -797,7 +797,7 @@ nodes:
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
       value: i52
@@ -813,7 +813,7 @@ nodes:
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
       value: i53
@@ -829,7 +829,7 @@ nodes:
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
       value: i54
@@ -845,7 +845,7 @@ nodes:
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
       value: i55
@@ -861,7 +861,7 @@ nodes:
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
       value: i56
@@ -893,7 +893,7 @@ nodes:
   input_datasets:
   - id: aarhus/biogenic_shares
     column: fraction
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: transportation_energy_emission_factors
   name: Transportation Energy Emission Factors
@@ -920,7 +920,7 @@ nodes:
   input_datasets:
   - id: aarhus/emission_factors__transportation
     column: emission_factor
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: vehicle_type
       categories: [cycling, mopeds, motorcycles, passenger_cars, trucks, vans]
@@ -936,7 +936,7 @@ nodes:
   input_datasets:
   - id: aarhus/gasoline_hybrid_shares
     column: fraction
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: gasoline_hybrid_emission_factors
   name: Gasoline Hybrid Emission Factors
@@ -1010,7 +1010,7 @@ nodes:
   - id: aarhus/onroad_transportation
     column: mileage
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: ghg
@@ -1028,7 +1028,7 @@ nodes:
   - id: aarhus/onroad_transportation
     column: energy_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: ghg
@@ -1063,7 +1063,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - dimension: vehicle_type
@@ -1072,7 +1072,7 @@ nodes:
   - id: aarhus/emission_factors__transportation
     tags: [ch4_n2o_emission_factors]
     column: emission_factor
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: vehicle_type
       categories: [buses]
@@ -1114,7 +1114,7 @@ nodes:
   - id: aarhus/onroad_transportation
     column: mileage
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: owner
@@ -1133,7 +1133,7 @@ nodes:
   - id: aarhus/onroad_transportation
     column: energy_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: owner
@@ -1182,7 +1182,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: owner
@@ -1249,7 +1249,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: owner
@@ -1303,7 +1303,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: owner
@@ -1370,7 +1370,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: owner
@@ -1418,7 +1418,7 @@ nodes:
   - id: aarhus/rail_transportation
     column: mileage
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: ghg
@@ -1434,7 +1434,7 @@ nodes:
   - id: aarhus/rail_transportation
     column: energy_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: ghg
@@ -1566,7 +1566,7 @@ nodes:
   - id: aarhus/rail_transportation
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
   input_nodes:
@@ -1589,7 +1589,7 @@ nodes:
   - id: aarhus/waterborne_transportation
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: ghg
@@ -1608,7 +1608,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
   input_nodes:
@@ -1638,7 +1638,7 @@ nodes:
   - id: aarhus/aviation
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: ghg
@@ -1657,7 +1657,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
   input_nodes:
@@ -1697,7 +1697,7 @@ nodes:
   input_datasets:
   - id: aarhus/waste
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: waste_ippu_emissions
@@ -1712,7 +1712,7 @@ nodes:
   input_datasets:
   - id: aarhus/ippu
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: waste_ippu_emissions
@@ -1753,7 +1753,7 @@ nodes:
   - id: aarhus/land
     column: emission_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: land_areas
   name: Land Areas
@@ -1766,7 +1766,7 @@ nodes:
   - id: aarhus/land
     column: area
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: ghg
 
@@ -1784,7 +1784,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: sector
       categories: [v11]
@@ -1797,79 +1797,6 @@ nodes:
     to_dimensions:
     - id: sector
 
-- id: organic_soils_cultivation_emissions
-  name: Organic Soils Cultivation Emissions
-  short_name: Cultivation Emissions
-  type: formula.FormulaNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  params:
-    formula: (land_areas * land_emission_factors) + reference
-  input_datasets:
-  - id: aarhus/land
-    tags: [reference]
-    column: emissions
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - dimension: sector
-      categories: [v121]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1211, v1212]
-    to_dimensions:
-    - id: sector
-
-- id: organic_soils_permanent_grass_emissions
-  name: Organic Soils Permanent Grass Emissions
-  short_name: Permanent Grass Emissions
-  type: formula.FormulaNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  params:
-    formula: (land_areas * land_emission_factors) + reference
-  input_datasets:
-  - id: aarhus/land
-    tags: [reference]
-    column: emissions
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - dimension: sector
-      categories: [v122]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1221, v1222]
-    to_dimensions:
-    - id: sector
-
-- id: organic_soils_nature_emissions
-  name: Organic Soils Nature Emissions
-  short_name: Nature Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1231, v1232]
-    to_dimensions:
-    - id: sector
-
 - id: organic_soils_emissions
   name: Organic Soils Emissions
   type: simple.AdditiveNode
@@ -1877,10 +1804,14 @@ nodes:
   unit: t/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
-  input_nodes:
-  - id: organic_soils_cultivation_emissions
-  - id: organic_soils_permanent_grass_emissions
-  - id: organic_soils_nature_emissions
+  input_datasets:
+  - id: aarhus/land
+    column: emissions
+    dropna: true
+    forecast_from: 2025
+    filters:
+    - dimension: sector
+      categories: [v121, v122, v123]
 
 - id: forestry_emissions
   name: Forestry Emissions
@@ -1923,7 +1854,7 @@ nodes:
   - id: aarhus/livestock
     column: emission_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: livestock_counts
   name: Livestock Counts
@@ -1936,7 +1867,7 @@ nodes:
   - id: aarhus/livestock
     column: number
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: emission_source
     - column: ghg
@@ -1955,7 +1886,7 @@ nodes:
     tags: [reference]
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
   input_nodes:
   - id: livestock_emission_factors
   - id: livestock_counts
@@ -2040,7 +1971,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/energy_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: carbon_capture_and_storage
@@ -2092,7 +2023,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/energy_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: energy_efficiency_improvements
@@ -2141,7 +2072,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/energy_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: energy_efficient_municipal_buildings
@@ -2209,7 +2140,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/energy_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: expansion_of_renewable_energy
@@ -2257,7 +2188,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/energy_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: green_district_heating_of_the_future
@@ -2302,7 +2233,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/energy_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: sustainable_municipal_facilities
@@ -2342,7 +2273,7 @@ actions:
   input_datasets:
   - id: aarhus/energy_actions
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: sector
     - column: action
@@ -2364,7 +2295,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/transportation_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: optimized_and_emission_free_municipal_fleet
@@ -2402,7 +2333,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/transportation_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: sustainable_air_and_maritime_transport
@@ -2451,7 +2382,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/transportation_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: sustainable_soil_management
@@ -2490,7 +2421,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 2a2_zero_emission_zone
@@ -2527,7 +2458,7 @@ actions:
   - id: aarhus/green_mobility_plan_actions
     column: fraction
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 4_transport_oriented_city_development
@@ -2549,7 +2480,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 5_super_bike_path
@@ -2584,7 +2515,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 7_upgrade_of_main_bike_path
@@ -2619,7 +2550,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 8_upgrade_of_local_path_system
@@ -2654,7 +2585,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 9_more_and_better_bike_parking
@@ -2689,7 +2620,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 10a_development_of_railway_station_district
@@ -2724,7 +2655,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 12a_improvement_of_school_roads
@@ -2759,7 +2690,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 14_rental_of_electric_bikes
@@ -2794,7 +2725,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 15a_uncongested_bus_network
@@ -2829,7 +2760,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 17_light_rail_stage_1
@@ -2864,7 +2795,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 22a_road_structure_mobility_zones_speed_limits
@@ -2899,7 +2830,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 23a_new_traffic_structure_mobility_zone_in_center
@@ -2934,7 +2865,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 24a_new_traffic_structure_kongelunden_sydbyen
@@ -2969,7 +2900,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 26_faster_electrification_of_vans
@@ -3004,7 +2935,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 26_faster_electrification_of_trucks
@@ -3039,7 +2970,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 27a_increase_in_parking_regulation
@@ -3076,7 +3007,7 @@ actions:
   - id: aarhus/green_mobility_plan_actions
     column: fraction
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 28_new_and_green_parking_norms
@@ -3098,7 +3029,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 29a_conversion_of_existing_parking_lots
@@ -3133,7 +3064,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 31_facilitation_of_codriving
@@ -3168,7 +3099,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/green_mobility_plan_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 32_expansion_of_charging_infrastructure
@@ -3205,7 +3136,7 @@ actions:
   - id: aarhus/green_mobility_plan_actions
     column: fraction
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: 3b_road_pricing
@@ -3228,7 +3159,7 @@ actions:
   - id: aarhus/green_mobility_plan_actions
     column: fraction
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: non_estimated_and_synergy_effects_1
@@ -3251,7 +3182,7 @@ actions:
   - id: aarhus/green_mobility_plan_actions
     column: fraction
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: non_estimated_and_synergy_effects_2
@@ -3274,7 +3205,7 @@ actions:
   - id: aarhus/green_mobility_plan_actions
     column: fraction
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: non_estimated_and_synergy_effects_3
@@ -3297,7 +3228,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/waste_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: biocover_on_landfills
@@ -3332,7 +3263,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/ippu_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: green_materials_in_industry_and_construction
@@ -3367,7 +3298,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/afolu_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: biogenic_energy_park
@@ -3426,7 +3357,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/afolu_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: climate_supervision_and_action_plans
@@ -3461,7 +3392,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/afolu_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: conversion_to_forestry_and_nature
@@ -3494,7 +3425,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/afolu_actions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: action
       value: extraction_of_organic_soils

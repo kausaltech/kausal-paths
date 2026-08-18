@@ -6,6 +6,8 @@ from pydantic import ConfigDict, Field, PrivateAttr
 
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
+from datasets.validation_rules import ValidationRule
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -65,12 +67,14 @@ class DatasetMetricMeta(FrozenGraphModel):
     label: I18nString | None = None
     unit: str = ''
     order: int | None = None
+    validation_rules: tuple[ValidationRule, ...] = ()
 
 
 class DatasetMeta(FrozenGraphModel):
     id: UUID
     identifier: str | None = None
     schema_id: UUID
+    is_editable: bool | None = None
     metrics: tuple[DatasetMetricMeta, ...] = ()
     declared_dimension_ids: tuple[UUID, ...] = ()
     is_external_placeholder: bool = False

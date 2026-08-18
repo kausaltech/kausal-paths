@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 
@@ -23,6 +23,53 @@ pytestmark = pytest.mark.django_db
 
 class DummyAuthBackend(BaseAuth):
     name = 'test'
+
+
+def test_database_sourced_instance_requires_spec() -> None:
+    ic = InstanceConfig.objects.create(
+        identifier='database-spec-constraint',
+        name='Database Spec Constraint',
+        primary_language='en',
+        organization=OrganizationFactory.create(),
+        config_source='database',
+    )
+    assert ic.spec is not None
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        InstanceConfig.objects.filter(pk=ic.pk).update(spec=None)
+
+
+def test_database_sourced_instance_does_not_refresh_spec_from_yaml(settings, tmp_path) -> None:
+    configs_dir = tmp_path / 'configs'
+    configs_dir.mkdir()
+    settings.BASE_DIR = tmp_path
+    (configs_dir / 'database-owned.yaml').write_text(
+        """
+id: database-owned
+default_language: en
+name: YAML name
+owner: Owner
+target_year: 2040
+""".lstrip(),
+        encoding='utf8',
+    )
+    db_spec = make_minimal_instance_spec({'target_year': 2030})
+    ic = InstanceConfig.objects.create(
+        identifier='database-owned',
+        name='Database Owned',
+        primary_language='en',
+        organization=OrganizationFactory.create(),
+        config_source='database',
+        spec=db_spec,
+        yaml_mtime_hash='stale-yaml-hash',
+    )
+
+    spec = ic.ensure_spec()
+
+    ic.refresh_from_db()
+    assert spec.years.target == 2030
+    assert ic.spec == db_spec
+    assert ic.yaml_mtime_hash == 'stale-yaml-hash'
 
 
 @override_settings(INSTANCE_WILDCARD_DOMAIN='paths-ui.example')
@@ -93,8 +140,8 @@ def test_hydrated_instance_reuses_source_instance_config() -> None:
         }),
     )
 
-    instance = ic.get_instance()
     with CaptureQueriesContext(connection) as query_ctx:
+        instance = ic.get_instance()
         assert instance.config is ic
         assert instance.config is ic
 
@@ -102,6 +149,14 @@ def test_hydrated_instance_reuses_source_instance_config() -> None:
         query['sql'] for query in query_ctx.captured_queries if 'FROM "nodes_instanceconfig"' in query['sql']
     ]
     assert instance_config_queries == []
+
+
+def test_create_for_instance_binds_source_instance_config() -> None:
+    instance = InstanceFactory.create(id='new-instance-config')
+
+    config = InstanceConfig.create_for_instance(instance)
+
+    assert instance.config is config
 
 
 def test_locked_instance_removes_mutating_permissions_for_superuser_and_children() -> None:

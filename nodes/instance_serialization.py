@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any, Literal, Self, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Self, cast
 from uuid import UUID
 
 from django.db import transaction
@@ -36,6 +36,7 @@ from kausal_common.i18n.pydantic import (
     get_translated_string_from_modeltrans,
 )
 
+from datasets.validation_rules import ValidationRule, validation_rule_adapter
 from nodes.defs.graph import (
     DatasetMeta,
     DatasetMetricMeta,
@@ -48,7 +49,7 @@ from nodes.defs.transform_def import EdgeTransformOp, PortTransformOp
 from nodes.page_snapshot import PageSnapshot
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Hashable, Iterable, Sequence
 
     from django.contrib.contenttypes.models import ContentType
     from django.db.models import Model, QuerySet
@@ -76,7 +77,9 @@ if TYPE_CHECKING:
 #   v6: instance lead title/paragraph and node StreamField body are revisioned.
 #   v7: published DB datasets have a normalized immutable revision manifest.
 #   v8: structural dimension and dataset catalogs carry canonical UUIDs.
-SNAPSHOT_SCHEMA_VERSION = 8
+#   v9: one discriminated ``bindings`` list with stored per-port positions
+#       replaces the ``edges`` + ``dataset_ports`` arrays.
+SNAPSHOT_SCHEMA_VERSION = 9
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -122,10 +125,27 @@ def _ts_from_modeltrans(obj: Model, field_name: str, primary_language: str) -> T
     return get_translated_string_from_modeltrans(obj, field_name, primary_language)
 
 
+class MetricValidationRuleSnapshot(ModelSnapshot):
+    """
+    One validation rule bound to a metric.
+
+    ``rule`` parses the stored blob strictly against the schema in
+    ``datasets.validation_rules``; ``uuid`` records the source row's identity.
+    """
+
+    uuid: UUID
+    rule: ValidationRule
+
+    @classmethod
+    def from_model(cls, obj: Any) -> Self:
+        return cls(uuid=obj.uuid, rule=validation_rule_adapter.validate_python(obj.rule))
+
+
 class DatasetMetricSnapshot(ModelSnapshot):
     identifier: str
     label: TranslatedString | None = None
     unit: str
+    validation_rules: list[MetricValidationRuleSnapshot] = Field(default_factory=list)
 
     @classmethod
     def from_model(cls, obj: Any) -> Self:
@@ -138,6 +158,7 @@ class DatasetMetricSnapshot(ModelSnapshot):
             identifier=obj.name or str(obj.uuid),
             label=_ts_from_modeltrans(obj, 'label', 'en') if obj.label or obj.i18n else None,
             unit=obj.unit,
+            validation_rules=cls._rules_from_model(obj),
         )
 
     @classmethod
@@ -146,7 +167,12 @@ class DatasetMetricSnapshot(ModelSnapshot):
             identifier=obj.name or str(obj.uuid),
             label=_ts_from_modeltrans(obj, 'label', primary_language),
             unit=obj.unit,
+            validation_rules=cls._rules_from_model(obj),
         )
+
+    @staticmethod
+    def _rules_from_model(obj: Any) -> list[MetricValidationRuleSnapshot]:
+        return [MetricValidationRuleSnapshot.from_model(rule) for rule in obj.validation_rules.order_by('order')]
 
 
 class DataPointKey(BaseModel):
@@ -205,6 +231,7 @@ class DatasetSnapshot(ModelSnapshot):
     is_external_placeholder: bool = False
     external_ref: dict[str, Any] | None = None
     time_resolution: str = 'yearly'
+    is_editable: bool = True
     dimensions: list[str] = Field(default_factory=list)
     dimension_columns: dict[str, str] = Field(default_factory=dict)
     metrics: list[DatasetMetricSnapshot] = Field(default_factory=list)
@@ -227,10 +254,12 @@ class DatasetSnapshot(ModelSnapshot):
         dimension_columns: dict[str, str] = {}
         name_ts: TranslatedString | None = None
         time_resolution = 'yearly'
+        is_editable = True
         primary_language = instance_config.primary_language if instance_config is not None else _primary_language_for_dataset(obj)
 
         if schema is not None:
             time_resolution = schema.time_resolution
+            is_editable = schema.is_editable
             # Schema name is a plain CharField + an i18n TranslationField.
             name_ts = _ts_from_modeltrans(schema, 'name', primary_language)
             metrics = [
@@ -272,6 +301,7 @@ class DatasetSnapshot(ModelSnapshot):
             is_external_placeholder=obj.is_external_placeholder,
             external_ref=obj.external_ref,
             time_resolution=time_resolution,
+            is_editable=is_editable,
             dimensions=dimensions,
             dimension_columns=dimension_columns,
             metrics=metrics,
@@ -318,6 +348,7 @@ class NodeSnapshot(ModelSnapshot):
     color: str = ''
     order: int | None = None
     is_visible: bool = True
+    is_editable: bool | None = None
     indicator_node: UUID | None = None
     copy_of: UUID | None = None
     body: list[Any] | None = None
@@ -359,6 +390,7 @@ class NodeSnapshot(ModelSnapshot):
             color=obj.color,
             order=obj.order,
             is_visible=obj.is_visible,
+            is_editable=obj.is_editable,
             indicator_node=indicator_uuid,
             copy_of=obj.copy_of.uuid if obj.copy_of else None,
             body=list(obj.body.raw_data) if obj.body else None,
@@ -384,6 +416,7 @@ class NodeSnapshot(ModelSnapshot):
             color=obj.color or '',
             order=obj.order,
             is_visible=obj.is_visible,
+            is_editable=obj.is_editable,
             spec=obj._spec,
         )
 
@@ -428,6 +461,7 @@ def reconcile_node_snapshot_metadata(
             'color': stored.color or source.color,
             'order': stored.order if stored.order is not None else source.order,
             'is_visible': stored.is_visible,
+            'is_editable': source.is_editable if source.is_editable is not None else stored.is_editable,
             'indicator_node': stored.indicator_node,
             'copy_of': stored.copy_of,
             'body': stored.body,
@@ -478,7 +512,12 @@ def _upgrade_node_references_v3(data: dict[str, Any], nodes: list[Any]) -> None:
 
 
 class EdgeSnapshot(ModelSnapshot):
+    kind: Literal['edge'] = 'edge'
     uuid: UUID | None = None
+    # Stable order among values delivered to the target port, shared with
+    # dataset bindings. Assigned at snapshot production; ``None`` only on
+    # transient pre-resolution (parse-side) snapshots.
+    position: int | None = None
     from_node: UUID
     to_node: UUID
     from_port: UUID
@@ -502,7 +541,10 @@ class EdgeSnapshot(ModelSnapshot):
 
 
 class DatasetPortSnapshot(ModelSnapshot):
+    kind: Literal['dataset'] = 'dataset'
     uuid: UUID | None = None
+    # See ``EdgeSnapshot.position`` — one order across both binding kinds.
+    position: int | None = None
     node: UUID
     dataset: str
     dataset_uuid: UUID | None = None
@@ -539,6 +581,21 @@ class DatasetPortSnapshot(ModelSnapshot):
             spec=obj.spec,
             dataset_revision=dataset_revision_id,
         )
+
+
+type BindingSnapshot = EdgeSnapshot | DatasetPortSnapshot
+"""One entry of ``InstanceSnapshot.bindings``, discriminated by ``kind``."""
+
+
+def _upgrade_bindings_v9(data: dict[str, Any]) -> None:
+    """Merge the legacy ``edges`` + ``dataset_ports`` arrays into one positioned binding list."""
+    edges = [EdgeSnapshot.model_validate(e) for e in data.pop('edges', [])]
+    ports = [DatasetPortSnapshot.model_validate(p) for p in data.pop('dataset_ports', [])]
+    bindings: list[BindingSnapshot] = []
+    for item, position in ordered_binding_snapshots(edges, ports):
+        item.position = position
+        bindings.append(item)
+    data['bindings'] = bindings
 
 
 class NodePortSource(BaseModel):
@@ -643,6 +700,92 @@ def ordered_binding_snapshots(
     return result
 
 
+def match_preserved_uuids(
+    existing: Sequence[tuple[tuple[Hashable, ...], UUID]],
+    replacements: Sequence[tuple[Hashable, ...]],
+) -> list[UUID | None]:
+    """
+    Match replacement rows to existing rows through successive structural keys.
+
+    The sync paths preserve authored order by deleting and recreating the
+    ``NodeEdge`` / ``DatasetPort`` rows (pk order is the authored order), but
+    the rebuilt rows must keep their durable UUIDs: the row UUID is the
+    binding identity ``NodeInputPortBinding`` mirrors, and it must survive a
+    re-sync. Each row supplies one key per matching pass, most specific
+    first; within a pass, unmatched rows sharing a key pair up in their given
+    (authored) orders, so parallel duplicates match deterministically.
+    Returns one preserved UUID (or ``None``) per replacement.
+    """
+    from collections import defaultdict, deque
+
+    result: list[UUID | None] = [None] * len(replacements)
+    if not existing or not replacements:
+        return result
+    pass_count = len(replacements[0])
+    assert all(len(keys) == pass_count for keys in replacements)
+    assert all(len(keys) == pass_count for keys, _uuid in existing)
+
+    free_existing = list(range(len(existing)))
+    for pass_idx in range(pass_count):
+        pool: defaultdict[Hashable, deque[int]] = defaultdict(deque)
+        for e_idx in free_existing:
+            pool[existing[e_idx][0][pass_idx]].append(e_idx)
+        matched: set[int] = set()
+        for r_idx, keys in enumerate(replacements):
+            if result[r_idx] is not None:
+                continue
+            queue = pool.get(keys[pass_idx])
+            if not queue:
+                continue
+            e_idx = queue.popleft()
+            result[r_idx] = existing[e_idx][1]
+            matched.add(e_idx)
+        free_existing = [e_idx for e_idx in free_existing if e_idx not in matched]
+        if not free_existing:
+            break
+    return result
+
+
+def edge_match_keys(from_node: UUID, from_port: UUID, to_node: UUID, to_port: UUID) -> tuple[Hashable, ...]:
+    """Structural match keys for one edge, most specific first (loose pass survives port changes)."""
+    return ((from_node, from_port, to_node, to_port), (from_node, to_node))
+
+
+def dataset_port_match_keys(node: UUID, dataset_pk: int, dataset_index: int, metric_pk: int) -> tuple[Hashable, ...]:
+    """Structural match keys for one dataset-port row (loose pass survives dataset reordering)."""
+    return ((node, dataset_pk, dataset_index, metric_pk), (node, dataset_pk, metric_pk))
+
+
+def existing_edge_identities(ic: InstanceConfig) -> list[tuple[tuple[Hashable, ...], UUID]]:
+    """Capture edge match keys and UUIDs, in authored (pk) order, before a sync rewrite."""
+    from nodes.models import NodeEdge
+
+    return [
+        (edge_match_keys(from_node, from_port, to_node, to_port), row_uuid)
+        for from_node, from_port, to_node, to_port, row_uuid in (
+            NodeEdge.objects
+            .filter(instance=ic)
+            .order_by('pk')
+            .values_list('from_node__uuid', 'from_port', 'to_node__uuid', 'to_port', 'uuid')
+        )
+    ]
+
+
+def existing_dataset_port_identities(ic: InstanceConfig) -> list[tuple[tuple[Hashable, ...], UUID]]:
+    """Capture dataset-port match keys and UUIDs, in pk order, before a sync rewrite."""
+    from nodes.models import DatasetPort
+
+    return [
+        (dataset_port_match_keys(node_uuid, dataset_pk, dataset_index, metric_pk), row_uuid)
+        for node_uuid, dataset_pk, dataset_index, metric_pk, row_uuid in (
+            DatasetPort.objects
+            .filter(instance=ic)
+            .order_by('pk')
+            .values_list('node__uuid', 'dataset_id', 'dataset_index', 'metric_id', 'uuid')
+        )
+    ]
+
+
 class DatasetRevisionPinSnapshot(BaseModel):
     dataset_uuid: UUID
     identifier: str | None = None
@@ -656,7 +799,8 @@ class InstanceSnapshot(BaseModel):
     """
     Structural state of an instance; unit of revisioning.
 
-    Contains metadata + spec + nodes + edges + dataset ports.
+    Contains metadata + spec + nodes + input bindings (edge- and
+    dataset-sourced, one discriminated list in stored ``position`` order).
     Structural references and their dimension/dataset catalogs are UUID-pinned.
     Dataset bodies live in ``DatasetExport`` alongside (see ``InstanceExport``).
     """
@@ -669,13 +813,35 @@ class InstanceSnapshot(BaseModel):
     spec: InstanceModelSpec
     copy_of: str | None = None  # uuid of the InstanceConfig this was copied from
     nodes: list[NodeSnapshot] = Field(default_factory=list)
-    edges: list[EdgeSnapshot] = Field(default_factory=list)
-    dataset_ports: list[DatasetPortSnapshot] = Field(default_factory=list)
+    bindings: list[Annotated[BindingSnapshot, Field(discriminator='kind')]] = Field(default_factory=list)
     dataset_revisions: list[DatasetRevisionPinSnapshot] = Field(default_factory=list)
     dimensions: list[DimensionMeta] = Field(default_factory=list)
     datasets: list[DatasetMeta] = Field(default_factory=list)
 
     model_config = {'arbitrary_types_allowed': True}
+
+    @property
+    def edge_bindings(self) -> list[EdgeSnapshot]:
+        return [b for b in self.bindings if isinstance(b, EdgeSnapshot)]
+
+    @property
+    def dataset_bindings(self) -> list[DatasetPortSnapshot]:
+        return [b for b in self.bindings if isinstance(b, DatasetPortSnapshot)]
+
+    def bindings_with_positions(self) -> list[tuple[BindingSnapshot, int]]:
+        """
+        Bindings with per-port positions.
+
+        Persisted snapshots (v9+) store positions; transient pre-resolution
+        snapshots (parse side, before dataset fan-out) do not, and get the
+        canonical assignment computed on demand.
+        """
+        stored: list[tuple[BindingSnapshot, int]] = []
+        for binding in self.bindings:
+            if binding.position is None:
+                return ordered_binding_snapshots(self.edge_bindings, self.dataset_bindings)
+            stored.append((binding, binding.position))
+        return stored
 
     @classmethod
     def from_serialized_data(cls, data: dict[str, Any]) -> Self:
@@ -691,6 +857,8 @@ class InstanceSnapshot(BaseModel):
             _upgrade_node_references_v3(data, nodes)
         if schema_version < 4:
             _upgrade_node_metadata_v4(nodes)
+        if schema_version < 9:
+            _upgrade_bindings_v9(data)
 
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
         return cls.model_validate(data)
@@ -831,6 +999,43 @@ def _export_dataset_data_safe(ds: DatasetModel) -> dict[str, Any] | None:
     return _export_dataset_data(ds)
 
 
+def _check_spec_is_not_yaml_minimal(ic: InstanceConfig, nodes: list[NodeSnapshot]) -> None:
+    """
+    Refuse a spec that ``ensure_spec()`` derived from YAML, which carries no dimensions.
+
+    A yaml-sourced instance stores the *minimal* spec that ``make_minimal_instance_spec()``
+    builds: identity, params, scenarios, pages — but no dimension catalogue, because the YAML
+    runtime reads dimensions from the config file and never consults the spec. Flipping such an
+    instance to ``config_source='database'`` therefore hands the snapshot path a spec with an
+    empty dimension list, and the load dies far downstream on the first node that declares one,
+    as ``NodeError: Dimension <x> not found``. Say what is actually wrong instead.
+
+    An instance whose nodes are all dimensionless is left alone: an empty catalogue is correct
+    there, and this must not become a reason to refuse a model that would load fine.
+    """
+    if ic.spec is None or ic.spec.dimensions:
+        return
+    wanted = next(
+        (
+            dim_id
+            for node in nodes
+            if node.spec is not None
+            for dim_id in (list(node.spec.input_dimensions or []) + list(node.spec.output_dimensions or []))
+        ),
+        None,
+    )
+    if wanted is None:
+        return
+    msg = (
+        f'Instance {ic.identifier} has a spec with no dimensions, but its nodes declare some '
+        f"(e.g. '{wanted}'). This is the minimal spec derived from the YAML config "
+        f"(config_source is '{ic.config_source}'), which does not carry a dimension catalogue. "
+        f'Run `sync_instance_to_db {ic.identifier}` to store a full spec before loading from '
+        f'the database.'
+    )
+    raise ValueError(msg)
+
+
 def build_instance_snapshot(
     ic: InstanceConfig,
     dataset_revision_pins: dict[int, DatasetRevisionPinSnapshot] | None = None,
@@ -849,6 +1054,7 @@ def build_instance_snapshot(
         ic.nodes.get_queryset().active().with_spec().select_related('indicator_node', 'copy_of', 'layout').order_by('order', 'pk')
     )
     nodes = [NodeSnapshot.from_model(nc, primary_language=ic.primary_language) for nc in node_qs]
+    _check_spec_is_not_yaml_minimal(ic, nodes)
 
     edges = [EdgeSnapshot.from_model(e) for e in edge_qs_for(ic)]
 
@@ -860,6 +1066,11 @@ def build_instance_snapshot(
             pin = dataset_revision_pins.get(port.dataset_id)
             snapshot.dataset_revision = pin.revision_id if pin is not None else None
         dataset_ports.append(snapshot)
+
+    bindings: list[BindingSnapshot] = []
+    for item, position in ordered_binding_snapshots(edges, dataset_ports):
+        item.position = position
+        bindings.append(item)
 
     dimensions = _dimension_catalog_for(ic)
     datasets = _dataset_catalog_for(
@@ -873,8 +1084,7 @@ def build_instance_snapshot(
         spec=ic.spec,
         copy_of=str(ic.copy_of.uuid) if ic.copy_of else None,
         nodes=nodes,
-        edges=edges,
-        dataset_ports=dataset_ports,
+        bindings=bindings,
         dataset_revisions=list(dataset_revision_pins.values()) if dataset_revision_pins is not None else [],
         dimensions=dimensions,
         datasets=datasets,
@@ -936,6 +1146,12 @@ def dataset_meta_from_model(
             label=_ts_from_modeltrans(metric, 'label', primary_language),
             unit=metric.unit,
             order=metric.order,
+            validation_rules=tuple(
+                validation_rule_adapter.validate_python(rule.rule)
+                # Meta.ordering is (metric, order), so .all() hits the
+                # prefetch cache already in rule order.
+                for rule in metric.validation_rules.all()
+            ),
         )
         for metric in schema.metrics.all()
     )
@@ -944,6 +1160,7 @@ def dataset_meta_from_model(
         id=dataset.uuid,
         identifier=dataset.identifier,
         schema_id=schema.uuid,
+        is_editable=schema.is_editable,
         metrics=metrics,
         declared_dimension_ids=declared_dimension_ids,
         is_external_placeholder=dataset.is_external_placeholder,
@@ -964,7 +1181,7 @@ def _dataset_catalog_for(
         DatasetModel.objects
         .filter(pk__in=dataset_ids)
         .select_related('schema')
-        .prefetch_related('schema__metrics', 'schema__dimensions__dimension')
+        .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension')
         .order_by('pk')
     )
     result: list[DatasetMeta] = []
@@ -1151,6 +1368,7 @@ def _import_dataset(
     from kausal_common.datasets.models import (
         Dataset as DatasetModel,
         DatasetMetric as DatasetMetricModel,
+        DatasetMetricValidationRule,
         DatasetSchema as DatasetSchemaModel,
         DatasetSchemaDimension,
         DatasetSchemaScope,
@@ -1160,7 +1378,10 @@ def _import_dataset(
     primary_lang = ic.primary_language
 
     # Resolve schema name from the TranslatedString snapshot.
-    schema_fields: dict[str, Any] = {'time_resolution': ds_snapshot.time_resolution}
+    schema_fields: dict[str, Any] = {
+        'time_resolution': ds_snapshot.time_resolution,
+        'is_editable': ds_snapshot.is_editable,
+    }
     schema_i18n: dict[str, str] = {}
     _apply_translated(schema_fields, schema_i18n, ds_snapshot.name, 'name', primary_lang)
     if schema_fields.get('name') is None:
@@ -1194,6 +1415,14 @@ def _import_dataset(
             i18n=metric_i18n,
             **metric_fields,
         )
+        # Like the metric itself, a restored rule gets a fresh uuid; the
+        # snapshot uuid records provenance only.
+        for rule_idx, rule_snap in enumerate(m_snap.validation_rules):
+            DatasetMetricValidationRule.objects.create(
+                metric=metric,
+                rule=rule_snap.rule.model_dump(mode='json'),
+                order=rule_idx,
+            )
         metrics_by_id[m_snap.identifier] = metric
 
     # Link dimensions to schema
@@ -1713,6 +1942,7 @@ def _import_nodes(
             color=n.color,
             order=n.order,
             is_visible=n.is_visible,
+            is_editable=n.is_editable if n.is_editable is not None else True,
             body=n.body or [],
             i18n=i18n_dict,
             **fields,
@@ -1757,7 +1987,8 @@ def _import_edges(
 ) -> None:
     from nodes.models import NodeEdge
 
-    for e in export.instance.edges:
+    # Iteration order matters: pk (creation) order is the authored order.
+    for e in export.instance.edge_bindings:
         from_node = nodes_by_uuid.get(e.from_node)
         to_node = nodes_by_uuid.get(e.to_node)
         if from_node is None or to_node is None:
@@ -1781,7 +2012,7 @@ def _import_dataset_ports(
 ) -> None:
     from nodes.models import DatasetPort
 
-    for p in export.instance.dataset_ports:
+    for p in export.instance.dataset_bindings:
         node = nodes_by_uuid.get(p.node)
         dataset = datasets_by_id.get(p.dataset)
         if node is None or dataset is None:

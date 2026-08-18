@@ -83,10 +83,9 @@ def _build(
             metadata=InstanceMetadata(uuid=uuid4(), identifier='solver-test', name='Solver test'),
             spec=InstanceModelSpec(),
             nodes=nodes,
-            edges=edges,
+            bindings=[*edges, *(dataset_ports or [])],
             dimensions=list(dimensions),
             datasets=list(datasets),
-            dataset_ports=dataset_ports or [],
         )
     )
 

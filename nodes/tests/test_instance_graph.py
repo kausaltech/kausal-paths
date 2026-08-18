@@ -53,7 +53,7 @@ def _snapshot() -> InstanceSnapshot:
                 spec=NodeSpec(input_ports=[InputPortDef(id=input_id, unit=unit)]),
             ),
         ],
-        edges=[
+        bindings=[
             EdgeSnapshot(
                 uuid=uuid4(),
                 from_node=source_id,

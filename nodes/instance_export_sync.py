@@ -147,6 +147,8 @@ def _node_metadata_attributes(node: NodeSnapshot, primary_language: str) -> dict
         'order': node.order,
         'is_visible': node.is_visible,
     }
+    if node.is_editable is not None:
+        attributes['is_editable'] = node.is_editable
     i18n: dict[str, str] = {}
     for field_name, value in (
         ('name', node.name),
@@ -196,7 +198,7 @@ def _target_dataset_ids_by_node(ic: InstanceConfig, export: InstanceExport) -> d
     )
     result: dict[UUID, list[str]] = {}
     ordered_ports = sorted(
-        export.instance.dataset_ports,
+        export.instance.dataset_bindings,
         key=lambda port: (str(port.node), port.dataset_index, str(port.port_id)),
     )
     for port in ordered_ports:

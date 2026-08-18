@@ -119,6 +119,16 @@ result_excels:
   - transport_emission_factors      # the certifier could not find these listed
   - vehicle_kilometers_ifeu
   - other_transport_energy
+  # --- Added 2026-08-17, each against a specific Pruefschritt ---
+  - district_heating_energy_use     # 7.3: the certifier could not find where to enter this
+  - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
+  - vehicle_kilometers_own          # 2.3: the own-data mileage route, road-typed
+  - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
+  # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
+  # These show which required cell is missing rather than a bare 0.
+  - final_energy_use_availability
+  - other_transport_energy_availability
+  - vehicle_kilometers_own_availability
 
 actions:
 
@@ -150,6 +160,7 @@ nodes:
 
 # sum up Industry + Commercial
 - id: industry_commerce_emissions
+  is_editable: false
   name_en: Industry & Commerce
   name_de: Gewerbe/Handel/Dienstleistungen & Industrie
   type: formula.FormulaNode
@@ -166,6 +177,7 @@ nodes:
 
 # copy them from bisko standard and remove output node net_emissions - don't forget to put allow_override=true
 - id: industry_emissions
+  is_editable: false
   name_de: Industrie Emissionen
   name_en: Industry emissions
   color: '#737373'
@@ -181,6 +193,7 @@ nodes:
       categories: [industry]
 
 - id: commerce_trade_services_emissions
+  is_editable: false
   name_de: Gewerbe, Handel, Dienstleistungen Emissionen
   name_en: Commerce, trade, services emissions
   color: '#fe8035'
@@ -196,6 +209,7 @@ nodes:
       categories: [commerce_trade_services]
 
 - id: transport_energy
+  is_editable: false
   name_de: Transportenergie
   name_en: Transport energy
   type: formula.FormulaNode

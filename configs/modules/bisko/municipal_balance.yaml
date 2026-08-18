@@ -1,5 +1,23 @@
 # GHG-Protocol city-administration balance (Verwaltungsbilanz / KNSV)
 #
+# ## NOT part of the BISKO inventory
+#
+# This module is outside the BISKO certification scope, and deliberately so. BISKO is a
+# territorial end-energy balance; this is the authority's own organisational footprint on a
+# GHG-Protocol boundary, including Scope 3. No node here feeds `net_emissions`, no BISKO
+# conformity test reads one, and nothing in `is_bisko_compliant` depends on this file being
+# included. A city that omits it still produces a conformant BISKO balance — protocol step
+# 2.1 states explicitly that missing municipal data must not by itself make an inventory
+# non-conformant.
+#
+# It is included only by `mainz-bisko`. Keep it that way unless a city asks for it: the
+# certifier reads `modules/bisko/model.yaml` as the balance, and content that is not the
+# balance should not be mixed into it.
+#
+# The datasets below still follow the ownership rules of the certified module, because the
+# reason a city user must not rewrite an emission factor does not depend on which boundary
+# the factor is used on.
+#
 # A parallel outcome tree, deliberately NOT connected to `net_emissions`. Two reasons,
 # both structural rather than presentational:
 #
@@ -26,6 +44,19 @@
 # the two things that vary: the uploader allows one unit per metric, and energy rows are
 # keyed by `energy_carrier` (so they stay comparable with the territorial balance) while
 # everything else is keyed by `emission_source`.
+
+datasets:
+
+# The emission factors are methodology data (UBA / GHG-Protocol / KNSV factor sets), not
+# municipal observations, so they are locked like the BISKO reference tables. This was the
+# one emission factor dataset in the bisko family that a city admin could still rewrite.
+- id: bisko/municipal_balance_emission_factors
+  is_editable: false
+
+# The activity side is what the authority reports about itself: building energy, fleet fuel,
+# procurement, travel, water, events. Editable.
+- id: bisko/municipal_balance_activity
+  is_editable: true
 
 dimensions:
 
@@ -239,6 +270,7 @@ nodes:
 # --------------------------------------------------------------------------------------
 
 - id: municipal_building_energy
+  is_editable: false
   name_de: Endenergie der Liegenschaften der Stadtverwaltung
   name_en: City administration building energy use
   description_de: |
@@ -253,13 +285,14 @@ nodes:
     authoritative: the authority's inventory boundary is defined by its properties, and
     only this source knows which those are. Where the two disagree, the difference is
     recorded in the comment on the data point itself.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: energy
   unit: MWh/a
   input_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   output_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   input_datasets:
   - id: bisko/municipal_balance_activity
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: energy
     filters:
     - dimension: ghg_category
@@ -269,6 +302,7 @@ nodes:
     - column: scope
 
 - id: municipal_fleet_fuel
+  is_editable: false
   name_de: Kraftstoffverbrauch des Fuhrparks der Stadtverwaltung
   name_en: City administration vehicle fleet fuel use
   description_de: |
@@ -280,13 +314,14 @@ nodes:
     Fleet diesel, petrol and CNG in litres, as recorded in the fleet management system.
     Deliberately not converted to energy: the consultant's factors are stated per litre,
     and for CNG the recording unit is unresolved in the source itself.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: volume
   unit: l/a
   input_dimensions: [ghg_category, municipal_facility_type, energy_carrier, vehicle_type]
   output_dimensions: [ghg_category, municipal_facility_type, energy_carrier, vehicle_type]
   input_datasets:
   - id: bisko/municipal_balance_activity
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: volume
     filters:
     - dimension: ghg_category
@@ -295,6 +330,7 @@ nodes:
     - column: scope
 
 - id: municipal_material_use
+  is_editable: false
   name_de: Stoffströme der Stadtverwaltung (Kältemittel, Papier, Abfall)
   name_en: City administration material flows (refrigerants, paper, waste)
   description_de: |
@@ -302,13 +338,14 @@ nodes:
     Entsorgungsweg.
   description_en: |
     Masses: refrigerant top-ups, paper by weight, and waste by disposal route.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: mass
   unit: kg/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
   - id: bisko/municipal_balance_activity
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: mass
     filters:
     - column: energy_carrier
@@ -316,6 +353,7 @@ nodes:
     - column: scope
 
 - id: municipal_travel
+  is_editable: false
   name_de: Dienstreisen und Arbeitswege der Stadtverwaltung
   name_en: City administration business travel and commuting
   description_de: |
@@ -328,13 +366,14 @@ nodes:
     because the source records the one-way distance and adds the return leg in the model;
     flights are whole journeys. Commuting exists for 2019 only -- 2020 and 2021 were not
     surveyed because of home working, which is a measurement gap and not a reduction.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: mileage
   unit: pkm/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
   - id: bisko/municipal_balance_activity
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: mileage
     filters:
     - column: energy_carrier
@@ -342,6 +381,7 @@ nodes:
     - column: scope
 
 - id: municipal_items_purchased
+  is_editable: false
   name_de: Beschaffte Mengen der Stadtverwaltung (Papier, Mahlzeiten, Post)
   name_en: City administration items purchased (paper, meals, post)
   description_de: |
@@ -356,13 +396,14 @@ nodes:
     what is being counted is said by the emission source. Summing over that dimension
     would add meals to sheets of paper and is meaningless -- multiply by the factor
     first, then sum.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: number
   unit: pcs/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
   - id: bisko/municipal_balance_activity
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: count
     filters:
     - column: energy_carrier
@@ -370,15 +411,17 @@ nodes:
     - column: scope
 
 - id: municipal_water_use
+  is_editable: false
   name_de: Frischwasserverbrauch der Stadtverwaltung
   name_en: City administration water use
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: volume
   unit: l/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
   - id: bisko/municipal_balance_activity
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: volume
     filters:
     - dimension: ghg_category
@@ -397,15 +440,17 @@ nodes:
 # lookup is needed here.
 
 - id: municipal_building_energy_ef
+  is_editable: false
   name_de: Emissionsfaktoren Gebäudeenergie der Stadtverwaltung
   name_en: City administration building energy emission factors
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: kg_co2e/MWh
   input_dimensions: [ghg_category, energy_carrier, scope]
   output_dimensions: [ghg_category, energy_carrier, scope]
   input_datasets:
   - id: bisko/municipal_balance_emission_factors
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_energy
     filters:
     - dimension: ghg_category
@@ -414,15 +459,17 @@ nodes:
     - column: vehicle_type
 
 - id: municipal_fleet_fuel_ef
+  is_editable: false
   name_de: Emissionsfaktoren Kraftstoffe des Fuhrparks der Stadtverwaltung
   name_en: City administration fleet fuel emission factors
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: kg_co2e/l
   input_dimensions: [ghg_category, energy_carrier, vehicle_type, scope]
   output_dimensions: [ghg_category, energy_carrier, vehicle_type, scope]
   input_datasets:
   - id: bisko/municipal_balance_emission_factors
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_volume
     filters:
     - dimension: ghg_category
@@ -430,60 +477,68 @@ nodes:
     - column: emission_source
 
 - id: municipal_material_ef
+  is_editable: false
   name_de: Emissionsfaktoren Stoffströme der Stadtverwaltung
   name_en: City administration material flow emission factors
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: kg_co2e/kg
   input_dimensions: [ghg_category, emission_source, scope]
   output_dimensions: [ghg_category, emission_source, scope]
   input_datasets:
   - id: bisko/municipal_balance_emission_factors
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_mass
     filters:
     - column: energy_carrier
     - column: vehicle_type
 
 - id: municipal_travel_ef
+  is_editable: false
   name_de: Emissionsfaktoren Dienstreisen und Arbeitswege der Stadtverwaltung
   name_en: City administration travel emission factors
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: kg_co2e/pkm
   input_dimensions: [ghg_category, emission_source, scope]
   output_dimensions: [ghg_category, emission_source, scope]
   input_datasets:
   - id: bisko/municipal_balance_emission_factors
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_mileage
     filters:
     - column: energy_carrier
     - column: vehicle_type
 
 - id: municipal_items_ef
+  is_editable: false
   name_de: Emissionsfaktoren Beschaffung der Stadtverwaltung
   name_en: City administration procurement emission factors
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: kg_co2e/pcs
   input_dimensions: [ghg_category, emission_source, scope]
   output_dimensions: [ghg_category, emission_source, scope]
   input_datasets:
   - id: bisko/municipal_balance_emission_factors
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_count
     filters:
     - column: energy_carrier
     - column: vehicle_type
 
 - id: municipal_water_ef
+  is_editable: false
   name_de: Emissionsfaktor Frischwasser der Stadtverwaltung
   name_en: City administration water emission factor
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: kg_co2e/l
   input_dimensions: [ghg_category, emission_source, scope]
   output_dimensions: [ghg_category, emission_source, scope]
   input_datasets:
   - id: bisko/municipal_balance_emission_factors
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_volume
     filters:
     - dimension: ghg_category
@@ -500,10 +555,11 @@ nodes:
 # broadcasts the other way: one district-heating factor serves every property group.
 
 - id: municipal_building_emissions
+  is_editable: false
   name_de: Emissionen aus der Gebäudeenergie der Stadtverwaltung
   name_en: City administration building energy emissions
   color: '#C2185B'
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg_category, municipal_facility_type, energy_carrier, scope]
@@ -511,8 +567,6 @@ nodes:
   input_nodes:
   - id: municipal_building_energy
   - id: municipal_building_energy_ef
-  params:
-    operations: multiply
   output_nodes:
   - id: municipal_balance_emissions
     from_dimensions:
@@ -520,10 +574,11 @@ nodes:
       flatten: true
 
 - id: municipal_fleet_emissions
+  is_editable: false
   name_de: Emissionen aus dem Fuhrpark der Stadtverwaltung
   name_en: City administration vehicle fleet emissions
   color: '#1E5AA8'
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg_category, municipal_facility_type, energy_carrier, vehicle_type, scope]
@@ -531,8 +586,6 @@ nodes:
   input_nodes:
   - id: municipal_fleet_fuel
   - id: municipal_fleet_fuel_ef
-  params:
-    operations: multiply
   output_nodes:
   - id: municipal_balance_emissions
     from_dimensions:
@@ -542,10 +595,11 @@ nodes:
       flatten: true
 
 - id: municipal_material_emissions
+  is_editable: false
   name_de: Emissionen aus Stoffströmen der Stadtverwaltung
   name_en: City administration material flow emissions
   color: '#C62828'
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
@@ -553,8 +607,6 @@ nodes:
   input_nodes:
   - id: municipal_material_use
   - id: municipal_material_ef
-  params:
-    operations: multiply
   output_nodes:
   - id: municipal_balance_emissions
     from_dimensions:
@@ -562,10 +614,11 @@ nodes:
       flatten: true
 
 - id: municipal_travel_emissions
+  is_editable: false
   name_de: Emissionen aus Dienstreisen und Arbeitswegen der Stadtverwaltung
   name_en: City administration business travel and commuting emissions
   color: '#B8860B'
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
@@ -573,8 +626,6 @@ nodes:
   input_nodes:
   - id: municipal_travel
   - id: municipal_travel_ef
-  params:
-    operations: multiply
   output_nodes:
   - id: municipal_balance_emissions
     from_dimensions:
@@ -582,10 +633,11 @@ nodes:
       flatten: true
 
 - id: municipal_items_emissions
+  is_editable: false
   name_de: Emissionen aus der Beschaffung der Stadtverwaltung
   name_en: City administration procurement emissions
   color: '#8E24AA'
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
@@ -593,8 +645,6 @@ nodes:
   input_nodes:
   - id: municipal_items_purchased
   - id: municipal_items_ef
-  params:
-    operations: multiply
   output_nodes:
   - id: municipal_balance_emissions
     from_dimensions:
@@ -602,10 +652,11 @@ nodes:
       flatten: true
 
 - id: municipal_water_emissions
+  is_editable: false
   name_de: Emissionen aus dem Frischwasserverbrauch der Stadtverwaltung
   name_en: City administration water emissions
   color: '#5D4037'
-  type: generic.GenericNode
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
@@ -613,8 +664,6 @@ nodes:
   input_nodes:
   - id: municipal_water_use
   - id: municipal_water_ef
-  params:
-    operations: multiply
   output_nodes:
   - id: municipal_balance_emissions
     from_dimensions:
@@ -627,6 +676,7 @@ nodes:
 # here as emissions, which is the single exception to "emissions are computed, not
 # uploaded" (data/mainz/README.md, decision 8).
 - id: municipal_event_emissions
+  is_editable: false
   name_de: Emissionen aus Großveranstaltungen der Stadtverwaltung
   name_en: City administration major event emissions
   color: '#546E7A'
@@ -636,13 +686,14 @@ nodes:
   description_en: |
     Already-computed emissions, not activity data. Material for 2019 only; the events did
     not take place in 2020 and 2021.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
   input_datasets:
   - id: bisko/municipal_balance_activity
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: emissions
     filters:
     - column: energy_carrier
@@ -674,6 +725,7 @@ nodes:
 # Building energy is the branch where the grade is both meaningful and directly
 # comparable with the territorial balance's `final_energy_use_data_quality`.
 - id: municipal_building_energy_data_quality
+  is_editable: false
   name_de: Datengüte der Gebäudeenergie der Stadtverwaltung
   name_en: City administration building energy data quality
   description_de: |
@@ -686,13 +738,14 @@ nodes:
     Arqum workbook's own quality column. Filled zeros carry their series' weakest grade,
     which does not move the weighted figure: BISKO weights by consumption and a zero
     weighs nothing.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   output_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   input_datasets:
   - id: bisko/municipal_balance_activity
+    extend: true  # GenericNode extended its dataset; keep that explicit
     column: quality
     filters:
     - dimension: ghg_category
@@ -702,6 +755,7 @@ nodes:
     - column: scope
 
 - id: municipal_balance_emissions
+  is_editable: false
   name_de: Treibhausgasbilanz der Stadtverwaltung
   name_en: City administration GHG balance
   color: '#AD1457'
@@ -720,7 +774,7 @@ nodes:
     to it.</b> Municipal building energy is already counted there in the municipal
     facilities sector, and the Scope 3 components -- commuting, procurement, catering,
     postal transport -- lie outside the territorial boundary.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg_category, municipal_facility_type, scope]

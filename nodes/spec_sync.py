@@ -18,10 +18,14 @@ from uuid import uuid3
 from loguru import logger
 
 if TYPE_CHECKING:
+    from collections.abc import Hashable
     from uuid import UUID
 
+    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
     from kausal_common.i18n.pydantic import TranslatedString
 
+    from datasets.validation_rules import ValidationRule
+    from nodes.defs.graph import DatasetMeta
     from nodes.defs.node_defs import NodeSpec
     from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig, NodeConfig
@@ -110,7 +114,7 @@ def resolve_dataset_port_snapshots(  # noqa: C901, PLR0912
 
     # Group parse-side entries into bindings: (node, dataset_index) is binding identity.
     bindings: dict[tuple[UUID, int], list[DatasetPortSnapshot]] = {}
-    for port in snapshot.dataset_ports:
+    for port in snapshot.dataset_bindings:
         bindings.setdefault((port.node, port.dataset_index), []).append(port)
 
     resolved: list[DatasetPortSnapshot] = []
@@ -203,6 +207,92 @@ def _sync_dimensions_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapsho
         ic.sync_dimension(dim, update_existing=True)
 
 
+def _apply_declared_dataset_editability(
+    dataset: DatasetModel,
+    metadata: DatasetMeta,
+    declarations: dict[int, tuple[str, bool]],
+) -> None:
+    """Apply one explicit schema lock, rejecting contradictory declarations for a shared schema."""
+    if metadata.is_editable is None:
+        return
+    assert dataset.schema is not None
+    assert dataset.schema_id is not None
+    assert dataset.identifier is not None
+    previous = declarations.get(dataset.schema_id)
+    if previous is not None and previous[1] != metadata.is_editable:
+        raise ValueError(
+            f"datasets '{previous[0]}' and '{dataset.identifier}' share a schema but declare conflicting is_editable values"
+        )
+    declarations[dataset.schema_id] = (dataset.identifier, metadata.is_editable)
+    if dataset.schema.is_editable != metadata.is_editable:
+        dataset.schema.is_editable = metadata.is_editable
+        dataset.schema.save(update_fields=['is_editable'])
+
+
+def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
+    """
+    Reconcile schema editability and metric validation rules declared under ``datasets``.
+
+    Only datasets named in the config are managed. Explicit ``is_editable``
+    values update the shared schema; an absent value preserves its current DB
+    state. Metric rule rows are replaced when the declared blob list differs
+    (preserving rows — and thus rule uuids — when it does not). Datasets absent
+    from the config are left untouched. Invalid or conflicting declarations
+    fail the sync loudly.
+    """
+    from kausal_common.datasets.models import Dataset
+
+    from nodes.dataset_materialization import refresh_dataset_materialization
+
+    declared_schema_editability: dict[int, tuple[str, bool]] = {}
+    for ds_meta in snapshot.datasets:
+        ds_id = ds_meta.identifier
+        if not ds_id:
+            raise ValueError('datasets entry is missing an identifier')
+        try:
+            dataset = Dataset.objects.get_queryset().for_instance_config(ic).get(identifier=ds_id)
+        except Dataset.DoesNotExist:
+            # A module declares ownership for every dataset it reads, but an including
+            # instance legitimately uses only a subset: overriding a node drops the datasets
+            # only that node read. Warn rather than raise, so one city's override cannot
+            # break the sync for a declaration that is correct for the module. Enforcement is
+            # unaffected — a dataset that is not there cannot be left wrongly editable.
+            logger.warning(
+                f"datasets entry '{ds_id}' matches no dataset of instance {ic.identifier}; "
+                'skipping (check for a typo if the instance is meant to use it)'
+            )
+            continue
+        if dataset.schema is None:
+            raise ValueError(f"dataset '{ds_id}' has no schema")
+        _apply_declared_dataset_editability(dataset, ds_meta, declared_schema_editability)
+        metrics_by_name = {metric.name: metric for metric in dataset.schema.metrics.all()}
+        dataset_changed = False
+        for metric_meta in ds_meta.metrics:
+            metric = metrics_by_name.get(metric_meta.identifier) if metric_meta.identifier else None
+            if metric is None:
+                raise ValueError(f"dataset '{ds_id}' has no metric '{metric_meta.identifier}'")
+            dataset_changed |= _apply_declared_metric_rules(metric, list(metric_meta.validation_rules))
+        if dataset_changed and not dataset.is_external_placeholder:
+            # Rules ride in the materialized snapshot and their violations are
+            # persisted there; re-evaluate under the new rule set.
+            refresh_dataset_materialization(dataset, touch=False)
+
+
+def _apply_declared_metric_rules(metric: DatasetMetric, declared: list[ValidationRule]) -> bool:
+    """Replace the metric's rule rows when the declared rule list differs; returns whether it did."""
+    from kausal_common.datasets.models import DatasetMetricValidationRule
+
+    blobs = [rule.model_dump(mode='json') for rule in declared]
+    existing_rows = list(metric.validation_rules.order_by('order'))
+    if [row.rule for row in existing_rows] == blobs:
+        return False
+    for row in existing_rows:
+        row.delete()
+    for order, blob in enumerate(blobs):
+        DatasetMetricValidationRule.objects.create(metric=metric, rule=blob, order=order)
+    return True
+
+
 def _seed_node_metadata_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_language: str) -> None:
     """
     Seed an uninitialized NodeConfig from snapshot metadata.
@@ -219,6 +309,8 @@ def _seed_node_metadata_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_l
         'order': n.order,
         'is_visible': n.is_visible,
     }
+    if n.is_editable is not None:
+        attributes['is_editable'] = n.is_editable
     for field_name, value in (
         ('name', n.name),
         ('short_name', n.short_name),
@@ -238,15 +330,26 @@ def _seed_node_metadata_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_l
 
 
 def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: dict[UUID, NodeConfig]) -> int:
+    from nodes.instance_serialization import edge_match_keys, existing_edge_identities, match_preserved_uuids
     from nodes.models import NodeEdge
 
+    # Recreating the rows keeps pk order equal to authored order, but the row
+    # UUID is the durable binding identity and must survive the rewrite.
+    authored_uuids = {edge.uuid for edge in snapshot.edge_bindings if edge.uuid is not None}
+    existing = [item for item in existing_edge_identities(ic) if item[1] not in authored_uuids]
     NodeEdge.objects.filter(instance=ic).delete()
+    preserved = match_preserved_uuids(
+        existing,
+        [edge_match_keys(edge.from_node, edge.from_port, edge.to_node, edge.to_port) for edge in snapshot.edge_bindings],
+    )
     edge_objs = []
-    for edge in snapshot.edges:
+    for edge, matched_uuid in zip(snapshot.edge_bindings, preserved, strict=True):
         from_nc = node_configs.get(edge.from_node)
         to_nc = node_configs.get(edge.to_node)
         if from_nc is None or to_nc is None:
             raise ValueError(f'Edge references unknown node: {edge.from_node} -> {edge.to_node}')
+        row_uuid = edge.uuid or matched_uuid
+        identity_kwargs = {'uuid': row_uuid} if row_uuid is not None else {}
         edge_objs.append(
             NodeEdge(
                 instance=ic,
@@ -256,6 +359,7 @@ def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: d
                 to_port=edge.to_port,
                 transformations=list(edge.transformations),
                 tags=list(edge.tags),
+                **identity_kwargs,
             )
         )
     NodeEdge.objects.bulk_create(edge_objs)
@@ -272,9 +376,15 @@ def _write_dataset_ports(
     """Resolve bindings against the DB schemas and write the DatasetPort rows."""
     from kausal_common.datasets.models import DatasetMetric
 
+    from nodes.instance_serialization import (
+        dataset_port_match_keys,
+        existing_dataset_port_identities,
+        match_preserved_uuids,
+    )
     from nodes.models import DatasetPort
     from nodes.spec_export import _get_db_datasets
 
+    existing = existing_dataset_port_identities(ic)
     DatasetPort.objects.filter(instance=ic).delete()
     schemas = collect_dataset_schema_info(ic)
     resolved = resolve_dataset_port_snapshots(snapshot, schemas, port_references=port_references)
@@ -288,11 +398,19 @@ def _write_dataset_ports(
         identity = metric.name or str(metric.uuid)
         metric_by_identity[(metric.schema.pk, identity)] = metric
 
-    port_objs: list[DatasetPort] = []
+    triples: list[tuple[DatasetPortSnapshot, DatasetModel, DatasetMetric]] = []
+    match_keys: list[tuple[Hashable, ...]] = []
     for port in resolved:
         dataset_obj = db_datasets[port.dataset]
         assert dataset_obj.schema is not None
         metric = metric_by_identity[(dataset_obj.schema.pk, port.metric)]
+        triples.append((port, dataset_obj, metric))
+        match_keys.append(dataset_port_match_keys(port.node, dataset_obj.pk, port.dataset_index, metric.pk))
+
+    # Recreated rows keep their durable UUIDs (binding identity) across the rewrite.
+    port_objs: list[DatasetPort] = []
+    for (port, dataset_obj, metric), matched_uuid in zip(triples, match_preserved_uuids(existing, match_keys), strict=True):
+        identity_kwargs = {'uuid': matched_uuid} if matched_uuid is not None else {}
         port_objs.append(
             DatasetPort(
                 instance=ic,
@@ -302,6 +420,7 @@ def _write_dataset_ports(
                 metric=metric,
                 spec=port.spec,
                 dataset_index=port.dataset_index,
+                **identity_kwargs,
             )
         )
     DatasetPort.objects.bulk_create(port_objs)
@@ -419,6 +538,7 @@ def sync_parsed_instance_to_db(
             node_configs = _upsert_node_configs(ic, snapshot, existing_node_configs)
             edge_count = _write_edges(ic, snapshot, node_configs)
             created_placeholder_ids = sync_dataset_placeholders_from_snapshot(ic, snapshot)
+            _sync_dataset_metadata_from_snapshot(ic, snapshot)
             dataset_port_count = _write_dataset_ports(
                 ic,
                 snapshot,

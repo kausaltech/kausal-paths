@@ -322,6 +322,9 @@ class Node:
     is_visible: bool = True
     'If the node should be visible in visualizations'
 
+    is_editable: bool | None = None
+    'Whether YAML explicitly declares the node editable'
+
     is_outcome: bool = False
     'If the node is classified as a key outcome for the model'
 
@@ -560,6 +563,7 @@ class Node:
         order: int | None = None,
         node_group: str | None = None,
         is_visible: bool = True,
+        is_editable: bool | None = None,
         is_outcome: bool = False,
         target_year_goal: float | None = None,
         goals: dict[str, Any] | None = None,
@@ -593,6 +597,7 @@ class Node:
         self.color = color
         self.order = order
         self.is_visible = is_visible
+        self.is_editable = is_editable
         self.is_outcome = is_outcome
         self.minimum_year = minimum_year
         self.default_operations = self.DEFAULT_OPERATIONS
@@ -673,7 +678,7 @@ class Node:
             return NodeKind.FORMULA
         return NodeKind.SIMPLE
 
-    def add_parameter(self, param: Parameter[Any]):
+    def add_parameter(self, param: Parameter[Any]) -> None:
         if param.local_id in self.parameters:
             msg = f'Local parameter {param.local_id} already defined for node {self.id}'
             raise Exception(msg)
@@ -1646,6 +1651,8 @@ class Node:
             'order': self.order,
             'is_visible': self.is_visible,
         }
+        if self.is_editable is not None:
+            attributes['is_editable'] = self.is_editable
 
         i18n = {}
         default_lang = self.context.instance.default_language
@@ -1976,14 +1983,14 @@ class Node:
         """
         Get combined explanations: static (from config) and runtime (from computation).
 
-        Static explanations are generated from node configurations during instance loading.
+        Static explanations are generated from node configurations on first use.
         Runtime explanations are collected during node computation.
         Both are merged when this method is called.
         """
         from .explanations import explanation_to_html
 
         parts = []
-        nes = self.context.node_explanation_system
+        nes = self.context.get_node_explanation_system()
         if nes is not None:
             # Get static explanations (from node config)
             static_exp = nes.explanations.get(self.id)
@@ -1993,7 +2000,15 @@ class Node:
         # Get runtime explanations (from DataFrame operations during computation)
         warnings = self.context.instance.features.show_category_warnings
         if warnings:
-            runtime_explanations = self.get_output_pl()._explanation
+            try:
+                runtime_explanations = self.get_output_pl()._explanation
+            except NodeError:
+                # get_output_pl has already recorded the failure on the node. In tolerant
+                # mode the editor must still be able to render its static explanation and
+                # inspect that status/error instead of losing the whole GraphQL field.
+                if not self.context.tolerate_node_failures:
+                    raise
+                runtime_explanations = None
             if runtime_explanations:
                 cat = _('Category warnings')
                 parts.append(f'<p><strong>{cat}:</strong></p><ul>')

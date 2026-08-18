@@ -39,6 +39,7 @@ from .types.graph import NodeEdgeType
 from .types.instance import InstanceType
 from .types.layout import NodeLayoutType, UpdateNodeLayoutsResult
 from .types.node import AnyNodeType, NodeInterface
+from .types.problems import DatasetValidationViolationsType
 from .types.scenario import ScenarioType
 from .types.spec import InputPortType, OutputPortType
 from .types.transformations import EdgeTransformationInput, edge_transformations_from_input
@@ -1148,7 +1149,7 @@ class InstanceEditorMutation:
                 raise PermissionDeniedError(info, 'Model editor access denied')
 
             for item in input:
-                node = InstanceEditorMutation._lookup_node(info, locked_ic, str(item.node_id))
+                node = InstanceEditorMutation._lookup_node(info, locked_ic, str(item.node_id), for_change=False)
                 values = {
                     'x': item.x,
                     'y': item.y,
@@ -1220,6 +1221,7 @@ class InstanceEditorMutation:
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
         from_node, to_node, requested_from_port, requested_to_port = _resolve_create_edge_refs(info, ic, input)
+        to_node.ensure_gql_action_allowed(info, 'change')
 
         from_port = _resolve_source_port(info, from_node, requested_from_port)
         source_port = _get_output_port(from_node, from_port)
@@ -1303,12 +1305,13 @@ class InstanceEditorMutation:
 
         ic = root.instance
         try:
-            edge = NodeEdge.objects.get(instance=ic, uuid=edge_id)
+            edge = NodeEdge.objects.select_related('to_node').get(instance=ic, uuid=edge_id)
         except NodeEdge.DoesNotExist, ValueError:
             raise GraphQLError('Edge not found') from None
 
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
+        edge.to_node.ensure_gql_action_allowed(info, 'change')
 
         with gql_change_operation(info, ic, action='edge.delete'):
             record_change(edge, action='edge.delete', before=edge.serializable_data(), after=None)
@@ -1317,7 +1320,14 @@ class InstanceEditorMutation:
     # -- Port mutations -------------------------------------------------------
 
     @staticmethod
-    def _lookup_node(info: gql.Info, ic: InstanceConfig, node_id: str, *, with_spec: bool = False) -> NodeConfig:
+    def _lookup_node(
+        info: gql.Info,
+        ic: InstanceConfig,
+        node_id: str,
+        *,
+        with_spec: bool = False,
+        for_change: bool = True,
+    ) -> NodeConfig:
         """
         Resolve a node from a GQL ``nodeId`` (UUID or human-readable identifier).
 
@@ -1333,6 +1343,8 @@ class InstanceEditorMutation:
         nc = qs.filter(uuid=raw).first() if is_uuid(raw) else qs.filter(identifier=raw).first()
         if nc is None:
             raise NotFoundError(info, f'Node "{node_id}" not found in instance "{ic.identifier}"')
+        if for_change:
+            nc.ensure_gql_action_allowed(info, 'change')
         return nc
 
     @gql.mutation(
@@ -1692,13 +1704,17 @@ class InstanceEditorMutation:
     @gql.mutation(
         description=(
             'Publish the current model state as a new revision. '
-            'A draft with structural constraint conflicts cannot be published; '
-            'the blocking conflicts are returned instead.'
+            'A draft with structural constraint conflicts or dataset validation-rule '
+            'violations cannot be published; the blocking problems are returned instead.'
         ),
-        graphql_type=InstanceType | ConstraintViolationsType,
+        graphql_type=InstanceType | ConstraintViolationsType | DatasetValidationViolationsType,
     )
     @staticmethod
-    def publish_model_instance(info: gql.Info, instance_id: sb.ID) -> InstanceType | ConstraintViolationsType:
+    def publish_model_instance(
+        info: gql.Info,
+        instance_id: sb.ID,
+    ) -> InstanceType | ConstraintViolationsType | DatasetValidationViolationsType:
+        from datasets.validation import InstanceDatasetValidationError
         from nodes.constraints.validation import InstanceConstraintError
 
         ic = _get_instance_config(info, instance_id)
@@ -1710,6 +1726,8 @@ class InstanceEditorMutation:
             ic.publish_instance(user=user)
         except InstanceConstraintError as error:
             return ConstraintViolationsType.from_conflicts(error.conflicts)
+        except InstanceDatasetValidationError as error:
+            return DatasetValidationViolationsType.from_violations(error.violations)
         ic.refresh_from_db()
         return _resolve_model_instance(info, ic, refresh=True)
 

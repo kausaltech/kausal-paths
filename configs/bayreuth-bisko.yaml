@@ -672,6 +672,16 @@ result_excels:
   - transport_emission_factors      # the certifier could not find these listed
   - vehicle_kilometers_ifeu
   - other_transport_energy
+  # --- Added 2026-08-17, each against a specific Pruefschritt ---
+  - district_heating_energy_use     # 7.3: the certifier could not find where to enter this
+  - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
+  - vehicle_kilometers_own          # 2.3: the own-data mileage route, road-typed
+  - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
+  # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
+  # These show which required cell is missing rather than a bare 0.
+  - final_energy_use_availability
+  - other_transport_energy_availability
+  - vehicle_kilometers_own_availability
 
 
 
@@ -683,6 +693,7 @@ nodes:
 # over from the configuration that expressed them as action parameters. Replace them with a
 # dataset of annual values once the utility supplies one -- see the module node for how.
 - id: combined_heat_and_power_chp_fraction
+  is_editable: false
   name_en: Combined heat and power allocation fractions
   name_de: Aufteilungsfaktoren der Kraft-Wärme-Kopplung
   type: generic.BiskoChpNode
@@ -702,6 +713,7 @@ nodes:
     is_customizable: true
 
 - id: sector_index   # Translates BISKO categories to Wärme/Strom/Verkehr sectors. TRUE for any allowed combi of sector and energy carrier
+  is_editable: false
   name_de: Sektor Index
   name_en: Sector index
   type: generic.GenericNode
@@ -715,6 +727,7 @@ nodes:
     tags: [extend_all]
 
 - id: final_energy_use
+  is_editable: false
   name_de: Endenergie
   name_en: Final energy use
   type: generic.GenericNode
@@ -738,6 +751,7 @@ nodes:
   - id: weather_correction
 
 - id: sinks
+  is_editable: false
   name_de: Senken
   name_en: Sinks
   type: generic.GenericNode
@@ -756,6 +770,7 @@ nodes:
       categories: [not_defined]
 
 - id: bau_emission_reduction
+  is_editable: false
   name: BAU emission reduction
   type: generic.GenericNode
   quantity: fraction
@@ -767,6 +782,7 @@ nodes:
   - id: stationary_emissions
 
 - id: private_household_emissions
+  is_editable: false
   name_de: Private Haushalte Emissionen
   name_en: Private household emissions
   description: This is just a placeholder to mask a redundant node.
@@ -777,6 +793,7 @@ nodes:
   historical_values: [[2019, 0], [2021, 0]]
 
 - id: municipal_facilities_emissions
+  is_editable: false
   name_de: Kommunale Einrichtungen Emissionen
   name_en: Municipal facilities emissions
   description: This is just a placeholder to mask a redundant node.
@@ -787,6 +804,7 @@ nodes:
   historical_values: [[2019, 0], [2021, 0]]
 
 - id: industry_emissions
+  is_editable: false
   name_de: Industrie Emissionen
   name_en: Industry emissions
   description: This is just a placeholder to mask a redundant node.
@@ -797,6 +815,7 @@ nodes:
   historical_values: [[2019, 0], [2021, 0]]
 
 - id: commerce_trade_services_emissions
+  is_editable: false
   name_de: Gewerbe, Handel, Dienstleistungen Emissionen
   name_en: Commerce, trade, services emissions
   description: This is just a placeholder to mask a redundant node.
@@ -808,6 +827,7 @@ nodes:
 
 
 - id: net_emissions
+  is_editable: false
   name_de: Netto-Emissionen
   name_en: Net emissions
   type: simple.AdditiveNode
@@ -835,6 +855,7 @@ nodes:
       value: 0
 
 - id: heating_emissions
+  is_editable: false
   name_de: Wärme Emissionen
   name_en: Heating Emissions
   type: formula.FormulaNode
@@ -875,6 +896,7 @@ nodes:
       value: 26.395273719222
 
 - id: electricity_emissions
+  is_editable: false
   name_de: Strom Emissionen
   name_en: Electricity Emissions
   type: generic.GenericNode
@@ -911,6 +933,7 @@ nodes:
       value: 0
 
 - id: transport_emissions
+  is_editable: false
   name_en: Transport emissions
   name_de: Transportemissionen
   type: generic.GenericNode

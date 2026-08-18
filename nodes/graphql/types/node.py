@@ -14,6 +14,7 @@ from grapple.types.streamfield import StreamFieldInterface
 from markdown_it import MarkdownIt
 
 from kausal_common.strawberry.grapple import grapple_field
+from kausal_common.strawberry.permissions import UserPermissionsMixin
 from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_type
 from kausal_common.strawberry.registry import register_strawberry_type
 
@@ -31,6 +32,7 @@ from nodes.graph_layout import NodeGraphLayoutMeta
 from nodes.graphql.types import DatasetPortType
 from nodes.graphql.types.change_history import EditableEntity
 from nodes.graphql.types.impact import get_impact_metric
+from nodes.models import InstanceConfig
 from nodes.node import NodeErrorPhase, NodeStatus
 from nodes.quantities import get_registry as get_quantity_registry
 from nodes.scenario import Scenario, ScenarioKind
@@ -252,6 +254,31 @@ def _maybe_compute_status(node: Node, compute: bool) -> None:
 @sb.type(name='NodeEditor')
 class NodeEditorFields:
     _node: sb.Private['Node']
+    _config: sb.Private[InstanceConfig]
+
+    @sb.field(
+        graphql_type=list[Annotated['InstanceModelLogEntryType', sb.lazy('nodes.graphql.types.change_history')]],
+        description='Row-level change history for this node, newest first.',
+    )
+    @staticmethod
+    def change_history(
+        root: 'NodeEditorFields',
+        info: gql.Info,
+        limit: int = 50,
+        before: datetime | None = None,
+    ) -> list[Any]:
+        from nodes.graphql.types.change_history import fetch_entity_history_by_uuid
+        from nodes.models import NodeConfig
+
+        if not root._config.gql_action_allowed(info, 'change', raise_on_denied=False):
+            return []
+        return fetch_entity_history_by_uuid(
+            NodeConfig,
+            _get_node_uuid_with_fallback(root._node),
+            info,
+            limit=limit,
+            before=before,
+        )
 
     @sb.field
     @staticmethod
@@ -271,12 +298,12 @@ class NodeEditorFields:
     @staticmethod
     def spec(root: 'NodeEditorFields') -> NodeSpecType | None:
         node = root._node
-        nc = node.db_obj
-        if nc is None:
-            return None
         if node.has_spec:
             spec_type = NodeSpecType.from_pydantic(node.spec)
         else:
+            nc = node.db_obj
+            if nc is None:
+                return None
             if nc.spec is None:
                 return None
             spec_type = NodeSpecType.from_pydantic(nc.spec)
@@ -340,8 +367,15 @@ def _get_node_uuid_with_fallback(root: 'Node') -> UUID:  # noqa: UP037
     return nc.uuid
 
 
+def _node_editor_fields(root: 'Node', info: gql.Info) -> NodeEditorFields | None:  # noqa: UP037
+    config = root.context.instance.config
+    if config is None or not config.gql_action_allowed(info, 'change', raise_on_denied=False):
+        return None
+    return NodeEditorFields(_node=root, _config=config)
+
+
 @sb.interface
-class NodeInterface:
+class NodeInterface(UserPermissionsMixin):
     id: sb.ID
     unit: UnitType | None
     quantity: str | None
@@ -381,6 +415,7 @@ class NodeInterface:
     @sb.field(
         graphql_type=list[Annotated['InstanceModelLogEntryType', sb.lazy('nodes.graphql.types.change_history')]],
         description='Row-level change history for this node, newest first.',
+        deprecation_reason='Use editor.changeHistory instead.',
     )
     @staticmethod
     def change_history(
@@ -389,13 +424,10 @@ class NodeInterface:
         limit: int = 50,
         before: datetime | None = None,
     ) -> list[Any]:
-        from nodes.graphql.types.change_history import fetch_entity_history
-        from nodes.models import NodeConfig
-
-        nc = root.db_obj
-        if nc is None or nc.pk is None:
+        editor = _node_editor_fields(root, info)
+        if editor is None:
             return []
-        return fetch_entity_history(NodeConfig, nc.pk, limit=limit, before=before)
+        return NodeEditorFields.change_history(editor, info, limit=limit, before=before)
 
     @sb.field
     @staticmethod
@@ -459,13 +491,18 @@ class NodeInterface:
 
     @sb.field
     @staticmethod
-    def editor(root: 'Node', info: gql.Info) -> NodeEditorFields | None:
+    def is_editable(root: 'Node') -> bool:
         nc = root.db_obj
-        if nc is None or nc.pk is None:
-            return None
-        if not nc.gql_action_allowed(info, 'change', raise_on_denied=False):
-            return None
-        return NodeEditorFields(_node=root)
+        if nc is not None:
+            return nc.is_editable
+        if root.source_snapshot is not None:
+            return root.source_snapshot.is_editable is not False
+        return False
+
+    @sb.field
+    @staticmethod
+    def editor(root: 'Node', info: gql.Info) -> NodeEditorFields | None:
+        return _node_editor_fields(root, info)
 
     @sb.field
     @staticmethod

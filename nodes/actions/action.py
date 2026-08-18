@@ -109,6 +109,7 @@ class ActionNode(Node):
             param = param.copy()
             assert param.context is None
             assert param.node is None
+            param.mark_implicit()
             self.add_parameter(param)
         assert isinstance(param, BoolParameter)
         assert param._node == self

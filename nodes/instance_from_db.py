@@ -158,7 +158,14 @@ def _serialize_instance_metadata(snapshot: InstanceSnapshot) -> dict[str, Any]:
     return config
 
 
-def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> None:
+def snapshot_nodes_to_config_dicts(snapshot: InstanceSnapshot) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """
+    Convert a snapshot's nodes into YAML-shaped ``nodes`` / ``actions`` dict lists.
+
+    Runtime construction no longer consumes these; the remaining consumers are
+    ``snapshot_to_config_dict()`` and the lazily built ``NodeExplanationSystem``,
+    whose validation rules still read YAML-shaped dicts.
+    """
     node_snapshots = snapshot.nodes
     specs_by_uuid: dict[UUID, NodeSpec] = {}
     identifiers_by_uuid: dict[UUID, str] = {}
@@ -169,9 +176,9 @@ def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> 
         specs_by_uuid[n.uuid] = n.spec
         identifiers_by_uuid[n.uuid] = n.identifier
 
-    _output_edges, input_edges = _build_edge_maps(snapshot.edges, specs_by_uuid, identifiers_by_uuid)
+    _output_edges, input_edges = _build_edge_maps(snapshot.edge_bindings, specs_by_uuid, identifiers_by_uuid)
     dataset_ports_by_node: defaultdict[UUID, list[DatasetPortSnapshot]] = defaultdict(list)
-    for port in sorted(snapshot.dataset_ports, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
+    for port in sorted(snapshot.dataset_bindings, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
         dataset_ports_by_node[port.node].append(port)
 
     nodes_list: list[dict[str, Any]] = []
@@ -188,8 +195,11 @@ def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> 
         else:
             nodes_list.append(node_dict)
 
-    config['nodes'] = nodes_list
-    config['actions'] = actions_list
+    return nodes_list, actions_list
+
+
+def _add_nodes_and_edges(snapshot: InstanceSnapshot, config: dict[str, Any]) -> None:
+    config['nodes'], config['actions'] = snapshot_nodes_to_config_dicts(snapshot)
 
 
 def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
