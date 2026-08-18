@@ -55,6 +55,8 @@ datasets:
   is_editable: false
 - id: bisko/required_road_mileage_categories
   is_editable: false
+- id: bisko/required_other_transport_categories
+  is_editable: false
 
 # --- Municipal data: the city's own observations and declarations --------------------------
 # This is the editable surface of the model. Everything a city is asked to supply for a
@@ -72,6 +74,8 @@ datasets:
 - id: bisko/vehicle_energy                     # own transport energy, used when not use_mileage
   is_editable: true
 - id: bisko/passenger_kilometers               # own Verkehrsleistung (pkm); not in the balance
+  is_editable: true
+- id: bisko/other_transport_energy_own         # own rail, waterway and aviation energy
   is_editable: true
 
 # --- Local factor alternatives: editable by design, and non-conformant when selected -------
@@ -132,13 +136,19 @@ dimensions:
     label_de: Steinkohle
     aliases: [kohle, steinkohle, Kohle]
     color: '#2C2C2C'
-    order: 45
+    order: 46
+  - id: coal_chp
+    label_en: Coal for CHP
+    label_de: Kohle KWK
+    aliases: [Kohle KWK]
+    color: '#1F1F1F'
+    order: 33
   - id: brown_coal
     label_en: Brown coal / Lignite
     label_de: Braunkohle
     aliases: [braunkohle]
     color: '#5D3A1A'
-    order: 9
+    order: 10
   # --- Liquid fossil fuels (order 3-9): red-to-orange spectrum ---
   - id: heating_oil
     label_en: Heating oil
@@ -151,13 +161,13 @@ dimensions:
     label_de: Benzin
     aliases: [benzin_fossil, benzin, Benzin fossil, Bfoss]
     color: '#B71C1C'
-    order: 2
+    order: 3
   - id: diesel
     label_en: Diesel
     label_de: Diesel
     aliases: [diesel_fossil, Diesel fossil, Dfoss]
     color: '#8B0000'
-    order: 12
+    order: 13
   - id: kerosene
     label_en: Kerosene
     label_de: Kerosin
@@ -168,7 +178,7 @@ dimensions:
     label_en: LPG (Liquefied petroleum gas)
     label_de: LPG
     color: '#BF4500'
-    order: 36
+    order: 37
   - id: propane
     label_en: Propane/butane
     label_de: Flüssiggas
@@ -180,14 +190,14 @@ dimensions:
     label_de: Kraftstoffe
     aliases: [kraftstoffe, kraftstoff, Kraftstoff, Kraftstoffe]
     color: '#880000'
-    order: 35
+    order: 36
   # --- Fossil gas (order 10-13): dark blue spectrum ---
   - id: natural_gas
     label_en: Natural gas
     label_de: Erdgas
     aliases: [gas, erdgas]
     color: '#1A5276'
-    order: 14
+    order: 15
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil
@@ -197,36 +207,36 @@ dimensions:
     # so the multiply in transport_emissions dropped all CNG energy.
     aliases: [CNG, CNG_fossil, CNGfoss]
     color: '#154360'
-    order: 11
+    order: 12
   - id: natural_gas_turbine
     label_en: Natural gas for steam turbines
     label_de: Erdgas GuD
     color: '#0B2F50'
-    order: 16
+    order: 17
   - id: natural_gas_small_chp
     label_en: Natural gas with small-scale CHP
     label_de: Erdgas BHKW
     color: '#0D3B5A'
-    order: 15
+    order: 16
   # --- Bio transport fuels (order 14-16): olive-green ---
   - id: bio_petrol
     label_en: Bio petrol
     label_de: Biobenzin
     aliases: [benzin_biogen, biobenzin, Benzin Bio, Bbio]
     color: '#4A7C1F'
-    order: 3
+    order: 4
   - id: biodiesel
     label_en: Biodiesel
     label_de: Diesel biogen
     aliases: [diesel_biogen, Diesel Bio, Diesel_biogen, Diesel_Biogen, Dbio]
     color: '#386113'
-    order: 13
+    order: 14
   - id: cng_bio
     label_en: CNG bio
     label_de: CNG bio
     aliases: [CNG_bio, CNGbio]
     color: '#2D5C12'
-    order: 10
+    order: 11
   # --- Biomass (order 17-21): green spectrum ---
   - id: liquid_biomass
     label_en: Liquid biomass
@@ -238,7 +248,7 @@ dimensions:
     label_de: Biomasse
     aliases: [biomasse]
     color: '#2E7D32'
-    order: 6
+    order: 7
   - id: solid_biomass
     label_en: Solid biomass
     label_de: feste Biomasse
@@ -248,24 +258,24 @@ dimensions:
     label_en: Biomass for heat-only boiler
     label_de: Biomasse Heizwerk
     color: '#14611A'
-    order: 7
+    order: 8
   - id: biomass_chp
     label_en: Biomass for CHP
     label_de: Biomasse KWK
     color: '#0D4F13'
-    order: 8
+    order: 9
   # --- Biogas (order 22-24): teal-green ---
   - id: biogas
     label_en: Biogas
     label_de: Biogas
     aliases: [biogas]
     color: '#0D6B4D'
-    order: 4
+    order: 5
   - id: biogas_chp
     label_en: Biogas for CHP
     label_de: Biogas KWK
     color: '#0A5C3E'
-    order: 5
+    order: 6
   - id: sewage_landfill_mine_gas
     label_en: Sewage, landfill, or mine gas
     label_de: Klär- Deponie- Grubengas
@@ -277,39 +287,45 @@ dimensions:
     label_de: Abfall
     color: '#4A3728'
     order: 1
+  - id: waste_chp
+    label_en: Waste for CHP
+    label_de: Abfall KWK
+    aliases: [Abfall KWK]
+    color: '#35271C'
+    order: 2
   - id: conventional_waste_heat_gt_90
     label_en: Conventional waste heat > 90 C
     label_de: Konventioneller Abwärme >90 C
     color: '#484848'
-    order: 34
+    order: 35
   - id: conventional_waste_heat_lt_90
     label_en: Conventional waste heat < 90 C
     label_de: Konventioneller Abwärme <90 C
     color: '#5C5C5C'
-    order: 33
+    order: 34
   - id: renewable_waste_heat_gt_90
     label_en: Renewable waste heat > 90 C
     label_de: Erneuerbarer Abwärme >90 C
     color: '#3D5A55'
-    order: 18
+    order: 19
   - id: renewable_waste_heat_lt_90
     label_en: Renewable waste heat < 90 C
     label_de: Erneuerbarer Abwärme <90 C
     color: '#4A6B66'
-    order: 17
+    order: 18
   # --- Renewable thermal (order 30-33): amber and teal ---
   - id: solar_thermal
     label_en: Solar thermal
     label_de: Solarthermie
     aliases: [solarthermie, Solarthermie]
     color: '#BF5C00'
-    order: 39
+    order: 40
   - id: environmental_heat
     label_en: Environmental heat / Heat pump
     label_de: Umweltwärme
     aliases: [umweltwarme, Umweltwarme, Umweltwaerme]
     color: '#006D6D'
-    order: 47
+    order: 48
   - id: geothermatl # FIXME typo
     label_en: Geothermatl
     label_de: Geothermite
@@ -332,7 +348,7 @@ dimensions:
     label_de: Nahwärme
     aliases: [nahwarme, Nahwarme, Nahwaerme]
     color: '#A33300'
-    order: 37
+    order: 38
   - id: district_and_local_heating
     label_en: District and local heating
     label_de: Fern- und Nahwärme
@@ -349,7 +365,7 @@ dimensions:
     # carrier is correct and the Fahrstrom labels resolve here.
     aliases: [strom, fahrstrom, strom_fahrstrom, St, driving_electricity]
     color: '#1565C0'
-    order: 46
+    order: 47
   - id: heating_electricity
     label_en: Heating electricity
     label_de: Heizstrom
@@ -366,54 +382,54 @@ dimensions:
     label_en: Hydropower
     label_de: Wasser
     color: '#0A5B8A'
-    order: 48
+    order: 49
   - id: wind
     label_en: Wind
     label_de: Wind
     color: '#1A698A'
-    order: 50
+    order: 51
   # --- Clean fuel (order 43) ---
   - id: hydrogen
     label_en: Hydrogen
     label_de: Wasserstoff
     aliases: [wasserstoff, Wasserstoff]
     color: '#007A8A'
-    order: 49
+    order: 50
   # --- Aggregate / other (order 44-50) ---
   - id: other_renewables
     label_en: Other renewables
     label_de: Sonstige Erneuerbare
     aliases: [sonstige_erneuerbare, Sonstige_Erneuerbare, SonstigeEE]
     color: '#276B27'
-    order: 40
+    order: 41
   - id: other_renewable_energy_carriers
     label_en: Other renewable energy carriers
     label_de: Sonstige Erneuerbare Energieträger
     color: '#1E5E1E'
-    order: 41
+    order: 42
   - id: other_conventional
     label_en: Other conventional
     label_de: Sonstige Konventionelle
     aliases: [sonstige_konventionelle, Sonstige_Konventionelle, SonstigeKo]
     color: '#5A3A2A'
-    order: 42
+    order: 43
   - id: other_conventional_energy_carriers
     label_en: Other conventional energy carriers
     label_de: Sonstige konventionelle Energieträger
     color: '#4A2D1A'
-    order: 43
+    order: 44
   - id: other
     label_en: Other
     label_de: Sonstiges
     aliases: [sonstiges]
     color: '#616161'
-    order: 44
+    order: 45
   - id: not_defined
     label_en: Not defined
     label_de: Nicht definiert
     aliases: [nicht_definiert, Unzugeordnet]
     color: '#4D4D4D'
-    order: 38
+    order: 39
   - id: total
     label_en: Total
     label_de: Gesamt
@@ -1575,8 +1591,11 @@ nodes:
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: bisko/fernwarme_berwiegend # ifeu
-    filters:
-    - column: upstream_included
+    # No upstream_included filter: the rebuilt dataset (2026-08-17) carries only the
+    # exergetically allocated Table 5 values, so there is no with/without-Vorketten column left
+    # to drop. The old binding dropped it here. This only surfaced on the yaml-sourced cities --
+    # `bisko` reads a DB copy, which tolerates a filter naming a column it does not have, so the
+    # template kept working while every city failed with '"upstream_included" not found'.
     tags: [national]
   - id: bisko/emission_factors_for_district_heating_by_generic_fuel  # change to city-speific later IF NEEDED
     tags: [local]
@@ -1709,7 +1728,10 @@ nodes:
   input_datasets:
   - id: bisko/vehicle_kilometers
     column: Value
-    tags: [mileage]
+    # See other_transport_energy_own: the own-mileage template is empty until a city fills it,
+    # and vehicle_kilometers selects between this and the ifeu default, so both branches have
+    # to compute. vehicle_kilometers_own_availability reads it untagged and still reports 0.
+    tags: [mileage, empty_to_zero]
   params:
     formula: extend_all(mileage)
 
@@ -1980,10 +2002,55 @@ nodes:
   - id: condition
     ref: use_own_mileage
 
-- id: other_transport_energy
+- id: other_transport_energy_own
   is_editable: false
-  name_en: Other transport energy
-  name_de: Andere Transportenergie
+  name_en: Rail, water and air transport energy - own data
+  name_de: Energieverbrauch Schienen-, Schiffs- und Flugverkehr aus eigenen Daten
+  description_en: 'Final energy for rail, inland waterway and commercial aviation from the city''s own
+    sources -- normally the transport operator, which is where BISKO''s Leitfaden Datenbeschaffung
+    expects public transport consumption to come from. Selected instead of the ifeu municipal
+    default when ''use_own_other_transport'' is on. The template ships empty cells rather than
+    zeros, so a carrier nobody has filled in reads as missing rather than as a reported zero.
+
+    '
+  description_de: 'Endenergieverbrauch für Schienen-, Binnenschiffs- und gewerblichen Flugverkehr aus
+    eigenen Quellen der Kommune -- in der Regel vom Verkehrsunternehmen, wo der BISKO-Leitfaden
+    Datenbeschaffung die Verbräuche des ÖPNV verortet. Wird anstelle der gemeindefeinen
+    ifeu-Defaultwerte verwendet, wenn ''use_own_other_transport'' aktiv ist. Die Vorlage liefert
+    leere Zellen statt Nullen aus, damit ein nicht ausgefüllter Energieträger als fehlend und
+    nicht als gemeldete Null gilt.
+
+    '
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: bisko/other_transport_energy_own
+    column: Value
+    # empty_to_zero: the template ships blank cells, and this node has to compute even when
+    # nobody has filled them in -- select_port evaluates both of its branches. The zeros stop
+    # here: other_transport_energy_own_availability reads the same dataset without the tag, so
+    # it still sees the cells as empty and reports 0.
+    tags: [energy, empty_to_zero]
+  params:
+    formula: extend_all(energy)
+
+- id: other_transport_energy_ifeu
+  is_editable: false
+  name_en: Rail, water and air transport energy - BISKO defaults
+  name_de: Energieverbrauch Schienen-, Schiffs- und Flugverkehr - BISKO-Defaultwerte
+  description_en: 'The gemeindefein ifeu default for rail, inland waterway and commercial aviation.
+    A provider default: a city may select it or supersede it with its own operator data, but the
+    imported values are not editable.
+
+    '
+  description_de: 'Die gemeindefeinen ifeu-Defaultwerte für Schienen-, Binnenschiffs- und
+    gewerblichen Flugverkehr. Ein Anbieter-Defaultwert: Die Kommune kann ihn verwenden oder durch
+    eigene Betreiberdaten ersetzen, die importierten Werte sind jedoch nicht editierbar.
+
+    '
   type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
@@ -2002,6 +2069,42 @@ nodes:
       ref: municipality_name
   params:
     formula: extend_all(energy)
+
+- id: other_transport_energy
+  is_editable: false
+  name_en: Other transport energy
+  name_de: Andere Transportenergie
+  description_en: 'Final energy for rail, inland waterway and commercial aviation, from whichever
+    source the city has declared. BISKO recommends a city move to its own operator data where it
+    has it; ''use_own_other_transport'' says which of the two the balance is built from, exactly as
+    ''use_own_mileage'' does for road.
+
+    '
+  description_de: 'Endenergieverbrauch für Schienen-, Binnenschiffs- und gewerblichen Flugverkehr,
+    aus der von der Kommune erklärten Quelle. BISKO empfiehlt, eigene Betreiberdaten zu verwenden,
+    sofern vorhanden; ''use_own_other_transport'' gibt an, auf welcher der beiden Quellen die Bilanz
+    aufbaut -- genau wie ''use_own_mileage'' im Straßenverkehr.
+
+    '
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: other_transport_energy_ifeu
+    tags: [ifeu]
+  - id: other_transport_energy_own
+    tags: [own]
+  params:
+  - id: formula
+    # Own data first: select_port returns its first argument when the condition is true, so
+    # this reads "use own when use_own_other_transport is set, otherwise the ifeu default" --
+    # the same argument order as vehicle_kilometers uses for use_own_mileage. Verified: with
+    # the switch off the node passes the ifeu total through unchanged (842,404 MWh in 2023).
+    value: select_port(condition, own, ifeu)
+  - id: condition
+    ref: use_own_other_transport
 
 # - id: other_transport_energy # Extensively heavy dataset with municipality dimension.
 #   name_en: Other transport energy
@@ -2472,7 +2575,7 @@ nodes:
   - id: emission_factors_for_district_heating_by_generic_fuel
     from_dimensions:
     - id: energy_carrier
-      categories: [hard_coal]
+      categories: [coal_chp]
       flatten: true
     - id: per_what_energy
       flatten: true
@@ -2815,6 +2918,33 @@ nodes:
   - id: bisko/required_categories
     tags: [template]
 
+- id: other_transport_energy_own_availability
+  is_editable: false
+  name_en: Own rail, water and air transport data availability
+  name_de: Datenverfügbarkeit der eigenen Schienen-, Schiffs- und Flugverkehrsdaten
+  description_en: 'Which of the required rail, waterway and aviation cells the city has actually
+    filled in: 1 where a value exists, 0 where it does not. The required combinations come from
+    bisko/required_other_transport_categories rather than from the data, so a mode nobody has
+    entered reads 0 instead of vanishing from the check.
+
+    '
+  description_de: 'Welche der erforderlichen Zellen für Schienen-, Schiffs- und Flugverkehr die
+    Kommune tatsächlich ausgefüllt hat: 1, wo ein Wert vorliegt, 0 sonst. Die erforderlichen
+    Kombinationen stammen aus bisko/required_other_transport_categories und nicht aus den Daten,
+    damit ein nicht eingetragener Verkehrsträger als 0 erscheint und nicht aus der Prüfung fällt.
+
+    '
+  type: simple.DataAvailabilityNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: bisko/other_transport_energy_own
+    column: Value
+  - id: bisko/required_other_transport_categories
+    tags: [template]
+
 - id: other_transport_energy_availability
   is_editable: false
   name_en: Rail, water and air transport data availability
@@ -2914,14 +3044,15 @@ nodes:
   name_en: Has all grid-bound energy data?
   name_de: Sind alle Daten zu leitungsgebundenen Energieträgern vorhanden?
   description_en: 1 when electricity, natural gas and district heating each have a value for that
-    year somewhere in the city's energy data, 0 when any of them is missing entirely. BISKO makes
-    these three mandatory, at least for the municipality as a whole; the value may be zero, but it
-    has to have been entered. Use final_energy_use_availability to see which cell is empty.
+    year in every BISKO sector except municipal facilities, 0 when any cell is missing. The data
+    lives in the dataset bisko/final_energy. The value may be zero, but it has to have been
+    entered. Municipal facilities are exempt, because their absence must not make the balance
+    non-conform. Use final_energy_use_availability to see which cell is empty.
   description_de: 1, wenn Strom, Erdgas und Fernwärme für dieses Jahr jeweils irgendwo in den
-    Energiedaten der Kommune einen Wert haben, 0, wenn einer davon vollständig fehlt. BISKO
-    schreibt diese drei mindestens für die Gesamtkommune verpflichtend vor; der Wert darf null
-    sein, muss aber eingetragen sein. Welche Zelle leer ist, zeigt
-    final_energy_use_availability.
+    BISKO-Sektoren außer den kommunalen Einrichtungen einen Wert haben, 0, wenn eine Zelle fehlt.
+    Die Daten befinden sich im Datensatz bisko/final_energy. Der Wert darf null sein, muss aber
+    eingetragen sein. Kommunale Einrichtungen sind ausgenommen, da ihr Fehlen die Bilanz nicht
+    unkonform machen darf. Welche Zelle leer ist, zeigt final_energy_use_availability.
   type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
@@ -2932,9 +3063,19 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       categories: [electricity, natural_gas, district_heating]
+    - id: sector
+      # Municipal facilities are excluded deliberately: Prüfschritt 2.1 says their absence must
+      # not make the balance non-conform, and the second Prüflauf confirms it -- "KE muss keine
+      # Werte enthalten". Every other BISKO sector must carry every required carrier.
+      categories: [private_households, commerce_trade_services, industry]
   params:
   - id: formula
-    value: prod_dim(max_dim(availability, sector), energy_carrier)
+    # prod_dim over sector, not max_dim. max_dim asked only that *some* sector supply the
+    # carrier, on the "mindestens auf Ebene der Gesamtkommune" reading. The second Prüflauf
+    # tests per Untersektor -- it deleted Industrie Erdgas and Private Haushalte Strom and the
+    # balance still reported conform (findings 1.1, 1.2, 1.4) -- so the sub-sector reading is
+    # the operative one.
+    value: prod_dim(prod_dim(availability, sector), energy_carrier)
 
 - id: has_all_non_grid_bound_energy_data
   is_editable: false
@@ -2942,7 +3083,8 @@ nodes:
   name_de: Sind alle Daten zu nicht-leitungsgebundenen Energieträgern vorhanden?
   description_en: |
     1 when heating oil, biomass, solar thermal and environmental heat (heat pumps) each have a
-    value for that year, 0 when any is missing entirely. BISKO requires an entry for all four;
+    value for that year, 0 when any is missing entirely. The data lives in the dataset bisko/final_energy.
+    BISKO requires an entry for all four;
     data quality does not matter for them, but absence does.<br/>
     Note that a pre-filled zero counts as an entry, because BISKO allows an entered zero. That
     makes this test only as strong as the data behind it. While the template ships zeros rather
@@ -2950,7 +3092,8 @@ nodes:
     from one that has never looked.
   description_de: |
     1, wenn Heizöl, Biomasse, Solarthermie und Umweltwärme (Wärmepumpen) für dieses Jahr jeweils
-    einen Wert haben, 0, wenn einer vollständig fehlt. BISKO verlangt für alle vier einen
+    einen Wert haben, 0, wenn einer vollständig fehlt. Die Daten befinden sich im Datensatz
+    bisko/final_energy. BISKO verlangt für alle vier einen
     Eintrag; die Datengüte spielt dabei keine Rolle, das Fehlen schon.<br/>
     Eine voreingetragene Null gilt als Eintrag, da BISKO eine eingetragene Null zulässt. Solange
     die Vorlage für diese Energieträger Nullen statt leerer Zellen ausliefert, kann dieser Knoten
@@ -2966,9 +3109,15 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       categories: [heating_oil, biomass, solar_thermal, environmental_heat]
+    - id: sector
+      # Municipal facilities are excluded deliberately: Prüfschritt 2.1 says their absence must
+      # not make the balance non-conform, and the second Prüflauf confirms it -- "KE muss keine
+      # Werte enthalten". Every other BISKO sector must carry every required carrier.
+      categories: [private_households, commerce_trade_services, industry]
   params:
   - id: formula
-    value: prod_dim(max_dim(availability, sector), energy_carrier)
+    # See has_all_grid_bound_energy_data for why this is prod_dim rather than max_dim.
+    value: prod_dim(prod_dim(availability, sector), energy_carrier)
 
 - id: has_all_other_transport_data
   is_editable: false
@@ -2977,24 +3126,27 @@ nodes:
   description_en: 1 when local, long-distance and freight rail, inland waterway shipping and
     commercial air transport each have consumption data for that year, 0 when any is missing.
     BISKO requires all of them; the certifier recorded them as absent from the datasets.
+    The data lives in the dataset bisko/other_transport_energy.
   description_de: 1, wenn Schienenpersonennah-, Schienenpersonenfern- und Schienengüterverkehr,
     Binnenschifffahrt und gewerblicher Flugverkehr für dieses Jahr jeweils Verbrauchsdaten haben,
     0, wenn eines fehlt. BISKO verlangt alle; die Prüfstelle hat sie als in den Datensätzen
-    fehlend vermerkt.
+    fehlend vermerkt. Die Daten befinden sich im Datensatz bisko/other_transport_energy.
   type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
   input_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
-  - id: other_transport_energy_availability
+  - id: other_transport_energy_own_availability
     tags: [availability]
-    from_dimensions:
-    - id: vehicle_type
-      categories: [local_trains, long_distance_trains, cargo_trains,
-        inland_waterway_shipping, air_transport]
   params:
   - id: formula
-    value: prod_dim(max_dim(availability, energy_carrier), vehicle_type)
+    # Mirrors has_all_road_transport_data. The check applies to the city's own data; when the
+    # balance runs on the ifeu defaults the term is 1, because those supply every required row
+    # by construction. Reduced with prod_dim over both dimensions -- every required mode and
+    # carrier has to be present, which is what Prüfschritt 1.5 asks for.
+    value: max(prod_dim(prod_dim(availability, energy_carrier), vehicle_type), 1 - float(condition))
+  - id: condition
+    ref: use_own_other_transport
 
 - id: district_heating_energy_use_availability
   is_editable: false

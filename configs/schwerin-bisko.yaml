@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a1dcbcf15cb0bc1c7d88cf8b3be80b2891abd4e1
+  commit: 3d04527511ae85a5f39b0d63b52b5151a50850ee
   dvc_remote: kausal-s3
 name_de: Schwerin Klima-Monitor-BISKO
 name_en: Schwerin Climate Monitor BISKO
@@ -85,6 +85,18 @@ params:
 # Subtracting Schwerin's facility consumption keeps GHD positive in every year but one (district
 # heating −16.4 GWh, heating electricity −0.8 GWh in a single year), which reads as a one-year
 # data problem rather than as evidence that the delivery already excludes the facilities.
+# Rail, inland waterway and commercial aviation: the same declaration use_own_mileage makes for
+# road. BISKO's Leitfaden Datenbeschaffung expects public transport consumption to come from the
+# operator, so a city that has it should be able to supply it. Visible but not customizable, like
+# the other data-source declarations -- it says which dataset the balance is built from, which is a
+# fact about the city's data rather than a scenario.
+- id: use_own_other_transport
+  label_en: Use own rail, waterway and aviation energy data rather than BISKO municipality defaults (recommended if operator data is available).
+  label_de: Eigene Energiedaten für Schienen-, Schiffs- und Flugverkehr statt gemeindefeiner Default-Werte nutzen (empfohlen falls Daten des Verkehrsunternehmens vorliegen).
+  value: false
+  is_visible: true
+  is_customizable: false
+
 - id: municipal_facilities_included_in_commerce
   label_en: Is the consumption of municipal facilities included in the commerce,
     trade and services sector?
@@ -122,6 +134,7 @@ result_excels:
   - district_heating_energy_use     # 7.3: the certifier could not find where to enter this
   - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
   - vehicle_kilometers_own          # 2.3: the own-data mileage route, road-typed
+  - other_transport_energy_own      # 1.5: where a city enters rail/water/air consumption
   - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
   # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
   # These show which required cell is missing rather than a bare 0.

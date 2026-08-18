@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a1dcbcf15cb0bc1c7d88cf8b3be80b2891abd4e1
+  commit: 3d04527511ae85a5f39b0d63b52b5151a50850ee
   dvc_remote: kausal-s3
 name_de: Augsburg CO₂-Zukunfts-Rechner
 name_en: Augsburg CO₂-Future Calculator
@@ -113,6 +113,18 @@ params:
 # Augsburg's municipal-facility column is zero throughout, so this has no effect on the balance
 # today. Left at the BISKO default so a later delivery carrying real facility data is treated
 # correctly without a config change.
+# Rail, inland waterway and commercial aviation: the same declaration use_own_mileage makes for
+# road. BISKO's Leitfaden Datenbeschaffung expects public transport consumption to come from the
+# operator, so a city that has it should be able to supply it. Visible but not customizable, like
+# the other data-source declarations -- it says which dataset the balance is built from, which is a
+# fact about the city's data rather than a scenario.
+- id: use_own_other_transport
+  label_en: Use own rail, waterway and aviation energy data rather than BISKO municipality defaults (recommended if operator data is available).
+  label_de: Eigene Energiedaten für Schienen-, Schiffs- und Flugverkehr statt gemeindefeiner Default-Werte nutzen (empfohlen falls Daten des Verkehrsunternehmens vorliegen).
+  value: false
+  is_visible: true
+  is_customizable: false
+
 - id: municipal_facilities_included_in_commerce
   label_en: Is the consumption of municipal facilities included in the commerce,
     trade and services sector?
@@ -246,13 +258,19 @@ dimensions:
     label_de: Steinkohle
     aliases: [kohle, steinkohle, Kohle]
     color: *black
-    order: 45
+    order: 46
+  - id: coal_chp
+    label_en: Coal for CHP
+    label_de: Kohle KWK
+    aliases: [Kohle KWK]
+    color: *black
+    order: 33
   - id: brown_coal
     label_en: Brown coal / Lignite
     label_de: Braunkohle
     aliases: [braunkohle]
     color: '#5D3A1A'
-    order: 9
+    order: 10
   # --- Liquid fossil fuels (order 3-9): red-to-orange spectrum ---
   - id: heating_oil
     label_en: Heating oil
@@ -265,13 +283,13 @@ dimensions:
     label_de: Benzin
     aliases: [benzin_fossil, benzin, Benzin fossil, Bfoss]
     color: *g_grey2
-    order: 2
+    order: 3
   - id: diesel
     label_en: Diesel
     label_de: Diesel
     aliases: [diesel_fossil, Diesel fossil, Dfoss]
     color: *g_grey3
-    order: 12
+    order: 13
   - id: kerosene
     label_en: Kerosene
     label_de: Kerosin
@@ -282,7 +300,7 @@ dimensions:
     label_en: LPG (Liquefied petroleum gas)
     label_de: LPG
     color: *grey
-    order: 36
+    order: 37
   - id: propane
     label_en: Propane/butane
     label_de: Flüssiggas
@@ -294,49 +312,49 @@ dimensions:
     label_de: Kraftstoffe
     aliases: [kraftstoffe, kraftstoff, Kraftstoff, Kraftstoffe]
     color: '#880000'
-    order: 35
+    order: 36
   # --- Fossil gas (order 10-13): dark blue spectrum ---
   - id: natural_gas
     label_en: Natural gas
     label_de: Erdgas
     aliases: [gas, erdgas]
     color: *grey
-    order: 14
+    order: 15
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil
     aliases: [CNG_fossil, CNGfoss]
     color: '#154360'
-    order: 11
+    order: 12
   - id: natural_gas_turbine
     label_en: Natural gas for steam turbines
     label_de: Erdgas GuD
     color: '#0B2F50'
-    order: 16
+    order: 17
   - id: natural_gas_small_chp
     label_en: Natural gas with small-scale CHP
     label_de: Erdgas BHKW
     color: '#0D3B5A'
-    order: 15
+    order: 16
   # --- Bio transport fuels (order 14-16): olive-green ---
   - id: bio_petrol
     label_en: Bio petrol
     label_de: Biobenzin
     aliases: [benzin_biogen, biobenzin, Benzin Bio, Bbio]
     color: *blue
-    order: 3
+    order: 4
   - id: biodiesel
     label_en: Biodiesel
     label_de: Diesel biogen
     aliases: [diesel_biogen, Diesel Bio, Diesel_biogen, Diesel_Biogen, Dbio]
     color: *g_blue2
-    order: 13
+    order: 14
   - id: cng_bio
     label_en: CNG bio
     label_de: CNG bio
     aliases: [CNG_bio, CNGbio]
     color: '#2D5C12'
-    order: 10
+    order: 11
   # --- Biomass (order 17-21): green spectrum ---
   - id: liquid_biomass
     label_en: Liquid biomass
@@ -348,7 +366,7 @@ dimensions:
     label_de: Biomasse
     aliases: [biomasse]
     color: *green
-    order: 6
+    order: 7
   - id: solid_biomass
     label_en: Solid biomass
     label_de: feste Biomasse
@@ -358,24 +376,24 @@ dimensions:
     label_en: Biomass for heat-only boiler
     label_de: Biomasse Heizwerk
     color: *green
-    order: 7
+    order: 8
   - id: biomass_chp
     label_en: Biomass for CHP
     label_de: Biomasse KWK
     color: *green
-    order: 8
+    order: 9
   # --- Biogas (order 22-24): teal-green ---
   - id: biogas
     label_en: Biogas
     label_de: Biogas
     aliases: [biogas]
     color: *g_lime2
-    order: 4
+    order: 5
   - id: biogas_chp
     label_en: Biogas for CHP
     label_de: Biogas KWK
     color: '#0A5C3E'
-    order: 5
+    order: 6
   - id: sewage_landfill_mine_gas
     label_en: Sewage, landfill, or mine gas
     label_de: Klär- Deponie- Grubengas
@@ -387,39 +405,45 @@ dimensions:
     label_de: Abfall
     color: '#4A3728'
     order: 1
+  - id: waste_chp
+    label_en: Waste for CHP
+    label_de: Abfall KWK
+    aliases: [Abfall KWK]
+    color: '#35271C'
+    order: 2
   - id: conventional_waste_heat_gt_90
     label_en: Conventional waste heat > 90 C
     label_de: Konventioneller Abwärme >90 C
     color: '#484848'
-    order: 34
+    order: 35
   - id: conventional_waste_heat_lt_90
     label_en: Conventional waste heat < 90 C
     label_de: Konventioneller Abwärme <90 C
     color: '#5C5C5C'
-    order: 33
+    order: 34
   - id: renewable_waste_heat_gt_90
     label_en: Renewable waste heat > 90 C
     label_de: Erneuerbarer Abwärme >90 C
     color: '#3D5A55'
-    order: 18
+    order: 19
   - id: renewable_waste_heat_lt_90
     label_en: Renewable waste heat < 90 C
     label_de: Erneuerbarer Abwärme <90 C
     color: '#4A6B66'
-    order: 17
+    order: 18
   # --- Renewable thermal (order 30-33): amber and teal ---
   - id: solar_thermal
     label_en: Solar thermal
     label_de: Solarthermie
     aliases: [solarthermie, Solarthermie]
     color: *lime
-    order: 39
+    order: 40
   - id: environmental_heat
     label_en: Environmental heat / Heat pump
     label_de: Umweltwärme
     aliases: [umweltwarme, Umweltwarme, Umweltwaerme]
     color: *g_green2
-    order: 47
+    order: 48
   - id: geothermatl # FIXME typo
     label_en: Geothermatl
     label_de: Geothermite
@@ -442,7 +466,7 @@ dimensions:
     label_de: Nahwärme
     aliases: [nahwarme, Nahwarme, Nahwaerme]
     color: *g_lilac2
-    order: 37
+    order: 38
   - id: district_and_local_heating
     label_en: District and local heating
     label_de: Fern- und Nahwärme
@@ -459,7 +483,7 @@ dimensions:
     # carrier is correct and the Fahrstrom labels resolve here.
     aliases: [strom, fahrstrom, strom_fahrstrom, St]
     color: *darkblue
-    order: 46
+    order: 47
   - id: heating_electricity
     label_en: Heating electricity
     label_de: Heizstrom
@@ -476,54 +500,54 @@ dimensions:
     label_en: Hydropower
     label_de: Wasser
     color: *darkblue
-    order: 48
+    order: 49
   - id: wind
     label_en: Wind
     label_de: Wind
     color: *blue
-    order: 50
+    order: 51
   # --- Clean fuel (order 43) ---
   - id: hydrogen
     label_en: Hydrogen
     label_de: Wasserstoff
     aliases: [wasserstoff, Wasserstoff]
     color: *grey
-    order: 49
+    order: 50
   # --- Aggregate / other (order 44-50) ---
   - id: other_renewables
     label_en: Other renewables
     label_de: Sonstige Erneuerbare
     aliases: [sonstige_erneuerbare, Sonstige_Erneuerbare, SonstigeEE]
     color: '#276B27'
-    order: 40
+    order: 41
   - id: other_renewable_energy_carriers
     label_en: Other renewable energy carriers
     label_de: Sonstige Erneuerbare Energieträger
     color: '#1E5E1E'
-    order: 41
+    order: 42
   - id: other_conventional
     label_en: Other conventional
     label_de: Sonstige Konventionelle
     aliases: [sonstige_konventionelle, Sonstige_Konventionelle, SonstigeKo]
     color: '#5A3A2A'
-    order: 42
+    order: 43
   - id: other_conventional_energy_carriers
     label_en: Other conventional energy carriers
     label_de: Sonstige konventionelle Energieträger
     color: '#4A2D1A'
-    order: 43
+    order: 44
   - id: other
     label_en: Other
     label_de: Sonstiges
     aliases: [sonstiges]
     color: '#616161'
-    order: 44
+    order: 45
   - id: not_defined
     label_en: Not defined
     label_de: Nicht definiert
     aliases: [nicht_definiert, Unzugeordnet]
     color: '#4D4D4D'
-    order: 38
+    order: 39
   - id: total
     label_en: Total
     label_de: Gesamt
@@ -666,6 +690,7 @@ result_excels:
   - district_heating_energy_use     # 7.3: the certifier could not find where to enter this
   - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
   - vehicle_kilometers_own          # 2.3: the own-data mileage route, road-typed
+  - other_transport_energy_own      # 1.5: where a city enters rail/water/air consumption
   - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
   # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
   # These show which required cell is missing rather than a bare 0.

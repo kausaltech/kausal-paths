@@ -245,6 +245,11 @@ class UseOwnMileage(BoolGlobalParameter):
     id = 'use_own_mileage'
 
 
+class UseOwnOtherTransport(BoolGlobalParameter):
+    name = _("Use the city's own rail, waterway and aviation energy data rather than national default values")
+    id = 'use_own_other_transport'
+
+
 class MunicipalFacilitiesIncludedInCommerce(BoolGlobalParameter):
     name = _('Is the consumption of municipal facilities included in the commerce, trade and services sector?')
     id = 'municipal_facilities_included_in_commerce'
