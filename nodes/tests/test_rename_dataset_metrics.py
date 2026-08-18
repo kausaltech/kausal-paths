@@ -18,7 +18,7 @@ from kausal_common.datasets.models import Dataset, DatasetMetric
 
 from nodes.management.commands.load_dvc_dataset import Command as LoadCommand
 from nodes.management.commands.rename_dataset_metrics import build_rename_plan
-from nodes.models import DatasetPort, NodeInputPortBinding
+from nodes.models import NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from nodes.tests.test_load_dvc_dataset_refresh import make_context
 
@@ -32,24 +32,16 @@ def _import(ic, columns: dict[str, list[float]], units: dict[str, str]) -> Datas
     return Dataset.objects.get(identifier=DS_ID)
 
 
-def _bind(ic, dataset: Dataset, metric: DatasetMetric) -> tuple[DatasetPort, NodeInputPortBinding]:
-    """Bind the metric the two ways the model can, both of which are PROTECTed."""
+def _bind(ic, dataset: Dataset, metric: DatasetMetric) -> NodeInputPortBinding:
+    """Bind the metric to a fresh node's input port; the reference is PROTECTed."""
     node = NodeConfigFactory.create(instance=ic)
-    port = DatasetPort.objects.create(
+    return NodeInputPortBinding.objects.create(
         instance=ic,
         node=node,
         port_id=UUID('44444444-4444-4444-4444-444444444444'),
         dataset=dataset,
         metric=metric,
     )
-    binding = NodeInputPortBinding.objects.create(
-        instance=ic,
-        node=node,
-        port_id=UUID('44444444-4444-4444-4444-444444444444'),
-        dataset=dataset,
-        metric=metric,
-    )
-    return port, binding
 
 
 def test_plan_infers_a_single_rename():
@@ -65,11 +57,13 @@ def test_plan_infers_a_single_rename():
 def test_plan_counts_the_bindings_that_will_survive():
     ic = InstanceConfigFactory.create(name='rename-counts', config_source='database')
     dataset = _import(ic, {'Value': [1.0]}, {'Value': 'kt'})
-    _bind(ic, dataset, DatasetMetric.objects.get(schema=dataset.schema, name='Value'))
+    metric = DatasetMetric.objects.get(schema=dataset.schema, name='Value')
+    _bind(ic, dataset, metric)
+    _bind(ic, dataset, metric)
 
     plan = build_rename_plan(DS_ID, dataset, ['default'], explicit={})
 
-    assert plan.bindings == {'Value': 2}, 'a dataset port and an input binding both ride along'
+    assert plan.bindings == {'Value': 2}, 'every binding that holds the metric rides along'
 
 
 def test_renaming_keeps_the_bindings_pointing_at_the_same_row():
@@ -77,15 +71,13 @@ def test_renaming_keeps_the_bindings_pointing_at_the_same_row():
     ic = InstanceConfigFactory.create(name='rename-keeps', config_source='database')
     dataset = _import(ic, {'Value': [1.0]}, {'Value': 'kt'})
     metric = DatasetMetric.objects.get(schema=dataset.schema, name='Value')
-    port, binding = _bind(ic, dataset, metric)
+    binding = _bind(ic, dataset, metric)
     metric_uuid = metric.uuid
 
     metric.name = 'default'
     metric.save(update_fields=['name'])
 
-    port.refresh_from_db()
     binding.refresh_from_db()
-    assert port.metric_id == metric.pk
     assert binding.metric_id == metric.pk
     assert DatasetMetric.objects.get(pk=metric.pk).uuid == metric_uuid, 'the metric keeps its identity'
     assert DatasetMetric.objects.get(pk=metric.pk).name == 'default'

@@ -53,13 +53,15 @@ from .problems import DatasetValidationViolationType, InstanceProblemInterface
 from .spec import InstanceSpecType, YearsDefType
 
 if TYPE_CHECKING:
+    from django.db.models import QuerySet
+
     from datasets.graphql.types import DataSourceType  # used in lazy strawberry annotation
     from frameworks.schema import FrameworkConfigType  # used in lazy strawberry annotation
     from nodes.context import Context
     from nodes.graphql.types.change_history import InstanceChangeOperationType
     from nodes.graphql.types.node import NodeInterface, NodeType
     from nodes.instance_graph import InstanceGraph
-    from nodes.models import InstanceInvitation
+    from nodes.models import InstanceInvitation, NodeInputPortBinding
     from users.graphql.mutations import InstanceInvitationType  # used in lazy strawberry annotation
     from users.schema import UserType  # used in lazy strawberry annotation
 
@@ -122,6 +124,23 @@ class InstanceGoalEntry:
     def unit(self) -> Unit:
         df = self._goal._get_values_df()
         return df.get_unit(self.outcome_node.get_default_output_metric().column_id)
+
+
+def _dataset_binding_qs(ic: InstanceConfig) -> QuerySet[NodeInputPortBinding]:
+    from nodes.models import NodeInputPortBinding
+
+    return (
+        NodeInputPortBinding.objects
+        .filter(instance=ic, dataset__isnull=False)
+        .select_related(
+            'node',
+            'dataset__schema',
+            'dataset__created_by',
+            'dataset__last_modified_by',
+            'metric',
+        )
+        .order_by('node_id', 'dataset_index', 'position')
+    )
 
 
 def _instance_editor_allowed(ic: InstanceConfig, info: gql.Info) -> bool:
@@ -288,8 +307,13 @@ class InstanceEditorFields:
     @sb.field(graphql_type=list[NodeEdgeType])
     @staticmethod
     def edges(root: 'InstanceEditorFields') -> list[NodeEdgeType]:
-        edges = root._config.edges.select_related('from_node', 'to_node')
-        return [NodeEdgeType.from_node_edge(edge) for edge in edges]
+        edges = (
+            root._config.input_bindings
+            .filter(source_node__isnull=False)
+            .select_related('node', 'source_node')
+            .order_by('node_id', 'port_id', 'position')
+        )
+        return [NodeEdgeType.from_input_binding(edge) for edge in edges]
 
     @sb.field(
         graphql_type=list[ConstraintConflictType],
@@ -375,17 +399,11 @@ class InstanceEditorFields:
     def dataset_ports(root: 'InstanceEditorFields') -> list[DatasetPortType]:
         dataset_ports = getattr(root._config, '_annotated_dataset_ports', None)
         if dataset_ports is None:
-            dataset_ports = list(
-                root._config.dataset_ports.select_related(
-                    'node',
-                    'dataset__schema',
-                    'dataset__created_by',
-                    'dataset__last_modified_by',
-                    'metric',
-                )
-            )
+            dataset_ports = list(_dataset_binding_qs(root._config))
         result = []
         for dp in dataset_ports:
+            assert dp.dataset is not None
+            assert dp.metric is not None
             port = DatasetPortType(
                 id=sb.ID(str(dp.uuid)),
                 uuid=dp.uuid,
@@ -397,12 +415,12 @@ class InstanceEditorFields:
                 metric=DatasetMetricRefType.from_model(dp.metric),
                 external_dataset_id=_external_dataset_id_from_dataset(dp.dataset),
                 external_metric_id=dp.metric.name,
-                tags=list(dp.spec.tags),
+                tags=list(dp.dataset_spec.tags),
             )
             port._dataset = DatasetType.from_model(dp.dataset)
-            port._transformations = list(dp.spec.transformations)
+            port._transformations = list(dp.dataset_spec.transformations)
             if port._dataset is not None:
-                port._dataset._forecast_from = dp.spec.forecast_from
+                port._dataset._forecast_from = dp.dataset_spec.forecast_from
             result.append(port)
         return result
 
@@ -528,17 +546,9 @@ class InstanceModelType:
         node_configs = self._config.nodes_for_serialization
         dataset_ports = getattr(self._config, '_annotated_dataset_ports', None)
         if dataset_ports is None:
-            dataset_ports = list(
-                self._config.dataset_ports.select_related(
-                    'node',
-                    'dataset__schema',
-                    'dataset__created_by',
-                    'dataset__last_modified_by',
-                    'metric',
-                )
-            )
+            dataset_ports = list(_dataset_binding_qs(self._config))
             self._config._annotated_dataset_ports = dataset_ports
-        datasets_by_uuid = {port.dataset.uuid: port.dataset for port in dataset_ports}
+        datasets_by_uuid = {port.dataset.uuid: port.dataset for port in dataset_ports if port.dataset is not None}
         node_config_by_identifier = {nc.identifier: nc for nc in node_configs}
         for node_id, node in self._instance.context.nodes.items():
             nc = node_config_by_identifier.get(node_id)

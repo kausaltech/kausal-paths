@@ -1,45 +1,32 @@
 """
-Transitional mirror maintenance for the unified ``NodeInputPortBinding`` table.
+Write service for the unified ``NodeInputPortBinding`` table.
 
-``NodeEdge`` and ``DatasetPort`` are still the authoritative stores for what
-is bound to a node's input ports; ``NodeInputPortBinding`` is a derived
-mirror of both, giving every delivered value one identity (the legacy row's
-UUID) and one shared per-port ``position``. Write paths call
-``sync_input_bindings()`` at their transaction boundary; once writes move to
-the unified table, authority flips and this module goes away.
+``NodeInputPortBinding`` is the authoritative store for what is bound to a
+node's input ports; the legacy ``NodeEdge`` / ``DatasetPort`` tables are dead
+(kept empty until their removal in plan step 11). Snapshot-driven writers
+(sync, import) build the full desired row set and call
+``reconcile_input_bindings()``; row-level editors (GraphQL mutations) write
+rows directly and keep per-port positions dense with the position helpers.
 
-Position assignment goes through ``ordered_binding_snapshots()`` — the same
-function ``build_instance_graph()`` uses — so the mirror can never disagree
-with graph-derived binding order.
+Position assignment for snapshot-driven writers goes through
+``ordered_binding_snapshots()`` — the same function the snapshot upgrader
+uses — so no writer can disagree with the canonical delivery order.
 """
 
 from typing import TYPE_CHECKING
+from uuid import UUID, uuid4
 
 from django.db import transaction
+from django.db.models import Max
 
-from nodes.instance_serialization import (
-    DatasetPortSnapshot,
-    EdgeSnapshot,
-    dataset_port_qs_for,
-    edge_qs_for,
-    ordered_binding_snapshots,
-)
-from nodes.models import DatasetPort, NodeConfig, NodeEdge, NodeInputPortBinding
+from nodes.models import NodeInputPortBinding
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from django.db.models import Model
+    from nodes.models import InstanceConfig, NodeConfig
 
-    from nodes.models import InstanceConfig
-
-#: Writes touching these models can change what the mirror derives; the
-#: ``change_operation`` exit hook resyncs when one of them was recorded.
-#: ``NodeConfig`` is included because deleting a node cascades its bindings
-#: without per-row change records.
-BINDING_SOURCE_MODELS: tuple[type, ...] = (NodeEdge, DatasetPort, NodeConfig)
-
-_MIRROR_FIELDS = (
+_ROW_FIELDS = (
     'node_id',
     'port_id',
     'position',
@@ -49,74 +36,32 @@ _MIRROR_FIELDS = (
     'metric_id',
     'transformations',
     'tags',
+    'dataset_spec',
+    'dataset_index',
 )
 
 
-def models_affect_input_bindings(model_classes: Iterable[type[Model]]) -> bool:
-    return any(issubclass(cls, BINDING_SOURCE_MODELS) for cls in model_classes)
+def _row_state(binding: NodeInputPortBinding) -> tuple[object, ...]:
+    return tuple(getattr(binding, field) for field in _ROW_FIELDS)
 
 
-def _desired_bindings(ic: InstanceConfig) -> list[NodeInputPortBinding]:
-    """Derive the mirror rows the legacy tables currently imply, in position order."""
-    edge_rows = list(edge_qs_for(ic))
-    port_rows = list(dataset_port_qs_for(ic))
-    edges_by_uuid = {e.uuid: e for e in edge_rows}
-    ports_by_uuid = {p.uuid: p for p in port_rows}
-
-    edge_snapshots = [EdgeSnapshot.from_model(e) for e in edge_rows]
-    port_snapshots = [DatasetPortSnapshot.from_model(p) for p in port_rows]
-
-    desired: list[NodeInputPortBinding] = []
-    for item, position in ordered_binding_snapshots(edge_snapshots, port_snapshots):
-        assert item.uuid is not None  # from_model always carries the row UUID
-        if isinstance(item, DatasetPortSnapshot):
-            port = ports_by_uuid[item.uuid]
-            desired.append(
-                NodeInputPortBinding(
-                    uuid=port.uuid,
-                    instance=ic,
-                    node_id=port.node_id,
-                    port_id=port.port_id,
-                    position=position,
-                    dataset_id=port.dataset_id,
-                    metric_id=port.metric_id,
-                    transformations=list(port.spec.transformations),
-                    tags=list(port.spec.tags),
-                )
-            )
-            continue
-        edge = edges_by_uuid[item.uuid]
-        desired.append(
-            NodeInputPortBinding(
-                uuid=edge.uuid,
-                instance=ic,
-                node_id=edge.to_node_id,
-                port_id=edge.to_port,
-                position=position,
-                source_node_id=edge.from_node_id,
-                source_port_id=edge.from_port,
-                transformations=list(edge.transformations or []),
-                tags=list(edge.tags or []),
-            )
-        )
-    return desired
-
-
-def _mirror_state(binding: NodeInputPortBinding) -> tuple[object, ...]:
-    return tuple(getattr(binding, field) for field in _MIRROR_FIELDS)
-
-
-def sync_input_bindings(ic: InstanceConfig) -> int:
+def reconcile_input_bindings(ic: InstanceConfig, desired: list[NodeInputPortBinding]) -> int:
     """
-    Reconcile the ``NodeInputPortBinding`` mirror with the legacy tables.
+    Reconcile the instance's binding rows with the desired state.
 
-    Idempotent and UUID-preserving: a binding keeps its identity across
-    reorders and rebuilds because the row UUID comes from the legacy row.
-    Returns the number of rows created, updated or deleted. Position swaps
-    within one transaction are legal — the position uniqueness constraint
-    is deferred to commit.
+    Idempotent and UUID-preserving: rows are matched by UUID, updated in
+    place, created when new and deleted when gone, so a surviving binding
+    keeps both its UUID and its pk across a full rewrite. Returns the number
+    of rows created, updated or deleted. Position swaps within one
+    transaction are legal — the position uniqueness constraint is deferred
+    to commit.
     """
-    desired = _desired_bindings(ic)
+    # The uuid column is db_default-populated, so an unsaved row without an
+    # authored/preserved identity carries a sentinel, not a UUID — mint one
+    # here or every fresh row would collapse onto the same dict key.
+    for binding in desired:
+        if not isinstance(binding.uuid, UUID):
+            binding.uuid = uuid4()
     desired_by_uuid = {b.uuid: b for b in desired}
     with transaction.atomic():
         existing_by_uuid = {b.uuid: b for b in NodeInputPortBinding.objects.filter(instance=ic)}
@@ -126,17 +71,49 @@ def sync_input_bindings(ic: InstanceConfig) -> int:
         to_update: list[NodeInputPortBinding] = []
         for uuid, wanted in desired_by_uuid.items():
             current = existing_by_uuid.get(uuid)
-            if current is None or _mirror_state(current) == _mirror_state(wanted):
+            if current is None or _row_state(current) == _row_state(wanted):
                 continue
-            for field in _MIRROR_FIELDS:
+            for field in _ROW_FIELDS:
                 setattr(current, field, getattr(wanted, field))
             to_update.append(current)
 
         if removed_uuids:
             NodeInputPortBinding.objects.filter(instance=ic, uuid__in=removed_uuids).delete()
         if to_update:
-            NodeInputPortBinding.objects.bulk_update(to_update, _MIRROR_FIELDS)
+            NodeInputPortBinding.objects.bulk_update(to_update, _ROW_FIELDS)
         if to_create:
             NodeInputPortBinding.objects.bulk_create(to_create)
 
     return len(removed_uuids) + len(to_update) + len(to_create)
+
+
+def next_port_position(nc: NodeConfig, port_id: UUID) -> int:
+    """Position for a binding appended to the port."""
+    highest = NodeInputPortBinding.objects.filter(node=nc, port_id=port_id).aggregate(highest=Max('position'))['highest']
+    return 0 if highest is None else highest + 1
+
+
+def compact_port_positions(nc: NodeConfig, port_ids: Iterable[UUID]) -> None:
+    """
+    Renumber the ports' bindings densely (0..n-1), preserving relative order.
+
+    Call after deletes; the uniqueness constraint is deferred, so in-transaction
+    swaps are legal.
+    """
+    for port_id in set(port_ids):
+        rows = list(NodeInputPortBinding.objects.filter(node=nc, port_id=port_id).order_by('position'))
+        changed = []
+        for position, row in enumerate(rows):
+            if row.position != position:
+                row.position = position
+                changed.append(row)
+        if changed:
+            NodeInputPortBinding.objects.bulk_update(changed, ['position'])
+
+
+def next_dataset_index(nc: NodeConfig) -> int:
+    """Next free binding-group index on the node's ``input_dataset_instances`` list."""
+    highest = NodeInputPortBinding.objects.filter(node=nc, dataset__isnull=False).aggregate(highest=Max('dataset_index'))[
+        'highest'
+    ]
+    return 0 if highest is None else highest + 1

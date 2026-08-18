@@ -2,11 +2,12 @@
 Mutations for editing what is bound to a node's input ports.
 
 A dataset *binding* is what the editor manipulates, and it is not always one
-row: a binding that names no metric expands to one ``DatasetPort`` per metric
-the dataset exposes. So mutations resolve a binding from any of its rows' uuids
-and then write the whole group, which is also why divergent transformations
-between rows of one binding cannot arise through this API. An edge binding is
-always exactly one ``NodeEdge`` row.
+row: a binding that names no metric expands to one ``NodeInputPortBinding``
+per metric the dataset exposes (rows sharing a ``dataset_index``). So
+mutations resolve a binding from any of its rows' uuids and then write the
+whole group, which is also why divergent transformations between rows of one
+binding cannot arise through this API. An edge binding is always exactly one
+row.
 
 ``bindingEditor`` resolves either kind from one id namespace, but updates are
 kind-typed mutations with separate input types: the ``oneOf`` field list is the
@@ -18,7 +19,7 @@ the YAML sync observed, and it becomes derivable once nodes stop indexing into
 ``input_dataset_instances``; addressing bindings by uuid survives that.
 """
 
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import TYPE_CHECKING, Annotated
 
 import strawberry as sb
 from graphql import GraphQLError
@@ -42,7 +43,7 @@ from nodes.graphql.types.transformations import (
     dataset_transformations_from_input,
     edge_transformations_from_input,
 )
-from nodes.models import DatasetPort, NodeEdge
+from nodes.models import NodeInputPortBinding
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -52,7 +53,6 @@ if TYPE_CHECKING:
     from nodes.defs.binding_def import DatasetBindingDef
     from nodes.defs.graph import DatasetMeta
     from nodes.defs.node_defs import DatasetPortSpec
-    from nodes.defs.transform_def import EdgeTransformOp
     from nodes.models import InstanceConfig, NodeConfig
 
 
@@ -199,19 +199,18 @@ def _resolve_port(info: gql.Info, nc: NodeConfig, port_id: str) -> UUID:
 def _check_port_has_capacity(info: gql.Info, nc: NodeConfig, port_id: UUID) -> None:
     """Reject the binding if the port is already occupied and not declared ``multi``."""
     from nodes.graphql.editor import _get_input_port
-    from nodes.models import DatasetPort, NodeEdge
 
     port = _get_input_port(nc, port_id)
     assert port is not None
     if port.multi:
         return
-    if NodeEdge.objects.filter(to_node=nc, to_port=port_id).exists():
-        raise GraphQLValidationError(info, f'Input port "{port_id}" already has an edge bound to it')
-    if DatasetPort.objects.filter(node=nc, port_id=port_id).exists():
-        raise GraphQLValidationError(info, f'Input port "{port_id}" already has a dataset bound to it')
+    occupant = NodeInputPortBinding.objects.filter(node=nc, port_id=port_id).first()
+    if occupant is not None:
+        kind = 'an edge' if occupant.source_node_id is not None else 'a dataset'
+        raise GraphQLValidationError(info, f'Input port "{port_id}" already has {kind} bound to it')
 
 
-def _port_occupants(info: gql.Info, nc: NodeConfig, port_id: UUID) -> tuple[list[NodeEdge], list[DatasetPort]]:
+def _port_occupants(info: gql.Info, nc: NodeConfig, port_id: UUID) -> list[NodeInputPortBinding]:
     """
     Return what a replacing bind displaces from the port.
 
@@ -230,9 +229,7 @@ def _port_occupants(info: gql.Info, nc: NodeConfig, port_id: UUID) -> tuple[list
             info,
             f'Input port "{port_id}" accepts multiple bindings, so `replace` is ambiguous; delete a specific binding instead',
         )
-    edges = list(NodeEdge.objects.filter(to_node=nc, to_port=port_id))
-    rows = list(DatasetPort.objects.filter(node=nc, port_id=port_id))
-    return edges, rows
+    return list(NodeInputPortBinding.objects.filter(node=nc, port_id=port_id).select_related('source_node'))
 
 
 def _default_transformations(metric_column: str | None) -> list[PortTransformOp]:
@@ -242,20 +239,15 @@ def _default_transformations(metric_column: str | None) -> list[PortTransformOp]
     return InputDatasetDef(id='placeholder', column=metric_column).to_transformations()
 
 
-def _binding_rows(ic: InstanceConfig, binding_id: str) -> list[DatasetPort]:
+def _dataset_binding_rows(ic: InstanceConfig, anchor: NodeInputPortBinding) -> list[NodeInputPortBinding]:
     """
-    Return every row of the binding one of whose rows has this uuid.
+    Return every row of the binding one of whose rows is the anchor.
 
     A binding is identified by any of its rows because a column-less binding
     fans out to one row per metric; they share a ``dataset_index``.
     """
-    from nodes.models import DatasetPort
-
-    anchor = DatasetPort.objects.filter(instance=ic, uuid=binding_id).select_related('node', 'dataset', 'metric').first()
-    if anchor is None:
-        return []
     return list(
-        DatasetPort.objects
+        NodeInputPortBinding.objects
         .filter(
             instance=ic,
             node=anchor.node,
@@ -265,15 +257,6 @@ def _binding_rows(ic: InstanceConfig, binding_id: str) -> list[DatasetPort]:
         .select_related('node', 'dataset', 'metric')
         .order_by('metric__order', 'port_id')
     )
-
-
-def _next_dataset_index(nc: NodeConfig) -> int:
-    from django.db.models import Max
-
-    from nodes.models import DatasetPort
-
-    highest = DatasetPort.objects.filter(node=nc).aggregate(highest=Max('dataset_index'))['highest']
-    return 0 if highest is None else highest + 1
 
 
 def _spec_for(
@@ -295,7 +278,7 @@ def _spec_for(
 def _check_dataset_binding_rewrite(
     info: gql.Info,
     ic: InstanceConfig,
-    rows: list[DatasetPort],
+    rows: list[NodeInputPortBinding],
     *,
     metric: DatasetMetric | None,
     transformations: list[PortTransformOp],
@@ -309,6 +292,8 @@ def _check_dataset_binding_rewrite(
     add_bindings: list[DatasetBindingDef] = []
     add_datasets: tuple[DatasetMeta, ...] = ()
     for row in rows:
+        assert row.dataset is not None
+        assert row.metric is not None
         current = graph.binding_by_id.get(row.uuid)
         candidate, additions = dataset_candidate(
             graph,
@@ -335,8 +320,8 @@ def _check_dataset_binding_rewrite(
 @sb.type(description='Edit one input-port binding, dataset or edge.')
 class PortBindingEditorMutation:
     instance: sb.Private['InstanceConfig']
-    rows: sb.Private[list[DatasetPort]]
-    edge: sb.Private['NodeEdge | None']
+    rows: sb.Private[list[NodeInputPortBinding]]
+    edge: sb.Private['NodeInputPortBinding | None']
     type Me = PortBindingEditorMutation
 
     @gql.mutation(
@@ -355,9 +340,10 @@ class PortBindingEditorMutation:
         if root.edge is not None:
             raise GraphQLValidationError(info, 'This binding is an edge; use updateEdgeBinding')
 
-        rows: list[DatasetPort] = root.rows
+        rows: list[NodeInputPortBinding] = root.rows
         first = rows[0]
-        spec = first.spec
+        assert first.dataset is not None
+        spec = first.dataset_spec
 
         metric_column = spec.column
         metric = None
@@ -396,15 +382,19 @@ class PortBindingEditorMutation:
         with gql_change_operation(info, root.instance, action='node.dataset_binding.update'):
             for row in rows:
                 before = row.serializable_data()
-                row.spec = _spec_for(
+                row.dataset_spec = _spec_for(
                     transformations=transformations,
                     metric_column=metric_column,
                     tags=tags,
-                    previous=row.spec,
+                    previous=row.dataset_spec,
                 )
+                row.transformations = list(transformations)
+                row.tags = list(tags)
+                update_fields = ['dataset_spec', 'transformations', 'tags']
                 if metric is not None:
                     row.metric = metric
-                row.save(update_fields=['spec', 'metric'] if metric is not None else ['spec'])
+                    update_fields.append('metric')
+                row.save(update_fields=update_fields)
                 record_change(
                     row,
                     action='node.dataset_binding.update',
@@ -433,6 +423,8 @@ class PortBindingEditorMutation:
         edge = root.edge
         if edge is None:
             raise GraphQLValidationError(info, 'This binding is a dataset binding; use updateDatasetBinding')
+        assert edge.source_node is not None
+        assert edge.source_port_id is not None
 
         # Unrelated updates converge the stored list on the current vocabulary too.
         transformations = modernized_transformations(list(edge.transformations))
@@ -452,10 +444,10 @@ class PortBindingEditorMutation:
         current = graph.binding_by_id.get(edge.uuid)
         candidate = edge_candidate(
             graph,
-            from_node=edge.from_node,
-            from_port=edge.from_port,
-            to_node=edge.to_node,
-            to_port=edge.to_port,
+            from_node=edge.source_node,
+            from_port=edge.source_port_id,
+            to_node=edge.node,
+            to_port=edge.port_id,
             transformations=transformations,
             tags=tags,
             binding_id=edge.uuid,
@@ -468,26 +460,31 @@ class PortBindingEditorMutation:
 
         with gql_change_operation(info, root.instance, action='edge.update'):
             before = edge.serializable_data()
-            # The applicability check above narrowed the list to EdgeTransformOp members.
-            edge.transformations = cast('list[EdgeTransformOp]', transformations)
+            edge.transformations = transformations
             edge.tags = tags
             edge.save(update_fields=['transformations', 'tags'])
             record_change(edge, action='edge.update', before=before, after=edge.serializable_data())
 
-        return NodeEdgeType.from_node_edge(edge)
+        return NodeEdgeType.from_input_binding(edge)
 
     @gql.mutation(description='Remove this binding, leaving the input port in place.')
     @staticmethod
     def delete_binding(info: gql.Info, root: sb.Parent[Me]) -> None:
         from nodes.change_ops import gql_change_operation, record_change
+        from nodes.input_bindings import compact_port_positions
 
         if root.edge is not None:
             with gql_change_operation(info, root.instance, action='edge.delete'):
                 record_change(root.edge, action='edge.delete', before=root.edge.serializable_data(), after=None)
+                target_node = root.edge.node
+                port_id = root.edge.port_id
                 root.edge.delete()
+                compact_port_positions(target_node, [port_id])
             return
 
         with gql_change_operation(info, root.instance, action='node.dataset_binding.delete'):
+            target_node = root.rows[0].node
+            port_ids = [row.port_id for row in root.rows]
             for row in root.rows:
                 record_change(
                     row,
@@ -496,13 +493,16 @@ class PortBindingEditorMutation:
                     after=None,
                 )
                 row.delete()
+            compact_port_positions(target_node, port_ids)
 
 
-def _to_gql(row: DatasetPort) -> DatasetPortType:
-    """Build the read type for a binding row, matching the instance-level resolver."""
+def _to_gql(row: NodeInputPortBinding) -> DatasetPortType:
+    """Build the read type for a dataset binding row, matching the instance-level resolver."""
     from datasets.graphql.types import DatasetType
     from nodes.graphql.types.graph import DatasetMetricRefType, DatasetPortType, NodePortRef, _external_dataset_id_from_dataset
 
+    assert row.dataset is not None
+    assert row.metric is not None
     port = DatasetPortType(
         id=sb.ID(str(row.uuid)),
         uuid=row.uuid,
@@ -514,12 +514,12 @@ def _to_gql(row: DatasetPort) -> DatasetPortType:
         metric=DatasetMetricRefType.from_model(row.metric),
         external_dataset_id=_external_dataset_id_from_dataset(row.dataset),
         external_metric_id=row.metric.name,
-        tags=list(row.spec.tags),
+        tags=list(row.dataset_spec.tags),
     )
     port._dataset = DatasetType.from_model(row.dataset)
-    port._transformations = list(row.spec.transformations)
+    port._transformations = list(row.dataset_spec.transformations)
     if port._dataset is not None:
-        port._dataset._forecast_from = row.spec.forecast_from
+        port._dataset._forecast_from = row.dataset_spec.forecast_from
     return port
 
 
@@ -533,14 +533,13 @@ def bind_dataset(
     from nodes.change_ops import gql_change_operation, record_change
     from nodes.constraints.validation import BindingChange
     from nodes.graphql.constraint_checks import check_binding_change, dataset_candidate, require_draft_graph
-    from nodes.models import DatasetPort
+    from nodes.input_bindings import next_dataset_index, next_port_position
 
     nc.ensure_gql_action_allowed(info, 'change')
     port_id = _resolve_port(info, nc, str(input.port_id))
-    displaced_edges: list[NodeEdge] = []
-    displaced_rows: list[DatasetPort] = []
+    displaced: list[NodeInputPortBinding] = []
     if input.replace:
-        displaced_edges, displaced_rows = _port_occupants(info, nc, port_id)
+        displaced = _port_occupants(info, nc, port_id)
     else:
         _check_port_has_capacity(info, nc, port_id)
     dataset = _resolve_dataset(info, ic, str(input.dataset_id))
@@ -571,9 +570,7 @@ def bind_dataset(
     )
     change = BindingChange(
         add_bindings=(candidate,),
-        remove_binding_ids=frozenset(
-            {*(displaced.uuid for displaced in displaced_edges), *(displaced.uuid for displaced in displaced_rows)},
-        ),
+        remove_binding_ids=frozenset(binding.uuid for binding in displaced),
         add_datasets=catalog_additions,
     )
     violations = check_binding_change(info, ic, change)
@@ -582,30 +579,26 @@ def bind_dataset(
         # graph — including a would-be displaced binding — untouched.
         return violations
 
-    replacing = bool(displaced_edges or displaced_rows)
-    action = 'node.dataset_binding.replace' if replacing else 'node.dataset_binding.create'
+    action = 'node.dataset_binding.replace' if displaced else 'node.dataset_binding.create'
     with gql_change_operation(info, ic, action=action):
         # All validation has passed; only now may the old binding go, so a
         # rejected bind never leaves the port unbound.
-        for edge in displaced_edges:
-            record_change(edge, action='edge.delete', before=edge.serializable_data(), after=None)
-            edge.delete()
-        for displaced in displaced_rows:
-            record_change(
-                displaced,
-                action='node.dataset_binding.delete',
-                before=displaced.serializable_data(),
-                after=None,
-            )
-            displaced.delete()
-        row = DatasetPort.objects.create(
+        for binding in displaced:
+            delete_action = 'edge.delete' if binding.source_node_id is not None else 'node.dataset_binding.delete'
+            record_change(binding, action=delete_action, before=binding.serializable_data(), after=None)
+            binding.delete()
+        spec = _spec_for(transformations=transformations, metric_column=metric_column, tags=[])
+        row = NodeInputPortBinding.objects.create(
             instance=ic,
             node=nc,
             port_id=port_id,
+            position=next_port_position(nc, port_id),
             dataset=dataset,
             metric=metric,
-            spec=_spec_for(transformations=transformations, metric_column=metric_column, tags=[]),
-            dataset_index=_next_dataset_index(nc),
+            transformations=list(spec.transformations),
+            tags=list(spec.tags),
+            dataset_spec=spec,
+            dataset_index=next_dataset_index(nc),
         )
         record_change(row, action='node.dataset_binding.create', before=None, after=row.serializable_data())
 
@@ -627,14 +620,17 @@ def _sole_metric_or_error(info: gql.Info, dataset: DatasetModel) -> DatasetMetri
 
 
 def binding_editor(info: gql.Info, ic: InstanceConfig, binding_id: sb.ID) -> PortBindingEditorMutation:
-    rows = _binding_rows(ic, str(binding_id))
-    if rows:
-        rows[0].node.ensure_gql_action_allowed(info, 'change')
-        return PortBindingEditorMutation(instance=ic, rows=rows, edge=None)
-    edge = None
+    anchor = None
     if _looks_like_uuid(str(binding_id)):
-        edge = NodeEdge.objects.filter(instance=ic, uuid=str(binding_id)).select_related('from_node', 'to_node').first()
-    if edge is not None:
-        edge.to_node.ensure_gql_action_allowed(info, 'change')
-        return PortBindingEditorMutation(instance=ic, rows=[], edge=edge)
-    raise GraphQLError(f'Binding "{binding_id}" not found')
+        anchor = (
+            NodeInputPortBinding.objects
+            .filter(instance=ic, uuid=str(binding_id))
+            .select_related('node', 'source_node', 'dataset', 'metric')
+            .first()
+        )
+    if anchor is None:
+        raise GraphQLError(f'Binding "{binding_id}" not found')
+    anchor.node.ensure_gql_action_allowed(info, 'change')
+    if anchor.source_node_id is not None:
+        return PortBindingEditorMutation(instance=ic, rows=[], edge=anchor)
+    return PortBindingEditorMutation(instance=ic, rows=_dataset_binding_rows(ic, anchor), edge=None)

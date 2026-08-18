@@ -605,7 +605,7 @@ class InstanceConfig(
     # read". ``_create_from_config`` clears it so hydrate calls that follow
     # a post-publish edit see the current DB state.
     _nodes_for_serialization: list[NodeConfig] | None
-    _annotated_dataset_ports: list[DatasetPort]
+    _annotated_dataset_ports: list[NodeInputPortBinding]
     _publication_dataset_revision_pins: dict[int, Any] | None = None
     # Avoid revalidating the same YAML materialization for every field resolved
     # from one model object. A newly loaded row validates against disk again.
@@ -926,9 +926,8 @@ class InstanceConfig(
         return cls(pk=pk, identifier=identifier or '')
 
     def clear_model_editor_data(self) -> None:
-        """Delete all model editor related objects (edges, dataset ports) and reset spec."""
-        self.edges.all().delete()
-        self.dataset_ports.all().delete()
+        """Delete all model editor related objects (input bindings) and reset spec."""
+        self.input_bindings.all().delete()
         self.nodes.update(spec='{}')
         self.spec = InstanceModelSpec()
 
@@ -968,7 +967,11 @@ class InstanceConfig(
         with transaction.atomic():
             locked = InstanceConfig.objects.select_for_update().get(pk=self.pk)
             dataset_ids = list(
-                DatasetPort.objects.filter(instance=locked).order_by().values_list('dataset_id', flat=True).distinct()
+                NodeInputPortBinding.objects
+                .filter(instance=locked, dataset__isnull=False)
+                .order_by()
+                .values_list('dataset_id', flat=True)
+                .distinct()
             )
             datasets = list(
                 DatasetModel.objects
@@ -1888,10 +1891,8 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         """
         Attach the node's port bindings as ``PortBindingDef``-shaped JSON.
 
-        Served from the unified ``NodeInputPortBinding`` mirror, which the
-        write boundaries keep in sync with the still-authoritative
-        ``NodeEdge`` / ``DatasetPort`` tables. This is the projection behind
-        ``port_edge_bindings`` / ``port_dataset_bindings``.
+        Served from the authoritative ``NodeInputPortBinding`` table. This is
+        the projection behind ``port_edge_bindings`` / ``port_dataset_bindings``.
         """
         edge_bindings = (
             NodeInputPortBinding.objects
@@ -2472,16 +2473,14 @@ class NodeInputPortBinding(EditableInstanceChild):
     """
     One value delivered to a node input port — edge- or dataset-sourced.
 
-    The unified persisted form of ``NodeEdge`` and ``DatasetPort`` (see
-    docs/architecture/dimension-constraints.md, "One input-binding table").
+    The authoritative unified store replacing ``NodeEdge`` and ``DatasetPort``
+    (see docs/architecture/dimension-constraints.md, "One input-binding
+    table"; the legacy tables are empty and await removal in plan step 11).
     ``position`` orders bindings within one port across both source kinds,
     which matters because a ``multi`` port may hold both and floating-point
-    addition makes delivery order observable.
-
-    Transitional: writes still target the legacy tables, and
-    ``nodes.input_bindings.sync_input_bindings()`` rebuilds these rows at
-    every write boundary, preserving the legacy row UUIDs as binding
-    identity. Reads go through ``NodeConfigQuerySet.annotate_ports()``.
+    addition makes delivery order observable. Snapshot-driven writers go
+    through ``nodes.input_bindings.reconcile_input_bindings()``; row-level
+    editors write directly and keep positions dense.
     """
 
     snapshot_model: ClassVar[type[ModelSnapshot]] = InputBindingSnapshot
@@ -2537,6 +2536,21 @@ class NodeInputPortBinding(EditableInstanceChild):
         models.CharField(max_length=200),
         default=list,
         blank=True,
+    )
+
+    # Transitional dataset-branch state (empty/zero on edge bindings). The
+    # runtime still consumes DatasetPortSpec whole and groups fanned-out
+    # per-metric rows by (node, dataset_index); each spec field's target home
+    # is the transform pipeline, and both fields go away in plan step 11 once
+    # dataset loading executes the pipeline directly.
+    dataset_spec = SchemaField(schema=DatasetPortSpec, default=DatasetPortSpec, blank=True)
+    dataset_index = models.PositiveIntegerField(
+        default=0,
+        help_text=(
+            "Order of the binding group in the owning node's input_dataset_instances list. "
+            'Rows sharing (node, dataset_index) belong to one column-less binding expanded '
+            'to a port per metric.'
+        ),
     )
 
     # for type checkers

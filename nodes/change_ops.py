@@ -202,23 +202,7 @@ def change_operation(
             yield op
         finally:
             _current_op.reset(token)
-        _resync_input_bindings_if_touched(ic, op)
         ic.invalidate_cache()
-
-
-def _resync_input_bindings_if_touched(ic: InstanceConfig, op: InstanceChangeOperation) -> None:
-    """
-    Refresh the ``NodeInputPortBinding`` mirror after binding-affecting operations.
-
-    This is the single write-boundary hook for all mutations that go through
-    ``change_operation``; command-level writers (sync, import, copy) call
-    ``sync_input_bindings`` themselves.
-    """
-    from nodes.input_bindings import models_affect_input_bindings, sync_input_bindings
-
-    touched = getattr(op, '_touched_models', None)
-    if touched and models_affect_input_bindings(touched):
-        sync_input_bindings(ic)
 
 
 @contextmanager

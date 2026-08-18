@@ -17,6 +17,8 @@ from uuid import uuid3
 
 from loguru import logger
 
+from nodes.instance_serialization import DatasetPortSnapshot
+
 if TYPE_CHECKING:
     from collections.abc import Hashable
     from uuid import UUID
@@ -27,7 +29,7 @@ if TYPE_CHECKING:
     from datasets.validation_rules import ValidationRule
     from nodes.defs.graph import DatasetMeta
     from nodes.defs.node_defs import NodeSpec
-    from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot
+    from nodes.instance_serialization import InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig, NodeConfig
     from nodes.yaml_port_refs import YamlPortReferenceCatalog
 
@@ -329,67 +331,45 @@ def _seed_node_metadata_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_l
     nc.i18n = i18n
 
 
-def _write_edges(ic: InstanceConfig, snapshot: InstanceSnapshot, node_configs: dict[UUID, NodeConfig]) -> int:
-    from nodes.instance_serialization import edge_match_keys, existing_edge_identities, match_preserved_uuids
-    from nodes.models import NodeEdge
-
-    # Recreating the rows keeps pk order equal to authored order, but the row
-    # UUID is the durable binding identity and must survive the rewrite.
-    authored_uuids = {edge.uuid for edge in snapshot.edge_bindings if edge.uuid is not None}
-    existing = [item for item in existing_edge_identities(ic) if item[1] not in authored_uuids]
-    NodeEdge.objects.filter(instance=ic).delete()
-    preserved = match_preserved_uuids(
-        existing,
-        [edge_match_keys(edge.from_node, edge.from_port, edge.to_node, edge.to_port) for edge in snapshot.edge_bindings],
-    )
-    edge_objs = []
-    for edge, matched_uuid in zip(snapshot.edge_bindings, preserved, strict=True):
-        from_nc = node_configs.get(edge.from_node)
-        to_nc = node_configs.get(edge.to_node)
-        if from_nc is None or to_nc is None:
-            raise ValueError(f'Edge references unknown node: {edge.from_node} -> {edge.to_node}')
-        row_uuid = edge.uuid or matched_uuid
-        identity_kwargs = {'uuid': row_uuid} if row_uuid is not None else {}
-        edge_objs.append(
-            NodeEdge(
-                instance=ic,
-                from_node=from_nc,
-                from_port=edge.from_port,
-                to_node=to_nc,
-                to_port=edge.to_port,
-                transformations=list(edge.transformations),
-                tags=list(edge.tags),
-                **identity_kwargs,
-            )
-        )
-    NodeEdge.objects.bulk_create(edge_objs)
-    return len(edge_objs)
-
-
-def _write_dataset_ports(
+def _write_bindings(
     ic: InstanceConfig,
     snapshot: InstanceSnapshot,
     node_configs: dict[UUID, NodeConfig],
     *,
     port_references: YamlPortReferenceCatalog,
-) -> int:
-    """Resolve bindings against the DB schemas and write the DatasetPort rows."""
+) -> tuple[int, int]:
+    """
+    Resolve snapshot bindings and reconcile the ``NodeInputPortBinding`` rows.
+
+    Returns (edge count, dataset-port count). The row UUID is the durable
+    binding identity: authored UUIDs (stamped by the parser from the port
+    reference catalog) win, and rows the catalog missed are matched to
+    surviving structural identities so a re-sync never churns identity.
+    """
     from kausal_common.datasets.models import DatasetMetric
 
+    from nodes.input_bindings import reconcile_input_bindings
     from nodes.instance_serialization import (
         dataset_port_match_keys,
+        edge_match_keys,
         existing_dataset_port_identities,
+        existing_edge_identities,
         match_preserved_uuids,
+        ordered_binding_snapshots,
     )
-    from nodes.models import DatasetPort
+    from nodes.models import NodeInputPortBinding
     from nodes.spec_export import _get_db_datasets
 
-    existing = existing_dataset_port_identities(ic)
-    DatasetPort.objects.filter(instance=ic).delete()
+    edges = snapshot.edge_bindings
+    authored_uuids = {edge.uuid for edge in edges if edge.uuid is not None}
+    existing_edges = [item for item in existing_edge_identities(ic) if item[1] not in authored_uuids]
+    preserved_edge_uuids = match_preserved_uuids(
+        existing_edges,
+        [edge_match_keys(edge.from_node, edge.from_port, edge.to_node, edge.to_port) for edge in edges],
+    )
+
     schemas = collect_dataset_schema_info(ic)
     resolved = resolve_dataset_port_snapshots(snapshot, schemas, port_references=port_references)
-    if not resolved:
-        return 0
 
     db_datasets = _get_db_datasets(ic)
     schema_pks = {ds.schema.pk for ds in db_datasets.values() if ds.schema is not None}
@@ -406,25 +386,57 @@ def _write_dataset_ports(
         metric = metric_by_identity[(dataset_obj.schema.pk, port.metric)]
         triples.append((port, dataset_obj, metric))
         match_keys.append(dataset_port_match_keys(port.node, dataset_obj.pk, port.dataset_index, metric.pk))
+    preserved_port_uuids = match_preserved_uuids(existing_dataset_port_identities(ic), match_keys)
 
-    # Recreated rows keep their durable UUIDs (binding identity) across the rewrite.
-    port_objs: list[DatasetPort] = []
-    for (port, dataset_obj, metric), matched_uuid in zip(triples, match_preserved_uuids(existing, match_keys), strict=True):
-        identity_kwargs = {'uuid': matched_uuid} if matched_uuid is not None else {}
-        port_objs.append(
-            DatasetPort(
+    edge_uuid_by_id = {id(edge): edge.uuid or matched for edge, matched in zip(edges, preserved_edge_uuids, strict=True)}
+    port_row_by_id = {
+        id(port): (dataset_obj, metric, matched)
+        for (port, dataset_obj, metric), matched in zip(triples, preserved_port_uuids, strict=True)
+    }
+
+    desired: list[NodeInputPortBinding] = []
+    for item, position in ordered_binding_snapshots(edges, [port for port, _ds, _m in triples]):
+        if isinstance(item, DatasetPortSnapshot):
+            dataset_obj, metric, matched_uuid = port_row_by_id[id(item)]
+            identity_kwargs = {'uuid': matched_uuid} if matched_uuid is not None else {}
+            desired.append(
+                NodeInputPortBinding(
+                    instance=ic,
+                    node=node_configs[item.node],
+                    port_id=item.port_id,
+                    position=position,
+                    dataset=dataset_obj,
+                    metric=metric,
+                    transformations=list(item.spec.transformations),
+                    tags=list(item.spec.tags),
+                    dataset_spec=item.spec,
+                    dataset_index=item.dataset_index,
+                    **identity_kwargs,
+                )
+            )
+            continue
+        from_nc = node_configs.get(item.from_node)
+        to_nc = node_configs.get(item.to_node)
+        if from_nc is None or to_nc is None:
+            raise ValueError(f'Edge references unknown node: {item.from_node} -> {item.to_node}')
+        row_uuid = edge_uuid_by_id[id(item)]
+        identity_kwargs = {'uuid': row_uuid} if row_uuid is not None else {}
+        desired.append(
+            NodeInputPortBinding(
                 instance=ic,
-                node=node_configs[port.node],
-                port_id=port.port_id,
-                dataset=dataset_obj,
-                metric=metric,
-                spec=port.spec,
-                dataset_index=port.dataset_index,
+                node=to_nc,
+                port_id=item.to_port,
+                position=position,
+                source_node=from_nc,
+                source_port_id=item.from_port,
+                transformations=list(item.transformations),
+                tags=list(item.tags),
                 **identity_kwargs,
             )
         )
-    DatasetPort.objects.bulk_create(port_objs)
-    return len(port_objs)
+
+    reconcile_input_bindings(ic, desired)
+    return len(edges), len(triples)
 
 
 def _upsert_node_configs(
@@ -536,20 +548,15 @@ def sync_parsed_instance_to_db(
 
             _sync_dimensions_from_snapshot(ic, snapshot)
             node_configs = _upsert_node_configs(ic, snapshot, existing_node_configs)
-            edge_count = _write_edges(ic, snapshot, node_configs)
             created_placeholder_ids = sync_dataset_placeholders_from_snapshot(ic, snapshot)
             _sync_dataset_metadata_from_snapshot(ic, snapshot)
-            dataset_port_count = _write_dataset_ports(
+            edge_count, dataset_port_count = _write_bindings(
                 ic,
                 snapshot,
                 node_configs,
                 port_references=port_references,
             )
             promoted = _promote_dataset_forecast_defaults(ic) if promote_forecast_defaults else 0
-
-            from nodes.input_bindings import sync_input_bindings
-
-            sync_input_bindings(ic)
 
     logger.info(
         (
