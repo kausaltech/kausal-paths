@@ -101,32 +101,52 @@ datasets:
   - id: Value
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
+    # One group per required cell, each naming exactly one combination.
+    #
+    # A group is satisfied when *any* of its combinations has a value, so grouping the four
+    # sectors of a carrier into one group asks only that the carrier appear *somewhere* --
+    # the 'mindestens auf Ebene der Gesamtkommune' reading, which the second Pruefprotokoll
+    # disproved: it deleted Industrie Erdgas and Private Haushalte Strom individually and the
+    # balance still reported conform (findings 1.1, 1.2, 1.4). Difu confirmed the per-subsector
+    # reading on 2026-08-19. One combination per group is therefore the correct encoding: it
+    # makes every required cell its own requirement, which is what `prod_dim` over sector does
+    # in has_all_grid_bound_energy_data / has_all_non_grid_bound_energy_data.
+    #
+    # Single-combination groups also carry their coordinates into the violation: the evaluator
+    # populates `categories` only when a group names exactly one combination, so each finding
+    # points at a sector/carrier cell instead of at a bare carrier name.
+    #
+    # `municipal_facilities` is deliberately absent from every group. Pruefschritt 2.1 says its
+    # absence must not make the balance non-conform, and the second Pruefprotokoll confirms it
+    # ('KE muss keine Werte enthalten'). Its combinations stay in the category domain above
+    # because they are legitimate optional cells -- but a value there must not satisfy a
+    # requirement, which is exactly what including it in a group would have allowed.
     - kind: required_combinations
       enforcement: block_publish
       groups:
-      - id: electricity
-        combinations: [private_households_electricity, commerce_trade_services_electricity,
-          industry_electricity, municipal_facilities_electricity]
-      - id: natural_gas
-        combinations: [private_households_natural_gas, commerce_trade_services_natural_gas,
-          industry_natural_gas, municipal_facilities_natural_gas]
-      - id: district_heating
-        combinations: [private_households_district_heating,
-          commerce_trade_services_district_heating, industry_district_heating,
-          municipal_facilities_district_heating]
-      - id: heating_oil
-        combinations: [private_households_heating_oil, commerce_trade_services_heating_oil,
-          industry_heating_oil, municipal_facilities_heating_oil]
-      - id: biomass
-        combinations: [private_households_biomass, commerce_trade_services_biomass,
-          industry_biomass, municipal_facilities_biomass]
-      - id: solar_thermal
-        combinations: [private_households_solar_thermal, commerce_trade_services_solar_thermal,
-          industry_solar_thermal, municipal_facilities_solar_thermal]
-      - id: environmental_heat
-        combinations: [private_households_environmental_heat,
-          commerce_trade_services_environmental_heat, industry_environmental_heat,
-          municipal_facilities_environmental_heat]
+      # Grid-bound carriers (has_all_grid_bound_energy_data).
+      - {id: private_households_electricity, combinations: [private_households_electricity]}
+      - {id: commerce_trade_services_electricity, combinations: [commerce_trade_services_electricity]}
+      - {id: industry_electricity, combinations: [industry_electricity]}
+      - {id: private_households_natural_gas, combinations: [private_households_natural_gas]}
+      - {id: commerce_trade_services_natural_gas, combinations: [commerce_trade_services_natural_gas]}
+      - {id: industry_natural_gas, combinations: [industry_natural_gas]}
+      - {id: private_households_district_heating, combinations: [private_households_district_heating]}
+      - {id: commerce_trade_services_district_heating, combinations: [commerce_trade_services_district_heating]}
+      - {id: industry_district_heating, combinations: [industry_district_heating]}
+      # Non-grid-bound carriers (has_all_non_grid_bound_energy_data).
+      - {id: private_households_heating_oil, combinations: [private_households_heating_oil]}
+      - {id: commerce_trade_services_heating_oil, combinations: [commerce_trade_services_heating_oil]}
+      - {id: industry_heating_oil, combinations: [industry_heating_oil]}
+      - {id: private_households_biomass, combinations: [private_households_biomass]}
+      - {id: commerce_trade_services_biomass, combinations: [commerce_trade_services_biomass]}
+      - {id: industry_biomass, combinations: [industry_biomass]}
+      - {id: private_households_solar_thermal, combinations: [private_households_solar_thermal]}
+      - {id: commerce_trade_services_solar_thermal, combinations: [commerce_trade_services_solar_thermal]}
+      - {id: industry_solar_thermal, combinations: [industry_solar_thermal]}
+      - {id: private_households_environmental_heat, combinations: [private_households_environmental_heat]}
+      - {id: commerce_trade_services_environmental_heat, combinations: [commerce_trade_services_environmental_heat]}
+      - {id: industry_environmental_heat, combinations: [industry_environmental_heat]}
   - id: quality
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
