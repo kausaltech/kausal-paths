@@ -906,6 +906,70 @@ class PathsExt:
         df = df.with_columns(expr).drop('_Right')
         return df
 
+    def prefer_by_year(self, odf: ppl.PathsDataFrame, coverage: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:
+        """
+        Take this frame's values for every year it covers, and ``odf``'s values for the years it does not.
+
+        The choice is made per year and for the frame as a whole: a year this frame covers is
+        served entirely from this frame, a year it does not cover entirely from ``odf``. One
+        year therefore never mixes the two sources.
+
+        That granularity is the point. A city moves from national default statistics to its
+        own data collection one reporting year at a time, so the source has to be chosen per
+        year rather than once for the whole series. Within a year the city's own data stands
+        alone: a combination it left empty is a gap in the city's data, to be reported as
+        missing, not something to backfill from the default -- filling it would produce a
+        balance that is partly one source and partly the other with no way to tell which.
+
+        ``coverage`` says which years this frame covers, as a frame of flags -- a year is
+        covered when any of its values is non-null and non-zero. **Pass it whenever this frame
+        comes from a dataset binding.** By the time a node's output reaches here it has been
+        through zero-filling, interpolation and extension, so its own values no longer say
+        which years the city actually supplied: an empty template that was zero-filled so the
+        node could compute at all would otherwise claim to cover every year and silence the
+        default entirely. A ``DataAvailabilityNode`` reading the same dataset is the honest
+        answer, because it inspects the dataset before any of that happens -- and it is already
+        the node shown on screen as the city's data availability, so what drives the balance
+        and what is reported as available cannot drift apart.
+
+        Without ``coverage``, coverage is read from this frame's own non-null values. That is
+        correct only for a frame whose gaps are still genuine nulls.
+
+        A frame that covers no years yields ``odf`` unchanged. Rows left null by the choice are
+        dropped, so a combination with no value behaves the same way as one that was never in
+        the data.
+        """
+        df = self._df
+        if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
+            raise Exception('prefer_by_year() supports a single metric column')
+        out_col = df.metric_cols[0]
+        input_col = odf.metric_cols[0]
+        odf = odf.ensure_unit(input_col, df.get_unit(out_col)).rename({input_col: '_Fallback'})
+
+        if coverage is not None:
+            if len(coverage.metric_cols) != 1:
+                raise Exception('prefer_by_year() coverage must have a single metric column')
+            flag_col = coverage.metric_cols[0]
+            covered = coverage.filter(pl.col(flag_col).is_not_null() & (pl.col(flag_col) != 0))[YEAR_COLUMN].unique()
+        else:
+            covered = df.filter(pl.col(out_col).is_not_null())[YEAR_COLUMN].unique()
+
+        if len(covered) == 0:
+            return odf.rename({'_Fallback': out_col})
+        if set(df.dim_ids) != set(odf.dim_ids):
+            raise ValueError(f'Dimensions must match for prefer_by_year(): {df.dim_ids} vs {odf.dim_ids}.')
+
+        df = df.paths.join_over_index(odf, how='outer')
+        expr = (
+            pl
+            .when(pl.col(YEAR_COLUMN).is_in(covered.implode()))
+            .then(pl.col(out_col))
+            .otherwise(pl.col('_Fallback'))
+            .alias(out_col)
+        )
+        df = df.with_columns(expr).drop('_Fallback')
+        return df.filter(pl.col(out_col).is_not_null())
+
     def compare_df(  # Based on add_with_dims
         self,
         odf: ppl.PathsDataFrame,

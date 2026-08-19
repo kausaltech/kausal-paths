@@ -139,3 +139,86 @@ impute step itself.
   but the operation is addition (with `fill_null(0)`) rather than
   coalesce, and — for `add_from_incoming_dims` — the input can bring in
   dimensions the target doesn't already have.
+- **`prefer_by_year`** chooses a *source* per year rather than merging
+  values per row. See below — it is the mechanism to reach for when
+  "use local data where we have it" means whole reporting years, not
+  individual cells.
+
+
+## `prefer_by_year`: choosing a source per year, not per row
+
+`impute` merges two frames cell by cell. `prefer_by_year`
+(`common/polars_ext.py`, and the formula function of the same name)
+chooses between two *sources* one year at a time:
+
+```yaml
+- id: vehicle_kilometers
+  type: formula.FormulaNode
+  input_nodes:
+  - id: vehicle_kilometers_own
+    tags: [own]
+  - id: vehicle_kilometers_default
+    tags: [default]
+  - id: vehicle_kilometers_own_availability
+    tags: [coverage]
+  params:
+  - id: formula
+    value: prefer_by_year(own, default, coverage)
+```
+
+A year the city has supplied is served **entirely** from `own`; every
+other year **entirely** from `default`.
+
+### When to use which
+
+Use `impute` when the two inputs are alternative estimates of the same
+quantity and the best available value should win cell by cell.
+
+Use `prefer_by_year` when the two inputs are *different data sources*
+and a result that silently mixes them within one reporting year would
+be wrong or unauditable. The motivating case is a city moving from
+national default statistics to its own data collection: the switch
+happens in a particular year, and a combination the city left empty
+inside a year it *did* report is a gap in the city's data — something
+to report as missing, not to backfill from the default. Backfilling
+would produce a figure that is partly one source and partly the other
+with nothing on screen to say which.
+
+### The `coverage` argument, and why it is not optional in practice
+
+Pass `coverage` whenever the preferred frame comes from a dataset
+binding. It is tempting to let the function work out which years are
+covered from the preferred frame's own values, and the two-argument
+form does exactly that — but by the time a node's output reaches the
+formula it has been through `empty_to_zero`, `interpolate`, `backfill`
+and `extend`, so its values no longer say which years the source
+actually contained.
+
+This matters most in the case the mechanism exists for. A node reading
+an empty template needs `empty_to_zero` to produce a dimensioned frame
+at all, and those zeros are indistinguishable from reported zeros — so
+an *unfilled* template would claim to cover every year and suppress the
+default entirely. Note that a genuinely reported zero **is** data and
+does win its year; that is BISKO's rule and the function honours it,
+which is precisely why fabricated zeros cannot be tolerated.
+
+A `DataAvailabilityNode` reading the same dataset is the honest answer,
+because it inspects the dataset before any of that post-processing
+happens. Using it has a second benefit worth keeping: it is normally
+already the node displayed as the data-availability report, so what
+drives the result and what is reported as available cannot drift apart.
+
+The two-argument form remains correct for a frame whose gaps are still
+genuine nulls — typically one computed from other nodes rather than
+read from a binding.
+
+### Details
+
+- Dimensions must match between the two value frames, as with `impute`.
+- Units are reconciled to the preferred frame's unit.
+- A frame that covers no years yields the fallback unchanged.
+- Rows left null by the choice are dropped, so a combination with no
+  value behaves like one that was never in the data.
+- Unlike `select_port`, which evaluates only the branch it selects,
+  `prefer_by_year` evaluates both. Converting a `select_port` to it
+  will surface any latent error in the previously-dead branch.

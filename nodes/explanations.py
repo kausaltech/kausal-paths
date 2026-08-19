@@ -134,6 +134,7 @@ TAG_DESCRIPTIONS = {
     'ratio_to_max_hist_year': _(
         'Take the ratio of the forecasted values compared with the maximum historical' + ' year (historical values = 1).'
     ),
+    'prefer_by_year': _('Use the first option for every year it has data for, and the second option for the remaining years.'),
     'removing': _('This is the rate of stock removal.'),
     'round_to_five': _('Round values to 5 significant digits rather than 5 decimal places.'),
     'scenario_impact': _('Calculate the total impact of all actions in the current scenario.'),

@@ -329,6 +329,7 @@ class FormulaNode(Node):
         'select_port': '_custom_select_port',
         'float': '_custom_float',
         'coalesce_df': '_custom_coalesce_df',
+        'prefer_by_year': '_custom_prefer_by_year',
         'max': '_custom_max_min',
         'min': '_custom_max_min',
         'and': '_custom_and_or',
@@ -454,6 +455,18 @@ class FormulaNode(Node):
         assert isinstance(df1, PDF)
         assert isinstance(df2, PDF)
         return df1.paths.coalesce_df(df2, how='outer')
+
+    def _custom_prefer_by_year(self, _func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:
+        assert len(node.args) in (2, 3), 'prefer_by_year(preferred, fallback[, coverage]) takes two or three arguments'
+        preferred = self.eval_tree(node.args[0], varss)
+        fallback = self.eval_tree(node.args[1], varss)
+        assert isinstance(preferred, PDF)
+        assert isinstance(fallback, PDF)
+        coverage = None
+        if len(node.args) == 3:
+            coverage = self.eval_tree(node.args[2], varss)
+            assert isinstance(coverage, PDF)
+        return preferred.paths.prefer_by_year(fallback, coverage)
 
     def _custom_max_min(self, func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:
         assert len(node.args) == 2, f'{func}(a, b) requires two arguments'
@@ -832,6 +845,13 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 for arg in node.args[1:]:
                     unit = _merge_compatible('coalesce', unit, _eval(arg))
                 return unit
+            if func_name == 'prefer_by_year':
+                if len(node.args) not in (2, 3):
+                    analysis.warnings.append('prefer_by_year(preferred, fallback[, coverage]) takes two or three arguments.')
+                    return first
+                # The third argument is a frame of availability flags, so it carries no unit of
+                # its own and must not be merged into the result's.
+                return _merge_compatible('prefer_by_year', first, _eval(node.args[1]))
             if func_name in ('max', 'min', 'and', 'or'):
                 if len(node.args) != 2:
                     analysis.warnings.append(f'{func_name}(a, b) requires two arguments.')
@@ -953,6 +973,11 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 for arg in node.args[1:]:
                     dims = _require_same('coalesce', dims, _eval(arg))
                 return dims
+            if func_name == 'prefer_by_year':
+                if len(node.args) not in (2, 3):
+                    analysis.warnings.append('prefer_by_year(preferred, fallback[, coverage]) takes two or three arguments.')
+                    return first
+                return _require_same('prefer_by_year', first, _eval(node.args[1]))
             if func_name in ('max', 'min', 'and', 'or'):
                 if len(node.args) != 2:
                     analysis.warnings.append(f'{func_name}(a, b) requires two arguments.')
