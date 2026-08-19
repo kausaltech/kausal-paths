@@ -95,7 +95,7 @@ params:
   label_de: Eigene Fahrleistungsdaten statt gemeindefeiner Verkehrsstatistiken nutzen (empfohlen falls Daten aus eigenem Verkehrsmodell existieren).
   value: false
   is_visible: true
-  is_customizable: false
+  is_customizable: true
 
 # Rail, inland waterway and commercial aviation: the same declaration use_own_mileage makes for
 # road. BISKO's Leitfaden Datenbeschaffung expects public transport consumption to come from the
@@ -107,7 +107,19 @@ params:
   label_de: Eigene Energiedaten für Schienen-, Schiffs- und Flugverkehr statt gemeindefeiner Default-Werte nutzen (empfohlen falls Daten des Verkehrsunternehmens vorliegen).
   value: false
   is_visible: true
-  is_customizable: false
+  is_customizable: true
+
+# Which of BISKO's two district-heating routes the balance is built from. Möglichkeit 1 is the
+# city's own CHP plant data through the exergetic allocation; Möglichkeit 2 is the standard
+# Fernwärme factor, which BISKO also derived exergetically. Both are conformant; the difference is
+# whether the city has supplied plant data. Visible but not customizable, like the other
+# data-source declarations -- it says which data the balance rests on, not a scenario.
+- id: use_exergetic_district_heating
+  label_en: Use own CHP plant data for district heating rather than the standard BISKO factor (requires plant input and output data).
+  label_de: Eigene KWK-Anlagendaten für Fernwärme statt des BISKO-Standardfaktors nutzen (erfordert Input- und Output-Daten der Anlage).
+  value: false
+  is_visible: true
+  is_customizable: true
 
 - id: weather_correction
   label_de: Wetterkorrektur durchführen (nicht BISKO-konform)

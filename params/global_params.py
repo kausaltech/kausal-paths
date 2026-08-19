@@ -250,6 +250,11 @@ class UseOwnOtherTransport(BoolGlobalParameter):
     id = 'use_own_other_transport'
 
 
+class UseExergeticDistrictHeating(BoolGlobalParameter):
+    name = _("Use the city's own CHP plant data for district heating rather than the standard BISKO factor")
+    id = 'use_exergetic_district_heating'
+
+
 class MunicipalFacilitiesIncludedInCommerce(BoolGlobalParameter):
     name = _('Is the consumption of municipal facilities included in the commerce, trade and services sector?')
     id = 'municipal_facilities_included_in_commerce'

@@ -1341,10 +1341,25 @@ nodes:
     - id: per_what_energy
       categories: [heat_output]
 
-- id: district_heating_emissions
+- id: district_heating_emissions_exergetic
   is_editable: false
-  name_de: Fernwärmeemissionen
-  name_en: District heating emissions
+  name_de: Fernwärmeemissionen aus Anlagendaten (exergetisch)
+  name_en: District heating emissions from plant data (exergetic)
+  description_en: 'BISKO Möglichkeit 1: the city''s own CHP input and output data, allocated between
+    heat and electricity by the exergetic (Carnot) method in
+    <code>combined_heat_and_power_chp_fraction</code>, then valued with the fuel factors. Per fuel,
+    so the network''s factor is the emissions-weighted average of its inputs rather than a sum of
+    per-fuel factors. Reaches the balance only when ''use_exergetic_district_heating'' is on.
+
+    '
+  description_de: 'BISKO-Möglichkeit 1: die eigenen KWK-Input- und Output-Daten der Kommune,
+    exergetisch (Carnot) zwischen Wärme und Strom aufgeteilt in
+    <code>combined_heat_and_power_chp_fraction</code> und anschließend mit den Brennstofffaktoren
+    bewertet. Je Brennstoff, damit der Netzfaktor der emissionsgewichtete Mittelwert seiner
+    Einsatzstoffe ist und nicht die Summe von Einzelfaktoren. Erreicht die Bilanz nur, wenn
+    ''use_exergetic_district_heating'' aktiv ist.
+
+    '
   type: simple.MultiplicativeNode2
   quantity: emissions
   unit: kt_co2e/a
@@ -1354,6 +1369,106 @@ nodes:
   - id: district_heating_energy_use
     tags: [bring_to_maximum_historical_year]
   - id: district_heating_fuel_emission_factors
+
+- id: district_heating_emissions_standard
+  is_editable: false
+  name_de: Fernwärmeemissionen aus dem Standardfaktor
+  name_en: District heating emissions from the standard factor
+  description_en: 'BISKO Möglichkeit 2: the city''s district heating consumption valued with the
+    standard Fernwärme factor from <code>end_energy_emission_factors</code> — the Kohle-KWK
+    fallback of 260 g CO₂e/kWh that BISKO prescribes when the plant''s fuel input is unknown.<br/>
+    Standard here means BISKO''s own default, not a lesser method: that factor was derived
+    exergetically too, so this route is fully conformant with criterion 6. What is missing is the
+    city''s plant data, not the method.<br/>
+    This is the default path, because almost no city has supplied plant data.
+
+    '
+  description_de: 'BISKO-Möglichkeit 2: der Fernwärmeverbrauch der Kommune, bewertet mit dem
+    Standard-Fernwärmefaktor aus <code>end_energy_emission_factors</code> — dem Kohle-KWK-Rückfallwert
+    von 260 g CO₂e/kWh, den BISKO vorsieht, wenn der Brennstoffeinsatz der Anlage unbekannt ist.<br/>
+    „Standard" meint den BISKO-Vorgabewert, keine geringere Methode: Auch dieser Faktor wurde
+    exergetisch hergeleitet, dieser Weg ist also mit Kriterium 6 voll konform. Es fehlen die
+    Anlagendaten der Kommune, nicht die Methode.<br/>
+    Dies ist der Standardweg, da bisher kaum eine Kommune Anlagendaten geliefert hat.
+
+    '
+  type: simple.MultiplicativeNode2
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+    - id: sector
+      flatten: true
+  - id: end_energy_emission_factors
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+
+- id: district_heating_emissions
+  is_editable: false
+  name_de: Fernwärmeemissionen
+  name_en: District heating emissions
+  description_en: 'District heating emissions by sector, from whichever of the two BISKO routes the
+    city has declared: its own plant data through the exergetic allocation, or the standard
+    Fernwärme factor. <code>use_exergetic_district_heating</code> chooses, exactly as
+    <code>use_own_mileage</code> does for road transport.<br/>
+    The selected total is distributed across sectors in proportion to each sector''s share of the
+    city''s district heating consumption, because that is the only sector information the data
+    carries.<br/>
+    <b>Both routes used to reach the balance at once.</b> <code>stationary_emissions</code> valued
+    district heating with the standard factor <i>and</i> added the plant-data figure through its
+    <code>split_dims</code> operation, which adds rather than replaces. It was invisible because the
+    plant branch is empty for every city but the template. See the register, Part M.
+
+    '
+  description_de: 'Fernwärmeemissionen nach Sektor, aus dem von der Kommune erklärten der beiden
+    BISKO-Wege: eigene Anlagendaten über die exergetische Allokation oder der
+    Standard-Fernwärmefaktor. <code>use_exergetic_district_heating</code> wählt aus, genau wie
+    <code>use_own_mileage</code> im Straßenverkehr.<br/>
+    Die gewählte Gesamtmenge wird anteilig am Fernwärmeverbrauch der Sektoren verteilt, da die Daten
+    keine andere Sektorinformation enthalten.<br/>
+    <b>Zuvor erreichten beide Wege die Bilanz gleichzeitig.</b> <code>stationary_emissions</code>
+    bewertete Fernwärme mit dem Standardfaktor <i>und</i> addierte über <code>split_dims</code> die
+    Anlagenrechnung hinzu, denn diese Operation addiert und ersetzt nicht.
+
+    '
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: district_heating_emissions_exergetic
+    tags: [exergetic]
+    from_dimensions:
+    - id: per_what_energy
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+  - id: district_heating_emissions_standard
+    tags: [standard]
+  - id: final_energy_use
+    tags: [share]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+  params:
+  - id: formula
+    # empty_to_zero, not zero_fill: a city whose district heating has gone to zero divides by a
+    # zero sector total, and that is NaN rather than null. Semantically the right answer is zero --
+    # no district heating, no district heating emissions. duesseldorf-bisko is the live case; its
+    # series collapses to zero from 2020 (see data/TODO.md item 20).
+    value: empty_to_zero(select_port(condition, exergetic, standard) * share / sum_dim(share, sector))
+  - id: condition
+    ref: use_exergetic_district_heating
 
 - id: stationary_emissions
   is_editable: false
@@ -1365,20 +1480,18 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
+  # District heating is excluded here and enters as its own term below. Valuing it with the
+  # standard factor *and* adding the plant-data figure counted it twice: split_dims adds, it does
+  # not replace. district_heating_emissions now picks one of the two routes.
   - id: final_energy_use
-  - id: end_energy_emission_factors
-  - id: district_heating_emissions
-    tags: [splittee]
     from_dimensions:
     - id: energy_carrier
-      flatten: true
-    - id: per_what_energy
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
       categories: [district_heating]
+      exclude: true
+  - id: end_energy_emission_factors
+  - id: district_heating_emissions
   params:
-    operations: multiply,split_dims
+    operations: multiply,add
 
 - id: end_energy_emission_factors
   is_editable: false
@@ -2461,8 +2574,9 @@ nodes:
         governs both.</li>
       <li><b>No weather correction.</b></li>
       <li><b>Exergetic allocation</b> of combined heat and power — the prescribed method is
-        in force and did allocate something, and the resulting district heating factor is
-        inside the BISKO Table 5 range.</li>
+        in force and did allocate something. The criterion is the method; whether the resulting
+        factor sits inside the Table 5 range is reported separately as a diagnostic and does not
+        affect conformity.</li>
       <li><b>Data quality</b> — the grid-bound carriers reach quality A.</li>
     </ol>
     Criterion 2 is a property of the model's structure rather than of a city's data, so it has no
@@ -2486,8 +2600,9 @@ nodes:
         steuert.</li>
       <li><b>Keine Witterungskorrektur.</b></li>
       <li><b>Exergetische Allokation</b> der Kraft-Wärme-Kopplung — die vorgeschriebene
-        Methode ist in Kraft und hat auch etwas verteilt, und der resultierende
-        Fernwärmefaktor liegt innerhalb der Spannweite von BISKO-Tabelle 5.</li>
+        Methode ist in Kraft und hat auch etwas verteilt. Das Kriterium ist die Methode; ob der
+        resultierende Fernwärmefaktor in der Spannweite von Tabelle 5 liegt, wird separat als
+        Diagnose ausgewiesen und beeinflusst die Konformität nicht.</li>
       <li><b>Datengüte</b> — die leitungsgebundenen Energieträger erreichen Güte A.</li>
     </ol>
     Kriterium 2 ist eine Eigenschaft der Modellstruktur und nicht der Daten einer Kommune und hat
@@ -2502,14 +2617,16 @@ nodes:
     tags: [weather]
   - id: has_national_electricity_emission_factors
     tags: [electricity]
-  # Criterion 6 in two parts: the method itself, and a plausibility check on the factor it
-  # produces. The first is the criterion; the second is kept in the gate because it is what
-  # catches the template's own inconsistent district heating data. Demote it to a diagnostic
-  # by dropping it from the formula below if that is ever the wrong trade.
+  # Criterion 6 is the method, and only the method. Prüfschritt 6.1 reads "Die BISKO-Konformität
+  # wird nur ausgewiesen, wenn die Berechnung der Fernwärmeemissionen nach der exergetischen
+  # Methode erfolgt", and lists three acceptable Möglichkeiten. Table 5 appears there as one of
+  # them -- a menu to pick a variant from -- not as a range results are validated against.
+  # has_district_heating_factor_within_bisko_variants was our own addition and is now a
+  # diagnostic only. It was kept in the gate to catch "the template's inconsistent district
+  # heating data"; that turned out to be the double count fixed in Part M, and with the
+  # arithmetic clean it fails only because two ifeu tables disagree (data/TODO.md item 33).
   - id: has_district_heating_by_exergetic_allocation
     tags: [district_heating]
-  - id: has_district_heating_factor_within_bisko_variants
-    tags: [district_heating_factor]
   - id: has_quality_a_data_for_grid_based_energy
     tags: [grid_energy]
   # Criterion 1: the flag must not be raised on data nobody supplied. has_all_district_heating_
@@ -2525,7 +2642,7 @@ nodes:
   - id: has_all_road_transport_data
     tags: [road_transport]
   params:
-    formula: weather * electricity * district_heating * district_heating_factor
+    formula: weather * electricity * district_heating
       * grid_energy * grid_bound * non_grid_bound * other_transport * road_transport
 
 - id: has_no_weather_correction
