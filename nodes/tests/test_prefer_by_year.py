@@ -207,7 +207,7 @@ def test_formula_node_prefers_own_years_over_the_default():
 # --- The coverage argument ---------------------------------------------------------------------
 
 
-def _flags(rows: list[tuple[int, float]]) -> ppl.PathsDataFrame:
+def _flags(rows: list[tuple[int, float | None]]) -> ppl.PathsDataFrame:
     return _ppdf(rows, unit='dimensionless')
 
 
