@@ -76,31 +76,8 @@ params:
   value: true
   is_visible: true
   is_customizable: true
-# Separate from use_mileage, which chooses between the mileage route and the city's own
-# energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
-# or the city's own traffic model (true). BISKO recommends cities move to their own
-# regularly updated traffic data, so this is a real alternative rather than a workaround.
-- id: use_own_mileage
-  label_en: Use the city's own mileage data rather than the BISKO municipality
-    defaults
-  label_de: Eigene Fahrleistungsdaten der Kommune anstelle der gemeindefeinen
-    BISKO-Default-Werte verwenden
-  value: false
-  is_visible: true
-  is_customizable: true
 # Reutlingen still runs on Augsburg's energy data (see dataset_replacements above), whose
 # facility column is zero throughout, so this has no effect until Reutlingen's own data arrives.
-# Rail, inland waterway and commercial aviation: the same declaration use_own_mileage makes for
-# road. BISKO's Leitfaden Datenbeschaffung expects public transport consumption to come from the
-# operator, so a city that has it should be able to supply it. Visible but not customizable, like
-# the other data-source declarations -- it says which dataset the balance is built from, which is a
-# fact about the city's data rather than a scenario.
-- id: use_own_other_transport
-  label_en: Use own rail, waterway and aviation energy data rather than BISKO municipality defaults (recommended if operator data is available).
-  label_de: Eigene Energiedaten für Schienen-, Schiffs- und Flugverkehr statt gemeindefeiner Default-Werte nutzen (empfohlen falls Daten des Verkehrsunternehmens vorliegen).
-  value: false
-  is_visible: true
-  is_customizable: false
 
 # Which of BISKO's two district-heating routes the balance is built from. Möglichkeit 1 is the
 # city's own CHP plant data through the exergetic allocation; Möglichkeit 2 is the standard

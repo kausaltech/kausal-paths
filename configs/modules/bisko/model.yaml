@@ -38,9 +38,9 @@ datasets:
   is_editable: false
 
 # --- Provider defaults: immutable source snapshots a city may supersede, not edit ----------
-# A city replaces these by supplying its own data and switching the corresponding
-# data-source parameter (`use_own_mileage`, `use_mileage`); the provider record itself keeps
-# its value and its provenance.
+# A city supersedes these by supplying its own data for a given year: the own-data route wins
+# for every year it covers and the provider default serves the rest (`prefer_by_year`). The
+# provider record itself keeps its value and its provenance in every year.
 - id: bisko/gemeindefeine_fahrleistungen_strassenverkehr  # ifeu municipality-level road mileage
   is_editable: false
 - id: bisko/other_transport_energy            # ifeu rail, inland waterway and aviation energy
@@ -69,7 +69,7 @@ datasets:
   is_editable: true
 - id: bisko/historical_emissions               # the city's own reported inventory
   is_editable: true
-- id: bisko/vehicle_kilometers                 # own Fahrleistung, used when use_own_mileage
+- id: bisko/vehicle_kilometers                 # own Fahrleistung; wins in the years it covers
   is_editable: true
 - id: bisko/vehicle_energy                     # own transport energy, used when not use_mileage
   is_editable: true
@@ -1416,7 +1416,7 @@ nodes:
   description_en: 'District heating emissions by sector, from whichever of the two BISKO routes the
     city has declared: its own plant data through the exergetic allocation, or the standard
     Fernwärme factor. <code>use_exergetic_district_heating</code> chooses, exactly as
-    <code>use_own_mileage</code> does for road transport.<br/>
+    the per-year own-data preference does for road transport.<br/>
     The selected total is distributed across sectors in proportion to each sector''s share of the
     city''s district heating consumption, because that is the only sector information the data
     carries.<br/>
@@ -1429,7 +1429,7 @@ nodes:
   description_de: 'Fernwärmeemissionen nach Sektor, aus dem von der Kommune erklärten der beiden
     BISKO-Wege: eigene Anlagendaten über die exergetische Allokation oder der
     Standard-Fernwärmefaktor. <code>use_exergetic_district_heating</code> wählt aus, genau wie
-    <code>use_own_mileage</code> im Straßenverkehr.<br/>
+    die jahresweise Vorrangregel für eigene Daten im Straßenverkehr.<br/>
     Die gewählte Gesamtmenge wird anteilig am Fernwärmeverbrauch der Sektoren verteilt, da die Daten
     keine andere Sektorinformation enthalten.<br/>
     <b>Zuvor erreichten beide Wege die Bilanz gleichzeitig.</b> <code>stationary_emissions</code>
@@ -1517,40 +1517,6 @@ nodes:
     beiden über das Panel „Szenario bearbeiten“ mit dem national-vs.-lokal-Schalter wechseln.<br/> Ursprünglich sind
     die Datensätze gleich, aber die Stadt-Admin-Benutzer können die lokalen Werte über die
     Admin-Benutzeroberfläche anpassen.
-  type: formula.FormulaNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_datasets:
-  - id: bisko/endenergie_emissionsfaktoren  # standard ifeu dataset
-    tags: [national]
-    filters:
-    - column: per_what_energy
-    - column: upstream_included
-  - id: bisko/end_energy_emission_factors
-    tags: [local]
-  params:
-  - id: formula
-    value: extend_all(select_port(condition, national, local))
-  - id: condition
-    ref: use_national_values
-
-- id: end_energy_emission_factors_local
-  is_editable: false
-  name_de: Endenergie Emissionsfaktoren lokal
-  name_en: End energy emission factors local
-  description_en: |
-    The emission factors are given per final energy use. They are relevant for all sectors and
-    the whole of Germany. They include upstream emissions of energy used for production. Upstream products (gray
-    emissions) are not included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the
-    values are CO<sub>2</sub> equivalents for 100-year global warming potential.
-  description_de: |
-    Die Emissionsfaktoren sind pro Endenergieverbrauch angegeben. Sie sind für alle Sektoren und
-    für ganz Deutschland relevant. Sie enthalten Vorkettenemissionen der für die
-    Produktion verwendeten Brennstoffe. Die berücksichtigten Gase sind CO<sub>2</sub>, CH<sub>4</sub> und
-    N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
-    Treibhauspotenzial (GWP).
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -1841,9 +1807,10 @@ nodes:
   input_datasets:
   - id: bisko/vehicle_kilometers
     column: Value
-    # See other_transport_energy_own: the own-mileage template is empty until a city fills it,
-    # and vehicle_kilometers selects between this and the ifeu default, so both branches have
-    # to compute. vehicle_kilometers_own_availability reads it untagged and still reports 0.
+    # empty_to_zero: the own-mileage template is empty until a city fills it, and this node has
+    # to produce a frame with dimensions either way. The zeros do not decide anything -- they
+    # are why `vehicle_kilometers` must not read coverage off this node's output, and takes it
+    # from vehicle_kilometers_own_availability instead. See the note there.
     tags: [mileage, empty_to_zero]
   params:
     formula: extend_all(mileage)
@@ -2107,13 +2074,28 @@ nodes:
     tags: [own]
   - id: vehicle_kilometers_ifeu_by_bus_class
     tags: [ifeu]
+  # Which years the city has actually supplied. It has to come from here rather than from
+  # `own`'s values: that node's binding is zero-filled so it can compute against an empty
+  # template, and a zero is indistinguishable from a reported zero once it is in the frame.
+  # This node reads the dataset before interpolation or zero-filling, so it is the only input
+  # that still knows. It is also the node shown on screen as the city's data availability, so
+  # the balance and the availability report cannot disagree about which years are the city's.
+  - id: vehicle_kilometers_own_availability
+    tags: [coverage]
   params:
+  # Per year, not once for the whole series. A city builds up its own traffic data one
+  # reporting year at a time, so the year is the unit of choice: a year the city has supplied
+  # comes from its own model, every other year from the gemeindefeine default. Replaced the
+  # `use_own_mileage` toggle on 2026-08-19 -- an all-or-nothing switch forced a city with two
+  # years of its own data to choose between discarding it and losing every earlier year.
+  #
+  # A year in which the city supplied nothing at all is not a covered year, so the default
+  # stands; a year in which it supplied something incomplete is covered, and the missing rows
+  # are reported by vehicle_kilometers_own_availability rather than filled from the default.
+  # Mixing the two sources inside one year would produce a mileage figure that is partly the
+  # city's and partly the default's, with nothing on screen to say which.
   - id: formula
-    value: select_port(condition, own, ifeu)
-  # Was hard-coded to true, so the BISKO default mileage was never reachable and every
-  # road vehicle except cars and motorcycles fell out of the balance.
-  - id: condition
-    ref: use_own_mileage
+    value: prefer_by_year(own, ifeu, coverage)
 
 - id: other_transport_energy_own
   is_editable: false
@@ -2122,16 +2104,19 @@ nodes:
   description_en: 'Final energy for rail, inland waterway and commercial aviation from the city''s own
     sources -- normally the transport operator, which is where BISKO''s Leitfaden Datenbeschaffung
     expects public transport consumption to come from. Selected instead of the ifeu municipal
-    default when ''use_own_other_transport'' is on. The template ships empty cells rather than
-    zeros, so a carrier nobody has filled in reads as missing rather than as a reported zero.
+    default in every year the city has supplied. The template ships empty cells rather than
+    zeros, so a carrier nobody has filled in reads as missing rather than as a reported zero --
+    and a year with no entries at all falls back to the default instead of reading as zero
+    consumption.
 
     '
   description_de: 'Endenergieverbrauch für Schienen-, Binnenschiffs- und gewerblichen Flugverkehr aus
     eigenen Quellen der Kommune -- in der Regel vom Verkehrsunternehmen, wo der BISKO-Leitfaden
     Datenbeschaffung die Verbräuche des ÖPNV verortet. Wird anstelle der gemeindefeinen
-    ifeu-Defaultwerte verwendet, wenn ''use_own_other_transport'' aktiv ist. Die Vorlage liefert
-    leere Zellen statt Nullen aus, damit ein nicht ausgefüllter Energieträger als fehlend und
-    nicht als gemeldete Null gilt.
+    ifeu-Defaultwerte in jedem Jahr verwendet, für das die Kommune Daten geliefert hat. Die
+    Vorlage liefert leere Zellen statt Nullen aus, damit ein nicht ausgefüllter Energieträger als
+    fehlend und nicht als gemeldete Null gilt -- und ein Jahr ohne jeden Eintrag greift auf den
+    Defaultwert zurück, statt als Nullverbrauch zu gelten.
 
     '
   type: formula.FormulaNode
@@ -2142,10 +2127,9 @@ nodes:
   input_datasets:
   - id: bisko/other_transport_energy_own
     column: Value
-    # empty_to_zero: the template ships blank cells, and this node has to compute even when
-    # nobody has filled them in -- select_port evaluates both of its branches. The zeros stop
-    # here: other_transport_energy_own_availability reads the same dataset without the tag, so
-    # it still sees the cells as empty and reports 0.
+    # empty_to_zero, for the same reason as vehicle_kilometers_own: the template ships blank
+    # cells and this node must still produce a dimensioned frame. Coverage is read from
+    # other_transport_energy_own_availability, which sees the blanks, not from these zeros.
     tags: [energy, empty_to_zero]
   params:
     formula: extend_all(energy)
@@ -2189,14 +2173,16 @@ nodes:
   name_de: Andere Transportenergie
   description_en: 'Final energy for rail, inland waterway and commercial aviation, from whichever
     source the city has declared. BISKO recommends a city move to its own operator data where it
-    has it; ''use_own_other_transport'' says which of the two the balance is built from, exactly as
-    ''use_own_mileage'' does for road.
+    has it, and it can move over one reporting year at a time: each year is built from the
+    city''s own data if the city supplied that year, and from the ifeu default otherwise --
+    exactly as road transport mileage does.
 
     '
   description_de: 'Endenergieverbrauch für Schienen-, Binnenschiffs- und gewerblichen Flugverkehr,
     aus der von der Kommune erklärten Quelle. BISKO empfiehlt, eigene Betreiberdaten zu verwenden,
-    sofern vorhanden; ''use_own_other_transport'' gibt an, auf welcher der beiden Quellen die Bilanz
-    aufbaut -- genau wie ''use_own_mileage'' im Straßenverkehr.
+    sofern vorhanden -- und der Wechsel kann Berichtsjahr für Berichtsjahr erfolgen: Jedes Jahr
+    baut auf den eigenen Daten auf, sofern die Kommune dieses Jahr geliefert hat, sonst auf dem
+    ifeu-Defaultwert -- genau wie bei der Fahrleistung im Straßenverkehr.
 
     '
   type: formula.FormulaNode
@@ -2209,15 +2195,16 @@ nodes:
     tags: [ifeu]
   - id: other_transport_energy_own
     tags: [own]
+  # See vehicle_kilometers for why coverage comes from the availability node.
+  - id: other_transport_energy_own_availability
+    tags: [coverage]
   params:
+  # Per year, exactly as vehicle_kilometers does; see the reasoning there. Replaced the
+  # `use_own_other_transport` toggle on 2026-08-19. Operator data tends to start in a
+  # particular year -- the year a transport company began reporting -- which is precisely the
+  # case an all-or-nothing switch cannot express.
   - id: formula
-    # Own data first: select_port returns its first argument when the condition is true, so
-    # this reads "use own when use_own_other_transport is set, otherwise the ifeu default" --
-    # the same argument order as vehicle_kilometers uses for use_own_mileage. Verified: with
-    # the switch off the node passes the ifeu total through unchanged (842,404 MWh in 2023).
-    value: select_port(condition, own, ifeu)
-  - id: condition
-    ref: use_own_other_transport
+    value: prefer_by_year(own, ifeu, coverage)
 
 # - id: other_transport_energy # Extensively heavy dataset with municipality dimension.
 #   name_en: Other transport energy
@@ -3148,13 +3135,23 @@ nodes:
   - id: vehicle_kilometers_own_availability
     tags: [availability]
   params:
-  # Both dimensions are reduced with prod_dim: unlike the stationary carriers, which BISKO
-  # requires only "mindestens auf Ebene der Gesamtkommune", Prüfschritt 2.3 requires the road
-  # categories themselves, so a class present on one road type only is not complete.
+  # Two terms, either of which makes the year conform.
+  #
+  # The first is completeness of the city's own data: both dimensions are reduced with
+  # prod_dim because, unlike the stationary carriers which BISKO requires only "mindestens auf
+  # Ebene der Gesamtkommune", Prüfschritt 2.3 requires the road categories themselves, so a
+  # class present on one road type only is not complete.
+  #
+  # The second is "the city supplied nothing this year", reduced with max_dim over the same
+  # two dimensions -- 0 when no required cell is filled, 1 when any is. Such a year is served
+  # by the gemeindefeine default, and Difu confirmed on 2026-08-19 that standard data is BISKO
+  # conform by definition, so there is nothing left to test. This replaced `1 - float(condition)`
+  # on `use_own_mileage`: the source is now chosen per year, so the exemption has to be per year
+  # too. A toggle-based exemption would declare a year conform because the *series* runs on
+  # defaults, even in a year where the city had in fact supplied incomplete data of its own.
   - id: formula
-    value: max(prod_dim(prod_dim(availability, road_type), vehicle_type), 1 - float(condition))
-  - id: condition
-    ref: use_own_mileage
+    value: max(prod_dim(prod_dim(availability, road_type), vehicle_type),
+      1 - max_dim(max_dim(availability, road_type), vehicle_type))
 
 - id: has_all_grid_bound_energy_data
   is_editable: false
@@ -3257,13 +3254,12 @@ nodes:
     tags: [availability]
   params:
   - id: formula
-    # Mirrors has_all_road_transport_data. The check applies to the city's own data; when the
-    # balance runs on the ifeu defaults the term is 1, because those supply every required row
-    # by construction. Reduced with prod_dim over both dimensions -- every required mode and
-    # carrier has to be present, which is what Prüfschritt 1.5 asks for.
-    value: max(prod_dim(prod_dim(availability, energy_carrier), vehicle_type), 1 - float(condition))
-  - id: condition
-    ref: use_own_other_transport
+    # Mirrors has_all_road_transport_data; see the reasoning there. Completeness of the city's
+    # own data is reduced with prod_dim over both dimensions -- every required mode and carrier
+    # has to be present, which is what Prüfschritt 1.5 asks for -- and a year in which the city
+    # supplied nothing is served by the ifeu default and conform by definition.
+    value: max(prod_dim(prod_dim(availability, energy_carrier), vehicle_type),
+      1 - max_dim(max_dim(availability, energy_carrier), vehicle_type))
 
 - id: district_heating_energy_use_availability
   is_editable: false
