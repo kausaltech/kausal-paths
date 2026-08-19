@@ -1220,14 +1220,15 @@ class Command(BaseCommand):
             else:
                 qs = InstanceConfig.objects.all().order_by('identifier').values_list('identifier', flat=True)
                 if options['framework']:
-                    qs = qs.filter(framework_config__framework__identifier=options['framework'])
+                    qs = qs.filter(framework_config__framework__identifier=options['framework']).order_by('-cache_invalidated_at')
+                    instance_ids = list(qs)
                 else:
                     qs = qs.filter(framework_config__isnull=True)
-                instance_ids = list(qs)
+                    instance_ids = sorted(qs)
 
         start_from = options['start_from']
 
-        for iid in sorted(instance_ids):
+        for iid in instance_ids:
             if start_from:
                 if iid == start_from:
                     start_from = None

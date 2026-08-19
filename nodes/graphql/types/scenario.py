@@ -27,7 +27,11 @@ class ScenarioType:
     kind: sb.auto
     all_actions_enabled: bool
     is_selectable: sb.auto
-    actual_historical_years: sb.auto
+
+    @sb.field
+    @staticmethod
+    def actual_historical_years(root: Scenario) -> list[int] | None:
+        return root.get_actual_historical_years()
 
     @sb.field
     @staticmethod

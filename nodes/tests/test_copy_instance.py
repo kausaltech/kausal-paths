@@ -405,7 +405,7 @@ def test_copy_instance_no_pages_skips_all_wagtail_content(db_source):
 
 
 def test_yaml_mode_imports_editor_edges_from_snapshot(db_source):
-    """yaml-mode recreates the editor graph (NodeEdge) from the snapshot, repointed to the copy's nodes."""
+    """yaml-mode recreates the editor graph (edge bindings) from the snapshot, repointed to the copy's nodes."""
     import uuid as uuidlib
 
     from nodes.instance_serialization import (
@@ -413,16 +413,17 @@ def test_yaml_mode_imports_editor_edges_from_snapshot(db_source):
         import_instance_edges_and_ports,
         import_instance_nodes,
     )
-    from nodes.models import NodeEdge
+    from nodes.models import NodeInputPortBinding
 
     ic_src, dst_node = db_source
     src_node = NodeConfigFactory.create(instance=ic_src, identifier='energy_use')
-    NodeEdge.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=ic_src,
-        from_node=src_node,
-        to_node=dst_node,
-        from_port=uuidlib.uuid4(),
-        to_port=uuidlib.uuid4(),
+        source_node=src_node,
+        node=dst_node,
+        source_port_id=uuidlib.uuid4(),
+        port_id=uuidlib.uuid4(),
+        position=0,
     )
 
     export = export_instance(ic_src)
@@ -430,19 +431,20 @@ def test_yaml_mode_imports_editor_edges_from_snapshot(db_source):
     nodes_by_id = import_instance_nodes(ic_copy, export)
     import_instance_edges_and_ports(ic_copy, export, nodes_by_id, {})
 
-    edge = NodeEdge.objects.get(instance=ic_copy)
-    assert edge.from_node.identifier == 'energy_use'
-    assert edge.to_node.identifier == 'net_emissions'
+    edge = NodeInputPortBinding.objects.get(instance=ic_copy)
+    assert edge.source_node is not None
+    assert edge.source_node.identifier == 'energy_use'
+    assert edge.node.identifier == 'net_emissions'
     copy_pks = set(ic_copy.nodes.values_list('pk', flat=True))
-    assert {edge.from_node_id, edge.to_node_id} <= copy_pks
+    assert {edge.source_node_id, edge.node_id} <= copy_pks
     # Edge must NOT reference the source's node rows, and config_source is untouched.
-    assert edge.from_node_id not in set(ic_src.nodes.values_list('pk', flat=True))
+    assert edge.source_node_id not in set(ic_src.nodes.values_list('pk', flat=True))
     ic_copy.refresh_from_db()
     assert ic_copy.config_source == 'yaml'
 
 
 def test_dataset_port_index_survives_export_import(db_source):
-    """DatasetPort.dataset_index round-trips, preserving multi-input binding order."""
+    """A dataset binding's dataset_index round-trips, preserving multi-input binding order."""
     import uuid as uuidlib
     from datetime import date
     from decimal import Decimal
@@ -462,7 +464,7 @@ def test_dataset_port_index_survives_export_import(db_source):
         import_instance_edges_and_ports,
         import_instance_nodes,
     )
-    from nodes.models import DatasetPort
+    from nodes.models import NodeInputPortBinding
 
     ic_src, node = db_source
     ct = ContentType.objects.get_for_model(ic_src)
@@ -470,12 +472,13 @@ def test_dataset_port_index_survives_export_import(db_source):
     metric = DatasetMetricFactory.create(schema=schema, name='value', label='Value')
     ds = DatasetFactory.create(schema=schema, scope_content_type=ct, scope_id=ic_src.pk, identifier='port/ds')
     DataPointFactory.create(dataset=ds, metric=metric, date=date(2023, 1, 1), value=Decimal(5))
-    DatasetPort.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=ic_src,
         node=node,
         dataset=ds,
         metric=metric,
         port_id=uuidlib.uuid4(),
+        position=0,
         dataset_index=3,
     )
 
@@ -487,7 +490,8 @@ def test_dataset_port_index_survives_export_import(db_source):
     datasets_by_id = {d.identifier: d for d in imported if d.identifier is not None}
     import_instance_edges_and_ports(ic_copy, export, nodes_by_id, datasets_by_id)
 
-    port = DatasetPort.objects.get(instance=ic_copy)
+    port = NodeInputPortBinding.objects.get(instance=ic_copy)
+    assert port.dataset is not None
     assert port.dataset_index == 3
     assert port.node_id in set(ic_copy.nodes.values_list('pk', flat=True))
 

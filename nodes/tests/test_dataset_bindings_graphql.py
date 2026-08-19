@@ -4,9 +4,9 @@ GraphQL tests for input-port bindings: datasets bound to ports and edge bindings
 The dataset workflow these cover, which is the point of the surface: add an
 input port, bind a dataset metric to it, then change the transformations to
 keep one category of a dimension and drop the rest along with the dimension.
-The edge tests cover the same ``bindingEditor`` resolving ``NodeEdge`` rows,
-with its own kind-typed update mutation and the legacy vocabulary presented
-and stored in the current one.
+The edge tests cover the same ``bindingEditor`` resolving edge-sourced
+``NodeInputPortBinding`` rows, with its own kind-typed update mutation and the
+legacy vocabulary presented and stored in the current one.
 """
 
 from typing import TYPE_CHECKING, Any
@@ -394,9 +394,9 @@ def test_binding_a_metric_whose_unit_does_not_fit_the_port_is_rejected(
     )['instanceEditor']['nodeEditor']['bindDataset']
     assert result['__typename'] == 'ConstraintViolations'
     assert 'unit_incompatible' in {conflict['code'] for conflict in result['conflicts']}
-    from nodes.models import DatasetPort
+    from nodes.models import NodeInputPortBinding
 
-    assert not DatasetPort.objects.filter(instance=db_instance_config).exists()
+    assert not NodeInputPortBinding.objects.filter(instance=db_instance_config).exists()
 
 
 def test_binding_to_a_port_that_does_not_exist_is_rejected(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -416,7 +416,7 @@ def test_binding_to_a_port_that_does_not_exist_is_rejected(gql_client: PathsTest
 
 
 def test_deleting_a_binding_leaves_the_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
-    from nodes.models import DatasetPort
+    from nodes.models import NodeInputPortBinding
 
     nc = NodeConfigFactory.create(
         instance=db_instance_config,
@@ -440,7 +440,7 @@ def test_deleting_a_binding_leaves_the_port(gql_client: PathsTestClient, db_inst
         variables={'instanceId': str(db_instance_config.pk), 'bindingId': binding_id},
     )
 
-    assert not DatasetPort.objects.filter(node=nc).exists()
+    assert not NodeInputPortBinding.objects.filter(node=nc).exists()
     nc.refresh_from_db()
     assert nc.spec is not None
     assert [port.identifier for port in nc.spec.input_ports] == ['heating']
@@ -521,7 +521,7 @@ def _bound_binding_id(gql_client: PathsTestClient, ic: InstanceConfig) -> str:
 def test_changing_the_metric_updates_the_column_and_checks_the_unit(
     gql_client: PathsTestClient, db_instance_config: InstanceConfig
 ):
-    from nodes.models import DatasetPort
+    from nodes.models import NodeInputPortBinding
 
     NodeConfigFactory.create(
         instance=db_instance_config,
@@ -547,7 +547,8 @@ def test_changing_the_metric_updates_the_column_and_checks_the_unit(
     )['instanceEditor']['bindingEditor']['updateDatasetBinding']
     assert rejected['__typename'] == 'ConstraintViolations'
     assert 'unit_incompatible' in {conflict['code'] for conflict in rejected['conflicts']}
-    row = DatasetPort.objects.get(uuid=binding_id)
+    row = NodeInputPortBinding.objects.get(uuid=binding_id)
+    assert row.metric is not None
     assert row.metric.name == 'Energy'
 
     updated = gql_client.query_data(
@@ -560,15 +561,16 @@ def test_changing_the_metric_updates_the_column_and_checks_the_unit(
     )['instanceEditor']['bindingEditor']['updateDatasetBinding']
 
     assert updated['metric']['name'] == 'Emissions'
-    row = DatasetPort.objects.get(uuid=binding_id)
+    row = NodeInputPortBinding.objects.get(uuid=binding_id)
+    assert row.metric is not None
     assert row.metric.name == 'Emissions'
     # The column follows the new metric.
-    assert row.spec.column == 'Emissions'
+    assert row.dataset_spec.column == 'Emissions'
 
 
 def test_metric_of_a_fanned_out_binding_cannot_be_changed(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     """A column-less binding has one row per metric; stamping one metric on all rows would corrupt it."""
-    from nodes.models import DatasetPort
+    from nodes.models import NodeInputPortBinding
 
     unit = unit_registry.parse_units('kt/a')
     nc = NodeConfigFactory.create(
@@ -584,10 +586,11 @@ def test_metric_of_a_fanned_out_binding_cannot_be_changed(gql_client: PathsTestC
     dataset, metric_a = _dataset_with_metric(db_instance_config)
     metric_b = DatasetMetricFactory.create(schema=dataset.schema, name='Emissions', label='Emissions', unit='t/a')
     rows = [
-        DatasetPort.objects.create(
+        NodeInputPortBinding.objects.create(
             instance=db_instance_config,
             node=nc,
             port_id=port_id,
+            position=0,
             dataset=dataset,
             metric=metric,
             dataset_index=0,
@@ -612,7 +615,7 @@ def test_metric_of_a_fanned_out_binding_cannot_be_changed(gql_client: PathsTestC
 
 
 def test_replace_swaps_the_dataset_on_an_occupied_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
-    from nodes.models import DatasetPort
+    from nodes.models import NodeInputPortBinding
 
     nc = NodeConfigFactory.create(
         instance=db_instance_config,
@@ -637,14 +640,14 @@ def test_replace_swaps_the_dataset_on_an_occupied_port(gql_client: PathsTestClie
     binding = gql_client.query_data(BIND_DATASET, variables=variables)['instanceEditor']['nodeEditor']['bindDataset']
 
     assert binding['portRef']['portId'] == str(_port_id('input'))
-    rows = list(DatasetPort.objects.filter(node=nc))
+    rows = list(NodeInputPortBinding.objects.filter(node=nc))
     assert len(rows) == 1
     assert rows[0].dataset == new_dataset
 
 
 def test_replace_displaces_an_edge_binding(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     """Edge-to-dataset replacement is one atomic call; two mutations would leave the port observably unbound."""
-    from nodes.models import DatasetPort, NodeEdge
+    from nodes.models import NodeInputPortBinding
 
     edge = _edge_between_two_nodes(db_instance_config)
     _dataset_with_metric(db_instance_config)
@@ -658,8 +661,10 @@ def test_replace_displaces_an_edge_binding(gql_client: PathsTestClient, db_insta
         },
     )
 
-    assert not NodeEdge.objects.filter(pk=edge.pk).exists()
-    assert DatasetPort.objects.filter(node=edge.to_node, port_id=_port_id('input')).count() == 1
+    assert not NodeInputPortBinding.objects.filter(pk=edge.pk).exists()
+    remaining = NodeInputPortBinding.objects.filter(node=edge.node, port_id=_port_id('input'))
+    assert remaining.count() == 1
+    assert remaining.filter(dataset__isnull=False).count() == 1
 
 
 def test_replace_on_a_multi_port_is_rejected(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -687,7 +692,7 @@ def test_replace_on_a_multi_port_is_rejected(gql_client: PathsTestClient, db_ins
 
 def test_a_rejected_replace_leaves_the_old_binding(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     """Validation runs before anything is deleted, so a failed bind cannot strand the port."""
-    from nodes.models import DatasetPort
+    from nodes.models import NodeInputPortBinding
 
     nc = NodeConfigFactory.create(
         instance=db_instance_config,
@@ -713,7 +718,7 @@ def test_a_rejected_replace_leaves_the_old_binding(gql_client: PathsTestClient, 
     assert result['__typename'] == 'ConstraintViolations'
     assert 'unit_incompatible' in {conflict['code'] for conflict in result['conflicts']}
 
-    rows = list(DatasetPort.objects.filter(node=nc))
+    rows = list(NodeInputPortBinding.objects.filter(node=nc))
     assert len(rows) == 1
     assert rows[0].dataset == old_dataset
 
@@ -748,7 +753,7 @@ UPDATE_EDGE_BINDING = gql("""
 
 
 def _edge_between_two_nodes(ic: InstanceConfig, transformations: list[Any] | None = None):
-    from nodes.models import NodeEdge
+    from nodes.models import NodeInputPortBinding
 
     unit = unit_registry.parse_units('kt/a')
     producer = NodeConfigFactory.create(instance=ic, identifier='producer', spec=_node_spec())
@@ -757,12 +762,13 @@ def _edge_between_two_nodes(ic: InstanceConfig, transformations: list[Any] | Non
         identifier='consumer',
         spec=_node_spec(input_ports=[InputPortDef(id=_port_id('input'), identifier='heating', unit=unit)]),
     )
-    return NodeEdge.objects.create(
+    return NodeInputPortBinding.objects.create(
         instance=ic,
-        from_node=producer,
-        from_port=_port_id('default'),
-        to_node=consumer,
-        to_port=_port_id('input'),
+        source_node=producer,
+        source_port_id=_port_id('default'),
+        node=consumer,
+        port_id=_port_id('input'),
+        position=0,
         transformations=transformations or [],
     )
 
@@ -847,7 +853,7 @@ def test_the_kind_typed_update_mutations_reject_the_other_kind(gql_client: Paths
 
 
 def test_deleting_an_edge_binding_leaves_the_ports(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
-    from nodes.models import NodeEdge
+    from nodes.models import NodeInputPortBinding
 
     edge = _edge_between_two_nodes(db_instance_config)
 
@@ -856,8 +862,8 @@ def test_deleting_an_edge_binding_leaves_the_ports(gql_client: PathsTestClient, 
         variables={'instanceId': str(db_instance_config.pk), 'bindingId': str(edge.uuid)},
     )
 
-    assert not NodeEdge.objects.filter(pk=edge.pk).exists()
-    consumer = edge.to_node
+    assert not NodeInputPortBinding.objects.filter(pk=edge.pk).exists()
+    consumer = edge.node
     consumer.refresh_from_db()
     assert consumer.spec is not None
     assert [port.identifier for port in consumer.spec.input_ports] == ['heating']

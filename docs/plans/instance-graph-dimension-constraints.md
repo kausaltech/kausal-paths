@@ -1069,6 +1069,73 @@ assigns positions; dataset/metric UUID recovery for pre-v8 pins stays in
 the existing catalog-injected compatibility adapter. New snapshots never
 serialize the legacy arrays.
 
+Implementation note (2026-08-18, authority flip — step 9 complete):
+`NodeInputPortBinding` is authoritative; `NodeEdge` / `DatasetPort` are empty
+(truncated by migration 0069) and await removal in step 11. Two schema
+completions preceded the flip, because the runtime dataset path still
+consumes them whole: the unified row (and `InputBindingSnapshot`) gained
+transitional `dataset_spec` + `dataset_index` fields (migration 0068
+backfills from the legacy rows; both die in step 11 when dataset loading
+executes the transform pipeline directly). Decisions and mechanics:
+
+- `nodes/input_bindings.py` is now the write service:
+  `reconcile_input_bindings()` (UUID-keyed diff — a surviving binding keeps
+  its **pk and uuid** across a full sync rewrite, unlike the legacy
+  delete-and-recreate writers) plus `next_port_position` /
+  `compact_port_positions` / `next_dataset_index` for row-level editors.
+  The `change_operation` exit-hook resync and the mirror derivation are
+  gone. Trap fixed en route: the `uuid` column is `db_default`-populated,
+  so unsaved rows carry a sentinel — reconcile mints `uuid4()` for rows
+  without an authored/preserved identity or they collapse onto one key.
+- Sync writers merged per side: `spec_sync._write_bindings()` and
+  `spec_export._update_bindings()` build unified rows, preserve UUIDs via
+  `match_preserved_uuids` against `existing_*_identities()` (now reading
+  unified rows in per-port position order), and assign positions through
+  `ordered_binding_snapshots()` — still the single ordering authority.
+  `_promote_dataset_forecast_defaults` operates on `dataset_spec`.
+- `build_instance_snapshot()` reads unified rows (`binding_qs_for`,
+  ordered `(node, port, position)`, deferring both endpoints' NodeConfig
+  specs) and trusts stored positions; global list order is normalized
+  rather than inherited from pks, which is safe because per-port position
+  is the only order the loader and graph observe (verified: the oracle
+  compares bindings keyed, the loader groups per port). Gate: unified-vs-
+  legacy snapshot bindings field-identical across all 122 snapshot-capable
+  local instances before the writers flipped.
+- GraphQL: `bindingEditor` resolves either kind from the unified table by
+  row uuid; mutations write `dataset_spec` + mirror `transformations`/`tags`
+  columns; deletes compact per-port positions; `createEdge` appends at
+  `next_port_position`. `NodeEdgeType.from_input_binding()` replaces
+  `from_node_edge()`. Change history: entries record the unified rows
+  (`InputBindingSnapshot` payloads); per-entity history queries span the
+  legacy and unified content types under the shared binding UUID, and
+  legacy-ct entries resolve their live target through the unified row.
+  `ChangeTargetKind` for unified entries discriminates on the payload's
+  `source.kind`.
+- Import/copy (`_import_bindings`), `yaml_port_refs`, occupancy checks,
+  instance-level list resolvers, datasets-in-use queries
+  (`publish_instance`, `collect_instance_dataset_violations`), PROTECT
+  counts and `setup_cads` all moved; `clear_model_editor_data()` deletes
+  unified rows.
+- Truncating the legacy tables in the same train was deliberate: stale
+  `DatasetPort` rows would keep PROTECTed `DatasetMetric` references
+  forever. Nothing was lost — every legacy row was mirrored with spec and
+  dataset_index carried over (fleet resync after 0068: 0 changes across
+  403 instances).
+- Gates: full pytest 1948 passed (eight test files migrated off legacy
+  fixtures); parse_oracle 53/53 after `--refresh` (the six diffs were the
+  recent BISKO result_excel YAML edits, not the flip); espoo double-sync
+  idempotent with identical pks; `test_instance --compare` clean on every
+  DB-sourced instance with recorded baselines (bisko, cork-nzc, equalia,
+  forestry-fi — remaining failures shared with the reference run); mypy +
+  ruff clean. Note for later sessions: the restored dev DB carries binding
+  rows only for the ~17 instances that are DB-backed in prod; YAML-served
+  instances have none, by construction, not by loss.
+- Deferred to step 11 with the table removal: retiring
+  `DatasetPortSnapshot`/`EdgeSnapshot` as the snapshot union members (and
+  the now-dead `DatasetPort.serializable_data()` row-snapshot path with its
+  `dataset_revision` field — revision pinning lives in
+  `InstanceRevisionDatasetPin`).
+
 ### 10. Make InstanceGraph the Context factory input
 
 - Add `InstanceGraph.create_context(options, payload_store)` as a thin delegate
@@ -1115,6 +1182,47 @@ stages, each shippable:
 
 Gate for each stage: old-vs-new runtime parity over all buildable DB
 instances (structure + computed outputs), plus the standard suites.
+
+Implementation note (2026-08-16, framework carve-out dissolved): framework
+instances are the first production tenant of the stage-4 native YAML path.
+`FrameworkConfig.create_model_instance()` now routes through
+`from_yaml_snapshot(..., snapshot_transform=self.apply_snapshot_overrides)`;
+the overlay resolves fwc identity (InstanceConfig uuid/identifier/name,
+organization owner) and year boundaries (baseline/measure-datapoint min-max,
+target) into the parsed snapshot once, so the loader's `fw_config` parameter
+and every branch it fed are gone. The other two fwc dependencies became
+runtime-owned rather than load-time state: dataset-class selection is
+declared by the node class (`Node.uses_framework_measure_data`, true on
+`gpc.DatasetNode`) and gated on `context.framework_config_data` — now
+UUID-keyed through `instance.config`, no identifier lookups — and the
+progress-tracking scenario's `actual_historical_years` is derived lazily
+(`Scenario.get_actual_historical_years()` →
+`Context.measure_datapoint_years`), tracking live measure data instead of
+freezing at build. One deliberate chain change: framework loads no longer
+bypass the `use_datasets_from_db` branch for untagged datasets (verified
+vacuous — no NZC instance has instance-scoped DB dataset rows; cads relies
+on that branch and keeps it). Parity gate: 6 NZC + 3 CADS instances,
+structure + scenarios + outputs identical old-vs-new (the single float
+difference reproduced between two runs of identical code — threaded-sum
+nondeterminism in a numerically exploded test model, not a path effect).
+Plain YAML instances still use `from_yaml`; their flip is the remaining
+stage-4 work.
+
+Implementation note (2026-08-16, stage 4 flip): `from_yaml` *is* the
+snapshot path now — parse → `InstanceSnapshot` → native build, with
+`snapshot_transform` as the framework overlay hook; `from_yaml_snapshot`
+is gone as a separate name. All production and tooling callers ride it.
+Parity gate: every top-level `configs/*.yaml`, old config-dict path vs
+new, structure (normalized for the known representational shifts:
+port-declaration-materialized bare edge dims, explicit metrics on
+multi-metric sources, in-edge order) plus computed outcome-node outputs
+at rel_tol 1e-9. The config-dict branches, `_init_instance`, dict
+scenario/param/impact-overview/normalization/emission-sector setup,
+`Edge.from_config` / `EdgeDimension.from_config`, and
+`snapshot_to_config_dict` are deleted; `snapshot_nodes_to_config_dicts`
+survives solely as the `NodeExplanationSystem` adapter (its rules still
+read YAML-shaped dicts — retiring that is a separate slice, tracked for
+step 11 alongside the other compatibility removals).
 
 **Gate:** draft, published, and YAML calculation share graph construction;
 metadata-only queries never create `Context`; calculation parity and existing

@@ -19,6 +19,8 @@ class DatasetNode(AdditiveNode):
         """This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output.""",  # noqa: E501
     )
 
+    uses_framework_measure_data = True
+
     global_parameters = ['measure_data_override', 'measure_data_baseline_year_only']
 
     allowed_parameters = [

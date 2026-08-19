@@ -26,6 +26,7 @@ Both tiers block publication; the tiers differ only at edit time.
 
 from enum import Enum as PyEnum
 from typing import Annotated, Any, Literal, assert_never
+from uuid import UUID
 
 import strawberry as sb
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_validator
@@ -86,21 +87,37 @@ class ValueRangeRule(_RuleBase):
     kind: Literal['value_range'] = 'value_range'
     min: float | None = None
     max: float | None = None
+    exclusive_min: bool = False
+    exclusive_max: bool = False
 
     @model_validator(mode='after')
     def _require_a_bound(self) -> ValueRangeRule:
         if self.min is None and self.max is None:
             raise ValueError('value_range rule requires at least one of min/max')
+        if self.exclusive_min and self.min is None:
+            raise ValueError('value_range exclusive_min requires min')
+        if self.exclusive_max and self.max is None:
+            raise ValueError('value_range exclusive_max requires max')
+        if (
+            self.min is not None
+            and self.max is not None
+            and (self.min > self.max or (self.min == self.max and (self.exclusive_min or self.exclusive_max)))
+        ):
+            raise ValueError('value_range bounds define an empty range')
         return self
 
     class ObjectType(ValidationRuleGQLInterface):
         min: auto
         max: auto
+        exclusive_min: auto
+        exclusive_max: auto
 
     class InputType(StrawberryPydanticType['ValueRangeRule']):
         enforcement: auto
         min: auto
         max: auto
+        exclusive_min: auto
+        exclusive_max: auto
 
 
 @graphql_types
@@ -153,7 +170,56 @@ class NoGapsRule(_RuleBase):
         enforcement: auto
 
 
-type ValidationRule = Annotated[ValueRangeRule | DimensionSumRule | NoGapsRule, Field(discriminator='kind')]
+@graphql_types
+class RequiredCombinationGroup(BaseModel):
+    """A named requirement satisfied by any one of its category combinations."""
+
+    model_config = ConfigDict(extra='forbid')
+
+    id: str
+    combinations: list[UUID] = Field(min_length=1)
+
+    class ObjectType(StrawberryPydanticType['RequiredCombinationGroup']):
+        id: auto
+        combinations: auto
+
+    class InputType(StrawberryPydanticType['RequiredCombinationGroup']):
+        id: auto
+        combinations: auto
+
+
+@graphql_types
+class RequiredCombinationsRule(_RuleBase):
+    """Every named group must have a value in at least one allowed category tuple."""
+
+    kind: Literal['required_combinations'] = 'required_combinations'
+    groups: list[RequiredCombinationGroup] = Field(min_length=1)
+
+    class ObjectType(ValidationRuleGQLInterface):
+        groups: auto
+
+    class InputType(StrawberryPydanticType['RequiredCombinationsRule']):
+        enforcement: auto
+        groups: auto
+
+
+@graphql_types
+class AllowedCombinationsRule(_RuleBase):
+    """Populated category tuples must belong to a closed schema domain."""
+
+    kind: Literal['allowed_combinations'] = 'allowed_combinations'
+
+    class ObjectType(ValidationRuleGQLInterface):
+        enforcement: auto
+
+    class InputType(StrawberryPydanticType['AllowedCombinationsRule']):
+        enforcement: auto
+
+
+type ValidationRule = Annotated[
+    ValueRangeRule | DimensionSumRule | NoGapsRule | RequiredCombinationsRule | AllowedCombinationsRule,
+    Field(discriminator='kind'),
+]
 
 validation_rule_adapter: TypeAdapter[ValidationRule] = TypeAdapter(ValidationRule)
 rule_list_adapter: TypeAdapter[list[ValidationRule]] = TypeAdapter(list[ValidationRule])
@@ -168,6 +234,10 @@ def rule_to_gql(rule: ValidationRule) -> ValidationRuleGQLInterface:
             return DimensionSumRule.ObjectType.from_pydantic(rule)
         case NoGapsRule():
             return NoGapsRule.ObjectType.from_pydantic(rule)
+        case RequiredCombinationsRule():
+            return RequiredCombinationsRule.ObjectType.from_pydantic(rule)
+        case AllowedCombinationsRule():
+            return AllowedCombinationsRule.ObjectType.from_pydantic(rule)
         case _:
             assert_never(rule)
 
@@ -181,12 +251,20 @@ class ValidationRuleSpecInput:
     value_range: ValueRangeRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
     dimension_sum: DimensionSumRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
     no_gaps: NoGapsRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
+    required_combinations: RequiredCombinationsRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
+    allowed_combinations: AllowedCombinationsRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
 
     def to_rule(self) -> ValidationRule:
         """Convert to the Pydantic rule; raises ``pydantic.ValidationError`` on invalid field values."""
         variants: list[Any] = [
             variant
-            for variant in (self.value_range, self.dimension_sum, self.no_gaps)
+            for variant in (
+                self.value_range,
+                self.dimension_sum,
+                self.no_gaps,
+                self.required_combinations,
+                self.allowed_combinations,
+            )
             if variant is not sb.UNSET and variant is not None
         ]
         if len(variants) != 1:

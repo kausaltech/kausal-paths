@@ -23,9 +23,11 @@ import polars as pl
 from nodes.constants import YEAR_COLUMN
 
 from .validation_rules import (
+    AllowedCombinationsRule,
     DimensionSumRule,
     Enforcement,
     NoGapsRule,
+    RequiredCombinationsRule,
     ValidationRule,
     ValueRangeRule,
     validation_rule_adapter,
@@ -63,14 +65,19 @@ class RuleViolation(BaseModel):
     dataset_identifier: str | None = None
     years: list[int] = Field(default_factory=list)
     categories: dict[str, str] = Field(default_factory=dict)
+    combination_ids: list[UUID] = Field(default_factory=list)
+    requirement_group: str | None = None
     message: str
 
     @property
-    def key(self) -> tuple[str, str, tuple[tuple[str, str], ...], tuple[int, ...]]:
+    def key(self) -> tuple[str, str, str, str | None, tuple[str, ...], tuple[tuple[str, str], ...], tuple[int, ...]]:
         """Stable identity for baseline-diffing violation sets across an edit."""
         return (
             str(self.rule_uuid),
             str(self.metric_uuid),
+            self.kind,
+            self.requirement_group,
+            tuple(str(combination_id) for combination_id in self.combination_ids),
             tuple(sorted(self.categories.items())),
             tuple(self.years),
         )
@@ -152,13 +159,26 @@ def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
     df = pl.DataFrame({col: ppdf.get_column(col) for col in ppdf.columns})
     if dim_cols:
         df = df.with_columns([pl.col(col).cast(pl.Utf8) for col in dim_cols])
+    domain_coordinates = _category_domain_coordinates(dataset)
+    domain_is_closed = schema.category_domain.mode == 'closed'
 
     violations: list[RuleViolation] = []
     for row in rules:
         metric = row.metric
         column = metric.name or metric.label or str(metric.uuid)
         rule = validation_rule_adapter.validate_python(row.rule)
-        violations.extend(_evaluate_rule(rule, row.uuid, metric.uuid, column, df, dim_cols))
+        violations.extend(
+            _evaluate_rule(
+                rule,
+                row.uuid,
+                metric.uuid,
+                column,
+                df,
+                dim_cols,
+                domain_coordinates,
+                domain_is_closed,
+            )
+        )
     for found in violations:
         found.dataset_uuid = dataset.uuid
         found.dataset_identifier = dataset.identifier
@@ -176,6 +196,8 @@ def _evaluate_rule(
     column: str,
     df: pl.DataFrame,
     dim_cols: list[str],
+    domain_coordinates: dict[UUID, dict[str, str]],
+    domain_is_closed: bool,
 ) -> list[RuleViolation]:
     if column not in df.columns:
         # The metric has no data points at all; every rule holds vacuously.
@@ -198,6 +220,143 @@ def _evaluate_rule(
             return _eval_dimension_sum(rule, violation, column, df, dim_cols)
         case NoGapsRule():
             return _eval_no_gaps(violation, column, df, dim_cols)
+        case RequiredCombinationsRule():
+            return _eval_required_combinations(rule, violation, column, df, domain_coordinates)
+        case AllowedCombinationsRule():
+            return _eval_allowed_combinations(
+                violation,
+                column,
+                df,
+                dim_cols,
+                domain_coordinates,
+                domain_is_closed,
+            )
+
+
+def _category_domain_coordinates(dataset: Dataset) -> dict[UUID, dict[str, str]]:
+    from kausal_common.datasets.models import DatasetSchemaDimension, DimensionScope
+
+    schema = dataset.schema
+    if schema is None or dataset.scope_id is None or not schema.category_domain.combinations:
+        return {}
+    scopes = {
+        scope.dimension_id: scope
+        for scope in DimensionScope.objects
+        .filter(
+            scope_content_type=dataset.scope_content_type,
+            scope_id=dataset.scope_id,
+            dimension_id__in=schema.dimensions.values_list('dimension_id', flat=True),
+        )
+        .select_related('dimension')
+        .prefetch_related('dimension__categories')
+    }
+    columns = {
+        schema_dimension.dimension_id: schema_dimension.column_name
+        or (scopes[schema_dimension.dimension_id].identifier if schema_dimension.dimension_id in scopes else None)
+        for schema_dimension in DatasetSchemaDimension.objects.filter(schema=schema)
+    }
+    category_identifiers = {
+        category.uuid: category.identifier
+        for scope in scopes.values()
+        for category in scope.dimension.categories.all()
+        if category.identifier is not None
+    }
+    result: dict[UUID, dict[str, str]] = {}
+    for combination in schema.category_domain.combinations:
+        coordinates: dict[str, str] = {}
+        for dimension_uuid, category_uuid in combination.categories.items():
+            dimension_id = next(
+                (dimension_id for dimension_id, scope in scopes.items() if scope.dimension.uuid == dimension_uuid),
+                None,
+            )
+            column = columns.get(dimension_id) if dimension_id is not None else None
+            category = category_identifiers.get(category_uuid)
+            if column is not None and category is not None:
+                coordinates[column] = category
+        if len(coordinates) == len(combination.categories):
+            result[combination.id] = coordinates
+    return result
+
+
+def _eval_required_combinations(
+    rule: RequiredCombinationsRule,
+    violation: Callable[..., RuleViolation],
+    column: str,
+    df: pl.DataFrame,
+    domain_coordinates: dict[UUID, dict[str, str]],
+) -> list[RuleViolation]:
+    unknown = [
+        combination for group in rule.groups for combination in group.combinations if combination not in domain_coordinates
+    ]
+    if unknown:
+        return [
+            violation(
+                kind=INVALID_RULE_KIND,
+                enforcement='block_publish',
+                combination_ids=unknown,
+                message='required_combinations rule references combinations outside the dataset schema domain',
+            )
+        ]
+    years = df.select(YEAR_COLUMN).unique().sort(YEAR_COLUMN).get_column(YEAR_COLUMN).to_list()
+    present = df.filter(pl.col(column).is_not_null())
+    violations: list[RuleViolation] = []
+    for group in rule.groups:
+        missing_years: list[int] = []
+        for year in years:
+            candidates = present.filter(pl.col(YEAR_COLUMN) == year)
+            satisfied = False
+            for combination_id in group.combinations:
+                coordinates = domain_coordinates[combination_id]
+                matching = candidates
+                for dimension, category in coordinates.items():
+                    matching = matching.filter(pl.col(dimension).cast(pl.Utf8) == category)
+                if not matching.is_empty():
+                    satisfied = True
+                    break
+            if not satisfied:
+                missing_years.append(year)
+        if missing_years:
+            single_coordinates = domain_coordinates[group.combinations[0]] if len(group.combinations) == 1 else {}
+            violations.append(
+                violation(
+                    years=missing_years,
+                    categories=single_coordinates,
+                    combination_ids=group.combinations,
+                    requirement_group=group.id,
+                    message=(
+                        f'{column} has no value for required category group {group.id} '
+                        f'in year(s) {_years_text(missing_years)}; an explicit 0 counts as a value'
+                    ),
+                )
+            )
+    return violations
+
+
+def _eval_allowed_combinations(
+    violation: Callable[..., RuleViolation],
+    column: str,
+    df: pl.DataFrame,
+    dim_cols: list[str],
+    domain_coordinates: dict[UUID, dict[str, str]],
+    domain_is_closed: bool,
+) -> list[RuleViolation]:
+    if not domain_is_closed:
+        return []
+    allowed = {tuple(sorted(coordinates.items())) for coordinates in domain_coordinates.values()}
+    offending: list[dict[str, Any]] = []
+    for row in df.filter(pl.col(column).is_not_null()).sort([YEAR_COLUMN, *dim_cols]).iter_rows(named=True):
+        categories = _row_categories(row, dim_cols)
+        if tuple(sorted(categories.items())) not in allowed:
+            offending.append(row)
+    violations = [
+        violation(
+            years=[row[YEAR_COLUMN]],
+            categories=(categories := _row_categories(row, dim_cols)),
+            message=f'{column} uses a category combination outside the schema domain{_categories_text(categories)}',
+        )
+        for row in offending[:MAX_VIOLATIONS_PER_RULE]
+    ]
+    return _with_overflow(violations, len(offending), violation)
 
 
 def _eval_value_range(
@@ -209,9 +368,9 @@ def _eval_value_range(
 ) -> list[RuleViolation]:
     conditions = []
     if rule.min is not None:
-        conditions.append(pl.col(column) < rule.min)
+        conditions.append(pl.col(column) <= rule.min if rule.exclusive_min else pl.col(column) < rule.min)
     if rule.max is not None:
-        conditions.append(pl.col(column) > rule.max)
+        conditions.append(pl.col(column) >= rule.max if rule.exclusive_max else pl.col(column) > rule.max)
     out_of_range = conditions[0] if len(conditions) == 1 else conditions[0] | conditions[1]
     offending = df.filter(pl.col(column).is_not_null() & out_of_range).sort([YEAR_COLUMN, *dim_cols])
     bounds = _range_text(rule)
@@ -310,10 +469,14 @@ def _with_overflow(
 
 def _range_text(rule: ValueRangeRule) -> str:
     if rule.min is not None and rule.max is not None:
-        return f'{rule.min:g} … {rule.max:g}'
+        left = '>' if rule.exclusive_min else '≥'
+        right = '<' if rule.exclusive_max else '≤'
+        return f'{left} {rule.min:g} and {right} {rule.max:g}'
     if rule.min is not None:
-        return f'≥ {rule.min:g}'
-    return f'≤ {rule.max:g}'
+        operator = '>' if rule.exclusive_min else '≥'
+        return f'{operator} {rule.min:g}'
+    operator = '<' if rule.exclusive_max else '≤'
+    return f'{operator} {rule.max:g}'
 
 
 def _categories_text(categories: dict[str, str]) -> str:

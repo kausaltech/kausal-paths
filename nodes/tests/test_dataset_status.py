@@ -19,7 +19,7 @@ from kausal_common.datasets.models import Dataset, DatasetMetric
 
 from nodes.management.commands.dataset_status import candidate_dataset_ids, status_for
 from nodes.management.commands.load_dvc_dataset import Command as LoadCommand
-from nodes.models import DatasetPort
+from nodes.models import NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from nodes.tests.test_load_dvc_dataset_refresh import make_context
 
@@ -69,7 +69,7 @@ def test_a_renamed_metric_that_bindings_hold_means_rename_first():
     """The verdict that has to come before the import, or the import refuses."""
     ic = InstanceConfigFactory.create(name='status-rename', config_source='database')
     dataset = _import(ic, _ctx({'Value': [1.0]}, {'Value': 'kt'}))
-    DatasetPort.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=ic,
         node=NodeConfigFactory.create(instance=ic),
         port_id=UUID('55555555-5555-5555-5555-555555555555'),

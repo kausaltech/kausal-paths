@@ -193,7 +193,7 @@ def _plan_declared_input_port(to_node: NodeConfig) -> InputPortDef | None:
 
 def _select_existing_target_port(to_node: NodeConfig, source_port: OutputPortDef) -> UUID | None:
     """Pick an existing input port with capacity for a new connection, if any fits."""
-    from nodes.models import DatasetPort, NodeEdge
+    from nodes.models import NodeInputPortBinding
 
     assert to_node.spec is not None
     input_ports = to_node.spec.input_ports
@@ -201,9 +201,7 @@ def _select_existing_target_port(to_node: NodeConfig, source_port: OutputPortDef
     def has_capacity(port: InputPortDef) -> bool:
         if port.multi:
             return True
-        has_edge = NodeEdge.objects.filter(to_node=to_node, to_port=port.id).exists()
-        has_dataset = DatasetPort.objects.filter(node=to_node, port_id=port.id).exists()
-        return not has_edge and not has_dataset
+        return not NodeInputPortBinding.objects.filter(node=to_node, port_id=port.id).exists()
 
     # Preserve single-port convenience: if the target has exactly one input
     # port with capacity, use it even when quantity/unit look incompatible.
@@ -310,16 +308,14 @@ def _check_target_port_capacity(info: gql.Info, to_node: NodeConfig, to_port: UU
     Occupancy is structural capacity, not shape: it stays a hard error while
     every shape/unit/quantity question belongs to the constraint solver.
     """
-    from nodes.models import DatasetPort, NodeEdge
+    from nodes.models import NodeInputPortBinding
 
     target_port = _get_input_port(to_node, to_port)
     if target_port is None:
         raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
     if target_port.multi:
         return
-    has_edge_binding = NodeEdge.objects.filter(to_node=to_node, to_port=to_port).exists()
-    has_dataset_binding = DatasetPort.objects.filter(node=to_node, port_id=to_port).exists()
-    if has_edge_binding or has_dataset_binding:
+    if NodeInputPortBinding.objects.filter(node=to_node, port_id=to_port).exists():
         raise GraphQLValidationError(
             info,
             f'Input port "{to_port}" on node "{to_node.identifier}" already has a binding and does not allow multiple inputs',
@@ -927,32 +923,23 @@ class NodeEditorMutation:
         from django.db.models import Q
 
         from nodes.change_ops import gql_change_operation, record_change
-        from nodes.models import DatasetPort, NodeEdge
+        from nodes.models import NodeInputPortBinding
 
         nc = root.node
         with gql_change_operation(info, root.instance, action='node.delete'):
             # Log cascade-delete entries BEFORE the DB CASCADE wipes the rows,
             # while pks are still valid. After the ``nc.delete()`` call below,
             # only the IMLE rows carry the pre-state.
-            affected_edges = list(
-                NodeEdge.objects.filter(Q(from_node=nc) | Q(to_node=nc)).select_related('from_node', 'to_node'),
+            affected_bindings = list(
+                NodeInputPortBinding.objects.filter(Q(node=nc) | Q(source_node=nc)).select_related(
+                    'node', 'source_node', 'dataset', 'metric'
+                ),
             )
-            for edge in affected_edges:
+            for binding in affected_bindings:
                 record_change(
-                    edge,
-                    action='node.edges.delete',
-                    before=edge.serializable_data(),
-                    after=None,
-                )
-
-            affected_ports = list(
-                DatasetPort.objects.filter(node=nc).select_related('node', 'dataset', 'metric'),
-            )
-            for port in affected_ports:
-                record_change(
-                    port,
-                    action='node.dataset_ports.delete',
-                    before=port.serializable_data(),
+                    binding,
+                    action='node.edges.delete' if binding.source_node_id is not None else 'node.dataset_ports.delete',
+                    before=binding.serializable_data(),
                     after=None,
                 )
 
@@ -1214,7 +1201,8 @@ class InstanceEditorMutation:
         from nodes.change_ops import gql_change_operation, record_change
         from nodes.constraints.validation import BindingChange
         from nodes.graphql.constraint_checks import check_binding_change, edge_candidate, require_draft_graph
-        from nodes.models import DatasetPort, NodeEdge
+        from nodes.input_bindings import next_port_position
+        from nodes.models import NodeInputPortBinding
 
         ic = _get_instance_config(info, input.instance_id)
         if ic.config_source != 'database':
@@ -1229,8 +1217,7 @@ class InstanceEditorMutation:
 
         to_port, planned_port = _plan_target_port(info, to_node, requested_to_port, source_port)
 
-        displaced_edges: list[NodeEdge] = []
-        displaced_rows: list[DatasetPort] = []
+        displaced: list[NodeInputPortBinding] = []
         if input.replace:
             from nodes.graphql.bindings import _port_occupants
 
@@ -1239,7 +1226,7 @@ class InstanceEditorMutation:
                     info,
                     '`replace` requires an explicit `toPort`: an auto-selected or auto-created port is never occupied',
                 )
-            displaced_edges, displaced_rows = _port_occupants(info, to_node, to_port)
+            displaced = _port_occupants(info, to_node, to_port)
         elif planned_port is None:
             _check_target_port_capacity(info, to_node, to_port)
 
@@ -1256,9 +1243,7 @@ class InstanceEditorMutation:
         )
         change = BindingChange(
             add_bindings=(candidate,),
-            remove_binding_ids=frozenset(
-                {*(displaced.uuid for displaced in displaced_edges), *(displaced.uuid for displaced in displaced_rows)},
-            ),
+            remove_binding_ids=frozenset(binding.uuid for binding in displaced),
             add_input_ports=((to_node.uuid, planned_port),) if planned_port is not None else (),
         )
         violations = check_binding_change(info, ic, change)
@@ -1267,55 +1252,54 @@ class InstanceEditorMutation:
             # graph — including a would-be displaced binding — untouched.
             return violations
 
-        replacing = bool(displaced_edges or displaced_rows)
-        action = 'edge.replace' if replacing else 'edge.create'
+        action = 'edge.replace' if displaced else 'edge.create'
         with gql_change_operation(info, ic, action=action):
             # A planned port is persisted inside the change_operation so the
             # resulting ``node.update`` entry groups with this edge.create.
             if planned_port is not None:
                 _append_input_port(to_node, planned_port)
-            for displaced_edge in displaced_edges:
-                record_change(displaced_edge, action='edge.delete', before=displaced_edge.serializable_data(), after=None)
-                displaced_edge.delete()
-            for displaced_row in displaced_rows:
-                record_change(
-                    displaced_row,
-                    action='node.dataset_binding.delete',
-                    before=displaced_row.serializable_data(),
-                    after=None,
-                )
-                displaced_row.delete()
-            edge = NodeEdge.objects.create(
+            for binding in displaced:
+                delete_action = 'edge.delete' if binding.source_node_id is not None else 'node.dataset_binding.delete'
+                record_change(binding, action=delete_action, before=binding.serializable_data(), after=None)
+                binding.delete()
+            edge = NodeInputPortBinding.objects.create(
                 instance=ic,
-                from_node=from_node,
-                from_port=from_port,
-                to_node=to_node,
-                to_port=to_port,
+                node=to_node,
+                port_id=to_port,
+                position=next_port_position(to_node, to_port),
+                source_node=from_node,
+                source_port_id=from_port,
                 transformations=transformations,
             )
             record_change(edge, action='edge.create', before=None, after=edge.serializable_data())
 
-        return NodeEdgeType.from_node_edge(edge)
+        return NodeEdgeType.from_input_binding(edge)
 
     @gql.mutation(description='Delete an edge')
     @staticmethod
     def delete_edge(root: sb.Parent[Me], info: gql.Info, edge_id: sb.ID) -> None:
         from nodes.change_ops import gql_change_operation, record_change
-        from nodes.models import NodeEdge
+        from nodes.input_bindings import compact_port_positions
+        from nodes.models import NodeInputPortBinding
 
         ic = root.instance
         try:
-            edge = NodeEdge.objects.select_related('to_node').get(instance=ic, uuid=edge_id)
-        except NodeEdge.DoesNotExist, ValueError:
+            edge = NodeInputPortBinding.objects.select_related('node', 'source_node').get(
+                instance=ic, uuid=edge_id, source_node__isnull=False
+            )
+        except NodeInputPortBinding.DoesNotExist, ValueError:
             raise GraphQLError('Edge not found') from None
 
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
-        edge.to_node.ensure_gql_action_allowed(info, 'change')
+        edge.node.ensure_gql_action_allowed(info, 'change')
 
         with gql_change_operation(info, ic, action='edge.delete'):
             record_change(edge, action='edge.delete', before=edge.serializable_data(), after=None)
+            target_node = edge.node
+            port_id = edge.port_id
             edge.delete()
+            compact_port_positions(target_node, [port_id])
 
     # -- Port mutations -------------------------------------------------------
 

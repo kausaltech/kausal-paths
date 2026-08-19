@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import hashlib
 import importlib
 import json
@@ -12,7 +11,6 @@ from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, Literal, Self, TypedDict, cast, overload
 
-from django.db.models.aggregates import Max, Min
 from pydantic import BaseModel, Field, field_validator
 
 import platformdirs
@@ -24,28 +22,22 @@ from sentry_sdk import start_span
 from kausal_common.i18n.pydantic import TranslatedString, get_i18n_context, gettext_lazy as _, set_i18n_context
 
 from nodes.actions.action import ActionNode
-from nodes.constants import DecisionLevel
-from nodes.defs.instance_defs import DatasetRepoSpec
 from nodes.exceptions import NodeError
-from pages.config import pages_from_config
 from params.discover import discover_global_parameters
-
-from .excel_results import InstanceResultExcel
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
     from uuid import UUID
 
     from ruamel.yaml import CommentedMap
-    from ruamel.yaml.comments import LineCol
 
     from kausal_common.datasets.models import Dataset as DBDatasetModel
     from kausal_common.i18n.pydantic import I18nString
 
-    from frameworks.models import FrameworkConfig
     from nodes.context import Context
     from nodes.datasets import Dataset
     from nodes.defs.node_defs import NodeSpec
+    from nodes.defs.transform_def import EdgeTransformOp
     from nodes.edges import Edge
     from nodes.explanations import NodeExplanationSystem
     from nodes.instance import Instance
@@ -514,8 +506,7 @@ class InstanceLoader:
     context: Context
     default_language: str
     yaml_file_path: Path | None = None
-    config: CommentedMap | dict[str, Any]
-    fw_config: FrameworkConfig | None = None
+    snapshot: InstanceSnapshot
     config_mtime_hash: str | None = None
     db_datasets: dict[str, DBDatasetModel] = {}
     db_dataset_refs: dict[str, Any] = {}
@@ -599,7 +590,11 @@ class InstanceLoader:
             if issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode):
                 ds_obj = GenericDataset.from_def(ds_def, self.context)
 
-            use_framework_ds = 'framework_measure_data' in ds_def.tags
+            # The class declares whether its datasets take framework measure
+            # overlays; the tag is the per-binding opt-in for other classes.
+            use_framework_ds = 'framework_measure_data' in ds_def.tags or (
+                node_class.uses_framework_measure_data and self.context.framework_config_data is not None
+            )
             use_obs_ds = 'observation_dataset' in ds_def.tags
             use_city_ds = 'city_data' in ds_def.tags
             if use_obs_ds:
@@ -630,13 +625,6 @@ class InstanceLoader:
                     payload_ref=payload_ref,
                     payload_store=self.dataset_payload_store,
                 )
-            elif self.fw_config is not None:
-                from nodes.gpc import DatasetNode
-
-                if issubclass(node_class, DatasetNode) or use_framework_ds:
-                    from frameworks.datasets import FrameworkMeasureDVCDataset
-
-                    ds_obj = FrameworkMeasureDVCDataset.from_def(ds_def, self.context)
             elif use_framework_ds:
                 from frameworks.datasets import FrameworkMeasureDVCDataset
 
@@ -789,108 +777,6 @@ class InstanceLoader:
             # Tolerant mode leaves visualizations at their default (a node without viz config is fine).
             self._init_failure(node, 'Error validating visualizations: %s' % e, cause=e)
 
-    def make_node(  # noqa: C901, PLR0912, PLR0915
-        self, node_class: type[Node], config: dict[str, Any], _yaml_lc: LineCol | None = None
-    ) -> Node:
-        from nodes.node import NodeMetric
-        from nodes.units import Unit
-
-        metrics_conf = config.get('output_metrics')
-        metrics: dict[str, NodeMetric] | None
-        if metrics_conf is not None:
-            metrics = {m['id']: NodeMetric.from_config(m) for m in metrics_conf}
-            # If the class defines output_metrics, remap config keys to match
-            # class keys (e.g. class uses 'default' but config has 'Value').
-            # The config key is the port's column_id; match it against the
-            # class metric's column_id to find the canonical dict key.
-            class_metrics_def: dict[str, NodeMetric] | None = getattr(node_class, 'output_metrics', None)
-            if class_metrics_def:
-                col_to_class_key = {m.column_id: k for k, m in class_metrics_def.items()}
-                remapped: dict[str, NodeMetric] = {}
-                for config_key, metric in metrics.items():
-                    class_key = col_to_class_key.get(config_key, config_key)
-                    remapped[class_key] = metric
-                metrics = remapped
-            class_metrics = None
-        else:
-            metrics = None
-            class_metrics = getattr(node_class, 'output_metrics', None)
-        unit = config.get('unit')
-        if unit is None:
-            unit = getattr(node_class, 'default_unit', None)
-            if unit is None:
-                unit = getattr(node_class, 'unit', None)
-            if not unit and not metrics and not class_metrics:
-                raise Exception('Node %s (%s) has no unit set' % (config['id'], node_class.__name__))
-
-        if unit and not isinstance(unit, Unit):
-            unit = self.context.unit_registry.parse_units(unit)
-
-        quantity = config.get('quantity')
-        if quantity is None:
-            quantity = getattr(node_class, 'quantity', None)
-            if not quantity and not metrics and not class_metrics:
-                raise Exception('Node %s (%s) has no quantity set' % (config['id'], node_class.__name__))
-
-        datasets = self._make_node_datasets(config, node_class, unit)
-
-        loc_conf: ConfigLocation | None = config.get('config_location')
-        config_location = ConfigLocation(**loc_conf) if loc_conf else None
-
-        description = make_trans_string(config, 'description')
-        node: Node = node_class(
-            id=config['id'],
-            context=self.context,
-            name=make_trans_string(config, 'name'),
-            short_name=make_trans_string(config, 'short_name'),
-            quantity=quantity,
-            unit=unit,
-            node_group=config.get('node_group'),
-            description=description,
-            color=config.get('color'),
-            order=config.get('order'),
-            is_visible=config.get('is_visible', True),
-            is_editable=config.get('is_editable'),
-            is_outcome=config.get('is_outcome', False),
-            minimum_year=config.get('minimum_year'),
-            target_year_goal=config.get('target_year_goal'),
-            goals=config.get('goals'),
-            allow_nulls=config.get('allow_nulls', False),
-            input_datasets=datasets,
-            output_dimension_ids=config.get('output_dimensions'),
-            input_dimension_ids=config.get('input_dimensions'),
-            output_metrics=metrics,
-            config_location=config_location,
-        )
-        if node.id in self._input_nodes or node.id in self._output_nodes:
-            raise Exception('Node %s is already configured' % node.id)
-        assert node.id not in self._input_nodes
-        assert node.id not in self._output_nodes
-        self._input_nodes[node.id] = config.get('input_nodes', [])
-        self._output_nodes[node.id] = config.get('output_nodes', [])
-
-        self._make_node_params(config, node)
-
-        tags = config.get('tags')
-        if isinstance(tags, str):
-            tags = [tags]
-        if tags:
-            if all(isinstance(tag, str) for tag in tags):
-                node.tags.update(tags)
-            else:
-                self._init_failure(node, "'tags' must be a list of strings")
-
-        viz_config = config.get('visualizations')
-        if viz_config:
-            self._node_visualizations[node.id] = viz_config
-
-        no_effect_value = config.get('no_effect_value')
-        if no_effect_value is not None:
-            assert isinstance(node, ActionNode)
-            node.no_effect_value = no_effect_value
-
-        return node
-
     def import_class(
         self,
         path: str,
@@ -927,12 +813,9 @@ class InstanceLoader:
     def setup_dimensions(self):
         from .dimensions import Dimension
 
-        if self.snapshot is not None:
-            # Same dict shape as the YAML path, but sourced from the typed
-            # spec; copied so the shared snapshot is never mutated.
-            dim_configs: list[dict[str, Any]] = [dict(dc) for dc in self.snapshot.spec.dimensions]
-        else:
-            dim_configs = self.config.get('dimensions', [])
+        # Same dict shape as the YAML path used, but sourced from the typed
+        # spec; copied so the shared snapshot is never mutated.
+        dim_configs: list[dict[str, Any]] = [dict(dc) for dc in self.snapshot.spec.dimensions]
         for dc in dim_configs:
             try:
                 dc['mtime_hash'] = self.config_mtime_hash
@@ -969,7 +852,6 @@ class InstanceLoader:
         from nodes.defs import ActionConfig
         from nodes.defs.node_defs import NodeKind
 
-        assert self.snapshot is not None
         for n in self.snapshot.nodes:
             spec = n.spec
             assert spec is not None
@@ -1022,7 +904,7 @@ class InstanceLoader:
                     raise Exception('Node %s: output metric %s has no quantity' % (identifier, column))
                 assert port.unit is not None
                 key = port.identifier or col_to_class_key.get(column, column)
-                metrics[key] = NodeMetric(unit=port.unit, quantity=port.quantity, id=key, column_id=column)
+                metrics[key] = NodeMetric(unit=port.unit, quantity=port.quantity, id=key, column_id=column, label=port.label)
 
         class_metrics = None if metrics is not None else getattr(node_class, 'output_metrics', None)
         if unit is None:
@@ -1096,8 +978,6 @@ class InstanceLoader:
         )
         if node.id in self._input_nodes or node.id in self._output_nodes:
             raise Exception('Node %s is already configured' % node.id)
-        # Edges are constructed natively from snapshot bindings in
-        # _setup_edges_from_snapshot; nothing is stashed for Edge.from_config.
         self._input_nodes[node.id] = []
         self._output_nodes[node.id] = []
 
@@ -1126,128 +1006,11 @@ class InstanceLoader:
 
     @wrap_with_span('setup-nodes', 'function')
     def setup_nodes(self):
-        from nodes.actions.action import ActionNode
-        from nodes.node import Node
-
-        if self.snapshot is not None:
-            self._setup_nodes_from_snapshot(actions=False)
-            return
-        for nc in self.config.get('nodes', []):
-            if nc['type'].startswith('nodes.'):
-                prefix = None
-            else:
-                prefix = 'nodes'
-            try:
-                node_class = self.import_class(
-                    nc['type'],
-                    prefix,
-                    allowed_classes=[Node],
-                    disallowed_classes=[ActionNode],
-                    node_id=nc['id'],
-                )
-            except ImportError:
-                self.logger.error('Unable to import node class for %s' % nc.get('id'))
-                raise
-            node = self.make_node(node_class, nc, _yaml_lc=getattr(nc, 'lc', None))
-            self.context.add_node(node)
-
-    def generate_nodes_from_emission_sectors(self):
-        from nodes.simple import SectorEmissions
-
-        if self.snapshot is not None:
-            # Emission sectors are a YAML authoring shorthand; snapshots carry
-            # the expanded nodes.
-            return
-        if not self.config.get('emission_sectors'):
-            return
-
-        node_class = self.import_class(
-            'SectorEmissions',
-            'nodes.simple',
-            allowed_classes=[SectorEmissions],
-        )
-        dataset_id = self.config.get('emission_dataset')
-        emission_unit = self.config.get('emission_unit')
-        assert emission_unit is not None
-        emission_unit = self.context.unit_registry.parse_units(emission_unit)
-        dims = self.config.get('emission_dimensions', [])
-
-        for ec in self.config.get('emission_sectors', []):
-            assert isinstance(ec, dict)
-            parent_id = ec.pop('part_of', None)
-            data_col = ec.pop('column', None)
-            data_category = ec.pop('category', None)
-            unit = ec.pop('unit', emission_unit)
-            dim_i = ec.pop('input_dimensions', dims)
-            dim_o = ec.pop('output_dimensions', dims)
-            if 'name_en' in ec and 'emissions' not in ec['name_en']:
-                ec['name_en'] += ' emissions'
-            nc = dict(
-                output_nodes=[parent_id] if parent_id else [],
-                input_dimensions=dim_i,
-                output_dimensions=dim_o,
-                input_datasets=[
-                    dict(
-                        id=dataset_id,
-                        column=data_col,
-                        forecast_from=self.config.get('emission_forecast_from'),
-                        unit=emission_unit,
-                    ),
-                ]
-                if data_col or data_category
-                else [],
-                unit=unit,
-                params=dict(category=data_category) if data_category else [],
-                **ec,
-            )
-            node = self.make_node(node_class, nc, _yaml_lc=getattr(ec, 'lc', None))
-            self.context.add_node(node)
+        self._setup_nodes_from_snapshot(actions=False)
 
     @wrap_with_span('setup-actions', 'function')
     def setup_actions(self):
-        from nodes.actions.action import ActionNode
-
-        if self.snapshot is not None:
-            self._setup_nodes_from_snapshot(actions=True)
-            return
-        for nc in self.config.get('actions', []):
-            if nc['type'].startswith('nodes.'):
-                prefix = None
-            else:
-                prefix = 'nodes.actions'
-            node_class = self.import_class(
-                nc['type'],
-                prefix,
-                allowed_classes=[ActionNode],
-                node_id=nc['id'],
-            )
-            node = self.make_node(node_class, nc)
-            assert isinstance(node, ActionNode)
-
-            decision_level = nc.get('decision_level')
-            if decision_level is not None:
-                for name, val in DecisionLevel.__members__.items():
-                    if decision_level == name.lower():
-                        node.decision_level = val
-                        break
-                else:
-                    self._init_failure(node, 'Invalid decision level: %s' % decision_level)
-
-            ag_id = nc.get('group', None)
-            if ag_id is not None:
-                assert isinstance(ag_id, str)
-                ag = next((ag for ag in self.instance.action_groups if ag.id == ag_id), None)
-                if ag is None:
-                    self._init_failure(node, "Action group '%s' not found" % ag_id)
-                else:
-                    node.group = ag
-
-            parent_id = nc.get('parent', None)
-            if parent_id is not None:
-                subs = self._subactions.setdefault(parent_id, [])
-                subs.append(node.id)
-
-            self.context.add_node(node)
+        self._setup_nodes_from_snapshot(actions=True)
 
     def _require_dimension(self, dim_id: str, node: Node) -> Any:
         dim = self.context.dimensions.get(dim_id)
@@ -1264,11 +1027,10 @@ class InstanceLoader:
         """
         Typed transforms into runtime ``EdgeDimension`` maps (from_dims, to_dims).
 
-        Mirrors ``_transforms_to_config`` + ``EdgeDimension.from_config``: the
-        target port's declared dimensions (plus legacy ``FlattenTransformation``
-        rows preserved in pre-step-2 snapshots) become bare exclude+flatten
-        declarations, filters resolve categories and groups, and assigns pin
-        one category.
+        The target port's declared dimensions (plus legacy
+        ``FlattenTransformation`` rows preserved in pre-step-2 snapshots) become
+        bare exclude+flatten declarations, filters resolve categories and
+        groups, and assigns pin one category.
         """
         from nodes.defs.transform_def import (
             AssignDimensionOp,
@@ -1280,6 +1042,8 @@ class InstanceLoader:
 
         legacy_declared = [t.dimension for t in transforms if isinstance(t, FlattenTransformation)]
         declared = list(dict.fromkeys([*required_dimensions, *legacy_declared]))
+        # Key order matters to the exporter (port dimensions follow declaration
+        # order); the authored *op* order rides on ``Edge.source_transforms``.
         to_dims: dict[str, EdgeDimension] = {}
         for dim_id in declared:
             self._require_dimension(dim_id, node)
@@ -1318,7 +1082,6 @@ class InstanceLoader:
         from nodes.constants import VALUE_COLUMN
 
         snapshot = self.snapshot
-        assert snapshot is not None
         specs_by_uuid: dict[UUID, NodeSpec] = {}
         identifiers_by_uuid: dict[UUID, str] = {}
         for n in snapshot.nodes:
@@ -1387,6 +1150,8 @@ class InstanceLoader:
             to_port.required_dimensions,
             output_node,
         )
+        from nodes.defs.transform_def import modernized_transformations
+
         # Only deliver explicit `metrics` when the source is multi-metric; for
         # single-output nodes an empty list keeps the pass-through code path.
         from_is_multi_metric = len(specs_by_uuid[from_id].output_ports) > 1
@@ -1397,31 +1162,13 @@ class InstanceLoader:
             from_dimensions=from_dims,
             to_dimensions=to_dims or None,
             metrics=metrics if from_is_multi_metric else [],
+            # Modernizing edge-storable ops yields edge-storable ops (legacy
+            # kinds rewrite in place, flatten declarations drop out).
+            source_transforms=cast('list[EdgeTransformOp]', modernized_transformations(list(transforms))),
         )
 
     def _setup_edges(self) -> None:
-        from nodes.edges import Edge
-
-        ctx = self.context
-        if self.snapshot is not None:
-            self._setup_edges_from_snapshot()
-            return
-        for node in ctx.nodes.values():
-            for ec in self._output_nodes.get(node.id, []):
-                try:
-                    edge = Edge.from_config(ec, node=node, is_output=True, context=ctx)
-                    node.add_edge(edge)
-                    edge.output_node.add_edge(edge)
-                except Exception as e:
-                    self._init_failure(node, 'Invalid output edge: %s' % e, cause=e)
-
-            for ec in self._input_nodes.get(node.id, []):
-                try:
-                    edge = Edge.from_config(ec, node=node, is_output=False, context=ctx)
-                    node.add_edge(edge)
-                    edge.input_node.add_edge(edge)
-                except Exception as e:
-                    self._init_failure(node, 'Invalid input edge: %s' % e, cause=e)
+        self._setup_edges_from_snapshot()
 
     def _setup_subactions(self) -> None:
         from nodes.actions.action import ActionNode
@@ -1453,30 +1200,10 @@ class InstanceLoader:
         self._setup_subactions()
         self.context.finalize_nodes()
 
-    def setup_progress_tracking_scenario(self):
-        from frameworks.models import MeasureDataPoint
-
-        pt_scenario = self.context.scenarios.get('progress_tracking')
-        if pt_scenario is None:
-            return
-        fwc = self.fw_config
-        if fwc is None:
-            return
-        years = (
-            MeasureDataPoint.objects
-            .filter(measure__framework_config=fwc)
-            .filter(value__isnull=False)
-            .order_by()
-            .values_list('year', flat=True)
-            .distinct('year')
-        )
-        pt_scenario.actual_historical_years = list(years)
-
     def _snapshot_scenarios(self) -> list[Scenario]:
         """Runtime scenarios from the typed spec (param values re-cleaned like the dict path)."""
         from nodes.scenario import Scenario, ScenarioKind
 
-        assert self.snapshot is not None
         if not self.snapshot.spec.scenarios:
             fallback = Scenario(id='default', name=TranslatedString(_('Default')), kind=ScenarioKind.DEFAULT)
             fallback._context = self.context
@@ -1505,49 +1232,12 @@ class InstanceLoader:
             scenarios.append(scenario)
         return scenarios
 
-    def _config_scenarios(self) -> list[Scenario]:
-        """Runtime scenarios from YAML-shaped config dicts."""
-        from nodes.scenario import Scenario, ScenarioKind
-
-        scenario_confs: list[dict[str, Any]] = self.config.get('scenarios', [])
-        if not scenario_confs:
-            scenario_confs = [
-                {
-                    'id': 'default',
-                    'name': TranslatedString(_('Default')),
-                    'default': True,
-                }
-            ]
-
-        scenarios: list[Scenario] = []
-        for sc in scenario_confs:
-            name = make_trans_string(sc, 'name', pop=True)
-            params_config = sc.pop('params', [])
-            actual_historical_years = sc.pop('actual_historical_years', None)
-            default = sc.pop('default', False)
-            scenario_id: str = sc.pop('id')
-            kind: ScenarioKind | None = None
-            if default:
-                kind = ScenarioKind.DEFAULT
-            elif scenario_id == 'progress_tracking':
-                kind = ScenarioKind.PROGRESS_TRACKING
-            elif scenario_id == 'baseline':
-                kind = ScenarioKind.BASELINE
-            scenario = Scenario(id=scenario_id, name=name, actual_historical_years=actual_historical_years, kind=kind, **sc)
-            scenario._context = self.context
-
-            for pc in params_config:
-                param = self.context.get_parameter(pc['id'])
-                scenario.add_parameter(param, param.clean(pc['value']))
-            scenarios.append(scenario)
-        return scenarios
-
     def setup_scenarios(self):
         from nodes.scenario import CustomScenario
 
         default_scenario = None
 
-        scenarios = self._snapshot_scenarios() if self.snapshot is not None else self._config_scenarios()
+        scenarios = self._snapshot_scenarios()
         for scenario in scenarios:
             for param, value in self._scenario_values.get(scenario.id, []):
                 scenario.add_parameter(param, value)
@@ -1575,81 +1265,28 @@ class InstanceLoader:
 
         self.context.set_custom_scenario(custom_scenario)
 
-        if self.fw_config is not None:
-            self.setup_progress_tracking_scenario()
-
     def setup_global_parameters(self):
         global_params = discover_global_parameters()
 
         context = self.context
-        if self.snapshot is not None:
-            for spec_param in self.snapshot.spec.params:
-                if spec_param.local_id not in global_params:
-                    raise Exception('Unknown global parameter: %s' % spec_param.local_id)
-                param = spec_param.model_copy(deep=True)
-                param.set_context(context)
-                context.add_global_parameter(param)
-            return
-        for pc in self.config.get('params', []):
-            param_id = pc.pop('id')
-            pc['local_id'] = param_id
-            unit_str = pc.get('unit', None)
-            if unit_str is not None:
-                unit = context.unit_registry.parse_units(unit_str)
-                pc['unit'] = unit
-            param = global_params.get(param_id)
-            if param is None:
-                raise Exception('Unknown global parameter: %s' % param_id)
-            param_val = pc.pop('value', None)
-            if 'is_customizable' not in pc:
-                pc['is_customizable'] = False
-            pc['label'] = make_trans_string(pc, 'label', pop=True)
-            pc['description'] = make_trans_string(pc, 'description', pop=True)
-
-            param_type = type(param)
-            param = param_type(**pc)
+        for spec_param in self.snapshot.spec.params:
+            if spec_param.local_id not in global_params:
+                raise Exception('Unknown global parameter: %s' % spec_param.local_id)
+            param = spec_param.model_copy(deep=True)
             param.set_context(context)
-            param.set(param_val)
-
-            assert 'subscription_nodes' not in pc  # check for legacy
-
             context.add_global_parameter(param)
 
     def setup_impact_overviews(self):
         from nodes.actions.action import ImpactOverview
-        from nodes.defs.action_def import ImpactOverviewSpec
 
-        if self.snapshot is not None:
-            seen: set[str] = set()
-            for overview_spec in self.snapshot.spec.impact_overviews:
-                spec = overview_spec.model_copy(deep=True)
-                assert spec.id is not None
-                if spec.id in seen:
-                    raise ValueError(f"Duplicate impact overview id '{spec.id}'. Set an explicit 'id' field to disambiguate.")
-                seen.add(spec.id)
-                self.context.impact_overviews.append(ImpactOverview(spec, self.context))
-            return
-
-        conf = self.config.get('impact_overviews', [])
-        seen_ids: set[str] = set()
-        for aepc in conf:
-            spec_config = dict(aepc)
-            rename_map = {
-                'effect_node': 'effect_node_id',
-                'cost_node': 'cost_node_id',
-                'stakeholder_dimension': 'stakeholder_dimension_id',
-                'outcome_dimension': 'outcome_dimension_id',
-            }
-            for old_name, new_name in rename_map.items():
-                if old_name in spec_config and new_name not in spec_config:
-                    spec_config[new_name] = spec_config.pop(old_name)
-            spec = ImpactOverviewSpec.from_yaml_config(spec_config)
+        seen: set[str] = set()
+        for overview_spec in self.snapshot.spec.impact_overviews:
+            spec = overview_spec.model_copy(deep=True)
             assert spec.id is not None
-            if spec.id in seen_ids:
+            if spec.id in seen:
                 raise ValueError(f"Duplicate impact overview id '{spec.id}'. Set an explicit 'id' field to disambiguate.")
-            seen_ids.add(spec.id)
-            aep = ImpactOverview(spec, self.context)
-            self.context.impact_overviews.append(aep)
+            seen.add(spec.id)
+            self.context.impact_overviews.append(ImpactOverview(spec, self.context))
 
     def setup_normalizations(self):
         from paths.refs import ValidationContext
@@ -1657,16 +1294,8 @@ class InstanceLoader:
         from nodes.defs.instance_defs import NormalizationSpec
         from nodes.normalization import Normalization
 
-        if self.snapshot is not None:
-            # Re-validate against this context so node refs resolve here.
-            spec_configs: list[dict[str, Any]] = [n.model_dump() for n in self.snapshot.spec.normalizations]
-        else:
-            spec_configs = []
-            for nc in self.config.get('normalizations', []):
-                spec_config = dict(nc)
-                if 'normalizer_node' in spec_config and 'normalizer_node_id' not in spec_config:
-                    spec_config['normalizer_node_id'] = spec_config.pop('normalizer_node')
-                spec_configs.append(spec_config)
+        # Re-validate against this context so node refs resolve here.
+        spec_configs: list[dict[str, Any]] = [n.model_dump() for n in self.snapshot.spec.normalizations]
         for spec_config in spec_configs:
             normalization = Normalization(
                 NormalizationSpec.model_validate(spec_config, context=ValidationContext(context=self.context)),
@@ -1678,46 +1307,15 @@ class InstanceLoader:
         """Install a lazy builder for the explanation system; nothing consumes it during loading."""
         from nodes.explanations import build_node_explanation_system
 
-        if self.snapshot is not None:
-            snapshot = self.snapshot
+        snapshot = self.snapshot
 
-            def build_from_snapshot(context: Context) -> NodeExplanationSystem:
-                from nodes.instance_from_db import snapshot_nodes_to_config_dicts
+        def build_from_snapshot(context: Context) -> NodeExplanationSystem:
+            from nodes.instance_from_db import snapshot_nodes_to_config_dicts
 
-                nodes_list, actions_list = snapshot_nodes_to_config_dicts(snapshot)
-                return build_node_explanation_system(context, [*nodes_list, *actions_list])
+            nodes_list, actions_list = snapshot_nodes_to_config_dicts(snapshot)
+            return build_node_explanation_system(context, [*nodes_list, *actions_list])
 
-            self.context._nes_factory = build_from_snapshot
-            return
-
-        config = self.config
-        nodes = config.get('nodes')
-        assert isinstance(nodes, list)
-
-        all_nodes = []  # FIXME Or collect from context?
-        all_nodes.extend(nodes)
-        all_actions = config.get('actions')
-        if all_actions is not None:
-            all_nodes.extend(all_actions)
-
-        emission_sectors = config.get('emission_sectors')
-        if emission_sectors is not None:
-            for es in emission_sectors:
-                es['type'] = 'simple.SectorEmissions'
-                es['unit'] = config.get('emission_unit')
-                es['input_dimensions'] = config.get('emission_dimensions')
-                es['output_dimensions'] = config.get('emission_dimensions')
-                all_nodes.append(es)
-
-        # Copy now: generate_nodes_from_emission_sectors() pops keys from the
-        # emission-sector dicts, and the explanation system must see the
-        # pre-pop shape it has always seen.
-        node_configs = copy.deepcopy(all_nodes)
-
-        def build_from_config(context: Context) -> NodeExplanationSystem:
-            return build_node_explanation_system(context, node_configs)
-
-        self.context._nes_factory = build_from_config
+        self.context._nes_factory = build_from_snapshot
 
     @classmethod
     def from_snapshot(
@@ -1728,16 +1326,7 @@ class InstanceLoader:
         published: bool = False,
         instance_config: InstanceConfig | None = None,
     ) -> Self:
-        """
-        Build the runtime from an ``InstanceSnapshot`` (specs, not YAML dicts).
-
-        The instance level (identity, years, features, dimensions, params,
-        scenarios, impact overviews, normalizations) is constructed natively
-        from the typed snapshot. Node/action/edge construction still consumes
-        YAML-shaped dicts through the node-scope shim in
-        ``nodes/instance_from_db.py``; that remainder migrates with the
-        ``NodeMeta``-native node construction.
-        """
+        """Build the runtime natively from an ``InstanceSnapshot`` (typed specs, no YAML dicts)."""
         payload_refs = None
         if published:
             from nodes.datasets import DatasetPayloadRef
@@ -1765,36 +1354,17 @@ class InstanceLoader:
     def from_yaml(
         cls,
         filename: Path,
-        fw_config: FrameworkConfig | None = None,
         tolerate_node_failures: bool = False,
         instance_config: InstanceConfig | None = None,
-    ) -> Self:
-        yaml_fn = filename.resolve()
-        yaml_conf = InstanceYAMLConfig.load_for_entrypoint(yaml_fn)
-
-        data = yaml_conf.data
-        assert data is not None
-        return cls(
-            config=data,
-            yaml_file_path=yaml_fn,
-            fw_config=fw_config,
-            config_mtime_hash=yaml_conf.meta.mtime_hash,
-            tolerate_node_failures=tolerate_node_failures,
-            instance_config=instance_config,
-        )
-
-    @classmethod
-    def from_yaml_snapshot(
-        cls,
-        filename: Path,
-        tolerate_node_failures: bool = False,
+        snapshot_transform: Callable[[InstanceSnapshot], InstanceSnapshot] | None = None,
     ) -> Self:
         """
         Build the runtime from YAML through parse -> InstanceSnapshot -> native build.
 
-        The successor to the config-dict path in ``from_yaml``; the two coexist
-        until runtime parity is proven fleet-wide. Framework-configured
-        instances (``fw_config``) still go through ``from_yaml``.
+        ``snapshot_transform`` lets a caller overlay the parsed snapshot before
+        construction — the framework path uses it to apply ``FrameworkConfig``
+        identity and year boundaries without the loader knowing about
+        frameworks.
         """
         import uuid as uuid_mod
 
@@ -1804,28 +1374,35 @@ class InstanceLoader:
         yaml_conf = InstanceYAMLConfig.load_for_entrypoint(yaml_fn)
         data = yaml_conf.data
         assert data is not None
-        # The runtime never persists parse-invented UUIDs, so a deterministic
-        # namespace from the instance identifier is sufficient; no DB lookup.
-        instance_uuid = uuid_mod.uuid3(uuid_mod.NAMESPACE_URL, f'kausal-paths:instance:{data["id"]}')
+        if instance_config is not None:
+            instance_uuid = instance_config.uuid
+        else:
+            # The runtime never persists parse-invented UUIDs, so a deterministic
+            # namespace from the instance identifier is sufficient; no DB lookup.
+            instance_uuid = uuid_mod.uuid3(uuid_mod.NAMESPACE_URL, f'kausal-paths:instance:{data["id"]}')
         snapshot = parse_instance_snapshot(data, instance_uuid=instance_uuid)
+        if snapshot_transform is not None:
+            # The transform may rewrite I18n fields, which validate against the
+            # active i18n context.
+            with set_i18n_context(snapshot.metadata.primary_language, list(snapshot.metadata.other_languages)):
+                snapshot = snapshot_transform(snapshot)
         return cls(
             snapshot=snapshot,
             yaml_file_path=yaml_fn,
             config_mtime_hash=yaml_conf.meta.mtime_hash,
             tolerate_node_failures=tolerate_node_failures,
+            instance_config=instance_config,
         )
 
     def __init__(
         self,
-        config: dict[str, Any] | None = None,
         yaml_file_path: Path | None = None,
-        fw_config: FrameworkConfig | None = None,
         config_mtime_hash: str | None = None,
         tolerate_node_failures: bool = False,
         dataset_payload_refs: list[Any] | None = None,
         instance_config: InstanceConfig | None = None,
         *,
-        snapshot: InstanceSnapshot | None = None,
+        snapshot: InstanceSnapshot,
     ):
         from .units import add_unit_translations
 
@@ -1836,29 +1413,12 @@ class InstanceLoader:
         self.config_mtime_hash = config_mtime_hash
         self._node_classes = {}
         self.snapshot = snapshot
-        if snapshot is not None:
-            assert config is None
-            assert fw_config is None
-            self.yaml_file_path = yaml_file_path.absolute() if yaml_file_path else None
-            self.fw_config = None
-            # self.config is deliberately left unset: the snapshot path must
-            # never read YAML-shaped config dicts, and an AttributeError here
-            # is a bug in a setup method missing its snapshot branch.
-            self.default_language = snapshot.metadata.primary_language
-            self.other_languages = list(snapshot.metadata.other_languages)
-            self.logger = logger.bind(instance=snapshot.metadata.identifier)
-            with set_i18n_context(self.default_language, self.other_languages):
-                self._init_instance_from_snapshot(snapshot)
-            return
-        assert config is not None
         self.yaml_file_path = yaml_file_path.absolute() if yaml_file_path else None
-        self.config = config
-        self.fw_config = fw_config
-        self.default_language = config['default_language']
-        self.other_languages = config.get('supported_languages', [])
-        self.logger = logger.bind(instance=config['id'])
+        self.default_language = snapshot.metadata.primary_language
+        self.other_languages = list(snapshot.metadata.other_languages)
+        self.logger = logger.bind(instance=snapshot.metadata.identifier)
         with set_i18n_context(self.default_language, self.other_languages):
-            self._init_instance()
+            self._init_instance_from_snapshot(snapshot)
 
     def setup_node_visualizations(self):
         for node_id, viz_config in self._node_visualizations.items():
@@ -1920,106 +1480,14 @@ class InstanceLoader:
             self.db_dataset_refs[dataset.identifier] = ref
         self.dataset_payload_store = CurrentDatasetPayloadStore(refs)
 
-    def _init_instance(self) -> None:
-        from nodes.context import Context
-        from nodes.defs.instance_defs import ActionGroup
-
-        from .instance import Instance
-
-        config = self.config
-        instance_id: str = config['id']
-        fwc = self.fw_config
-        if fwc is not None:
-            instance_id = fwc.instance_config.identifier
-
-        dataset_repo_config = config.get('dataset_repo')
-        if dataset_repo_config is not None:
-            dataset_repo_spec = DatasetRepoSpec.model_validate(dataset_repo_config)
-        else:
-            dataset_repo_spec = None
-
-        agc_all = self.config.get('action_groups', [])
-        agcs: list[ActionGroup] = []
-        for idx, agc in enumerate(agc_all):
-            ag = ActionGroup(
-                id=agc['id'],
-                name=make_trans_string(agc, 'name', required=True),
-                color=agc.get('color'),
-                order=idx,
-            )
-            agcs.append(ag)
-
-        target_year = self.config['target_year']
-
-        if fwc is None:
-            owner = make_trans_string(self.config, 'owner', required=True)
-            name = make_trans_string(self.config, 'name', required=True)
-            max_hist_year: int | None = self.config.get('maximum_historical_year')
-            min_hist_year: int = self.config['minimum_historical_year']
-            reference_year = self.config.get('reference_year')
-            if reference_year is None:
-                raise ValueError(self, 'Reference year must be given for the instance.')
-        else:
-            from frameworks.models import MeasureDataPoint
-
-            owner = self.simple_trans_string(fwc.organization_name or '')
-            name = self.simple_trans_string(fwc.instance_config.get_name())
-            mdp_data = MeasureDataPoint.objects.filter(measure__framework_config=fwc).aggregate(
-                min_year=Min('year'),
-                max_year=Max('year'),
-            )
-            max_hist_year = mdp_data['max_year'] or fwc.baseline_year
-            min_hist_year = mdp_data['min_year'] or fwc.baseline_year
-            reference_year = fwc.baseline_year
-            if fwc.target_year is not None:
-                target_year = fwc.target_year
-
-        self.instance = Instance(
-            id=instance_id,
-            name=name,
-            owner=owner,
-            default_language=self.config['default_language'],
-            action_groups=agcs,
-            config_mtime_hash=self.config_mtime_hash,
-            features=self.config.get('features', {}),
-            terms=self.config.get('terms', {}),
-            result_excels=[InstanceResultExcel.from_yaml_config(r) for r in self.config.get('result_excels', [])],
-            yaml_file_path=self.yaml_file_path,
-            pages=pages_from_config(self.config.get('pages', [])),
-            maximum_historical_year=max_hist_year,
-            minimum_historical_year=min_hist_year,
-            reference_year=reference_year,
-            supported_languages=cast(
-                'list[str]',
-                self.config.get('supported_languages') or [],
-            ),
-            theme_identifier=cast('str | None', self.config.get('theme_identifier')),
-            config=self.instance_config,
-            # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
-            # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
-            **self._build_instance_args_from_home_page(),
-        )
-
-        model_end_year = self.config.get('model_end_year', target_year)
-        sample_size = self.config.get('sample_size', 0)
-        with start_span(name='create-context', op='function'):
-            self.context = Context(
-                instance=self.instance,
-                dataset_repo_spec=dataset_repo_spec,
-                target_year=target_year,
-                model_end_year=model_end_year,
-                sample_size=sample_size,
-            )
-        self._finish_init()
-
     def _finish_init(self) -> None:
-        """Run the setup sequence shared by the config-dict and snapshot paths."""
+        """Run the setup sequence for the natively built instance."""
         self.instance.set_context(self.context)
         # Make the fault-tolerance flag available throughout construction (setup_nodes/edges),
         # not just at compute time. See docs/architecture/fault-tolerance.md.
         self.context.tolerate_node_failures = self.tolerate_node_failures
 
-        # Store input and output node configs for each created node, to be used in setup_edges().
+        # Duplicate-node bookkeeping, plus per-node state consumed by later setup steps.
         self._input_nodes = {}
         self._output_nodes = {}
         self._subactions = {}
@@ -2030,7 +1498,6 @@ class InstanceLoader:
         self.dataset_payload_store = None
         self.setup_node_explanations()
         self.setup_dimensions()
-        self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()
         self.load_db_datasets()
         self.setup_nodes()
@@ -2126,17 +1593,3 @@ class InstanceLoader:
         for port in sorted(snapshot.dataset_bindings, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
             ports_by_node[port.node].append(port)
         self._snapshot_dataset_ports = dict(ports_by_node)
-
-    def _build_instance_args_from_home_page(self) -> dict[str, TranslatedString]:
-        # FIXME: This is an ugly hack
-        pages = self.config.get('pages', [])
-        for page in pages:
-            if page['id'] == 'home':
-                break
-        else:
-            return {}
-        default_language = self.config['default_language']
-        return {
-            'lead_title': make_trans_string(page, 'lead_title', default_language=default_language),
-            'lead_paragraph': make_trans_string(page, 'lead_paragraph', default_language=default_language),
-        }

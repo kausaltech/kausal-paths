@@ -15,6 +15,7 @@ from kausal_common.i18n.pydantic import set_i18n_context
 init_django()
 
 import json
+from typing import TYPE_CHECKING
 
 from django.utils.translation import override as translation_override
 from wagtail.models import Locale, Page
@@ -25,6 +26,9 @@ from nodes.models import InstanceConfig, InstanceHostname
 from nodes.spec_sync import sync_parsed_instance_to_db
 from orgs.models import Organization
 from pages.models import InstanceRootPage
+
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
 
 FRAMEWORK_IDENTIFIER = 'cads'
 FRAMEWORK_NAME = 'CADS'
@@ -192,7 +196,7 @@ def _dataset_port_key(port) -> tuple[str, str, str, str]:
         port.node.identifier,
         port.dataset.identifier,
         port.metric.name or str(port.metric.uuid),
-        port.spec.model_dump_json(exclude_defaults=True, exclude_none=True),
+        port.dataset_spec.model_dump_json(exclude_defaults=True, exclude_none=True),
     )
 
 
@@ -201,19 +205,20 @@ def ensure_template_dataset_ports(source: InstanceConfig, target: InstanceConfig
 
     from kausal_common.datasets.models import Dataset
 
-    from nodes.models import DatasetPort, NodeConfig
+    from nodes.input_bindings import next_port_position
+    from nodes.models import NodeConfig, NodeInputPortBinding
 
     if not dataset_ids:
         return
+
+    def dataset_binding_qs(ic: InstanceConfig) -> QuerySet[NodeInputPortBinding]:
+        return NodeInputPortBinding.objects.filter(instance=ic, dataset__identifier__in=dataset_ids)
 
     target_nodes = {
         node.identifier: node
         for node in NodeConfig.objects.filter(
             instance=target,
-            identifier__in=DatasetPort.objects.filter(instance=source, dataset__identifier__in=dataset_ids).values_list(
-                'node__identifier',
-                flat=True,
-            ),
+            identifier__in=dataset_binding_qs(source).values_list('node__identifier', flat=True),
         )
     }
     target_datasets = {
@@ -227,25 +232,18 @@ def ensure_template_dataset_ports(source: InstanceConfig, target: InstanceConfig
         if dataset.identifier is not None
     }
     existing_port_keys = {
-        _dataset_port_key(port)
-        for port in DatasetPort.objects.filter(instance=target, dataset__identifier__in=dataset_ids).select_related(
-            'node',
-            'dataset',
-            'metric',
-        )
+        _dataset_port_key(port) for port in dataset_binding_qs(target).select_related('node', 'dataset', 'metric')
     }
-    source_ports = DatasetPort.objects.filter(instance=source, dataset__identifier__in=dataset_ids).select_related(
-        'node',
-        'dataset',
-        'metric',
-    )
+    source_ports = dataset_binding_qs(source).select_related('node', 'dataset', 'metric')
 
-    missing_ports: list[DatasetPort] = []
+    copied = 0
     for source_port in source_ports:
         key = _dataset_port_key(source_port)
         if key in existing_port_keys:
             continue
         target_node = target_nodes.get(source_port.node.identifier)
+        assert source_port.dataset is not None
+        assert source_port.metric is not None
         if not source_port.dataset.identifier:
             continue
         target_dataset = target_datasets.get(source_port.dataset.identifier)
@@ -258,26 +256,24 @@ def ensure_template_dataset_ports(source: InstanceConfig, target: InstanceConfig
                 f'Cannot copy dataset port for {source_port.dataset.identifier!r}; '
                 + f'metric {source_port.metric.name!r} is missing in {target.identifier!r}'
             )
-        missing_ports.append(
-            DatasetPort(
-                instance=target,
-                node=target_node,
-                port_id=source_port.port_id,
-                dataset=target_dataset,
-                metric=target_metric,
-                spec=source_port.spec,
-            )
+        NodeInputPortBinding.objects.create(
+            instance=target,
+            node=target_node,
+            port_id=source_port.port_id,
+            position=next_port_position(target_node, source_port.port_id),
+            dataset=target_dataset,
+            metric=target_metric,
+            transformations=list(source_port.transformations or []),
+            tags=list(source_port.tags or []),
+            dataset_spec=source_port.dataset_spec,
+            dataset_index=source_port.dataset_index,
         )
+        copied += 1
 
-    if not missing_ports:
+    if not copied:
         print(f'Template dataset ports already copied: {target}')
         return
-    DatasetPort.objects.bulk_create(missing_ports)
-
-    from nodes.input_bindings import sync_input_bindings
-
-    sync_input_bindings(target)
-    print(f'Copied {len(missing_ports)} dataset port(s) from {source.identifier} to {target.identifier}')
+    print(f'Copied {copied} dataset port(s) from {source.identifier} to {target.identifier}')
 
 
 def get_or_create_organization() -> Organization:

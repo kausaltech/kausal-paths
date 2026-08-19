@@ -88,8 +88,8 @@ class YamlPortReferenceCatalog:
 
 
 def build_yaml_port_reference_catalog(instance: InstanceConfig) -> YamlPortReferenceCatalog:
-    """Read the persisted mirror before YAML sync rewrites it."""
-    from nodes.models import DatasetPort, NodeConfig, NodeEdge
+    """Read the persisted bindings before YAML sync rewrites them."""
+    from nodes.models import NodeConfig, NodeInputPortBinding
 
     output_ports: dict[tuple[object, ...], set[UUID]] = {}
     input_roles: dict[tuple[object, ...], set[UUID]] = {}
@@ -101,12 +101,13 @@ def build_yaml_port_reference_catalog(instance: InstanceConfig) -> YamlPortRefer
     specs = {node.uuid: node.spec for node in nodes if node.spec is not None}
     _index_spec_ports(nodes, output_ports=output_ports, input_roles=input_roles)
 
-    edges = NodeEdge.objects.filter(instance=instance).select_related('from_node', 'to_node')
-    for edge in edges:
-        _add(edge_ports, (edge.to_node.uuid, edge.from_node.uuid, edge.from_port), edge.to_port)
-
-    ports = DatasetPort.objects.filter(instance=instance).select_related('node', 'dataset', 'metric')
-    for binding in ports:
+    rows = NodeInputPortBinding.objects.filter(instance=instance).select_related('node', 'source_node', 'dataset', 'metric')
+    for binding in rows:
+        if binding.source_node is not None:
+            _add(edge_ports, (binding.node.uuid, binding.source_node.uuid, binding.source_port_id), binding.port_id)
+            continue
+        assert binding.dataset is not None
+        assert binding.metric is not None
         dataset_id = binding.dataset.identifier or str(binding.dataset.uuid)
         group_key = (binding.node.uuid, dataset_id, binding.dataset_index)
         dataset_groups[group_key].add(binding.port_id)
@@ -114,7 +115,7 @@ def build_yaml_port_reference_catalog(instance: InstanceConfig) -> YamlPortRefer
         spec = specs.get(binding.node.uuid)
         target_port = spec.input_port_by_id.get(binding.port_id) if spec is not None else None
         selectors = {
-            binding.spec.column,
+            binding.dataset_spec.column,
             binding.metric.name,
             str(target_port.identifier) if target_port is not None and target_port.identifier is not None else None,
         }

@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from frameworks.permissions import MeasureTemplatePermissionPolicy
     from nodes.gpc import DatasetNode
     from nodes.instance import Instance
+    from nodes.instance_serialization import InstanceSnapshot
     from nodes.models import InstanceConfig
     from nodes.node import Node
     from users.models import User
@@ -987,6 +988,41 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             )
         return len(selected_defaults)
 
+    def apply_snapshot_overrides(self, snapshot: InstanceSnapshot) -> InstanceSnapshot:
+        """
+        Overlay this configuration onto a parsed framework snapshot.
+
+        The framework YAML carries demonstration identity and year boundaries;
+        the city-specific values live on this row and its measure datapoints.
+        The overlay resolves them into the snapshot once, so the loader needs
+        no framework knowledge.
+        """
+        from django.db.models import Max, Min
+
+        ic = self.instance_config
+        mdp_years = MeasureDataPoint.objects.filter(measure__framework_config=self).aggregate(
+            min_year=Min('year'),
+            max_year=Max('year'),
+        )
+        metadata = snapshot.metadata.model_copy(
+            update={
+                'uuid': ic.uuid,
+                'identifier': ic.identifier,
+                'name': ic.get_name(),
+                'owner': self.organization_name or '',
+            }
+        )
+        years = snapshot.spec.years.model_copy(
+            update={
+                'reference': self.baseline_year,
+                'min_historical': mdp_years['min_year'] or self.baseline_year,
+                'max_historical': mdp_years['max_year'] or self.baseline_year,
+                **({'target': self.target_year} if self.target_year is not None else {}),
+            }
+        )
+        spec = snapshot.spec.model_copy(update={'years': years})
+        return snapshot.model_copy(update={'metadata': metadata, 'spec': spec})
+
     def create_model_instance(self, ic: InstanceConfig) -> Instance:
         from nodes.instance_loader import InstanceLoader
 
@@ -994,7 +1030,11 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         config_fn = ic.get_yaml_config_entrypoint()
         if config_fn is None:
             raise ValueError(f'No YAML config entrypoint found for framework {fw.identifier}')
-        loader = InstanceLoader.from_yaml(config_fn, fw_config=self, instance_config=ic)
+        loader = InstanceLoader.from_yaml(
+            config_fn,
+            instance_config=ic,
+            snapshot_transform=self.apply_snapshot_overrides,
+        )
         return loader.instance
 
     @staticmethod
