@@ -55,6 +55,8 @@ class DatasetValidationViolationType(InstanceProblemInterface):
     dataset_identifier: str | None
     years: list[int] = sb.field(description='Affected years; empty for dataset-wide problems.')
     coordinates: list[DatasetDimensionCoordinateType]
+    combination_ids: list[UUID] = sb.field(description='Schema category combinations involved in the violation.')
+    requirement_group: str | None = sb.field(description='Named required-combination group, when applicable.')
 
     @classmethod
     def from_violation(cls, violation: RuleViolation) -> Self:
@@ -73,6 +75,8 @@ class DatasetValidationViolationType(InstanceProblemInterface):
                 DatasetDimensionCoordinateType(dimension=dimension, category=category)
                 for dimension, category in violation.categories.items()
             ],
+            combination_ids=list(violation.combination_ids),
+            requirement_group=violation.requirement_group,
         )
 
 

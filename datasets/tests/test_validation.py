@@ -5,13 +5,16 @@ from __future__ import annotations
 import datetime
 from decimal import Decimal
 from typing import Any
+from uuid import uuid4
 
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from pydantic import ValidationError as PydanticValidationError
 
 import pytest
 
-from kausal_common.datasets.models import DataPoint, DatasetMetricValidationRule
+from kausal_common.datasets.category_domain import DatasetCategoryCombination, DatasetCategoryDomain
+from kausal_common.datasets.models import DataPoint, DatasetMetricValidationRule, DimensionScope
 from kausal_common.datasets.tests.factories import (
     DataPointFactory,
     DatasetFactory,
@@ -52,6 +55,12 @@ def rig(db_instance_config):
     DatasetSchemaDimensionFactory.create(schema=schema, dimension=dimension, column_name='region')
     cat_a = DimensionCategoryFactory.create(dimension=dimension, identifier='a', label='A')
     cat_b = DimensionCategoryFactory.create(dimension=dimension, identifier='b', label='B')
+    DimensionScope.objects.create(
+        dimension=dimension,
+        scope_content_type=ContentType.objects.get_for_model(db_instance_config),
+        scope_id=db_instance_config.pk,
+        identifier='region',
+    )
     dataset = DatasetFactory.create(schema=schema, identifier='validation-ds', scope=db_instance_config)
     return dataset, metric, cat_a, cat_b
 
@@ -88,6 +97,46 @@ def test_value_range_rule_locates_offending_cells(rig):
     assert violation.dataset_uuid == dataset.uuid
 
 
+def test_value_range_rule_supports_exclusive_bounds(rig):
+    dataset, metric, cat_a, _ = rig
+    set_rule(
+        metric,
+        {
+            'kind': 'value_range',
+            'enforcement': 'block_edit',
+            'min': 10,
+            'max': 20,
+            'exclusive_min': True,
+            'exclusive_max': True,
+        },
+    )
+    add_point(dataset, metric, 2020, 10, cat_a)
+    add_point(dataset, metric, 2021, 15, cat_a)
+    add_point(dataset, metric, 2022, 20, cat_a)
+
+    violations = evaluate_dataset_rules(dataset)
+
+    assert [violation.years for violation in violations] == [[2020], [2022]]
+
+
+@pytest.mark.parametrize(
+    'rule',
+    [
+        {'max': 5, 'exclusive_min': True},
+        {'min': 0, 'exclusive_max': True},
+        {'min': 2, 'max': 1},
+        {'min': 1, 'max': 1, 'exclusive_min': True},
+    ],
+)
+def test_value_range_rule_rejects_empty_or_unbounded_exclusive_ranges(rule):
+    from pydantic import ValidationError
+
+    from datasets.validation_rules import ValueRangeRule
+
+    with pytest.raises(ValidationError):
+        ValueRangeRule.model_validate({'enforcement': 'block_edit', **rule})
+
+
 def test_no_gaps_rule_observed_union(rig):
     dataset, metric, cat_a, cat_b = rig
     set_rule(metric, {'kind': 'no_gaps', 'enforcement': 'block_publish'})
@@ -120,6 +169,62 @@ def test_dimension_sum_rule(rig):
     assert len(violations) == 1
     assert violations[0].years == [2021]
     assert violations[0].categories == {}
+
+
+def test_required_combinations_rule_locates_missing_domain_cells(rig):
+    dataset, metric, cat_a, cat_b = rig
+    dimension = cat_a.dimension
+    combo_a = DatasetCategoryCombination(
+        id=uuid4(),
+        identifier='region_a',
+        categories={dimension.uuid: cat_a.uuid},
+    )
+    combo_b = DatasetCategoryCombination(
+        id=uuid4(),
+        identifier='region_b',
+        categories={dimension.uuid: cat_b.uuid},
+    )
+    dataset.schema.category_domain = DatasetCategoryDomain(combinations=[combo_a, combo_b])
+    dataset.schema.save(update_fields=['category_domain'])
+    set_rule(
+        metric,
+        {
+            'kind': 'required_combinations',
+            'enforcement': 'block_publish',
+            'groups': [{'id': 'region_b', 'combinations': [str(combo_b.id)]}],
+        },
+    )
+    add_point(dataset, metric, 2020, 1, cat_a)
+    add_point(dataset, metric, 2020, 0, cat_b)
+    add_point(dataset, metric, 2021, 2, cat_a)
+
+    (violation,) = evaluate_dataset_rules(dataset)
+
+    assert violation.kind == 'required_combinations'
+    assert violation.years == [2021]
+    assert violation.categories == {'region': 'b'}
+    assert violation.combination_ids == [combo_b.id]
+
+
+def test_allowed_combinations_rule_rejects_rows_outside_closed_domain(rig):
+    dataset, metric, cat_a, cat_b = rig
+    dimension = cat_a.dimension
+    combo_a = DatasetCategoryCombination(
+        id=uuid4(),
+        identifier='region_a',
+        categories={dimension.uuid: cat_a.uuid},
+    )
+    dataset.schema.category_domain = DatasetCategoryDomain(mode='closed', combinations=[combo_a])
+    dataset.schema.save(update_fields=['category_domain'])
+    set_rule(metric, {'kind': 'allowed_combinations', 'enforcement': 'block_edit'})
+    add_point(dataset, metric, 2020, 1, cat_a)
+    add_point(dataset, metric, 2020, 2, cat_b)
+
+    (violation,) = evaluate_dataset_rules(dataset)
+
+    assert violation.kind == 'allowed_combinations'
+    assert violation.years == [2020]
+    assert violation.categories == {'region': 'b'}
 
 
 def test_unparseable_rule_fails_loudly(rig):
@@ -264,6 +369,30 @@ mutation CreateDataPoints($instanceId: ID!, $datasetId: ID!, $input: [CreateData
 """
 
 
+GET_DATASET_VALIDATION = """
+query DatasetValidation($datasetId: ID!) {
+    instance {
+        editor {
+            dataset(id: $datasetId) {
+                categoryDomain {
+                    mode
+                    combinations { id identifier coordinates { dimensionId categoryId } }
+                }
+                validationViolations {
+                    code
+                    metric
+                    years
+                    requirementGroup
+                    combinationIds
+                    coordinates { dimension category }
+                }
+            }
+        }
+    }
+}
+"""
+
+
 def test_set_metric_validation_rules_mutation(gql_client: PathsTestClient, db_instance_config, rig):
     dataset, metric, _cat_a, _cat_b = rig
 
@@ -307,7 +436,58 @@ def test_set_metric_validation_rules_mutation(gql_client: PathsTestClient, db_in
         'enforcement': 'block_edit',
         'min': 0.0,
         'max': None,
+        'exclusive_min': False,
+        'exclusive_max': False,
     }
+
+
+def test_dataset_query_exposes_category_domain_and_required_combination_violations(
+    gql_client: PathsTestClient,
+    rig,
+):
+    dataset, metric, cat_a, cat_b = rig
+    dimension = cat_a.dimension
+    combo_b = DatasetCategoryCombination(
+        id=uuid4(),
+        identifier='region_b',
+        categories={dimension.uuid: cat_b.uuid},
+    )
+    dataset.schema.category_domain = DatasetCategoryDomain(combinations=[combo_b])
+    dataset.schema.save(update_fields=['category_domain'])
+    set_rule(
+        metric,
+        {
+            'kind': 'required_combinations',
+            'enforcement': 'block_publish',
+            'groups': [{'id': 'region_b', 'combinations': [str(combo_b.id)]}],
+        },
+    )
+    add_point(dataset, metric, 2021, 1, cat_a)
+    materialize_dataset(dataset)
+
+    data = gql_client.query_data(GET_DATASET_VALIDATION, variables={'datasetId': str(dataset.uuid)})
+    payload = data['instance']['editor']['dataset']
+
+    assert payload['categoryDomain'] == {
+        'mode': 'open',
+        'combinations': [
+            {
+                'id': str(combo_b.id),
+                'identifier': 'region_b',
+                'coordinates': [{'dimensionId': str(dimension.uuid), 'categoryId': str(cat_b.uuid)}],
+            }
+        ],
+    }
+    assert payload['validationViolations'] == [
+        {
+            'code': 'required_combinations',
+            'metric': 'amount',
+            'years': [2021],
+            'requirementGroup': 'region_b',
+            'combinationIds': [str(combo_b.id)],
+            'coordinates': [{'dimension': 'region', 'category': 'b'}],
+        }
+    ]
 
 
 def test_set_metric_validation_rules_rejects_invalid_rule(gql_client: PathsTestClient, db_instance_config, rig):

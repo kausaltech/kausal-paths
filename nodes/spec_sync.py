@@ -247,6 +247,7 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
     from nodes.dataset_materialization import refresh_dataset_materialization
 
     declared_schema_editability: dict[int, tuple[str, bool]] = {}
+    declared_schema_domains: dict[int, tuple[str, object]] = {}
     for ds_meta in snapshot.datasets:
         ds_id = ds_meta.identifier
         if not ds_id:
@@ -267,8 +268,14 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
         if dataset.schema is None:
             raise ValueError(f"dataset '{ds_id}' has no schema")
         _apply_declared_dataset_editability(dataset, ds_meta, declared_schema_editability)
+        domain_changed = _apply_declared_category_domain(
+            ic,
+            dataset,
+            ds_meta,
+            declared_schema_domains,
+        )
         metrics_by_name = {metric.name: metric for metric in dataset.schema.metrics.all()}
-        dataset_changed = False
+        dataset_changed = domain_changed
         for metric_meta in ds_meta.metrics:
             metric = metrics_by_name.get(metric_meta.identifier) if metric_meta.identifier else None
             if metric is None:
@@ -278,6 +285,79 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
             # Rules ride in the materialized snapshot and their violations are
             # persisted there; re-evaluate under the new rule set.
             refresh_dataset_materialization(dataset, touch=False)
+
+
+def _apply_declared_category_domain(
+    ic: InstanceConfig,
+    dataset: DatasetModel,
+    metadata: DatasetMeta,
+    declarations: dict[int, tuple[str, object]],
+) -> bool:
+    spec = metadata.category_domain_spec
+    if spec is None:
+        return False
+
+    from kausal_common.datasets.category_domain import DatasetCategoryCombination, DatasetCategoryDomain
+    from kausal_common.datasets.models import DimensionScope
+
+    schema = dataset.schema
+    assert schema is not None
+    schema_dimension_ids = set(schema.dimensions.values_list('dimension_id', flat=True))
+    scopes = (
+        DimensionScope.objects
+        .for_instance_config(ic)
+        .filter(dimension_id__in=schema_dimension_ids)
+        .select_related('dimension')
+        .prefetch_related('dimension__categories')
+    )
+    dimensions = {scope.identifier: scope.dimension for scope in scopes if scope.identifier}
+    combinations: list[DatasetCategoryCombination] = []
+    for combination_spec in spec.combinations:
+        categories: dict[UUID, UUID] = {}
+        for dimension_identifier, category_identifier in combination_spec.categories.items():
+            dimension = dimensions.get(dimension_identifier)
+            if dimension is None:
+                raise ValueError(
+                    f"category combination '{combination_spec.id}' on dataset '{dataset.identifier}' "
+                    f"references dimension '{dimension_identifier}' outside its schema"
+                )
+            category = next(
+                (category for category in dimension.categories.all() if category.identifier == category_identifier),
+                None,
+            )
+            if category is None:
+                raise ValueError(
+                    f"category combination '{combination_spec.id}' on dataset '{dataset.identifier}' "
+                    f"references unknown category '{dimension_identifier}:{category_identifier}'"
+                )
+            categories[dimension.uuid] = category.uuid
+        if spec.mode == 'closed' and set(categories) != {dimension.uuid for dimension in dimensions.values()}:
+            raise ValueError(
+                f"closed category combination '{combination_spec.id}' on dataset '{dataset.identifier}' "
+                'must mention every schema dimension'
+            )
+        combinations.append(
+            DatasetCategoryCombination(
+                id=uuid3(
+                    ic.uuid,
+                    ':'.join(['dataset', dataset.identifier or '', 'category-combination', combination_spec.id]),
+                ),
+                identifier=combination_spec.id,
+                categories=categories,
+            )
+        )
+    domain = DatasetCategoryDomain(mode=spec.mode, combinations=combinations)
+    previous = declarations.get(schema.pk)
+    if previous is not None and previous[1] != domain:
+        raise ValueError(
+            f"datasets '{previous[0]}' and '{dataset.identifier}' share a schema but declare conflicting category domains"
+        )
+    declarations[schema.pk] = (dataset.identifier or str(dataset.uuid), domain)
+    if schema.category_domain == domain:
+        return False
+    schema.category_domain = domain
+    schema.save(update_fields=['category_domain'])
+    return True
 
 
 def _apply_declared_metric_rules(metric: DatasetMetric, declared: list[ValidationRule]) -> bool:

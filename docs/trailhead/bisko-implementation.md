@@ -390,6 +390,7 @@ DataEvidence
   data_point -> DataPoint | null
   kind: observed | estimated | explicit_zero | provider_default
   source_classification
+  coverage_extent: scope_wide | partial | unknown
   quality: DataQualityAssessment | null
   supersedes -> DataEvidence | null
   assessed_at / assessed_by
@@ -404,6 +405,13 @@ check constraint for that local invariant.
 `municipal_primary` or `national_provider`. It describes the contextual role
 of the evidence, not an immutable property of the cited publication. The
 profile compiler validates it against the profile vocabulary.
+
+`coverage_extent=scope_wide` means that the evidence covers the entire scope
+being assessed, whether that scope is a municipality, state, country,
+organisation, or another modelled entity. It does not require the values to be
+stored as one aggregate total: a sector breakdown may still carry scope-wide
+evidence. `partial` and `unknown` must not silently satisfy a requirement for
+scope-wide coverage.
 
 Quality is typed metadata:
 
@@ -596,6 +604,8 @@ certification_profiles:
       - explicit_zero
       source_types:
       - municipal_primary
+      coverage_extent:
+      - scope_wide
       quality:
       - A
 

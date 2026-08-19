@@ -63,20 +63,129 @@ datasets:
 # BISKO balance is here, and nothing else is.
 - id: bisko/final_energy                      # stationary final energy by sector and carrier
   is_editable: true
+  category_domain:
+    # Open for now: these are the combinations used by the completeness rule, not yet an
+    # exhaustive catalogue of every meaningful optional BISKO carrier. Stable identifiers let
+    # validation findings point at the dataset cells directly instead of at a diagnostic node.
+    mode: open
+    combinations:
+    - {id: private_households_electricity, categories: {sector: private_households, energy_carrier: electricity}}
+    - {id: private_households_natural_gas, categories: {sector: private_households, energy_carrier: natural_gas}}
+    - {id: private_households_district_heating, categories: {sector: private_households, energy_carrier: district_heating}}
+    - {id: private_households_heating_oil, categories: {sector: private_households, energy_carrier: heating_oil}}
+    - {id: private_households_biomass, categories: {sector: private_households, energy_carrier: biomass}}
+    - {id: private_households_solar_thermal, categories: {sector: private_households, energy_carrier: solar_thermal}}
+    - {id: private_households_environmental_heat, categories: {sector: private_households, energy_carrier: environmental_heat}}
+    - {id: commerce_trade_services_electricity, categories: {sector: commerce_trade_services, energy_carrier: electricity}}
+    - {id: commerce_trade_services_natural_gas, categories: {sector: commerce_trade_services, energy_carrier: natural_gas}}
+    - {id: commerce_trade_services_district_heating, categories: {sector: commerce_trade_services, energy_carrier: district_heating}}
+    - {id: commerce_trade_services_heating_oil, categories: {sector: commerce_trade_services, energy_carrier: heating_oil}}
+    - {id: commerce_trade_services_biomass, categories: {sector: commerce_trade_services, energy_carrier: biomass}}
+    - {id: commerce_trade_services_solar_thermal, categories: {sector: commerce_trade_services, energy_carrier: solar_thermal}}
+    - {id: commerce_trade_services_environmental_heat, categories: {sector: commerce_trade_services, energy_carrier: environmental_heat}}
+    - {id: industry_electricity, categories: {sector: industry, energy_carrier: electricity}}
+    - {id: industry_natural_gas, categories: {sector: industry, energy_carrier: natural_gas}}
+    - {id: industry_district_heating, categories: {sector: industry, energy_carrier: district_heating}}
+    - {id: industry_heating_oil, categories: {sector: industry, energy_carrier: heating_oil}}
+    - {id: industry_biomass, categories: {sector: industry, energy_carrier: biomass}}
+    - {id: industry_solar_thermal, categories: {sector: industry, energy_carrier: solar_thermal}}
+    - {id: industry_environmental_heat, categories: {sector: industry, energy_carrier: environmental_heat}}
+    - {id: municipal_facilities_electricity, categories: {sector: municipal_facilities, energy_carrier: electricity}}
+    - {id: municipal_facilities_natural_gas, categories: {sector: municipal_facilities, energy_carrier: natural_gas}}
+    - {id: municipal_facilities_district_heating, categories: {sector: municipal_facilities, energy_carrier: district_heating}}
+    - {id: municipal_facilities_heating_oil, categories: {sector: municipal_facilities, energy_carrier: heating_oil}}
+    - {id: municipal_facilities_biomass, categories: {sector: municipal_facilities, energy_carrier: biomass}}
+    - {id: municipal_facilities_solar_thermal, categories: {sector: municipal_facilities, energy_carrier: solar_thermal}}
+    - {id: municipal_facilities_environmental_heat, categories: {sector: municipal_facilities, energy_carrier: environmental_heat}}
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
+    - kind: required_combinations
+      enforcement: block_publish
+      groups:
+      - id: electricity
+        combinations: [private_households_electricity, commerce_trade_services_electricity,
+          industry_electricity, municipal_facilities_electricity]
+      - id: natural_gas
+        combinations: [private_households_natural_gas, commerce_trade_services_natural_gas,
+          industry_natural_gas, municipal_facilities_natural_gas]
+      - id: district_heating
+        combinations: [private_households_district_heating,
+          commerce_trade_services_district_heating, industry_district_heating,
+          municipal_facilities_district_heating]
+      - id: heating_oil
+        combinations: [private_households_heating_oil, commerce_trade_services_heating_oil,
+          industry_heating_oil, municipal_facilities_heating_oil]
+      - id: biomass
+        combinations: [private_households_biomass, commerce_trade_services_biomass,
+          industry_biomass, municipal_facilities_biomass]
+      - id: solar_thermal
+        combinations: [private_households_solar_thermal, commerce_trade_services_solar_thermal,
+          industry_solar_thermal, municipal_facilities_solar_thermal]
+      - id: environmental_heat
+        combinations: [private_households_environmental_heat,
+          commerce_trade_services_environmental_heat, industry_environmental_heat,
+          municipal_facilities_environmental_heat]
+  - id: quality
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: bisko/district_heating_energy_use        # local plant fuel input and heat output
   is_editable: true
+  metrics:
+  - id: default
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
 - id: bisko/chp_parameters                     # plant electricity fraction and supply temperature
   is_editable: true
+  metrics:
+  - id: electricity_fraction
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
+  - id: t_supply
+    validation_rules:
+    # BISKO fixes the return temperature at 283 K; the supply must be strictly warmer for
+    # the exergetic allocation to be defined.
+    - {kind: value_range, enforcement: block_edit, min: 283, exclusive_min: true}
 - id: bisko/historical_emissions               # the city's own reported inventory
   is_editable: true
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
+  - id: quality
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: bisko/vehicle_kilometers                 # own Fahrleistung, used when use_own_mileage
   is_editable: true
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
 - id: bisko/vehicle_energy                     # own transport energy, used when not use_mileage
   is_editable: true
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
+  - id: quality
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: bisko/passenger_kilometers               # own Verkehrsleistung (pkm); not in the balance
   is_editable: true
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
+  - id: quality
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: bisko/other_transport_energy_own         # own rail, waterway and aviation energy
   is_editable: true
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
 
 # --- Local factor alternatives: editable by design, and non-conformant when selected -------
 # Each is the `local` port of an EF node whose `national` port reads the locked BISKO table
@@ -86,12 +195,28 @@ datasets:
 # alternative exists for analysis, but a result using it is not labelled BISKO-conform.
 - id: bisko/end_energy_emission_factors
   is_editable: true
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
 - id: bisko/electricity_production_emission_factors
   is_editable: true
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
 - id: bisko/emission_factors_without_fuel_data
   is_editable: true
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
 - id: bisko/emission_factors_for_district_heating_by_generic_fuel
   is_editable: true
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
 
 dimensions:
 

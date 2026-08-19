@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from markdown_it import MarkdownIt
 
+from kausal_common.datasets.category_domain import DatasetCategoryDomain
 from kausal_common.i18n.pydantic import (
     I18nBaseModel,
     TranslatedString,
@@ -234,6 +235,7 @@ class DatasetSnapshot(ModelSnapshot):
     dimensions: list[str] = Field(default_factory=list)
     dimension_columns: dict[str, str] = Field(default_factory=dict)
     metrics: list[DatasetMetricSnapshot] = Field(default_factory=list)
+    category_domain: DatasetCategoryDomain = Field(default_factory=DatasetCategoryDomain)
     data: dict[str, Any] | None = None
     data_sources: list[DataSourceSnapshot] = Field(default_factory=list)
     source_references: list[SourceReferenceSnapshot] = Field(default_factory=list)
@@ -304,6 +306,7 @@ class DatasetSnapshot(ModelSnapshot):
             dimensions=dimensions,
             dimension_columns=dimension_columns,
             metrics=metrics,
+            category_domain=schema.category_domain if schema is not None else DatasetCategoryDomain(),
             data=data,
             data_sources=data_sources,
             source_references=source_references,
@@ -1206,6 +1209,7 @@ def dataset_meta_from_model(
         is_external_placeholder=dataset.is_external_placeholder,
         external_ref=dataset.external_ref,
         revision_id=pinned_revision_id if pinned_revision_id is not None else dataset.latest_revision_id,
+        category_domain=schema.category_domain,
     )
 
 
@@ -1394,6 +1398,7 @@ def _import_dataset(
     schema_fields: dict[str, Any] = {
         'time_resolution': ds_snapshot.time_resolution,
         'is_editable': ds_snapshot.is_editable,
+        'category_domain': ds_snapshot.category_domain,
     }
     schema_i18n: dict[str, str] = {}
     _apply_translated(schema_fields, schema_i18n, ds_snapshot.name, 'name', primary_lang)

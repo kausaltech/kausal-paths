@@ -20,8 +20,10 @@ from kausal_common.strawberry.permissions import UserPermissionsMixin
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from datasets.validation_rules import (
+    AllowedCombinationsRule,
     DimensionSumRule,
     NoGapsRule,
+    RequiredCombinationsRule,
     ValidationRuleGQLInterface,
     ValueRangeRule,
     rule_to_gql,
@@ -35,6 +37,8 @@ from users.schema import UserType
 register_strawberry_type(ValueRangeRule.ObjectType)
 register_strawberry_type(DimensionSumRule.ObjectType)
 register_strawberry_type(NoGapsRule.ObjectType)
+register_strawberry_type(RequiredCombinationsRule.ObjectType)
+register_strawberry_type(AllowedCombinationsRule.ObjectType)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -91,6 +95,25 @@ class DatasetDimensionType:
             name=dim.name_i18n or str(dim.uuid),
             categories=cats,
         )
+
+
+@sb.type(name='DatasetCategoryCoordinate')
+class DatasetCategoryCoordinateType:
+    dimension_id: UUID
+    category_id: UUID
+
+
+@sb.type(name='DatasetCategoryCombination')
+class DatasetCategoryCombinationType:
+    id: UUID
+    identifier: str
+    coordinates: list[DatasetCategoryCoordinateType]
+
+
+@sb.type(name='DatasetCategoryDomain')
+class DatasetCategoryDomainType:
+    mode: str
+    combinations: list[DatasetCategoryCombinationType]
 
 
 @sb.type(name='DatasetMetricValidationRule')
@@ -379,6 +402,27 @@ class DatasetType(UserPermissionsMixin):
             DatasetDimensionType.from_schema_dimension(sd)
             for sd in root._model.schema.dimensions.select_related('dimension').prefetch_related('dimension__categories')
         ]
+
+    @sb.field(description='Meaningful category combinations declared by this dataset schema.')
+    @staticmethod
+    def category_domain(root: 'DatasetType') -> DatasetCategoryDomainType:
+        if root._model is None or root._model.schema is None:
+            return DatasetCategoryDomainType(mode='open', combinations=[])
+        domain = root._model.schema.category_domain
+        return DatasetCategoryDomainType(
+            mode=domain.mode,
+            combinations=[
+                DatasetCategoryCombinationType(
+                    id=combination.id,
+                    identifier=combination.identifier,
+                    coordinates=[
+                        DatasetCategoryCoordinateType(dimension_id=dimension_id, category_id=category_id)
+                        for dimension_id, category_id in combination.categories.items()
+                    ],
+                )
+                for combination in domain.combinations
+            ],
+        )
 
     @sb.field
     @staticmethod

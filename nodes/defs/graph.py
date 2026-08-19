@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import ConfigDict, Field, PrivateAttr
 
+from kausal_common.datasets.category_domain import DatasetCategoryDomain, DatasetCategoryDomainSpec
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
 from datasets.validation_rules import ValidationRule
@@ -80,6 +81,8 @@ class DatasetMeta(FrozenGraphModel):
     is_external_placeholder: bool = False
     external_ref: dict[str, Any] | None = None
     revision_id: int | None = None
+    category_domain: DatasetCategoryDomain = Field(default_factory=DatasetCategoryDomain)
+    category_domain_spec: DatasetCategoryDomainSpec | None = None
 
     @cached_property
     def metric_by_id(self) -> dict[UUID, DatasetMetricMeta]:

@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid3
 
+from kausal_common.datasets.category_domain import DatasetCategoryDomainSpec
 from kausal_common.i18n.pydantic import TranslatedString
 
 from paths.identifiers import identifier_or_none
@@ -312,8 +313,6 @@ class InstanceConfigParser:
         persisted — sync matches datasets and metrics by identifier against
         the rows placeholder sync has minted.
         """
-        from pydantic import ValidationError as PydanticValidationError
-
         entries: list[DatasetMeta] = []
         seen: set[str] = set()
         for ds_conf in self.config.get('datasets', []):
@@ -326,24 +325,11 @@ class InstanceConfigParser:
             is_editable = ds_conf.get('is_editable')
             if 'is_editable' in ds_conf and not isinstance(is_editable, bool):
                 raise InstanceParseError(f"Dataset '{ds_id}' field 'is_editable' must be a boolean")
-            metrics: list[DatasetMetricMeta] = []
-            for m_conf in ds_conf.get('metrics', []):
-                metric_id = m_conf.get('id')
-                if not metric_id:
-                    raise InstanceParseError(f"Metric entry of dataset '{ds_id}' is missing an 'id'")
-                try:
-                    rules = rule_list_adapter.validate_python(m_conf.get('validation_rules', []))
-                except PydanticValidationError as error:
-                    raise InstanceParseError(
-                        f"Invalid validation rule on dataset '{ds_id}' metric '{metric_id}': {error}",
-                    ) from error
-                metrics.append(
-                    DatasetMetricMeta(
-                        id=self._uuid_from_identifiers(['dataset', ds_id, 'metric', metric_id]),
-                        identifier=metric_id,
-                        validation_rules=tuple(rules),
-                    )
-                )
+            domain_spec = self._parse_category_domain_spec(ds_id, ds_conf)
+            combination_ids = {combination.id for combination in domain_spec.combinations} if domain_spec else set()
+            metrics = [
+                self._parse_dataset_metric(ds_id, combination_ids, metric_config) for metric_config in ds_conf.get('metrics', [])
+            ]
             entries.append(
                 DatasetMeta(
                     id=self._uuid_from_identifiers(['dataset', ds_id]),
@@ -351,9 +337,102 @@ class InstanceConfigParser:
                     schema_id=self._uuid_from_identifiers(['dataset', ds_id, 'schema']),
                     is_editable=is_editable,
                     metrics=tuple(metrics),
+                    category_domain_spec=domain_spec,
                 )
             )
         return entries
+
+    def _parse_category_domain_spec(
+        self,
+        dataset_id: str,
+        dataset_config: dict[str, Any],
+    ) -> DatasetCategoryDomainSpec | None:
+        if 'category_domain' not in dataset_config:
+            return None
+        from pydantic import ValidationError as PydanticValidationError
+
+        try:
+            domain_spec = DatasetCategoryDomainSpec.model_validate(dataset_config['category_domain'])
+        except PydanticValidationError as error:
+            raise InstanceParseError(f"Invalid category domain on dataset '{dataset_id}': {error}") from error
+        for combination in domain_spec.combinations:
+            for dimension_id, category_id in combination.categories.items():
+                dimension = self.dimensions.get(dimension_id)
+                if dimension is None:
+                    raise InstanceParseError(
+                        f"Category combination '{combination.id}' on dataset '{dataset_id}' "
+                        f"references unknown dimension '{dimension_id}'"
+                    )
+                if category_id not in dimension.get_cat_ids():
+                    raise InstanceParseError(
+                        f"Category combination '{combination.id}' on dataset '{dataset_id}' "
+                        f"references unknown category '{dimension_id}:{category_id}'"
+                    )
+        return domain_spec
+
+    def _parse_dataset_metric(
+        self,
+        dataset_id: str,
+        combination_ids: set[str],
+        metric_config: dict[str, Any],
+    ) -> DatasetMetricMeta:
+        from pydantic import ValidationError as PydanticValidationError
+
+        metric_id = metric_config.get('id')
+        if not metric_id:
+            raise InstanceParseError(f"Metric entry of dataset '{dataset_id}' is missing an 'id'")
+        try:
+            authored_rules = self._resolve_category_combination_rule_refs(
+                dataset_id,
+                combination_ids,
+                metric_config.get('validation_rules', []),
+            )
+            rules = rule_list_adapter.validate_python(authored_rules)
+        except PydanticValidationError as error:
+            raise InstanceParseError(
+                f"Invalid validation rule on dataset '{dataset_id}' metric '{metric_id}': {error}",
+            ) from error
+        return DatasetMetricMeta(
+            id=self._uuid_from_identifiers(['dataset', dataset_id, 'metric', metric_id]),
+            identifier=metric_id,
+            validation_rules=tuple(rules),
+        )
+
+    def _category_combination_uuid(self, dataset_id: str, combination_id: str) -> UUID:
+        return self._uuid_from_identifiers(['dataset', dataset_id, 'category-combination', combination_id])
+
+    def _resolve_category_combination_rule_refs(
+        self,
+        dataset_id: str,
+        combination_ids: set[str],
+        authored_rules: object,
+    ) -> object:
+        if not isinstance(authored_rules, list):
+            return authored_rules
+        resolved: list[object] = []
+        for authored_rule in authored_rules:
+            if not isinstance(authored_rule, dict) or authored_rule.get('kind') != 'required_combinations':
+                resolved.append(authored_rule)
+                continue
+            rule = dict(authored_rule)
+            groups: list[object] = []
+            for authored_group in rule.get('groups', []):
+                if not isinstance(authored_group, dict):
+                    groups.append(authored_group)
+                    continue
+                group = dict(authored_group)
+                refs = group.get('combinations', [])
+                unknown = [ref for ref in refs if ref not in combination_ids]
+                if unknown:
+                    raise InstanceParseError(
+                        f"Required-combinations rule on dataset '{dataset_id}' references "
+                        f'unknown combination(s): {", ".join(unknown)}'
+                    )
+                group['combinations'] = [self._category_combination_uuid(dataset_id, ref) for ref in refs]
+                groups.append(group)
+            rule['groups'] = groups
+            resolved.append(rule)
+        return resolved
 
     def _parse_global_params(self) -> None:
         from params.discover import discover_global_parameters

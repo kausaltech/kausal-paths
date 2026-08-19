@@ -74,7 +74,7 @@ def test_yaml_short_description_is_rendered_at_snapshot_boundary():
 
 
 def test_datasets_key_parses_into_typed_catalog_entries():
-    from datasets.validation_rules import NoGapsRule, ValueRangeRule
+    from datasets.validation_rules import NoGapsRule, RequiredCombinationsRule, ValueRangeRule
     from nodes.instance_parser import InstanceParseError
 
     config = {
@@ -85,16 +85,38 @@ def test_datasets_key_parses_into_typed_catalog_entries():
         'target_year': 2030,
         'reference_year': 2020,
         'minimum_historical_year': 2010,
+        'dimensions': [
+            {
+                'id': 'region',
+                'label_en': 'Region',
+                'categories': [
+                    {'id': 'a', 'label_en': 'A'},
+                    {'id': 'b', 'label_en': 'B'},
+                ],
+            },
+        ],
         'datasets': [
             {
                 'id': 'test/energy',
                 'is_editable': False,
+                'category_domain': {
+                    'mode': 'open',
+                    'combinations': [
+                        {'id': 'region_a', 'categories': {'region': 'a'}},
+                        {'id': 'region_b', 'categories': {'region': 'b'}},
+                    ],
+                },
                 'metrics': [
                     {
                         'id': 'amount',
                         'validation_rules': [
                             {'kind': 'no_gaps', 'enforcement': 'block_publish'},
                             {'kind': 'value_range', 'enforcement': 'block_edit', 'min': 0},
+                            {
+                                'kind': 'required_combinations',
+                                'enforcement': 'block_publish',
+                                'groups': [{'id': 'region', 'combinations': ['region_a', 'region_b']}],
+                            },
                         ],
                     },
                 ],
@@ -110,10 +132,16 @@ def test_datasets_key_parses_into_typed_catalog_entries():
     assert ds_meta.is_editable is False
     (metric_meta,) = ds_meta.metrics
     assert metric_meta.identifier == 'amount'
-    no_gaps, value_range = metric_meta.validation_rules
+    no_gaps, value_range, required = metric_meta.validation_rules
     assert isinstance(no_gaps, NoGapsRule)
     assert isinstance(value_range, ValueRangeRule)
     assert value_range.min == 0.0
+    assert isinstance(required, RequiredCombinationsRule)
+    assert required.groups[0].combinations == [
+        uuid3(instance_uuid, 'dataset:test/energy:category-combination:region_a'),
+        uuid3(instance_uuid, 'dataset:test/energy:category-combination:region_b'),
+    ]
+    assert ds_meta.category_domain_spec is not None
 
     # Catalog UUIDs are parse-invented but deterministic per instance.
     again = parse_instance_snapshot(config, instance_uuid=instance_uuid)
