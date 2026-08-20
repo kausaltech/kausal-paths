@@ -811,7 +811,7 @@ nodes:
 
 - id: transport_emissions_helper
   is_editable: false
-  name_de: Verkehrsemissionen gesamt
+  name_de: Mobilität
   name_en: Transport emissions total
   type: simple.AdditiveNode
   quantity: emissions
