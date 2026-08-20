@@ -516,16 +516,15 @@ class DatasetType(UserPermissionsMixin):
             return []
         from datasets.validation import load_violations
         from nodes.dataset_materialization import ensure_dataset_materializations
-        from nodes.graphql.types.problems import DatasetValidationViolationType
+        from nodes.graphql.types.problems import DatasetValidationViolationType, build_coordinate_labels
 
         materializations = ensure_dataset_materializations([root._model])
         materialization = materializations.get(root._model.pk)
         if materialization is None:
             return []
-        return [
-            DatasetValidationViolationType.from_violation(violation)
-            for violation in load_violations(materialization.validation_violations)
-        ]
+        violations = load_violations(materialization.validation_violations)
+        labels = build_coordinate_labels(violations)
+        return [DatasetValidationViolationType.from_violation(violation, labels) for violation in violations]
 
     @sb.field(graphql_type=list[Annotated['DatasetPortType', sb.lazy('nodes.graphql.types.graph')]])
     @staticmethod
