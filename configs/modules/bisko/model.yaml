@@ -8,7 +8,7 @@
 # default, so that the set a city may edit is authoritative too.
 #
 # Dataset replacements remap these declarations together with the node bindings, so a city
-# swapping `bisko/final_energy` for `<city>/final_energy` carries the class with it. No
+# swapping `kommune/endenergieverbrauch` for `<city>/final_energy` carries the class with it. No
 # city currently replaces a locked dataset.
 datasets:
 
@@ -16,52 +16,52 @@ datasets:
 # Emission factors including equivalents and upstream chains, the consumption and fuel-share
 # tables behind the transport branch, and the data-quality thresholds. Protocol steps 3.2,
 # 4.3 and 6.2 require that tool users cannot change these.
-- id: bisko/endenergie_emissionsfaktoren      # stationary end-energy EFs incl. Bundesstrommix
+- id: de/emissionsfaktoren_endenergie      # stationary end-energy EFs incl. Bundesstrommix
   is_editable: false
-- id: bisko/emissionsfaktoren_fr_erzeugung    # generation EFs (power/heat plants)
+- id: de/emissionsfaktoren_erzeugung    # generation EFs (power/heat plants)
   is_editable: false
-- id: bisko/emissionsfaktoren_ohne_brennstoffinputinformationen  # EFs without fuel-input data
+- id: de/emissionsfaktoren_ohne_brennstoffinput  # EFs without fuel-input data
   is_editable: false
-- id: bisko/fernwarme_berwiegend              # method paper Table 5 district-heating variants
+- id: de/emissionsfaktoren_fernwaerme              # method paper Table 5 district-heating variants
   is_editable: false
-- id: bisko/emission_factor                   # transport fuel well-to-wheel EFs
+- id: de/emissionsfaktoren_verkehr                   # transport fuel well-to-wheel EFs
   is_editable: false
-- id: bisko/energy_factor                     # specific energy use per vehicle-km
+- id: de/energiefaktoren_verkehr                     # specific energy use per vehicle-km
   is_editable: false
-- id: bisko/energy_shares                     # road mileage split by fuel
+- id: de/energieanteile_verkehr                     # road mileage split by fuel
   is_editable: false
-- id: bisko/fraction_of_biodiesel             # biofuel share
+- id: de/biodieselanteil             # biofuel share
   is_editable: false
-- id: bisko/load_per_vehicle                  # occupancy / load factors
+- id: de/auslastung_fahrzeuge                  # occupancy / load factors
   is_editable: false
-- id: bisko/quality_criteria                  # Datenguete thresholds for criterion 1.3
+- id: de/datenguetekriterien                  # Datenguete thresholds for criterion 1.3
   is_editable: false
 
 # --- Provider defaults: immutable source snapshots a city may supersede, not edit ----------
 # A city supersedes these by supplying its own data for a given year: the own-data route wins
 # for every year it covers and the provider default serves the rest (`prefer_by_year`). The
 # provider record itself keeps its value and its provenance in every year.
-- id: bisko/gemeindefeine_fahrleistungen_strassenverkehr  # ifeu municipality-level road mileage
+- id: de/fahrleistung_strassenverkehr  # ifeu municipality-level road mileage
   is_editable: false
-- id: bisko/other_transport_energy            # ifeu rail, inland waterway and aviation energy
+- id: de/energieverbrauch_uebriger_verkehr            # ifeu rail, inland waterway and aviation energy
   is_editable: false
-- id: bisko/weather_correction                # DWD degree days; not part of the BISKO baseline
+- id: de/witterungsbereinigung                # DWD degree days; not part of the BISKO baseline
   is_editable: false
 
 # --- Conformity templates: the required-data register, machine-readable --------------------
 # These declare which combinations the presence gate demands. A city editing them could
 # make an incomplete balance report conformity, so they are locked like reference data.
-- id: bisko/required_categories
+- id: de/pflichtkategorien_endenergie
   is_editable: false
-- id: bisko/required_road_mileage_categories
+- id: de/pflichtkategorien_fahrleistung
   is_editable: false
-- id: bisko/required_other_transport_categories
+- id: de/pflichtkategorien_uebriger_verkehr
   is_editable: false
 
 # --- Municipal data: the city's own observations and declarations --------------------------
 # This is the editable surface of the model. Everything a city is asked to supply for a
 # BISKO balance is here, and nothing else is.
-- id: bisko/final_energy                      # stationary final energy by sector and carrier
+- id: kommune/endenergieverbrauch                      # stationary final energy by sector and carrier
   is_editable: true
   category_domain:
     # Open for now: these are the combinations used by the completeness rule, not yet an
@@ -150,13 +150,13 @@ datasets:
   - id: quality
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
-- id: bisko/district_heating_energy_use        # local plant fuel input and heat output
+- id: kommune/fernwaerme_energieeinsatz        # local plant fuel input and heat output
   is_editable: true
   metrics:
   - id: default
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
-- id: bisko/chp_parameters                     # plant electricity fraction and supply temperature
+- id: kommune/kwk_anlagenparameter                     # plant electricity fraction and supply temperature
   is_editable: true
   metrics:
   - id: electricity_fraction
@@ -167,7 +167,7 @@ datasets:
     # BISKO fixes the return temperature at 283 K; the supply must be strictly warmer for
     # the exergetic allocation to be defined.
     - {kind: value_range, enforcement: block_edit, min: 283, exclusive_min: true}
-- id: bisko/historical_emissions               # the city's own reported inventory
+- id: kommune/gemeldete_emissionen               # the city's own reported inventory
   is_editable: true
   metrics:
   - id: Value
@@ -176,22 +176,13 @@ datasets:
   - id: quality
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
-- id: bisko/vehicle_kilometers                 # own Fahrleistung; wins in the years it covers
+- id: kommune/fahrleistung_strassenverkehr                 # own Fahrleistung; wins in the years it covers
   is_editable: true
   metrics:
   - id: Value
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
-- id: bisko/vehicle_energy                     # own transport energy, used when not use_mileage
-  is_editable: true
-  metrics:
-  - id: Value
-    validation_rules:
-    - {kind: value_range, enforcement: block_edit, min: 0}
-  - id: quality
-    validation_rules:
-    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
-- id: bisko/passenger_kilometers               # own Verkehrsleistung (pkm); not in the balance
+- id: de/energieverbrauch_strassenverkehr                     # own transport energy, used when not use_mileage
   is_editable: true
   metrics:
   - id: Value
@@ -200,7 +191,16 @@ datasets:
   - id: quality
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
-- id: bisko/other_transport_energy_own         # own rail, waterway and aviation energy
+- id: kommune/verkehrsleistung_personen               # own Verkehrsleistung (pkm); not in the balance
+  is_editable: true
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
+  - id: quality
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
+- id: kommune/energieverbrauch_uebriger_verkehr         # own rail, waterway and aviation energy
   is_editable: true
   metrics:
   - id: Value
@@ -213,25 +213,25 @@ datasets:
 # parameter is switched off, and `has_national_electricity_emission_factors` then drops
 # `is_bisko_compliant` to 0. That is the mechanism protocol steps 3.2/4.3/6.2 ask for: the
 # alternative exists for analysis, but a result using it is not labelled BISKO-conform.
-- id: bisko/end_energy_emission_factors
+- id: kommune/emissionsfaktoren_endenergie
   is_editable: true
   metrics:
   - id: Value
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
-- id: bisko/electricity_production_emission_factors
+- id: kommune/emissionsfaktoren_erzeugung
   is_editable: true
   metrics:
   - id: Value
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
-- id: bisko/emission_factors_without_fuel_data
+- id: kommune/emissionsfaktoren_ohne_brennstoffinput
   is_editable: true
   metrics:
   - id: Value
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
-- id: bisko/emission_factors_for_district_heating_by_generic_fuel
+- id: kommune/emissionsfaktoren_fernwaerme
   is_editable: true
   metrics:
   - id: Value
@@ -347,8 +347,8 @@ dimensions:
     label_en: CNG fossil
     label_de: CNG fossil
     # 'CNG' is how the ifeu transport workbooks label this fuel in every sheet. Without the
-    # alias the label did not resolve consistently: bisko/emission_factor stored it as
-    # cng_fossil while bisko/energy_factor and bisko/energy_shares stored it as natural_gas,
+    # alias the label did not resolve consistently: de/emissionsfaktoren_verkehr stored it as
+    # cng_fossil while de/energiefaktoren_verkehr and de/energieanteile_verkehr stored it as natural_gas,
     # so the multiply in transport_emissions dropped all CNG energy.
     aliases: [CNG, CNG_fossil, CNGfoss]
     color: '#154360'
@@ -1097,7 +1097,7 @@ nodes:
   input_dimensions: [sector]
   output_dimensions: [sector]
   input_datasets:
-  - id: bisko/weather_correction  # comes from Potsdam --> change to city/... as soon as you got data.csv
+  - id: de/witterungsbereinigung  # comes from Potsdam --> change to city/... as soon as you got data.csv
   params:
   - id: operations
     value: get_single_dataset,do_correction
@@ -1129,7 +1129,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: bisko/final_energy
+  - id: kommune/endenergieverbrauch
     # These series start after the frame does; GenericNode back-filled their first
     # value into the earlier years. Keeping that, but saying so.
     backfill: true
@@ -1188,7 +1188,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: bisko/final_energy
+  - id: kommune/endenergieverbrauch
     column: Value
     filters:
     - column: energy_carrier
@@ -1262,7 +1262,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: bisko/final_energy  # is automatically created by upload_new_dataset.py when uploading to DVC
+  - id: kommune/endenergieverbrauch  # is automatically created by upload_new_dataset.py when uploading to DVC
     # These series start after the frame does; GenericNode back-filled their first
     # value into the earlier years. Keeping that, but saying so.
     backfill: true
@@ -1375,7 +1375,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: bisko/historical_emissions
+  - id: kommune/gemeldete_emissionen
     # These series start after the frame does; GenericNode back-filled their first
     # value into the earlier years. Keeping that, but saying so.
     backfill: true
@@ -1451,7 +1451,7 @@ nodes:
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
-  - id: bisko/district_heating_energy_use
+  - id: kommune/fernwaerme_energieeinsatz
     extend: true  # GenericNode extended its dataset; keep that explicit
     forecast_from: 2024
     filters:
@@ -1468,10 +1468,10 @@ nodes:
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
-  - id: bisko/endenergie_emissionsfaktoren
+  - id: de/emissionsfaktoren_endenergie
     extend: true  # GenericNode extended its dataset; keep that explicit
     # The left operand of the multiplication, not an addend: it carries the node's own unit,
-    # so the unit rule alone would add it. (Same as bisko/final_energy below.)
+    # so the unit rule alone would add it. (Same as kommune/endenergieverbrauch below.)
     tags: [non_additive]
     filters:
     - column: upstream_included
@@ -1668,12 +1668,12 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: bisko/endenergie_emissionsfaktoren  # standard ifeu dataset
+  - id: de/emissionsfaktoren_endenergie  # standard ifeu dataset
     tags: [national]
     filters:
     - column: per_what_energy
     - column: upstream_included
-  - id: bisko/end_energy_emission_factors
+  - id: kommune/emissionsfaktoren_endenergie
     tags: [local]
   params:
   - id: formula
@@ -1713,11 +1713,11 @@ nodes:
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
-  - id: bisko/emissionsfaktoren_fr_erzeugung  # ifeu dataset, name of tab in excel, rename at some point, does not filter by city here
+  - id: de/emissionsfaktoren_erzeugung  # ifeu dataset, name of tab in excel, rename at some point, does not filter by city here
     filters:
     - column: upstream_included
     tags: [national]
-  - id: bisko/electricity_production_emission_factors  # dataset from another city (Ddorf or Potsdam), change to city-specific data IF NEEDED
+  - id: kommune/emissionsfaktoren_erzeugung  # dataset from another city (Ddorf or Potsdam), change to city-specific data IF NEEDED
     tags: [local]
   params:
   - id: formula
@@ -1766,11 +1766,11 @@ nodes:
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
-  - id: bisko/emissionsfaktoren_ohne_brennstoffinputinformationen # ifeu dataset, national value (not separated for municipalities)
+  - id: de/emissionsfaktoren_ohne_brennstoffinput # ifeu dataset, national value (not separated for municipalities)
     filters:
     - column: upstream_included
     tags: [national]
-  - id: bisko/emission_factors_without_fuel_data
+  - id: kommune/emissionsfaktoren_ohne_brennstoffinput
     tags: [local]
   params:
   - id: formula
@@ -1814,14 +1814,14 @@ nodes:
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
-  - id: bisko/fernwarme_berwiegend # ifeu
+  - id: de/emissionsfaktoren_fernwaerme # ifeu
     # No upstream_included filter: the rebuilt dataset (2026-08-17) carries only the
     # exergetically allocated Table 5 values, so there is no with/without-Vorketten column left
     # to drop. The old binding dropped it here. This only surfaced on the yaml-sourced cities --
     # `bisko` reads a DB copy, which tolerates a filter naming a column it does not have, so the
     # template kept working while every city failed with '"upstream_included" not found'.
     tags: [national]
-  - id: bisko/emission_factors_for_district_heating_by_generic_fuel  # change to city-speific later IF NEEDED
+  - id: kommune/emissionsfaktoren_fernwaerme  # change to city-speific later IF NEEDED
     tags: [local]
   params:
   - id: formula
@@ -1875,7 +1875,7 @@ nodes:
   # and city admins can edit the values in the admin UI. Series are interpolated over internal
   # gaps and held constant outside the years they cover.
   input_datasets:
-  - id: bisko/chp_parameters   # metric columns: electricity_fraction (dimensionless), t_supply (K)
+  - id: kommune/kwk_anlagenparameter   # metric columns: electricity_fraction (dimensionless), t_supply (K)
   # Either input may instead come from a node that already exists, by tagging the edge with the
   # input's name — useful where the electricity fraction is derivable rather than reported:
   #   input_nodes:
@@ -1904,7 +1904,7 @@ nodes:
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_datasets:
-  - id: bisko/passenger_kilometers
+  - id: kommune/verkehrsleistung_personen
     column: Value
     tags: [mileage]
     filters:
@@ -1950,7 +1950,7 @@ nodes:
   input_dimensions: [vehicle_type, road_type]
   output_dimensions: [vehicle_type, road_type]
   input_datasets:
-  - id: bisko/vehicle_kilometers
+  - id: kommune/fahrleistung_strassenverkehr
     column: Value
     # empty_to_zero: the own-mileage template is empty until a city fills it, and this node has
     # to produce a frame with dimensions either way. The zeros do not decide anything -- they
@@ -1971,7 +1971,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: bisko/vehicle_energy
+  - id: de/energieverbrauch_strassenverkehr
     column: Value
     tags: [energy]
   params:
@@ -2006,7 +2006,7 @@ nodes:
   input_dimensions: [vehicle_type, road_type]
   output_dimensions: [vehicle_type, road_type]
   input_datasets:
-  - id: bisko/gemeindefeine_fahrleistungen_strassenverkehr
+  - id: de/fahrleistung_strassenverkehr
     tags: [mileage]
     column: mileage
     filters:
@@ -2270,7 +2270,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: bisko/other_transport_energy_own
+  - id: kommune/energieverbrauch_uebriger_verkehr
     column: Value
     # empty_to_zero, for the same reason as vehicle_kilometers_own: the template ships blank
     # cells and this node must still produce a dimensioned frame. Coverage is read from
@@ -2300,7 +2300,7 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: 
-      bisko/other_transport_energy
+      de/energieverbrauch_uebriger_verkehr
     tags: [energy]
     column: energy
     filters:
@@ -2411,7 +2411,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, road_type]
   output_dimensions: [vehicle_type, energy_carrier, road_type]
   input_datasets:
-  - id: bisko/energy_factor # kWh/vkm, usable for every city (BISKO Standard)
+  - id: de/energiefaktoren_verkehr # kWh/vkm, usable for every city (BISKO Standard)
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: Value
 
@@ -2425,7 +2425,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, road_type]
   output_dimensions: [vehicle_type, energy_carrier, road_type]
   input_datasets:
-  - id: bisko/energy_shares # sums up to 100% across energy carrier dim, usbale for every city (BISKO Standard)
+  - id: de/energieanteile_verkehr # sums up to 100% across energy carrier dim, usbale for every city (BISKO Standard)
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: Value
 
@@ -2439,7 +2439,7 @@ nodes:
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_datasets:
-  - id: bisko/load_per_vehicle # BISKO-Standard
+  - id: de/auslastung_fahrzeuge # BISKO-Standard
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: Passengers
 
@@ -2628,7 +2628,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: bisko/emission_factor # must use the well-to-wheel EF for BISKO-conformity. Some cities want to know also well-to-tank, so will be implemented at some point.
+  - id: de/emissionsfaktoren_verkehr # must use the well-to-wheel EF for BISKO-conformity. Some cities want to know also well-to-tank, so will be implemented at some point.
     # These series start after the frame does; GenericNode back-filled their first
     # value into the earlier years. Keeping that, but saying so.
     backfill: true
@@ -2636,7 +2636,7 @@ nodes:
     column: Well-to-wheel
   input_nodes:
   # BISKO criterion 4.2: the Bundesstrommix must be applied to electrically driven
-  # transport (electric cars, rail, tram). bisko/emission_factor has no electricity row,
+  # transport (electric cars, rail, tram). de/emissionsfaktoren_verkehr has no electricity row,
   # so without this input the multiply in transport_emissions dropped every kWh of
   # driving electricity and electric transport came out emission-free. The category is
   # disjoint from the fuel categories in the dataset, so the 'add' operation unions them.
@@ -2653,7 +2653,7 @@ nodes:
   quantity: fraction
   unit: '%'
   input_datasets:
-  - id: bisko/fraction_of_biodiesel
+  - id: de/biodieselanteil
     extend: true  # GenericNode extended its dataset; keep that explicit
 
 - id: transport_emissions
@@ -2997,7 +2997,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: bisko/quality_criteria
+  - id: de/datenguetekriterien
   params:
     operations: get_single_dataset,extend_all
 
@@ -3147,10 +3147,10 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   # Only the energy column. DataAvailabilityNode turns every metric column of its dataset into a
-  # flag column of its own, and bisko/final_energy also carries 'quality' -- without this the node
+  # flag column of its own, and kommune/endenergieverbrauch also carries 'quality' -- without this the node
   # would emit two metrics and the downstream multiply would refuse them. Whether a data-quality
   # grade was entered is BISKO criterion 7.1 and deserves its own node, not a second column here.
-  - id: bisko/final_energy
+  - id: kommune/endenergieverbrauch
     column: Value
     filters:
     # The four BISKO consumption sectors, named rather than taken as-is: a city's own energy
@@ -3164,7 +3164,7 @@ nodes:
   # it disappears, and the downstream categories-filter then quietly multiplies over one term
   # fewer and reports conformity. The requirement lives in DVC because the data it judges is
   # editable in the admin UI and the requirement must not be.
-  - id: bisko/required_categories
+  - id: de/pflichtkategorien_endenergie
     tags: [template]
 
 - id: other_transport_energy_own_availability
@@ -3173,13 +3173,13 @@ nodes:
   name_de: Datenverfügbarkeit der eigenen Schienen-, Schiffs- und Flugverkehrsdaten
   description_en: 'Which of the required rail, waterway and aviation cells the city has actually
     filled in: 1 where a value exists, 0 where it does not. The required combinations come from
-    bisko/required_other_transport_categories rather than from the data, so a mode nobody has
+    de/pflichtkategorien_uebriger_verkehr rather than from the data, so a mode nobody has
     entered reads 0 instead of vanishing from the check.
 
     '
   description_de: 'Welche der erforderlichen Zellen für Schienen-, Schiffs- und Flugverkehr die
     Kommune tatsächlich ausgefüllt hat: 1, wo ein Wert vorliegt, 0 sonst. Die erforderlichen
-    Kombinationen stammen aus bisko/required_other_transport_categories und nicht aus den Daten,
+    Kombinationen stammen aus de/pflichtkategorien_uebriger_verkehr und nicht aus den Daten,
     damit ein nicht eingetragener Verkehrsträger als 0 erscheint und nicht aus der Prüfung fällt.
 
     '
@@ -3189,9 +3189,9 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: bisko/other_transport_energy_own
+  - id: kommune/energieverbrauch_uebriger_verkehr
     column: Value
-  - id: bisko/required_other_transport_categories
+  - id: de/pflichtkategorien_uebriger_verkehr
     tags: [template]
 
 - id: other_transport_energy_availability
@@ -3211,7 +3211,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: bisko/other_transport_energy
+  - id: de/energieverbrauch_uebriger_verkehr
     column: energy
     filters:
     - column: district
@@ -3248,11 +3248,11 @@ nodes:
   input_dimensions: [vehicle_type, road_type]
   output_dimensions: [vehicle_type, road_type]
   input_datasets:
-  - id: bisko/vehicle_kilometers
+  - id: kommune/fahrleistung_strassenverkehr
     column: Value
   # Which vehicle class / road category cells have to exist. In DVC rather than in the database
   # because the data it judges is editable in the admin UI and the requirement must not be.
-  - id: bisko/required_road_mileage_categories
+  - id: de/pflichtkategorien_fahrleistung
     tags: [template]
 
 - id: has_all_road_transport_data
@@ -3304,12 +3304,12 @@ nodes:
   name_de: Sind alle Daten zu leitungsgebundenen Energieträgern vorhanden?
   description_en: 1 when electricity, natural gas and district heating each have a value for that
     year in every BISKO sector except municipal facilities, 0 when any cell is missing. The data
-    lives in the dataset bisko/final_energy. The value may be zero, but it has to have been
+    lives in the dataset kommune/endenergieverbrauch. The value may be zero, but it has to have been
     entered. Municipal facilities are exempt, because their absence must not make the balance
     non-conform. Use final_energy_use_availability to see which cell is empty.
   description_de: 1, wenn Strom, Erdgas und Fernwärme für dieses Jahr jeweils irgendwo in den
     BISKO-Sektoren außer den kommunalen Einrichtungen einen Wert haben, 0, wenn eine Zelle fehlt.
-    Die Daten befinden sich im Datensatz bisko/final_energy. Der Wert darf null sein, muss aber
+    Die Daten befinden sich im Datensatz kommune/endenergieverbrauch. Der Wert darf null sein, muss aber
     eingetragen sein. Kommunale Einrichtungen sind ausgenommen, da ihr Fehlen die Bilanz nicht
     unkonform machen darf. Welche Zelle leer ist, zeigt final_energy_use_availability.
   type: formula.FormulaNode
@@ -3342,7 +3342,7 @@ nodes:
   name_de: Sind alle Daten zu nicht-leitungsgebundenen Energieträgern vorhanden?
   description_en: |
     1 when heating oil, biomass, solar thermal and environmental heat (heat pumps) each have a
-    value for that year, 0 when any is missing entirely. The data lives in the dataset bisko/final_energy.
+    value for that year, 0 when any is missing entirely. The data lives in the dataset kommune/endenergieverbrauch.
     BISKO requires an entry for all four;
     data quality does not matter for them, but absence does.<br/>
     Note that a pre-filled zero counts as an entry, because BISKO allows an entered zero. That
@@ -3352,7 +3352,7 @@ nodes:
   description_de: |
     1, wenn Heizöl, Biomasse, Solarthermie und Umweltwärme (Wärmepumpen) für dieses Jahr jeweils
     einen Wert haben, 0, wenn einer vollständig fehlt. Die Daten befinden sich im Datensatz
-    bisko/final_energy. BISKO verlangt für alle vier einen
+    kommune/endenergieverbrauch. BISKO verlangt für alle vier einen
     Eintrag; die Datengüte spielt dabei keine Rolle, das Fehlen schon.<br/>
     Eine voreingetragene Null gilt als Eintrag, da BISKO eine eingetragene Null zulässt. Solange
     die Vorlage für diese Energieträger Nullen statt leerer Zellen ausliefert, kann dieser Knoten
@@ -3385,11 +3385,11 @@ nodes:
   description_en: 1 when local, long-distance and freight rail, inland waterway shipping and
     commercial air transport each have consumption data for that year, 0 when any is missing.
     BISKO requires all of them; the certifier recorded them as absent from the datasets.
-    The data lives in the dataset bisko/other_transport_energy.
+    The data lives in the dataset de/energieverbrauch_uebriger_verkehr.
   description_de: 1, wenn Schienenpersonennah-, Schienenpersonenfern- und Schienengüterverkehr,
     Binnenschifffahrt und gewerblicher Flugverkehr für dieses Jahr jeweils Verbrauchsdaten haben,
     0, wenn eines fehlt. BISKO verlangt alle; die Prüfstelle hat sie als in den Datensätzen
-    fehlend vermerkt. Die Daten befinden sich im Datensatz bisko/other_transport_energy.
+    fehlend vermerkt. Die Daten befinden sich im Datensatz de/energieverbrauch_uebriger_verkehr.
   type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
@@ -3425,7 +3425,7 @@ nodes:
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
-  - id: bisko/district_heating_energy_use
+  - id: kommune/fernwaerme_energieeinsatz
     filters:
     - column: upstream_included
       value: 'yes'

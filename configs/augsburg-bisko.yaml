@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3d04527511ae85a5f39b0d63b52b5151a50850ee
+  commit: a7c9eb731f250a8d063988259f3b5a6b81365dfc
   dvc_remote: kausal-s3
 name_de: Augsburg CO₂-Zukunfts-Rechner
 name_en: Augsburg CO₂-Future Calculator
@@ -25,13 +25,13 @@ include:
 - file: modules/bisko/model.yaml
   allow_override: true
   dataset_replacements:
-  - from: bisko/final_energy
+  - from: kommune/endenergieverbrauch
     to: augsburg/final_energy
-  - from: bisko/historical_emissions
+  - from: kommune/gemeldete_emissionen
     to: augsburg/historical_emissions
-  - from: bisko/passenger_kilometers
+  - from: kommune/verkehrsleistung_personen
     to: augsburg/passenger_kilometers
-  - from: bisko/vehicle_energy
+  - from: de/energieverbrauch_strassenverkehr
     to: augsburg/vehicle_energy
 
 

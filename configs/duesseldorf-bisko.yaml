@@ -3,7 +3,7 @@ default_language: de
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3d04527511ae85a5f39b0d63b52b5151a50850ee
+  commit: a7c9eb731f250a8d063988259f3b5a6b81365dfc
   dvc_remote: kausal-s3
 name: Düsseldorf Klima-Monitor
 owner: Stadt Düsseldorf
@@ -24,13 +24,13 @@ include:
 - file: modules/bisko/model.yaml
   allow_override: true
   dataset_replacements:
-  - from: bisko/final_energy
+  - from: kommune/endenergieverbrauch
     to: duesseldorf/final_energy
-  - from: bisko/historical_emissions
+  - from: kommune/gemeldete_emissionen
     to: duesseldorf/historical_emissions
-  - from: bisko/passenger_kilometers
+  - from: kommune/verkehrsleistung_personen
     to: duesseldorf/passenger_kilometers
-  - from: bisko/vehicle_energy
+  - from: de/energieverbrauch_strassenverkehr
     to: duesseldorf/vehicle_energy
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
