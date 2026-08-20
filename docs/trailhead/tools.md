@@ -246,6 +246,37 @@ Two things deliberately do not move:
 Any refusal stops the **whole** set — a half-renamed namespace is harder to reason about
 than one that has not moved.
 
+### The rename must precede any sync of a database-sourced instance
+
+If `sync_instance_to_db` runs on a database-sourced instance whose deployed config already
+names the *new* identifiers, it creates a row for each of them. The scope then holds two
+rows per dataset — the original with the data, and a new empty one — and because the spec
+named the new one, the **bindings move to the empty row**. The instance keeps computing, so
+nothing announces the problem; it just computes from nothing.
+
+This happened to `bisko` in production on 2026-08-20: 28 duplicate rows, 11 of them
+shadowing real data including `bisko/final_energy` with 3783 data points.
+
+The recovery is `--replace-empty-target`, which deletes a target row that holds no data —
+clearing the `PROTECT`ed `NodeInputPortBinding`, `DatasetPort` and `NodeDataset` rows first —
+and renames the real row into its place, keeping its pk, UUID and data:
+
+```bash
+python manage.py rename_dataset --from-file renames.yaml --allow-missing --replace-empty-target
+python manage.py rename_dataset --from-file renames.yaml --allow-missing --replace-empty-target --apply
+python manage.py sync_instance_to_db <instance>   # rebuilds the bindings that were cleared
+```
+
+The final sync is not optional: the deletion drops bindings, and `reconcile_input_bindings`
+(`nodes/spec_sync.py`) rebuilds the set from the spec, now resolving to the renamed rows.
+
+It refuses rather than guesses in two cases: a target that holds data (merging two populated
+datasets is not this command's business), and a target pinned by a published revision (the
+pin records what that revision used, so deleting it would falsify history).
+
+To verify afterwards, check that the **original pks** carry the data under the new names — a
+row whose pk is in the range the sync minted is the placeholder, not the real dataset.
+
 ### Order: the DVC copy comes first
 
 The database is one of three sides, and the order is forced rather than a preference:

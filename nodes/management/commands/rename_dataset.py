@@ -577,6 +577,9 @@ class Command(BaseCommand):
             for path, count in sorted(files.items()):
                 print(f'  {old} x{count}  {path}')
         print(
-            '\nUpdate those, then re-run [bold]sync_instance_to_db[/bold] for database-sourced '
-            'instances and [bold]dataset_status[/bold] to confirm nothing went stale.'
+            '\n[dim]Check each before changing it: a reference can be deliberate. An instance '
+            'pinned to a commit that predates the new path must keep the old name, and a '
+            'deferred rename keeps it on purpose.[/dim]\n'
+            'Once the intended ones are updated, re-run [bold]sync_instance_to_db[/bold] for '
+            'database-sourced instances and [bold]dataset_status[/bold] to confirm nothing went stale.'
         )
