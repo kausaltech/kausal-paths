@@ -11,8 +11,8 @@ owner: Schwerin Stadt
 theme_identifier: de-schwerin
 target_year: 2035
 model_end_year: 2050
-reference_year: 1995
-minimum_historical_year: 1995
+reference_year: 2018
+minimum_historical_year: 2018
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
@@ -150,5 +150,5 @@ scenarios:
 - id: default
   default: true
   all_actions_enabled: true
-  name_de: Masterplan 100% Klimaschutz
-  name_en: Masterplan 100% Climate Protection
+  name_de: Klimaschutzplan
+  name_en: Climate Protection Plan
