@@ -73,7 +73,7 @@ from rich import print
 from kausal_common.datasets.models import Dataset
 from kausal_common.i18n.pydantic import TranslatedString, get_modeltrans_attrs_from_str
 
-from nodes.models import DatasetPort, InstanceConfig, InstanceRevisionDatasetPin, NodeInputPortBinding
+from nodes.models import DatasetPort, InstanceConfig, InstanceRevisionDatasetPin, NodeDataset, NodeInputPortBinding
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser
@@ -108,6 +108,17 @@ class RowPlan:
 
 
 @dataclass
+class EmptyTarget:
+    """An existing target row that holds no data, so the source can take its place."""
+
+    pk: int
+    scope: str
+    bindings: int
+    ports: int
+    node_datasets: int
+
+
+@dataclass
 class RenamePlan:
     """What one identifier rename affects, and why it may be refused."""
 
@@ -117,10 +128,12 @@ class RenamePlan:
     blockers: list[str] = field(default_factory=list)
     labels: dict[str, str] = field(default_factory=dict)
     """Language code -> human-readable label, empty when the entry names none."""
+    replace: list[EmptyTarget] = field(default_factory=list)
+    """Empty target rows to delete first, so the source can be renamed into their place."""
 
     @property
     def is_actionable(self) -> bool:
-        return bool(self.rows) and not self.blockers
+        return bool(self.rows or self.replace) and not self.blockers
 
     @property
     def external_ref_updates(self) -> int:
@@ -169,7 +182,63 @@ def _validate_new_identifier(new: str, plan: RenamePlan) -> None:
         )
 
 
-def build_rename_plan(old: str, new: str, *, labels: dict[str, str] | None = None, allow_missing: bool = False) -> RenamePlan:
+def _classify_clash(plan: RenamePlan, dataset: Dataset, clash: Dataset, *, replace_empty_target: bool) -> None:
+    """
+    Decide whether an existing target row blocks the rename or can be stood aside.
+
+    ``sync_instance_to_db`` run *before* the rename creates a row for every identifier the
+    deployed config names, so the scope ends up holding both the old row (with the data) and a
+    new empty one (with the bindings, because the spec named it). The empty row is not content:
+    it is a placeholder the sync minted, and the data it should describe is still in the row
+    being renamed. Deleting it and renaming the source into its place restores the intended
+    state; re-running the sync then rebuilds the bindings.
+
+    Only ever for a target with **no data points**. A target holding data is a genuine
+    collision, and merging two datasets is not this command's business.
+    """
+    points = clash.data_points.count()
+    scope = _scope_label(dataset)
+    if points:
+        plan.blockers.append(
+            f'{scope} already has a dataset called {plan.new!r} (pk {clash.pk}) holding '
+            f'{points} data point(s); renaming would violate unique_identifier_per_dataset_scope'
+        )
+        return
+    # A published revision pins rows by foreign key and its manifest records what that
+    # revision used, so deleting a pinned row would falsify history. Refused outright.
+    pins = InstanceRevisionDatasetPin.objects.filter(dataset=clash).count()
+    if pins:
+        plan.blockers.append(
+            f'{scope} has an empty {plan.new!r} (pk {clash.pk}) but {pins} published revision '
+            'pin(s) reference it; it cannot be removed without rewriting that history'
+        )
+        return
+    if not replace_empty_target:
+        plan.blockers.append(
+            f'{scope} already has an empty dataset called {plan.new!r} (pk {clash.pk}), '
+            'probably from a sync that ran before this rename. Pass --replace-empty-target to '
+            'delete it and rename this row into its place.'
+        )
+        return
+    plan.replace.append(
+        EmptyTarget(
+            pk=clash.pk,
+            scope=scope,
+            bindings=NodeInputPortBinding.objects.filter(dataset=clash).count(),
+            ports=DatasetPort.objects.filter(dataset=clash).count(),
+            node_datasets=NodeDataset.objects.filter(dataset=clash).count(),
+        )
+    )
+
+
+def build_rename_plan(
+    old: str,
+    new: str,
+    *,
+    labels: dict[str, str] | None = None,
+    allow_missing: bool = False,
+    replace_empty_target: bool = False,
+) -> RenamePlan:
     """Work out what renaming ``old`` to ``new`` would do, without touching anything."""
     plan = RenamePlan(old=old, new=new, labels=dict(labels or {}))
     if old == new and not plan.labels:
@@ -199,10 +268,7 @@ def build_rename_plan(old: str, new: str, *, labels: dict[str, str] | None = Non
             .first()
         )
         if clash is not None:
-            plan.blockers.append(
-                f'{_scope_label(dataset)} already has a dataset called {new!r} (pk {clash.pk}); '
-                'renaming would violate unique_identifier_per_dataset_scope'
-            )
+            _classify_clash(plan, dataset, clash, replace_empty_target=replace_empty_target)
         external_ref = dataset.external_ref or {}
         plan.rows.append(
             RowPlan(
@@ -286,6 +352,12 @@ def print_rename_plan(plan: RenamePlan) -> None:
         )
     for line in sorted(legend):
         print(f'[dim]{line}[/dim]')
+    for target in plan.replace:
+        print(
+            f'  [yellow]replace[/yellow] {target.scope}: deleting empty pk {target.pk} first '
+            f'({target.bindings} binding(s), {target.ports} port(s), {target.node_datasets} node-dataset(s) '
+            'cleared; sync_instance_to_db rebuilds them)'
+        )
     for lang, value in sorted(plan.labels.items()):
         print(f'  label ({lang}) -> {value!r}')
     for blocker in plan.blockers:
@@ -359,6 +431,31 @@ def load_mapping(path: Path) -> dict[str, MappingEntry]:
     return mapping
 
 
+def _delete_empty_targets(plan: RenamePlan) -> None:
+    """
+    Remove the empty rows a premature sync minted, so the real rows can take their names.
+
+    The protected references are cleared rather than left: ``NodeInputPortBinding``,
+    ``DatasetPort`` and ``NodeDataset`` all point at the dataset with ``PROTECT``, and they
+    describe a binding to a row that should never have existed. ``sync_instance_to_db``
+    rebuilds them from the spec afterwards -- ``reconcile_input_bindings`` recreates the
+    binding set on every run -- so nothing authored by hand is lost here.
+    """
+    for target in plan.replace:
+        dataset = Dataset.objects.select_for_update().get(pk=target.pk)
+        assert not dataset.data_points.exists(), 'an empty target must stay empty'
+        NodeInputPortBinding.objects.filter(dataset=dataset).delete()
+        DatasetPort.objects.filter(dataset=dataset).delete()
+        NodeDataset.objects.filter(dataset=dataset).delete()
+        schema = dataset.schema
+        dataset.delete()
+        # The schema is one-to-one with the dataset here, so a schema left with no datasets is
+        # the sync's leftover too. Removing it keeps the admin's dataset list honest.
+        if schema is not None and not schema.datasets.exists():
+            schema.delete()
+        print(f'{plan.old}: removed empty {plan.new!r} (pk {target.pk}) in {target.scope}')
+
+
 class Command(BaseCommand):
     help = "Rename dataset identifiers in place, preserving each row's pk, UUID and bindings"
 
@@ -383,6 +480,16 @@ class Command(BaseCommand):
             action='store_true',
             help='Treat an identifier with no rows as a no-op instead of refusing it',
         )
+        parser.add_argument(
+            '--replace-empty-target',
+            action='store_true',
+            help=(
+                'When the target identifier already exists in a scope but holds no data -- as it '
+                'does when sync_instance_to_db ran before this rename -- delete that empty row '
+                'and rename this one into its place. Re-run sync_instance_to_db afterwards to '
+                'rebuild the bindings.'
+            ),
+        )
         parser.add_argument('--apply', action='store_true', help='Write the renames (default is a plan only)')
 
     def _mapping(self, options: dict[str, Any]) -> dict[str, MappingEntry]:
@@ -397,6 +504,7 @@ class Command(BaseCommand):
     def _apply(self, plans: list[RenamePlan]) -> None:
         with transaction.atomic():
             for plan in plans:
+                _delete_empty_targets(plan)
                 for row in plan.rows:
                     dataset = Dataset.objects.select_for_update().get(pk=row.pk)
                     fields = ['identifier']
@@ -418,6 +526,7 @@ class Command(BaseCommand):
                 entry.to,
                 labels={default_language(): options['set_name']} if options['set_name'] else entry.labels,
                 allow_missing=options['allow_missing'],
+                replace_empty_target=options['replace_empty_target'],
             )
             for old, entry in mapping.items()
         ]
@@ -442,7 +551,9 @@ class Command(BaseCommand):
         if not options['apply']:
             print(
                 f'\n[bold]Plan:[/bold] {len(actionable)} identifier(s), {rows} row(s), '
-                f'{refs} external_ref stamp(s). Every row keeps its pk, UUID, data points, '
+                f'{refs} external_ref stamp(s), '
+                f'{sum(len(p.replace) for p in actionable)} empty target(s) removed. '
+                'Every renamed row keeps its pk, UUID, data points, '
                 'bindings and ports. Re-run with --apply to write.'
             )
             self._report_config_references(actionable)

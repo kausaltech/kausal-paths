@@ -10,6 +10,7 @@ partly renamed is worse than one that has not moved.
 
 from uuid import UUID
 
+from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
@@ -20,7 +21,7 @@ from kausal_common.datasets.models import Dataset, DatasetMetric
 
 from nodes.management.commands.load_dvc_dataset import Command as LoadCommand
 from nodes.management.commands.rename_dataset import build_rename_plan, load_mapping
-from nodes.models import NodeInputPortBinding
+from nodes.models import InstanceRevisionDatasetPin, NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from nodes.tests.test_load_dvc_dataset_refresh import make_context
 
@@ -418,3 +419,101 @@ def test_mapping_file_refuses_an_empty_or_non_mapping_document(tmp_path):
 
     with pytest.raises(CommandError, match='non-empty mapping'):
         load_mapping(path)
+
+
+# --- Recovering from a sync that ran before the rename ----------------------------------
+
+
+def _empty_row(ic, identifier: str) -> Dataset:
+    """Build a dataset row with a schema and metric but no data points, as a sync mints one."""
+    from kausal_common.datasets.models import DatasetSchema
+
+    schema = DatasetSchema.objects.create(name=identifier, time_resolution=DatasetSchema.TimeResolution.YEARLY)
+    # A metric too: the sync creates them from the spec, and a binding cannot exist without
+    # one (the `node_input_binding_has_one_source` constraint).
+    DatasetMetric.objects.create(schema=schema, name='Value', label='Value', unit='MWh/a')
+    return Dataset.objects.create(
+        identifier=identifier,
+        schema=schema,
+        scope_content_type=ContentType.objects.get_for_model(ic),
+        scope_id=ic.pk,
+    )
+
+
+def test_an_empty_target_from_a_premature_sync_blocks_by_default():
+    """
+    The situation in production: the sync minted the new name before the rename ran.
+
+    Refusing by default is right -- deleting rows is not something to do implicitly.
+    """
+    ic = InstanceConfigFactory.create(name='rename-presync', config_source='database')
+    _import(ic)
+    _empty_row(ic, NEW)
+
+    plan = build_rename_plan(OLD, NEW)
+
+    assert any('Pass --replace-empty-target' in b for b in plan.blockers)
+    assert not plan.is_actionable
+
+
+def test_replace_empty_target_adopts_the_name_and_keeps_the_data():
+    ic = InstanceConfigFactory.create(name='rename-presync-fix', config_source='database')
+    real = _import(ic)
+    binding = _bind(ic, real)
+    empty = _empty_row(ic, NEW)
+    points, pk = real.data_points.count(), real.pk
+    assert points > 0
+
+    call_command('rename_dataset', OLD, NEW, '--replace-empty-target', '--apply')
+
+    real.refresh_from_db()
+    assert real.pk == pk
+    assert real.identifier == NEW
+    assert real.data_points.count() == points  # the data never moved
+    assert not Dataset.objects.filter(pk=empty.pk).exists()  # the placeholder is gone
+    binding.refresh_from_db()
+    assert binding.dataset_id == pk
+
+
+def test_a_target_holding_data_is_refused_even_with_the_flag():
+    """Merging two populated datasets is not this command's business."""
+    ic = InstanceConfigFactory.create(name='rename-presync-data', config_source='database')
+    _import(ic, OLD)
+    _import(ic, NEW)
+
+    plan = build_rename_plan(OLD, NEW, replace_empty_target=True)
+
+    assert any('data point(s)' in b for b in plan.blockers)
+    assert not plan.is_actionable
+
+
+def test_a_pinned_empty_target_is_refused_rather_than_rewriting_history():
+    ic = InstanceConfigFactory.create(name='rename-presync-pin', config_source='database')
+    _import(ic)
+    empty = _empty_row(ic, NEW)
+    revision = ic.save_revision()
+    InstanceRevisionDatasetPin.objects.create(
+        instance_config=ic,
+        instance_revision=revision,
+        dataset=empty,
+        dataset_revision=revision,
+        dataset_uuid=empty.uuid,
+        identifier=NEW,
+    )
+
+    plan = build_rename_plan(OLD, NEW, replace_empty_target=True)
+
+    assert any('published revision' in b for b in plan.blockers)
+    assert not plan.is_actionable
+
+
+def test_the_bindings_of_the_removed_placeholder_are_reported():
+    ic = InstanceConfigFactory.create(name='rename-presync-report', config_source='database')
+    _import(ic)
+    empty = _empty_row(ic, NEW)
+    _bind(ic, empty)
+
+    plan = build_rename_plan(OLD, NEW, replace_empty_target=True)
+
+    assert len(plan.replace) == 1
+    assert plan.replace[0].bindings == 1
