@@ -338,11 +338,11 @@ class InstanceEditorFields:
     @staticmethod
     def dataset_validation_violations(root: 'InstanceEditorFields') -> list[DatasetValidationViolationType]:
         from nodes.dataset_materialization import collect_instance_dataset_violations
+        from nodes.graphql.types.problems import build_coordinate_labels
 
-        return [
-            DatasetValidationViolationType.from_violation(violation)
-            for violation in collect_instance_dataset_violations(root._config)
-        ]
+        violations = collect_instance_dataset_violations(root._config)
+        labels = build_coordinate_labels(violations)
+        return [DatasetValidationViolationType.from_violation(violation, labels) for violation in violations]
 
     @sb.field(
         graphql_type=list[InstanceProblemInterface],
