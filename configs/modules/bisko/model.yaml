@@ -56,6 +56,19 @@ datasets:
 - id: de/pflichtkategorien_uebriger_verkehr
   is_editable: false
 
+# --- Reported-combination templates: which cells a DataAvailabilityNode reports on -------------
+# Not requirements. `DataAvailabilityNode` takes its combinations from the data, so a dataset that
+# is entirely blank -- which every city template now is -- gives it nothing to report on and it
+# fails with "The dataset has no rows". These declare the combinations instead, so a blank cell
+# reads 0 rather than vanishing. Locked for the same reason as the Pflichtkategorien: a user who
+# can edit the data being checked must not be able to edit the list of what is checked.
+- id: de/kategorien_fernwaerme_anlagen
+  is_editable: false
+- id: de/kategorien_fernwaerme_varianten
+  is_editable: false
+- id: de/kategorien_energieverbrauch_strassenverkehr
+  is_editable: false
+
 # --- Municipal data: the city's own observations and declarations --------------------------
 # This is the editable surface of the model. Everything a city is asked to supply for a
 # BISKO balance is here, and nothing else is.
@@ -195,12 +208,18 @@ datasets:
     # BISKO fixes the return temperature at 283 K; the supply must be strictly warmer for
     # the exergetic allocation to be defined.
     - {kind: value_range, enforcement: block_edit, min: 283, exclusive_min: true}
-  - id: quality_electricity_fraction
-    validation_rules:
-    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
-  - id: quality_t_supply
-    validation_rules:
-    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
+  # No `quality` metrics here, unlike the other municipal datasets. This is the one dataset whose
+  # binding is anonymous -- ChpNode resolves electricity_fraction / t_supply / t_return by name and
+  # so cannot pin a `column:`. The port resolver maps an anonymous input to its persisted ports by
+  # metric name, so a *new* metric has no port to match and falls through to the binding's whole
+  # port group, which holds two: `AmbiguousYamlPortReferenceError` on the next
+  # sync_instance_to_db. Tried on 2026-08-21 and reverted.
+  #
+  # The Prüfschritt 7.3 case for grading these is also the weakest of the set: they are plant
+  # operating parameters rather than balance input fields, and they are only reachable at all under
+  # Möglichkeit 1. If a certifier does ask for them, the fix belongs in the resolver -- teaching it
+  # that an unmatched metric on an anonymous binding should mint a fresh port rather than guess
+  # among the existing ones -- not in this declaration.
 - id: kommune/gemeldete_emissionen               # the city's own reported inventory
   is_editable: true
   metrics:
@@ -239,6 +258,15 @@ datasets:
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/verkehrsleistung_personen               # own Verkehrsleistung (pkm); not in the balance
+  is_editable: true
+  metrics:
+  - id: Value
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0}
+  - id: quality
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
+- id: kommune/energieverbrauch_strassenverkehr          # own road transport energy (Verbrauchsdaten route)
   is_editable: true
   metrics:
   - id: Value
@@ -1534,8 +1562,17 @@ nodes:
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: kommune/fernwaerme_energieeinsatz
+    column: default
     extend: true  # GenericNode extended its dataset; keep that explicit
     forecast_from: 2024
+    # empty_to_zero: the plant template ships blank from 2026-08-21, and selection drops null
+    # values -- leaving no rows, so `_linear_interpolate` asserts on a null min_year long before
+    # anything says which dataset was empty. This node has to compute either way; the zeros decide
+    # nothing, because district_heating_emissions reads coverage from
+    # district_heating_plant_data_availability, which reads the same dataset untagged and so still
+    # sees the blanks. Until the template was blanked this binding needed no tag, because the
+    # dataset shipped zeros -- which is exactly the confusion finding 1.4 is about.
+    tags: [empty_to_zero]
     filters:
     - column: upstream_included
       value: 'yes'
@@ -1671,6 +1708,7 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: kommune/fernwaerme_erzeugungsvariante
+    column: default
     # Extended so the declared variant carries a factor in every year of the model range. The
     # coverage node below reads the dataset before this happens, so extension decides what the
     # factor is, never which years Möglichkeit 3 applies to.
@@ -1707,6 +1745,9 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: kommune/fernwaerme_erzeugungsvariante
+    column: default
+  - id: de/kategorien_fernwaerme_varianten
+    tags: [template]
 
 - id: district_heating_plant_data_availability
   is_editable: false
@@ -1735,9 +1776,12 @@ nodes:
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: kommune/fernwaerme_energieeinsatz
+    column: default
     filters:
     - column: upstream_included
       value: 'yes'
+  - id: de/kategorien_fernwaerme_anlagen
+    tags: [template]
 
 - id: district_heating_emission_factor_predominant_variant
   is_editable: false
@@ -2227,6 +2271,10 @@ nodes:
   # and city admins can edit the values in the admin UI. Series are interpolated over internal
   # gaps and held constant outside the years they cover.
   input_datasets:
+  # No `column:` here, deliberately, unlike the other multi-metric bindings in this module:
+  # ChpNode resolves electricity_fraction, t_supply and t_return by *name* against the
+  # dataset's metric columns, so it needs more than one and ignores the rest. That is also
+  # why adding quality_electricity_fraction / quality_t_supply does not disturb it.
   - id: kommune/kwk_anlagenparameter   # metric columns: electricity_fraction (dimensionless), t_supply (K)
   # Either input may instead come from a node that already exists, by tagging the edge with the
   # input's name — useful where the electricity fraction is derivable rather than reported:
@@ -2312,11 +2360,33 @@ nodes:
   params:
     formula: extend_all(mileage)
 
-- id: transport_energy_own
+- id: transport_energy_ifeu
   is_editable: false
-  name_de: Transport Energie nach Fahrzeugtyp - eigene Daten
-  name_en: Transport energy by vehicle type - own data
-  description: Total vehicle trips from the city's own transport data.
+  name_de: Verkehrsenergie nach Fahrzeugtyp - gemeindefeiner ifeu-Defaultwert
+  name_en: Transport energy by vehicle type - ifeu municipal default
+  description_en: |
+    Road and rail transport final energy from ifeu's gemeindefeine default, by vehicle class and
+    fuel. This is BISKO's second route to road transport energy — the consumption route — as
+    opposed to mileage × specific consumption, which <code>road_transport_energy_bisko</code>
+    takes.<br/>
+    <b>The two ifeu defaults disagree by a factor of 3–4 per vehicle class and nobody has
+    explained why</b> (data/TODO.md item 36). Until that is answered, this route is demonstrable
+    rather than supported.<br/>
+    Called <code>transport_energy_own</code> until 2026-08-21, which was wrong: it reads
+    <code>de/energieverbrauch_strassenverkehr</code>, a provider default, not anything the city
+    supplied. The city's own version is <code>transport_energy_own</code>, now pointed at a
+    <code>kommune/</code> dataset of its own.
+  description_de: |
+    Endenergieverbrauch des Straßen- und Schienenverkehrs aus dem gemeindefeinen ifeu-Defaultwert,
+    nach Fahrzeugklasse und Kraftstoff. Das ist der zweite von BISKO zugelassene Weg zur
+    Straßenverkehrsenergie – der Verbrauchsweg – im Unterschied zu Fahrleistung × spezifischem
+    Verbrauch, den <code>road_transport_energy_bisko</code> nimmt.<br/>
+    <b>Die beiden ifeu-Defaultwerte weichen je Fahrzeugklasse um den Faktor 3–4 voneinander ab,
+    ohne dass dies erklärt wäre</b> (data/TODO.md Punkt 36). Bis das geklärt ist, ist dieser Weg
+    vorführbar, aber nicht belastbar.<br/>
+    Hieß bis zum 21.08.2026 <code>transport_energy_own</code>, was falsch war: Der Knoten liest
+    <code>de/energieverbrauch_strassenverkehr</code>, einen Anbieter-Defaultwert, und nichts von
+    der Kommune Geliefertes.
   type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
@@ -2328,6 +2398,103 @@ nodes:
     tags: [energy]
   params:
     formula: extend_all(energy)
+
+- id: transport_energy_own
+  is_editable: false
+  name_de: Verkehrsenergie nach Fahrzeugtyp - eigene Verbrauchsdaten
+  name_en: Transport energy by vehicle type - own consumption data
+  description_en: |
+    Road and rail transport final energy from the city's own consumption data, by vehicle class
+    and fuel — BISKO's Verbrauchsdaten route where the city measures it rather than taking the
+    provider default.<br/>
+    The template ships blank. A year the city fills in is served from here; every other year falls
+    back to <code>transport_energy_ifeu</code>, chosen per year by
+    <code>transport_energy_from_consumption</code>.
+  description_de: |
+    Endenergieverbrauch des Straßen- und Schienenverkehrs aus eigenen Verbrauchsdaten der Kommune,
+    nach Fahrzeugklasse und Kraftstoff – der BISKO-Verbrauchsweg, bei dem die Kommune selbst misst,
+    statt den Anbieter-Defaultwert zu übernehmen.<br/>
+    Die Vorlage wird leer ausgeliefert. Ein von der Kommune befülltes Jahr wird von hier bedient;
+    jedes andere Jahr fällt auf <code>transport_energy_ifeu</code> zurück, jahresweise ausgewählt
+    von <code>transport_energy_from_consumption</code>.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: kommune/energieverbrauch_strassenverkehr
+    column: Value
+    # empty_to_zero: the template is blank until a city fills it, and this node has to produce a
+    # frame with dimensions either way. The zeros decide nothing -- coverage comes from
+    # transport_energy_own_availability, which reads the same dataset untagged.
+    tags: [energy, empty_to_zero]
+  params:
+    formula: extend_all(energy)
+
+- id: transport_energy_own_availability
+  is_editable: false
+  name_de: Datenverfügbarkeit der eigenen Verbrauchsdaten Straßenverkehr
+  name_en: Own road transport consumption data availability
+  description_en: |
+    For which vehicle class, fuel and year the city's own road transport consumption dataset holds
+    a value (1) and for which it does not (0). Read before interpolation, zero-filling or
+    extension, so a blank template does not claim to cover every year.<br/>
+    This is what selects the city's data over the ifeu default in
+    <code>transport_energy_from_consumption</code>.
+  description_de: |
+    Für welche Fahrzeugklasse, welchen Kraftstoff und welches Jahr der eigene Verbrauchsdatensatz
+    der Kommune einen Wert enthält (1) und für welche nicht (0). Gelesen vor Interpolation,
+    Nullauffüllung und Fortschreibung, damit eine leere Vorlage nicht beansprucht, jedes Jahr
+    abzudecken.<br/>
+    Damit werden in <code>transport_energy_from_consumption</code> die eigenen Daten dem
+    ifeu-Defaultwert vorgezogen.
+  type: simple.DataAvailabilityNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: kommune/energieverbrauch_strassenverkehr
+    column: Value
+  - id: de/kategorien_energieverbrauch_strassenverkehr
+    tags: [template]
+
+- id: transport_energy_from_consumption
+  is_editable: false
+  name_de: Verkehrsenergie aus Verbrauchsdaten
+  name_en: Transport energy from consumption data
+  description_en: |
+    BISKO's Verbrauchsdaten route to transport energy: the city's own consumption data in the years
+    it covers, the gemeindefeine ifeu default in the rest, chosen per year exactly as
+    <code>vehicle_kilometers</code> and <code>other_transport_energy</code> do.<br/>
+    Reaches the balance only when <i>use_mileage</i> is off. That switch chooses between BISKO's
+    two routes — mileage × specific consumption, or consumption measured directly — and it is a
+    different question from whose data each route uses, which is settled here per year.
+  description_de: |
+    Der BISKO-Verbrauchsweg zur Verkehrsenergie: die eigenen Verbrauchsdaten der Kommune in den
+    Jahren, die sie abdecken, und der gemeindefeine ifeu-Defaultwert in allen übrigen, jahresweise
+    ausgewählt, genau wie bei <code>vehicle_kilometers</code> und
+    <code>other_transport_energy</code>.<br/>
+    Erreicht die Bilanz nur, wenn <i>use_mileage</i> ausgeschaltet ist. Dieser Schalter wählt
+    zwischen den beiden BISKO-Wegen – Fahrleistung × spezifischer Verbrauch oder direkt gemessener
+    Verbrauch – und das ist eine andere Frage als die, wessen Daten der jeweilige Weg verwendet;
+    diese wird hier jahresweise beantwortet.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy_ifeu
+    tags: [ifeu]
+  - id: transport_energy_own
+    tags: [own]
+  # See vehicle_kilometers for why coverage comes from the availability node.
+  - id: transport_energy_own_availability
+    tags: [coverage]
+  params:
+    formula: prefer_by_year(own, ifeu, coverage)
 
 - id: vehicle_kilometers_ifeu
   is_editable: false
@@ -2731,7 +2898,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
-  - id: transport_energy_own
+  - id: transport_energy_from_consumption
     tags: [own]
     to_dimensions:
     - id: vehicle_type
@@ -3401,6 +3568,9 @@ nodes:
   input_datasets:
   - id: kommune/fernwaerme_energieeinsatz
     column: quality
+    # empty_to_zero: every quality cell ships blank, so this column is an empty frame
+    # until a city grades something, and an empty frame has no dimensions.
+    tags: [empty_to_zero]
     filters:
     - column: upstream_included
       value: 'yes'
@@ -3434,6 +3604,9 @@ nodes:
   input_datasets:
   - id: kommune/fahrleistung_strassenverkehr
     column: quality
+    # empty_to_zero: every quality cell ships blank, so this column is an empty frame
+    # until a city grades something, and an empty frame has no dimensions.
+    tags: [empty_to_zero]
 
 - id: other_transport_energy_own_data_quality
   is_editable: false
@@ -3456,6 +3629,9 @@ nodes:
   input_datasets:
   - id: kommune/energieverbrauch_uebriger_verkehr
     column: quality
+    # empty_to_zero: every quality cell ships blank, so this column is an empty frame
+    # until a city grades something, and an empty frame has no dimensions.
+    tags: [empty_to_zero]
 
 - id: quality_a_data_for_grid_based_energy
   is_editable: false
@@ -3887,9 +4063,12 @@ nodes:
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: kommune/fernwaerme_energieeinsatz
+    column: default
     filters:
     - column: upstream_included
       value: 'yes'
+  - id: de/kategorien_fernwaerme_anlagen
+    tags: [template]
 
 - id: has_all_district_heating_energy_use_data
   is_editable: false

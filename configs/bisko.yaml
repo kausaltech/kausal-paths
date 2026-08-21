@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b4e05f02cb6f2edbdc5c594a8aad08aa6032d78e
+  commit: 776a717da6164628a64d961de8a48f9867d78721
   dvc_remote: kausal-s3
 name: Treibhausgasmonitor
 owner: Kausal Ltd
@@ -72,9 +72,18 @@ params:
   is_visible: true
   is_customizable: true
 
+# Both sides of this switch are ifeu gemeindefeine defaults, not city data. The label said
+# "own energy data" until 2026-08-21, which was wrong in both languages and is the kind of thing a
+# reviewer acts on: turning the switch off does not select anything the city supplied.
+#
+# It also moves the balance a long way. For the template in 2023, transport energy is
+# 3,170,523 MWh/a on (road 2,328,119 + other 842,404) and 655,423 MWh/a off -- a factor of 4.8.
+# The two ifeu defaults disagree by 3-4x per vehicle class and nobody has explained why; that is
+# data/TODO.md item 36, open with ifeu. Until it is answered, `false` is not a supported setting,
+# only a demonstrable one.
 - id: use_mileage
-  label_en: Use ifeu mileage statistics rather than own energy data for transport sector (BISKO-compliant)
-  label_de: Gemeindefeine Verkehrsstatistiken statt eigener Verkehrs-Energieverbrauchsdaten nutzen (BISKO-konform).
+  label_en: Use mileage statistics rather than energy statistics for the transport sector
+  label_de: Gemeindefeine Fahrleistungsstatistik statt der Energieverbrauchsstatistik für den Verkehrssektor nutzen.
   value: true
   is_visible: true
   is_customizable: true
@@ -133,6 +142,9 @@ result_excels:
   - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
   - vehicle_kilometers_own          # 2.3: the own-data mileage route, road-typed
   - other_transport_energy_own      # 1.5: where a city enters rail/water/air consumption
+  # 1.5: the Verbrauchsdaten route to road transport, and which years are the city's own.
+  - transport_energy_from_consumption
+  - transport_energy_own_availability
   - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
   # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
   # These show which required cell is missing rather than a bare 0.
