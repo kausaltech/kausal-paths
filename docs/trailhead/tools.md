@@ -171,6 +171,137 @@ already exists, or when the schema is shared with other datasets and the rename
 would silently affect them too.
 
 
+## rename_dataset
+
+Renames a dataset *identifier* in place, across every scope that holds it. The sibling
+`rename_dataset_metrics` renames a metric column *within* a dataset; this renames the
+dataset itself.
+
+```bash
+# Plan only -- writes nothing
+python manage.py rename_dataset bisko/final_energy kommune/endenergieverbrauch
+
+python manage.py rename_dataset bisko/final_energy kommune/endenergieverbrauch --apply
+
+# A whole namespace at once, as one transaction
+python manage.py rename_dataset --from-file data/bisko/renames.yaml --apply
+```
+
+The mapping file is a flat `old: new` YAML document:
+
+```yaml
+bisko/final_energy: kommune/endenergieverbrauch
+bisko/energy_shares: de/energieanteile_verkehr
+```
+
+### Why in place
+
+The model graph references datasets **by row, not by name**: `NodeInputPortBinding.dataset`
+and `DatasetPort.dataset` are foreign keys, no binding's `dataset_spec` embeds an
+identifier, and node and instance specs carry none either. So an in-place rename keeps
+every binding, every pinned UUID and every published revision intact, and the graph cannot
+observe it at all. Deleting and re-importing under the new name would mint a new UUID and
+orphan all of that.
+
+`Dataset.external_ref['dataset_id']` moves with the identifier when it names the old one,
+so the DVC provenance stamp does not go on claiming a path that no longer exists. The
+commit in that stamp is provenance about the *data* and is left alone.
+
+Two things deliberately do not move:
+
+- **`DatasetSchema.name`**, the human-readable label, unless an entry names it. Labels are
+  worth setting during the rename, because today they are inconsistent (`Endenergie`,
+  `Energy shares`, `weather_correction`) and monolingual. A mapping entry is then a table
+  rather than a bare identifier:
+
+  ```yaml
+  bisko/endenergie_emissionsfaktoren:
+    to: de/emissionsfaktoren_endenergie
+    name_de: Emissionsfaktoren Endenergie
+    name_en: End energy emission factors
+  ```
+
+  The label goes on every row of the rename, because the schema is one-to-one with the
+  dataset and each city's row is the same logical dataset. Storage follows `modeltrans`:
+  the value for `settings.LANGUAGE_CODE` goes in the `name` column, the rest into `i18n`.
+  An entry naming labels **must** include the default language, or the column keeps a stale
+  value while the translations move on — which is how the dimension categories came to hold
+  German in a column that is read as English. `--set-name` does the single-language case
+  from the command line.
+- **`InstanceRevisionDatasetPin.identifier`**, a denormalized record of what the dataset
+  was called when that revision was published. The pin's identity is its foreign key and
+  `dataset_uuid`, and nothing resolves a pin by identifier, so rewriting it would only
+  falsify the manifest. Pins are reported (`pin:N`) and left alone.
+
+### Things that will stop a run
+
+- **The target name already taken in the same scope.** The constraint is
+  `unique_identifier_per_dataset_scope`, so a clash is only a clash *within* one scope --
+  two cities may legitimately both hold the new name, and that is not refused.
+- **An identifier no dataset carries**, which is almost always a typo or an already-applied
+  rename. `--allow-missing` downgrades it to a no-op.
+- **An invalid target.** Identifiers are `namespace/name` in `[a-z0-9_-]`, so German names
+  must be transliterated: `de/fernwaerme`, never `de/fernwärme`.
+
+Any refusal stops the **whole** set — a half-renamed namespace is harder to reason about
+than one that has not moved.
+
+### The rename must precede any sync of a database-sourced instance
+
+If `sync_instance_to_db` runs on a database-sourced instance whose deployed config already
+names the *new* identifiers, it creates a row for each of them. The scope then holds two
+rows per dataset — the original with the data, and a new empty one — and because the spec
+named the new one, the **bindings move to the empty row**. The instance keeps computing, so
+nothing announces the problem; it just computes from nothing.
+
+This happened to `bisko` in production on 2026-08-20: 28 duplicate rows, 11 of them
+shadowing real data including `bisko/final_energy` with 3783 data points.
+
+The recovery is `--replace-empty-target`, which deletes a target row that holds no data —
+clearing the `PROTECT`ed `NodeInputPortBinding`, `DatasetPort` and `NodeDataset` rows first —
+and renames the real row into its place, keeping its pk, UUID and data:
+
+```bash
+python manage.py rename_dataset --from-file renames.yaml --allow-missing --replace-empty-target
+python manage.py rename_dataset --from-file renames.yaml --allow-missing --replace-empty-target --apply
+python manage.py sync_instance_to_db <instance>   # rebuilds the bindings that were cleared
+```
+
+The final sync is not optional: the deletion drops bindings, and `reconcile_input_bindings`
+(`nodes/spec_sync.py`) rebuilds the set from the spec, now resolving to the renamed rows.
+
+It refuses rather than guesses in two cases: a target that holds data (merging two populated
+datasets is not this command's business), and a target pinned by a published revision (the
+pin records what that revision used, so deleting it would falsify history).
+
+To verify afterwards, check that the **original pks** carry the data under the new names — a
+row whose pk is in the range the sync minted is the placeholder, not the real dataset.
+
+### Order: the DVC copy comes first
+
+The database is one of three sides, and the order is forced rather than a preference:
+
+1. **Copy** the DVC paths, leaving the old ones in place, and bump the pins
+   (`data/bisko/copy_dataset_paths.py --push` does the copy, reading the same mapping file).
+2. `rename_dataset --from-file … --apply`.
+3. Update `configs/`, deploy.
+4. Delete the old DVC paths — the only irreversible step, and only once 1–3 are verified.
+
+Step 1 must precede step 2 because a `Dataset` row that is an external placeholder carries
+its DVC path in `external_ref['dataset_id']`, and this command restamps it: after step 2
+those rows read the *new* path, so it has to exist. And step 4 must follow step 3 because a
+yaml-sourced instance resolves datasets by identifier — `augsburg-bisko` resolves all 32 of
+its datasets from DVC and holds no DB rows at all, so it would stop computing the moment the
+old paths vanished from under a config that still named them.
+
+Copying rather than moving is what removes the window: while both paths resolve, the three
+sides do not have to land together, and everything up to step 4 can be reverted by reverting
+the config.
+
+The command finishes by listing the config files that still name the old identifier. After
+step 3, re-run `sync_instance_to_db` for database-sourced instances and `dataset_status` to
+confirm nothing went stale.
+
 ## sync_instance_to_db
 
 Exports runtime node specs from YAML-loaded instances into the DB.

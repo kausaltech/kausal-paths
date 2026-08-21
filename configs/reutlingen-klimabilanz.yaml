@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3d04527511ae85a5f39b0d63b52b5151a50850ee
+  commit: 776a717da6164628a64d961de8a48f9867d78721
   dvc_remote: kausal-s3
 name_de: Reutlingen THG-Bilanzierungstool
 name_en: Reutlingen GHG-Inventory Tool
@@ -25,13 +25,13 @@ include:
 - file: modules/bisko/model.yaml
   allow_override: true
   dataset_replacements:
-  - from: bisko/final_energy
+  - from: kommune/endenergieverbrauch
     to: augsburg/final_energy
-  - from: bisko/historical_emissions
+  - from: kommune/gemeldete_emissionen
     to: augsburg/historical_emissions
-  - from: bisko/passenger_kilometers
+  - from: kommune/verkehrsleistung_personen
     to: augsburg/passenger_kilometers
-  - from: bisko/vehicle_energy
+  - from: de/energieverbrauch_strassenverkehr
     to: augsburg/vehicle_energy
 
 
@@ -68,28 +68,29 @@ params:
   value: true
   is_visible: true
   is_customizable: true
+# Both sides of this switch are ifeu gemeindefeine defaults, not city data. The label said
+# "own energy data" until 2026-08-21, which was wrong in both languages and is the kind of thing a
+# reviewer acts on: turning the switch off does not select anything the city supplied.
+#
+# It also moves the balance a long way. For the template in 2023, transport energy is
+# 3,170,523 MWh/a on (road 2,328,119 + other 842,404) and 655,423 MWh/a off -- a factor of 4.8.
+# The two ifeu defaults disagree by 3-4x per vehicle class and nobody has explained why; that is
+# data/TODO.md item 36, open with ifeu. Until it is answered, `false` is not a supported setting,
+# only a demonstrable one.
 - id: use_mileage
-  label_en: Use BISKO mileage statistics rather than own energy data for 
-    transport
-  label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen 
-    Energieverbrauchsdaten für den Transport.
+  label_en: Use mileage statistics rather than energy statistics for the transport sector
+  label_de: Gemeindefeine Fahrleistungsstatistik statt der Energieverbrauchsstatistik für den Verkehrssektor nutzen.
   value: true
   is_visible: true
   is_customizable: true
 # Reutlingen still runs on Augsburg's energy data (see dataset_replacements above), whose
 # facility column is zero throughout, so this has no effect until Reutlingen's own data arrives.
 
-# Which of BISKO's two district-heating routes the balance is built from. Möglichkeit 1 is the
-# city's own CHP plant data through the exergetic allocation; Möglichkeit 2 is the standard
-# Fernwärme factor, which BISKO also derived exergetically. Both are conformant; the difference is
-# whether the city has supplied plant data. Visible but not customizable, like the other
-# data-source declarations -- it says which data the balance rests on, not a scenario.
-- id: use_exergetic_district_heating
-  label_en: Use own CHP plant data for district heating rather than the standard BISKO factor (requires plant input and output data).
-  label_de: Eigene KWK-Anlagendaten für Fernwärme statt des BISKO-Standardfaktors nutzen (erfordert Input- und Output-Daten der Anlage).
-  value: false
-  is_visible: true
-  is_customizable: false
+# The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
+# year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
+# standard Fernwärme factor -- exactly as the road-transport own-data preference works. See
+# district_heating_emissions in modules/bisko/model.yaml, and district_heating_method_in_force for
+# which route each year took. `use_exergetic_district_heating` was removed on 2026-08-20.
 
 - id: municipal_facilities_included_in_commerce
   label_en: Is the consumption of municipal facilities included in the commerce,
@@ -130,9 +131,20 @@ result_excels:
   - other_transport_energy
   # --- Added 2026-08-17, each against a specific Pruefschritt ---
   - district_heating_energy_use     # 7.3: the certifier could not find where to enter this
+  # Which of BISKO's three Möglichkeiten each year took (1/2/3) -- the answer to Prüfschritt 6.1,
+  # per year rather than as a blanket statement about the tool.
+  - district_heating_method_in_force
+  # Prüfschritt 7.3: a Datengüte must be enterable for every input field. The first Prüflauf
+  # named the district-heating one as missing; these three are where the grades are shown.
+  - district_heating_energy_use_data_quality
+  - vehicle_kilometers_own_data_quality
+  - other_transport_energy_own_data_quality
   - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
   - vehicle_kilometers_own          # 2.3: the own-data mileage route, road-typed
   - other_transport_energy_own      # 1.5: where a city enters rail/water/air consumption
+  # 1.5: the Verbrauchsdaten route to road transport, and which years are the city's own.
+  - transport_energy_from_consumption
+  - transport_energy_own_availability
   - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
   # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
   # These show which required cell is missing rather than a bare 0.
