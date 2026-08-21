@@ -1100,7 +1100,9 @@ nodes:
   - id: bisko/weather_correction  # comes from Potsdam --> change to city/... as soon as you got data.csv
   params:
   - id: operations
-    value: get_single_dataset,do_correction
+    # The dataset only starts in 1995; without extend_to_history, final_energy_use's
+    # multiplication against this node drops every earlier year for every stationary sector.
+    value: get_single_dataset,extend_to_history,do_correction
   - id: do_correction
     ref: weather_correction
 
