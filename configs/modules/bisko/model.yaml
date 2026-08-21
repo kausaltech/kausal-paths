@@ -166,6 +166,12 @@ datasets:
   - id: default
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
+  - id: quality
+    # BISKO-Methodenpapier §3.4: A=1, B=0.5, C=0.25, D=0. Prüfschritt 7.3 requires every input
+    # field to be able to carry one; the grade itself only affects conformity for the grid-bound
+    # carriers (1.3), where it must be A.
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/fernwaerme_erzeugungsvariante     # declared predominant Table 5 generation variant
   is_editable: true
   metrics:
@@ -175,6 +181,9 @@ datasets:
   - id: default
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 1, max: 1}
+  - id: quality
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/kwk_anlagenparameter                     # plant electricity fraction and supply temperature
   is_editable: true
   metrics:
@@ -186,6 +195,12 @@ datasets:
     # BISKO fixes the return temperature at 283 K; the supply must be strictly warmer for
     # the exergetic allocation to be defined.
     - {kind: value_range, enforcement: block_edit, min: 283, exclusive_min: true}
+  - id: quality_electricity_fraction
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
+  - id: quality_t_supply
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/gemeldete_emissionen               # the city's own reported inventory
   is_editable: true
   metrics:
@@ -201,8 +216,21 @@ datasets:
   - id: Value
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
-- id: de/energieverbrauch_strassenverkehr                     # own transport energy, used when not use_mileage
-  is_editable: true
+  - id: quality
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
+- id: de/energieverbrauch_strassenverkehr                     # ifeu road transport energy, used when not use_mileage
+  # Locked 2026-08-21. It was the one `de/` dataset left editable, which read as an oversight
+  # either way round: the namespace says national methodology data, the flag said the city owns
+  # it. It is national data, so the flag was the thing that was wrong.
+  #
+  # Note the consuming node is still called `transport_energy_own` and describes itself as the
+  # city's own data. That name predates the namespace split and is now misleading -- but renaming
+  # a node id orphans its NodeConfig row and any page reference, so it wants to be its own change
+  # with those references checked, the same call made for `quality_a_data_for_grid_based_energy`.
+  # If a city is ever to supply its own road-transport energy, that is a `kommune/` dataset that
+  # does not exist yet, not this one.
+  is_editable: false
   metrics:
   - id: Value
     validation_rules:
@@ -232,6 +260,9 @@ datasets:
 # parameter is switched off, and `has_national_electricity_emission_factors` then drops
 # `is_bisko_compliant` to 0. That is the mechanism protocol steps 3.2/4.3/6.2 ask for: the
 # alternative exists for analysis, but a result using it is not labelled BISKO-conform.
+  - id: quality
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/emissionsfaktoren_endenergie
   is_editable: true
   metrics:
@@ -1310,7 +1341,10 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: kommune/endenergieverbrauch  # is automatically created by upload_new_dataset.py when uploading to DVC
+  # The dataset's second metric column. Nothing creates it automatically -- an earlier comment
+  # here claimed upload_new_dataset.py did, and it does not: `quality` is rows in the source
+  # CSV with Metric=quality, exactly like the value rows. See data/bisko/dataset-uploads.md.
+  - id: kommune/endenergieverbrauch
     # These series start after the frame does; GenericNode back-filled their first
     # value into the earlier years. Keeping that, but saying so.
     backfill: true
@@ -3336,6 +3370,92 @@ nodes:
   - id: de/datenguetekriterien
   params:
     operations: get_single_dataset,extend_all
+
+- id: district_heating_energy_use_data_quality
+  is_editable: false
+  name_de: Datengüte der Fernwärme-Anlagendaten
+  name_en: District heating plant data quality
+  description_en: |
+    The Datengüte the city assigned to each cell of its district heating plant data, on BISKO's
+    A–D scale (Methodenpapier §3.4: A regional primary data = 100 %, B extrapolated regional
+    primary data = 50 %, C regional statistics = 25 %, D national defaults = 0 %).<br/>
+    Prüfschritt 7.3 requires every input field to be able to carry a Datengüte, and the first
+    Prüflauf named this dataset as the one where it could not: <i>"Fernwärmeenergieverbrauch
+    Eingabe nicht möglich"</i>. An empty cell here means nobody has graded it — not grade D, which
+    is a deliberate statement that the figure came from a national default.
+  description_de: |
+    Die von der Kommune je Zelle vergebene Datengüte ihrer Fernwärme-Anlagendaten auf der
+    BISKO-Skala A–D (Methodenpapier §3.4: A regionale Primärdaten = 100 %, B Hochrechnung
+    regionaler Primärdaten = 50 %, C regionale Kennwerte und Statistiken = 25 %, D bundesweite
+    Kennwerte = 0 %).<br/>
+    Prüfschritt 7.3 verlangt, dass für jedes Eingabefeld eine Datengüte angegeben werden kann, und
+    der erste Prüflauf nannte genau diesen Datensatz als den, bei dem das nicht ging:
+    <i>„Fernwärmeenergieverbrauch Eingabe nicht möglich."</i> Eine leere Zelle bedeutet, dass noch
+    niemand sie bewertet hat – nicht Güte D, die eine bewusste Aussage über einen bundesweiten
+    Vorgabewert ist.
+  type: simple.AdditiveNode2
+  quantity: fraction
+  unit: '%'  # Different unit from the value node hides this from the outcome page
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: kommune/fernwaerme_energieeinsatz
+    column: quality
+    filters:
+    - column: upstream_included
+      value: 'yes'
+
+- id: vehicle_kilometers_own_data_quality
+  is_editable: false
+  name_de: Datengüte der eigenen Fahrleistungsdaten
+  name_en: Own road mileage data quality
+  description_en: |
+    The Datengüte the city assigned to each cell of its own road mileage data, on BISKO's A–D
+    scale (Methodenpapier §3.4).<br/>
+    Prüfschritt 7.3 requires the field to exist. Note that the <i>grade</i> does not affect
+    conformity here: the second Prüfprotokoll states it explicitly for this dataset — <i>"Die
+    Datengüte spielt bei den Fahrleistungsdaten keine Rolle."</i> What matters for mileage is that
+    the required vehicle classes and road categories are present at all, which
+    <code>vehicle_kilometers_own_availability</code> reports.
+  description_de: |
+    Die von der Kommune je Zelle vergebene Datengüte ihrer eigenen Fahrleistungsdaten auf der
+    BISKO-Skala A–D (Methodenpapier §3.4).<br/>
+    Prüfschritt 7.3 verlangt, dass das Feld vorhanden ist. Die <i>Güte</i> beeinflusst hier
+    allerdings die Konformität nicht: Das zweite Prüfprotokoll sagt es für genau diesen Datensatz
+    ausdrücklich – <i>„Die Datengüte spielt bei den Fahrleistungsdaten keine Rolle."</i>
+    Maßgeblich ist bei der Fahrleistung, dass die verlangten Fahrzeugklassen und
+    Straßenkategorien überhaupt vorliegen; das weist
+    <code>vehicle_kilometers_own_availability</code> aus.
+  type: simple.AdditiveNode2
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [vehicle_type, road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_datasets:
+  - id: kommune/fahrleistung_strassenverkehr
+    column: quality
+
+- id: other_transport_energy_own_data_quality
+  is_editable: false
+  name_de: Datengüte der eigenen Schienen-, Schiffs- und Flugverkehrsdaten
+  name_en: Own rail, water and air transport data quality
+  description_en: |
+    The Datengüte the city assigned to each cell of its own rail, inland waterway and commercial
+    aviation energy data, on BISKO's A–D scale (Methodenpapier §3.4). Prüfschritt 7.3 requires the
+    field to exist; as with mileage, the grade itself does not gate conformity for these carriers.
+  description_de: |
+    Die von der Kommune je Zelle vergebene Datengüte ihrer eigenen Daten zum Schienen-,
+    Binnenschiffs- und gewerblichen Flugverkehr auf der BISKO-Skala A–D (Methodenpapier §3.4).
+    Prüfschritt 7.3 verlangt, dass das Feld vorhanden ist; wie bei der Fahrleistung steuert die
+    Güte selbst die Konformität dieser Energieträger nicht.
+  type: simple.AdditiveNode2
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: kommune/energieverbrauch_uebriger_verkehr
+    column: quality
 
 - id: quality_a_data_for_grid_based_energy
   is_editable: false

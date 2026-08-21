@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a7c9eb731f250a8d063988259f3b5a6b81365dfc
+  commit: b4e05f02cb6f2edbdc5c594a8aad08aa6032d78e
   dvc_remote: kausal-s3
 name_de: Bayreuth Treibhausgas-Monitor
 name_en: Bayreuth Greenhouse Gas Monitor
@@ -684,6 +684,11 @@ result_excels:
   # Which of BISKO's three Möglichkeiten each year took (1/2/3) -- the answer to Prüfschritt 6.1,
   # per year rather than as a blanket statement about the tool.
   - district_heating_method_in_force
+  # Prüfschritt 7.3: a Datengüte must be enterable for every input field. The first Prüflauf
+  # named the district-heating one as missing; these three are where the grades are shown.
+  - district_heating_energy_use_data_quality
+  - vehicle_kilometers_own_data_quality
+  - other_transport_energy_own_data_quality
   - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
   - vehicle_kilometers_own          # 2.3: the own-data mileage route, road-typed
   - other_transport_energy_own      # 1.5: where a city enters rail/water/air consumption
