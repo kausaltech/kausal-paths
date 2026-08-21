@@ -389,7 +389,10 @@ def _get_channel_layer_config() -> dict[str, Any]:
         return {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
-                'hosts': [REDIS_URL],
+                # redis-py >= 8.1 defaults socket_timeout to 5 s, which is exactly the
+                # blocking timeout channels_redis uses for its BZPOPMIN, so the read
+                # deadline always fires just before the server replies.
+                'hosts': [{'address': REDIS_URL, 'socket_timeout': 10}],
                 'prefix': 'paths-%s-asgi' % DEPLOYMENT_TYPE,
             },
         }
