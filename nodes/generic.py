@@ -2151,15 +2151,27 @@ class BiskoExergeticAllocationNode(GenericNode):
     1. **Is the prescribed method in force?** The allocation node is asked directly, via
        :attr:`ChpNode.allocation_conforms_to_bisko`. Nothing here inspects its class, so a
        new conforming allocation class needs no change to this node.
-    2. **Did it allocate anything?** A method applied to an empty balance is not evidence
-       of conformity, so the answer is 0 in any year where the district heating emissions
-       it governs are zero or missing.
+    2. **Did it allocate anything?** A method applied to a balance that *has* district heating
+       and yet reports no emissions from it is not evidence of conformity, so the answer is 0
+       in that case.
+
+    A year with **no district heating at all** is a third case, and it answers 1: the criterion
+    does not apply, so there is nothing for it to fail. BISKO nowhere requires a city to have a
+    heat network. Without that distinction a city with no district heating could never be
+    conform, and neither could a year whose every entry is a legitimate zero -- which BISKO
+    permits explicitly ("der Eintrag kann auch Null sein") and which the second Prüflauf recorded
+    as a defect.
 
     Expects two tagged input nodes: ``allocation``, the node performing the split, and
     ``emissions``, the district heating emissions of the balance. The second must be the
     emissions the balance actually reports, not the detailed fuel-input branch -- that
     branch is empty for nearly every BISKO city, so gating on it would report
     non-conformity everywhere.
+
+    A third input tagged ``consumption`` -- the district heating consumption of the balance --
+    is optional and is what separates "no heat network" from "heat network, no emissions
+    allocated". Without it the node cannot tell the two apart and treats every zero-emission
+    year as a failure, which is the pre-2026-08-22 behaviour.
 
     Output is 1 or 0 per year over the model's full span, never null: a null here fails
     baseline validation and takes the whole graph view down with it.
@@ -2224,13 +2236,43 @@ class BiskoExergeticAllocationNode(GenericNode):
 
         allocated = edf.select([YEAR_COLUMN, pl.col(VALUE_COLUMN).alias('_emissions')])
         out = out.paths.join_over_index(allocated, how='left')
+
+        # Optional: the district heating consumption of the balance. It is what tells a year with
+        # no heat network (criterion not applicable, answer 1) from a year that has one and
+        # allocated nothing (answer 0). Absent, every zero-emission year reads as a failure.
+        consumption_nodes = self.get_input_nodes(tag='consumption')
+        if len(consumption_nodes) > 1:
+            raise NodeError(
+                self,
+                "Expected at most one input node tagged 'consumption' (the district heating "
+                'consumption of the balance); got %d.' % len(consumption_nodes),
+            )
+        if consumption_nodes:
+            cdf = consumption_nodes[0].get_output_pl(target_node=self)
+            if cdf.dim_ids:
+                raise NodeError(
+                    self,
+                    "The 'consumption' input must be a single series; got dimension(s) %s. Filter "
+                    'to district heating and flatten the rest.' % ', '.join(sorted(cdf.dim_ids)),
+                )
+            out = out.paths.join_over_index(cdf.select([YEAR_COLUMN, pl.col(VALUE_COLUMN).alias('_consumption')]), how='left')
+        else:
+            out = out.with_columns(pl.lit(None, dtype=pl.Float64).alias('_consumption'))
+
+        allocated_something = pl.col('_emissions').fill_null(0.0).fill_nan(0.0).abs() > 0.0
+        # A missing consumption row is the same statement as a zero one: no district heating that
+        # year. Only a *present* input can make the criterion applicable.
+        no_district_heating = pl.col('_consumption').fill_null(0.0).fill_nan(0.0).abs() <= 0.0
+        if not consumption_nodes:
+            no_district_heating = pl.lit(value=False)
+
         out = out.with_columns(
             pl
-            .when(pl.lit(value=bool(conforms)) & (pl.col('_emissions').fill_null(0.0).fill_nan(0.0).abs() > 0.0))
+            .when(pl.lit(value=bool(conforms)) & (allocated_something | no_district_heating))
             .then(1.0)
             .otherwise(0.0)
             .alias(VALUE_COLUMN)
-        ).drop('_emissions')
+        ).drop('_emissions', '_consumption')
         last_hist = instance.maximum_historical_year or instance.reference_year
         return out.with_columns((pl.col(YEAR_COLUMN) > pl.lit(last_hist)).alias(FORECAST_COLUMN)).set_unit(
             VALUE_COLUMN, 'dimensionless'

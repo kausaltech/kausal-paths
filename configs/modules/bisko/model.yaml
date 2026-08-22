@@ -238,25 +238,15 @@ datasets:
   - id: quality
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
-- id: de/energieverbrauch_strassenverkehr                     # ifeu road transport energy, used when not use_mileage
-  # Locked 2026-08-21. It was the one `de/` dataset left editable, which read as an oversight
-  # either way round: the namespace says national methodology data, the flag said the city owns
-  # it. It is national data, so the flag was the thing that was wrong.
-  #
-  # Note the consuming node is still called `transport_energy_own` and describes itself as the
-  # city's own data. That name predates the namespace split and is now misleading -- but renaming
-  # a node id orphans its NodeConfig row and any page reference, so it wants to be its own change
-  # with those references checked, the same call made for `quality_a_data_for_grid_based_energy`.
-  # If a city is ever to supply its own road-transport energy, that is a `kommune/` dataset that
-  # does not exist yet, not this one.
-  is_editable: false
-  metrics:
-  - id: Value
-    validation_rules:
-    - {kind: value_range, enforcement: block_edit, min: 0}
-  - id: quality
-    validation_rules:
-    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
+# `de/energieverbrauch_strassenverkehr` was declared here until 2026-08-21 and is now gone from
+# the module entirely. It was the national leg of the Verbrauchsdaten route to road transport, and
+# it does not survive scrutiny as one: it is in neither ifeu handover workbook -- those carry
+# *Fahrleistung Straße* and *Energie ÜbrVM* and nothing else -- `renames.yaml` recorded it as
+# "unused today", its rail rows duplicated `de/energieverbrauch_uebriger_verkehr`, and against the
+# mileage route it was low by a factor that varies per vehicle class (cars 3.94, vans 3.35,
+# motorcycles 3.33, trucks 3.15, Linienbus 2.38), so not one unit conversion either. A city that
+# has not measured its road transport now falls through to the mileage route, which is BISKO's own
+# default. The DVC path and the DB rows are untouched by this; nothing reads them.
 - id: kommune/verkehrsleistung_personen               # own Verkehrsleistung (pkm); not in the balance
   is_editable: true
   metrics:
@@ -1174,8 +1164,7 @@ nodes:
     <b>Applied to households, commerce/trade/services and municipal facilities; not to industry
     or transport.</b> Degree days explain space heating, and industry's energy is largely process
     heat while transport has no space heating at all — so a correction there would move a number
-    the weather did not cause. Commerce/trade/services carried 1.0 until 2026-08-21, which left it
-    the only space-heating sector uncorrected.<br/>
+    the weather did not cause.<br/>
     <b>BISKO does not permit this correction</b> (criterion 5). The balance computes without it
     by default; switching <i>Wetterkorrektur durchführen</i> on makes the result explicitly
     non-conformant, and <code>has_no_weather_correction</code> reports that. The factors are
@@ -1189,8 +1178,7 @@ nodes:
     <b>Angewendet auf Haushalte, GHD/Sonstiges und kommunale Einrichtungen; nicht auf Industrie
     und Verkehr.</b> Gradtagzahlen erklären Raumwärme, während der Energieverbrauch der Industrie
     überwiegend Prozesswärme ist und der Verkehr gar keine Raumwärme hat – eine Bereinigung dort
-    würde eine Größe verändern, die das Wetter nicht verursacht hat. GHD/Sonstiges trug bis zum
-    21.08.2026 den Wert 1,0 und blieb damit als einziger raumwärmerelevanter Sektor unbereinigt.<br/>
+    würde eine Größe verändern, die das Wetter nicht verursacht hat.<br/>
     <b>BISKO lässt diese Bereinigung nicht zu</b> (Kriterium 5). Die Bilanz rechnet
     standardmäßig ohne sie; wird <i>Witterungsbereinigung durchführen</i> eingeschaltet, ist das
     Ergebnis ausdrücklich nicht BISKO-konform, und <code>has_no_weather_correction</code> weist
@@ -1206,8 +1194,23 @@ nodes:
   input_datasets:
   - id: kommune/witterungsbereinigung
   params:
+  # `extend_all` is not cosmetic here, and it is why this node must span the whole frame rather
+  # than only the years the degree-day series covers. `final_energy_use` multiplies the city's
+  # energy by this node, and a multiply intersects years -- so every year this node does not
+  # cover disappears from the stationary balance entirely. The shipped series starts in 1995
+  # while the instance frame starts in 1990, which silently dropped 1990-1994 from the balance:
+  # `net_emissions` carried transport alone in those years, and the 1990 reference year read
+  # 1,282 kt against 3,970 kt in 1995, so the tool showed emissions *rising* since 1990. The
+  # energy data for those years was in `kommune/endenergieverbrauch` the whole time.
+  #
+  # It happened with the correction switched *off*, because the switch sets the factor to 1 and
+  # does not change the frame's year span.
+  #
+  # `backfill`/`extend` on the binding cannot do this: backfill only fills nulls in rows that
+  # already exist, and dataset interpolation spans the dataset's own first-to-last year. Only
+  # `extend_all` reaches back to `minimum_historical_year`. Fixed 2026-08-21.
   - id: operations
-    value: get_single_dataset,do_correction
+    value: get_single_dataset,extend_all,do_correction
   - id: do_correction
     ref: weather_correction
 
@@ -1477,8 +1480,38 @@ nodes:
 
 - id: historical_emissions
   is_editable: false
-  name_de: Historische Emissionen
-  name_en: Historical emissions
+  # The node id still says "historical". Renaming it would orphan its NodeConfig row and the
+  # `result_excels` entry of eight configs, so only the labels moved -- the same call made for
+  # `quality_a_data_for_grid_based_energy`.
+  name_de: Gemeldete Emissionen
+  name_en: Reported emissions
+  description_en: |
+    The greenhouse gas emissions the city itself has reported, by sector and energy carrier, as
+    the city reported them. Nothing in the balance is computed from this node: it is here so that
+    the BISKO balance the tool computes can be held against the figures the city has published,
+    and any difference between the two can be seen rather than guessed at.<br/>
+    <b>It is not the BISKO balance.</b> A reported inventory usually differs — a different
+    reporting boundary, a different emission-factor vintage, non-energetic sectors included,
+    weather correction applied. Where the two disagree, the BISKO balance is
+    <code>net_emissions</code> and this is the comparison.<br/>
+    The template ships <b>empty</b>, and an empty cell reads as zero here. A zero therefore means
+    <i>nothing has been reported for that cell</i>, not that the city reported zero emissions.
+    Until the city enters its own figures the whole series is zero and there is nothing to
+    compare.<br/>
+  description_de: |
+    Die von der Kommune selbst gemeldeten Treibhausgasemissionen, nach Sektor und Energieträger,
+    so wie die Kommune sie gemeldet hat. Aus diesem Knoten wird nichts in der Bilanz berechnet: Er
+    ist dafür da, die vom Werkzeug berechnete BISKO-Bilanz den von der Kommune veröffentlichten
+    Zahlen gegenüberstellen zu können, damit ein Unterschied zwischen beiden sichtbar wird und
+    nicht vermutet werden muss.<br/>
+    <b>Dies ist nicht die BISKO-Bilanz.</b> Ein gemeldetes Inventar weicht in der Regel ab – andere
+    Bilanzgrenze, andere Emissionsfaktoren-Fassung, nicht-energetische Sektoren enthalten,
+    Witterungsbereinigung angewendet. Weichen beide voneinander ab, ist
+    <code>net_emissions</code> die BISKO-Bilanz und dies der Vergleich.<br/>
+    Die Vorlage wird <b>leer</b> ausgeliefert, und eine leere Zelle wird hier als Null gelesen.
+    Eine Null bedeutet daher, <i>dass für diese Zelle nichts gemeldet wurde</i>, und nicht, dass
+    die Kommune Emissionen von null gemeldet hätte. Bis die Kommune eigene Zahlen einträgt, ist die
+    ganze Reihe null und es gibt nichts zu vergleichen.<br/>
   type: simple.AdditiveNode2
   quantity: emissions
   unit: kt_co2e/a
@@ -1491,6 +1524,12 @@ nodes:
     backfill: true
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: Value
+    # empty_to_zero, for the same reason as the other blank templates in this module: the template
+    # ships with no values at all and this node still has to produce a frame with dimensions.
+    # Here the zeros are also what the reader sees, so the description says outright that a zero
+    # means "not reported". No availability node stands behind this one, because nothing in the
+    # balance depends on it.
+    tags: [empty_to_zero]
     filters:
     - column: energy_carrier
       value: not_defined
@@ -1640,27 +1679,27 @@ nodes:
   is_editable: false
   name_de: Fernwärmeemissionen aus dem Standardfaktor
   name_en: District heating emissions from the standard factor
-  description_en: 'BISKO Möglichkeit 2: the city''s district heating consumption valued with the
-    standard Fernwärme factor from <code>end_energy_emission_factors</code> — the Kohle-KWK
-    fallback of 260 g CO₂e/kWh that BISKO prescribes when the plant''s fuel input is unknown.<br/>
-    Standard here means BISKO''s own default, not a lesser method: that factor was derived
+  description_en: |
+    BISKO Möglichkeit 2: the city's district heating consumption valued with the Kohle-KWK factor
+    of BISKO Table 5 — 260 g CO₂e/kWh — which the standard names as the value to use when the
+    plant's fuel input is unknown, and as the fallback whenever no single generation technology
+    reaches 80 per cent of heat production.<br/>
+    Standard here means BISKO's own default, not a lesser method: that factor was derived
     exergetically too, so this route is fully conformant with criterion 6. What is missing is the
-    city''s plant data, not the method.<br/>
-    This is the fallback route, and in practice the one nearly every city''s balance runs on,
+    city's plant data, not the method.<br/>
+    This is the fallback route, and in practice the one nearly every city's balance runs on,
     because almost no city has supplied plant data or declared a generation variant.
-
-    '
-  description_de: 'BISKO-Möglichkeit 2: der Fernwärmeverbrauch der Kommune, bewertet mit dem
-    Standard-Fernwärmefaktor aus <code>end_energy_emission_factors</code> — dem Kohle-KWK-Rückfallwert
-    von 260 g CO₂e/kWh, den BISKO vorsieht, wenn der Brennstoffeinsatz der Anlage unbekannt ist.<br/>
+  description_de: |
+    BISKO-Möglichkeit 2: der Fernwärmeverbrauch der Kommune, bewertet mit dem Kohle-KWK-Faktor
+    aus BISKO-Tabelle 5 — 260 g CO₂e/kWh —, den der Standard vorsieht, wenn der Brennstoffeinsatz
+    der Anlage unbekannt ist, und als Rückfallwert, wenn keine Erzeugungsvariante 80 Prozent der
+    Wärmeerzeugung erreicht.<br/>
     „Standard" meint den BISKO-Vorgabewert, keine geringere Methode: Auch dieser Faktor wurde
     exergetisch hergeleitet, dieser Weg ist also mit Kriterium 6 voll konform. Es fehlen die
     Anlagendaten der Kommune, nicht die Methode.<br/>
     Dies ist der Rückfallweg und in der Praxis derjenige, auf dem nahezu jede kommunale Bilanz
     beruht, da bisher kaum eine Kommune Anlagendaten geliefert oder eine Erzeugungsvariante
     erklärt hat.
-
-    '
   type: simple.MultiplicativeNode2
   quantity: emissions
   unit: kt_co2e/a
@@ -1673,8 +1712,18 @@ nodes:
       categories: [district_heating]
     - id: sector
       flatten: true
-  - id: end_energy_emission_factors
+  # Table 5's Kohle KWK, taken from the Table 5 node rather than written in as 260, so it follows
+  # the annual update of the table -- and so this route and
+  # `district_heating_emission_factor_ceiling` cannot drift apart, since the ceiling is the same
+  # value read from the same place.
+  - id: emission_factors_for_district_heating_by_generic_fuel
     from_dimensions:
+    - id: energy_carrier
+      categories: [coal_chp]
+      flatten: true
+    - id: per_what_energy
+      flatten: true
+    to_dimensions:
     - id: energy_carrier
       categories: [district_heating]
 
@@ -1921,9 +1970,7 @@ nodes:
     is known. <code>district_heating_method_in_force</code> reports which route each year took.<br/>
     <b>Why per year and not a toggle.</b> A city builds up district heating evidence one reporting
     year at a time, and an all-or-nothing switch makes it choose between discarding two years of
-    plant data and losing every earlier year. The same reasoning replaced
-    <code>use_own_mileage</code> in <code>vehicle_kilometers</code> on 2026-08-19, and
-    <code>use_exergetic_district_heating</code> here on 2026-08-20.<br/>
+    plant data and losing every earlier year.<br/>
     Within one year the routes never mix: <code>prefer_by_year</code> serves a covered year
     entirely from the preferred source. A year the city covered only partly is still that city's
     year, and the gaps are reported by the availability nodes rather than filled from the
@@ -1946,10 +1993,7 @@ nodes:
     genommen hat.<br/>
     <b>Warum jahresweise und kein Schalter.</b> Eine Kommune baut ihre Fernwärme-Datengrundlage
     Berichtsjahr für Berichtsjahr auf, und ein Alles-oder-nichts-Schalter zwingt sie zur Wahl
-    zwischen dem Verwerfen zweier Jahre mit Anlagendaten und dem Verlust aller früheren Jahre.
-    Dieselbe Überlegung hat am 19.08.2026 <code>use_own_mileage</code> in
-    <code>vehicle_kilometers</code> ersetzt und am 20.08.2026 hier
-    <code>use_exergetic_district_heating</code>.<br/>
+    zwischen dem Verwerfen zweier Jahre mit Anlagendaten und dem Verlust aller früheren Jahre.<br/>
     Innerhalb eines Jahres vermischen sich die Wege nie: <code>prefer_by_year</code> bedient ein
     abgedecktes Jahr vollständig aus der bevorzugten Quelle. Ein von der Kommune nur teilweise
     gefülltes Jahr bleibt ihr Jahr, und die Lücken werden von den Verfügbarkeitsknoten ausgewiesen,
@@ -2360,63 +2404,45 @@ nodes:
   params:
     formula: extend_all(mileage)
 
-- id: transport_energy_ifeu
-  is_editable: false
-  name_de: Verkehrsenergie nach Fahrzeugtyp - gemeindefeiner ifeu-Defaultwert
-  name_en: Transport energy by vehicle type - ifeu municipal default
-  description_en: |
-    Road and rail transport final energy from ifeu's gemeindefeine default, by vehicle class and
-    fuel. This is BISKO's second route to road transport energy — the consumption route — as
-    opposed to mileage × specific consumption, which <code>road_transport_energy_bisko</code>
-    takes.<br/>
-    <b>The two ifeu defaults disagree by a factor of 3–4 per vehicle class and nobody has
-    explained why</b> (data/TODO.md item 36). Until that is answered, this route is demonstrable
-    rather than supported.<br/>
-    Called <code>transport_energy_own</code> until 2026-08-21, which was wrong: it reads
-    <code>de/energieverbrauch_strassenverkehr</code>, a provider default, not anything the city
-    supplied. The city's own version is <code>transport_energy_own</code>, now pointed at a
-    <code>kommune/</code> dataset of its own.
-  description_de: |
-    Endenergieverbrauch des Straßen- und Schienenverkehrs aus dem gemeindefeinen ifeu-Defaultwert,
-    nach Fahrzeugklasse und Kraftstoff. Das ist der zweite von BISKO zugelassene Weg zur
-    Straßenverkehrsenergie – der Verbrauchsweg – im Unterschied zu Fahrleistung × spezifischem
-    Verbrauch, den <code>road_transport_energy_bisko</code> nimmt.<br/>
-    <b>Die beiden ifeu-Defaultwerte weichen je Fahrzeugklasse um den Faktor 3–4 voneinander ab,
-    ohne dass dies erklärt wäre</b> (data/TODO.md Punkt 36). Bis das geklärt ist, ist dieser Weg
-    vorführbar, aber nicht belastbar.<br/>
-    Hieß bis zum 21.08.2026 <code>transport_energy_own</code>, was falsch war: Der Knoten liest
-    <code>de/energieverbrauch_strassenverkehr</code>, einen Anbieter-Defaultwert, und nichts von
-    der Kommune Geliefertes.
-  type: formula.FormulaNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
-  input_datasets:
-  - id: de/energieverbrauch_strassenverkehr
-    column: Value
-    tags: [energy]
-  params:
-    formula: extend_all(energy)
+# --- The Verbrauchsdaten route to road transport -------------------------------------------
+#
+# BISKO's Prüfschritt 1.5 accepts either route to road transport: Fahrleistung × spezifischer
+# Verbrauch, or the consumption measured directly. This is the second, and it is the city's own
+# data only -- there is no national leg.
+#
+# `de/energieverbrauch_strassenverkehr` used to be that leg and was dropped on 2026-08-21. It
+# was not an ifeu gemeindefein product: it appears in neither ifeu handover workbook (which
+# carry only *Fahrleistung Straße* and *Energie ÜbrVM*), `renames.yaml` recorded it as "unused
+# today", and against the mileage route it was low by a non-uniform factor -- cars 3.94, vans
+# 3.35, motorcycles 3.33, trucks 3.15, Linienbus 2.38, so not one unit slip either. A route
+# whose fallback is a dataset of that provenance should not be selectable. A city that has not
+# measured its road transport now falls through to the mileage route, which is BISKO's own
+# default.
 
 - id: transport_energy_own
   is_editable: false
-  name_de: Verkehrsenergie nach Fahrzeugtyp - eigene Verbrauchsdaten
-  name_en: Transport energy by vehicle type - own consumption data
+  name_de: Endenergieverbrauch Straßenverkehr - eigene Verbrauchsdaten
+  name_en: Road transport final energy use - own consumption data
   description_en: |
-    Road and rail transport final energy from the city's own consumption data, by vehicle class
-    and fuel — BISKO's Verbrauchsdaten route where the city measures it rather than taking the
-    provider default.<br/>
-    The template ships blank. A year the city fills in is served from here; every other year falls
-    back to <code>transport_energy_ifeu</code>, chosen per year by
-    <code>transport_energy_from_consumption</code>.
+    Final energy of road transport from the city's own consumption data, by vehicle class and
+    fuel — BISKO's Verbrauchsdaten route, where the city measures the consumption rather than
+    deriving it from mileage.<br/>
+    Road vehicle classes only. Rail, inland waterway and air transport belong in
+    <code>kommune/energieverbrauch_uebriger_verkehr</code>, and entering them here as well would
+    count the same consumption twice.<br/>
+    The template ships blank. A year the city fills in is served from here; every other year is
+    served by the mileage route. Which one each year took is reported by
+    <code>road_transport_energy_method_in_force</code>.
   description_de: |
-    Endenergieverbrauch des Straßen- und Schienenverkehrs aus eigenen Verbrauchsdaten der Kommune,
-    nach Fahrzeugklasse und Kraftstoff – der BISKO-Verbrauchsweg, bei dem die Kommune selbst misst,
-    statt den Anbieter-Defaultwert zu übernehmen.<br/>
-    Die Vorlage wird leer ausgeliefert. Ein von der Kommune befülltes Jahr wird von hier bedient;
-    jedes andere Jahr fällt auf <code>transport_energy_ifeu</code> zurück, jahresweise ausgewählt
-    von <code>transport_energy_from_consumption</code>.
+    Endenergieverbrauch des Straßenverkehrs aus eigenen Verbrauchsdaten der Kommune, nach
+    Fahrzeugklasse und Kraftstoff – der BISKO-Verbrauchsweg, bei dem die Kommune den Verbrauch
+    selbst misst, statt ihn aus der Fahrleistung abzuleiten.<br/>
+    Nur Straßenfahrzeugklassen. Schienen-, Binnenschiffs- und Flugverkehr gehören nach
+    <code>kommune/energieverbrauch_uebriger_verkehr</code>; sie auch hier einzutragen würde
+    denselben Verbrauch zweimal zählen.<br/>
+    Die Vorlage wird leer ausgeliefert. Ein von der Kommune befülltes Jahr wird von hier bedient,
+    jedes andere Jahr vom Fahrleistungsweg. Welchen Weg jedes Jahr genommen hat, weist
+    <code>road_transport_energy_method_in_force</code> aus.
   type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
@@ -2429,6 +2455,12 @@ nodes:
     # frame with dimensions either way. The zeros decide nothing -- coverage comes from
     # transport_energy_own_availability, which reads the same dataset untagged.
     tags: [energy, empty_to_zero]
+    filters:
+    # The road classes, named rather than taken as-is, for the same defensive reason as
+    # final_energy_use_availability: a city's own export can carry a category that is not a BISKO
+    # road mode at all, and an unknown category makes the whole node fail rather than be ignored.
+    - dimension: vehicle_type
+      categories: [motorcycles, passenger_cars, vans, trucks, local_buses, coach_buses, tram]
   params:
     formula: extend_all(energy)
 
@@ -2440,15 +2472,17 @@ nodes:
     For which vehicle class, fuel and year the city's own road transport consumption dataset holds
     a value (1) and for which it does not (0). Read before interpolation, zero-filling or
     extension, so a blank template does not claim to cover every year.<br/>
-    This is what selects the city's data over the ifeu default in
-    <code>transport_energy_from_consumption</code>.
+    This is what selects the Verbrauchsdaten route over the mileage route in
+    <code>road_transport_energy_by_road_type</code>, and what
+    <code>road_transport_energy_method_in_force</code> reports.
   description_de: |
     Für welche Fahrzeugklasse, welchen Kraftstoff und welches Jahr der eigene Verbrauchsdatensatz
     der Kommune einen Wert enthält (1) und für welche nicht (0). Gelesen vor Interpolation,
     Nullauffüllung und Fortschreibung, damit eine leere Vorlage nicht beansprucht, jedes Jahr
     abzudecken.<br/>
-    Damit werden in <code>transport_energy_from_consumption</code> die eigenen Daten dem
-    ifeu-Defaultwert vorgezogen.
+    Damit wird in <code>road_transport_energy_by_road_type</code> der Verbrauchsweg dem
+    Fahrleistungsweg vorgezogen, und das weist
+    <code>road_transport_energy_method_in_force</code> aus.
   type: simple.DataAvailabilityNode
   quantity: fraction
   unit: dimensionless
@@ -2457,44 +2491,11 @@ nodes:
   input_datasets:
   - id: kommune/energieverbrauch_strassenverkehr
     column: Value
+    filters:
+    - dimension: vehicle_type
+      categories: [motorcycles, passenger_cars, vans, trucks, local_buses, coach_buses, tram]
   - id: de/kategorien_energieverbrauch_strassenverkehr
     tags: [template]
-
-- id: transport_energy_from_consumption
-  is_editable: false
-  name_de: Verkehrsenergie aus Verbrauchsdaten
-  name_en: Transport energy from consumption data
-  description_en: |
-    BISKO's Verbrauchsdaten route to transport energy: the city's own consumption data in the years
-    it covers, the gemeindefeine ifeu default in the rest, chosen per year exactly as
-    <code>vehicle_kilometers</code> and <code>other_transport_energy</code> do.<br/>
-    Reaches the balance only when <i>use_mileage</i> is off. That switch chooses between BISKO's
-    two routes — mileage × specific consumption, or consumption measured directly — and it is a
-    different question from whose data each route uses, which is settled here per year.
-  description_de: |
-    Der BISKO-Verbrauchsweg zur Verkehrsenergie: die eigenen Verbrauchsdaten der Kommune in den
-    Jahren, die sie abdecken, und der gemeindefeine ifeu-Defaultwert in allen übrigen, jahresweise
-    ausgewählt, genau wie bei <code>vehicle_kilometers</code> und
-    <code>other_transport_energy</code>.<br/>
-    Erreicht die Bilanz nur, wenn <i>use_mileage</i> ausgeschaltet ist. Dieser Schalter wählt
-    zwischen den beiden BISKO-Wegen – Fahrleistung × spezifischer Verbrauch oder direkt gemessener
-    Verbrauch – und das ist eine andere Frage als die, wessen Daten der jeweilige Weg verwendet;
-    diese wird hier jahresweise beantwortet.
-  type: formula.FormulaNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
-  input_nodes:
-  - id: transport_energy_ifeu
-    tags: [ifeu]
-  - id: transport_energy_own
-    tags: [own]
-  # See vehicle_kilometers for why coverage comes from the availability node.
-  - id: transport_energy_own_availability
-    tags: [coverage]
-  params:
-    formula: prefer_by_year(own, ifeu, coverage)
 
 - id: vehicle_kilometers_ifeu
   is_editable: false
@@ -2890,31 +2891,33 @@ nodes:
 
 - id: transport_energy
   is_editable: false
-  name_de: Transportenergie
-  name_en: Transport energy
-  type: formula.FormulaNode
+  name_de: Endenergieverbrauch Verkehr
+  name_en: Transport final energy use
+  description_en: |
+    Final energy of the whole transport sector: road transport plus rail, inland waterway and
+    commercial aviation, by vehicle class and energy carrier.<br/>
+    <b>The two terms are added unconditionally.</b> They are different Verkehrsträger, not two
+    routes to the same one, so there is nothing to choose between: BISKO's endenergiebasierte
+    Territorialbilanz covers every motorised mode on the territory (Methodenpapier 3.2), and
+    leaving one out is a gap in the balance rather than a methodological variant.<br/>
+  description_de: |
+    Endenergieverbrauch des gesamten Verkehrssektors: Straßenverkehr sowie Schienen-,
+    Binnenschiffs- und gewerblicher Flugverkehr, nach Fahrzeugklasse und Energieträger.<br/>
+    <b>Die beiden Terme werden unbedingt addiert.</b> Es sind verschiedene Verkehrsträger und nicht
+    zwei Wege zum selben, es gibt also nichts zu wählen: Die endenergiebasierte Territorialbilanz
+    nach BISKO erfasst alle motorisierten Verkehrsmittel auf dem Territorium (Methodenpapier 3.2),
+    und eines davon auszulassen ist eine Lücke in der Bilanz und keine methodische Variante.<br/>
+  type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
-  - id: transport_energy_from_consumption
-    tags: [own]
-    to_dimensions:
-    - id: vehicle_type
-    - id: energy_carrier
-  - id: other_transport_energy
-    tags: [other_bisko]
-    to_dimensions:
-    - id: vehicle_type
-    - id: energy_carrier
   - id: road_transport_energy_bisko
-    tags: [road_bisko]
-  params:
-  - id: formula
-    value: select_port(condition, (other_bisko + road_bisko), own)
-  - id: condition
-    ref: use_mileage
+  - id: other_transport_energy
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
 
 - id: transport_energy_factors
   is_editable: false
@@ -3087,20 +3090,28 @@ nodes:
     - id: vehicle_type
     - id: road_type
 
-- id: road_transport_energy_by_road_type
+- id: road_transport_energy_computed_by_road_type
   is_editable: false
-  name_en: Road transport energy by road type
-  name_de: Straßenverkehrsenergie nach Straßentyp
+  name_en: Road transport final energy use from mileage, by road type
+  name_de: Endenergieverbrauch Straßenverkehr aus der Fahrleistung, nach Straßentyp
   description_en: |
-    End energy of road transport by vehicle class, road category and energy carrier. This is
-    the verbrauchsrelevante Straßentypisierung BISKO asks for (Prüfschritt 2.3). Tram and metro
-    appear under 'all road types' because the source reports their mileage as a single figure
-    without a road breakdown.
+    Road transport final energy on BISKO's Fahrleistung route: mileage × specific consumption ×
+    fuel share, by vehicle class, road category and energy carrier. This is the route BISKO ships
+    and the one nearly every balance runs on.<br/>
+    Tram and metro appear under 'all road types' because the source reports their mileage as a
+    single figure without a road breakdown.<br/>
+    This is one of the two candidate routes, not necessarily the one the balance used. For the
+    energy actually in the balance, see <i>Road transport final energy use by road type</i>.
   description_de: |
-    Endenergie des Straßenverkehrs nach Fahrzeugklasse, Straßenkategorie und Energieträger.
-    Dies ist die von BISKO verlangte verbrauchsrelevante Straßentypisierung (Prüfschritt 2.3).
-    Straßen-, Stadt- und U-Bahnen erscheinen unter „Alle Straßentypen“, da die Quelle ihre
-    Fahrleistung als Einzelwert ohne Straßenaufteilung ausweist.
+    Endenergieverbrauch des Straßenverkehrs auf dem BISKO-Fahrleistungsweg: Fahrleistung ×
+    spezifischer Verbrauch × Energieträgeranteil, nach Fahrzeugklasse, Straßenkategorie und
+    Energieträger. Das ist der von BISKO vorgesehene Weg und derjenige, auf dem nahezu jede Bilanz
+    beruht.<br/>
+    Straßen-, Stadt- und U-Bahnen erscheinen unter „Alle Straßentypen", da die Quelle ihre
+    Fahrleistung als Einzelwert ohne Straßenaufteilung ausweist.<br/>
+    Dies ist einer der beiden möglichen Wege und nicht zwangsläufig der, den die Bilanz verwendet
+    hat. Die tatsächlich bilanzierte Energie zeigt „Endenergieverbrauch Straßenverkehr nach
+    Straßentyp".
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -3110,10 +3121,185 @@ nodes:
   - id: road_transport_energy_with_road_type_factors
   - id: road_transport_energy_with_uniform_factors
 
+- id: road_type_shares_of_mileage
+  is_editable: false
+  name_en: Road category shares of mileage
+  name_de: Anteile der Straßenkategorien an der Fahrleistung
+  description_en: |
+    For each vehicle class, how its mileage that year divides between motorway, rural and urban
+    roads, as shares summing to 1. Tram and metro sit at 'all road types' with a share of 1,
+    because their mileage arrives as a single figure.<br/>
+    Its only consumer is <code>road_transport_energy_own_by_road_type</code>. A city's measured
+    consumption carries no road category, and Prüfschritt 2.3 requires the road typing, so the
+    measured level has to be typed from somewhere; the mileage of the same year is the only
+    defensible key, and it comes from whichever mileage source is in force.<br/>
+    A vehicle class with no mileage at all in a given year gets no share and cannot be typed.
+    That case is caught by <code>road_transport_consumption_fully_typed</code> rather than being
+    left to disappear.
+  description_de: |
+    Für jede Fahrzeugklasse, wie sich ihre Fahrleistung im jeweiligen Jahr auf Autobahn,
+    Außerorts und Innerorts verteilt, als Anteile mit Summe 1. Straßen-, Stadt- und U-Bahnen
+    liegen mit dem Anteil 1 bei „Alle Straßentypen", da ihre Fahrleistung als Einzelwert
+    vorliegt.<br/>
+    Einziger Abnehmer ist <code>road_transport_energy_own_by_road_type</code>. Die gemessenen
+    Verbrauchsdaten einer Kommune tragen keine Straßenkategorie, Prüfschritt 2.3 verlangt die
+    Straßentypisierung aber, der gemessene Wert muss also von irgendwoher typisiert werden; die
+    Fahrleistung desselben Jahres ist der einzige belastbare Schlüssel, und sie stammt aus der
+    jeweils maßgeblichen Fahrleistungsquelle.<br/>
+    Eine Fahrzeugklasse ohne jede Fahrleistung in einem Jahr erhält keinen Anteil und kann nicht
+    typisiert werden. Dieser Fall wird von <code>road_transport_consumption_fully_typed</code>
+    aufgefangen und nicht stillschweigend verloren.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_type, road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_nodes:
+  - id: vehicle_kilometers
+    tags: [mileage]
+  params:
+    # drop_nans because a class with zero mileage divides zero by zero. Dropping is deliberate:
+    # inventing a split for a class the model has no mileage for would put the city's measured
+    # energy on a road category nothing supports. The loss is then reported rather than hidden.
+    formula: drop_nans(mileage / sum_dim(mileage, road_type))
+
+- id: road_transport_energy_own_by_road_type
+  is_editable: false
+  name_en: Road transport final energy use from own consumption data, by road type
+  name_de: Endenergieverbrauch Straßenverkehr aus eigenen Verbrauchsdaten, nach Straßentyp
+  description_en: |
+    The city's own measured road transport consumption, split across road categories in proportion
+    to that year's mileage. The level is entirely the city's; only the road typing is borrowed,
+    because Prüfschritt 2.3 requires road categories and a measured consumption figure does not
+    carry them.
+  description_de: |
+    Der von der Kommune selbst gemessene Endenergieverbrauch des Straßenverkehrs, anteilig zur
+    Fahrleistung desselben Jahres auf die Straßenkategorien verteilt. Die Höhe stammt vollständig
+    von der Kommune; entlehnt wird nur die Straßentypisierung, denn Prüfschritt 2.3 verlangt
+    Straßenkategorien und eine gemessene Verbrauchszahl trägt keine.
+  type: simple.MultiplicativeNode2
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_nodes:
+  # non_additive, or MultiplicativeNode2 makes this an addend rather than a factor: with no tag
+  # the role is inferred from the unit, and MWh/a matches this node's own unit. The product would
+  # then be the shares alone, with the energy added to it.
+  - id: transport_energy_own
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: road_type_shares_of_mileage
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+
+- id: road_transport_energy_by_road_type
+  is_editable: false
+  name_en: Road transport final energy use by road type
+  name_de: Endenergieverbrauch Straßenverkehr nach Straßentyp
+  description_en: |
+    Road transport final energy by vehicle class, road category and energy carrier — the
+    verbrauchsrelevante Straßentypisierung BISKO asks for (Prüfschritt 2.3), for the energy the
+    balance actually uses.<br/>
+    BISKO accepts two routes to this quantity (Prüfschritt 1.5), and the choice is made <b>per
+    year</b> rather than by a setting: a year the city has measured is served from its own
+    consumption data, every other year from mileage × specific consumption. That is the same
+    construction <code>vehicle_kilometers</code>, <code>other_transport_energy</code> and
+    <code>district_heating_emissions</code> use, and for the same reason — a city moves onto its
+    own measurements one reporting year at a time, and an all-or-nothing switch makes it choose
+    between discarding the years it has and losing the years it has not.<br/>
+    Which route each year took is reported by
+    <code>road_transport_energy_method_in_force</code>.
+  description_de: |
+    Endenergieverbrauch des Straßenverkehrs nach Fahrzeugklasse, Straßenkategorie und Energieträger
+    – die von BISKO verlangte verbrauchsrelevante Straßentypisierung (Prüfschritt 2.3), und zwar
+    für die Energie, die die Bilanz tatsächlich verwendet.<br/>
+    BISKO lässt zwei Wege zu dieser Größe zu (Prüfschritt 1.5), und die Wahl erfolgt <b>jahresweise</b>
+    und nicht über eine Einstellung: Ein Jahr, das die Kommune gemessen hat, wird aus ihren eigenen
+    Verbrauchsdaten bedient, jedes andere Jahr aus Fahrleistung × spezifischem Verbrauch. Das ist
+    dieselbe Konstruktion wie in <code>vehicle_kilometers</code>,
+    <code>other_transport_energy</code> und <code>district_heating_emissions</code>, und aus
+    demselben Grund: Eine Kommune stellt Berichtsjahr für Berichtsjahr auf eigene Messungen um, und
+    ein Alles-oder-nichts-Schalter zwingt sie zur Wahl zwischen dem Verwerfen der vorhandenen Jahre
+    und dem Verlust der übrigen.<br/>
+    Welchen Weg jedes Jahr genommen hat, weist
+    <code>road_transport_energy_method_in_force</code> aus.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_nodes:
+  - id: road_transport_energy_own_by_road_type
+    tags: [own]
+  - id: road_transport_energy_computed_by_road_type
+    tags: [computed]
+  # Coverage comes from the availability node, not from `own`'s values: that node's binding is
+  # zero-filled so it can compute against an empty template, and a zero is indistinguishable from
+  # a reported zero once it is in the frame. See prefer_by_year's own docstring.
+  - id: transport_energy_own_availability
+    tags: [coverage]
+  params:
+    formula: prefer_by_year(own, computed, coverage)
+
+- id: road_transport_consumption_fully_typed
+  is_editable: false
+  name_en: Was the own consumption data fully assigned to road categories?
+  name_de: Wurden die eigenen Verbrauchsdaten vollständig auf Straßenkategorien verteilt?
+  description_en: |
+    1 when every kilowatt-hour of the city's own road transport consumption survived the road-type
+    split, 0 when some of it did not — the ratio of the split total to the measured total, rounded
+    down to a flag.<br/>
+    The split borrows the road categories from that year's mileage, so a vehicle class the city has
+    measured but for which the model has no mileage cannot be typed, and its energy would otherwise
+    vanish from the balance without trace. A 0 here says that has happened and names no cell, so
+    read it together with <i>Own road transport consumption data availability</i> and the mileage of
+    the classes concerned.<br/>
+    It reads 1 in a year where the city measured nothing, because nothing had to be split.
+  description_de: |
+    1, wenn jede Kilowattstunde der eigenen Verbrauchsdaten der Kommune die Aufteilung auf
+    Straßenkategorien überstanden hat, 0, wenn ein Teil dabei verloren ging – das Verhältnis der
+    aufgeteilten Summe zur gemessenen Summe, auf ein Flag abgerundet.<br/>
+    Die Aufteilung entlehnt die Straßenkategorien der Fahrleistung desselben Jahres. Eine
+    Fahrzeugklasse, die die Kommune gemessen hat, für die das Modell aber keine Fahrleistung führt,
+    lässt sich nicht typisieren, und ihre Energie würde sonst spurlos aus der Bilanz verschwinden.
+    Eine 0 sagt, dass genau das passiert ist, nennt aber keine Zelle; lesen Sie sie daher zusammen
+    mit „Datenverfügbarkeit der eigenen Verbrauchsdaten Straßenverkehr" und der Fahrleistung der
+    betroffenen Klassen.<br/>
+    In einem Jahr, in dem die Kommune nichts gemessen hat, ergibt sich 1, denn es war nichts
+    aufzuteilen.
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_nodes:
+  - id: road_transport_energy_own_by_road_type
+    tags: [typed]
+  - id: transport_energy_own
+    tags: [measured]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  params:
+    # Compared with a tolerance rather than for equality, because the split is a multiply by
+    # shares that sum to 1 only up to floating point. `zero_fill` so a year before the template's
+    # first year reads 0 rather than null; a null here fails baseline validation and takes the
+    # /graph view down with it.
+    formula: zero_fill(sum_dim(sum_dim(sum_dim(typed, road_type), vehicle_type), energy_carrier)
+      >= 0.999 * sum_dim(sum_dim(measured, vehicle_type), energy_carrier))
+
 - id: road_transport_energy_bisko
   is_editable: false
-  name_en: Road transport energy
-  name_de: Straßenverkehrsenergie
+  name_en: Road transport final energy use
+  name_de: Endenergieverbrauch Straßenverkehr
+  description_en: Road transport final energy by vehicle class and energy carrier, summed over the
+    road categories. The road-typed view is 'Road transport final energy use by road type'.
+  description_de: Endenergieverbrauch des Straßenverkehrs nach Fahrzeugklasse und Energieträger,
+    über die Straßenkategorien summiert. Die straßentypisierte Ansicht ist „Endenergieverbrauch
+    Straßenverkehr nach Straßentyp".
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -3381,9 +3567,10 @@ nodes:
     infer the method from the numbers that came out of it.<br/>
     Two conditions have to hold together. The method must be the prescribed one — for
     <code>combined_heat_and_power_chp_fraction</code>, a <code>BiskoChpNode</code>, it is fixed
-    in code and no scenario can change it. And the allocation must have had something to
-    allocate: the answer is 0 in any year where the district heating emissions of the balance
-    are zero or missing, because a method applied to an empty balance evidences nothing.<br/>
+    in code and no scenario can change it. And where the balance has district heating, the split
+    must have produced something: a year with heat consumption but no allocated emissions answers
+    0. A year with <i>no</i> district heating answers 1 — the criterion does not apply, and BISKO
+    nowhere requires a city to have a heat network.<br/>
     The emissions tested are the ones the balance reports, not those of the detailed fuel-input
     branch. That branch is empty for nearly every BISKO city — the balance falls back to the
     Coal CHP default factor, which BISKO permits — so gating on it would report non-conformity
@@ -3408,10 +3595,10 @@ nodes:
     anwendet, statt die Methode aus den Ergebniszahlen zu erschließen.<br/>
     Zwei Bedingungen müssen zusammen erfüllt sein. Die Methode muss die vorgeschriebene sein —
     bei <code>combined_heat_and_power_chp_fraction</code>, einem <code>BiskoChpNode</code>, ist
-    sie im Code festgelegt und durch kein Szenario änderbar. Und die Allokation muss etwas zu
-    verteilen gehabt haben: In Jahren, in denen die Fernwärmeemissionen der Bilanz null oder
-    nicht vorhanden sind, lautet die Antwort 0, denn eine auf eine leere Bilanz angewandte
-    Methode belegt nichts.<br/>
+    sie im Code festgelegt und durch kein Szenario änderbar. Und wo die Bilanz Fernwärme enthält,
+    muss die Aufteilung etwas ergeben haben: Ein Jahr mit Wärmeverbrauch, aber ohne zugeteilte
+    Emissionen ergibt 0. Ein Jahr <i>ohne</i> Fernwärme ergibt 1 – das Kriterium ist dann nicht
+    anwendbar, und BISKO verlangt nirgends, dass eine Kommune ein Wärmenetz betreibt.<br/>
     Geprüft werden die Emissionen, die die Bilanz ausweist, und nicht die des detaillierten
     Brennstoffeinsatzzweigs. Dieser Zweig ist für nahezu jede BISKO-Kommune leer — die Bilanz
     greift auf den von BISKO erlaubten Kohle-KWK-Standardfaktor zurück —, sodass eine Prüfung
@@ -3440,6 +3627,18 @@ nodes:
   # empty for nearly every city, so gating on it would fail them all.
   - id: stationary_emissions
     tags: [emissions]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+      flatten: true
+    - id: sector
+      flatten: true
+  # The consumption, which separates "this city has no heat network" from "it has one and the
+  # split produced nothing". Without it every year whose district heating is zero reads as a
+  # failure, and a city with no network -- or a year of legitimate entered zeros, which BISKO
+  # allows -- could never be conform.
+  - id: final_energy_use
+    tags: [consumption]
     from_dimensions:
     - id: energy_carrier
       categories: [district_heating]
@@ -3522,7 +3721,16 @@ nodes:
     # read as "not evidenced" (0) instead of null. A null here fails the baseline
     # validation and takes down the whole /graph view, as duesseldorf-bisko showed:
     # it starts in 1987 while the district heating series starts in 1990.
-    value: zero_fill((emissions <= heat * ceiling) * (emissions >= heat * floor))
+    #
+    # The 0.1 per cent tolerance is what makes the bounds inclusive in practice. Since
+    # 2026-08-21 the Möglichkeit 2 route applies the Kohle-KWK value itself, so a balance on
+    # the standard factor sits exactly *on* the ceiling and the comparison became an equality
+    # test on floats: 2022 failed by 6e-14 g/kWh. The tolerance also matches the precision
+    # BISKO publishes Table 5 to -- two decimal places in t/MWh -- so a city whose own factor
+    # rounds to 0.2601 is not called implausible. It is far tighter than the deviation the test
+    # exists to catch: the ifeu Fernwärme series this route used to apply was 9.6 per cent over
+    # the ceiling in 1995.
+    value: zero_fill((emissions <= heat * ceiling * 1.001) * (emissions >= heat * floor * 0.999))
 
 - id: quality_criteria
   is_editable: false
@@ -3665,6 +3873,16 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       categories: [electricity, natural_gas, district_heating]
+    # Municipal facilities are excluded here for the same reason they are excluded from
+    # has_all_grid_bound_energy_data and from de/pflichtkategorien_endenergie: Prüfschritt 2.1
+    # says their absence must not make the balance non-conform, and the second Prüflauf confirms
+    # it -- "KE muss keine Werte enthalten". Without this the sector was still in the product
+    # that has_quality_a_data_for_grid_based_energy reduces, so a city that supplies no municipal
+    # facility data -- which BISKO permits -- could never reach conformity however well it graded
+    # the three sectors that are required. That is the first Prüflauf's finding under 1.2 in its
+    # original form; the presence terms were fixed then and this one was missed.
+    - id: sector
+      categories: [private_households, commerce_trade_services, industry]
   - id: quality_criteria
   params:
   - id: formula
@@ -3892,21 +4110,137 @@ nodes:
   - id: de/pflichtkategorien_fahrleistung
     tags: [template]
 
-- id: has_all_road_transport_data
+# --- Which source is in force ---------------------------------------------------------------
+#
+# Every quantity in this module that has more than one possible source chooses between them per
+# year with `prefer_by_year`, which is right for the balance but silent: nothing on screen says
+# which source a given year was served from. `district_heating_method_in_force` has answered that
+# question for district heating since 2026-08-20 and it is the answer to the certifier's
+# "Wo kann eingesehen werden, dass die BISKO-Defaultdaten genutzt werden?". The three nodes below
+# generalise it, so the question has one answer for the whole model rather than one for district
+# heating and none for transport.
+#
+# The convention is the same in all four: a small integer per year, 1 for the city's own data and
+# the highest number for the national default, with the codes spelled out in the description. They
+# reduce their availability node with min(x, 1) -- "was anything supplied", not "how many cells" --
+# which is exactly the test prefer_by_year makes, so the reported route and the route the balance
+# took cannot drift apart.
+
+- id: road_transport_activity_source_in_force
   is_editable: false
-  name_en: Has all road transport data?
-  name_de: Sind alle Daten zum Straßenverkehr vorhanden?
+  name_en: Road mileage source in force
+  name_de: Maßgebliche Quelle der Fahrleistung
   description_en: |
-    1 when every road vehicle class and road category BISKO requires has a mileage entry for
-    that year, 0 when any is missing. The entry may be zero, but it has to exist; use
-    'Own road mileage data availability' to see which cell is empty.<br/>
+    Which road mileage the balance used, per year: <b>1</b> the city's own traffic data,
+    <b>2</b> the gemeindefeine ifeu default.<br/>
+    There is no setting behind this. A year the city has supplied comes from its own traffic model,
+    every other year from the default. Which cells the city filled is shown by
+    <i>Own road mileage data availability</i>.
+  description_de: |
+    Welche Fahrleistung die Bilanz verwendet hat, je Jahr: <b>1</b> die eigenen Verkehrsdaten der
+    Kommune, <b>2</b> den gemeindefeinen ifeu-Defaultwert.<br/>
+    Dahinter steht keine Einstellung. Ein von der Kommune geliefertes Jahr stammt aus ihrem eigenen
+    Verkehrsmodell, jedes andere aus dem Defaultwert. Welche Zellen die Kommune ausgefüllt hat,
+    zeigt „Datenverfügbarkeit der eigenen Fahrleistungsdaten".
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: vehicle_kilometers_own_availability
+    tags: [own]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: road_type
+      flatten: true
+  params:
+    formula: min(own, 1) * 1 + (1 - min(own, 1)) * 2
+
+- id: road_transport_energy_method_in_force
+  is_editable: false
+  name_en: BISKO road transport route in force
+  name_de: Angewandter BISKO-Weg im Straßenverkehr
+  description_en: |
+    Which of BISKO's two routes to road transport energy the balance used, per year: <b>1</b> the
+    city's own measured consumption (Verbrauchsdaten), <b>2</b> mileage × specific consumption
+    (Fahrleistung). Prüfschritt 1.5 accepts either.<br/>
+    There is no setting behind this. A year the city has measured is served from its measurements,
+    every other year from the mileage route.
+    Note that this is a different question from <i>whose</i> mileage the second route uses, which
+    <code>road_transport_activity_source_in_force</code> answers.
+  description_de: |
+    Welchen der beiden BISKO-Wege zur Straßenverkehrsenergie die Bilanz verwendet hat, je Jahr:
+    <b>1</b> die eigenen gemessenen Verbrauchsdaten der Kommune, <b>2</b> Fahrleistung ×
+    spezifischer Verbrauch. Prüfschritt 1.5 lässt beide zu.<br/>
+    Dahinter steht keine Einstellung. Ein von der Kommune gemessenes Jahr wird aus ihren Messungen
+    bedient, jedes andere aus dem Fahrleistungsweg. Das ist eine andere Frage als die, <i>wessen</i> Fahrleistung der zweite Weg
+    verwendet; die beantwortet <code>road_transport_activity_source_in_force</code>.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: transport_energy_own_availability
+    tags: [own]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  params:
+    formula: min(own, 1) * 1 + (1 - min(own, 1)) * 2
+
+- id: other_transport_energy_source_in_force
+  is_editable: false
+  name_en: Rail, water and air transport source in force
+  name_de: Maßgebliche Quelle für Schienen-, Schiffs- und Flugverkehr
+  description_en: |
+    Which rail, inland waterway and commercial aviation consumption the balance used, per year:
+    <b>1</b> the city's own operator data, <b>2</b> the gemeindefeine ifeu default.<br/>
+    There is no setting behind this. Operator data tends to begin in the year a transport company
+    started reporting, and the choice follows that year by year.
+  description_de: |
+    Welche Verbrauchsdaten für Schienen-, Binnenschiffs- und gewerblichen Flugverkehr die Bilanz
+    verwendet hat, je Jahr: <b>1</b> die eigenen Betreiberdaten der Kommune, <b>2</b> den
+    gemeindefeinen ifeu-Defaultwert.<br/>
+    Dahinter steht keine Einstellung. Betreiberdaten beginnen in der Regel in dem Jahr, in dem ein
+    Verkehrsunternehmen mit der Meldung begonnen hat, und die Wahl folgt dem jahresweise.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: other_transport_energy_own_availability
+    tags: [own]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  params:
+    formula: min(own, 1) * 1 + (1 - min(own, 1)) * 2
+
+# --- Road transport completeness, per route -------------------------------------------------
+#
+# Criterion 1 asks whether the data the balance ran on is actually there. Road transport has two
+# routes, and which one is in force changes what "complete" means, so the test has to follow the
+# route rather than assume one. It is built as three nodes rather than one formula because the
+# review of 2026-08-21 found the old single node was reading the wrong branch entirely: it tested
+# mileage completeness while `use_mileage: false` had the balance running on consumption data.
+
+- id: has_all_road_transport_activity_data
+  is_editable: false
+  name_en: Has all road mileage data?
+  name_de: Sind alle Fahrleistungsdaten vorhanden?
+  description_en: |
+    1 when every road vehicle class and road category BISKO requires has a mileage entry for that
+    year, 0 when any is missing. The entry may be zero, but it has to exist; use
+    <i>Own road mileage data availability</i> to see which cell is empty.<br/>
     The test applies to the city's own mileage. When the balance runs on the ifeu municipality
     defaults the required rows are supplied by construction, so the flag is 1.
   description_de: |
     1, wenn jede von BISKO verlangte Straßenfahrzeugklasse und Straßenkategorie für dieses Jahr
     einen Fahrleistungseintrag hat, 0, wenn eine fehlt. Der Eintrag darf null sein, muss aber
     vorhanden sein; welche Zelle leer ist, zeigt „Datenverfügbarkeit der eigenen
-    Fahrleistungsdaten“.<br/>
+    Fahrleistungsdaten".<br/>
     Geprüft werden die eigenen Fahrleistungsdaten. Läuft die Bilanz auf den gemeindefeinen
     ifeu-Default-Werten, sind die Pflichtzeilen konstruktionsbedingt vorhanden und das Flag ist 1.
   type: formula.FormulaNode
@@ -3927,13 +4261,80 @@ nodes:
   # The second is "the city supplied nothing this year", reduced with max_dim over the same
   # two dimensions -- 0 when no required cell is filled, 1 when any is. Such a year is served
   # by the gemeindefeine default, and Difu confirmed on 2026-08-19 that standard data is BISKO
-  # conform by definition, so there is nothing left to test. This replaced `1 - float(condition)`
-  # on `use_own_mileage`: the source is now chosen per year, so the exemption has to be per year
-  # too. A toggle-based exemption would declare a year conform because the *series* runs on
-  # defaults, even in a year where the city had in fact supplied incomplete data of its own.
+  # conform by definition, so there is nothing left to test.
   - id: formula
     value: max(prod_dim(prod_dim(availability, road_type), vehicle_type),
       1 - max_dim(max_dim(availability, road_type), vehicle_type))
+
+- id: has_all_road_transport_consumption_data
+  is_editable: false
+  name_en: Has all own road transport consumption data?
+  name_de: Sind alle eigenen Verbrauchsdaten zum Straßenverkehr vorhanden?
+  description_en: |
+    1 when every road vehicle class and fuel BISKO requires has a consumption entry for that year
+    <i>and</i> all of it could be assigned to a road category, 0 otherwise. The entry may be zero,
+    but it has to exist; <i>Own road transport consumption data availability</i> shows which cell
+    is empty.<br/>
+    This is only the operative test in years the Verbrauchsdaten route is in force — see
+    <code>road_transport_energy_method_in_force</code>. In a year where the city measured nothing
+    both terms read 1, which is what makes the mileage route's test the one that decides.
+  description_de: |
+    1, wenn jede von BISKO verlangte Straßenfahrzeugklasse und jeder Kraftstoff für dieses Jahr
+    einen Verbrauchseintrag hat <i>und</i> der gesamte Verbrauch einer Straßenkategorie zugeordnet
+    werden konnte, sonst 0. Der Eintrag darf null sein, muss aber vorhanden sein; welche Zelle leer
+    ist, zeigt „Datenverfügbarkeit der eigenen Verbrauchsdaten Straßenverkehr".<br/>
+    Maßgeblich ist diese Prüfung nur in den Jahren, in denen der Verbrauchsweg gilt – siehe
+    <code>road_transport_energy_method_in_force</code>. In einem Jahr, in dem die Kommune nichts
+    gemessen hat, ergeben beide Terme 1, weshalb dann die Prüfung des Fahrleistungswegs entscheidet.
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy_own_availability
+    tags: [availability]
+  - id: road_transport_consumption_fully_typed
+    tags: [typed]
+  params:
+  # Same two-term shape as the mileage test -- complete, or nothing supplied -- multiplied by the
+  # reconciliation flag, so a year whose measured energy was only partly road-typed is not
+  # conform even if every required cell was filled. Prüfschritt 2.3 wants the road typing of the
+  # energy the balance uses, not of a candidate for it.
+  - id: formula
+    value: max(prod_dim(prod_dim(availability, energy_carrier), vehicle_type),
+      1 - max_dim(max_dim(availability, energy_carrier), vehicle_type)) * typed
+
+- id: has_all_road_transport_data
+  is_editable: false
+  name_en: Has all road transport data?
+  name_de: Sind alle Daten zum Straßenverkehr vorhanden?
+  description_en: |
+    1 when the road transport data the balance actually ran on that year is complete, 0 when it is
+    not. BISKO accepts two routes (Prüfschritt 1.5) and only one of them is in force in any given
+    year, so this node applies the test that belongs to the route in force rather than a fixed
+    one: the Verbrauchsdaten test in a year the city measured, the Fahrleistung test otherwise.
+    <code>road_transport_energy_method_in_force</code> reports which that was.
+  description_de: |
+    1, wenn die Straßenverkehrsdaten, auf denen die Bilanz in diesem Jahr tatsächlich beruht,
+    vollständig sind, sonst 0. BISKO lässt zwei Wege zu (Prüfschritt 1.5), und in einem Jahr gilt
+    immer nur einer; dieser Knoten wendet daher die Prüfung des jeweils maßgeblichen Wegs an und
+    nicht eine feste: die Prüfung des Verbrauchswegs in einem Jahr, das die Kommune gemessen hat,
+    sonst die des Fahrleistungswegs. Welcher das war, weist
+    <code>road_transport_energy_method_in_force</code> aus.
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_nodes:
+  - id: has_all_road_transport_consumption_data
+    tags: [consumption]
+  - id: has_all_road_transport_activity_data
+    tags: [activity]
+  # The same coverage frame that selects the route in road_transport_energy_by_road_type, so the
+  # test and the balance cannot disagree about which route a year took.
+  - id: transport_energy_own_availability
+    tags: [coverage]
+  params:
+    formula: prefer_by_year(consumption, activity, coverage)
 
 - id: has_all_grid_bound_energy_data
   is_editable: false

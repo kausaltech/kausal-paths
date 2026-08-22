@@ -388,6 +388,19 @@ def _attach_emissions(gate: BiskoExergeticAllocationNode, rows: list[tuple[int, 
     _connect(source, gate, 'emissions')
 
 
+def _attach_consumption(gate: BiskoExergeticAllocationNode, rows: list[tuple[int, float]]) -> None:
+    df = _series_df({VALUE_COLUMN: [r[1] for r in rows]}, years=[r[0] for r in rows], units={VALUE_COLUMN: 'GWh/a'})
+    source = _FixedOutputNode(
+        id='dh_consumption',
+        context=gate.context,
+        name=TranslatedString('dh_consumption', default_language='en'),
+        unit=unit_registry.parse_units('GWh/a'),
+        quantity='energy',
+        fixed_df=df,
+    )
+    _connect(source, gate, 'consumption')
+
+
 def _gate_by_year(node: BiskoExergeticAllocationNode) -> dict[int, float]:
     return {row[YEAR_COLUMN]: row[VALUE_COLUMN] for row in node.compute().to_dicts()}
 
@@ -583,6 +596,81 @@ def test_gate_rejects_emissions_that_still_carry_a_dimension():
         fixed_df=to_ppdf(df, meta),
     )
     _connect(source, gate, 'emissions')
+
+    with pytest.raises(NodeError, match='must be a single series'):
+        gate.compute()
+
+
+def test_a_year_without_district_heating_is_not_applicable_rather_than_failing():
+    """
+    BISKO nowhere requires a city to have a heat network.
+
+    Without the consumption input the gate cannot tell "no network" from "network, nothing
+    allocated" and calls both a failure. That made a city with no district heating permanently
+    non-conform, and it is why an all-zero balance -- which BISKO allows explicitly, "der Eintrag
+    kann auch Null sein" -- failed criterion 6. The second Prüflauf recorded it as a defect.
+    """
+    context = _make_context('gate-no-network')
+    gate = _make_gate(context)
+    allocation = _make_chp_node(context, cls=BiskoChpNode, params={'electricity_fraction': 0.3, 't_supply': 373.0})
+    _connect(allocation, gate, 'allocation')
+    _attach_emissions(gate, [(2016, 0.0), (2017, 0.0), (2018, 0.0)])
+    _attach_consumption(gate, [(2016, 0.0), (2017, 0.0), (2018, 0.0)])
+
+    by_year = _gate_by_year(gate)
+    assert by_year[2016] == 1.0
+    assert by_year[2017] == 1.0
+    assert by_year[2018] == 1.0
+
+
+def test_district_heating_with_no_allocated_emissions_still_fails():
+    """The other half of the same distinction: a network that allocated nothing is a failure."""
+    context = _make_context('gate-network-no-emissions')
+    gate = _make_gate(context)
+    allocation = _make_chp_node(context, cls=BiskoChpNode, params={'electricity_fraction': 0.3, 't_supply': 373.0})
+    _connect(allocation, gate, 'allocation')
+    _attach_emissions(gate, [(2017, 0.0), (2018, 0.0)])
+    _attach_consumption(gate, [(2017, 240.0), (2018, 260.0)])
+
+    by_year = _gate_by_year(gate)
+    assert by_year[2017] == 0.0
+    assert by_year[2018] == 0.0
+
+
+def test_the_consumption_input_must_be_a_single_series():
+    context = _make_context('gate-consumption-dims')
+    gate = _make_gate(context)
+    allocation = _make_chp_node(context, cls=BiskoChpNode, params={'electricity_fraction': 0.3, 't_supply': 373.0})
+    _connect(allocation, gate, 'allocation')
+    _attach_emissions(gate, [(2018, 115.0)])
+
+    context.dimensions['energy_carrier'] = Dimension(
+        id='energy_carrier',
+        label=TranslatedString('Energy carrier', default_language='en'),
+        categories=[
+            DimensionCategory(id='district_heating', label=TranslatedString('DH', default_language='en')),
+            DimensionCategory(id='electricity', label=TranslatedString('El', default_language='en')),
+        ],
+    )
+    df = pl.DataFrame({
+        YEAR_COLUMN: [2018, 2018],
+        'energy_carrier': ['district_heating', 'electricity'],
+        VALUE_COLUMN: [240.0, 90.0],
+    }).with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+    meta = DataFrameMeta(
+        units={VALUE_COLUMN: unit_registry.parse_units('GWh/a')},
+        primary_keys=[YEAR_COLUMN, 'energy_carrier'],
+    )
+    source = _FixedOutputNode(
+        id='dh_consumption_by_carrier',
+        context=context,
+        name=TranslatedString('dh_consumption_by_carrier', default_language='en'),
+        unit=unit_registry.parse_units('GWh/a'),
+        quantity='energy',
+        output_dimension_ids=['energy_carrier'],
+        fixed_df=to_ppdf(df, meta),
+    )
+    _connect(source, gate, 'consumption')
 
     with pytest.raises(NodeError, match='must be a single series'):
         gate.compute()
