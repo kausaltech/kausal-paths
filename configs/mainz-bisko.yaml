@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 02b60911e86ffac6e727bb8f2bf8bbce5fef9866
+  commit: 6d4df2dfcdcbf62c66a637de2e99f914fe075785
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
@@ -168,6 +168,12 @@ result_excels:
   # Prüfschritt 7.3: a Datengüte must be enterable for every input field. The first Prüflauf
   # named the district-heating one as missing; these three are where the grades are shown.
   - district_heating_energy_use_data_quality
+  # 6.1 Moeglichkeit 3: where a city declares its predominant generation variant, and which
+  # years that declaration covers. Verified working on 2026-08-22 -- a declared variant does put
+  # route 3 in force -- but it appeared in no result_excels list, which is why the certifier
+  # recorded it as "aktuell kann keine ueberwiegende Erzeugungsvariante ausgewaehlt werden".
+  - district_heating_predominant_variant
+  - district_heating_predominant_variant_availability
   - vehicle_kilometers_own_data_quality
   - other_transport_energy_own_data_quality
   - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config

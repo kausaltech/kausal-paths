@@ -217,6 +217,13 @@ class Dataset(ABC):
             raise DatasetError(
                 self, f"'{YEAR_COLUMN}' does not exist in dataset '{self.id}'. Available columns: {', '.join(df.columns)}."
             )
+        if df.is_empty():
+            # Nothing to interpolate between, and no year to span. This is a real input, not a
+            # broken one: a binding that selects a metric column drops its nulls, so a city
+            # template whose cells are all still blank arrives here with no rows at all. The
+            # asserts below read `None` from the empty year series and fail with a bare
+            # AssertionError several frames away from the cause.
+            return df
         years = df[YEAR_COLUMN].unique().sort()
         min_year = years.min()
         assert isinstance(min_year, int)

@@ -1405,7 +1405,10 @@ nodes:
   input_datasets:
   - id: kommune/endenergieverbrauch
     column: Value
-    tags: [heat]
+    # empty_to_zero for the same reason as municipal_facilities_energy_in_commerce: this binding
+    # filters to a single carrier, so it sees an empty frame as soon as a city has entered no
+    # heat-pump figure, and an empty frame has no dimensions.
+    tags: [heat, empty_to_zero]
     # The same backfill and extend as final_energy_use's own binding, because the correction has
     # to span the same years as the figure it comes out of. Without them the subtraction stops
     # where the environmental-heat series stops while the electricity it corrects keeps being
@@ -1472,6 +1475,11 @@ nodes:
   input_datasets:
   - id: kommune/endenergieverbrauch
     column: Value
+    # empty_to_zero: this binding filters the dataset down to one sector, so it is the first
+    # thing to see an empty frame when a city has supplied nothing -- and a city supplying no
+    # municipal-facility data is what Pruefschritt 2.1 explicitly permits. Without the tag the
+    # node fails with "No metric columns in DF" and takes the whole balance down with it.
+    tags: [empty_to_zero]
     filters:
     - column: energy_carrier
       value: not_defined
@@ -1575,6 +1583,13 @@ nodes:
     backfill: true
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: quality
+    # empty_to_zero, for the same reason as every other city template in this module: until a
+    # city grades something this column is an empty frame, and an empty frame has no dimensions.
+    # Without it a blank template does not merely read ungraded, it fails to compute at all --
+    # which is the state Pruefschritt 1.1 tests. The presence test is unaffected: it reads
+    # final_energy_use_quality_availability, a DataAvailabilityNode on the same dataset that
+    # leaves the tag off and so still sees the cells as empty.
+    tags: [empty_to_zero]
 
 # - id: final_private_household_energy_use
 #   name_de: Endenergie Private Haushalte

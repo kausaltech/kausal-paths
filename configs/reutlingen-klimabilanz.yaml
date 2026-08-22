@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 02b60911e86ffac6e727bb8f2bf8bbce5fef9866
+  commit: 6d4df2dfcdcbf62c66a637de2e99f914fe075785
   dvc_remote: kausal-s3
 name_de: Reutlingen THG-Bilanzierungstool
 name_en: Reutlingen GHG-Inventory Tool
