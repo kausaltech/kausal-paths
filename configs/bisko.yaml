@@ -63,6 +63,17 @@ params:
   is_visible: true
   is_customizable: true
 
+# Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
+# so the Leitfaden Datenbeschaffung (Schritt 7) treats the overlap as the normal case and asks for
+# it to be subtracted. Declared per city, because only the city knows how its data was delivered;
+# visible so the answer to "how does the tool process the data?" is on screen.
+- id: heat_pump_electricity_included_in_electricity
+  label_en: The electricity consumption of heat pumps is included in the reported electricity consumption.
+  label_de: Der Stromverbrauch der Wärmepumpen ist im ausgewiesenen Stromverbrauch enthalten.
+  value: true
+  is_visible: true
+  is_customizable: true
+
 - id: use_national_values
   label_en: Use national ("Bundesstrommix") rather than local electricity emission factors (BISKO-compliant)
   label_de: Nationale Stromemissionsfaktoren (Bundesstrommix) statt lokal berechneter Stromemissionsfaktoren nutzen (BISKO-konform).

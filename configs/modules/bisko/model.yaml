@@ -231,6 +231,36 @@ datasets:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/fahrleistung_strassenverkehr                 # own Fahrleistung; wins in the years it covers
   is_editable: true
+  # The 15 cells Prüfschritt 2.2 and 2.3 ask for: the four road vehicle classes on each of the
+  # three road categories, plus line bus, coach and tram/metro at 'all road types'. Declared so the
+  # admin UI has a cell grid to render -- without it there was no vkm-by-road-category form at all,
+  # which is the certifier's unanswered question under 2.3, "Wo kann ich das bei den Datensätzen
+  # einsehen und vkm eingeben?".
+  #
+  # Deliberately NOT a `required_combinations` rule. That rule is block_publish only, and a city
+  # relying on the gemeindefeine ifeu defaults supplies nothing here quite legitimately -- so the
+  # rule would refuse publication to every such city. What Prüfschritt 1.5 asks for is conditional
+  # ("Sind für den Verkehrssektor keine Daten voreingetragen"), and the defaults *are*
+  # pre-entered. The obligation that does bite -- a year the city has started must be finished --
+  # is enforced by has_all_road_transport_data, per year, where it belongs.
+  category_domain:
+    mode: open
+    combinations:
+    - {id: passenger_cars_highway, categories: {vehicle_type: passenger_cars, road_type: highway}}
+    - {id: passenger_cars_rural_roads, categories: {vehicle_type: passenger_cars, road_type: rural_roads}}
+    - {id: passenger_cars_urban_roads, categories: {vehicle_type: passenger_cars, road_type: urban_roads}}
+    - {id: motorcycles_highway, categories: {vehicle_type: motorcycles, road_type: highway}}
+    - {id: motorcycles_rural_roads, categories: {vehicle_type: motorcycles, road_type: rural_roads}}
+    - {id: motorcycles_urban_roads, categories: {vehicle_type: motorcycles, road_type: urban_roads}}
+    - {id: vans_highway, categories: {vehicle_type: vans, road_type: highway}}
+    - {id: vans_rural_roads, categories: {vehicle_type: vans, road_type: rural_roads}}
+    - {id: vans_urban_roads, categories: {vehicle_type: vans, road_type: urban_roads}}
+    - {id: trucks_highway, categories: {vehicle_type: trucks, road_type: highway}}
+    - {id: trucks_rural_roads, categories: {vehicle_type: trucks, road_type: rural_roads}}
+    - {id: trucks_urban_roads, categories: {vehicle_type: trucks, road_type: urban_roads}}
+    - {id: local_buses_all_road_types, categories: {vehicle_type: local_buses, road_type: all_road_types}}
+    - {id: coach_buses_all_road_types, categories: {vehicle_type: coach_buses, road_type: all_road_types}}
+    - {id: tram_all_road_types, categories: {vehicle_type: tram, road_type: all_road_types}}
   metrics:
   - id: Value
     validation_rules:
@@ -258,6 +288,51 @@ datasets:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/energieverbrauch_strassenverkehr          # own road transport energy (Verbrauchsdaten route)
   is_editable: true
+  # The 38 road cells of the Verbrauchsdaten route, matching
+  # de/kategorien_energieverbrauch_strassenverkehr. Road classes only -- rail belongs in
+  # kommune/energieverbrauch_uebriger_verkehr. See kommune/fahrleistung_strassenverkehr for why
+  # this is a category domain and not a required_combinations rule.
+  category_domain:
+    mode: open
+    combinations:
+    - {id: coach_buses_biodiesel, categories: {vehicle_type: coach_buses, energy_carrier: biodiesel}}
+    - {id: coach_buses_cng_bio, categories: {vehicle_type: coach_buses, energy_carrier: cng_bio}}
+    - {id: coach_buses_cng_fossil, categories: {vehicle_type: coach_buses, energy_carrier: cng_fossil}}
+    - {id: coach_buses_diesel, categories: {vehicle_type: coach_buses, energy_carrier: diesel}}
+    - {id: coach_buses_electricity, categories: {vehicle_type: coach_buses, energy_carrier: electricity}}
+    - {id: coach_buses_lpg, categories: {vehicle_type: coach_buses, energy_carrier: lpg}}
+    - {id: local_buses_biodiesel, categories: {vehicle_type: local_buses, energy_carrier: biodiesel}}
+    - {id: local_buses_cng_bio, categories: {vehicle_type: local_buses, energy_carrier: cng_bio}}
+    - {id: local_buses_cng_fossil, categories: {vehicle_type: local_buses, energy_carrier: cng_fossil}}
+    - {id: local_buses_diesel, categories: {vehicle_type: local_buses, energy_carrier: diesel}}
+    - {id: local_buses_electricity, categories: {vehicle_type: local_buses, energy_carrier: electricity}}
+    - {id: local_buses_lpg, categories: {vehicle_type: local_buses, energy_carrier: lpg}}
+    - {id: motorcycles_bio_petrol, categories: {vehicle_type: motorcycles, energy_carrier: bio_petrol}}
+    - {id: motorcycles_electricity, categories: {vehicle_type: motorcycles, energy_carrier: electricity}}
+    - {id: motorcycles_petrol, categories: {vehicle_type: motorcycles, energy_carrier: petrol}}
+    - {id: passenger_cars_bio_petrol, categories: {vehicle_type: passenger_cars, energy_carrier: bio_petrol}}
+    - {id: passenger_cars_biodiesel, categories: {vehicle_type: passenger_cars, energy_carrier: biodiesel}}
+    - {id: passenger_cars_cng_bio, categories: {vehicle_type: passenger_cars, energy_carrier: cng_bio}}
+    - {id: passenger_cars_cng_fossil, categories: {vehicle_type: passenger_cars, energy_carrier: cng_fossil}}
+    - {id: passenger_cars_diesel, categories: {vehicle_type: passenger_cars, energy_carrier: diesel}}
+    - {id: passenger_cars_electricity, categories: {vehicle_type: passenger_cars, energy_carrier: electricity}}
+    - {id: passenger_cars_lpg, categories: {vehicle_type: passenger_cars, energy_carrier: lpg}}
+    - {id: passenger_cars_petrol, categories: {vehicle_type: passenger_cars, energy_carrier: petrol}}
+    - {id: trucks_biodiesel, categories: {vehicle_type: trucks, energy_carrier: biodiesel}}
+    - {id: trucks_cng_bio, categories: {vehicle_type: trucks, energy_carrier: cng_bio}}
+    - {id: trucks_cng_fossil, categories: {vehicle_type: trucks, energy_carrier: cng_fossil}}
+    - {id: trucks_diesel, categories: {vehicle_type: trucks, energy_carrier: diesel}}
+    - {id: trucks_electricity, categories: {vehicle_type: trucks, energy_carrier: electricity}}
+    - {id: trucks_lpg, categories: {vehicle_type: trucks, energy_carrier: lpg}}
+    - {id: vans_bio_petrol, categories: {vehicle_type: vans, energy_carrier: bio_petrol}}
+    - {id: vans_biodiesel, categories: {vehicle_type: vans, energy_carrier: biodiesel}}
+    - {id: vans_cng_bio, categories: {vehicle_type: vans, energy_carrier: cng_bio}}
+    - {id: vans_cng_fossil, categories: {vehicle_type: vans, energy_carrier: cng_fossil}}
+    - {id: vans_diesel, categories: {vehicle_type: vans, energy_carrier: diesel}}
+    - {id: vans_electricity, categories: {vehicle_type: vans, energy_carrier: electricity}}
+    - {id: vans_lpg, categories: {vehicle_type: vans, energy_carrier: lpg}}
+    - {id: vans_petrol, categories: {vehicle_type: vans, energy_carrier: petrol}}
+    - {id: tram_electricity, categories: {vehicle_type: tram, energy_carrier: electricity}}
   metrics:
   - id: Value
     validation_rules:
@@ -267,10 +342,29 @@ datasets:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/energieverbrauch_uebriger_verkehr         # own rail, waterway and aviation energy
   is_editable: true
+  # The 8 cells Prüfschritt 1.5 and 2.2 ask for: local, long-distance and freight rail each as
+  # electric and diesel, inland waterway freight as diesel, and commercial aviation as kerosene.
+  # See kommune/fahrleistung_strassenverkehr for why this is a category domain and not a
+  # required_combinations rule.
+  category_domain:
+    mode: open
+    combinations:
+    - {id: local_trains_electricity, categories: {vehicle_type: local_trains, energy_carrier: electricity}}
+    - {id: local_trains_diesel, categories: {vehicle_type: local_trains, energy_carrier: diesel}}
+    - {id: long_distance_trains_electricity, categories: {vehicle_type: long_distance_trains, energy_carrier: electricity}}
+    - {id: long_distance_trains_diesel, categories: {vehicle_type: long_distance_trains, energy_carrier: diesel}}
+    - {id: cargo_trains_electricity, categories: {vehicle_type: cargo_trains, energy_carrier: electricity}}
+    - {id: cargo_trains_diesel, categories: {vehicle_type: cargo_trains, energy_carrier: diesel}}
+    - {id: inland_waterway_shipping_diesel, categories: {vehicle_type: inland_waterway_shipping, energy_carrier: diesel}}
+    - {id: air_transport_kerosene, categories: {vehicle_type: air_transport, energy_carrier: kerosene}}
   metrics:
   - id: Value
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
+
+  - id: quality
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 
 # --- Local factor alternatives: editable by design, and non-conformant when selected -------
 # Each is the `local` port of an EF node whose `national` port reads the locked BISKO table
@@ -278,9 +372,6 @@ datasets:
 # parameter is switched off, and `has_national_electricity_emission_factors` then drops
 # `is_bisko_compliant` to 0. That is the mechanism protocol steps 3.2/4.3/6.2 ask for: the
 # alternative exists for analysis, but a result using it is not labelled BISKO-conform.
-  - id: quality
-    validation_rules:
-    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/emissionsfaktoren_endenergie
   is_editable: true
   metrics:
@@ -1218,8 +1309,8 @@ nodes:
 
 - id: final_energy_use
   is_editable: false
-  name_de: Endenergie
-  name_en: Final energy use
+  name_de: Endenergieverbrauch der stationären Sektoren
+  name_en: Final energy use of the stationary sectors
   description_en: |
     Final energy use of the four stationary BISKO sectors by energy carrier, as delivered by the
     city, with one correction: the consumption of municipal facilities is removed from commerce,
@@ -1261,6 +1352,85 @@ nodes:
     - id: energy_carrier
     - id: sector
       categories: [commerce_trade_services]
+  # Leitfaden Datenbeschaffung, Schritt 7: the electricity that drives the heat pumps is already
+  # in the metered electricity, so counting the environmental heat as well counts it twice.
+  - id: heat_pump_electricity_in_electricity
+    tags: [additive, arithmetic_inverse]
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: heat_pump_electricity_in_electricity
+  is_editable: false
+  name_de: Wärmepumpenstrom im Stromverbrauch
+  name_en: Heat pump electricity included in electricity
+  description_en: |
+    The electricity that drives the city's heat pumps, and that its metered electricity figure
+    also contains. It is subtracted from the electricity of the same sector so the same kilowatt
+    hour is not counted twice — once as electricity and once as the environmental heat it
+    produced.<br/>
+    The Leitfaden Datenbeschaffung asks for exactly this in Schritt 7: <i>"Um Doppelungen zu
+    vermeiden, sollten Sie die für Wärmepumpen genutzte Strommenge vom Gesamtstromverbrauch
+    abziehen."</i> The amount is the environmental heat divided by the annual performance factor
+    (Jahresarbeitszahl). The Leitfaden puts that between 2.8 and 3.8 and recommends <b>3.2</b>,
+    which is the value used here — and the same one already built into the environmental-heat
+    emission factor, which is the national grid mix divided by 3.2.<br/>
+    Whether a city's electricity figure contains heat-pump electricity cannot be read from the
+    numbers, so it is declared per city with <i>Is the electricity consumption of heat pumps
+    included in the reported electricity?</i>. When the declaration is <i>no</i> — the utility has
+    already separated it — this node is identically zero and nothing is subtracted. It is
+    therefore a view of the correction, not a view of heat pump electricity.
+  description_de: |
+    Der Strom, der die Wärmepumpen der Kommune antreibt und der in ihrer gemessenen Strommenge
+    ebenfalls enthalten ist. Er wird vom Strom desselben Sektors abgezogen, damit dieselbe
+    Kilowattstunde nicht zweimal gezählt wird – einmal als Strom und einmal als die daraus
+    erzeugte Umweltwärme.<br/>
+    Der Leitfaden Datenbeschaffung verlangt genau das in Schritt 7: <i>„Um Doppelungen zu
+    vermeiden, sollten Sie die für Wärmepumpen genutzte Strommenge vom Gesamtstromverbrauch
+    abziehen."</i> Die Menge ist die Umweltwärme geteilt durch die Jahresarbeitszahl. Der Leitfaden
+    setzt diese zwischen 2,8 und 3,8 an und empfiehlt <b>3,2</b>; dieser Wert wird hier verwendet
+    und steckt auch bereits im Emissionsfaktor der Umweltwärme, der der Bundesstrommix geteilt
+    durch 3,2 ist.<br/>
+    Ob die Strommenge einer Kommune den Wärmepumpenstrom enthält, lässt sich den Zahlen nicht
+    entnehmen und wird deshalb je Kommune mit dem Parameter <i>Ist der Stromverbrauch der
+    Wärmepumpen im ausgewiesenen Stromverbrauch enthalten?</i> erklärt. Lautet die Erklärung
+    <i>nein</i> – der Versorger hat ihn bereits herausgerechnet –, ist dieser Knoten identisch null
+    und es wird nichts abgezogen. Er zeigt also die Korrektur, nicht den Wärmepumpenstrom.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: kommune/endenergieverbrauch
+    column: Value
+    tags: [heat]
+    # The same backfill and extend as final_energy_use's own binding, because the correction has
+    # to span the same years as the figure it comes out of. Without them the subtraction stops
+    # where the environmental-heat series stops while the electricity it corrects keeps being
+    # extended, so the double count quietly returns for the later years -- mainz-bisko is the live
+    # case, its environmental heat ends in 2018 and its balance runs to 2023.
+    backfill: true
+    extend: true
+    filters:
+    - column: energy_carrier
+      value: environmental_heat
+  input_nodes:
+  # The weather correction of the same sector, because the figure this is subtracted from has
+  # been through it -- the removed quantity has to be on the scale of the figure it comes out of,
+  # the same reasoning as in municipal_facilities_energy_in_commerce.
+  - id: weather_correction
+    tags: [wc]
+  params:
+  # 3.2 is the Jahresarbeitszahl the Leitfaden recommends, written as a literal rather than as a
+  # parameter: FormulaNode's only numeric parameter is labelled "Constant value to add to the
+  # formula", which would put a wrong label on a control that changes the balance. A city needing
+  # a different JAZ within the Leitfaden's 2.8-3.8 range is a deliberate change, not a setting.
+  - id: formula
+    value: select_port(condition, heat * wc / 3.2, heat * 0)
+  - id: condition
+    ref: heat_pump_electricity_included_in_electricity
 
 - id: municipal_facilities_energy_in_commerce
   is_editable: false
@@ -1366,8 +1536,30 @@ nodes:
 
 - id: final_energy_use_data_quality
   is_editable: false
-  name_de: Endenergie Datenqualität
-  name_en: Final energy use data quality
+  name_de: Datengüte des Endenergieverbrauchs
+  description_en: |
+    The Datengüte the city assigned to each sector and energy carrier of its stationary energy
+    data, on BISKO's A–D scale (Methodenpapier §3.4): A regional primary data = 100 %,
+    B extrapolated regional primary data = 50 %, C regional statistics = 25 %, D national
+    defaults = 0 %.<br/>
+    The grade records where a figure came from, not how plausible it looks. Two things read it:
+    the three grid-bound carriers must reach A (<i>Has quality A data for grid-bound energy
+    carriers?</i>), and every required cell must carry some grade
+    (<i>Has a Datengüte for every required cell?</i>).<br/>
+    An empty cell is not grade D. D is a deliberate statement that the figure came from a national
+    default; empty means nobody has said.
+  description_de: |
+    Die von der Kommune je Sektor und Energieträger vergebene Datengüte ihrer stationären
+    Energiedaten auf der BISKO-Skala A–D (Methodenpapier §3.4): A regionale Primärdaten = 100 %,
+    B Hochrechnung regionaler Primärdaten = 50 %, C regionale Kennwerte und Statistiken = 25 %,
+    D bundesweite Kennwerte = 0 %.<br/>
+    Die Güte hält fest, woher eine Zahl stammt, nicht wie plausibel sie wirkt. Zwei Prüfungen lesen
+    sie: Die drei leitungsgebundenen Energieträger müssen Güte A erreichen (<i>Hat Qualität A-Daten
+    für leitungsgebundene Energieträger?</i>), und jede Pflichtzelle muss überhaupt eine Güte tragen
+    (<i>Liegt für jede Pflichtzelle eine Datengüte vor?</i>).<br/>
+    Eine leere Zelle ist nicht Güte D. D ist die bewusste Aussage, dass die Zahl aus einem
+    bundesweiten Vorgabewert stammt; leer heißt, dass niemand etwas gesagt hat.
+  name_en: Datengüte of final energy use
   type: simple.AdditiveNode2
   quantity: fraction
   unit: '%' # Different unit hides this node from the outcome page
@@ -1594,8 +1786,22 @@ nodes:
 
 - id: district_heating_energy_use
   is_editable: false
-  name_de: Fernwärmeenergieverbrauch
-  name_en: District heating energy use
+  name_de: Endenergieverbrauch Fernwärme
+  description_en: |
+    District heating delivered to the four stationary sectors, in final energy at the house
+    connection. This is the quantity a Fernwärme emission factor is applied to, whichever of
+    BISKO's three routes the year takes.<br/>
+    It is the consumption side. The plant side — the fuel a heat network burns and the heat it
+    produces — is <i>District heating plant data availability</i> and the dataset behind it, and
+    it is only needed for Möglichkeit 1.
+  description_de: |
+    An die vier stationären Sektoren gelieferte Fernwärme, als Endenergie am Hausanschluss. Das ist
+    die Größe, auf die ein Fernwärme-Emissionsfaktor angewendet wird, unabhängig davon, welchen der
+    drei BISKO-Wege ein Jahr nimmt.<br/>
+    Dies ist die Verbrauchsseite. Die Anlagenseite – der Brennstoff, den ein Wärmenetz einsetzt, und
+    die Wärme, die es erzeugt – steht in „Datenverfügbarkeit der Fernwärme-Anlagendaten" und dem
+    Datensatz dahinter und wird nur für Möglichkeit 1 gebraucht.
+  name_en: District heating final energy use
   type: simple.AdditiveNode2
   quantity: energy
   unit: MWh/a
@@ -2766,8 +2972,8 @@ nodes:
 
 - id: other_transport_energy_own
   is_editable: false
-  name_en: Rail, water and air transport energy - own data
-  name_de: Energieverbrauch Schienen-, Schiffs- und Flugverkehr aus eigenen Daten
+  name_en: Rail, water and air transport final energy use - own data
+  name_de: Endenergieverbrauch Schienen-, Schiffs- und Flugverkehr aus eigenen Daten
   description_en: 'Final energy for rail, inland waterway and commercial aviation from the city''s own
     sources -- normally the transport operator, which is where BISKO''s Leitfaden Datenbeschaffung
     expects public transport consumption to come from. Selected instead of the ifeu municipal
@@ -2803,8 +3009,8 @@ nodes:
 
 - id: other_transport_energy_ifeu
   is_editable: false
-  name_en: Rail, water and air transport energy - BISKO defaults
-  name_de: Energieverbrauch Schienen-, Schiffs- und Flugverkehr - BISKO-Defaultwerte
+  name_en: Rail, water and air transport final energy use - BISKO defaults
+  name_de: Endenergieverbrauch Schienen-, Schiffs- und Flugverkehr - BISKO-Defaultwerte
   description_en: 'The gemeindefein ifeu default for rail, inland waterway and commercial aviation.
     A provider default: a city may select it or supersede it with its own operator data, but the
     imported values are not editable.
@@ -2836,8 +3042,8 @@ nodes:
 
 - id: other_transport_energy
   is_editable: false
-  name_en: Other transport energy
-  name_de: Andere Transportenergie
+  name_en: Rail, water and air transport final energy use
+  name_de: Endenergieverbrauch Schienen-, Schiffs- und Flugverkehr
   description_en: 'Final energy for rail, inland waterway and commercial aviation, from whichever
     source the city has declared. BISKO recommends a city move to its own operator data where it
     has it, and it can move over one reporting year at a time: each year is built from the
@@ -3004,8 +3210,8 @@ nodes:
 
 - id: road_transport_energy_with_road_type_factors
   is_editable: false
-  name_en: Road transport energy - road-type-specific factors
-  name_de: Straßenverkehrsenergie – straßentypspezifische Faktoren
+  name_en: Road transport final energy use - road-type-specific factors
+  name_de: Endenergieverbrauch Straßenverkehr – straßentypspezifische Faktoren
   description_en: |
     End energy of the road vehicle classes whose specific consumption depends on the road
     category: motorcycles, cars, light commercial vehicles and trucks, on motorway, rural and
@@ -3045,8 +3251,8 @@ nodes:
 
 - id: road_transport_energy_with_uniform_factors
   is_editable: false
-  name_en: Road transport energy - one factor for all road categories
-  name_de: Straßenverkehrsenergie – ein Faktor für alle Straßentypen
+  name_en: Road transport final energy use - one factor for all road categories
+  name_de: Endenergieverbrauch Straßenverkehr – ein Faktor für alle Straßentypen
   description_en: |
     End energy of the modes whose BISKO consumption factor is stated once for all road
     categories: line buses, coach and long-distance buses, and tram/metro. The factor is
@@ -3480,9 +3686,15 @@ nodes:
     tags: [other_transport]
   - id: has_all_road_transport_data
     tags: [road_transport]
+  # Criterion 7.1: a Datengüte on every required input field. Separate from `grid_energy`, which
+  # tests how high the grade is for the three grid-bound carriers; this tests that a grade was
+  # entered at all, including for the carriers whose grade does not otherwise matter.
+  - id: has_all_data_quality_grades
+    tags: [quality_grades]
   params:
     formula: weather * electricity * district_heating
-      * grid_energy * grid_bound * non_grid_bound * other_transport * road_transport
+      * grid_energy * quality_grades * grid_bound * non_grid_bound * other_transport
+      * road_transport
 
 - id: has_no_weather_correction
   is_editable: false
@@ -3944,21 +4156,171 @@ nodes:
   - id: formula
     value: drop_nans(sum_dim(quality * energy, sector) / sum_dim(energy, sector))
 
+# --- Datengüte of the transport sector ------------------------------------------------------
+#
+# Methodenpapier §3.4 computes the Datengüte of the *whole* balance: Table 1's worked example has
+# rows for Fahrleistungen Straße, Energieverbrauch Schienenverkehr and Energieverbrauch Linienbus
+# alongside the stationary carriers, each weighted by its share of total final energy. Transport
+# is roughly half of a city's final energy, so leaving it out does not merely omit a row -- it
+# reweights every other one.
+#
+# Where a city has supplied its own transport data, the grade is the one it entered. Where the
+# balance runs on the gemeindefeine ifeu defaults, Table 1 grades exactly that case: B, a
+# Hochrechnung regionaler Primärdaten, factor 0,5. Which of the two applies is the same per-year
+# question `road_transport_activity_source_in_force` reports, decided from the same coverage frame.
+
+- id: default_transport_data_quality
+  is_editable: false
+  name_en: Datengüte of the gemeindefeine transport defaults
+  name_de: Datengüte der gemeindefeinen Verkehrs-Defaultwerte
+  description_en: |
+    Grade B, factor 0.5, which BISKO Methodenpapier Table 1 assigns to gemeindefein road mileage
+    and rail consumption — a Hochrechnung regionaler Primärdaten rather than a primary measurement.
+    It applies in every year the balance runs on the ifeu defaults rather than on the city's own
+    transport data.
+  description_de: |
+    Güte B, Faktor 0,5, die das BISKO-Methodenpapier in Tabelle 1 den gemeindefeinen
+    Fahrleistungs- und Schienenverbrauchsdaten zuweist – eine Hochrechnung regionaler Primärdaten
+    und keine Primärmessung. Sie gilt in jedem Jahr, in dem die Bilanz auf den ifeu-Defaultwerten
+    und nicht auf eigenen Verkehrsdaten der Kommune beruht.
+  type: generic.ConstantNode
+  quantity: fraction
+  unit: '%'
+  params:
+  # The unit belongs on the parameter, not only on the node: ConstantNode reads the value with
+  # units=True and takes the frame's unit from the quantity it gets back.
+  - id: constant
+    value: 50
+    unit: '%'
+
+- id: road_transport_data_quality_in_force
+  is_editable: false
+  name_en: Datengüte of the road mileage in force
+  name_de: Datengüte der maßgeblichen Fahrleistung
+  description_en: |
+    The Datengüte behind the road mileage the balance actually used, per year: the average of the
+    grades the city entered in the years its own data is in force, and grade B (50 %) in the years
+    the gemeindefeine ifeu default is. <i>Road mileage source in force</i> reports which of the two
+    a given year took.
+  description_de: |
+    Die Datengüte der tatsächlich verwendeten Fahrleistung, je Jahr: der Mittelwert der von der
+    Kommune eingetragenen Güten in den Jahren, in denen ihre eigenen Daten maßgeblich sind, und
+    Güte B (50 %) in den Jahren, in denen der gemeindefeine ifeu-Defaultwert gilt. Welcher der
+    beiden Wege ein Jahr genommen hat, weist „Maßgebliche Quelle der Fahrleistung" aus.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [vehicle_type, road_type]
+  input_nodes:
+  - id: vehicle_kilometers_own_data_quality
+    tags: [own]
+  - id: default_transport_data_quality
+    tags: [default]
+  # The same coverage frame that selects the mileage source in `vehicle_kilometers`, so the grade
+  # and the data it grades cannot come from different sources.
+  - id: vehicle_kilometers_own_availability
+    tags: [coverage]
+  params:
+    # mean_dim, not sum_dim: a Datengüte is a grade, and the average of the grades a city entered
+    # is a grade. Summing them would produce a number that is not on the A-D scale at all.
+    formula: prefer_by_year(mean_dim(mean_dim(own, road_type), vehicle_type), default, coverage)
+
+- id: other_transport_data_quality_in_force
+  is_editable: false
+  name_en: Datengüte of the rail, water and air data in force
+  name_de: Datengüte der maßgeblichen Schienen-, Schiffs- und Flugverkehrsdaten
+  description_en: |
+    The Datengüte behind the rail, inland waterway and aviation consumption the balance actually
+    used, per year: the average of the grades the city entered where its own operator data is in
+    force, and grade B (50 %) where the gemeindefeine ifeu default is.
+  description_de: |
+    Die Datengüte der tatsächlich verwendeten Verbrauchsdaten für Schienen-, Binnenschiffs- und
+    Flugverkehr, je Jahr: der Mittelwert der von der Kommune eingetragenen Güten dort, wo ihre
+    eigenen Betreiberdaten maßgeblich sind, und Güte B (50 %) dort, wo der gemeindefeine
+    ifeu-Defaultwert gilt.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: other_transport_energy_own_data_quality
+    tags: [own]
+  - id: default_transport_data_quality
+    tags: [default]
+  - id: other_transport_energy_own_availability
+    tags: [coverage]
+  params:
+    formula: prefer_by_year(mean_dim(mean_dim(own, energy_carrier), vehicle_type), default, coverage)
+
 - id: total_weighted_data_quality
   is_editable: false
-  name_en: Total weighted data quality
-  name_de: Gesamte gewichtete Datenqualität
+  name_en: Datengüte of the whole balance
+  name_de: Datengüte der Gesamtbilanz
+  description_en: |
+    The Datengüte of the balance as a whole (criterion 7.2): each component's grade weighted by its
+    share of total final energy, exactly as Methodenpapier §3.4 and the worked example in Table 1
+    compute it.<br/>
+    <b>All five sectors, transport included.</b> Table 1's example weights Fahrleistungen Straße,
+    Energieverbrauch Schienenverkehr and Energieverbrauch Linienbus alongside the stationary
+    carriers. Transport is around half of a city's final energy, so leaving it out would not just
+    omit a row — it would reweight every other one and overstate the figure.<br/>
+    The stationary grades are the ones entered per sector and carrier. The transport grades follow
+    whichever source each year ran on: the city's own where it supplied data, and grade B — the
+    Hochrechnung regionaler Primärdaten that Table 1 assigns to gemeindefein data — where the
+    balance ran on the ifeu defaults.<br/>
+    On BISKO's scale: A = 100 % regional primary data, B = 50 %, C = 25 %, D = 0 %.
+  description_de: |
+    Die Datengüte der Gesamtbilanz (Kriterium 7.2): die Güte jeder Komponente, gewichtet mit ihrem
+    Anteil am gesamten Endenergieverbrauch, genau so, wie Methodenpapier §3.4 und das Rechenbeispiel
+    in Tabelle 1 sie bilden.<br/>
+    <b>Alle fünf Sektoren, einschließlich Verkehr.</b> Das Beispiel in Tabelle 1 gewichtet
+    Fahrleistungen Straße, Energieverbrauch Schienenverkehr und Energieverbrauch Linienbus neben den
+    stationären Energieträgern. Der Verkehr macht etwa die Hälfte des Endenergieverbrauchs einer
+    Kommune aus; ihn auszulassen würde nicht nur eine Zeile weglassen, sondern alle übrigen
+    umgewichten und den Wert zu hoch ausweisen.<br/>
+    Die stationären Güten sind die je Sektor und Energieträger eingetragenen. Die Verkehrsgüten
+    folgen der Quelle, auf der das jeweilige Jahr beruht: die eigene der Kommune, wo sie Daten
+    geliefert hat, und Güte B – die Hochrechnung regionaler Primärdaten, die Tabelle 1 gemeindefeinen
+    Daten zuweist –, wo die Bilanz auf den ifeu-Defaultwerten beruht.<br/>
+    Auf der BISKO-Skala: A = 100 % regionale Primärdaten, B = 50 %, C = 25 %, D = 0 %.
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
   input_nodes:
   - id: final_energy_use_data_quality
-    tags: [quality]
+    tags: [stationary_quality]
   - id: final_energy_use
-    tags: [energy]
+    tags: [stationary_energy]
+  # Transport enters as two terms because its two branches are graded separately -- road mileage
+  # and the rail/water/air consumption come from different sources and can be on different grades
+  # in the same year.
+  - id: road_transport_data_quality_in_force
+    tags: [road_quality]
+  - id: road_transport_energy_bisko
+    tags: [road_energy]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  - id: other_transport_data_quality_in_force
+    tags: [other_quality]
+  - id: other_transport_energy
+    tags: [other_energy]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
   params:
   - id: formula
-    value: drop_nans(sum_dim(sum_dim(quality * energy, sector),energy_carrier) / sum_dim(sum_dim(energy, sector), energy_carrier))
+    # Sum of (grade x energy) over every component, divided by the total energy -- Table 1's
+    # arithmetic. drop_nans for the years before the balance starts, where the quotient is 0/0.
+    value: drop_nans(
+      (sum_dim(sum_dim(stationary_quality * stationary_energy, sector), energy_carrier)
+       + road_quality * road_energy + other_quality * other_energy)
+      / (sum_dim(sum_dim(stationary_energy, sector), energy_carrier)
+         + road_energy + other_energy))
 
 # Data availability: does the district heating dataset actually contain the values it
 # should? DataAvailabilityNode ignores the values of its dataset and reports 1 where a
@@ -3978,6 +4340,92 @@ nodes:
 # der Gesamtkommune", so a carrier counts as supplied when any sector has it -- which also keeps
 # the municipal-facilities sector from blocking conformity, something protocol step 2.1 explicitly
 # forbids.
+
+- id: final_energy_use_quality_availability
+  is_editable: false
+  name_en: Datengüte entry availability
+  name_de: Datenverfügbarkeit der Datengüte-Angaben
+  description_en: |
+    Which of the required stationary cells carry a Datengüte at all: 1 where a grade has been
+    entered, 0 where the field is still empty. Read before zero-filling, so a blank grade is
+    reported as blank rather than as grade D.<br/>
+    A grade and a value are separate entries and each has to be made. This node reports the
+    grades; <i>Final energy use data availability</i> reports the values.
+  description_de: |
+    Welche der erforderlichen stationären Zellen überhaupt eine Datengüte tragen: 1, wo eine Güte
+    eingetragen ist, 0, wo das Feld noch leer ist. Gelesen vor der Nullauffüllung, damit eine
+    leere Güte als leer und nicht als Güte D erscheint.<br/>
+    Güte und Wert sind zwei getrennte Angaben, und jede muss gemacht werden. Dieser Knoten weist
+    die Güten aus, die Werte weist „Datenverfügbarkeit des Endenergieverbrauchs" aus.
+  type: simple.DataAvailabilityNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  # The quality column, not the value column -- the point is whether a grade was entered.
+  - id: kommune/endenergieverbrauch
+    column: quality
+    filters:
+    # The same three sectors as the value-side check: municipal facilities are exempt under
+    # Prüfschritt 2.1, so a missing grade there must not block conformity either.
+    - dimension: sector
+      categories: [private_households, commerce_trade_services, industry]
+  - id: de/pflichtkategorien_endenergie
+    tags: [template]
+
+- id: has_all_data_quality_grades
+  is_editable: false
+  name_en: Has a Datengüte for every required cell?
+  name_de: Liegt für jede Pflichtzelle eine Datengüte vor?
+  description_en: |
+    1 when every stationary cell BISKO requires carries a Datengüte, 0 when any is still
+    ungraded. Prüfschritt 7.1 asks for a Datengüte on every input field, and a grade is a
+    statement about where a figure came from — so an ungraded figure is an unsourced one, whatever
+    its value.<br/>
+    The grade only has to be <i>present</i> here. How high it has to be is a different question,
+    and only the grid-bound carriers have an answer to it: they must reach A
+    (<i>Has quality A data for grid-bound energy carriers?</i>). For heating oil, biomass, solar
+    thermal and heat pumps the grade does not affect conformity — but its absence does.<br/>
+    Transport is deliberately outside this test. Prüfschritt 1.5 says outright that the Datengüte
+    plays no part for mileage data, and a balance running on the gemeindefeine ifeu defaults has
+    no city-entered grade to show.<br/>
+    Use <i>Datengüte entry availability</i> to see which cell is still ungraded.
+  description_de: |
+    1, wenn jede von BISKO verlangte stationäre Zelle eine Datengüte trägt, 0, wenn eine noch
+    unbewertet ist. Prüfschritt 7.1 verlangt für jedes Eingabefeld eine Datengüte, und eine Güte
+    ist eine Aussage darüber, woher eine Zahl stammt – eine unbewertete Zahl ist damit eine Zahl
+    ohne Herkunft, unabhängig von ihrem Wert.<br/>
+    Hier muss die Güte nur <i>vorhanden</i> sein. Wie hoch sie sein muss, ist eine andere Frage,
+    und nur für die leitungsgebundenen Energieträger gibt es darauf eine Antwort: Sie müssen Güte
+    A erreichen (<i>Hat Qualität A-Daten für leitungsgebundene Energieträger?</i>). Bei Heizöl,
+    Biomasse, Solarthermie und Wärmepumpen beeinflusst die Güte die Konformität nicht – ihr Fehlen
+    schon.<br/>
+    Der Verkehr ist bewusst nicht Teil dieser Prüfung. Prüfschritt 1.5 sagt ausdrücklich, dass die
+    Datengüte bei der Fahrleistung keine Rolle spielt, und eine Bilanz auf den gemeindefeinen
+    ifeu-Defaultwerten hat keine von der Kommune eingetragene Güte auszuweisen.<br/>
+    Welche Zelle noch unbewertet ist, zeigt „Datenverfügbarkeit der Datengüte-Angaben".
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use_quality_availability
+    tags: [availability]
+    from_dimensions:
+    # The seven BISKO carriers, named. The availability node reports on every carrier the dataset
+    # holds -- a city's export also carries hard coal, propane, local heating, the two 'Sonstige'
+    # groups and more -- and none of those is a required cell, so reducing over all of them would
+    # demand a grade for optional carriers the city may never have used. The value-side tests
+    # avoid this the same way, by naming their carriers before the prod_dim.
+    - id: energy_carrier
+      categories: [electricity, natural_gas, district_heating, heating_oil, biomass, solar_thermal,
+        environmental_heat]
+  params:
+  - id: formula
+    # prod_dim over both, for the same reason as the value-side tests: the second Prüflauf checks
+    # per Untersektor, so one ungraded cell is enough to fail the year.
+    value: prod_dim(prod_dim(availability, sector), energy_carrier)
 
 - id: final_energy_use_availability
   is_editable: false
@@ -4448,7 +4896,7 @@ nodes:
 
 - id: district_heating_energy_use_availability
   is_editable: false
-  name_de: Datenverfügbarkeit des Fernwärmeenergieverbrauchs
+  name_de: Datenverfügbarkeit des Endenergieverbrauchs Fernwärme
   name_en: District heating energy use data availability
   description_de: Zeigt, für welche Energieträger und Jahre der Datensatz zum
     Fernwärmeenergieverbrauch tatsächlich einen Wert enthält (1 = Wert vorhanden,
@@ -4475,7 +4923,7 @@ nodes:
 
 - id: has_all_district_heating_energy_use_data
   is_editable: false
-  name_de: Sind alle Fernwärmeenergieverbrauchsdaten vorhanden?
+  name_de: Sind alle Daten zum Endenergieverbrauch Fernwärme vorhanden?
   name_en: Has all district heating energy use data?
   description_de: Fasst die Datenverfügbarkeit zu einer Zahl pro Jahr zusammen.
     1 bedeutet, dass jeder Energieträger des Datensatzes für dieses Jahr einen Wert
