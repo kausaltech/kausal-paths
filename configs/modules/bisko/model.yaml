@@ -1210,6 +1210,8 @@ nodes:
   # already exist, and dataset interpolation spans the dataset's own first-to-last year. Only
   # `extend_all` reaches back to `minimum_historical_year`. Fixed 2026-08-21.
   - id: operations
+    # The dataset only starts in 1995; without extend_all, final_energy_use's
+    # multiplication against this node drops every earlier year for every stationary sector.
     value: get_single_dataset,extend_all,do_correction
   - id: do_correction
     ref: weather_correction

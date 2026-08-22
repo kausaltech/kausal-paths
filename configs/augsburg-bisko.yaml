@@ -11,8 +11,8 @@ owner: Stadt Augsburg
 theme_identifier: de-augsburg
 target_year: 2050
 model_end_year: 2050
-reference_year: 1996
-minimum_historical_year: 1996
+reference_year: 1990
+minimum_historical_year: 1990
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
