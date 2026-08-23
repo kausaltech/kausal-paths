@@ -4112,10 +4112,35 @@ nodes:
     # original form; the presence terms were fixed then and this one was missed.
     - id: sector
       categories: [private_households, commerce_trade_services, industry]
+  # The same narrowing on the threshold table, which carries all four sectors. This is not a fix
+  # to the exemption above -- that works, because the filter drops the municipal-facility grades
+  # before the join and `product()` then skips the nulls the criteria table contributes. It is
+  # what makes the formula's `zero_fill` safe: without it those nulls become zeros and force the
+  # product to 0, so a city supplying no municipal-facility data could never be conform -- the
+  # 2026-08-22 defect, reintroduced. The conformity matrix caught exactly that.
+  # Both sides now carry the same nine required combinations, so nothing is left to guess about.
   - id: quality_criteria
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity, natural_gas, district_heating]
+    - id: sector
+      categories: [private_households, commerce_trade_services, industry]
   params:
   - id: formula
-    value: data_quality >= quality_criteria
+    # zero_fill, because a cell with no Datengüte is not a cell with Datengüte A.
+    #
+    # The two operands do not span the same years. `quality_criteria` is a reference table and
+    # runs 1990-2025; `final_energy_use_data_quality` runs only as far as the city's own data,
+    # which for the shipped template is 2023 alone. The comparison therefore yields *null* for
+    # every earlier year, and null is not 0: `prod_dim` reduces with polars' `product()`, which
+    # skips nulls and returns 1.0 for an all-null group -- the empty product. So the ungraded
+    # years read "hat Qualität A" rather than "hat keine Datengüte".
+    #
+    # It never granted conformity, because the presence terms are 0 in exactly those years, but
+    # it is displayed: `has_quality_a_data_for_grid_based_energy` sits on an outcome page, and a
+    # year with no data at all showed 1 there. Reporting a quality criterion as met on data
+    # nobody has entered is the complaint of Prüfschritt 1.1 in miniature.
+    value: zero_fill(data_quality >= quality_criteria)
 
 - id: has_quality_a_data_for_grid_based_energy
   is_editable: false
