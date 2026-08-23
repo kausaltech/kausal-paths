@@ -1175,7 +1175,7 @@ nodes:
 - id: private_household_emissions
   is_editable: false
   name_de: Private Haushalte
-  name_en: Private household emissions
+  name_en: Private households
   color: '#009ebe'
   type: simple.AdditiveNode2
   quantity: emissions
@@ -1193,7 +1193,7 @@ nodes:
 - id: municipal_facilities_emissions
   is_editable: false
   name_de: Kommunale Einrichtungen
-  name_en: Municipal facilities emissions
+  name_en: Municipal facilities
   color: '#6bc248'
   type: simple.AdditiveNode2
   quantity: emissions
@@ -1211,7 +1211,7 @@ nodes:
 - id: industry_emissions
   is_editable: false
   name_de: Industrie
-  name_en: Industry emissions
+  name_en: Industry
   color: '#737373'
   type: simple.AdditiveNode2
   quantity: emissions
@@ -1229,7 +1229,7 @@ nodes:
 - id: commerce_trade_services_emissions
   is_editable: false
   name_de: Gewerbe, Handel, Dienstleistungen
-  name_en: Commerce, trade, services emissions
+  name_en: Commerce, trade, services
   color: '#fe8035'
   type: simple.AdditiveNode2
   quantity: emissions
@@ -2390,7 +2390,7 @@ nodes:
 
 - id: emission_factors_without_fuel_data
   is_editable: false
-  name_de: Emissionsfaktoren ohne Brennstoffiniputinformationen
+  name_de: Emissionsfaktoren ohne Brennstoffinputinformationen
   name_en: Emission factors for electricity and heat without known fuel fractions
   description_en: |
     The emissions factors are product-specific and calculated per electricity or heat produced.
@@ -3586,8 +3586,8 @@ nodes:
 
 - id: transport_emissions
   is_editable: false
-  name_en: Transport emissions
-  name_de: Transportemissionen
+  name_en: Transport
+  name_de: Verkehr
   type: simple.MultiplicativeNode2
   quantity: emissions
   unit: kt_co2e/a
@@ -4160,10 +4160,44 @@ nodes:
   - id: formula
     value: prod_dim(prod_dim(quality_a, energy_carrier), sector)
 
+# The two breakdowns and the Gesamtdatengüte are one mass, summed three ways. All three therefore
+# weight over the *whole* balance, transport included.
+#
+# Methodenpapier §3.4: "der Anteil des Verbrauchs des Endenergieträgers am Gesamtenergieverbrauch
+# [wird] mit der Datengüte multipliziert [und] für alle Energieverbräuche aufaddiert". The Leitfaden
+# Datenbeschaffung gives the same arithmetic and names the axis outright -- its Table 1 is headed
+# "ENERGIETRÄGER UND VERKEHRSARTEN" and carries Straßenverkehr (22,9 %), Schienenverkehr (0,4 %) and
+# Linienverkehr (0,5 %) beside Strom, Erdgas and Fernwärme. Transport is roughly a fifth to a half
+# of a city's final energy, so leaving it out of a breakdown does not merely omit rows: it reweights
+# every remaining one and reports a better Datengüte than the balance has. On mainz-bisko the
+# stationary-only version read 0.629 against a true 0.602 for 2023, because the excluded transport
+# runs on the ifeu defaults at grade B.
+#
+# BISKO requires only the single Gesamtdatengüte (Prüfschritt 7.2); neither breakdown is asked for.
+# The by-carrier one is nonetheless the shape of BISKO's own table, and the by-sector one is ours.
 - id: weighted_data_quality_by_sector
   is_editable: false
   name_en: Weighted data quality by sector
   name_de: Gewichtete Datenqualität nach Sektor
+  description_en: |
+    The Datengüte of each BISKO sector: every grade weighted by that sector's share of the sector's
+    own final energy, on the A–D scale of Methodenpapier §3.4 (A = 100 %, B = 50 %, C = 25 %,
+    D = 0 %).<br/>
+    <b>Transport is included as the fifth sector</b>, so this breakdown and
+    <i>Datengüte der Gesamtbilanz</i> describe the same balance. Its grade follows whichever source
+    each year ran on — the city's own where it supplied data, grade B where the balance ran on the
+    gemeindefeine ifeu defaults.<br/>
+    A sector with no energy at all has no weighted mean and is not shown; that is a sector nobody
+    has entered anything for, not one graded zero.
+  description_de: |
+    Die Datengüte je BISKO-Sektor: jede Güte gewichtet mit ihrem Anteil am Endenergieverbrauch des
+    Sektors, auf der Skala A–D des Methodenpapiers §3.4 (A = 100 %, B = 50 %, C = 25 %, D = 0 %).<br/>
+    <b>Der Verkehr ist als fünfter Sektor enthalten</b>, damit diese Aufschlüsselung und die
+    <i>Datengüte der Gesamtbilanz</i> dieselbe Bilanz beschreiben. Seine Güte folgt der Quelle, auf
+    der das jeweilige Jahr beruht — die eigene der Kommune, wo sie Daten geliefert hat, sonst
+    Güte B für die gemeindefeinen ifeu-Defaultwerte.<br/>
+    Ein Sektor ganz ohne Energie hat keinen gewichteten Mittelwert und wird nicht dargestellt; das
+    ist ein Sektor, für den noch niemand etwas eingetragen hat, und nicht einer mit Güte null.
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
@@ -4174,14 +4208,66 @@ nodes:
     tags: [quality]
   - id: final_energy_use
     tags: [energy]
+  # Transport enters as two terms because its branches are graded separately: road mileage and the
+  # rail/water/air consumption come from different sources and can differ in the same year. Both
+  # are mapped onto the transport sector, the same way total_final_energy_use does it.
+  - id: road_transport_data_quality_in_force
+    tags: [road_quality]
+  - id: road_transport_energy_bisko
+    tags: [road_energy]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+  - id: other_transport_data_quality_in_force
+    tags: [other_quality]
+  - id: other_transport_energy
+    tags: [other_energy]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
   params:
   - id: formula
-    value: drop_nans(sum_dim(quality * energy, energy_carrier) / sum_dim(energy, energy_carrier))
+    # zero_fill before the division: the stationary term covers four sectors and the transport
+    # terms one, so their sum is a union in which each side is null where the other has rows.
+    # Left as null those rows would vanish; as zero they add nothing, which is what they mean.
+    value: drop_nans(
+      zero_fill(sum_dim(quality * energy, energy_carrier)
+                + road_quality * road_energy + other_quality * other_energy)
+      / zero_fill(sum_dim(energy, energy_carrier) + road_energy + other_energy))
 
 - id: weighted_data_quality_by_energy_carrier
   is_editable: false
   name_en: Weighted data quality by energy carrier
   name_de: Gewichtete Datenqualität nach Energieträger
+  description_en: |
+    The Datengüte of each energy carrier, weighted by its share of that carrier's final energy, on
+    the A–D scale of Methodenpapier §3.4.<br/>
+    <b>Transport fuels are included</b>, so this breakdown and <i>Datengüte der Gesamtbilanz</i>
+    describe the same balance. This is the shape of the Leitfaden's own Table 1, which is headed
+    <i>Energieträger und Verkehrsarten</i> — with one refinement: BISKO's table carries road, rail
+    and bus as single rows, because the graded item there is the Fahrleistung rather than a fuel,
+    whereas this one resolves the transport grade onto the fuels it was measured on. A fuel used by
+    both branches carries the energy-weighted blend of their grades.
+  description_de: |
+    Die Datengüte je Energieträger, gewichtet mit seinem Anteil am Endenergieverbrauch dieses
+    Trägers, auf der Skala A–D des Methodenpapiers §3.4.<br/>
+    <b>Die Kraftstoffe des Verkehrs sind enthalten</b>, damit diese Aufschlüsselung und die
+    <i>Datengüte der Gesamtbilanz</i> dieselbe Bilanz beschreiben. Das entspricht der Tabelle 1 des
+    Leitfadens Datenbeschaffung, überschrieben <i>Energieträger und Verkehrsarten</i> — mit einer
+    Verfeinerung: Dort stehen Straßen-, Schienen- und Linienverkehr als je eine Zeile, weil dort die
+    Fahrleistung und nicht ein Kraftstoff bewertet wird; hier wird die Verkehrsgüte auf die
+    Kraftstoffe aufgelöst, an denen sie gemessen wurde. Ein Kraftstoff, den beide Zweige nutzen,
+    trägt das energiegewichtete Mittel ihrer Güten.
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
@@ -4192,9 +4278,29 @@ nodes:
     tags: [quality]
   - id: final_energy_use
     tags: [energy]
+  # Only vehicle_type is flattened here: the carrier is the axis of this node, so the transport
+  # energy keeps it and each fuel lands on its own row.
+  - id: road_transport_data_quality_in_force
+    tags: [road_quality]
+  - id: road_transport_energy_bisko
+    tags: [road_energy]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: other_transport_data_quality_in_force
+    tags: [other_quality]
+  - id: other_transport_energy
+    tags: [other_energy]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
   params:
   - id: formula
-    value: drop_nans(sum_dim(quality * energy, sector) / sum_dim(energy, sector))
+    # See the sibling node for why zero_fill precedes the division.
+    value: drop_nans(
+      zero_fill(sum_dim(quality * energy, sector)
+                + road_quality * road_energy + other_quality * other_energy)
+      / zero_fill(sum_dim(energy, sector) + road_energy + other_energy))
 
 # --- Datengüte of the transport sector ------------------------------------------------------
 #
