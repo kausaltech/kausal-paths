@@ -3,13 +3,13 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6d4df2dfcdcbf62c66a637de2e99f914fe075785
+  commit: 4ce3b8d1adef623b8ac31bd1b94f49d1a0d05599
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
 owner: Mainz Stadt
 theme_identifier: de-mainz
-target_year: 2035
+target_year: 2024
 model_end_year: 2050
 reference_year: 1990
 minimum_historical_year: 1990
@@ -31,6 +31,14 @@ include:
     to: mainz/historical_emissions
   - from: kommune/verkehrsleistung_personen
     to: mainz/passenger_kilometers
+  # Road transport, both BISKO routes. Only the ÖSPV cells carry data (MVG, Güte A,
+  # 2019-2024); the remaining 13 mileage and 35 consumption combinations ship as
+  # deliberate blanks so the presence check can still tell "not supplied" from an
+  # entered zero. Uploaded 2026-08-24, see data/mainz/create_oespv_datasets.py.
+  - from: kommune/fahrleistung_strassenverkehr
+    to: mainz/fahrleistung_strassenverkehr
+  - from: kommune/energieverbrauch_strassenverkehr
+    to: mainz/energieverbrauch_strassenverkehr
 
 # The GHG-Protocol administration balance. A parallel outcome tree with its own page --
 # it is deliberately not summed into `net_emissions`, because municipal building energy
