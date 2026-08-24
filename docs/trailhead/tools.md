@@ -228,6 +228,20 @@ Two things deliberately do not move:
   value while the translations move on — which is how the dimension categories came to hold
   German in a column that is read as English. `--set-name` does the single-language case
   from the command line.
+
+  **This command is the only way to set a dataset label on a non-English instance.** The
+  Wagtail admin form binds the plain `name` field, so it edits the value for
+  `settings.LANGUAGE_CODE` — English — whatever the editor's UI language is set to. The
+  failure is quiet, and looks like success half the time: editing a dataset that has no
+  translated name appears to work, because the other language falls back to the column and
+  displays what was typed, while the text is stored under the wrong language; editing one
+  that *does* have a translated name appears to do nothing, because the column moves and the
+  translation stays put. Both were observed on `bisko` within the same hour on 2026-08-24.
+
+  A label-only run is supported: give an entry whose `to` is its own identifier.
+  `build_rename_plan` blocks a same-identifier run only when no labels are supplied, and
+  nothing is renamed, so the "Still referenced in configs" warning does not apply and no
+  `sync_instance_to_db` is needed afterwards.
 - **`InstanceRevisionDatasetPin.identifier`**, a denormalized record of what the dataset
   was called when that revision was published. The pin's identity is its foreign key and
   `dataset_uuid`, and nothing resolves a pin by identifier, so rewriting it would only

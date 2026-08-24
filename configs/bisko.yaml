@@ -75,8 +75,12 @@ params:
   is_customizable: true
 
 - id: use_national_values
-  label_en: Use national ("Bundesstrommix") rather than local electricity emission factors (BISKO-compliant)
-  label_de: Nationale Stromemissionsfaktoren (Bundesstrommix) statt lokal berechneter Stromemissionsfaktoren nutzen (BISKO-konform).
+  label_en: Use national rather than locally held emission factors (BISKO-compliant). Governs all four
+    factor tables — end energy (incl. Bundesstrommix), generation, district heating, and
+    factors without fuel input.
+  label_de: Nationale Emissionsfaktoren statt lokal hinterlegter nutzen (BISKO-konform). Betrifft alle
+    vier Faktortabellen — Endenergie (inkl. Bundesstrommix), Erzeugung, Fernwärme und Faktoren
+    ohne Brennstoffinput.
   value: true
   is_visible: true
   is_customizable: true
