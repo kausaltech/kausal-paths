@@ -13,7 +13,7 @@ target_year: 2035
 model_end_year: 2050
 reference_year: 1990
 minimum_historical_year: 1990
-maximum_historical_year: 2023
+maximum_historical_year: 2024
 emission_unit: kt_co2e/a
 features:
   baseline_visible_in_graphs: true
@@ -107,6 +107,18 @@ params:
     vier Faktortabellen — Endenergie (inkl. Bundesstrommix), Erzeugung, Fernwärme und Faktoren
     ohne Brennstoffinput.
   value: true
+  is_visible: true
+  is_customizable: true
+# Separate from use_mileage, which chooses between the mileage route and the city's own
+# energy data. This one chooses whose mileage: the BISKO municipality-level defaults (false)
+# or the city's own traffic model via KSP (true). BISKO recommends cities move to their own
+# regularly updated traffic data, so this is a real alternative rather than a workaround.
+- id: use_own_mileage
+  label_en: Use the city's own mileage data rather than the BISKO municipality
+    defaults
+  label_de: Eigene Fahrleistungsdaten der Kommune anstelle der gemeindefeinen
+    BISKO-Default-Werte verwenden
+  value: false
   is_visible: true
   is_customizable: true
 # Mainz reports 130 GWh of municipal facilities in 1990 falling to zero by the end of the series,
