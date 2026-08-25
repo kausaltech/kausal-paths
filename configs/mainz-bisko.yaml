@@ -7,7 +7,7 @@ dataset_repo:
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
-owner: Mainz Stadt
+owner: Landeshauptstadt Mainz
 theme_identifier: de-mainz
 target_year: 2024
 model_end_year: 2050
