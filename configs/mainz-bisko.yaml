@@ -179,8 +179,8 @@ nodes:
   type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [ghg_category, municipal_facility_type, scope]
-  output_dimensions: [ghg_category, municipal_facility_type, scope]
+  input_dimensions: [scope, ghg_category, municipal_facility_type]
+  output_dimensions: [scope, ghg_category, municipal_facility_type]
   is_outcome: true
   goals:
   # is_main_goal: false -- see the identical note on net_emissions_by_energy_carrier above.
@@ -195,6 +195,26 @@ nodes:
     values:
     - year: 2035
       value: 0
+
+# Pass-through of municipal_balance_emissions restricted to scope in [scope1, scope2] -- no
+# arithmetic, the filter lives entirely on the edge (from_dimensions/categories, no flatten),
+# so scope stays an output dimension with just those two categories. Not wired into any other
+# node's input_nodes on purpose, same reasoning as municipal_balance_emissions itself: it must
+# not be summed into the territorial balance or any other outcome.
+- id: municipal_balance_emissions_scope12
+  is_editable: false
+  name_de: Treibhausgasbilanz der Stadtverwaltung (Scope 1+2)
+  name_en: City administration GHG balance (Scope 1+2)
+  type: simple.AdditiveNode2
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [scope, ghg_category, municipal_facility_type]
+  output_dimensions: [scope, ghg_category, municipal_facility_type]
+  input_nodes:
+  - id: municipal_balance_emissions
+    from_dimensions:
+    - id: scope
+      categories: [scope1, scope2]
 
 # Overrides the module's node of the same id (the include now sets allow_override: true), for
 # one reason only: to point `t_supply` at an instance-level parameter instead of holding a
