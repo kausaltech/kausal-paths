@@ -279,7 +279,25 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
         for metric_meta in ds_meta.metrics:
             metric = metrics_by_name.get(metric_meta.identifier) if metric_meta.identifier else None
             if metric is None:
-                raise ValueError(f"dataset '{ds_id}' has no metric '{metric_meta.identifier}'")
+                # Same reasoning as the missing-dataset case above, one level down: a module
+                # declares rules for every metric it may read, and an including instance
+                # legitimately carries only a subset. A `dataset_replacements` entry can swap in a
+                # city dataset that deliberately omits a column -- `kommune/kwk_anlagenparameter`
+                # declares `t_supply`, and Mainz replaces it with a dataset that has none, because
+                # its utility gives a range rather than a figure and `ChpNode` falls back to the
+                # node parameter when the column is absent.
+                #
+                # Warning is safe because this declaration is an *edit constraint*, not a binding:
+                # a rule with no metric constrains nothing and cannot leave a dataset wrongly
+                # editable. A metric a node actually binds is still enforced, and still raises --
+                # see `No metric ... for node ...` above and in `spec_export.py`.
+                logger.warning(
+                    f"datasets entry '{ds_id}' declares rules for metric "
+                    f"'{metric_meta.identifier}', which the dataset of instance "
+                    f'{ic.identifier} does not have; skipping those rules '
+                    '(check for a typo if the metric is meant to be there)'
+                )
+                continue
             dataset_changed |= _apply_declared_metric_rules(metric, list(metric_meta.validation_rules))
         if dataset_changed and not dataset.is_external_placeholder:
             # Rules ride in the materialized snapshot and their violations are
