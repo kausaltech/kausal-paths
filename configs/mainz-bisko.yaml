@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: de4ffda6c4dac8c4c8c6c5a0278db1cff36c62d3
+  commit: ee1ea1d6a7a3a4065a521b86ec1895bce4d7aeac
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -46,16 +46,15 @@ include:
   # data/mainz/add_other_transport_2024.py.
   - from: kommune/energieverbrauch_uebriger_verkehr
     to: mainz/energieverbrauch_uebriger_verkehr
-  # Mainz-scoped copies of the shared national tables, extended with 2024 figures the city
-  # read off the KSP portal's "THG Verkehr 2024" view (fuels + the public electricity mix).
-  # Not edits to the shared de/* tables: those back every BISKO instance in the framework, and
-  # rolling one city's KSP figures out framework-wide is a decision for Kausal to make
-  # deliberately. See data/mainz/create_verkehr_emissionsfaktoren_2024.py and
-  # data/mainz/add_electricity_ef_2024.py.
-  - from: de/emissionsfaktoren_verkehr
-    to: mainz/emissionsfaktoren_verkehr
-  - from: de/emissionsfaktoren_endenergie
-    to: mainz/emissionsfaktoren_endenergie
+  # No replacement for de/emissionsfaktoren_verkehr or de/emissionsfaktoren_endenergie: their
+  # 2024 figures (fuels + the public electricity mix) came from the KSP portal's "THG Verkehr
+  # 2024" view, which labels them "Kommune: Deutschland" -- national reference values, not a
+  # Mainz-specific reading -- so they were added directly to the shared tables instead of
+  # forked here (2026-08-26; see data/mainz/create_verkehr_emissionsfaktoren_2024.py and
+  # data/mainz/add_electricity_ef_2024.py for how they were derived). An earlier version of
+  # this instance carried them as mainz/-scoped forks for one day; those datasets are now
+  # unused and orphaned rather than deleted, so a config pinned to that day's commit still
+  # resolves.
   # The exergetic (Carnot) allocation BISKO criterion 6 prescribes, on real figures at last:
   # final net CHP electricity against delivered heat, 2021-2024, giving an electricity fraction
   # of 0.43 / 0.39 / 0.33 / 0.33 where the shared template held a placeholder 0.30. Deliberately
