@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 39fd4007d4ce7e168621fdd8deb99af87ab3a33e
+  commit: e05725effded7d995c51a5dc8b47e2c7a04e9e0e
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -53,6 +53,13 @@ include:
   # left for the node to extend. See data/mainz/create_chp_parameters.py.
   - from: kommune/kwk_anlagenparameter
     to: mainz/kwk_anlagenparameter
+  # Mainz's own degree-day ratio (private_households, commerce_trade_services,
+  # municipal_facilities; industry and transport stay at 1.0), replacing the shipped Potsdam
+  # placeholder. Does not change conformity: criterion 5 forbids the correction outright,
+  # checked on the `weather_correction` switch (default off), not on these values. See
+  # data/mainz/create_witterungskorrektur.py.
+  - from: kommune/witterungsbereinigung
+    to: mainz/witterungsbereinigung
 
 # The GHG-Protocol administration balance. A parallel outcome tree with its own page --
 # it is deliberately not summed into `net_emissions`, because municipal building energy
