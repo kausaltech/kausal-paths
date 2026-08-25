@@ -5,8 +5,8 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 19c1961a7080f226c2179106ece213da2bcb2fa0
   dvc_remote: kausal-s3
-name_de: Mainz Klima-Monitor-BISKO
-name_en: Mainz Climate Monitor BISKO
+name_de: Treibhausgas-Monitor Mainz
+name_en: GHG Monitor Mainz
 owner: Mainz Stadt
 theme_identifier: de-mainz
 target_year: 2024
@@ -23,7 +23,7 @@ features:
 
 include:
 - file: modules/bisko/model.yaml
-  allow_override: false
+  allow_override: true
   dataset_replacements:
   - from: kommune/endenergieverbrauch
     to: mainz/final_energy
@@ -73,6 +73,36 @@ include:
 
 nodes:
 
+# Overrides the module's node of the same id (the include now sets allow_override: true), for
+# one reason only: to point `t_supply` at an instance-level parameter instead of holding a
+# value itself. The scenario editor lists global parameters only -- `params/schema.py` returns
+# `context.global_parameters` -- so a parameter defined on a node never appears there, however
+# customizable it is. A ReferenceParameter bridges that: the node reads the reference, and the
+# target below is what the editor shows and the user drags.
+#
+# Everything else here mirrors modules/bisko/model.yaml. Keep it in step: with
+# allow_override: true the module's version is skipped entirely, so a change there does NOT
+# reach Mainz. The descriptions deliberately stay in the module rather than being duplicated.
+- id: combined_heat_and_power_chp_fraction
+  is_editable: false
+  name_de: Aufteilungsfaktoren der Kraft-Wärme-Kopplung
+  name_en: Combined heat and power allocation fractions
+  description_de: |
+    Siehe modules/bisko/model.yaml für die ausführliche Beschreibung. Hier nur überschrieben,
+    damit die Vorlauftemperatur als Regler im Szenario-Editor erscheint.
+  type: generic.BiskoChpNode
+  quantity: fraction
+  unit: '%'
+  output_dimensions: [energy_carrier]
+  params:
+  - id: t_supply
+    ref: chp_supply_temperature
+  input_datasets:
+  # No `column:` -- ChpNode matches electricity_fraction and t_supply by name against the
+  # dataset's metric columns. Mainz's copy carries only electricity_fraction, so t_supply
+  # falls through to the parameter above.
+  - id: mainz/kwk_anlagenparameter
+
 - id: gas_heizwert_brennwert_ratio
   is_editable: false
   name_de: Erdgas Heizwert/Brennwert Umrechnungsfaktor
@@ -102,6 +132,24 @@ nodes:
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
+
+# The target of the ReferenceParameter on combined_heat_and_power_chp_fraction. It lives here,
+# at instance level, because that is the only place the scenario editor looks.
+#
+# The Mainzer Fernwärme gives a range rather than a figure -- "die Vorlauftemperatur beträgt
+# 90-115 °C, je nach Außentemperatur/Jahreszeit" (24.08.2026) -- so the bounds are that range
+# and the default its midpoint. Worth knowing while dragging it: across the whole span the heat
+# share of the exergetic allocation moves about 4 percentage points, where a realistic swing in
+# the electricity fraction moves it by 8. The temperature is the less consequential of the two,
+# which is why the fraction is taken from measured data and only this one is left adjustable.
+- id: chp_supply_temperature
+  label_de: Vorlauftemperatur des Fernwärmenetzes (K)
+  label_en: District heating supply temperature (K)
+  value: 375.65          # 102.5 °C
+  min_value: 363.15      # 90 °C
+  max_value: 388.15      # 115 °C
+  is_customizable: true
+  is_visible: true
 
 - id: weather_correction
   label_de: Wetterkorrektur durchführen?
