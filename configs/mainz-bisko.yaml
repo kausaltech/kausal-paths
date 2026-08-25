@@ -130,10 +130,19 @@ nodes:
   input_nodes:
   - id: net_emissions
   goals:
+  # is_main_goal: false on purpose. Instance.get_goals() (nodes/instance.py) only counts
+  # is_main_goal entries toward the site-wide goal selector, and that selector shows itself
+  # only when more than one such entry exists across the whole instance (ScenarioPanel.tsx,
+  # `nrGoals > 1`). With three outcome pages each carrying their own goal, three main goals
+  # meant a dropdown asking the visitor to pick between unrelated pages' targets. The
+  # per-node goal used on THIS page's own chart (the Node.goals resolver, node.py) does not
+  # look at is_main_goal at all -- it reads NodeGoals.get_dimensionless() unconditionally --
+  # so the target line here is unaffected; only the global selector shrinks to net_emissions'
+  # one remaining entry, which is the one that actually makes sense as a site-wide default.
   - label_de: 'Ziel: Netto-Null bis 2035'
     label_en: 'Goal: net zero by 2035'
     default: true
-    is_main_goal: true
+    is_main_goal: false
     linear_interpolation: true
     auto_start: true
     values:
@@ -167,10 +176,13 @@ nodes:
   output_dimensions: [ghg_category, municipal_facility_type, scope]
   is_outcome: true
   goals:
+  # is_main_goal: false -- see the identical note on net_emissions_by_energy_carrier above.
+  # This page's own target line still renders (Node.goals ignores is_main_goal); only the
+  # site-wide selector is kept to net_emissions' one entry, so it no longer appears at all.
   - label_de: 'Ziel: Netto-Null bis 2035'
     label_en: 'Goal: net zero by 2035'
     default: true
-    is_main_goal: true
+    is_main_goal: false
     linear_interpolation: true
     auto_start: true
     values:
