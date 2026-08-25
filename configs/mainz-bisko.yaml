@@ -134,11 +134,6 @@ nodes:
   is_editable: false
   name_de: Netto-Emissionen nach Energieträger
   name_en: Net emissions by energy carrier
-  description_en: A copy of net_emissions with energy_carrier as the first dimension,
-    so the outcome page shows the energy carrier breakdown before the sector breakdown.
-  description_de: Eine Kopie von net_emissions mit energy_carrier als erster Dimension,
-    sodass die Ergebnisseite die Aufschlüsselung nach Energieträger vor der nach
-    Sektor zeigt.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
