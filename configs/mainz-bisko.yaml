@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ee1ea1d6a7a3a4065a521b86ec1895bce4d7aeac
+  commit: 2df096a050f32e91dc6a33f37e729068480ce6fb
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
