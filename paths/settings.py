@@ -512,7 +512,12 @@ STORAGES: dict[str, Any] = {
 }
 
 if MEDIA_FILES_S3_ENDPOINT:
-    STORAGES['default']['BACKEND'] = 'paths.storage.MediaFilesS3Storage'
+    # The shared class, not a Paths-local copy. `paths/storage.py` held a duplicate of it that had
+    # already drifted: kausal_common's version gained `file_overwrite = False` on 2026-08-14
+    # (aa98261) and the copy here never did, so on Paths two uploads of the same filename still
+    # shared one S3 object and deleting either destroyed the other's file. The duplicate is gone;
+    # `kausal_common/tests/test_storage.py` now covers what Paths actually runs.
+    STORAGES['default']['BACKEND'] = 'kausal_common.storage.storage_classes.MediaFilesS3Storage'
 
 
 STATIC_URL = env('STATIC_URL')
