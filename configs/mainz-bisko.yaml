@@ -162,20 +162,31 @@ nodes:
   name_en: City administration GHG balance
   color: '#AD1457'
   description_de: |
-    Gesamtbilanz der Stadtverwaltung nach GHG Protocol Corporate Standard, gegliedert nach
+    Bilanz der Stadtverwaltung nach GHG Protocol Corporate Standard, gegliedert nach
     Bilanzkategorie, Liegenschaftsgruppe und Scope.<br/>
+    <b>Diese Summe umfasst Scope 1 und Scope 2.</b> Scope 3 wird vollständig berechnet und
+    ist in den einzelnen Kategorien sowie in der nachrichtlichen Position
+    „Scope-3-Emissionen der Stadtverwaltung" einsehbar, geht hier aber nicht in die
+    Gesamtsumme ein. Zwei Gründe: Scope 1 und 2 sind die verbindlichen Bestandteile der
+    Bilanz, Scope 3 ist optional; und für Scope 3 liegen nach 2021 keine Daten vor, sodass
+    eine Gesamtsumme mit Scope 3 ab 2022 sinken würde, weil Daten fehlen, und nicht, weil
+    Emissionen vermieden wurden.<br/>
     <b>Diese Bilanz ist nicht Teil der territorialen BISKO-Bilanz und darf nicht zu ihr
     addiert werden.</b> Die Energie der kommunalen Liegenschaften ist dort bereits im
-    Sektor „Kommunale Einrichtungen" enthalten, und die Scope-3-Anteile -- Arbeitswege,
-    Beschaffung, Verpflegung, Postversand -- liegen außerhalb der territorialen
-    Bilanzgrenze.
+    Sektor „Kommunale Einrichtungen" enthalten, und die Scope-3-Anteile liegen außerhalb
+    der territorialen Bilanzgrenze.
   description_en: |
-    Total balance of the city administration under the GHG Protocol Corporate Standard,
-    broken down by inventory category, property group and scope.<br/>
+    Balance of the city administration under the GHG Protocol Corporate Standard, broken
+    down by inventory category, property group and scope.<br/>
+    <b>This total covers Scope 1 and Scope 2.</b> Scope 3 is computed in full and can be
+    inspected in the individual categories and in the memo item "City administration
+    Scope 3 emissions", but it is not summed into the total here. Two reasons: Scope 1 and
+    2 are the mandatory parts of the balance and Scope 3 is optional; and no Scope 3 data
+    exists after 2021, so a total including it would fall from 2022 onwards because data
+    is missing, not because emissions were avoided.<br/>
     <b>This balance is not part of the territorial BISKO inventory and must not be added
     to it.</b> Municipal building energy is already counted there in the municipal
-    facilities sector, and the Scope 3 components -- commuting, procurement, catering,
-    postal transport -- lie outside the territorial boundary.
+    facilities sector, and the Scope 3 components lie outside the territorial boundary.
   type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a
@@ -195,26 +206,6 @@ nodes:
     values:
     - year: 2035
       value: 0
-
-# Pass-through of municipal_balance_emissions restricted to scope in [scope1, scope2] -- no
-# arithmetic, the filter lives entirely on the edge (from_dimensions/categories, no flatten),
-# so scope stays an output dimension with just those two categories. Not wired into any other
-# node's input_nodes on purpose, same reasoning as municipal_balance_emissions itself: it must
-# not be summed into the territorial balance or any other outcome.
-- id: municipal_balance_emissions_scope12
-  is_editable: false
-  name_de: Treibhausgasbilanz der Stadtverwaltung (Scope 1+2)
-  name_en: City administration GHG balance (Scope 1+2)
-  type: simple.AdditiveNode2
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [scope, ghg_category, municipal_facility_type]
-  output_dimensions: [scope, ghg_category, municipal_facility_type]
-  input_nodes:
-  - id: municipal_balance_emissions
-    from_dimensions:
-    - id: scope
-      categories: [scope1, scope2]
 
 # Overrides the module's node of the same id (the include now sets allow_override: true), for
 # one reason only: to point `t_supply` at an instance-level parameter instead of holding a
@@ -245,6 +236,160 @@ nodes:
   # dataset's metric columns. Mainz's copy carries only electricity_fraction, so t_supply
   # falls through to the parameter above.
   - id: mainz/kwk_anlagenparameter
+
+# --- Indicator nodes -----------------------------------------------------------------
+#
+# Nodes that exist to answer an indicator from the city's Maßnahmenkatalog, not because the
+# balance needs them. They compute shares from what the model already holds and add no data.
+#
+# They live here rather than in modules/bisko/model.yaml because the indicator set is
+# Mainz's own selection; the shared module is the BISKO balance, and content that is not
+# the balance should not be mixed into it. If another city adopts the same indicators, move
+# them then, not before.
+#
+# Only two are built, and the reason the list is this short is worth recording. Of the 35
+# indicators marked PATHS in `20260804_IND_alleR_MSW_IV_a12_III_ersteV.xlsx`, five already
+# compute (I 5, 46, 47, 59, 60) and these two close another five rows. The renewable-share
+# indicators (I 9, 22, 27, 35) look equally simple and are not: 44% of Mainz's final energy
+# is electricity, district heating or local heating, each carrying its own generation mix,
+# and the model holds neither the national grid mix as a share nor -- because Mainz still
+# uses the blank `fernwaerme_energieeinsatz` template -- any district-heating fuel input at
+# all. Dividing the directly renewable carriers by the total would publish 2.2% as "the
+# renewable share of energy consumption", which is not a smaller truth but a wrong number.
+# See data/mainz/indikatoren-und-modell.md.
+
+- id: district_heating_emission_factor_delivered
+  is_editable: false
+  name_de: Emissionsfaktor Fernwärme (Auslieferung)
+  name_en: District heating emission factor (delivered heat)
+  description_de: |
+    Treibhausgasemissionen der Fernwärme je Kilowattstunde ausgelieferter Wärme, also die
+    Emissionen der Fernwärme geteilt durch den Fernwärme-Endenergieverbrauch im
+    Stadtgebiet.<br/>
+    <b>Nicht zu verwechseln mit den Emissionsfaktoren der eingesetzten Brennstoffe</b>
+    (<code>district_heating_fuel_emission_factors</code>), die je Brennstoff angegeben sind.
+    Der Indikator des Maßnahmenkatalogs meint diese Größe hier: den Faktor der Wärme, die
+    beim Kunden ankommt.<br/>
+    Nahwärme ist nicht enthalten: die Emissionen der Fernwärme decken nur den
+    Energieträger Fernwärme ab, und eine Division durch Fern- plus Nahwärme würde den
+    Faktor um rund ein Fünftel zu niedrig ausweisen.<br/>
+    <b>Der Wert liegt derzeit konstant bei rund 260 g/kWh</b>, in jedem Jahr gleich. Das ist
+    kein Messergebnis, sondern der Standardfaktor der BISKO-Methodik: ein lokaler Faktor
+    setzt Angaben zum Brennstoffeinsatz der Fernwärmeerzeugung voraus, und dafür nutzt Mainz
+    bislang die leere Vorlage <code>fernwaerme_energieeinsatz</code>. Sobald diese Daten
+    vorliegen, bewegt sich der Indikator -- und erst dann kann er die Dekarbonisierung des
+    Netzes abbilden, die der Maßnahmenkatalog mit ihm verfolgen will. Dieselbe Datenlücke
+    blockiert den Indikator „Anteil Erneuerbarer Energien an der Wärmeerzeugung".<br/>
+    Welches Zuteilungsverfahren dahintersteht, entscheidet
+    <code>district_heating_method_in_force</code>. Die exergetische Allokation setzt
+    ebenfalls Brennstoffeinsatzdaten voraus.
+  description_en: |
+    District heating greenhouse gas emissions per kilowatt-hour of delivered heat: district
+    heating emissions divided by district heating final energy use in the city.<br/>
+    <b>Not the same as the emission factors of the fuels burned</b>
+    (<code>district_heating_fuel_emission_factors</code>), which are stated per fuel. The
+    measure catalogue's indicator means this one: the factor of the heat that arrives at
+    the customer.<br/>
+    Local heating is excluded: district heating emissions cover only the district heating
+    carrier, and dividing by district plus local heating would understate the factor by
+    about a fifth.<br/>
+    <b>The value currently sits flat at about 260 g/kWh</b>, identical every year. That is
+    not a measurement but the BISKO methodology's default factor: a local factor requires
+    fuel input data for district heating generation, and Mainz still uses the blank
+    <code>fernwaerme_energieeinsatz</code> template. Once that data arrives the indicator
+    starts to move -- and only then can it show the network decarbonisation the measure
+    catalogue means it to track. The same gap blocks the indicator "renewable share of heat
+    generation".<br/>
+    Which allocation method sits behind it is decided by
+    <code>district_heating_method_in_force</code>. The exergetic allocation needs the same
+    fuel input data.
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: district_heating_emissions
+    tags: [emissions]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: sector
+      flatten: true
+  - id: final_energy_use
+    tags: [heat]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+      flatten: true
+    - id: sector
+      flatten: true
+  params:
+    formula: drop_nans(emissions / heat)
+
+- id: modal_split_by_passenger_kilometers
+  is_editable: false
+  name_de: Modal Split nach Verkehrsleistung
+  name_en: Modal split by passenger kilometres
+  description_de: |
+    Anteil jedes Verkehrsmittels an der gesamten Personenverkehrsleistung im Stadtgebiet,
+    als Anteile mit Summe 1. Grundlage ist <code>passenger_kilometers_own</code>, also die
+    Personenkilometer der Mobilitätsbefragung, nicht die Zahl der Wege.<br/>
+    <b>Verkehrsleistung, nicht Wege.</b> Der Maßnahmenkatalog führt beide Größen (Anteil an
+    der Verkehrsleistung [%/Pkm] und Anteil an den Wegen [%/Wege]). Nur die erste lässt sich
+    aus dem Modell beantworten; die Zahl der Wege ist keine Modellgröße und muss weiterhin
+    direkt aus der Mobilitätsbefragung berichtet werden.
+  description_en: |
+    Each mode's share of total passenger transport performance in the city, as shares
+    summing to 1. Built on <code>passenger_kilometers_own</code> -- the mobility survey's
+    passenger kilometres, not its trip counts.<br/>
+    <b>Transport performance, not trips.</b> The measure catalogue lists both (share of
+    transport performance [%/pkm] and share of trips [%/Wege]). Only the first is
+    answerable from the model; trip counts are not a model quantity and must still be
+    reported from the mobility survey directly.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: passenger_kilometers_own
+    tags: [pkm]
+  params:
+    # drop_nans for the same reason as road_type_shares_of_mileage: a year with no
+    # passenger kilometres at all divides zero by zero, and inventing a split there would
+    # assert a modal distribution nothing measured.
+    formula: drop_nans(pkm / sum_dim(pkm, vehicle_type))
+
+- id: public_transport_mode_shares
+  is_editable: false
+  name_de: Anteile der Verkehrsmittel am ÖPNV
+  name_en: Public transport mode shares
+  description_de: |
+    Aufteilung der ÖPNV-Verkehrsleistung auf Straßenbahn, Linienbus und
+    Schienenpersonennahverkehr, als Anteile mit Summe 1. Beantwortet den Indikator „Anteil
+    Straßenbahn am ÖPNV": es ist die Straßenbahn-Zeile dieses Knotens.<br/>
+    Bezugsgröße ist die Verkehrsleistung in Personenkilometern, nicht die Zahl der
+    Fahrgäste. Fahrgastzahlen der MVG sind eine andere Größe und im Modell nicht enthalten.
+  description_en: |
+    How public transport performance divides between tram, line bus and local rail, as
+    shares summing to 1. This answers the indicator "tram share of public transport": it is
+    this node's tram row.<br/>
+    The basis is transport performance in passenger kilometres, not passenger counts. MVG
+    passenger numbers are a different quantity and are not in the model.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: passenger_kilometers_own
+    tags: [pkm]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [tram, local_buses, local_trains]
+  params:
+    formula: drop_nans(pkm / sum_dim(pkm, vehicle_type))
 
 - id: gas_heizwert_brennwert_ratio
   is_editable: false
