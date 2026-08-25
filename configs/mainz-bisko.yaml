@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e05725effded7d995c51a5dc8b47e2c7a04e9e0e
+  commit: e894b50dc2befb3b4d1c16f1571cfc0d3b8b40a2
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -41,10 +41,21 @@ include:
     to: mainz/energieverbrauch_strassenverkehr
   # Rail, inland waterway and aviation: all eight required cells from the Klimaschutzplaner,
   # 2019-2023. Two are genuine reported zeros (long-distance rail is fully electrified here,
-  # and there is no commercial airport). 2024 is left empty on purpose -- see
-  # data/mainz/create_other_transport_energy.py.
+  # and there is no commercial airport). 2024 added 2026-08-26 from dedicated per-mode KSP
+  # queries -- see data/mainz/create_other_transport_energy.py and
+  # data/mainz/add_other_transport_2024.py.
   - from: kommune/energieverbrauch_uebriger_verkehr
     to: mainz/energieverbrauch_uebriger_verkehr
+  # Mainz-scoped copies of the shared national tables, extended with 2024 figures the city
+  # read off the KSP portal's "THG Verkehr 2024" view (fuels + the public electricity mix).
+  # Not edits to the shared de/* tables: those back every BISKO instance in the framework, and
+  # rolling one city's KSP figures out framework-wide is a decision for Kausal to make
+  # deliberately. See data/mainz/create_verkehr_emissionsfaktoren_2024.py and
+  # data/mainz/add_electricity_ef_2024.py.
+  - from: de/emissionsfaktoren_verkehr
+    to: mainz/emissionsfaktoren_verkehr
+  - from: de/emissionsfaktoren_endenergie
+    to: mainz/emissionsfaktoren_endenergie
   # The exergetic (Carnot) allocation BISKO criterion 6 prescribes, on real figures at last:
   # final net CHP electricity against delivered heat, 2021-2024, giving an electricity fraction
   # of 0.43 / 0.39 / 0.33 / 0.33 where the shared template held a placeholder 0.30. Deliberately
