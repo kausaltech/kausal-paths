@@ -158,6 +158,10 @@ class DatasetReduceAction(ActionNode):
       single column is used as-is (e.g. a shared multiplier with ``relative_goal: true``).
     """
 
+    # The pipeline ends on `col - pl.first(col)`, so what leaves here is movement from
+    # the baseline year, not a level.
+    output_is_baseline_delta: ClassVar[bool] = True
+
     allowed_parameters: ClassVar[list[Parameter[Any]]] = [
         BoolParameter(local_id='relative_goal'),
     ]
@@ -361,6 +365,10 @@ class DatasetReduceAction2(ActionNode):
       If the source has a column named after the metric it is extracted; otherwise the
       single column is used as-is (e.g. a shared multiplier with ``relative_goal: true``).
     """
+
+    # The pipeline ends on `col - pl.first(col)`, so what leaves here is movement from
+    # the baseline year, not a level.
+    output_is_baseline_delta: ClassVar[bool] = True
 
     allowed_parameters: ClassVar[list[Parameter[Any]]] = [
         *ActionNode.allowed_parameters,
@@ -575,6 +583,9 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
     reductions), in which case the input will be treated as
     a multiplier.
     """)
+
+    # Output is the difference to the baseline series, not the level itself.
+    output_is_baseline_delta: ClassVar[bool] = True
 
     allowed_parameters: ClassVar[list[Parameter]] = [
         BoolParameter(local_id='relative_goal'),

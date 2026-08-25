@@ -352,6 +352,15 @@ class Node:
     class (rather than switched on concrete types in the loader) so the dataset
     semantics live with the node class that defines them."""
 
+    output_is_baseline_delta: ClassVar[bool] = False
+    """Whether this class's output is change from the baseline year rather than a level.
+
+    Declared by the class (rather than switched on concrete types in a consumer) so the
+    arithmetic and the claim about it cannot drift apart. A consumer that reads the output
+    as an absolute figure has to know the difference: a delta presented as a level is wrong
+    by the whole baseline. See ``MeasureType._get_placeholder_df``, which withholds a value
+    it cannot present honestly."""
+
     input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = ()
     output_port_declarations: ClassVar[tuple[OutputPortDeclaration, ...]] = ()
     """Semantic role declarations shared by future get_input() and shape_rules()."""

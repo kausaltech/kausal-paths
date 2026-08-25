@@ -63,6 +63,10 @@ class SCurveAction(GenericAction):
         + 'data and one input dataset with max_impact / max_year rows.'
     )
     allowed_parameters = [*GenericAction.allowed_parameters]
+
+    # The s-curve is emitted net of the baseline value it starts from.
+    output_is_baseline_delta: ClassVar[bool] = True
+
     no_effect_value = 0.0
 
     def _newton_raphson_estimator(

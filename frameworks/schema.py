@@ -14,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from graphql import GraphQLError
 
 import sentry_sdk
+from loguru import logger
 
 from kausal_common.graphene import DjangoNode, DjangoNodeMeta
 from kausal_common.models.general import public_fields
@@ -22,10 +23,11 @@ from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths.graphql_types import resolve_unit
 
-from nodes.constants import YEAR_COLUMN
+from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeComputationError
 from nodes.models import InstanceConfig
 from nodes.schema import NodeInterface
+from nodes.units import unit_registry
 
 from .models import (
     Framework,
@@ -46,6 +48,7 @@ if TYPE_CHECKING:
 
     from paths.types import PathsGQLInfo as GQLInfo
 
+    from common import polars as ppl
     from frameworks.models import FrameworkDimensionCategory, NodeDimensionSelection
     from nodes.context import Context
     from nodes.graphql.types.instance import InstanceType
@@ -249,8 +252,72 @@ class MeasureType(DjangoNode[Measure]):
         return node[0]
 
     @staticmethod
+    def _get_placeholder_df(
+        measure: Measure,
+        node: Node,
+        selection: NodeDimensionSelection,
+    ) -> ppl.PathsDataFrame | None:
+        """
+        Return the frame the measure's planned values are read from.
+
+        Both paths read the node's output. The plan value for a given year is not written
+        down anywhere: the city-data datasets carry a single authored row per measure, at
+        the baseline year, and the trajectory across the years the sheet asks about is
+        what the model computes from it. The binding is how the measure was *found*, not
+        where its values live.
+
+        The node's own unit is only guaranteed to be the one the client formats against on
+        the legacy path, where the node wraps one dataset. On the binding path it can
+        differ by scale -- kg against t -- and converting is the difference between a right
+        and a thousand-times-wrong number.
+
+        Where the two are not convertible at all the annotations disagree rather than the
+        magnitudes: a rate node in ``%/a`` against a MeasureTemplate in ``%``. The legacy
+        path never converted and cities read those values happily, so pass the number
+        through as it always was rather than blank the cell over a units quibble.
+        """
+        # TEMPORARY, pending confirmation of what a delta-valued cell should show. A node
+        # declaring output_is_baseline_delta yields movement from the baseline year, so in
+        # a cell asking for a share a grey `-3.7` reads as authoritative and means the
+        # planned reduction instead. These measures were already blank before this branch,
+        # so withholding them changes nothing for a city while the question is open.
+        # Delete this block to restore them, or convert the delta into a level here.
+        if selection.dataset_index is not None and node.output_is_baseline_delta:
+            logger.info(
+                f'Node {node.id} reports change from the baseline year, not a level; withholding '
+                f'placeholders for measure {measure.measure_template.uuid}'
+            )
+            return None
+        df = node.get_output_pl()
+        if selection.dataset_index is None:
+            return df
+        if VALUE_COLUMN not in df.columns:
+            # A multi-metric node renamed Value to the metric column; the binding's tags
+            # said which one, so read that and put it back under the name the rest of the
+            # resolver expects.
+            if selection.metric_col is None or selection.metric_col not in df.columns:
+                logger.info(
+                    f'Node {node.id} outputs metrics {df.metric_cols} rather than a single value; '
+                    f'cannot tell which one measure {measure.measure_template.uuid} means'
+                )
+                return None
+            df = df.select_metrics(selection.metric_col, VALUE_COLUMN)
+        node_unit = df.get_unit(VALUE_COLUMN)
+        # MeasureTemplate.unit hands back a plain string, and comparing a pint Unit against
+        # one makes pint parse it mid-comparison and trip an assertion. Parse it ourselves.
+        template_unit = unit_registry.parse_units(str(measure.measure_template.unit))
+        if node_unit == template_unit:
+            return df
+        if not node_unit.is_compatible_with(template_unit):
+            logger.info(
+                f'Measure {measure.measure_template.uuid} is {template_unit} but node {node.id} outputs '
+                f'{node_unit}; passing values through unconverted'
+            )
+            return df
+        return df.ensure_unit(VALUE_COLUMN, template_unit)
+
+    @staticmethod
     def resolve_placeholder_data_points(root: Measure, info: GQLInfo) -> list[PlaceHolderDataPoint]:
-        import polars as pl
 
         node, node_dimension_selection = MeasureType._find_corresponding_node(root)
         if node is None or node_dimension_selection is None:
@@ -258,20 +325,53 @@ class MeasureType(DjangoNode[Measure]):
         fwc, context = MeasureType._get_fwc_and_context(root)
         with context.get_default_scenario().override():
             try:
-                df = node.get_output_pl()
+                df = MeasureType._get_placeholder_df(root, node, node_dimension_selection)
             except NodeComputationError as e:
                 sentry_sdk.capture_exception(e)
                 return []
-        df = df.filter((pl.col(YEAR_COLUMN) > fwc.baseline_year) & (pl.col(YEAR_COLUMN) <= timezone.now().year))
-        dimensions = node_dimension_selection.dimensions
-        if dimensions:
-            df = df.filter(**dimensions)
-        result = []
-        for d in df.select(pl.col('Year'), pl.col('Value')).to_dicts():
-            year = d['Year']
-            value = d['Value']
-            result.append(PlaceHolderDataPoint(year=year, value=value))
-        return result
+        if df is None:
+            return []
+        return MeasureType._narrow_to_placeholders(
+            df,
+            node_dimension_selection,
+            baseline_year=fwc.baseline_year,
+            last_year=timezone.now().year,
+            label=f'Measure {root.measure_template.uuid} on node {node.id}',
+        )
+
+    @staticmethod
+    def _narrow_to_placeholders(
+        df: ppl.PathsDataFrame,
+        selection: NodeDimensionSelection,
+        *,
+        baseline_year: int,
+        last_year: int,
+        label: str,
+    ) -> list[PlaceHolderDataPoint]:
+        """Cut the node's output down to the one value per year this measure's cell shows."""
+        import polars as pl
+
+        # A multi-metric node outer-joins metrics that span different dimensions, keeping
+        # the rows where the other metrics have nothing to say (see DatasetReduceAction2).
+        # Selecting one metric turns those into null values: they are not this measure's
+        # series, they would count against the one-row-per-year check below, and a null
+        # placeholder is nothing the client can render anyway.
+        df = df.filter(pl.col(VALUE_COLUMN).is_not_null())
+        df = df.filter((pl.col(YEAR_COLUMN) > baseline_year) & (pl.col(YEAR_COLUMN) <= last_year))
+        if selection.dimensions:
+            df = df.filter(**selection.dimensions)
+        if selection.dataset_index is not None and df.get_column(YEAR_COLUMN).is_duplicated().any():
+            # A cell holds one number, so more than one row per year means the selection
+            # failed to pin down a single series. Emitting them all would leave the client
+            # keeping whichever came last; say nothing instead.
+            msg = f'{label} resolves to several rows per year; refusing to guess a placeholder value'
+            logger.warning(msg)
+            sentry_sdk.capture_message(msg)
+            return []
+        return [
+            PlaceHolderDataPoint(year=d[YEAR_COLUMN], value=d[VALUE_COLUMN])
+            for d in df.select(pl.col(YEAR_COLUMN), pl.col(VALUE_COLUMN)).to_dicts()
+        ]
 
 
 class FrameworkConfigType(DjangoNode[FrameworkConfig]):

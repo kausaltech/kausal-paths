@@ -1,7 +1,7 @@
 import re
 import uuid
-from dataclasses import dataclass
-from functools import cached_property
+from dataclasses import dataclass, replace
+from functools import cached_property, partial
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -37,7 +37,7 @@ from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import IdentifierField, UnitField
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from rich.repr import RichReprResult
 
@@ -47,6 +47,7 @@ if TYPE_CHECKING:
 
     from paths.schema_context import PathsGraphQLContext
 
+    from frameworks.datasets import FrameworkMeasureDVCDataset2
     from frameworks.permissions import MeasureTemplatePermissionPolicy
     from nodes.gpc import DatasetNode
     from nodes.instance import Instance
@@ -72,6 +73,24 @@ if TYPE_CHECKING:
 class NodeDimensionSelection:
     node_id: str
     dimensions: dict[str, str] | None
+    dataset_index: int | None = None
+    """
+    Index of the ``city_data`` binding this measure was found through, if it was.
+
+    Values come from the node's output either way. What the index records is *how* the
+    measure was matched -- ``None`` for the legacy path, where the node is a thin wrapper
+    over one dataset and its class is the whole story -- which is what tells the resolver
+    whether the node's unit can be trusted to be the client's.
+    """
+
+    metric_col: str | None = None
+    """
+    Output column holding this measure's series, when the node emits more than one.
+
+    A multi-metric node renames ``Value`` to the metric column, so there is nothing for
+    the resolver to read under the usual name. ``None`` means the node emits a single
+    metric and ``Value`` is it.
+    """
 
 
 class FrameworkQuerySet(PathsQuerySet['Framework']):
@@ -1182,26 +1201,262 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             result.append((_uuid, dims))
         return result
 
-    @cached_property
-    def measure_template_uuid_to_node_dimension_selection(self) -> Mapping[str, NodeDimensionSelection]:
+    @staticmethod
+    def _get_measure_template_uuids_from_binding(
+        ds: FrameworkMeasureDVCDataset2,
+    ) -> list[tuple[str, dict[str, str] | None]]:
+        """
+        Read the (uuid, dimension categories) pairs a single ``city_data`` binding carries.
+
+        The ``DatasetNode`` sibling of this method has to undo the GPC sheet's
+        human-readable dimension labels via ``convert_names_to_ids``. Here the frame has
+        already been through the binding pipeline, so its dimension columns are ids and
+        can be read straight off ``dim_ids``.
+
+        Categories are the *only* handle the resolver has on a measure. The values come
+        from the node's output, which carries no uuid -- the binding is read to find the
+        measure, not to serve it -- so a uuid these cannot pin down to one series is left
+        unmapped rather than answered with someone else's numbers:
+
+        - a uuid spread over several categories has no single series;
+        - a uuid whose categories do not exclude another uuid's rows cannot be told from
+          it, and goes.
+
+        The second test is containment, not equality. A selector matches every row that
+        agrees with the categories it names and says nothing about the rest, so a selector
+        contained in another is the *broader* one: ``{transport_mode: cars}`` sweeps up
+        ``{transport_mode: cars, energy_carrier: electricity}`` as well as its own rows.
+        Equal selectors are the symmetric case, each contained in the other, and both go.
+        The narrower one survives -- nothing outside it satisfies its extra category.
+
+        The empty selector falls out of the same rule: it is contained in everything, so
+        it is fine alone in a binding and ambiguous beside anything else.
+
+        Only the uuids actually in conflict are dropped; the rest of the binding stands.
+        Null categories are discarded: they mean the column does not apply to this measure,
+        and filtering the node's output for a null category matches nothing.
+        """
+        df = ds.get_uuid_frame()
+        if df is None:
+            return []
+        dim_ids = [d for d in df.dim_ids if d != 'uuid']
+
+        categories_by_uuid: dict[str, set[tuple[str, ...]]] = {}
+        for _uuid, *categories in df.select(['uuid', *dim_ids]).iter_rows():
+            if _uuid is None:
+                continue
+            categories_by_uuid.setdefault(_uuid, set()).add(tuple(categories))
+
+        selectors: dict[str, dict[str, str]] = {}
+        ambiguous: list[str] = []
+        for _uuid, cats in categories_by_uuid.items():
+            if len(cats) > 1:
+                ambiguous.append(_uuid)
+                continue
+            selectors[_uuid] = {dim: cat for dim, cat in zip(dim_ids, next(iter(cats)), strict=True) if cat is not None}
+
+        too_broad = {
+            _uuid
+            for _uuid, sel in selectors.items()
+            if any(other != _uuid and sel.items() <= osel.items() for other, osel in selectors.items())
+        }
+        ambiguous.extend(sorted(too_broad))
+        result: list[tuple[str, dict[str, str] | None]] = [
+            (_uuid, sel or None) for _uuid, sel in selectors.items() if _uuid not in too_broad
+        ]
+        if ambiguous:
+            by = f'by {"/".join(dim_ids)}' if dim_ids else 'and carries no dimension to tell them apart'
+            msg = (
+                f'Dataset {ds.id} does not pin MeasureTemplate(s) {", ".join(sorted(ambiguous))} '
+                f'to one series {by}; no placeholder values for them'
+            )
+            logger.warning(msg)
+            sentry_sdk.capture_message(msg)
+        return result
+
+    @staticmethod
+    def _prefer_historical_bindings(
+        instance: Instance,
+        values: list[NodeDimensionSelection],
+    ) -> list[NodeDimensionSelection]:
+        """
+        Drop binding selections that lost a same-uuid tie on tags; lower rank wins.
+
+        A single dataset commonly holds one uuid column beside several value columns --
+        the historical series, the decarbonisation goal, and so on -- which the config
+        binds separately. All of them then claim the same uuid. The placeholder is only
+        ever asked for years at or before today (see ``resolve_placeholder_data_points``),
+        so the historical series is the one that answers the question.
+
+        The ranking runs *per node*, and settles only the choice this tie-break was added
+        for: which column of one dataset a node should be read through. Across nodes it
+        decides nothing and must not, because the node-id heuristics that follow know
+        things it does not. An action binds a column as ``historical`` while the level node
+        downstream of it binds the same column untagged; ranking the two together lets the
+        action win on the tag and the ``*_observed`` node never reaches the preference that
+        exists for it -- and since the action reports a baseline delta, the cell then shows
+        nothing at all.
+
+        A legacy ``DatasetNode`` selection has no binding to rank, and giving it a
+        synthetic rank would evict it just as wrongly, so it is always passed through.
+        """
+
+        def rank(sel: NodeDimensionSelection) -> int:
+            assert sel.dataset_index is not None
+            tags = instance.context.nodes[sel.node_id].input_dataset_instances[sel.dataset_index].tags
+            if 'historical' in tags or 'observed' in tags:
+                return 0
+            if 'goal' in tags:
+                return 2
+            return 1
+
+        best_by_node: dict[str, int] = {}
+        for v in values:
+            if v.dataset_index is None:
+                continue
+            best_by_node[v.node_id] = min(rank(v), best_by_node.get(v.node_id, rank(v)))
+        return [v for v in values if v.dataset_index is None or rank(v) == best_by_node[v.node_id]]
+
+    @staticmethod
+    def _prefer_a_level_over_a_delta(
+        instance: Instance,
+        values: list[NodeDimensionSelection],
+    ) -> list[NodeDimensionSelection]:
+        """
+        Drop candidates that can only report movement, when one can report a level.
+
+        A cell asks what the plan is for a year, and a node declaring
+        ``output_is_baseline_delta`` answers a different question -- how far the plan moves
+        from the baseline. Where a level node claims the same uuid, as it commonly does
+        when an action and the node it feeds bind the same column, that node is the answer.
+        The node-id heuristics cannot see the difference: neither ``new_building_shares``
+        nor ``a32_new_building_improvements`` carries a suffix they recognise.
+
+        Falls through untouched when every candidate reports movement, leaving the
+        resolver to withhold the value rather than present a delta as a level.
+        """
+        levels = [v for v in values if not instance.context.nodes[v.node_id].output_is_baseline_delta]
+        return levels or values
+
+    @staticmethod
+    def _prefer_the_full_trajectory(instance: Instance, sel: NodeDimensionSelection) -> NodeDimensionSelection:
+        """
+        Point a measure at the node that carries its whole trajectory, where one exists.
+
+        A goal node holds only the target end of a series -- in NZC it begins at the target
+        year -- while placeholders are only ever asked for years at or before today, so
+        such a measure has nothing to show. Its uuid lands there because the historical
+        column of the same dataset is null for it, not because the goal series is what the
+        cell wants.
+
+        Which node carries the whole series is a fact about the graph, not about the name:
+        a goal feeds an action, and the action combines it with the historical series and
+        emits the trajectory. Follow ``goal -> action -> output``. Reading a ``_goal``
+        suffix instead would mean a rename silently changed the numbers a city sees, and
+        would claim a relationship for any node that merely ends that way.
+
+        An action commonly feeds several nodes -- ``a21_optimised_logistics`` emits both a
+        utilisation percentage and vehicle kilometres -- so take the one measuring the same
+        quantity as the goal, and only when it can serve the selection's categories and
+        metric. Where the graph does not answer unambiguously nothing moves: the measure
+        keeps its node and shows nothing, as before.
+        """
+        from nodes.actions.action import ActionNode
+
+        node = instance.context.nodes.get(sel.node_id)
+        if node is None or node.unit is None:
+            return sel
+        quantity = node.unit
+
+        def can_serve(target: Node) -> bool:
+            if target.unit is None or not quantity.is_compatible_with(target.unit):
+                return False
+            if sel.dimensions and not set(sel.dimensions) <= set(target.output_dimensions):
+                return False
+            return sel.metric_col is None or sel.metric_col in {m.column_id for m in target.output_metrics.values()}
+
+        targets = {
+            target.id
+            for action in node.output_nodes
+            if isinstance(action, ActionNode)
+            for target in action.output_nodes
+            if can_serve(target)
+        }
+        if len(targets) != 1:
+            return sel
+        return replace(sel, node_id=targets.pop())
+
+    @staticmethod
+    def _claimed_uuids(
+        describe: str,
+        read: Callable[[], list[tuple[str, dict[str, str] | None]]],
+    ) -> list[tuple[str, dict[str, str] | None]]:
+        """
+        Read one source's measure claims, treating a failure as "claims nothing".
+
+        This mapping is built once for the whole framework config and every measure waits
+        on it, so an exception escaping here is not one blank cell -- it fails
+        ``correspondingNode`` and ``placeholderDataPoints`` for every measure on the tab,
+        and being a cached_property it is not even cached, so each measure retries the
+        same broken load. A missing DVC dataset or a column removed out from under a
+        binding should cost that binding's measures, nothing more.
+        """
+        try:
+            return read()
+        except Exception as exc:
+            msg = f'Cannot read measure UUIDs from {describe}: {exc}'
+            logger.warning(msg)
+            sentry_sdk.capture_exception(exc)
+            return []
+
+    def _get_node_dimension_selections(self, node_id: str, node: Node) -> list[tuple[str, NodeDimensionSelection]]:
+        """Return every (uuid, selection) pair one node claims, by whichever route it carries city data."""
+        from frameworks.datasets import FrameworkMeasureDVCDataset2
         from nodes.gpc import DatasetNode
 
+        # Intentionally test for concrete type, filter out subclasses
+        if type(node) is DatasetNode:
+            # Workaround to filter viz helper nodes
+            # FIXME: Implement this better later
+            if node.get_parameter_value_str('uuid', required=False):
+                return []
+            return [
+                (_uuid, NodeDimensionSelection(node_id=node_id, dimensions=dimensions))
+                for _uuid, dimensions in self._claimed_uuids(f'node {node_id}', partial(self._get_measure_template_uuids, node))
+            ]
+
+        # Nodes that take their city data through a tagged binding rather than by being a
+        # DatasetNode. The class-based branch above cannot see these, and since f2d6be20
+        # the NZC model is built entirely out of them.
+        selections: list[tuple[str, NodeDimensionSelection]] = []
+        for index, ds in enumerate(node.input_dataset_instances):
+            if 'city_data' not in ds.tags or not isinstance(ds, FrameworkMeasureDVCDataset2):
+                continue
+            # A multi-metric node renames Value to the metric column, so the resolver has
+            # to be told which one this binding feeds. The config says so by tagging the
+            # binding with the metric's id alongside historical/goal/city_data.
+            metric = next((tag for tag in ds.tags if tag in node.output_metrics), None)
+            metric_col = node.output_metrics[metric].column_id if metric is not None else None
+            claims = self._claimed_uuids(
+                f'binding {index} ({ds.id}) of node {node_id}',
+                partial(self._get_measure_template_uuids_from_binding, ds),
+            )
+            selections += [
+                (
+                    _uuid,
+                    NodeDimensionSelection(node_id=node_id, dimensions=dimensions, dataset_index=index, metric_col=metric_col),
+                )
+                for _uuid, dimensions in claims
+            ]
+        return selections
+
+    @cached_property
+    def measure_template_uuid_to_node_dimension_selection(self) -> Mapping[str, NodeDimensionSelection]:
         measure_template_uuid_to_multiple_node_dimensions_selections: dict[str, list[NodeDimensionSelection]] = dict()
         instance = self.instance_config.get_instance()
         for node_id, node in instance.context.nodes.items():
-            # Intentionally test for concrete type, filter out subclasses
-            if type(node) is not DatasetNode:
-                continue
-            # Workaround to filter viz helper nodes
-            # FIXME: Implement this better later
-            uuid_param = node.get_parameter_value_str('uuid', required=False)
-            if uuid_param:
-                continue
-            measure_template_uuids = self._get_measure_template_uuids(node)
-            for _uuid, dimensions in measure_template_uuids:
-                measure_template_uuid_to_multiple_node_dimensions_selections.setdefault(_uuid, []).append(
-                    NodeDimensionSelection(node_id=node_id, dimensions=dimensions)
-                )
+            for _uuid, selection in self._get_node_dimension_selections(node_id, node):
+                measure_template_uuid_to_multiple_node_dimensions_selections.setdefault(_uuid, []).append(selection)
 
         re_historical = re.compile(r'.*_historical$')
         re_observed = re.compile(r'.*_observed$')
@@ -1211,16 +1466,27 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             if len(values) == 1:
                 measure_template_uuid_to_single_node_dimension_selection[_uuid] = values[0]
                 continue
-            accepted_values = [v for v in values if re_observed.match(v.node_id)]
+            # The node-id heuristics below cannot separate bindings that live on the same
+            # node, which is the usual shape of a tie now: one dataset, one uuid column,
+            # several value columns. Narrow by binding tag first, and only fall through to
+            # the node-id heuristics if that still leaves a genuine choice between nodes.
+            candidates = self._prefer_a_level_over_a_delta(instance, self._prefer_historical_bindings(instance, values))
+            if len(candidates) == 1:
+                measure_template_uuid_to_single_node_dimension_selection[_uuid] = candidates[0]
+                continue
+            accepted_values = [v for v in candidates if re_observed.match(v.node_id)]
             if len(accepted_values) != 1:
-                accepted_values = [v for v in values if not re_historical.match(v.node_id)]
+                accepted_values = [v for v in candidates if not re_historical.match(v.node_id)]
             if len(accepted_values) == 1:
                 measure_template_uuid_to_single_node_dimension_selection[_uuid] = accepted_values[0]
                 continue
-            msg = f'Cannot find single Node to match MeasureTemplate {_uuid}: {", ".join([n.node_id for n in values])}'
+            msg = f'Cannot find single Node to match MeasureTemplate {_uuid}: {", ".join([n.node_id for n in candidates])}'
             logger.warning(msg)
             sentry_sdk.capture_message(msg)
-        return measure_template_uuid_to_single_node_dimension_selection
+        return {
+            _uuid: self._prefer_the_full_trajectory(instance, sel)
+            for _uuid, sel in measure_template_uuid_to_single_node_dimension_selection.items()
+        }
 
 
 class MeasureQuerySet(PathsQuerySet['Measure']):
