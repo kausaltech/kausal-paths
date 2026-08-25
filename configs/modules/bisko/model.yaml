@@ -2533,6 +2533,27 @@ nodes:
   quantity: fraction
   unit: '%'
   output_dimensions: [energy_carrier]
+  # A fallback for the supply temperature, and a slider for it.
+  #
+  # ChpNode resolves each annual input from the first source that has it: a tagged input node,
+  # then a metric column of the dataset, then this parameter. So this is inert for any city
+  # whose dataset carries a `t_supply` column -- which includes every city on the shared
+  # kommune/kwk_anlagenparameter template, where it is 373 K throughout. It only takes effect
+  # where a city deliberately leaves the column out.
+  #
+  # Mainz is the first such case. Its utility gives a *range* rather than a figure -- "die
+  # Vorlauftemperatur beträgt 90-115 °C, je nach Außentemperatur/Jahreszeit" -- and a dataset
+  # column would have to freeze one value out of it. The bounds below are that range; the
+  # default is its midpoint. Making it adjustable is also honest about how little it matters:
+  # across the whole 90-115 °C span the heat share of the allocation moves about 4 points,
+  # where a realistic swing in the electricity fraction moves it by 8.
+  params:
+  - id: t_supply
+    value: 375.65          # 102.5 °C, the midpoint of 90-115 °C
+    min_value: 363.15      # 90 °C
+    max_value: 388.15      # 115 °C
+    is_customizable: true
+    is_visible: true
   # One annual row per input. The shared dataset holds placeholders (0.3 and 373 K in every
   # year); a city replaces it with its own via dataset_replacements once the utility delivers,
   # and city admins can edit the values in the admin UI. Series are interpolated over internal

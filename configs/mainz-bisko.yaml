@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 73b223fc988b4a64b4e28986c4bd8d675e9d766e
+  commit: 19c1961a7080f226c2179106ece213da2bcb2fa0
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
@@ -45,6 +45,14 @@ include:
   # data/mainz/create_other_transport_energy.py.
   - from: kommune/energieverbrauch_uebriger_verkehr
     to: mainz/energieverbrauch_uebriger_verkehr
+  # The exergetic (Carnot) allocation BISKO criterion 6 prescribes, on real figures at last:
+  # final net CHP electricity against delivered heat, 2021-2024, giving an electricity fraction
+  # of 0.43 / 0.39 / 0.33 / 0.33 where the shared template held a placeholder 0.30. Deliberately
+  # carries no `t_supply` column -- the utility gives 90-115 °C by season rather than a figure,
+  # so it lives as a slider on the node instead. 2019 and 2020 are absent from the delivery and
+  # left for the node to extend. See data/mainz/create_chp_parameters.py.
+  - from: kommune/kwk_anlagenparameter
+    to: mainz/kwk_anlagenparameter
 
 # The GHG-Protocol administration balance. A parallel outcome tree with its own page --
 # it is deliberately not summed into `net_emissions`, because municipal building energy
