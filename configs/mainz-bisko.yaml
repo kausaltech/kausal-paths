@@ -59,7 +59,7 @@ include:
 # is already in the territorial balance and its Scope 3 half lies outside the BISKO
 # boundary. See the module's own header.
 - file: modules/gpc/municipal_balance.yaml
-  allow_override: false
+  allow_override: true
   dataset_replacements:
   - from: gpc/municipal_balance_activity
     to: mainz/municipal_balance_activity
@@ -76,6 +76,106 @@ include:
 # used to feed has moved into extract_bisko.py (see scripts repo, paths/models/mainz/).
 
 nodes:
+
+# Three outcome nodes overridden for exactly one reason: to attach a net-zero-by-2035 goal
+# line. All three are otherwise byte-identical copies of the module version -- keep them in
+# step with modules/bisko/model.yaml and modules/gpc/municipal_balance.yaml, since
+# allow_override: true means a change there does NOT reach Mainz until mirrored here.
+#
+# `auto_start: true` reads the node's own computed value at maximum_historical_year (2024)
+# as the starting point, rather than a number typed into this file -- so the goal line
+# re-anchors itself automatically as more real data lands, instead of going stale.
+#
+# For municipal_balance_emissions specifically: real activity data currently covers only
+# 2019-2021 (2022-2024 is a colleague's in-progress import), so today "2024" in this model
+# is 2021's total held flat, not a measured figure. auto_start will pick that up as the
+# starting point until then -- which is the point of it: no YAML change needed once the real
+# 2022-2024 data is in, the goal simply re-anchors on the true value.
+- id: net_emissions
+  is_editable: false
+  name_de: Netto-Emissionen
+  name_en: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  is_outcome: true
+  goals:
+  - label_de: 'Ziel: Netto-Null bis 2035'
+    label_en: 'Goal: net zero by 2035'
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2035
+      value: 0
+
+- id: net_emissions_by_energy_carrier
+  is_editable: false
+  name_de: Netto-Emissionen nach Energieträger
+  name_en: Net emissions by energy carrier
+  description_en: A copy of net_emissions with energy_carrier as the first dimension,
+    so the outcome page shows the energy carrier breakdown before the sector breakdown.
+  description_de: Eine Kopie von net_emissions mit energy_carrier als erster Dimension,
+    sodass die Ergebnisseite die Aufschlüsselung nach Energieträger vor der nach
+    Sektor zeigt.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  is_outcome: true
+  input_nodes:
+  - id: net_emissions
+  goals:
+  - label_de: 'Ziel: Netto-Null bis 2035'
+    label_en: 'Goal: net zero by 2035'
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2035
+      value: 0
+
+- id: municipal_balance_emissions
+  is_editable: false
+  name_de: Treibhausgasbilanz der Stadtverwaltung
+  name_en: City administration GHG balance
+  color: '#AD1457'
+  description_de: |
+    Gesamtbilanz der Stadtverwaltung nach GHG Protocol Corporate Standard, gegliedert nach
+    Bilanzkategorie, Liegenschaftsgruppe und Scope.<br/>
+    <b>Diese Bilanz ist nicht Teil der territorialen BISKO-Bilanz und darf nicht zu ihr
+    addiert werden.</b> Die Energie der kommunalen Liegenschaften ist dort bereits im
+    Sektor „Kommunale Einrichtungen" enthalten, und die Scope-3-Anteile -- Arbeitswege,
+    Beschaffung, Verpflegung, Postversand -- liegen außerhalb der territorialen
+    Bilanzgrenze.
+  description_en: |
+    Total balance of the city administration under the GHG Protocol Corporate Standard,
+    broken down by inventory category, property group and scope.<br/>
+    <b>This balance is not part of the territorial BISKO inventory and must not be added
+    to it.</b> Municipal building energy is already counted there in the municipal
+    facilities sector, and the Scope 3 components -- commuting, procurement, catering,
+    postal transport -- lie outside the territorial boundary.
+  type: simple.AdditiveNode2
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg_category, municipal_facility_type, scope]
+  output_dimensions: [ghg_category, municipal_facility_type, scope]
+  is_outcome: true
+  goals:
+  - label_de: 'Ziel: Netto-Null bis 2035'
+    label_en: 'Goal: net zero by 2035'
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2035
+      value: 0
 
 # Overrides the module's node of the same id (the include now sets allow_override: true), for
 # one reason only: to point `t_supply` at an instance-level parameter instead of holding a
