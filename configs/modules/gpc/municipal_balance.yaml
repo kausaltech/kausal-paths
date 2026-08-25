@@ -370,7 +370,6 @@ nodes:
   # will carry 2021 forward. Whether persistence or zero is the better assumption for the
   # rented portfolio is open -- see README, Open items.
   - id: gpc/municipal_balance_activity
-    extend: true  # GenericNode extended its dataset; keep that explicit
     column: energy
     filters:
     - dimension: ghg_category
@@ -401,7 +400,6 @@ nodes:
   output_dimensions: [ghg_category, municipal_facility_type, energy_carrier, vehicle_type]
   input_datasets:
   - id: gpc/municipal_balance_activity
-    extend: true  # GenericNode extended its dataset; keep that explicit
     column: volume
     filters:
     - dimension: ghg_category
@@ -425,7 +423,6 @@ nodes:
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
   - id: gpc/municipal_balance_activity
-    extend: true  # GenericNode extended its dataset; keep that explicit
     column: mass
     filters:
     - column: energy_carrier
@@ -453,7 +450,6 @@ nodes:
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
   - id: gpc/municipal_balance_activity
-    extend: true  # GenericNode extended its dataset; keep that explicit
     column: mileage
     filters:
     - column: energy_carrier
@@ -483,7 +479,6 @@ nodes:
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
   - id: gpc/municipal_balance_activity
-    extend: true  # GenericNode extended its dataset; keep that explicit
     column: count
     filters:
     - column: energy_carrier
@@ -511,6 +506,12 @@ nodes:
       categories: [administrative_buildings, fire_and_civil_protection, schools,
                    cultural_facilities, childrens_youth_and_social_facilities,
                    day_care_centres, youth_centres]
+    # The SAP export is drinking water and nothing else, so it carries no
+    # `emission_source` column. The Arqum dataset it replaces did, and the factor node
+    # is still keyed by it, so the category is assigned here rather than dropped from
+    # the node -- one water source, named, instead of a dimension quietly going missing.
+    - dimension: emission_source
+      assign_category: drinking_water
     - column: we_from
       flatten: true
     - column: we_to
@@ -779,7 +780,6 @@ nodes:
   output_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
   input_datasets:
   - id: gpc/municipal_balance_activity
-    extend: true  # GenericNode extended its dataset; keep that explicit
     column: emissions
     filters:
     - column: energy_carrier
@@ -831,7 +831,6 @@ nodes:
   output_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   input_datasets:
   - id: gpc/municipal_balance_activity
-    extend: true  # GenericNode extended its dataset; keep that explicit
     column: quality
     filters:
     - dimension: ghg_category
