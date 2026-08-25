@@ -64,7 +64,7 @@ _palette:
 params:
 
 - id: weather_correction
-  label_de: Wetterkorrektur durchführen?
+  label_de: Witterungskorrektur durchführen?
   label_en: Perform weather correction?
   value: false
   is_customizable: true
