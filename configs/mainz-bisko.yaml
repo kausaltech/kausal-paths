@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 4ce3b8d1adef623b8ac31bd1b94f49d1a0d05599
+  commit: a1a8b7362e2023df1dd604cc67f0b1ef0cc36f97
   dvc_remote: kausal-s3
 name_de: Mainz Klima-Monitor-BISKO
 name_en: Mainz Climate Monitor BISKO
@@ -39,6 +39,12 @@ include:
     to: mainz/fahrleistung_strassenverkehr
   - from: kommune/energieverbrauch_strassenverkehr
     to: mainz/energieverbrauch_strassenverkehr
+  # Rail, inland waterway and aviation: all eight required cells from the Klimaschutzplaner,
+  # 2019-2023. Two are genuine reported zeros (long-distance rail is fully electrified here,
+  # and there is no commercial airport). 2024 is left empty on purpose -- see
+  # data/mainz/create_other_transport_energy.py.
+  - from: kommune/energieverbrauch_uebriger_verkehr
+    to: mainz/energieverbrauch_uebriger_verkehr
 
 # The GHG-Protocol administration balance. A parallel outcome tree with its own page --
 # it is deliberately not summed into `net_emissions`, because municipal building energy
