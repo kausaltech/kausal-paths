@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from graphene_django.utils.testing import graphql_query
@@ -35,6 +36,33 @@ if TYPE_CHECKING:
 # We use a fallback context for test ergonomics
 _pytest_default_language_ctx = set_i18n_context('en', [])
 _pytest_default_language_ctx.__enter__()
+
+
+_KAUSAL_COMMON_DIR = Path(__file__).parent / 'kausal_common'
+
+
+def _is_shared_test(request: pytest.FixtureRequest) -> bool:
+    """
+    Say whether this is a test of the shared submodule rather than of Paths.
+
+    The autouse fixtures below build a Paths `Instance` and an `InstanceConfig` row, which is the
+    right default for a test in this repo and wrong for one in `kausal_common/`: that code is
+    shared with Watch, knows nothing about instances, and its tests should not need a database
+    because of a conftest belonging to one of its two consumers.
+
+    It was not a theoretical problem. `kausal_common/tests/test_storage.py` is a pure unit test of
+    the S3 media backend with no `django_db` mark, so the autouse `instance_config` fixture failed
+    it with *"Database access not allowed"* -- a failure whose cause is in this file and whose
+    symptom is in the submodule. The other 90 shared tests only escape it because they happen to
+    ask for a database anyway.
+
+    Only `instance_config` needs the guard: it is the one that writes a row. `instance` and
+    `context` build in memory, and `instance` is in any case shadowed by the `register(...)`
+    call below, which defines a fixture of the same name.
+
+    No test under `kausal_common/` requests `instance_config`, so skipping it there costs nothing.
+    """
+    return _KAUSAL_COMMON_DIR in Path(request.path).parents
 
 
 @pytest.fixture(autouse=True)
@@ -127,7 +155,11 @@ def custom_scenario(instance: Instance):
 
 
 @pytest.fixture(autouse=True)
-def instance_config(instance: Instance):
+def instance_config(request, instance: Instance):
+    # The one autouse fixture that writes to the database, and therefore the one that has to stay
+    # out of the shared submodule's way. See `_is_shared_test`.
+    if _is_shared_test(request):
+        return None
     return InstanceConfigFactory(identifier=instance.id, instance=instance)
 
 

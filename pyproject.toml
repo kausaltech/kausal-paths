@@ -33,7 +33,7 @@ dependencies = [
   "django-modeltrans",
   "django-oauth-toolkit",
   "django-pydantic-field",
-  "django-storages",
+  "django-storages[s3]",
   "django-stubs-ext",
   "djangorestframework",
   "drf-nested-routers",
