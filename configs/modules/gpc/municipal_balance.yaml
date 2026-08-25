@@ -657,6 +657,20 @@ nodes:
   output_nodes:
   - id: municipal_balance_emissions
     from_dimensions:
+    # Scope 1 and 2 only. This branch's Scope 3 rows go to
+    # `municipal_scope3_emissions` instead, so every tonne is reported once and
+    # none is in both totals.
+    - id: scope
+      categories: [scope3]
+      exclude: true
+    - id: energy_carrier
+      flatten: true
+  - id: municipal_scope3_emissions
+    from_dimensions:
+    # Scope 3, reported beside the balance rather than inside it -- the same
+    # relationship this module has to `net_emissions`.
+    - id: scope
+      categories: [scope3]
     - id: energy_carrier
       flatten: true
 
@@ -676,6 +690,22 @@ nodes:
   output_nodes:
   - id: municipal_balance_emissions
     from_dimensions:
+    # Scope 1 and 2 only. This branch's Scope 3 rows go to
+    # `municipal_scope3_emissions` instead, so every tonne is reported once and
+    # none is in both totals.
+    - id: scope
+      categories: [scope3]
+      exclude: true
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+  - id: municipal_scope3_emissions
+    from_dimensions:
+    # Scope 3, reported beside the balance rather than inside it -- the same
+    # relationship this module has to `net_emissions`.
+    - id: scope
+      categories: [scope3]
     - id: energy_carrier
       flatten: true
     - id: vehicle_type
@@ -697,6 +727,20 @@ nodes:
   output_nodes:
   - id: municipal_balance_emissions
     from_dimensions:
+    # Scope 1 and 2 only. This branch's Scope 3 rows go to
+    # `municipal_scope3_emissions` instead, so every tonne is reported once and
+    # none is in both totals.
+    - id: scope
+      categories: [scope3]
+      exclude: true
+    - id: emission_source
+      flatten: true
+  - id: municipal_scope3_emissions
+    from_dimensions:
+    # Scope 3, reported beside the balance rather than inside it -- the same
+    # relationship this module has to `net_emissions`.
+    - id: scope
+      categories: [scope3]
     - id: emission_source
       flatten: true
 
@@ -714,8 +758,10 @@ nodes:
   - id: municipal_travel
   - id: municipal_travel_ef
   output_nodes:
-  - id: municipal_balance_emissions
+  - id: municipal_scope3_emissions
     from_dimensions:
+    # Scope 3, reported beside the balance rather than inside it -- the same
+    # relationship this module has to `net_emissions`.
     - id: emission_source
       flatten: true
 
@@ -733,8 +779,10 @@ nodes:
   - id: municipal_items_purchased
   - id: municipal_items_ef
   output_nodes:
-  - id: municipal_balance_emissions
+  - id: municipal_scope3_emissions
     from_dimensions:
+    # Scope 3, reported beside the balance rather than inside it -- the same
+    # relationship this module has to `net_emissions`.
     - id: emission_source
       flatten: true
 
@@ -752,16 +800,12 @@ nodes:
   - id: municipal_water_use
   - id: municipal_water_ef
   output_nodes:
-  - id: municipal_balance_emissions
+  - id: municipal_scope3_emissions
     from_dimensions:
+    # Scope 3, reported beside the balance rather than inside it -- the same
+    # relationship this module has to `net_emissions`.
     - id: emission_source
       flatten: true
-
-# The one row the source holds only as a finished figure: the workbook's events sheet is
-# a formula whose cached result was lost, and its inputs -- attendee counts, catchment
-# distance classes, hotel nights -- were never reduced to an activity quantity. It enters
-# here as emissions, which is the single exception to "emissions are computed, not
-# uploaded" (data/mainz/README.md, decision 8).
 - id: municipal_event_emissions
   is_editable: false
   name_de: Emissionen aus Großveranstaltungen der Stadtverwaltung
@@ -785,8 +829,10 @@ nodes:
     - column: energy_carrier
     - column: vehicle_type
   output_nodes:
-  - id: municipal_balance_emissions
+  - id: municipal_scope3_emissions
     from_dimensions:
+    # Scope 3, reported beside the balance rather than inside it -- the same
+    # relationship this module has to `net_emissions`.
     - id: emission_source
       flatten: true
 
@@ -839,22 +885,77 @@ nodes:
     - column: vehicle_type
     - column: scope
 
+# Scope 3, reported beside the balance and never inside it.
+#
+# The same relationship this module has to `net_emissions`, for a similar reason: the two
+# are related but must not be added, because they answer different questions and rest on
+# data of different vintage. Keeping Scope 3 as its own outcome rather than dropping it is
+# what lets a reader see everything the city has measured, without the headline figure
+# rising and falling on data that stops in 2021.
+#
+# Every branch feeds exactly one of the two outcomes per scope, so no tonne is counted
+# twice and none is lost: building energy, fleet fuel and material flows split their rows
+# between them; business travel, procurement, water and events are Scope 3 in their
+# entirety and arrive here whole.
+- id: municipal_scope3_emissions
+  is_editable: false
+  name_de: Scope-3-Emissionen der Stadtverwaltung (nachrichtlich)
+  name_en: City administration Scope 3 emissions (memo item)
+  color: '#8D6E63'
+  description_de: |
+    Alle Scope-3-Emissionen der Stadtverwaltung: Vorketten der eingekauften Energie und
+    Kraftstoffe, Dienstreisen, Arbeitswege, Beschaffung, Verpflegung, Postversand, Abfall
+    und Wasser.<br/>
+    <b>Nachrichtlich ausgewiesen und nicht in der Treibhausgasbilanz der Stadtverwaltung
+    enthalten.</b> Scope 3 ist nach der Leistungsbeschreibung optional, und es liegen dafür
+    nach 2021 keine Daten vor -- eine Gesamtsumme mit Scope 3 würde ab 2022 sinken, weil
+    Daten fehlen, und nicht, weil Emissionen vermieden wurden. Die Werte hier sind
+    vollständig für 2019 bis 2021 und danach unvollständig.
+  description_en: |
+    All Scope 3 emissions of the city administration: upstream chains of purchased energy
+    and fuel, business travel, commuting, procurement, catering, postal transport, waste
+    and water.<br/>
+    <b>Reported as a memo item and not included in the city administration GHG balance.</b>
+    Scope 3 is optional under the tender, and no data exists for it after 2021 -- a total
+    including it would fall from 2022 onwards because data is missing, not because
+    emissions were avoided. The figures here are complete for 2019 to 2021 and partial
+    thereafter.
+  type: simple.AdditiveNode2
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg_category, municipal_facility_type, scope]
+  output_dimensions: [ghg_category, municipal_facility_type, scope]
+  is_outcome: true
+
 - id: municipal_balance_emissions
   is_editable: false
   name_de: Treibhausgasbilanz der Stadtverwaltung
   name_en: City administration GHG balance
   color: '#AD1457'
   description_de: |
-    Gesamtbilanz der Stadtverwaltung nach GHG Protocol Corporate Standard, gegliedert nach
+    Bilanz der Stadtverwaltung nach GHG Protocol Corporate Standard, gegliedert nach
     Bilanzkategorie, Liegenschaftsgruppe und Scope.<br/>
+    <b>Diese Summe umfasst Scope 1 und Scope 2.</b> Scope 3 wird vollständig berechnet und
+    ist in den einzelnen Kategorien sowie in der nachrichtlichen Position
+    „Scope-3-Emissionen der Stadtverwaltung" einsehbar, geht hier aber nicht in die
+    Gesamtsumme ein. Zwei Gründe: Scope 1 und 2 sind die verbindlichen Bestandteile der
+    Bilanz, Scope 3 ist optional; und für Scope 3 liegen nach 2021 keine Daten vor, sodass
+    eine Gesamtsumme mit Scope 3 ab 2022 sinken würde, weil Daten fehlen, und nicht, weil
+    Emissionen vermieden wurden.<br/>
     <b>Diese Bilanz ist nicht Teil der territorialen BISKO-Bilanz und darf nicht zu ihr
     addiert werden.</b> Die Energie der kommunalen Liegenschaften ist dort bereits im
     Sektor „Kommunale Einrichtungen" enthalten, und die Scope-3-Anteile -- Arbeitswege,
     Beschaffung, Verpflegung, Postversand -- liegen außerhalb der territorialen
     Bilanzgrenze.
   description_en: |
-    Total balance of the city administration under the GHG Protocol Corporate Standard,
-    broken down by inventory category, property group and scope.<br/>
+    Balance of the city administration under the GHG Protocol Corporate Standard, broken
+    down by inventory category, property group and scope.<br/>
+    <b>This total covers Scope 1 and Scope 2.</b> Scope 3 is computed in full and can be
+    inspected in the individual categories and in the memo item "City administration
+    Scope 3 emissions", but it is not summed into the total here. Two reasons: Scope 1 and
+    2 are the mandatory parts of the balance and Scope 3 is optional; and no Scope 3 data
+    exists after 2021, so a total including it would fall from 2022 onwards because data
+    is missing, not because emissions were avoided.<br/>
     <b>This balance is not part of the territorial BISKO inventory and must not be added
     to it.</b> Municipal building energy is already counted there in the municipal
     facilities sector, and the Scope 3 components -- commuting, procurement, catering,
