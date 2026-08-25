@@ -1,18 +1,33 @@
 # GHG-Protocol city-administration balance (Verwaltungsbilanz / KNSV)
 #
-# ## NOT part of the BISKO inventory
+# ## NOT part of the BISKO inventory — which is why it lives here and not under `bisko/`
 #
 # This module is outside the BISKO certification scope, and deliberately so. BISKO is a
 # territorial end-energy balance; this is the authority's own organisational footprint on a
-# GHG-Protocol boundary, including Scope 3. No node here feeds `net_emissions`, no BISKO
-# conformity test reads one, and nothing in `is_bisko_compliant` depends on this file being
-# included. A city that omits it still produces a conformant BISKO balance — protocol step
-# 2.1 states explicitly that missing municipal data must not by itself make an inventory
-# non-conformant.
+# GHG-Protocol corporate boundary, including Scope 3. No node here feeds `net_emissions`, no
+# BISKO conformity test reads one, and nothing in `is_bisko_compliant` depends on this file
+# being included. A city that omits it still produces a conformant BISKO balance — protocol
+# step 2.1 states explicitly that missing municipal data must not by itself make an
+# inventory non-conformant.
 #
-# It is included only by `mainz-bisko`. Keep it that way unless a city asks for it: the
-# certifier reads `modules/bisko/model.yaml` as the balance, and content that is not the
-# balance should not be mixed into it.
+# It sat under `modules/bisko/` until 25 Aug 2026, which was a filing accident: it was
+# written for a BISKO city and landed beside the balance it is not part of. Moving it to
+# `modules/gpc/` makes the directory say what the header had to argue, and stops a reader
+# — or a certifier — from taking its presence under `bisko/` as a claim about scope. The
+# dataset identifiers moved with it (`gpc/municipal_balance_*`); those are placeholders
+# rewritten per city by `dataset_replacements`, so no DVC path changed.
+#
+# It is included only by `mainz-bisko`. Keep it that way unless a city asks for it.
+#
+# ## What it still borrows from `modules/bisko/model.yaml`
+#
+# `energy_carrier`, `municipal_facility_type`, `vehicle_type` and `scope` are defined
+# there, not here, so this module currently cannot stand alone: a GHG-Protocol balance for
+# a city with no BISKO model would have nothing to resolve them against. That is a known
+# loose end rather than a design. Whichever way it is settled — moving the shared four into
+# a base module both include, or duplicating the two this one truly needs — the fix belongs
+# with the first non-BISKO city that wants a corporate balance, and should not be guessed
+# at before then.
 #
 # The datasets below still follow the ownership rules of the certified module, because the
 # reason a city user must not rewrite an emission factor does not depend on which boundary
@@ -50,13 +65,24 @@ datasets:
 # The emission factors are methodology data (UBA / GHG-Protocol / KNSV factor sets), not
 # municipal observations, so they are locked like the BISKO reference tables. This was the
 # one emission factor dataset in the bisko family that a city admin could still rewrite.
-- id: bisko/municipal_balance_emission_factors
+- id: gpc/municipal_balance_emission_factors
   is_editable: false
 
 # The activity side is what the authority reports about itself: building energy, fleet fuel,
 # procurement, travel, water, events. Editable.
-- id: bisko/municipal_balance_activity
+- id: gpc/municipal_balance_activity
   is_editable: true
+
+# The building-management records. Not editable, and not editable in a second sense: they
+# carry `we_from`/`we_to` as raw index columns, which no dimension resolves, so
+# `load_dvc_dataset` cannot import them into the database at all and they stay external
+# DVC placeholders. That is the accepted price of keeping the property key that lets a
+# reader re-derive the group assignment instead of inheriting it. See
+# data/mainz/parse_sap_evu.py.
+- id: gpc/municipal_building_energy
+  is_editable: false
+- id: gpc/municipal_water_use
+  is_editable: false
 
 dimensions:
 
@@ -291,12 +317,66 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   output_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   input_datasets:
-  - id: bisko/municipal_balance_activity
+
+  # The Gebäudewirtschaft SAP records, 2010-2023: the whole GWM-managed portfolio, per
+  # property group and carrier. This is the primary source and it also *is* the source
+  # Arqum built its own figures from -- `parse_sap_evu.py --check` reproduces seven of
+  # Arqum's property groups from it to the last kilowatt-hour, 81 comparisons over
+  # 2019-2021 -- which is why the two are not blended here. Blending them would double
+  # the overlap years.
+  #
+  # The boundary is applied here rather than in the extractor, so that what the balance
+  # covers is legible in the model. The seven groups below are the Arqum report's own
+  # list (§2.3.1) of what the GHG-Protocol operational-control boundary includes:
+  # Verwaltungen, Feuerwehren und Zivilschutz, Schulen, Kultureinrichtungen, Kinder-,
+  # Jugend- und Sozialeinrichtungen, Kitas, Jugendhäuser. Stated as an inclusion rather
+  # than an exclusion so that a category added later has to be considered rather than
+  # silently swept in.
+  #
+  # `to_be_determined` is excluded with them, and that is a *decision to understate*
+  # rather than a neutral one: WE 5200-7999 is mostly out of boundary but also holds
+  # objects 6815, 6817 and 6818, which the same report puts inside Verwaltungen. Until
+  # that range is split, including it would overstate by the housing and depots and
+  # excluding it understates by those three objects. Excluding is the smaller error and
+  # the one that fails safe against a published figure.
+  - id: gpc/municipal_building_energy
+    column: energy
+    filters:
+    - dimension: municipal_facility_type
+      categories: [administrative_buildings, fire_and_civil_protection, schools,
+                   cultural_facilities, childrens_youth_and_social_facilities,
+                   day_care_centres, youth_centres]
+    # `flatten`, not a bare drop: several WE ranges share one property group -- fire and
+    # civil protection is 1700-1799 plus 1800-1899 -- so dropping without summing would
+    # leave two rows sharing an index instead of one row holding their sum.
+    - column: we_from
+      flatten: true
+    - column: we_to
+      flatten: true
+
+  # The rented properties, which the SAP records do not contain at all.
+  #
+  # Arqum books them under the carrier `not_defined`: heat billed through service charges
+  # where the landlord's carrier is unknown, about 2,200 MWh/a, 3% of building energy.
+  # They are inside the boundary -- the report discusses Mietliegenschaften explicitly --
+  # but the Gebäudewirtschaft only meters what it manages, so this is the one part of the
+  # balance where Arqum is not reproducible from SAP and remains the only source.
+  #
+  # Restricted to that one carrier on purpose. Every other carrier in this dataset is the
+  # same measurement the SAP branch above already carries, and taking both would count
+  # 2019-2021 twice.
+  #
+  # It ends in 2021, which is a declared gap for 2022 onwards and *not* a zero: the model
+  # will carry 2021 forward. Whether persistence or zero is the better assumption for the
+  # rented portfolio is open -- see README, Open items.
+  - id: gpc/municipal_balance_activity
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: energy
     filters:
     - dimension: ghg_category
       categories: [heat, electricity]
+    - dimension: energy_carrier
+      categories: [not_defined]
     - column: emission_source
     - column: vehicle_type
     - column: scope
@@ -320,7 +400,7 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, energy_carrier, vehicle_type]
   output_dimensions: [ghg_category, municipal_facility_type, energy_carrier, vehicle_type]
   input_datasets:
-  - id: bisko/municipal_balance_activity
+  - id: gpc/municipal_balance_activity
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: volume
     filters:
@@ -344,7 +424,7 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
-  - id: bisko/municipal_balance_activity
+  - id: gpc/municipal_balance_activity
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: mass
     filters:
@@ -372,7 +452,7 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
-  - id: bisko/municipal_balance_activity
+  - id: gpc/municipal_balance_activity
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: mileage
     filters:
@@ -402,7 +482,7 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
-  - id: bisko/municipal_balance_activity
+  - id: gpc/municipal_balance_activity
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: count
     filters:
@@ -420,15 +500,21 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
-  - id: bisko/municipal_balance_activity
-    extend: true  # GenericNode extended its dataset; keep that explicit
+  # Same substitution as the building-energy node: the SAP records are the source Arqum
+  # drew on, so they replace it rather than adding to it. Water has no rented-property
+  # counterpart to carry alongside -- Arqum's drinking water came from the same SAP
+  # extract -- so this is the only input.
+  - id: gpc/municipal_water_use
     column: volume
     filters:
-    - dimension: ghg_category
-      categories: [procurement]
-    - column: energy_carrier
-    - column: vehicle_type
-    - column: scope
+    - dimension: municipal_facility_type
+      categories: [administrative_buildings, fire_and_civil_protection, schools,
+                   cultural_facilities, childrens_youth_and_social_facilities,
+                   day_care_centres, youth_centres]
+    - column: we_from
+      flatten: true
+    - column: we_to
+      flatten: true
 
 # --------------------------------------------------------------------------------------
 # Emission factors
@@ -449,7 +535,7 @@ nodes:
   input_dimensions: [ghg_category, energy_carrier, scope]
   output_dimensions: [ghg_category, energy_carrier, scope]
   input_datasets:
-  - id: bisko/municipal_balance_emission_factors
+  - id: gpc/municipal_balance_emission_factors
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_energy
     filters:
@@ -468,7 +554,7 @@ nodes:
   input_dimensions: [ghg_category, energy_carrier, vehicle_type, scope]
   output_dimensions: [ghg_category, energy_carrier, vehicle_type, scope]
   input_datasets:
-  - id: bisko/municipal_balance_emission_factors
+  - id: gpc/municipal_balance_emission_factors
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_volume
     filters:
@@ -486,7 +572,7 @@ nodes:
   input_dimensions: [ghg_category, emission_source, scope]
   output_dimensions: [ghg_category, emission_source, scope]
   input_datasets:
-  - id: bisko/municipal_balance_emission_factors
+  - id: gpc/municipal_balance_emission_factors
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_mass
     filters:
@@ -503,7 +589,7 @@ nodes:
   input_dimensions: [ghg_category, emission_source, scope]
   output_dimensions: [ghg_category, emission_source, scope]
   input_datasets:
-  - id: bisko/municipal_balance_emission_factors
+  - id: gpc/municipal_balance_emission_factors
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_mileage
     filters:
@@ -520,7 +606,7 @@ nodes:
   input_dimensions: [ghg_category, emission_source, scope]
   output_dimensions: [ghg_category, emission_source, scope]
   input_datasets:
-  - id: bisko/municipal_balance_emission_factors
+  - id: gpc/municipal_balance_emission_factors
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_count
     filters:
@@ -537,7 +623,7 @@ nodes:
   input_dimensions: [ghg_category, emission_source, scope]
   output_dimensions: [ghg_category, emission_source, scope]
   input_datasets:
-  - id: bisko/municipal_balance_emission_factors
+  - id: gpc/municipal_balance_emission_factors
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_volume
     filters:
@@ -692,7 +778,7 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
   input_datasets:
-  - id: bisko/municipal_balance_activity
+  - id: gpc/municipal_balance_activity
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: emissions
     filters:
@@ -744,7 +830,7 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   output_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   input_datasets:
-  - id: bisko/municipal_balance_activity
+  - id: gpc/municipal_balance_activity
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: quality
     filters:

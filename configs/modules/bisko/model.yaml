@@ -811,6 +811,56 @@ dimensions:
     label_de: Übergreifend
     aliases: [uebergreifend]
 
+  # Consumption that belongs to a property the source does not identify well enough to
+  # place in a group *yet*. Three different statements, and they must not be conflated:
+  #
+  #   cross_cutting      no single property owns it (fleet fuel, postal transport)
+  #   to_be_determined   a property owns it, we have not yet established which group --
+  #                      an open question, expected to be answered and then to disappear
+  #   (a blank cell)     the dimension does not apply to this row at all
+  #
+  # A fourth, "unknown" -- a property owns it and no further detail will ever arrive --
+  # is deliberately absent until something needs it. It is the resting state of a
+  # question that has been asked and closed; `to_be_determined` is one still open.
+  #
+  # First user: the Gebäudewirtschaft SAP records, where the WE ranges 5000-5199 and
+  # 5200-7999 (and the separately metered 2500-* and 2820 rows) carry real consumption
+  # that the Arqum comparison does not place in any group. Keeping it visible under its
+  # own category beats folding it into the nearest plausible group, and beats a blank,
+  # which would leave the dimension partly populated for that metric.
+  - id: to_be_determined
+    label_en: To be determined
+    label_de: Noch zuzuordnen
+    aliases: [noch_zuzuordnen]
+
+  # The two groups a GHG-Protocol administration balance on an operational-control
+  # boundary leaves out. They are municipal property and their energy is real; they are
+  # simply not the Kernverwaltung, so a balance scoped to it excludes them *explicitly*
+  # rather than by not having the data.
+  #
+  # Named from the Arqum report's own boundary section (§2.3.1): "Ausgenommen sind das
+  # Staatstheater (Objektcode 3010, 3020) sowie Sport- und Freizeitanlagen (Objektcode
+  # 5000-5199) und sonstige Einrichtungen wie Wohnungen und Lager (Objektcode
+  # 5200-7999)." Mainz's property register agrees: 5000-5199 is sports grounds, halls,
+  # changing rooms, the ice rink and a pool; 5200-7999 is housing, depots, storage halls
+  # and monuments.
+  #
+  # Carrying them as categories rather than dropping the rows keeps the exclusion
+  # auditable: the balance node names what it leaves out, and the consumption is still
+  # in the dataset for anyone asking what the whole portfolio uses.
+  - id: sports_and_leisure_facilities
+    label_en: Sports and leisure facilities
+    label_de: Sport- und Freizeitanlagen
+    aliases: [sport_und_freizeitanlagen]
+  # Declared for the boundary statement and not yet carried by any row: the SAP range
+  # that holds these properties (5200-7999) also holds objects 6815, 6817 and 6818,
+  # which the same report puts *inside* Verwaltungen, so that range stays
+  # `to_be_determined` until the split is known. See parse_sap_evu.py.
+  - id: housing_and_storage
+    label_en: Housing, depots and storage
+    label_de: Wohnungen und Lager
+    aliases: [wohnungen_und_lager]
+
 - id: per_what_energy
   label_en: Per what energy
   label_de: Pro welcher Energie

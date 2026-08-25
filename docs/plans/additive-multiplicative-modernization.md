@@ -261,7 +261,7 @@ Nine nodes classified differently somewhere; every one turned out to be a city-l
 override in that instance's own YAML, so the module definition it shadows converts safely.
 
 **42 nodes converted** — 21 in `configs/modules/bisko/model.yaml` (15 additive, 6
-multiplicative) and all 21 in `configs/modules/bisko/municipal_balance.yaml` (15 additive,
+multiplicative) and all 21 in `configs/modules/gpc/municipal_balance.yaml` (15 additive,
 6 multiplicative). `municipal_balance.yaml` converted completely; `model.yaml` keeps 9
 `GenericNode`s, all either subclasses (`BiskoChpNode`, `BiskoExergeticAllocationNode`,
 `ConstantNode`) or users of `do_correction`, `split_dims` or `extend_all`.

@@ -58,13 +58,17 @@ include:
 # it is deliberately not summed into `net_emissions`, because municipal building energy
 # is already in the territorial balance and its Scope 3 half lies outside the BISKO
 # boundary. See the module's own header.
-- file: modules/bisko/municipal_balance.yaml
+- file: modules/gpc/municipal_balance.yaml
   allow_override: false
   dataset_replacements:
-  - from: bisko/municipal_balance_activity
+  - from: gpc/municipal_balance_activity
     to: mainz/municipal_balance_activity
-  - from: bisko/municipal_balance_emission_factors
+  - from: gpc/municipal_balance_emission_factors
     to: mainz/municipal_balance_emission_factors
+  - from: gpc/municipal_building_energy
+    to: mainz/municipal_building_energy
+  - from: gpc/municipal_water_use
+    to: mainz/municipal_water_use
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 # Mainz-specific nodes not (yet) part of the shared BISKO module. Kept as standalone
@@ -292,7 +296,7 @@ pages:
 
 # The administration balance gets its own page rather than a branch of the home page:
 # it answers a different question against a different boundary, and the two totals must
-# never be read as parts of one sum. See modules/bisko/municipal_balance.yaml.
+# never be read as parts of one sum. See modules/gpc/municipal_balance.yaml.
 # The path stays German: ids and filenames are for us, but a URL is one of the few
 # things the city's own users actually see.
 - id: municipal_balance
