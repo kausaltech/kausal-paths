@@ -273,26 +273,6 @@ dimensions:
     label: 'Cultivation: Conventional Farming'
   - id: v112
     label: 'Cultivation: Organic Farming'
-  - id: v12
-    label: Organic Soils
-  - id: v121
-    label: 'Organic Soils: Cultivation'
-  - id: v1211
-    label: 'Organic Soils: Cultivation: 6-12 % SOC'
-  - id: v1212
-    label: 'Organic Soils: Cultivation: > 12 % SOC'
-  - id: v122
-    label: 'Organic Soils: Permanent Grass'
-  - id: v1221
-    label: 'Organic Soils: Permanent Grass: 6-12 % SOC'
-  - id: v1222
-    label: 'Organic Soils: Permanent Grass: > 12 % SOC'
-  - id: v123
-    label: 'Organic Soils: Nature'
-  - id: v1231
-    label: 'Organic Soils: Nature: 6-12 % SOC'
-  - id: v1232
-    label: 'Organic Soils: Nature: > 12 % SOC'
   - id: v13
     label: Forestry
   - id: v131
@@ -1754,91 +1734,6 @@ nodes:
     to_dimensions:
     - id: sector
 
-- id: organic_soils_cultivation_emissions
-  name_en: Organic Soils Cultivation Emissions
-  short_name: Cultivation Emissions
-  type: formula.FormulaNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  params:
-    formula: (land_areas * land_emission_factors) + reference
-  input_datasets:
-  - id: land
-    tags: [reference]
-    column: emissions
-    dropna: true
-    forecast_from: 2026
-    filters:
-    - dimension: sector
-      categories: [v121]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1211, v1212]
-    to_dimensions:
-    - id: sector
-
-- id: organic_soils_permanent_grass_emissions
-  name_en: Organic Soils Permanent Grass Emissions
-  short_name: Permanent Grass Emissions
-  type: formula.FormulaNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  params:
-    formula: (land_areas * land_emission_factors) + reference
-  input_datasets:
-  - id: land
-    tags: [reference]
-    column: emissions
-    dropna: true
-    forecast_from: 2026
-    filters:
-    - dimension: sector
-      categories: [v122]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1221, v1222]
-    to_dimensions:
-    - id: sector
-
-- id: organic_soils_nature_emissions
-  name_en: Organic Soils Nature Emissions
-  short_name: Nature Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1231, v1232]
-    to_dimensions:
-    - id: sector
-
-- id: organic_soils_emissions
-  name_en: Organic Soils Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  input_nodes:
-  - id: organic_soils_cultivation_emissions
-  - id: organic_soils_permanent_grass_emissions
-  - id: organic_soils_nature_emissions
-
 - id: forestry_emissions
   name_en: Forestry Emissions
   type: simple.MultiplicativeNode
@@ -1864,7 +1759,6 @@ nodes:
   output_dimensions: [sector, ghg]
   input_nodes:
   - id: cultivation_emissions
-  - id: organic_soils_emissions
   - id: forestry_emissions
 
 # ---------- V.2 Livestock
