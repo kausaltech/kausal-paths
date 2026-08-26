@@ -96,10 +96,8 @@ dimensions:
 
   - id: rail
     label: Rail
-  - id: high_speed_trains
-    label: High-speed Trains
   - id: inter_city_trains
-    label: Inter-city Trains
+    label: InterCity Trains
   - id: light_rail
     label: Light Rail
   - id: local_trains
