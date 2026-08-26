@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib.util import find_spec
 from typing import TYPE_CHECKING, Never
 from urllib.parse import parse_qs, urlparse
 
@@ -26,6 +27,10 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 pytestmark = pytest.mark.django_db
+requires_kpe = pytest.mark.skipif(
+    find_spec('kausal_paths_extensions') is None,
+    reason='requires the optional kausal_paths_extensions package',
+)
 
 
 @pytest.fixture
@@ -82,6 +87,7 @@ def test_azure_ad_auth_entry_requires_post_and_forwards_email(client):
 
 
 @pytest.mark.usefixtures('_reset_social_backends_cache')
+@requires_kpe
 @override_settings(
     SOCIAL_AUTH_NZCPORTAL_CLIENT_ID='client-id',
     SOCIAL_AUTH_NZCPORTAL_CLIENT_SECRET='client-secret',  # noqa: S106
@@ -153,6 +159,7 @@ def test_nzc_oauth_authorize_login_redirect_reaches_provider(client):
 
 
 @pytest.mark.usefixtures('_reset_social_backends_cache')
+@requires_kpe
 @override_settings(
     SOCIAL_AUTH_AZURE_AD_KEY='client-id',
     SOCIAL_AUTH_AZURE_AD_SECRET='client-secret',  # noqa: S106
