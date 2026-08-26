@@ -1413,7 +1413,7 @@ nodes:
   name_en: Rail Transport Energy Factors
   type: simple.AdditiveNode
   quantity: energy_factor
-  unit: MJ/km
+  unit: kWh/km
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
@@ -1458,8 +1458,8 @@ nodes:
     - id: vehicle_type
 
 - id: rail_transport_inter_city_train_emissions
-  name_en: Rail Transport Inter-city Train Emissions
-  short_name: Inter-city Train Emissions
+  name_en: Rail Transport InterCity Train Emissions
+  short_name: InterCity Train Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -1474,27 +1474,6 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       categories: [inter_city_trains]
-    to_dimensions:
-    - id: energy_carrier
-    - id: vehicle_type
-
-- id: rail_transport_high_speed_train_emissions
-  name_en: Rail Transport High-speed Train Emissions
-  short_name: High-speed Train Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [energy_carrier, vehicle_type, ghg]
-  output_dimensions: [energy_carrier, vehicle_type, ghg]
-  input_nodes:
-  - id: transportation_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-  - id: rail_transport_energy_consumption
-    from_dimensions:
-    - id: vehicle_type
-      categories: [high_speed_trains]
     to_dimensions:
     - id: energy_carrier
     - id: vehicle_type
@@ -1558,7 +1537,6 @@ nodes:
   input_nodes:
   - id: rail_transport_regional_train_emissions
   - id: rail_transport_inter_city_train_emissions
-  - id: rail_transport_high_speed_train_emissions
   - id: rail_transport_local_train_emissions
   - id: rail_transport_light_rail_emissions
 
