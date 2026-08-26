@@ -61,6 +61,11 @@ class GenericNode(SimpleNode):
 
     explanation = _('Multiply input nodes whose unit does not match the output. Add the rest.')
 
+    # GenericDataset has always interpolated its inputs. The loader uses this
+    # marker for export compatibility, but attaches the op only when the
+    # concrete loader remains GenericDataset; framework tags replace it.
+    interpolates_input_datasets_by_default: ClassVar[bool] = True
+
     global_parameters = ['use_observations']
 
     allowed_parameters = [

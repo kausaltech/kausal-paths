@@ -361,6 +361,12 @@ class PortBindingEditorMutation:
         transformations = list(spec.transformations)
         if is_maybe_set(input.transformations):
             transformations = _dataset_transformations(info, input.transformations.value or [])
+            # Temporal filling is already authoritative in the stored recipe,
+            # but remains hidden from GraphQL until independently deployed old
+            # model editors understand the new union members.
+            from nodes.defs.transform_def import preserve_temporal_fill_transformations
+
+            transformations = preserve_temporal_fill_transformations(transformations, spec.transformations)
 
         tags = list(spec.tags)
         if is_maybe_set(input.tags):

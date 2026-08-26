@@ -224,6 +224,8 @@ class DatasetPortType(EditableEntity):
         graphql_type=list[PortTransformationType],
         description=(
             'Transformations applied to the dataset, in execution order. '
+            'Temporal filling operations are temporarily preserved server-side but omitted here '
+            'for compatibility with independently deployed older editors. '
             'Editing replaces the whole list; entries whose kind is one of '
             '`select_metric`, `index_temporal` or `remap_legacy_years` are generated '
             'and should be passed back unchanged.'
@@ -231,7 +233,9 @@ class DatasetPortType(EditableEntity):
     )
     @staticmethod
     def transformations(root: 'DatasetPortType') -> list[PortTransformOp]:
-        return root._transformations or []
+        from nodes.defs.transform_def import visible_transformations
+
+        return visible_transformations(root._transformations or [])
 
     @sb.field(graphql_type=Annotated['DatasetType', sb.lazy('datasets.graphql.types')] | None)  # type: ignore[name-defined]  # noqa: F821
     @staticmethod

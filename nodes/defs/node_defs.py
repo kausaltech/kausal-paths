@@ -20,12 +20,15 @@ from params.discover import AnyParameter
 from .port_def import InputPortDef, OutputPortDef
 from .transform_def import (
     AssignDimensionOp,
+    BackfillOp,
     DropNullsOp,
     EnsureUnitOp,
+    ExtendOp,
     FilterColumnOp,
     FilterDimensionOp,
     FilterTemporalOp,
     IndexTemporalOp,
+    InterpolateOp,
     PortTransformOp,
     RemapLegacyYearsOp,
     RenameColumnOp,
@@ -158,7 +161,7 @@ class InputDatasetDef(I18nBaseModel):
     see ``DatasetWithFilters.kwargs_from_def``.
     """
 
-    def to_transformations(self) -> list[PortTransformOp]:
+    def to_transformations(self) -> list[PortTransformOp]:  # noqa: C901
         """
         Convert the legacy flat fields into the complete ordered pipeline.
 
@@ -177,31 +180,45 @@ class InputDatasetDef(I18nBaseModel):
         7. ``tag_operation`` — registered dataframe operations, in tag order
         8. ``filter_temporal``, ``drop_nulls``, ``ensure_unit``
 
-        ``interpolate`` is deliberately absent: it applies to datasets that
-        have no pipeline at all (``FixedDataset``, ``JSONDataset``), and
-        ``GenericDataset`` interpolates at its own point in loading. It stays a
-        binding field until those cases are gone.
+        9. ``interpolate``, ``backfill``, ``extend`` — interior gaps, leading
+           nulls, then the trailing edge, matching the legacy post-processing
+           order.
+
+        An explicitly supplied pipeline is already authoritative for the flat
+        filtering fields. The three booleans remain accepted as YAML and old
+        stored-spec shorthands, and are appended to that pipeline here.
         """
-        transformations: list[PortTransformOp] = []
-        rename_cols = [f for f in self.filters if isinstance(f, RenameColumnDatasetFilterDef)]
-        other_filters = [f for f in self.filters if not isinstance(f, RenameColumnDatasetFilterDef)]
-        for filter_def in rename_cols:
-            transformations.extend(input_dataset_filter_to_ops(filter_def))
-        if self.column is not None:
-            transformations.append(SelectMetricOp())
-        transformations.append(IndexTemporalOp())
-        transformations.append(RemapLegacyYearsOp())
-        if self.forecast_from is not None:
-            transformations.append(SetForecastFromOp(year=self.forecast_from))
-        for filter_def in other_filters:
-            transformations.extend(input_dataset_filter_to_ops(filter_def))
-        transformations.extend(TagOperationOp(tag=tag) for tag in self.tags)
-        if self.min_year is not None or self.max_year is not None:
-            transformations.append(FilterTemporalOp(min_year=self.min_year, max_year=self.max_year))
-        if self.dropna:
-            transformations.append(DropNullsOp())
-        if self.unit is not None:
-            transformations.append(EnsureUnitOp(unit=self.unit))
+        if self.transformations is not None:
+            transformations = list(self.transformations)
+        else:
+            transformations = []
+            rename_cols = [f for f in self.filters if isinstance(f, RenameColumnDatasetFilterDef)]
+            other_filters = [f for f in self.filters if not isinstance(f, RenameColumnDatasetFilterDef)]
+            for filter_def in rename_cols:
+                transformations.extend(input_dataset_filter_to_ops(filter_def))
+            if self.column is not None:
+                transformations.append(SelectMetricOp())
+            transformations.append(IndexTemporalOp())
+            transformations.append(RemapLegacyYearsOp())
+            if self.forecast_from is not None:
+                transformations.append(SetForecastFromOp(year=self.forecast_from))
+            for filter_def in other_filters:
+                transformations.extend(input_dataset_filter_to_ops(filter_def))
+            transformations.extend(TagOperationOp(tag=tag) for tag in self.tags)
+            if self.min_year is not None or self.max_year is not None:
+                transformations.append(FilterTemporalOp(min_year=self.min_year, max_year=self.max_year))
+            if self.dropna:
+                transformations.append(DropNullsOp())
+            if self.unit is not None:
+                transformations.append(EnsureUnitOp(unit=self.unit))
+        kinds = {op.kind for op in transformations}
+        for enabled, op in (
+            (self.interpolate, InterpolateOp()),
+            (self.backfill, BackfillOp()),
+            (self.extend, ExtendOp()),
+        ):
+            if enabled and op.kind not in kinds:
+                transformations.append(op)
         return transformations
 
 
@@ -232,9 +249,6 @@ def legacy_dataset_spec_to_transformations(data: dict[str, Any]) -> dict[str, An
         'column': ds_def.column,
         'tags': ds_def.tags,
         'input_dataset': ds_def.input_dataset,
-        'interpolate': ds_def.interpolate,
-        'extend': ds_def.extend,
-        'backfill': ds_def.backfill,
         'output_dimensions': ds_def.output_dimensions,
     }
 
@@ -250,7 +264,8 @@ class DatasetPortSpec(I18nBaseModel):
 
     This is the whole of what the binding does to its data. The YAML-era flat
     fields (``column``, ``filters``, ``forecast_from``, ``dropna``,
-    ``min_year``, ``max_year``, ``unit``) are deliberately absent: they said the
+    ``min_year``, ``max_year``, ``unit``, ``interpolate``, ``backfill``,
+    ``extend``) are deliberately absent: they said the
     same things less precisely, and keeping both would leave two sources of
     truth. ``InputDatasetDef`` still has them, because that is where YAML
     enters.
@@ -279,27 +294,6 @@ class DatasetPortSpec(I18nBaseModel):
     input_dataset: str | None = None
     """DVC dataset identifier override (when different from the bound dataset)."""
 
-    backfill: bool = False
-    """Copy each category's first known value backwards over the nulls that precede it."""
-
-    extend: bool = False
-    """
-    Carry the last historical value forward to the model end year.
-
-    Like ``interpolate``, a property of the binding rather than of the consuming node, so
-    that a dataset means the same thing wherever it is bound.
-    """
-
-    interpolate: bool = False
-    """
-    Fill year gaps by linear interpolation.
-
-    Not an operation, unlike everything else here: interpolation also applies to
-    datasets that have no pipeline at all (``FixedDataset``, ``JSONDataset``),
-    and ``GenericDataset`` interpolates at its own point during loading. It
-    becomes a positional op once those cases are gone.
-    """
-
     output_dimensions: list[DimensionRef] | None = None
     """
     Dimensions the binding claims to produce.
@@ -320,15 +314,24 @@ class DatasetPortSpec(I18nBaseModel):
         computation. Rows in either shape convert on read, so deploy order never
         matters; both conversions go away when bindings move to their own table.
         """
-        if not isinstance(data, dict) or 'transformations' in data:
+        if not isinstance(data, dict):
             return data
+        data = dict(data)
         if 'operations' in data:
             renamed = {key: value for key, value in data.items() if key != 'operations'}
             renamed['transformations'] = data['operations']
-            return renamed
-        if not any(key in data for key in LEGACY_DATASET_SPEC_FIELDS):
-            return data
-        return legacy_dataset_spec_to_transformations(cast('dict[str, Any]', data))
+            data = renamed
+        if 'transformations' not in data and any(key in data for key in LEGACY_DATASET_SPEC_FIELDS):
+            return legacy_dataset_spec_to_transformations(cast('dict[str, Any]', data))
+        transformations = list(data.get('transformations') or [])
+        kinds = {entry.get('kind') if isinstance(entry, dict) else getattr(entry, 'kind', None) for entry in transformations}
+        transformations.extend(
+            {'kind': field_name}
+            for field_name in ('interpolate', 'backfill', 'extend')
+            if data.pop(field_name, False) and field_name not in kinds
+        )
+        data['transformations'] = transformations
+        return data
 
     @property
     def forecast_from(self) -> int | None:
@@ -346,15 +349,11 @@ class DatasetPortSpec(I18nBaseModel):
 
     @classmethod
     def from_input_dataset(cls, ds_def: InputDatasetDef) -> DatasetPortSpec:
-        transformations = ds_def.transformations if ds_def.transformations is not None else ds_def.to_transformations()
         return cls(
-            transformations=list(transformations),
+            transformations=ds_def.to_transformations(),
             column=ds_def.column,
             tags=list(ds_def.tags),
             input_dataset=ds_def.input_dataset,
-            interpolate=ds_def.interpolate,
-            extend=ds_def.extend,
-            backfill=ds_def.backfill,
             output_dimensions=ds_def.output_dimensions,
         )
 
@@ -363,12 +362,8 @@ class DatasetPortSpec(I18nBaseModel):
             id=id,
             transformations=list(self.transformations),
             column=self.column,
-            unit=self.unit,
             tags=self.tags,
             input_dataset=self.input_dataset,
-            interpolate=self.interpolate,
-            extend=self.extend,
-            backfill=self.backfill,
             output_dimensions=self.output_dimensions,
         )
 

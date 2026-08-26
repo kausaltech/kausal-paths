@@ -280,6 +280,66 @@ def test_transformations_are_replaced_as_a_whole_list(gql_client: PathsTestClien
     assert updated['tags'] == ['inventory_only']
 
 
+def test_old_editor_rewrites_preserve_hidden_temporal_ops(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+):
+    """A client built before the new union members neither sees nor deletes them."""
+    from nodes.defs.transform_def import ExtendOp, InterpolateOp
+    from nodes.models import NodeInputPortBinding
+
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='consumer',
+        spec=_node_spec(
+            input_ports=[InputPortDef(id=_port_id('input'), identifier='heating', unit=unit_registry.parse_units('kt/a'))]
+        ),
+    )
+    _dataset_with_metric(db_instance_config)
+    binding_id = gql_client.query_data(
+        BIND_DATASET,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': 'consumer',
+            'input': {'portId': 'heating', 'datasetId': 'heating', 'metricId': 'Energy'},
+        },
+    )['instanceEditor']['nodeEditor']['bindDataset']['id']
+    row = NodeInputPortBinding.objects.get(uuid=binding_id)
+    full_pipeline = [*row.dataset_spec.transformations, InterpolateOp(), ExtendOp()]
+    row.dataset_spec = row.dataset_spec.model_copy(update={'transformations': full_pipeline})
+    row.transformations = full_pipeline
+    row.save(update_fields=['dataset_spec', 'transformations'])
+
+    updated = gql_client.query_data(
+        UPDATE_BINDING,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'bindingId': binding_id,
+            'input': {
+                'transformations': [
+                    {'selectMetric': True},
+                    {'indexTemporal': True},
+                    {'remapLegacyYears': True},
+                ],
+            },
+        },
+    )['instanceEditor']['bindingEditor']['updateDatasetBinding']
+
+    assert [op['kind'] for op in updated['transformations']] == [
+        'select_metric',
+        'index_temporal',
+        'remap_legacy_years',
+    ]
+    row.refresh_from_db()
+    assert [op.kind for op in row.dataset_spec.transformations] == [
+        'select_metric',
+        'index_temporal',
+        'remap_legacy_years',
+        'interpolate',
+        'extend',
+    ]
+
+
 def test_dropping_the_generated_metric_selection_is_rejected(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     """
     A binding that names a metric column must keep selecting it.

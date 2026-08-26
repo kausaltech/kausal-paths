@@ -807,6 +807,9 @@ class InstanceConfigParser:
 
     def _parse_node_datasets(self, parsed: _ParsedNode) -> None:
         """Mirror ``_make_node_datasets`` for the binding definitions (no data loading)."""
+        from nodes.generic import GenericNode
+        from nodes.simple import AdditiveNode
+
         config = parsed.config
         ds_config = config.get('input_datasets')
         if ds_config is None:
@@ -814,7 +817,8 @@ class InstanceConfigParser:
 
         # Mirror the loader: a processor entry forces interpolation on, a class default
         # yields to an explicit `interpolate:` on the binding.
-        class_interpolate = parsed.node_class.interpolates_input_datasets_by_default
+        uses_generic_dataset = issubclass(parsed.node_class, GenericNode) and not issubclass(parsed.node_class, AdditiveNode)
+        class_interpolate = parsed.node_class.interpolates_input_datasets_by_default and not uses_generic_dataset
         ds_interpolate = False
         idp_confs = config.get('input_dataset_processors', [])
         if idp_confs:
@@ -1290,12 +1294,13 @@ class InstanceConfigParser:
         historical_values = config.get('historical_values') or None
         forecast_values = config.get('forecast_values') or None
         # The export path derives processors from the dataset *instances*
-        # (any with interpolate=True). A config-level processor on a node
+        # (any with an interpolate op). A config-level processor on a node
         # with no datasets is therefore dropped — reproduce that.
         processors: list[str] = []
         has_idp = bool(config.get('input_dataset_processors'))
         if not parsed.node_class.interpolates_input_datasets_by_default and (
-            any(ds_def.interpolate for ds_def in parsed.dataset_defs) or (parsed.has_fixed_dataset and has_idp)
+            any(any(op.kind == 'interpolate' for op in ds_def.to_transformations()) for ds_def in parsed.dataset_defs)
+            or (parsed.has_fixed_dataset and has_idp)
         ):
             processors = ['LinearInterpolation']
         tags = config.get('tags')

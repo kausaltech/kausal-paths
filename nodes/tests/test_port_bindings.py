@@ -30,6 +30,7 @@ from nodes.defs.transform_def import (
     AssignDimensionOp,
     FilterColumnOp,
     FilterDimensionOp,
+    InterpolateOp,
     PortTransformOp,
     RenameColumnOp,
     RenameItemOp,
@@ -112,18 +113,24 @@ def test_select_metric_carries_no_column():
     assert ops[0].model_dump() == {'kind': 'select_metric'}
 
 
-def test_interpolate_is_not_an_operation():
-    """
-    Interpolation stays a binding field for now.
-
-    It also applies to datasets that have no pipeline (`FixedDataset`,
-    `JSONDataset`), and `GenericDataset` interpolates at its own point during
-    loading — so it cannot yet be positional.
-    """
+def test_interpolate_is_an_operation():
+    """The YAML boolean is converted into the binding's ordered recipe."""
     ds_def = InputDatasetDef(id='some/dataset', interpolate=True)
 
-    assert 'interpolate' not in [op.kind for op in ds_def.to_transformations()]
-    assert DatasetPortSpec.from_input_dataset(ds_def).interpolate is True
+    assert isinstance(ds_def.to_transformations()[-1], InterpolateOp)
+    assert isinstance(DatasetPortSpec.from_input_dataset(ds_def).transformations[-1], InterpolateOp)
+
+
+def test_legacy_temporal_flags_are_normalized_into_the_stored_pipeline():
+    spec = DatasetPortSpec.model_validate({
+        'transformations': [{'kind': 'index_temporal'}],
+        'interpolate': True,
+        'backfill': True,
+        'extend': True,
+    })
+
+    assert [op.kind for op in spec.transformations] == ['index_temporal', 'interpolate', 'backfill', 'extend']
+    assert set(spec.model_dump()) == {'transformations', 'column', 'tags', 'input_dataset', 'output_dimensions'}
 
 
 def test_forecast_from_and_unit_are_derived_from_the_pipeline():
@@ -316,15 +323,16 @@ def test_interpolate_survives_the_dataset_port_spec_round_trip():
     ds_def = InputDatasetDef(id='potsdam/pro_potsdam_renovation', forecast_from=2025, interpolate=True)
 
     spec = DatasetPortSpec.from_input_dataset(ds_def)
-    assert spec.interpolate is True
+    assert any(isinstance(op, InterpolateOp) for op in spec.transformations)
 
     round_tripped = spec.to_input_dataset(id=ds_def.id)
-    assert round_tripped.interpolate is True
+    assert any(isinstance(op, InterpolateOp) for op in round_tripped.to_transformations())
     assert round_tripped.forecast_from is None, 'the flat field is gone; the pipeline carries it'
     assert [op.kind for op in (round_tripped.transformations or [])] == [
         'index_temporal',
         'remap_legacy_years',
         'set_forecast_from',
+        'interpolate',
     ]
 
 

@@ -9,7 +9,7 @@ import pytest
 
 from common import polars as ppl
 from nodes.datasets import DBDataset, DVCDataset
-from nodes.defs.transform_def import AssignDimensionOp, FilterColumnOp, RemapLegacyYearsOp
+from nodes.defs.transform_def import AssignDimensionOp, FilterColumnOp, InterpolateOp, RemapLegacyYearsOp
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DBDatasetModel
@@ -112,6 +112,37 @@ def test_operation_cache_version_invalidates_the_dataset_hash(monkeypatch: pytes
     )
 
     assert versioned.get_cache_key() != original_key
+
+
+def test_source_overlay_runs_before_temporal_fill(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Framework overlays can consume UUID join keys before interpolation removes them."""
+    dataset = DVCDataset(
+        id='framework/dataset',
+        context=_hash_context(),
+        transformations=[InterpolateOp()],
+    )
+    raw = _frame_with(
+        {
+            'Year': [2020, 2022],
+            'uuid': ['measure', 'measure'],
+            'Value': [1.0, 3.0],
+        },
+        primary_keys=['Year', 'uuid'],
+        units={'Value': 'MWh/a'},
+    )
+    observed_join_keys: list[str] = []
+
+    def overlay(_self: DVCDataset, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        observed_join_keys.extend(df['uuid'].to_list())
+        return df.drop('uuid')
+
+    monkeypatch.setattr(DVCDataset, 'before_temporal_fill', overlay)
+
+    result = dataset._filter_and_process_df.__wrapped__(dataset, raw)
+
+    assert observed_join_keys == ['measure', 'measure']
+    assert result['Year'].to_list() == [2020, 2021, 2022]
+    assert result['Value'].to_list() == [1.0, 2.0, 3.0]
 
 
 def test_db_dataset_hash_includes_the_shared_binding_pipeline() -> None:

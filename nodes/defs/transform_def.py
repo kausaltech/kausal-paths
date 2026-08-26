@@ -201,6 +201,35 @@ class EnsureUnitOp(PortTransformOpBase):
     unit: Unit
 
 
+class InterpolateOp(PortTransformOpBase):
+    """Linearly fill interior gaps in each metric's yearly series."""
+
+    applies_to = DATASET_ONLY
+
+    kind: Literal['interpolate'] = 'interpolate'
+
+
+class BackfillOp(PortTransformOpBase):
+    """Copy each category's first known value backwards over leading nulls."""
+
+    applies_to = DATASET_ONLY
+
+    kind: Literal['backfill'] = 'backfill'
+
+
+class ExtendOp(PortTransformOpBase):
+    """Carry the last historical value forward to the instance model end year."""
+
+    applies_to = DATASET_ONLY
+
+    kind: Literal['extend'] = 'extend'
+
+    def cache_hash_data(self, context: Context) -> dict[str, Any]:
+        data = super().cache_hash_data(context)
+        data['model_end_year'] = context.instance.model_end_year
+        return data
+
+
 # --- Legacy stage markers ---------------------------------------------------
 #
 # These exist so the pipeline is the *complete* recipe and the executor can be
@@ -375,6 +404,9 @@ type PortTransformOp = Annotated[
     | RenameItemOp
     | SetForecastFromOp
     | EnsureUnitOp
+    | InterpolateOp
+    | BackfillOp
+    | ExtendOp
     | SelectMetricOp
     | IndexTemporalOp
     | RemapLegacyYearsOp
@@ -396,6 +428,9 @@ StoredPortTransformOp = (
     | RenameItemOp
     | SetForecastFromOp
     | EnsureUnitOp
+    | InterpolateOp
+    | BackfillOp
+    | ExtendOp
     | SelectMetricOp
     | IndexTemporalOp
     | RemapLegacyYearsOp
@@ -427,6 +462,23 @@ def unit_from_transformations(transformations: Sequence[PortTransformOp]) -> Uni
         if isinstance(op, EnsureUnitOp):
             return op.unit
     return None
+
+
+TEMPORAL_FILL_KINDS = frozenset({'interpolate', 'backfill', 'extend'})
+"""Pipeline kinds hidden temporarily from GraphQL for old model-editor compatibility."""
+
+
+def visible_transformations(transformations: Sequence[PortTransformOp]) -> list[PortTransformOp]:
+    """Return the transformations understood by independently deployed older UIs."""
+    return [op for op in transformations if op.kind not in TEMPORAL_FILL_KINDS]
+
+
+def preserve_temporal_fill_transformations(
+    replacements: Sequence[PortTransformOp],
+    previous: Sequence[PortTransformOp],
+) -> list[PortTransformOp]:
+    """Replace the GraphQL-visible recipe while retaining its hidden temporal tail."""
+    return [*replacements, *(op for op in previous if op.kind in TEMPORAL_FILL_KINDS)]
 
 
 def with_forecast_from(transformations: Sequence[PortTransformOp], year: int) -> list[PortTransformOp]:

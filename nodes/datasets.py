@@ -24,7 +24,13 @@ from kausal_common.logging.errors import capture_error
 from kausal_common.perf.perf_context import PerfKind, estimate_size_bytes
 
 from common import polars as ppl
-from nodes.calc import extend_last_historical_value_pl
+from nodes.defs.transform_def import (
+    TEMPORAL_FILL_KINDS,
+    InterpolateOp,
+    PortTransformOp,
+    forecast_from_transformations,
+    unit_from_transformations,
+)
 from nodes.exceptions import DatasetError
 from nodes.units import Unit, unit_registry
 
@@ -45,7 +51,6 @@ if TYPE_CHECKING:
     from kausal_common.perf.perf_context import PerfAttrs, PerfSpanEntry
 
     from nodes.defs.node_defs import InputDatasetDef
-    from nodes.defs.transform_def import PortTransformOp
 
     from .context import Context
 
@@ -90,9 +95,7 @@ def measure_dataset_call[DS: Dataset, **P, R](
 class DatasetKwargs(TypedDict):
     tags: list[str]
     output_dimensions: list[str] | None
-    interpolate: bool
-    extend: bool
-    backfill: bool
+    transformations: list[PortTransformOp]
 
 
 @dataclass
@@ -104,19 +107,8 @@ class Dataset(ABC):
     _: KW_ONLY
     tags: list[str] = field(default_factory=list)
     output_dimensions: list[str] | None = field(default=None)
-
-    interpolate: bool = False
-    backfill: bool = False
-    """Fill leading nulls by copying each category's first known value backwards.
-
-    Off by default: extending a series backwards invents data before it starts. It exists
-    because ``GenericNode`` did it silently, and a binding that relies on it should say so."""
-    extend: bool = False
-    """Carry the last historical value forward to the model end year.
-
-    A property of the binding rather than of the node class, so that a dataset means the
-    same thing wherever it is bound. See
-    ``docs/plans/additive-multiplicative-modernization.md``."""
+    transformations: list[PortTransformOp] = field(default_factory=list)
+    """The binding's complete ordered transformation recipe."""
     df: ppl.PathsDataFrame | None = field(init=False, repr=False, default=None)
     hash: bytes | None = field(init=False, repr=False, default=None)
 
@@ -140,9 +132,7 @@ class Dataset(ABC):
         return DatasetKwargs(
             tags=ds_def.tags,
             output_dimensions=ds_def.output_dimensions,
-            interpolate=ds_def.interpolate,
-            backfill=ds_def.backfill,
-            extend=ds_def.extend,
+            transformations=ds_def.to_transformations(),
         )
 
     @abstractmethod
@@ -180,7 +170,10 @@ class Dataset(ABC):
         if class_hash is None:
             class_hash = type(self).get_class_hash()
             type(self)._class_hash = class_hash
-        d = {'id': self.id, 'interpolate': self.interpolate, 'backfill': self.backfill, 'extend': self.extend}
+        d = {
+            'id': self.id,
+            'transformations': [op.cache_hash_data(self.context) for op in self.transformations],
+        }
         if build_id := get_deployment_build_id():
             d['build_id'] = build_id
         else:
@@ -211,68 +204,38 @@ class Dataset(ABC):
         event.set_attr(f'dataset.{midfix}columns', len(df.columns))
         event.set_attr(f'dataset.{midfix}in_memory.bytes', estimate_size_bytes(df))
 
-    @measure_dataset_call('dataset.interpolate')
-    def _linear_interpolate(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        if YEAR_COLUMN not in df.columns:
-            raise DatasetError(
-                self, f"'{YEAR_COLUMN}' does not exist in dataset '{self.id}'. Available columns: {', '.join(df.columns)}."
-            )
-        if df.is_empty():
-            # Nothing to interpolate between, and no year to span. This is a real input, not a
-            # broken one: a binding that selects a metric column drops its nulls, so a city
-            # template whose cells are all still blank arrives here with no rows at all. The
-            # asserts below read `None` from the empty year series and fail with a bare
-            # AssertionError several frames away from the cause.
-            return df
-        years = df[YEAR_COLUMN].unique().sort()
-        min_year = years.min()
-        assert isinstance(min_year, int)
-        max_year = years.max()
-        assert isinstance(max_year, int)
-        df = df.paths.to_wide()
-        years_df = pl.DataFrame(data=range(min_year, max_year + 1), schema=[YEAR_COLUMN])
-        meta = df.get_meta()
-        zdf = years_df.join(df, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
-        df = ppl.to_ppdf(zdf, meta=meta)
-        cols = [pl.col(col).interpolate() for col in df.metric_cols]
-        if FORECAST_COLUMN in df.columns:
-            cols.append(pl.col(FORECAST_COLUMN).fill_null(strategy='forward'))
-        df = df.with_columns(cols)
-        df = df.paths.to_narrow()
-        return df
-
     def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        # Interior gaps first, then the leading edge, then the trailing edge.
-        if self.interpolate:
-            df = self._linear_interpolate(df)
-        if self.backfill:
-            df = self._backfill_leading_values(df)
-        if self.extend:
-            df = self._extend_to_end_year(df)
+        """Compatibility entry point for datasets whose whole recipe runs after loading."""
+        return self.after_transformations(self.apply_transformations(df))
+
+    def after_transformations(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """Subclass hook for source overlays that run after the binding recipe."""
         return df
 
-    @measure_dataset_call('dataset.backfill')
-    def _backfill_leading_values(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        """
-        Copy each category's first known value backwards over the nulls that precede it.
+    def before_temporal_fill(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """Subclass hook for source overlays that need raw join keys temporal filling may remove."""
+        return df
 
-        Only fills what is already there as a null row; pair it with ``interpolate`` when the
-        early years are missing altogether, since that is what materialises them.
-        """
-        dims = df.dim_ids
-        df = df.sort(YEAR_COLUMN)
-        exprs = []
-        for col in df.metric_cols:
-            expr = pl.col(col).fill_null(strategy='backward')
-            exprs.append(expr.over(dims) if dims else expr)
-        return df.with_columns(exprs)
+    def transformation_groups_at_temporal_fill(self) -> tuple[list[PortTransformOp], list[PortTransformOp]]:
+        """Split the recipe before its first temporal fill operation without reordering it."""
+        first_temporal = next(
+            (index for index, op in enumerate(self.transformations) if op.kind in TEMPORAL_FILL_KINDS),
+            len(self.transformations),
+        )
+        return self.transformations[:first_temporal], self.transformations[first_temporal:]
 
-    @measure_dataset_call('dataset.extend')
-    def _extend_to_end_year(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        """Carry the last historical value forward, after any interpolation has filled gaps."""
-        if FORECAST_COLUMN not in df.columns:
-            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
-        return extend_last_historical_value_pl(df, self.context.instance.model_end_year)
+    def apply_transformations(
+        self,
+        df: ppl.PathsDataFrame,
+        transformations: list[PortTransformOp] | None = None,
+        *,
+        metric_column: str | None = None,
+    ) -> ppl.PathsDataFrame:
+        """Execute a transformation list with this dataset as its source environment."""
+        from nodes.transforms import PipelineEnv, apply_port_transformations
+
+        env = PipelineEnv(context=self.context, dataset=self, metric_column=metric_column)
+        return apply_port_transformations(df, self.transformations if transformations is None else transformations, env)
 
     @measure_dataset_call('dataset.get')
     def get_copy(self) -> ppl.PathsDataFrame:
@@ -290,7 +253,6 @@ class Dataset(ABC):
 
 class FilterDatasetKwargs(DatasetKwargs):
     column: str | None
-    transformations: list[PortTransformOp]
     unit: Unit | None
     forecast_from: int | None
 
@@ -305,9 +267,6 @@ class DatasetWithFilters(Dataset, ABC):
     the selection happens.
     """
 
-    transformations: list[PortTransformOp] = field(default_factory=list)
-    """The transform pipeline, executed in order (see ``nodes.transforms``)."""
-
     unit: Unit | None = None
 
     # The year from which the time series becomes a forecast
@@ -318,13 +277,16 @@ class DatasetWithFilters(Dataset, ABC):
         # A YAML-authored definition carries the legacy flat fields, a DB-backed
         # one carries the pipeline directly. Converting here means there is one
         # execution path, whichever the config source was.
-        transformations = ds_def.transformations if ds_def.transformations is not None else ds_def.to_transformations()
+        kwargs = super().kwargs_from_def(ds_def)
         return FilterDatasetKwargs(
-            **super().kwargs_from_def(ds_def),
+            **kwargs,
             column=ds_def.column,
-            transformations=list(transformations),
-            unit=ds_def.unit,
-            forecast_from=ds_def.forecast_from,
+            unit=ds_def.unit if ds_def.transformations is None else unit_from_transformations(kwargs['transformations']),
+            forecast_from=(
+                ds_def.forecast_from
+                if ds_def.transformations is None
+                else forecast_from_transformations(kwargs['transformations'])
+            ),
         )
 
     def __rich_repr__(self) -> RichReprResult:
@@ -347,10 +309,10 @@ class DatasetWithFilters(Dataset, ABC):
     @measure_dataset_call('dataset.filter', capture_df_result=True, capture_df_arg=True)
     def _filter_and_process_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         """Run the binding's transform pipeline over a freshly loaded frame."""
-        from nodes.transforms import PipelineEnv, apply_port_transformations
-
-        env = PipelineEnv(context=self.context, dataset=self, metric_column=self.column)
-        df = apply_port_transformations(df, self.transformations, env)
+        before_temporal, from_temporal = self.transformation_groups_at_temporal_fill()
+        df = self.apply_transformations(df, before_temporal, metric_column=self.column)
+        df = self.before_temporal_fill(df)
+        df = self.apply_transformations(df, from_temporal, metric_column=self.column)
         ppl.validate_ppdf(df)
         return df
 
@@ -617,7 +579,7 @@ class DVCDataset(DatasetWithFilters):
         assert dvc_ds.df is not None
         df = self._convert_dvc_dataset(dvc_ds)
         df = self._filter_and_process_df(df)
-        df = self.post_process(df)
+        df = self.after_transformations(df)
         if self.context.sample_size > 0:
             df = self.sampler.interpret(self, df)
         if self.cache_key:
@@ -794,10 +756,11 @@ class GenericDataset(DVCDataset):
     @measure_dataset_call('dataset.index')
     def _index_data(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         new_dims = [col for col, dtype in zip(df.columns, df.dtypes, strict=True) if dtype in [pl.Utf8(), pl.Categorical()]]
-        return extend_last_historical_value_pl(
-            df.add_to_index([dim for dim in new_dims if dim not in df.dim_ids]),
-            end_year=self.context.instance.model_end_year,
-        )
+        return df.add_to_index([dim for dim in new_dims if dim not in df.dim_ids])
+
+    def _generic_transformation_groups(self) -> tuple[list[PortTransformOp], list[PortTransformOp]]:
+        """Keep temporal filling after GenericDataset has established its metric columns."""
+        return self.transformation_groups_at_temporal_fill()
 
     @override
     def load_internal(self) -> ppl.PathsDataFrame:
@@ -817,8 +780,9 @@ class GenericDataset(DVCDataset):
         assert dvc_ds.df is not None
         df = self._convert_dvc_dataset(dvc_ds)
 
-        # First process data as DVCDataset would, but WITHOUT calling post_process
-        df = self._filter_and_process_df(df)
+        data_ops, temporal_ops = self._generic_transformation_groups()
+        df = self.apply_transformations(df, data_ops, metric_column=self.column)
+        ppl.validate_ppdf(df)
 
         # Now do GenericDataset specific processing
         df = self._transform_data(df)
@@ -827,11 +791,8 @@ class GenericDataset(DVCDataset):
         if FORECAST_COLUMN not in df.columns:
             df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))  # noqa: FBT003
 
-        self.interpolate = True  # TODO Do we need this?
-        if self.interpolate:
-            df = self._linear_interpolate(df)
-
         df = self._index_data(df)
+        df = self.apply_transformations(df, temporal_ops, metric_column=self.column)
 
         # Finalize processing
         if self.context.sample_size > 0:
@@ -868,8 +829,8 @@ class FixedDataset(Dataset):
 
         self.pd = pd
 
-        if self.use_interpolation:
-            self.interpolate = True
+        if self.use_interpolation and not any(isinstance(op, InterpolateOp) for op in self.transformations):
+            self.transformations.append(InterpolateOp())
 
         if self.historical:
             hdf = pl.DataFrame(self.historical, orient='row', schema=[YEAR_COLUMN, VALUE_COLUMN])
@@ -896,7 +857,7 @@ class FixedDataset(Dataset):
         pdf = ppl.to_ppdf(df)
         pdf = pdf.set_unit(VALUE_COLUMN, self.unit)
         pdf = pdf.add_to_index(YEAR_COLUMN)
-        pdf = self.post_process(pdf)
+        pdf = self.apply_transformations(pdf)
 
         self.df = pdf
 
@@ -1103,7 +1064,7 @@ class SerializedDBDataset(DatasetWithFilters):
         assert self.payload_store is not None
         df = self.payload_store.get_dataframe(self.payload_ref).copy()
         df = self._filter_and_process_df(df)
-        df = self.post_process(df)
+        df = self.after_transformations(df)
         self.df = df
         return df
 
@@ -1178,7 +1139,7 @@ class DBDataset(DatasetWithFilters):
             self.context.db_dataset_dfs[ds_obj.pk] = df
         df = df.copy()
         df = self._filter_and_process_df(df)
-        df = self.post_process(df)
+        df = self.after_transformations(df)
         self.df = df
         return df
 

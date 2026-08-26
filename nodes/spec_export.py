@@ -634,10 +634,6 @@ def _input_dataset_def_from_instance(ds: DatasetWithFilters) -> InputDatasetDef:
         input_dataset=ds.input_dataset if isinstance(ds, DVCDataset) else None,
         column=ds.column,
         transformations=list(ds.transformations),
-        interpolate=ds.interpolate,
-        backfill=ds.backfill,
-        extend=ds.extend,
-        unit=ds.unit,
     )
 
 
@@ -661,7 +657,7 @@ def _export_node_extra(node: Node) -> NodeSpecExtra:
     processors: list[str] = []
     if not type(node).interpolates_input_datasets_by_default:
         for ds in node.input_dataset_instances:
-            if getattr(ds, 'interpolate', False):
+            if any(op.kind == 'interpolate' for op in ds.transformations):
                 processors = ['LinearInterpolation']
                 break
 

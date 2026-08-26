@@ -685,9 +685,11 @@ so that a combination missing from the data altogether is reported as missing ra
         super().__init__(*args, **kwargs)
         # The node reports what the source data covers, so gap-filling must not run before
         # the check. The dataset instances belong to this node alone, so this affects nobody
-        # else (and the dataset cache key follows `interpolate`, so it stays separate too).
+        # else (and the dataset cache key follows the pipeline, so it stays separate too).
         for ds in self.input_dataset_instances:
-            ds.interpolate = False
+            from nodes.defs.transform_def import without_transformations
+
+            ds.transformations = without_transformations(ds.transformations, 'interpolate', 'backfill', 'extend')
 
     def compute(self) -> ppl.PathsDataFrame:
         from nodes.datasets import FixedDataset

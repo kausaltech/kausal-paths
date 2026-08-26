@@ -550,6 +550,8 @@ class InstanceLoader:
         from nodes.generic import GenericNode
         from nodes.simple import AdditiveNode
 
+        uses_generic_dataset = issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode)
+
         ds_config = config.get('input_datasets')
         datasets: list[Dataset] = []
 
@@ -566,7 +568,7 @@ class InstanceLoader:
         # `input_dataset_processors` entry forces it on for every binding, while a class
         # default is only a default and yields to a binding that says `interpolate: false`.
         # See docs/plans/additive-multiplicative-modernization.md.
-        class_interpolate = node_class.interpolates_input_datasets_by_default
+        class_interpolate = node_class.interpolates_input_datasets_by_default and not uses_generic_dataset
         ds_interpolate = False
         idp_confs = config.get('input_dataset_processors', [])
         if idp_confs:
@@ -586,10 +588,6 @@ class InstanceLoader:
                 elif class_interpolate and 'interpolate' not in ds:
                     ds_def.interpolate = True
 
-            ds_obj: Dataset | None = None
-            if issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode):
-                ds_obj = GenericDataset.from_def(ds_def, self.context)
-
             # The class declares whether its datasets take framework measure
             # overlays; the tag is the per-binding opt-in for other classes.
             use_framework_ds = 'framework_measure_data' in ds_def.tags or (
@@ -597,6 +595,7 @@ class InstanceLoader:
             )
             use_obs_ds = 'observation_dataset' in ds_def.tags
             use_city_ds = 'city_data' in ds_def.tags
+            ds_obj: Dataset | None = None
             if use_obs_ds:
                 from frameworks.datasets import ObservationDataset
 
@@ -607,8 +606,8 @@ class InstanceLoader:
                 # Prefer a DB-stored dataset when one exists for this instance.
                 # FrameworkMeasureDVCDataset2 handles both cases: when db_dataset_obj is
                 # provided it loads from DB, otherwise falls through to DVC. Either way,
-                # post_process() runs and handles the uuid dimension and any framework
-                # measure datapoint overrides correctly.
+                # The transformation pipeline and post-transform hook handle the uuid
+                # dimension and any framework measure datapoint overrides correctly.
                 # Future: if both a DB dataset and framework measure datapoints exist,
                 # the DB values should be loaded first and then overridden by the
                 # framework measures where available. That case doesn't arise yet, so
@@ -646,8 +645,15 @@ class InstanceLoader:
                     ds_obj = DBDataset.from_def(ds_def, self.context, db_dataset_obj=ds_db_obj)
 
             if ds_obj is None:
-                ds_obj = DVCDataset.from_def(ds_def, self.context)
-            ds_obj.interpolate = ds_interpolate or ds_def.interpolate
+                if uses_generic_dataset:
+                    # These were unconditional inside GenericDataset itself.
+                    # Attach them only after framework and DB-backed replacements
+                    # have been ruled out, so the concrete loader owns its defaults.
+                    ds_def.interpolate = True
+                    ds_def.extend = True
+                    ds_obj = GenericDataset.from_def(ds_def, self.context)
+                else:
+                    ds_obj = DVCDataset.from_def(ds_def, self.context)
             datasets.append(ds_obj)
 
         if 'historical_values' in config or 'forecast_values' in config:

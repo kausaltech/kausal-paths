@@ -17,11 +17,14 @@ import pytest
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.transform_def import (
+    BackfillOp,
     DropNullsOp,
     EnsureUnitOp,
+    ExtendOp,
     FilterDimensionOp,
     FilterTemporalOp,
     IndexTemporalOp,
+    InterpolateOp,
     RemapLegacyYearsOp,
     RenameColumnOp,
     SelectMetricOp,
@@ -39,11 +42,18 @@ if TYPE_CHECKING:
     from nodes.defs.transform_def import PortTransformOp
 
 
-def _env(reference_year: int = 2020, target_year: int = 2030) -> PipelineEnv:
+def _env(reference_year: int = 2020, target_year: int = 2030, model_end_year: int = 2035) -> PipelineEnv:
     """Build a minimal environment; only the year-remapping op reads the instance."""
     context = cast(
         'Context',
-        SimpleNamespace(instance=SimpleNamespace(reference_year=reference_year, target_year=target_year), dimensions={}),
+        SimpleNamespace(
+            instance=SimpleNamespace(
+                reference_year=reference_year,
+                target_year=target_year,
+                model_end_year=model_end_year,
+            ),
+            dimensions={},
+        ),
     )
     return PipelineEnv(context=context)
 
@@ -165,6 +175,29 @@ def test_ensure_unit_converts_rather_than_relabels():
 
     assert result.get_unit(VALUE_COLUMN) == unit_registry.parse_units('t/a')
     assert result[VALUE_COLUMN].to_list() == [1000.0]
+
+
+def test_temporal_fill_ops_execute_in_pipeline_order():
+    df = to_ppdf(
+        pl.DataFrame({
+            YEAR_COLUMN: [2020, 2021, 2023],
+            VALUE_COLUMN: [None, 20.0, 40.0],
+            FORECAST_COLUMN: [False, False, False],
+        }),
+        DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kt/a')}, primary_keys=[YEAR_COLUMN]),
+    )
+
+    result = _run(df, [InterpolateOp(), BackfillOp(), ExtendOp()], _env(model_end_year=2025))
+
+    assert result[YEAR_COLUMN].to_list() == [2020, 2021, 2022, 2023, 2024, 2025]
+    assert result[VALUE_COLUMN].to_list() == [20.0, 20.0, 30.0, 40.0, 40.0, 40.0]
+
+
+def test_extend_cache_identity_includes_the_model_end_year():
+    first = ExtendOp().cache_hash_data(_env(model_end_year=2030).context)
+    second = ExtendOp().cache_hash_data(_env(model_end_year=2040).context)
+
+    assert first != second
 
 
 def test_rename_column_runs_before_selection_so_it_can_expose_the_column():
