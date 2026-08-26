@@ -6,16 +6,21 @@ model instances (NodeConfig, NodeEdge, ActionGroup, Scenario).
 """
 
 import math
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, TypeGuard, cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import strawberry as sb
 from django.db import transaction
 from django.utils.module_loading import import_string
+from django.utils.translation import get_language
 from graphql import GraphQLError
+from pydantic import ValidationError as PydanticValidationError
 from strawberry import Maybe, auto
 
-from kausal_common.i18n.pydantic import get_translated_string_from_modeltrans
+from kausal_common.i18n.helpers import convert_language_code
+from kausal_common.i18n.pydantic import TranslatedString, get_translated_string_from_modeltrans
+from kausal_common.ordering import InconsistentSiblingOrderError, reorder_siblings
 from kausal_common.strawberry.errors import GraphQLValidationError, NotFoundError, PermissionDeniedError
 from kausal_common.strawberry.helpers import get_or_error
 from kausal_common.strawberry.ordering import SiblingPositionInputMixin
@@ -25,7 +30,7 @@ from kausal_common.users import user_or_bust, user_or_none
 from paths import gql
 from paths.identifiers import identifier_or_none
 
-from nodes.defs import FormulaConfig, SimpleConfig
+from nodes.defs import ActionGroup, FormulaConfig, SimpleConfig
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig, TypeConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.models import InstanceConfig, NodeConfig, NodeLayout, NodeLayoutSource
@@ -35,7 +40,7 @@ from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .types.constraints import ConstraintViolationsType
 from .types.dimension import DimensionType
-from .types.graph import NodeEdgeType
+from .types.graph import ActionGroupType, NodeEdgeType
 from .types.instance import InstanceType
 from .types.layout import NodeLayoutType, UpdateNodeLayoutsResult
 from .types.node import AnyNodeType, NodeInterface
@@ -543,6 +548,27 @@ class UpdateScenarioInput:
 
 
 @sb.input
+class ActionGroupPositionInput:
+    previous_sibling: Maybe[UUID]
+    next_sibling: Maybe[UUID]
+
+
+@sb.input
+class CreateActionGroupInput(ActionGroupPositionInput):
+    identifier: str
+    name: str
+    id: UUID | None = sb.field(default=None, description='Optional UUID for the new action group.')
+    color: str | None = None
+
+
+@sb.input
+class UpdateActionGroupInput(ActionGroupPositionInput):
+    identifier: Maybe[str]
+    name: Maybe[str]
+    color: Maybe[str | None]
+
+
+@sb.input
 class CreateDimensionCategoryInput(SiblingPositionInputMixin):
     dimension_id: UUID
     label: str
@@ -615,6 +641,69 @@ class ModelEditorQuery:
 
 def is_maybe_set[T](maybe: Some[T] | None) -> TypeGuard[Some[T]]:
     return maybe is not None and maybe is not sb.UNSET
+
+
+def _action_group_snapshot(group: ActionGroup) -> dict[str, Any]:
+    return group.model_dump(mode='json')
+
+
+def _normalize_action_group_order(groups: list[ActionGroup]) -> list[ActionGroup]:
+    return [group.model_copy(update={'order': index}) for index, group in enumerate(groups)]
+
+
+@dataclass(frozen=True)
+class _ActionGroupOrderHint:
+    uuid: UUID
+    previous_sibling: UUID | None
+    next_sibling: UUID | None
+
+
+def _position_action_group(
+    info: gql.Info,
+    groups: list[ActionGroup],
+    group_uuid: UUID,
+    position: ActionGroupPositionInput,
+) -> list[ActionGroup]:
+    previous_uuid = position.previous_sibling.value if is_maybe_set(position.previous_sibling) else None
+    next_uuid = position.next_sibling.value if is_maybe_set(position.next_sibling) else None
+    hint = _ActionGroupOrderHint(
+        uuid=group_uuid,
+        previous_sibling=previous_uuid,
+        next_sibling=next_uuid,
+    )
+    try:
+        ordered = reorder_siblings(groups, hinted=[hint])
+    except InconsistentSiblingOrderError as exc:
+        raise GraphQLValidationError(info, 'previousSibling and nextSibling do not describe one gap') from exc
+    except ValueError as exc:
+        raise GraphQLValidationError(info, str(exc)) from exc
+    return _normalize_action_group_order(ordered)
+
+
+def _translated_action_group_name(group: ActionGroup, value: str, default_language: str) -> TranslatedString:
+    current = group.name
+    if isinstance(current, TranslatedString):
+        translations = dict(current.i18n)
+        default_language = current.default_language or default_language
+    elif current is not None:
+        translations = {default_language: str(current)}
+    else:
+        translations = {}
+    active_language = convert_language_code(get_language() or default_language, 'iso')
+    translations[active_language] = value
+    return TranslatedString(default_language=default_language, **translations)
+
+
+def _persist_action_groups(ic: InstanceConfig, groups: list[ActionGroup]) -> None:
+    spec = ic.ensure_spec().model_copy(update={'action_groups': groups})
+    InstanceConfig.objects.filter(pk=ic.pk).update(spec=spec)
+    ic.spec = spec
+
+
+def _invalidate_action_group_runtime(info: gql.Info, ic: InstanceConfig) -> None:
+    from nodes.models import PreferredInstanceSource
+
+    info.context.invalidate_runtime_instance(ic, source=PreferredInstanceSource.DRAFT)
 
 
 def _generated_port_id(node_identifier: str, direction: str, key: str) -> UUID:
@@ -1669,6 +1758,151 @@ class InstanceEditorMutation:
             )
             cat.delete()
             self._sync_spec_dimension_from_orm(ic, scope)
+
+    # -- Action-group mutations ---------------------------------------------
+
+    @gql.mutation(description='Create an action group in this instance.', graphql_type=ActionGroupType)
+    @staticmethod
+    def create_action_group(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: CreateActionGroupInput,
+    ) -> ActionGroup:
+        from nodes.change_ops import gql_change_operation, record_change
+
+        ic = root.instance
+        with gql_change_operation(info, ic, action='action_group.create'):
+            ic.refresh_from_db(fields=['spec'])
+            groups = list(ic.ensure_spec().action_groups)
+            group_uuid = input.id or uuid4()
+            if any(group.uuid == group_uuid for group in groups):
+                raise GraphQLValidationError(info, f'Action group with UUID "{group_uuid}" already exists')
+            if any(group.id == input.identifier for group in groups):
+                raise GraphQLValidationError(info, f'Action group with identifier "{input.identifier}" already exists')
+            try:
+                group = ActionGroup(
+                    uuid=group_uuid,
+                    id=input.identifier,
+                    name=input.name,
+                    color=input.color,
+                    order=len(groups),
+                )
+            except PydanticValidationError as exc:
+                raise GraphQLValidationError(info, str(exc)) from exc
+            groups.append(group)
+            groups = _position_action_group(info, groups, group.uuid, input)
+            group = next(candidate for candidate in groups if candidate.uuid == group.uuid)
+            _persist_action_groups(ic, groups)
+            record_change(
+                ic,
+                action='action_group.create',
+                before=None,
+                after=_action_group_snapshot(group),
+                target_uuid=group.uuid,
+            )
+        _invalidate_action_group_runtime(info, ic)
+        return group
+
+    @gql.mutation(description='Update an action group selected by UUID.', graphql_type=ActionGroupType)
+    @staticmethod
+    def update_action_group(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        id: Annotated[UUID, sb.argument(description='UUID of the action group to update.')],
+        input: UpdateActionGroupInput,
+    ) -> ActionGroup:
+        from nodes.change_ops import gql_change_operation, record_change
+
+        has_update = any(
+            value is not None and value is not sb.UNSET
+            for value in (
+                input.identifier,
+                input.name,
+                input.color,
+                input.previous_sibling,
+                input.next_sibling,
+            )
+        )
+        ic = root.instance
+        if not has_update:
+            group = next((group for group in ic.ensure_spec().action_groups if group.uuid == id), None)
+            if group is None:
+                raise NotFoundError(info, f'Action group with UUID "{id}" not found')
+            return group
+
+        with gql_change_operation(info, ic, action='action_group.update'):
+            ic.refresh_from_db(fields=['spec'])
+            groups = list(ic.ensure_spec().action_groups)
+            index = next((index for index, group in enumerate(groups) if group.uuid == id), None)
+            if index is None:
+                raise NotFoundError(info, f'Action group with UUID "{id}" not found')
+            before = groups[index]
+            group = before.model_copy(deep=True)
+            try:
+                if is_maybe_set(input.identifier):
+                    identifier = input.identifier.value
+                    if any(candidate.uuid != id and candidate.id == identifier for candidate in groups):
+                        raise GraphQLValidationError(
+                            info,
+                            f'Action group with identifier "{identifier}" already exists',
+                        )
+                    group.id = identifier
+                if is_maybe_set(input.name):
+                    group.name = _translated_action_group_name(group, input.name.value, ic.primary_language)
+                if is_maybe_set(input.color):
+                    group.color = input.color.value
+            except PydanticValidationError as exc:
+                raise GraphQLValidationError(info, str(exc)) from exc
+            groups[index] = group
+            groups = _position_action_group(info, groups, group.uuid, input)
+            group = next(candidate for candidate in groups if candidate.uuid == id)
+            _persist_action_groups(ic, groups)
+            record_change(
+                ic,
+                action='action_group.update',
+                before=_action_group_snapshot(before),
+                after=_action_group_snapshot(group),
+                target_uuid=group.uuid,
+            )
+        _invalidate_action_group_runtime(info, ic)
+        return group
+
+    @gql.mutation(description='Delete an unreferenced action group selected by UUID.')
+    @staticmethod
+    def delete_action_group(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        id: Annotated[UUID, sb.argument(description='UUID of the action group to delete.')],
+    ) -> None:
+        from nodes.change_ops import gql_change_operation, record_change
+
+        ic = root.instance
+        with gql_change_operation(info, ic, action='action_group.delete'):
+            ic.refresh_from_db(fields=['spec'])
+            groups = list(ic.ensure_spec().action_groups)
+            group = next((group for group in groups if group.uuid == id), None)
+            if group is None:
+                raise NotFoundError(info, f'Action group with UUID "{id}" not found')
+            referring_actions = [
+                node.identifier
+                for node in ic.nodes.get_queryset().with_spec()
+                if node.spec is not None and isinstance(node.spec.type_config, ActionConfig) and node.spec.type_config.group == id
+            ]
+            if referring_actions:
+                raise GraphQLValidationError(
+                    info,
+                    'Cannot delete an action group referenced by actions: ' + ', '.join(sorted(referring_actions)),
+                )
+            groups = _normalize_action_group_order([candidate for candidate in groups if candidate.uuid != id])
+            _persist_action_groups(ic, groups)
+            record_change(
+                ic,
+                action='action_group.delete',
+                before=_action_group_snapshot(group),
+                after=None,
+                target_uuid=group.uuid,
+            )
+        _invalidate_action_group_runtime(info, ic)
 
     @gql.mutation(description='Create a new scenario')
     @staticmethod

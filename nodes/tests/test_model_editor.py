@@ -595,7 +595,8 @@ def test_create_node_with_node_group_and_allow_nulls(gql_client: PathsTestClient
 
 def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     assert db_instance_config.spec is not None
-    db_instance_config.spec.action_groups = [ActionGroup(id='energy', name='Energy')]
+    group_uuid = _port_uuid('energy-action-group')
+    db_instance_config.spec.action_groups = [ActionGroup(uuid=group_uuid, id='energy', name='Energy')]
     db_instance_config.save(update_fields=['spec'])
     _register_dimensions(db_instance_config, ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'])
 
@@ -610,7 +611,7 @@ def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient
                 'config': {
                     'action': {
                         'nodeClass': ACTION_NODE_CLASS,
-                        'group': 'energy',
+                        'group': str(group_uuid),
                         'noEffectValue': 0.0,
                     },
                 },
@@ -630,7 +631,7 @@ def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient
     assert node['identifier'] == 'carbon_capture_and_storage'
     assert node['kind'] == 'ACTION'
     assert node['editor']['spec']['typeConfig']['nodeClass'] == ACTION_NODE_CLASS
-    assert node['editor']['spec']['typeConfig']['group'] == 'energy'
+    assert node['editor']['spec']['typeConfig']['group'] == str(group_uuid)
     assert [port['quantity'] for port in node['editor']['spec']['outputPorts']] == ['emissions', 'energy', 'currency']
 
     nc = db_instance_config.nodes.get(identifier='carbon_capture_and_storage')
@@ -638,7 +639,7 @@ def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient
     assert nc.spec.kind == NodeKind.ACTION
     assert isinstance(nc.spec.type_config, ActionConfig)
     assert nc.spec.type_config.node_class == ACTION_NODE_CLASS
-    assert nc.spec.type_config.group == 'energy'
+    assert nc.spec.type_config.group == group_uuid
     assert nc.spec.input_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
     assert nc.spec.output_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
     assert [port.column_id for port in nc.spec.output_ports] == ['emissions', 'energy', 'currency']
@@ -1007,7 +1008,8 @@ def test_node_editor_add_input_port(gql_client: PathsTestClient, db_instance_con
 
 def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     assert db_instance_config.spec is not None
-    db_instance_config.spec.action_groups = [ActionGroup(id='energy', name='Energy')]
+    group_uuid = _port_uuid('energy-action-group')
+    db_instance_config.spec.action_groups = [ActionGroup(uuid=group_uuid, id='energy', name='Energy')]
     db_instance_config.save(update_fields=['spec'])
     _register_dimensions(db_instance_config, ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'])
 
@@ -1033,7 +1035,7 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
                 'config': {
                     'action': {
                         'nodeClass': ACTION_NODE_CLASS,
-                        'group': 'energy',
+                        'group': str(group_uuid),
                         'noEffectValue': 0.0,
                     },
                 },
@@ -1057,7 +1059,7 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
     assert node['description'] == 'Carbon capture update'
     assert node['editor']['nodeGroup'] == 'transport'
     assert node['editor']['spec']['typeConfig']['nodeClass'] == ACTION_NODE_CLASS
-    assert node['editor']['spec']['typeConfig']['group'] == 'energy'
+    assert node['editor']['spec']['typeConfig']['group'] == str(group_uuid)
     assert [port['quantity'] for port in node['editor']['spec']['outputPorts']] == ['emissions', 'energy', 'currency']
 
     from nodes.models import NodeConfig
@@ -1069,7 +1071,7 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
     assert nc.short_name == 'CCS'
     assert nc.spec.kind == NodeKind.ACTION
     assert isinstance(nc.spec.type_config, ActionConfig)
-    assert nc.spec.type_config.group == 'energy'
+    assert nc.spec.type_config.group == group_uuid
     assert nc.spec.node_group == 'transport'
     assert nc.spec.allow_nulls is True
     assert nc.spec.minimum_year == 2024
@@ -1147,7 +1149,8 @@ def test_node_metadata_does_not_mutate_spec_on_save(db_instance_config: Instance
 
 def test_runtime_rebuild_preserves_action_group_and_zero_no_effect_value(db_instance_config: InstanceConfig):
     assert db_instance_config.spec is not None
-    db_instance_config.spec.action_groups = [ActionGroup(id='grp', name='Group')]
+    group_uuid = _port_uuid('runtime-action-group')
+    db_instance_config.spec.action_groups = [ActionGroup(uuid=group_uuid, id='grp', name='Group')]
     db_instance_config.save(update_fields=['spec'])
 
     unit = unit_registry.parse_units('kt/a')
@@ -1159,7 +1162,7 @@ def test_runtime_rebuild_preserves_action_group_and_zero_no_effect_value(db_inst
             type_config=ActionConfig(
                 node_class=ACTION_NODE_CLASS,
                 decision_level=DecisionLevel.MUNICIPALITY,
-                group='grp',
+                group=group_uuid,
                 no_effect_value=0.0,
             ),
             output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],

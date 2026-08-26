@@ -51,6 +51,7 @@ class ChangeTargetKind(Enum):
     DIMENSION = 'dimension'
     DIMENSION_CATEGORY = 'dimension_category'
     DATA_POINT = 'data_point'
+    ACTION_GROUP = 'action_group'
     INSTANCE = 'instance'
     UNKNOWN = 'unknown'
 
@@ -72,6 +73,8 @@ _CT_TO_KIND: dict[tuple[str, str], ChangeTargetKind] = {
 
 
 def _resolve_target_kind(entry: InstanceModelLogEntry) -> ChangeTargetKind:
+    if entry.action.startswith('action_group.'):
+        return ChangeTargetKind.ACTION_GROUP
     ct = entry.content_type
     if ct is None:
         return ChangeTargetKind.UNKNOWN

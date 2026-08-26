@@ -194,7 +194,7 @@ def _export_type_config(node: Node) -> FormulaConfig | ActionConfig | SimpleConf
     if isinstance(node, ActionNode):
         return ActionConfig(
             decision_level=node.decision_level,
-            group=node.group.id if node.group is not None else None,
+            group=node.group.uuid if node.group is not None else None,
             parent=node.parent_action.id if node.parent_action is not None else None,
             no_effect_value=node.no_effect_value,
             node_class=node_class,

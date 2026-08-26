@@ -111,6 +111,7 @@ def snapshot_nodes_to_config_dicts(snapshot: InstanceSnapshot) -> tuple[list[dic
     node_snapshots = snapshot.nodes
     specs_by_uuid: dict[UUID, NodeSpec] = {}
     identifiers_by_uuid: dict[UUID, str] = {}
+    action_group_ids_by_uuid = {group.uuid: group.id for group in snapshot.spec.action_groups}
     for n in node_snapshots:
         assert n.spec is not None, f'Node {n.uuid} has no spec'
         if n.identifier is None:
@@ -130,6 +131,7 @@ def snapshot_nodes_to_config_dicts(snapshot: InstanceSnapshot) -> tuple[list[dic
             n,
             input_nodes=input_edges.get(n.uuid, []),
             dataset_ports=dataset_ports_by_node.get(n.uuid, []),
+            action_group_ids_by_uuid=action_group_ids_by_uuid,
         )
         spec = specs_by_uuid[n.uuid]
         if spec.type_config.kind == NodeKind.ACTION:
@@ -144,6 +146,7 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     n: NodeSnapshot,
     input_nodes: list[dict[str, Any]],
     dataset_ports: list[DatasetPortSnapshot],
+    action_group_ids_by_uuid: dict[UUID, str] | None = None,
 ) -> dict[str, Any]:
     assert n.spec is not None
     if n.identifier is None:
@@ -226,7 +229,10 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
         if tc.decision_level:
             node['decision_level'] = tc.decision_level.as_str()
         if tc.group:
-            node['group'] = tc.group
+            group_id = (action_group_ids_by_uuid or {}).get(tc.group)
+            if group_id is None:
+                raise ValueError(f'Action group with UUID {tc.group} not found')
+            node['group'] = group_id
         if tc.parent:
             node['parent'] = tc.parent
         if tc.no_effect_value is not None:

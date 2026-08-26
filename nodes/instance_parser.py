@@ -229,6 +229,9 @@ class InstanceConfigParser:
             self._resolved_node_uuids[identifier] = node_uuid
         return node_uuid
 
+    def _action_group_uuid(self, identifier: str) -> UUID:
+        return self._uuid_from_identifiers(['action-group', identifier])
+
     # -- top level ------------------------------------------------------------
 
     def parse(self) -> InstanceSnapshot:
@@ -484,6 +487,7 @@ class InstanceConfigParser:
         for idx, agc in enumerate(config.get('action_groups', [])):
             agcs.append(
                 ActionGroup(
+                    uuid=self._action_group_uuid(agc['id']),
                     id=agc['id'],
                     name=_require_trans_string(dict(agc), 'name'),
                     color=agc.get('color'),
@@ -1264,7 +1268,7 @@ class InstanceConfigParser:
             no_effect_value = getattr(parsed.node_class, 'no_effect_value', None)
         return ActionConfig(
             decision_level=decision_level,
-            group=group,
+            group=self._action_group_uuid(group) if group is not None else None,
             parent=config.get('parent'),
             no_effect_value=no_effect_value,
             node_class=node_class,

@@ -873,9 +873,9 @@ class InstanceLoader:
                 if tc.decision_level is not None:
                     node.decision_level = tc.decision_level
                 if tc.group is not None:
-                    ag = next((ag for ag in self.instance.action_groups if ag.id == tc.group), None)
+                    ag = next((ag for ag in self.instance.action_groups if ag.uuid == tc.group), None)
                     if ag is None:
-                        self._init_failure(node, "Action group '%s' not found" % tc.group)
+                        self._init_failure(node, "Action group with UUID '%s' not found" % tc.group)
                     else:
                         node.group = ag
                 if tc.parent is not None:

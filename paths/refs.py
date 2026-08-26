@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections.abc import Hashable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, TypeVar
+from uuid import UUID
 
 from pydantic import AfterValidator, Field
 from pydantic_core import PydanticCustomError
 
 from .identifiers import (
-    ActionGroupIdentifier,
     DimensionCategoryIdentifier,
     DimensionIdentifier,
     NodeIdentifier,
@@ -184,14 +184,14 @@ def validate_parameter_local_id(v: str, info: ValidationInfo) -> str:
     return v
 
 
-def validate_action_group_ref(v: str, info: ValidationInfo) -> str:
+def validate_action_group_ref(v: UUID, info: ValidationInfo) -> UUID:
     ctx = get_validation_context(info)
     if ctx is None:
         return v
     context = ctx.context
-    group_ids = [group.id for group in context.instance.action_groups]
-    if v not in group_ids:
-        raise ValueError(f'Action group with id {v} not found')
+    group_uuids = [group.uuid for group in context.instance.action_groups]
+    if v not in group_uuids:
+        raise ValueError(f'Action group with UUID {v} not found')
     return v
 
 
@@ -219,5 +219,5 @@ NodeOutputDimensionRef = Annotated[NodeOutputDimensionIdentifier, AfterValidator
 DimensionCategoryRef = Annotated[DimensionCategoryIdentifier, AfterValidator(validate_dimension_category_id)]
 ParameterGlobalRef = Annotated[ParameterGlobalId, AfterValidator(validate_parameter_global_id)]
 ParameterLocalRef = Annotated[ParameterLocalId, AfterValidator(validate_parameter_local_id)]
-ActionGroupRef = Annotated[ActionGroupIdentifier, AfterValidator(validate_action_group_ref)]
+ActionGroupRef = Annotated[UUID, AfterValidator(validate_action_group_ref)]
 QuantityKindRef = Annotated[QuantityKindIdentifier, AfterValidator(validate_quantity_kind_ref)]

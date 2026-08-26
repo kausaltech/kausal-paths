@@ -46,6 +46,7 @@ from .graph import (
     NodeEdgeType,
     NodePortRef,
     _external_dataset_id_from_dataset,
+    action_group_types,
 )
 from .layout import NodeLayoutType
 from .node import QuantityKindType
@@ -303,6 +304,14 @@ class InstanceEditorFields:
     @staticmethod
     def spec(root: 'InstanceEditorFields') -> InstanceModelSpec | None:
         return root._config.spec
+
+    @sb.field(graphql_type=list[ActionGroupType])
+    @staticmethod
+    def action_groups(root: 'InstanceEditorFields') -> list[ActionGroupType]:
+        spec = root._config.spec
+        if spec is None:
+            return []
+        return action_group_types(list(spec.action_groups))
 
     @sb.field(graphql_type=list[NodeEdgeType])
     @staticmethod
@@ -770,7 +779,7 @@ class InstanceType:
 
     @sb.field
     def action_groups(self) -> list[ActionGroupType]:
-        return cast('list[ActionGroupType]', list(self.spec.action_groups))
+        return action_group_types(list(self.spec.action_groups))
 
     @sb.field
     def features(self) -> InstanceFeaturesType:

@@ -13,7 +13,7 @@ import pytest
 from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-from nodes.defs.node_defs import DatasetPortSpec, InputDatasetDef, NodeSpec
+from nodes.defs.node_defs import ActionConfig, DatasetPortSpec, InputDatasetDef, NodeSpec
 from nodes.instance_serialization import (
     SNAPSHOT_SCHEMA_VERSION,
     DatasetPortSnapshot,
@@ -139,6 +139,43 @@ def test_snapshot_v8_upgrade_merges_legacy_binding_arrays():
         ('edge', edge_uuid, 0),
         ('dataset', port_uuid, 1),
     ]
+
+
+def test_snapshot_v9_upgrade_adds_action_group_uuids_and_rewrites_references():
+    instance_uuid = uuid.uuid4()
+    node_uuid = uuid.uuid4()
+    legacy = {
+        'schema_version': 9,
+        'metadata': {'uuid': str(instance_uuid)},
+        'spec': {
+            **InstanceModelSpec(years=YearsSpec(target=2030)).model_dump(mode='json'),
+            'action_groups': [{'id': 'energy', 'name': {'en': 'Energy'}, 'order': 0}],
+        },
+        'nodes': [
+            {
+                'uuid': str(node_uuid),
+                'identifier': 'action',
+                'spec': {
+                    **NodeSpec().model_dump(mode='json'),
+                    'type_config': {
+                        'kind': 'action',
+                        'node_class': 'nodes.actions.simple.AdditiveAction',
+                        'group': 'energy',
+                    },
+                },
+            }
+        ],
+        'bindings': [],
+    }
+
+    snapshot = InstanceSnapshot.from_serialized_data(legacy)
+
+    expected_uuid = uuid.uuid3(instance_uuid, 'action-group:energy')
+    assert snapshot.schema_version == SNAPSHOT_SCHEMA_VERSION
+    assert snapshot.spec.action_groups[0].uuid == expected_uuid
+    assert snapshot.nodes[0].spec is not None
+    assert isinstance(snapshot.nodes[0].spec.type_config, ActionConfig)
+    assert snapshot.nodes[0].spec.type_config.group == expected_uuid
 
 
 def test_i18n_node_metadata_stays_dict_serializable():
