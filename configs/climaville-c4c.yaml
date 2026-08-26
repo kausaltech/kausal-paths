@@ -375,7 +375,7 @@ nodes:
   name_en: Energy Emission Factors
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/TJ
+  unit: kg/kWh
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
@@ -415,7 +415,7 @@ nodes:
   name_en: CHP District Heat Energy Consumption (Excluding Electricity)
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
@@ -436,7 +436,7 @@ nodes:
   name_en: CHP District Heat Electricity Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
@@ -473,7 +473,7 @@ nodes:
   name_en: CHP Electricity Generation Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
@@ -508,7 +508,7 @@ nodes:
   name_en: CHP Electricity Generation Energy Factors
   type: simple.AdditiveNode
   quantity: energy_factor
-  unit: TJ/TJ
+  unit: MWh/MWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
@@ -525,7 +525,7 @@ nodes:
   name_en: CHP Electricity Generation Energy Production
   type: simple.MultiplicativeNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
@@ -558,7 +558,7 @@ nodes:
   name_en: Renewable Electricity Generation
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
@@ -574,7 +574,7 @@ nodes:
   name_en: Electricity Demand
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_usage, energy_carrier]
   output_dimensions: [energy_usage, energy_carrier]
   input_datasets:
@@ -589,7 +589,7 @@ nodes:
   name_en: Electricity Import
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
@@ -641,7 +641,7 @@ nodes:
   name_en: Manufacturing Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
@@ -683,7 +683,7 @@ nodes:
   name_en: Other Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
@@ -869,7 +869,7 @@ nodes:
   name_en: Transportation Energy Emission Factors
   type: simple.MultiplicativeNode
   quantity: emission_factor
-  unit: t/TJ
+  unit: kg/kWh
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
@@ -912,7 +912,7 @@ nodes:
   name_en: Gasoline Hybrid Emission Factors
   type: simple.MultiplicativeNode
   quantity: emission_factor
-  unit: t/TJ
+  unit: kg/kWh
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
@@ -1009,7 +1009,7 @@ nodes:
   name_en: On-Road Transport Bus Energy Consumption
   type: simple.MultiplicativeNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, owner, vehicle_type]
   output_dimensions: [energy_carrier, owner, vehicle_type]
   input_nodes:
@@ -1142,7 +1142,7 @@ nodes:
   name_en: On-Road Transport Vehicle Energy Consumption
   type: simple.MultiplicativeNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
@@ -1427,7 +1427,7 @@ nodes:
   name_en: Rail Transport Energy Consumption
   type: simple.MultiplicativeNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
@@ -1544,7 +1544,7 @@ nodes:
   name_en: Waterborne Transport Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
@@ -1593,7 +1593,7 @@ nodes:
   name_en: Aviation Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
