@@ -2203,7 +2203,7 @@ actions:
       flatten: true
 
 - id: green_district_heating_of_the_future
-  name_en: Climaville's 'Next-Generation Green District Heating' Intiative
+  name_en: Next-Generation Green District Heating Programme
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector]
