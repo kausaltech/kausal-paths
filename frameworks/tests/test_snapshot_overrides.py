@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -9,6 +10,9 @@ from frameworks.tests.factories import FrameworkConfigFactory
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec, YearsSpec
 from nodes.instance_serialization import InstanceSnapshot
 from nodes.scenario import Scenario, ScenarioKind
+
+if TYPE_CHECKING:
+    from django.test import Client
 
 pytestmark = pytest.mark.django_db
 
@@ -74,6 +78,78 @@ def test_apply_snapshot_overrides_defaults_without_datapoints():
     assert years.max_historical == 2020
     # No fwc target year: the framework YAML's target stands.
     assert years.target == 2030
+
+
+def test_framework_instance_graphql_years_use_city_overrides(
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from paths.tests.graphql import PathsTestClient
+
+    from nodes.models import InstanceConfig
+
+    fwc = FrameworkConfigFactory.create(baseline_year=2019, target_year=2040)
+    fwc.instance_config.spec = make_framework_snapshot().spec
+    fwc.instance_config.save(update_fields=['spec'])
+    add_measure_datapoints(fwc, years_with_values=[2019], years_without_values=[2020])
+
+    def fail_enter_instance_context(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError('framework year fields must not hydrate the runtime instance')
+
+    monkeypatch.setattr(InstanceConfig, 'enter_instance_context', fail_enter_instance_context)
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(fwc.instance_config)
+
+    data = gql_client.query_data('{ instance { referenceYear minimumHistoricalYear maximumHistoricalYear targetYear } }')
+
+    assert data['instance'] == {
+        'referenceYear': 2019,
+        'minimumHistoricalYear': 2019,
+        'maximumHistoricalYear': 2020,
+        'targetYear': 2040,
+    }
+
+
+def test_framework_config_nested_instance_graphql_years_use_city_overrides(
+    client: Client,
+) -> None:
+    from paths.tests.graphql import PathsTestClient
+
+    from frameworks.roles import framework_admin_role
+    from users.models import User
+
+    fwc = FrameworkConfigFactory.create(baseline_year=2021, target_year=2035)
+    fwc.instance_config.spec = make_framework_snapshot().spec
+    fwc.instance_config.save(update_fields=['spec'])
+    user = User.objects.create_user(username='framework-admin', email='framework-admin@example.com')
+    framework_admin_role.assign_user(fwc.framework, user)
+    client.force_login(user)
+
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(fwc.instance_config)
+    data = gql_client.query_data(
+        """
+        {
+          instance {
+            frameworkConfig {
+              instance {
+                referenceYear
+                minimumHistoricalYear
+                maximumHistoricalYear
+                targetYear
+              }
+            }
+          }
+        }
+        """
+    )
+
+    assert data['instance']['frameworkConfig']['instance'] == {
+        'referenceYear': 2021,
+        'minimumHistoricalYear': 2021,
+        'maximumHistoricalYear': 2021,
+        'targetYear': 2035,
+    }
 
 
 def test_scenario_actual_historical_years_authored_wins():

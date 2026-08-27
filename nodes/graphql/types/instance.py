@@ -2,6 +2,7 @@ import enum
 from collections import Counter
 from collections.abc import Iterable
 from datetime import datetime
+from functools import cached_property
 from typing import TYPE_CHECKING, Annotated, Any, Protocol, Self, cast
 from uuid import UUID
 
@@ -672,11 +673,14 @@ class InstanceType:
             is_locked=ic.is_locked,
         )
 
-    @property
+    @cached_property
     def spec(self) -> InstanceModelSpec:
         if self._snapshot is not None:
             return self._snapshot.spec
-        return self._config.ensure_spec()
+        spec = self._config.ensure_spec()
+        if self._config.has_framework_config():
+            return self._config.framework_config.apply_spec_overrides(spec)
+        return spec
 
     def snapshot(self, info: gql.Info) -> InstanceSnapshot:
         return self._snapshot or info.context.require_instance_snapshot(self._config, source=self._source)

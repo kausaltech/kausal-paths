@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from paths.schema_context import PathsGraphQLContext
 
     from frameworks.permissions import MeasureTemplatePermissionPolicy
+    from nodes.defs.instance_defs import InstanceModelSpec
     from nodes.gpc import DatasetNode
     from nodes.instance import Instance
     from nodes.instance_serialization import InstanceSnapshot
@@ -988,6 +989,24 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             )
         return len(selected_defaults)
 
+    def apply_spec_overrides(self, spec: InstanceModelSpec) -> InstanceModelSpec:
+        """Return the shared framework spec with this city's year boundaries applied."""
+        from django.db.models import Max, Min
+
+        mdp_years = MeasureDataPoint.objects.filter(measure__framework_config=self).aggregate(
+            min_year=Min('year'),
+            max_year=Max('year'),
+        )
+        years = spec.years.model_copy(
+            update={
+                'reference': self.baseline_year,
+                'min_historical': mdp_years['min_year'] or self.baseline_year,
+                'max_historical': mdp_years['max_year'] or self.baseline_year,
+                **({'target': self.target_year} if self.target_year is not None else {}),
+            }
+        )
+        return spec.model_copy(update={'years': years})
+
     def apply_snapshot_overrides(self, snapshot: InstanceSnapshot) -> InstanceSnapshot:
         """
         Overlay this configuration onto a parsed framework snapshot.
@@ -997,13 +1016,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         The overlay resolves them into the snapshot once, so the loader needs
         no framework knowledge.
         """
-        from django.db.models import Max, Min
-
         ic = self.instance_config
-        mdp_years = MeasureDataPoint.objects.filter(measure__framework_config=self).aggregate(
-            min_year=Min('year'),
-            max_year=Max('year'),
-        )
         metadata = snapshot.metadata.model_copy(
             update={
                 'uuid': ic.uuid,
@@ -1012,15 +1025,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
                 'owner': self.organization_name or '',
             }
         )
-        years = snapshot.spec.years.model_copy(
-            update={
-                'reference': self.baseline_year,
-                'min_historical': mdp_years['min_year'] or self.baseline_year,
-                'max_historical': mdp_years['max_year'] or self.baseline_year,
-                **({'target': self.target_year} if self.target_year is not None else {}),
-            }
-        )
-        spec = snapshot.spec.model_copy(update={'years': years})
+        spec = self.apply_spec_overrides(snapshot.spec)
         return snapshot.model_copy(update={'metadata': metadata, 'spec': spec})
 
     def create_model_instance(self, ic: InstanceConfig) -> Instance:
