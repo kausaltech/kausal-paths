@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from django.utils.translation import gettext_lazy as _
 
@@ -18,18 +18,28 @@ from nodes.constants import (
     VALUE_COLUMN,
     YEAR_COLUMN,
 )
+from nodes.constraints.port_roles import PortRoleInferenceResult
+from nodes.constraints.rules import AnyShapeRule, SameShapeRule
+from nodes.defs.binding_def import DatasetBindingDef
+from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef
 from nodes.exceptions import NodeError
 from nodes.node import Node, NodeMetric
 from nodes.simple import AdditiveNode, MixNode, MultiplicativeNode, SimpleNode
 from params.param import BoolParameter
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from polars.expr.expr import Expr
 
+    from nodes.instance_graph import NodeMeta
     from nodes.units import Unit
 
 
 class BuildingEnergy(AdditiveNode):
+    energy_port = InputPort.one('energy', label=_('Building energy'))
+    other_fuel_use_port = InputPort.one('other_fuel_use', label=_('Other fuel use'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (energy_port, other_fuel_use_port)
     output_metrics = {ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY)}
     output_dimension_ids = [
         'energy_carrier',
@@ -38,8 +48,28 @@ class BuildingEnergy(AdditiveNode):
         'energy_carrier',
     ]
 
+    @classmethod
+    def shape_rules(cls, meta: NodeMeta) -> tuple[AnyShapeRule, ...]:
+        inputs = meta.input_port_ids_for_roles('energy', 'other_fuel_use')
+        if not inputs:
+            return ()
+        return (SameShapeRule(inputs=inputs, output=meta.require_output_port('output').id),)
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            if 'energy' in tags:
+                result.classify(port, 'energy', "binding tag 'energy'")
+            elif 'other_fuel_use' in tags:
+                result.classify(port, 'other_fuel_use', "binding tag 'other_fuel_use'")
+            else:
+                result.refuse(port, 'not one of the two dataset inputs consumed by BuildingEnergy')
+        return result
+
     def compute(self) -> ppl.PathsDataFrame:
-        df = self.get_input_dataset_pl(tag='energy')
+        df = self.require_input(self.energy_port)
         meta = df.get_meta()
         metric_ids = meta.metric_cols
         if len(metric_ids) == 1:
@@ -55,7 +85,7 @@ class BuildingEnergy(AdditiveNode):
         df = df.with_columns([pl.col(col).alias(VALUE_COLUMN), pl.lit(value=False).alias(FORECAST_COLUMN)])
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
 
-        odf = self.get_input_dataset_pl('other_fuel_use')
+        odf = self.require_input(self.other_fuel_use_port)
         assert len(odf.metric_cols) == 1
         odf = odf.with_columns(pl.col(odf.metric_cols[0]) * -1)
 
@@ -396,17 +426,30 @@ class ElectricityProductionMixLegacy(MixNode):
 
 
 class GasGridMixin(Node):
-    def use_gas_grid(self, df: ppl.PathsDataFrame):
+    gas_mix_port: ClassVar[InputPortDeclaration]
+    grid_share_port: ClassVar[InputPortDeclaration]
+
+    def use_gas_grid(
+        self,
+        df: ppl.PathsDataFrame,
+        *,
+        gas_mix_df: ppl.PathsDataFrame | None = None,
+        grid_share_df: ppl.PathsDataFrame | None = None,
+    ) -> ppl.PathsDataFrame:
         df = df.paths.to_wide(only_category_names=True)
         df = df.with_columns([pl.col(col).fill_nan(0.0) for col in df.metric_cols])
         df = df.sum_cols(['natural_gas', 'biogas', 'biogas_import'], out_col='all_gas', skip_missing=True)
 
-        snode = self.get_input_node(tag='grid_share')
-        sdf = snode.get_output_pl(target_node=self)
+        if grid_share_df is None:
+            snode = self.get_input_node(tag='grid_share')
+            grid_share_df = snode.get_output_pl(target_node=self)
+        sdf = grid_share_df
         sdf = sdf.select_metrics(sdf.metric_cols[0], rename='GridShare').ensure_unit('GridShare', '')
 
-        mnode = self.get_input_node(tag='gas_mix')
-        mdf = mnode.get_output_pl(target_node=self)
+        if gas_mix_df is None:
+            mnode = self.get_input_node(tag='gas_mix')
+            gas_mix_df = mnode.get_output_pl(target_node=self)
+        mdf = gas_mix_df
         mdf = mdf.ensure_unit(mdf.metric_cols[0], '')
         mdf = mdf.paths.to_wide(only_category_names=True)
 
@@ -436,13 +479,49 @@ class GasGridMixin(Node):
 
 
 class DistrictHeatProductionMix(MixNode, GasGridMixin):
+    base_mix_port = InputPort.one('base_mix', label=_('Base mix'))
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
+    gas_mix_port = InputPort.optional('gas_mix', label=_('Gas mix'))
+    grid_share_port = InputPort.optional('grid_share', label=_('Gas grid share'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+        base_mix_port,
+        additive_port,
+        gas_mix_port,
+        grid_share_port,
+    )
+    export_additive_input_ports_as_multi = True
+    additive_multi_input_excluded_tags = frozenset({'gas_mix', 'grid_share', 'non_additive'})
+
     allowed_parameters = [
         *MixNode.allowed_parameters,
         BoolParameter(local_id='use_gas_network', label=_('District heat uses gas grid mix')),
     ]
 
+    @classmethod
+    def shape_rules(cls, meta: NodeMeta) -> tuple[AnyShapeRule, ...]:
+        inputs = meta.input_port_ids_for_roles('base_mix', 'additive')
+        if not inputs:
+            return ()
+        return (SameShapeRule(inputs=inputs, output=meta.require_output_port('output').id),)
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            bindings = meta.bindings_for_port(port.id)
+            tags = {tag for binding in bindings for tag in binding.tags}
+            if 'gas_mix' in tags:
+                result.classify(port, 'gas_mix', "binding tag 'gas_mix'")
+            elif 'grid_share' in tags:
+                result.classify(port, 'grid_share', "binding tag 'grid_share'")
+            elif any(isinstance(binding, DatasetBindingDef) for binding in bindings):
+                result.classify(port, 'base_mix', 'dataset binding')
+            else:
+                result.classify(port, 'additive', 'ordinary node binding')
+        return result
+
     def compute(self) -> ppl.PathsDataFrame:
-        mix_df = self.get_input_dataset_pl()
+        mix_df = self.require_input(self.base_mix_port)
         assert len(mix_df.metric_cols) == 1
         assert len(mix_df.dim_ids) == 1
         m = self.get_default_output_metric()
@@ -451,19 +530,16 @@ class DistrictHeatProductionMix(MixNode, GasGridMixin):
         df = mix_df.select([pl.col(YEAR_COLUMN), ec_s.alias(ec_dim_id), pl.col(mix_df.metric_cols[0]).alias(m.column_id)])
         df = extend_last_historical_value_pl(df, self.get_end_year())
 
-        add_nodes = list(self.input_nodes)
-        snode = self.get_input_node(tag='grid_share', required=False)
-        if snode is not None:
-            add_nodes.remove(snode)
-        mnode = self.get_input_node(tag='gas_mix', required=False)
-        if mnode is not None:
-            add_nodes.remove(mnode)
-
-        df = self.add_mix_normalized(df, add_nodes)
+        additive_df = self.get_input(self.additive_port)
+        if additive_df is not None:
+            df = df.paths.add_with_dims(additive_df, how='outer')
+        df = self.normalize_mix(df)
 
         use_grid = self.get_parameter_value('use_gas_network', required=False)
         if use_grid:
-            df = self.use_gas_grid(df)
+            gas_mix_df = self.require_input(self.gas_mix_port)
+            grid_share_df = self.require_input(self.grid_share_port)
+            df = self.use_gas_grid(df, gas_mix_df=gas_mix_df, grid_share_df=grid_share_df)
 
         return df
 

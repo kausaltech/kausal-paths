@@ -2742,6 +2742,8 @@ query NodeConstraintFields($instanceId: ID!) {
                         role
                         multi
                         repeatable
+                        required
+                        aggregation
                         minCount
                         defaultCount
                         instantiatedPortIds
@@ -2831,6 +2833,8 @@ def test_input_port_declaration_catalog(gql_client: PathsTestClient, db_instance
     assert factors['defaultCount'] == 2
     assert factors['instantiatedPortIds'] == [str(_port_uuid('factor1'))]
     assert declarations['additive']['multi'] is True
+    assert declarations['additive']['required'] is False
+    assert declarations['additive']['aggregation'] == 'sum'
 
 
 def test_create_node_instantiates_default_declared_ports(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

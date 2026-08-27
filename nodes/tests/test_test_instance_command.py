@@ -89,3 +89,13 @@ def test_failed_instance_detected_from_instance_details() -> None:
     state = CheckState(instance_details=[InstanceDetail(instance_id='test-instance', failure_at='nodes')])
 
     assert state.has_failed_instance('test-instance')
+
+
+def test_successful_instances_excludes_both_failure_representations() -> None:
+    state = CheckState(
+        checked_instances={'passing', 'failed-set', 'failed-detail'},
+        failed_instances={'failed-set'},
+        instance_details=[InstanceDetail(instance_id='failed-detail', failure_at='init')],
+    )
+
+    assert state.successful_instances() == {'passing'}

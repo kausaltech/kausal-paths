@@ -45,7 +45,7 @@ from .exceptions import NodeComputationError, NodeError, NodeMissingDefaultUnitE
 from .units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Sequence
+    from collections.abc import Callable, Collection, Iterator, Sequence
     from contextlib import AbstractContextManager
 
     import loguru
@@ -65,6 +65,7 @@ if typing.TYPE_CHECKING:
     from nodes.instance_graph import NodeMeta
     from nodes.instance_loader import ConfigLocation
     from nodes.instance_serialization import NodeSnapshot
+    from nodes.runtime_input import RuntimeInputBinding
     from nodes.visualizations import NodeVisualizations, VisualizationNodeDimension
     from params import Parameter
 
@@ -421,6 +422,9 @@ class Node:
     edges: list[Edge]
     'List of edges that connect this node to other nodes, both input and output.'
 
+    runtime_input_bindings: tuple[RuntimeInputBinding, ...]
+    """Graph-defined inputs paired with request-local sources, ordered by binding position."""
+
     global_parameters: list[str] = []
     "List of identifiers for global parameters that affect the node's output."
 
@@ -624,6 +628,7 @@ class Node:
 
         self.input_dataset_instances = input_datasets
         self.edges = []
+        self.runtime_input_bindings = ()
         self._baseline_values = None
         self.parameters = {}
         self.tags = set()
@@ -873,6 +878,62 @@ class Node:
             dfs.append(df)
 
         return dfs
+
+    def bind_runtime_inputs(self, bindings: Sequence[RuntimeInputBinding]) -> None:
+        """Attach the request-local projections of this node's graph bindings."""
+        self.runtime_input_bindings = tuple(sorted(bindings, key=lambda binding: (binding.position, str(binding.id))))
+
+    def _check_input_declaration(self, port: InputPortDeclaration) -> None:
+        if not any(declaration is port for declaration in self.input_port_declarations):
+            raise NodeError(self, f'Input port {port.role!r} is not declared by {type(self).__name__}')
+
+    def iter_inputs(self, port: InputPortDeclaration) -> Iterator[ppl.PathsDataFrame]:
+        """Yield every value bound to a semantic input role in stable binding order."""
+        self._check_input_declaration(port)
+        bindings = tuple(binding for binding in self.runtime_input_bindings if binding.port_role == port.role)
+        if not bindings and port.required:
+            raise NodeError(self, f'Required input role {port.role!r} has no bindings')
+
+        values: list[ppl.PathsDataFrame] = []
+        for binding in bindings:
+            try:
+                values.append(binding.get_value())
+            except Exception as error:
+                raise NodeError(
+                    self,
+                    f'Input binding {binding.id} for role {port.role!r} failed: {error}',
+                ) from error
+        return iter(values)
+
+    def get_input(self, port: InputPortDeclaration) -> ppl.PathsDataFrame | None:
+        """Resolve one semantic input, applying only its declared aggregation."""
+        if (port.multi or port.repeatable) and port.aggregation is None:
+            raise NodeError(self, f'Input role {port.role!r} delivers multiple values; use iter_inputs()')
+        values = list(self.iter_inputs(port))
+        if not values:
+            return None
+        if port.aggregation == 'sum':
+            result = values[0]
+            bindings = tuple(binding for binding in self.runtime_input_bindings if binding.port_role == port.role)
+            for binding, value in zip(bindings[1:], values[1:], strict=True):
+                try:
+                    result = result.paths.add_with_dims(value, how='outer')
+                except Exception as error:
+                    raise NodeError(
+                        self,
+                        f'Could not sum binding {binding.id} for input role {port.role!r}: {error}',
+                    ) from error
+            return result
+        if len(values) != 1:
+            raise NodeError(self, f'Input role {port.role!r} has {len(values)} bindings, expected one')
+        return values[0]
+
+    def require_input(self, port: InputPortDeclaration) -> ppl.PathsDataFrame:
+        """Resolve an input that is required by the current computation branch."""
+        value = self.get_input(port)
+        if value is None:
+            raise NodeError(self, f'Input role {port.role!r} is required in this configuration')
+        return value
 
     def get_input_datasets(self) -> list[pd.DataFrame]:
         dfs = self.get_input_datasets_pl()

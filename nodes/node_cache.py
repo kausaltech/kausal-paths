@@ -301,6 +301,15 @@ class NodeHasher:
         for node in self.node.input_nodes:
             hash_part('input node', node.id, node.hasher.calculate_hash(state=state))
 
+        for binding in self.node.runtime_input_bindings:
+            if binding.definition is None:
+                continue
+            hash_part(
+                'input binding',
+                str(binding.id),
+                binding.definition.model_dump_json(exclude_none=True),
+            )
+
         param_hash = ''
         for _, param in sorted(self.node.parameters.items(), key=lambda x: x[0]):
             ph = param.calculate_hash()

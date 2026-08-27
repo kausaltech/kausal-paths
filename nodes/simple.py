@@ -233,10 +233,12 @@ Input nodes tagged 'impute' are excluded from the addition; their values overlay
 afterwards instead, replacing it wherever the tagged node has a value and leaving the rest untouched.""")
     export_additive_input_ports_as_multi: ClassVar[bool] = False
     additive_multi_input_excluded_tags: ClassVar[frozenset[str]] = frozenset({'non_additive'})
-    additive_port = InputPortDeclaration(role='additive', multi=True, label=_('Additive inputs'))
-    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    additive_port = InputPortDeclaration(role='additive', multi=True, aggregation='sum', label=_('Additive inputs'))
+    impute_port = InputPortDeclaration(
+        role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
+    )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations = (additive_port, impute_port)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -505,10 +507,12 @@ afterwards instead, replacing it wherever the tagged input has a value.""")
     interpolates_input_datasets_by_default: ClassVar[bool] = True
     export_additive_input_ports_as_multi: ClassVar[bool] = False
     additive_multi_input_excluded_tags: ClassVar[frozenset[str]] = frozenset({'non_additive'})
-    additive_port = InputPortDeclaration(role='additive', multi=True, label=_('Additive inputs'))
-    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    additive_port = InputPortDeclaration(role='additive', multi=True, aggregation='sum', label=_('Additive inputs'))
+    impute_port = InputPortDeclaration(
+        role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
+    )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations = (additive_port, impute_port)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -978,10 +982,20 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
     ]
     operation_label = 'multiplication'
     factors_port = InputPortDeclaration(role='factors', repeatable=True, min_count=1, default_count=2, label=_('Factor'))
-    additive_port = InputPortDeclaration(role='additive', multi=True, min_count=0, default_count=1, label=_('Additive inputs'))
-    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    additive_port = InputPortDeclaration(
+        role='additive',
+        multi=True,
+        required=False,
+        aggregation='sum',
+        min_count=0,
+        default_count=1,
+        label=_('Additive inputs'),
+    )
+    impute_port = InputPortDeclaration(
+        role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
+    )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations = (factors_port, additive_port, impute_port)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (factors_port, additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -1247,10 +1261,20 @@ afterwards, replacing it wherever the tagged input has a value.""")
     interpolates_input_datasets_by_default: ClassVar[bool] = True
     operation_label = 'multiplication'
     factors_port = InputPortDeclaration(role='factors', repeatable=True, min_count=1, default_count=2, label=_('Factor'))
-    additive_port = InputPortDeclaration(role='additive', multi=True, min_count=0, default_count=1, label=_('Additive inputs'))
-    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    additive_port = InputPortDeclaration(
+        role='additive',
+        multi=True,
+        required=False,
+        aggregation='sum',
+        min_count=0,
+        default_count=1,
+        label=_('Additive inputs'),
+    )
+    impute_port = InputPortDeclaration(
+        role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
+    )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations = (factors_port, additive_port, impute_port)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (factors_port, additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -1487,6 +1511,10 @@ class MixNode(AdditiveNode):
 
     def add_mix_normalized(self, df: ppl.PathsDataFrame, nodes: list[Node], over_dims: list[str] | None = None):
         df = self.add_nodes_pl(df=df, nodes=nodes)
+        return self.normalize_mix(df, over_dims=over_dims)
+
+    def normalize_mix(self, df: ppl.PathsDataFrame, over_dims: list[str] | None = None) -> ppl.PathsDataFrame:
+        """Normalize an already combined mix frame and extend it through the model horizon."""
         if len(df.metric_cols) != 1:
             raise NodeError(self, 'Must have exactly one metric column')
 

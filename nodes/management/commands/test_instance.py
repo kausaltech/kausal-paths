@@ -10,7 +10,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from pydantic import BaseModel, Field, PrivateAttr
 
 import loguru
@@ -192,6 +192,9 @@ class CheckState(BaseModel):
             return True
         return any(details.instance_id == instance_id and details.failure_at is not None for details in self.instance_details)
 
+    def successful_instances(self) -> set[str]:
+        return {instance_id for instance_id in self.checked_instances if not self.has_failed_instance(instance_id)}
+
     def mark_failed(self, instance_id: str, reason: InstanceFailReason):
         self.checked_instances.add(instance_id)
         self.failed_instances.add(instance_id)
@@ -272,6 +275,11 @@ class Command(BaseCommand):
             dest='spec_only',
             action='store_true',
             help='Only initialize each instance; skip output comparison and node execution',
+        )
+        parser.add_argument(
+            '--smoke-test',
+            action='store_true',
+            help='Only initialize instances recorded as successfully checked; do not modify stored state',
         )
         parser.add_argument(
             '--dry-run',
@@ -1111,6 +1119,8 @@ class Command(BaseCommand):
         if self.spec_only:
             self.state.mark_success(instance)
             self.save_state()
+            logger.info('Cleaning instance')
+            instance.clean()
             return True
 
         ctx = instance.context
@@ -1181,6 +1191,15 @@ class Command(BaseCommand):
             self.compare = bool(options['compare'])
         self.spec_only = bool(options['spec_only'])
         self.dry_run = bool(options['dry_run'])
+        smoke_test = bool(options['smoke_test'])
+        if smoke_test:
+            if instance_ids or options['only']:
+                raise CommandError('--smoke-test selects instances from the state file; do not provide instance IDs or --only')
+            if self.store or options['compare']:
+                raise CommandError('--smoke-test cannot be combined with --store or --compare')
+            self.compare = False
+            self.spec_only = True
+            self.dry_run = True
         self.check_perf = bool(options['check_perf'])
         self.trace_rss = bool(options['trace_rss'])
         self.gc_after_instance = bool(options['gc_after_instance'])
@@ -1211,7 +1230,10 @@ class Command(BaseCommand):
             self.state.set_compare_mode()
 
         only_instance = options['only']
-        if only_instance:
+        if smoke_test:
+            instance_ids = sorted(self.state.successful_instances())
+            self.logger.info('Smoke-testing {count} previously successful instances', count=len(instance_ids))
+        elif only_instance:
             instance_ids = [only_instance]
         elif not instance_ids:
             self.logger.info('No instances provided, checking all instances')

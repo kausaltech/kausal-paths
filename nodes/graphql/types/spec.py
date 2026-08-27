@@ -63,6 +63,8 @@ class InputPortDeclarationType:
     label: str | None = sb.field(description='Presentation fallback for the role before a port carries its own label.')
     multi: bool = sb.field(description='One port instance accepting many bindings as a homogeneous aggregate.')
     repeatable: bool = sb.field(description='Many heterogeneous port instances of this role (e.g. each factor of a product).')
+    required: bool = sb.field(description='Whether computation requires at least one binding for this role.')
+    aggregation: str | None = sb.field(description='Operation combining a multi port into one delivered value.')
     min_count: int
     default_count: int = sb.field(description='Port instances created by default at node creation.')
     instantiated_port_ids: list[UUID]
@@ -86,6 +88,8 @@ class InputPortDeclarationType:
             label=str(declaration.label) if declaration.label else None,
             multi=declaration.multi,
             repeatable=declaration.repeatable,
+            required=declaration.required,
+            aggregation=declaration.aggregation,
             min_count=declaration.min_count,
             default_count=declaration.effective_default_count,
             instantiated_port_ids=instantiated,

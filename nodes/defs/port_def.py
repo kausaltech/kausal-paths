@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
 from pydantic import Field, PrivateAttr
@@ -26,9 +26,8 @@ class InputPortDeclaration:
 
     Two kinds of multiplicity, each meaning exactly one thing:
 
-    * ``multi`` — one port instance accepting many bindings. The delivered
-      values form a *homogeneous* aggregate: every binding is shape-equal
-      and the values are summed.
+    * ``multi`` — one port instance accepting many bindings. The values are
+      delivered individually unless ``aggregation`` names an operation.
     * ``repeatable`` — many port instances of this role. Each instance is
       *heterogeneous*: it carries its own unit, quantity and dimension
       expectations (e.g. each factor of a product).
@@ -43,6 +42,10 @@ class InputPortDeclaration:
     label: str | Promise | None = None
     multi: bool = False
     repeatable: bool = False
+    required: bool = True
+    """Whether computation requires at least one binding for this role."""
+    aggregation: Literal['sum'] | None = None
+    """Optional operation that combines a multi port into one delivered value."""
     min_count: int = 1
     """Minimum number of port instances of this role for a valid node."""
     default_count: int | None = None
@@ -57,6 +60,8 @@ class InputPortDeclaration:
             raise ValueError(f'Port role {self.role!r}: default_count may not be below min_count')
         if not self.repeatable and max(self.min_count, self.default_count or 0) > 1:
             raise ValueError(f'Port role {self.role!r}: only a repeatable role may have more than one instance')
+        if self.aggregation is not None and not self.multi:
+            raise ValueError(f'Port role {self.role!r}: aggregation requires a multi port')
 
     @property
     def instance_identifier(self) -> MixedCaseIdentifier:
@@ -65,6 +70,50 @@ class InputPortDeclaration:
     @property
     def effective_default_count(self) -> int:
         return self.default_count if self.default_count is not None else self.min_count
+
+
+class InputPort:
+    """Concise constructors for class-level input port declarations."""
+
+    @staticmethod
+    def one(role: MixedCaseIdentifier, *, label: str | Promise | None = None) -> InputPortDeclaration:
+        return InputPortDeclaration(role=role, label=label)
+
+    @staticmethod
+    def optional(role: MixedCaseIdentifier, *, label: str | Promise | None = None) -> InputPortDeclaration:
+        return InputPortDeclaration(role=role, label=label, required=False)
+
+    @staticmethod
+    def multi(
+        role: MixedCaseIdentifier,
+        *,
+        required: bool = True,
+        aggregation: Literal['sum'] | None = None,
+        label: str | Promise | None = None,
+    ) -> InputPortDeclaration:
+        return InputPortDeclaration(
+            role=role,
+            label=label,
+            multi=True,
+            required=required,
+            aggregation=aggregation,
+        )
+
+    @staticmethod
+    def repeatable(
+        role: MixedCaseIdentifier,
+        *,
+        min_count: int = 1,
+        default_count: int | None = None,
+        label: str | Promise | None = None,
+    ) -> InputPortDeclaration:
+        return InputPortDeclaration(
+            role=role,
+            label=label,
+            repeatable=True,
+            min_count=min_count,
+            default_count=default_count,
+        )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
