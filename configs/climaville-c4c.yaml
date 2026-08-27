@@ -138,7 +138,7 @@ dimensions:
   - id: bio_oil
     label: Bio Oil
   - id: bio_natural_gas
-    label: Bio-natural Gas
+    label: Bio Natural Gas
   - id: biodegradable_waste
     label: Biodegradable Waste
   - id: biodiesel
@@ -164,7 +164,7 @@ dimensions:
   - id: natural_gas
     label: Natural Gas
   - id: non_biodegradable_waste
-    label: Non-biodegradable Waste
+    label: Non-Biodegradable Waste
   - id: other_renewable_energy
     label: Other Renewable Energy
   - id: other_wood
@@ -1953,7 +1953,7 @@ actions:
     unit: EUR/a
     quantity: currency
   output_nodes:
-  - id: chp_district_heat_energy_consumption
+  - id: chp_district_heat_electricity_consumption
     metrics: [energy]
     from_dimensions:
     - id: energy_usage
@@ -2119,6 +2119,18 @@ actions:
   - id: chp_district_heat_energy_consumption
     metrics: [energy]
     from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+    - id: cost_type
+      flatten: true
+    - id: sector
+      categories: [i11]
+  - id: chp_district_heat_electricity_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
     - id: cost_type
       flatten: true
     - id: sector
