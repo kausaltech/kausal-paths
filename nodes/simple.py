@@ -980,12 +980,12 @@ class SubtractiveNode(Node):  # FIXME Remove, when you clean Longmont.
             is_customizable=False,
         ),
     ]
-    input_port = InputPortDeclaration(role='input', multi=True, label=_('Inputs'))
+    input_port = InputPortDeclaration(role='input', repeatable=True, label=_('Inputs'))
     input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
     legacy_untagged_input_role = 'input'
 
     def compute(self) -> ppl.PathsDataFrame:
-        values = list(self.iter_inputs(self.input_port))
+        values = [self.require_input_port(port) for port in self.iter_input_ports(self.input_port)]
         if not values:
             raise NodeError(self, 'SubtractiveNode needs at least one input')
         df = values[0]

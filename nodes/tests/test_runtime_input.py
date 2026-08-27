@@ -25,7 +25,7 @@ from nodes.instance_parser import parse_instance_snapshot
 from nodes.instance_serialization import EdgeSnapshot, InstanceSnapshot, NodeSnapshot
 from nodes.node import Node, NodeMetric
 from nodes.runtime_input import RuntimeInputBinding
-from nodes.simple import MultiplicativeNode
+from nodes.simple import FillNewCategoryNode, MultiplicativeNode, SubtractiveNode
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from nodes.tests.node_input_harness import bind, binding, frame, node_case
 from nodes.units import unit_registry
@@ -179,6 +179,110 @@ def test_instance_loader_attaches_graph_defined_runtime_bindings() -> None:
     assert runtime_binding.source_kind == 'node'
     assert runtime_binding.source_id == 'source'
     assert runtime_binding.definition is not None
+
+
+def test_yaml_runtime_bindings_preserve_target_input_order() -> None:
+    config = {
+        'id': 'ordered_runtime_inputs',
+        'default_language': 'en',
+        'supported_languages': [],
+        'name': 'Ordered runtime inputs',
+        'owner': 'Owner',
+        'target_year': 2030,
+        'minimum_historical_year': 2020,
+        'maximum_historical_year': 2020,
+        'reference_year': 2020,
+        'nodes': [
+            {
+                'id': 'subtract',
+                'type': 'nodes.simple.SubtractiveNode',
+                'name': 'Subtract',
+                'unit': 'kWh',
+                'quantity': 'energy',
+                'input_nodes': ['minuend', 'subtrahend'],
+            },
+            {
+                'id': 'subtrahend',
+                'type': 'nodes.simple.AdditiveNode',
+                'name': 'Subtrahend',
+                'unit': 'kWh',
+                'quantity': 'energy',
+                'historical_values': [[2020, 3.0]],
+            },
+            {
+                'id': 'minuend',
+                'type': 'nodes.simple.AdditiveNode',
+                'name': 'Minuend',
+                'unit': 'kWh',
+                'quantity': 'energy',
+                'historical_values': [[2020, 10.0]],
+            },
+        ],
+    }
+    snapshot = parse_instance_snapshot(config, instance_uuid=uuid4())
+    target = InstanceLoader(snapshot=snapshot).context.nodes['subtract']
+    assert isinstance(target, SubtractiveNode)
+
+    assert [port.bindings[0].source_id for port in target.iter_input_ports(target.input_port)] == [
+        'minuend',
+        'subtrahend',
+    ]
+    assert target.compute().filter(pl.col(YEAR_COLUMN) == 2020)[VALUE_COLUMN].to_list() == [7.0]
+
+
+def test_fill_new_category_accepts_dataset_and_edge_inputs() -> None:
+    config = {
+        'id': 'fill_category_inputs',
+        'default_language': 'en',
+        'supported_languages': [],
+        'name': 'Fill category inputs',
+        'owner': 'Owner',
+        'target_year': 2030,
+        'minimum_historical_year': 2020,
+        'maximum_historical_year': 2020,
+        'reference_year': 2020,
+        'dimensions': [
+            {
+                'id': 'programme',
+                'label': 'Programme',
+                'categories': [
+                    {'id': 'improvement', 'label': 'Improvement'},
+                    {'id': 'none', 'label': 'None'},
+                ],
+            }
+        ],
+        'nodes': [
+            {
+                'id': 'source',
+                'type': 'nodes.simple.AdditiveNode',
+                'name': 'Source',
+                'unit': '%',
+                'quantity': 'fraction',
+                'output_dimensions': ['programme'],
+                'output_nodes': ['target'],
+            },
+            {
+                'id': 'target',
+                'type': 'nodes.simple.FillNewCategoryNode',
+                'name': 'Target',
+                'unit': '%',
+                'quantity': 'fraction',
+                'input_dimensions': ['programme'],
+                'output_dimensions': ['programme'],
+                'input_datasets': ['some/data'],
+                'params': {'new_category': 'programme:none'},
+            },
+        ],
+    }
+    snapshot = parse_instance_snapshot(config, instance_uuid=uuid4())
+    catalog_loader = object.__new__(InstanceLoader)
+    catalog_loader.instance_config = None
+    catalog_loader._stash_snapshot_bindings(snapshot)
+    target = next(meta for meta in catalog_loader._instance_graph.nodes if meta.identifier == 'target')
+    assert target.node_class is FillNewCategoryNode
+
+    roles_by_source_kind = {binding.kind: target.role_for_input_port(binding.target_port) for binding in target.input_bindings}
+    assert roles_by_source_kind == {'dataset': 'additive', 'edge': 'additive'}
 
 
 def test_additive_action_receives_inline_values_through_its_input_port() -> None:
