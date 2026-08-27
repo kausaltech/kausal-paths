@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import Field, PrivateAttr
 
@@ -151,6 +151,10 @@ class InputPortDef(I18nBaseModel):
     unit: Unit | None = None
     multi: bool = False
     """When True, the port accepts multiple connections (aggregated by the node's computation)."""
+    paired_output_port_id: UUID | None = None
+    """Output port produced from this input by nodes with paired metric impacts."""
+    is_editable: bool = True
+    """Whether the port definition itself may be edited; bindings remain independently editable."""
     required_dimensions: UniqueList[DimensionRef] = Field(default_factory=list)
     supported_dimensions: UniqueList[DimensionRef] = Field(default_factory=list)
 
@@ -191,3 +195,61 @@ class OutputPortDef(I18nBaseModel):
     _metric_id: str | None = PrivateAttr(default=None)
 
     _node: 'Node | None' = PrivateAttr(default=None)
+
+
+def pair_input_ports_to_outputs(
+    input_ports: list[InputPortDef],
+    output_ports: list[OutputPortDef],
+    *,
+    role: MixedCaseIdentifier,
+    keep_unpaired: bool = True,
+) -> list[InputPortDef]:
+    """Pair legacy or newly generated single-metric inputs with output ports."""
+    remaining = list(input_ports)
+    paired: list[InputPortDef] = []
+
+    explicit = {port.paired_output_port_id: port for port in remaining if port.paired_output_port_id is not None}
+    used: set[UUID] = set()
+    for index, output in enumerate(output_ports):
+        port = explicit.get(output.id)
+        if port is None:
+            output_names = {str(value) for value in (output.identifier, output.column_id) if value is not None}
+            port = next(
+                (
+                    candidate
+                    for candidate in remaining
+                    if candidate.id not in used and candidate.identifier is not None and str(candidate.identifier) in output_names
+                ),
+                None,
+            )
+        if port is None and len(input_ports) == len(output_ports) and index < len(input_ports):
+            candidate = input_ports[index]
+            if candidate.id not in used:
+                port = candidate
+        if port is None and len(input_ports) == len(output_ports) == 1:
+            port = input_ports[0]
+        if port is None:
+            port = InputPortDef(
+                id=uuid5(NAMESPACE_URL, f'kausal-paths:paired-input-port:{output.id}'),
+            )
+
+        used.add(port.id)
+        identifier = output.identifier or output.column_id
+        paired.append(
+            port.model_copy(
+                update={
+                    'identifier': identifier,
+                    'label': output.label,
+                    'role': role,
+                    'quantity': output.quantity,
+                    'unit': output.unit,
+                    'multi': False,
+                    'paired_output_port_id': output.id,
+                    'is_editable': False,
+                }
+            )
+        )
+
+    if keep_unpaired:
+        paired.extend(port for port in remaining if port.id not in used)
+    return paired

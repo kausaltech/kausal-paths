@@ -34,6 +34,7 @@ from nodes.generic import GenericNode
 from nodes.node import Node, NodeStatus
 from nodes.simple import AdditiveNode, AdditiveNode2, MultiplicativeNode, MultiplicativeNode2
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
+from nodes.tests.node_input_harness import add_binding, binding
 from nodes.units import unit_registry
 from params.param import BoolParameter, StringParameter
 
@@ -184,9 +185,32 @@ def _generic(context: Context, identifier: str, operations: str, unit: str = 'kW
 
 
 def _connect(source: Node, target: Node, tags: list[str] | None = None) -> None:
-    edge = Edge(input_node=source, output_node=target, tags=tags or [])
+    tags = tags or []
+    edge = Edge(input_node=source, output_node=target, tags=tags)
     source.add_edge(edge)
     target.add_edge(edge)
+    role = None
+    if isinstance(target, AdditiveNode):
+        role = 'impute' if 'impute' in tags else None if 'non_additive' in tags else 'additive'
+    elif isinstance(target, MultiplicativeNode):
+        if 'impute' in tags:
+            role = 'impute'
+        elif 'non_additive' in tags or not target.is_compatible_unit(source.unit, target.unit):
+            role = 'factors'
+        else:
+            role = 'additive'
+    if role is not None:
+        add_binding(
+            target,
+            binding(
+                role,
+                position=len(target.runtime_input_bindings),
+                source_kind='node',
+                source_id=source.id,
+                source=source,
+                value_loader=lambda: source.get_output_pl(target_node=target),
+            ),
+        )
 
 
 def _attach(
@@ -206,15 +230,27 @@ def _attach(
         transformations.append(BackfillOp())
     if extend:
         transformations.append(ExtendOp())
-    node.input_dataset_instances.append(
-        _FixedDataset(
-            id=identifier,
-            context=node.context,
-            fixed_df=df,
-            tags=tags or [],
-            transformations=transformations,
-        ),
+    dataset = _FixedDataset(
+        id=identifier,
+        context=node.context,
+        fixed_df=df,
+        tags=tags or [],
+        transformations=transformations,
     )
+    node.input_dataset_instances.append(dataset)
+    if isinstance(node, AdditiveNode) and 'non_additive' not in (tags or []):
+        role = 'impute' if 'impute' in (tags or []) else 'additive'
+        add_binding(
+            node,
+            binding(
+                role,
+                position=len(node.runtime_input_bindings),
+                source_kind='dataset',
+                source_id=dataset.id,
+                source=dataset,
+                value_loader=dataset.get_copy,
+            ),
+        )
 
 
 def _values(df: PathsDataFrame, dim: str | None = None) -> dict[Any, float | None]:
@@ -366,15 +402,14 @@ def test_additive_sums_dataset_together_with_nodes_but_extends_only_the_dataset(
     assert max(out) == node.get_end_year()
 
 
-def test_additive_refuses_two_datasets():
-    """Objective 1, the gap: two datasets are a hard error, however compatible they are."""
+def test_additive_sums_two_datasets():
+    """Dataset and node bindings share the additive multiport."""
     ctx = _make_context('add-two-datasets')
     node = _additive(ctx, 'sum')
     _attach(node, 'ds1', _ppdf([(2020, 10.0)]))
     _attach(node, 'ds2', _ppdf([(2020, 5.0)]))
 
-    with pytest.raises(NodeError, match=r'(?i)expected only 1 input dataset'):
-        node.compute()
+    assert _values(node.compute())[2020] == 15.0
 
 
 def test_additive_silently_drops_non_additive_input():

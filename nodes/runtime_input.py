@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Literal
+from uuid import NAMESPACE_URL, uuid5
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -11,6 +12,7 @@ if TYPE_CHECKING:
     from common.polars import PathsDataFrame
     from nodes.datasets import Dataset
     from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef, PortBindingDef
+    from nodes.defs.port_def import InputPortDef, OutputPortDef
     from nodes.node import Node
 
 
@@ -31,7 +33,7 @@ def _load_node_value(definition: EdgeBindingDef, source: Node, target: Node) -> 
     import polars as pl
 
     from nodes.constants import FORECAST_COLUMN, NODE_COLUMN, VALUE_COLUMN
-    from nodes.defs.transform_def import FlattenTransformation
+    from nodes.defs.transform_def import AssignDimensionOp, FlattenTransformation
     from nodes.exceptions import NodeError
     from nodes.transforms import PipelineEnv, apply_port_transformations
 
@@ -45,15 +47,19 @@ def _load_node_value(definition: EdgeBindingDef, source: Node, target: Node) -> 
         if FORECAST_COLUMN in df.columns:
             columns.append(FORECAST_COLUMN)
         df = df.select(columns).rename({column: VALUE_COLUMN})
+        # Match the legacy multi-metric edge selection: rows where the selected
+        # metric has no value do not belong to that output.  A single-metric
+        # frame is different: its null rows are part of the series and additive
+        # consumers deliberately interpret them as zero.
+        df = df.filter(pl.col(VALUE_COLUMN).is_not_null())
     if len(df.metric_cols) != 1:
         raise NodeError(source, f'Binding {definition.id} does not select exactly one output metric')
     metric = df.metric_cols[0]
     if metric != VALUE_COLUMN:
         df = df.rename({metric: VALUE_COLUMN})
-    df = df.filter(pl.col(VALUE_COLUMN).is_not_null())
 
     for dimension in list(df.dim_ids):
-        if df[dimension].null_count() == len(df):
+        if len(df) > 0 and df[dimension].null_count() == len(df):
             df = df.drop(dimension)
 
     operations = [op for op in definition.transformations if not isinstance(op, FlattenTransformation)]
@@ -66,7 +72,13 @@ def _load_node_value(definition: EdgeBindingDef, source: Node, target: Node) -> 
         elif df.paths.has_operation(tag):
             df = df.paths.get_operation(tag)(df, source.context)
 
-    expected_dimensions = {str(dimension) for dimension in definition.target_port.required_dimensions}
+    expected_dimensions = {
+        *(str(dimension) for dimension in definition.target_port.required_dimensions),
+        *(str(dimension) for dimension in definition.declared_dimensions),
+    }
+    expected_dimensions.update(
+        str(operation.dimension) for operation in definition.transformations if isinstance(operation, AssignDimensionOp)
+    )
     if expected_dimensions and set(df.dim_ids) != expected_dimensions:
         raise NodeError(
             source,
@@ -89,12 +101,35 @@ class RuntimeInputBinding:
     port_role: str
     position: int
     source_kind: Literal['node', 'dataset']
+    source: Node | Dataset | None
     value_loader: Callable[[], PathsDataFrame]
     source_id: str | None = None
+    target_port_id: UUID | None = None
     definition: PortBindingDef | None = None
 
     def get_value(self) -> PathsDataFrame:
         return self.value_loader()
+
+    @classmethod
+    def from_legacy_fixed_dataset(
+        cls,
+        source: Dataset,
+        *,
+        target: Node,
+        port_role: str,
+        position: int = -1,
+    ) -> RuntimeInputBinding:
+        """Adapt inline historical/forecast values until they are graph bindings."""
+        return cls(
+            id=uuid5(NAMESPACE_URL, f'kausal-paths:{target.id}:fixed-dataset:{source.id}'),
+            port_role=port_role,
+            position=position,
+            source_kind='dataset',
+            source=source,
+            source_id=source.id,
+            definition=None,
+            value_loader=source.get_copy,
+        )
 
     @classmethod
     def from_graph_binding(
@@ -119,7 +154,9 @@ class RuntimeInputBinding:
                 port_role=port_role,
                 position=definition.position,
                 source_kind='dataset',
+                source=source,
                 source_id=source.id,
+                target_port_id=definition.target_port.id,
                 definition=definition,
                 value_loader=partial(_load_dataset_value, definition, source),
             )
@@ -134,7 +171,20 @@ class RuntimeInputBinding:
             port_role=port_role,
             position=definition.position,
             source_kind='node',
+            source=source,
             source_id=source.id,
+            target_port_id=definition.target_port.id,
             definition=definition,
             value_loader=partial(_load_node_value, definition, source, target),
         )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RuntimeInputPort:
+    """One instantiated input port with its bindings and optional paired output."""
+
+    id: UUID
+    role: str
+    definition: InputPortDef | None
+    bindings: tuple[RuntimeInputBinding, ...]
+    paired_output: OutputPortDef | None = None

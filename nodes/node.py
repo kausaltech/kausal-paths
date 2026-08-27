@@ -47,6 +47,7 @@ from .units import Quantity, Unit, unit_registry
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Sequence
     from contextlib import AbstractContextManager
+    from uuid import UUID
 
     import loguru
     from rich.repr import RichReprResult
@@ -65,7 +66,7 @@ if typing.TYPE_CHECKING:
     from nodes.instance_graph import NodeMeta
     from nodes.instance_loader import ConfigLocation
     from nodes.instance_serialization import NodeSnapshot
-    from nodes.runtime_input import RuntimeInputBinding
+    from nodes.runtime_input import RuntimeInputBinding, RuntimeInputPort
     from nodes.visualizations import NodeVisualizations, VisualizationNodeDimension
     from params import Parameter
 
@@ -357,6 +358,9 @@ class Node:
     output_port_declarations: ClassVar[tuple[OutputPortDeclaration, ...]] = ()
     """Semantic role declarations shared by future get_input() and shape_rules()."""
 
+    legacy_fixed_dataset_input_role: ClassVar[str | None] = None
+    """Temporary role for inline historical/forecast values absent from InstanceGraph."""
+
     supports_authored_ports: ClassVar[bool] = False
     """
     Whether the editor may add free-form input ports on instances of this class.
@@ -424,6 +428,7 @@ class Node:
 
     runtime_input_bindings: tuple[RuntimeInputBinding, ...]
     """Graph-defined inputs paired with request-local sources, ordered by binding position."""
+    runtime_node_meta: NodeMeta | None
 
     global_parameters: list[str] = []
     "List of identifiers for global parameters that affect the node's output."
@@ -629,6 +634,7 @@ class Node:
         self.input_dataset_instances = input_datasets
         self.edges = []
         self.runtime_input_bindings = ()
+        self.runtime_node_meta = None
         self._baseline_values = None
         self.parameters = {}
         self.tags = set()
@@ -879,30 +885,109 @@ class Node:
 
         return dfs
 
-    def bind_runtime_inputs(self, bindings: Sequence[RuntimeInputBinding]) -> None:
+    def bind_runtime_inputs(self, bindings: Sequence[RuntimeInputBinding], *, node_meta: NodeMeta | None = None) -> None:
         """Attach the request-local projections of this node's graph bindings."""
         self.runtime_input_bindings = tuple(sorted(bindings, key=lambda binding: (binding.position, str(binding.id))))
+        self.runtime_node_meta = node_meta
 
     def _check_input_declaration(self, port: InputPortDeclaration) -> None:
         if not any(declaration is port for declaration in self.input_port_declarations):
             raise NodeError(self, f'Input port {port.role!r} is not declared by {type(self).__name__}')
 
+    def iter_input_bindings(self, port: InputPortDeclaration) -> Iterator[RuntimeInputBinding]:
+        """Yield the bindings for a semantic input role in stable position order."""
+        self._check_input_declaration(port)
+        return (binding for binding in self.runtime_input_bindings if binding.port_role == port.role)
+
+    def iter_input_ports(self, declaration: InputPortDeclaration) -> Iterator[RuntimeInputPort]:
+        """Yield instantiated ports without collapsing a repeatable role into anonymous values."""
+        from collections import defaultdict
+
+        from nodes.runtime_input import RuntimeInputPort
+
+        self._check_input_declaration(declaration)
+        bindings_by_port: defaultdict[UUID, list[RuntimeInputBinding]] = defaultdict(list)
+        unassigned: list[RuntimeInputBinding] = []
+        for binding in self.iter_input_bindings(declaration):
+            if binding.target_port_id is None:
+                unassigned.append(binding)
+            else:
+                bindings_by_port[binding.target_port_id].append(binding)
+
+        meta = self.runtime_node_meta
+        if meta is None:
+            for port_id, bindings in bindings_by_port.items():
+                yield RuntimeInputPort(
+                    id=port_id,
+                    role=str(declaration.role),
+                    definition=None,
+                    bindings=tuple(bindings),
+                )
+            for binding in unassigned:
+                yield RuntimeInputPort(
+                    id=binding.id,
+                    role=str(declaration.role),
+                    definition=None,
+                    bindings=(binding,),
+                )
+            return
+
+        definitions = meta.input_ports_for_role(str(declaration.role))
+        if len(definitions) == 1 and unassigned:
+            bindings_by_port[definitions[0].id].extend(unassigned)
+            unassigned = []
+        for definition in definitions:
+            output = (
+                meta.spec.output_port_by_id.get(definition.paired_output_port_id)
+                if definition.paired_output_port_id is not None
+                else None
+            )
+            yield RuntimeInputPort(
+                id=definition.id,
+                role=str(declaration.role),
+                definition=definition,
+                bindings=tuple(bindings_by_port.pop(definition.id, ())),
+                paired_output=output,
+            )
+        for binding in unassigned:
+            yield RuntimeInputPort(
+                id=binding.id,
+                role=str(declaration.role),
+                definition=None,
+                bindings=(binding,),
+            )
+
+    def require_input_port(self, port: RuntimeInputPort) -> ppl.PathsDataFrame:
+        """Resolve one instantiated single-binding input port."""
+        if not port.bindings:
+            raise NodeError(self, f'Required input port {port.id} for role {port.role!r} has no binding')
+        if len(port.bindings) != 1:
+            raise NodeError(self, f'Input port {port.id} for role {port.role!r} has {len(port.bindings)} bindings, expected one')
+        return self.resolve_input_binding(port.bindings[0])
+
+    def resolve_input_binding(self, binding: RuntimeInputBinding) -> ppl.PathsDataFrame:
+        """Resolve one runtime binding and attribute any failure to that binding."""
+        if binding not in self.runtime_input_bindings:
+            raise NodeError(self, f'Input binding {binding.id} is not attached to this node')
+        try:
+            return binding.get_value()
+        except Exception as error:
+            wrapped = NodeError(
+                self,
+                f'Input binding {binding.id} for role {binding.port_role!r} failed: {error}',
+            )
+            if isinstance(error, NodeError):
+                wrapped.event_chain = [*error.event_chain, *wrapped.event_chain]
+            raise wrapped from error
+
     def iter_inputs(self, port: InputPortDeclaration) -> Iterator[ppl.PathsDataFrame]:
         """Yield every value bound to a semantic input role in stable binding order."""
         self._check_input_declaration(port)
-        bindings = tuple(binding for binding in self.runtime_input_bindings if binding.port_role == port.role)
+        bindings = tuple(self.iter_input_bindings(port))
         if not bindings and port.required:
             raise NodeError(self, f'Required input role {port.role!r} has no bindings')
 
-        values: list[ppl.PathsDataFrame] = []
-        for binding in bindings:
-            try:
-                values.append(binding.get_value())
-            except Exception as error:
-                raise NodeError(
-                    self,
-                    f'Input binding {binding.id} for role {port.role!r} failed: {error}',
-                ) from error
+        values = [self.resolve_input_binding(binding) for binding in bindings]
         return iter(values)
 
     def get_input(self, port: InputPortDeclaration) -> ppl.PathsDataFrame | None:

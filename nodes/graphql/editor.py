@@ -133,6 +133,24 @@ def _node_class_for(nc: NodeConfig) -> type[Node]:
     return node_class_for_spec(nc.spec)
 
 
+def _is_additive_action_class(node_class: type[Node]) -> bool:
+    from nodes.actions.simple import AdditiveAction
+
+    return issubclass(node_class, AdditiveAction)
+
+
+def _paired_action_input_ports(
+    node_class: type[Node],
+    input_ports: list[InputPortDef],
+    output_ports: list[OutputPortDef],
+) -> list[InputPortDef]:
+    if not _is_additive_action_class(node_class):
+        return input_ports
+    from nodes.defs.port_def import pair_input_ports_to_outputs
+
+    return pair_input_ports_to_outputs(input_ports, output_ports, role='input', keep_unpaired=False)
+
+
 def _unique_port_identifier(existing: set[str], base: str) -> str:
     if base not in existing:
         return base
@@ -252,6 +270,11 @@ def _plan_target_port(
         return existing, None
 
     planned = _plan_declared_input_port(to_node)
+    if _is_additive_action_class(_node_class_for(to_node)):
+        raise GraphQLValidationError(
+            info,
+            f'Add an output port to node "{to_node.identifier}" before connecting another impact metric',
+        )
     if planned is None:
         # No declared role available: plan a port mirroring the source port,
         # so declaration-less classes (formula, pipeline, legacy) keep
@@ -938,7 +961,10 @@ def _apply_node_type_update(
 
 
 def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, input: UpdateNodeInput) -> None:
+    node_class = _node_class_for(nc)
     if is_maybe_set(input.input_ports):
+        if _is_additive_action_class(node_class):
+            raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
         spec.input_ports = [
             _input_port_to_def(nc.identifier, index, port) for index, port in enumerate(input.input_ports.value or [])
         ]
@@ -955,7 +981,24 @@ def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, inp
     )
     if not output_ports:
         raise GraphQLValidationError(info, 'At least one outputPort or outputMetric must be provided')
+
+    if _is_additive_action_class(node_class):
+        from nodes.models import NodeInputPortBinding
+
+        retained_output_ids = {port.id for port in output_ports}
+        removed_input_ids = {
+            port.id
+            for port in spec.input_ports
+            if port.paired_output_port_id is not None and port.paired_output_port_id not in retained_output_ids
+        }
+        if removed_input_ids and NodeInputPortBinding.objects.filter(node=nc, port_id__in=removed_input_ids).exists():
+            raise GraphQLValidationError(
+                info,
+                'Disconnect bindings from an AdditiveAction output before removing it',
+            )
+
     spec.output_ports = output_ports
+    spec.input_ports = _paired_action_input_ports(node_class, spec.input_ports, output_ports)
 
 
 def _apply_node_data_updates(info: gql.Info, spec: NodeSpec, input: UpdateNodeInput) -> None:
@@ -1051,6 +1094,8 @@ class NodeEditorMutation:
         nc = root.node
         if nc.spec is None:
             raise GraphQLError(f'Node "{nc.identifier}" has no spec')
+        if _is_additive_action_class(_node_class_for(nc)):
+            raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
 
         new_port = _input_port_to_def(nc.identifier, len(nc.spec.input_ports), input)
         if input.id is None:
@@ -1097,6 +1142,7 @@ class NodeEditorMutation:
         with gql_change_operation(info, root.instance, action='node.output_ports.create'):
             before = nc.serializable_data()
             nc.spec.output_ports = [*nc.spec.output_ports, new_port]
+            nc.spec.input_ports = _paired_action_input_ports(_node_class_for(nc), nc.spec.input_ports, nc.spec.output_ports)
             NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
             nc.refresh_from_db()
             record_change(nc, action='node.output_ports.create', before=before, after=nc.serializable_data())
@@ -1118,10 +1164,15 @@ class InstanceEditorMutation:
         if not NodeConfig.gql_create_allowed(info, ic):
             raise PermissionDeniedError(info, 'Permission denied for create')
 
+        from nodes.instance_graph import node_class_for_type_config
+
         type_config = _type_config_for_kind(info, input.kind, input.config)
+        node_class = node_class_for_type_config(type_config.to_pydantic())
 
         input_dimensions = input.input_dimensions or []
         output_dimensions = input.output_dimensions or []
+        if input.input_ports is not None and _is_additive_action_class(node_class):
+            raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
         if input.input_ports is None:
             # Instantiate the class-declared default ports (e.g. two factors
             # and an additive input for a MultiplicativeNode). An explicit
@@ -1137,6 +1188,7 @@ class InstanceEditorMutation:
         )
         if not output_ports:
             raise GraphQLValidationError(info, 'At least one outputPort or outputMetric must be provided')
+        input_ports = _paired_action_input_ports(node_class, input_ports, output_ports)
 
         spec = NodeSpec(
             type_config=type_config.to_pydantic(),

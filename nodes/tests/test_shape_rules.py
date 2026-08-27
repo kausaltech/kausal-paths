@@ -23,6 +23,7 @@ from nodes.pipeline.ops.arithmetic import AddOperationSpec, AnyOperationSpec, Mu
 from nodes.pipeline.ops.base import DatasetInputRef, IntermediateInputRef, PortInputRef, ScalarValue
 from nodes.simple import AdditiveNode, MultiplicativeNode
 from nodes.units import unit_registry
+from params.param import StringParameter
 
 pytestmark = pytest.mark.django_db
 
@@ -154,6 +155,48 @@ def test_additive_grouped_port_resolves_role_from_identifier_fallback() -> None:
     assert meta.require_input_port('additive').id == multi_port.id
     rules = graph.shape_rule_compilation.rules_by_node[target.uuid]
     assert rules == (SameShapeRule(inputs=(multi_port.id,), output=output_id),)
+
+
+def test_legacy_additive_metric_parameter_selects_one_multi_output_edge_port() -> None:
+    metric = StringParameter(local_id='metric', is_customizable=False)
+    metric.set('Electricity')
+    source_id = uuid4()
+    source_ports = [
+        OutputPortDef(id=uuid4(), identifier='default', column_id='Value', unit=_unit('%')),
+        OutputPortDef(id=uuid4(), identifier='Heat', column_id='Heat', unit=_unit('kWh/m²/a')),
+        OutputPortDef(id=uuid4(), identifier='Electricity', column_id='Electricity', unit=_unit('kWh/m²/a')),
+    ]
+    source = NodeSnapshot(
+        uuid=source_id,
+        identifier='building_action',
+        spec=NodeSpec(output_ports=source_ports),
+    )
+    input_ports = [InputPortDef(id=uuid4(), unit=source_port.unit) for source_port in source_ports]
+    output_id = uuid4()
+    target = NodeSnapshot(
+        uuid=uuid4(),
+        identifier='electricity_per_area',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class='simple.AdditiveNode'),
+            params=[metric],
+            input_ports=input_ports,
+            output_ports=[OutputPortDef(id=output_id, identifier='default', unit=_unit('kWh/m²/a'))],
+        ),
+    )
+    graph = _build(
+        [source, target],
+        [
+            _edge(source, source_port.id, target, input_port.id)
+            for source_port, input_port in zip(source_ports, input_ports, strict=True)
+        ],
+    )
+
+    meta = graph.node_by_id[target.uuid]
+    assert meta.inferred_port_roles == {input_ports[2].id: 'additive'}
+    assert meta.input_port_ids_for_roles('additive') == (input_ports[2].id,)
+    assert graph.shape_rule_compilation.rules_by_node[target.uuid] == (
+        SameShapeRule(inputs=(input_ports[2].id,), output=output_id),
+    )
 
 
 def test_missing_role_port_is_a_diagnostic_not_an_error() -> None:

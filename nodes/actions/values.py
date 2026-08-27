@@ -45,7 +45,7 @@ class Hypothesis(AdditiveAction):
     ]
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        df = self.get_input_dataset_pl()
+        df = self.require_input(self.input_port)
         meta = df.get_meta()
         hp_param = self.get_parameter('hypothesis_number', required=True)
         assert isinstance(hp_param, NumberParameter)
@@ -95,7 +95,7 @@ class BudgetingAction(AdditiveAction):
     ]
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        df = self.get_input_dataset_pl()
+        df = super().compute_effect()
         scale = self.get_parameter_value_float('scale_by', units=False, required=False)
         postpone = self.get_parameter_value_int('postpone_by', required=False)
 

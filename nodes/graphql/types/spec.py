@@ -105,6 +105,8 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
     quantity: auto
     unit: auto
     multi: auto
+    paired_output_port_id: auto
+    is_editable: auto
     required_dimensions: list[DimensionRef]
     supported_dimensions: list[DimensionRef] = sb.field(
         deprecation_reason='Never had solver semantics; effectiveShape carries the derived shape.',
@@ -133,6 +135,8 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
             quantity=spec.quantity,
             unit=spec.unit,
             multi=spec.multi,
+            paired_output_port_id=spec.paired_output_port_id,
+            is_editable=spec.is_editable,
             required_dimensions=spec.required_dimensions,
             supported_dimensions=spec.supported_dimensions,
             bindings=bindings,

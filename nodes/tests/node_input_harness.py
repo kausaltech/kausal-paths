@@ -18,8 +18,9 @@ from nodes.runtime_input import RuntimeInputBinding
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
+    from nodes.datasets import Dataset
     from nodes.defs.port_def import InputPortDeclaration
 
 
@@ -39,23 +40,40 @@ def node_case(*declarations: InputPortDeclaration) -> Node:
 
 def binding(
     role: str,
-    value: PathsDataFrame,
+    value: PathsDataFrame | None = None,
     *,
     position: int = 0,
     source_kind: Literal['node', 'dataset'] = 'dataset',
     source_id: str | None = None,
+    source: Node | Dataset | None = None,
+    target_port_id: UUID | None = None,
+    value_loader: Callable[[], PathsDataFrame] | None = None,
     binding_id: UUID | None = None,
 ) -> RuntimeInputBinding:
+    if value_loader is None:
+        assert value is not None
+
+        def load_value() -> PathsDataFrame:
+            return value
+
+        value_loader = load_value
     return RuntimeInputBinding(
         id=binding_id or uuid4(),
         port_role=role,
         position=position,
         source_kind=source_kind,
-        value_loader=lambda: value,
+        source=source,
+        value_loader=value_loader,
         source_id=source_id,
+        target_port_id=target_port_id,
     )
 
 
 def bind(node: Node, bindings: Iterable[RuntimeInputBinding]) -> Node:
     node.bind_runtime_inputs(tuple(bindings))
     return node
+
+
+def add_binding(node: Node, runtime_binding: RuntimeInputBinding) -> None:
+    """Append one binding while retaining stable positional ordering."""
+    node.bind_runtime_inputs((*node.runtime_input_bindings, runtime_binding))

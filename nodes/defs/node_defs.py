@@ -524,4 +524,16 @@ class NodeSpec(I18nBaseModel):
                 if port.identifier in seen:
                     raise ValueError(f'Duplicate {direction} port identifier {port.identifier!r}')
                 seen.add(port.identifier)
+
+        output_ids = {port.id for port in self.output_ports}
+        paired_output_ids: set[UUID] = set()
+        for port in self.input_ports:
+            output_id = port.paired_output_port_id
+            if output_id is None:
+                continue
+            if output_id not in output_ids:
+                raise ValueError(f'Input port {port.id} pairs with unknown output port {output_id}')
+            if output_id in paired_output_ids:
+                raise ValueError(f'Multiple input ports pair with output port {output_id}')
+            paired_output_ids.add(output_id)
         return self

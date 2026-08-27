@@ -133,6 +133,11 @@ def export_node_spec(node: Node) -> NodeSpec:
     type_config = _export_type_config(node)
     input_ports = _export_input_ports(node)
     output_ports = _export_output_ports(node)
+    from nodes.actions.simple import AdditiveAction
+    from nodes.defs.port_def import pair_input_ports_to_outputs
+
+    if isinstance(node, AdditiveAction):
+        input_ports = pair_input_ports_to_outputs(input_ports, output_ports, role='input')
     params = _export_node_params(node)
 
     # Capture dimension IDs.

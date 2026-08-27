@@ -21,8 +21,8 @@ from kausal_common.datasets.tests.factories import (
 )
 
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-from nodes.defs.node_defs import NodeSpec, SimpleConfig
-from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.defs.node_defs import ActionConfig, NodeSpec, SimpleConfig
+from nodes.defs.port_def import InputPortDef, OutputPortDef, pair_input_ports_to_outputs
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id, register_dimensions
 from nodes.units import unit_registry
 
@@ -36,6 +36,7 @@ gql = str
 pytestmark = pytest.mark.django_db
 
 SIMPLE_NODE_CLASS = 'nodes.simple.SimpleNode'
+ADDITIVE_ACTION_CLASS = 'nodes.actions.simple.AdditiveAction'
 
 
 @pytest.fixture
@@ -187,6 +188,60 @@ def test_add_port_then_bind_a_dataset_metric_to_it(gql_client: PathsTestClient, 
         ('index_temporal', True),
         ('remap_legacy_years', True),
     ]
+
+
+def test_additive_action_binds_two_metrics_of_the_same_dataset_to_paired_ports(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    from nodes.models import NodeInputPortBinding
+
+    energy_output = OutputPortDef(
+        id=_port_id('energy_output'),
+        identifier='energy',
+        column_id='energy',
+        quantity='energy',
+        unit=unit_registry.parse_units('kWh'),
+    )
+    cost_output = OutputPortDef(
+        id=_port_id('cost_output'),
+        identifier='cost',
+        column_id='cost',
+        quantity='currency',
+        unit=unit_registry.parse_units('EUR'),
+    )
+    outputs = [energy_output, cost_output]
+    inputs = pair_input_ports_to_outputs([], outputs, role='input', keep_unpaired=False)
+    action = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='multi_impact_action',
+        spec=_node_spec(
+            type_config=ActionConfig(node_class=ADDITIVE_ACTION_CLASS),
+            input_ports=inputs,
+            output_ports=outputs,
+        ),
+    )
+    dataset, energy_metric = _dataset_with_metric(db_instance_config, identifier='impacts', metric='energy', unit='kWh')
+    cost_metric = DatasetMetricFactory.create(schema=dataset.schema, name='cost', label='Cost', unit='EUR')
+
+    for port, metric in zip(inputs, (energy_metric, cost_metric), strict=True):
+        result = gql_client.query_data(
+            BIND_DATASET,
+            variables={
+                'instanceId': str(db_instance_config.pk),
+                'nodeId': str(action.uuid),
+                'input': {
+                    'portId': str(port.id),
+                    'datasetId': str(dataset.uuid),
+                    'metricId': str(metric.uuid),
+                },
+            },
+        )['instanceEditor']['nodeEditor']['bindDataset']
+        assert result['portRef']['portId'] == str(port.id)
+
+    rows = list(NodeInputPortBinding.objects.filter(node=action).order_by('port_id'))
+    assert len(rows) == 2
+    assert {row.dataset_id for row in rows} == {dataset.pk}
+    assert {row.metric_id for row in rows} == {energy_metric.pk, cost_metric.pk}
 
 
 def test_a_port_can_be_addressed_by_its_identifier(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

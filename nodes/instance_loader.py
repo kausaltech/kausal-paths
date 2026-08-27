@@ -1251,7 +1251,17 @@ class InstanceLoader:
             )
 
         for node_id, node in runtime_by_uuid.items():
-            node.bind_runtime_inputs(bindings_by_target.get(node_id, ()))
+            bindings = bindings_by_target.get(node_id, [])
+            fixed_role = node.legacy_fixed_dataset_input_role
+            if fixed_role is not None:
+                from nodes.datasets import FixedDataset
+
+                bindings.extend(
+                    RuntimeInputBinding.from_legacy_fixed_dataset(dataset, target=node, port_role=fixed_role)
+                    for dataset in node.input_dataset_instances
+                    if isinstance(dataset, FixedDataset)
+                )
+            node.bind_runtime_inputs(bindings, node_meta=self._instance_graph.node_by_id[node_id])
 
     def _setup_subactions(self) -> None:
         from nodes.actions.action import ActionNode

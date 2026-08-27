@@ -267,6 +267,11 @@ class InstanceConfigParser:
             parsed.output_ports = self._build_output_ports(parsed)
         for parsed in self.nodes.values():
             parsed.input_ports = self._build_input_ports(parsed)
+            from nodes.actions.simple import AdditiveAction
+            from nodes.defs.port_def import pair_input_ports_to_outputs
+
+            if issubclass(parsed.node_class, AdditiveAction):
+                parsed.input_ports = pair_input_ports_to_outputs(parsed.input_ports, parsed.output_ports, role='input')
 
         spec = self._parse_instance_spec()
         node_snapshots = [self._build_node_snapshot(parsed) for parsed in self.nodes.values()]

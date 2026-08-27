@@ -121,6 +121,9 @@ not by itself prescribe how the values are combined.
 - `iter_inputs(port)` yields ordered values without automatic aggregation.
   For a multi-port these are its binding values; for a repeatable role these
   are the values of its ordered port instances.
+- `iter_input_ports(port)` preserves the identity and metadata of each
+  repeatable port instance. Computations that need a per-port relationship,
+  rather than only anonymous values, use this API.
 - A non-multi port accepts at most one binding.
 - A repeatable role creates several distinct ports. Products happen across
   those ports, never by treating a multi-port as a heterogeneous product.
@@ -543,6 +546,44 @@ Converted after review:
 The live `configs/zuerich.yaml` computations for both pilot nodes were compared
 in-process against copies of their legacy algorithms and matched exactly.
 `GasGridNode` and the remaining Zürich classes still use the old accessors.
+
+### Core additive/multiplicative checkpoint (2026-08-27)
+
+- `AdditiveNode` now consumes its additive and imputation roles through runtime
+  bindings. Its additive multiport accepts mixed node/dataset sources and more
+  than one dataset, while retaining the v1 dataset preprocessing and tolerant
+  failure behavior.
+- `MultiplicativeNode` now consumes factor, additive and imputation node roles
+  through runtime bindings. Legacy dataset bindings remain unclassified for
+  this class: some are currently ignored operands while others are auxiliary
+  replacement/fill data, so treating all of them as factors would silently
+  change existing models. `MultiplicativeNode2` remains the explicit path for
+  dataset factors until those configurations are disambiguated.
+- `AdditiveAction` and its `Hypothesis` and `BudgetingAction` subclasses expose
+  one generated, non-editable single-metric input per output metric. Each
+  `InputPortDef.paired_output_port_id` records the durable relationship;
+  runtime computation iterates the instantiated ports and emits each value
+  through its paired output. Adding an output in the editor creates the input
+  atomically, while bindings on that input remain editable.
+- Existing YAML, database and retained snapshot specs acquire these pairs at
+  their explicit graph/parser adapter boundaries. A wide dataset remains one
+  dataset source with a separate metric binding to each generated input port;
+  computation never reconstructs a wide input from binding column names.
+- Runtime bindings retain their request-local source object and can be iterated
+  without resolving the value. This preserves per-binding tolerant failure and
+  source-aware compatibility behavior without exposing UUID lookup to node
+  computations.
+- Runtime nodes are bound to their `NodeMeta`, and `RuntimeInputPort` groups
+  bindings by the actual target-port UUID before node computation begins.
+- Inline `historical_values` / `forecast_values` are still absent from
+  `InstanceGraph`; an explicit class-declared compatibility role adapts their
+  `FixedDataset` until the graph represents them as ordinary dataset bindings.
+
+The additive inheritance audit found that only generic subclasses should rely
+on these inherited roles. Subclasses with tagged, positional or domain-specific
+input algebra must redeclare their complete port contract as they migrate; an
+inherited declaration alone is not evidence that their overridden computation
+uses runtime inputs.
 
 ### 0. Characterize and build the harness
 

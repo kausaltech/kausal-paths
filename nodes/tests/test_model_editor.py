@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
@@ -22,8 +23,6 @@ from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeCo
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from paths.tests.graphql import PathsTestClient
 
     from nodes.actions.action import ActionNode
@@ -295,6 +294,14 @@ mutation CreateNode($instanceId: ID!, $input: CreateNodeInput!) {
                 editor {
                     nodeGroup
                     spec {
+                        inputPorts {
+                            id
+                            identifier
+                            quantity
+                            multi
+                            pairedOutputPortId
+                            isEditable
+                        }
                         outputPorts {
                             id
                             quantity
@@ -633,6 +640,10 @@ def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient
     assert node['editor']['spec']['typeConfig']['nodeClass'] == ACTION_NODE_CLASS
     assert node['editor']['spec']['typeConfig']['group'] == str(group_uuid)
     assert [port['quantity'] for port in node['editor']['spec']['outputPorts']] == ['emissions', 'energy', 'currency']
+    input_ports = node['editor']['spec']['inputPorts']
+    assert [port['quantity'] for port in input_ports] == ['emissions', 'energy', 'currency']
+    assert all(port['multi'] is False and port['isEditable'] is False for port in input_ports)
+    assert [port['pairedOutputPortId'] for port in input_ports] == [port['id'] for port in node['editor']['spec']['outputPorts']]
 
     nc = db_instance_config.nodes.get(identifier='carbon_capture_and_storage')
     assert nc.spec is not None
@@ -643,6 +654,7 @@ def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient
     assert nc.spec.input_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
     assert nc.spec.output_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
     assert [port.column_id for port in nc.spec.output_ports] == ['emissions', 'energy', 'currency']
+    assert [port.paired_output_port_id for port in nc.spec.input_ports] == [port.id for port in nc.spec.output_ports]
     allow_null_categories = next(param for param in nc.spec.params if param.local_id == 'allow_null_categories')
     assert allow_null_categories.value is True
 
@@ -802,6 +814,26 @@ mutation AddNodeInputPortViaNodeEditor($instanceId: ID!, $nodeId: ID!, $input: I
                     id
                     quantity
                     multi
+                    unit { standard }
+                }
+                ... on OperationInfo { messages { kind message } }
+            }
+        }
+    }
+}
+""")
+
+
+ADD_NODE_OUTPUT_PORT_VIA_NODE_EDITOR = gql("""
+mutation AddNodeOutputPortViaNodeEditor($instanceId: ID!, $nodeId: ID!, $input: OutputPortInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        nodeEditor(nodeId: $nodeId) {
+            addOutputPort(input: $input) {
+                __typename
+                ... on OutputPortType {
+                    id
+                    identifier
+                    quantity
                     unit { standard }
                 }
                 ... on OperationInfo { messages { kind message } }
@@ -1006,6 +1038,130 @@ def test_node_editor_add_input_port(gql_client: PathsTestClient, db_instance_con
     assert str(nc.spec.input_ports[0].id) == port['id']
 
 
+def test_additive_action_output_port_creates_generated_paired_input(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    from nodes.models import NodeConfig
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='multi_impact_action',
+        spec=_make_node_spec(type_config=ActionConfig(node_class=ACTION_NODE_CLASS)),
+    )
+
+    data = gql_client.query_data(
+        ADD_NODE_OUTPUT_PORT_VIA_NODE_EDITOR,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {'identifier': 'energy', 'unit': 'TJ/a', 'quantity': 'energy'},
+        },
+    )
+    output = data['instanceEditor']['nodeEditor']['addOutputPort']
+    nc = NodeConfig.objects.get(pk=nc.pk)
+    assert nc.spec is not None
+    assert len(nc.spec.output_ports) == 2
+    assert len(nc.spec.input_ports) == 2
+    paired = next(port for port in nc.spec.input_ports if port.paired_output_port_id == UUID(output['id']))
+    assert paired.identifier == 'energy'
+    assert paired.quantity == 'energy'
+    assert paired.unit == unit_registry.parse_units('TJ/a')
+    assert paired.multi is False
+    assert paired.is_editable is False
+
+
+def test_additive_action_rejects_independent_input_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig) -> None:
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='paired_action',
+        spec=_make_node_spec(type_config=ActionConfig(node_class=ACTION_NODE_CLASS)),
+    )
+
+    errors = gql_client.query_errors(
+        ADD_NODE_INPUT_PORT_VIA_NODE_EDITOR,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {'unit': 'TJ/a', 'quantity': 'energy'},
+        },
+    )
+
+    assert 'generated from its output ports' in errors[0]['message']
+
+
+def test_additive_action_rejects_removing_output_with_bound_generated_input(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    from nodes.models import NodeInputPortBinding
+
+    emissions_unit = unit_registry.parse_units('kt/a')
+    energy_unit = unit_registry.parse_units('TJ/a')
+    emissions_output_id = _port_uuid('emissions-output')
+    energy_output_id = _port_uuid('energy-output')
+    emissions_input_id = _port_uuid('emissions-input')
+    energy_input_id = _port_uuid('energy-input')
+    action = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='bound_paired_action',
+        spec=_make_node_spec(
+            type_config=ActionConfig(node_class=ACTION_NODE_CLASS),
+            input_ports=[
+                InputPortDef(
+                    id=emissions_input_id,
+                    quantity='emissions',
+                    unit=emissions_unit,
+                    paired_output_port_id=emissions_output_id,
+                    is_editable=False,
+                ),
+                InputPortDef(
+                    id=energy_input_id,
+                    quantity='energy',
+                    unit=energy_unit,
+                    paired_output_port_id=energy_output_id,
+                    is_editable=False,
+                ),
+            ],
+            output_ports=[
+                OutputPortDef(id=emissions_output_id, quantity='emissions', unit=emissions_unit),
+                OutputPortDef(id=energy_output_id, quantity='energy', unit=energy_unit),
+            ],
+        ),
+    )
+    source_output_id = _port_uuid('source-output')
+    source = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='energy_source',
+        spec=_make_node_spec(
+            output_ports=[OutputPortDef(id=source_output_id, quantity='energy', unit=energy_unit)],
+        ),
+    )
+    NodeInputPortBinding.objects.create(
+        instance=db_instance_config,
+        node=action,
+        port_id=energy_input_id,
+        source_node=source,
+        source_port_id=source_output_id,
+    )
+
+    errors = gql_client.query_errors(
+        UPDATE_NODE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(action.uuid),
+            'input': {
+                'outputPorts': [
+                    {'id': str(emissions_output_id), 'quantity': 'emissions', 'unit': 'kt/a'},
+                ],
+            },
+        },
+    )
+
+    assert 'Disconnect bindings' in errors[0]['message']
+    action.refresh_from_db()
+    assert action.spec is not None
+    assert [port.id for port in action.spec.output_ports] == [emissions_output_id, energy_output_id]
+
+
 def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     assert db_instance_config.spec is not None
     group_uuid = _port_uuid('energy-action-group')
@@ -1039,7 +1195,6 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
                         'noEffectValue': 0.0,
                     },
                 },
-                'inputPorts': [{'unit': 't/a', 'quantity': 'emissions'}],
                 'inputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
                 'outputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
                 'params': {'allow_null_categories': True},
@@ -1077,7 +1232,9 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
     assert nc.spec.minimum_year == 2024
     assert nc.spec.input_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
     assert nc.spec.output_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
-    assert nc.spec.input_ports[0].quantity == 'emissions'
+    assert [port.quantity for port in nc.spec.input_ports] == ['emissions', 'energy', 'currency']
+    assert all(port.is_editable is False for port in nc.spec.input_ports)
+    assert [port.paired_output_port_id for port in nc.spec.input_ports] == [port.id for port in nc.spec.output_ports]
     assert [port.column_id for port in nc.spec.output_ports] == ['emissions', 'energy', 'currency']
     assert nc.spec.extra.tags == ['trial']
     allow_null_categories = next(param for param in nc.spec.params if param.local_id == 'allow_null_categories')
