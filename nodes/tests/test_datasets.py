@@ -138,7 +138,7 @@ def test_source_overlay_runs_before_temporal_fill(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr(DVCDataset, 'before_temporal_fill', overlay)
 
-    result = dataset._filter_and_process_df.__wrapped__(dataset, raw)
+    result = dataset._filter_and_process_df.__wrapped__(dataset, raw)  # type: ignore[attr-defined]
 
     assert observed_join_keys == ['measure', 'measure']
     assert result['Year'].to_list() == [2020, 2021, 2022]
