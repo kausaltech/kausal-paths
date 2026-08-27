@@ -13,7 +13,7 @@ from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.constraints.port_roles import PortRoleInferenceResult
 from nodes.constraints.rules import AnyShapeRule, MissingPortRoleError, ProductShapeRule, SameShapeRule
-from nodes.defs.port_def import InputPortDeclaration, InputPortDef, OutputPortDeclaration
+from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef, OutputPortDeclaration
 from nodes.units import Quantity
 from params.param import BoolParameter, NumberParameter, StringParameter
 
@@ -254,6 +254,14 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
     @classmethod
     def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
         from nodes.defs.binding_def import EdgeBindingDef
+
+        if cls is not AdditiveNode and (
+            cls.legacy_input_port_roles_by_tag
+            or cls.legacy_input_port_roles_by_quantity
+            or cls.legacy_untagged_dataset_input_role is not None
+            or cls.legacy_untagged_input_role is not None
+        ):
+            return super().infer_legacy_port_roles(meta, candidates)
 
         result = PortRoleInferenceResult()
         selected_metric = next(
@@ -972,11 +980,18 @@ class SubtractiveNode(Node):  # FIXME Remove, when you clean Longmont.
             is_customizable=False,
         ),
     ]
+    input_port = InputPortDeclaration(role='input', multi=True, label=_('Inputs'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
+    legacy_untagged_input_role = 'input'
 
     def compute(self) -> ppl.PathsDataFrame:
-        nodes = list(self.input_nodes)
-        mults = [1.0 if i == 0 else -1.0 for i, _ in enumerate(nodes)]
-        df = self.add_nodes_pl(None, nodes, node_multipliers=mults)
+        values = list(self.iter_inputs(self.input_port))
+        if not values:
+            raise NodeError(self, 'SubtractiveNode needs at least one input')
+        df = values[0]
+        for value in values[1:]:
+            negative = value.with_columns([(-pl.col(col)).alias(col) for col in value.metric_cols])
+            df = df.paths.add_with_dims(negative, how='outer')
         only_historical = self.get_parameter_value('only_historical', required=False)
         if only_historical:
             df = df.filter(~pl.col(FORECAST_COLUMN))
@@ -1535,14 +1550,12 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Convert to a generic parameter i
         NumberParameter(local_id='multiplier'),
         StringParameter(local_id='global_multiplier'),
     ]
+    input_port = InputPortDeclaration(role='input', label=_('Input'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
+    legacy_untagged_input_role = 'input'
 
     def compute(self) -> ppl.PathsDataFrame:
-        if len(self.input_nodes) != 1:
-            raise NodeError(self, 'FixedMultiplier needs exactly one input node')
-
-        node = self.input_nodes[0]
-
-        df = node.get_output_pl(target_node=self)
+        df = self.require_input(self.input_port)
         multiplier_param = self.get_parameter('multiplier')  # FIXME Use get_parameter_value() instead.
         multiplier = multiplier_param.get()
         if multiplier_param.has_unit():
@@ -1567,6 +1580,11 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Convert to a generic parameter i
 
 
 class MixNode(AdditiveNode):
+    activity_port = InputPortDeclaration(role='activity', required=True)
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (activity_port, additive_port)
+    legacy_input_port_roles_by_tag = {'activity': 'activity'}
+    legacy_untagged_input_role = 'additive'
     output_metrics = {
         MIX_QUANTITY: NodeMetric(unit='%', quantity=MIX_QUANTITY),
     }
@@ -1609,16 +1627,15 @@ class MixNode(AdditiveNode):
         return df
 
     def compute(self) -> ppl.PathsDataFrame:
-        anode = self.get_input_node(tag='activity')
-        adf = anode.get_output_pl(target_node=self)
-        am = anode.get_default_output_metric()
-        adf = adf.paths.calculate_shares(am.column_id, '_Share')
+        adf = self.require_input(self.activity_port)
+        adf = adf.paths.calculate_shares(adf.metric_cols[0], '_Share')
         m = self.get_default_output_metric()
         df = adf.select_metrics(['_Share']).ensure_unit('_Share', m.unit).rename({'_Share': m.column_id})
         df = extend_last_historical_value_pl(df, self.get_end_year())
-        nodes = list(self.input_nodes)
-        nodes.remove(anode)
-        return self.add_mix_normalized(df, nodes)
+        additive = self.get_input(self.additive_port)
+        if additive is not None:
+            df = df.paths.add_with_dims(additive, how='outer')
+        return self.normalize_mix(df)
 
 
 class ImprovementNode(MultiplicativeNode):  # FIXME Remove, when you clean Longmont.
@@ -1626,10 +1643,19 @@ class ImprovementNode(MultiplicativeNode):  # FIXME Remove, when you clean Longm
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
 
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            role = 'impute' if 'impute' in tags else 'factors'
+            result.classify(port, role, "binding tag 'impute'" if role == 'impute' else 'an ImprovementNode input')
+        return result
+
     def compute(self) -> ppl.PathsDataFrame:
-        if len(self.input_nodes) == 1:
-            node = self.input_nodes[0]
-            df = node.get_output_pl(target_node=self)
+        values = list(self.iter_inputs(self.factors_port))
+        if len(values) == 1:
+            df = values[0]
         else:
             df = super().compute()
         if not isinstance(df, ppl.PathsDataFrame):
@@ -1645,10 +1671,19 @@ class ImprovementNode2(MultiplicativeNode):  # FIXME Remove, when you clean Long
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
 
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            role = 'impute' if 'impute' in tags else 'factors'
+            result.classify(port, role, "binding tag 'impute'" if role == 'impute' else 'an ImprovementNode input')
+        return result
+
     def compute(self) -> ppl.PathsDataFrame:
-        if len(self.input_nodes) == 1:
-            node = self.input_nodes[0]
-            df = node.get_output_pl(target_node=self)
+        values = list(self.iter_inputs(self.factors_port))
+        if len(values) == 1:
+            df = values[0]
         else:
             df = super().compute()
         if not isinstance(df, ppl.PathsDataFrame):
@@ -1660,6 +1695,14 @@ class ImprovementNode2(MultiplicativeNode):  # FIXME Remove, when you clean Long
 
 
 class RelativeNode(AdditiveNode):  # FIXME Remove. Only Espoo and budget use this.
+    non_additive_port = InputPortDeclaration(role='non_additive', required=False)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+        AdditiveNode.additive_port,
+        AdditiveNode.impute_port,
+        non_additive_port,
+    )
+    legacy_input_port_roles_by_tag = {'impute': 'impute', 'non_additive': 'non_additive'}
+    legacy_untagged_input_role = 'additive'
     explanation = _("""
     First like AdditiveNode, then multiply with a node with "non_additive".
     The relative node is assumed to be the relative difference R = V / N - 1,
@@ -1670,10 +1713,9 @@ class RelativeNode(AdditiveNode):  # FIXME Remove. Only Espoo and budget use thi
     """)
 
     def compute(self) -> ppl.PathsDataFrame:
-        n = self.get_input_node(tag='non_additive', required=False)
+        dfn = self.get_input(self.non_additive_port)
         df = super().compute()
-        if n is not None:
-            dfn = n.get_output_pl(target_node=self)
+        if dfn is not None:
             if dfn.get_unit(VALUE_COLUMN).dimensionless:
                 dfn = dfn.ensure_unit(VALUE_COLUMN, 'dimensionless')
             df = df.paths.join_over_index(dfn, how='outer', index_from='union')
@@ -1702,7 +1744,9 @@ class FillNewCategoryNode(AdditiveNode):
         category = self.get_parameter_value_str('new_category', required=True)
         dim, cat = category.split(':')
 
-        df: ppl.PathsDataFrame = self.add_nodes_pl(None, self.input_nodes)
+        df = self.get_input(self.additive_port)
+        if df is None:
+            raise NodeError(self, 'FillNewCategoryNode needs at least one input')
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
 
         df2 = df.paths.sum_over_dims(dim)
@@ -1736,7 +1780,9 @@ class FillNewCategoryNode2(AdditiveNode):  # FIXME Merge into FillNewCategoryNod
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
-        df: ppl.PathsDataFrame = self.add_nodes_pl(None, self.input_nodes)
+        df = self.get_input(self.additive_port)
+        if df is None:
+            raise NodeError(self, 'FillNewCategoryNode2 needs at least one input')
 
         df = self.fill_new_category(df)
         return df
@@ -1874,6 +1920,10 @@ class AnnuityNode(AdditiveNode):
 
 
 class DiscountNode(AdditiveNode):
+    discount_rate_port = InputPortDeclaration(role='discount_rate')
+    currency_port = InputPortDeclaration(role='currency')
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (discount_rate_port, currency_port)
+    legacy_input_port_roles_by_tag = {'discount_rate': 'discount_rate', 'currency': 'currency'}
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
         NumberParameter(local_id='start_year', label=_('The first year in which the discount rate is applied.')),
@@ -1882,8 +1932,7 @@ class DiscountNode(AdditiveNode):
     def compute(self) -> ppl.PathsDataFrame:
         minyear = self.get_parameter_value_int('start_year', required=True) - 1
 
-        ratenode = self.get_input_node(tag='discount_rate')
-        ratedf = ratenode.get_output_pl(target_node=self)
+        ratedf = self.require_input(self.discount_rate_port)
         ratedf = (
             ratedf
             .drop(FORECAST_COLUMN)
@@ -1891,8 +1940,7 @@ class DiscountNode(AdditiveNode):
             .with_columns((pl.col('discount_rate') + pl.lit(100.0)) / pl.lit(100.0))
         )
 
-        currencynode = self.get_input_node(tag='currency')
-        df = currencynode.get_output_pl(target_node=self)
+        df = self.require_input(self.currency_port)
         df = (
             df.paths
             .join_over_index(ratedf)

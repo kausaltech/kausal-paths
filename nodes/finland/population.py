@@ -1,7 +1,16 @@
+from typing import TYPE_CHECKING, ClassVar
+
 import polars as pl
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from nodes.instance_graph import NodeMeta
 
 from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constraints.port_roles import PortRoleInferenceResult
+from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef
 from nodes.exceptions import NodeError
 from nodes.node import Node
 
@@ -16,12 +25,27 @@ class Population(Node):  # FIXME Convert functionality to GenericNode
     input_datasets = [HISTORICAL_DATASET, FORECAST_DATASET]
     default_unit = 'person'
     quantity = 'population'
+    historical_port = InputPort.one('historical')
+    forecast_port = InputPort.optional('forecast')
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (historical_port, forecast_port)
+
+    @classmethod
+    def infer_legacy_port_roles(cls, _meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for index, port in enumerate(candidates):
+            if index == 0:
+                result.classify(port, 'historical', 'the historical population dataset')
+            elif index == 1:
+                result.classify(port, 'forecast', 'the forecast population dataset')
+            else:
+                result.refuse(port, 'more than two population datasets')
+        return result
 
     def get_historical_input(self) -> ppl.PathsDataFrame:
-        return self.get_input_datasets_pl()[0]
+        return self.require_input(self.historical_port)
 
     def get_forecast_input(self) -> ppl.PathsDataFrame | None:
-        return self.get_input_datasets_pl()[1]
+        return self.get_input(self.forecast_port)
 
     def compute(self):
         muni_name = self.get_global_parameter_value('municipality_name')

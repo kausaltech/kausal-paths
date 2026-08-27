@@ -680,11 +680,33 @@ fixes; pilot configurations contain no computation-selection tags.
 - Region-specific classes last.
 - Convert suitable classes to authored pipelines only when PipelineNode is
   independently ready; port migration does not wait for it.
+- Record pipeline candidacy and missing reusable capabilities during each class
+  migration, following
+  [PipelineNode capability discovery](pipeline-node-capability-discovery.md).
 - Re-declare ports on subclasses whose overridden computation changes the
   inherited algebra. Do not consider a class migrated merely because it
   inherits declarations.
 
 Track every removed tag heuristic and every retained topology inspection use.
+
+Implementation checkpoint (2026-08-27): the first bulk wave converted the
+remaining straightforward classes in `nodes/simple.py`, source-polymorphic
+`CoalesceNode` and `DatasetReduceNode`, `SCurveAction`, `TrajectoryAction`,
+`CCSNode`, the Polars-based Finnish population and HSY adapters, and the
+Zürich classes whose inputs form a complete declarative contract. A shared
+declarative legacy-role adapter now covers tag, quantity, dataset, and final
+fallback mappings without repeating inference methods on every class.
+
+The residual inventory is intentionally grouped rather than treated as a
+mechanical tail:
+
+- pandas/MDF computations require the separate dataframe migration;
+- `DatasetNode` subclasses must move with their inherited framework/dataset
+  contract, not by declaring only their additional edge inputs;
+- formula, pipeline-executor, topology, scenario, and raw-dataset consumers
+  need source/runtime capabilities rather than value-only ports;
+- dynamic generic operations should migrate as typed PipelineNode operations
+  instead of reproducing tag lookup behind a new accessor.
 
 **Gate:** no migrated compute method calls `get_input_dataset*()`,
 `get_input_node(s)()`, or `source.get_output_pl(target_node=self)`.

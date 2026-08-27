@@ -14,7 +14,7 @@ from nodes.constraints.rules import (
 )
 from nodes.defs.graph import DimensionMeta
 from nodes.defs.node_defs import NodeSpec, SimpleConfig
-from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.defs.port_def import InputPort, InputPortDef, OutputPortDef
 from nodes.instance_graph import InstanceGraph, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import _dump_graph, _load_graph
 from nodes.instance_serialization import EdgeSnapshot, InstanceSnapshot, NodeSnapshot
@@ -26,6 +26,14 @@ from nodes.units import unit_registry
 from params.param import StringParameter
 
 pytestmark = pytest.mark.django_db
+
+
+class DeclarativeRoleTestNode(Node):
+    selected_port = InputPort.one('selected')
+    remainder_port = InputPort.multi('remainder')
+    input_port_declarations = (selected_port, remainder_port)
+    legacy_input_port_roles_by_tag = {'selected': 'selected'}
+    legacy_untagged_input_role = 'remainder'
 
 
 def _unit(text: str):
@@ -115,6 +123,54 @@ def test_legacy_multiplicative_ports_classify_and_compile_to_uuid_rules() -> Non
     for rule in rules:
         for value in (*rule.inputs, rule.output):
             assert isinstance(value, UUID)
+
+
+@pytest.mark.parametrize('node_class', ['simple.ImprovementNode', 'simple.ImprovementNode2'])
+def test_legacy_improvement_input_is_a_factor_even_when_its_unit_matches_output(node_class: str) -> None:
+    input_port = InputPortDef(id=uuid4(), unit=_unit('%'))
+    output_id = uuid4()
+    target = NodeSnapshot(
+        uuid=uuid4(),
+        identifier='improvement',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class=node_class),
+            input_ports=[input_port],
+            output_ports=[OutputPortDef(id=output_id, identifier='default', unit=_unit('dimensionless'))],
+        ),
+    )
+    source, source_port = _source_node('rate', '%')
+
+    graph = _build([source, target], [_edge(source, source_port, target, input_port.id)])
+
+    assert graph.node_by_id[target.uuid].inferred_port_roles == {input_port.id: 'factors'}
+
+
+def test_declarative_legacy_role_adapter_uses_tags_then_class_fallback() -> None:
+    selected_port = InputPortDef(id=uuid4(), unit=_unit('t/a'))
+    remainder_port = InputPortDef(id=uuid4(), unit=_unit('t/a'))
+    target = NodeSnapshot(
+        uuid=uuid4(),
+        identifier='target',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class='nodes.tests.test_shape_rules.DeclarativeRoleTestNode'),
+            input_ports=[selected_port, remainder_port],
+            output_ports=[OutputPortDef(id=uuid4(), identifier='default', unit=_unit('t/a'))],
+        ),
+    )
+    tagged_source, tagged_output = _source_node('tagged', 't/a')
+    other_source, other_output = _source_node('other', 't/a')
+    graph = _build(
+        [tagged_source, other_source, target],
+        [
+            _edge(tagged_source, tagged_output, target, selected_port.id, tags=['selected']),
+            _edge(other_source, other_output, target, remainder_port.id),
+        ],
+    )
+
+    assert graph.node_by_id[target.uuid].inferred_port_roles == {
+        selected_port.id: 'selected',
+        remainder_port.id: 'remainder',
+    }
 
 
 def test_explicit_role_wins_and_unit_change_does_not_reclassify() -> None:

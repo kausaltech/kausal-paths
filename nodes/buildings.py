@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from django.utils.translation import gettext_lazy as _
 
@@ -8,6 +8,7 @@ import polars as pl
 
 from common import polars as ppl
 from nodes.calc import convert_to_co2e
+from nodes.defs.port_def import InputPortDeclaration
 from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode
 from params.param import NumberParameter, StringParameter
 
@@ -224,16 +225,20 @@ class HistoricalNode(AdditiveNode):
 
 
 class CCSNode(SimpleNode):
+    emissions_port = InputPortDeclaration(role='emissions')
+    ccs_share_port = InputPortDeclaration(role='ccs_share')
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (emissions_port, ccs_share_port)
+    legacy_input_port_roles_by_tag = {'emissions': 'emissions', 'ccs_share': 'ccs_share'}
     allowed_parameters = [
         NumberParameter(local_id='capture_efficiency', unit_str='%', is_customizable=True),
         NumberParameter(local_id='storage_efficiency', unit_str='%', is_customizable=True),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
-        df = self.get_input_node(tag='emissions').get_output_pl(target_node=self)
+        df = self.require_input(self.emissions_port)
         df = df.rename({VALUE_COLUMN: 'Emissions'})
 
-        sdf = self.get_input_node(tag='ccs_share').get_output_pl(target_node=self)
+        sdf = self.require_input(self.ccs_share_port)
         sdf = sdf.rename({VALUE_COLUMN: 'CCSShare'}).ensure_unit('CCSShare', 'dimensionless')
 
         df = df.paths.join_over_index(sdf)

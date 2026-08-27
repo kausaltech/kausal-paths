@@ -361,6 +361,18 @@ class Node:
     legacy_fixed_dataset_input_role: ClassVar[str | None] = None
     """Temporary role for inline historical/forecast values absent from InstanceGraph."""
 
+    legacy_input_port_roles_by_tag: ClassVar[dict[str, str]] = {}
+    """Migration-only mapping from binding tags to declared semantic input roles."""
+
+    legacy_input_port_roles_by_quantity: ClassVar[dict[str, str]] = {}
+    """Migration-only mapping from a legacy port quantity to a declared role."""
+
+    legacy_untagged_dataset_input_role: ClassVar[str | None] = None
+    """Migration-only role for otherwise unclassified dataset bindings."""
+
+    legacy_untagged_input_role: ClassVar[str | None] = None
+    """Migration-only final fallback role for an anonymous legacy port."""
+
     supports_authored_ports: ClassVar[bool] = False
     """
     Whether the editor may add free-form input ports on instances of this class.
@@ -1576,8 +1588,8 @@ class Node:
     @classmethod
     def infer_legacy_port_roles(
         cls,
-        meta: NodeMeta,  # pyright: ignore[reportUnusedParameter]  # noqa: ARG003
-        candidates: Sequence[InputPortDef],  # pyright: ignore[reportUnusedParameter]  # noqa: ARG003
+        meta: NodeMeta,
+        candidates: Sequence[InputPortDef],
     ) -> PortRoleInferenceResult:
         """
         Classify legacy anonymous ports into this class's declared input roles.
@@ -1596,8 +1608,38 @@ class Node:
         what this hook computes, and re-entering it is a class bug.
         """
         from nodes.constraints.port_roles import PortRoleInferenceResult
+        from nodes.defs.binding_def import DatasetBindingDef
 
-        return PortRoleInferenceResult()
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            bindings = meta.bindings_for_port(port.id)
+            tags = {str(tag) for binding in bindings for tag in binding.tags}
+            tagged_roles = {cls.legacy_input_port_roles_by_tag[tag] for tag in tags if tag in cls.legacy_input_port_roles_by_tag}
+            if len(tagged_roles) == 1:
+                role = tagged_roles.pop()
+                matching_tags = sorted(tag for tag in tags if cls.legacy_input_port_roles_by_tag.get(tag) == role)
+                result.classify(port, role, f'binding tag {matching_tags[0]!r}')
+                continue
+            if len(tagged_roles) > 1:
+                result.refuse(port, f'binding tags select several roles: {sorted(tagged_roles)}')
+                continue
+
+            quantity = str(port.quantity) if port.quantity is not None else None
+            if quantity is not None and quantity in cls.legacy_input_port_roles_by_quantity:
+                result.classify(port, cls.legacy_input_port_roles_by_quantity[quantity], f'port quantity {quantity!r}')
+                continue
+
+            if bindings and all(isinstance(binding, DatasetBindingDef) for binding in bindings):
+                role = cls.legacy_untagged_dataset_input_role
+                if role is not None:
+                    result.classify(port, role, 'an untagged dataset binding')
+                    continue
+
+            if cls.legacy_untagged_input_role is not None:
+                result.classify(port, cls.legacy_untagged_input_role, 'the class fallback for an untagged input')
+                continue
+            result.refuse(port, 'no class-declared tag, quantity, or fallback mapping matched')
+        return result
 
     def is_compatible_unit(self, unit_a: str | Unit | None, unit_b: str | Unit | None):
         assert unit_a is not None, f'Unit is missing in node {self.id}. Is it multimetric?'

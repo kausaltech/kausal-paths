@@ -100,8 +100,13 @@ class BuildingEnergy(AdditiveNode):
 
 
 class BuildingFloorAreaHistorical(Node):
+    input_port = InputPort.one('input', label=_('Building floor area'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
+    legacy_fixed_dataset_input_role = 'input'
+    legacy_untagged_dataset_input_role = 'input'
+
     def compute(self) -> ppl.PathsDataFrame:
-        df = self.get_input_dataset_pl()
+        df = self.require_input(self.input_port)
         df = df.with_columns(
             pl.col('building_use_extended').replace('residential', 'residential', default='nonresidential').alias('building_use')
         )
@@ -113,13 +118,28 @@ class BuildingFloorAreaHistorical(Node):
 
 
 class BuildingHeatHistorical(Node):
+    cop_port = InputPort.one('heat_pump_cop', label=_('Heat pump COP'))
+    consumption_port = InputPort.one('consumption', label=_('Energy consumption'))
+    input_port_declarations = (cop_port, consumption_port)
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            if 'heat_pump_cop' in tags:
+                result.classify(port, 'heat_pump_cop', "binding tag 'heat_pump_cop'")
+            elif 'consumption' in tags:
+                result.classify(port, 'consumption', "binding tag 'consumption'")
+            else:
+                result.refuse(port, 'not a recognized BuildingHeatHistorical input')
+        return result
+
     def compute(self) -> ppl.PathsDataFrame:
-        cop_node = self.get_input_node(tag='heat_pump_cop')
-        cop_df = cop_node.get_output_pl(target_node=self)
+        cop_df = self.require_input(self.cop_port)
         cop_df = cop_df.rename({VALUE_COLUMN: 'HeatPumpCOP'})
 
-        cnode = self.get_input_node(tag='consumption')
-        edf = cnode.get_output_pl(target_node=self)
+        edf = self.require_input(self.consumption_port)
         edf = edf.filter(pl.col('energy_carrier') != 'electricity')
         edf = edf.paths.to_wide(only_category_names=True)
         edf = edf.paths.join_over_index(cop_df)
@@ -137,11 +157,14 @@ class BuildingHeatHistorical(Node):
 
 
 class BuildingUsefulHeat(Node):
+    energy_port = InputPort.one('energy', label=_('Energy'))
+    cop_port = InputPort.one('cop', label=_('Coefficient of performance'))
+    input_port_declarations = (energy_port, cop_port)
+    legacy_input_port_roles_by_tag = {'energy': 'energy', 'cop': 'cop'}
+
     def compute(self) -> ppl.PathsDataFrame:
-        en = self.get_input_node(tag='energy')
-        copn = self.get_input_node(tag='cop')
-        df = en.get_output_pl(target_node=self)
-        cdf = copn.get_output_pl(target_node=self)
+        df = self.require_input(self.energy_port)
+        cdf = self.require_input(self.cop_port)
         cdf = cdf.rename({VALUE_COLUMN: 'COP'})
         df = df.paths.join_over_index(cdf)
         # Heat pump COP is already taken into account, so replace theh multiplier
@@ -153,11 +176,16 @@ class BuildingUsefulHeat(Node):
 
 
 class BuildingHeatPerArea(Node):
+    consumption_port = InputPort.one('consumption', label=_('Energy consumption'))
+    floor_area_port = InputPort.one('floor_area', label=_('Floor area'))
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
+    input_port_declarations = (consumption_port, floor_area_port, additive_port)
+    legacy_input_port_roles_by_tag = {'consumption': 'consumption', 'floor_area': 'floor_area'}
+    legacy_untagged_input_role = 'additive'
+
     def compute(self):
-        e_node = self.get_input_node(tag='consumption')
-        f_node = self.get_input_node(tag='floor_area')
-        edf = e_node.get_output_pl(target_node=self)
-        adf = f_node.get_output_pl(target_node=self)
+        edf = self.require_input(self.consumption_port)
+        adf = self.require_input(self.floor_area_port)
         adf = adf.rename({VALUE_COLUMN: 'Area'})
         adf = adf.paths.to_wide().drop_nulls().paths.to_narrow()
         edf = edf.paths.sum_over_dims(['heating_system'])
@@ -193,22 +221,38 @@ class BuildingHeatPerArea(Node):
         df = df.sort(YEAR_COLUMN).replace_meta(df.get_meta())
         df = df.select_metrics(['Efficiency']).rename({'Efficiency': VALUE_COLUMN}).drop_nulls()
         df = extend_last_historical_value_pl(df, self.get_end_year())
-        nodes = list(self.input_nodes)
-        nodes.remove(e_node)
-        nodes.remove(f_node)
-        df = self.add_nodes_pl(df, nodes)
+        additive_df = self.get_input(self.additive_port)
+        if additive_df is not None:
+            df = df.paths.add_with_dims(additive_df, how='outer')
         return df
 
 
 class BuildingGeneralElectricityEfficiency(AdditiveNode):
+    dataset_port = InputPort.one('dataset', label=_('Electricity use distribution'))
+    consumption_port = InputPort.one('consumption', label=_('Energy consumption'))
+    heat_consumption_port = InputPort.one('heat_consumption', label=_('Heat consumption'))
+    floor_area_port = InputPort.one('floor_area', label=_('Floor area'))
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
+    input_port_declarations = (
+        dataset_port,
+        consumption_port,
+        heat_consumption_port,
+        floor_area_port,
+        additive_port,
+    )
+    legacy_input_port_roles_by_tag = {
+        'consumption': 'consumption',
+        'heat_consumption': 'heat_consumption',
+        'floor_area': 'floor_area',
+    }
+    legacy_untagged_dataset_input_role = 'dataset'
+    legacy_untagged_input_role = 'additive'
+
     def compute(self):
-        idf = self.get_input_dataset_pl()
-        e_node = self.get_input_node(tag='consumption')
-        h_node = self.get_input_node(tag='heat_consumption')
-        f_node = self.get_input_node(tag='floor_area')
-        edf = e_node.get_output_pl(target_node=self)
-        adf = f_node.get_output_pl(target_node=self)
-        hdf = h_node.get_output_pl(target_node=self)
+        idf = self.require_input(self.dataset_port)
+        edf = self.require_input(self.consumption_port)
+        hdf = self.require_input(self.heat_consumption_port)
+        adf = self.require_input(self.floor_area_port)
 
         adf = adf.rename({VALUE_COLUMN: 'Area'})
         hdf = hdf.filter(pl.col('energy_carrier').eq('electricity')).drop('energy_carrier')
@@ -229,27 +273,31 @@ class BuildingGeneralElectricityEfficiency(AdditiveNode):
 
         df = df.select_metrics([m.column_id])
         df = extend_last_historical_value_pl(df, self.get_end_year())
-        nodes = list(self.input_nodes)
-        nodes.remove(e_node)
-        nodes.remove(h_node)
-        nodes.remove(f_node)
-        df = self.add_nodes_pl(df, nodes)
+        additive_df = self.get_input(self.additive_port)
+        if additive_df is not None:
+            df = df.paths.add_with_dims(additive_df, how='outer')
         return df
 
 
 class BuildingHeatUseMix(MixNode):
+    consumption_port = InputPort.one('consumption', label=_('Energy consumption'))
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
+    input_port_declarations = (consumption_port, additive_port)
+    legacy_input_port_roles_by_tag = {'consumption': 'consumption'}
+    legacy_untagged_input_role = 'additive'
+
     def compute(self):
-        cnode = self.get_input_node(tag='consumption')
-        edf = cnode.get_output_pl(target_node=self)
+        edf = self.require_input(self.consumption_port)
 
         sdf = edf.paths.sum_over_dims(['heating_system']).rename({VALUE_COLUMN: 'Total'})
         edf = edf.paths.join_over_index(sdf)
         edf = edf.divide_cols([VALUE_COLUMN, 'Total'], 'Share').select_metrics(['Share']).rename(dict(Share=VALUE_COLUMN))
 
         df = extend_last_historical_value_pl(edf, self.get_end_year())
-        input_nodes = list(self.input_nodes)
-        input_nodes.remove(cnode)
-        df = self.add_mix_normalized(df, input_nodes)
+        additive_df = self.get_input(self.additive_port)
+        if additive_df is not None:
+            df = df.paths.add_with_dims(additive_df, how='outer')
+        df = self.normalize_mix(df)
         return df
 
 
@@ -273,15 +321,22 @@ class BuildingHeatUseMix(MixNode):
 
 
 class BuildingHeatByCarrier(Node):
+    heat_pump_cop_port = InputPort.one('heat_pump_cop', label=_('Heat pump COP'))
+    consumption_port = InputPort.one('consumption', label=_('Energy consumption'))
+    biogas_share_port = InputPort.one('biogas_share', label=_('Biogas share'))
+    input_port_declarations = (heat_pump_cop_port, consumption_port, biogas_share_port)
+    legacy_input_port_roles_by_tag = {
+        'heat_pump_cop': 'heat_pump_cop',
+        'consumption': 'consumption',
+        'biogas_share': 'biogas_share',
+    }
+
     def compute(self):
-        cop_node = self.get_input_node(tag='heat_pump_cop')
-        cop_df = cop_node.get_output_pl(target_node=self)
+        cop_df = self.require_input(self.heat_pump_cop_port)
         cop_df = cop_df.rename({VALUE_COLUMN: 'HeatPumpCOP'})
 
-        cnode = self.get_input_node(tag='consumption')
-        edf = cnode.get_output_pl(target_node=self)
-        bio_share = self.get_input_node(tag='biogas_share')
-        sdf = bio_share.get_output_pl(target_node=self)
+        edf = self.require_input(self.consumption_port)
+        sdf = self.require_input(self.biogas_share_port)
         sdf = sdf.rename({VALUE_COLUMN: 'BioShare'})
 
         edf = edf.paths.to_wide(only_category_names=True)
@@ -307,16 +362,33 @@ class BuildingHeatByCarrier(Node):
 
 
 class ElectricityProductionMix(MixNode):
-    def compute(self) -> ppl.PathsDataFrame:
-        external_df = self.get_input_dataset_pl(tag='external_supply').rename({'energy': 'ExternalEnergy'})
+    external_supply_port = InputPort.one('external_supply', label=_('External electricity supply'))
+    consumption_port = InputPort.one('consumption', label=_('Electricity consumption'))
+    general_mix_port = InputPort.one('general_mix', label=_('General production mix'))
+    subsidized_mix_port = InputPort.one('subsidized_mix', label=_('Subsidized production mix'))
+    external_mix_port = InputPort.one('external_mix', label=_('External production mix'))
+    input_port_declarations = (
+        external_supply_port,
+        consumption_port,
+        general_mix_port,
+        subsidized_mix_port,
+        external_mix_port,
+    )
+    legacy_input_port_roles_by_tag = {
+        'external_supply': 'external_supply',
+        'consumption': 'consumption',
+        'general_mix': 'general_mix',
+        'subsidized_mix': 'subsidized_mix',
+        'external_mix': 'external_mix',
+    }
 
-        energy_node = self.get_input_node(tag='consumption')
+    def compute(self) -> ppl.PathsDataFrame:
+        external_df = self.require_input(self.external_supply_port).rename({'energy': 'ExternalEnergy'})
+
+        energy_df = self.require_input(self.consumption_port)
+        energy_metric = energy_df.metric_cols[0]
         energy_df = (
-            energy_node
-            .get_output_pl(target_node=self)
-            .filter(~pl.col(FORECAST_COLUMN))
-            .rename({energy_node.get_default_output_metric().column_id: 'TotalEnergy'})
-            .paths.join_over_index(external_df)
+            energy_df.filter(~pl.col(FORECAST_COLUMN)).rename({energy_metric: 'TotalEnergy'}).paths.join_over_index(external_df)
         )
 
         energy_unit = energy_df.get_unit('TotalEnergy')
@@ -329,7 +401,7 @@ class ElectricityProductionMix(MixNode):
             .select([YEAR_COLUMN, FORECAST_COLUMN, 'ExternalTotal', 'InternalTotal'])
         )
 
-        mix_df = self.get_input_dataset_pl(tag='general_mix')
+        mix_df = self.require_input(self.general_mix_port)
 
         subsidized_df = (
             mix_df
@@ -343,9 +415,9 @@ class ElectricityProductionMix(MixNode):
             .filter(pl.col('electricity_source') != pl.lit('subsidized'))
             .rename({'share': 'InternalPercent'})
             .paths.join_over_index(subsidized_df)
-            .paths.join_over_index(self.get_input_dataset_pl(tag='subsidized_mix'))
+            .paths.join_over_index(self.require_input(self.subsidized_mix_port))
             .rename({'share': 'SubsidizedPercent'})
-            .paths.join_over_index(self.get_input_dataset_pl(tag='external_mix'))
+            .paths.join_over_index(self.require_input(self.external_mix_port))
             .rename({'share': 'ExternalPercent'})
             .paths.join_over_index(energy_df)
             .with_columns(
@@ -366,18 +438,50 @@ class ElectricityProductionMix(MixNode):
 
 
 class ElectricityProductionMixLegacy(MixNode):
-    def compute(self) -> ppl.PathsDataFrame:
-        dfs = self.get_input_datasets_pl()
-        gen_mix_df, sub_mix_df, ext_energy_df = dfs
+    general_mix_port = InputPort.one('general_mix', label=_('General production mix'))
+    subsidized_mix_port = InputPort.one('subsidized_mix', label=_('Subsidized production mix'))
+    external_energy_port = InputPort.one('external_energy', label=_('Externally supplied energy'))
+    consumption_port = InputPort.one('consumption', label=_('Electricity consumption'))
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
+    input_port_declarations = (
+        general_mix_port,
+        subsidized_mix_port,
+        external_energy_port,
+        consumption_port,
+        additive_port,
+    )
 
-        energy_node = self.get_input_node(tag='consumption')
-        energy_m = energy_node.get_default_output_metric()
-        df = energy_node.get_output_pl(target_node=self)
-        energy_unit = df.get_unit(energy_m.column_id)
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        dataset_roles = iter(('general_mix', 'subsidized_mix', 'external_energy'))
+        for port in candidates:
+            bindings = meta.bindings_for_port(port.id)
+            tags = {tag for binding in bindings for tag in binding.tags}
+            if 'consumption' in tags:
+                result.classify(port, 'consumption', "binding tag 'consumption'")
+            elif bindings and all(isinstance(binding, DatasetBindingDef) for binding in bindings):
+                role = next(dataset_roles, None)
+                if role is None:
+                    result.refuse(port, 'more than three positional datasets')
+                else:
+                    result.classify(port, role, f'the positional {role} dataset')
+            else:
+                result.classify(port, 'additive', 'an additional node input')
+        return result
+
+    def compute(self) -> ppl.PathsDataFrame:
+        gen_mix_df = self.require_input(self.general_mix_port)
+        sub_mix_df = self.require_input(self.subsidized_mix_port)
+        ext_energy_df = self.require_input(self.external_energy_port)
+
+        df = self.require_input(self.consumption_port)
+        energy_metric = df.metric_cols[0]
+        energy_unit = df.get_unit(energy_metric)
 
         df = df.filter(~pl.col(FORECAST_COLUMN))
 
-        df = df.rename({energy_m.column_id: 'TotalEnergy'}).ensure_unit('TotalEnergy', energy_unit)
+        df = df.rename({energy_metric: 'TotalEnergy'}).ensure_unit('TotalEnergy', energy_unit)
         # Account the externally supplied energy separately
         ext_energy_df = ext_energy_df.rename({'energy': 'ExtEnergy'})
         df = df.paths.join_over_index(ext_energy_df)
@@ -418,9 +522,10 @@ class ElectricityProductionMixLegacy(MixNode):
 
         df = extend_last_historical_value_pl(df, self.get_end_year())
 
-        input_nodes = list(self.input_nodes)
-        input_nodes.remove(energy_node)
-        df = self.add_mix_normalized(df, input_nodes)
+        additive_df = self.get_input(self.additive_port)
+        if additive_df is not None:
+            df = df.paths.add_with_dims(additive_df, how='outer')
+        df = self.normalize_mix(df)
 
         return df
 
@@ -441,14 +546,12 @@ class GasGridMixin(Node):
         df = df.sum_cols(['natural_gas', 'biogas', 'biogas_import'], out_col='all_gas', skip_missing=True)
 
         if grid_share_df is None:
-            snode = self.get_input_node(tag='grid_share')
-            grid_share_df = snode.get_output_pl(target_node=self)
+            grid_share_df = self.require_input(self.grid_share_port)
         sdf = grid_share_df
         sdf = sdf.select_metrics(sdf.metric_cols[0], rename='GridShare').ensure_unit('GridShare', '')
 
         if gas_mix_df is None:
-            mnode = self.get_input_node(tag='gas_mix')
-            gas_mix_df = mnode.get_output_pl(target_node=self)
+            gas_mix_df = self.require_input(self.gas_mix_port)
         mdf = gas_mix_df
         mdf = mdf.ensure_unit(mdf.metric_cols[0], '')
         mdf = mdf.paths.to_wide(only_category_names=True)
@@ -545,6 +648,13 @@ class DistrictHeatProductionMix(MixNode, GasGridMixin):
 
 
 class GasGridNode(AdditiveNode, GasGridMixin):
+    additive_port = InputPort.multi('additive', required=True, aggregation='sum', label=_('Additive inputs'))
+    gas_mix_port = InputPort.one('gas_mix', label=_('Gas mix'))
+    grid_share_port = InputPort.one('grid_share', label=_('Gas grid share'))
+    input_port_declarations = (additive_port, AdditiveNode.impute_port, gas_mix_port, grid_share_port)
+    legacy_input_port_roles_by_tag = {'impute': 'impute', 'gas_mix': 'gas_mix', 'grid_share': 'grid_share'}
+    legacy_untagged_input_role = 'additive'
+
     def compute(self) -> ppl.PathsDataFrame:
         df = super().compute()
         meta = df.get_meta()
@@ -562,22 +672,29 @@ class GasGridNode(AdditiveNode, GasGridMixin):
 
 
 class EnergyProductionEmissionFactor(AdditiveNode):
+    mix_port = InputPort.one('mix', label=_('Production mix'))
+    ccs_port = InputPort.optional('ccs', label=_('Carbon capture share'))
+    dataset_port = InputPort.one('dataset', label=_('Emission factor dataset'))
+    emission_factor_port = InputPort.multi('emission_factor', required=False, label=_('Emission factor overrides'))
+    input_port_declarations = (mix_port, ccs_port, dataset_port, emission_factor_port)
+    legacy_input_port_roles_by_tag = {
+        'mix': 'mix',
+        'ccs': 'ccs',
+        'emission_factor': 'emission_factor',
+    }
+    legacy_untagged_dataset_input_role = 'dataset'
     output_metrics = {EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)}
     default_unit = 'g/kWh'
 
     def compute(self) -> ppl.PathsDataFrame:
-        mix_node = self.get_input_node(tag='mix')
-        mix_df = mix_node.get_output_pl(target_node=self)
-        mix_m = mix_node.get_default_output_metric()
-        mix_df = mix_df.rename({mix_m.column_id: 'Share'})
+        mix_df = self.require_input(self.mix_port)
+        mix_df = mix_df.rename({mix_df.metric_cols[0]: 'Share'})
 
-        ccs_node = self.get_input_node(tag='ccs', required=False)
-        ccs_df = None
-        if ccs_node is not None:
-            ccs_df = ccs_node.get_output_pl(target_node=self)
+        ccs_df = self.get_input(self.ccs_port)
+        if ccs_df is not None:
             ccs_df = ccs_df.rename({VALUE_COLUMN: 'CCS'}).ensure_unit('CCS', 'dimensionless')
 
-        ef_df = self.get_input_dataset_pl()
+        ef_df = self.require_input(self.dataset_port)
         if len(self.input_dimensions) != 1:
             raise NodeError(self, 'Must have exactly 1 input dimensions (%d given)' % len(self.input_dimensions))
 
@@ -585,9 +702,12 @@ class EnergyProductionEmissionFactor(AdditiveNode):
         ef_df = ef_df.with_columns([es_dim.series_to_ids_pl(ef_df[es_dim_id])])
         ef_df = ef_df.rename({ef_df.metric_cols[0]: 'EF'})
 
-        for node in self.get_input_nodes(tag='emission_factor'):
-            node_df = node.get_output_pl(target_node=self)
-            node_df = node_df.select([YEAR_COLUMN, *node_df.dim_ids, pl.col(node_df.metric_cols[0]).alias('NodeEF')])
+        for override_df in self.iter_inputs(self.emission_factor_port):
+            node_df = override_df.select([
+                YEAR_COLUMN,
+                *override_df.dim_ids,
+                pl.col(override_df.metric_cols[0]).alias('NodeEF'),
+            ])
             assert set(ef_df.dim_ids) == set(node_df.dim_ids)
             ef_df = ef_df.paths.join_over_index(node_df, how='outer')
             ef_df = ef_df.with_columns([pl.col('EF').fill_null(pl.col('NodeEF'))]).drop('NodeEF')
@@ -621,11 +741,16 @@ class EnergyProductionEmissionFactor(AdditiveNode):
 
 
 class EmissionFactor(Node):
+    dataset_port = InputPort.one('dataset', label=_('Emission factor dataset'))
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
+    input_port_declarations = (dataset_port, additive_port)
+    legacy_untagged_dataset_input_role = 'dataset'
+    legacy_untagged_input_role = 'additive'
     input_dimension_ids = ['energy_carrier', 'emission_scope']
     output_dimension_ids = ['energy_carrier', 'emission_scope']
 
     def compute(self) -> ppl.PathsDataFrame:
-        df = self.get_input_dataset_pl()
+        df = self.require_input(self.dataset_port)
         meta = df.get_meta()
 
         metric_cols = list(meta.units.keys())
@@ -650,8 +775,9 @@ class EmissionFactor(Node):
 
         df = extend_last_historical_value_pl(df, self.get_end_year())
 
-        for node in self.input_nodes:
-            ndf = node.get_output_pl(self).ensure_unit(VALUE_COLUMN, meta.units[VALUE_COLUMN])
+        additive = self.get_input(self.additive_port)
+        if additive is not None:
+            ndf = additive.ensure_unit(VALUE_COLUMN, meta.units[VALUE_COLUMN])
             ndf = ndf.rename({VALUE_COLUMN: '_Right'})
             df = df.paths.join_over_index(ndf, how='outer')
             df = df.with_columns(pl.col(VALUE_COLUMN).fill_null(0) + pl.col('_Right').fill_null(0)).drop('_Right')
@@ -664,17 +790,22 @@ class EmissionFactor(Node):
 
 
 class EmissionFactorActivity(Node):
+    energy_port = InputPort.one('energy', label=_('Energy'))
+    emission_factor_port = InputPort.one('emission_factor', label=_('Emission factor'))
+    input_port_declarations = (energy_port, emission_factor_port)
+    legacy_input_port_roles_by_quantity = {
+        ENERGY_QUANTITY: 'energy',
+        EMISSION_FACTOR_QUANTITY: 'emission_factor',
+    }
     output_metrics = {
         DEFAULT_METRIC: NodeMetric('kt/a', quantity=EMISSION_QUANTITY, column_id=VALUE_COLUMN),
     }
     # input_dimension_ids = ['energy_carrier']
 
     def compute(self) -> ppl.PathsDataFrame:
-        en = self.get_input_node(quantity=ENERGY_QUANTITY)
-        fn = self.get_input_node(quantity=EMISSION_FACTOR_QUANTITY)
-        edf = en.get_output_pl(self)
+        edf = self.require_input(self.energy_port)
         edf = edf.rename({VALUE_COLUMN: 'Energy'})
-        fdf = fn.get_output_pl(self)
+        fdf = self.require_input(self.emission_factor_port)
         fdf = fdf.rename({VALUE_COLUMN: 'EF'})
         df = edf.paths.join_over_index(fdf, index_from='union')
         if df['EF'].has_nulls():
@@ -775,6 +906,9 @@ class VehicleDatasetNode(AdditiveNode):  # Based on BuildingEnergy.
 
 
 class VehicleMileageHistorical(Node):
+    input_port = InputPort.one('input', label=_('Mileage dataset'))
+    input_port_declarations = (input_port,)
+    legacy_untagged_dataset_input_role = 'input'
     output_dimension_ids = [
         'vehicle_type',
     ]
@@ -783,7 +917,7 @@ class VehicleMileageHistorical(Node):
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
-        df = self.get_input_dataset_pl()
+        df = self.require_input(self.input_port)
         m = self.get_default_output_metric()
         unit = df.get_unit('mileage')
         if '[vehicle]' not in unit.dimensionality:
@@ -795,16 +929,21 @@ class VehicleMileageHistorical(Node):
 
 
 class PassengerKilometers(Node):
+    vehicle_mileage_port = InputPort.one('vehicle_mileage', label=_('Vehicle mileage'))
+    occupancy_factor_port = InputPort.one('occupancy_factor', label=_('Occupancy factor'))
+    input_port_declarations = (vehicle_mileage_port, occupancy_factor_port)
+    legacy_input_port_roles_by_tag = {
+        'vehicle_mileage': 'vehicle_mileage',
+        'occupancy_factor': 'occupancy_factor',
+    }
     input_dimension_ids = [
         'vehicle_type',
     ]
     output_dimension_ids = ['transport_mode']
 
     def compute(self) -> ppl.PathsDataFrame:
-        vnode = self.get_input_node(tag='vehicle_mileage')
-        vdf = vnode.get_output_pl(target_node=self)
-        onode = self.get_input_node(tag='occupancy_factor')
-        odf = onode.get_output_pl(target_node=self)
+        vdf = self.require_input(self.vehicle_mileage_port)
+        odf = self.require_input(self.occupancy_factor_port)
 
         tm_dim = self.output_dimensions[self.output_dimension_ids[0]]
         vt_dim = self.input_dimensions[self.input_dimension_ids[0]]
@@ -828,24 +967,32 @@ class PassengerKilometers(Node):
 
 
 class VehicleKilometersPerInhabitant(Node):
+    passenger_kilometers_port = InputPort.one('passenger_kilometers')
+    occupancy_factor_port = InputPort.one('occupancy_factor')
+    mileage_historical_port = InputPort.one('mileage_historical')
+    population_port = InputPort.one('population')
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum')
+    input_port_declarations = (
+        passenger_kilometers_port,
+        occupancy_factor_port,
+        mileage_historical_port,
+        population_port,
+        additive_port,
+    )
+    legacy_input_port_roles_by_tag = {
+        'passenger_kilometers': 'passenger_kilometers',
+        'occupancy_factor': 'occupancy_factor',
+        'mileage_historical': 'mileage_historical',
+        'population': 'population',
+    }
+    legacy_untagged_input_role = 'additive'
+
     def compute(self) -> ppl.PathsDataFrame:
-        nodes = list(self.input_nodes)
-        pkm_node = self.get_input_node(tag='passenger_kilometers')
-        pdf = pkm_node.get_output_pl(target_node=self)
-        nodes.remove(pkm_node)
-
-        of_node = self.get_input_node(tag='occupancy_factor')
-        odf = of_node.get_output_pl(target_node=self)
-        nodes.remove(of_node)
-
-        m_node = self.get_input_node(tag='mileage_historical')
-        mdf = m_node.get_output_pl(target_node=self)
-        nodes.remove(m_node)
-
-        pop_node = self.get_input_node(tag='population')
-        popdf = pop_node.get_output_pl(target_node=self)
+        pdf = self.require_input(self.passenger_kilometers_port)
+        odf = self.require_input(self.occupancy_factor_port)
+        mdf = self.require_input(self.mileage_historical_port)
+        popdf = self.require_input(self.population_port)
         popdf = popdf.rename({VALUE_COLUMN: 'Pop'})
-        nodes.remove(pop_node)
 
         m = self.get_default_output_metric()
         pdf = pdf.rename({VALUE_COLUMN: 'Pkm'})
@@ -873,26 +1020,32 @@ class VehicleKilometersPerInhabitant(Node):
         mdf = extend_last_historical_value_pl(mdf, self.get_end_year())
 
         mdf = mdf.rename(dict(Vkm=m.column_id))
-        return self.add_nodes_pl(mdf, nodes)
+        additive = self.get_input(self.additive_port)
+        return mdf if additive is None else mdf.paths.add_with_dims(additive, how='outer')
 
 
 class VehicleEngineTypeSplit(MixNode):
+    mileage_port = InputPort.one('mileage')
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum')
+    input_port_declarations = (mileage_port, additive_port)
+    legacy_input_port_roles_by_tag = {'mileage': 'mileage'}
+    legacy_untagged_input_role = 'additive'
+
     def compute(self) -> ppl.PathsDataFrame:
-        mnode = self.get_input_node(tag='mileage')
-        mdf = mnode.get_output_pl(target_node=self)
+        mdf = self.require_input(self.mileage_port)
         dim = self.input_dimensions['vehicle_type']
         mdf = mdf.with_columns(dim.ids_to_groups(pl.col('vehicle_type')).alias('group')).add_to_index('group')
         mdf = mdf.paths.calculate_shares(VALUE_COLUMN, 'Share', over_dims=['vehicle_type'])
         m = self.get_default_output_metric()
         mdf = mdf.select_metrics(['Share']).rename(dict(Share=m.column_id)).ensure_unit(m.column_id, m.unit)
-        nodes = list(self.input_nodes)
-        nodes.remove(mnode)
         df = mdf.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
 
         gdf = df.select(['vehicle_type', 'group']).unique()
         df = df.drop('group')
         df = extend_last_historical_value_pl(df, self.get_end_year())
-        df = self.add_nodes_pl(df, nodes)
+        additive = self.get_input(self.additive_port)
+        if additive is not None:
+            df = df.paths.add_with_dims(additive, how='outer')
 
         df = ppl.to_ppdf(df.join(gdf, on='vehicle_type', how='left'), df.get_meta()).sort(YEAR_COLUMN).add_to_index('group')
         df = self.add_mix_normalized(df, [], over_dims=['vehicle_type'])
@@ -901,17 +1054,24 @@ class VehicleEngineTypeSplit(MixNode):
 
 
 class VehicleMileage(Node):
+    population_port = InputPort.one('population')
+    engine_type_split_port = InputPort.one('engine_type_split')
+    mileage_per_inhabitant_port = InputPort.one('mileage_per_inhabitant')
+    input_port_declarations = (population_port, engine_type_split_port, mileage_per_inhabitant_port)
+    legacy_input_port_roles_by_tag = {
+        'population': 'population',
+        'engine_type_split': 'engine_type_split',
+        'mileage_per_inhabitant': 'mileage_per_inhabitant',
+    }
+
     def compute(self) -> ppl.PathsDataFrame:
-        pop_node = self.get_input_node(tag='population')
-        popdf = pop_node.get_output_pl(target_node=self)
+        popdf = self.require_input(self.population_port)
         popdf = popdf.rename({VALUE_COLUMN: 'Pop'})
 
-        et_node = self.get_input_node(tag='engine_type_split')
-        etdf = et_node.get_output_pl(target_node=self)
+        etdf = self.require_input(self.engine_type_split_port)
         etdf = etdf.rename({VALUE_COLUMN: 'EngineTypeShare'})
 
-        m_node = self.get_input_node(tag='mileage_per_inhabitant')
-        mdf = m_node.get_output_pl(target_node=self)
+        mdf = self.require_input(self.mileage_per_inhabitant_port)
         mdf = mdf.rename({VALUE_COLUMN: 'MileagePerPop'})
 
         m = self.get_default_output_metric()
@@ -931,6 +1091,9 @@ class VehicleMileage(Node):
 
 
 class TransportFuelFactor(AdditiveNode):
+    input_port = InputPort.repeatable('input', min_count=2, default_count=2, label=_('Fuel factor metric'))
+    input_port_declarations = (input_port,)
+    legacy_untagged_dataset_input_role = 'input'
     output_metrics = {
         'Fuel': NodeMetric(unit='kg/vkm', quantity=CONSUMPTION_FACTOR_QUANTITY),
         'Electricity': NodeMetric(unit='kWh/vkm', quantity=CONSUMPTION_FACTOR_QUANTITY),
@@ -945,7 +1108,18 @@ class TransportFuelFactor(AdditiveNode):
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
-        df = self.get_input_dataset_pl()
+        df = None
+        for port in self.iter_input_ports(self.input_port):
+            value = self.require_input_port(port)
+            if {'fuel', 'electricity'} <= set(value.metric_cols):
+                df = value
+                break
+            identifier = port.definition.identifier if port.definition is not None else None
+            if identifier is not None and len(value.metric_cols) == 1 and value.metric_cols[0] != identifier:
+                value = value.rename({value.metric_cols[0]: str(identifier).lower()})
+            df = value if df is None else df.paths.join_over_index(value, how='outer', index_from='union')
+        if df is None:
+            raise NodeError(self, 'TransportFuelFactor requires fuel and electricity input metrics')
 
         v_unit = self.context.unit_registry.parse_units('vehicle')
 
@@ -969,15 +1143,26 @@ class TransportFuelFactor(AdditiveNode):
 
 
 class TransportEmissionFactor(Node):
+    general_electricity_ef_port = InputPort.one('general_electricity_ef')
+    electricity_consumption_factor_port = InputPort.one('electricity_consumption_factor')
+    fuel_emission_factor_port = InputPort.one('fuel_emission_factor')
+    input_port_declarations = (
+        general_electricity_ef_port,
+        electricity_consumption_factor_port,
+        fuel_emission_factor_port,
+    )
+    legacy_input_port_roles_by_tag = {
+        'general_electricity_ef': 'general_electricity_ef',
+        'electricity_consumption_factor': 'electricity_consumption_factor',
+        'fuel_emission_factor': 'fuel_emission_factor',
+    }
     output_dimension_ids = ['emission_scope', 'vehicle_type', 'energy_carrier']
 
     def compute(self) -> ppl.PathsDataFrame:
-        ef_node = self.get_input_node(tag='general_electricity_ef')
-        efdf = ef_node.get_output_pl(self)
+        efdf = self.require_input(self.general_electricity_ef_port)
         efdf = efdf.rename({efdf.metric_cols[0]: 'EEF'})
 
-        ec_node = self.get_input_node(tag='electricity_consumption_factor')
-        ecdf = ec_node.get_output_pl(self)
+        ecdf = self.require_input(self.electricity_consumption_factor_port)
         ecdf = ecdf.rename({ecdf.metric_cols[0]: 'EC'})
 
         m = self.get_default_output_metric()
@@ -990,8 +1175,7 @@ class TransportEmissionFactor(Node):
         ]).add_to_index(['greenhouse_gases', 'energy_carrier'])
         edf = edf.select_metrics(['EF'])
 
-        fef_node = self.get_input_node(tag='fuel_emission_factor')
-        fdf = fef_node.get_output_pl(target_node=self)
+        fdf = self.require_input(self.fuel_emission_factor_port)
         fdf = fdf.rename({VALUE_COLUMN: 'EF'})
 
         ef_expr = pl.col('EF').replace(0.0, None, default=pl.col('EF'))
@@ -1010,14 +1194,25 @@ class TransportEmissionFactor(Node):
 
 
 class TransportEmissionsForFuel(AdditiveNode):
+    fuel_factor_port = InputPort.one('fuel_factor')
+    emission_factor_port = InputPort.one('emission_factor')
+    tank_respiration_port = InputPort.optional('tank_respiration')
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum')
+    input_port_declarations = (fuel_factor_port, emission_factor_port, tank_respiration_port, additive_port)
+    legacy_input_port_roles_by_tag = {
+        'fuel_factor': 'fuel_factor',
+        'emission_factor': 'emission_factor',
+        'tank_respiration': 'tank_respiration',
+        'additive': 'additive',
+    }
+
     def compute(self) -> ppl.PathsDataFrame:
         # Read DF from the transport_fuel_factor node; contains interpolated and extended values to 2040.
-        ff_node = self.get_input_node(tag='fuel_factor')
-        ffdf = ff_node.get_output_pl(target_node=self)
+        ffdf = self.require_input(self.fuel_factor_port)
         ffdf = ffdf.rename({VALUE_COLUMN: 'fuel'})
 
         # Read DF from the transport_emission_factors dataset; contains interpolated values, which are then extended to 2024.
-        efdf = self.get_input_dataset_pl(tag='emission_factor')
+        efdf = self.require_input(self.emission_factor_port)
         efdf = extend_last_historical_value_pl(efdf, efdf[YEAR_COLUMN].max())  # type: ignore
         eunit = efdf.get_unit('emission_factor')
         if 'vehicle' not in eunit.dimensionality:
@@ -1035,15 +1230,9 @@ class TransportEmissionsForFuel(AdditiveNode):
         df = df.paths.sum_over_dims(['energy_carrier'])
 
         # Read DF from transport_tank_respiration_for_fuel node; contains extended values to 2040.
-        tr_node = self.get_input_node(tag='tank_respiration', required=False)
-        if tr_node is not None:
-            trdf = (
-                tr_node
-                .get_output_pl(target_node=self)
-                .rename({VALUE_COLUMN: 'TR'})
-                .ensure_unit('TR', df.get_unit(m.column_id))
-                .filter(~pl.col(FORECAST_COLUMN))
-            )
+        trdf = self.get_input(self.tank_respiration_port)
+        if trdf is not None:
+            trdf = trdf.rename({VALUE_COLUMN: 'TR'}).ensure_unit('TR', df.get_unit(m.column_id)).filter(~pl.col(FORECAST_COLUMN))
 
             # Join the DF, add TR to the metric column, and drop TR. DF contains dimension combos with differing last years
             # (historical or forecast).
@@ -1052,16 +1241,22 @@ class TransportEmissionsForFuel(AdditiveNode):
 
         df = extend_last_historical_value_pl(df, self.get_end_year())
 
-        anodes = self.get_input_nodes(tag='additive')
-        if anodes:
-            df = self.add_nodes_pl(df, anodes)
+        additive = self.get_input(self.additive_port)
+        if additive is not None:
+            df = df.paths.add_with_dims(additive, how='outer')
 
         return df
 
 
 class TransportElectricity(AdditiveNode):
+    dataset_port = InputPort.one('dataset')
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum')
+    input_port_declarations = (dataset_port, additive_port)
+    legacy_untagged_dataset_input_role = 'dataset'
+    legacy_untagged_input_role = 'additive'
+
     def compute(self) -> ppl.PathsDataFrame:
-        df = self.get_input_dataset_pl()
+        df = self.require_input(self.dataset_port)
         m = self.get_default_output_metric()
         # Replace 0 values with nulls
         el_expr = pl.col('electricity').replace(0.0, None, default=pl.col('electricity'))
@@ -1072,7 +1267,9 @@ class TransportElectricity(AdditiveNode):
         filter_expr = pl.col('energy_carrier').eq('electricity') & ~pl.col(m.column_id).is_null()
         df = df.filter(filter_expr).drop('energy_carrier')
         df = extend_last_historical_value_pl(df, self.get_end_year())
-        df = self.add_nodes_pl(df, self.input_nodes)
+        additive = self.get_input(self.additive_port)
+        if additive is not None:
+            df = df.paths.add_with_dims(additive, how='outer')
         return df
 
 
@@ -1097,19 +1294,26 @@ class TransportEmissions(MultiplicativeNode):
 
 
 class TransportEmissions2kW(Node):
+    emissions_port = InputPort.one('emissions')
+    consumption_port = InputPort.one('consumption')
+    emission_factors_port = InputPort.one('emission_factors')
+    input_port_declarations = (emissions_port, consumption_port, emission_factors_port)
+    legacy_input_port_roles_by_tag = {
+        'emissions': 'emissions',
+        'consumption': 'consumption',
+        'emission_factors': 'emission_factors',
+    }
+
     def compute(self):
-        enode = self.get_input_node(tag='emissions')
-        edf = enode.get_output_pl(target_node=self)
+        edf = self.require_input(self.emissions_port)
         edf = edf.with_columns(emission_scope=pl.col('emission_scope').cast(pl.Categorical))
         edf = edf.rename({VALUE_COLUMN: 'emissions'})
 
-        cnode = self.get_input_node(tag='consumption')
-        cdf = cnode.get_output_pl(target_node=self)
+        cdf = self.require_input(self.consumption_port)
         cdf = cdf.filter(pl.col('energy_carrier') != 'electricity')
         cdf = cdf.rename({VALUE_COLUMN: 'consumption'})
 
-        fnode = self.get_input_node(tag='emission_factors')
-        fdf = fnode.get_output_pl(target_node=self)
+        fdf = self.require_input(self.emission_factors_port)
         fdf = fdf.rename({VALUE_COLUMN: 'factor'})
 
         cdf = cdf.paths.join_over_index(fdf)
@@ -1146,16 +1350,17 @@ class TransportEmissions2kW(Node):
 
 
 class NonroadMachineryEmissions(Node):
+    emission_factor_port = InputPort.one('emission_factor')
+    fuel_port = InputPort.one('fuel')
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum')
+    input_port_declarations = (emission_factor_port, fuel_port, additive_port)
+    legacy_input_port_roles_by_tag = {'emission_factor': 'emission_factor', 'fuel': 'fuel'}
+    legacy_untagged_input_role = 'additive'
     quantity = 'emissions'
 
     def compute(self) -> ppl.PathsDataFrame:
-        nodes = list(self.input_nodes)
-        efn = self.get_input_node(tag='emission_factor')
-        efdf = efn.get_output_pl(target_node=self)
-        fn = self.get_input_node(tag='fuel')
-        fdf = fn.get_output_pl(target_node=self)
-        nodes.remove(efn)
-        nodes.remove(fn)
+        efdf = self.require_input(self.emission_factor_port)
+        fdf = self.require_input(self.fuel_port)
         efdf = efdf.rename({VALUE_COLUMN: 'EF'})
         fdf = fdf.rename({VALUE_COLUMN: 'Fuel'})
 
@@ -1164,29 +1369,49 @@ class NonroadMachineryEmissions(Node):
         df = convert_to_co2e(df, 'greenhouse_gases')
         df = df.ensure_unit(VALUE_COLUMN, self.get_default_output_metric().unit)
 
-        df = self.add_nodes_pl(df, nodes)
+        additive = self.get_input(self.additive_port)
+        if additive is not None:
+            df = df.paths.add_with_dims(additive, how='outer')
 
         return df
 
 
 class WasteIncinerationEmissions(SimpleNode):
-    def compute(self) -> ppl.PathsDataFrame:
-        dfs = self.get_input_datasets_pl()
-        fdf = efdf = None
-        for df in dfs:
-            if 'share_of_fossil_co2' in df:
-                fdf = df
-                continue
-            if 'emission_factor' in df:
-                efdf = df
-                continue
-        if fdf is None:
-            raise NodeError(self, "Dataset with 'share_of_fossil_co2' not found")
-        if efdf is None:
-            raise NodeError(self, 'Dataset with emission factors not found')
+    fossil_share_port = InputPort.one('fossil_share')
+    emission_factor_port = InputPort.one('emission_factor')
+    amount_port = InputPort.one('amount')
+    input_port_declarations = (fossil_share_port, emission_factor_port, amount_port)
+    legacy_input_port_roles_by_tag = {
+        'emission_factor': 'emission_factor',
+        'amount': 'amount',
+    }
 
-        amount_node = self.get_input_node(tag='amount')
-        adf = amount_node.get_output_pl(target_node=self)
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            bindings = meta.bindings_for_port(port.id)
+            tags = {str(tag) for binding in bindings for tag in binding.tags}
+            if 'amount' in tags:
+                result.classify(port, 'amount', "binding tag 'amount'")
+                continue
+            dataset_ids = {
+                str(binding.external_dataset_id)
+                for binding in bindings
+                if isinstance(binding, DatasetBindingDef) and binding.external_dataset_id is not None
+            }
+            if any('emission_factor' in dataset_id for dataset_id in dataset_ids):
+                result.classify(port, 'emission_factor', 'the emission-factor dataset identifier')
+            elif dataset_ids:
+                result.classify(port, 'fossil_share', 'the waste-incineration composition dataset')
+            else:
+                result.refuse(port, 'not a recognized waste-incineration input')
+        return result
+
+    def compute(self) -> ppl.PathsDataFrame:
+        fdf = self.require_input(self.fossil_share_port)
+        efdf = self.require_input(self.emission_factor_port)
+        adf = self.require_input(self.amount_port)
 
         if not efdf.has_unit('emission_factor'):
             efdf = efdf.set_unit('emission_factor', 'dimensionless')
@@ -1224,12 +1449,17 @@ class WasteIncinerationEmissions(SimpleNode):
 
 
 class SewageSludgeProcessingEmissions(SimpleNode):
+    dataset_port = InputPort.one('dataset')
+    ccs_share_port = InputPort.one('ccs_share')
+    input_port_declarations = (dataset_port, ccs_share_port)
+    legacy_input_port_roles_by_tag = {'ccs_share': 'ccs_share'}
+    legacy_untagged_dataset_input_role = 'dataset'
+
     def compute(self) -> ppl.PathsDataFrame:
-        df = self.get_input_dataset_pl()
+        df = self.require_input(self.dataset_port)
         df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
         df = extend_last_historical_value_pl(df, self.get_end_year())
-        ccs_node = self.get_input_node(tag='ccs_share')
-        cdf = ccs_node.get_output_pl(target_node=self)
+        cdf = self.require_input(self.ccs_share_port)
         cdf = cdf.rename({VALUE_COLUMN: 'CCSShare'}).ensure_unit('CCSShare', 'dimensionless')
 
         df = df.paths.join_over_index(cdf)
@@ -1254,11 +1484,31 @@ class SewageSludgeProcessingEmissions(SimpleNode):
 
 
 class WastewaterTreatmentEmissions(Node):
+    population_port = InputPort.one('population')
+    catchment_population_port = InputPort.one('catchment_population')
+    emission_factor_port = InputPort.one('emission_factor')
+    input_port_declarations = (population_port, catchment_population_port, emission_factor_port)
+    legacy_input_port_roles_by_tag = {'emission_factor': 'emission_factor'}
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            bindings = meta.bindings_for_port(port.id)
+            tags = {str(tag) for binding in bindings for tag in binding.tags}
+            if 'emission_factor' in tags:
+                result.classify(port, 'emission_factor', "binding tag 'emission_factor'")
+            elif 'population' in tags and any(isinstance(binding, DatasetBindingDef) for binding in bindings):
+                result.classify(port, 'catchment_population', "dataset binding tag 'population'")
+            else:
+                result.classify(port, 'population', 'the population node input')
+        return result
+
     def compute(self) -> ppl.PathsDataFrame:
-        pop_df = self.get_input_node(quantity='population').get_output_pl(self)
-        cpop_df = self.get_input_datasets_pl(tag='population')[0]
+        pop_df = self.require_input(self.population_port)
+        cpop_df = self.require_input(self.catchment_population_port)
         cpop_df = cpop_df.rename({cpop_df.metric_cols[0]: 'CatchmentPop'})
-        efdf = self.get_input_datasets_pl(tag='emission_factor')[0]
+        efdf = self.require_input(self.emission_factor_port)
         efdf = efdf.rename({efdf.metric_cols[0]: 'EF'})
         df = pop_df.paths.join_over_index(cpop_df)
         df = df.divide_cols(['CatchmentPop', VALUE_COLUMN], 'CPerPop')

@@ -11,7 +11,8 @@ import polars as pl
 from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.constraints.port_roles import PortRoleInferenceResult
-from nodes.defs.port_def import InputPort, InputPortDef
+from nodes.defs.binding_def import DatasetBindingDef
+from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef
 from nodes.exceptions import NodeError
 from nodes.generic import GenericNode
 from nodes.gpc import DatasetNode
@@ -69,6 +70,23 @@ class SCurveAction(GenericAction):
     )
     allowed_parameters = [*GenericAction.allowed_parameters]
     no_effect_value = 0.0
+    input_port = InputPort.one('input', label=_('Historical input'))
+    parameters_port = InputPort.one('parameters', label=_('S-curve parameters'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port, parameters_port)
+    legacy_input_port_roles_by_tag = {'parameters': 'parameters'}
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            bindings = meta.bindings_for_port(port.id)
+            tags = {tag for binding in bindings for tag in binding.tags}
+            if 'parameters' in tags or any(isinstance(binding, DatasetBindingDef) for binding in bindings):
+                reason = "binding tag 'parameters'" if 'parameters' in tags else 'a legacy dataset binding'
+                result.classify(port, 'parameters', reason)
+            else:
+                result.classify(port, 'input', 'a legacy historical edge binding')
+        return result
 
     def _newton_raphson_estimator(
         self,
@@ -172,10 +190,10 @@ class SCurveAction(GenericAction):
         return out
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        df = self.get_input_node().get_output_pl(target_node=self)
+        df = self.require_input(self.input_port)
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
 
-        params = self.get_input_dataset_pl()
+        params = self.require_input(self.parameters_port)
         # GenericDataset extends the data across all model years; collapse params to
         # a single representative year so .item() works in _apply_scurve_parameters.
         target_year = self.context.instance.target_year
@@ -426,9 +444,13 @@ class TrajectoryAction(ActionNode):
         NumberParameter(local_id='baseline_year_level'),
         BoolParameter(local_id='keep_dimension'),
     ]
+    input_port = InputPort.one('input', label=_('Trajectory'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
+    legacy_fixed_dataset_input_role: ClassVar[str | None] = 'input'
+    legacy_untagged_dataset_input_role: ClassVar[str | None] = 'input'
 
     def compute_effect(self):
-        df = self.get_input_dataset_pl()
+        df = self.require_input(self.input_port)
         dim_id = self.get_parameter_value_str('dimension', required=True)
         cat_id = self.get_parameter_value_str('category', required=False)
         cat_no = self.get_parameter_value_int('category_number', required=False)
@@ -450,6 +472,9 @@ class GpcTrajectoryAction(TrajectoryAction, DatasetNode):
     GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.
     """)
     allowed_parameters = [*TrajectoryAction.allowed_parameters, *DatasetNode.allowed_parameters]
+    input_port_declarations = DatasetNode.input_port_declarations
+    legacy_fixed_dataset_input_role = DatasetNode.legacy_fixed_dataset_input_role
+    legacy_untagged_dataset_input_role = DatasetNode.legacy_untagged_dataset_input_role
 
     def compute_effect(self):
         df = DatasetNode.compute(self)
