@@ -284,7 +284,7 @@ dimensions:
   - id: v21
     label: Cattle
   - id: v22
-    label: Swine
+    label: Pigs
   - id: v23
     label: Poultry
   - id: v24
@@ -1744,7 +1744,7 @@ nodes:
   - id: land_areas
     from_dimensions:
     - id: sector
-      categories: [v131, v132, v133]
+      categories: [v131, v132]
     to_dimensions:
     - id: sector
 
