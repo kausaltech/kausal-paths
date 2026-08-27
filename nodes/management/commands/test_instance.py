@@ -1250,6 +1250,8 @@ class Command(BaseCommand):
 
         start_from = options['start_from']
 
+        failed_instances: list[str] = []
+
         for iid in instance_ids:
             if start_from:
                 if iid == start_from:
@@ -1264,6 +1266,7 @@ class Command(BaseCommand):
             ic = InstanceConfig.objects.get(identifier=iid)
             succeeded = self.check_instance(ic)
             if not succeeded:
+                failed_instances.append(iid)
                 self.nr_fails += 1
                 if self.maxfail > 0 and self.nr_fails >= self.maxfail:
                     self.logger.error('Maximum number of failures reached, stopping')
@@ -1278,5 +1281,9 @@ class Command(BaseCommand):
                     break
 
         if self.nr_fails:
-            self.logger.error('Failed {nr_fails} instances', nr_fails=self.nr_fails)
+            self.logger.error(
+                'Failed {nr_fails} instances: {failed_instances}',
+                nr_fails=self.nr_fails,
+                failed_instances=', '.join(failed_instances),
+            )
             exit(1)
