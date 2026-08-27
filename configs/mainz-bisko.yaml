@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b74ec99ae392e57974a273480b186bb7dbd2dd80
+  commit: 8552d0e58d49898b0f64cd31f1319b6966e35f8a
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -460,6 +460,18 @@ params:
   label_en: AGS number
   label_de: AGS-Nummer
   value: '07315000'
+  is_customizable: false
+  is_visible: false
+# NUTS-3, not NUTS-2: Mainz is a Kreisfreie Stadt, so DEB35 *is* the city, where DEB3
+# (Rheinhessen-Pfalz) is a region many times its size. Nothing in the model reads this
+# -- it is an identifier of the city, recorded beside the AGS so the offline builders
+# have one place to look. `data/weather/create_degree_day_factors.py` uses it to pick
+# the city's column out of the European degree-day table. A city that is not its own
+# Kreis takes the NUTS-3 region containing it.
+- id: nuts_code
+  label_en: NUTS-3 code
+  label_de: NUTS-3-Code
+  value: DEB35
   is_customizable: false
   is_visible: false
 - id: use_national_values
