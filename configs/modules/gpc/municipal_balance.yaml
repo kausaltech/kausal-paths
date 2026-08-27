@@ -299,6 +299,42 @@ nodes:
 # --------------------------------------------------------------------------------------
 # Activity
 # --------------------------------------------------------------------------------------
+#
+# Every activity binding carries `extend: true`. The reason is structural to this balance
+# rather than particular to any city, so it belongs here.
+#
+# An administration balance is assembled from sources that belong to different offices --
+# building management, the fleet system, procurement, a travel survey -- and they are
+# therefore almost never complete to the same year. Without extension each branch simply
+# stops where its source stops, and because the branches stop at different points the
+# *sum* falls in steps. Those steps look exactly like abatement, and they are the largest
+# movements on the page: a branch ending is a bigger change than anything a measure does.
+#
+# There are three ways to present a series whose inputs have run out: let it fall
+# silently, show a gap, or show a forecast. The first is the only one that misinforms, and
+# it is what removing `extend` produces.
+#
+# `extend` marks every carried year `Forecast: True`, and the UI draws forecast years
+# differently from observed ones. The series then says "held at the last observation"
+# where it would otherwise say "fell", and a reader can see which years are measured
+# without being told. That is strictly more information than a truncated series.
+#
+# **The precondition.** Extension carries the last *observed* value, so it is only honest
+# when the newest data a city actually has is wired into the model. If a later source
+# exists but has not been connected, `extend` will carry a stale figure over years that
+# have a real one -- which is an unwired-data bug rather than a problem with `extend`, but
+# it is published either way, and it can be off by a multiple. Before relying on this,
+# check that each activity branch reaches the last year its source covers. This module was
+# briefly run without `extend` for exactly that reason, and the fix was to wire the data,
+# not to truncate the series.
+#
+# Two consequences to keep in view rather than fix here:
+#   - Where a branch's last observation reflects a one-off change -- a service moved out of
+#     the authority, a building sold -- holding it forward is right for the new footing and
+#     wrong the moment that change is reversed or restated.
+#   - Where a survey ran once (commuting is the usual case), every extended year repeats
+#     the surveyed state. Say so wherever the trend is shown; it is the honest carry, but
+#     it is not a measurement.
 
 - id: municipal_building_energy
   is_editable: false
@@ -346,6 +382,7 @@ nodes:
   # the one that fails safe against a published figure.
   - id: gpc/municipal_building_energy
     column: energy
+    extend: true
     filters:
     - dimension: municipal_facility_type
       categories: [administrative_buildings, fire_and_civil_protection, schools,
@@ -376,6 +413,7 @@ nodes:
   # rented portfolio is open -- see README, Open items.
   - id: gpc/municipal_balance_activity
     column: energy
+    extend: true
     filters:
     - dimension: ghg_category
       categories: [heat, electricity]
@@ -406,6 +444,7 @@ nodes:
   input_datasets:
   - id: gpc/municipal_balance_activity
     column: volume
+    extend: true
     filters:
     - dimension: ghg_category
       categories: [fleet]
@@ -429,6 +468,7 @@ nodes:
   input_datasets:
   - id: gpc/municipal_balance_activity
     column: mass
+    extend: true
     filters:
     - column: energy_carrier
     - column: vehicle_type
@@ -456,6 +496,7 @@ nodes:
   input_datasets:
   - id: gpc/municipal_balance_activity
     column: mileage
+    extend: true
     filters:
     - column: energy_carrier
     - column: vehicle_type
@@ -485,6 +526,7 @@ nodes:
   input_datasets:
   - id: gpc/municipal_balance_activity
     column: count
+    extend: true
     filters:
     - column: energy_carrier
     - column: vehicle_type
@@ -506,6 +548,7 @@ nodes:
   # extract -- so this is the only input.
   - id: gpc/municipal_water_use
     column: volume
+    extend: true
     filters:
     - dimension: municipal_facility_type
       categories: [administrative_buildings, fire_and_civil_protection, schools,
