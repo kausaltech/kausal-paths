@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Concatenate, Literal, Self, cast
 import loguru
 import polars as pl
 import redis
+from redis.maint_notifications import MaintNotificationsConfig
 
 from kausal_common.debugging.perf import PerfCounter
 from kausal_common.perf.perf_context import PerfStats
@@ -458,7 +459,7 @@ class Cache(AbstractContextManager['Cache']):
         self.cache_misses = set()
 
         if redis_url:
-            client = redis.Redis.from_url(redis_url)
+            client = redis.Redis.from_url(redis_url, maint_notifications_config=MaintNotificationsConfig(enabled=False))
             self.ext_cache = RedisCache(client)
             redis_str = ' using Redis at [repr.url]%s[/]' % redis_url
         else:
