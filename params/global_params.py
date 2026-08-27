@@ -336,6 +336,23 @@ class AGSNumber(StringGlobalParameter):
     id = 'ags_number'
 
 
+class NUTSCode(StringGlobalParameter):
+    """
+    The NUTS region an instance sits in, as an identifier of the city beside its AGS.
+
+    No node reads it. It is declared so that offline data builders have one canonical
+    place to look for a city's region instead of a lookup table of their own -- today
+    `data/weather/create_degree_day_factors.py`, which picks the city's column out of
+    the European degree-day table with it.
+
+    NUTS-3 rather than NUTS-2 wherever the finer region is the city: for a German
+    Kreisfreie Stadt it is, and a NUTS-2 region can be many times the city's size.
+    """
+
+    name = _('NUTS code')
+    id = 'nuts_code'
+
+
 class Flatline(BoolGlobalParameter):
     name = _('Use flatline rather than forecast')
     id = 'flatline'
