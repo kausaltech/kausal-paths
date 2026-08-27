@@ -92,7 +92,7 @@ params:
 # which route each year took. `use_exergetic_district_heating` was removed on 2026-08-20.
 
 - id: weather_correction
-  label_de: Wetterkorrektur durchführen (nicht BISKO-konform)
+  label_de: Witterungsbereinigung durchführen (nicht BISKO-konform)
   label_en: Perform weather correction (not BISKO-compliant)
   value: false
   is_customizable: true

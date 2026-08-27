@@ -161,13 +161,20 @@ datasets:
   - id: quality
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
-- id: kommune/witterungsbereinigung            # DWD degree days; not part of the BISKO baseline
+- id: kommune/witterungsbereinigung            # degree days; not part of the BISKO baseline
   # Editable, and in the municipal namespace, because degree days are a property of the city's
-  # own weather -- the shipped values are a Potsdam delivery standing in until the city enters
-  # its own. It sat in `de/` and locked until 2026-08-21, which said "national methodology
+  # own weather -- the shipped values are a Potsdam delivery standing in until the city has its
+  # own. It sat in `de/` and locked until 2026-08-21, which said "national methodology
   # constant" about a number that is neither. Being editable does not make a weather-corrected
   # balance conformant: criterion 5 forbids the correction outright, and `has_no_weather_
   # correction` gates on the switch, not on these values.
+  #
+  # `data/weather/` builds a city's own factors from the Eurostat degree-day table, at NUTS-3
+  # so the region is the city rather than its hinterland, keyed on the instance's `nuts_code`
+  # parameter. Mainz was the first off the placeholder (2026-08-27). Note that the Eurostat
+  # convention (18 degC reference) and the German Gradtagzahl G20/15 (20 degC) are not
+  # interchangeable -- the German factors are measurably flatter -- so a city that supplies its
+  # own VDI 3807 series is not supplying the same quantity. See `data/weather/README.md`.
   is_editable: true
   metrics:
   - id: default
@@ -1307,7 +1314,7 @@ nodes:
     heat while transport has no space heating at all — so a correction there would move a number
     the weather did not cause.<br/>
     <b>BISKO does not permit this correction</b> (criterion 5). The balance computes without it
-    by default; switching <i>Wetterkorrektur durchführen</i> on makes the result explicitly
+    by default; switching <i>Witterungsbereinigung durchführen</i> on makes the result explicitly
     non-conformant, and <code>has_no_weather_correction</code> reports that. The factors are
     city data — the shipped series is a Potsdam delivery standing in until the city enters its
     own degree days — but editing them cannot make a corrected balance conformant, because the
@@ -3167,7 +3174,7 @@ nodes:
 
 # - id: other_transport_energy # Extensively heavy dataset with municipality dimension.
 #   name_en: Other transport energy
-#   name_de: Andere Transportenergie
+#   name_de: Andere Verkehrsenergie
 #   type: formula.FormulaNode
 #   quantity: energy
 #   unit: MWh/a

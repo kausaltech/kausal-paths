@@ -90,7 +90,7 @@ params:
   is_visible: true
   is_customizable: true
 - id: weather_correction
-  label_de: Wetterkorrektur durchführen?
+  label_de: Witterungsbereinigung durchführen?
   label_en: Perform weather correction?
   value: false
   is_customizable: true
@@ -582,7 +582,7 @@ nodes:
     unit: dimensionless
 
 - id: transport_energy_by_energy_carrier
-  name_de: Transportenergieverbrauch nach Energieträger
+  name_de: Verkehrsenergieverbrauch nach Energieträger
   name_en: Transport energy use by energy carrier
   description_en: Data from Klimaschutz-Planer 2008-2023 (year 2023 unused 
     because other data is available).
@@ -600,7 +600,7 @@ nodes:
     operations: get_single_dataset,inventory_only
 
 - id: transport_fuel_energy
-  name_de: Transportkraftstoffenergie
+  name_de: Verkehrskraftstoffenergie
   name_en: Transport fuel energy
   type: formula.FormulaNode
   quantity: energy
@@ -624,7 +624,7 @@ nodes:
     from sheet "Verkehr EEV (LKW, PKW, übrige)</li></ul>'
   description_de: 'Die Daten kommen aus drei verschiedenen Datensätzen aus der Datei
     Emissionsrechner Gesamt_mit_szenarien_v1-4.xlsx (Version 2026-03-30):<ul><li>
-    Stationäre Endenergieverbrauch nach Typ: aus Blatt "Stationär EEV"</li><li> Transportkraftstoffenergie
+    Stationäre Endenergieverbrauch nach Typ: aus Blatt "Stationär EEV"</li><li> Verkehrskraftstoffenergie
     (Jahre 2008 - 2022): aus Blatt "Verkehr"</li><li> Verkehrsenergieverbrauch nach
     Typ (Jahre 2023 - 2050): aus Blatt "Verkehr EEV (LKW, PKW, übrige)</li></ul>'
   type: formula.FormulaNode

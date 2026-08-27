@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8552d0e58d49898b0f64cd31f1319b6966e35f8a
+  commit: 5b14257f1411e11bd8fc2669e692bdd5be3fd33a
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -66,8 +66,13 @@ include:
   # Mainz's own degree-day ratio (private_households, commerce_trade_services,
   # municipal_facilities; industry and transport stay at 1.0), replacing the shipped Potsdam
   # placeholder. Does not change conformity: criterion 5 forbids the correction outright,
-  # checked on the `weather_correction` switch (default off), not on these values. See
-  # data/mainz/create_witterungskorrektur.py.
+  # checked on the `weather_correction` switch (default off), not on these values.
+  #
+  # Built by `data/weather/create_degree_day_factors.py --instance mainz-bisko`, which reads
+  # the `nuts_code` parameter below (DEB35, the city itself) out of the European degree-day
+  # table in `weather/heating_degree_days`. The reference level, 2834 HDD, is the one Mainz's
+  # own Klimaschutzplaner works from and is recorded in `data/weather/city_references.yaml`;
+  # the two series then agree to 2.2 %. See `data/weather/README.md`.
   - from: kommune/witterungsbereinigung
     to: mainz/witterungsbereinigung
 
@@ -445,7 +450,7 @@ params:
   is_visible: true
 
 - id: weather_correction
-  label_de: Wetterkorrektur durchführen?
+  label_de: Witterungsbereinigung durchführen?
   label_en: Perform weather correction?
   value: false
   is_customizable: true

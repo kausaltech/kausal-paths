@@ -133,9 +133,14 @@ dimensions:
     label_en: Procurement
     label_de: Beschaffung
     aliases: ['7 Beschaffung']
+  # "Transport" and not "Verkehr" on purpose, against the rule in
+  # data/bisko/german-terminology.md: this GHG-Protocol category is the movement of goods,
+  # which is the one sense in which German "Transport" is the right word. "Verkehr" would
+  # name the mobility sector, which this is not. The label was incomplete rather than
+  # wrong, so it now carries the full category name.
   - id: transport_and_distribution
     label_en: Transport and distribution
-    label_de: Transport
+    label_de: Transport und Verteilung
     aliases: ['8 Transport']
   - id: waste_and_water
     label_en: Waste and water
