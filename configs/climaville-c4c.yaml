@@ -1713,7 +1713,7 @@ nodes:
   output_dimensions: [sector, ghg]
   params:
     formula: (land_areas * land_emission_factors) + reference + 
-      biogenic_energy_park + climate_supervision_and_action_plans
+      climate_supervision_and_action_plans
   input_datasets:
   - id: land
     tags: [reference]
