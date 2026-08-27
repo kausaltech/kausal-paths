@@ -92,6 +92,10 @@ def file_path(str_path: str) -> Path:
     raise ValueError(f'{str_path} is not a file')
 
 
+def resolve_all_nodes(*, store: bool, all_nodes: bool, outcomes_only: bool) -> bool:
+    return all_nodes or (store and not outcomes_only)
+
+
 type NodeFailReason = Literal['output', 'compare', 'check']
 
 
@@ -333,11 +337,18 @@ class Command(BaseCommand):
             default=False,
             help='Call malloc_trim(0) after each instance and print the post-trim RSS in --trace-rss mode',
         )
-        parser.add_argument(
+        node_scope_group = parser.add_mutually_exclusive_group()
+        node_scope_group.add_argument(
             '--all-nodes',
             action='store_true',
             default=False,
-            help='Store/compare outputs for all nodes instead of only outcome nodes',
+            help='Compare outputs for all nodes instead of only outcome nodes (the default with --store)',
+        )
+        node_scope_group.add_argument(
+            '--outcomes-only',
+            action='store_true',
+            default=False,
+            help='With --store, store only outcome-node outputs instead of all node outputs',
         )
         parser.add_argument(
             '--trace-object-graph',
@@ -1204,7 +1215,11 @@ class Command(BaseCommand):
         self.trace_rss = bool(options['trace_rss'])
         self.gc_after_instance = bool(options['gc_after_instance'])
         self.malloc_trim_after_instance = bool(options['malloc_trim_after_instance'])
-        self.all_nodes = bool(options['all_nodes'])
+        self.all_nodes = resolve_all_nodes(
+            store=self.store,
+            all_nodes=bool(options['all_nodes']),
+            outcomes_only=bool(options['outcomes_only']),
+        )
         self.trace_object_graph = bool(options['trace_object_graph'])
         self.trace_object_limit = int(options['trace_object_limit'])
         self.trace_tracemalloc = bool(options['trace_tracemalloc'])

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, cast
 import loguru
 import pytest
 
-from nodes.management.commands.test_instance import CheckState, Command, InstanceDetail, NodeDetail
+from nodes.management.commands.test_instance import CheckState, Command, InstanceDetail, NodeDetail, resolve_all_nodes
 
 if TYPE_CHECKING:
     from nodes.context import Context
@@ -50,6 +50,19 @@ def make_command(*, reference_failed: bool) -> Command:
         ],
     )
     return command
+
+
+@pytest.mark.parametrize(
+    ('store', 'all_nodes', 'outcomes_only', 'expected'),
+    [
+        (True, False, False, True),
+        (True, False, True, False),
+        (False, False, False, False),
+        (False, True, False, True),
+    ],
+)
+def test_resolve_all_nodes(*, store: bool, all_nodes: bool, outcomes_only: bool, expected: bool) -> None:
+    assert resolve_all_nodes(store=store, all_nodes=all_nodes, outcomes_only=outcomes_only) is expected
 
 
 @pytest.mark.parametrize(('reference_failed', 'expected'), [(True, True), (False, False)])
