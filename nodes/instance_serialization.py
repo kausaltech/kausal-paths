@@ -147,6 +147,7 @@ class DatasetMetricSnapshot(ModelSnapshot):
     identifier: str
     label: TranslatedString | None = None
     unit: str
+    quantity: str | None = None
     validation_rules: list[MetricValidationRuleSnapshot] = Field(default_factory=list)
 
     @classmethod
@@ -160,6 +161,7 @@ class DatasetMetricSnapshot(ModelSnapshot):
             identifier=obj.name or str(obj.uuid),
             label=_ts_from_modeltrans(obj, 'label', 'en') if obj.label or obj.i18n else None,
             unit=obj.unit,
+            quantity=(obj.spec or {}).get('quantity'),
             validation_rules=cls._rules_from_model(obj),
         )
 
@@ -169,6 +171,7 @@ class DatasetMetricSnapshot(ModelSnapshot):
             identifier=obj.name or str(obj.uuid),
             label=_ts_from_modeltrans(obj, 'label', primary_language),
             unit=obj.unit,
+            quantity=(obj.spec or {}).get('quantity'),
             validation_rules=cls._rules_from_model(obj),
         )
 
@@ -1245,6 +1248,7 @@ def dataset_meta_from_model(
             identifier=metric.name,
             label=_ts_from_modeltrans(metric, 'label', primary_language),
             unit=metric.unit,
+            quantity=(metric.spec or {}).get('quantity'),
             order=metric.order,
             validation_rules=tuple(
                 validation_rule_adapter.validate_python(rule.rule)
@@ -1486,6 +1490,7 @@ def _import_dataset(
             schema=schema,
             name=m_snap.identifier,
             unit=m_snap.unit,
+            spec={'quantity': m_snap.quantity} if m_snap.quantity is not None else {},
             order=idx,
             i18n=metric_i18n,
             **metric_fields,

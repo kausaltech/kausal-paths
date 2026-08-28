@@ -31,6 +31,20 @@ def validate_unit(unit: str) -> None:
     paths.utils.validate_unit(unit)
 
 
+def validate_metric_spec(spec: dict[str, typing.Any]) -> None:
+    """Raise `ValidationError` if `spec` is not a valid `DatasetMetric.spec` payload."""
+    from django.core.exceptions import ValidationError
+    from pydantic import ValidationError as PydanticValidationError
+
+    from datasets.defs import DatasetMetricSpec
+
+    try:
+        DatasetMetricSpec.model_validate(spec)
+    except PydanticValidationError as e:
+        errors = '; '.join(err['msg'] for err in e.errors())
+        raise ValidationError(f'Invalid metric spec: {errors}') from None
+
+
 DATA_SOURCE_DEFAULT_SCOPE_CONTENT_TYPE: tuple[str, str] = ('nodes', 'instanceconfig')
 SCHEMA_HAS_SINGLE_DATASET: bool = True
 SCHEMA_DEFAULT_SCOPE_FUNCTION: Callable[[], Model] | None = schema_default_scope

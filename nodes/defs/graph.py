@@ -67,6 +67,8 @@ class DatasetMetricMeta(FrozenGraphModel):
     identifier: str | None = None
     label: I18nString | None = None
     unit: str = ''
+    quantity: str | None = None
+    """Quantity-kind id of what the metric measures; None means any quantity."""
     order: int | None = None
     validation_rules: tuple[ValidationRule, ...] = ()
 

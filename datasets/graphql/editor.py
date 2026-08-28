@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import date
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NoReturn, TypeGuard, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import strawberry as sb
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -19,9 +20,12 @@ from kausal_common.datasets.models import (
     DataPointComment,
     DataPointCommentReviewState,
     Dataset,
+    DatasetMetric,
+    DatasetMetricValidationRule,
     DatasetSourceReference,
     DataSource,
 )
+from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
 from kausal_common.strawberry.helpers import get_or_error
 from kausal_common.users import user_or_bust
 
@@ -33,12 +37,16 @@ from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.graphql.types.problems import DatasetValidationViolationType
 from nodes.models import InstanceConfig
 
-from .types import DataPointCommentType, DataPointType, DatasetSourceReferenceType, MetricValidationRuleType
+from .types import DataPointCommentType, DataPointType, DatasetMetricType, DatasetSourceReferenceType, MetricValidationRuleType
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from strawberry import Some
 
-    from kausal_common.datasets.models import DatasetMetric, DatasetMetricValidationRule
+    from kausal_common.datasets.models import DatasetSchema
+
+    from users.models import User
 
 
 @sb.input
@@ -127,8 +135,37 @@ class MetricValidationRulesResult:
     )
 
 
+@sb.input
+class CreateDatasetMetricInput:
+    label: str
+    unit: str = ''
+    quantity: sb.ID | None = sb.field(
+        default=None,
+        description='Quantity-kind identifier of what the metric measures. Null means any quantity.',
+    )
+    id: UUID | None = sb.field(default=None, description='Optional UUID for the new metric.')
+
+
+@sb.input
+class UpdateDatasetMetricInput:
+    label: Maybe[str]
+    unit: Maybe[str]
+    quantity: Maybe[sb.ID | None] = sb.field(
+        default=None,
+        description='Quantity-kind identifier of what the metric measures. Set to null to clear.',
+    )
+
+
 def _is_maybe_set[T](maybe: Some[T] | None) -> TypeGuard[Some[T]]:
     return maybe is not None and maybe is not sb.UNSET
+
+
+def _require_user(info: gql.Info) -> User:
+    """Return the authenticated user, or raise the mutation-level permission error."""
+    try:
+        return user_or_bust(info.context.user)
+    except ValueError as exc:
+        raise PermissionDenied('Permission denied') from exc
 
 
 def _stringify_errors(value: Any) -> Any:
@@ -143,6 +180,48 @@ def _raise_serializer_errors(serializer: DataPointSerializer) -> NoReturn:
     raise ValidationError(_stringify_errors(serializer.errors))
 
 
+def _metric_snapshot(metric: DatasetMetric) -> dict[str, Any]:
+    """Lightweight snapshot of a DatasetMetric for change tracking."""
+    return {
+        'uuid': str(metric.uuid),
+        'schema_uuid': str(metric.schema.uuid),
+        'name': metric.name,
+        'label': metric.label,
+        'i18n': dict(metric.i18n or {}),
+        'unit': metric.unit,
+        'spec': dict(metric.spec or {}),
+        'order': metric.order,
+    }
+
+
+def create_metric_row(
+    schema: DatasetSchema,
+    input: CreateDatasetMetricInput,
+    primary_language: str,
+) -> DatasetMetric:
+    """
+    Create one DatasetMetric under `schema`, validating unit and quantity.
+
+    Shared by `DatasetEditorMutation.create_metric` and the instance-level
+    `createDataset` mutation. Must run inside an open change operation;
+    records its own `dataset.metric.create` change. Raises Django
+    `ValidationError` on an invalid unit or quantity.
+    """
+    label, label_i18n = get_modeltrans_attrs_from_str(input.label, 'label', primary_language)
+    metric = DatasetMetric(
+        schema=schema,
+        uuid=input.id or uuid4(),
+        label=label,
+        i18n=label_i18n,
+        unit=input.unit or '',
+        spec={'quantity': str(input.quantity)} if input.quantity else {},
+    )
+    metric.clean()
+    metric.save()
+    record_change(metric, action='dataset.metric.create', before=None, after=_metric_snapshot(metric))
+    return metric
+
+
 def _replace_metric_validation_rules(
     metric: DatasetMetric,
     rules: list[tuple[UUID | None, ValidationRule]],
@@ -154,7 +233,6 @@ def _replace_metric_validation_rules(
     without a uuid create new rows, and existing rows missing from the list
     are deleted. List position becomes the order.
     """
-    from kausal_common.datasets.models import DatasetMetricValidationRule
 
     def rule_snapshot(row: DatasetMetricValidationRule) -> dict[str, Any]:
         return {'uuid': str(row.uuid), 'rule': row.rule, 'order': row.order}
@@ -219,10 +297,7 @@ class DatasetEditorMutation:
 
     @staticmethod
     def _save_dataset(root: Me, info: gql.Info, dataset: Dataset | None = None) -> None:
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
+        user = _require_user(info)
         refresh_dataset_materialization(dataset or root.dataset, user=user, enforce_edit_rules=True)
 
     @staticmethod
@@ -270,10 +345,7 @@ class DatasetEditorMutation:
         if not DataPoint.gql_create_allowed(info, cast('Any', dataset)):
             raise PermissionDenied('Permission denied for create')
 
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
+        user = _require_user(info)
 
         created: list[DataPoint] = []
         with transaction.atomic():
@@ -325,10 +397,7 @@ class DatasetEditorMutation:
     def _update_data_points(info: gql.Info, root: Me, input: list[UpdateDataPointItemInput]) -> list[DataPoint]:
         DatasetEditorMutation._require_batch(input)
         DatasetEditorMutation._require_unique_data_point_ids([item.data_point_id for item in input])
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
+        user = _require_user(info)
 
         updated_data_points: list[DataPoint] = []
         with transaction.atomic():
@@ -442,8 +511,6 @@ class DatasetEditorMutation:
     ) -> MetricValidationRulesResult:
         from pydantic import ValidationError as PydanticValidationError
 
-        from kausal_common.datasets.models import DatasetMetric
-
         dataset = root.dataset
         if dataset.schema is None:
             raise ValidationError('Dataset has no schema')
@@ -458,22 +525,158 @@ class DatasetEditorMutation:
             except (PydanticValidationError, ValueError) as error:
                 raise ValidationError(f'Invalid validation rule: {error}') from error
 
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
-
-        with transaction.atomic():
-            locked_dataset = Dataset.objects.select_for_update().get(pk=dataset.pk)
-            with gql_change_operation(info, root.instance, action='dataset.metric.validation_rules.set'):
-                result_rows = _replace_metric_validation_rules(metric, converted)
-                # Setting rules is not a data edit: re-evaluate and persist the
-                # violations, but never block on pre-existing data.
-                refresh_dataset_materialization(locked_dataset, user=user)
+        with DatasetEditorMutation._locked_schema_change(root, info, 'dataset.metric.validation_rules.set'):
+            # Setting rules is not a data edit: re-evaluate and persist the
+            # violations, but never block on pre-existing data.
+            result_rows = _replace_metric_validation_rules(metric, converted)
         return MetricValidationRulesResult(
             validation_rules=[MetricValidationRuleType.from_model(row) for row in result_rows],
             violations=DatasetEditorMutation._current_violations(root),
         )
+
+    # ------------------------------------------------------------------
+    # Metrics
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    @contextmanager
+    def _locked_schema_change(root: Me, info: gql.Info, action: str) -> Generator[Dataset]:
+        """
+        Run a schema-level edit as one change operation on a locked dataset row.
+
+        Serializes concurrent edits with ``select_for_update`` and refreshes
+        the dataset materialization after the body has run.
+        """
+        user = _require_user(info)
+        with transaction.atomic():
+            locked_dataset = Dataset.objects.select_for_update().get(pk=root.dataset.pk)
+            with gql_change_operation(info, root.instance, action=action):
+                yield locked_dataset
+                refresh_dataset_materialization(locked_dataset, user=user)
+
+    @staticmethod
+    def _require_sole_schema(root: Me) -> DatasetSchema:
+        """
+        Return the dataset's schema, provided this dataset is its only one.
+
+        Metric mutations edit the schema, so a schema shared with other
+        datasets (pre-Trailhead rows) must not be modified through a
+        dataset-scoped editor.
+        """
+        schema = root.dataset.schema
+        if schema is None:
+            raise ValidationError('Dataset has no schema')
+        if schema.datasets.exclude(pk=root.dataset.pk).exists():
+            raise ValidationError(
+                'The schema of this dataset is shared with other datasets and cannot be edited here',
+                code='schema_shared',
+            )
+        return schema
+
+    @staticmethod
+    def _get_metric(info: gql.Info, schema: DatasetSchema, metric_id: UUID, for_action: Any = 'change') -> DatasetMetric:
+        return get_or_error(
+            info,
+            DatasetMetric.objects.get_queryset().filter(schema=schema),
+            uuid=str(metric_id),
+            for_action=for_action,
+        )
+
+    @gql.mutation(description='Add a metric (value column) to this dataset', graphql_type=DatasetMetricType)
+    @staticmethod
+    def create_metric(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: CreateDatasetMetricInput,
+    ) -> DatasetMetricType:
+        schema = DatasetEditorMutation._require_sole_schema(root)
+        if not DatasetMetric.gql_create_allowed(info, cast('Any', schema)):
+            raise PermissionDenied('Permission denied for create')
+
+        with DatasetEditorMutation._locked_schema_change(root, info, 'dataset.metric.create'):
+            metric = create_metric_row(schema, input, root.instance.primary_language)
+        return DatasetMetricType.from_model(metric)
+
+    @gql.mutation(description='Update a metric of this dataset', graphql_type=DatasetMetricType)
+    @staticmethod
+    def update_metric(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        metric_id: UUID,
+        input: UpdateDatasetMetricInput,
+    ) -> DatasetMetricType:
+        schema = DatasetEditorMutation._require_sole_schema(root)
+        metric = DatasetEditorMutation._get_metric(info, schema, metric_id)
+        before = _metric_snapshot(metric)
+
+        update_fields: list[str] = []
+        if _is_maybe_set(input.label):
+            metric.label = input.label.value
+            update_fields.append('label')
+        if _is_maybe_set(input.unit):
+            metric.unit = input.unit.value or ''
+            update_fields.append('unit')
+        if _is_maybe_set(input.quantity):
+            spec = dict(metric.spec or {})
+            if input.quantity.value:
+                spec['quantity'] = str(input.quantity.value)
+            else:
+                spec.pop('quantity', None)
+            metric.spec = spec
+            update_fields.append('spec')
+        if not update_fields:
+            return DatasetMetricType.from_model(metric)
+
+        metric.clean()
+        with DatasetEditorMutation._locked_schema_change(root, info, 'dataset.metric.update'):
+            metric.save(update_fields=update_fields)
+            record_change(metric, action='dataset.metric.update', before=before, after=_metric_snapshot(metric))
+        return DatasetMetricType.from_model(metric)
+
+    @gql.mutation(
+        description=(
+            'Delete a metric of this dataset. Refused while a node input port is bound to the metric. '
+            'When the metric has data points, the mutation fails with error code '
+            "'metric_has_data_points' unless `force` is true, in which case the data points "
+            'are deleted along with the metric.'
+        ),
+        graphql_type=OperationInfo | None,
+    )
+    @staticmethod
+    def delete_metric(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        metric_id: UUID,
+        force: bool = False,
+    ) -> OperationInfo | None:
+        schema = DatasetEditorMutation._require_sole_schema(root)
+        metric = DatasetEditorMutation._get_metric(info, schema, metric_id, for_action='delete')
+
+        if metric.node_input_bindings.exists() or metric.node_ports.exists():
+            raise ValidationError(
+                'The metric is bound to a node input port; remove the binding first',
+                code='metric_in_use',
+            )
+        if not schema.metrics.exclude(pk=metric.pk).exists():
+            raise ValidationError(
+                'Cannot delete the only metric of a dataset',
+                code='last_metric',
+            )
+
+        with DatasetEditorMutation._locked_schema_change(root, info, 'dataset.metric.delete'):
+            data_point_count = metric.data_points.count()
+            if data_point_count and not force:
+                raise ValidationError(
+                    f'The metric has {data_point_count} data points; pass force: true to delete them as well',
+                    code='metric_has_data_points',
+                )
+            before = _metric_snapshot(metric)
+            before['data_point_count'] = data_point_count
+            if data_point_count:
+                metric.data_points.all().delete()
+            record_change(metric, action='dataset.metric.delete', before=before, after=None)
+            metric.delete()
+        return None
 
     @gql.mutation(description='Delete data points', graphql_type=DeleteDataPointsResult)
     @staticmethod
@@ -545,10 +748,7 @@ class DatasetEditorMutation:
         if not DataPointComment.gql_create_allowed(info, cast('Any', data_point)):
             raise PermissionDenied('Permission denied for create')
 
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
+        user = _require_user(info)
 
         with gql_change_operation(info, root.instance, action='dataset.datapoint.comment.create'):
             comment = DataPointComment.objects.create(
@@ -579,10 +779,7 @@ class DatasetEditorMutation:
     ) -> DataPointCommentType:
         comment = DatasetEditorMutation._get_comment(info, root, comment_id, for_action='change')
 
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
+        user = _require_user(info)
 
         with gql_change_operation(info, root.instance, action='dataset.datapoint.comment.update'):
             before = DatasetEditorMutation._data_point_comment_snapshot(comment)
@@ -621,10 +818,7 @@ class DatasetEditorMutation:
     ) -> OperationInfo | None:
         comment = DatasetEditorMutation._get_comment(info, root, comment_id, for_action='delete')
 
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
+        user = _require_user(info)
 
         with gql_change_operation(info, root.instance, action='dataset.datapoint.comment.delete'):
             record_change(
@@ -646,10 +840,7 @@ class DatasetEditorMutation:
     ) -> DataPointCommentType:
         comment = DatasetEditorMutation._get_comment(info, root, comment_id, for_action='change')
 
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
+        user = _require_user(info)
 
         with gql_change_operation(info, root.instance, action='dataset.datapoint.comment.resolve'):
             before = DatasetEditorMutation._data_point_comment_snapshot(comment)
@@ -678,10 +869,7 @@ class DatasetEditorMutation:
     ) -> DataPointCommentType:
         comment = DatasetEditorMutation._get_comment(info, root, comment_id, for_action='change')
 
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
+        user = _require_user(info)
 
         with gql_change_operation(info, root.instance, action='dataset.datapoint.comment.unresolve'):
             before = DatasetEditorMutation._data_point_comment_snapshot(comment)
@@ -747,10 +935,7 @@ class DatasetEditorMutation:
         if not DatasetSourceReference.gql_create_allowed(info, cast('Any', dataset)):
             raise PermissionDenied('Permission denied for create')
 
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDenied('Permission denied') from exc
+        user = _require_user(info)
 
         with gql_change_operation(info, root.instance, action='dataset.source_reference.create'):
             ref = DatasetSourceReference.objects.create(

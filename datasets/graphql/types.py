@@ -57,6 +57,7 @@ if TYPE_CHECKING:
     from nodes.defs.binding_def import DatasetBindingDef
     from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
+    from nodes.graphql.types.node import QuantityKindType  # used in lazy strawberry annotations
     from nodes.graphql.types.problems import DatasetValidationViolationType
     from nodes.metric import DimensionalMetric
 
@@ -144,6 +145,7 @@ class DatasetMetricType:
     validation_rules: list[MetricValidationRuleType] = sb.field(
         description='Validation rules evaluated against this metric, in order.',
     )
+    _quantity_id: sb.Private[str | None] = None
 
     @sb.field(
         graphql_type=Annotated['UnitType', sb.lazy('paths.graphql_types')] | None,  # type: ignore[operator]
@@ -163,6 +165,25 @@ class DatasetMetricType:
         except Exception:
             return None
 
+    @sb.field(
+        graphql_type=Annotated['QuantityKindType', sb.lazy('nodes.graphql.types.node')] | None,  # type: ignore[operator]
+        description=(
+            'What the metric measures, e.g. for checking compatibility with an input port. '
+            'Null means the metric is compatible with any quantity.'
+        ),
+    )
+    @staticmethod
+    def quantity(root: 'DatasetMetricType') -> Any:
+        from nodes.graphql.types.node import QuantityKindType
+        from nodes.quantities import get_registry
+
+        if not root._quantity_id:
+            return None
+        kind = get_registry().get(root._quantity_id)
+        if kind is None:
+            return None
+        return QuantityKindType.from_kind(kind)
+
     @classmethod
     def from_model(
         cls,
@@ -178,6 +199,7 @@ class DatasetMetricType:
             previous_sibling=previous_sibling,
             next_sibling=next_sibling,
             validation_rules=[MetricValidationRuleType.from_model(rule) for rule in metric.validation_rules.all()],
+            _quantity_id=(metric.spec or {}).get('quantity'),
         )
 
 

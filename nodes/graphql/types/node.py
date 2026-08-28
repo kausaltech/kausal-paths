@@ -66,7 +66,8 @@ markdown = MarkdownIt('commonmark', {'html': True})
 
 @sb.type
 class QuantityKindType:
-    id: str
+    id: sb.ID
+    identifier: sb.ID = sb.field(description='Stable identifier of the quantity kind. Currently an alias of `id`.')
     label: str
     icon: str | None
     qudt_iri: str | None
@@ -78,7 +79,8 @@ class QuantityKindType:
     @classmethod
     def from_kind(cls, kind: QuantityKind) -> QuantityKindType:
         return cls(
-            id=kind.id,
+            id=sb.ID(kind.id),
+            identifier=sb.ID(kind.id),
             label=str(kind.label),
             icon=kind.icon,
             qudt_iri=kind.qudt_iri,
