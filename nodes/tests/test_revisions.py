@@ -2201,7 +2201,6 @@ def test_published_editor_reads_revision_node_without_live_row_dependency(gql_cl
             identifier
             name
             editor {{ nodeType changeHistory {{ uuid }} }}
-            changeHistory {{ uuid }}
         }}
     }}
     """
@@ -2210,7 +2209,6 @@ def test_published_editor_reads_revision_node_without_live_row_dependency(gql_cl
     assert node_data['name'] == 'Guarded'
     assert node_data['editor'] is not None
     assert node_data['editor']['changeHistory'] == []
-    assert node_data['changeHistory'] == []
 
     # Same query on DRAFT: the superuser gets editor fields from live rows.
     draft_query = query.replace('preview: PUBLISHED', 'preview: DRAFT')

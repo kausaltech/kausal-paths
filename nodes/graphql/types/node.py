@@ -414,23 +414,6 @@ class NodeInterface(UserPermissionsMixin):
             return None
         return NodeConfig.objects.filter(pk=nc.copy_of_id).values_list('uuid', flat=True).first()
 
-    @sb.field(
-        graphql_type=list[Annotated['InstanceModelLogEntryType', sb.lazy('nodes.graphql.types.change_history')]],
-        description='Row-level change history for this node, newest first.',
-        deprecation_reason='Use editor.changeHistory instead.',
-    )
-    @staticmethod
-    def change_history(
-        root: 'Node',
-        info: gql.Info,
-        limit: int = 50,
-        before: datetime | None = None,
-    ) -> list[Any]:
-        editor = _node_editor_fields(root, info)
-        if editor is None:
-            return []
-        return NodeEditorFields.change_history(editor, info, limit=limit, before=before)
-
     @sb.field
     @staticmethod
     def quantity_kind(root: 'Node') -> QuantityKindType | None:

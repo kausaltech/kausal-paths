@@ -7,9 +7,9 @@ to API consumers.
 
 ``EditableEntity`` is the interface implemented by types that can be
 tracked in the change log (Node, NodeEdge, DatasetPort, …). It carries
-``uuid`` + ``changeHistory`` so the UI can fetch per-entity history
-without narrowing via ``... on``. The interface is also the ``target``
-type on ``InstanceModelLogEntryType``.
+the stable ``uuid`` shared by change-log targets and is the ``target``
+type on ``InstanceModelLogEntryType``. Entity-specific history lives on
+the relevant editor or concrete type.
 
 Target *kind* is reported as an enum (``ChangeTargetKind``) rather than
 a ContentType string so API consumers don't have to deal with
@@ -144,33 +144,14 @@ class EditableEntity:
 
     Implementing types are at minimum the editable ORM children of an
     InstanceConfig: ``Node``, ``NodeEdge``, ``DatasetPort``. Each carries
-    a stable ``uuid`` and a per-entity ``changeHistory`` query.
+    a stable ``uuid``.
 
     ``uuid`` is always populated: DB-backed entities return their
-    persisted uuid, runtime-only (YAML) entities fall back to a stable
-    uuidv5 derived from their identifier. For the latter,
-    ``changeHistory`` returns ``[]`` since no DB row exists to carry
-    entries.
-
-    ``changeHistory`` remains as a compatibility surface while entity-specific
-    editor projections become its canonical home. Concrete resolvers delegate
-    to the shared permission-aware UUID lookup.
+    persisted uuid, while runtime-only (YAML) entities fall back to a stable
+    uuidv5 derived from their identifier.
     """
 
     uuid: UUID
-
-    @sb.field(description='Row-level change history for this entity, newest first.')
-    @staticmethod
-    def change_history(
-        root: EditableEntity,
-        info: gql.Info,
-        limit: int = 50,
-        before: datetime | None = None,
-    ) -> list[InstanceModelLogEntryType]:
-        # Each implementing type overrides this with a concrete lookup
-        # (django model + pk + instance perm check). The base raises so
-        # missing overrides fail loudly rather than silently returning [].
-        raise NotImplementedError
 
 
 @sb.type
@@ -249,9 +230,7 @@ def _resolve_target(entry: InstanceModelLogEntry) -> Any:
         if nc is None:
             return None
         # Resolve via the runtime Node so the UI gets a real Node /
-        # ActionNode object it can introspect. The EditableEntity
-        # interface only needs uuid + changeHistory, which both
-        # concrete Node types provide.
+        # ActionNode object it can introspect through EditableEntity.
         ic = nc.instance
         instance = ic.get_instance()
         return instance.context.nodes.get(nc.identifier)

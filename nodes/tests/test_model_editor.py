@@ -930,7 +930,6 @@ def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
                     identifier
                     isEditable
                     userPermissions { view change delete }
-                    changeHistory { uuid }
                     editor {
                         nodeGroup
                         changeHistory { uuid }
@@ -946,7 +945,6 @@ def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
         'identifier': 'protected',
         'isEditable': False,
         'userPermissions': {'view': True, 'change': False, 'delete': False},
-        'changeHistory': [{'uuid': str(entry.uuid)}],
         'editor': {'nodeGroup': None, 'changeHistory': [{'uuid': str(entry.uuid)}]},
     }
 
@@ -971,7 +969,6 @@ def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
         query ProtectedNodeHistory {
             nodes {
                 identifier
-                changeHistory { uuid }
                 editor { changeHistory { uuid } }
             }
         }
@@ -980,9 +977,33 @@ def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
     unauthorized_node = next(node for node in unauthorized['nodes'] if node['identifier'] == nc.identifier)
     assert unauthorized_node == {
         'identifier': 'protected',
-        'changeHistory': [],
         'editor': None,
     }
+
+
+def test_node_change_history_is_only_exposed_through_editor(gql_client: PathsTestClient) -> None:
+    data = gql_client.query_data(
+        """
+        query ChangeHistorySchema {
+            node: __type(name: "Node") { fields(includeDeprecated: true) { name } }
+            actionNode: __type(name: "ActionNode") { fields(includeDeprecated: true) { name } }
+            editableEntity: __type(name: "EditableEntity") { fields(includeDeprecated: true) { name } }
+            nodeEditor: __type(name: "NodeEditor") { fields(includeDeprecated: true) { name } }
+            nodeEdge: __type(name: "NodeEdgeType") { fields(includeDeprecated: true) { name } }
+            datasetPort: __type(name: "DatasetPortType") { fields(includeDeprecated: true) { name } }
+        }
+        """,
+    )
+
+    def field_names(type_name: str) -> set[str]:
+        return {field['name'] for field in data[type_name]['fields']}
+
+    assert 'changeHistory' not in field_names('node')
+    assert 'changeHistory' not in field_names('actionNode')
+    assert 'changeHistory' not in field_names('editableEntity')
+    assert 'changeHistory' in field_names('nodeEditor')
+    assert 'changeHistory' in field_names('nodeEdge')
+    assert 'changeHistory' in field_names('datasetPort')
 
 
 def test_superuser_can_update_protected_node(gql_client: PathsTestClient, db_instance_config: InstanceConfig) -> None:
