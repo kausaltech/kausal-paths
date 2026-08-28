@@ -114,6 +114,46 @@ def test_instance_site_title(
     assert data['instance']['siteTitle'] == expected_title
 
 
+def test_instance_site_title_for_framework_created_instance(client) -> None:
+    """
+    ``FrameworkConfig.create_instance`` must store the bare instance name.
+
+    ``site_title`` prepends the framework name at read time, so an instance
+    whose stored name already carried that prefix was served doubled up
+    ("NetZeroCities: NetZeroCities: Madrid CAP 2030"). The two halves are only
+    correct together, which is why this drives the real creation path instead
+    of assembling the ``InstanceConfig`` by hand like the test above.
+    """
+    from paths.tests.graphql import PathsTestClient
+
+    from orgs.models import Organization
+    from orgs.tests.factories import OrganizationFactory
+
+    if not Organization.objects.filter(name='NetZeroCities').exists():
+        OrganizationFactory.create(name='NetZeroCities')
+    # No public_base_fqdn, so the instance has no view URL and creation skips
+    # the node sync; the naming behaviour under test doesn't depend on it.
+    framework = Framework.objects.create(identifier='test-framework', name='CADS')
+
+    fc = FrameworkConfig.create_instance(
+        framework=framework,
+        instance_identifier='cads-riga',
+        org_name='Riga',
+        baseline_year=2020,
+    )
+
+    assert fc.instance_config.name == 'Riga'
+    # The organization name stays available in its own right.
+    assert fc.organization_name == 'Riga'
+
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(fc.instance_config)
+    data = gql_client.query_data('{ instance { name siteTitle } }')
+
+    assert data['instance']['name'] == 'Riga'
+    assert data['instance']['siteTitle'] == 'CADS: Riga'
+
+
 def test_blank_yaml_metadata_fields_fall_back_to_snapshot(
     instance_gql_client: tuple[PathsTestClient, InstanceConfig],
     monkeypatch: pytest.MonkeyPatch,

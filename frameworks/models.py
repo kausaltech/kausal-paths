@@ -765,8 +765,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         from nodes.models import InstanceConfig, make_minimal_instance_spec
         from orgs.models import Organization
 
-        instance_name = '%s: %s' % (framework.name, org_name)
-
         # Create new organization for instance
         org = Organization.objects.get(name='NetZeroCities')
 
@@ -775,8 +773,11 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         # populated from the framework YAML further below, once the framework
         # link exists. It's left null here rather than set to an empty spec, so
         # readers of the stored spec don't see a stale, theme-less default.
+        #
+        # The name is stored bare; `InstanceType.site_title` is what prefixes it
+        # with the framework name for display.
         ic = InstanceConfig.objects.create(
-            name=instance_name,
+            name=org_name,
             identifier=instance_identifier,
             primary_language='en',
             other_languages=[],
