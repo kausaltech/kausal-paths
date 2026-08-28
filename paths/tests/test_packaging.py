@@ -11,6 +11,13 @@ leaves the harness unimportable — `translations/markup.py` derives its inline-
 Hence the `l10n` dependency *group* here, which `mise`'s `uv sync --all-groups --all-extras` picks up
 and `kausal_common/docker/Dockerfile` (which syncs only `prod`) does not. Two declarations of one
 fact, so the first test derives one from the other wherever both are on disk.
+
+That arrangement covers development and, precisely because the Dockerfile does not sync the group,
+covers nothing that is deployed. `import_instance_translations` is a management command that has to
+run wherever the database is, and it is on the import path that reads `lxml.html.defs`. So `lxml` is
+*also* a runtime dependency in `project.dependencies`, asserted separately at the bottom of this file.
+`anthropic` is not, and must not become one: it is the harness's LLM client, the harness runs from a
+checkout, and keeping it out of the web and worker images is the whole point of the group.
 """
 
 import configparser
@@ -96,3 +103,34 @@ def test_the_lock_file_resolves_the_group():
         assert specifier.contains(Version(locked[name])), (
             f'uv.lock pins {name} {locked[name]}, which does not satisfy {constraint!r}; re-run `uv lock`'
         )
+
+
+def _runtime_dependencies() -> dict[str, str]:
+    """Get the dependencies every install gets, groups and extras excluded."""
+    pyproject = tomllib.loads((REPO_ROOT / 'pyproject.toml').read_text())
+    return _requirements(pyproject['project']['dependencies'])
+
+
+def test_lxml_is_a_runtime_dependency_and_not_only_a_group():
+    """
+    A dependency group is invisible to the image, and the importer needs `lxml` to be importable there.
+
+    `kausal_common/docker/Dockerfile` syncs `--no-dev --group prod --extra kausal`, so the `l10n`
+    group above reaches a development checkout and never reaches a deployed one. That is fine for the
+    harness, which only ever runs from a checkout, and not fine for `import_instance_translations`,
+    which is a management command that has to run wherever the database is.
+
+    The failure it prevents is an `ImportError` rather than a missing feature:
+    `translations/markup.py` and `translations/richtext/inline_tags.py` both read `lxml.html.defs` at
+    module scope to derive the inline-tag whitelist, and the importer is on that import path. Nothing
+    parses with `lxml` — that is BeautifulSoup, which arrives with Wagtail — so the dependency buys
+    three static tables and the command cannot start without them.
+
+    `anthropic` is deliberately not asserted here. It is the harness's LLM client, nothing on the
+    YAML-to-database path imports it, and the point of the `l10n` group is to keep it out of the web
+    and worker images.
+    """
+    assert 'lxml' in _runtime_dependencies(), (
+        'lxml is declared only in the l10n group, which the Dockerfile does not sync; '
+        'import_instance_translations would fail on `import lxml` in any deployed environment'
+    )

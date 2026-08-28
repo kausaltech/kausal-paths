@@ -50,6 +50,12 @@ dependencies = [
   "ipython",
   "logfmter",
   "loguru",
+  # Not for parsing — that is BeautifulSoup, which arrives with Wagtail. `translations/markup.py` and
+  # `translations/richtext/inline_tags.py` read `lxml.html.defs` at module scope to derive the
+  # inline-tag whitelist, so `import_instance_translations` cannot start without it. A runtime
+  # dependency rather than the `l10n` group below, because the image syncs `--no-dev --group prod`
+  # and the importer has to run wherever the database is. See `paths/tests/test_packaging.py`.
+  "lxml",
   "modelsearch<1.2",
   "nanoid==2",
   "openpyxl",
@@ -101,7 +107,7 @@ dependencies = [
   "wrapt>=1.17.3",
   "xxhash",
 ]
-optional-dependencies.kausal = ["kausal-paths-extensions>=0.8.1"]
+optional-dependencies.kausal = ["kausal-paths-extensions==0.8.2"]
 
 [dependency-groups]
 dev = [

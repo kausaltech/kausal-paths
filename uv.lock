@@ -2612,6 +2612,7 @@ dependencies = [
     { name = "ipython" },
     { name = "logfmter" },
     { name = "loguru" },
+    { name = "lxml" },
     { name = "modelsearch" },
     { name = "nanoid" },
     { name = "openpyxl" },
@@ -2789,9 +2790,10 @@ requires-dist = [
     { name = "graphql-core" },
     { name = "graphql-relay" },
     { name = "ipython" },
-    { name = "kausal-paths-extensions", marker = "extra == 'kausal'", specifier = ">=0.8.1", index = "https://pypi.kausal.tech/" },
+    { name = "kausal-paths-extensions", marker = "extra == 'kausal'", specifier = "==0.8.2", index = "https://pypi.kausal.tech/" },
     { name = "logfmter" },
     { name = "loguru" },
+    { name = "lxml" },
     { name = "modelsearch", specifier = "<1.2" },
     { name = "nanoid", specifier = "==2" },
     { name = "openpyxl" },
@@ -2928,15 +2930,15 @@ prod = [
 
 [[package]]
 name = "kausal-paths-extensions"
-version = "0.8.1"
+version = "0.8.2"
 source = { registry = "https://pypi.kausal.tech/" }
 dependencies = [
     { name = "django" },
     { name = "pygithub" },
 ]
-sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.1.tar.gz", hash = "sha256:4756eb201aeefd77de72e6ef72ab64a9deb29cb09c7053e9a7b4cb15c8a4c0d7" }
+sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.2.tar.gz", hash = "sha256:391cf44d9b4508e7a20a468fb299244fd90d78c7c60d4fd3c58a2108e0b8015e" }
 wheels = [
-    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.1-py3-none-any.whl", hash = "sha256:6c457b1f0893211f9f465324cd1af773430f4844ad8ec4faa8c126804f4f375d" },
+    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.2-py3-none-any.whl", hash = "sha256:af10cc752f50b76ac1565fc3f2b7d348c30c0813c26f224a5654cbe92a11039d" },
 ]
 
 [[package]]
