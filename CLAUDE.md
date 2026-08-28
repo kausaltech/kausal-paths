@@ -120,7 +120,7 @@ pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema
 
 
 #### Data Flow
-1. **Configuration**: YAML files in `/configs/` define instance configurations
+1. **Configuration**: YAML files in `/configs/` define instance configurations for YAML-sourced instances; there is a migration underway to deprecate them, and switch to Pydantic-based configs persisted in the DB.
 2. **Data Processing**: Polars/Pandas for data manipulation with Pint for units
 3. **Calculations**: Node graph executes calculations with real-time updates
 4. **API**: GraphQL provides unified access to results and configurations
@@ -221,22 +221,6 @@ full rationale. In brief:
 - Maintain schema consistency across different apps
 - Include proper error handling and validation
 
-### Key Files and Directories
-
-#### Configuration
-- `/configs/` - Instance configurations and framework definitions
-- `pyproject.toml` - Project dependencies and tool configurations
-
-#### Data and Processing
-- `/datasets/` - Data files and processing modules
-- `/nodes/actions/` - Action implementations
-- `/nodes/finland/`, `/nodes/ch/` - Region-specific modules
-
-#### Templates and Static Files
-- `/templates/` - Django templates
-- `/static/` - Frontend assets
-- `/locale/` - Translation files
-
 ### Development Notes
 
 #### Database
@@ -251,10 +235,10 @@ full rationale. In brief:
 - Django Channels for WebSocket support
 
 #### Testing
-- Use pytest with Django plugin
 - Factory Boy for test data generation
 - **Always call `Factory.create()`** (not bare `Factory()`), so the return type
   is the model class, not the factory class. This matters for mypy and attribute access.
+  Include type annotations for fixtures in test function args.
 - Use `PathsTestClient` from `paths/tests/graphql.py` for new GraphQL tests
   (replaces the old `graphql_client_query_data` fixture). Key methods:
   `query_data()` (asserts no errors, returns `dict`), `query_errors()` (asserts
@@ -262,9 +246,12 @@ full rationale. In brief:
 - Test files should be in respective app directories
 
 #### Performance
-- Use Polars for large data processing (preferred over Pandas)
+- Use Polars for DataFrame processing (preferred over Pandas)
 - Implement proper caching strategies
 - Monitor memory usage in calculation-heavy operations
+
+#### Other conventions
+- Use descriptive bodies in commit messages (even if the recent commits only have subject lines). Explain the why and the how, if not obvious. Remember: This is a FOSS project, so do not refer to individual customers or Sentry issue identifiers.
 
 ### Common Tasks
 
