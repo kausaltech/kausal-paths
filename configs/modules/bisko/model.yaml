@@ -45,6 +45,31 @@ datasets:
   is_editable: false
 - id: de/energieverbrauch_uebriger_verkehr            # ifeu rail, inland waterway and aviation energy
   is_editable: false
+- id: demography/population_lau               # Eurostat GISCO population per municipality
+  # Locked, and outside `de/`, because it is neither editable nor German-specific: the same
+  # 94,000 municipalities serve Zurich, Cork and Lappeenranta, exactly as
+  # `weather/heating_degree_days` does. `data/population/` rebuilds it from the Eurostat GISCO
+  # LAU releases once a year.
+  #
+  # **Municipality level, not NUTS-3.** A NUTS-3 region is the city only where the city is a
+  # Kreisfreie Stadt; a headcount is a sum over an area, so for a city that is not its own Kreis
+  # the region's population is not an approximation of the city's but a different number --
+  # `DE141` is the Landkreis Reutlingen, 293,000 against 118,500 in the town. The LAU table is
+  # keyed on the municipality itself, and for Germany the LAU code **is the AGS**, so
+  # `DE_07315000` is Mainz -- the same municipality `ags_number` already names.
+  #
+  # Read as an **external DVC placeholder**, not loaded into an instance's database. Its
+  # `municipality` column is a human-readable label rather than a dimension, and 94,000
+  # municipalities of a European table have no business in a city's own data -- the same reason
+  # the ifeu tables above stay external. `load_dvc_dataset` it and the import fails on the label
+  # column; the model reads it fine without that.
+  #
+  # The `population` node filters it to one row using the instance's `lau_code` parameter. A
+  # `lau_code` that is not in the table matches nothing and leaves the node with an empty frame
+  # rather than raising, so
+  # `data/population/fetch_gisco_lau_population.py --check-configs` audits every declared code
+  # against the table -- including that a German `lau_code` and `ags_number` agree.
+  is_editable: false
 
 # --- Conformity templates: the required-data register, machine-readable --------------------
 # These declare which combinations the presence gate demands. A city editing them could
@@ -5167,3 +5192,91 @@ nodes:
   params:
   - id: formula
     value: prod_dim(prod_dim(availability, energy_carrier), per_what_energy)
+
+# --- Context data: the city in numbers, outside the balance ----------------------------------
+#
+# Not emissions and not energy, and nothing in the balance consumes it. It is here because the
+# questions a city asks of a balance ("per inhabitant?", "has consumption fallen faster than
+# the population has grown?") need a denominator, and a denominator invented at the point of
+# use is one nobody can check.
+
+- id: population
+  is_editable: false
+  name_de: Einwohnerzahl
+  name_en: Population
+  description_en: |
+    The population of the municipality itself, from the Eurostat GISCO LAU releases — the
+    Europe-wide register of Local Administrative Units, which is to say municipalities. The
+    municipality is selected by the instance's <i>LAU code</i> parameter, so the same European
+    table serves every city; for a German city that code is the AGS with a <code>DE_</code>
+    prefix, naming the same municipality as <i>AGS number</i>.<br/>
+    <b>This is the city, not its Kreis.</b> An earlier version of this node read Eurostat's
+    NUTS-3 table, where the region is the city only for a Kreisfreie Stadt — for a city that is
+    not its own Kreis it reported the surrounding Landkreis, which for Reutlingen is 293,000
+    against 118,500 in the town. Degree days survive that substitution because weather is much
+    the same across a Kreis; a headcount does not, because it is a sum over an area rather than
+    a property of the place.<br/>
+    <b>The series runs 2011–2024, and has holes.</b> GISCO publishes one release per year and
+    several are broken or provisional for a whole country — the 2022 and 2023 releases report
+    Finland's population in thousands — so every (country, year) combination is checked against
+    that country's Eurostat total and dropped when it disagrees. A dropped year is a gap here
+    rather than a wrong number. Germany passes in thirteen of the fourteen releases, 2013 being
+    the one GISCO published without German population at all.<br/>
+    A value repeated from the previous year means the country did not report that year, not that
+    the population was unchanged, and the reference date within the year is not uniform across
+    countries — so read a single year's level with more confidence than a single year's change.
+  description_de: |
+    Einwohnerzahl der Kommune selbst, aus den Eurostat-GISCO-LAU-Veröffentlichungen – dem
+    europaweiten Verzeichnis der Local Administrative Units, also der Gemeinden. Die Gemeinde
+    wird über den Instanzparameter <i>LAU-Code</i> ausgewählt, sodass dieselbe europäische
+    Tabelle jede Kommune bedient; bei einer deutschen Kommune ist dieser Code der AGS mit dem
+    Präfix <code>DE_</code> und bezeichnet dieselbe Gemeinde wie <i>AGS-Nummer</i>.<br/>
+    <b>Das ist die Stadt, nicht ihr Kreis.</b> Eine frühere Fassung dieses Knotens las die
+    NUTS-3-Tabelle von Eurostat, in der die Region nur bei einer Kreisfreien Stadt die Kommune
+    ist – bei einer nicht kreisfreien Kommune wies sie den umgebenden Landkreis aus, bei
+    Reutlingen 293.000 gegenüber 118.500 in der Stadt. Heizgradtage überstehen diese Ersetzung,
+    weil das Wetter im ganzen Kreis nahezu gleich ist; eine Einwohnerzahl nicht, weil sie eine
+    Summe über eine Fläche ist und keine Eigenschaft des Ortes.<br/>
+    <b>Die Reihe läuft von 2011 bis 2024 und hat Lücken.</b> GISCO veröffentlicht eine Ausgabe
+    pro Jahr, und mehrere sind für ein ganzes Land fehlerhaft oder vorläufig – die Ausgaben 2022
+    und 2023 weisen die finnische Bevölkerung in Tausend aus. Deshalb wird jede Kombination aus
+    Land und Jahr gegen die Eurostat-Landessumme geprüft und bei Abweichung verworfen. Ein
+    verworfenes Jahr ist hier eine Lücke und keine falsche Zahl. Deutschland besteht die Prüfung
+    in dreizehn der vierzehn Ausgaben; 2013 enthielt gar keine deutschen Einwohnerzahlen.<br/>
+    Ein gegenüber dem Vorjahr unveränderter Wert bedeutet, dass das Land in diesem Jahr nicht
+    gemeldet hat, nicht dass die Einwohnerzahl gleich geblieben ist; auch das Stichdatum im Jahr
+    ist nicht über alle Länder einheitlich. Das Niveau eines Jahres ist daher verlässlicher als
+    die Veränderung eines einzelnen Jahres.
+  type: simple.AdditiveNode
+  quantity: population
+  unit: cap
+  input_datasets:
+  - id: demography/population_lau
+    column: population
+    filters:
+    # The instance parameter picks the row. A code that is not in the table matches nothing and
+    # leaves this node empty rather than raising, which is why
+    # `fetch_gisco_lau_population.py --check-configs` exists.
+    - column: lau
+      ref: lau_code
+    # Both are carried in the table so it is readable by someone who did not build it: `country`
+    # is what the per-country validation groups by, `municipality` is the name. The model has
+    # use for neither.
+    - column: country
+    - column: municipality
+    # Deliberately *without* `extend_all`, unlike `weather_correction`. There the whole frame
+    # had to be spanned because a multiply intersects years, and a factor extended to a year it
+    # was not measured in is still a factor. Here `extend_all` would reach back to
+    # `minimum_historical_year` and hold the 2011 headcount flat through 1990-2010, presenting a
+    # back-cast as data. So this node stays short at the front, and any future consumer has to
+    # decide what to do about that rather than inherit an answer nobody chose.
+    #
+    # Forward of the last reported year the value is held flat and marked forecast regardless,
+    # because that is what the dataset machinery does with a series that ends before the frame;
+    # it is not something this operation list chooses.
+    #
+    # A consumer that multiplies or divides by this node will therefore drop 1990-2010 from its
+    # own output, exactly as final_energy_use once dropped 1990-1994 against the degree-day
+    # series. That is the intended, visible cost of not inventing the years: the regional table
+    # `demography/population_nuts` does reach back to 2000, and `data/population/README.md`
+    # sets out why it is not read here anyway.

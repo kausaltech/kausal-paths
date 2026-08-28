@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5b14257f1411e11bd8fc2669e692bdd5be3fd33a
+  commit: 4acca4b4125ea3b183a1617fd4da3304d6bdc524
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -15,6 +15,20 @@ reference_year: 1990
 minimum_historical_year: 1990
 maximum_historical_year: 2024
 emission_unit: kt_co2e/a
+normalizations:
+- normalizer_node: population
+  quantities:
+  - id: emissions
+    unit: t_co2e/cap/a
+  - id: energy
+    unit: kWh/cap/a
+  # - id: mileage # FIXME mileage is not unambiguous in Bisko.
+  #   unit: km/cap/a
+  # - id: vehicle_mileage
+  #   unit: vkm/cap/a
+  # - id: passenger_mileage
+  #   unit: pkm/cap/a
+  default: false
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
@@ -477,15 +491,34 @@ params:
   is_customizable: false
   is_visible: false
 # NUTS-3, not NUTS-2: Mainz is a Kreisfreie Stadt, so DEB35 *is* the city, where DEB3
-# (Rheinhessen-Pfalz) is a region many times its size. Nothing in the model reads this
-# -- it is an identifier of the city, recorded beside the AGS so the offline builders
-# have one place to look. `data/weather/create_degree_day_factors.py` uses it to pick
-# the city's column out of the European degree-day table. A city that is not its own
-# Kreis takes the NUTS-3 region containing it.
+# (Rheinhessen-Pfalz) is a region many times its size. Recorded beside the AGS because it
+# is an identifier of the city. Read by `data/weather/create_degree_day_factors.py`, which
+# picks the city's column out of the European degree-day table. No node reads it.
+#
+# A city that is not its own Kreis takes the NUTS-3 region containing it, which is sound for
+# degree days and not for anything extensive: the degree days of a Kreis are close to those of
+# the town inside it, but its population is not, because a headcount is a sum over an area
+# rather than a property of the place. `lau_code` below is the municipality itself, and is what
+# the `population` node reads. See data/population/README.md.
 - id: nuts_code
   label_en: NUTS-3 code
   label_de: NUTS-3-Code
   value: DEB35
+  is_customizable: false
+  is_visible: false
+# The municipality itself, as a Eurostat GISCO LAU code: `<country>_<national LAU code>`, and
+# for Germany the national LAU code is the AGS -- so this is `DE_` plus `ags_number`, naming
+# Mainz, Stadt. Read by the `population` node, which filters the European municipal
+# population table `demography/population_lau` down to this one municipality.
+#
+# Declared separately from `ags_number` rather than derived from it, because the model filters on
+# one column with one parameter and the table is Europe-wide: a bare `09761000` is not unique
+# across countries, and a Finnish or Swiss instance has no AGS at all. The two are cross-checked
+# instead of one being computed from the other.
+- id: lau_code
+  label_en: LAU code (municipality)
+  label_de: LAU-Code (Gemeinde)
+  value: DE_07315000
   is_customizable: false
   is_visible: false
 - id: use_national_values
