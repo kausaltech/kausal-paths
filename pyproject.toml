@@ -50,6 +50,12 @@ dependencies = [
   "ipython",
   "logfmter",
   "loguru",
+  # Not for parsing — that is BeautifulSoup, which arrives with Wagtail. `translations/markup.py` and
+  # `translations/richtext/inline_tags.py` read `lxml.html.defs` at module scope to derive the
+  # inline-tag whitelist, so `import_instance_translations` cannot start without it. A runtime
+  # dependency rather than the `l10n` group below, because the image syncs `--no-dev --group prod`
+  # and the importer has to run wherever the database is. See `paths/tests/test_packaging.py`.
+  "lxml",
   "modelsearch<1.2",
   "nanoid==2",
   "openpyxl",
@@ -101,7 +107,7 @@ dependencies = [
   "wrapt>=1.17.3",
   "xxhash",
 ]
-optional-dependencies.kausal = ["kausal-paths-extensions>=0.8.1"]
+optional-dependencies.kausal = ["kausal-paths-extensions==0.8.2"]
 
 [dependency-groups]
 dev = [
@@ -123,6 +129,18 @@ dev = [
   "virtualenvwrapper>=6.1.1",
   "viztracer",
   { include-group = "lint" },
+]
+l10n = [
+  # Mirrors the `l10n` extra of `kausal-paths-extensions` (see its `setup.cfg`). That extra is the
+  # real declaration, but nothing consults it in development, where the package is reached by a
+  # symlink and `PYTHONPATH` instead of being installed from the index — so a `uv sync` leaves the
+  # translation harness unimportable (`translations/markup.py` derives its inline-tag whitelist from
+  # `lxml.html.defs` at import time). A group rather than an extra, because the extra's comment keeps
+  # these out of the web and worker images on purpose and the Dockerfile syncs only `prod`.
+  # `anthropic` 1.x rebuilt the SDK on `httpx2` and supersedes the `output_format=` the harness
+  # sends; pinned below that boundary in both `setup.cfg`s too, until the client is migrated.
+  "anthropic<1",
+  "lxml",
 ]
 lint = [
   "altair>=6",
